@@ -3,7 +3,6 @@ package output
 import (
 	"fmt"
 	"io"
-	"text/tabwriter"
 )
 
 // OllamaStatusOutput reports whether a usable Ollama runtime is present, used by
@@ -22,21 +21,16 @@ type OllamaStatusOutput struct {
 }
 
 func (o OllamaStatusOutput) FormatText(w io.Writer) error {
-	yn := func(b bool) string {
-		if b {
-			return "yes"
-		}
-		return "no"
-	}
-	fmt.Fprintf(w, "Ollama runtime (%s)\n", o.BaseURL)
-	fmt.Fprintf(w, "  installed: %s", yn(o.Installed))
+	s := Theme(w)
+	fmt.Fprintf(w, "Ollama runtime (%s)\n", s.Accent.Render(o.BaseURL))
+	fmt.Fprintf(w, "  installed: %s", s.YesNo(o.Installed))
 	if o.BinaryPath != "" {
-		fmt.Fprintf(w, " (%s)", o.BinaryPath)
+		fmt.Fprintf(w, " %s", s.Muted.Render("("+o.BinaryPath+")"))
 	}
 	fmt.Fprintln(w)
-	fmt.Fprintf(w, "  running:   %s", yn(o.Running))
+	fmt.Fprintf(w, "  running:   %s", s.YesNo(o.Running))
 	if o.Version != "" {
-		fmt.Fprintf(w, " (v%s)", o.Version)
+		fmt.Fprintf(w, " %s", s.Muted.Render("(v"+o.Version+")"))
 	}
 	fmt.Fprintln(w)
 	if o.Running {
@@ -67,12 +61,13 @@ func (o OllamaModelsOutput) FormatText(w io.Writer) error {
 		fmt.Fprintln(w, "No models installed. Pull one with `kapi models ollama pull <model>`.")
 		return nil
 	}
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "MODEL\tSIZE\tMODIFIED")
+	t := NewTable(w).Accent(0).Headers("MODEL", "SIZE", "MODIFIED")
+	s := t.Styles()
 	for _, m := range o.Models {
-		fmt.Fprintf(tw, "%s\t%s\t%s\n", m.Name, m.Size, m.Modified)
+		t.Row(m.Name, s.Dim(m.Size), s.Dim(m.Modified))
 	}
-	return tw.Flush()
+	t.Render()
+	return nil
 }
 
 // OllamaPullOutput reports the result of `kapi models ollama pull`.

@@ -103,25 +103,29 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 // is the locale, or "locale/collection" when the project has named
 // collections with their own gates.
 func (o StatusOutput) writeCoverageGrid(w io.Writer) {
-	fmt.Fprintf(w, "%-14s %6s", "scope", "units")
-	for _, s := range statusLadder {
-		fmt.Fprintf(w, " %11s", s)
-	}
-	fmt.Fprintf(w, "  %s\n", "ship")
+	headers := make([]string, 0, len(statusLadder)+3)
+	headers = append(headers, "scope", "units")
+	headers = append(headers, statusLadder...)
+	headers = append(headers, "ship")
+
+	t := output.NewTable(w).Accent(0).Headers(headers...)
+	s := t.Styles()
 	for _, lc := range o.Locales {
-		fmt.Fprintf(w, "%-14s %6d", scopeLabel(lc), lc.Total)
-		for _, s := range statusLadder {
-			fmt.Fprintf(w, " %10d%%", lc.Pct[s])
+		cells := make([]string, 0, len(headers))
+		cells = append(cells, scopeLabel(lc), fmt.Sprintf("%d", lc.Total))
+		for _, rung := range statusLadder {
+			cells = append(cells, fmt.Sprintf("%d%%", lc.Pct[rung]))
 		}
-		fmt.Fprintf(w, "  %s", shipCell(lc))
+		ship := shipCell(lc, s)
 		// AI-approved units read as reviewed above, but honest provenance
 		// matters: qualify how many of them an autonomous AI approved. Gates
 		// only count these under `by: any` (core/gate approver classes).
 		if lc.AIReviewed > 0 {
-			fmt.Fprintf(w, "  (%d reviewed by ai)", lc.AIReviewed)
+			ship += s.Muted.Render(fmt.Sprintf("  (%d reviewed by ai)", lc.AIReviewed))
 		}
-		fmt.Fprintln(w)
+		t.Row(append(cells, ship)...)
 	}
+	t.Render()
 }
 
 // writeVenueLine renders the one-line convergence-venue standing for a
@@ -199,19 +203,19 @@ func scopeLabel(lc LocaleCoverage) string {
 }
 
 // shipCell renders the ship column: shippable, pending (with the binding
-// shortfall), or "—" when no gate applies to the locale.
-func shipCell(lc LocaleCoverage) string {
+// shortfall), or a dash when no gate applies to the locale.
+func shipCell(lc LocaleCoverage, s *output.Styles) string {
 	if !lc.Gated {
-		return "—"
+		return s.Dim("")
 	}
 	if lc.Shippable {
-		return "✓ shippable"
+		return s.Success.Render("✓ shippable")
 	}
 	parts := make([]string, 0, len(lc.Pending))
 	for _, sf := range lc.Pending {
 		parts = append(parts, fmt.Sprintf("%s %d%%<%d%%", sf.State, int(sf.Actual), sf.Required))
 	}
-	return "pending (" + strings.Join(parts, ", ") + ")"
+	return s.Warn.Render("pending (" + strings.Join(parts, ", ") + ")")
 }
 
 func (a *App) RunStatus(cmd Command, _ []string) error {

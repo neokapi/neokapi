@@ -401,25 +401,22 @@ func newPluginSearchCmd(a *App) *cobra.Command {
 				})
 			}
 
-			// --json gets the structured rows; the text form keeps the word-wrapped
-			// description layout (a flat table would mangle long descriptions).
+			// --json gets the structured rows in full; the text form is a table
+			// whose description column the renderer fits to the terminal.
 			if output.ResolveFormat(cmd) == output.FormatJSON {
 				return output.Print(cmd, output.PluginSearchOutput{Plugins: results, Total: len(results)})
 			}
-			const prefixWidth = 32 // "%-20s %-10s " → 20 + 1 + 10 + 1
-			descWidth := DescriptionWidth(cmd.OutOrStdout(), prefixWidth)
-			indent := strings.Repeat(" ", prefixWidth)
+			t := output.NewTable(cmd.OutOrStdout()).Accent(0).
+				Headers("PLUGIN", "VERSION", "DESCRIPTION")
+			s := t.Styles()
 			for _, r := range results {
 				desc := r.Description
 				if !r.Installable {
-					desc += fmt.Sprintf(" (no build for %s)", platform)
+					desc += s.Warn.Render(fmt.Sprintf(" (no build for %s)", platform))
 				}
-				wrapped := WrapText(desc, descWidth)
-				fmt.Fprintf(cmd.OutOrStdout(), "%-20s %-10s %s\n", r.Name, r.Version, wrapped[0])
-				for _, cont := range wrapped[1:] {
-					fmt.Fprintf(cmd.OutOrStdout(), "%s%s\n", indent, cont)
-				}
+				t.Row(r.Name, r.Version, desc)
 			}
+			t.Render()
 			return nil
 		},
 	}
@@ -557,6 +554,9 @@ Examples:
 
 			verbose := len(args) == 1
 			unhealthy := 0
+			t := output.NewTable(cmd.OutOrStdout()).Accent(0).
+				Headers("PLUGIN", "VERSION", "HEALTH")
+			s := t.Styles()
 			for _, p := range targets {
 				res := DiagnosePlugin(cmd.Context(), p)
 				if !res.Healthy {
@@ -564,14 +564,15 @@ Examples:
 				}
 				if verbose {
 					WriteDoctorReport(cmd.OutOrStdout(), p, res)
-				} else {
-					mark := "✓"
-					if !res.Healthy {
-						mark = "✗"
-					}
-					fmt.Fprintf(cmd.OutOrStdout(), "%s %-20s %-10s %s\n", mark, p.Name(), p.Version(), res.Summary)
+					continue
 				}
+				health := s.Success.Render("✓ " + res.Summary)
+				if !res.Healthy {
+					health = s.Error.Render("✗ " + res.Summary)
+				}
+				t.Row(p.Name(), p.Version(), health)
 			}
+			t.Render()
 
 			if unhealthy > 0 {
 				return WithExitCode(1, fmt.Errorf("%d of %d plugin(s) unhealthy", unhealthy, len(targets)))

@@ -546,11 +546,13 @@ that added them so you can filter the TM by import source.`,
 				}
 				return nil
 			}
+			t := output.NewTable(os.Stdout).Accent(0).
+				Headers("SESSION", "FILE", "TOOL", "ENTRIES", "IMPORTED")
 			for _, s := range sessions {
-				fmt.Fprintf(os.Stdout, "%s  %-40s  %-16s  %6d entries  %s\n",
-					TruncateID(s.ID, 12), s.FileKey, s.ToolName, s.EntryCount,
+				t.Rowf(TruncateID(s.ID, 12), s.FileKey, s.ToolName, s.EntryCount,
 					s.ImportedAt.Format("2006-01-02 15:04"))
 			}
+			t.Render()
 			return nil
 		},
 	}

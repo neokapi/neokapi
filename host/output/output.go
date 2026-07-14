@@ -10,8 +10,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/itchyny/gojq"
 	"github.com/mattn/go-isatty"
+	reflowtruncate "github.com/muesli/reflow/truncate"
 	"github.com/spf13/pflag"
 )
 
@@ -54,7 +56,7 @@ func AddFlags(fs *pflag.FlagSet) {
 	fs.Bool("text", false, "Output in text format (default)")
 	fs.String("output-format", "", "Output format: json, text")
 	fs.String("jq", "", "filter JSON output through a jq expression (implies --json)")
-	fs.String("color", "auto", "colorize JSON output: auto, always, never")
+	fs.String("color", "auto", "colorize output: auto, always, never")
 }
 
 // AddPersistentFlags registers output format flags on the given flag set
@@ -65,7 +67,7 @@ func AddPersistentFlags(fs *pflag.FlagSet) {
 	fs.Bool("text", false, "Output in text format (default)")
 	fs.String("output-format", "", "Output format: json, text")
 	fs.String("jq", "", "filter JSON output through a jq expression (implies --json)")
-	fs.String("color", "auto", "colorize JSON output: auto, always, never")
+	fs.String("color", "auto", "colorize output: auto, always, never")
 }
 
 // Format resolves the output format from command flags.
@@ -108,7 +110,23 @@ func Print(cmd Command, data any) error {
 		filter, _ := cmd.Flags().GetString("jq")
 		return RenderJSON(w, data, filter, Colorize(cmd, w))
 	}
+	// Resolve --color once, here, so FormatText (which only gets an io.Writer)
+	// can reach it via Theme/Renderer.
+	SetColorMode(resolveColorMode(cmd))
 	return printText(w, data)
+}
+
+// resolveColorMode maps the --color flag onto a ColorMode. Auto is left to the
+// renderer, which probes the destination writer and honors NO_COLOR and
+// CLICOLOR_FORCE.
+func resolveColorMode(cmd Command) ColorMode {
+	switch c, _ := cmd.Flags().GetString("color"); c {
+	case "always", "force":
+		return ColorAlways
+	case "never", "none":
+		return ColorNever
+	}
+	return ColorAuto
 }
 
 // Colorize decides whether JSON output should be ANSI-colored. Precedence:
@@ -156,12 +174,15 @@ func PrintText(data any) error {
 	return printText(os.Stdout, data)
 }
 
-// truncate shortens s to at most n runes, appending an ellipsis when cut.
+// truncate shortens s to at most n display cells, appending an ellipsis when
+// cut. It measures cells rather than bytes, so a wide rune counts as two and a
+// multi-byte rune is never sliced in half (which the previous byte-slicing
+// implementation could do, emitting invalid UTF-8).
 func truncate(s string, n int) string {
-	if len(s) <= n {
+	if lipgloss.Width(s) <= n {
 		return s
 	}
-	return s[:n-1] + "…"
+	return reflowtruncate.StringWithTail(s, uint(n), "…")
 }
 
 func printJSON(w io.Writer, data any) error {

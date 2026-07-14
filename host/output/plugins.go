@@ -3,7 +3,6 @@ package output
 import (
 	"fmt"
 	"io"
-	"text/tabwriter"
 )
 
 // PluginListRow is one installed plugin in a PluginListOutput.
@@ -31,24 +30,24 @@ func (o PluginListOutput) FormatText(w io.Writer) error {
 		fmt.Fprintln(w, "Search the registry: kapi plugin search")
 		return nil
 	}
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "NAME\tVERSION\tLICENSE\tSOURCE\tSTATUS")
+	t := NewTable(w).Accent(0).Headers("NAME", "VERSION", "LICENSE", "SOURCE", "STATUS")
+	s := t.Styles()
+
 	var retired []PluginListRow
 	for _, p := range o.Plugins {
-		status := p.Status
-		if status == "" {
-			status = "active"
+		status := s.Success.Render("active")
+		if p.Status != "" && p.Status != "active" {
+			status = s.Warn.Render(p.Status)
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", p.Name, p.Version, p.License, p.Source, status)
+		t.Row(p.Name, p.Version, s.Dim(p.License), s.Dim(p.Source), status)
 		if p.Retirement != "" {
 			retired = append(retired, p)
 		}
 	}
-	if err := tw.Flush(); err != nil {
-		return err
-	}
+	t.Render()
+
 	for _, p := range retired {
-		fmt.Fprintf(w, "\n⚠ %s\n", p.Retirement)
+		fmt.Fprintf(w, "\n%s\n", s.Warn.Render("⚠ "+p.Retirement))
 	}
 	return nil
 }

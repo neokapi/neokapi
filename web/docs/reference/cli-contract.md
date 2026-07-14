@@ -9,7 +9,9 @@ keywords: [kapi json, scripting, jq, exit codes, NDJSON, progress events, automa
 
 kapi's core verbs speak a documented, golden-tested machine contract so scripts, CI pipelines, and foreign-language callers never have to parse prose. This page covers the output flags, the structured results of `run`, `extract`, and `merge`, the JSON error envelope, exit codes, and streaming progress events. For driving the engine over gRPC instead of the CLI, see the [Engine service](/reference/engine-service); for the AI-agent surface, see the [MCP server](/reference/mcp).
 
-Compatibility: the JSON documents below are a stable contract. Fields may be added in a release; existing field names, types, and the human text renderings do not change. The shapes are locked by golden tests (`cli/contract_golden_test.go`).
+Compatibility: the JSON documents below are a stable contract. Fields may be added in a release; existing field names and types do not change. The shapes are locked by golden tests (`cli/contract_golden_test.go`).
+
+Human-readable text output is **not** a contract. It is presentation — column widths adapt to your terminal, values are truncated to fit, and it carries ANSI styling when stdout is a TTY. It is restyled whenever the CLI's presentation improves. Scripts must use `--json` (or `--jq`), which is stable, unstyled, and never truncated.
 
 ## Output flags
 
@@ -21,13 +23,19 @@ Every command accepts the persistent output flags:
 | `--text` | Human text (the default) |
 | `--output-format <json\|text>` | Explicit format selection |
 | `--jq <expr>` | Filter JSON output through a jq expression (implies `--json`) |
-| `--color <auto\|always\|never>` | Colorize JSON output |
+| `--color <auto\|always\|never>` | Colorize output. `auto` colorizes only when stdout is a terminal |
 
 Precedence: `--jq` > `--json` > `--text` > `--output-format`.
 
+### Color and theme
+
+Color is off whenever stdout is not a terminal, so piping or redirecting always yields plain text — no ANSI stripping required. `NO_COLOR` disables color and `CLICOLOR_FORCE` forces it, both overridden by an explicit `--color`.
+
+kapi renders for a dark terminal by default. Set `KAPI_THEME=light` (or `dark`) to pick explicitly; `COLORFGBG`, which many terminals export, is honored when `KAPI_THEME` is unset. kapi never queries the terminal for its background color, so it does not read from stdin or emit probe sequences into a captured session.
+
 ## Result documents
 
-With `--json`, the core verbs print one JSON document on stdout when they finish. Without it, the human report is byte-for-byte what earlier releases printed.
+With `--json`, the core verbs print one JSON document on stdout when they finish. Without it, they print a human report — presentation, not a contract (see above).
 
 ### `kapi run`
 
@@ -111,7 +119,7 @@ Under `--json` (or `--jq` / `--output-format=json`), a failing command prints a 
 { "error": "quality gate failed", "code": "gate" }
 ```
 
-`code` is the symbolic form of the process exit code (below). Exit codes are unchanged by `--json`; in text mode the historical `Error: <message>` line is byte-identical to earlier releases.
+`code` is the symbolic form of the process exit code (below). Exit codes are unchanged by `--json`; in text mode the error is still reported as an `Error: <message>` line.
 
 ## Exit codes
 

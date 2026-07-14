@@ -486,24 +486,35 @@
     "output": {
       "flows": {
         "available": "Available flows:",
+        "header": {
+          "description": "DESCRIPTION",
+          "flow": "FLOW",
+          "steps": "STEPS"
+        },
         "none": "No flows defined.",
         "total": "Total: %d flow(s)"
       },
       "formats": {
         "available": "Available formats:",
         "header": {
+          "default": "DEFAULT",
+          "description": "DESCRIPTION",
+          "edit": "EDIT",
           "extensions": "EXTENSIONS",
           "format": "FORMAT",
           "mimeTypes": "MIME TYPES",
           "name": "NAME",
+          "parameter": "PARAMETER",
           "read": "READ",
           "source": "SOURCE",
+          "type": "TYPE",
           "write": "WRITE"
         },
         "total": "Total: %d format(s)"
       },
       "plugins": {
         "header": {
+          "description": "DESCRIPTION",
           "formats": "FORMATS",
           "name": "NAME",
           "status": "STATUS",
@@ -514,6 +525,14 @@
         "none": "No plugins installed.",
         "total": "Total: %d plugin(s)"
       },
+      "presets": {
+        "header": {
+          "description": "DESCRIPTION",
+          "format": "FORMAT",
+          "preset": "PRESET",
+          "source": "SOURCE"
+        }
+      },
       "registries": {
         "header": {
           "channels": "CHANNELS",
@@ -523,6 +542,39 @@
         "none": "No registries configured.",
         "total": "Total: %d registry(ies)"
       },
+      "resources": {
+        "header": {
+          "modified": "MODIFIED",
+          "name": "NAME",
+          "path": "PATH",
+          "size": "SIZE"
+        }
+      },
+      "termbase": {
+        "header": {
+          "concept": "CONCEPT",
+          "concepts": "CONCEPTS",
+          "definition": "DEFINITION",
+          "domain": "DOMAIN",
+          "locale": "LOCALE",
+          "match": "MATCH",
+          "score": "SCORE",
+          "status": "STATUS",
+          "term": "TERM",
+          "terms": "TERMS"
+        }
+      },
+      "tm": {
+        "header": {
+          "entries": "ENTRIES",
+          "localePair": "LOCALE PAIR",
+          "locales": "LOCALES",
+          "matchType": "MATCH TYPE",
+          "score": "SCORE",
+          "source": "SOURCE",
+          "target": "TARGET"
+        }
+      },
       "tools": {
         "available": "Available tools:",
         "category": {
@@ -531,6 +583,10 @@
           "quality": "Quality",
           "text-processing": "Text Processing",
           "translation": "Translation"
+        },
+        "header": {
+          "description": "DESCRIPTION",
+          "tool": "TOOL"
         },
         "none": "No tools available.",
         "total": "Total: %d tool(s)"

@@ -30,23 +30,26 @@ type checkReport struct {
 
 // FormatText renders the report as a human-readable summary.
 func (r checkReport) FormatText(w io.Writer) error {
+	t := output.NewTable(w).Accent(1).Headers("severity", "rule", "location", "message")
+	s := t.Styles()
 	for _, d := range r.Findings {
 		loc := d.Location.Block
 		if d.Location.File != "" {
 			loc = d.Location.File + ":" + loc
 		}
-		fmt.Fprintf(w, "  %-8s %-28s %s  %s\n", strings.ToUpper(string(d.Severity)), d.Rule, loc, d.Message)
+		t.Row(severityCell(s, string(d.Severity)), d.Rule, s.Dim(loc), d.Message)
 		if d.Suggestion != "" {
-			fmt.Fprintf(w, "           ↳ %s\n", d.Suggestion)
+			t.Row("", "", "", s.Muted.Render("↳ "+d.Suggestion))
 		}
 	}
+	t.Render()
 	if len(r.Findings) == 0 {
 		fmt.Fprintln(w, "  No findings.")
 	}
 	fmt.Fprintln(w)
-	verdict := "PASS"
+	verdict := s.Success.Render("PASS")
 	if !r.Pass {
-		verdict = "FAIL"
+		verdict = s.Error.Render("FAIL")
 	}
 	fmt.Fprintf(w, "%s — score %d/100 · %d finding(s) (%d critical, %d major, %d minor)\n",
 		verdict, r.Summary.Score, r.Summary.Findings, r.Summary.Critical, r.Summary.Major, r.Summary.Minor)

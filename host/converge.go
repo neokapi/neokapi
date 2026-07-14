@@ -94,22 +94,27 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 		verb = "passes"
 	}
 	fmt.Fprintf(w, "Ran flow %q over %d locale(s) in %d %s.\n\n", o.Flow, len(o.Locales), o.Passes, verb)
+	t := output.NewTable(w).Accent(0).
+		Headers("locale", "drafted", "translated", "state", "checks")
+	s := t.Styles()
 	for _, lc := range o.Locales {
-		state := "pending"
+		state := s.Warn.Render("pending")
 		switch {
 		case lc.Parked:
-			state = "parked (needs human)"
+			state = s.Warn.Render("parked (needs human)")
 		case lc.Shippable:
-			state = "✓ shippable"
+			state = s.Success.Render("✓ shippable")
 		}
-		drafted := lc.Pct["draft"]
-		translated := lc.Pct["translated"]
-		checks := ""
+		checks := s.Dim("")
 		if lc.FailingChecks > 0 {
-			checks = fmt.Sprintf("  %d failing check(s)", lc.FailingChecks)
+			checks = s.Error.Render(fmt.Sprintf("%d failing check(s)", lc.FailingChecks))
 		}
-		fmt.Fprintf(w, "  %-10s drafted %d%%  translated %d%%  %s%s\n", lc.Locale, drafted, translated, state, checks)
+		t.Row(lc.Locale,
+			fmt.Sprintf("%d%%", lc.Pct["draft"]),
+			fmt.Sprintf("%d%%", lc.Pct["translated"]),
+			state, checks)
 	}
+	t.Render()
 	fmt.Fprintln(w)
 	if o.Converged {
 		fmt.Fprintln(w, "Converged: every gated scope is shippable.")

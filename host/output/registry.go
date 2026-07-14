@@ -25,17 +25,16 @@ func (o RegistryListOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 
-	fmt.Fprintf(w, "  %-20s %-50s %s\n",
+	t := NewTable(w).Accent(0).Headers(
 		T("registries.header.name"), T("registries.header.url"), T("registries.header.channels"))
-	fmt.Fprintf(w, "  %-20s %-50s %s\n", "----", "---", "--------")
+	s := t.Styles()
 	for _, r := range o.Registries {
-		channels := "-"
-		if len(r.Channels) > 0 {
-			channels = strings.Join(r.Channels, ", ")
-		}
-		fmt.Fprintf(w, "  %-20s %-50s %s\n", r.Name, r.URL, channels)
+		t.Row(r.Name, r.URL, s.Dim(strings.Join(r.Channels, ", ")))
 	}
-	fmt.Fprintf(w, "\n"+T("registries.total")+"\n", o.Total)
+	t.Render()
+
+	fmt.Fprintln(w)
+	Note(w, T("registries.total"), o.Total)
 	return nil
 }
 

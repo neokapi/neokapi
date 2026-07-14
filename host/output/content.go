@@ -59,14 +59,14 @@ type LsEntry struct {
 }
 
 // syncCell renders one entry's sync column: pending push count or "synced".
-func syncCell(d *int) string {
+func syncCell(s *Styles, d *int) string {
 	switch {
 	case d == nil:
-		return "-"
+		return s.Dim("")
 	case *d == 0:
-		return "synced"
+		return s.Success.Render("synced")
 	default:
-		return fmt.Sprintf("%d to push", *d)
+		return s.Warn.Render(fmt.Sprintf("%d to push", *d))
 	}
 }
 
@@ -88,47 +88,35 @@ func (o LsOutput) FormatText(w io.Writer) error {
 		fmt.Fprintln(w, "No tracked files.")
 		return nil
 	}
-	pathW := 4 // "PATH"
-	for _, f := range o.Files {
-		if len(f.Path) > pathW {
-			pathW = len(f.Path)
-		}
-	}
-	pathW += 2
 
-	if !o.HasStats {
-		for _, f := range o.Files {
-			if o.HasSync {
-				fmt.Fprintf(w, "%-*s %-12s %s\n", pathW, f.Path, f.Format, syncCell(f.Dirty))
-			} else {
-				fmt.Fprintf(w, "%-*s %s\n", pathW, f.Path, f.Format)
-			}
-		}
-		fmt.Fprintf(w, "\n%d file(s)\n", o.Total)
-		return nil
+	headers := []string{"PATH", "FORMAT"}
+	if o.HasStats {
+		headers = append(headers, "BLOCKS", "WORDS")
 	}
-
-	fmtW := 6 // "FORMAT"
-	for _, f := range o.Files {
-		if len(f.Format) > fmtW {
-			fmtW = len(f.Format)
-		}
-	}
-	fmtW += 2
 	if o.HasSync {
-		fmt.Fprintf(w, "  %-*s %-*s %8s %8s %12s\n", pathW, "PATH", fmtW, "FORMAT", "BLOCKS", "WORDS", "SYNC")
-		fmt.Fprintf(w, "  %-*s %-*s %8s %8s %12s\n", pathW, "----", fmtW, "------", "------", "-----", "----")
-		for _, f := range o.Files {
-			fmt.Fprintf(w, "  %-*s %-*s %8d %8d %12s\n", pathW, f.Path, fmtW, f.Format, f.Blocks, f.Words, syncCell(f.Dirty))
-		}
-	} else {
-		fmt.Fprintf(w, "  %-*s %-*s %8s %8s\n", pathW, "PATH", fmtW, "FORMAT", "BLOCKS", "WORDS")
-		fmt.Fprintf(w, "  %-*s %-*s %8s %8s\n", pathW, "----", fmtW, "------", "------", "-----")
-		for _, f := range o.Files {
-			fmt.Fprintf(w, "  %-*s %-*s %8d %8d\n", pathW, f.Path, fmtW, f.Format, f.Blocks, f.Words)
-		}
+		headers = append(headers, "SYNC")
 	}
-	fmt.Fprintf(w, "\n%d file(s), %d blocks, %d words\n", o.Total, o.Blocks, o.Words)
+
+	t := NewTable(w).Accent(0).Headers(headers...)
+	s := t.Styles()
+	for _, f := range o.Files {
+		cells := []string{f.Path, s.Muted.Render(f.Format)}
+		if o.HasStats {
+			cells = append(cells, fmt.Sprint(f.Blocks), fmt.Sprint(f.Words))
+		}
+		if o.HasSync {
+			cells = append(cells, syncCell(s, f.Dirty))
+		}
+		t.Row(cells...)
+	}
+	t.Render()
+
+	fmt.Fprintln(w)
+	if o.HasStats {
+		Note(w, "%d file(s), %d blocks, %d words", o.Total, o.Blocks, o.Words)
+	} else {
+		Note(w, "%d file(s)", o.Total)
+	}
 	return nil
 }
 

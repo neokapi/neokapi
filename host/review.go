@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/host/output"
 )
 
 // reviewQueueOutput is the structured result of `kapi status --review`: every
@@ -26,17 +27,19 @@ func (o reviewQueueOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 	fmt.Fprintf(w, "%d unit(s) awaiting review:\n\n", len(o.Pending))
+	t := output.NewTable(w).Accent(1).Headers("locale", "unit", "source", "ai")
+	s := t.Styles()
 	for _, it := range o.Pending {
-		aiNote := ""
+		ai := ""
 		if it.AIScore != nil {
-			aiNote = fmt.Sprintf("  · ai %d", *it.AIScore)
+			ai = fmt.Sprintf("ai %d", *it.AIScore)
 			if it.AIModel != "" {
-				aiNote += " (" + it.AIModel + ")"
+				ai += " (" + it.AIModel + ")"
 			}
 		}
-		fmt.Fprintf(w, "  %-8s %s:%s%s\n", it.Locale, it.File, it.Key, aiNote)
-		fmt.Fprintf(w, "           %s\n", it.Source)
+		t.Row(it.Locale, it.File+":"+it.Key, it.Source, s.Dim(ai))
 	}
+	t.Render()
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Approve a unit with `kapi apply` (a `review` change-set, addressed by its file/id/locale) — the decision lands in the project state store and the unit then counts as reviewed.")
 	return nil

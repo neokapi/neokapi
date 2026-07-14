@@ -6,8 +6,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
-	"text/tabwriter"
 
+	"github.com/neokapi/neokapi/host/output"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
@@ -71,16 +71,17 @@ func (o CredentialListOutput) FormatText(w io.Writer) error {
 		fmt.Fprintln(w, "No saved credentials. Use 'kapi credentials add' to save one.")
 		return nil
 	}
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(tw, "  NAME\tPROVIDER\tMODEL\tID\tKEY\n")
+	t := output.NewTable(w).Accent(0).Headers("NAME", "PROVIDER", "MODEL", "ID", "KEY")
+	s := t.Styles()
 	for _, r := range o.Credentials {
-		keyStatus := "missing"
+		key := s.Error.Render("missing")
 		if r.HasKey {
-			keyStatus = "ok"
+			key = s.Success.Render("ok")
 		}
-		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\n", r.Name, r.Provider, r.Model, r.ID, keyStatus)
+		t.Row(r.Name, r.Provider, s.Dim(r.Model), r.ID, key)
 	}
-	tw.Flush()
-	fmt.Fprintf(w, "\n%d credential(s)\n", o.Total)
+	t.Render()
+	fmt.Fprintln(w)
+	output.Note(w, "%d credential(s)", o.Total)
 	return nil
 }
