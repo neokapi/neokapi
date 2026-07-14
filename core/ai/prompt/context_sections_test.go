@@ -1,6 +1,7 @@
 package prompt
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -101,6 +102,40 @@ func TestBatchCarriesPerSegmentKeys(t *testing.T) {
 	assert.Contains(t, turns[0].Text, "never translate or return it",
 		"the model must be told the keys are not content")
 	assert.Contains(t, turns[0].Text, "File menu", "the batch's neighbourhood is shared, not per-segment")
+}
+
+// The model is asked to reproduce inline tags verbatim, so it must be shown a
+// tag — not an escape sequence standing in for one.
+//
+// encoding/json escapes < > & as \u003c \u003e \u0026 by default — a defence for
+// embedding JSON in a <script> tag, irrelevant here. That sent every inline tag to
+// the model as `\u003cph id="1"/\u003e`, and gemini-3.5-flash echoed back a
+// literal `3cph id="1"/3e`, corrupting the markup of every tagged segment it
+// translated. Caught by the batch eval; pinned here so it cannot come back.
+func TestBatchPayloadShowsTagsNotEscapeSequences(t *testing.T) {
+	t.Parallel()
+
+	segments := BatchSegments([]string{`I accept the <ph id="1"/>terms<ph id="2"/> & conditions`})
+	payload := ctxBasic().Batch(segments)[1].Text
+
+	// The tag reaches the model as a tag. (JSON escapes the quotes *inside* it —
+	// that is the framing doing its job, and the model decodes it as a matter of
+	// course; an escaped `<` is what it got wrong.)
+	assert.Contains(t, payload, `<ph id=`, "the model must see the tag it is being asked to copy")
+	assert.Contains(t, payload, "&", "ampersands too — the escaping is all or nothing")
+	assert.NotContains(t, payload, `\u003c`, "an escape sequence is not a tag; the model has to decode it, and gets it wrong")
+	assert.NotContains(t, payload, `\u003e`)
+	assert.NotContains(t, payload, `\u0026`)
+
+	// Still valid JSON: the point is to stop escaping what needs no escaping, not
+	// to hand-roll the framing. A block containing a quote or a brace must not be
+	// able to break out of its string.
+	var out struct {
+		Segments []struct{ Text string } `json:"segments"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(payload), &out))
+	require.Len(t, out.Segments, 1)
+	assert.Equal(t, `I accept the <ph id="1"/>terms<ph id="2"/> & conditions`, out.Segments[0].Text)
 }
 
 // A prompt that changed must not serve translations produced by the prompt it

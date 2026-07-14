@@ -1,0 +1,97 @@
+{
+  "as_of": "2026-07-14",
+  "note": "Refresh with `make update-model-prices` (fetches the vendors' own pricing pages and live model lists). Do not hand-edit: rates go stale, and a stale rate published as a cost is worse than no cost at all.",
+  "sources": {
+    "anthropic": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "gemini": "https://ai.google.dev/gemini-api/docs/pricing"
+  },
+  "models": [
+    {
+      "key": "claude-code:opus",
+      "resolves_to": "Claude Opus 4.8",
+      "input_per_mtok": 5.0,
+      "output_per_mtok": 25.0,
+      "route": "subscription",
+      "metered": false,
+      "source": "anthropic",
+      "note": "Rates are the Claude API list price for the model the alias resolves to. The run itself is not billed per token — it goes through the local Claude subscription."
+    },
+    {
+      "key": "claude-code:sonnet",
+      "resolves_to": "Claude Sonnet 5",
+      "input_per_mtok": 2.0,
+      "output_per_mtok": 10.0,
+      "route": "subscription",
+      "metered": false,
+      "source": "anthropic",
+      "note": "Introductory pricing through 2026-08-31; rises to $3/$15 on 2026-09-01."
+    },
+    {
+      "key": "claude-code:haiku",
+      "resolves_to": "Claude Haiku 4.5",
+      "input_per_mtok": 1.0,
+      "output_per_mtok": 5.0,
+      "route": "subscription",
+      "metered": false,
+      "source": "anthropic"
+    },
+    {
+      "key": "anthropic:claude-opus-4-8",
+      "input_per_mtok": 5.0,
+      "output_per_mtok": 25.0,
+      "route": "api",
+      "metered": true,
+      "source": "anthropic"
+    },
+    {
+      "key": "anthropic:claude-sonnet-5",
+      "input_per_mtok": 2.0,
+      "output_per_mtok": 10.0,
+      "route": "api",
+      "metered": true,
+      "source": "anthropic",
+      "note": "Introductory pricing through 2026-08-31; rises to $3/$15 on 2026-09-01."
+    },
+    {
+      "key": "anthropic:claude-haiku-4-5",
+      "input_per_mtok": 1.0,
+      "output_per_mtok": 5.0,
+      "route": "api",
+      "metered": true,
+      "source": "anthropic"
+    },
+    {
+      "key": "gemini:gemini-3.5-flash",
+      "input_per_mtok": 1.5,
+      "output_per_mtok": 9.0,
+      "route": "api",
+      "metered": true,
+      "source": "gemini"
+    },
+    {
+      "key": "gemini:gemini-3.1-flash-lite",
+      "input_per_mtok": 0.25,
+      "output_per_mtok": 1.5,
+      "route": "api",
+      "metered": true,
+      "source": "gemini"
+    },
+    {
+      "key": "gemini:gemini-3.1-pro",
+      "input_per_mtok": 2.0,
+      "output_per_mtok": 12.0,
+      "route": "api",
+      "metered": true,
+      "source": "gemini",
+      "note": "Prompts over 200k tokens are billed at $4/$18."
+    },
+    {
+      "key": "gemini:gemini-3-flash",
+      "input_per_mtok": 0.5,
+      "output_per_mtok": 3.0,
+      "route": "api",
+      "metered": true,
+      "source": "gemini"
+    }
+  ]
+}

@@ -77,6 +77,86 @@ func TestGeminiProviderChat(t *testing.T) {
 	assert.Equal(t, 5, resp.Usage.OutputTokens)
 }
 
+// Thinking is off for translation — it is a transformation, not a reasoning
+// problem, and thinking only buys latency. But the *pro* models refuse to run
+// that way ("Budget 0 is invalid. This model only works in thinking mode"), so
+// sending a zero budget made every Gemini pro model unusable in kapi: a 400 on
+// every call, at every batch size. They must get no thinking config at all.
+func TestGeminiThinkingBudgetIsOmittedForProModels(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		model    string
+		wantOmit bool
+	}{
+		{"gemini-3.5-flash", false},
+		{"gemini-3.1-flash-lite", false},
+		{"gemini-3.1-pro-preview", true},
+		{"gemini-3-pro-preview", true},
+		{"gemini-2.5-pro", true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.model, func(t *testing.T) {
+			t.Parallel()
+			got := noThinking(tc.model)
+			if tc.wantOmit {
+				assert.Nil(t, got, "a pro model rejects a zero thinking budget outright — send no config and take its default")
+				return
+			}
+			require.NotNil(t, got, "flash models should have thinking disabled: translation is not a reasoning problem")
+			assert.Equal(t, 0, got.ThinkingBudget)
+		})
+	}
+}
+
+// Both non-streaming paths carry the same rule; a fix applied to only one of them
+// would leave batch translation (which is ChatStructured) broken on pro models.
+func TestGeminiProCallsSendNoThinkingConfig(t *testing.T) {
+	t.Parallel()
+
+	var seen []*geminiThinkingConfig
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req geminiRequest
+		assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+		seen = append(seen, req.GenerationConfig.ThinkingConfig)
+		_ = json.NewEncoder(w).Encode(geminiResponse{
+			Candidates: []geminiCandidate{{Content: geminiContent{Role: "model", Parts: []geminiPart{{Text: "{}"}}}}},
+		})
+	}))
+	defer srv.Close()
+
+	p := NewGeminiProvider(Config{BaseURL: srv.URL, APIKey: "k", Model: "gemini-3.1-pro-preview"})
+	_, err := p.Chat(t.Context(), []Message{TextMessage("user", "Hi")})
+	require.NoError(t, err)
+	_, err = p.ChatStructured(t.Context(), []Message{TextMessage("user", "Hi")}, JSONSchema{Name: "s"})
+	require.NoError(t, err)
+
+	require.Len(t, seen, 2)
+	assert.Nil(t, seen[0], "Chat must not send a thinking budget to a pro model")
+	assert.Nil(t, seen[1], "ChatStructured — the batch-translation path — must not either")
+}
+
+// A caller's output budget describes the answer it expects. A thinking model
+// spends that same allowance on its thoughts first — so a tight budget truncated
+// the answer, and gemini-3.1-pro-preview returned translations cut off mid-tag.
+// Thinking models get the ceiling; you are billed for what is emitted, not for
+// what is permitted.
+func TestGeminiThinkingModelsIgnoreATightOutputBudget(t *testing.T) {
+	t.Parallel()
+
+	pro := NewGeminiProvider(Config{APIKey: "k", Model: "gemini-3.1-pro-preview"})
+	flash := NewGeminiProvider(Config{APIKey: "k", Model: "gemini-3.5-flash"})
+
+	// The translate tool sizes this from the batch: roughly two tokens per source
+	// token, plus slack. Nowhere near enough for a model that thinks first.
+	ctx := WithMaxOutputTokens(t.Context(), 900)
+
+	assert.Equal(t, pro.Limits().EffectiveMaxOutputTokens(), pro.maxTokens(ctx),
+		"a thinking model must get the ceiling, or it thinks its way through the budget and truncates the answer")
+	assert.Equal(t, 900, flash.maxTokens(ctx),
+		"a non-thinking model still honours the caller's budget: the whole allowance goes to the answer")
+}
+
 func TestGeminiProviderTranslate(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

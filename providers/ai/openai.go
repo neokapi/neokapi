@@ -12,6 +12,9 @@ import (
 	"github.com/neokapi/neokapi/core/httputil"
 )
 
+// DefaultOpenAIModel is the model a fresh provider uses when the caller names none.
+const DefaultOpenAIModel = "gpt-5.6-sol"
+
 // OpenAIProvider implements LLMProvider for OpenAI-compatible APIs.
 type OpenAIProvider struct {
 	config Config
@@ -24,7 +27,7 @@ func NewOpenAIProvider(cfg Config) *OpenAIProvider {
 		cfg.BaseURL = "https://api.openai.com"
 	}
 	if cfg.Model == "" {
-		cfg.Model = "gpt-5.6-sol"
+		cfg.Model = DefaultOpenAIModel
 	}
 	if cfg.MaxTokens == 0 {
 		cfg.MaxTokens = 4096

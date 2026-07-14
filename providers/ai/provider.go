@@ -395,15 +395,15 @@ var (
 )
 
 func init() {
-	RegisterProvider(ProviderInfo{Name: Anthropic, Label: "Anthropic", DefaultModel: "claude-sonnet-4-20250514", ModelPrefixes: []string{"claude"}},
+	RegisterProvider(ProviderInfo{Name: Anthropic, Label: "Anthropic", DefaultModel: DefaultAnthropicModel, ModelPrefixes: []string{"claude"}},
 		func(cfg Config) LLMProvider { return NewAnthropicProvider(cfg) })
-	RegisterProvider(ProviderInfo{Name: OpenAI, Label: "OpenAI", DefaultModel: "gpt-4o", ModelPrefixes: []string{"gpt", "o1", "o3", "o4", "chatgpt"}},
+	RegisterProvider(ProviderInfo{Name: OpenAI, Label: "OpenAI", DefaultModel: DefaultOpenAIModel, ModelPrefixes: []string{"gpt", "o1", "o3", "o4", "chatgpt"}},
 		func(cfg Config) LLMProvider { return NewOpenAIProvider(cfg) })
-	RegisterProvider(ProviderInfo{Name: Gemini, Label: "Gemini", DefaultModel: "gemini-3-flash-preview", ModelPrefixes: []string{"gemini"}},
+	RegisterProvider(ProviderInfo{Name: Gemini, Label: "Gemini", DefaultModel: DefaultGeminiModel, ModelPrefixes: []string{"gemini"}},
 		func(cfg Config) LLMProvider { return NewGeminiProvider(cfg) })
 	// Azure shares OpenAI's model names but is endpoint-specific, so it declares
 	// no prefixes — inferring it from "gpt-*" would be wrong. Choose it explicitly.
-	RegisterProviderWithAliases(ProviderInfo{Name: AzureOpenAI, Label: "Azure OpenAI", DefaultModel: "gpt-4o"},
+	RegisterProviderWithAliases(ProviderInfo{Name: AzureOpenAI, Label: "Azure OpenAI", DefaultModel: DefaultAzureOpenAIModel},
 		func(cfg Config) LLMProvider { return NewAzureOpenAIProvider(cfg) },
 		"azure_openai")
 	// claude-code declares no ModelPrefixes: "claude-*" ids belong to the

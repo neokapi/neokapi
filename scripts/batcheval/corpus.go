@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"regexp"
 	"strings"
@@ -36,6 +38,30 @@ type Case struct {
 // TestCorpus is the fixed input for every N in a sweep.
 type TestCorpus struct {
 	Cases []Case
+}
+
+// Words counts the source words the corpus puts through the model. This is the
+// denominator of the cost metric: content budgets are denominated in words, not
+// tokens, and a token count is a fact about a vendor's tokenizer rather than about
+// the work.
+func (c TestCorpus) Words() int {
+	n := 0
+	for _, tc := range c.Cases {
+		n += len(strings.Fields(tc.Source))
+	}
+	return n
+}
+
+// Digest identifies the exact corpus a run was measured on. A curve measured on
+// a different corpus is a different experiment, however similar it looks, so the
+// history records this and the dashboard refuses to plot mismatched runs on one
+// line.
+func (c TestCorpus) Digest() string {
+	h := sha256.New()
+	for _, tc := range c.Cases {
+		fmt.Fprintf(h, "%s\x00%s\x00%s\x00", tc.Kind, tc.Key, tc.Source)
+	}
+	return hex.EncodeToString(h.Sum(nil))[:12]
 }
 
 func (c TestCorpus) Describe() string {

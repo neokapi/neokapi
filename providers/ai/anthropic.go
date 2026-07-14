@@ -13,6 +13,12 @@ import (
 	"github.com/neokapi/neokapi/core/httputil"
 )
 
+// DefaultAnthropicModel is the model a fresh provider uses when the caller names
+// none. The registry advertises this same constant, so what `kapi models` shows a
+// user and what they actually get cannot drift apart — they did, and the registry
+// went on advertising a model that had been retired.
+const DefaultAnthropicModel = "claude-sonnet-5"
+
 // AnthropicProvider implements LLMProvider for Anthropic Claude API.
 type AnthropicProvider struct {
 	config Config
@@ -25,7 +31,7 @@ func NewAnthropicProvider(cfg Config) *AnthropicProvider {
 		cfg.BaseURL = "https://api.anthropic.com"
 	}
 	if cfg.Model == "" {
-		cfg.Model = "claude-sonnet-5"
+		cfg.Model = DefaultAnthropicModel
 	}
 	if cfg.MaxTokens == 0 {
 		cfg.MaxTokens = 4096

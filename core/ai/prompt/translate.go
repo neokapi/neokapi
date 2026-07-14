@@ -1,6 +1,7 @@
 package prompt
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -240,17 +241,29 @@ func BatchSegments(texts []string) []BatchSegment {
 // Fidelity: the text may carry inline markup as literal placeholder tags
 // (<ph id="1"/>), which the model must reproduce verbatim. XML-escaping the
 // payload would mangle exactly the thing the tag-fidelity constraint demands be
-// preserved. JSON escaping leaves it intact.
+// preserved.
+//
+// HTML escaping must be off. encoding/json escapes < > & to < > &
+// by default — a defence against embedding JSON in a <script> tag, which is not
+// what is happening here. The cost is that every inline tag reaches the model as
+// `<ph id="1"/>` instead of `<ph id="1"/>`, and the model then has to
+// decode and re-emit an escape sequence rather than copy a tag. Measured against
+// gemini-3.5-flash, it did not: it echoed back a literal `3cph id="1"/3e`,
+// silently corrupting the inline markup of every tagged segment. The model is
+// asked to reproduce a tag, so it must be shown a tag.
 func batchPayload(segments []BatchSegment) string {
 	// Indented so the prompt stays readable in --explain-prompts and in the
 	// generated reference. Marshalling a struct of strings cannot fail.
-	out, err := json.MarshalIndent(struct {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(struct {
 		Segments []BatchSegment `json:"segments"`
-	}{Segments: segments}, "", "  ")
-	if err != nil {
+	}{Segments: segments}); err != nil {
 		return "{}"
 	}
-	return string(out)
+	return strings.TrimRight(buf.String(), "\n")
 }
 
 // Batch renders the prompt for several blocks in one call. The reply is keyed by

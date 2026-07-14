@@ -20,17 +20,21 @@
 // Those need no reference translations, which means they can be measured on any
 // corpus, in any language pair, for the price of the calls.
 //
-//	go run ./scripts/batcheval                        # demo provider: proves the harness
-//	go run ./scripts/batcheval -provider anthropic    # the real measurement (costs money)
-//	go run ./scripts/batcheval -n 1,4,8,16,32,64,100  # the sweep
+//	go run ./scripts/batcheval                                   # demo stub: proves the harness
+//	go run ./scripts/batcheval -models claude-code:sonnet        # the real measurement
+//	go run ./scripts/batcheval -models claude-code:opus,gemini:gemini-3.5-flash -append <path>
 //
 // Real numbers require a real model. Running this against the demo stub tells you
 // the harness works and nothing whatsoever about batching, and it says so.
+//
+// -append maintains the committed history behind the /batch-eval dashboard, so a
+// ceiling chosen today does not quietly become folklore as the models underneath
+// it change.
 package main
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -53,74 +57,224 @@ func main() {
 
 func run() error {
 	var (
-		providerID = flag.String("provider", "demo", "AI provider (demo, anthropic, openai, gemini, ollama)")
-		modelName  = flag.String("model", "", "model id (provider default when empty)")
-		sizes      = flag.String("n", "1,4,8,16,32,64,100", "batch sizes to sweep")
-		target     = flag.String("target", "de", "target locale — pick one that runs long (de, fi) to stress the output budget")
-		out        = flag.String("out", "", "write the report as JSON to this path")
-		repeat     = flag.Int("repeat", 1, "runs per N (a single run of a stochastic model is an anecdote)")
+		models      = flag.String("models", "demo:", "provider:model pairs to sweep, comma-separated (e.g. claude-code:sonnet,gemini:gemini-3.5-flash)")
+		sizes       = flag.String("n", "1,4,8,16,32,64,100", "batch sizes to sweep")
+		target      = flag.String("target", "de", "target locale — pick one that runs long (de, fi) to stress the output budget")
+		repeat      = flag.Int("repeat", 1, "runs per N (a single run of a stochastic model is an anecdote)")
+		concurrency = flag.Int("concurrency", 4, "concurrent calls (orthogonal to N: it changes wall-clock, not what is measured)")
+		date        = flag.String("date", time.Now().Format(dateLayout), "run date recorded in the history")
+		appendTo    = flag.String("append", "", "merge the runs into this history file (the /batch-eval dashboard's data)")
+		dump        = flag.Bool("dump", false, "print every source→target pair that scored as a break, so a count can be inspected rather than trusted")
+		recost      = flag.String("recost", "", "re-price an existing history from prices.json and exit (no model calls)")
 	)
 	flag.Parse()
+	dumpBreaks = *dump
+
+	// Cost is a pure function of tokens already measured and rates already
+	// published, so it can be filled in without spending a single call. Useful
+	// after a price refresh, and after adding the cost columns to runs that predate
+	// them.
+	if *recost != "" {
+		return recostHistory(*recost)
+	}
 
 	corpus := Corpus()
 	ns, err := parseSizes(*sizes)
 	if err != nil {
 		return err
 	}
-
-	provider, err := aiprovider.NewProvider(aiprovider.ProviderID(*providerID), aiprovider.Config{
-		APIKey: os.Getenv(apiKeyEnv(*providerID)),
-		Model:  *modelName,
-	})
+	targets, err := parseModels(*models)
 	if err != nil {
 		return err
 	}
-	defer provider.Close()
 
-	report := Report{
-		Provider:  *providerID,
-		Model:     *modelName,
-		Target:    *target,
-		Corpus:    corpus.Describe(),
-		Simulated: *providerID == string(aiprovider.Demo),
-	}
-
-	for _, n := range ns {
-		var runs []Result
-		for r := range *repeat {
-			res, err := runOnce(context.Background(), provider, corpus, n, model.LocaleID(*target))
-			if err != nil {
-				// One N failing is a data point, not a reason to lose the rest of the
-				// sweep — a batch too large for the model is exactly what we're here to
-				// find out.
-				fmt.Fprintf(os.Stderr, "batcheval: N=%d run %d: %v\n", n, r+1, err)
-				continue
-			}
-			runs = append(runs, res)
-		}
-		if len(runs) == 0 {
+	var runs []Run
+	for _, mt := range targets {
+		r, err := sweep(context.Background(), mt, corpus, ns, sweepOpts{
+			target:      model.LocaleID(*target),
+			repeat:      max(*repeat, 1),
+			concurrency: max(*concurrency, 1),
+			date:        *date,
+		})
+		if err != nil {
+			// One model failing (no key, no CLI, a retired alias) must not throw away
+			// the models that did run.
+			fmt.Fprintf(os.Stderr, "batcheval: %s: %v\n", mt, err)
 			continue
 		}
-		report.Results = append(report.Results, mean(n, runs))
+		printTable(r)
+		runs = append(runs, r)
+	}
+	if len(runs) == 0 {
+		return errors.New("no model produced a sweep")
 	}
 
-	printTable(report)
-
-	if *out != "" {
-		b, err := json.MarshalIndent(report, "", "  ")
+	if *appendTo != "" {
+		h, err := LoadHistory(*appendTo)
 		if err != nil {
 			return err
 		}
-		if err := os.WriteFile(*out, append(b, '\n'), 0o644); err != nil {
+		h.Upsert(runs...)
+		if err := h.Save(*appendTo); err != nil {
 			return err
 		}
-		fmt.Printf("\nwrote %s\n", *out)
+		fmt.Printf("\nwrote %s (%d runs on record)\n", *appendTo, len(h.Runs))
 	}
 	return nil
 }
 
+const dateLayout = "2006-01-02"
+
+// dumpBreaks makes every scored break printable (-dump). A finding you cannot
+// look at is a number, not a finding.
+var dumpBreaks bool
+
+// modelTarget is one provider/model pair to sweep.
+type modelTarget struct{ provider, model string }
+
+func (m modelTarget) String() string {
+	if m.model == "" {
+		return m.provider
+	}
+	return m.provider + ":" + m.model
+}
+
+type sweepOpts struct {
+	target      model.LocaleID
+	repeat      int
+	concurrency int
+	date        string
+}
+
+// sweep runs the corpus through one model at every N.
+func sweep(ctx context.Context, mt modelTarget, corpus TestCorpus, ns []int, opts sweepOpts) (Run, error) {
+	provider, err := aiprovider.NewProvider(aiprovider.ProviderID(mt.provider), aiprovider.Config{
+		APIKey: os.Getenv(apiKeyEnv(mt.provider)),
+		Model:  mt.model,
+	})
+	if err != nil {
+		return Run{}, err
+	}
+	defer provider.Close()
+
+	out := Run{
+		Date:         opts.date,
+		Provider:     mt.provider,
+		Model:        mt.model,
+		Target:       string(opts.target),
+		Repeat:       opts.repeat,
+		Concurrency:  opts.concurrency,
+		Corpus:       corpus.Describe(),
+		CorpusWords:  corpus.Words(),
+		CorpusDigest: corpus.Digest(),
+		Simulated:    mt.provider == string(aiprovider.Demo),
+	}
+	if p, ok := priceFor(mt.provider, mt.model); ok {
+		out.Price = &p
+	}
+
+	for _, n := range ns {
+		var results []Result
+		var lastErr error
+		for r := range opts.repeat {
+			fmt.Fprintf(os.Stderr, "  %s N=%-3d run %d/%d …\n", mt, n, r+1, opts.repeat)
+			res, err := runWithRetry(ctx, provider, corpus, n, opts)
+			if err != nil {
+				// One N failing is a data point, not a reason to lose the rest of the
+				// sweep — a batch too large for the model to answer is exactly what we
+				// are here to find out.
+				fmt.Fprintf(os.Stderr, "batcheval: %s N=%d run %d: %v\n", mt, n, r+1, err)
+				lastErr = err
+				continue
+			}
+			results = append(results, res)
+		}
+		if len(results) == 0 {
+			// Record the N as a point, not a gap: "the model could not answer at this
+			// batch size" is the most important thing a curve can say, and an absent
+			// point would read as "not measured".
+			out.Results = append(out.Results, Result{
+				N: n, Blocks: len(corpus.Cases), Missing: len(corpus.Cases),
+				Failed: true, Error: lastErr.Error(),
+			})
+			continue
+		}
+		out.Results = append(out.Results, out.price(mean(n, results)))
+	}
+	return out, nil
+}
+
+// price fills in the words put through the model and what they cost at this run's
+// recorded rates.
+func (r Run) price(res Result) Result {
+	res.Words = r.CorpusWords * res.Blocks / max(len(Corpus().Cases), 1)
+	// Only a metered route gets a cost.
+	//
+	// The subscription route (claude-code) is not billed per token, and — more to
+	// the point — its token counts do not describe an API call. The CLI wraps every
+	// request in its own agent system prompt and bills it as cache creation, so it
+	// reported 240 input tokens across 60 calls. Any $/word built on that would be
+	// fiction, in whichever direction happened to flatter the conclusion. Better a
+	// blank the dashboard explains than a number someone budgets against.
+	if r.Price != nil && r.Price.Metered {
+		res.CostUSD = r.Price.cost(res.InputTokens, res.OutputTokens)
+	}
+	return res
+}
+
+// transientRetries is how many times a failed N is re-attempted before it is
+// recorded as a failure of the *model*.
+//
+// This is not politeness, it is measurement integrity. A hosted API blips: an
+// overloaded 529, a dropped socket, a CLI session that dies on startup. Recording
+// one of those as "the model could not answer at this batch size" would publish a
+// cliff in the curve that no model ever had — a fabricated finding, and the most
+// damaging kind, because it is exactly the shape of the result we are looking for
+// and would therefore be believed.
+const transientRetries = 2
+
+func runWithRetry(ctx context.Context, provider aiprovider.LLMProvider, corpus TestCorpus, n int, opts sweepOpts) (Result, error) {
+	var err error
+	for attempt := range transientRetries + 1 {
+		if attempt > 0 {
+			fmt.Fprintf(os.Stderr, "    retry %d/%d after: %v\n", attempt, transientRetries, err)
+			select {
+			case <-time.After(time.Duration(attempt) * 2 * time.Second):
+			case <-ctx.Done():
+				return Result{}, ctx.Err()
+			}
+		}
+		var res Result
+		if res, err = runOnce(ctx, provider, corpus, n, opts.target, opts.concurrency); err == nil {
+			return res, nil
+		}
+	}
+	return Result{}, err
+}
+
+// parseModels parses "provider:model,provider:model". A bare "provider" (or
+// "provider:") takes the provider's default model.
+func parseModels(s string) ([]modelTarget, error) {
+	var out []modelTarget
+	for f := range strings.SplitSeq(s, ",") {
+		f = strings.TrimSpace(f)
+		if f == "" {
+			continue
+		}
+		provider, mdl, _ := strings.Cut(f, ":")
+		if provider == "" {
+			return nil, fmt.Errorf("batcheval: bad model target %q", f)
+		}
+		out = append(out, modelTarget{provider: provider, model: strings.TrimSpace(mdl)})
+	}
+	if len(out) == 0 {
+		return nil, errors.New("batcheval: no model targets")
+	}
+	return out, nil
+}
+
 // runOnce translates the corpus at one batch size and scores the outcome.
-func runOnce(ctx context.Context, provider aiprovider.LLMProvider, corpus TestCorpus, n int, target model.LocaleID) (Result, error) {
+func runOnce(ctx context.Context, provider aiprovider.LLMProvider, corpus TestCorpus, n int, target model.LocaleID, concurrency int) (Result, error) {
 	blocks := corpus.Blocks()
 
 	tool := aitools.NewAITranslateTool(provider, aitools.AITranslateConfig{
@@ -130,6 +284,9 @@ func runOnce(ctx context.Context, provider aiprovider.LLMProvider, corpus TestCo
 		// hold everything else constant and move N.
 		BatchSize: n,
 		Context:   aitools.ContextKey,
+		// Concurrency changes how long the sweep takes, not what it measures: each
+		// call still carries exactly N blocks and sees nothing of the others.
+		BatchConcurrency: concurrency,
 	})
 
 	start := time.Now()
@@ -145,25 +302,41 @@ func runOnce(ctx context.Context, provider aiprovider.LLMProvider, corpus TestCo
 	res := Result{N: n, Blocks: len(blocks), Elapsed: elapsed.Seconds()}
 	usage := tool.TotalUsage()
 	res.InputTokens, res.OutputTokens = usage.InputTokens, usage.OutputTokens
+	// Cache tokens are recorded because on some routes they are where the prompt
+	// actually goes. claude-code bills almost its entire prompt as cache creation
+	// (its agent system prompt), so counting only InputTokens reported 4 tokens per
+	// call — and any cost built on that would be fiction.
+	res.CacheCreationTokens, res.CacheReadTokens = usage.CacheCreationTokens, usage.CacheReadTokens
 
 	for i, b := range blocks {
-		got := b.TargetText(target)
+		src, got := corpus.Cases[i].Source, b.TargetText(target)
+		kind := ""
 		switch {
 		case got == "":
 			// The segment never came back. This is the failure that matters: with
 			// positional mapping it used to shift every translation after it, and
 			// it is what the batching literature predicts will grow with N.
 			res.Missing++
-		case !placeholdersIntact(corpus.Cases[i].Source, got):
+			kind = "missing"
+		case !placeholdersIntact(src, got):
 			// A translation that loses a placeholder cannot be written back to the
 			// source file. It is not a worse translation; it is not a translation.
 			res.PlaceholderBreaks++
-		case !tagsIntact(corpus.Cases[i].Source, got):
+			kind = "placeholder"
+		case !tagsIntact(src, got):
 			res.TagBreaks++
-		case got == corpus.Cases[i].Source && corpus.Cases[i].Source != "":
+			kind = "tag"
+		case got == src && src != "":
 			// Echoed the source rather than translating it — a documented way for
 			// a model to "cope" with a batch that is too large.
 			res.Untranslated++
+			kind = "untranslated"
+		}
+		// A count nobody can explain is not evidence. -dump prints the offending
+		// pair so a "4 tag breaks" can be confirmed as the model mangling markup
+		// rather than the scorer being pedantic about it.
+		if kind != "" && dumpBreaks {
+			fmt.Fprintf(os.Stderr, "    [%s] N=%d %s\n      src: %q\n      got: %q\n", kind, n, corpus.Cases[i].Key, src, got)
 		}
 	}
 
@@ -192,18 +365,6 @@ func runTool(ctx context.Context, t *aitools.AITranslateTool, parts []*model.Par
 	return err
 }
 
-// Report is the sweep, and the honesty about what produced it.
-type Report struct {
-	Provider string   `json:"provider"`
-	Model    string   `json:"model,omitempty"`
-	Target   string   `json:"target"`
-	Corpus   string   `json:"corpus"`
-	Results  []Result `json:"results"`
-	// Simulated marks a run against the offline stub. Its numbers describe the
-	// harness, not any model, and must never be quoted as a measurement.
-	Simulated bool `json:"simulated"`
-}
-
 // Result is one batch size, scored.
 type Result struct {
 	N      int `json:"n"`
@@ -217,9 +378,44 @@ type Result struct {
 	Untranslated      int `json:"untranslated"`       // source echoed back verbatim
 	Translated        int `json:"translated"`
 
-	InputTokens  int     `json:"input_tokens"`
-	OutputTokens int     `json:"output_tokens"`
-	Elapsed      float64 `json:"elapsed_seconds"`
+	// Failed marks an N the model could not answer at all — a truncated reply, a
+	// refused request, an unparseable batch — after transient retries. Recorded as
+	// a point rather than a gap: "the model breaks here" is the single most useful
+	// thing this curve can say, and an absent point would read as "not measured".
+	Failed bool `json:"failed,omitempty"`
+	// Error is why. A cliff in the curve is worth nothing if the reader cannot see
+	// whether the model refused, truncated, or the transport gave out.
+	Error string `json:"error,omitempty"`
+
+	InputTokens         int     `json:"input_tokens"`
+	OutputTokens        int     `json:"output_tokens"`
+	CacheCreationTokens int     `json:"cache_creation_tokens,omitempty"`
+	CacheReadTokens     int     `json:"cache_read_tokens,omitempty"`
+	Elapsed             float64 `json:"elapsed_seconds"`
+
+	// Words is the source words this point put through the model (corpus words ×
+	// repeats). The denominator for cost and throughput.
+	Words int `json:"words,omitempty"`
+	// CostUSD prices the tokens at the rates recorded on the run. Zero when the
+	// model is unpriced — a blank, never a guess.
+	CostUSD float64 `json:"cost_usd,omitempty"`
+}
+
+// CostPer1kWords is the number to compare models on: what it costs to put a
+// thousand words of content through this model at this batch size.
+func (r Result) CostPer1kWords() float64 {
+	if r.Words == 0 {
+		return 0
+	}
+	return r.CostUSD / float64(r.Words) * 1000
+}
+
+// WordsPerSecond is throughput — the speed half of the trade-off.
+func (r Result) WordsPerSecond() float64 {
+	if r.Elapsed <= 0 {
+		return 0
+	}
+	return float64(r.Words) / r.Elapsed
 }
 
 // Intact is the headline: the share of segments that came back translated, with
@@ -233,9 +429,20 @@ func (r Result) Intact() float64 {
 	return float64(r.Blocks-bad) / float64(r.Blocks) * 100
 }
 
+// mean aggregates the repeats of one N by *summing* everything over a corpus that
+// is correspondingly larger — not by averaging.
+//
+// Averaging integer counts would round "one run in three dropped a segment" down
+// to zero, which is precisely the failure this harness exists to catch, quietly
+// erased by its own arithmetic. Summing keeps every failure, and every rate
+// (Intact, cost per 1k words, words per second) divides by the work actually
+// attempted, so all of them stay comparable across different -repeat values.
 func mean(n int, runs []Result) Result {
-	out := Result{N: n, Blocks: runs[0].Blocks}
+	out := Result{N: n}
 	for _, r := range runs {
+		out.Blocks += r.Blocks
+		out.CacheCreationTokens += r.CacheCreationTokens
+		out.CacheReadTokens += r.CacheReadTokens
 		out.Missing += r.Missing
 		out.PlaceholderBreaks += r.PlaceholderBreaks
 		out.TagBreaks += r.TagBreaks
@@ -245,30 +452,28 @@ func mean(n int, runs []Result) Result {
 		out.OutputTokens += r.OutputTokens
 		out.Elapsed += r.Elapsed
 	}
-	d := len(runs)
-	out.Missing /= d
-	out.PlaceholderBreaks /= d
-	out.TagBreaks /= d
-	out.Untranslated /= d
-	out.Translated /= d
-	out.InputTokens /= d
-	out.OutputTokens /= d
-	out.Elapsed /= float64(d)
 	return out
 }
 
-func printTable(r Report) {
+func printTable(r Run) {
+	fmt.Println()
 	if r.Simulated {
 		fmt.Println("⚠  demo provider: this run exercises the harness and measures NOTHING about batching.")
-		fmt.Println("   Real numbers need a real model:  go run ./scripts/batcheval -provider anthropic")
+		fmt.Println("   Real numbers need a real model:  go run ./scripts/batcheval -models claude-code:sonnet")
 		fmt.Println()
 	}
-	fmt.Printf("provider=%s model=%s target=%s corpus=%s\n\n", r.Provider, orDefault(r.Model, "(default)"), r.Target, r.Corpus)
+	fmt.Printf("provider=%s model=%s target=%s repeat=%d corpus=%s (%s)\n\n",
+		r.Provider, orDefault(r.Model, "(default)"), r.Target, r.Repeat, r.Corpus, r.CorpusDigest)
 	fmt.Printf("%5s  %7s  %8s  %12s  %9s  %13s  %8s\n",
 		"N", "intact%", "missing", "placeholder", "tags", "untranslated", "out_tok")
 	for _, res := range r.Results {
-		fmt.Printf("%5d  %6.1f%%  %8d  %12d  %9d  %13d  %8d\n",
-			res.N, res.Intact(), res.Missing, res.PlaceholderBreaks, res.TagBreaks, res.Untranslated, res.OutputTokens)
+		note := ""
+		if res.Failed {
+			note = "  ← the model could not answer at this batch size"
+		}
+		fmt.Printf("%5d  %6.1f%%  %8d  %12d  %9d  %13d  %8d%s\n",
+			res.N, res.Intact(), res.Missing, res.PlaceholderBreaks, res.TagBreaks,
+			res.Untranslated, res.OutputTokens, note)
 	}
 }
 

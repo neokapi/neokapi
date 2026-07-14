@@ -1228,8 +1228,46 @@ check-eval: ## Run the content-check quality eval → web/src/pages/check-eval/_
 #
 #   make batch-eval BATCHEVAL_ARGS="-provider anthropic -repeat 3"
 BATCHEVAL_ARGS ?=
-batch-eval: ## Sweep batch size and score structural integrity (demo stub unless -provider given)
+batch-eval: ## Sweep batch size and score structural integrity (demo stub unless -models given)
 	$(GO) run ./scripts/batcheval $(BATCHEVAL_ARGS)
+
+# The published sweep behind the /batch-eval dashboard. Re-run it when the models
+# move: an alias like `sonnet` or `gemini-3.5-flash` points at different weights
+# over time, so a ceiling measured once and never re-checked decays into folklore.
+# Same-day re-runs correct their entry rather than appending a second point.
+#
+# claude-code runs on the local Claude subscription (no API key); gemini needs
+# GEMINI_API_KEY.
+BATCHEVAL_DATA   ?= web/src/pages/batch-eval/_batcheval.json
+BATCHEVAL_N      ?= 1,2,4,8,16,32
+# Current models only. Tracking a model that is being retired measures a curve
+# nobody can act on, and the retirement itself is the noisiest kind of false
+# finding — gemini-3-pro-preview already answers 404 ("no longer available").
+BATCHEVAL_GEMINI ?= gemini:gemini-3.5-flash,gemini:gemini-3.1-flash-lite,gemini:gemini-3.1-pro-preview
+BATCHEVAL_CLAUDE ?= claude-code:opus,claude-code:sonnet,claude-code:haiku
+# Model prices and model availability both rot, and both are load-bearing: a stale
+# rate is published on /batch-eval as a cost people budget against, and a retired
+# default model 404s a user's first call. Neither is checkable from a source file,
+# so both are data with a refresh path.
+#
+#   make check-models          # what the providers actually serve today (needs keys)
+#   make update-model-prices   # refresh prices.json from the vendors' pricing pages
+check-models: ## Report models kapi pins or prices that a provider no longer serves
+	$(GO) run ./scripts/modelcheck $(MODELCHECK_ARGS)
+
+# Prices are not exposed over any API, so refreshing them means reading the vendors'
+# pricing pages. That is a job for an agent with a browser, driven by a prompt that
+# spells out which of the many published rates is the right one.
+update-model-prices: ## Refresh scripts/batcheval/prices.json from the vendors' pricing pages
+	@command -v claude >/dev/null || { echo "needs the claude CLI: brew install claude"; exit 1; }
+	claude -p "$$(cat scripts/prompts/update-model-prices.md)"
+
+batch-eval-publish: ## Sweep the real models → /batch-eval dashboard data (costs calls)
+	$(GO) run ./scripts/batcheval -models $(BATCHEVAL_GEMINI) -n $(BATCHEVAL_N) \
+		-repeat 3 -concurrency 4 -append $(BATCHEVAL_DATA)
+	$(GO) run ./scripts/batcheval -models $(BATCHEVAL_CLAUDE) -n $(BATCHEVAL_N) \
+		-repeat 2 -concurrency 3 -append $(BATCHEVAL_DATA)
+	@echo "Published batch-eval history → $(BATCHEVAL_DATA)"
 
 # ── Frontend Checks ──────────────────────────────────────────────────────────
 
@@ -1660,7 +1698,7 @@ help: ## Show this help
 	@echo ""
 
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
-        parity-sandbox parity-test parity-publish parity-clean parity-fixtures regen-okapi-fixtures check-eval batch-eval \
+        parity-sandbox parity-test parity-publish parity-clean parity-fixtures regen-okapi-fixtures check-eval batch-eval batch-eval-publish check-models update-model-prices \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
         fmt vet lint check check-framework check-bowrain test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \

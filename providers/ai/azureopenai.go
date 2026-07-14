@@ -20,6 +20,10 @@ const defaultAzureAPIVersion = "2024-10-21"
 // This enables managed identity authentication without depending on the Azure SDK.
 type TokenProvider func(ctx context.Context) (string, error)
 
+// DefaultAzureOpenAIModel is the deployment a fresh provider uses when the caller
+// names none.
+const DefaultAzureOpenAIModel = "gpt-4o"
+
 // AzureOpenAIProvider implements LLMProvider for Azure OpenAI Service.
 // Azure OpenAI uses the same request/response format as OpenAI but with
 // different URL structure and authentication.
@@ -36,7 +40,7 @@ type AzureOpenAIProvider struct {
 // config.Model is used as the deployment name.
 func NewAzureOpenAIProvider(cfg Config) *AzureOpenAIProvider {
 	if cfg.Model == "" {
-		cfg.Model = "gpt-4o"
+		cfg.Model = DefaultAzureOpenAIModel
 	}
 	if cfg.MaxTokens == 0 {
 		cfg.MaxTokens = 4096

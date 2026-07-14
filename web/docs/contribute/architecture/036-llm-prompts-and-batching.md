@@ -155,16 +155,104 @@ The corpus deliberately carries what batching is documented to break: long prose
 same source text under two different keys — the case positional batch mapping used
 to corrupt silently.
 
-The harness ships; the measurement has not been run. A run against the demo stub
-exercises the plumbing and measures nothing about any model, and says so in both
-the terminal output and the JSON report (`"simulated": true`). Only a real-model
-sweep can move `MaxBlocksPerCall` off its current evidence-by-analogy footing.
+A run against the demo stub exercises the plumbing and measures nothing about any
+model. Such runs are marked `"simulated": true` and the dashboard excludes them
+from every chart — a stub's flawless curve is exactly the number someone would
+otherwise quote.
+
+### The measurement is kept, not taken once
+
+`make batch-eval-publish` sweeps the real models and appends to a committed history
+(`web/src/pages/batch-eval/_batcheval.json`), published at **/batch-eval**. Three
+choices in that record are what make it worth keeping:
+
+- **Runs are stamped with the corpus digest.** Change the corpus and the digest
+  moves, and runs measured on the old one stop being comparable. The dashboard
+  says so rather than drawing one line through two different experiments.
+- **A same-day re-run corrects its entry** instead of appending a second point, so
+  pressing enter twice cannot masquerade as change over time.
+- **Transient failures are retried before being recorded.** An overloaded API or a
+  dropped socket, published as "the model could not answer at this batch size",
+  would be a fabricated cliff — and the most damaging kind, because it is the exact
+  shape of the finding we are looking for and would therefore be believed.
+
+The record exists because model aliases are not stable artefacts. `sonnet` and
+`gemini-3.5-flash` point at different weights over time; a ceiling measured once
+and never re-checked decays into folklore. Re-run the sweep when the models move.
+
+### What the first sweep actually found
+
+Six models (Anthropic opus/sonnet/haiku via the claude-code subscription; Gemini
+3.5-flash, 3.1-flash-lite, 3.1-pro), swept N ∈ {1,2,4,8,16,32}:
+
+**No batching cliff.** Every model came back 100% structurally intact at every
+batch size up to 32 — nothing dropped, nothing renumbered, no placeholder or tag
+broken. `MaxBlocksPerCall = 16` is not too high; on this evidence it is
+conservative. Every apparent degradation the sweep first showed turned out to be a
+bug in kapi, not in a model.
+
+**Batching is not a cost lever.** This is the counterintuitive one. Going from N=1
+to N=32 roughly halves input tokens (9,540 → 4,728) — and roughly doubles output
+tokens (1,681 → 3,727), because a batched reply must carry an id and a JSON
+envelope per segment. Output is priced around 6× input, so the two cancel: cost per
+1,000 words comes out flat, or slightly *worse*, than one call per string. What
+batching actually buys is throughput — 2–3× the words per second, since you wait on
+a handful of round trips instead of thirty. Worth having, but not the thing it is
+usually sold as.
+
+And three bugs in kapi, which is the more useful outcome and the reason to build the
+instrument before trusting the intuition.
+
+**Inline tags were reaching the model as escape sequences.** `encoding/json`
+escapes `<`, `>` and `&` by default (a defence for embedding JSON in a `<script>`
+tag, irrelevant to a prompt), so every `<ph id="1"/>` was sent as
+`<ph id="1"/>`. Anthropic's models decoded it; `gemini-3.5-flash` echoed
+back a literal `3cph id="1"/3e`, silently corrupting the markup of every tagged
+segment it translated. Batching was never the cause — the batch payload was. Fixed
+by turning HTML escaping off: the model is asked to reproduce a tag, so it must be
+shown a tag.
+
+**No Gemini pro model worked at all.** kapi sent `thinkingBudget: 0` (translation
+is a transformation, not a reasoning problem), and the pro models reject that
+outright — "Budget 0 is invalid. This model only works in thinking mode". Every
+call, at every batch size, was a 400. Fixed by omitting the thinking config for
+that family.
+
+**Thinking models were being truncated mid-answer.** The batch packer sizes an
+output budget for the *answer* (`need*2+512`), but Gemini draws thoughts from the
+same `maxOutputTokens` allowance. The model thought its way through the budget and
+emitted a translation cut off mid-tag (`<ph id="2`), which the harness scored as
+the model mangling markup. Fixed: a thinking model gets the ceiling. You are billed
+for what is emitted, not for what is permitted, so the cap costs nothing and only
+removes a way to corrupt output silently.
+
+A fourth, found while wiring the model-availability check: **the provider registry
+advertised retired models as defaults.** `ProviderInfo.DefaultModel` said
+`gemini-3-flash-preview` (which the API now answers 404 "no longer available" for)
+and `claude-sonnet-4-20250514` (retired), while the constructors had moved on. Its
+doc comment claimed the two were the same value; nothing checked it, so `kapi
+models` was advertising a default that would 404 on a user's first call. The
+constructor constant is now the single source of truth, with a test.
+
+All four were invisible to the unit tests, and three of them would have been
+published as *model* findings by a less suspicious harness — degradation curves for
+weaknesses the models did not have. That is why a break must be inspectable
+(`-dump`) rather than merely counted, and why a transient failure is retried before
+it is recorded as a cliff.
 
 ## Open
 
-- **The quality-versus-N curve has not been measured yet** — the instrument exists
-  (`make batch-eval`), the sweep has not been run against a real model. Until it
-  is, `MaxBlocksPerCall = 16` remains an inference from adjacent tasks.
-- **Context is limited to the key and immediate neighbours.** TM matches, the
-  file path, and prior translations of the same key are all things the evidence
-  says would help and that kapi already holds, and none of them reach the prompt.
+- **The curve is flat to N=32; we have not found where it breaks.** The measured
+  ceiling is therefore a lower bound, not a cliff. Sweeping further (64, 128, and a
+  corpus large enough to make those meaningful) would say whether 16 is leaving
+  throughput on the table.
+- **No cost figure for the Anthropic models.** They were reached over the
+  claude-code subscription, which is not billed per token and whose token counts do
+  not describe an API call — the CLI bills its own agent system prompt as cache
+  creation, reporting 240 input tokens across sixty calls. Costing them needs a
+  sweep against the metered API.
+- **kapi has no Bedrock provider**, so nothing can be measured or priced against
+  that route.
+- **Context is limited to the key and immediate neighbours.** TM matches, the file
+  path, and prior translations of the same key are all things the evidence says
+  would help and that kapi already holds, and none of them reach the prompt.

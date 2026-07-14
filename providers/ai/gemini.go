@@ -20,6 +20,9 @@ import (
 // thinking by default, which can take well over 30s, so this is generous.
 const geminiStreamTimeout = 5 * time.Minute
 
+// DefaultGeminiModel is the model a fresh provider uses when the caller names none.
+const DefaultGeminiModel = "gemini-3.5-flash"
+
 // GeminiProvider implements LLMProvider for the Google Gemini API.
 type GeminiProvider struct {
 	config Config
@@ -37,7 +40,7 @@ func NewGeminiProvider(cfg Config) *GeminiProvider {
 		cfg.BaseURL = "https://generativelanguage.googleapis.com"
 	}
 	if cfg.Model == "" {
-		cfg.Model = "gemini-3.5-flash"
+		cfg.Model = DefaultGeminiModel
 	}
 	if cfg.MaxTokens == 0 {
 		cfg.MaxTokens = 4096
@@ -81,7 +84,7 @@ func (p *GeminiProvider) Chat(ctx context.Context, messages []Message) (*ChatRes
 		Contents: contents,
 		GenerationConfig: &geminiGenerationConfig{
 			MaxOutputTokens: p.maxTokens(ctx),
-			ThinkingConfig:  &geminiThinkingConfig{ThinkingBudget: 0},
+			ThinkingConfig:  noThinking(p.config.Model),
 		},
 	}
 
@@ -115,7 +118,7 @@ func (p *GeminiProvider) ChatStructured(ctx context.Context, messages []Message,
 			MaxOutputTokens:  p.maxTokens(ctx),
 			ResponseMIMEType: "application/json",
 			ResponseSchema:   stripAdditionalProperties(schema.Schema),
-			ThinkingConfig:   &geminiThinkingConfig{ThinkingBudget: 0},
+			ThinkingConfig:   noThinking(p.config.Model),
 		},
 	}
 
@@ -188,8 +191,20 @@ func (p *GeminiProvider) Limits() Limits {
 // maxTokens resolves this request's output budget, clamped to the model ceiling.
 // Always sent explicitly: Gemini's own default is a small fraction of what the
 // model can emit, and relying on it truncates long replies without saying so.
+//
+// A thinking model gets the ceiling regardless of what the caller asked for.
+// Callers size their budget for the *answer* ("this batch of segments should cost
+// about N tokens to translate"), but Gemini draws thoughts from the same
+// maxOutputTokens allowance. A model that thinks for 800 tokens under a 900-token
+// budget emits a truncated answer — measured against gemini-3.1-pro-preview, that
+// meant translations cut off mid-tag (`<ph id="2`), which is unusable. Tokens are
+// billed on what is emitted, not on what is permitted, so raising the cap costs
+// nothing and only removes a way to silently corrupt output.
 func (p *GeminiProvider) maxTokens(ctx context.Context) int {
 	ceiling := p.Limits().EffectiveMaxOutputTokens()
+	if requiresThinking(p.config.Model) {
+		return ceiling
+	}
 	want := maxOutputTokensFrom(ctx, p.config.MaxTokens)
 	if want <= 0 || want > ceiling {
 		return ceiling
@@ -477,6 +492,32 @@ type geminiRequest struct {
 type geminiThinkingConfig struct {
 	ThinkingBudget  int  `json:"thinkingBudget"`
 	IncludeThoughts bool `json:"includeThoughts,omitempty"`
+}
+
+// noThinking returns the thinking config for a non-streaming call: thinking off,
+// which is what translation and the structured tool calls want — they are
+// transformations, not reasoning problems, and thinking only buys latency.
+//
+// Except that the *pro* models cannot do that. They reject a zero budget outright
+// ("Budget 0 is invalid. This model only works in thinking mode"), so sending one
+// made every pro model unusable in kapi, at every batch size, with a 400. For
+// those we omit the config entirely and take the model's own default.
+//
+// The discriminator is the family name, because that is what the API contract is
+// actually keyed on; Google names every model in the family `…-pro…`
+// (gemini-2.5-pro, gemini-3-pro-preview, gemini-3.1-pro-preview). An unknown
+// model that turns out to require thinking degrades to the same 400 it would have
+// given anyway, and a new pro model needs no code change.
+func noThinking(model string) *geminiThinkingConfig {
+	if requiresThinking(model) {
+		return nil
+	}
+	return &geminiThinkingConfig{ThinkingBudget: 0}
+}
+
+// requiresThinking reports whether a model refuses to run with thinking disabled.
+func requiresThinking(model string) bool {
+	return strings.Contains(strings.ToLower(model), "-pro")
 }
 
 type geminiGenerationConfig struct {

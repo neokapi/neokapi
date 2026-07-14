@@ -124,22 +124,65 @@ func TestHarnessRunsAtEveryBatchSize(t *testing.T) {
 
 	corpus := Corpus()
 	for _, n := range []int{1, 8, 1000} {
-		res, err := runOnce(context.Background(), provider, corpus, n, model.LocaleID("de"))
+		res, err := runOnce(context.Background(), provider, corpus, n, model.LocaleID("de"), 4)
 		require.NoErrorf(t, err, "N=%d", n)
 		assert.Equal(t, len(corpus.Cases), res.Blocks)
 		assert.Zerof(t, res.Missing, "N=%d: every segment must come back — a harness that drops segments cannot measure a model that drops segments", n)
 	}
 }
 
-// A demo run measures the harness and nothing else. It must say so in the report
-// as well as on the terminal, because a JSON file outlives the terminal it was
-// printed to.
+// A demo run measures the harness and nothing else. It must say so in the record,
+// not only on the terminal — a JSON file outlives the terminal it was printed to,
+// and a stub's flawless 100% curve is exactly the number someone would quote.
 func TestDemoRunsAreMarkedSimulated(t *testing.T) {
 	t.Parallel()
 
-	assert.True(t, Report{Provider: "demo", Simulated: true}.Simulated)
-	assert.False(t, Report{Provider: "anthropic"}.Simulated,
+	assert.True(t, Run{Provider: "demo", Simulated: true}.Simulated)
+	assert.False(t, Run{Provider: "anthropic"}.Simulated,
 		"only the stub is simulated; a real provider's numbers are real")
+}
+
+// Averaging integer counts across repeats would round "one run in three dropped a
+// segment" down to zero — the harness erasing, by arithmetic, the exact failure it
+// exists to find. Repeats are summed over a correspondingly larger corpus instead.
+func TestRepeatsSumFailuresRatherThanRoundingThemAway(t *testing.T) {
+	t.Parallel()
+
+	got := mean(8, []Result{
+		{N: 8, Blocks: 30, Missing: 1, Translated: 29},
+		{N: 8, Blocks: 30, Translated: 30},
+		{N: 8, Blocks: 30, Translated: 30},
+	})
+
+	assert.Equal(t, 1, got.Missing, "a failure seen in one run of three is a failure, not a rounding error")
+	assert.Equal(t, 90, got.Blocks, "the denominator must grow with the repeats it aggregates")
+	assert.InDelta(t, 98.9, got.Intact(), 0.1, "1 lost segment in 90 attempts")
+}
+
+// An N the model cannot answer at all is the single most useful point on the
+// curve. Dropping it would leave a gap that reads as "not measured" — the opposite
+// of what happened.
+func TestAFailedBatchSizeIsRecordedAsAPointNotAGap(t *testing.T) {
+	t.Parallel()
+
+	failed := Result{N: 100, Blocks: 30, Missing: 30, Failed: true}
+	assert.True(t, failed.Failed)
+	assert.Zero(t, failed.Intact(), "nothing usable came back")
+}
+
+func TestParseModels(t *testing.T) {
+	t.Parallel()
+
+	got, err := parseModels("claude-code:sonnet, gemini:gemini-3.5-flash ,demo:")
+	require.NoError(t, err)
+	assert.Equal(t, []modelTarget{
+		{provider: "claude-code", model: "sonnet"},
+		{provider: "gemini", model: "gemini-3.5-flash"},
+		{provider: "demo", model: ""},
+	}, got, "a bare provider takes its default model")
+
+	_, err = parseModels("")
+	require.Error(t, err)
 }
 
 func TestParseSizes(t *testing.T) {
