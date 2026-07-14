@@ -3,7 +3,6 @@ package output
 import (
 	"fmt"
 	"io"
-	"text/tabwriter"
 )
 
 // Model sources, used as ModelRow.Source so the unified `kapi models` view can
@@ -56,57 +55,60 @@ func (o ModelsListOutput) FormatText(w io.Writer) error {
 	}
 
 	first := true
-	section := func(title string, render func(*tabwriter.Writer)) {
+	section := func(title string, build func(*Table)) {
 		if !first {
 			fmt.Fprintln(w)
 		}
 		first = false
-		fmt.Fprintln(w, title)
-		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-		render(tw)
-		_ = tw.Flush()
+		Title(w, title)
+		t := NewTable(w).Accent(0)
+		build(t)
+		t.Render()
 	}
 
 	if rows := o.rows(ModelSourceDetected); len(rows) > 0 {
-		section("Detected · no API key needed", func(tw *tabwriter.Writer) {
-			fmt.Fprintln(tw, "  PROVIDER\tDEFAULT MODEL\tNOTE")
+		section("Detected · no API key needed", func(t *Table) {
+			s := t.Styles()
+			t.Headers("PROVIDER", "DEFAULT MODEL", "NOTE")
 			for _, m := range rows {
-				fmt.Fprintf(tw, "  %s\t%s\t%s\n", m.Provider, m.Model, m.Note)
+				t.Row(m.Provider, m.Model, s.Dim(m.Note))
 			}
 		})
 	}
 
 	if rows := o.rows(ModelSourceOllama); len(rows) > 0 {
-		section("Local · Ollama", func(tw *tabwriter.Writer) {
-			fmt.Fprintln(tw, "  MODEL\tSTATUS\tSIZE\tNOTE")
+		section("Local · Ollama", func(t *Table) {
+			s := t.Styles()
+			t.Headers("MODEL", "STATUS", "SIZE", "NOTE")
 			for _, m := range rows {
 				name := m.Model
 				if m.Default {
 					name += " *"
 				}
-				fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\n", name, m.Status, dash(m.Size), m.Note)
+				t.Row(name, modelStatusCell(s, m.Status), s.Dim(m.Size), s.Dim(m.Note))
 			}
 		})
 	}
 
 	if rows := o.rows(ModelSourcePlugin); len(rows) > 0 {
-		section("Plugin models", func(tw *tabwriter.Writer) {
-			fmt.Fprintln(tw, "  PLUGIN\tMODEL\tVERSION\tSTATUS\tSIZE")
+		section("Plugin models", func(t *Table) {
+			s := t.Styles()
+			t.Headers("PLUGIN", "MODEL", "VERSION", "STATUS", "SIZE")
 			for _, m := range rows {
 				name := m.Model
 				if m.Default {
 					name += " (default)"
 				}
-				fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\n", m.Provider, name, m.Version, m.Status, dash(m.Size))
+				t.Row(m.Provider, name, s.Dim(m.Version), modelStatusCell(s, m.Status), s.Dim(m.Size))
 			}
 		})
 	}
 
 	if rows := o.rows(ModelSourceCloud); len(rows) > 0 {
-		section("Cloud providers · require an API key", func(tw *tabwriter.Writer) {
-			fmt.Fprintln(tw, "  PROVIDER\tDEFAULT MODEL")
+		section("Cloud providers · require an API key", func(t *Table) {
+			t.Headers("PROVIDER", "DEFAULT MODEL")
 			for _, m := range rows {
-				fmt.Fprintf(tw, "  %s\t%s\n", m.Provider, m.Model)
+				t.Row(m.Provider, m.Model)
 			}
 		})
 	}
@@ -114,11 +116,17 @@ func (o ModelsListOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-func dash(s string) string {
-	if s == "" {
-		return "—"
+// modelStatusCell colors a ModelRow.Status by whether the model is usable right
+// now. The vocabulary comes from host/modelcmds.go.
+func modelStatusCell(s *Styles, status string) string {
+	switch status {
+	case "detected", "installed", "cached", "bundled":
+		return s.Success.Render(status)
+	case "unknown":
+		return s.Warn.Render(status)
+	default:
+		return s.Muted.Render(status)
 	}
-	return s
 }
 
 // ModelActionOutput reports the result of a `kapi models pull` / `prune`. Plugin

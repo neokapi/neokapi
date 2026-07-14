@@ -26,32 +26,76 @@ var sources = map[string]string{
 	"tools.category.analysis":        "Analysis",
 	"tools.category.text-processing": "Text Processing",
 	"tools.category.other":           "Other",
+	"tools.header.tool":              "TOOL",
+	"tools.header.description":       "DESCRIPTION",
 
-	// formats list
-	"formats.available":         "Available formats:",
-	"formats.total":             "Total: %d format(s)",
-	"formats.header.format":     "FORMAT",
-	"formats.header.name":       "NAME",
-	"formats.header.read":       "READ",
-	"formats.header.write":      "WRITE",
-	"formats.header.source":     "SOURCE",
-	"formats.header.extensions": "EXTENSIONS",
-	"formats.header.mimeTypes":  "MIME TYPES",
+	// formats list and format info
+	"formats.available":          "Available formats:",
+	"formats.total":              "Total: %d format(s)",
+	"formats.header.format":      "FORMAT",
+	"formats.header.name":        "NAME",
+	"formats.header.read":        "READ",
+	"formats.header.write":       "WRITE",
+	"formats.header.edit":        "EDIT",
+	"formats.header.source":      "SOURCE",
+	"formats.header.extensions":  "EXTENSIONS",
+	"formats.header.mimeTypes":   "MIME TYPES",
+	"formats.header.parameter":   "PARAMETER",
+	"formats.header.type":        "TYPE",
+	"formats.header.default":     "DEFAULT",
+	"formats.header.description": "DESCRIPTION",
 
 	// flows list
-	"flows.available": "Available flows:",
-	"flows.none":      "No flows defined.",
-	"flows.total":     "Total: %d flow(s)",
+	"flows.available":          "Available flows:",
+	"flows.none":               "No flows defined.",
+	"flows.total":              "Total: %d flow(s)",
+	"flows.header.flow":        "FLOW",
+	"flows.header.description": "DESCRIPTION",
+	"flows.header.steps":       "STEPS",
 
-	// plugins list
-	"plugins.installed":      "Installed plugins:",
-	"plugins.none":           "No plugins installed.",
-	"plugins.total":          "Total: %d plugin(s)",
-	"plugins.header.name":    "NAME",
-	"plugins.header.version": "VERSION",
-	"plugins.header.type":    "TYPE",
-	"plugins.header.status":  "STATUS",
-	"plugins.header.formats": "FORMATS",
+	// presets list
+	"presets.header.preset":      "PRESET",
+	"presets.header.format":      "FORMAT",
+	"presets.header.description": "DESCRIPTION",
+	"presets.header.source":      "SOURCE",
+
+	// plugins list and registry search
+	"plugins.installed":          "Installed plugins:",
+	"plugins.none":               "No plugins installed.",
+	"plugins.total":              "Total: %d plugin(s)",
+	"plugins.header.name":        "NAME",
+	"plugins.header.version":     "VERSION",
+	"plugins.header.type":        "TYPE",
+	"plugins.header.status":      "STATUS",
+	"plugins.header.formats":     "FORMATS",
+	"plugins.header.description": "DESCRIPTION",
+
+	// termbase lookup, search and stats
+	"termbase.header.term":       "TERM",
+	"termbase.header.terms":      "TERMS",
+	"termbase.header.locale":     "LOCALE",
+	"termbase.header.status":     "STATUS",
+	"termbase.header.match":      "MATCH",
+	"termbase.header.score":      "SCORE",
+	"termbase.header.concept":    "CONCEPT",
+	"termbase.header.concepts":   "CONCEPTS",
+	"termbase.header.domain":     "DOMAIN",
+	"termbase.header.definition": "DEFINITION",
+
+	// tm lookup, search and stats
+	"tm.header.source":     "SOURCE",
+	"tm.header.target":     "TARGET",
+	"tm.header.score":      "SCORE",
+	"tm.header.matchType":  "MATCH TYPE",
+	"tm.header.locales":    "LOCALES",
+	"tm.header.localePair": "LOCALE PAIR",
+	"tm.header.entries":    "ENTRIES",
+
+	// named resources (termbases, TMs) in KAPI_HOME
+	"resources.header.name":     "NAME",
+	"resources.header.size":     "SIZE",
+	"resources.header.modified": "MODIFIED",
+	"resources.header.path":     "PATH",
 
 	// registry list
 	"registries.none":            "No registries configured.",

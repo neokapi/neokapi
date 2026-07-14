@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"sort"
-	"strings"
 	"unicode"
 	"unicode/utf8"
 
@@ -46,30 +45,16 @@ type StatsOutput struct {
 
 // FormatText renders the stats as a human-readable table.
 func (o StatsOutput) FormatText(w io.Writer) error {
-	fileWidth := len("FILE")
-	for _, r := range o.Files {
-		if len(r.File) > fileWidth {
-			fileWidth = len(r.File)
-		}
-	}
-	fileWidth += 2
-
-	header := func() {
-		fmt.Fprintf(w, "%-*s %7s %7s %9s %9s %9s\n", fileWidth, "FILE", "BLOCKS", "TRANS", "WORDS", "CHARS", "SEGMENTS")
-	}
-	row := func(r StatsRecord) {
-		fmt.Fprintf(w, "%-*s %7d %7d %9d %9d %9d\n", fileWidth, r.File, r.Blocks, r.Translatable, r.Words, r.Characters, r.Segments)
-	}
-
 	if len(o.Files) > 1 {
-		header()
+		t := output.NewTable(w).Accent(0).
+			Headers("FILE", "BLOCKS", "TRANS", "WORDS", "CHARS", "SEGMENTS")
 		for _, r := range o.Files {
-			row(r)
+			t.Rowf(r.File, r.Blocks, r.Translatable, r.Words, r.Characters, r.Segments)
 		}
-		fmt.Fprintln(w, strings.Repeat("─", fileWidth+7+7+9+9+9+5))
 		total := o.Total
-		total.File = fmt.Sprintf("Total (%d files)", len(o.Files))
-		row(total)
+		t.Rowf(fmt.Sprintf("Total (%d files)", len(o.Files)),
+			total.Blocks, total.Translatable, total.Words, total.Characters, total.Segments)
+		t.Render()
 	} else {
 		// Single file: a vertical, label:value summary reads better than one row.
 		r := o.Total
@@ -84,7 +69,8 @@ func (o StatsOutput) FormatText(w io.Writer) error {
 	}
 
 	if len(o.Total.ByRole) > 0 {
-		fmt.Fprintln(w, "\nBy role:")
+		fmt.Fprintln(w)
+		output.Title(w, "By role:")
 		roles := make([]string, 0, len(o.Total.ByRole))
 		for role := range o.Total.ByRole {
 			roles = append(roles, role)
@@ -95,9 +81,11 @@ func (o StatsOutput) FormatText(w io.Writer) error {
 			}
 			return roles[i] < roles[j]
 		})
+		t := output.NewTable(w).Accent(0).Headers("ROLE", "BLOCKS")
 		for _, role := range roles {
-			fmt.Fprintf(w, "  %-20s %7d\n", role, o.Total.ByRole[role])
+			t.Rowf(role, o.Total.ByRole[role])
 		}
+		t.Render()
 	}
 	return nil
 }

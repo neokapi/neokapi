@@ -417,7 +417,7 @@ func (a *App) compileTMSource(ctx context.Context, root, srcPath string) error {
 	if _, err := ImportKLFTMFile(ctx, tm, srcPath); err != nil {
 		return fmt.Errorf("compile tm: %w", err)
 	}
-	a.RebuildTMSearchIndexes(tm) //nolint:contextcheck // sievepen index rebuild is a ctx-less local SQLite maintenance API
+	a.RebuildTMSearchIndexes(tm)
 	return nil
 }
 

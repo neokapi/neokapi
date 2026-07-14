@@ -5,8 +5,8 @@ import (
 	"io"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
-	"text/tabwriter"
 	"time"
 )
 
@@ -74,47 +74,39 @@ type FormatsListOutput struct {
 }
 
 func (f FormatsListOutput) FormatText(w io.Writer) error {
-	fmt.Fprintln(w, T("formats.available"))
-	fmt.Fprintln(w)
-	fmt.Fprintf(w, "  %-26s %-30s %-6s %-6s %-6s %-12s %-24s %s\n",
+	Title(w, T("formats.available"))
+
+	t := NewTable(w).Accent(0).Headers(
 		T("formats.header.format"), T("formats.header.name"), T("formats.header.read"),
-		T("formats.header.write"), "Edit", T("formats.header.source"),
+		T("formats.header.write"), T("formats.header.edit"), T("formats.header.source"),
 		T("formats.header.extensions"), T("formats.header.mimeTypes"))
-	fmt.Fprintf(w, "  %-26s %-30s %-6s %-6s %-6s %-12s %-24s %s\n",
-		"------", "----", "----", "-----", "----", "------", "----------", "----------")
+	s := t.Styles()
 
 	for _, info := range f.Formats {
-		read := "-"
-		write := "-"
-		edit := "-"
-		if info.HasReader {
-			read = "yes"
+		// Faithful round-tripping is the stronger guarantee, so it reads as a
+		// word rather than a checkmark; plain editable is a plain yes.
+		edit := s.Muted.Render("—")
+		switch {
+		case info.Editable && info.RoundTrip:
+			edit = s.Success.Render("faithful")
+		case info.Editable:
+			edit = s.Success.Render("yes")
 		}
-		if info.HasWriter {
-			write = "yes"
-		}
-		if info.Editable {
-			edit = "yes"
-			if info.RoundTrip {
-				edit = "faithful"
-			}
-		}
-		displayName := info.DisplayName
-		if len(displayName) > 28 {
-			displayName = displayName[:25] + "..."
-		}
-		exts := strings.Join(info.Extensions, ", ")
-		if len(exts) > 22 {
-			exts = exts[:19] + "..."
-		}
-		mimes := strings.Join(info.MimeTypes, ", ")
-		if len(mimes) > 44 {
-			mimes = mimes[:41] + "..."
-		}
-		fmt.Fprintf(w, "  %-26s %-30s %-6s %-6s %-6s %-12s %-24s %s\n",
-			info.Name, displayName, read, write, edit, info.Source, exts, mimes)
+		t.Row(
+			info.Name,
+			info.DisplayName,
+			s.YesNo(info.HasReader),
+			s.YesNo(info.HasWriter),
+			edit,
+			s.Dim(info.Source),
+			s.Dim(strings.Join(info.Extensions, ", ")),
+			s.Dim(strings.Join(info.MimeTypes, ", ")),
+		)
 	}
-	fmt.Fprintf(w, "\n"+T("formats.total")+"\n", f.Total)
+	t.Render()
+
+	fmt.Fprintln(w)
+	Note(w, T("formats.total"), f.Total)
 	return nil
 }
 
@@ -160,17 +152,23 @@ func (t ToolsListOutput) FormatText(w io.Writer) error {
 		grouped[cat] = append(grouped[cat], tool)
 	}
 
-	fmt.Fprintln(w, T("tools.available"))
+	section := func(title string, tools []ToolInfo) {
+		Title(w, title+":")
+		tbl := NewTable(w).Accent(0).
+			Headers(T("tools.header.tool"), T("tools.header.description"))
+		s := tbl.Styles()
+		for _, tool := range tools {
+			tbl.Row(tool.Name, s.Text(tool.Description))
+		}
+		tbl.Render()
+		fmt.Fprintln(w)
+	}
+
+	Title(w, T("tools.available"))
 
 	for _, cat := range categoryOrder {
-		tools := grouped[cat]
-		if len(tools) == 0 {
-			continue
-		}
-		title := T("tools.category." + cat)
-		fmt.Fprintf(w, "\n%s:\n", title)
-		for _, tool := range tools {
-			fmt.Fprintf(w, "  %-24s %s\n", tool.Name, tool.Description)
+		if tools := grouped[cat]; len(tools) > 0 {
+			section(T("tools.category."+cat), tools)
 		}
 	}
 
@@ -179,13 +177,10 @@ func (t ToolsListOutput) FormatText(w io.Writer) error {
 		if categoryTitles[cat] != "" {
 			continue
 		}
-		fmt.Fprintf(w, "\n%s:\n", T("tools.category.other"))
-		for _, tool := range tools {
-			fmt.Fprintf(w, "  %-24s %s\n", tool.Name, tool.Description)
-		}
+		section(T("tools.category.other"), tools)
 	}
 
-	fmt.Fprintf(w, "\n"+T("tools.total")+"\n", t.Total)
+	Note(w, T("tools.total"), t.Total)
 	return nil
 }
 
@@ -209,19 +204,24 @@ func (f FlowsListOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 
-	fmt.Fprintln(w, T("flows.available"))
-	fmt.Fprintln(w)
+	Title(w, T("flows.available"))
+
+	t := NewTable(w).Accent(0).Headers(
+		T("flows.header.flow"), T("flows.header.description"), T("flows.header.steps"))
+	s := t.Styles()
 	for _, flow := range f.Flows {
-		fmt.Fprintf(w, "  %s", flow.Name)
-		if flow.Description != "" {
-			fmt.Fprintf(w, " - %s", flow.Description)
-		}
+		steps := ""
 		if flow.Steps > 0 {
-			fmt.Fprintf(w, " (%d steps)", flow.Steps)
+			steps = strconv.Itoa(flow.Steps)
 		}
-		fmt.Fprintln(w)
+		// The description is primary content, so it stays in the default
+		// foreground; only the step count, which is often absent, is muted.
+		t.Row(flow.Name, s.Text(flow.Description), s.Dim(steps))
 	}
-	fmt.Fprintf(w, "\n"+T("flows.total")+"\n", f.Total)
+	t.Render()
+
+	fmt.Fprintln(w)
+	Note(w, T("flows.total"), f.Total)
 	return nil
 }
 
@@ -245,19 +245,22 @@ type FlowRunOutput struct {
 }
 
 func (o FlowRunOutput) FormatText(w io.Writer) error {
+	s := Theme(w)
 	if o.ProcessOnly {
 		fmt.Fprintf(w,
 			"Committed overlays for %s to the project store — run `kapi merge` to write localized files.\n",
-			filepath.Base(o.InputPath))
+			s.Accent.Render(filepath.Base(o.InputPath)))
 		return nil
 	}
 	if o.FilesProcessed > 0 {
-		fmt.Fprintf(w, "Flow %s completed: processed %d files\n", o.FlowName, o.FilesProcessed)
+		fmt.Fprintf(w, "Flow %s completed: processed %d files\n",
+			s.Accent.Render(o.FlowName), o.FilesProcessed)
 	} else {
-		fmt.Fprintf(w, "Flow %s completed: %s → %s\n", o.FlowName, o.InputPath, o.OutputPath)
+		fmt.Fprintf(w, "Flow %s completed: %s → %s\n",
+			s.Accent.Render(o.FlowName), o.InputPath, o.OutputPath)
 	}
 	if o.Stats != nil {
-		fmt.Fprintf(w, "  Parts: %d, Blocks: %d\n", o.Stats.PartCount, o.Stats.BlockCount)
+		Note(w, "  Parts: %d, Blocks: %d", o.Stats.PartCount, o.Stats.BlockCount)
 	}
 	return nil
 }
@@ -281,8 +284,7 @@ type ExtractPairOutput struct {
 }
 
 // ExtractOutput represents the result of `kapi extract` (project batch
-// extraction). FormatText reproduces the command's historical human report
-// byte-for-byte.
+// extraction).
 type ExtractOutput struct {
 	BatchID  string              `json:"batch_id"`
 	Format   string              `json:"format"`
@@ -299,22 +301,32 @@ type ExtractOutput struct {
 }
 
 func (o ExtractOutput) FormatText(w io.Writer) error {
+	s := Theme(w)
+
 	if o.RedactionVault != "" {
-		fmt.Fprintf(w, "Redaction enabled (rules=%s) — originals stay in %s\n",
-			o.RedactionRules, o.RedactionVault)
+		fmt.Fprintln(w, s.Warn.Render(fmt.Sprintf(
+			"Redaction enabled (rules=%s) — originals stay in %s",
+			o.RedactionRules, o.RedactionVault)))
 	}
-	fmt.Fprintf(w, "Extracting batch %s (format=%s, targets=%v, sources=%d)\n",
-		o.BatchID, o.Format, o.Targets, o.Sources)
+	fmt.Fprintf(w, "Extracting batch %s (format=%s, targets=%s, sources=%d)\n\n",
+		s.Accent.Render(o.BatchID), o.Format, strings.Join(o.Targets, ", "), o.Sources)
+
+	// One row per target locale. These were "fr: 2 files, 10 blocks, TM
+	// exact=4 fuzzy=1 new=5" lines — a record set spelled out as prose, which
+	// stops being readable the moment there is more than a handful of locales.
+	t := NewTable(w).Accent(0).Headers("LOCALE", "FILES", "BLOCKS", "EXACT", "FUZZY", "NEW")
 	for _, p := range o.Pairs {
-		fmt.Fprintf(w, "  %s: %d files, %d blocks, TM exact=%d fuzzy=%d new=%d\n",
-			p.TargetLocale, p.Files, p.Blocks,
+		t.Rowf(p.TargetLocale, p.Files, p.Blocks,
 			p.Leverage.Exact, p.Leverage.Fuzzy, p.Leverage.New)
 	}
-	fmt.Fprintf(w, "\nBatch %s complete. Manifest: %s\n", o.BatchID, o.Manifest)
+	t.Render()
+
+	fmt.Fprintf(w, "\nBatch %s complete. Manifest: %s\n",
+		s.Accent.Render(o.BatchID), s.Muted.Render(o.Manifest))
 	if o.Reused > 0 {
-		fmt.Fprintf(w, "Reused %d unchanged file(s) from a prior batch (no re-parse).\n", o.Reused)
+		Note(w, "Reused %d unchanged file(s) from a prior batch (no re-parse).", o.Reused)
 	}
-	fmt.Fprintf(w, "Aggregate TM leverage: exact=%d fuzzy=%d new=%d (total=%d)\n",
+	Note(w, "Aggregate TM leverage: exact=%d fuzzy=%d new=%d (total=%d)",
 		o.Leverage.Exact, o.Leverage.Fuzzy, o.Leverage.New, o.Leverage.Total())
 	return nil
 }
@@ -333,8 +345,7 @@ type MergeFileOutput struct {
 }
 
 // MergeOutput represents the result of `kapi merge -i` (applying returned
-// bilingual files). FormatText reproduces the command's historical human
-// report byte-for-byte.
+// bilingual files).
 type MergeOutput struct {
 	Files          []MergeFileOutput `json:"files"`
 	Applied        int               `json:"applied"`
@@ -347,15 +358,21 @@ type MergeOutput struct {
 }
 
 func (o MergeOutput) FormatText(w io.Writer) error {
+	t := NewTable(w).Accent(0).
+		Headers("FILE", "APPLIED", "STALE", "SKIPPED", "TM NEW", "TM UPDATED")
+	s := t.Styles()
+
 	for _, f := range o.Files {
-		fmt.Fprintf(w, "Merging %s\n", f.Input)
 		if f.Error != "" {
-			// The error itself already streamed to stderr when it happened.
+			// The error itself already streamed to stderr when it happened, so
+			// the row only has to mark which file it was.
+			t.Row(f.Input, s.Error.Render("failed"), "", "", "", "")
 			continue
 		}
-		fmt.Fprintf(w, "  applied=%d stale=%d skipped=%d tm_new=%d tm_updated=%d\n",
-			f.Applied, f.Stale, f.Skipped, f.TMNew, f.TMUpdated)
+		t.Rowf(f.Input, f.Applied, f.Stale, f.Skipped, f.TMNew, f.TMUpdated)
 	}
+	t.Render()
+
 	fmt.Fprintf(w,
 		"\nMerge complete. applied=%d stale=%d skipped=%d tm_new=%d tm_updated=%d (conflict_policy=%s)\n",
 		o.Applied, o.Stale, o.Skipped, o.TMNew, o.TMUpdated, o.ConflictPolicy)
@@ -417,45 +434,35 @@ func (p PresetsListOutput) FormatText(w io.Writer) error {
 	}
 
 	if len(fwPresets) > 0 {
-		fmt.Fprintln(w, "Framework Presets:")
-		for _, p := range fwPresets {
-			fmt.Fprintf(w, "  %-20s %s [%s]\n", p.Name, p.Description, p.Source)
+		Title(w, "Framework Presets:")
+		t := NewTable(w).Accent(0).Headers(
+			T("presets.header.preset"), T("presets.header.description"), T("presets.header.source"))
+		s := t.Styles()
+		for _, e := range fwPresets {
+			t.Row(e.Name, s.Text(e.Description), s.Dim(e.Source))
 		}
+		t.Render()
 		fmt.Fprintln(w)
 	}
 
 	if len(fmtPresets) > 0 {
-		fmt.Fprintln(w, "Format Presets:")
-
-		// Filter out default presets — they're just the format's built-in config.
-		var nonDefault []PresetEntry
-		for _, p := range fmtPresets {
-			if !p.IsDefault {
-				nonDefault = append(nonDefault, p)
+		Title(w, "Format Presets:")
+		t := NewTable(w).Accent(0).Headers(
+			T("presets.header.preset"), T("presets.header.format"), T("presets.header.description"))
+		s := t.Styles()
+		for _, e := range fmtPresets {
+			// Default presets are just the format's built-in config, so they say
+			// nothing a reader could act on.
+			if e.IsDefault {
+				continue
 			}
+			t.Row(e.Name, s.Dim(e.Format), s.Text(e.Description))
 		}
-
-		// Group by format for readability.
-		var currentFormat string
-		first := true
-		for _, p := range nonDefault {
-			if p.Format != currentFormat {
-				currentFormat = p.Format
-				if !first {
-					fmt.Fprintln(w)
-				}
-				first = false
-				fmt.Fprintf(w, "  %s\n", currentFormat)
-			}
-			presetName := p.Name
-			if idx := strings.Index(presetName, ":"); idx >= 0 {
-				presetName = presetName[idx:]
-			}
-			fmt.Fprintf(w, "    %-30s %s\n", presetName, p.Description)
-		}
+		t.Render()
+		fmt.Fprintln(w)
 	}
 
-	fmt.Fprintf(w, "\nTotal: %d preset(s)\n", p.Total)
+	Note(w, "Total: %d preset(s)", p.Total)
 	return nil
 }
 
@@ -535,12 +542,17 @@ func (o PluginSearchOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 
-	fmt.Fprintf(w, "  %-25s %-10s %-10s %s\n", "NAME", "VERSION", "TYPE", "DESCRIPTION")
-	fmt.Fprintf(w, "  %-25s %-10s %-10s %s\n", "----", "-------", "----", "-----------")
+	t := NewTable(w).Accent(0).Headers(
+		T("plugins.header.name"), T("plugins.header.version"),
+		T("plugins.header.type"), T("plugins.header.description"))
+	s := t.Styles()
 	for _, p := range o.Plugins {
-		fmt.Fprintf(w, "  %-25s %-10s %-10s %s\n", p.Name, p.Version, p.PluginType, p.Description)
+		t.Row(p.Name, p.Version, s.Dim(p.PluginType), s.Text(p.Description))
 	}
-	fmt.Fprintf(w, "\nTotal: %d plugin(s)\n", o.Total)
+	t.Render()
+
+	fmt.Fprintln(w)
+	Note(w, T("plugins.total"), o.Total)
 	return nil
 }
 
@@ -633,22 +645,24 @@ func (o FormatInfoOutput) FormatText(w io.Writer) error {
 		fmt.Fprintln(w, "Parameters:")
 		for _, g := range o.Groups {
 			fmt.Fprintln(w)
-			fmt.Fprintf(w, "  [%s]", g.Label)
+			label := "[" + g.Label + "]"
 			if g.Description != "" {
-				fmt.Fprintf(w, " — %s", g.Description)
+				label += " — " + g.Description
 			}
-			fmt.Fprintln(w)
+			Title(w, label)
 
+			t := NewTable(w).Accent(0).Headers(
+				T("formats.header.parameter"), T("formats.header.type"),
+				T("formats.header.default"), T("formats.header.description"))
+			s := t.Styles()
 			for _, p := range g.Parameters {
-				fmt.Fprintf(w, "    %-20s %-10s", p.Name, p.Type)
+				def := ""
 				if p.Default != nil {
-					fmt.Fprintf(w, " (default: %v)", p.Default)
+					def = fmt.Sprintf("%v", p.Default)
 				}
-				if p.Description != "" {
-					fmt.Fprintf(w, "  %s", p.Description)
-				}
-				fmt.Fprintln(w)
+				t.Row(p.Name, s.Dim(p.Type), s.Dim(def), s.Text(p.Description))
 			}
+			t.Render()
 		}
 	}
 
@@ -709,18 +723,24 @@ func (o TermbaseLookupOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(tw, "  TERM\tLOCALE\tSTATUS\tMATCH\tSCORE\tCONCEPT\tDOMAIN\n")
-	fmt.Fprintf(tw, "  ----\t------\t------\t-----\t-----\t-------\t------\n")
+	t := NewTable(w).Accent(0).Headers(
+		T("termbase.header.term"), T("termbase.header.locale"), T("termbase.header.status"),
+		T("termbase.header.match"), T("termbase.header.score"), T("termbase.header.concept"),
+		T("termbase.header.domain"))
+	s := t.Styles()
 	for _, m := range o.Matches {
-		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%.2f\t%s\t%s\n",
-			m.Term, m.Locale, m.Status, m.MatchType, m.Score, m.ConceptID, m.Domain)
-		for _, t := range m.Targets {
-			fmt.Fprintf(tw, "    -> %s\t%s\t%s\t\t\t\t\n", t.Text, t.Locale, t.Status)
+		t.Row(m.Term, m.Locale, s.Dim(m.Status), s.Dim(m.MatchType),
+			fmt.Sprintf("%.2f", m.Score), s.Dim(m.ConceptID), s.Dim(m.Domain))
+		// Targets hang off their source term rather than standing as rows of
+		// their own, so they are indented into the term column.
+		for _, tgt := range m.Targets {
+			t.Row("  → "+tgt.Text, tgt.Locale, s.Dim(tgt.Status), "", "", "", "")
 		}
 	}
-	tw.Flush()
-	fmt.Fprintf(w, "\nTotal: %d match(es)\n", o.Total)
+	t.Render()
+
+	fmt.Fprintln(w)
+	Note(w, "Total: %d match(es)", o.Total)
 	return nil
 }
 
@@ -751,24 +771,22 @@ func (o TermbaseSearchOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(tw, "  CONCEPT\tDOMAIN\tTERMS\tDEFINITION\n")
-	fmt.Fprintf(tw, "  -------\t------\t-----\t----------\n")
+	t := NewTable(w).Accent(0).Headers(
+		T("termbase.header.concept"), T("termbase.header.domain"),
+		T("termbase.header.terms"), T("termbase.header.definition"))
+	s := t.Styles()
 	for _, c := range o.Concepts {
-		var terms []string
-		for _, t := range c.Terms {
-			terms = append(terms, fmt.Sprintf("%s [%s]", t.Text, t.Locale))
+		terms := make([]string, 0, len(c.Terms))
+		for _, term := range c.Terms {
+			terms = append(terms, fmt.Sprintf("%s [%s]", term.Text, term.Locale))
 		}
-		def := c.Definition
-		if len(def) > 40 {
-			def = def[:37] + "..."
-		}
-		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\n", c.ID, c.Domain, strings.Join(terms, ", "), def)
+		t.Row(c.ID, s.Dim(c.Domain), strings.Join(terms, ", "), s.Text(c.Definition))
 	}
-	tw.Flush()
+	t.Render()
 
 	if o.Total > o.Shown {
-		fmt.Fprintf(w, "\nShowing %d of %d results. Use --limit to see more.\n", o.Shown, o.Total)
+		fmt.Fprintln(w)
+		Note(w, "Showing %d of %d results. Use --limit to see more.", o.Shown, o.Total)
 	}
 	return nil
 }
@@ -791,29 +809,35 @@ func (o TermbaseStatsOutput) FormatText(w io.Writer) error {
 
 	if len(o.Locales) > 0 {
 		fmt.Fprintln(w)
-		fmt.Fprintln(w, "  Locales:")
-		keys := SortedKeys(o.Locales)
-		for _, k := range keys {
-			fmt.Fprintf(w, "    %-10s %d terms\n", k, o.Locales[k])
+		Title(w, "Locales:")
+		t := NewTable(w).Accent(0).
+			Headers(T("termbase.header.locale"), T("termbase.header.terms"))
+		for _, k := range SortedKeys(o.Locales) {
+			t.Rowf(k, o.Locales[k])
 		}
+		t.Render()
 	}
 
 	if len(o.Domains) > 0 {
 		fmt.Fprintln(w)
-		fmt.Fprintln(w, "  Domains:")
-		keys := SortedKeys(o.Domains)
-		for _, k := range keys {
-			fmt.Fprintf(w, "    %-20s %d concepts\n", k, o.Domains[k])
+		Title(w, "Domains:")
+		t := NewTable(w).Accent(0).
+			Headers(T("termbase.header.domain"), T("termbase.header.concepts"))
+		for _, k := range SortedKeys(o.Domains) {
+			t.Rowf(k, o.Domains[k])
 		}
+		t.Render()
 	}
 
 	if len(o.Statuses) > 0 {
 		fmt.Fprintln(w)
-		fmt.Fprintln(w, "  Term statuses:")
-		keys := SortedKeys(o.Statuses)
-		for _, k := range keys {
-			fmt.Fprintf(w, "    %-12s %d\n", k, o.Statuses[k])
+		Title(w, "Term statuses:")
+		t := NewTable(w).Accent(0).
+			Headers(T("termbase.header.status"), T("termbase.header.terms"))
+		for _, k := range SortedKeys(o.Statuses) {
+			t.Rowf(k, o.Statuses[k])
 		}
+		t.Render()
 	}
 
 	return nil
@@ -865,22 +889,17 @@ func (o TMLookupOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(tw, "  SOURCE\tTARGET\tSCORE\tMATCH TYPE\n")
-	fmt.Fprintf(tw, "  ------\t------\t-----\t----------\n")
+	t := NewTable(w).Accent(0).Headers(
+		T("tm.header.source"), T("tm.header.target"),
+		T("tm.header.score"), T("tm.header.matchType"))
+	s := t.Styles()
 	for _, m := range o.Matches {
-		source := m.Source
-		if len(source) > 40 {
-			source = source[:37] + "..."
-		}
-		target := m.Target
-		if len(target) > 40 {
-			target = target[:37] + "..."
-		}
-		fmt.Fprintf(tw, "  %s\t%s\t%.0f%%\t%s\n", source, target, m.Score*100, m.MatchType)
+		t.Row(m.Source, m.Target, fmt.Sprintf("%.0f%%", m.Score*100), s.Dim(m.MatchType))
 	}
-	tw.Flush()
-	fmt.Fprintf(w, "\nTotal: %d match(es)\n", o.Total)
+	t.Render()
+
+	fmt.Fprintln(w)
+	Note(w, "Total: %d match(es)", o.Total)
 	return nil
 }
 
@@ -906,24 +925,17 @@ func (o TMSearchOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(tw, "  SOURCE\tTARGET\tLOCALES\n")
-	fmt.Fprintf(tw, "  ------\t------\t-------\n")
+	t := NewTable(w).Accent(0).Headers(
+		T("tm.header.source"), T("tm.header.target"), T("tm.header.locales"))
+	s := t.Styles()
 	for _, e := range o.Entries {
-		source := e.Source
-		if len(source) > 40 {
-			source = source[:37] + "..."
-		}
-		target := e.Target
-		if len(target) > 40 {
-			target = target[:37] + "..."
-		}
-		fmt.Fprintf(tw, "  %s\t%s\t%s → %s\n", source, target, e.SourceLanguage, e.TargetLanguage)
+		t.Row(e.Source, e.Target, s.Dim(e.SourceLanguage+" → "+e.TargetLanguage))
 	}
-	tw.Flush()
+	t.Render()
 
 	if o.Total > o.Shown {
-		fmt.Fprintf(w, "\nShowing %d of %d results. Use --limit to see more.\n", o.Shown, o.Total)
+		fmt.Fprintln(w)
+		Note(w, "Showing %d of %d results. Use --limit to see more.", o.Shown, o.Total)
 	}
 	return nil
 }
@@ -942,11 +954,13 @@ func (o TMStatsOutput) FormatText(w io.Writer) error {
 
 	if len(o.LocalePairs) > 0 {
 		fmt.Fprintln(w)
-		fmt.Fprintln(w, "  Locale pairs:")
-		keys := SortedKeys(o.LocalePairs)
-		for _, k := range keys {
-			fmt.Fprintf(w, "    %-20s %d entries\n", k, o.LocalePairs[k])
+		Title(w, "Locale pairs:")
+		t := NewTable(w).Accent(0).
+			Headers(T("tm.header.localePair"), T("tm.header.entries"))
+		for _, k := range SortedKeys(o.LocalePairs) {
+			t.Rowf(k, o.LocalePairs[k])
 		}
+		t.Render()
 	}
 
 	return nil
@@ -975,17 +989,20 @@ func (o ResourceListOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 
-	fmt.Fprintf(w, "Named %ss:\n\n", o.Kind)
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(tw, "  NAME\tSIZE\tMODIFIED\tPATH\n")
-	fmt.Fprintf(tw, "  ----\t----\t--------\t----\n")
+	Title(w, fmt.Sprintf("Named %ss:", o.Kind))
+
+	t := NewTable(w).Accent(0).Headers(
+		T("resources.header.name"), T("resources.header.size"),
+		T("resources.header.modified"), T("resources.header.path"))
+	s := t.Styles()
 	for _, r := range o.Resources {
-		sizeStr := formatBytes(r.Size)
-		modStr := r.Modified.Format("2006-01-02 15:04")
-		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\n", r.Name, sizeStr, modStr, r.Path)
+		t.Row(r.Name, formatBytes(r.Size),
+			s.Dim(r.Modified.Format("2006-01-02 15:04")), s.Dim(r.Path))
 	}
-	tw.Flush()
-	fmt.Fprintf(w, "\nTotal: %d %s(s)\n", o.Total, o.Kind)
+	t.Render()
+
+	fmt.Fprintln(w)
+	Note(w, "Total: %d %s(s)", o.Total, o.Kind)
 	return nil
 }
 

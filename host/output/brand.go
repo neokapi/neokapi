@@ -3,6 +3,7 @@ package output
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/brand"
@@ -34,21 +35,26 @@ type BrandCheckOutput struct {
 
 // FormatText renders a compact human-readable scorecard.
 func (o BrandCheckOutput) FormatText(w io.Writer) error {
-	status := "PASS"
+	s := Theme(w)
+	status := s.Success.Render("PASS")
 	if !o.Passed {
-		status = "FAIL"
+		status = s.Error.Render("FAIL")
 	}
 	fmt.Fprintf(w, "Brand voice score: %d/100  [%s]", o.Score, status)
 	if o.Profile != "" {
-		fmt.Fprintf(w, "  (profile: %s)", o.Profile)
+		fmt.Fprintf(w, "  %s", s.Muted.Render("(profile: "+o.Profile+")"))
 	}
 	fmt.Fprintln(w)
+
+	t := NewTable(w).Accent(0).Headers("DIMENSION", "SCORE", "ISSUES")
 	for _, d := range o.Dimensions {
 		if d.Issues == 0 {
 			continue
 		}
-		fmt.Fprintf(w, "  %-16s %3d  (%d issue(s))\n", string(d.Dimension), d.Score, d.Issues)
+		t.Rowf(string(d.Dimension), d.Score, t.Styles().Warn.Render(strconv.Itoa(d.Issues)))
 	}
+	t.Render()
+
 	if len(o.Findings) == 0 {
 		fmt.Fprintln(w, "  No findings — on brand.")
 		return nil
@@ -115,10 +121,15 @@ func (o BrandProfilesOutput) FormatText(w io.Writer) error {
 		fmt.Fprintln(w, "No brand voice profiles. Install a starter pack with: kapi brand pack <name>")
 		return nil
 	}
+	t := NewTable(w).Accent(0).Headers("ID", "SOURCE", "NAME")
+	s := t.Styles()
 	for _, p := range o.Profiles {
-		fmt.Fprintf(w, "%-22s %-8s %s\n", p.ID, p.Source, strings.TrimSpace(p.Name))
+		t.Row(p.ID, s.Dim(p.Source), strings.TrimSpace(p.Name))
 	}
-	fmt.Fprintf(w, "\n%d profile(s)\n", o.Total)
+	t.Render()
+
+	fmt.Fprintln(w)
+	Note(w, "%d profile(s)", o.Total)
 	return nil
 }
 

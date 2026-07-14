@@ -72,15 +72,17 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 	fmt.Fprintf(w, "Plan for flow %q (dry run — nothing written, no provider calls):\n\n", o.Flow)
-	fmt.Fprintf(w, "  %-24s %8s %9s %8s %9s\n", "scope", "missing", "TM exact", "AI work", "~tokens")
+	t := output.NewTable(w).Accent(0).
+		Headers("scope", "missing", "TM exact", "AI work", "~tokens")
 	for _, s := range o.Scopes {
 		scope := s.Locale
 		if s.Collection != "" {
 			scope = s.Locale + "/" + s.Collection
 		}
-		fmt.Fprintf(w, "  %-24s %8d %9d %8d %9d\n", scope, s.MissingTarget, s.TMExact, s.AIRemaining, s.TokenEstimate)
+		t.Rowf(scope, s.MissingTarget, s.TMExact, s.AIRemaining, s.TokenEstimate)
 	}
-	fmt.Fprintf(w, "  %-24s %8d %9d %8d %9d\n", "total", o.Totals.MissingTarget, o.Totals.TMExact, o.Totals.AIRemaining, o.Totals.TokenEstimate)
+	t.Rowf("total", o.Totals.MissingTarget, o.Totals.TMExact, o.Totals.AIRemaining, o.Totals.TokenEstimate)
+	t.Render()
 	if o.Subscription {
 		fmt.Fprintf(w, "\n  AI provider: %s — runs on your Claude subscription (no per-token API cost).\n", o.Provider)
 	}

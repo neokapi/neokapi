@@ -111,8 +111,17 @@ func TestCLIJSONContract(t *testing.T) {
 	}
 }
 
-// TestCLIContractText locks the human (FormatText) renderings of the same
-// result documents — text mode must stay byte-identical release to release.
+// TestCLIContractText pins the human (FormatText) renderings of the same result
+// documents.
+//
+// Unlike the JSON goldens above, text output is NOT a compatibility contract —
+// scripts are expected to use --json, and the renderings are restyled when the
+// CLI's presentation improves. This test exists so that a restyle is a
+// deliberate, reviewed act rather than an accidental side effect of an unrelated
+// change. Update the expectations when you mean to; never to make a test pass.
+//
+// FormatText writes to a bytes.Buffer here, which is not a terminal, so the
+// renderer emits no ANSI and these strings stay deterministic.
 func TestCLIContractText(t *testing.T) {
 	res := output.ExtractOutput{
 		BatchID:  "0b6be731-3a5c-4a02-9e04-2f79e4c2d1aa",
@@ -129,8 +138,10 @@ func TestCLIContractText(t *testing.T) {
 	var buf bytes.Buffer
 	require.NoError(t, res.FormatText(&buf))
 	assert.Equal(t,
-		"Extracting batch 0b6be731-3a5c-4a02-9e04-2f79e4c2d1aa (format=xliff2, targets=[fr de], sources=2)\n"+
-			"  fr: 2 files, 10 blocks, TM exact=4 fuzzy=1 new=5\n"+
+		"Extracting batch 0b6be731-3a5c-4a02-9e04-2f79e4c2d1aa (format=xliff2, targets=fr, de, sources=2)\n"+
+			"\n"+
+			"  LOCALE  FILES  BLOCKS  EXACT  FUZZY  NEW\n"+
+			"  fr      2      10      4      1      5\n"+
 			"\nBatch 0b6be731-3a5c-4a02-9e04-2f79e4c2d1aa complete. Manifest: .kapi/cache/extractions/0b6be731/manifest.yaml\n"+
 			"Reused 1 unchanged file(s) from a prior batch (no re-parse).\n"+
 			"Aggregate TM leverage: exact=4 fuzzy=1 new=15 (total=20)\n",
@@ -146,8 +157,8 @@ func TestCLIContractText(t *testing.T) {
 	buf.Reset()
 	require.NoError(t, mres.FormatText(&buf))
 	assert.Equal(t,
-		"Merging out/app.en-to-fr.xliff\n"+
-			"  applied=8 stale=1 skipped=0 tm_new=6 tm_updated=2\n"+
+		"  FILE                    APPLIED  STALE  SKIPPED  TM NEW  TM UPDATED\n"+
+			"  out/app.en-to-fr.xliff  8        1      0        6       2\n"+
 			"\nMerge complete. applied=8 stale=1 skipped=0 tm_new=6 tm_updated=2 (conflict_policy=prefer-incoming)\n",
 		buf.String())
 

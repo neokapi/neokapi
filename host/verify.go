@@ -78,41 +78,66 @@ type verifyOutput struct {
 // FormatText renders the verify result as a human-readable summary,
 // implementing output.TextFormatter.
 func (o verifyOutput) FormatText(w io.Writer) error {
+	gates := output.NewTable(w).Accent(0).Headers("gate", "result", "findings")
+	gs := gates.Styles()
 	for _, g := range o.Gates {
-		status := "PASS"
+		result := gs.Success.Render("PASS")
 		if !g.Pass {
-			status = "FAIL"
+			result = gs.Error.Render("FAIL")
 		}
-		fmt.Fprintf(w, "%-13s %s  (%d finding(s))\n", g.Gate, status, len(g.Findings))
+		gates.Rowf(g.Gate, result, len(g.Findings))
+	}
+	gates.Render()
+
+	// The findings follow the gate roll-up rather than nesting inside it: one
+	// aligned block per gate, so the gate column above stays a scannable list.
+	for _, g := range o.Gates {
+		if len(g.Findings) == 0 {
+			continue
+		}
+		fmt.Fprintln(w)
+		output.Title(w, g.Gate+":")
+		t := output.NewTable(w).Headers("severity", "location", "message")
+		s := t.Styles()
 		for _, f := range g.Findings {
-			loc := ""
-			if f.File != "" {
-				loc = f.File
-			}
+			loc := f.File
 			if f.Locale != "" {
 				if loc != "" {
 					loc += " "
 				}
 				loc += "[" + f.Locale + "]"
 			}
-			if loc != "" {
-				loc = " " + loc
-			}
-			fmt.Fprintf(w, "  %s%s: %s\n", strings.ToUpper(f.Severity), loc, f.Message)
+			t.Row(severityCell(s, f.Severity), s.Dim(loc), f.Message)
 			if f.Suggestion != "" {
-				fmt.Fprintf(w, "      suggestion: %s\n", f.Suggestion)
+				t.Row("", "", s.Muted.Render("↳ "+f.Suggestion))
 			}
 		}
+		t.Render()
 	}
 	fmt.Fprintln(w)
-	verdict := "PASS"
+	verdict := gs.Success.Render("PASS")
 	if !o.Pass {
-		verdict = "FAIL"
+		verdict = gs.Error.Render("FAIL")
 	}
 	fmt.Fprintf(w, "%s — %d gate(s), %d passed, %d failed, %d finding(s) (%d error, %d warning)\n",
 		verdict, o.Summary.Gates, o.Summary.Passed, o.Summary.Failed,
 		o.Summary.Findings, o.Summary.Errors, o.Summary.Warnings)
 	return nil
+}
+
+// severityCell renders a finding's severity with the style its urgency asks
+// for. It spans both severity vocabularies in play: the verify gates emit
+// error/warning, core/check emits critical/major/minor.
+func severityCell(s *output.Styles, sev string) string {
+	label := strings.ToUpper(sev)
+	switch strings.ToLower(sev) {
+	case "error", "critical":
+		return s.Error.Render(label)
+	case "warning", "major":
+		return s.Warn.Render(label)
+	default:
+		return s.Muted.Render(label)
+	}
 }
 
 // gateSelection records which gates the user asked to run. When no gate flag

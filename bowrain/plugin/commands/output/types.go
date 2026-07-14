@@ -352,30 +352,24 @@ func (o TokenListOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 
-	nameW := 4 // "NAME"
-	for _, t := range o.Tokens {
-		if len(t.Name) > nameW {
-			nameW = len(t.Name)
+	t := NewTable(w).Accent(0).Headers("NAME", "PREFIX", "LAST USED", "EXPIRES", "ID")
+	s := t.Styles()
+
+	for _, tok := range o.Tokens {
+		lastUsed := s.Muted.Render("never")
+		if tok.LastUsedAt != nil {
+			lastUsed = tok.LastUsedAt.Format("2006-01-02 15:04")
 		}
+		expires := s.Muted.Render("never")
+		if tok.ExpiresAt != nil {
+			expires = tok.ExpiresAt.Format("2006-01-02 15:04")
+		}
+		t.Row(tok.Name, tok.TokenPrefix, lastUsed, expires, s.Dim(tok.ID))
 	}
-	nameW += 2
+	t.Render()
 
-	fmt.Fprintf(w, "  %-*s %-10s %-20s %-20s %s\n", nameW, "NAME", "PREFIX", "LAST USED", "EXPIRES", "ID")
-	fmt.Fprintf(w, "  %-*s %-10s %-20s %-20s %s\n", nameW, "----", "------", "---------", "-------", "--")
-
-	for _, t := range o.Tokens {
-		lastUsed := "never"
-		if t.LastUsedAt != nil {
-			lastUsed = t.LastUsedAt.Format("2006-01-02 15:04")
-		}
-		expires := "never"
-		if t.ExpiresAt != nil {
-			expires = t.ExpiresAt.Format("2006-01-02 15:04")
-		}
-		fmt.Fprintf(w, "  %-*s %-10s %-20s %-20s %s\n", nameW, t.Name, t.TokenPrefix, lastUsed, expires, t.ID)
-	}
-
-	fmt.Fprintf(w, "\n%d token(s)\n", len(o.Tokens))
+	fmt.Fprintln(w)
+	Note(w, "%d token(s)", len(o.Tokens))
 	return nil
 }
 
@@ -432,34 +426,25 @@ func (o StreamListOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 
-	nameW := 4
-	for _, s := range o.Streams {
-		if len(s.Name) > nameW {
-			nameW = len(s.Name)
+	// The leading column carries the active-stream marker, as `git branch` does.
+	t := NewTable(w).Accent(1).Headers("", "NAME", "PARENT", "VISIBILITY", "STATE", "DESCRIPTION")
+	s := t.Styles()
+
+	for _, st := range o.Streams {
+		marker := ""
+		if st.Active {
+			marker = s.Accent.Render("*")
 		}
+		state := s.Success.Render("active")
+		if st.Archived {
+			state = s.Warn.Render("archived")
+		}
+		t.Row(marker, st.Name, s.Dim(st.Parent), s.Dim(st.Visibility), state, s.Text(st.Description))
 	}
-	nameW += 2
+	t.Render()
 
-	fmt.Fprintf(w, "  %-*s %-10s %-10s %s\n", nameW, "NAME", "PARENT", "VISIBILITY", "DESCRIPTION")
-	fmt.Fprintf(w, "  %-*s %-10s %-10s %s\n", nameW, "----", "------", "----------", "-----------")
-
-	for _, s := range o.Streams {
-		marker := "  "
-		if s.Active {
-			marker = "* "
-		}
-		archived := ""
-		if s.Archived {
-			archived = " (archived)"
-		}
-		parent := s.Parent
-		if parent == "" {
-			parent = "-"
-		}
-		fmt.Fprintf(w, "%s%-*s %-10s %-10s %s%s\n", marker, nameW, s.Name, parent, s.Visibility, s.Description, archived)
-	}
-
-	fmt.Fprintf(w, "\n%d stream(s)\n", len(o.Streams))
+	fmt.Fprintln(w)
+	Note(w, "%d stream(s)", len(o.Streams))
 	return nil
 }
 
@@ -524,11 +509,30 @@ func (o StreamDiffOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, " %d removed", removed)
 	}
 	fmt.Fprintln(w)
+	fmt.Fprintln(w)
 
+	t := NewTable(w).Accent(1).Headers("CHANGE", "BLOCK")
+	s := t.Styles()
 	for _, c := range o.Changes {
-		fmt.Fprintf(w, "  %s  %s\n", c.ChangeType, c.BlockID)
+		t.Row(renderChange(s, c.ChangeType, c.ChangeType), c.BlockID)
 	}
+	t.Render()
 	return nil
+}
+
+// renderChange colors text by diff convention for the given change type:
+// additions read as success, edits as a warning, deletions as an error.
+func renderChange(s *Styles, change, text string) string {
+	switch change {
+	case "added":
+		return s.Success.Render(text)
+	case "changed", "modified":
+		return s.Warn.Render(text)
+	case "removed":
+		return s.Error.Render(text)
+	default:
+		return s.Muted.Render(text)
+	}
 }
 
 // StreamMergeOutput represents the result of kapi stream merge.
@@ -716,32 +720,31 @@ func (o DiffOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 
-	// Per-file summary (git diff --stat style).
-	pathW := 4
-	for _, f := range o.Files {
-		if len(f.Path) > pathW {
-			pathW = len(f.Path)
-		}
-	}
-	pathW += 2
-
-	for _, f := range o.Files {
-		stat := diffStat(f.Added, f.Changed, f.Removed)
-		fmt.Fprintf(w, "  %-*s %s\n", pathW, f.Path, stat)
-		if o.Verbose {
+	// Per-file summary (git diff --stat style). Verbose nests each file's blocks
+	// under it, which is a tree rather than a table, so it prints its own rows.
+	if o.Verbose {
+		s := Theme(w)
+		for _, f := range o.Files {
+			fmt.Fprintf(w, "  %s  %s\n", f.Path, diffStat(f.Added, f.Changed, f.Removed))
 			for _, b := range f.Blocks {
-				sigil := changeSigil(b.Change)
+				sigil := renderChange(s, b.Change, changeSigil(b.Change))
 				label := b.Name
 				if label == "" {
 					label = b.BlockID
 				}
 				if b.Preview != "" {
-					fmt.Fprintf(w, "      %s %s — %s\n", sigil, label, b.Preview)
+					fmt.Fprintf(w, "      %s %s — %s\n", sigil, label, s.Dim(b.Preview))
 				} else {
 					fmt.Fprintf(w, "      %s %s\n", sigil, label)
 				}
 			}
 		}
+	} else {
+		t := NewTable(w).Accent(0).Headers("FILE", "CHANGES")
+		for _, f := range o.Files {
+			t.Row(f.Path, diffStat(f.Added, f.Changed, f.Removed))
+		}
+		t.Render()
 	}
 
 	fmt.Fprintf(w, "\n%d file(s) changed: ", len(o.Files))
@@ -752,7 +755,8 @@ func (o DiffOutput) FormatText(w io.Writer) error {
 	}
 
 	if !o.Verbose {
-		fmt.Fprintln(w, "\nUse --verbose to see changed block ids/keys.")
+		fmt.Fprintln(w)
+		Note(w, "Use --verbose to see changed block ids/keys.")
 	}
 	return nil
 }

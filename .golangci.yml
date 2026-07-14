@@ -135,6 +135,18 @@ linters:
       # TODO(P06): thread ctx through storage.runMigrations and drop this rule.
       - linters: [contextcheck]
         text: "MigratePostgresNS->runMigrations"
+      # sievepen's FTS5/fuzzy index rebuild is a ctx-less local SQLite
+      # maintenance API, so compileTMSource (which does hold a ctx) trips
+      # contextcheck when it calls it.
+      #
+      # This has to be a config exclusion rather than a //nolint directive:
+      # contextcheck only sees the chain when the cgo/FTS5 build tags actually
+      # compile, which differs between a developer machine and the lint CI job.
+      # A directive is therefore *required* on one and flagged as unused by
+      # nolintlint on the other — it cannot be correct in both places. An
+      # exclusion is inert when the finding does not fire.
+      - linters: [contextcheck]
+        text: "RebuildTMSearchIndexes->RebuildSearchIndex"
       # SA5011 (possible nil dereference) is a known false-positive class in
       # tests that guard with `if x == nil { t.Fatal(...) }` and then use x:
       # staticcheck does not model testing.T.Fatal as terminating in every

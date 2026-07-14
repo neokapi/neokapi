@@ -3,7 +3,6 @@ package output
 import (
 	"fmt"
 	"io"
-	"text/tabwriter"
 )
 
 // TMAuditRow is one TM entry touched by a merge batch (kapi tm audit).
@@ -28,12 +27,14 @@ func (o TMAuditOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 	fmt.Fprintf(w, "Batch %s → %d TM entries (in %s)\n\n", o.Batch, o.Total, o.DBPath)
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "TIMESTAMP\tSOURCE FILE\tBLOCK HASH\tXLIFF ORIGINAL")
+
+	// The table narrows the long columns (source path, block hash) to whatever
+	// the terminal can show; --json carries the full values.
+	t := NewTable(w).Accent(1).Headers("TIMESTAMP", "SOURCE FILE", "BLOCK HASH", "XLIFF ORIGINAL")
+	s := t.Styles()
 	for _, r := range o.Entries {
-		// JSON carries full values; the text table truncates the long columns
-		// for readability (alignment is handled by tabwriter).
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n", r.Timestamp, truncate(r.SourceFile, 40), truncate(r.BlockHash, 16), r.XLIFFOriginal)
+		t.Row(s.Muted.Render(r.Timestamp), r.SourceFile, s.Dim(r.BlockHash), s.Dim(r.XLIFFOriginal))
 	}
-	return tw.Flush()
+	t.Render()
+	return nil
 }

@@ -53,6 +53,11 @@ func TestChannelBufferDefault(t *testing.T) {
 }
 
 func TestUpdateChannelDefault(t *testing.T) {
+	// Without an isolated config dir this reads the developer's real
+	// ~/.config/kapi, so the assertion depends on whoever ran it last having
+	// stayed on the stable channel.
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+
 	cfg := NewAppConfig()
 	assert.Equal(t, "stable", cfg.UpdateChannel())
 }
