@@ -18,86 +18,57 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   build:
     name: Build Web Assets
     uses: ./.github/workflows/_build-web.yml
 
-  docker:
-    name: Build Web Docker Image
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Compute build metadata
-        id: meta
-        env:
-          GH_SHA: ${{ github.sha }}
-        run: |
-          {
-            echo "version=$(git describe --tags --always 2>/dev/null || echo dev)"
-            echo "commit=${GH_SHA::7}"
-            echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Login to ghcr.io
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Build and push web image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: bowrain/docker/bowrain-web/Dockerfile
-          push: true
-          tags: |
-            ghcr.io/neokapi/bowrain-web:${{ github.sha }}
-            ghcr.io/neokapi/bowrain-web:latest
-          build-args: |
-            VERSION=${{ steps.meta.outputs.version }}
-            COMMIT=${{ steps.meta.outputs.commit }}
-            BUILD_DATE=${{ steps.meta.outputs.build_date }}
-          cache-from: type=gha,scope=bowrain-web
-          cache-to: type=gha,mode=max,scope=bowrain-web
-
   deploy:
-    name: Deploy to ECS
-    # No-op until the AWS environment exists: with the repo var unset the job
-    # is skipped and the workflow stays green (build + publish only).
-    if: ${{ vars.AWS_DEPLOY_ROLE_ARN != '' }}
-    needs: [docker]
+    name: Deploy to S3 + CloudFront
+    # No-op until the SPA bucket exists (set by the spa-s3-cloudfront migration):
+    # with the repo var unset the job is skipped and the workflow stays green
+    # (build + artifact only).
+    if: ${{ vars.SPA_WEB_BUCKET != '' }}
+    needs: [build]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
     environment: ${{ inputs.environment || 'prod' }}
     steps:
+      - name: Download web assets
+        uses: actions/download-artifact@v7
+        with:
+          name: web-dist
+          path: dist
+
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      # Task definitions are Terraform-owned and pin :latest — the forced
-      # deployment makes ECS re-pull the :latest image pushed above. All three
-      # SPAs (web, ctrl, pulse) run as containers of the single spa service.
-      # Rollback = re-run this workflow from an older commit (a retag
-      # workflow_dispatch input can make that a one-click revert later).
-      - name: Force new deployment of the SPA service
+      # Static SPA deploy: sync the built bundle to the private S3 origin, then
+      # invalidate CloudFront. Fingerprinted assets (/assets/*) are immutable and
+      # long-cached; the shell (index.html) and update manifest (version.json)
+      # must always revalidate so clients pick up new asset hashes. The final
+      # CloudFront invalidation purges the edge so the new release is live at once.
+      # Rollback = re-run this workflow from an older commit.
+      - name: Sync to S3 and invalidate CloudFront
         env:
-          CLUSTER: ${{ vars.ECS_CLUSTER }}
-          SERVICE: bowrain-${{ inputs.environment || 'prod' }}-spa
+          BUCKET: ${{ vars.SPA_WEB_BUCKET }}
+          DISTRIBUTION_ID: ${{ vars.SPA_WEB_DISTRIBUTION_ID }}
         run: |
-          aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" \
-            --force-new-deployment > /dev/null
-          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
+          set -euo pipefail
+          aws s3 sync dist "s3://$BUCKET" --delete \
+            --cache-control "public,max-age=31536000,immutable" \
+            --exclude "index.html" --exclude "version.json"
+          aws s3 cp dist/index.html "s3://$BUCKET/index.html" \
+            --cache-control "no-cache" --content-type "text/html; charset=utf-8"
+          if [ -f dist/version.json ]; then
+            aws s3 cp dist/version.json "s3://$BUCKET/version.json" \
+              --cache-control "no-cache" --content-type "application/json"
+          fi
+          aws cloudfront create-invalidation \
+            --distribution-id "$DISTRIBUTION_ID" --paths "/*" > /dev/null
