@@ -75,33 +75,46 @@ jobs:
           cache-to: type=gha,mode=max,scope=bowrain-pulse
 
   deploy:
-    name: Deploy to ECS
-    # No-op until the AWS environment exists: with the repo var unset the job
-    # is skipped and the workflow stays green (build + publish only).
-    if: ${{ vars.AWS_DEPLOY_ROLE_ARN != '' }}
-    needs: [docker]
+    name: Deploy
+    # Pulse has no deployment target yet (no ECS service, no S3 bucket in the
+    # prod cluster — unlike web/ctrl it was never wired up). Gate on a
+    # pulse-specific var that is currently unset so the job stays dormant and the
+    # workflow is build + publish only; wiring pulse (e.g. its own S3+CloudFront,
+    # like web/ctrl) will set SPA_PULSE_BUCKET and activate an s3-sync deploy here.
+    if: ${{ vars.SPA_PULSE_BUCKET != '' }}
+    needs: [build, docker]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
     environment: ${{ inputs.environment || 'prod' }}
     steps:
+      - name: Download pulse assets
+        uses: actions/download-artifact@v7
+        with:
+          name: pulse-dist
+          path: dist
+
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      # Task definitions are Terraform-owned and pin :latest — the forced
-      # deployment makes ECS re-pull the :latest image pushed above. All three
-      # SPAs (web, ctrl, pulse) run as containers of the single spa service.
-      # Rollback = re-run this workflow from an older commit (a retag
-      # workflow_dispatch input can make that a one-click revert later).
-      - name: Force new deployment of the SPA service
+      - name: Sync to S3 and invalidate CloudFront
         env:
-          CLUSTER: ${{ vars.ECS_CLUSTER }}
-          SERVICE: bowrain-${{ inputs.environment || 'prod' }}-spa
+          BUCKET: ${{ vars.SPA_PULSE_BUCKET }}
+          DISTRIBUTION_ID: ${{ vars.SPA_PULSE_DISTRIBUTION_ID }}
         run: |
-          aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" \
-            --force-new-deployment > /dev/null
-          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
+          set -euo pipefail
+          aws s3 sync dist "s3://$BUCKET" --delete \
+            --cache-control "public,max-age=31536000,immutable" \
+            --exclude "index.html" --exclude "version.json"
+          aws s3 cp dist/index.html "s3://$BUCKET/index.html" \
+            --cache-control "no-cache" --content-type "text/html; charset=utf-8"
+          if [ -f dist/version.json ]; then
+            aws s3 cp dist/version.json "s3://$BUCKET/version.json" \
+              --cache-control "no-cache" --content-type "application/json"
+          fi
+          aws cloudfront create-invalidation \
+            --distribution-id "$DISTRIBUTION_ID" --paths "/*" > /dev/null
