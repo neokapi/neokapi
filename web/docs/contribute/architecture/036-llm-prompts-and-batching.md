@@ -205,16 +205,40 @@ throttle must never be scored as a failure: throttling punishes *small* batches
 hardest, so scoring it would have drawn a curve that appeared to prove batching
 rescues a failing model. It proves nothing of the kind. It is our own request rate.
 
-**Batching is not a cost lever.** This is the counterintuitive one. Going from N=1
-to N=32 roughly halves input tokens (9,540 → 4,728) — and roughly doubles output
-tokens (1,681 → 3,727), because a batched reply must carry an id and a JSON
-envelope per segment. Output is priced around 6× input, so the two cancel: cost per
-1,000 words comes out flat, or slightly *worse*, than one call per string. What
-batching actually buys is throughput — 2–3× the words per second, since you wait on
-a handful of round trips instead of thirty. Worth having, but not the thing it is
-usually sold as.
+**Whether batching saves money depends on the provider, and the mechanism decides
+it.** Every call carries a fixed overhead — the system prompt plus the JSON schema
+constraining the reply — paid once per call however many blocks ride along. On the
+Anthropic-on-Bedrock path that overhead is ~985 tokens per call; on Gemini, ~106.
+Two opposite answers follow:
 
-And three bugs in kapi, which is the more useful outcome and the reason to build the
+- **On Bedrock, batching is a large cost lever.** At N=2 the overhead is paid
+  fifteen times and dominates the bill; batching amortises it. Cost per 1,000 words
+  falls from **$0.25 to $0.09** (−64%) between N=2 and N=32, with no loss of
+  structural integrity.
+- **On Gemini, batching is not a cost lever at all.** Little overhead to amortise,
+  and the batched reply must carry an id and a JSON envelope per segment, so output
+  tokens grow — and output is priced ~6× input. The effects cancel; cost per 1,000
+  words comes out flat.
+
+What batching buys on *every* provider is **throughput** — 2–3× the words per
+second. Where it also saves money, that is a consequence of the provider's per-call
+overhead, not a law of batching. Our first reading ("batching is not a cost lever")
+was true of Gemini and would have been published as if it were universal; Bedrock
+refuted it.
+
+Two things follow, neither yet done:
+
+- **Prompt caching is unused.** The fixed per-call overhead is exactly what prompt
+  caching exists to remove — Bedrock reads cached input at $0.33/Mtok against
+  $3.30, a tenth. Caching the system-prompt-plus-schema prefix would cut small-batch
+  cost sharply and weaken batching's cost argument accordingly.
+- **The `eu.` inference profile costs 10% more than `global.`** AWS prices a
+  regional/geo profile at exactly 1.1× the global one ($3.30/$16.50 against
+  $3.00/$15.00 for Sonnet 4.6). If EU data residency is not a requirement for a
+  given workload, `global.anthropic.claude-sonnet-4-6` is the same model 10%
+  cheaper.
+
+And three bugs in kapi, which is the more useful outcomeAnd three bugs in kapi, which is the more useful outcome and the reason to build the
 instrument before trusting the intuition.
 
 **Inline tags were reaching the model as escape sequences.** `encoding/json`
@@ -265,13 +289,14 @@ it is recorded as a cliff.
   not describe an API call — the CLI bills its own agent system prompt as cache
   creation, reporting 240 input tokens across sixty calls. Costing them needs a
   sweep against the metered API.
-- **Bedrock is measured but not priced.** `bowrain/ai/bedrock` is the provider the
-  Bowrain platform actually runs on (`eu.anthropic.claude-sonnet-4-6`, Converse API,
-  ambient AWS credentials), so it is the one route whose numbers describe
-  production. Its rates are missing: the AWS Pricing API does not yet list the
-  Claude 4.6 models for `eu-north-1` — its `model` attribute still tops out at
-  "Claude 3 Sonnet" — so the cost column is blank rather than guessed. Add the rates
-  to `prices.json` once confirmed and re-run `-recost`; no new calls are needed.
+- **Prompt caching is unused on every provider.** It targets precisely the fixed
+  per-call overhead that dominates small-batch cost, at a tenth of the input rate.
+  This is the largest unexploited saving the eval has surfaced.
+- **No cost figure for the claude-code models.** They run on the Claude
+  subscription, which is not billed per token and whose token counts do not describe
+  an API call — the CLI bills its own agent system prompt as cache creation,
+  reporting 240 input tokens across sixty calls. Costing them needs a sweep against
+  the metered Anthropic API.
 - **Context is limited to the key and immediate neighbours.** TM matches, the file
   path, and prior translations of the same key are all things the evidence says
   would help and that kapi already holds, and none of them reach the prompt.

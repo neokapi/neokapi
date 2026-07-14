@@ -7,6 +7,17 @@
       "target": "de",
       "repeat": 2,
       "concurrency": 1,
+      "price": {
+        "key": "bedrock:eu.anthropic.claude-sonnet-4-6",
+        "resolves_to": "Claude Sonnet 4.6 (Amazon Bedrock Edition), eu-north-1 cross-region profile",
+        "input_per_mtok": 3.3,
+        "output_per_mtok": 16.5,
+        "route": "bedrock",
+        "metered": true,
+        "source": "aws pricing get-products --service-code AmazonBedrockFoundationModels (see scripts/prompts/update-model-prices.md)",
+        "note": "Bought through AWS Marketplace (usagetype EUN1-MP:*). The `eu.` cross-region inference profile is a GEO profile and carries AWS's 10% regional premium over the `global.` profile ($3.00/$15.00) — geo is exactly global x 1.1. Switching the platform to global.anthropic.claude-sonnet-4-6 would cut the rate by 10%.",
+        "as_of": "2026-07-14"
+      },
       "corpus": "30 blocks (10 ui, 4 ui-ambiguous, 6 placeholder, 4 inline-tag, 6 prose)",
       "corpus_words": 306,
       "corpus_digest": "93a662eb51da",
@@ -36,7 +47,8 @@
           "input_tokens": 29544,
           "output_tokens": 3499,
           "elapsed_seconds": 92.40204762600001,
-          "words": 612
+          "words": 612,
+          "cost_usd": 0.1552287
         },
         {
           "n": 4,
@@ -49,7 +61,8 @@
           "input_tokens": 17056,
           "output_tokens": 3009,
           "elapsed_seconds": 46.944024709000004,
-          "words": 612
+          "words": 612,
+          "cost_usd": 0.1059333
         },
         {
           "n": 8,
@@ -62,7 +75,8 @@
           "input_tokens": 9920,
           "output_tokens": 2713,
           "elapsed_seconds": 37.716130209,
-          "words": 612
+          "words": 612,
+          "cost_usd": 0.0775005
         },
         {
           "n": 16,
@@ -75,7 +89,8 @@
           "input_tokens": 6352,
           "output_tokens": 2531,
           "elapsed_seconds": 30.413568958,
-          "words": 612
+          "words": 612,
+          "cost_usd": 0.0627231
         },
         {
           "n": 32,
@@ -88,7 +103,8 @@
           "input_tokens": 4568,
           "output_tokens": 2452,
           "elapsed_seconds": 29.102433041,
-          "words": 612
+          "words": 612,
+          "cost_usd": 0.0555324
         }
       ]
     },

@@ -331,30 +331,49 @@ export default function BatchEval(): ReactElement {
 
             <h2>What it costs, and what you give up</h2>
             <p>
-              Batching is generally assumed to be a cost lever: pack the same content into fewer
-              calls, repeat the instructions fewer times, bill fewer input tokens.{" "}
-              <strong>On these models, it is not.</strong> Going from one block per call to
-              thirty-two roughly halves input tokens — and roughly doubles output tokens, because a
-              batched reply has to carry an id and a JSON envelope for every segment. Output is
-              priced around six times input. The two effects cancel, and cost per 1,000 words comes
-              out flat, or slightly worse than translating one string at a time.
+              Batching is usually sold as a cost lever: pack the same content into fewer calls,
+              repeat the instructions fewer times, bill fewer input tokens. Whether that is true
+              turns out to depend entirely on the provider, and the mechanism is worth understanding
+              because it decides which lever you are actually pulling.
             </p>
             <p>
-              What batching actually buys is <strong>throughput</strong>: two to three times the
-              words per second, because you are waiting on a handful of round trips instead of
-              thirty. That is a real and worthwhile benefit. It is simply not the one it is usually
-              sold as, and it is worth knowing which lever you are pulling.
+              Every call carries a <strong>fixed overhead</strong> — the system prompt, and the JSON
+              schema that constrains the reply — and that overhead is paid once per call regardless
+              of how many blocks ride along. On the Anthropic-on-Bedrock path it is about 985 tokens
+              per call; on Gemini, about 106. That single difference produces two opposite answers:
+            </p>
+            <ul>
+              <li>
+                <strong>On Bedrock, batching is a large cost lever.</strong> At two blocks per call,
+                the overhead is paid fifteen times over and dominates the bill. Batching amortises
+                it away: cost per 1,000 words falls from <strong>$0.25 to $0.09</strong> — about 64%
+                — between N=2 and N=32, with no loss of structural integrity at any size.
+              </li>
+              <li>
+                <strong>On Gemini, batching is not a cost lever at all.</strong> The per-call
+                overhead is small, so there is little to amortise; meanwhile the batched reply must
+                carry an id and a JSON envelope per segment, so output tokens grow — and output is
+                priced around six times input. The two effects cancel, and cost per 1,000 words
+                comes out flat.
+              </li>
+            </ul>
+            <p>
+              What batching buys on <em>every</em> provider is <strong>throughput</strong>: two to
+              three times the words per second, because you wait on a handful of round trips instead
+              of thirty. Where it also saves money, that is a bonus arising from the
+              provider&rsquo;s per-call overhead, not a law of batching.
             </p>
             <p>
               The unit is <strong>USD per 1,000 source words</strong>, because content budgets are
               denominated in words and a token count is a fact about a vendor&rsquo;s tokenizer
               rather than about the work. Nothing here is specific to translation: any AI pass over
-              content — a review, a check, terminology, entity extraction — has the same shape, and
+              content — a review, a check, terminology, entity extraction — has the same shape and
               the same economics. Translation is simply the pass this harness drives, because it is
               the one that batches.
             </p>
             <p style={{ fontSize: "0.92rem", color: "var(--ifm-color-emphasis-700)" }}>
-              One block per call, against kapi&rsquo;s shipped ceiling of {SHIPPED_CEILING}:
+              The smallest batch size measured, against kapi&rsquo;s shipped ceiling of{" "}
+              {SHIPPED_CEILING}:
             </p>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
               <thead>
@@ -373,17 +392,21 @@ export default function BatchEval(): ReactElement {
                   </th>
                 </tr>
                 <tr>
-                  <th style={cell}>N=1</th>
+                  <th style={cell}>smallest N</th>
                   <th style={cell}>N={SHIPPED_CEILING}</th>
                   <th style={cell}>Δ</th>
-                  <th style={cell}>N=1</th>
+                  <th style={cell}>smallest N</th>
                   <th style={cell}>N={SHIPPED_CEILING}</th>
                   <th style={cell}>Δ</th>
                 </tr>
               </thead>
               <tbody>
                 {current.map((r) => {
-                  const one = r.results.find((p) => p.n === 1);
+                  // The baseline is the smallest batch size that was actually measured, not
+                  // necessarily N=1: on Bedrock, N=1 is throttled out of existence, and
+                  // silently comparing against a missing point would either drop the row or
+                  // invent a saving.
+                  const one = r.results.filter((p) => !p.unmeasured && p.blocks > 0)[0];
                   const many = r.results.find((p) => p.n === SHIPPED_CEILING);
                   const c1 = one ? costPer1kWords(one) : null;
                   const cN = many ? costPer1kWords(many) : null;
@@ -409,7 +432,20 @@ export default function BatchEval(): ReactElement {
                           </span>
                         )}
                       </td>
-                      <td style={cell}>{c1 != null ? usd(c1) : "—"}</td>
+                      <td style={cell}>
+                        {c1 != null ? usd(c1) : "—"}
+                        {one && one.n !== 1 && (
+                          <span
+                            style={{
+                              marginLeft: 4,
+                              fontSize: "0.72rem",
+                              color: "var(--ifm-color-emphasis-600)",
+                            }}
+                          >
+                            (N={one.n})
+                          </span>
+                        )}
+                      </td>
                       <td style={cell}>{cN != null ? usd(cN) : "—"}</td>
                       <td style={{ ...cell, color: "var(--ifm-color-emphasis-700)" }}>
                         {pct(c1, cN)}
@@ -438,19 +474,18 @@ export default function BatchEval(): ReactElement {
               integrity. That is the trade it actually offers.
             </p>
             <p style={{ fontSize: "0.85rem", color: "var(--ifm-color-emphasis-700)" }}>
-              Three honest caveats about these numbers. <strong>Bedrock shows no cost.</strong> AWS
-              prices Bedrock independently of Anthropic&rsquo;s own API — and prices the
-              cross-region inference profiles separately again — so its rate cannot be borrowed from
-              the Anthropic column. It is not published here because we could not establish it: the
-              AWS Pricing API does not yet list the Claude 4.6 models for eu-north-1. A blank is the
-              honest answer until a rate is confirmed.{" "}
-              <strong>The Anthropic models show no cost</strong> either, because this sweep reached
-              them through the claude-code subscription, which is not billed per token — and whose
-              token counts do not describe an API call either: the CLI wraps every request in its
-              own agent system prompt and reports it as cache creation, so it recorded 240 input
-              tokens across sixty calls. A dollar figure built on that would be fiction in whichever
-              direction happened to flatter the conclusion, so the column is blank. Cost for those
-              models needs a sweep against the metered Anthropic API.{" "}
+              Three honest caveats about these numbers.{" "}
+              <strong>Bedrock is billed through AWS Marketplace</strong>, and the <code>eu.</code>{" "}
+              cross-region inference profile is a <em>regional</em> profile: AWS charges exactly 10%
+              more for it than for the otherwise identical <code>global.</code> profile
+              ($3.30/$16.50 per million tokens against $3.00/$15.00). The rates here are the ones
+              actually paid. <strong>The claude-code models show no cost</strong>, because that
+              sweep reached them through the Claude subscription, which is not billed per token —
+              and whose token counts do not describe an API call either: the CLI wraps every request
+              in its own agent system prompt and reports it as cache creation, so it recorded 240
+              input tokens across sixty calls. A dollar figure built on that would be fiction in
+              whichever direction happened to flatter the conclusion, so the column is blank. Cost
+              for those models needs a sweep against the metered Anthropic API.{" "}
               <strong>Speed is not comparable across providers</strong>: the sweeps ran at different
               concurrencies
               {current.some((r) => r.concurrency) && (

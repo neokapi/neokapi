@@ -3,7 +3,8 @@
   "note": "Refresh with `make update-model-prices` (fetches the vendors' own pricing pages and live model lists). Do not hand-edit: rates go stale, and a stale rate published as a cost is worse than no cost at all.",
   "sources": {
     "anthropic": "https://platform.claude.com/docs/en/about-claude/pricing",
-    "gemini": "https://ai.google.dev/gemini-api/docs/pricing"
+    "gemini": "https://ai.google.dev/gemini-api/docs/pricing",
+    "bedrock": "aws pricing get-products --service-code AmazonBedrockFoundationModels (see scripts/prompts/update-model-prices.md)"
   },
   "models": [
     {
@@ -14,7 +15,7 @@
       "route": "subscription",
       "metered": false,
       "source": "anthropic",
-      "note": "Rates are the Claude API list price for the model the alias resolves to. The run itself is not billed per token — it goes through the local Claude subscription."
+      "note": "Rates are the Claude API list price for the model the alias resolves to. The run itself is not billed per token \u2014 it goes through the local Claude subscription."
     },
     {
       "key": "claude-code:sonnet",
@@ -92,6 +93,43 @@
       "route": "api",
       "metered": true,
       "source": "gemini"
+    },
+    {
+      "key": "bedrock:eu.anthropic.claude-sonnet-4-6",
+      "resolves_to": "Claude Sonnet 4.6 (Amazon Bedrock Edition), eu-north-1 cross-region profile",
+      "input_per_mtok": 3.3,
+      "output_per_mtok": 16.5,
+      "route": "bedrock",
+      "metered": true,
+      "source": "bedrock",
+      "note": "Bought through AWS Marketplace (usagetype EUN1-MP:*). The `eu.` cross-region inference profile is a GEO profile and carries AWS's 10% regional premium over the `global.` profile ($3.00/$15.00) \u2014 geo is exactly global x 1.1. Switching the platform to global.anthropic.claude-sonnet-4-6 would cut the rate by 10%."
+    },
+    {
+      "key": "bedrock:global.anthropic.claude-sonnet-4-6",
+      "resolves_to": "Claude Sonnet 4.6 (Amazon Bedrock Edition), global profile",
+      "input_per_mtok": 3.0,
+      "output_per_mtok": 15.0,
+      "route": "bedrock",
+      "metered": true,
+      "source": "bedrock"
+    },
+    {
+      "key": "bedrock:eu.anthropic.claude-opus-4-6",
+      "resolves_to": "Claude Opus 4.6 (Amazon Bedrock Edition), eu-north-1",
+      "input_per_mtok": 5.5,
+      "output_per_mtok": 27.5,
+      "route": "bedrock",
+      "metered": true,
+      "source": "bedrock"
+    },
+    {
+      "key": "bedrock:eu.anthropic.claude-haiku-4-5",
+      "resolves_to": "Claude Haiku 4.5 (Amazon Bedrock Edition), eu-north-1",
+      "input_per_mtok": 1.1,
+      "output_per_mtok": 5.5,
+      "route": "bedrock",
+      "metered": true,
+      "source": "bedrock"
     }
   ]
 }

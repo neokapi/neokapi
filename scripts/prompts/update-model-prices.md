@@ -57,15 +57,28 @@ than showing no cost at all, so accuracy here matters more than completeness.
   interchangeable:
   - **first-party APIs** (Anthropic, OpenAI, Gemini, Azure OpenAI) — the rates on
     the vendors' own pricing pages;
-  - **AWS Bedrock** (`bowrain/ai/bedrock`) — the route the Bowrain platform runs on
-    in production. Priced independently by AWS, and the cross-region inference
-    profiles the platform uses (`eu.anthropic.…`) are priced separately again. Get
-    these from <https://aws.amazon.com/bedrock/pricing/>, **not** from Anthropic's
-    page and **not** from the AWS Pricing API, which lags badly — as of 2026-07 its
-    `model` attribute still tops out at "Claude 3 Sonnet" and has no entry for the
-    Claude 4.6 models in eu-north-1. That is why `bedrock:` has no rates yet;
-    adding correct ones is the single most valuable thing this refresh can do,
-    because it is the only route whose cost describes what Bowrain actually spends.
+  - **AWS Bedrock** (`bowrain/ai/bedrock`) — the route the platform runs on in
+    production. Do not read these off a web page: AWS serves them over the Pricing
+    API, which is exact and scriptable. The catch is the service code — the rates
+    live under `AmazonBedrockFoundationModels`, **not** `AmazonBedrock` (which has
+    no model rates at all and sent me on a long detour). The model is identified by
+    `servicename`, not by `usagetype`, which is shared across every model:
+
+    ```bash
+    aws pricing get-products --region us-east-1 \
+      --service-code AmazonBedrockFoundationModels \
+      --filters Type=TERM_MATCH,Field=regionCode,Value=eu-north-1 \
+               'Type=TERM_MATCH,Field=servicename,Value=Claude Sonnet 4.6 (Amazon Bedrock Edition)'
+    ```
+
+    The `EUN1-MP:` prefix on the usage types is AWS Marketplace, which is how the
+    Anthropic models are bought. Take `*_InputTokenCount-Units` and
+    `*_OutputTokenCount-Units` (plain on-demand; not `_Batch`, not `_Reserved`).
+
+    Mind the profile. A `eu.`-prefixed inference profile is a **regional/geo**
+    profile and carries AWS's 10% premium over the otherwise identical `global.`
+    one — geo is exactly global × 1.1 ($3.30/$16.50 against $3.00/$15.00 for Sonnet
+    4.6). Price the profile the code actually calls, not the cheaper sibling.
   - **claude-code** — a subscription. Not billed per token, and its token counts do
     not describe an API call either (the CLI bills its own agent system prompt as
     cache creation). Keep `metered: false` so no cost is computed.
