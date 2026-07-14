@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-14T02:11:23Z",
+  "generatedAt": "2026-07-14T03:42:53Z",
   "kind": "tool",
   "entries": [
     {
@@ -4116,7 +4116,9 @@
             "id": "prompt",
             "label": "Prompt",
             "fields": [
-              "instruction"
+              "instruction",
+              "context",
+              "contextWindow"
             ]
           }
         ],
@@ -4148,6 +4150,34 @@
                 "label": "single"
               }
             ]
+          },
+          "context": {
+            "type": "string",
+            "title": "Context",
+            "description": "What the model is told about a block besides the block itself",
+            "default": "key",
+            "options": [
+              {
+                "value": "none",
+                "label": "none"
+              },
+              {
+                "value": "key",
+                "label": "key"
+              },
+              {
+                "value": "neighbours",
+                "label": "neighbours"
+              }
+            ]
+          },
+          "contextWindow": {
+            "type": "integer",
+            "title": "Context Window",
+            "description": "Blocks either side to send as reference (with context: neighbours)",
+            "default": 2,
+            "minimum": 1,
+            "maximum": 10
           },
           "engine": {
             "type": "string",

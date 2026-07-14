@@ -24,19 +24,25 @@ var _ tool.SessionTool = (*AITranslateTool)(nil)
 type AITranslateTool struct {
 	tool.BaseTool
 	usageAccumulator
-	provider     aiprovider.LLMProvider
-	streaming    aiprovider.StreamingLLMProvider // nil when provider doesn't support streaming
-	sourceLocale model.LocaleID
-	targetLocale model.LocaleID
-	glossary     map[string]string
-	voiceGuide   string // compact brand voice guidance injected into every prompt
-	instruction  string // caller-supplied directive injected into every prompt
-	skipMatched  bool
-	batchSize    int
-	concurrency  int
-	onProgress   func(aiprovider.ProgressEvent)
-	blockIndex   atomic.Int32
-	totalBlocks  int
+	provider      aiprovider.LLMProvider
+	streaming     aiprovider.StreamingLLMProvider // nil when provider doesn't support streaming
+	sourceLocale  model.LocaleID
+	targetLocale  model.LocaleID
+	glossary      map[string]string
+	voiceGuide    string // compact brand voice guidance injected into every prompt
+	instruction   string // caller-supplied directive injected into every prompt
+	skipMatched   bool
+	batchSize     int
+	contextPolicy string
+	contextWindow int
+	// docEntries is the document in order, when the tool has it. The batched
+	// path buffers the stream, so it can offer a block its neighbours; the
+	// streaming path cannot, and there a block gets only its key.
+	docEntries  []blockEntry
+	concurrency int
+	onProgress  func(aiprovider.ProgressEvent)
+	blockIndex  atomic.Int32
+	totalBlocks int
 	// configFP fingerprints the output-affecting config (provider, model, locales,
 	// glossary, brand voice). The session overlay cache stores it so a re-run with
 	// a changed model/prompt/voice re-translates instead of serving the stale
@@ -53,6 +59,20 @@ const (
 	// expensive setting, and what on-device models get regardless.
 	BatchingSingle          = "single"
 	DefaultBatchConcurrency = 1
+
+	// ContextNone sends the block and nothing else — what kapi did before, and
+	// what leaves a bare "Save" ambiguous between a verb and a noun.
+	ContextNone = "none"
+	// ContextKey sends the block's key or path. The default: cheap, stable, and
+	// — because a key travels with its block — it cannot make a cached
+	// translation wrong.
+	ContextKey = "key"
+	// ContextNeighbours also sends the surrounding blocks as reference material.
+	// The model reads them; it must not translate them.
+	ContextNeighbours = "neighbours"
+
+	// DefaultContextWindow is how many blocks either side ContextNeighbours sends.
+	DefaultContextWindow = 2
 )
 
 // AITranslateConfig holds configuration for the AI translate tool.
@@ -93,6 +113,23 @@ type AITranslateConfig struct {
 	// from what the model can emit, or translate one block per call when
 	// reliability matters more than cost.
 	Batching string `json:"batching,omitempty" schema:"title=Batching,description=How many blocks share one LLM call,enum=auto|single,default=auto,group=provider"`
+
+	// Context is what kapi tells the model about a block besides the block.
+	//
+	// `key` sends the block's key or path (`app.settings.title`), which is the
+	// cheapest disambiguation there is — a bare "Save" is a coin flip between a
+	// verb and a noun, and in German between two different words.
+	//
+	// `neighbours` adds the surrounding source blocks as reference material the
+	// model must read but not translate. It costs tokens, and it makes a block's
+	// translation depend on text that is not the block — so an edit to one string
+	// re-translates its neighbours. That is correct, and it is not free, which is
+	// why it is opt-in.
+	Context string `json:"context,omitempty" schema:"title=Context,description=What the model is told about a block besides the block itself,enum=none|key|neighbours,default=key,group=prompt"`
+
+	// ContextWindow is how many blocks either side to send when Context is
+	// `neighbours`.
+	ContextWindow int `json:"contextWindow,omitempty" schema:"title=Context Window,description=Blocks either side to send as reference (with context: neighbours),default=2,min=1,max=10,group=prompt,showIf=context=neighbours"`
 
 	// BatchSize pins an exact block count, bypassing the packer. Not a form
 	// field: it exists for a recipe that must reproduce a historical run, and for
@@ -190,6 +227,15 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 	if sp, ok := p.(aiprovider.StreamingLLMProvider); ok {
 		t.streaming = sp
 	}
+	t.contextPolicy = cfg.Context
+	if t.contextPolicy == "" {
+		t.contextPolicy = ContextKey
+	}
+	t.contextWindow = cfg.ContextWindow
+	if t.contextWindow < 1 {
+		t.contextWindow = DefaultContextWindow
+	}
+
 	// Batching intent → packing behaviour. batchSize 0 means "let the packer
 	// decide"; an explicit BatchSize pin overrides both.
 	if cfg.BatchSize < 1 {
@@ -242,11 +288,20 @@ func aiConfigFingerprint(cfg AITranslateConfig, voiceGuide string) string {
 		VoiceGuide:   voiceGuide,
 		Glossary:     cfg.Glossary,
 	}
+	// The context *policy* is part of the fingerprint: turning context on changes
+	// every prompt, so cached targets produced without it must not be served. The
+	// per-block context is not — it varies per block, and is accounted for by the
+	// neighbourhood digest on the cache entry itself.
+	contextPolicy := cfg.Context
+	if contextPolicy == "" {
+		contextPolicy = ContextKey
+	}
 	return tool.OverlayConfigFingerprint(
 		"ai",
 		cfg.Provider,
 		cfg.Model,
 		p.Fingerprint(),
+		contextPolicy,
 	)
 }
 
@@ -254,7 +309,11 @@ func aiConfigFingerprint(cfg AITranslateConfig, voiceGuide string) string {
 // When batchSize > 1 or concurrency > 1, blocks are grouped into batches of
 // batchSize and processed with up to concurrency goroutines in parallel.
 func (t *AITranslateTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
-	if t.batchSize <= 1 && t.concurrency <= 1 {
+	// Neighbour context needs the document in order, and only the batched path
+	// buffers the stream. So `batching: single` + `context: neighbours` routes
+	// here too — and lands on exactly the shape the evidence favours: a large
+	// non-translated context with a small translation unit.
+	if t.batchSize <= 1 && t.concurrency <= 1 && t.contextPolicy != ContextNeighbours {
 		return t.BaseTool.Process(ctx, in, out)
 	}
 	return t.processBatched(ctx, in, out)
@@ -330,12 +389,22 @@ func (t *AITranslateTool) sessionHandleBlock(
 	// ad-hoc single-document runs) so multi-file projects don't collide.
 	hash := blockstore.OverlayKey(ctx, block.ID, block.SourceText())
 
+	// The cache key for this block: the tool config, plus the digest of its
+	// neighbourhood when neighbours are being sent.
+	//
+	// Without the digest, sending neighbours would be a correctness bug rather
+	// than a feature: a block's translation would depend on text that is not the
+	// block, while its cache entry pretended otherwise — so editing one string
+	// would leave the strings around it holding translations produced under a
+	// neighbourhood that no longer exists.
+	cacheFP := t.cacheFingerprint(block)
+
 	// Skip if already cached under the same config (a changed model/prompt/voice
 	// invalidates the cached target — re-translate rather than serve it stale).
 	if randomAccess {
 		if sc, err := sess.GetOverlay(overlayKind, hash); err == nil && len(sc.Payload) > 0 {
 			var cached aiTargetCache
-			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" && cached.Config == t.configFP {
+			if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" && cached.Config == cacheFP {
 				block.SetTargetText(t.targetLocale, cached.Text)
 				block.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin())
 				return nil
@@ -351,7 +420,7 @@ func (t *AITranslateTool) sessionHandleBlock(
 		payload, err := json.Marshal(aiTargetCache{
 			Text:     target,
 			Provider: string(t.provider.Name()),
-			Config:   t.configFP,
+			Config:   cacheFP,
 		})
 		if err != nil {
 			return fmt.Errorf("translate: encode overlay: %w", err)
@@ -410,10 +479,17 @@ func (t *AITranslateTool) processBatchedWithSession(
 					}
 					continue
 				}
-				if caps.RandomAccess {
+				// Hydrating from the cache here means deciding, while streaming, that
+				// a block needs no work. With neighbour context that decision cannot
+				// be made yet: the cache entry is only valid for the neighbourhood it
+				// was produced under, and the neighbourhood is not known until the
+				// document has been drained. So in that mode the block goes through
+				// to the batch path, which knows both. A cache miss is a cost; a
+				// cache hit under the wrong neighbourhood is a wrong answer.
+				if caps.RandomAccess && t.contextPolicy != ContextNeighbours {
 					if sc, err := sess.GetOverlay(overlayKind, blockstore.OverlayKey(ctx, block.ID, block.SourceText())); err == nil && len(sc.Payload) > 0 {
 						var cached aiTargetCache
-						if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" && cached.Config == t.configFP {
+						if err := json.Unmarshal(sc.Payload, &cached); err == nil && cached.Text != "" && cached.Config == t.cacheFingerprint(block) {
 							block.SetTargetText(t.targetLocale, cached.Text)
 							block.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin())
 							select {
@@ -447,7 +523,7 @@ func (t *AITranslateTool) processBatchedWithSession(
 				payload, err := json.Marshal(aiTargetCache{
 					Text:     target,
 					Provider: string(t.provider.Name()),
-					Config:   t.configFP,
+					Config:   t.cacheFingerprint(block),
 				})
 				if err == nil {
 					if werr := sess.PutOverlay(blockstore.Overlay{
@@ -526,6 +602,7 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 		Glossary:       t.glossary,
 		VoiceGuide:     t.voiceGuide,
 		Instruction:    t.instruction,
+		BlockContext:   t.contextFor(v.ID(), v.Name()),
 	})
 	if err != nil {
 		return fmt.Errorf("translate: %w", err)
@@ -549,7 +626,7 @@ func (t *AITranslateTool) translateBlock(ctx context.Context, req aiprovider.Tra
 	// Same prompt Translate would build — rendered from the one builder rather
 	// than restated here, so the streaming and non-streaming paths cannot drift.
 	p := req.Prompt()
-	turns := p.Single(req.Source, req.PreserveTags)
+	turns := p.SingleWithContext(req.Source, req.PreserveTags, req.BlockContext)
 	ctx = prompt.WithMeta(ctx, p.Meta(prompt.IDTranslateSingle))
 
 	resp, err := t.streaming.ChatStream(ctx, aiprovider.MessagesFromTurns(turns),
@@ -738,6 +815,8 @@ func (t *AITranslateTool) processBatched(ctx context.Context, in <-chan *model.P
 
 	// Set total for progress reporting since we know the full count.
 	t.totalBlocks = len(entries)
+	// The document, in order: what lets a block be given its neighbours.
+	t.docEntries = entries
 
 	// 3. Group into batches the model can actually answer, and translate them
 	// with bounded concurrency. Packing is by output-token budget, not a fixed
@@ -808,6 +887,116 @@ type batchResult struct {
 	} `json:"translations"`
 }
 
+// blockContext builds the reference material for one block: its key, and — when
+// asked — the source text of the blocks around it.
+//
+// neighbours is the full document-ordered entry list, and i the block's position
+// in it. A nil list means the caller has no document order to offer (the
+// streaming path), in which case only the key is available.
+func (t *AITranslateTool) blockContext(b *model.Block, neighbours []blockEntry, i int) prompt.Context {
+	if t.contextPolicy == ContextNone {
+		return prompt.Context{}
+	}
+
+	// The key travels with the block, so it is available on every path.
+	ctx := prompt.Context{Key: blockKey(b)}
+
+	if t.contextPolicy != ContextNeighbours || neighbours == nil {
+		return ctx
+	}
+	for j := max(i-t.contextWindow, 0); j < i; j++ {
+		if txt := neighbours[j].sourceText; txt != "" {
+			ctx.Before = append(ctx.Before, txt)
+		}
+	}
+	for j := i + 1; j <= i+t.contextWindow && j < len(neighbours); j++ {
+		if txt := neighbours[j].sourceText; txt != "" {
+			ctx.After = append(ctx.After, txt)
+		}
+	}
+	return ctx
+}
+
+// cacheFingerprint is the config a cached target was produced under: the tool
+// fingerprint, and — when the prompt carries neighbours — the digest of the
+// neighbourhood it carried.
+//
+// The block's *key* is deliberately not in here. A key travels with its block,
+// so a cache already keyed by the block accounts for it; folding it in would
+// churn the cache for no gain.
+func (t *AITranslateTool) cacheFingerprint(b *model.Block) string {
+	if t.contextPolicy != ContextNeighbours || b == nil {
+		return t.configFP
+	}
+	if d := t.contextFor(b.ID, b.Name).Digest(); d != "" {
+		return t.configFP + ":" + d
+	}
+	return t.configFP
+}
+
+// contextFor is the reference material for one block: its key always, and its
+// neighbours when the tool holds the document in order.
+func (t *AITranslateTool) contextFor(id, name string) prompt.Context {
+	if t.contextPolicy == ContextNone {
+		return prompt.Context{}
+	}
+	ctx := prompt.Context{Key: strings.TrimSpace(name)}
+	if t.contextPolicy != ContextNeighbours {
+		return ctx
+	}
+	for i := range t.docEntries {
+		if t.docEntries[i].block != nil && t.docEntries[i].block.ID == id {
+			return t.blockContext(t.docEntries[i].block, t.docEntries, i)
+		}
+	}
+	return ctx
+}
+
+// batchContext is the neighbourhood *around a batch*: the blocks before the
+// first and after the last. The blocks inside the batch are not context for each
+// other — they are being translated, and calling a co-worker "context" is the
+// confusion this whole design exists to avoid.
+func (t *AITranslateTool) batchContext(batch []blockEntry, all []blockEntry) prompt.Context {
+	if t.contextPolicy != ContextNeighbours || len(batch) == 0 || all == nil {
+		return prompt.Context{}
+	}
+	first, last := indexOfEntry(all, batch[0]), indexOfEntry(all, batch[len(batch)-1])
+	if first < 0 || last < 0 {
+		return prompt.Context{}
+	}
+
+	var ctx prompt.Context
+	for j := max(first-t.contextWindow, 0); j < first; j++ {
+		if txt := all[j].sourceText; txt != "" {
+			ctx.Before = append(ctx.Before, txt)
+		}
+	}
+	for j := last + 1; j <= last+t.contextWindow && j < len(all); j++ {
+		if txt := all[j].sourceText; txt != "" {
+			ctx.After = append(ctx.After, txt)
+		}
+	}
+	return ctx
+}
+
+func indexOfEntry(all []blockEntry, e blockEntry) int {
+	for i := range all {
+		if all[i].index == e.index {
+			return i
+		}
+	}
+	return -1
+}
+
+// blockKey is where the block lives in the document — `app.settings.title`, the
+// thing that makes a bare "Save" mean something. Readers put it in Name.
+func blockKey(b *model.Block) string {
+	if b == nil {
+		return ""
+	}
+	return strings.TrimSpace(b.Name)
+}
+
 // packBatches groups entries into calls. An explicit batchSize override (a
 // recipe pin, or the eval harness sweeping N) is honoured verbatim; otherwise
 // kapi sizes the batch from what the model can emit.
@@ -832,6 +1021,14 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 		texts[i] = entry.sourceText
 	}
 	segments := prompt.BatchSegments(texts)
+	// Each segment carries the key it lives under; the keys differ per segment,
+	// so they ride in the payload rather than in a shared preamble.
+	if t.contextPolicy != ContextNone {
+		for i, entry := range entries {
+			segments[i].Key = blockKey(entry.block)
+		}
+	}
+	batchCtx := t.batchContext(entries, t.docEntries)
 	p := prompt.Translate{
 		SourceLocale: t.sourceLocale,
 		TargetLocale: t.targetLocale,
@@ -839,7 +1036,7 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 		VoiceGuide:   t.voiceGuide,
 		Instruction:  t.instruction,
 	}
-	turns := p.Batch(segments)
+	turns := p.BatchWithContext(segments, batchCtx)
 	ctx = prompt.WithMeta(ctx, p.Meta(prompt.IDTranslateBatch))
 
 	messages := aiprovider.MessagesFromTurns(turns)

@@ -105,6 +105,12 @@ func (t Translate) Fingerprint() string {
 	return hex.EncodeToString(sum[:8])
 }
 
+// hashString is the short content hash used by the prompt fingerprints.
+func hashString(s string) string {
+	sum := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(sum[:8])
+}
+
 // dataNotInstruction tells the model that the content is content.
 //
 // Honest about what this is: defence in depth, not a guarantee. The text kapi
@@ -174,9 +180,21 @@ func (t Translate) task() Section {
 // *source text* of another instruction, so the model was handed a prompt to
 // translate rather than content.)
 func (t Translate) Single(source string, preserveTags bool) []Turn {
+	return t.SingleWithContext(source, preserveTags, Context{})
+}
+
+// SingleWithContext renders the prompt for one block, with reference material
+// about it: its key, its neighbours.
+//
+// The context goes in the *system* turn, not the user turn. The user turn is the
+// text to translate and nothing else — that separation is what lets the model be
+// told "translate the user's message" without ambiguity about which of several
+// texts is the one to translate.
+func (t Translate) SingleWithContext(source string, preserveTags bool, blockCtx Context) []Turn {
 	system := []Section{t.task()}
 	system = append(system, t.constraints(preserveTags)...)
 	system = append(system, dataNotInstruction)
+	system = append(system, blockCtx.sections()...)
 	system = append(system, t.steering()...)
 
 	return []Turn{
@@ -195,6 +213,10 @@ func (t Translate) Single(source string, preserveTags bool) []Turn {
 type BatchSegment struct {
 	ID   string `json:"id"`
 	Text string `json:"text"`
+	// Key is where this text lives in the document (`app.settings.title`). Sent
+	// per segment because it differs per segment — it is the one piece of context
+	// that cannot be hoisted into a shared preamble.
+	Key string `json:"key,omitempty"`
 }
 
 // BatchSegments labels texts for a batched call, in order.
@@ -235,18 +257,37 @@ func batchPayload(segments []BatchSegment) string {
 // each segment's ID, so a dropped segment is a detectable absence rather than an
 // off-by-one that silently corrupts every translation after it.
 func (t Translate) Batch(segments []BatchSegment) []Turn {
+	return t.BatchWithContext(segments, Context{})
+}
+
+// BatchWithContext renders a batched prompt with reference material around the
+// batch: the blocks either side of it, which the model must read but not
+// translate.
+//
+// Per-segment keys ride inside the payload (they differ per segment); the
+// neighbourhood is one shared section (it does not).
+func (t Translate) BatchWithContext(segments []BatchSegment, batchCtx Context) []Turn {
+	var keyRule string
+	for _, seg := range segments {
+		if strings.TrimSpace(seg.Key) != "" {
+			keyRule = " Each segment carries the key it appears under in the document; use it to disambiguate, and never translate or return it."
+			break
+		}
+	}
+
 	system := []Section{{
 		Kind:   KindTask,
 		Origin: "framework",
 		Text: fmt.Sprintf(
 			"You are a software localization specialist. Translate each segment in the user's JSON payload from %s to %s. "+
 				"Return one translation per segment, echoing each segment's id exactly. "+
-				"Return every id you were given, and no others.",
-			t.SourceLocale, t.TargetLocale,
+				"Return every id you were given, and no others.%s",
+			t.SourceLocale, t.TargetLocale, keyRule,
 		),
 	}}
 	system = append(system, t.constraints(true)...)
 	system = append(system, dataNotInstruction)
+	system = append(system, batchCtx.sections()...)
 	system = append(system, t.steering()...)
 
 	return []Turn{

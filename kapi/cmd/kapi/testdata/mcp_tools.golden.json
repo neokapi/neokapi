@@ -2696,6 +2696,34 @@
           "title": "Batching",
           "type": "string"
         },
+        "context": {
+          "default": "key",
+          "description": "What the model is told about a block besides the block itself",
+          "options": [
+            {
+              "label": "none",
+              "value": "none"
+            },
+            {
+              "label": "key",
+              "value": "key"
+            },
+            {
+              "label": "neighbours",
+              "value": "neighbours"
+            }
+          ],
+          "title": "Context",
+          "type": "string"
+        },
+        "contextWindow": {
+          "default": 2,
+          "description": "Blocks either side to send as reference (with context: neighbours)",
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Context Window",
+          "type": "integer"
+        },
         "engine": {
           "default": "llm",
           "description": "Translation engine: an AI model or a machine-translation provider",
@@ -2872,7 +2900,9 @@
         },
         {
           "fields": [
-            "instruction"
+            "instruction",
+            "context",
+            "contextWindow"
           ],
           "id": "prompt",
           "label": "Prompt"

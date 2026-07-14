@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-14T02:11:23Z",
+  "generatedAt": "2026-07-14T03:42:53Z",
   "commands": [
     {
       "id": "brand",
@@ -3508,6 +3508,18 @@
           "type": "int"
         },
         {
+          "name": "context",
+          "usage": "What the model is told about a block besides the block itself (none, key, neighbours)",
+          "default": "key",
+          "type": "string"
+        },
+        {
+          "name": "context-window",
+          "usage": "Blocks either side to send as reference (with context: neighbours)",
+          "default": "2",
+          "type": "int"
+        },
+        {
           "name": "credential",
           "usage": "saved credential name to use (see 'kapi credentials list')",
           "type": "string"
@@ -4529,11 +4541,21 @@
           "type": "string"
         },
         {
+          "name": "batching",
+          "usage": "how many blocks share one LLM call: auto (default), single",
+          "type": "string"
+        },
+        {
           "name": "concurrency",
           "shorthand": "j",
           "usage": "number of files to process at once (0 = auto)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "context",
+          "usage": "what the model is told about a block besides the block: none, key (default), neighbours",
+          "type": "string"
         },
         {
           "name": "credential",
@@ -4668,11 +4690,21 @@
           "type": "string"
         },
         {
+          "name": "batching",
+          "usage": "how many blocks share one LLM call: auto (default), single",
+          "type": "string"
+        },
+        {
           "name": "concurrency",
           "shorthand": "j",
           "usage": "number of files to process at once (0 = auto)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "context",
+          "usage": "what the model is told about a block besides the block: none, key (default), neighbours",
+          "type": "string"
         },
         {
           "name": "credential",
@@ -5709,11 +5741,21 @@
           "type": "string"
         },
         {
+          "name": "batching",
+          "usage": "how many blocks share one LLM call: auto (default), single",
+          "type": "string"
+        },
+        {
           "name": "concurrency",
           "shorthand": "j",
           "usage": "number of files to process at once (0 = auto)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "context",
+          "usage": "what the model is told about a block besides the block: none, key (default), neighbours",
+          "type": "string"
         },
         {
           "name": "credential",
@@ -5849,11 +5891,21 @@
           "type": "string"
         },
         {
+          "name": "batching",
+          "usage": "how many blocks share one LLM call: auto (default), single",
+          "type": "string"
+        },
+        {
           "name": "concurrency",
           "shorthand": "j",
           "usage": "number of files to process at once (0 = auto)",
           "default": "0",
           "type": "int"
+        },
+        {
+          "name": "context",
+          "usage": "what the model is told about a block besides the block: none, key (default), neighbours",
+          "type": "string"
         },
         {
           "name": "credential",

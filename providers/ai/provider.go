@@ -112,7 +112,6 @@ type TranslateRequest struct {
 	Source         string            `json:"source"`
 	SourceLanguage model.LocaleID    `json:"source_language"`
 	TargetLocale   model.LocaleID    `json:"target_locale"`
-	Context        string            `json:"context,omitempty"`
 	Glossary       map[string]string `json:"glossary,omitempty"`
 	Format         string            `json:"format,omitempty"` // e.g., "html", "plain"
 	// VoiceGuide is brand voice guidance (rendered from a VoiceProfile) that the
@@ -127,11 +126,23 @@ type TranslateRequest struct {
 	// placeholder-tagged text, so the prompt instructs the model to reproduce
 	// every tag exactly. Source stays pure content either way.
 	PreserveTags bool `json:"preserve_tags,omitempty"`
+	// BlockContext is reference material about this block — its key, its
+	// neighbours. The model reads it; it is never translated and never returned.
+	//
+	// (This replaces a `Context string` field that was declared and never once
+	// filled — a placeholder for exactly this feature, left empty for years while
+	// the model got no context at all.)
+	BlockContext prompt.Context `json:"block_context,omitzero"`
 }
 
 // Prompt returns the prompt builder for this request. Prompt construction lives
 // in core/ai/prompt so that every path — provider, tool, streaming, batch —
 // renders identical bytes.
+// PromptTurns renders the turns for this request, including its context.
+func (req TranslateRequest) PromptTurns() []prompt.Turn {
+	return req.Prompt().SingleWithContext(req.Source, req.PreserveTags, req.BlockContext)
+}
+
 func (req TranslateRequest) Prompt() prompt.Translate {
 	return prompt.Translate{
 		SourceLocale: req.SourceLanguage,
@@ -553,7 +564,7 @@ func standardTranslate(
 	confidence float64,
 ) (*TranslateResponse, error) {
 	p := req.Prompt()
-	turns := p.Single(req.Source, req.PreserveTags)
+	turns := p.SingleWithContext(req.Source, req.PreserveTags, req.BlockContext)
 	ctx = prompt.WithMeta(ctx, p.Meta(prompt.IDTranslateSingle))
 	msgs := MessagesFromTurns(turns)
 

@@ -131,6 +131,8 @@ func (a *App) addFlowRunFlags(cmd Command) {
 	cmd.Flags().String("api-key", "", "API key for the AI provider")
 	cmd.Flags().String("model", "", "AI model name")
 	cmd.Flags().String("instruction", "", "extra guidance for the model while translating (e.g. \"informal register; keep product names in English\")")
+	cmd.Flags().String("context", "", "what the model is told about a block besides the block: none, key (default), neighbours")
+	cmd.Flags().String("batching", "", "how many blocks share one LLM call: auto (default), single")
 	cmd.Flags().String("trace", "", "write flow trace JSON to file (for flow visualization)")
 	cmd.Flags().Bool("pack", false, "when transforming a .klz, also eject the result to the .klz (auto-pack)")
 	cmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
@@ -1066,6 +1068,18 @@ func (a *App) buildFlowTools(flowName string, cmd ...Command) ([]tool.Tool, func
 		// recognise the key ignore it.
 		if v, _ := cmd[0].Flags().GetString("instruction"); v != "" {
 			config["instruction"] = v
+		}
+		// --context decides what the model is told about a block besides the
+		// block: its key, its neighbours. A bare "Save" is a coin flip between a
+		// verb and a noun; its key settles it.
+		if v, _ := cmd[0].Flags().GetString("context"); v != "" {
+			config["context"] = v
+		}
+		// --batching is an intent (auto | single), not a block count: the right
+		// count depends on the model's output ceiling and the length of these
+		// particular segments, which is not something a user can be asked to know.
+		if v, _ := cmd[0].Flags().GetString("batching"); v != "" {
+			config["batching"] = v
 		}
 	}
 

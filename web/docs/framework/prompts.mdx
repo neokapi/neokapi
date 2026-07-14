@@ -1,7 +1,7 @@
 ---
 sidebar_position: 16
 title: Prompts
-description: What kapi sends to a language model on your behalf — how a prompt is composed from framework rules, your brand voice, and your glossary; how to see the exact text with --explain-prompts; and how to steer it without replacing it.
+description: What the engine sends to a language model on your behalf — how a prompt is composed from framework rules, your brand voice, and your glossary; how to see the exact text with --explain-prompts; and how to steer it without replacing it.
 keywords:
   [
     prompt,
@@ -23,12 +23,24 @@ import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed
 
 # Prompts
 
-When kapi translates a string, it sends a prompt to a language model on your
-behalf. This page says exactly what is in that prompt, where each part came
-from, and how to see it for yourself.
+Prompts belong to the **engine**, not to any one tool that drives it.
 
-Nothing here is inferred from documentation. Every prompt kapi ships can be
-printed, on demand, from the binary you are running.
+When a translation tool needs a language model, the prompt it sends is built by
+the framework — the same builder, the same rules, the same bytes — whoever is
+asking. The kapi CLI, Kapi Desktop and an embedding Go program all send an
+identical prompt for an identical block. That is deliberate: a prompt that
+varied by caller could not be documented, fingerprinted, or trusted, and the
+[Prompt Reference](/reference/prompts) is generated from these builders precisely
+so it cannot describe a prompt the engine does not send.
+
+What differs by caller is only how you *look* at one. This page uses the kapi
+CLI's `--explain-prompts`, because it is the shortest path to seeing the real
+thing.
+
+So: this page says exactly what is in a prompt, where each part came from, and
+how to see it for yourself. Nothing here is inferred from documentation — every
+prompt the engine ships can be printed, on demand, from the binary you are
+running.
 
 ## Show me
 
@@ -54,7 +66,7 @@ The output attributes every block of the prompt to the thing that produced it:
 ```text
 ─── LLM call 1/1 ─────────────────────────────────
 prompt:   translate.single (v2)
-provider: anthropic  model: claude-sonnet-4-20250514
+provider: anthropic  model: claude-sonnet-5
 
   ── system ──
   [task · framework]
@@ -116,7 +128,10 @@ that have **different owners**, and the distinction is the whole design:
       title: "Your document",
       sub: "data, never instruction",
       role: "annotate",
-      steps: ["content — the source block, and nothing else"],
+      steps: [
+        "context — the block's key, and its neighbours",
+        "content — the source block itself",
+      ],
     },
   ]}
   handoff="one prompt"
@@ -133,8 +148,10 @@ glossary are what make the output _yours_ rather than merely correct. They are
 declared in the recipe, the [brand voice profile](/framework/checks/brand-voice)
 and the [termbase](/framework/terminology) — never typed into a prompt.
 
-**Your document owns the content.** The source text is the entire user turn. It
-is data, never instruction.
+**Your document owns the content — and the context.** The source text is the
+entire user turn: data, never instruction. Its *key* and its *neighbours* travel
+separately, in the system turn, as reference the model reads but must not
+translate.
 
 ## Steering the model
 
@@ -147,6 +164,7 @@ sections — not to replace the prompt.
 | A standing directive for the project  | `defaults.tools.translate.instruction` in the recipe   |
 | Consistent tone and phrasing          | A [brand voice profile](/framework/checks/brand-voice) |
 | Specific terms translated a fixed way | A [termbase](/framework/terminology)                   |
+| The model to know what a string *is*  | `--context key` (default) or `--context neighbours`    |
 
 ```yaml title="myapp.kapi"
 defaults:
@@ -214,16 +232,51 @@ brand voice, your glossary, or the prompt itself, and the fingerprint moves, so
 the affected strings are re-translated instead of served from a cache that a
 different prompt produced. Change nothing, and nothing is re-bought.
 
-## What kapi does not send
+## Context: what the model is told about a block
+
+A block on its own is often not enough to translate it. `Save` is a coin flip
+between a verb and a noun — in German, between _Speichern_ and _Speicherung_ —
+and no amount of model quality resolves a genuine ambiguity in the input.
+
+So the engine sends **reference material**: text the model reads but must not
+translate. This is a different thing from the blocks in a batch, and the
+difference matters more than it sounds. A batch is _co-workers_ — every segment
+in it is a task competing for attention and a distractor for every other one.
+Reference material is _context_ — it disambiguates without adding work. Adding
+co-workers degrades quality; adding context does not.
+
+| `context`    | What the model is told                          |
+| ------------ | ----------------------------------------------- |
+| `none`       | Only the text.                                  |
+| `key`        | **Default.** The block's key — `settings.save`. |
+| `neighbours` | The key, plus the surrounding source blocks.    |
+
+The **key** is the cheapest disambiguation there is: it is already in your
+document, it costs a handful of tokens, and it settles the `Save` question
+outright. It is also stable — a key travels with its block — so sending it can
+never make a cached translation wrong.
+
+**Neighbours** cost tokens, and they make a block's translation depend on text
+that is not the block. The engine handles that honestly: the neighbourhood is
+fingerprinted into the cache key, so editing one string re-translates the strings
+around it rather than serving them from a cache produced under a neighbourhood
+that no longer exists. That is correct, and it is not free — which is why it is
+opt-in.
+
+```bash
+kapi translate messages.json --target-lang fr --context neighbours
+```
+
+## What the engine does not send
 
 Worth stating plainly, because prompts are easy to imagine bigger than they are:
 
 - **No translation memory matches.** TM reuse is a separate, deterministic step
   (`recycle`) that runs _before_ translate and fills what it can. Matches are
   not offered to the model as examples.
-- **No keys or paths.** The model sees `Save`, not `app.settings.title`.
-- **No surrounding blocks.** There is no rolling document context.
-- **No telemetry.** kapi sends your content to the provider _you_ configured, and
+- **No rolling document context.** Reference material is a bounded window around
+  the block, not the whole document.
+- **No telemetry.** Your content goes to the provider _you_ configured, and
   nowhere else.
 
 By default, `translate` batches several blocks into one call (`translate.batch`),
@@ -243,9 +296,9 @@ guess used to be 100, and on anything longer than a UI string it produced a repl
 too large for the model to finish.) The choice you _do_ get is `batching: auto`
 or `batching: single`.
 
-Whether kapi _should_ send more — the block's key, the neighbouring strings — is
-an open question, not a settled one:
-[#1226](https://github.com/neokapi/neokapi/issues/1226).
+How much more to send is still an open question — the evidence favours a large
+non-translated context with a small translation unit, and `--context neighbours
+--batching single` is exactly that shape.
 
 ## Prompt injection
 

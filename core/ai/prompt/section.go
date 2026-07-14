@@ -36,6 +36,10 @@ const (
 	KindGlossary Kind = "glossary"
 	// KindContent is the text to act on. Data, never instruction.
 	KindContent Kind = "content"
+	// KindContext is reference material about the block — its key, its
+	// neighbours. Sent so the model knows what the text *is*; never translated,
+	// never echoed. Distinct from KindContent, which is the text to translate.
+	KindContext Kind = "context"
 )
 
 // Section is one addressable piece of a prompt.

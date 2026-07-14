@@ -900,6 +900,25 @@
             }
           }
         },
+        "context": {
+          "title": "Context",
+          "description": "What the model is told about a block besides the block itself",
+          "options": {
+            "key": {
+              "label": "key"
+            },
+            "neighbours": {
+              "label": "neighbours"
+            },
+            "none": {
+              "label": "none"
+            }
+          }
+        },
+        "contextWindow": {
+          "title": "Context Window",
+          "description": "Blocks either side to send as reference (with context: neighbours)"
+        },
         "engine": {
           "title": "Engine",
           "description": "Translation engine: an AI model or a machine-translation provider",
