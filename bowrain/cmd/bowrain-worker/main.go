@@ -32,6 +32,10 @@ import (
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
+
+	// Register the AWS Bedrock AI provider ("bedrock") in the aiprovider registry,
+	// so BOWRAIN_PLATFORM_PROVIDER=bedrock resolves for platform translation jobs.
+	_ "github.com/neokapi/neokapi/bowrain/ai/bedrock"
 )
 
 func main() {

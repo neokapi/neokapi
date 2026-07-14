@@ -98,6 +98,17 @@ type Config struct {
 	RedisURL             string // Redis connection string for caching and session state
 	RedisPassword        string // Redis password (overrides any password in RedisURL)
 
+	// Platform AI provider — the server-chosen backend used for synchronous
+	// editor translations on the platform (credit-metered) path, when the caller
+	// brings no key of their own. It mirrors the worker's BOWRAIN_PLATFORM_*
+	// selection so async jobs and interactive translation resolve the same
+	// upstream. On the hosted cloud this is AWS Bedrock via the ECS task role
+	// (PlatformProvider="bedrock", no API key); PlatformModel must be a Bedrock
+	// inference-profile id. Empty on self-hosted deployments with no platform key.
+	PlatformProvider string // aiprovider id (e.g. "bedrock", "openai"); "" = no platform provider
+	PlatformModel    string // model / inference-profile id for the platform provider
+	PlatformBaseURL  string // optional endpoint override for the platform provider
+
 	// Agent (@bravo) — container runtime for ZeroClaw.
 	// AgentRuntime selects the container backend: "docker" or "aca" (Azure Container Apps).
 	// When empty, the agent falls back to local mock responses.

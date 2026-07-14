@@ -274,7 +274,7 @@ func executeBrandScan(ctx context.Context, deps *BrandScanWorkerDeps, job *Brand
 			"(set BOWRAIN_PLATFORM_PROVIDER + key for self-hosted/local, " +
 			"or BOWRAIN_OPENAI_ENDPOINT for Azure OpenAI)")
 	}
-	prov, provKind, err := deps.Platform.build("")
+	prov, provKind, err := deps.Platform.Build("")
 	if err != nil {
 		return fmt.Errorf("build platform provider: %w", err)
 	}

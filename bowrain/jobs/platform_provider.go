@@ -40,12 +40,15 @@ type PlatformProviderConfig struct {
 	BaseURL  string // optional base URL override (self-hosted endpoint / proxy)
 }
 
-// build returns the LLMProvider for a platform translation job plus the provider
+// Build returns the LLMProvider for a platform translation job plus the provider
 // type string used for rate limiting. jobModel is the model requested by the job
 // (set by the auto-translate automation). For the generic provider path the
 // operator-configured Model wins when set, because the automation's default model
 // is Azure/OpenAI-centric and may not name a valid model for other providers.
-func (c PlatformProviderConfig) build(jobModel string) (aiprovider.LLMProvider, string, error) {
+//
+// Exported so the server's synchronous editor platform path can resolve the same
+// upstream as the async worker from the identical configuration.
+func (c PlatformProviderConfig) Build(jobModel string) (aiprovider.LLMProvider, string, error) {
 	if c.Provider != "" {
 		model := c.Model
 		if model == "" {

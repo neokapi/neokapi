@@ -182,21 +182,36 @@ func (s *Server) checkQueue() ComponentStatus {
 }
 
 func (s *Server) checkAI() ComponentStatus {
-	if s.CredentialStore == nil {
-		return ComponentStatus{Status: "unconfigured"}
-	}
-	configs := s.CredentialStore.List()
-	if len(configs) == 0 {
-		return ComponentStatus{Status: "down", Providers: []AIProviderStatus{}}
-	}
-	providers := make([]AIProviderStatus, 0, len(configs))
-	for _, cfg := range configs {
-		_, err := s.CredentialStore.GetAPIKey(cfg.ID)
+	var providers []AIProviderStatus
+
+	// A server-configured platform provider (the hosted cloud's Bedrock task role)
+	// makes AI available even when the local file-based CredentialStore is empty
+	// and per-workspace keys live in Postgres. Without this, hosted deployments —
+	// which never populate the file store — reported ai:down and failed readiness.
+	if s.Config.PlatformProvider != "" {
 		providers = append(providers, AIProviderStatus{
-			Name:       cfg.ProviderType,
-			Model:      cfg.Model,
-			Configured: err == nil,
+			Name:       s.Config.PlatformProvider,
+			Model:      s.Config.PlatformModel,
+			Configured: true,
 		})
+	}
+
+	if s.CredentialStore != nil {
+		for _, cfg := range s.CredentialStore.List() {
+			_, err := s.CredentialStore.GetAPIKey(cfg.ID)
+			providers = append(providers, AIProviderStatus{
+				Name:       cfg.ProviderType,
+				Model:      cfg.Model,
+				Configured: err == nil,
+			})
+		}
+	}
+
+	if len(providers) == 0 {
+		if s.CredentialStore == nil {
+			return ComponentStatus{Status: "unconfigured"}
+		}
+		return ComponentStatus{Status: "down", Providers: []AIProviderStatus{}}
 	}
 	return ComponentStatus{Status: "up", Providers: providers}
 }

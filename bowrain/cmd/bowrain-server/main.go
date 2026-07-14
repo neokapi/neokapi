@@ -16,6 +16,9 @@ import (
 
 	"google.golang.org/grpc"
 
+	// Register the AWS Bedrock AI provider ("bedrock") in the aiprovider registry,
+	// so BOWRAIN_PLATFORM_PROVIDER=bedrock resolves for platform-path translation.
+	_ "github.com/neokapi/neokapi/bowrain/ai/bedrock"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/cmd/internal/boot"
 	"github.com/neokapi/neokapi/bowrain/crypto"
@@ -187,6 +190,19 @@ func run() error {
 	}
 	if envRedisPassword := os.Getenv("BOWRAIN_REDIS_PASSWORD"); envRedisPassword != "" {
 		cfg.RedisPassword = envRedisPassword
+	}
+	// Platform AI provider (mirrors the worker): the server-chosen backend for
+	// synchronous platform-path editor translations. On the hosted cloud this is
+	// "bedrock" with a Bedrock inference-profile model and no API key (the ECS
+	// task role authenticates).
+	if v := os.Getenv("BOWRAIN_PLATFORM_PROVIDER"); v != "" {
+		cfg.PlatformProvider = v
+	}
+	if v := os.Getenv("BOWRAIN_PLATFORM_MODEL"); v != "" {
+		cfg.PlatformModel = v
+	}
+	if v := os.Getenv("BOWRAIN_PLATFORM_BASE_URL"); v != "" {
+		cfg.PlatformBaseURL = v
 	}
 	if envWebUI := os.Getenv("BOWRAIN_WEB_UI_DIR"); envWebUI != "" {
 		cfg.WebUIDir = envWebUI
