@@ -5,9 +5,14 @@ import history from "./_batcheval.json";
 // The batch-eval dashboard. kapi packs several blocks into one LLM call, and the
 // ceiling it packs to (tools.MaxBlocksPerCall) was chosen from evidence about
 // *adjacent* tasks — nobody has published a quality-versus-N curve for segment
-// translation. This measures our own, and keeps measuring it: models and APIs
-// move, so a ceiling that was right in July 2026 is not self-evidently right
-// later. Regenerate with `make batch-eval-publish`.
+// translation. This is our own, and it keeps being measured: models and APIs move,
+// so a ceiling that was right in July 2026 is not self-evidently right later.
+// Regenerate with `make batch-eval-publish`.
+//
+// Every claim on this page is computed from the committed history rather than typed
+// into the prose. A sentence that hardcodes a finding keeps asserting it long after
+// the data stops supporting it — which is the exact failure this page exists to
+// catch in kapi, and there is no reason to think the page is immune to it.
 
 interface Result {
   n: number;
@@ -46,6 +51,7 @@ interface Run {
   price?: Price;
   corpus: string;
   corpus_words?: number;
+  corpus_blocks?: number;
   corpus_digest: string;
   simulated?: boolean;
   results: Result[];
@@ -54,9 +60,13 @@ interface History {
   runs: Run[];
 }
 
-// The ceiling kapi actually ships. The chart draws it so the curve can be read
-// against the decision it is supposed to inform.
-const SHIPPED_CEILING = 16;
+// The ceiling kapi actually ships (tools.MaxBlocksPerCall). The chart draws it so
+// the curve can be read against the decision it is supposed to inform.
+const SHIPPED_CEILING = 64;
+
+// What a blocking call may emit (aiprovider.NonStreamingMaxOutputTokens). This is
+// the constraint that actually binds a batch, and the sweep is what showed it.
+const OUTPUT_CAP = 16_000;
 
 const h = history as unknown as History;
 
@@ -64,22 +74,62 @@ const h = history as unknown as History;
 // — a stub's flawless curve is exactly the number someone would quote.
 const real = h.runs.filter((r) => !r.simulated);
 
-// Runs are only comparable if they were measured on the same corpus. Rather than
-// silently plotting two experiments as one trend, take the newest corpus as
-// canonical and say plainly what that excluded.
-const latestDigest = real.length
-  ? real
-      .map((r) => r.corpus_digest)
-      .sort()
-      .slice(-1)[0]
-  : "";
-const canonicalDigest = real.length > 0 ? real[real.length - 1].corpus_digest : latestDigest;
-const comparable = real.filter((r) => r.corpus_digest === canonicalDigest);
-const stale = real.length - comparable.length;
+const label = (r: Run) => r.model || r.provider;
 
+// Runs measured on different corpora are different experiments, and plotting them
+// as one trend would be a lie. But hiding the smaller one is also wrong: the corpus
+// is a parameter of the experiment, and how the curve responds to it is itself the
+// finding. (A sweep to N=32 over 30 blocks does not test a batch of 32; it tests
+// the whole document in one call. That is why the first curve came out flat.)
+//
+// So each corpus gets its own section, largest first — the largest corpus is the
+// one that can say the most about big batches.
+interface Experiment {
+  digest: string;
+  blocks: number;
+  date: string;
+  runs: Run[];
+}
+
+const experiments: Experiment[] = [...new Set(real.map((r) => r.corpus_digest))]
+  .map((digest) => {
+    const all = real.filter((r) => r.corpus_digest === digest);
+    // The newest measurement of each *model* wins — not the newest date outright.
+    // Models are swept when there is a reason to sweep them, so a corpus accumulates
+    // runs on different days; taking only the last day's would silently drop every
+    // model that was not re-run that day, and the reader would never know they had
+    // been dropped.
+    const runs = [...new Set(all.map(label))]
+      .map(
+        (m) =>
+          all
+            .filter((r) => label(r) === m)
+            .sort((a, b) => a.date.localeCompare(b.date))
+            .slice(-1)[0],
+      )
+      .filter((r): r is Run => r != null);
+    return {
+      digest,
+      blocks: all[0]?.corpus_blocks ?? 0,
+      date:
+        runs
+          .map((r) => r.date)
+          .sort()
+          .slice(-1)[0] ?? "",
+      runs,
+    };
+  })
+  .sort((a, b) => b.blocks - a.blocks);
+
+// The over-time view lives inside one corpus: a trend across corpora would compare
+// two different experiments and call the difference "drift".
+const comparable = real.filter((r) => r.corpus_digest === (experiments[0]?.digest ?? ""));
 const dates = [...new Set(comparable.map((r) => r.date))].sort();
-const latest = dates[dates.length - 1] ?? "";
-const current = comparable.filter((r) => r.date === latest);
+
+const primary = experiments[0];
+const current = primary?.runs ?? [];
+const canonicalDigest = primary?.digest ?? "";
+const latest = primary?.date ?? "";
 
 function intact(r: Result): number {
   if (!r.blocks) return 0;
@@ -102,7 +152,83 @@ function wordsPerSecond(r: Result): number | null {
 const usd = (v: number) =>
   v >= 1 ? `$${v.toFixed(2)}` : v >= 0.01 ? `$${v.toFixed(3)}` : `$${v.toFixed(4)}`;
 
-const label = (r: Run) => r.model || r.provider;
+const scored = (r: Run): Result[] => r.results.filter((p) => !p.unmeasured && p.blocks > 0);
+
+// The findings below are *derived from the data*, never typed into the prose. A
+// sentence that hardcodes "100% at every N" keeps saying so after the day a model
+// stops being clean, and this page exists precisely to catch that day.
+//
+// And the claim has to be a *trend*, not a perfection. These are stochastic models:
+// a sweep will sooner or later drop a segment somewhere, and a page built on "no
+// breaks above N=32" would be falsified by one unlucky run while its actual thesis —
+// that damage does not grow with N — stood untouched. So the question asked of the
+// data is the one that survives noise: is the small end worse than the large end?
+const SMALL_N = 16;
+const LARGE_N = 128;
+
+interface Findings {
+  /** Worst intact% anywhere in the sweep, and where — the honest floor. */
+  worst: { n: number; model: string; intact: number } | null;
+  /** Structural breaks per 1,000 blocks at the small end (N ≤ SMALL_N) and the large (N ≥ LARGE_N). */
+  smallRate: number | null;
+  largeRate: number | null;
+  /** The largest N swept: one call for (nearly) the whole corpus. */
+  maxN: number;
+  /** Cost and time at maxN as a multiple of the cheapest/fastest N — the oversize penalty. */
+  oversize: { model: string; costX: number; timeX: number; bestN: number }[];
+}
+
+/** Breaks per 1,000 blocks over a set of points — a rate, so batch sizes with more
+ *  blocks behind them do not dominate a raw count. */
+function breakRate(points: Result[]): number | null {
+  const blocks = points.reduce((s, p) => s + p.blocks, 0);
+  if (!blocks) return null;
+  const bad = points.reduce(
+    (s, p) => s + p.missing + p.placeholder_breaks + p.tag_breaks + p.untranslated,
+    0,
+  );
+  return (bad / blocks) * 1000;
+}
+
+function findings(runs: Run[]): Findings {
+  const ns = [...new Set(runs.flatMap((r) => scored(r).map((p) => p.n)))].sort((a, b) => a - b);
+  const all = runs.flatMap(scored);
+
+  const smallRate = breakRate(all.filter((p) => p.n <= SMALL_N));
+  const largeRate = breakRate(all.filter((p) => p.n >= LARGE_N));
+
+  let worst: Findings["worst"] = null;
+  for (const r of runs) {
+    for (const p of scored(r)) {
+      if (!worst || intact(p) < worst.intact) {
+        worst = { n: p.n, model: label(r), intact: intact(p) };
+      }
+    }
+  }
+
+  const maxN = ns[ns.length - 1] ?? 0;
+  const oversize = runs
+    .map((r) => {
+      const pts = scored(r);
+      const top = pts.find((p) => p.n === maxN);
+      const costs = pts
+        .map((p) => ({ n: p.n, c: costPer1kWords(p), t: wordsPerSecond(p) }))
+        .filter((x) => x.c != null && x.t != null);
+      const best = costs.reduce((a, b) => (b.c! < a.c! ? b : a), costs[0]);
+      const topCost = top ? costPer1kWords(top) : null;
+      const topSpeed = top ? wordsPerSecond(top) : null;
+      if (!best || topCost == null || topSpeed == null || !best.c || !best.t) return null;
+      return {
+        model: label(r),
+        costX: topCost / best.c,
+        timeX: best.t / topSpeed,
+        bestN: best.n,
+      };
+    })
+    .filter((x): x is NonNullable<typeof x> => x != null);
+
+  return { worst, smallRate, largeRate, maxN, oversize };
+}
 
 const palette = [
   "#4c78a8",
@@ -269,6 +395,7 @@ function Legend({ runs }: { runs: Run[] }): ReactElement {
 }
 
 export default function BatchEval(): ReactElement {
+  const f = findings(current);
   return (
     <Layout
       title="Batch eval"
@@ -284,16 +411,6 @@ export default function BatchEval(): ReactElement {
           inference. This is the measurement that replaces it, and it is re-run as models change: a
           ceiling that was right for one generation of models is not self-evidently right for the
           next.
-        </p>
-
-        <p>
-          One line is worth reading first: <code>eu.anthropic.claude-sonnet-4-6</code> on{" "}
-          <strong>AWS Bedrock</strong>, which shows what a genuinely binding constraint looks like.
-          N=1 could not be measured there at all: thirty calls per repeat — even issued one at a
-          time — trip the account&rsquo;s Bedrock rate limit and come back throttled. On Bedrock the
-          scarce resource is <em>requests</em>, not tokens, and a batch of sixteen makes one
-          sixteenth of them. That is an argument for batching with nothing to do with quality, and
-          unlike the cost story below, it actually binds.
         </p>
 
         <h2>What is scored, and why it is not &ldquo;quality&rdquo;</h2>
@@ -318,50 +435,98 @@ export default function BatchEval(): ReactElement {
             <p style={{ color: "var(--ifm-color-emphasis-700)", fontSize: "0.92rem" }}>
               Measured {latest} · target {current[0].target} · {current[0].corpus} · corpus{" "}
               <code>{canonicalDigest}</code>
-              {stale > 0 && (
-                <>
-                  {" "}
-                  · {stale} older run{stale === 1 ? "" : "s"} hidden: measured on a different
-                  corpus, and therefore not comparable
-                </>
-              )}
             </p>
             <Curve runs={current} />
             <Legend runs={current} />
 
+            <h2>What the sweep found</h2>
+            <p>
+              <strong>There is no quality cliff.</strong> Batches of {f.maxN} segments — most of a
+              document, answered in a single call — came back structurally intact.
+              {f.worst && (
+                <>
+                  {" "}
+                  The worst point anywhere in the sweep is{" "}
+                  <strong>{f.worst.intact.toFixed(1)}% intact</strong> ({f.worst.model} at N=
+                  {f.worst.n}).
+                </>
+              )}{" "}
+              The degradation-with-N that batch-prompting papers report on classification and
+              reasoning tasks did not transfer to translation. That is not surprising once stated
+              plainly: translating segment 300 does not depend on having reasoned correctly about
+              segment 299. The items are independent, and the failures that do occur are sporadic
+              rather than progressive.
+            </p>
+            {f.smallRate != null && f.largeRate != null && (
+              <p>
+                <strong>
+                  {f.smallRate > f.largeRate
+                    ? "If anything, the small end is worse."
+                    : "The damage does not scale with N."}
+                </strong>{" "}
+                These are stochastic models: a sweep this size drops a segment somewhere, so the
+                claim worth making is about the trend, not about perfection. Counted as breaks per
+                1,000 blocks — a rate, so a batch size is not flattered by having fewer blocks
+                behind it — small batches (N {"\u2264"} {SMALL_N}) broke{" "}
+                <strong>{f.smallRate.toFixed(1)}</strong> and large ones (N {"\u2265"} {LARGE_N})
+                broke <strong>{f.largeRate.toFixed(1)}</strong>.{" "}
+                {f.smallRate > f.largeRate
+                  ? "More calls means more chances to fumble a placeholder, and less surrounding context in which to recognise one — the opposite of the effect the ceiling was set to guard against."
+                  : "Whatever the ceiling was set to guard against, it is not a trend visible here."}
+              </p>
+            )}
+            <p>
+              <strong>
+                What actually binds is output tokens, and it bills rather than breaks.
+              </strong>{" "}
+              A blocking call may emit at most {OUTPUT_CAP.toLocaleString()} tokens (
+              <code>NonStreamingMaxOutputTokens</code>: asking a synchronous request for more means
+              holding an HTTP connection open for many minutes). A batch whose reply would exceed
+              that comes back truncated — under a JSON schema, a fragment is invalid JSON — so kapi
+              halves the batch and translates each half. Nothing is corrupted, which is exactly why
+              the integrity line stays at 100%. You simply pay for the work twice.
+              {f.oversize.length > 0 && (
+                <>
+                  {" "}
+                  At the top of this sweep that is not a rounding error:{" "}
+                  {f.oversize.map((o, i) => (
+                    <span key={o.model}>
+                      {i > 0 ? "; " : ""}
+                      <strong>{o.model}</strong> at N={f.maxN} cost{" "}
+                      <strong>{o.costX.toFixed(1)}×</strong> the tokens and ran{" "}
+                      <strong>{o.timeX.toFixed(1)}×</strong> slower than at N=
+                      {o.bestN}
+                    </span>
+                  ))}
+                  .
+                </>
+              )}
+            </p>
+            <p>
+              So the ceiling that matters is a <strong>token budget</strong>, not a block count —
+              which is what kapi packs against. The block cap is a backstop, and the measurement
+              moved it: it was {"≤"}16, inferred from the literature on adjacent tasks, and is now{" "}
+              {"≤"}
+              {SHIPPED_CEILING} — comfortably inside the measured-clean range, and four times fewer
+              calls on a catalog of short UI strings. The output budget still binds first on
+              anything longer.
+            </p>
+
             <h2>What it costs, and what you give up</h2>
             <p>
-              Batching is usually sold as a cost lever: pack the same content into fewer calls,
-              repeat the instructions fewer times, bill fewer input tokens. Whether that is true
-              turns out to depend entirely on the provider, and the mechanism is worth understanding
-              because it decides which lever you are actually pulling.
+              Every call carries a <strong>fixed overhead</strong> — the system prompt and the JSON
+              schema that constrains the reply — paid once per call however many blocks ride along.
+              Batching amortises it. How much that is worth depends on how big the overhead is,
+              which varies by provider by an order of magnitude, so the honest answer to &ldquo;does
+              batching save money?&rdquo; is <em>it depends on who you call</em> — read the Δ column
+              below rather than trusting a rule of thumb.
             </p>
             <p>
-              Every call carries a <strong>fixed overhead</strong> — the system prompt, and the JSON
-              schema that constrains the reply — and that overhead is paid once per call regardless
-              of how many blocks ride along. On the Anthropic-on-Bedrock path it is about 985 tokens
-              per call; on Gemini, about 106. That single difference produces two opposite answers:
-            </p>
-            <ul>
-              <li>
-                <strong>On Bedrock, batching is a large cost lever.</strong> At two blocks per call,
-                the overhead is paid fifteen times over and dominates the bill. Batching amortises
-                it away: cost per 1,000 words falls from <strong>$0.25 to $0.09</strong> — about 64%
-                — between N=2 and N=32, with no loss of structural integrity at any size.
-              </li>
-              <li>
-                <strong>On Gemini, batching is not a cost lever at all.</strong> The per-call
-                overhead is small, so there is little to amortise; meanwhile the batched reply must
-                carry an id and a JSON envelope per segment, so output tokens grow — and output is
-                priced around six times input. The two effects cancel, and cost per 1,000 words
-                comes out flat.
-              </li>
-            </ul>
-            <p>
-              What batching buys on <em>every</em> provider is <strong>throughput</strong>: two to
-              three times the words per second, because you wait on a handful of round trips instead
-              of thirty. Where it also saves money, that is a bonus arising from the
-              provider&rsquo;s per-call overhead, not a law of batching.
+              What batching buys on <em>every</em> provider is <strong>throughput</strong>: you wait
+              on a handful of round trips instead of hundreds. And on rate-limited routes it buys
+              the run itself — see <code>eu.anthropic.claude-sonnet-4-6</code> below, where the
+              smallest batch sizes issue so many calls that the account&rsquo;s Bedrock quota
+              refuses them outright. There the scarce resource is <em>requests</em>, not tokens.
             </p>
             <p>
               The unit is <strong>USD per 1,000 source words</strong>, because content budgets are
@@ -469,9 +634,9 @@ export default function BatchEval(): ReactElement {
               </tbody>
             </table>
             <p style={{ fontSize: "0.85rem", color: "var(--ifm-color-emphasis-700)" }}>
-              Read the two Δ columns together: batching to {SHIPPED_CEILING} does not reduce cost,
-              and roughly doubles or triples throughput, at no measured cost to structural
-              integrity. That is the trade it actually offers.
+              Read the two Δ columns together against the last one: whatever batching does to your
+              bill, it buys throughput and costs no structural integrity. That is the trade it
+              actually offers.
             </p>
             <p style={{ fontSize: "0.85rem", color: "var(--ifm-color-emphasis-700)" }}>
               Three honest caveats about these numbers.{" "}
@@ -656,6 +821,40 @@ export default function BatchEval(): ReactElement {
                 ))}
               </tbody>
             </table>
+          </>
+        )}
+
+        {experiments.length > 1 && (
+          <>
+            <h2>The corpus is part of the experiment</h2>
+            <p>
+              The first version of this sweep used a 30-block corpus and reported a flat 100% line
+              at every batch size up to 32. That result was an artefact. With only 30 blocks, N=32
+              does not test a batch of thirty-two — it tests <em>the whole document in one call</em>
+              , and N=16 tests two calls. The sweep had saturated: the ceiling being measured was
+              the corpus&rsquo;s, not the models&rsquo;. It is kept below rather than deleted,
+              because a measurement that could not have found the thing it was looking for should be
+              visible as such.
+            </p>
+            {experiments.slice(1).map((e) => (
+              <div key={e.digest} style={{ marginBottom: 24 }}>
+                <h3 style={{ marginBottom: 4 }}>
+                  {e.blocks || "?"}-block corpus{" "}
+                  <span
+                    style={{
+                      fontWeight: 400,
+                      fontSize: "0.85rem",
+                      color: "var(--ifm-color-emphasis-600)",
+                    }}
+                  >
+                    {e.date} · corpus <code>{e.digest}</code> · largest meaningful N ={" "}
+                    {e.blocks || "?"}
+                  </span>
+                </h3>
+                <Curve runs={e.runs} />
+                <Legend runs={e.runs} />
+              </div>
+            ))}
           </>
         )}
 

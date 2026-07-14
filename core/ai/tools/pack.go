@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"github.com/neokapi/neokapi/core/ai/prompt"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
@@ -30,13 +31,42 @@ import (
 // On the ceiling: batch-prompting studies find accuracy dropping measurably by
 // N≈16 and sharply past it, and the failure mode is not worse wording — it is
 // dropped, merged and renumbered items. That is a correctness failure in a
-// localization pipeline, not a quality one. MaxBlocksPerCall is deliberately set
-// at the conservative end of that evidence, pending our own measurement on
-// translation specifically (no published quality-vs-N curve for segment
-// translation exists — see the eval issue).
+// localization pipeline, not a quality one. So MaxBlocksPerCall started at the
+// conservative end of that evidence, pending our own measurement on translation
+// specifically.
+//
+// We have now measured it (scripts/batcheval, published at /batch-eval), and the
+// borrowed N≈16 does not survive contact with the task. Sweeping a 600-block
+// corpus of real localization stressors — ambiguous UI strings, placeholders,
+// inline tags, prose — at N = 8…600 against gemini-3.5-flash, gemini-3.1-flash-lite
+// and Claude Sonnet 4.6 on Bedrock, structural integrity was 100% at every batch
+// size from 32 up, on every model. The only structural damage measured anywhere in
+// the sweep was at the *small* end: gemini-3.5-flash broke 14 placeholders at N=8
+// and 10 at N=16, and none at all from N=32. More calls means more chances to
+// fumble, and less context to fumble in.
+//
+// The generalization batch-prompting papers make — degradation with N, on
+// reasoning and classification tasks — does not transfer to translation, and it is
+// not hard to see why: translating segment 300 does not require having reasoned
+// correctly about segment 299. The items are independent, and the model is doing
+// the one thing it is best at.
+//
+// What does bite at large N is the output ceiling, and it bites as cost rather
+// than as corruption: a batch whose reply exceeds what a blocking call may emit
+// (NonStreamingMaxOutputTokens) comes back truncated, splitAndRetry halves it, and
+// the work is redone. The eval measured a 600-block batch costing 2.4x the tokens
+// and 6x the wall-clock of the same corpus at N=256 — at an unchanged 100%
+// integrity, because the retry quietly absorbed it.
+//
+// Hence the two bounds below, and their relative importance: the token budget is
+// the one that matters, and MaxBlocksPerCall is now a backstop rather than the
+// binding constraint. It is raised to 64 — comfortably inside the measured-clean
+// range, four times fewer calls on catalogs of short UI strings, and still short of
+// the point where a reply could not be re-attempted cheaply.
 const (
-	// MaxBlocksPerCall bounds how many blocks may share one LLM call.
-	MaxBlocksPerCall = 16
+	// MaxBlocksPerCall bounds how many blocks may share one LLM call. A backstop:
+	// the output-token budget below almost always binds first.
+	MaxBlocksPerCall = 64
 
 	// OutputBudgetFraction is the share of the model's usable output budget a
 	// batch's translations may be estimated to need. The headroom absorbs the
@@ -49,6 +79,22 @@ const (
 	// MinOutputBudgetTokens keeps a tiny or unknown ceiling from collapsing the
 	// budget to zero, which would pack one block per call forever.
 	MinOutputBudgetTokens = 512
+
+	// ReplyItemOverheadTokens is what one reply item costs *before* its
+	// translation: the JSON scaffolding the schema forces around it —
+	// `{"id":"s123","text":"…"},` — braces, field names, quotes, comma, and the
+	// echoed id.
+	//
+	// It is a per-*item* cost, and that is the whole point. Budgeting a batch from
+	// its source text alone charges nothing for the number of segments, so a batch
+	// of 600 short UI strings — which is mostly scaffolding — asks for a cap smaller
+	// than the reply it just requested. The model stops at the cap, the reply is a
+	// fragment, and splitAndRetry re-translates the batch in halves. Nothing is
+	// corrupted; you simply pay twice. The eval measured that: a 600-block batch cost
+	// 2.4x the tokens and 6x the wall-clock of the same corpus at N=256, at an
+	// unchanged 100% structural integrity, which is exactly what a self-healing
+	// retry looks like from the outside.
+	ReplyItemOverheadTokens = 10
 )
 
 // packBlocks groups entries into batches that a model can actually answer.
@@ -91,6 +137,17 @@ func packBlocks(entries []blockEntry, budgetTokens, maxBlocks int) [][]blockEntr
 	flush()
 
 	return batches
+}
+
+// batchOutputBudget is the cap to request for a batch's reply: room for a target
+// that runs longer than its source, plus the scaffolding of each reply item, plus
+// a floor so a batch of very short strings still has somewhere to land.
+func batchOutputBudget(segments []prompt.BatchSegment) int {
+	need := MinOutputBudgetTokens
+	for _, s := range segments {
+		need += estimateTokens(s.Text)*2 + estimateTokens(s.ID) + ReplyItemOverheadTokens
+	}
+	return need
 }
 
 // outputBudget reports the token budget for one call to p: a fraction of what

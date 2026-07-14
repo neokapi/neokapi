@@ -1044,11 +1044,15 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 
 	// Ask for what this batch could plausibly need, not a fixed constant. The
 	// provider clamps it to the model's ceiling.
-	var need int
-	for _, text := range texts {
-		need += estimateTokens(text)
-	}
-	ctx = aiprovider.WithMaxOutputTokens(ctx, need*2+512)
+	//
+	// Two costs, and both have to be counted. The translation may run longer than
+	// its source (German, Finnish), hence the doubling — and every reply item drags
+	// its JSON scaffolding and echoed id along with it, a cost that scales with the
+	// *number* of segments rather than their length. Budgeting for text alone asks
+	// for less than the reply needs on a large batch of short strings, and the
+	// truncation retry then re-does the work at double the price.
+	need := batchOutputBudget(segments)
+	ctx = aiprovider.WithMaxOutputTokens(ctx, need)
 
 	var resp *aiprovider.ChatResponse
 	var err error

@@ -1,10 +1,17 @@
 // Command batcheval measures what batching costs, by sweeping the number of
 // blocks per LLM call and scoring each N.
 //
-// It exists because kapi ships a batch ceiling (tools.MaxBlocksPerCall) chosen
+// It exists because kapi shipped a batch ceiling (tools.MaxBlocksPerCall) chosen
 // from evidence about *adjacent* tasks — batch prompting on QA and classification,
 // BatchGEMBA on MT evaluation — because no quality-versus-N curve for segment
-// translation has ever been published. That is a guess. This measures it.
+// translation had ever been published. That was a guess. This measured it, and the
+// guess did not survive: translation shows no degradation with N up to 600 blocks
+// per call, and what damage there is sits at the *small* end. The ceiling moved to
+// 64, and the real constraint turned out to be the output-token budget, which bills
+// (a truncated reply is re-translated in halves) rather than breaks.
+//
+// Keep running it. An alias like `sonnet` or `gemini-3.5-flash` points at different
+// weights over time, and a ceiling measured once is folklore by the next release.
 //
 // What it scores, and why it is not "quality":
 //
@@ -73,6 +80,7 @@ func run() error {
 		appendTo    = flag.String("append", "", "merge the runs into this history file (the /batch-eval dashboard's data)")
 		dump        = flag.Bool("dump", false, "print every source→target pair that scored as a break, so a count can be inspected rather than trusted")
 		recost      = flag.String("recost", "", "re-price an existing history from prices.json and exit (no model calls)")
+		blocks      = flag.Int("blocks", 30, "corpus size. A sweep to N=32 over 30 blocks does not test a batch of 32 — it tests the whole document in one call. To find where a model actually breaks, the corpus must be several times the largest N.")
 	)
 	flag.Parse()
 	dumpBreaks = *dump
@@ -85,7 +93,7 @@ func run() error {
 		return recostHistory(*recost)
 	}
 
-	corpus := Corpus()
+	corpus := CorpusN(*blocks)
 	ns, err := parseSizes(*sizes)
 	if err != nil {
 		return err
@@ -173,6 +181,7 @@ func sweep(ctx context.Context, mt modelTarget, corpus TestCorpus, ns []int, opt
 		Concurrency:  opts.concurrency,
 		Corpus:       corpus.Describe(),
 		CorpusWords:  corpus.Words(),
+		CorpusBlocks: len(corpus.Cases),
 		CorpusDigest: corpus.Digest(),
 		Simulated:    mt.provider == string(aiprovider.Demo),
 	}
@@ -226,7 +235,10 @@ func sweep(ctx context.Context, mt modelTarget, corpus TestCorpus, ns []int, opt
 // price fills in the words put through the model and what they cost at this run's
 // recorded rates.
 func (r Run) price(res Result) Result {
-	res.Words = r.CorpusWords * res.Blocks / max(len(Corpus().Cases), 1)
+	// Words scale with the blocks actually attempted (corpus x repeats), so the
+	// denominator must come from the run's own corpus — not from the authored 30,
+	// which is no longer the only corpus there is.
+	res.Words = r.CorpusWords * res.Blocks / max(r.CorpusBlocks, 1)
 	// Only a metered route gets a cost.
 	//
 	// The subscription route (claude-code) is not billed per token, and — more to

@@ -64,9 +64,14 @@ text you cannot emit translations for is not a strategy; it is a truncated reply
 
 **A fixed block count is the wrong unit.** The same 100 blocks are 300 tokens of UI
 strings or 200k tokens of prose. kapi packs each call against a token budget
-derived from the model's declared output limit, with a ceiling on the number of
-segments (`MaxBlocksPerCall`) because quality degrades with batch size
-independently of length.
+derived from the model's declared output limit, with a backstop on the number of
+segments (`MaxBlocksPerCall`).
+
+The block cap started at 16, borrowed from batch-prompting results on adjacent
+tasks. Having now measured translation itself (below), it is 64: the sweep found
+no structural degradation at any batch size up to 600, and the token budget binds
+first on anything longer than a UI string anyway. The cap is a backstop, not the
+decision.
 
 **And it is not a decidable question for a user.** The right count depends on the
 model's ceiling, on the length of *their* segments, and on a quality-versus-N
@@ -77,13 +82,20 @@ actually answer. A numeric pin survives as a hidden override, for recipes that
 must reproduce a historical run and for the eval sweep that will measure the curve
 we currently take on faith.
 
-**Batching is a cost optimisation with a quality cost, and the cost argument is
-weaker than it looks.** Shrinking a batch does not re-send the content — each
-block is sent once either way. It re-sends only the *system prefix*, which every
-provider caches at ~0.1× after the first call. Meanwhile the batch-prompting
-literature finds accuracy degrading measurably by N≈16, and the failure mode at
-size is not worse wording but **dropped, merged and renumbered segments** — a
-correctness failure, not a quality one.
+**Batching was assumed to be a cost optimisation with a quality cost. Measurement
+inverted both halves.** The quality cost did not materialise: structural integrity
+was perfect from N=32 to N=600 on every model swept, and the *only* breaks measured
+anywhere were at N=8 and N=16. And the cost saving is real but provider-dependent —
+it is the per-call fixed overhead (system prompt + JSON schema) being amortised, so
+it is large where that overhead is large (Bedrock, ~985 tokens per call) and
+negligible where it is small (Gemini, ~106).
+
+What batching genuinely costs is bounded by the **output ceiling**: a batch whose
+reply would exceed `NonStreamingMaxOutputTokens` (16k) comes back truncated,
+`splitAndRetry` halves it, and the work is redone. That is billed, not broken —
+which is why it hid behind a flat 100% integrity line until the tokens were looked
+at. A 600-block batch cost 2.4× the tokens and 6× the wall-clock of the same corpus
+at N=256.
 
 ### The payload is id-keyed JSON
 
@@ -134,8 +146,10 @@ honest boundary, and it is the one we document.
   as unknown and packed conservatively — smaller batches, not truncated replies.
 - Rewording any prompt moves the fingerprint (re-translating affected blocks) and
   fails the reference drift gate until the docs are regenerated. Both are intended.
-- We ship a `MaxBlocksPerCall` chosen from evidence about *adjacent* tasks, not
-  from a measurement of our own. That is a known gap, not a settled answer.
+- `MaxBlocksPerCall` is now set from a measurement of translation itself
+  (`scripts/batcheval`, published at **/batch-eval**) rather than inferred from
+  adjacent tasks — and is re-measured as models move, because a ceiling checked once
+  decays into folklore.
 
 ## Measuring the ceiling
 
@@ -180,19 +194,57 @@ The record exists because model aliases are not stable artefacts. `sonnet` and
 `gemini-3.5-flash` point at different weights over time; a ceiling measured once
 and never re-checked decays into folklore. Re-run the sweep when the models move.
 
-### What the first sweep actually found
+### The corpus is part of the experiment
 
-Seven models, swept N ∈ {1,2,4,8,16,32}: Anthropic opus/sonnet/haiku via the
-claude-code subscription; Gemini 3.5-flash, 3.1-flash-lite, 3.1-pro; and
-`eu.anthropic.claude-sonnet-4-6` on **AWS Bedrock**, which is the route the Bowrain
-platform actually runs on and therefore the only one whose numbers describe
-production.
+The first sweep used a 30-block corpus and reported a flat 100% line at every batch
+size to N=32. That result was an artefact, and a self-inflicted one: with 30 blocks,
+N=32 does not test a batch of thirty-two — it tests *the whole document in one
+call*, and N=16 tests two calls. The sweep had saturated. The ceiling being measured
+was the corpus's, not the models'.
 
-**No batching cliff.** Every model came back 100% structurally intact at every
-batch size up to 32 — nothing dropped, nothing renumbered, no placeholder or tag
-broken. `MaxBlocksPerCall = 16` is not too high; on this evidence it is
-conservative. Every apparent degradation the sweep first showed turned out to be a
-bug in kapi, not in a model.
+The corpus therefore scales (`CorpusN`), holding the stressor mix roughly constant
+and generating every block distinct — duplicate source text would let a model
+translate one segment and copy it into the next, manufacturing the exact failure the
+eval exists to detect. The authored 30 are kept unchanged, so their digest is stable
+and the published runs stay comparable.
+
+The real sweep is 600 blocks (9,990 words), N ∈ {8,16,32,64,128,256,600}.
+
+### What the sweep actually found
+
+**There is no batching cliff.** Across `gemini-3.5-flash`, `gemini-3.1-flash-lite`
+and `eu.anthropic.claude-sonnet-4-6` on **AWS Bedrock** (the route the Bowrain
+platform runs on, and therefore the only one whose numbers describe production),
+structural integrity stays above 99% at every batch size — including N=600, six
+hundred segments answered in a single call with nothing dropped, merged, renumbered
+or stripped of a placeholder.
+
+The batch-prompting literature's degradation-with-N does not transfer to
+translation, and the reason is not mysterious: translating segment 300 does not
+require having reasoned correctly about segment 299. The items are independent. The
+N≈16 figure was measured on classification and reasoning, where they are not.
+
+**What breaks does not break *more* with N.** These are stochastic models, and a
+sweep this size drops a segment somewhere: `gemini-3.5-flash` left 11 of 1,200
+blocks untranslated at N=256 in one run, which is the worst point measured anywhere.
+The claim worth making is therefore about the trend, not about perfection — and the
+trend runs the other way. Measured as breaks per 1,000 blocks, the *small* batches
+are the worse ones, and the damage there is the kind that matters: `gemini-3.5-flash`
+broke placeholders at N=8 and N=16 (8–14 and 2–10 across runs) and broke none at any
+size from 32 up. More calls means more chances to fumble a placeholder and less
+context in which to recognise one — the opposite of the effect the ceiling was set to
+guard against.
+
+`gemini-3.1-flash-lite` and Sonnet on Bedrock were clean at every size on the latest
+sweep, which is worth stating plainly: the residual failures are one model's, not a
+property of batching.
+
+(The dashboard computes that comparison from the data rather than restating it in
+prose, so it cannot go quietly out of date. A page that hardcodes "100% above N=32"
+is falsified by one unlucky run while its actual thesis stands.)
+
+`MaxBlocksPerCall` is accordingly raised 16 → 64, and demoted: it is a backstop, and
+the token budget is the decision.
 
 **On Bedrock — the route the platform actually runs on — the binding constraint is
 requests, not tokens.** `eu.anthropic.claude-sonnet-4-6` came back 100% intact at
@@ -226,6 +278,25 @@ overhead, not a law of batching. Our first reading ("batching is not a cost leve
 was true of Gemini and would have been published as if it were universal; Bedrock
 refuted it.
 
+**The constraint that actually binds a batch is the output ceiling, and it bills
+rather than breaks.** A blocking call may emit at most `NonStreamingMaxOutputTokens`
+(16k) — not a model limit but ours, because asking a synchronous request for a
+128k-token reply means holding an HTTP connection open for many minutes. A batch
+whose reply would exceed it comes back truncated; under a JSON schema a fragment is
+invalid JSON, so `splitAndRetry` halves the batch and redoes the work.
+
+Nothing is corrupted. That is precisely why it stayed invisible: the integrity line
+reads a flat 100% while the bill quietly doubles. Bedrock at N=600 needed ~33k output
+tokens for the whole corpus, truncated at 16k, split to 300+300 (~16.5k each — still
+over), split again to 150, and finished. The arithmetic is exactly what was measured:
+16k + 2×16k wasted, plus the 33k of real work ≈ **81.7k output tokens** against 33.4k
+at N=256 — 2.4× the tokens and 6× the wall-clock, at an unchanged 100% integrity.
+
+So an oversized batch is not dangerous; it is wasteful, and silently so. The lesson
+for the design is that the token budget is load-bearing and the block count is not,
+which is how kapi already packs — the eval validated the mechanism while refuting
+the number attached to it.
+
 Two things follow, neither yet done:
 
 - **Prompt caching is unused.** The fixed per-call overhead is exactly what prompt
@@ -238,7 +309,7 @@ Two things follow, neither yet done:
   given workload, `global.anthropic.claude-sonnet-4-6` is the same model 10%
   cheaper.
 
-And three bugs in kapi, which is the more useful outcomeAnd three bugs in kapi, which is the more useful outcome and the reason to build the
+And four bugs in kapi, which is the more useful outcome and the reason to build the
 instrument before trusting the intuition.
 
 **Inline tags were reaching the model as escape sequences.** `encoding/json`
@@ -264,7 +335,17 @@ the model mangling markup. Fixed: a thinking model gets the ceiling. You are bil
 for what is emitted, not for what is permitted, so the cap costs nothing and only
 removes a way to corrupt output silently.
 
-A fourth, found while wiring the model-availability check: **the provider registry
+**The requested output cap never paid for the reply's shape.** The per-call budget
+was `sum(source_tokens)*2 + 512` — the translation's *words*, and nothing for the
+JSON scaffolding the schema wraps around each of them (`{"id":"s123","text":"…"},`),
+which is a cost per *item* rather than per word. On a batch of many short UI strings
+the scaffolding is most of the reply, so kapi asked for a cap smaller than the reply
+it had just requested and truncated itself. Fixed (`batchOutputBudget`): the budget
+now charges for the id and the envelope as well as the text. It is not what caused
+the N=600 splits above — the 16k ceiling did that — but it would have caused its own,
+on exactly the catalogs kapi is most often pointed at.
+
+A fifth, found while wiring the model-availability check: **the provider registry
 advertised retired models as defaults.** `ProviderInfo.DefaultModel` said
 `gemini-3-flash-preview` (which the API now answers 404 "no longer available" for)
 and `claude-sonnet-4-20250514` (retired), while the constructors had moved on. Its
@@ -272,23 +353,20 @@ doc comment claimed the two were the same value; nothing checked it, so `kapi
 models` was advertising a default that would 404 on a user's first call. The
 constructor constant is now the single source of truth, with a test.
 
-All four were invisible to the unit tests, and three of them would have been
+All five were invisible to the unit tests, and three of them would have been
 published as *model* findings by a less suspicious harness — degradation curves for
 weaknesses the models did not have. That is why a break must be inspectable
 (`-dump`) rather than merely counted, and why a transient failure is retried before
 it is recorded as a cliff.
 
+The harness had a matching bug of its own, worth recording because it is the same
+class: the history keyed a run on (date, model, target) and *not* on the corpus, so
+the 600-block sweep silently overwrote the 30-block sweep from the same morning —
+the file whose entire purpose is to enforce "different corpora are not comparable"
+was itself conflating them. The digest is now part of the key.
+
 ## Open
 
-- **The curve is flat to N=32; we have not found where it breaks.** The measured
-  ceiling is therefore a lower bound, not a cliff. Sweeping further (64, 128, and a
-  corpus large enough to make those meaningful) would say whether 16 is leaving
-  throughput on the table.
-- **No cost figure for the Anthropic models.** They were reached over the
-  claude-code subscription, which is not billed per token and whose token counts do
-  not describe an API call — the CLI bills its own agent system prompt as cache
-  creation, reporting 240 input tokens across sixty calls. Costing them needs a
-  sweep against the metered API.
 - **Prompt caching is unused on every provider.** It targets precisely the fixed
   per-call overhead that dominates small-batch cost, at a tenth of the input rate.
   This is the largest unexploited saving the eval has surfaced.
@@ -300,3 +378,12 @@ it is recorded as a cliff.
 - **Context is limited to the key and immediate neighbours.** TM matches, the file
   path, and prior translations of the same key are all things the evidence says
   would help and that kapi already holds, and none of them reach the prompt.
+- **Streaming would lift the 16k output ceiling**, which is the only thing now
+  bounding a batch. Whether that is worth wanting is an open question, not an
+  obvious yes: the eval shows the gain from batching flattening out well before the
+  ceiling is reached, so the honest reading is that the ceiling is not currently
+  costing us anything — it is simply the wall an oversized batch hits.
+- **The measurement is de-only.** German runs long, which stresses the output
+  budget, and that was the point. Whether a language that expands further (Finnish)
+  or one that tokenizes badly (Japanese, Thai) moves the curve is unmeasured, and
+  the harness takes `-target` precisely so it can be.

@@ -37,6 +37,26 @@ func TestSameDayRerunCorrectsRatherThanAccumulates(t *testing.T) {
 	assert.Len(t, h.Runs, 3)
 }
 
+// Same model, same day, different corpus = two experiments. Keying without the
+// corpus digest made the 600-block sweep silently overwrite the 30-block one that
+// had run an hour earlier, destroying the very comparison the big corpus was built
+// to make.
+func TestASweepOverADifferentCorpusIsADifferentRun(t *testing.T) {
+	t.Parallel()
+
+	small := sampleRun("2026-07-14", "gemini", "gemini-3.5-flash")
+
+	big := sampleRun("2026-07-14", "gemini", "gemini-3.5-flash")
+	big.CorpusDigest = CorpusN(600).Digest()
+	big.CorpusBlocks = 600
+
+	var h History
+	h.Upsert(small, big)
+
+	require.Len(t, h.Runs, 2, "the small corpus must survive the big one")
+	assert.Equal(t, 600, h.Runs[0].CorpusBlocks, "the larger corpus sorts first")
+}
+
 // The history is only meaningful if runs are comparable. Change the corpus and
 // they are not — so the digest must move, and the dashboard can then refuse to
 // draw one line through two different experiments.

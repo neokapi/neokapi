@@ -1,11 +1,13 @@
 package tools
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/ai/prompt"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
@@ -90,4 +92,39 @@ func countEntries(batches [][]blockEntry) int {
 		n += len(b)
 	}
 	return n
+}
+
+// The cap requested for a batch's reply has to pay for the reply's shape, not
+// just its words. Every item comes back wrapped in `{"id":"s123","text":"…"},`,
+// and on a batch of many short strings that scaffolding is most of the reply.
+//
+// The old budget (source tokens x2 + 512) ignored it, and the eval caught the
+// consequence on a real model: a 600-block batch asked for 31.5k output tokens
+// when the reply needed ~33k, got truncated, and was re-translated in halves —
+// 2.4x the tokens and 6x the wall-clock, at an unchanged 100% integrity. Nothing
+// was corrupted, which is exactly why it went unnoticed.
+func TestBatchOutputBudgetPaysForTheReplyScaffolding(t *testing.T) {
+	t.Parallel()
+
+	// 600 short UI strings: the reply is dominated by ids and JSON syntax.
+	texts := make([]string, 600)
+	for i := range texts {
+		texts[i] = "Save"
+	}
+	segments := prompt.BatchSegments(texts)
+
+	textOnly := 0
+	for _, s := range segments {
+		textOnly += estimateTokens(s.Text) * 2
+	}
+	textOnly += 512 // what the old budget would have asked for
+
+	got := batchOutputBudget(segments)
+	assert.Greater(t, got, textOnly+len(segments)*ReplyItemOverheadTokens-1,
+		"the budget must charge for every item's scaffolding, not only its text")
+
+	// And it must still scale with length, not just count.
+	long := prompt.BatchSegments([]string{strings.Repeat("word ", 2000)})
+	assert.Greater(t, batchOutputBudget(long), 2000,
+		"a single long segment still needs room for a longer translation")
 }

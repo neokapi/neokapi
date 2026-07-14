@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -16,7 +17,8 @@ import (
 // on. Two runs are only comparable if that digest matches; a dashboard that
 // silently plots them together would be inventing a trend.
 
-// History is the committed record: one entry per (date, provider, model, target).
+// History is the committed record: one entry per (date, provider, model, target,
+// corpus).
 type History struct {
 	Runs []Run `json:"runs"`
 }
@@ -39,8 +41,9 @@ type Run struct {
 	// its list, silently rewriting what a past run cost.
 	Price *Price `json:"price,omitempty"`
 
-	Corpus      string `json:"corpus"`
-	CorpusWords int    `json:"corpus_words,omitempty"`
+	Corpus       string `json:"corpus"`
+	CorpusWords  int    `json:"corpus_words,omitempty"`
+	CorpusBlocks int    `json:"corpus_blocks,omitempty"`
 	// CorpusDigest is what makes the history honest. Change the corpus and the
 	// digest moves, and runs measured on the old one stop being comparable —
 	// the dashboard says so rather than drawing a line through both.
@@ -53,8 +56,14 @@ type Run struct {
 	Results []Result `json:"results"`
 }
 
+// key identifies a run. The corpus digest is part of it, and has to be: sweeping
+// the same model on the same day over a 30-block corpus and over a 600-block one
+// is two experiments, not one measurement taken twice. Keying without the digest
+// made the second sweep silently overwrite the first — which is precisely the
+// "different corpora are not comparable" rule this file exists to enforce, broken
+// by the file itself.
 func (r Run) key() string {
-	return strings.Join([]string{r.Date, r.Provider, r.Model, r.Target}, "|")
+	return strings.Join([]string{r.Date, r.Provider, r.Model, r.Target, r.CorpusDigest}, "|")
 }
 
 // LoadHistory reads the committed record. A missing file is an empty history,
@@ -74,8 +83,8 @@ func LoadHistory(path string) (History, error) {
 	return h, nil
 }
 
-// Upsert replaces a same-day run for the same model and target, and appends
-// otherwise. Re-running a sweep on the same day corrects it; it does not
+// Upsert replaces a same-day run for the same model, target and corpus, and
+// appends otherwise. Re-running a sweep on the same day corrects it; it does not
 // accumulate duplicate points that would read as a trend.
 func (h *History) Upsert(runs ...Run) {
 	for _, run := range runs {
@@ -88,6 +97,9 @@ func (h *History) Upsert(runs ...Run) {
 	slices.SortStableFunc(h.Runs, func(a, b Run) int {
 		if c := strings.Compare(a.Date, b.Date); c != 0 {
 			return c
+		}
+		if c := cmp.Compare(b.CorpusBlocks, a.CorpusBlocks); c != 0 {
+			return c // bigger corpus first: it is the more informative experiment
 		}
 		if c := strings.Compare(a.Provider, b.Provider); c != 0 {
 			return c
@@ -117,6 +129,9 @@ func recostHistory(path string) error {
 		r := &h.Runs[i]
 		if r.CorpusWords == 0 && r.CorpusDigest == corpus.Digest() {
 			r.CorpusWords = corpus.Words()
+		}
+		if r.CorpusBlocks == 0 && r.CorpusDigest == corpus.Digest() {
+			r.CorpusBlocks = len(corpus.Cases)
 		}
 		p, ok := priceFor(r.Provider, r.Model)
 		if !ok {

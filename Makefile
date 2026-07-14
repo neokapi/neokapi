@@ -1222,9 +1222,10 @@ check-eval: ## Run the content-check quality eval → web/src/pages/check-eval/_
 # with its placeholders and inline tags intact? That is the failure batching is
 # documented to produce, and it needs no reference translations.
 #
-# tools.MaxBlocksPerCall is currently set from evidence about *adjacent* tasks —
-# nobody has published a quality-versus-N curve for segment translation. This is
-# how that ceiling stops being a guess.
+# tools.MaxBlocksPerCall was set from evidence about *adjacent* tasks — nobody had
+# published a quality-versus-N curve for segment translation. This is the harness
+# that measured our own, and it is re-run when the models move: a ceiling checked
+# once decays into folklore.
 #
 # The default target runs the demo stub: it proves the harness and measures
 # NOTHING about batching, and says so. A real curve costs real calls:
@@ -1242,7 +1243,12 @@ batch-eval: ## Sweep batch size and score structural integrity (demo stub unless
 # claude-code runs on the local Claude subscription (no API key); gemini needs
 # GEMINI_API_KEY.
 BATCHEVAL_DATA   ?= web/src/pages/batch-eval/_batcheval.json
-BATCHEVAL_N      ?= 1,2,4,8,16,32
+# The corpus has to be bigger than the largest batch swept, or the sweep saturates
+# and reports the *corpus's* ceiling as the models'. A 30-block corpus swept to N=32
+# is not testing a batch of 32; it is testing the whole document in one call, which
+# is why the first curve came out flat at 100%.
+BATCHEVAL_BLOCKS ?= 600
+BATCHEVAL_N      ?= 8,16,32,64,128,256,600
 # Current models only. Tracking a model that is being retired measures a curve
 # nobody can act on, and the retirement itself is the noisiest kind of false
 # finding — gemini-3-pro-preview already answers 404 ("no longer available").
@@ -1270,12 +1276,15 @@ update-model-prices: ## Refresh scripts/batcheval/prices.json from the vendors' 
 	claude -p "$$(cat scripts/prompts/update-model-prices.md)"
 
 batch-eval-publish: ## Sweep the real models → /batch-eval dashboard data (costs calls)
-	$(GO) run ./scripts/batcheval -models $(BATCHEVAL_GEMINI) -n $(BATCHEVAL_N) \
-		-repeat 3 -concurrency 4 -append $(BATCHEVAL_DATA)
-	$(GO) run ./scripts/batcheval -models $(BATCHEVAL_CLAUDE) -n $(BATCHEVAL_N) \
-		-repeat 2 -concurrency 3 -append $(BATCHEVAL_DATA)
-	$(GO) run ./scripts/batcheval -models $(BATCHEVAL_BEDROCK) -n $(BATCHEVAL_N) \
-		-repeat 3 -concurrency 4 -append $(BATCHEVAL_DATA)
+	$(GO) run ./scripts/batcheval -models $(BATCHEVAL_GEMINI) -blocks $(BATCHEVAL_BLOCKS) \
+		-n $(BATCHEVAL_N) -repeat 2 -concurrency 4 -append $(BATCHEVAL_DATA)
+	$(GO) run ./scripts/batcheval -models $(BATCHEVAL_CLAUDE) -blocks $(BATCHEVAL_BLOCKS) \
+		-n $(BATCHEVAL_N) -repeat 1 -concurrency 3 -append $(BATCHEVAL_DATA)
+# Bedrock rate-limits on *requests*, so the small batch sizes — which issue the most
+# calls — are the ones that get throttled. Low concurrency, and a throttled N is
+# recorded as unmeasured rather than as a failure the model did not have.
+	$(GO) run ./scripts/batcheval -models $(BATCHEVAL_BEDROCK) -blocks $(BATCHEVAL_BLOCKS) \
+		-n $(BATCHEVAL_N) -repeat 1 -concurrency 2 -append $(BATCHEVAL_DATA)
 	@echo "Published batch-eval history → $(BATCHEVAL_DATA)"
 
 # ── Frontend Checks ──────────────────────────────────────────────────────────
