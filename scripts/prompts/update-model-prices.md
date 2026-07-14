@@ -52,7 +52,20 @@ than showing no cost at all, so accuracy here matters more than completeness.
 - Do not invent a rate for a model whose price you could not find. Leave it out.
   An unpriced model shows a blank on the dashboard, which is honest; a guessed one
   is a number someone may put in a budget.
-- Do not add rates for a route kapi cannot actually call. kapi has providers for
-  the first-party Anthropic, OpenAI, Gemini and Azure OpenAI APIs, plus Ollama and
-  the claude-code subscription. **There is no Bedrock provider**, so there is
-  nothing to price against Bedrock rates until one exists.
+- Do not price a route against another route's rates. The same weights cost
+  different amounts depending on how they are reached, and the routes are not
+  interchangeable:
+  - **first-party APIs** (Anthropic, OpenAI, Gemini, Azure OpenAI) — the rates on
+    the vendors' own pricing pages;
+  - **AWS Bedrock** (`bowrain/ai/bedrock`) — the route the Bowrain platform runs on
+    in production. Priced independently by AWS, and the cross-region inference
+    profiles the platform uses (`eu.anthropic.…`) are priced separately again. Get
+    these from <https://aws.amazon.com/bedrock/pricing/>, **not** from Anthropic's
+    page and **not** from the AWS Pricing API, which lags badly — as of 2026-07 its
+    `model` attribute still tops out at "Claude 3 Sonnet" and has no entry for the
+    Claude 4.6 models in eu-north-1. That is why `bedrock:` has no rates yet;
+    adding correct ones is the single most valuable thing this refresh can do,
+    because it is the only route whose cost describes what Bowrain actually spends.
+  - **claude-code** — a subscription. Not billed per token, and its token counts do
+    not describe an API call either (the CLI bills its own agent system prompt as
+    cache creation). Keep `metered: false` so no cost is computed.

@@ -1245,6 +1245,10 @@ BATCHEVAL_N      ?= 1,2,4,8,16,32
 # finding — gemini-3-pro-preview already answers 404 ("no longer available").
 BATCHEVAL_GEMINI ?= gemini:gemini-3.5-flash,gemini:gemini-3.1-flash-lite,gemini:gemini-3.1-pro-preview
 BATCHEVAL_CLAUDE ?= claude-code:opus,claude-code:sonnet,claude-code:haiku
+# The route the Bowrain platform actually runs on, so the one whose numbers describe
+# production rather than an alternative. Needs credentials for the account that can
+# call the inference profile: `aws sso login --profile bowrain-prod`.
+BATCHEVAL_BEDROCK ?= bedrock:eu.anthropic.claude-sonnet-4-6
 # Model prices and model availability both rot, and both are load-bearing: a stale
 # rate is published on /batch-eval as a cost people budget against, and a retired
 # default model 404s a user's first call. Neither is checkable from a source file,
@@ -1267,6 +1271,8 @@ batch-eval-publish: ## Sweep the real models → /batch-eval dashboard data (cos
 		-repeat 3 -concurrency 4 -append $(BATCHEVAL_DATA)
 	$(GO) run ./scripts/batcheval -models $(BATCHEVAL_CLAUDE) -n $(BATCHEVAL_N) \
 		-repeat 2 -concurrency 3 -append $(BATCHEVAL_DATA)
+	$(GO) run ./scripts/batcheval -models $(BATCHEVAL_BEDROCK) -n $(BATCHEVAL_N) \
+		-repeat 3 -concurrency 4 -append $(BATCHEVAL_DATA)
 	@echo "Published batch-eval history → $(BATCHEVAL_DATA)"
 
 # ── Frontend Checks ──────────────────────────────────────────────────────────

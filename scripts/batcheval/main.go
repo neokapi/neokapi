@@ -46,6 +46,13 @@ import (
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
+
+	// Bedrock is the provider the Bowrain platform actually runs on, so it is the
+	// one path here whose numbers describe production rather than an alternative.
+	// It registers into the aiprovider registry via init(); it lives in the bowrain
+	// module so the AWS SDK stays out of the kapi CLI, which is why this eval has a
+	// module of its own.
+	_ "github.com/neokapi/neokapi/bowrain/ai/bedrock"
 )
 
 func main() {
@@ -190,9 +197,21 @@ func sweep(ctx context.Context, mt modelTarget, corpus TestCorpus, ns []int, opt
 			results = append(results, res)
 		}
 		if len(results) == 0 {
-			// Record the N as a point, not a gap: "the model could not answer at this
-			// batch size" is the most important thing a curve can say, and an absent
-			// point would read as "not measured".
+			// A throttled N is a hole in the data, not a cliff in the model. Scoring
+			// it as failure would invent the very finding this harness exists to test
+			// — and would invent it in the most convincing possible shape, since
+			// throttling punishes small batches (many calls) and would draw a curve
+			// that "proves" batching helps.
+			if throttled(lastErr) {
+				fmt.Fprintf(os.Stderr, "  %s N=%d: THROTTLED — not measured (lower -concurrency and re-run)\n", mt, n)
+				out.Results = append(out.Results, Result{
+					N: n, Unmeasured: true, Error: lastErr.Error(),
+				})
+				continue
+			}
+			// Record a genuine failure as a point, not a gap: "the model could not
+			// answer at this batch size" is the most important thing a curve can say,
+			// and an absent point would read as "not measured".
 			out.Results = append(out.Results, Result{
 				N: n, Blocks: len(corpus.Cases), Missing: len(corpus.Cases),
 				Failed: true, Error: lastErr.Error(),
@@ -233,13 +252,30 @@ func (r Run) price(res Result) Result {
 // and would therefore be believed.
 const transientRetries = 2
 
+// throttleRetries is separate, and larger, because a 429 is not a failure at all —
+// it is the provider asking us to slow down. Bedrock rate-limits per account, so a
+// sweep at N=1 (thirty calls per repeat) trips it where N=32 (one call) never will.
+// Backing off properly is the difference between measuring the model and measuring
+// our own request rate.
+const throttleRetries = 5
+
 func runWithRetry(ctx context.Context, provider aiprovider.LLMProvider, corpus TestCorpus, n int, opts sweepOpts) (Result, error) {
 	var err error
-	for attempt := range transientRetries + 1 {
+	for attempt := 0; ; attempt++ {
 		if attempt > 0 {
-			fmt.Fprintf(os.Stderr, "    retry %d/%d after: %v\n", attempt, transientRetries, err)
+			limit := transientRetries
+			// Exponential, because a fixed pause into a rate limit just re-trips it.
+			wait := time.Duration(attempt) * 2 * time.Second
+			if throttled(err) {
+				limit = throttleRetries
+				wait = time.Duration(1<<attempt) * 2 * time.Second
+			}
+			if attempt > limit {
+				return Result{}, err
+			}
+			fmt.Fprintf(os.Stderr, "    retry %d/%d in %s after: %v\n", attempt, limit, wait, truncErr(err))
 			select {
-			case <-time.After(time.Duration(attempt) * 2 * time.Second):
+			case <-time.After(wait):
 			case <-ctx.Done():
 				return Result{}, ctx.Err()
 			}
@@ -249,7 +285,30 @@ func runWithRetry(ctx context.Context, provider aiprovider.LLMProvider, corpus T
 			return res, nil
 		}
 	}
-	return Result{}, err
+}
+
+// throttled reports whether the provider asked us to slow down, rather than
+// failing to answer. Matched on the wire vocabulary rather than a typed error
+// because it has to hold across four unrelated SDKs.
+func throttled(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := strings.ToLower(err.Error())
+	for _, sig := range []string{"throttl", "429", "rate limit", "rate_limit", "too many requests", "quota", "resource_exhausted", "overloaded"} {
+		if strings.Contains(s, sig) {
+			return true
+		}
+	}
+	return false
+}
+
+func truncErr(err error) string {
+	s := err.Error()
+	if len(s) > 120 {
+		return s[:120] + "…"
+	}
+	return s
 }
 
 // parseModels parses "provider:model,provider:model". A bare "provider" (or
@@ -383,6 +442,17 @@ type Result struct {
 	// a point rather than a gap: "the model breaks here" is the single most useful
 	// thing this curve can say, and an absent point would read as "not measured".
 	Failed bool `json:"failed,omitempty"`
+
+	// Unmeasured marks an N that never got a fair hearing: the requests were
+	// throttled by the provider, so nothing about the model was learned.
+	//
+	// This is emphatically NOT the same as Failed, and conflating them fabricates
+	// exactly the finding we are hunting. Bedrock rate-limits per account, and a
+	// small N issues many more calls than a large one (thirty calls at N=1, one at
+	// N=32) — so throttling hits the *small* batches hardest and, scored as
+	// failure, would have drawn a curve saying the model breaks below N=16. It says
+	// no such thing. The truthful record is a hole, labelled.
+	Unmeasured bool `json:"unmeasured,omitempty"`
 	// Error is why. A cliff in the curve is worth nothing if the reader cannot see
 	// whether the model refused, truncated, or the transport gave out.
 	Error string `json:"error,omitempty"`
@@ -467,6 +537,10 @@ func printTable(r Run) {
 	fmt.Printf("%5s  %7s  %8s  %12s  %9s  %13s  %8s\n",
 		"N", "intact%", "missing", "placeholder", "tags", "untranslated", "out_tok")
 	for _, res := range r.Results {
+		if res.Unmeasured {
+			fmt.Printf("%5d  %7s  ← throttled by the provider; nothing measured (lower -concurrency)\n", res.N, "—")
+			continue
+		}
 		note := ""
 		if res.Failed {
 			note = "  ← the model could not answer at this batch size"

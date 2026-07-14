@@ -10,6 +10,7 @@ use (
 	./cli
 	./host
 	./kapi
+	./scripts/batcheval
 	./scripts/contract-audit
 	./scripts/gen-contract-types
 	./scripts/gen-refs

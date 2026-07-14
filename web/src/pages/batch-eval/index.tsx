@@ -18,6 +18,7 @@ interface Result {
   untranslated: number;
   translated: number;
   failed?: boolean;
+  unmeasured?: boolean;
   error?: string;
   input_tokens: number;
   output_tokens: number;
@@ -215,7 +216,9 @@ function Curve({ runs }: { runs: Run[] }): ReactElement | null {
 
       {runs.map((r, i) => {
         const color = palette[i % palette.length];
-        const pts = r.results.filter((p) => p.blocks > 0);
+        // An unmeasured point (throttled) is a hole, not a zero. Plotting it would
+        // draw a cliff the model never had.
+        const pts = r.results.filter((p) => p.blocks > 0 && !p.unmeasured);
         const d = pts.map((p, j) => `${j ? "L" : "M"}${x(p.n)},${y(intact(p))}`).join(" ");
         return (
           <g key={label(r)}>
@@ -281,6 +284,17 @@ export default function BatchEval(): ReactElement {
           inference. This is the measurement that replaces it, and it is re-run as models change: a
           ceiling that was right for one generation of models is not self-evidently right for the
           next.
+        </p>
+
+        <p>
+          One line matters more than the others: <code>eu.anthropic.claude-sonnet-4-6</code> on{" "}
+          <strong>AWS Bedrock</strong> is the route the Bowrain platform actually runs on, so it is
+          the only one whose numbers describe production rather than an alternative. It is also the
+          one that shows what a <em>real</em> constraint looks like: N=1 could not be measured at
+          all, because thirty calls per repeat — even issued one at a time — trip the
+          account&rsquo;s Bedrock rate limit. On Bedrock the scarce resource is requests, not
+          tokens, and a batch of sixteen makes one sixteenth of them. That is an argument for
+          batching with nothing to do with quality.
         </p>
 
         <h2>What is scored, and why it is not &ldquo;quality&rdquo;</h2>
@@ -425,12 +439,18 @@ export default function BatchEval(): ReactElement {
               integrity. That is the trade it actually offers.
             </p>
             <p style={{ fontSize: "0.85rem", color: "var(--ifm-color-emphasis-700)" }}>
-              Two honest caveats about these numbers.{" "}
-              <strong>The Anthropic models show no cost</strong>, because this sweep reached them
-              through the claude-code subscription, which is not billed per token — and whose token
-              counts do not describe an API call either: the CLI wraps every request in its own
-              agent system prompt and reports it as cache creation, so it recorded 240 input tokens
-              across sixty calls. A dollar figure built on that would be fiction in whichever
+              Three honest caveats about these numbers. <strong>Bedrock shows no cost</strong>, and
+              it is the one route that most needs one: it is what the Bowrain platform actually runs
+              on in production. AWS prices Bedrock independently of Anthropic&rsquo;s own API — and
+              prices the cross-region inference profiles the platform uses separately again — so its
+              rate cannot be borrowed from the Anthropic column. It is not published here because we
+              could not establish it: the AWS Pricing API does not yet list the Claude 4.6 models
+              for eu-north-1. A blank is the honest answer until a rate is confirmed.{" "}
+              <strong>The Anthropic models show no cost</strong> either, because this sweep reached
+              them through the claude-code subscription, which is not billed per token — and whose
+              token counts do not describe an API call either: the CLI wraps every request in its
+              own agent system prompt and reports it as cache creation, so it recorded 240 input
+              tokens across sixty calls. A dollar figure built on that would be fiction in whichever
               direction happened to flatter the conclusion, so the column is blank. Cost for those
               models needs a sweep against the metered Anthropic API.{" "}
               <strong>Speed is not comparable across providers</strong>: the sweeps ran at different
@@ -507,11 +527,19 @@ export default function BatchEval(): ReactElement {
                         <td
                           style={{
                             ...cell,
-                            color: intact(p) < 100 ? "#d65a5a" : undefined,
-                            fontWeight: intact(p) < 100 ? 600 : undefined,
+                            color: p.unmeasured
+                              ? "var(--ifm-color-emphasis-600)"
+                              : intact(p) < 100
+                                ? "#d65a5a"
+                                : undefined,
+                            fontWeight: !p.unmeasured && intact(p) < 100 ? 600 : undefined,
                           }}
                         >
-                          {p.failed ? "failed" : `${intact(p).toFixed(1)}%`}
+                          {p.unmeasured
+                            ? "not measured"
+                            : p.failed
+                              ? "failed"
+                              : `${intact(p).toFixed(1)}%`}
                         </td>
                         <td style={cell}>{p.missing}</td>
                         <td style={cell}>{p.placeholder_breaks}</td>
@@ -527,6 +555,23 @@ export default function BatchEval(): ReactElement {
                     ))}
                   </tbody>
                 </table>
+                {r.results
+                  .filter((p) => p.unmeasured)
+                  .map((p) => (
+                    <p
+                      key={`u${p.n}`}
+                      style={{
+                        fontSize: "0.85rem",
+                        color: "var(--ifm-color-emphasis-700)",
+                        margin: "6px 0 0",
+                      }}
+                    >
+                      N={p.n}: the provider throttled the requests, so nothing was measured. A small
+                      batch size issues many more calls than a large one, so rate limits bite
+                      hardest exactly where they would look most like &ldquo;batching helps&rdquo;.
+                      Scored as a hole, not a cliff.
+                    </p>
+                  ))}
                 {r.results
                   .filter((p) => p.failed)
                   .map((p) => (

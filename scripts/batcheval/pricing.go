@@ -36,10 +36,17 @@ var pricesJSON []byte
 const (
 	RouteAPI          = "api"          // first-party metered API
 	RouteSubscription = "subscription" // e.g. claude-code, on the local Claude subscription
-	// RouteBedrock is not yet reachable: kapi has no Bedrock provider. When one
-	// exists, its rates belong in prices.json rather than being assumed equal to
-	// the first-party API's — Bedrock prices regional endpoints at a premium over
-	// global ones.
+	// RouteBedrock is the route the Bowrain platform actually runs on
+	// (bowrain/ai/bedrock, Converse API, ambient AWS credentials). Its rates are
+	// NOT the first-party API's and must never be assumed equal to them: AWS prices
+	// Bedrock independently, and cross-region inference profiles — which the
+	// platform uses (`eu.anthropic.…`) — are priced separately again.
+	//
+	// No Bedrock rates are recorded yet, because none could be established: the AWS
+	// Pricing API does not list the Claude 4.6 models for eu-north-1 (its `model`
+	// attribute still tops out at "Claude 3 Sonnet"). Bedrock therefore measures
+	// clean on quality and throughput and shows a blank for cost, which is the
+	// honest answer until a rate is confirmed.
 	RouteBedrock = "bedrock"
 )
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -196,4 +197,46 @@ func TestParseSizes(t *testing.T) {
 	require.Error(t, err, "a batch of zero blocks is not a batch")
 	_, err = parseSizes("eight")
 	require.Error(t, err)
+}
+
+// A 429 is the provider asking us to slow down. It says nothing about the model —
+// and if scored as failure it says something spectacularly false, because a small
+// batch issues many more calls than a large one. Bedrock throttled N=1..8 while
+// N=16 and N=32 sailed through, which as a "curve" would have read as proof that
+// batching rescues a failing model. It was our own request rate.
+func TestThrottlingIsNotAModelFailure(t *testing.T) {
+	t.Parallel()
+
+	for _, e := range []string{
+		"translate: bedrock: converse: https response error StatusCode: 429, ThrottlingException: Too many requests",
+		"openai: rate limit exceeded",
+		"gemini: RESOURCE_EXHAUSTED",
+		"anthropic: overloaded_error",
+		"quota exceeded for this project",
+	} {
+		assert.Truef(t, throttled(errors.New(e)), "must be recognised as throttling, not as the model failing: %q", e)
+	}
+
+	for _, e := range []string{
+		"gemini: API error 400: Budget 0 is invalid",
+		"claude-code: unknown error",
+		"translate batch: output truncated",
+	} {
+		assert.Falsef(t, throttled(errors.New(e)), "a real failure must not be excused as throttling: %q", e)
+	}
+}
+
+// The two are recorded differently, and the difference is the whole point: a
+// failure is a point on the curve (0% intact), a throttle is a hole in it.
+func TestUnmeasuredIsAHoleNotAZero(t *testing.T) {
+	t.Parallel()
+
+	throttledPoint := Result{N: 1, Unmeasured: true}
+	assert.True(t, throttledPoint.Unmeasured)
+	assert.False(t, throttledPoint.Failed, "nothing was learned about the model, so nothing may be scored against it")
+	assert.Zero(t, throttledPoint.Blocks, "no blocks were attempted; a denominator here would invent a measurement")
+
+	failedPoint := Result{N: 100, Blocks: 30, Missing: 30, Failed: true}
+	assert.Zero(t, failedPoint.Intact(), "a genuine failure is a real zero")
+	assert.False(t, failedPoint.Unmeasured)
 }

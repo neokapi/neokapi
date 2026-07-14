@@ -182,14 +182,28 @@ and never re-checked decays into folklore. Re-run the sweep when the models move
 
 ### What the first sweep actually found
 
-Six models (Anthropic opus/sonnet/haiku via the claude-code subscription; Gemini
-3.5-flash, 3.1-flash-lite, 3.1-pro), swept N ∈ {1,2,4,8,16,32}:
+Seven models, swept N ∈ {1,2,4,8,16,32}: Anthropic opus/sonnet/haiku via the
+claude-code subscription; Gemini 3.5-flash, 3.1-flash-lite, 3.1-pro; and
+`eu.anthropic.claude-sonnet-4-6` on **AWS Bedrock**, which is the route the Bowrain
+platform actually runs on and therefore the only one whose numbers describe
+production.
 
 **No batching cliff.** Every model came back 100% structurally intact at every
 batch size up to 32 — nothing dropped, nothing renumbered, no placeholder or tag
 broken. `MaxBlocksPerCall = 16` is not too high; on this evidence it is
 conservative. Every apparent degradation the sweep first showed turned out to be a
 bug in kapi, not in a model.
+
+**On Bedrock — the route the platform actually runs on — the binding constraint is
+requests, not tokens.** `eu.anthropic.claude-sonnet-4-6` came back 100% intact at
+every batch size from 2 to 32. N=1 could not be measured at all: thirty calls per
+repeat, even issued one at a time, trip the account's Bedrock rate limit and the
+sweep is throttled into a 429. That is an argument for batching that has nothing to
+do with quality — a batch of 16 makes one sixteenth of the requests, and on Bedrock
+requests are the scarce resource. It is also the sharpest illustration of why a
+throttle must never be scored as a failure: throttling punishes *small* batches
+hardest, so scoring it would have drawn a curve that appeared to prove batching
+rescues a failing model. It proves nothing of the kind. It is our own request rate.
 
 **Batching is not a cost lever.** This is the counterintuitive one. Going from N=1
 to N=32 roughly halves input tokens (9,540 → 4,728) — and roughly doubles output
@@ -251,8 +265,13 @@ it is recorded as a cliff.
   not describe an API call — the CLI bills its own agent system prompt as cache
   creation, reporting 240 input tokens across sixty calls. Costing them needs a
   sweep against the metered API.
-- **kapi has no Bedrock provider**, so nothing can be measured or priced against
-  that route.
+- **Bedrock is measured but not priced.** `bowrain/ai/bedrock` is the provider the
+  Bowrain platform actually runs on (`eu.anthropic.claude-sonnet-4-6`, Converse API,
+  ambient AWS credentials), so it is the one route whose numbers describe
+  production. Its rates are missing: the AWS Pricing API does not yet list the
+  Claude 4.6 models for `eu-north-1` — its `model` attribute still tops out at
+  "Claude 3 Sonnet" — so the cost column is blank rather than guessed. Add the rates
+  to `prices.json` once confirmed and re-run `-recost`; no new calls are needed.
 - **Context is limited to the key and immediate neighbours.** TM matches, the file
   path, and prior translations of the same key are all things the evidence says
   would help and that kapi already holds, and none of them reach the prompt.

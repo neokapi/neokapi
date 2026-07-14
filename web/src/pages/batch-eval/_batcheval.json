@@ -2,6 +2,98 @@
   "runs": [
     {
       "date": "2026-07-14",
+      "provider": "bedrock",
+      "model": "eu.anthropic.claude-sonnet-4-6",
+      "target": "de",
+      "repeat": 2,
+      "concurrency": 1,
+      "corpus": "30 blocks (10 ui, 4 ui-ambiguous, 6 placeholder, 4 inline-tag, 6 prose)",
+      "corpus_words": 306,
+      "corpus_digest": "93a662eb51da",
+      "results": [
+        {
+          "n": 1,
+          "blocks": 0,
+          "missing": 0,
+          "placeholder_breaks": 0,
+          "tag_breaks": 0,
+          "untranslated": 0,
+          "translated": 0,
+          "unmeasured": true,
+          "error": "translate: bedrock: converse: operation error Bedrock Runtime: Converse, exceeded maximum number of attempts, 3, https response error StatusCode: 429, RequestID: 071bd8ce-30a7-4d03-bf14-67fc80a6cfa6, ThrottlingException: Too many requests, please wait before trying again.",
+          "input_tokens": 0,
+          "output_tokens": 0,
+          "elapsed_seconds": 0
+        },
+        {
+          "n": 2,
+          "blocks": 60,
+          "missing": 0,
+          "placeholder_breaks": 0,
+          "tag_breaks": 0,
+          "untranslated": 0,
+          "translated": 60,
+          "input_tokens": 29544,
+          "output_tokens": 3499,
+          "elapsed_seconds": 92.40204762600001,
+          "words": 612
+        },
+        {
+          "n": 4,
+          "blocks": 60,
+          "missing": 0,
+          "placeholder_breaks": 0,
+          "tag_breaks": 0,
+          "untranslated": 0,
+          "translated": 60,
+          "input_tokens": 17056,
+          "output_tokens": 3009,
+          "elapsed_seconds": 46.944024709000004,
+          "words": 612
+        },
+        {
+          "n": 8,
+          "blocks": 60,
+          "missing": 0,
+          "placeholder_breaks": 0,
+          "tag_breaks": 0,
+          "untranslated": 0,
+          "translated": 60,
+          "input_tokens": 9920,
+          "output_tokens": 2713,
+          "elapsed_seconds": 37.716130209,
+          "words": 612
+        },
+        {
+          "n": 16,
+          "blocks": 60,
+          "missing": 0,
+          "placeholder_breaks": 0,
+          "tag_breaks": 0,
+          "untranslated": 0,
+          "translated": 60,
+          "input_tokens": 6352,
+          "output_tokens": 2531,
+          "elapsed_seconds": 30.413568958,
+          "words": 612
+        },
+        {
+          "n": 32,
+          "blocks": 60,
+          "missing": 0,
+          "placeholder_breaks": 0,
+          "tag_breaks": 0,
+          "untranslated": 0,
+          "translated": 60,
+          "input_tokens": 4568,
+          "output_tokens": 2452,
+          "elapsed_seconds": 29.102433041,
+          "words": 612
+        }
+      ]
+    },
+    {
+      "date": "2026-07-14",
       "provider": "claude-code",
       "model": "haiku",
       "target": "de",
