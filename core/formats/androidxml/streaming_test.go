@@ -113,20 +113,7 @@ func TestStreamingReaderBoundedMemory(t *testing.T) {
 	// doubles the margin without weakening the bound.
 	ps, smallSize := peakReading(2_000)
 	pl, largeSize := peakReading(80_000) // 40x
-	t.Logf("androidxml streaming reader peakΔ: small(%d KiB doc)=%d KiB, large(%d KiB doc)=%d KiB",
-		smallSize/1024, ps/1024, largeSize/1024, pl/1024)
-
-	assert.Less(t, pl, uint64(largeSize)/4, "streaming reader peak not bounded well below doc size")
-	// Ratio bound with an absolute noise floor (same pattern as the json
-	// streamscanner test): the retained-delta baseline is environment- and
-	// test-order-dependent — observed excursions of ~1.1 MiB locally and
-	// ~1.8 MiB on CI race runners against a ~300 KiB quiet-run peak — so
-	// below the floor the ratio measures noise, not scaling. The doc-size
-	// bound above still catches anything approaching linear behavior.
-	const ratioNoiseFloor = 2 << 20
-	if ps > 0 && pl > ratioNoiseFloor {
-		assert.Less(t, pl, max(ps, uint64(1<<20))*3, "streaming reader peak scaled with input (40x doc should not ~40x memory)")
-	}
+	testutil.AssertBoundedMemory(t, "androidxml streaming reader", ps, uint64(smallSize), pl, uint64(largeSize))
 }
 
 // TestStreamingByteExact_Large round-trips a large generated Android resources

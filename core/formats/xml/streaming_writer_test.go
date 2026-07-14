@@ -15,6 +15,8 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neokapi/neokapi/core/internal/testutil"
 )
 
 func streamingPairRoundtripXML(t *testing.T, input string, cfg *xmlfmt.Config) string {
@@ -138,9 +140,5 @@ func TestStreamingPair_BoundedWriterXML(t *testing.T) {
 	}
 	ps, smallSize := peakWriting(2_000)
 	pl, largeSize := peakWriting(40_000)
-	t.Logf("xml streaming writer peakΔ: small(%d KiB)=%d KiB, large(%d KiB)=%d KiB", smallSize/1024, ps/1024, largeSize/1024, pl/1024)
-	assert.Less(t, pl, uint64(largeSize)/4, "streaming writer peak not bounded well below doc size")
-	if ps > 0 {
-		assert.Less(t, pl, max(ps, uint64(1<<20))*3, "streaming writer peak scaled with input")
-	}
+	testutil.AssertBoundedMemory(t, "xml streaming writer", ps, uint64(smallSize), pl, uint64(largeSize))
 }

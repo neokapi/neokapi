@@ -331,15 +331,8 @@ func TestStreamingWriterBoundedMemory(t *testing.T) {
 
 	ps, smallSize := peakWriting(10_000)
 	pl, largeSize := peakWriting(200_000) // 20x
-	t.Logf("streaming writer peakΔ: small(%d KiB)=%d KiB, large(%d KiB)=%d KiB",
-		smallSize/1024, ps/1024, largeSize/1024, pl/1024)
 
-	if pl > uint64(largeSize)/4 {
-		t.Errorf("streaming write round-trip peak %d B is not bounded well below doc size %d B", pl, largeSize)
-	}
-	if ps > 0 && pl > max(ps, uint64(1<<20))*3 {
-		t.Errorf("streaming write round-trip peak scaled with input: small=%d B large=%d B (20x doc -> %.1fx)", ps, pl, float64(pl)/float64(ps))
-	}
+	testutil.AssertBoundedMemory(t, "json streaming writer", ps, uint64(smallSize), pl, uint64(largeSize))
 }
 
 // genLargeJSON emits a JSON object of n translatable entries on demand via an

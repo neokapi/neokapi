@@ -117,16 +117,7 @@ func TestStreamingReaderBoundedMemory(t *testing.T) {
 
 	ps, smallSize := peakReading(2_000)
 	pl, largeSize := peakReading(40_000) // 20x
-	t.Logf("tmx streaming reader peakΔ: small(%d KiB doc)=%d KiB, large(%d KiB doc)=%d KiB",
-		smallSize/1024, ps/1024, largeSize/1024, pl/1024)
-
-	// Peak must be well below the document size and must not scale with it.
-	assert.Less(t, pl, uint64(largeSize)/4,
-		"streaming reader peak not bounded well below doc size")
-	if ps > 0 {
-		assert.Less(t, pl, max(ps, uint64(1<<20))*3,
-			"streaming reader peak scaled with input (20x doc should not ~20x memory)")
-	}
+	testutil.AssertBoundedMemory(t, "tmx streaming reader", ps, uint64(smallSize), pl, uint64(largeSize))
 }
 
 // TestStreamingByteExact_Large round-trips a large generated TMX byte-for-byte

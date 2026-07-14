@@ -119,9 +119,5 @@ func TestStreaming_BoundedMemoryDesignTokens(t *testing.T) {
 	}
 	ps, smallSize := peakReading(2_000)
 	pl, largeSize := peakReading(40_000)
-	t.Logf("designtokens streaming reader peakΔ: small(%d KiB)=%d KiB, large(%d KiB)=%d KiB", smallSize/1024, ps/1024, largeSize/1024, pl/1024)
-	assert.Less(t, pl, uint64(largeSize)/4, "streaming reader peak not bounded well below doc size")
-	if ps > 0 {
-		assert.Less(t, pl, max(ps, uint64(1<<20))*3, "streaming reader peak scaled with input")
-	}
+	testutil.AssertBoundedMemory(t, "designtokens streaming reader", ps, uint64(smallSize), pl, uint64(largeSize))
 }

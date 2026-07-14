@@ -7,6 +7,8 @@ import (
 	"runtime/debug"
 	"strings"
 	"testing"
+
+	"github.com/neokapi/neokapi/core/internal/testutil"
 )
 
 // scanStream tokenises input via the streaming scanner into a slice (for parity
@@ -153,23 +155,5 @@ func TestStreamScannerBoundedMemory(t *testing.T) {
 
 	ps, smallSize := peakTokenizing(10_000)
 	pl, largeSize := peakTokenizing(200_000) // 20x larger document (~13 MiB)
-	t.Logf("streaming tokenizer peakΔ: small(%d KiB doc)=%d KiB, large(%d KiB doc)=%d KiB",
-		smallSize/1024, ps/1024, largeSize/1024, pl/1024)
-
-	// Bounded window: a 20x larger document must not give a ~20x larger peak,
-	// and the peak must stay far below the document size (a buffered tokenizer
-	// would hold >= the whole document).
-	if pl > uint64(largeSize)/4 {
-		t.Errorf("streaming tokenizer peak %d B is not bounded well below doc size %d B", pl, largeSize)
-	}
-	// Ratio bound with an absolute noise floor: this tokenizer's peak is tens
-	// of KiB, so a single incidental retained allocation dwarfs the small-run
-	// baseline and the ratio measures noise, not scaling (observed on CI:
-	// small=5 KiB, large=31 KiB — 6.5x ratio yet bounded by any reading). The
-	// floor keeps the ratio meaningful for real growth; the doc-size bound
-	// above still catches anything approaching linear behavior.
-	const ratioNoiseFloor = 256 * 1024
-	if ps > 0 && pl > ps*3 && pl > ratioNoiseFloor {
-		t.Errorf("streaming tokenizer peak scaled with input: small=%d B large=%d B (20x doc -> %.1fx peak)", ps, pl, float64(pl)/float64(ps))
-	}
+	testutil.AssertBoundedMemory(t, "json streaming tokenizer", ps, uint64(smallSize), pl, uint64(largeSize))
 }
