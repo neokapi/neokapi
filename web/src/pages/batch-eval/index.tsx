@@ -249,30 +249,73 @@ const cell: CSSProperties = {
 };
 const left: CSSProperties = { ...cell, textAlign: "left" };
 
-/** Intact% against N, one line per model. Log-x, because N doubles. */
-function Curve({ runs }: { runs: Run[] }): ReactElement | null {
+/** Structural breaks per 1,000 blocks at one batch size — the integrity signal on an
+ *  axis where it is actually visible. Plotting intact% on a 0-100 scale squeezed every
+ *  point into the top 1% of the canvas and drew a flat line at the ceiling: a null
+ *  result rendered as if it were the finding. */
+function breaksPer1k(p: Result): number | null {
+  if (!p.blocks) return null;
+  return ((p.missing + p.placeholder_breaks + p.tag_breaks + p.untranslated) / p.blocks) * 1000;
+}
+
+interface Series {
+  /** null = this model cannot answer this metric (an unpriced model has no cost). */
+  y: (p: Result) => number | null;
+  yTitle: string;
+  fmt: (v: number) => string;
+  /** Log-y where models are orders of magnitude apart (cost), linear where the
+   *  distance from zero is the point (breaks). */
+  log?: boolean;
+  aria: string;
+}
+
+/** One metric against N, one line per model. Log-x throughout, because N doubles. */
+function Chart({ runs, s }: { runs: Run[]; s: Series }): ReactElement | null {
   if (!runs.length) return null;
 
   const W = 720;
-  const H = 320;
-  const pad = { top: 16, right: 16, bottom: 44, left: 48 };
-  const ns = [...new Set(runs.flatMap((r) => r.results.map((x) => x.n)))].sort((a, b) => a - b);
-  if (!ns.length) return null;
+  const H = 300;
+  const pad = { top: 16, right: 16, bottom: 44, left: 62 };
+
+  // An unmeasured point (throttled) is a hole, not a zero. Plotting it would draw a
+  // cliff the model never had.
+  const pts = (r: Run) =>
+    r.results
+      .filter((p) => p.blocks > 0 && !p.unmeasured)
+      .map((p) => ({ p, v: s.y(p) }))
+      .filter((q): q is { p: Result; v: number } => q.v != null);
+
+  const ns = [...new Set(runs.flatMap((r) => pts(r).map((q) => q.p.n)))].sort((a, b) => a - b);
+  const vs = runs.flatMap((r) => pts(r).map((q) => q.v));
+  if (!ns.length || !vs.length) return null;
 
   const lo = Math.log2(ns[0]);
   const hi = Math.log2(ns[ns.length - 1]);
   const x = (n: number) =>
     pad.left + (hi === lo ? 0.5 : (Math.log2(n) - lo) / (hi - lo)) * (W - pad.left - pad.right);
-  const y = (v: number) => pad.top + (1 - v / 100) * (H - pad.top - pad.bottom);
+
+  // A log axis cannot show zero, and zero breaks is the commonest — and most
+  // important — value there is. So breaks get a linear axis anchored at zero.
+  const hiV = Math.max(...vs);
+  const loV = s.log ? Math.min(...vs.filter((v) => v > 0)) : 0;
+  const t = (v: number) =>
+    s.log
+      ? (Math.log10(Math.max(v, loV)) - Math.log10(loV)) / (Math.log10(hiV) - Math.log10(loV) || 1)
+      : v / (hiV || 1);
+  const y = (v: number) => pad.top + (1 - t(v)) * (H - pad.top - pad.bottom);
+
+  const ticks = s.log
+    ? [loV, Math.sqrt(loV * hiV), hiV]
+    : [0, hiV / 2, hiV].filter((v, i, a) => a.indexOf(v) === i);
 
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
       style={{ width: "100%", height: "auto", overflow: "visible" }}
       role="img"
-      aria-label="Structural integrity against blocks per call, one line per model"
+      aria-label={s.aria}
     >
-      {[0, 25, 50, 75, 100].map((g) => (
+      {ticks.map((g) => (
         <g key={g}>
           <line
             x1={pad.left}
@@ -281,7 +324,7 @@ function Curve({ runs }: { runs: Run[] }): ReactElement | null {
             y2={y(g)}
             stroke="var(--ifm-color-emphasis-300)"
             strokeWidth={1}
-            strokeDasharray={g === 100 ? undefined : "3 3"}
+            strokeDasharray={g === 0 ? undefined : "3 3"}
           />
           <text
             x={pad.left - 8}
@@ -290,7 +333,7 @@ function Curve({ runs }: { runs: Run[] }): ReactElement | null {
             fontSize={11}
             fill="var(--ifm-color-emphasis-600)"
           >
-            {g}%
+            {s.fmt(g)}
           </text>
         </g>
       ))}
@@ -339,27 +382,34 @@ function Curve({ runs }: { runs: Run[] }): ReactElement | null {
       >
         blocks per call (N)
       </text>
+      <text
+        x={-(pad.top + H - pad.bottom) / 2}
+        y={13}
+        transform="rotate(-90)"
+        textAnchor="middle"
+        fontSize={12}
+        fill="var(--ifm-color-emphasis-700)"
+      >
+        {s.yTitle}
+      </text>
 
       {runs.map((r, i) => {
         const color = palette[i % palette.length];
-        // An unmeasured point (throttled) is a hole, not a zero. Plotting it would
-        // draw a cliff the model never had.
-        const pts = r.results.filter((p) => p.blocks > 0 && !p.unmeasured);
-        const d = pts.map((p, j) => `${j ? "L" : "M"}${x(p.n)},${y(intact(p))}`).join(" ");
+        const qs = pts(r);
+        const d = qs.map((q, j) => `${j ? "L" : "M"}${x(q.p.n)},${y(q.v)}`).join(" ");
         return (
           <g key={label(r)}>
             <path d={d} fill="none" stroke={color} strokeWidth={2} />
-            {pts.map((p) => (
+            {qs.map((q) => (
               <circle
-                key={p.n}
-                cx={x(p.n)}
-                cy={y(intact(p))}
-                r={p.failed ? 5 : 3.5}
-                fill={p.failed ? "#d65a5a" : color}
+                key={q.p.n}
+                cx={x(q.p.n)}
+                cy={y(q.v)}
+                r={q.p.failed ? 5 : 3.5}
+                fill={q.p.failed ? "#d65a5a" : color}
               >
                 <title>
-                  {label(r)} · N={p.n} · {intact(p).toFixed(1)}% intact
-                  {p.failed ? ` · failed: ${p.error ?? ""}` : ""}
+                  {label(r)} · N={q.p.n} · {s.fmt(q.v)}
                 </title>
               </circle>
             ))}
@@ -369,6 +419,28 @@ function Curve({ runs }: { runs: Run[] }): ReactElement | null {
     </svg>
   );
 }
+
+const COST: Series = {
+  y: costPer1kWords,
+  yTitle: "USD / 1,000 source words",
+  fmt: (v) => usd(v),
+  log: true,
+  aria: "Cost per thousand source words against blocks per call, one line per model",
+};
+
+const BREAKS: Series = {
+  y: breaksPer1k,
+  yTitle: "structural breaks / 1,000 blocks",
+  fmt: (v) => v.toFixed(1),
+  aria: "Structural breaks per thousand blocks against blocks per call, one line per model",
+};
+
+const SPEED: Series = {
+  y: wordsPerSecond,
+  yTitle: "source words / second",
+  fmt: (v) => v.toFixed(0),
+  aria: "Throughput in source words per second against blocks per call, one line per model",
+};
 
 function Legend({ runs }: { runs: Run[] }): ReactElement {
   return (
@@ -399,7 +471,7 @@ export default function BatchEval(): ReactElement {
   return (
     <Layout
       title="Batch eval"
-      description="What batching costs: structural integrity of translation against the number of blocks packed into one LLM call, measured per model and tracked over time."
+      description="What batching costs: cost per thousand words, throughput, and structural integrity against the number of blocks packed into one LLM call, measured per model and tracked over time."
     >
       <main style={{ maxWidth: 940, margin: "0 auto", padding: "2.5rem 1.25rem 4rem" }}>
         <h1>Batch eval</h1>
@@ -408,9 +480,15 @@ export default function BatchEval(): ReactElement {
           expensive. How many is safe? The published evidence covers <em>adjacent</em> tasks — batch
           prompting on classification, BatchGEMBA on MT evaluation — and no quality-versus-N curve
           has been published for segment translation. So kapi&rsquo;s ceiling started life as an
-          inference. This is the measurement that replaces it, and it is re-run as models change: a
+          inference. This is the measurement that replaced it, and it is re-run as models change: a
           ceiling that was right for one generation of models is not self-evidently right for the
           next.
+        </p>
+        <p>
+          The short version: <strong>the safety question turned out to be the boring one</strong>.
+          Translation does not degrade with batch size the way the literature on adjacent tasks
+          predicts, so the interesting axis is not quality but cost — where there is a floor, a hard
+          wall past it, and (on some providers, not all) a worthwhile saving on the way down.
         </p>
 
         <h2>What is scored, and why it is not &ldquo;quality&rdquo;</h2>
@@ -431,12 +509,53 @@ export default function BatchEval(): ReactElement {
           </p>
         ) : (
           <>
-            <h2>Structural integrity against batch size</h2>
+            <h2>What varies with batch size</h2>
             <p style={{ color: "var(--ifm-color-emphasis-700)", fontSize: "0.92rem" }}>
               Measured {latest} · target {current[0].target} · {current[0].corpus} · corpus{" "}
               <code>{canonicalDigest}</code>
             </p>
-            <Curve runs={current} />
+            <p>
+              The chart people expect here is quality against N, and for a while it was the one this
+              page led with. It is not drawn first any more, because it has nothing to say: the
+              models are structurally intact at every batch size, so on a 0–100% axis it is a flat
+              line at the ceiling — a null result dressed up as a finding. What genuinely moves with
+              N is what it <em>costs</em>, so that is the chart.
+            </p>
+            <Chart runs={current} s={COST} />
+            <Legend runs={current} />
+            <p style={{ fontSize: "0.9rem", color: "var(--ifm-color-emphasis-700)" }}>
+              Log scale, because the models are an order of magnitude apart in price and a linear
+              axis would flatten the cheap ones into the baseline. Two shapes to read. The{" "}
+              <strong>fall on the left</strong> is the per-call overhead — system prompt plus JSON
+              schema, paid once per call — being amortised over more blocks; how steep it is depends
+              on how big that overhead is, which is a fact about the provider, not about batching.
+              On Bedrock that fall is steep — 985 tokens of overhead per call is a lot to repeat. On
+              Gemini it is barely a fall at all: ~106 tokens of overhead leaves almost nothing to
+              amortise, and the curve is flat until it turns up. The{" "}
+              <strong>rise on the right</strong> is the same on every provider, because it is not
+              the provider&rsquo;s doing: past the output ceiling the reply cannot be emitted in one
+              go, kapi splits the batch and redoes the work, and you pay for the same words twice.
+              Cheapest is in between — and the minimum is broad and shallow, which is the useful
+              part: the exact N barely matters, so long as you are not at either extreme.
+            </p>
+
+            <h3>Structural integrity, on an axis where a regression would show</h3>
+            <p>
+              Breaks per 1,000 blocks — dropped, merged, renumbered segments, and mangled
+              placeholders or tags. Zero is the expected reading, and the reason to keep drawing it
+              is that a model can regress behind a stable alias without anyone being told. This is
+              the guard, not the headline.
+            </p>
+            <Chart runs={current} s={BREAKS} />
+            <Legend runs={current} />
+
+            <h3>Throughput</h3>
+            <p>
+              Source words per second. Comparable <em>within</em> a model across N, not between
+              vendors: the sweeps ran at different concurrencies, and the drop at the right-hand end
+              is the same truncation-and-retry that lifts the cost curve.
+            </p>
+            <Chart runs={current} s={SPEED} />
             <Legend runs={current} />
 
             <h2>What the sweep found</h2>
@@ -851,7 +970,7 @@ export default function BatchEval(): ReactElement {
                     {e.blocks || "?"}
                   </span>
                 </h3>
-                <Curve runs={e.runs} />
+                <Chart runs={e.runs} s={COST} />
                 <Legend runs={e.runs} />
               </div>
             ))}

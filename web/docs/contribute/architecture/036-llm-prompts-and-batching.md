@@ -190,6 +190,26 @@ choices in that record are what make it worth keeping:
   would be a fabricated cliff — and the most damaging kind, because it is the exact
   shape of the finding we are looking for and would therefore be believed.
 
+### The dashboard plots cost, not quality
+
+The obvious chart — structural integrity against N — is the one this page led with,
+and it was the wrong one. Every point sits between 98.8% and 100%, so on a 0–100%
+axis it renders as a flat line at the ceiling: a null result drawn as if it were the
+finding, and the small real variation (batches of 8 break *more* than batches of 128)
+squeezed into invisibility.
+
+So the lead chart is **cost per 1,000 source words against N**, on a log axis, which
+is the thing that actually moves: a slope down on the left where the per-call overhead
+is amortised (steep on Bedrock, nearly flat on Gemini — it is a property of the
+provider's overhead, not of batching), a broad shallow minimum, and a wall on the
+right where the output ceiling forces a truncate-and-split and you pay for the same
+words twice. Throughput gets the same treatment.
+
+Integrity is still plotted, because a model can regress behind a stable alias and
+nobody would be told — but as **breaks per 1,000 blocks**, an axis on which a
+regression would be visible, and framed as the guard it is rather than the headline
+it is not.
+
 The record exists because model aliases are not stable artefacts. `sonnet` and
 `gemini-3.5-flash` point at different weights over time; a ceiling measured once
 and never re-checked decays into folklore. Re-run the sweep when the models move.
