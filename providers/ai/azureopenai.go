@@ -84,8 +84,8 @@ func (p *AzureOpenAIProvider) Chat(ctx context.Context, messages []Message) (*Ch
 		Model:    p.deployment,
 		Messages: apiMessages,
 	}
-	if p.config.MaxTokens > 0 {
-		body.MaxTokens = &p.config.MaxTokens
+	if n := p.maxTokens(ctx); n > 0 {
+		body.MaxTokens = &n
 	}
 
 	jsonBody, err := json.Marshal(body)
@@ -166,8 +166,8 @@ func (p *AzureOpenAIProvider) ChatStructured(ctx context.Context, messages []Mes
 			},
 		},
 	}
-	if p.config.MaxTokens > 0 {
-		body.MaxTokens = &p.config.MaxTokens
+	if n := p.maxTokens(ctx); n > 0 {
+		body.MaxTokens = &n
 	}
 
 	jsonBody, err := json.Marshal(body)
@@ -224,6 +224,24 @@ func (p *AzureOpenAIProvider) ChatStructured(ctx context.Context, messages []Mes
 		Model:   apiResp.Model,
 		Usage:   apiResp.Usage.toTokenUsage(),
 	}, nil
+}
+
+// Limits reports what the configured deployment's model can emit.
+func (p *AzureOpenAIProvider) Limits() Limits {
+	if l, ok := LimitsForModel(p.config.Model); ok {
+		return l
+	}
+	return Limits{MaxOutputTokens: ConservativeMaxOutputTokens}
+}
+
+// maxTokens resolves this request's output budget, clamped to the model ceiling.
+func (p *AzureOpenAIProvider) maxTokens(ctx context.Context) int {
+	ceiling := p.Limits().EffectiveMaxOutputTokens()
+	want := maxOutputTokensFrom(ctx, p.config.MaxTokens)
+	if want <= 0 || want > ceiling {
+		return ceiling
+	}
+	return want
 }
 
 func (p *AzureOpenAIProvider) Close() error { return nil }

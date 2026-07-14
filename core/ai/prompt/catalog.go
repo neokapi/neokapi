@@ -428,7 +428,7 @@ func Catalog() []CatalogEntry {
 			ID:      IDTranslateBatch,
 			Tool:    "translate",
 			Summary: "Translate several blocks in one call, numbered so the structured reply maps back by index.",
-			Turns:   tr.Batch([]string{"<block 1>", "<block 2>"}),
+			Turns:   tr.Batch(BatchSegments([]string{"<block 1>", "<block 2>"})),
 		},
 		{
 			ID:      IDBrandCheck,

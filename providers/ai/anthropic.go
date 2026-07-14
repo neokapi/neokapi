@@ -25,7 +25,7 @@ func NewAnthropicProvider(cfg Config) *AnthropicProvider {
 		cfg.BaseURL = "https://api.anthropic.com"
 	}
 	if cfg.Model == "" {
-		cfg.Model = "claude-sonnet-4-20250514"
+		cfg.Model = "claude-sonnet-5"
 	}
 	if cfg.MaxTokens == 0 {
 		cfg.MaxTokens = 4096
@@ -44,10 +44,24 @@ func (p *AnthropicProvider) Translate(ctx context.Context, req TranslateRequest)
 	return standardTranslate(ctx, p.Name(), p.Chat, req, 0.85)
 }
 
+// Limits reports what the configured model can emit. Unknown models fall back to
+// a conservative ceiling, so an unrecognized model yields smaller batches rather
+// than truncated replies.
+func (p *AnthropicProvider) Limits() Limits {
+	if l, ok := LimitsForModel(p.config.Model); ok {
+		return l
+	}
+	return Limits{MaxOutputTokens: ConservativeMaxOutputTokens}
+}
+
 // buildRequest assembles the wire request. System-role messages are lifted into
 // the top-level system parameter: the Messages API accepts only user and
 // assistant roles and rejects a "system" role inside messages[].
-func (p *AnthropicProvider) buildRequest(messages []Message) (anthropicRequest, error) {
+//
+// max_tokens is the *caller's* budget for this request, clamped to the model's
+// ceiling — not a fixed constant. A batch asks for what it could need; asking
+// for a flat 4096 is how a large batch came back truncated.
+func (p *AnthropicProvider) buildRequest(ctx context.Context, messages []Message) (anthropicRequest, error) {
 	system, convo := SplitSystem(messages)
 	apiMessages, err := toAnthropicMessages(convo)
 	if err != nil {
@@ -55,10 +69,22 @@ func (p *AnthropicProvider) buildRequest(messages []Message) (anthropicRequest, 
 	}
 	return anthropicRequest{
 		Model:     p.config.Model,
-		MaxTokens: p.config.MaxTokens,
+		MaxTokens: p.maxTokens(ctx),
 		System:    system,
 		Messages:  apiMessages,
 	}, nil
+}
+
+// maxTokens resolves this request's output budget: what the caller asked for,
+// clamped to what the model can actually emit, falling back to the configured
+// default.
+func (p *AnthropicProvider) maxTokens(ctx context.Context) int {
+	ceiling := p.Limits().EffectiveMaxOutputTokens()
+	want := maxOutputTokensFrom(ctx, p.config.MaxTokens)
+	if want <= 0 || want > ceiling {
+		return ceiling
+	}
+	return want
 }
 
 // post sends a request to /v1/messages and decodes the response.
@@ -100,7 +126,7 @@ func (p *AnthropicProvider) post(ctx context.Context, body anthropicRequest) (*a
 }
 
 func (p *AnthropicProvider) Chat(ctx context.Context, messages []Message) (*ChatResponse, error) {
-	body, err := p.buildRequest(messages)
+	body, err := p.buildRequest(ctx, messages)
 	if err != nil {
 		return nil, err
 	}
@@ -118,14 +144,15 @@ func (p *AnthropicProvider) Chat(ctx context.Context, messages []Message) (*Chat
 	}
 
 	return &ChatResponse{
-		Content: content.String(),
-		Model:   apiResp.Model,
-		Usage:   apiResp.Usage.toTokenUsage(),
+		Content:   content.String(),
+		Model:     apiResp.Model,
+		Usage:     apiResp.Usage.toTokenUsage(),
+		Truncated: apiResp.truncated(),
 	}, nil
 }
 
 func (p *AnthropicProvider) ChatStructured(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error) {
-	body, err := p.buildRequest(messages)
+	body, err := p.buildRequest(ctx, messages)
 	if err != nil {
 		return nil, err
 	}
@@ -154,13 +181,20 @@ func (p *AnthropicProvider) ChatStructured(ctx context.Context, messages []Messa
 				return nil, fmt.Errorf("anthropic: marshal tool input: %w", err)
 			}
 			return &ChatResponse{
-				Content: string(inputJSON),
-				Model:   apiResp.Model,
-				Usage:   apiResp.Usage.toTokenUsage(),
+				Content:   string(inputJSON),
+				Model:     apiResp.Model,
+				Usage:     apiResp.Usage.toTokenUsage(),
+				Truncated: apiResp.truncated(),
 			}, nil
 		}
 	}
 
+	// A run that asked for more than the model could emit lands here with no
+	// tool_use block at all. Say which of the two happened — the caller can
+	// shrink a batch, but it cannot fix a malformed response.
+	if apiResp.truncated() {
+		return nil, fmt.Errorf("anthropic: %w (max_tokens=%d)", ErrOutputTruncated, body.MaxTokens)
+	}
 	return nil, errors.New("anthropic: no tool_use block in structured response")
 }
 
@@ -231,10 +265,14 @@ type anthropicToolChoice struct {
 }
 
 type anthropicResponse struct {
-	Content []anthropicContentBlock `json:"content"`
-	Model   string                  `json:"model"`
-	Usage   anthropicUsage          `json:"usage"`
+	Content    []anthropicContentBlock `json:"content"`
+	Model      string                  `json:"model"`
+	StopReason string                  `json:"stop_reason"`
+	Usage      anthropicUsage          `json:"usage"`
 }
+
+// truncated reports that the model ran into the output cap mid-reply.
+func (r *anthropicResponse) truncated() bool { return r.StopReason == "max_tokens" }
 
 type anthropicUsage struct {
 	InputTokens              int `json:"input_tokens"`

@@ -47,7 +47,11 @@ type AITranslateTool struct {
 // Default values for AITranslateConfig — used in both the schema tags
 // (for UI display) and NewAITranslateTool (for runtime fallback).
 const (
-	DefaultBatchSize        = 100
+	// BatchingAuto lets kapi size each call from the model's output ceiling.
+	BatchingAuto = "auto"
+	// BatchingSingle translates one block per call: the most reliable and most
+	// expensive setting, and what on-device models get regardless.
+	BatchingSingle          = "single"
 	DefaultBatchConcurrency = 1
 )
 
@@ -74,10 +78,28 @@ type AITranslateConfig struct {
 	// injected into the translation prompt so output is on-brand at generation
 	// time. Not serializable via the schema/CLI; supplied programmatically or
 	// via the .kapi brand binding.
-	Profile          *brand.VoiceProfile `json:"-" schema:"-"`
-	SkipMatched      bool                `json:"skipMatched,omitempty"  schema:"title=Skip Matched,description=Skip blocks that already have a target translation"`
-	BatchSize        int                 `json:"batchSize,omitempty"    schema:"title=Batch Size,description=Number of blocks per LLM call,default=100,min=1"`
-	BatchConcurrency int                 `json:"batchConcurrency,omitempty" schema:"title=Batch Concurrency,description=Number of concurrent batch calls (0 or 1 = sequential),default=1,min=1"`
+	Profile     *brand.VoiceProfile `json:"-" schema:"-"`
+	SkipMatched bool                `json:"skipMatched,omitempty"  schema:"title=Skip Matched,description=Skip blocks that already have a target translation"`
+
+	// Batching selects how many blocks share one LLM call.
+	//
+	// Deliberately not a number. The right block count depends on the model's
+	// output ceiling, on how long this project's segments happen to be, and on a
+	// quality-vs-batch-size curve nobody has published — none of which a user is
+	// in a position to know. The old "Batch Size: 100" field asked them to guess,
+	// and a wrong guess truncated the model's reply and failed the run.
+	//
+	// So the meaningful choice is the one offered here: let kapi size the batch
+	// from what the model can emit, or translate one block per call when
+	// reliability matters more than cost.
+	Batching string `json:"batching,omitempty" schema:"title=Batching,description=How many blocks share one LLM call,enum=auto|single,default=auto,group=provider"`
+
+	// BatchSize pins an exact block count, bypassing the packer. Not a form
+	// field: it exists for a recipe that must reproduce a historical run, and for
+	// the eval harness sweeping N to measure the quality curve we currently have
+	// to take on faith.
+	BatchSize        int `json:"batchSize,omitempty" schema:"-"`
+	BatchConcurrency int `json:"batchConcurrency,omitempty" schema:"title=Batch Concurrency,description=Number of concurrent batch calls (0 or 1 = sequential),default=1,min=1"`
 
 	// OnProgress is called for each block during translation. It receives
 	// live thinking summaries when the provider supports streaming.
@@ -168,8 +190,15 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 	if sp, ok := p.(aiprovider.StreamingLLMProvider); ok {
 		t.streaming = sp
 	}
-	if t.batchSize < 1 {
-		t.batchSize = DefaultBatchSize
+	// Batching intent → packing behaviour. batchSize 0 means "let the packer
+	// decide"; an explicit BatchSize pin overrides both.
+	if cfg.BatchSize < 1 {
+		switch cfg.Batching {
+		case BatchingSingle:
+			t.batchSize = 1
+		default: // BatchingAuto, and the zero value
+			t.batchSize = 0
+		}
 	}
 	// On-device models translate far better per-block than batched into one giant
 	// structured-JSON generation: a small local model tends to ignore the "return
@@ -179,7 +208,7 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 	// providers unless the user deliberately chose a smaller batch. (The schema
 	// default of 100 is already applied by here, so this overrides it rather than
 	// keying off batchSize < 1.)
-	if t.batchSize >= DefaultBatchSize && aiprovider.IsLocalProvider(aiprovider.ProviderID(cfg.Provider)) {
+	if cfg.BatchSize < 1 && aiprovider.IsLocalProvider(aiprovider.ProviderID(cfg.Provider)) {
 		t.batchSize = 1
 	}
 	if t.concurrency < 1 {
@@ -710,8 +739,10 @@ func (t *AITranslateTool) processBatched(ctx context.Context, in <-chan *model.P
 	// Set total for progress reporting since we know the full count.
 	t.totalBlocks = len(entries)
 
-	// 3. Group into batches and translate them with bounded concurrency.
-	batches := chunkBlocks(entries, t.batchSize)
+	// 3. Group into batches the model can actually answer, and translate them
+	// with bounded concurrency. Packing is by output-token budget, not a fixed
+	// count — see pack.go.
+	batches := t.packBatches(entries)
 	if err := goBatches(batches, t.concurrency, func(_ int, batch []blockEntry) error {
 		return t.translateBatch(ctx, batch)
 	}); err != nil {
@@ -730,11 +761,22 @@ func (t *AITranslateTool) processBatched(ctx context.Context, in <-chan *model.P
 	return nil
 }
 
+// splitAndRetry halves a batch that the model could not answer in one reply and
+// translates each half. Recursion bottoms out at a single block, which takes the
+// per-block path and can no longer be too large for the model to answer.
+func (t *AITranslateTool) splitAndRetry(ctx context.Context, entries []blockEntry) error {
+	mid := len(entries) / 2
+	if err := t.translateBatch(ctx, entries[:mid]); err != nil {
+		return err
+	}
+	return t.translateBatch(ctx, entries[mid:])
+}
+
 // batchTranslationSchema returns a JSON schema for structured batch translation output.
 func batchTranslationSchema() aiprovider.JSONSchema {
 	return aiprovider.JSONSchema{
 		Name:        "batch_translations",
-		Description: "Batch translation results with index-text pairs",
+		Description: "Batch translation results, one per segment id",
 		Strict:      true,
 		Schema: map[string]any{
 			"type": "object",
@@ -744,10 +786,10 @@ func batchTranslationSchema() aiprovider.JSONSchema {
 					"items": map[string]any{
 						"type": "object",
 						"properties": map[string]any{
-							"index": map[string]any{"type": "integer"},
-							"text":  map[string]any{"type": "string"},
+							"id":   map[string]any{"type": "string"},
+							"text": map[string]any{"type": "string"},
 						},
-						"required":             []string{"index", "text"},
+						"required":             []string{"id", "text"},
 						"additionalProperties": false,
 					},
 				},
@@ -761,9 +803,19 @@ func batchTranslationSchema() aiprovider.JSONSchema {
 // batchResult is the JSON structure returned by structured batch translation.
 type batchResult struct {
 	Translations []struct {
-		Index int    `json:"index"`
-		Text  string `json:"text"`
+		ID   string `json:"id"`
+		Text string `json:"text"`
 	} `json:"translations"`
+}
+
+// packBatches groups entries into calls. An explicit batchSize override (a
+// recipe pin, or the eval harness sweeping N) is honoured verbatim; otherwise
+// kapi sizes the batch from what the model can emit.
+func (t *AITranslateTool) packBatches(entries []blockEntry) [][]blockEntry {
+	if t.batchSize > 0 {
+		return chunkBlocks(entries, t.batchSize)
+	}
+	return packBlocks(entries, outputBudget(t.provider), MaxBlocksPerCall)
 }
 
 // translateBatch translates a batch of blocks in a single LLM call using
@@ -779,6 +831,7 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 	for i, entry := range entries {
 		texts[i] = entry.sourceText
 	}
+	segments := prompt.BatchSegments(texts)
 	p := prompt.Translate{
 		SourceLocale: t.sourceLocale,
 		TargetLocale: t.targetLocale,
@@ -786,11 +839,19 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 		VoiceGuide:   t.voiceGuide,
 		Instruction:  t.instruction,
 	}
-	turns := p.Batch(texts)
+	turns := p.Batch(segments)
 	ctx = prompt.WithMeta(ctx, p.Meta(prompt.IDTranslateBatch))
 
 	messages := aiprovider.MessagesFromTurns(turns)
 	schema := batchTranslationSchema()
+
+	// Ask for what this batch could plausibly need, not a fixed constant. The
+	// provider clamps it to the model's ceiling.
+	var need int
+	for _, text := range texts {
+		need += estimateTokens(text)
+	}
+	ctx = aiprovider.WithMaxOutputTokens(ctx, need*2+512)
 
 	var resp *aiprovider.ChatResponse
 	var err error
@@ -806,9 +867,22 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 		resp, err = t.provider.ChatStructured(ctx, messages, schema)
 	}
 	if err != nil {
+		// The model could not emit a reply this large. Halve the batch and try
+		// again rather than failing the run: the batch was our choice, not the
+		// user's, so its consequences are ours to absorb.
+		if errors.Is(err, aiprovider.ErrOutputTruncated) && len(entries) > 1 {
+			return t.splitAndRetry(ctx, entries)
+		}
 		return fmt.Errorf("translate batch: %w", err)
 	}
 	t.addUsage(resp.Usage)
+
+	// A reply that stopped at the cap is a fragment — under a JSON schema, invalid
+	// JSON. Recognise it as *our* batch being too big rather than reporting it as
+	// the model returning garbage.
+	if resp.Truncated && len(entries) > 1 {
+		return t.splitAndRetry(ctx, entries)
+	}
 
 	// Parse structured JSON response. Local models often wrap their output in a
 	// markdown code fence or pad it with prose before/after the JSON, so decode
@@ -819,15 +893,29 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 		return fmt.Errorf("translate batch: unmarshal response: %w (raw: %.200q)", err, resp.Content)
 	}
 
-	// Build index → text map from the structured response.
+	// Map the reply back by the id we asked for, accepting only ids we sent.
+	//
+	// Keying by id rather than by position is what makes a dropped segment a
+	// detectable absence instead of an off-by-one that silently shifts every
+	// translation after it — the documented failure mode of batching, and the
+	// one an injected instruction in the content would exploit.
+	want := make(map[string]int, len(segments))
+	for i, seg := range segments {
+		want[seg.ID] = i
+	}
 	translations := make(map[int]string, len(result.Translations))
 	for _, tr := range result.Translations {
-		translations[tr.Index] = tr.Text
+		i, ok := want[tr.ID]
+		if !ok {
+			// An id we never sent. Ignore it rather than write it somewhere.
+			continue
+		}
+		translations[i] = tr.Text
 	}
 
 	// Apply translations (fall back to individual calls for missing entries).
 	for i, entry := range entries {
-		text, ok := translations[i+1]
+		text, ok := translations[i]
 		if !ok || text == "" {
 			if err := t.translate(tool.NewVariantViewWithContext(ctx, entry.block)); err != nil { //nolint:contextcheck // ctx travels inside the VariantView; translate keeps the view-only Produce signature
 				return err

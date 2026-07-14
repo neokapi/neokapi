@@ -37,7 +37,7 @@ func NewGeminiProvider(cfg Config) *GeminiProvider {
 		cfg.BaseURL = "https://generativelanguage.googleapis.com"
 	}
 	if cfg.Model == "" {
-		cfg.Model = "gemini-3-flash-preview"
+		cfg.Model = "gemini-3.5-flash"
 	}
 	if cfg.MaxTokens == 0 {
 		cfg.MaxTokens = 4096
@@ -80,7 +80,7 @@ func (p *GeminiProvider) Chat(ctx context.Context, messages []Message) (*ChatRes
 	body := geminiRequest{
 		Contents: contents,
 		GenerationConfig: &geminiGenerationConfig{
-			MaxOutputTokens: p.config.MaxTokens,
+			MaxOutputTokens: p.maxTokens(ctx),
 			ThinkingConfig:  &geminiThinkingConfig{ThinkingBudget: 0},
 		},
 	}
@@ -96,9 +96,10 @@ func (p *GeminiProvider) Chat(ctx context.Context, messages []Message) (*ChatRes
 	}
 
 	return &ChatResponse{
-		Content: text,
-		Model:   resp.ModelVersion,
-		Usage:   resp.UsageMetadata.toTokenUsage(),
+		Content:   text,
+		Model:     resp.ModelVersion,
+		Usage:     resp.UsageMetadata.toTokenUsage(),
+		Truncated: resp.truncated(),
 	}, nil
 }
 
@@ -111,7 +112,7 @@ func (p *GeminiProvider) ChatStructured(ctx context.Context, messages []Message,
 	body := geminiRequest{
 		Contents: contents,
 		GenerationConfig: &geminiGenerationConfig{
-			MaxOutputTokens:  p.config.MaxTokens,
+			MaxOutputTokens:  p.maxTokens(ctx),
 			ResponseMIMEType: "application/json",
 			ResponseSchema:   stripAdditionalProperties(schema.Schema),
 			ThinkingConfig:   &geminiThinkingConfig{ThinkingBudget: 0},
@@ -129,9 +130,10 @@ func (p *GeminiProvider) ChatStructured(ctx context.Context, messages []Message,
 	}
 
 	return &ChatResponse{
-		Content: text,
-		Model:   resp.ModelVersion,
-		Usage:   resp.UsageMetadata.toTokenUsage(),
+		Content:   text,
+		Model:     resp.ModelVersion,
+		Usage:     resp.UsageMetadata.toTokenUsage(),
+		Truncated: resp.truncated(),
 	}, nil
 }
 
@@ -147,7 +149,7 @@ func (p *GeminiProvider) ChatStream(ctx context.Context, messages []Message, onE
 	body := geminiRequest{
 		Contents: contents,
 		GenerationConfig: &geminiGenerationConfig{
-			MaxOutputTokens: p.config.MaxTokens,
+			MaxOutputTokens: p.maxTokens(ctx),
 			ThinkingConfig:  &geminiThinkingConfig{IncludeThoughts: true},
 		},
 	}
@@ -165,7 +167,7 @@ func (p *GeminiProvider) ChatStructuredStream(ctx context.Context, messages []Me
 	body := geminiRequest{
 		Contents: contents,
 		GenerationConfig: &geminiGenerationConfig{
-			MaxOutputTokens:  p.config.MaxTokens,
+			MaxOutputTokens:  p.maxTokens(ctx),
 			ResponseMIMEType: "application/json",
 			ResponseSchema:   stripAdditionalProperties(schema.Schema),
 			ThinkingConfig:   &geminiThinkingConfig{IncludeThoughts: true},
@@ -173,6 +175,26 @@ func (p *GeminiProvider) ChatStructuredStream(ctx context.Context, messages []Me
 	}
 
 	return p.doStreamRequest(ctx, body, onEvent)
+}
+
+// Limits reports what the configured model can emit.
+func (p *GeminiProvider) Limits() Limits {
+	if l, ok := LimitsForModel(p.config.Model); ok {
+		return l
+	}
+	return Limits{MaxOutputTokens: ConservativeMaxOutputTokens}
+}
+
+// maxTokens resolves this request's output budget, clamped to the model ceiling.
+// Always sent explicitly: Gemini's own default is a small fraction of what the
+// model can emit, and relying on it truncates long replies without saying so.
+func (p *GeminiProvider) maxTokens(ctx context.Context) int {
+	ceiling := p.Limits().EffectiveMaxOutputTokens()
+	want := maxOutputTokensFrom(ctx, p.config.MaxTokens)
+	if want <= 0 || want > ceiling {
+		return ceiling
+	}
+	return want
 }
 
 func (p *GeminiProvider) Close() error { return nil }
@@ -471,7 +493,15 @@ type geminiResponse struct {
 }
 
 type geminiCandidate struct {
-	Content geminiContent `json:"content"`
+	Content      geminiContent `json:"content"`
+	FinishReason string        `json:"finishReason"`
+}
+
+// truncated reports a reply cut off by maxOutputTokens. Gemini is the easiest
+// provider to truncate silently: its own default output cap is far below the
+// model's ceiling, so a batch that fits the model can still overflow the default.
+func (r *geminiResponse) truncated() bool {
+	return len(r.Candidates) > 0 && r.Candidates[0].FinishReason == "MAX_TOKENS"
 }
 
 type geminiUsageMetadata struct {

@@ -69,7 +69,7 @@ func TestRecorderCapturesStructuredCall(t *testing.T) {
 	pt := prompt.Translate{SourceLocale: "en", TargetLocale: "fr"}
 	ctx := prompt.WithMeta(t.Context(), pt.Meta(prompt.IDTranslateBatch))
 
-	_, err = p.ChatStructured(ctx, MessagesFromTurns(pt.Batch([]string{"Save", "Cancel"})),
+	_, err = p.ChatStructured(ctx, MessagesFromTurns(pt.Batch(prompt.BatchSegments([]string{"Save", "Cancel"}))),
 		JSONSchema{Name: "batch_translations", Schema: map[string]any{"type": "object"}})
 	require.NoError(t, err)
 
@@ -78,7 +78,7 @@ func TestRecorderCapturesStructuredCall(t *testing.T) {
 	assert.Equal(t, prompt.IDTranslateBatch, ex.Prompt)
 	require.NotNil(t, ex.Schema)
 	assert.Equal(t, "batch_translations", ex.Schema.Name)
-	assert.Contains(t, ex.Messages[1].Text(), "[1] Save")
+	assert.Contains(t, ex.Messages[1].Text(), `"text": "Save"`)
 }
 
 // Wrapping must not cost a provider its streaming support — the translate tool

@@ -194,7 +194,21 @@ type ChatResponse struct {
 	Content string     `json:"content"`
 	Model   string     `json:"model"`
 	Usage   TokenUsage `json:"usage"`
+	// Truncated reports that the model stopped because it hit the output cap,
+	// not because it was finished. The content is then a fragment — with
+	// structured output, invalid JSON.
+	//
+	// This is surfaced rather than left to the caller's JSON decoder to trip
+	// over, because the two failures need opposite responses: a malformed reply
+	// is a model problem, while a truncated reply means we asked for more than
+	// the model can emit and should ask for less.
+	Truncated bool `json:"truncated,omitempty"`
 }
+
+// ErrOutputTruncated reports a reply cut short by the model's output cap. A
+// caller that batches can catch this and retry with a smaller batch rather than
+// failing the run.
+var ErrOutputTruncated = errors.New("model output truncated: the reply hit the output token limit")
 
 // StreamEventType identifies the kind of streaming event.
 type StreamEventType int

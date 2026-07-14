@@ -8,7 +8,6 @@ import (
 	"os"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -297,31 +296,36 @@ func matchCase(src, repl string) string {
 	return repl
 }
 
-// segmentRe matches the numbered segments translate emits in its batch
-// prompt: lines of the form "[N] text".
-var segmentRe = regexp.MustCompile(`(?m)^\[(\d+)\]\s?(.*)$`)
-
-// demoBatchTranslations parses the numbered segments out of the batch prompt's
-// user turn, translates each, and returns JSON matching the batch_translations
-// schema. The numbering is part of the prompt contract (the real response is
-// keyed by it); the target locale comes from prompt.Meta, not from the text.
+// demoBatchTranslations decodes the batch prompt's JSON payload, translates each
+// segment, and returns JSON matching the batch_translations schema — echoing the
+// id it was given, because that is the contract the real providers are held to
+// and the demo must be held to the same one.
+//
+// This used to regex "[N] text" lines out of the prompt. Parsing the payload
+// means the demo breaks loudly if the payload shape changes, rather than quietly
+// returning nothing.
 func demoBatchTranslations(userTurn string, target model.LocaleID) string {
+	var payload struct {
+		Segments []struct {
+			ID   string `json:"id"`
+			Text string `json:"text"`
+		} `json:"segments"`
+	}
+	if err := json.Unmarshal([]byte(userTurn), &payload); err != nil {
+		return `{"translations":[]}`
+	}
+
 	type entry struct {
-		Index int    `json:"index"`
-		Text  string `json:"text"`
+		ID   string `json:"id"`
+		Text string `json:"text"`
 	}
 	var out struct {
 		Translations []entry `json:"translations"`
 	}
-
-	for _, m := range segmentRe.FindAllStringSubmatch(userTurn, -1) {
-		idx, err := strconv.Atoi(m[1])
-		if err != nil {
-			continue
-		}
+	for _, seg := range payload.Segments {
 		out.Translations = append(out.Translations, entry{
-			Index: idx,
-			Text:  demoTranslate(strings.TrimSpace(m[2]), target),
+			ID:   seg.ID,
+			Text: demoTranslate(strings.TrimSpace(seg.Text), target),
 		})
 	}
 

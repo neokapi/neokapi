@@ -84,7 +84,7 @@ func TestDemoProvider_BatchTranslations(t *testing.T) {
 	// translate tool does. The demo provider reads the target locale from that
 	// metadata — it must not recover it by parsing the prompt's English.
 	pt := prompt.Translate{SourceLocale: "en", TargetLocale: "fr"}
-	turns := pt.Batch([]string{"Hello", "Save", "world"})
+	turns := pt.Batch(prompt.BatchSegments([]string{"Hello", "Save", "world"}))
 	ctx := prompt.WithMeta(context.Background(), pt.Meta(prompt.IDTranslateBatch))
 
 	resp, err := p.ChatStructured(ctx, MessagesFromTurns(turns), JSONSchema{Name: "batch_translations"})
@@ -92,13 +92,13 @@ func TestDemoProvider_BatchTranslations(t *testing.T) {
 
 	var out struct {
 		Translations []struct {
-			Index int    `json:"index"`
-			Text  string `json:"text"`
+			ID   string `json:"id"`
+			Text string `json:"text"`
 		} `json:"translations"`
 	}
 	require.NoError(t, json.Unmarshal([]byte(resp.Content), &out))
 	require.Len(t, out.Translations, 3)
-	assert.Equal(t, 1, out.Translations[0].Index)
+	assert.Equal(t, "s1", out.Translations[0].ID, "the reply must echo the id it was given")
 	assert.Equal(t, "⟦fr⟧ Bonjour", out.Translations[0].Text)
 	assert.Equal(t, "⟦fr⟧ Enregistrer", out.Translations[1].Text)
 }

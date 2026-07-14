@@ -25,14 +25,14 @@ func TestGeminiProviderDefaults(t *testing.T) {
 	t.Parallel()
 	p := NewGeminiProvider(Config{})
 	assert.Equal(t, "https://generativelanguage.googleapis.com", p.config.BaseURL)
-	assert.Equal(t, "gemini-3-flash-preview", p.config.Model)
+	assert.Equal(t, "gemini-3.5-flash", p.config.Model)
 	assert.Equal(t, 4096, p.config.MaxTokens)
 }
 
 func TestGeminiProviderChat(t *testing.T) {
 	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Contains(t, r.URL.Path, "/v1beta/models/gemini-3-flash-preview:generateContent")
+		assert.Contains(t, r.URL.Path, "/v1beta/models/gemini-3.5-flash:generateContent")
 		// API key travels in a header, not the URL query string.
 		assert.Equal(t, "test-key", r.Header.Get("x-goog-api-key"))
 		assert.Empty(t, r.URL.Query().Get("key"))

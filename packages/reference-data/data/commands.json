@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-13T16:59:00Z",
+  "generatedAt": "2026-07-14T02:11:23Z",
   "commands": [
     {
       "id": "brand",
@@ -3495,10 +3495,10 @@
           "type": "int"
         },
         {
-          "name": "batch-size",
-          "usage": "Number of blocks per LLM call",
-          "default": "100",
-          "type": "int"
+          "name": "batching",
+          "usage": "How many blocks share one LLM call (auto, single)",
+          "default": "auto",
+          "type": "string"
         },
         {
           "name": "concurrency",

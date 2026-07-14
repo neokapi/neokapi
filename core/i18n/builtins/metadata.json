@@ -888,9 +888,17 @@
           "title": "Batch Concurrency",
           "description": "Number of concurrent batch calls (0 or 1 = sequential)"
         },
-        "batchSize": {
-          "title": "Batch Size",
-          "description": "Number of blocks per LLM call"
+        "batching": {
+          "title": "Batching",
+          "description": "How many blocks share one LLM call",
+          "options": {
+            "auto": {
+              "label": "auto"
+            },
+            "single": {
+              "label": "single"
+            }
+          }
         },
         "engine": {
           "title": "Engine",

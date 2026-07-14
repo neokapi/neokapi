@@ -2680,12 +2680,21 @@
           "title": "Batch Concurrency",
           "type": "integer"
         },
-        "batchSize": {
-          "default": 100,
-          "description": "Number of blocks per LLM call",
-          "minimum": 1,
-          "title": "Batch Size",
-          "type": "integer"
+        "batching": {
+          "default": "auto",
+          "description": "How many blocks share one LLM call",
+          "options": [
+            {
+              "label": "auto",
+              "value": "auto"
+            },
+            {
+              "label": "single",
+              "value": "single"
+            }
+          ],
+          "title": "Batching",
+          "type": "string"
         },
         "engine": {
           "default": "llm",
@@ -2855,7 +2864,8 @@
             "engine",
             "provider",
             "apiKey",
-            "model"
+            "model",
+            "batching"
           ],
           "id": "provider",
           "label": "Provider"

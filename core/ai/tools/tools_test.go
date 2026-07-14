@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"sync"
 	"testing"
 
@@ -413,17 +412,51 @@ func TestAIReviewToolSkipsUntranslated(t *testing.T) {
 	assert.Empty(t, mock.ChatCalls)
 }
 
-// batchJSON builds a structured batch response JSON string.
+// echoBatch answers a batch prompt the way a well-behaved model does: it decodes
+// the JSON payload kapi sent and returns one translation per segment, echoing the
+// id it was given.
+func echoBatch(t *testing.T, messages []aiprovider.Message) string {
+	t.Helper()
+
+	var payload struct {
+		Segments []struct {
+			ID   string `json:"id"`
+			Text string `json:"text"`
+		} `json:"segments"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(messages[len(messages)-1].Text()), &payload),
+		"the batch payload must be the JSON document kapi claims to send")
+
+	type item struct {
+		ID   string `json:"id"`
+		Text string `json:"text"`
+	}
+	result := struct {
+		Translations []item `json:"translations"`
+	}{}
+	for _, seg := range payload.Segments {
+		result.Translations = append(result.Translations, item{
+			ID:   seg.ID,
+			Text: "translated-" + seg.Text,
+		})
+	}
+	b, _ := json.Marshal(result)
+	return string(b)
+}
+
+// batchJSON builds a structured batch response JSON string. Keys are the
+// 1-based segment positions kapi labels as s1, s2, … — the reply echoes those
+// ids, and kapi accepts no others.
 func batchJSON(translations map[int]string) string {
 	type item struct {
-		Index int    `json:"index"`
-		Text  string `json:"text"`
+		ID   string `json:"id"`
+		Text string `json:"text"`
 	}
 	result := struct {
 		Translations []item `json:"translations"`
 	}{}
 	for idx, text := range translations {
-		result.Translations = append(result.Translations, item{Index: idx, Text: text})
+		result.Translations = append(result.Translations, item{ID: fmt.Sprintf("s%d", idx), Text: text})
 	}
 	b, _ := json.Marshal(result)
 	return string(b)
@@ -479,16 +512,9 @@ func TestAITranslateBatchSplitsIntoBatches(t *testing.T) {
 	mock.ChatStructuredFunc = func(ctx context.Context, messages []aiprovider.Message, schema aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
 		mu.Lock()
 		defer mu.Unlock()
-		// Parse which segments were requested and return translations.
-		content := messages[len(messages)-1].Text()
-		translations := make(map[int]string)
-		for i := 1; i <= 10; i++ {
-			marker := fmt.Sprintf("[%d]", i)
-			if strings.Contains(content, marker) {
-				translations[i] = fmt.Sprintf("translated-%d", i)
-			}
-		}
-		return &aiprovider.ChatResponse{Content: batchJSON(translations), Model: "test"}, nil
+		// Answer the way a model must: read the segments out of the JSON payload
+		// and echo each id back. A reply keyed by anything else is not accepted.
+		return &aiprovider.ChatResponse{Content: echoBatch(t, messages), Model: "test"}, nil
 	}
 
 	tool := tools.NewAITranslateTool(mock, tools.AITranslateConfig{

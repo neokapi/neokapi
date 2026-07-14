@@ -24,7 +24,7 @@ func NewOpenAIProvider(cfg Config) *OpenAIProvider {
 		cfg.BaseURL = "https://api.openai.com"
 	}
 	if cfg.Model == "" {
-		cfg.Model = "gpt-4o"
+		cfg.Model = "gpt-5.6-sol"
 	}
 	if cfg.MaxTokens == 0 {
 		cfg.MaxTokens = 4096
@@ -53,8 +53,8 @@ func (p *OpenAIProvider) Chat(ctx context.Context, messages []Message) (*ChatRes
 		Model:    p.config.Model,
 		Messages: apiMessages,
 	}
-	if p.config.MaxTokens > 0 {
-		body.MaxTokens = &p.config.MaxTokens
+	if n := p.maxTokens(ctx); n > 0 {
+		body.MaxTokens = &n
 	}
 
 	jsonBody, err := json.Marshal(body)
@@ -95,9 +95,10 @@ func (p *OpenAIProvider) Chat(ctx context.Context, messages []Message) (*ChatRes
 	}
 
 	return &ChatResponse{
-		Content: apiResp.Choices[0].Message.Content,
-		Model:   apiResp.Model,
-		Usage:   apiResp.Usage.toTokenUsage(),
+		Content:   apiResp.Choices[0].Message.Content,
+		Model:     apiResp.Model,
+		Usage:     apiResp.Usage.toTokenUsage(),
+		Truncated: apiResp.truncated(),
 	}, nil
 }
 
@@ -120,8 +121,8 @@ func (p *OpenAIProvider) ChatStructured(ctx context.Context, messages []Message,
 			},
 		},
 	}
-	if p.config.MaxTokens > 0 {
-		body.MaxTokens = &p.config.MaxTokens
+	if n := p.maxTokens(ctx); n > 0 {
+		body.MaxTokens = &n
 	}
 
 	jsonBody, err := json.Marshal(body)
@@ -162,10 +163,29 @@ func (p *OpenAIProvider) ChatStructured(ctx context.Context, messages []Message,
 	}
 
 	return &ChatResponse{
-		Content: apiResp.Choices[0].Message.Content,
-		Model:   apiResp.Model,
-		Usage:   apiResp.Usage.toTokenUsage(),
+		Content:   apiResp.Choices[0].Message.Content,
+		Model:     apiResp.Model,
+		Usage:     apiResp.Usage.toTokenUsage(),
+		Truncated: apiResp.truncated(),
 	}, nil
+}
+
+// Limits reports what the configured model can emit.
+func (p *OpenAIProvider) Limits() Limits {
+	if l, ok := LimitsForModel(p.config.Model); ok {
+		return l
+	}
+	return Limits{MaxOutputTokens: ConservativeMaxOutputTokens}
+}
+
+// maxTokens resolves this request's output budget, clamped to the model ceiling.
+func (p *OpenAIProvider) maxTokens(ctx context.Context) int {
+	ceiling := p.Limits().EffectiveMaxOutputTokens()
+	want := maxOutputTokensFrom(ctx, p.config.MaxTokens)
+	if want <= 0 || want > ceiling {
+		return ceiling
+	}
+	return want
 }
 
 func (p *OpenAIProvider) Close() error { return nil }
@@ -247,6 +267,13 @@ type openaiResponse struct {
 	Usage   openaiUsage    `json:"usage"`
 }
 
+// truncated reports that the model stopped at the output cap rather than
+// finishing. With structured output this yields invalid JSON, so the caller
+// needs to know it asked for too much rather than blame the model's formatting.
+func (r *openaiResponse) truncated() bool {
+	return len(r.Choices) > 0 && r.Choices[0].FinishReason == "length"
+}
+
 type openaiUsage struct {
 	PromptTokens     int `json:"prompt_tokens"`
 	CompletionTokens int `json:"completion_tokens"`
@@ -260,5 +287,6 @@ func (u openaiUsage) toTokenUsage() TokenUsage {
 }
 
 type openaiChoice struct {
-	Message openaiMessage `json:"message"`
+	FinishReason string        `json:"finish_reason"`
+	Message      openaiMessage `json:"message"`
 }

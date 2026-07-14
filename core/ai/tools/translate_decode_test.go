@@ -11,13 +11,13 @@ func TestDecodeFirstJSON(t *testing.T) {
 		name string
 		in   string
 	}{
-		{"clean", `{"translations":[{"index":1,"text":"hi"}]}`},
-		{"trailing text", `{"translations":[{"index":1,"text":"hi"}]}` + "\nnull"},
-		{"trailing prose", `{"translations":[{"index":1,"text":"hi"}]} Note: done.`},
+		{"clean", `{"translations":[{"id":"s1","text":"hi"}]}`},
+		{"trailing text", `{"translations":[{"id":"s1","text":"hi"}]}` + "\nnull"},
+		{"trailing prose", `{"translations":[{"id":"s1","text":"hi"}]} Note: done.`},
 		{"code fence", "```json\n{\"translations\":[{\"index\":1,\"text\":\"hi\"}]}\n```"},
 		{"bare fence", "```\n{\"translations\":[{\"index\":1,\"text\":\"hi\"}]}\n```"},
 		{"leading prose", "Here is the translation:\n{\"translations\":[{\"index\":1,\"text\":\"hi\"}]}"},
-		{"whitespace", "  \n\t" + `{"translations":[{"index":1,"text":"hi"}]}` + "\n"},
+		{"whitespace", "  \n\t" + `{"translations":[{"id":"s1","text":"hi"}]}` + "\n"},
 	}
 	for _, tc := range ok {
 		t.Run(tc.name, func(t *testing.T) {
