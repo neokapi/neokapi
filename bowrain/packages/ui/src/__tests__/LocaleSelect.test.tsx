@@ -18,6 +18,7 @@ function createMockAdapter(locales: LocaleInfo[] = mockLocales): ApiAdapter {
   return {
     getKnownLocales: vi.fn().mockResolvedValue(locales),
     getConfig: vi.fn(),
+    getPublicPlatformConfig: vi.fn(),
     getCurrentUser: vi.fn(),
     listWorkspaces: vi.fn(),
     createWorkspace: vi.fn(),

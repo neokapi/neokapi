@@ -329,7 +329,10 @@ func resolveExtractionProvider(ctx context.Context, deps *ExtractionWorkerDeps, 
 	}
 
 	if providerConfigID == "" || providerConfigID == "platform" {
-		platform := activePlatform(deps.Platform, deps.PlatformResolver)
+		// Extraction is not translation: it stays on the platform default model
+		// (a workspace's chosen translation model must not silently raise
+		// extraction cost), so it resolves with no workspace scope.
+		platform := activePlatform(ctx, "", deps.Platform, deps.PlatformResolver)
 		if platform == nil {
 			return nil, nil, errors.New("platform provider not configured " +
 				"(set BOWRAIN_PLATFORM_PROVIDER + key, or BOWRAIN_OPENAI_ENDPOINT)")

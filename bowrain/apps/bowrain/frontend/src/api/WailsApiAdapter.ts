@@ -6,6 +6,7 @@ import type {
   Membership,
   ProjectInfo,
   ConfigResponse,
+  PublicPlatformConfig,
   BlockInfo,
   UpdateBlockRequest,
   UpdateBlockTargetCodedRequest,
@@ -155,6 +156,18 @@ export class WailsApiAdapter implements ApiAdapter {
       // The desktop app has no brand-scan job system (the adapter's scan
       // methods throw), so the hosted-scan entry points stay hidden.
       features: { brand_scan: false },
+    };
+  }
+
+  async getPublicPlatformConfig(): Promise<PublicPlatformConfig> {
+    // The desktop app is single-tenant against a local runtime: there is no
+    // platform-managed model gate, so signups are irrelevant, no maintenance
+    // window applies, and workspace-level model choice is off (the desktop uses
+    // its own provider configuration).
+    return {
+      signups_open: true,
+      maintenance: { enabled: false },
+      ai_customer_choice: false,
     };
   }
 

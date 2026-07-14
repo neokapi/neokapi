@@ -1505,6 +1505,25 @@ func (s *Server) platformProviderConfig() jobs.PlatformProviderConfig {
 	}
 }
 
+// platformProviderConfigForWorkspace is platformProviderConfig with the
+// workspace's customer-chosen model applied when the admin has opened model
+// choice to customers. The provider and base URL stay platform-owned; only the
+// model may vary per workspace, and only to a model the admin has enabled. Any
+// lookup failure or ineligible selection silently falls back to the platform
+// default, so translation never breaks on a stale or disallowed preference.
+func (s *Server) platformProviderConfigForWorkspace(ctx context.Context, wsID string) jobs.PlatformProviderConfig {
+	cfg := s.platformProviderConfig()
+	if wsID == "" || s.AuthStore == nil || !s.PlatformConfig.AICustomerChoice() {
+		return cfg
+	}
+	w, err := s.AuthStore.GetWorkspace(ctx, wsID)
+	if err != nil || w == nil {
+		return cfg
+	}
+	cfg.Model = s.PlatformConfig.ResolveWorkspaceModel(w.PreferredModel)
+	return cfg
+}
+
 // editorEntryToInfo projects a multilingual TMEntry onto a bilingual
 // response view for the requested (src, tgt) locale pair. When the source
 // is empty, it falls back to the entry's HintSrcLang. When the target is

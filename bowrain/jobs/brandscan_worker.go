@@ -272,8 +272,9 @@ func executeBrandScan(ctx context.Context, deps *BrandScanWorkerDeps, job *Brand
 
 	// Build the platform provider. Brand scans always run on the platform key
 	// (the request carries no provider config), so credit deduction below is
-	// unconditionally platform-metered.
-	platform := activePlatform(deps.Platform, deps.PlatformResolver)
+	// unconditionally platform-metered. Brand scan is not translation, so it uses
+	// the platform default model (no per-workspace model scope).
+	platform := activePlatform(ctx, "", deps.Platform, deps.PlatformResolver)
 	if platform == nil {
 		return errors.New("platform provider not configured " +
 			"(set BOWRAIN_PLATFORM_PROVIDER + key for self-hosted/local, " +

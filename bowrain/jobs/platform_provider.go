@@ -40,20 +40,23 @@ type PlatformProviderConfig struct {
 	BaseURL  string // optional base URL override (self-hosted endpoint / proxy)
 }
 
-// PlatformResolver returns the current platform provider configuration. When a
-// worker deps carries one, it is consulted at job time (rather than reading a
-// value fixed at startup), so a runtime config change — e.g. an admin switching
-// the platform AI provider or default model in ctrl — takes effect on the next
-// job without restarting the worker. A nil return falls back to the static
-// Platform config on the deps.
-type PlatformResolver func() *PlatformProviderConfig
+// PlatformResolver returns the current platform provider configuration for a
+// given workspace. When a worker deps carries one, it is consulted at job time
+// (rather than reading a value fixed at startup), so a runtime config change —
+// e.g. an admin switching the platform AI provider or default model in ctrl —
+// takes effect on the next job without restarting the worker. The workspaceID
+// lets the resolver apply a per-workspace model choice when the platform admin
+// has enabled it (an empty workspaceID, or a workspace with no preference, yields
+// the platform default). A nil return falls back to the static Platform config on
+// the deps.
+type PlatformResolver func(ctx context.Context, workspaceID string) *PlatformProviderConfig
 
-// activePlatform picks the resolver's current value when a resolver is present
-// and returns non-nil; otherwise it returns the static config. Either result may
-// be nil, meaning no platform provider is configured.
-func activePlatform(static *PlatformProviderConfig, resolver PlatformResolver) *PlatformProviderConfig {
+// activePlatform picks the resolver's current value for the given workspace when
+// a resolver is present and returns non-nil; otherwise it returns the static
+// config. Either result may be nil, meaning no platform provider is configured.
+func activePlatform(ctx context.Context, workspaceID string, static *PlatformProviderConfig, resolver PlatformResolver) *PlatformProviderConfig {
 	if resolver != nil {
-		if c := resolver(); c != nil {
+		if c := resolver(ctx, workspaceID); c != nil {
 			return c
 		}
 	}

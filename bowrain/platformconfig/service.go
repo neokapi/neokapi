@@ -179,6 +179,19 @@ func (s *Service) IsModelEnabled(id string) bool {
 	return slices.Contains(s.AIEnabledModels(), id)
 }
 
+// ResolveWorkspaceModel returns the model a workspace should use for platform AI,
+// applying its stored preference only when the admin has enabled customer model
+// choice and the preference is a currently-enabled model; otherwise it returns
+// the platform default. This is the single source of truth for the per-workspace
+// model policy, shared by the synchronous editor path (server) and the async
+// translation worker so interactive and batch translation resolve identically.
+func (s *Service) ResolveWorkspaceModel(preferred string) string {
+	if preferred != "" && s.AICustomerChoice() && s.IsModelEnabled(preferred) {
+		return preferred
+	}
+	return s.AIDefaultModel()
+}
+
 func (s *Service) SignupsOpen() bool { return s.getBool(KeySignupsOpen, s.defaults.SignupsOpen) }
 
 func (s *Service) Maintenance() Maintenance {

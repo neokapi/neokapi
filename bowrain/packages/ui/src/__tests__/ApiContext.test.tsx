@@ -11,6 +11,7 @@ function ApiDisplay() {
 function createMockAdapter(): ApiAdapter {
   return {
     getConfig: vi.fn(),
+    getPublicPlatformConfig: vi.fn(),
     getCurrentUser: vi.fn(),
     listWorkspaces: vi.fn(),
     createWorkspace: vi.fn(),

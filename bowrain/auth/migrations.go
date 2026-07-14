@@ -35,6 +35,7 @@ var authMigrationsPg = []storage.Migration{
 				dashboard_visibility TEXT NOT NULL DEFAULT 'private',
 				pulse_term_sources   TEXT NOT NULL DEFAULT '{"terminology":true,"brand_vocabulary":false}',
 				pulse_access_key     TEXT NOT NULL DEFAULT '',
+				preferred_model      TEXT NOT NULL DEFAULT '',
 				created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
@@ -247,6 +248,14 @@ var authMigrationsPg = []storage.Migration{
 				mode         TEXT NOT NULL DEFAULT 'warn',
 				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
+		`,
+	},
+	{
+		Version:     4,
+		Description: "per-workspace preferred AI model (customer model choice)",
+		SQL: `
+			ALTER TABLE workspaces
+				ADD COLUMN IF NOT EXISTS preferred_model TEXT NOT NULL DEFAULT '';
 		`,
 	},
 }

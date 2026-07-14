@@ -191,6 +191,7 @@ export { ApiTokenManager } from "./components/ApiTokenManager";
 export { RoleTemplateManager } from "./components/RoleTemplateManager";
 export { ProjectMemberManager } from "./components/ProjectMemberManager";
 export { WorkspaceLanguageSettings } from "./components/WorkspaceLanguageSettings";
+export { WorkspaceModelSettings } from "./components/WorkspaceModelSettings";
 export { AutomationsPage } from "./components/AutomationsPage";
 export { AutomationRuleEditor } from "./components/AutomationRuleEditor";
 export { AutomationRunsPage } from "./components/AutomationRunsPage";
@@ -378,6 +379,9 @@ export type {
   SkippedFile,
   UploadFilesResult,
   ConfigResponse,
+  PublicPlatformConfig,
+  PlatformModel,
+  PlatformMaintenance,
   WebVersionInfo,
   SpanInfo,
   BlockInfo,

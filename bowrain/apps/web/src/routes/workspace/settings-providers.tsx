@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
   SettingsSkeleton,
+  WorkspaceModelSettings,
   type ProviderConfig,
   type ProviderConfigWithKey,
 } from "@neokapi/ui";
@@ -167,6 +168,7 @@ export function SettingsProvidersRoute() {
 
   return (
     <div className="mx-auto w-full max-w-3xl py-4 space-y-4">
+      <WorkspaceModelSettings workspace={activeWorkspace} />
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>

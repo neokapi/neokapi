@@ -15,6 +15,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/neokapi/neokapi/bowrain/agent"
+	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/cmd/internal/boot"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -370,8 +371,29 @@ func runWorker(dbURL string) error {
 		if err := pcSvc.Refresh(ctx); err != nil {
 			slog.Warn("platform_config: initial worker load failed (serving env defaults)", "error", err)
 		}
-		platformResolver = func() *jobs.PlatformProviderConfig {
-			return platformConfigFromService(pcSvc, azureClientID, openaiEndpoint)
+		// An auth-store handle lets the resolver apply a workspace's chosen
+		// platform model (customer model choice) at job time, so batch/auto
+		// translation resolves the same model as the interactive editor. Opening
+		// it is non-fatal: on failure the resolver just serves the platform
+		// default. The auth schema migration is idempotent + advisory-locked, so
+		// the worker constructing the store alongside the server is safe.
+		var wsGetter *auth.PostgresAuthStore
+		if as, err := auth.NewAuthStoreFromDB(pgdb); err != nil {
+			slog.Warn("auth store unavailable; worker cannot apply per-workspace model choice", "error", err)
+		} else {
+			wsGetter = as
+		}
+		platformResolver = func(ctx context.Context, wsID string) *jobs.PlatformProviderConfig {
+			cfg := platformConfigFromService(pcSvc, azureClientID, openaiEndpoint)
+			// Skip the workspace lookup unless model choice is on and we have a
+			// workspace to look up — the common path stays a pure in-memory read.
+			if cfg == nil || wsID == "" || wsGetter == nil || !pcSvc.AICustomerChoice() {
+				return cfg
+			}
+			if w, err := wsGetter.GetWorkspace(ctx, wsID); err == nil && w != nil {
+				cfg.Model = pcSvc.ResolveWorkspaceModel(w.PreferredModel)
+			}
+			return cfg
 		}
 		translationDeps.PlatformResolver = platformResolver
 
