@@ -27,11 +27,13 @@ Every command accepts the persistent output flags:
 
 Precedence: `--jq` > `--json` > `--text` > `--output-format`.
 
-### Color and theme
+### Color
 
 Color is off whenever stdout is not a terminal, so piping or redirecting always yields plain text — no ANSI stripping required. `NO_COLOR` disables color and `CLICOLOR_FORCE` forces it, both overridden by an explicit `--color`.
 
-kapi renders for a dark terminal by default. Set `KAPI_THEME=light` (or `dark`) to pick explicitly; `COLORFGBG`, which many terminals export, is honored when `KAPI_THEME` is unset. kapi never queries the terminal for its background color, so it does not read from stdin or emit probe sequences into a captured session.
+There is no light/dark setting, because kapi does not have a light and a dark theme. It has one palette, chosen so that every color clears the WCAG contrast bar for UI text on any terminal background — white, black, Solarized, One Dark, Dracula alike. Nothing to configure and nothing to get wrong.
+
+That also means kapi never queries the terminal for its background color. Terminals answer such a query on **stdin**, which kapi's own commands read (`kcat -`), and a terminal that does not answer leaves the raw escape sequence in the output — corrupting piped output, CI logs, and recorded sessions.
 
 ## Result documents
 

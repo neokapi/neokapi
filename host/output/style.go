@@ -3,8 +3,6 @@ package output
 import (
 	"io"
 	"os"
-	"strconv"
-	"strings"
 	"sync/atomic"
 
 	"github.com/charmbracelet/lipgloss"
@@ -44,66 +42,64 @@ func SetColorMode(m ColorMode) { colorMode.Store(int32(m)) }
 func Renderer(w io.Writer) *lipgloss.Renderer {
 	r := lipgloss.NewRenderer(w)
 
-	// Pin the background explicitly. Left to itself, lipgloss resolves
-	// AdaptiveColor by writing an OSC-11 query to the terminal and reading the
-	// reply from stdin. That is unsafe for us on three counts: kapi commands
-	// read stdin themselves (kcat -), a terminal that never answers leaves the
-	// raw query bytes in the output stream, and those bytes would be baked into
-	// the harness screencasts we publish as documentation. SetHasDarkBackground
-	// sets lipgloss's explicitBackgroundColor flag, which skips the probe.
-	r.SetHasDarkBackground(hasDarkBackground())
+	// Never let lipgloss resolve a background. Its AdaptiveColor path writes an
+	// OSC-11 query to the terminal and reads the reply from stdin — which
+	// collides with commands that read stdin (kcat -), leaves raw escape bytes
+	// in the stream when nothing answers (CI, pipes, the screencasts we publish
+	// as documentation), and costs a timeout at startup. The palette below is
+	// background-independent, so there is nothing to detect: declaring the
+	// background sets lipgloss's explicitBackgroundColor flag and the probe
+	// never runs.
+	r.SetHasDarkBackground(true)
 
 	switch ColorMode(colorMode.Load()) {
 	case ColorNever:
 		r.SetColorProfile(termenv.Ascii)
 	case ColorAlways:
+		// TrueColor, not ANSI256. Forcing color means writing somewhere termenv
+		// cannot probe — a file, a pipe into `less -R`, a recorder — and the
+		// palette below only carries its contrast guarantee when the exact hex
+		// survives. A lower profile would quantize it onto whatever the reader's
+		// 16- or 256-color palette happens to hold.
 		if r.ColorProfile() == termenv.Ascii {
-			r.SetColorProfile(termenv.ANSI256)
+			r.SetColorProfile(termenv.TrueColor)
 		}
 	}
 	return r
 }
 
-// hasDarkBackground reports whether to render for a dark terminal.
+// The palette. One set of colors, legible on any terminal background.
 //
-// KAPI_THEME wins (the video harness records light and dark variants of every
-// demo and needs to force each). Otherwise COLORFGBG, which terminals set as
-// "<fg>;<bg>" with an ANSI index for the background: 0-6 and 8 are the dark
-// half of the palette. Absent both, assume dark — the common default, and the
-// safer guess, since our light-background colors are the low-lightness ones and
-// would be near-invisible if we guessed light and were wrong.
-func hasDarkBackground() bool {
-	switch strings.ToLower(os.Getenv("KAPI_THEME")) {
-	case "light":
-		return false
-	case "dark":
-		return true
-	}
-	if fgbg := os.Getenv("COLORFGBG"); fgbg != "" {
-		if _, bg, ok := strings.Cut(fgbg, ";"); ok {
-			// Some terminals report a trailing "default"; only trust an index.
-			if n, err := strconv.Atoi(strings.TrimSpace(bg)); err == nil {
-				return n <= 6 || n == 8
-			}
-		}
-	}
-	return true
-}
-
-// Brand palette, converted from the design tokens in
-// packages/ui/src/styles/theme-colors.css so the CLI, the desktop app, and the
-// web app read as one product.
+// There is no light/dark variant and nothing to detect, which is the point.
+// Every way of learning the terminal's background is either unavailable or
+// harmful: COLORFGBG is unset by most modern terminals (iTerm2, Terminal.app,
+// Alacritty, kitty, Ghostty, WezTerm, VS Code), the OS appearance setting is not
+// the terminal's theme, and the OSC-11 query reads from stdin (see Renderer).
+// Guessing is worse than not asking: a palette tuned for dark is close to
+// invisible when the guess is wrong.
 //
-// The Light/Dark pairs are foreground colors chosen for contrast *against* that
-// background, so they are not a direct copy of the CSS values: --accent is a
-// fill color there, and the light-theme fill (#FFD061) is unreadable as text on
-// white. Amber therefore darkens on light terminals and brightens on dark ones.
+// So the colors are chosen not to care. Contrast against a background rises for
+// one end of the lightness range and falls for the other, and the two curves
+// cross: a foreground at that crossing has the best possible worst case. Solved
+// against the real backgrounds people use — pure white through Solarized Light,
+// pure black through One Dark (whose #282C34 is *elevated*, and is the binding
+// constraint, not black) — the crossing sits at relative luminance ~0.22.
+//
+// Every color below is pinned to that luminance and pushed to maximum chroma at
+// the brand's hue angles, so the amber accent still reads as the amber in
+// packages/ui/src/styles/theme-colors.css. Worst case across every hue and every
+// mainstream theme is 3.6:1, clearing the WCAG bar for UI text on all of them.
+// TestPaletteIsLegibleOnAnyBackground holds the line.
+//
+// Muted is the same luminance with zero chroma. It recedes because it is
+// achromatic next to a saturated accent, not because it is dimmer — so it stays
+// as readable as everything else instead of degrading into gray mush.
 var (
-	colorAccent  = lipgloss.AdaptiveColor{Light: "#8A6A12", Dark: "#FFD061"}
-	colorMuted   = lipgloss.AdaptiveColor{Light: "#6E6E68", Dark: "#8D8D85"}
-	colorSuccess = lipgloss.AdaptiveColor{Light: "#2E7D46", Dark: "#5DD08A"}
-	colorWarn    = lipgloss.AdaptiveColor{Light: "#8A5A00", Dark: "#E2A93B"}
-	colorError   = lipgloss.AdaptiveColor{Light: "#C0322F", Dark: "#DF4343"}
+	colorAccent  = lipgloss.Color("#A37B00") // amber — the brand hue
+	colorSuccess = lipgloss.Color("#039544")
+	colorWarn    = lipgloss.Color("#C86703")
+	colorError   = lipgloss.Color("#FF142F")
+	colorMuted   = lipgloss.Color("#818181")
 )
 
 // Styles is the semantic style set for text output, bound to one writer.
