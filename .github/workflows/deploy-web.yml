@@ -89,14 +89,15 @@ jobs:
           aws-region: ${{ vars.AWS_REGION }}
 
       # Task definitions are Terraform-owned and pin :latest — the forced
-      # deployment makes ECS re-pull the :latest image pushed above. All three
-      # SPAs (web, ctrl, pulse) run as containers of the single spa service.
+      # deployment makes ECS re-pull the :latest image pushed above. web is its
+      # own single-container ECS service (bowrain-<env>-web); ctrl and pulse have
+      # their own services/workflows.
       # Rollback = re-run this workflow from an older commit (a retag
       # workflow_dispatch input can make that a one-click revert later).
-      - name: Force new deployment of the SPA service
+      - name: Force new deployment of the web service
         env:
           CLUSTER: ${{ vars.ECS_CLUSTER }}
-          SERVICE: bowrain-${{ inputs.environment || 'prod' }}-spa
+          SERVICE: bowrain-${{ inputs.environment || 'prod' }}-web
         run: |
           aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" \
             --force-new-deployment > /dev/null

@@ -93,15 +93,23 @@ jobs:
           aws-region: ${{ vars.AWS_REGION }}
 
       # Task definitions are Terraform-owned and pin :latest — the forced
-      # deployment makes ECS re-pull the :latest image pushed above. All three
-      # SPAs (web, ctrl, pulse) run as containers of the single spa service.
-      # Rollback = re-run this workflow from an older commit (a retag
-      # workflow_dispatch input can make that a one-click revert later).
-      - name: Force new deployment of the SPA service
+      # deployment makes ECS re-pull the :latest image pushed above. pulse does
+      # not yet have its own ECS service in the prod cluster, so the rollout is
+      # skipped gracefully (build + publish still run) until infra defines
+      # bowrain-<env>-pulse; the step then activates automatically. This keeps
+      # main green when AWS_DEPLOY_ROLE_ARN is set for the services that do exist.
+      # Rollback = re-run this workflow from an older commit.
+      - name: Force new deployment of the pulse service (if it exists)
         env:
           CLUSTER: ${{ vars.ECS_CLUSTER }}
-          SERVICE: bowrain-${{ inputs.environment || 'prod' }}-spa
+          SERVICE: bowrain-${{ inputs.environment || 'prod' }}-pulse
         run: |
+          status=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
+            --query 'services[0].status' --output text 2>/dev/null || echo "MISSING")
+          if [ "$status" != "ACTIVE" ]; then
+            echo "::notice::Service $SERVICE not found (status=$status); skipping rollout until infra defines it."
+            exit 0
+          fi
           aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" \
             --force-new-deployment > /dev/null
           aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
