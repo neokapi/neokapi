@@ -287,14 +287,13 @@ export default function BatchEval(): ReactElement {
         </p>
 
         <p>
-          One line matters more than the others: <code>eu.anthropic.claude-sonnet-4-6</code> on{" "}
-          <strong>AWS Bedrock</strong> is the route the Bowrain platform actually runs on, so it is
-          the only one whose numbers describe production rather than an alternative. It is also the
-          one that shows what a <em>real</em> constraint looks like: N=1 could not be measured at
-          all, because thirty calls per repeat — even issued one at a time — trip the
-          account&rsquo;s Bedrock rate limit. On Bedrock the scarce resource is requests, not
-          tokens, and a batch of sixteen makes one sixteenth of them. That is an argument for
-          batching with nothing to do with quality.
+          One line is worth reading first: <code>eu.anthropic.claude-sonnet-4-6</code> on{" "}
+          <strong>AWS Bedrock</strong>, which shows what a genuinely binding constraint looks like.
+          N=1 could not be measured there at all: thirty calls per repeat — even issued one at a
+          time — trip the account&rsquo;s Bedrock rate limit and come back throttled. On Bedrock the
+          scarce resource is <em>requests</em>, not tokens, and a batch of sixteen makes one
+          sixteenth of them. That is an argument for batching with nothing to do with quality, and
+          unlike the cost story below, it actually binds.
         </p>
 
         <h2>What is scored, and why it is not &ldquo;quality&rdquo;</h2>
@@ -439,13 +438,12 @@ export default function BatchEval(): ReactElement {
               integrity. That is the trade it actually offers.
             </p>
             <p style={{ fontSize: "0.85rem", color: "var(--ifm-color-emphasis-700)" }}>
-              Three honest caveats about these numbers. <strong>Bedrock shows no cost</strong>, and
-              it is the one route that most needs one: it is what the Bowrain platform actually runs
-              on in production. AWS prices Bedrock independently of Anthropic&rsquo;s own API — and
-              prices the cross-region inference profiles the platform uses separately again — so its
-              rate cannot be borrowed from the Anthropic column. It is not published here because we
-              could not establish it: the AWS Pricing API does not yet list the Claude 4.6 models
-              for eu-north-1. A blank is the honest answer until a rate is confirmed.{" "}
+              Three honest caveats about these numbers. <strong>Bedrock shows no cost.</strong> AWS
+              prices Bedrock independently of Anthropic&rsquo;s own API — and prices the
+              cross-region inference profiles separately again — so its rate cannot be borrowed from
+              the Anthropic column. It is not published here because we could not establish it: the
+              AWS Pricing API does not yet list the Claude 4.6 models for eu-north-1. A blank is the
+              honest answer until a rate is confirmed.{" "}
               <strong>The Anthropic models show no cost</strong> either, because this sweep reached
               them through the claude-code subscription, which is not billed per token — and whose
               token counts do not describe an API call either: the CLI wraps every request in its
