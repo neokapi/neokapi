@@ -62,6 +62,14 @@ SHA-256 and cosign signature, and replaces the binary in place.
 				return nil
 			}
 
+			// A build from a working tree matches no published release, so there
+			// is nothing to compare it against and nothing to replace it with.
+			if version.IsDevBuild() {
+				fmt.Fprintf(out, "kapi %s is a local build, not a released version; self-update is disabled.\n", version.Version)
+				fmt.Fprintln(out, "Install a release to get updates: https://github.com/neokapi/neokapi/releases/latest")
+				return nil
+			}
+
 			rel, err := selfupdate.FetchLatest(ctx, channel)
 			if err != nil {
 				return fmt.Errorf("check for updates: %w", err)

@@ -26,12 +26,103 @@ var (
 // "1.2.0-rc.1", "1.2.0-beta.2"). A clean release ("1.2.0") and a source build
 // ("dev") are not prereleases. Used to brand beta builds and to bootstrap the
 // default update channel.
+//
+// A working-tree build is judged by the tag it was built from, so a build off
+// v1.2.0-rc9 stays on the beta track.
 func IsPrerelease() bool {
-	v := strings.TrimPrefix(Version, "v")
+	tag, _ := releaseTag(Version)
+	if !isSemver(tag) {
+		return false
+	}
+	v := strings.TrimPrefix(tag, "v")
 	if i := strings.IndexByte(v, '+'); i >= 0 { // drop build metadata
 		v = v[:i]
 	}
 	return strings.IndexByte(v, '-') >= 0
+}
+
+// IsDevBuild reports whether this binary was built from a working tree rather
+// than from a released tag: an unstamped build ("dev", "unknown", ""), a
+// `git describe` string that is ahead of its tag or dirty
+// ("v1.2.0-rc9-238-gb1a3033dc-dirty"), or anything that isn't a semver version
+// at all. Such a build corresponds to no published release, so the CLI must
+// never compare it against one or offer to update it.
+func IsDevBuild() bool {
+	tag, dev := releaseTag(Version)
+	return dev || !isSemver(tag)
+}
+
+// releaseTag strips the decorations `git describe --tags --always --dirty`
+// appends to the tag it found — a "-dirty" marker and/or a
+// "-<commits-ahead>-g<abbrev-sha>" suffix — and reports whether any were
+// present (i.e. this build is ahead of, or dirty relative to, that tag).
+func releaseTag(v string) (tag string, dev bool) {
+	tag = strings.TrimSpace(v)
+	switch tag {
+	case "", "dev", "unknown":
+		return tag, true
+	}
+	if s, ok := strings.CutSuffix(tag, "-dirty"); ok {
+		tag, dev = s, true
+	}
+	// "-<commits-ahead>-g<abbrev-sha>": the two trailing fields git describe
+	// adds once HEAD has moved past the tag.
+	if i := strings.LastIndex(tag, "-g"); i > 0 {
+		if j := strings.LastIndex(tag[:i], "-"); j >= 0 {
+			if isDigits(tag[j+1:i]) && isHex(tag[i+2:]) {
+				tag, dev = tag[:j], true
+			}
+		}
+	}
+	return tag, dev
+}
+
+// isSemver reports whether v has a "MAJOR.MINOR.PATCH" core (with an optional
+// "v" prefix, prerelease, and build metadata). It deliberately rejects the
+// package tags that share this repo's tag namespace — "contract-types-v0.1.0",
+// "sat-v1.0.2", "vision-models-v1" — which git describe will otherwise happily
+// report as the nearest tag to HEAD.
+func isSemver(v string) bool {
+	core := strings.TrimPrefix(v, "v")
+	if i := strings.IndexAny(core, "-+"); i >= 0 {
+		core = core[:i]
+	}
+	parts := strings.Split(core, ".")
+	if len(parts) != 3 {
+		return false
+	}
+	for _, p := range parts {
+		if !isDigits(p) {
+			return false
+		}
+	}
+	return true
+}
+
+func isDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func isHex(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		switch {
+		case r >= '0' && r <= '9', r >= 'a' && r <= 'f', r >= 'A' && r <= 'F':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // WindowTitle returns a desktop window title suffixed with " (Beta)" for

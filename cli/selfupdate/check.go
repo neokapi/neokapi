@@ -64,13 +64,17 @@ func FetchLatest(ctx context.Context, channel string) (*Release, error) {
 }
 
 // IsNewer reports whether latest is a strictly newer release than the running
-// binary. Dev / source builds (version "dev", "", "unknown") are never told to
-// update — there is no meaningful "latest" to compare them against.
+// binary. Dev / source builds are never told to update — there is no meaningful
+// "latest" to compare them against, and their version isn't semver at all (an
+// unstamped "dev", or a git-describe string like
+// "v1.2.0-rc9-238-gb1a3033dc-dirty"). Comparing one would be worse than
+// useless: an unparseable version sorts below every release, so every release
+// looks like an upgrade.
 func IsNewer(latest string) bool {
-	cur := strings.TrimSpace(version.Version)
-	if cur == "" || cur == "dev" || cur == "unknown" {
+	if version.IsDevBuild() {
 		return false
 	}
+	cur := strings.TrimSpace(version.Version)
 	return registry.CompareSemver(strings.TrimPrefix(latest, "v"), strings.TrimPrefix(cur, "v")) > 0
 }
 
@@ -92,6 +96,11 @@ type cacheState struct {
 // like telemetry; it never sends anything identifying beyond the HTTP request.
 func NotifyDisabled() bool {
 	if isTruthy(os.Getenv("KAPI_NO_UPDATE_CHECK")) || isTruthy(os.Getenv("DO_NOT_TRACK")) {
+		return true
+	}
+	// A source build is behind no release, so it neither nags nor spends a
+	// request finding out.
+	if version.IsDevBuild() {
 		return true
 	}
 	// Continuous-integration / automation: never nag.

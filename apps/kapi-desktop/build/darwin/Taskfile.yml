@@ -16,7 +16,7 @@ vars:
   # native macOS About dialog shows the real release version (matching the Go
   # ldflags) instead of the static placeholder in build/darwin/Info.plist.
   GIT_VERSION:
-    sh: git describe --tags --always --dirty 2>/dev/null || echo "0.0.0-dev"
+    sh: git describe --tags --match 'v[0-9]*' --always --dirty 2>/dev/null || echo "0.0.0-dev"
   COPYRIGHT_YEAR:
     sh: date +%Y
 

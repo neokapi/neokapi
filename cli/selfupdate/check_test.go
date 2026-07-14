@@ -33,12 +33,33 @@ func TestIsNewer(t *testing.T) {
 		t.Error("IsNewer(0.9.0) over 1.0.0 = true, want false")
 	}
 
-	// Dev / source builds are never told to update.
-	for _, dev := range []string{"dev", "", "unknown"} {
+	// Dev / source builds are never told to update. A git-describe version is
+	// the case that bit us: it isn't semver, so it sorted below every release
+	// and the CLI nagged a locally built binary to "update" to a release older
+	// than the code it was running.
+	for _, dev := range []string{
+		"dev", "", "unknown",
+		"v1.2.0-rc9-238-gb1a3033dc-dirty",
+		"contract-types-v0.1.0-82-gb1a3033dc-dirty",
+	} {
 		version.Version = dev
 		if IsNewer("99.0.0") {
 			t.Errorf("IsNewer(99.0.0) for dev build %q = true, want false", dev)
 		}
+	}
+}
+
+// A source build must not even ask: no notice, and no request to the index.
+func TestNotifyDisabled_DevBuild(t *testing.T) {
+	orig := version.Version
+	t.Cleanup(func() { version.Version = orig })
+
+	for _, k := range []string{"KAPI_NO_UPDATE_CHECK", "DO_NOT_TRACK", "CI", "GITHUB_ACTIONS", "BUILD_NUMBER", "RUN_ID"} {
+		t.Setenv(k, "")
+	}
+	version.Version = "v1.2.0-rc9-238-gb1a3033dc-dirty"
+	if !NotifyDisabled() {
+		t.Errorf("NotifyDisabled() = false for a git-describe source build, want true")
 	}
 }
 

@@ -16,7 +16,10 @@
 # ── Shared Variables (exported to sub-makes) ──────────────────────────────────
 
 export ROOT_DIR    := $(shell pwd)
-export VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+# --match 'v[0-9]*': release tags share the tag namespace with per-package tags
+# (contract-types-v0.1.0, sat-v1.0.2, vision-models-v1). Unfiltered, git describe
+# reports whichever of those is nearest to HEAD as the CLI's own version.
+export VERSION     ?= $(shell git describe --tags --match 'v[0-9]*' --always --dirty 2>/dev/null || echo "dev")
 export COMMIT      := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 export BUILD_DATE  := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 export VERSION_PKG := github.com/neokapi/neokapi/core/version

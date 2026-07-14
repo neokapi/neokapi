@@ -55,7 +55,7 @@ jobs:
           GH_SHA: ${{ github.sha }}
         run: |
           {
-            echo "version=$(git describe --tags --always 2>/dev/null || echo dev)"
+            echo "version=$(git describe --tags --match 'v[0-9]*' --always 2>/dev/null || echo dev)"
             echo "commit=${GH_SHA::7}"
             echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } >> "$GITHUB_OUTPUT"

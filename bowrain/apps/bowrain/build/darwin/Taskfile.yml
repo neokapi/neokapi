@@ -16,7 +16,7 @@ vars:
   # Version info injected at build time (mirrors Makefile LDFLAGS)
   VERSION_PKG: github.com/neokapi/neokapi/core/version
   GIT_VERSION:
-    sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
+    sh: git describe --tags --match 'v[0-9]*' --always --dirty 2>/dev/null || echo "dev"
   GIT_COMMIT:
     sh: git rev-parse --short HEAD 2>/dev/null || echo "unknown"
   GIT_BUILD_DATE:
