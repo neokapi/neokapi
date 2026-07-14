@@ -502,7 +502,7 @@ func resolveProvider(ctx context.Context, deps *WorkerDeps, job *TranslationJob)
 				"(set BOWRAIN_PLATFORM_PROVIDER + key for self-hosted/local, " +
 				"or BOWRAIN_OPENAI_ENDPOINT for Azure OpenAI)")
 		}
-		prov, ptype, err := deps.Platform.build(job.Model)
+		prov, ptype, err := deps.Platform.Build(job.Model)
 		if err != nil {
 			return nil, err
 		}

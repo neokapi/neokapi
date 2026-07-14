@@ -559,7 +559,7 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 
 	wsID, _ := c.Get("workspace_id").(string)
 	stats, err := editorAITranslate(c.Request().Context(), s.ContentStore, s.ProviderStore, s.QuotaStore,
-		pid, streamParam(c), fname, req, s.BillingHooks, wsID, c.Param("ws"))
+		pid, streamParam(c), fname, req, s.BillingHooks, wsID, c.Param("ws"), s.platformProviderConfig())
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}

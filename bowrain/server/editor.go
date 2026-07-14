@@ -741,6 +741,7 @@ func editorAITranslate(
 	req TranslateRequest,
 	billingHooks *billing.UsageHooks,
 	workspaceID, workspaceSlug string,
+	platform jobs.PlatformProviderConfig,
 ) (*TranslationStatsResponse, error) {
 	proj, err := cs.GetProject(ctx, projectID)
 	if err != nil {
@@ -784,7 +785,22 @@ func editorAITranslate(
 		if err != nil {
 			return nil, fmt.Errorf("build provider %q: %w", cfg.Type, err)
 		}
+	} else if req.APIKey != "" {
+		// Inline bring-your-own key.
+		prov = editorCreateProvider(req.Provider, req.APIKey, req.Model)
+	} else if platform.Provider != "" {
+		// Platform path: the server chooses the AI backend (the hosted cloud's
+		// Bedrock provider via the task role, no API key), ignoring any
+		// client-named provider/model — the platform default wins, exactly as it
+		// does for async jobs. Usage is metered in credits below.
+		prov, _, err = platform.Build(req.Model)
+		if err != nil {
+			return nil, fmt.Errorf("build platform provider: %w", err)
+		}
 	} else {
+		// No platform provider configured (self-hosted with no platform key):
+		// fall back to the client-named provider, which may be a keyless local
+		// backend (Ollama) or carry no key at all (demo/mock).
 		prov = editorCreateProvider(req.Provider, req.APIKey, req.Model)
 	}
 
@@ -1470,6 +1486,18 @@ func editorCreateProvider(provType, apiKey, modelName string) aiprovider.LLMProv
 		ProviderType: provType,
 		Model:        modelName,
 	}, apiKey)
+}
+
+// platformProviderConfig returns the server's configured platform AI backend for
+// the synchronous editor platform path, mirroring the worker's BOWRAIN_PLATFORM_*
+// selection so interactive and async translation resolve the same upstream. The
+// zero value (Provider == "") means no platform provider is configured.
+func (s *Server) platformProviderConfig() jobs.PlatformProviderConfig {
+	return jobs.PlatformProviderConfig{
+		Provider: s.Config.PlatformProvider,
+		Model:    s.Config.PlatformModel,
+		BaseURL:  s.Config.PlatformBaseURL,
+	}
 }
 
 // editorEntryToInfo projects a multilingual TMEntry onto a bilingual
