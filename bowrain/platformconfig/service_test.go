@@ -70,6 +70,24 @@ func TestDBValuesOverrideDefaults(t *testing.T) {
 	assert.Equal(t, map[string]bool{"bravo": true}, svc.GlobalFeatures())
 }
 
+func TestResolveWorkspaceModel(t *testing.T) {
+	const def = "eu.anthropic.claude-sonnet-4-6"
+	const alt = "eu.anthropic.claude-opus-4-6-v1"
+
+	// Customer choice on, both models enabled.
+	on := withCache(t, map[string]any{
+		KeyAICustomerChoice: true,
+		KeyAIEnabledModels:  []string{def, alt},
+	})
+	assert.Equal(t, alt, on.ResolveWorkspaceModel(alt), "enabled preference wins")
+	assert.Equal(t, def, on.ResolveWorkspaceModel(""), "no preference → platform default")
+	assert.Equal(t, def, on.ResolveWorkspaceModel("not.enabled"), "disallowed preference → platform default")
+
+	// Customer choice off: the preference is ignored even if it names a model.
+	off := withCache(t, map[string]any{KeyAIEnabledModels: []string{def, alt}})
+	assert.Equal(t, def, off.ResolveWorkspaceModel(alt), "choice off → platform default")
+}
+
 func TestInvalidOrZeroValuesFallBack(t *testing.T) {
 	svc := withCache(t, map[string]any{
 		KeyAIProvider: "", // empty string → default

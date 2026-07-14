@@ -83,6 +83,7 @@ type Workspace struct {
 	PulseAccessKey      string              `json:"pulse_access_key,omitempty"` // opaque key for unlisted dashboard access
 	PulseTermSources    PulseTermSources    `json:"pulse_term_sources"`
 	BrandVoiceProfileID string              `json:"brand_voice_profile_id,omitempty"` // default brand voice profile for workspace
+	PreferredModel      string              `json:"preferred_model,omitempty"`        // per-workspace platform AI model (customer model choice; empty = platform default)
 	Role                Role                `json:"role,omitempty"`                   // current user's role (populated by list/get with user context)
 	CreatedAt           time.Time           `json:"created_at"`
 	UpdatedAt           time.Time           `json:"updated_at"`

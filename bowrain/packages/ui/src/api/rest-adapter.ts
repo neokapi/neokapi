@@ -7,6 +7,7 @@ import type {
   ProjectInfo,
   UploadFilesResult,
   ConfigResponse,
+  PublicPlatformConfig,
   BlockInfo,
   UpdateBlockRequest,
   UpdateBlockTargetCodedRequest,
@@ -369,6 +370,10 @@ export class RestApiAdapter implements ApiAdapter {
 
   async getConfig(): Promise<ConfigResponse> {
     return this.fetchJSON("/api/v1/info");
+  }
+
+  async getPublicPlatformConfig(): Promise<PublicPlatformConfig> {
+    return this.fetchJSON("/api/v1/config");
   }
 
   // ── Auth ─────────────────────────────────────────────────────────────────

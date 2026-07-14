@@ -99,7 +99,7 @@ var providerRateLimits = map[string]rate.Limit{
 // RunWorkerWithDeps runs the translation worker loop with full dependency injection.
 func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 	slog.InfoContext(ctx, "translation worker started")
-	if p := activePlatform(deps.Platform, deps.PlatformResolver); p != nil {
+	if p := activePlatform(ctx, "", deps.Platform, deps.PlatformResolver); p != nil {
 		if p.Provider != "" {
 			slog.InfoContext(ctx, "platform AI provider enabled", "provider", p.Provider, "model", p.Model)
 		} else if p.Endpoint != "" {
@@ -506,7 +506,7 @@ func startLeaseHeartbeat(ctx context.Context, store leaseRenewer, jobID string, 
 // CredStore for saved provider keys.
 func resolveProvider(ctx context.Context, deps *WorkerDeps, job *TranslationJob) (*ResolvedProvider, error) {
 	if job.IsPlatformProvider() {
-		platform := activePlatform(deps.Platform, deps.PlatformResolver)
+		platform := activePlatform(ctx, job.WorkspaceID, deps.Platform, deps.PlatformResolver)
 		if platform == nil {
 			return nil, errors.New("platform provider not configured " +
 				"(set BOWRAIN_PLATFORM_PROVIDER + key for self-hosted/local, " +

@@ -64,6 +64,12 @@ export interface Workspace {
   languages?: string[];
   dashboard_visibility?: DashboardVisibility;
   pulse_access_key?: string;
+  /**
+   * Per-workspace platform AI model. Empty/absent means the platform default is
+   * used. Honored only when the platform admin has enabled customer model choice
+   * and the model is in the enabled set (see PublicPlatformConfig).
+   */
+  preferred_model?: string;
   role: string; // current user's role in the workspace
   /**
    * Resolved feature entitlements for the current caller, keyed by feature id
@@ -408,6 +414,37 @@ export interface ConfigResponse {
    * queue); without it the hosted-scan entry points are hidden.
    */
   features?: { brand_scan?: boolean };
+}
+
+/** A platform AI model the admin has onboarded (public-safe subset). */
+export interface PlatformModel {
+  id: string;
+  name: string;
+  tier?: string;
+  requires_marketplace?: boolean;
+}
+
+/** Any active maintenance banner. */
+export interface PlatformMaintenance {
+  enabled: boolean;
+  message?: string;
+}
+
+/**
+ * Public, unauthenticated platform configuration (GET /api/v1/config). The web
+ * app reads this on bootstrap for the signup gate, maintenance banner, and — when
+ * `ai_customer_choice` is enabled — the enabled model set for the per-workspace
+ * model picker.
+ */
+export interface PublicPlatformConfig {
+  signups_open: boolean;
+  maintenance: PlatformMaintenance;
+  /** Whether workspaces may pick their own model from the enabled set. */
+  ai_customer_choice: boolean;
+  /** Enabled models, present only when ai_customer_choice is true. */
+  ai_enabled_models?: PlatformModel[];
+  /** The platform default model id (shown as the "Platform default" choice). */
+  ai_default_model?: string;
 }
 
 /** Static version.json served alongside the web SPA */

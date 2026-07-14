@@ -24,6 +24,11 @@ type WorkspaceRequest struct {
 	LogoURL             string                     `json:"logo_url,omitempty"`
 	DashboardVisibility string                     `json:"dashboard_visibility,omitempty"`
 	PulseTermSources    *platauth.PulseTermSources `json:"pulse_term_sources,omitempty"`
+	// PreferredModel selects a platform AI model for this workspace. A pointer
+	// so an omitted field leaves the value untouched; an explicit "" resets to
+	// the platform default. Honored only when the admin has enabled customer
+	// model choice and the model is in the enabled set.
+	PreferredModel *string `json:"preferred_model,omitempty"`
 }
 
 // MemberRequest is the request body for adding a member to a workspace.
@@ -223,6 +228,20 @@ func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 	}
 	if req.PulseTermSources != nil {
 		w.PulseTermSources = *req.PulseTermSources
+	}
+	if req.PreferredModel != nil {
+		pref := *req.PreferredModel
+		if pref != "" {
+			// Only accept a preferred model when the admin has opened model
+			// choice to customers and the chosen model is in the enabled set.
+			if !s.PlatformConfig.AICustomerChoice() {
+				return c.JSON(http.StatusForbidden, ErrorResponse{Error: "model choice is not enabled for this platform"})
+			}
+			if !s.PlatformConfig.IsModelEnabled(pref) {
+				return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "model is not available"})
+			}
+		}
+		w.PreferredModel = pref
 	}
 	if err := s.AuthStore.UpdateWorkspace(c.Request().Context(), w); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "update workspace: " + err.Error()})

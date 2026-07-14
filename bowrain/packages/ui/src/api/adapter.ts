@@ -4,6 +4,7 @@ import type {
   Membership,
   ProjectInfo,
   ConfigResponse,
+  PublicPlatformConfig,
   BlockInfo,
   UpdateBlockRequest,
   UpdateBlockTargetCodedRequest,
@@ -143,6 +144,8 @@ import type {
 export interface ApiAdapter {
   // Server config
   getConfig(): Promise<ConfigResponse>;
+  /** Public platform config (signups gate, maintenance, model-choice set). */
+  getPublicPlatformConfig(): Promise<PublicPlatformConfig>;
 
   // Auth
   getCurrentUser(): Promise<User | null>;
