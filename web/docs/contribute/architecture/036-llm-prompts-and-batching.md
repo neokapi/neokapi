@@ -135,14 +135,36 @@ honest boundary, and it is the one we document.
 - Rewording any prompt moves the fingerprint (re-translating affected blocks) and
   fails the reference drift gate until the docs are regenerated. Both are intended.
 - We ship a `MaxBlocksPerCall` chosen from evidence about *adjacent* tasks, not
-  from a measurement of our own. That is a known gap, not a settled answer, and it
-  is the first thing the eval should replace.
+  from a measurement of our own. That is a known gap, not a settled answer.
+
+## Measuring the ceiling
+
+`make batch-eval` (`scripts/batcheval`) sweeps blocks-per-call over a fixed corpus
+and scores each N. It scores **structural integrity** — does every segment come
+back, under the id it was sent, with its placeholders and inline tags intact? —
+rather than wording, for two reasons: that is the failure the literature attributes
+to batching, and in a localization pipeline it is a correctness failure rather than
+a style complaint. A translation missing its `{0}` cannot be written back into the
+source file at all.
+
+Scoring structure needs no reference translations, so the curve can be measured on
+any corpus, in any language pair, for the price of the calls.
+
+The corpus deliberately carries what batching is documented to break: long prose
+(degradation is worst when items are long), placeholders and inline markup, and the
+same source text under two different keys — the case positional batch mapping used
+to corrupt silently.
+
+The harness ships; the measurement has not been run. A run against the demo stub
+exercises the plumbing and measures nothing about any model, and says so in both
+the terminal output and the JSON report (`"simulated": true`). Only a real-model
+sweep can move `MaxBlocksPerCall` off its current evidence-by-analogy footing.
 
 ## Open
 
-- **No quality-versus-N curve exists for segment translation.** Ours should be
-  measured, sweeping N and scoring both translation quality *and* segment-id
-  integrity — because the literature says the latter is what actually breaks.
-- **kapi sends no context beyond the batch** — no key or path, no neighbouring
-  strings, no TM matches. The evidence strongly favours *large non-translated
-  context, small translation unit*; we currently have neither half. See #1226.
+- **The quality-versus-N curve has not been measured yet** — the instrument exists
+  (`make batch-eval`), the sweep has not been run against a real model. Until it
+  is, `MaxBlocksPerCall = 16` remains an inference from adjacent tasks.
+- **Context is limited to the key and immediate neighbours.** TM matches, the
+  file path, and prior translations of the same key are all things the evidence
+  says would help and that kapi already holds, and none of them reach the prompt.

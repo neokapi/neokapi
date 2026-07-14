@@ -1213,6 +1213,24 @@ check-eval: ## Run the content-check quality eval → web/src/pages/check-eval/_
 	$(GO) run ./scripts/checkeval
 	@echo "Published check-eval report → web/src/pages/check-eval/_eval.json"
 
+# ── Batch-size eval (issue #1227) ────────────────────────────────────────────
+# Measures what batching costs, by sweeping blocks-per-call and scoring each N on
+# structural integrity: does every segment come back, under the id it was sent,
+# with its placeholders and inline tags intact? That is the failure batching is
+# documented to produce, and it needs no reference translations.
+#
+# tools.MaxBlocksPerCall is currently set from evidence about *adjacent* tasks —
+# nobody has published a quality-versus-N curve for segment translation. This is
+# how that ceiling stops being a guess.
+#
+# The default target runs the demo stub: it proves the harness and measures
+# NOTHING about batching, and says so. A real curve costs real calls:
+#
+#   make batch-eval BATCHEVAL_ARGS="-provider anthropic -repeat 3"
+BATCHEVAL_ARGS ?=
+batch-eval: ## Sweep batch size and score structural integrity (demo stub unless -provider given)
+	$(GO) run ./scripts/batcheval $(BATCHEVAL_ARGS)
+
 # ── Frontend Checks ──────────────────────────────────────────────────────────
 
 frontend-check-all: ## Run lint, format, and typecheck across all frontend projects
@@ -1642,7 +1660,7 @@ help: ## Show this help
 	@echo ""
 
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
-        parity-sandbox parity-test parity-publish parity-clean parity-fixtures regen-okapi-fixtures check-eval \
+        parity-sandbox parity-test parity-publish parity-clean parity-fixtures regen-okapi-fixtures check-eval batch-eval \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
         fmt vet lint check check-framework check-bowrain test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \

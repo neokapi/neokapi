@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -75,6 +76,46 @@ func TestDemoProvider_PreservesMarkup(t *testing.T) {
 	assert.Contains(t, resp.Translation, "<b>")
 	assert.Contains(t, resp.Translation, "</b>")
 	assert.Contains(t, resp.Translation, "!")
+}
+
+// A placeholder is structure, not prose. The demo used to accent the inside of
+// one — `%d` split into `%` and the word `d`, `{0}` into braces around `0` — so
+// its own output failed kapi's placeholder check. Nothing that ships in kapi is
+// allowed to produce a translation kapi cannot write back.
+func TestDemoProvider_PreservesPlaceholders(t *testing.T) {
+	p := newTestDemo()
+
+	for _, src := range []string{
+		"You have {0} items in your cart",
+		"Welcome back, {{name}}",
+		"Uploaded %d of %d files",
+		"You have used {used} of {total} GB",
+		"Could not sync %s: %s",
+	} {
+		resp, err := p.Translate(context.Background(), TranslateRequest{Source: src, TargetLocale: "de"})
+		require.NoError(t, err)
+
+		for _, ph := range regexp.MustCompile(`\{\{[^{}]*\}\}|\{[^{}]*\}|%[a-zA-Z]`).FindAllString(src, -1) {
+			assert.Containsf(t, resp.Translation, ph, "placeholder %q lost from %q → %q", ph, src, resp.Translation)
+		}
+	}
+}
+
+// Excluding `{` and `%` from the tokenizer's catch-all class is how placeholders
+// stay whole; a stray one that matches no placeholder form must still be emitted,
+// not silently dropped on the floor.
+func TestDemoProvider_KeepsStrayBracesAndPercents(t *testing.T) {
+	p := newTestDemo()
+
+	for _, tc := range []struct{ src, want string }{
+		{"Save 50% today", "%"},       // a bare percent is not a placeholder
+		{"An unmatched { brace", "{"}, // nor is an unbalanced brace
+		{"A }} stray close", "}"},     //
+	} {
+		resp, err := p.Translate(context.Background(), TranslateRequest{Source: tc.src, TargetLocale: "de"})
+		require.NoError(t, err)
+		assert.Containsf(t, resp.Translation, tc.want, "%q → %q dropped a character", tc.src, resp.Translation)
+	}
 }
 
 func TestDemoProvider_BatchTranslations(t *testing.T) {
