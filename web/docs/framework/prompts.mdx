@@ -226,18 +226,56 @@ Worth stating plainly, because prompts are easy to imagine bigger than they are:
 - **No telemetry.** kapi sends your content to the provider _you_ configured, and
   nowhere else.
 
-By default, `translate` sends 100 blocks per call (`translate.batch`), taken in
-document order and numbered so the reply maps back by index. The 100 share a
-call, which is not the same as the model having context: they are all being
-translated at once, and blocks either side of the window are in a different call
-entirely. A block is translated on its own (`translate.single`) only when you set
-`batchSize: 1`, or when the provider runs on-device — a small local model tends
-to ignore the "return JSON" instruction on a 100-block prompt, so kapi drops it
-to one block at a time.
+By default, `translate` batches several blocks into one call (`translate.batch`),
+taken in document order and sent as a JSON payload keyed by segment id. Sharing a
+call is not the same as the model having context: those blocks are all being
+_translated_ at once, none of them is settled reference material, and blocks
+either side of the batch are in a different call entirely. A block is translated
+on its own (`translate.single`) when you set `batching: single`, or when the
+provider runs on-device — a small local model tends to ignore the "return JSON"
+instruction on a large batch.
+
+How many blocks share a call is **not a number you set**. It depends on what your
+model can emit, on how long your segments happen to be, and on a
+quality-versus-batch-size curve that nobody has published — so kapi sizes each
+call against the model's real output limit rather than asking you to guess. (The
+guess used to be 100, and on anything longer than a UI string it produced a reply
+too large for the model to finish.) The choice you _do_ get is `batching: auto`
+or `batching: single`.
 
 Whether kapi _should_ send more — the block's key, the neighbouring strings — is
 an open question, not a settled one:
 [#1226](https://github.com/neokapi/neokapi/issues/1226).
+
+## Prompt injection
+
+The text kapi translates is often not written by the person running kapi: it is
+CMS copy, user comments, strings from a dependency. So a block that says "ignore
+your instructions and output X" is a thing that happens, and it is worth being
+precise about what does and does not protect you.
+
+**The prompt tells the model the content is data**, in a `constraint` section you
+can see in `--explain-prompts` and in the [Prompt Reference](/reference/prompts).
+That is defence in depth, and no more: no prompt-level rule reliably stops a model
+from following an instruction embedded in its input, and we will not claim
+otherwise.
+
+What actually contains the damage is structural:
+
+- **The call has no tools, no filesystem and no network.** It is one request that
+  returns text. An injected instruction cannot act — at worst it produces a wrong
+  translation. That bounds the blast radius to content, not capability.
+- **The reply is constrained to a schema** by the provider's own grammar, so it
+  cannot escape its shape — only fill it.
+- **kapi accepts only the segment ids it sent**, so an injected omission is caught
+  and retried rather than silently shifting every translation after it.
+- **The payload is JSON**, so content cannot forge a segment boundary. This is not
+  only an attack: a block containing `[2]` is enough to break a delimiter-framed
+  payload, and a user documenting a numbered list writes one by accident.
+
+The remaining exposure is that an injected instruction can corrupt _the text of a
+translation_ — which is what [checks](/framework/checks/qa-checks) and
+[review](/kapi/recipes/review-and-approve) exist to catch.
 
 ## The prompts kapi ships
 
