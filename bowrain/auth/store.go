@@ -2,9 +2,22 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+)
+
+var (
+	// ErrRefreshTokenInvalid is returned by RotateRefreshToken when the presented
+	// refresh token is unknown or has expired.
+	ErrRefreshTokenInvalid = errors.New("refresh token invalid or expired")
+
+	// ErrRefreshTokenReuse is returned by RotateRefreshToken when a refresh token
+	// that was already rotated (consumed) is presented again — the signature of a
+	// stolen, replayed token. The token's entire family has been revoked and the
+	// caller must clear the session and force re-authentication.
+	ErrRefreshTokenReuse = errors.New("refresh token reuse detected")
 )
 
 // AuthStore persists users, workspaces, and membership data.
@@ -58,6 +71,14 @@ type AuthStore interface {
 	// Refresh tokens
 	StoreRefreshToken(ctx context.Context, userID, tokenHash string, expiresAt time.Time) (string, error)
 	ValidateRefreshTokenByHash(ctx context.Context, tokenHash string) (userID string, err error)
+	// RotateRefreshToken atomically consumes the presented refresh token and
+	// mints its successor (newTokenHash) in the same family. It returns the
+	// owning user's ID on success. If the presented token was already consumed
+	// (a replayed, likely-stolen token) it revokes the entire family and returns
+	// ErrRefreshTokenReuse; if it is unknown or expired it returns
+	// ErrRefreshTokenInvalid. Prefer this over ValidateRefreshTokenByHash +
+	// StoreRefreshToken for the rotation path.
+	RotateRefreshToken(ctx context.Context, presentedHash, newTokenHash string, newExpiresAt time.Time) (userID string, err error)
 	RevokeRefreshToken(ctx context.Context, tokenID string) error
 	RevokeUserRefreshTokens(ctx context.Context, userID string) error
 

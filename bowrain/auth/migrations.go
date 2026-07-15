@@ -258,4 +258,23 @@ var authMigrationsPg = []storage.Migration{
 				ADD COLUMN IF NOT EXISTS preferred_model TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	// Refresh-token reuse detection (rotating tokens with family revocation).
+	// family_id groups a rotation chain: initial login opens a family, each
+	// rotation mints the successor in the same family. consumed_at marks a token
+	// as already rotated; presenting a consumed token again is the signature of a
+	// stolen, replayed token and revokes the whole family. Backfill each existing
+	// row into its own singleton family so a legacy token can never trigger a
+	// cross-token family wipe.
+	{
+		Version:     5,
+		Description: "refresh-token reuse detection (family_id + consumed_at)",
+		SQL: `
+			ALTER TABLE refresh_tokens
+				ADD COLUMN IF NOT EXISTS family_id   TEXT NOT NULL DEFAULT '',
+				ADD COLUMN IF NOT EXISTS consumed_at TIMESTAMPTZ;
+			UPDATE refresh_tokens SET family_id = id WHERE family_id = '';
+			CREATE INDEX IF NOT EXISTS idx_refresh_tokens_family
+				ON refresh_tokens(family_id);
+		`,
+	},
 }

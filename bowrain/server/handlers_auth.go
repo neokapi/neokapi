@@ -949,10 +949,31 @@ func (s *Server) HandleTokenRefresh(c echo.Context) error {
 	hash := sha256.Sum256([]byte(rawRefresh))
 	tokenHash := hex.EncodeToString(hash[:])
 
-	ctx := c.Request().Context()
-	userID, err := s.AuthStore.ValidateRefreshTokenByHash(ctx, tokenHash)
+	// Generate the successor refresh token up front so rotation is a single
+	// atomic operation (consume the old + insert the new in one transaction).
+	newRefreshToken, err := platformAuth.GenerateRefreshToken()
 	if err != nil {
-		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid or expired refresh token"})
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to generate refresh token"})
+	}
+	newHashArr := sha256.Sum256([]byte(newRefreshToken))
+	newHash := hex.EncodeToString(newHashArr[:])
+
+	ctx := c.Request().Context()
+	userID, err := s.AuthStore.RotateRefreshToken(ctx, tokenHash, newHash, time.Now().Add(30*24*time.Hour))
+	if err != nil {
+		switch {
+		case errors.Is(err, auth.ErrRefreshTokenReuse):
+			// A rotated token was replayed (likely stolen). The family is now
+			// revoked; clear the session so the client must re-authenticate.
+			s.clearSessionCookies(c)
+			slog.WarnContext(ctx, "refresh token reuse detected; token family revoked", "ip", c.RealIP())
+			return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "session revoked, please sign in again"})
+		case errors.Is(err, auth.ErrRefreshTokenInvalid):
+			s.clearSessionCookies(c)
+			return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid or expired refresh token"})
+		default:
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to rotate refresh token"})
+		}
 	}
 
 	// Get user info for the new JWT.
@@ -965,16 +986,6 @@ func (s *Server) HandleTokenRefresh(c echo.Context) error {
 	accessToken, err := s.Services.Auth.GenerateToken(user, 15*time.Minute)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to generate token"})
-	}
-
-	// Generate new refresh token (rotation).
-	newRefreshToken, err := platformAuth.GenerateRefreshToken()
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to generate refresh token"})
-	}
-	newHash := sha256.Sum256([]byte(newRefreshToken))
-	if _, err = s.AuthStore.StoreRefreshToken(ctx, userID, hex.EncodeToString(newHash[:]), time.Now().Add(30*24*time.Hour)); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to store refresh token"})
 	}
 
 	// Set cookies (for web clients) and return JSON (for CLI/desktop).
