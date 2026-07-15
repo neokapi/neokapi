@@ -1,9 +1,10 @@
 // ---------------------------------------------------------------------------
 // Admin auth (BFF cookie session).
 //
-// The ctrl SPA runs the bowrain-admin Keycloak OIDC flow (authorization code +
-// PKCE, public client) in the browser, but it does NOT keep the realm tokens.
-// Instead it hands the resulting id_token to the server's
+// The ctrl SPA runs the bowrain-admin OIDC flow (authorization code + PKCE,
+// public client) in the browser against whichever provider fronts the admin
+// pool — Keycloak (self-host) or Cognito (hosted prod) — but it does NOT keep
+// the provider tokens. Instead it hands the resulting id_token to the server's
 // /api/admin/auth/exchange endpoint, which verifies it and sets an HttpOnly
 // admin session cookie. All admin API calls then authenticate with that cookie
 // plus an X-Bowrain-Csrf header — no admin token lives in the browser.
@@ -13,7 +14,9 @@ function resolveIssuerUrl(): string {
   if (import.meta.env.VITE_ADMIN_OIDC_ISSUER_URL) {
     return import.meta.env.VITE_ADMIN_OIDC_ISSUER_URL;
   }
-  // Derive from current hostname: ctrl[.dev].bowrain.cloud → auth[.dev].bowrain.cloud
+  // Derive from current hostname: ctrl[.dev].bowrain.cloud → auth[.dev].bowrain.cloud.
+  // This is the Keycloak self-host default; hosted prod sets
+  // VITE_ADMIN_OIDC_ISSUER_URL to the Cognito admin-pool issuer.
   const host = window.location.hostname;
   if (host.startsWith("ctrl.")) {
     return `https://auth.${host.slice(5)}/realms/bowrain-admin`;
@@ -28,6 +31,31 @@ const VERIFIER_KEY = "bowrain_admin_verifier";
 
 // CSRF header the server requires on cookie-authenticated admin requests.
 const CSRF_HEADER = "X-Bowrain-Csrf";
+
+// Provider-neutral endpoint resolution. Keycloak and Cognito expose different
+// OIDC endpoint paths (…/protocol/openid-connect/* vs the Managed Login
+// domain's …/oauth2/*), so the flow reads them from the issuer's discovery
+// document rather than hardcoding one provider's shape. Fetched once and cached
+// for the page lifetime.
+interface OidcEndpoints {
+  authorization_endpoint: string;
+  token_endpoint: string;
+  end_session_endpoint?: string;
+}
+
+let endpointsPromise: Promise<OidcEndpoints> | null = null;
+
+function discoverEndpoints(): Promise<OidcEndpoints> {
+  if (!endpointsPromise) {
+    endpointsPromise = fetch(`${ISSUER_URL}/.well-known/openid-configuration`).then((r) => {
+      if (!r.ok) {
+        throw new Error(`OIDC discovery failed: ${r.status}`);
+      }
+      return r.json() as Promise<OidcEndpoints>;
+    });
+  }
+  return endpointsPromise;
+}
 
 /** React Query key for the current admin session probe (/api/admin/auth/me). */
 export const ADMIN_SESSION_QUERY_KEY = ["admin-session"] as const;
@@ -86,7 +114,7 @@ async function generatePKCE(): Promise<{ verifier: string; challenge: string }> 
 // Public API
 // ---------------------------------------------------------------------------
 
-/** Start the admin OIDC flow by redirecting to the Keycloak authorize endpoint. */
+/** Start the admin OIDC flow by redirecting to the provider's authorize endpoint. */
 export async function login(): Promise<void> {
   const { verifier, challenge } = await generatePKCE();
   sessionStorage.setItem(VERIFIER_KEY, verifier);
@@ -100,13 +128,14 @@ export async function login(): Promise<void> {
     code_challenge_method: "S256",
   });
 
-  window.location.href = `${ISSUER_URL}/protocol/openid-connect/auth?${params.toString()}`;
+  const { authorization_endpoint } = await discoverEndpoints();
+  window.location.href = `${authorization_endpoint}?${params.toString()}`;
 }
 
 /**
- * Complete the OIDC redirect: exchange the code for tokens at Keycloak, then
+ * Complete the OIDC redirect: exchange the code for tokens at the provider, then
  * hand the id_token to the server, which verifies it and sets the HttpOnly
- * admin session cookie. The realm tokens are never persisted in the browser.
+ * admin session cookie. The provider tokens are never persisted in the browser.
  */
 export async function handleCallback(code: string): Promise<void> {
   const verifier = sessionStorage.getItem(VERIFIER_KEY);
@@ -123,7 +152,8 @@ export async function handleCallback(code: string): Promise<void> {
     code_verifier: verifier,
   });
 
-  const response = await fetch(`${ISSUER_URL}/protocol/openid-connect/token`, {
+  const { token_endpoint } = await discoverEndpoints();
+  const response = await fetch(token_endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
@@ -166,7 +196,12 @@ export async function fetchAdminSession(): Promise<AdminUser | null> {
   }
 }
 
-/** Clear the server admin session, then end the Keycloak SSO session. */
+/**
+ * Clear the server admin session, then end the provider SSO session via
+ * RP-initiated logout when the provider advertises an end_session_endpoint
+ * (Keycloak does). Cognito omits it from discovery, so there the local logout
+ * is authoritative and the Managed Login SSO cookie is left to expire.
+ */
 export async function logout(): Promise<void> {
   try {
     await fetch(`${adminApiBase()}/auth/logout`, {
@@ -175,12 +210,22 @@ export async function logout(): Promise<void> {
       headers: { [CSRF_HEADER]: "1" },
     });
   } catch {
-    // Best-effort — still redirect to terminate the SSO session.
+    // Best-effort — still try to terminate the SSO session below.
+  }
+
+  const { end_session_endpoint } = await discoverEndpoints().catch(
+    (): OidcEndpoints => ({ authorization_endpoint: "", token_endpoint: "" }),
+  );
+  if (!end_session_endpoint) {
+    // No RP-initiated logout (e.g. Cognito): the server session is already
+    // cleared; just return to the app root.
+    window.location.href = window.location.origin;
+    return;
   }
 
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
     post_logout_redirect_uri: window.location.origin,
   });
-  window.location.href = `${ISSUER_URL}/protocol/openid-connect/logout?${params.toString()}`;
+  window.location.href = `${end_session_endpoint}?${params.toString()}`;
 }
