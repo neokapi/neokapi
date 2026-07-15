@@ -25,7 +25,13 @@ export function useKapiPlaygroundConfig(): KapiPlaygroundConfig {
   const onCdn = cdnEnabled(cdn);
   const execLocal = useBaseUrl("/wasm/wasm_exec.js");
   const wasmLocal = useBaseUrl("/wasm/kapi-cli.wasm");
-  const wasmExecUrl = onCdn ? cdnHref(cdn, `/wasm/${cdn.version}/wasm_exec.js`) : execLocal;
-  const wasmUrl = onCdn ? cdnHref(cdn, `/wasm/${cdn.version}/kapi-cli.wasm`) : wasmLocal;
+  // wasm rides the CDN only when a concrete version was published: push-to-main
+  // sets DOCS_CDN_VERSION to the commit sha (and the CI step uploads that sha's
+  // wasm to the CDN). On PR previews and local builds the version is the "dev"
+  // sentinel and no wasm was published, so serve it same-origin even when the
+  // CDN is on for the already-published assets (videos, vision models, images).
+  const wasmOnCdn = onCdn && cdn.version !== "" && cdn.version !== "dev";
+  const wasmExecUrl = wasmOnCdn ? cdnHref(cdn, `/wasm/${cdn.version}/wasm_exec.js`) : execLocal;
+  const wasmUrl = wasmOnCdn ? cdnHref(cdn, `/wasm/${cdn.version}/kapi-cli.wasm`) : wasmLocal;
   return useMemo(() => ({ wasmExecUrl, wasmUrl }), [wasmExecUrl, wasmUrl]);
 }

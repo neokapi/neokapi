@@ -1,9 +1,9 @@
 ---
-title: CDN asset offloading (Cloudflare R2)
-description: How the large, immutable docs assets are served from an external CDN to keep the GitHub Pages deploy small and fast.
+title: CDN asset offloading (S3 + CloudFront)
+description: How the large, immutable docs assets are served from the S3 + CloudFront CDN to keep the GitHub Pages deploy small and fast.
 ---
 
-# CDN asset offloading (Cloudflare R2)
+# CDN asset offloading (S3 + CloudFront)
 
 The documentation sites deploy to GitHub Pages by pushing the built static
 output to `neokapi.github.io`. A few asset families are large, immutable, and
@@ -17,10 +17,13 @@ fetched at runtime rather than needed to render a page:
 
 Bundling these into the Pages artifact makes every deploy slow and forced an
 awkward workaround for the ~132 MB layout model (split into sub-100 MB parts to
-fit the GitHub Pages per-file limit). Offloading them to **Cloudflare R2** — free
-tier (10 GB storage, free egress), served behind a custom domain with CDN
-caching and CORS — removes the bulk from the Pages artifact and lets the models
-ship whole.
+fit the GitHub Pages per-file limit). Offloading them to an **S3 origin fronted
+by CloudFront** (`cdn.<domain>`) removes the bulk from the Pages artifact and
+lets the models ship whole.
+
+The CDN bucket + distribution are provisioned by bowrain-infra (`modules/cdn`,
+instantiated in the `50-edge` layer); CORS and the immutable cache behavior live
+there, not in this repo.
 
 ## Opt-in by design
 
@@ -28,7 +31,7 @@ Everything here is **inert until configured**. The site reads the CDN origin
 from a build-time env var, `DOCS_CDN_URL`, surfaced to the frontend as the
 `cdnBaseUrl` Docusaurus customField. When it is empty — the default, and the
 local-dev case — every asset resolves same-origin exactly as before. Nothing
-changes until the `DOCS_CDN_URL` repo variable and R2 secrets are set.
+changes until the `DOCS_CDN_URL` repo variable is set.
 
 The frontend routing lives in one shared helper, `@neokapi/docs-shared`'s
 `cdn.ts` (`readCdnConfig` / `cdnEnabled` / `cdnHref`), consumed by:
@@ -47,91 +50,78 @@ deploy serving a stale binary.
 <bucket>/
   kapi/
     wasm/<git-sha>/{kapi-cli.wasm, kapi-cli.wasm.gz, kapi.wasm, pdfium.wasm, wasm_exec.js}
-    models/vision/{ppocrv5_det.onnx, ppocrv5_rec.onnx, ppocrv5_dict.txt, ppdoclayoutv3.onnx}
+    models/vision/<version>/{ppocrv5_det.onnx, ppocrv5_rec.onnx, ppocrv5_dict.txt, ppdoclayoutv3.onnx}
     icu/<icu-version>/icu_capi.wasm    # ICU4X (Segmentation Lab), served application/wasm
+    img/...              # screenshots referenced by ThemedImage
     video/...            # .webm + .jpg posters, mirroring web/static/video/
   bowrain/
+    img/...              # mirroring bowrain/web/docs/static/img/
     video/...            # mirroring bowrain/web/docs/static/video/
 ```
 
 Served URLs: `${DOCS_CDN_URL}/kapi/wasm/<sha>/kapi-cli.wasm`, etc.
 
-## Cloudflare setup (one-time)
-
-1. Put the domain (`bowrain.cloud`) on a Cloudflare zone (free plan is fine).
-2. Create an R2 bucket and bind a **custom domain** (e.g. `cdn.bowrain.cloud`) to
-   it — required for CDN caching, CORS, and custom headers; the `r2.dev` URL is
-   rate-limited and dev-only. Disable the `r2.dev` public URL.
-3. Add a cache rule on the custom domain: **Cache Everything**, honoring the
-   origin `Cache-Control` (the publish script sets `immutable` on wasm/models and
-   1-day on videos).
-4. Apply the CORS policy (so browser `fetch()` of models/wasm works cross-origin):
-   ```bash
-   aws s3api put-bucket-cors --bucket "$R2_BUCKET" \
-     --cors-configuration file://scripts/r2-cors.json \
-     --endpoint-url "$R2_ENDPOINT"
-   ```
-5. **Lifecycle**: because each docs build writes wasm under a fresh `<git-sha>/`
-   prefix, add an R2 lifecycle rule to expire objects under `kapi/wasm/` after
-   ~30 days. The live site always references a recent sha (it redeploys on every
-   push to `main`), so expiring old prefixes only affects long-stale deploys.
-
 ## Credentials
 
-Create an R2 **S3-compatible API token** scoped to the bucket. Both the publish
-script and CI read it from standard env vars:
+The CDN origin is a private S3 bucket; writes use the AWS credential chain — **no
+static access keys**:
+
+- **CI** (`docs-kapi.yml` on push to main): the GitHub Actions **OIDC deploy
+  role** (`AWS_DEPLOY_ROLE_ARN`), whose trust is pinned to `main` / the protected
+  `prod` environment. bowrain-infra's `deploy-iam` module scopes it to
+  `s3:Put/Get/Delete/ListBucket` on the CDN bucket plus
+  `cloudfront:CreateInvalidation` on its distribution. PRs cannot assume it.
+- **Locally** (desktop publish of videos/models/images): an `aws sso login`
+  profile with write access to the bucket.
+
+The publish script reads only:
 
 | Env var | Value |
 |---|---|
-| `R2_BUCKET` | bucket name |
-| `R2_ENDPOINT` | `https://<account-id>.r2.cloudflarestorage.com` |
-| `AWS_ACCESS_KEY_ID` | R2 access key id |
-| `AWS_SECRET_ACCESS_KEY` | R2 secret access key |
+| `CDN_BUCKET` | S3 CDN origin bucket (`bowrain-<env>-cdn-<region>-<acct>`) |
+| `AWS_REGION` | bucket region (default `eu-north-1`) |
+| AWS credentials | from the environment (OIDC role in CI, SSO profile locally) |
 
-In GitHub: set `DOCS_CDN_URL`, `R2_BUCKET`, `R2_ENDPOINT` as **repository
-variables**, and `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` as **repository
-secrets**.
+In GitHub: `DOCS_CDN_URL`, `CDN_BUCKET`, `AWS_DEPLOY_ROLE_ARN`, and `AWS_REGION`
+are **repository variables**. No repository secrets are needed for the CDN.
 
 ## Publishing
 
-WASM is rebuilt on every docs build, so **CI publishes it** automatically (the
-`docs-kapi.yml` build job syncs to `kapi/wasm/<sha>/` and drops it from the
-artifact when `DOCS_CDN_URL` is set). The other families are published
-out-of-band, mirroring the old `docs-assets` release flow: the vision models are
-pre-trained artifacts pinned in the `vision-models-v1` GitHub release (the
-publish target just re-uploads them to R2 — rerun only when that release
-changes), and the videos are produced on the desktop by the harness:
+WASM is rebuilt on every docs build, so **CI publishes it** automatically — but
+only on **push to main**: the `docs-kapi.yml` build job assumes the OIDC role,
+syncs `kapi/wasm/<sha>/` to the CDN, and drops it from the artifact. PRs cannot
+assume the deploy role, so PR previews serve their own wasm **same-origin** (the
+version is unset → `KapiPlayground/config.ts` falls back), while videos, models,
+and images still resolve from the CDN by URL.
 
-### Publishing assets to R2
-
-R2 is the **single source of truth** for these assets — the `docs-assets` /
-`bowrain-docs-assets` GitHub releases are retired. Publish from the desktop,
-where the harness renders the videos/screenshots and `make fetch-vision-models`
-stages the model set (the vision models themselves are still pinned in the
-`vision-models-v1` release — the publish target just re-uploads them to R2).
-Needs `gh` + the `aws` CLI + the `R2_*` env vars:
+The other families are published out-of-band from the desktop, where the harness
+renders the videos/screenshots and `make fetch-vision-models` stages the model
+set (the vision models are pinned in the `vision-models-v1` GitHub release — the
+publish target just re-uploads them). Needs the `aws` CLI (an `aws sso login`
+session) + `CDN_BUCKET`:
 
 ```bash
-make publish-cdn-all   # videos + images + vision models, kapi & bowrain → R2
+make publish-cdn-all   # videos + images + vision models, kapi & bowrain → CDN
 ```
 
 **Order matters:** publish (or run the individual targets below) **before**
 setting the `DOCS_CDN_URL` repo variable. Once the variable is set, CI builds
 the sites pointing at the CDN (for push and same-repo PRs), so the deployed and
-preview sites expect the assets on R2 — publish first or they 404. (WASM is the
-exception: CI builds and publishes it, versioned by sha, in the same run.)
+preview sites expect those assets on the CDN — publish first or they 404. (WASM
+is the exception: CI builds and publishes it, versioned by sha, in the same
+push-to-main run.)
 
 ### Individual targets
 
 ```bash
-# when assets change (needs the R2_* env vars above + aws CLI):
+# when assets change (needs CDN_BUCKET + an aws SSO session):
 make publish-cdn-vision-models     # ONNX models → kapi/models/vision/<web/models.version>/
 make publish-cdn-icu               # ICU4X seg wasm   → kapi/icu/<ver>/icu_capi.wasm
 make publish-cdn-videos            # web/static/video → kapi/video/
 make publish-cdn-bowrain-videos    # bowrain videos  → bowrain/video/
 make publish-cdn-images            # web/static/img  → kapi/img/
 make publish-cdn-bowrain-images    # bowrain images  → bowrain/img/
-make publish-cdn-wasm              # optional manual wasm push (CI does this in deploy)
+make publish-cdn-wasm              # optional manual wasm push (CI does this on push to main)
 ```
 
 The vision model set is **versioned**: `kapi/models/vision/<version>/`, with the
@@ -141,15 +131,16 @@ new models automatically (the Vision Lab reads the version from the build).
 
 All of these call `scripts/publish-cdn-assets.sh <family>`, which sets the right
 `Content-Type` and `Cache-Control` per family. The pre-gzipped `kapi-cli.wasm.gz`
-is uploaded as an opaque blob with **no** `Content-Encoding` — the runtime
-self-inflates it via `DecompressionStream`, so a `Content-Encoding: gzip` header
-would make the browser double-inflate and fall back to the 71 MB raw binary.
+is uploaded as an opaque `application/wasm` blob with **no** `Content-Encoding` —
+the runtime self-inflates it via `DecompressionStream`, so a
+`Content-Encoding: gzip` header would make the browser double-inflate and fall
+back to the ~76 MB raw binary.
 
 ## CI behavior
 
 `docs-kapi.yml` / `docs-bowrain.yml` compute a job-level `CDN_URL` =
-`DOCS_CDN_URL` **on pushes only** (PR previews always stay same-origin, to avoid
-R2 churn and secret dependence). When `CDN_URL` is set, the video- and
-model-staging steps are skipped, the wasm is synced to R2 and removed from the
-artifact, and the site is built with `DOCS_CDN_URL` + `DOCS_CDN_VERSION`
-(= commit sha) so it points at the CDN.
+`DOCS_CDN_URL` for **push and same-repo PRs** (fork PRs stay same-origin). When
+`CDN_URL` is set, the video/model/image assets resolve from the CDN by URL. WASM
+is narrower: only **push to main** publishes it (via the OIDC role) and sets
+`DOCS_CDN_VERSION` (= commit sha); on PRs `DOCS_CDN_VERSION` is empty, so the
+playground serves wasm same-origin while the other CDN assets are still used.

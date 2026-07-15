@@ -1328,45 +1328,45 @@ pulse-build pulse-dev pulse-check:
 logo: ## Regenerate all neokapi logo/icon/favicon assets from the source pair
 	@bash scripts/generate-neokapi-logo.sh
 
-# ── CDN (Cloudflare R2) asset publishing ────────────────────────────────────
+# ── CDN (S3 + CloudFront) asset publishing ──────────────────────────────────
 # The large, desktop-produced docs assets (wasm engine, ONNX vision models,
-# walkthrough videos, and screenshots) live ONLY on the R2 bucket served at
-# $DOCS_CDN_URL — referenced by URL (ThemedVideo/ThemedImage, the Vision Lab),
-# never committed to git or staged into the Pages artifact / PR-preview bundle.
-# The GitHub docs-assets / bowrain-docs-assets releases are retired; these
-# targets are the single publish path. Auth via env: R2_BUCKET, R2_ENDPOINT,
-# AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY. See
-# web/docs/contribute/notes-internal/cdn-assets.md.
-# wasm is also published by CI on each docs build (versioned by sha). The rest
-# are published from the desktop where the harness produces them; the vision
-# model set is pulled from the pinned vision-models-v1 release.
-publish-cdn-wasm: web-wasm-demo web-wasm-cli web-pdfium-wasm ## Build + sync the playground wasm → R2 (kapi/wasm/<version>/)
+# walkthrough videos, and screenshots) live ONLY on the S3 CDN origin served at
+# $DOCS_CDN_URL (cdn.<domain>, fronted by CloudFront) — referenced by URL
+# (ThemedVideo/ThemedImage, the Vision Lab), never committed to git or staged
+# into the Pages artifact / PR-preview bundle. The GitHub docs-assets /
+# bowrain-docs-assets releases are retired; these targets are the single publish
+# path. Auth via env: CDN_BUCKET + AWS credentials (an `aws sso login` profile
+# locally). See web/docs/contribute/notes-internal/cdn-assets.md.
+# wasm is also published by CI on each push-to-main docs build (versioned by
+# sha). The rest are published from the desktop where the harness produces them;
+# the vision model set is pulled from the pinned vision-models-v1 release.
+publish-cdn-wasm: web-wasm-demo web-wasm-cli web-pdfium-wasm ## Build + sync the playground wasm → CDN (kapi/wasm/<version>/)
 	@bash scripts/publish-cdn-assets.sh wasm
 
-publish-cdn-vision-models: ## Sync the Vision Lab ONNX models → R2 (kapi/models/vision/<web/models.version>/)
+publish-cdn-vision-models: ## Sync the Vision Lab ONNX models → CDN (kapi/models/vision/<web/models.version>/)
 	@bash scripts/publish-cdn-assets.sh vision-models
 
-publish-cdn-videos: ## Sync kapi walkthrough videos (web/static/video) → R2 (kapi/video/)
+publish-cdn-videos: ## Sync kapi walkthrough videos (web/static/video) → CDN (kapi/video/)
 	@bash scripts/publish-cdn-assets.sh video-kapi
 
-publish-cdn-bowrain-videos: ## Sync bowrain walkthrough videos → R2 (bowrain/video/)
+publish-cdn-bowrain-videos: ## Sync bowrain walkthrough videos → CDN (bowrain/video/)
 	@bash scripts/publish-cdn-assets.sh video-bowrain
 
-publish-cdn-icu: ## Sync the ICU4X segmentation wasm (icu_capi.wasm) → R2 (kapi/icu/<ver>/)
+publish-cdn-icu: ## Sync the ICU4X segmentation wasm (icu_capi.wasm) → CDN (kapi/icu/<ver>/)
 	@bash scripts/publish-cdn-assets.sh icu
 
-publish-cdn-images: ## Sync kapi docs images/screenshots (web/static/img) → R2 (kapi/img/)
+publish-cdn-images: ## Sync kapi docs images/screenshots (web/static/img) → CDN (kapi/img/)
 	@bash scripts/publish-cdn-assets.sh images-kapi
 
-publish-cdn-bowrain-images: ## Sync bowrain docs images/screenshots → R2 (bowrain/img/)
+publish-cdn-bowrain-images: ## Sync bowrain docs images/screenshots → CDN (bowrain/img/)
 	@bash scripts/publish-cdn-assets.sh images-bowrain
 
 # Publish every CDN asset from the local desktop working copy (where the harness
 # renders videos/screenshots and fetch-vision-models stages the models). Run
 # after re-recording so the live + preview sites pick up the new assets. (wasm is
 # published by CI on the next docs build; not included here.)
-publish-cdn-all: publish-cdn-videos publish-cdn-bowrain-videos publish-cdn-images publish-cdn-bowrain-images publish-cdn-vision-models publish-cdn-icu ## Publish all desktop-produced assets → R2
-	@echo "✓ all CDN assets published to R2."
+publish-cdn-all: publish-cdn-videos publish-cdn-bowrain-videos publish-cdn-images publish-cdn-bowrain-images publish-cdn-vision-models publish-cdn-icu ## Publish all desktop-produced assets → CDN (S3)
+	@echo "✓ all CDN assets published to the S3 CDN."
 
 # Tier B format corpora (docs/internals/format-maturity.md §2.5): one
 # corpus-<id>.tar.gz asset per format on the lexically-latest format-corpus-vN
