@@ -45,6 +45,14 @@ type Config struct {
 	OIDCClientSecret string
 	OIDCPublicURL    string // browser-facing OIDC URL; defaults to OIDCIssuerURL
 
+	// AllowUnverifiedEmail opts OUT of requiring a verified email at login.
+	// Default (false) is fail-safe: the OIDC callback rejects an ID token whose
+	// email_verified claim is not true. This matters because login provisioning
+	// links accounts by email, so an IdP that asserts an UNVERIFIED email (e.g. a
+	// federated social provider) could otherwise link into an existing account.
+	// Only set true for a trusted single-IdP dev setup that does not verify email.
+	AllowUnverifiedEmail bool
+
 	// Keycloak Admin API — used to write through email changes initiated
 	// from the Bowrain UI. Empty values disable Bowrain-managed email change
 	// (the UI surfaces an error if the user attempts the flow).

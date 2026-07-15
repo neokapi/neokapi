@@ -472,11 +472,11 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "nonce mismatch"})
 	}
 
-	var claims struct {
-		Email string `json:"email"`
-		Name  string `json:"name"`
-	}
-	if err := idToken.Claims(&claims); err != nil {
+	claims, err := identityFromToken(idToken, !s.Config.AllowUnverifiedEmail)
+	if err != nil {
+		if errors.Is(err, errEmailNotVerified) {
+			return c.JSON(http.StatusForbidden, ErrorResponse{Error: "email address is not verified"})
+		}
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "extract claims: " + err.Error()})
 	}
 
@@ -715,11 +715,11 @@ func (s *Server) HandleDeviceAuthCallback(c echo.Context) error {
 		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "nonce mismatch"})
 	}
 
-	var claims struct {
-		Email string `json:"email"`
-		Name  string `json:"name"`
-	}
-	if err := idToken.Claims(&claims); err != nil {
+	claims, err := identityFromToken(idToken, !s.Config.AllowUnverifiedEmail)
+	if err != nil {
+		if errors.Is(err, errEmailNotVerified) {
+			return c.JSON(http.StatusForbidden, ErrorResponse{Error: "email address is not verified"})
+		}
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "extract claims: " + err.Error()})
 	}
 
@@ -850,11 +850,11 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "nonce mismatch"})
 	}
 
-	var claims struct {
-		Email string `json:"email"`
-		Name  string `json:"name"`
-	}
-	if err := idToken.Claims(&claims); err != nil {
+	claims, err := identityFromToken(idToken, !s.Config.AllowUnverifiedEmail)
+	if err != nil {
+		if errors.Is(err, errEmailNotVerified) {
+			return c.JSON(http.StatusForbidden, ErrorResponse{Error: "email address is not verified"})
+		}
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "extract claims: " + err.Error()})
 	}
 

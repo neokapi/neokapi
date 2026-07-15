@@ -149,6 +149,10 @@ func run() error {
 	if envPublic := os.Getenv("BOWRAIN_OIDC_PUBLIC_URL"); envPublic != "" {
 		cfg.OIDCPublicURL = envPublic
 	}
+	// Opt-out of verified-email enforcement (default: enforce). See Config docs.
+	if v := os.Getenv("BOWRAIN_ALLOW_UNVERIFIED_EMAIL"); v != "" {
+		cfg.AllowUnverifiedEmail, _ = strconv.ParseBool(v)
+	}
 	if v := os.Getenv("BOWRAIN_KEYCLOAK_ADMIN_URL"); v != "" {
 		cfg.KeycloakAdminURL = v
 	}
