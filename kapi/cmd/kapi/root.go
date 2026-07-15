@@ -135,4 +135,9 @@ func init() {
 	// flag cannot apply — help honors KAPI_LANG / config / POSIX env (see
 	// cli.HelpTranslator). Misses keep the English source.
 	cli.LocalizeCommandHelp(rootCmd, cli.HelpTranslator())
+
+	// Colorize --help / usage through host/output's Theme (same palette and
+	// --color/NO_COLOR/isatty handling as the rest of the CLI). Must run after
+	// localization: the template reads Short/Long/Example at render time.
+	cli.SetupStyledHelp(rootCmd)
 }
