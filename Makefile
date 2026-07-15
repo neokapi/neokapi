@@ -1258,14 +1258,18 @@ BATCHEVAL_CLAUDE ?= claude-code:opus,claude-code:sonnet,claude-code:haiku
 # production rather than an alternative. Needs credentials for the account that can
 # call the inference profile: `aws sso login --profile bowrain-prod`.
 BATCHEVAL_BEDROCK ?= bedrock:eu.anthropic.claude-sonnet-4-6
-# Model prices and model availability both rot, and both are load-bearing: a stale
-# rate is published on /batch-eval as a cost people budget against, and a retired
-# default model 404s a user's first call. Neither is checkable from a source file,
-# so both are data with a refresh path.
+# The model catalog (providers/ai/models.json) carries lifecycle facts the vendors'
+# APIs do not — introduced, superseded, retired — so it is curated, and curation
+# rots. check-models is the alarm: it lists what each provider serves today and
+# reports any catalogued model that is gone (should be marked retired) and any live
+# model the catalog omits (a candidate). The keyless half — every /batch-eval price
+# must be for a catalogued model — is also a unit test, so it runs in `make test`.
 #
-#   make check-models          # what the providers actually serve today (needs keys)
-#   make update-model-prices   # refresh prices.json from the vendors' pricing pages
-check-models: ## Report models kapi pins or prices that a provider no longer serves
+#   make check-models                          # catalog vs live provider lists (needs keys)
+#   make check-models MODELCHECK_ARGS=-candidates   # also list live models not catalogued
+#   make update-model-prices                   # refresh prices.json from the vendors' pages
+#   (refresh the catalog itself: scripts/prompts/update-model-catalog.md)
+check-models: ## Report catalogued models a provider no longer serves (and, with -candidates, new ones)
 	$(GO) run ./scripts/modelcheck $(MODELCHECK_ARGS)
 
 # Prices are not exposed over any API, so refreshing them means reading the vendors'
@@ -1274,6 +1278,13 @@ check-models: ## Report models kapi pins or prices that a provider no longer ser
 update-model-prices: ## Refresh scripts/batcheval/prices.json from the vendors' pricing pages
 	@command -v claude >/dev/null || { echo "needs the claude CLI: brew install claude"; exit 1; }
 	claude -p "$$(cat scripts/prompts/update-model-prices.md)"
+
+# The catalog carries lifecycle facts no API exposes, so refreshing it is a curation
+# job: reconcile check-models against the live lists, retire what is gone, adopt what
+# is new. Driven by an agent with the providers' model cards.
+update-model-catalog: ## Refresh providers/ai/models.json against the providers' live model lists
+	@command -v claude >/dev/null || { echo "needs the claude CLI: brew install claude"; exit 1; }
+	claude -p "$$(cat scripts/prompts/update-model-catalog.md)"
 
 batch-eval-publish: ## Sweep the real models → /batch-eval dashboard data (costs calls)
 	$(GO) run ./scripts/batcheval -models $(BATCHEVAL_GEMINI) -blocks $(BATCHEVAL_BLOCKS) \
@@ -1716,7 +1727,7 @@ help: ## Show this help
 	@echo ""
 
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
-        parity-sandbox parity-test parity-publish parity-clean parity-fixtures regen-okapi-fixtures check-eval batch-eval batch-eval-publish check-models update-model-prices \
+        parity-sandbox parity-test parity-publish parity-clean parity-fixtures regen-okapi-fixtures check-eval batch-eval batch-eval-publish check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
         fmt vet lint check check-framework check-bowrain test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \

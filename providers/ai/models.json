@@ -214,9 +214,9 @@
       "label": "Gemini 1.5",
       "max_output_tokens": 8192,
       "context_window": 1048576,
-      "status": "superseded",
-      "superseded_by": "gemini-3.5-flash",
-      "introduced": "2026-07-14"
+      "status": "retired",
+      "introduced": "2026-07-14",
+      "note": "No longer served by the Gemini API (confirmed 2026-07-15 by make check-models). Kept as a tombstone so a recipe that pins it fails with an explanation rather than a bare 404. Its successor is gemini-3.5-flash."
     },
     {
       "id": "llama3.2",
