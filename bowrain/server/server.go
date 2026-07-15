@@ -89,13 +89,14 @@ type Server struct {
 	// EmailSender. Nil when email sending is not configured.
 	Mailer *mailer.Mailer
 
-	// KeycloakAdmin writes through identity changes (email, etc.) to the upstream
+	// IdentityAdmin writes through identity changes (email, etc.) to the upstream
 	// IdP via the provider-neutral IdentityAdmin port. Nil when no admin client
-	// is configured (Config.KeycloakAdminURL unset), in which case
-	// Bowrain-managed email change is unavailable. The concrete implementation is
-	// the Keycloak admin client today; the hosted platform swaps in a Cognito
-	// adapter without touching the call sites.
-	KeycloakAdmin auth.IdentityAdmin
+	// is configured, in which case Bowrain-managed email change is unavailable.
+	// The concrete implementation is chosen by Config.AuthProvider: the Keycloak
+	// service-account admin client (self-host/dev) or the Cognito
+	// AdminUpdateUserAttributes adapter (hosted prod) — the call sites are
+	// unaware of which is in play.
+	IdentityAdmin auth.IdentityAdmin
 
 	// collabHub manages collaborative editing WebSocket rooms.
 	collabHub *collabHub
@@ -402,22 +403,39 @@ func NewServer(cfg Config) *Server {
 	// Initialize email sender and mailer.
 	s.initMailer(cfg)
 
-	// Initialize Keycloak Admin client (used for write-through email change).
-	if cfg.KeycloakAdminURL != "" {
-		realm := cfg.KeycloakRealm
-		if realm == "" {
-			realm = "bowrain"
-		}
-		client, err := auth.NewKeycloakAdminClient(auth.KeycloakAdminConfig{
-			BaseURL:      cfg.KeycloakAdminURL,
-			Realm:        realm,
-			ClientID:     cfg.KeycloakAdminClientID,
-			ClientSecret: cfg.KeycloakAdminClientSecret,
-		})
+	// Initialize the IdentityAdmin write-through client (email change) for the
+	// configured provider. Either may be absent, which just disables
+	// Bowrain-managed email change.
+	switch cfg.AuthProvider {
+	case AuthProviderCognito:
+		// Cognito uses the ambient task role (no secrets) and derives the pool
+		// ID + region from the OIDC issuer URL the server is already wired to.
+		adminCfg, err := auth.CognitoConfigFromIssuer(cfg.OIDCIssuerURL)
 		if err != nil {
-			slog.Warn("keycloak admin client disabled", "error", err)
+			slog.Warn("cognito admin client disabled", "error", err)
+		} else if client, err := auth.NewCognitoAdminClient(context.Background(), adminCfg); err != nil {
+			slog.Warn("cognito admin client disabled", "error", err)
 		} else {
-			s.KeycloakAdmin = client
+			s.IdentityAdmin = client
+			slog.Info("identity admin: cognito", "user_pool", adminCfg.UserPoolID, "region", adminCfg.Region)
+		}
+	default: // "keycloak" (and the empty default)
+		if cfg.KeycloakAdminURL != "" {
+			realm := cfg.KeycloakRealm
+			if realm == "" {
+				realm = "bowrain"
+			}
+			client, err := auth.NewKeycloakAdminClient(auth.KeycloakAdminConfig{
+				BaseURL:      cfg.KeycloakAdminURL,
+				Realm:        realm,
+				ClientID:     cfg.KeycloakAdminClientID,
+				ClientSecret: cfg.KeycloakAdminClientSecret,
+			})
+			if err != nil {
+				slog.Warn("keycloak admin client disabled", "error", err)
+			} else {
+				s.IdentityAdmin = client
+			}
 		}
 	}
 

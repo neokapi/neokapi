@@ -45,6 +45,15 @@ type Config struct {
 	OIDCClientSecret string
 	OIDCPublicURL    string // browser-facing OIDC URL; defaults to OIDCIssuerURL
 
+	// AuthProvider selects the upstream identity provider the server is wired
+	// to: "keycloak" (default; self-host/dev) or "cognito" (hosted prod). The
+	// OIDC verification path is provider-agnostic (issuer-URL driven either
+	// way); this only steers provider-specific behavior — the IdentityAdmin
+	// write-through (Keycloak Admin API vs Cognito AdminUpdateUserAttributes)
+	// and the logout URL (RP-initiated end_session vs Cognito's /logout). Empty
+	// is treated as "keycloak".
+	AuthProvider string
+
 	// AllowUnverifiedEmail opts OUT of requiring a verified email at login.
 	// Default (false) is fail-safe: the OIDC callback rejects an ID token whose
 	// email_verified claim is not true. This matters because login provisioning
@@ -188,6 +197,13 @@ type Config struct {
 //
 // Deprecated: Use [Config] instead.
 type ServerConfig = Config
+
+// Auth provider identifiers for [Config.AuthProvider]. Empty is treated as
+// [AuthProviderKeycloak].
+const (
+	AuthProviderKeycloak = "keycloak"
+	AuthProviderCognito  = "cognito"
+)
 
 // DefaultConfig returns a Config with sensible defaults.
 func DefaultConfig() Config {

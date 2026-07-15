@@ -2,7 +2,8 @@
 //
 // Account-management handlers for the authenticated user: onboarding (handle
 // + personal workspace), handle availability check, and Bowrain-managed
-// email change with Keycloak Admin API write-through.
+// email change with write-through to the upstream IdP (via the provider-neutral
+// IdentityAdmin port — Keycloak Admin API or Cognito, per Config.AuthProvider).
 package server
 
 import (
@@ -149,8 +150,8 @@ func (s *Server) HandleRequestEmailChange(c echo.Context) error {
 	if s.Mailer == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "email is not configured on this server"})
 	}
-	if s.KeycloakAdmin == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "Keycloak admin client is not configured"})
+	if s.IdentityAdmin == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "email change is unavailable (identity admin not configured)"})
 	}
 	userID, ok := c.Get("user_id").(string)
 	if !ok || userID == "" {
@@ -220,17 +221,17 @@ type emailConfirmRequest struct {
 }
 
 // HandleConfirmEmailChange validates the verification token, writes the new
-// email through to Keycloak via the admin API, updates the local users row,
-// deletes any other pending requests for this user, and revokes refresh
-// tokens so the user must sign in again with their new email.
+// email through to the upstream IdP via the IdentityAdmin port, updates the
+// local users row, deletes any other pending requests for this user, and revokes
+// refresh tokens so the user must sign in again with their new email.
 //
 // This endpoint is unauthenticated: the token alone authorizes the change.
 func (s *Server) HandleConfirmEmailChange(c echo.Context) error {
 	if s.AuthStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
 	}
-	if s.KeycloakAdmin == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "Keycloak admin client is not configured"})
+	if s.IdentityAdmin == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "email change is unavailable (identity admin not configured)"})
 	}
 
 	var req emailConfirmRequest
@@ -266,23 +267,23 @@ func (s *Server) HandleConfirmEmailChange(c echo.Context) error {
 		return c.JSON(http.StatusConflict, ErrorResponse{Error: "that email is already in use"})
 	}
 
-	// Write through to Keycloak first; if that fails the local DB stays
-	// authoritative-but-old, which is preferable to a divergence where
-	// Keycloak says one thing and Bowrain says another.
+	// Write through to the upstream IdP first; if that fails the local DB stays
+	// authoritative-but-old, which is preferable to a divergence where the IdP
+	// says one thing and Bowrain says another.
 	if user.OIDCSub == "" {
 		_ = s.AuthStore.DeleteEmailChangeRequestsForUser(ctx, user.ID)
-		return c.JSON(http.StatusConflict, ErrorResponse{Error: "user has no Keycloak subject; cannot update upstream"})
+		return c.JSON(http.StatusConflict, ErrorResponse{Error: "user has no identity-provider subject; cannot update upstream"})
 	}
-	if err := s.KeycloakAdmin.UpdateUserEmail(ctx, user.OIDCSub, pending.NewEmail); err != nil {
-		slog.ErrorContext(ctx, "keycloak email update failed", "user_id", user.ID, "error", err)
+	if err := s.IdentityAdmin.UpdateUserEmail(ctx, user.OIDCSub, pending.NewEmail); err != nil {
+		slog.ErrorContext(ctx, "upstream identity email update failed", "user_id", user.ID, "error", err)
 		return c.JSON(http.StatusBadGateway, ErrorResponse{Error: "update upstream identity: " + err.Error()})
 	}
 
 	user.Email = pending.NewEmail
 	if err := s.AuthStore.UpdateUser(ctx, user); err != nil {
-		// Keycloak already changed; surface this as a server error so the
+		// The IdP already changed; surface this as a server error so the
 		// operator can reconcile. The next OIDC login will re-sync.
-		slog.ErrorContext(ctx, "local email update failed after keycloak update", "user_id", user.ID, "error", err)
+		slog.ErrorContext(ctx, "local email update failed after upstream identity update", "user_id", user.ID, "error", err)
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "local update failed; sign in again to refresh: " + err.Error()})
 	}
 
@@ -323,7 +324,7 @@ func (s *Server) confirmEmailURL(c echo.Context, token string) string {
 }
 
 // looksLikeEmail is a permissive check (RFC-5321/5322 are not worth
-// implementing here; Keycloak rejects malformed addresses on update).
+// implementing here; the upstream IdP rejects malformed addresses on update).
 func looksLikeEmail(s string) bool {
 	if len(s) < 3 || len(s) > 254 {
 		return false

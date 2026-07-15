@@ -149,6 +149,19 @@ func run() error {
 	if envPublic := os.Getenv("BOWRAIN_OIDC_PUBLIC_URL"); envPublic != "" {
 		cfg.OIDCPublicURL = envPublic
 	}
+	// Identity provider selection: "keycloak" (default; self-host/dev) or
+	// "cognito" (hosted prod). Steers the IdentityAdmin write-through and the
+	// logout URL; the OIDC verify path is issuer-driven regardless.
+	if v := strings.TrimSpace(os.Getenv("BOWRAIN_AUTH_PROVIDER")); v != "" {
+		cfg.AuthProvider = strings.ToLower(v)
+	}
+	if cfg.AuthProvider == "" {
+		cfg.AuthProvider = server.AuthProviderKeycloak
+	}
+	if cfg.AuthProvider != server.AuthProviderKeycloak && cfg.AuthProvider != server.AuthProviderCognito {
+		return fmt.Errorf("invalid BOWRAIN_AUTH_PROVIDER %q (want %q or %q)",
+			cfg.AuthProvider, server.AuthProviderKeycloak, server.AuthProviderCognito)
+	}
 	// Opt-out of verified-email enforcement (default: enforce). See Config docs.
 	if v := os.Getenv("BOWRAIN_ALLOW_UNVERIFIED_EMAIL"); v != "" {
 		cfg.AllowUnverifiedEmail, _ = strconv.ParseBool(v)
