@@ -53,6 +53,13 @@ type Config struct {
 	// Only set true for a trusted single-IdP dev setup that does not verify email.
 	AllowUnverifiedEmail bool
 
+	// ForceSecureCookies forces the Secure flag on session cookies regardless of
+	// the request scheme. Set true in any TLS-fronted deployment (e.g. behind
+	// CloudFront→ALB, where TLS terminates at the edge and the task sees the
+	// scheme only via X-Forwarded-Proto), so a proxy-header change can never
+	// silently emit non-Secure session cookies.
+	ForceSecureCookies bool
+
 	// Keycloak Admin API — used to write through email changes initiated
 	// from the Bowrain UI. Empty values disable Bowrain-managed email change
 	// (the UI surfaces an error if the user attempts the flow).

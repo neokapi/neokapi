@@ -738,9 +738,19 @@ func (s *Server) HandleDeviceAuthCallback(c echo.Context) error {
 
 const refreshCookieName = "bowrain_refresh"
 
+// cookieSecure reports whether session cookies should carry the Secure flag.
+// It is true on a real HTTPS request OR when ForceSecureCookies is set. The
+// override matters behind CloudFront→ALB: TLS terminates at the edge and the
+// ALB→task hop is plaintext, so c.Scheme() depends on X-Forwarded-Proto
+// reaching the task. Forcing it in prod removes that implicit dependency so a
+// proxy-header change can never silently drop Secure.
+func (s *Server) cookieSecure(c echo.Context) bool {
+	return c.Scheme() == "https" || s.Config.ForceSecureCookies
+}
+
 // setSessionCookies sets HttpOnly cookies for the access and refresh tokens.
-func setSessionCookies(c echo.Context, accessToken, refreshToken string) {
-	secure := c.Scheme() == "https"
+func (s *Server) setSessionCookies(c echo.Context, accessToken, refreshToken string) {
+	secure := s.cookieSecure(c)
 
 	c.SetCookie(&http.Cookie{
 		Name:     sessionCookieName,
@@ -766,8 +776,8 @@ func setSessionCookies(c echo.Context, accessToken, refreshToken string) {
 }
 
 // clearSessionCookies removes the session and refresh cookies.
-func clearSessionCookies(c echo.Context) {
-	secure := c.Scheme() == "https"
+func (s *Server) clearSessionCookies(c echo.Context) {
+	secure := s.cookieSecure(c)
 
 	c.SetCookie(&http.Cookie{
 		Name:     sessionCookieName,
@@ -883,7 +893,7 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 	}
 
 	// Set HttpOnly cookies and redirect to frontend (no tokens in URL).
-	setSessionCookies(c, token, refreshToken)
+	s.setSessionCookies(c, token, refreshToken)
 
 	// Store the raw OIDC ID token for RP-Initiated Logout (id_token_hint).
 	_ = s.SessionStore.Set(ctx, prefixIDToken+user.ID, []byte(rawIDToken), 24*time.Hour)
@@ -893,7 +903,7 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 	if rp, err := c.Cookie("bowrain_return_path"); err == nil && rp.Value != "" {
 		returnPath = sanitizeReturnPath(rp.Value)
 		// Clear the return-path cookie.
-		secure := c.Scheme() == "https"
+		secure := s.cookieSecure(c)
 		c.SetCookie(&http.Cookie{
 			Name:     "bowrain_return_path",
 			Value:    "",
@@ -968,7 +978,7 @@ func (s *Server) HandleTokenRefresh(c echo.Context) error {
 	}
 
 	// Set cookies (for web clients) and return JSON (for CLI/desktop).
-	setSessionCookies(c, accessToken, newRefreshToken)
+	s.setSessionCookies(c, accessToken, newRefreshToken)
 
 	return c.JSON(http.StatusOK, platformAuth.TokenResponse{
 		AccessToken:  accessToken,
@@ -1020,7 +1030,7 @@ func (s *Server) HandleAuthLogout(c echo.Context) error {
 		s.emitAuthEvent(c, platev.EventAuthLogout, userID, name, "oidc")
 	}
 
-	clearSessionCookies(c)
+	s.clearSessionCookies(c)
 
 	resp := map[string]string{"status": "logged out"}
 
