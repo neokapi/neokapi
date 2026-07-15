@@ -84,6 +84,67 @@ func TestAuthMiddleware(t *testing.T) {
 	})
 }
 
+// TestAuthMiddleware_CSRF verifies the CSRF gate on the cookie auth path:
+// a state-changing request authenticated by the session cookie must carry the
+// custom CSRF header, while safe methods and non-cookie (Bearer) auth are
+// exempt.
+func TestAuthMiddleware_CSRF(t *testing.T) {
+	user := &platauth.User{ID: "user-1", Email: "test@example.com", Name: "Test"}
+	token, err := platauth.GenerateToken(user, testSecret, 1*time.Hour)
+	require.NoError(t, err)
+
+	mw := AuthMiddleware(testSecret, nil)
+	sessionCookie := &http.Cookie{Name: sessionCookieName, Value: token}
+
+	run := func(method string, withCookie, withHeader, withBearer bool) (int, bool) {
+		e := echo.New()
+		req := httptest.NewRequest(method, "/", nil)
+		if withCookie {
+			req.AddCookie(sessionCookie)
+		}
+		if withHeader {
+			req.Header.Set(csrfHeaderName, "1")
+		}
+		if withBearer {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		called := false
+		handler := mw(func(c echo.Context) error {
+			called = true
+			return c.NoContent(http.StatusOK)
+		})
+		_ = handler(c)
+		return rec.Code, called
+	}
+
+	t.Run("cookie POST without CSRF header is rejected", func(t *testing.T) {
+		code, called := run(http.MethodPost, true, false, false)
+		assert.Equal(t, http.StatusForbidden, code)
+		assert.False(t, called, "handler must not run when CSRF header is missing")
+	})
+
+	t.Run("cookie POST with CSRF header passes", func(t *testing.T) {
+		code, called := run(http.MethodPost, true, true, false)
+		assert.Equal(t, http.StatusOK, code)
+		assert.True(t, called)
+	})
+
+	t.Run("cookie GET without CSRF header passes (safe method)", func(t *testing.T) {
+		code, called := run(http.MethodGet, true, false, false)
+		assert.Equal(t, http.StatusOK, code)
+		assert.True(t, called)
+	})
+
+	t.Run("bearer POST without CSRF header passes (token auth is exempt)", func(t *testing.T) {
+		code, called := run(http.MethodPost, false, false, true)
+		assert.Equal(t, http.StatusOK, code)
+		assert.True(t, called)
+	})
+}
+
 func TestAuthMiddleware_APIToken(t *testing.T) {
 	db := pgtest.NewTestDB(t)
 	store, err := auth.NewAuthStoreFromDB(db)

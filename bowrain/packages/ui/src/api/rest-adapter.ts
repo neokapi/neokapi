@@ -226,6 +226,14 @@ export class RestApiAdapter implements ApiAdapter {
     const h: Record<string, string> = { "Content-Type": "application/json" };
     if (this.token) {
       h["Authorization"] = `Bearer ${this.token}`;
+    } else {
+      // Cookie (BFF) mode: send the CSRF header the server requires on
+      // cookie-authenticated, state-changing requests. Any non-empty value
+      // works — the guard is header *presence*, which a cross-origin page
+      // cannot forge without a CORS preflight the server rejects. Omitted in
+      // Bearer mode (native apps), where token auth is CSRF-exempt server-side
+      // and a cross-origin custom header would force an unwanted preflight.
+      h["X-Bowrain-Csrf"] = "1";
     }
     return h;
   }
