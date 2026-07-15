@@ -17,6 +17,16 @@ type Claims struct {
 	Name  string `json:"name"`
 }
 
+const (
+	// TokenIssuer identifies Bowrain as the minter of its own session JWTs. It is
+	// validated on every parse, so a token signed with the session secret for
+	// some other purpose can never be replayed as a session token.
+	TokenIssuer = "bowrain"
+	// TokenAudience scopes a session JWT to the Bowrain API. Validation requires
+	// this audience, rejecting a token minted for a different consumer.
+	TokenAudience = "bowrain-api"
+)
+
 // ErrEmptySecret is returned when a JWT operation is attempted with an empty
 // HMAC secret. Signing or validating with "" is a misconfiguration that would
 // otherwise produce trivially forgeable tokens, so we fail closed.
@@ -30,7 +40,9 @@ func GenerateToken(user *User, secret string, expiry time.Duration) (string, err
 	now := time.Now()
 	claims := Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    TokenIssuer,
 			Subject:   user.ID,
+			Audience:  jwt.ClaimStrings{TokenAudience},
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(expiry)),
 		},
@@ -45,17 +57,22 @@ func GenerateToken(user *User, secret string, expiry time.Duration) (string, err
 	return signed, nil
 }
 
-// ValidateToken verifies a JWT string and returns the embedded claims.
+// ValidateToken verifies a JWT string and returns the embedded claims. It pins
+// the signing method to HS256, requires the Bowrain issuer and audience, and
+// requires an expiry — so a token that is valid for some other purpose (or has
+// no expiry) is rejected as a session token.
 func ValidateToken(tokenString, secret string) (*Claims, error) {
 	if secret == "" {
 		return nil, ErrEmptySecret
 	}
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(t *jwt.Token) (any, error) {
-		if t.Method != jwt.SigningMethodHS256 {
-			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-		}
 		return []byte(secret), nil
-	})
+	},
+		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
+		jwt.WithIssuer(TokenIssuer),
+		jwt.WithAudience(TokenAudience),
+		jwt.WithExpirationRequired(),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("parse token: %w", err)
 	}
