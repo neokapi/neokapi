@@ -76,14 +76,11 @@ const real = h.runs.filter((r) => !r.simulated);
 
 const label = (r: Run) => r.model || r.provider;
 
-// Runs measured on different corpora are different experiments, and plotting them
-// as one trend would be a lie. But hiding the smaller one is also wrong: the corpus
-// is a parameter of the experiment, and how the curve responds to it is itself the
-// finding. (A sweep to N=32 over 30 blocks does not test a batch of 32; it tests
-// the whole document in one call. That is why the first curve came out flat.)
-//
-// So each corpus gets its own section, largest first — the largest corpus is the
-// one that can say the most about big batches.
+// Runs measured on different corpora are different experiments — the corpus digest
+// is part of what makes two runs comparable, and a batch of N tests nothing beyond
+// the corpus size. The page reports the largest corpus, because it is the only one
+// that can say anything about large batches; smaller corpora stay in the committed
+// history but are not plotted.
 interface Experiment {
   digest: string;
   blocks: number;
@@ -477,30 +474,26 @@ export default function BatchEval(): ReactElement {
         <h1>Batch eval</h1>
         <p style={{ fontSize: "1.05rem", color: "var(--ifm-color-emphasis-700)" }}>
           kapi packs several blocks into a single LLM call, because one call per string is slow and
-          expensive. How many is safe? The published evidence covers <em>adjacent</em> tasks — batch
-          prompting on classification, BatchGEMBA on MT evaluation — and no quality-versus-N curve
-          has been published for segment translation. So kapi&rsquo;s ceiling started life as an
-          inference. This is the measurement that replaced it, and it is re-run as models change: a
-          ceiling that was right for one generation of models is not self-evidently right for the
-          next.
-        </p>
-        <p>
-          The short version: <strong>the safety question turned out to be the boring one</strong>.
-          Translation does not degrade with batch size the way the literature on adjacent tasks
-          predicts, so the interesting axis is not quality but cost — where there is a floor, a hard
-          wall past it, and (on some providers, not all) a worthwhile saving on the way down.
+          expensive. How many is safe? kapi&rsquo;s ceiling began as an informed guess; this page is
+          the measurement that replaced it, re-run as models change so it does not quietly go stale.
         </p>
 
-        <h2>What is scored, and why it is not &ldquo;quality&rdquo;</h2>
+        <h2>How it is measured</h2>
         <p>
-          Batching does not primarily make wording clumsier. It makes segments{" "}
-          <strong>disappear, merge, and get renumbered</strong>, and it mangles the placeholders and
-          inline markup inside them. In a localization pipeline that is not a style complaint but a
-          correctness failure: a translation that lost its <code>{"{0}"}</code> cannot be written
-          back into the source file at all. So the metric is structural integrity — did every
-          segment come back, under the id it was sent, with its placeholders and tags intact? That
-          needs no reference translations, which is why it can be measured for any model in any
-          language pair.
+          A fixed corpus is translated at each batch size, and the result is scored for{" "}
+          <strong>structural integrity</strong> — not wording. The failure that matters when
+          batching is not clumsier phrasing; it is a segment that comes back{" "}
+          <strong>dropped, merged, renumbered, or stripped of a placeholder or tag</strong>. In a
+          localization pipeline that is a correctness failure, because a translation missing its{" "}
+          <code>{"{0}"}</code> cannot be written back into the source file at all. Scoring structure
+          needs no reference translation, so the same measurement works for any model in any
+          language pair. Cost and throughput are recorded from the same runs.
+        </p>
+        <p>
+          The corpus is 600 blocks of the things batching is supposed to break — ambiguous UI
+          strings, placeholders, inline markup, and long prose — with every string distinct, so a
+          model cannot pass by copying one segment&rsquo;s answer into the next. Each size is swept
+          more than once, because a single run of a stochastic model is an anecdote.
         </p>
 
         {current.length === 0 ? (
@@ -515,11 +508,9 @@ export default function BatchEval(): ReactElement {
               <code>{canonicalDigest}</code>
             </p>
             <p>
-              The chart people expect here is quality against N, and for a while it was the one this
-              page led with. It is not drawn first any more, because it has nothing to say: the
-              models are structurally intact at every batch size, so on a 0–100% axis it is a flat
-              line at the ceiling — a null result dressed up as a finding. What genuinely moves with
-              N is what it <em>costs</em>, so that is the chart.
+              Quality does not move with batch size — every model stays structurally intact at every
+              N — so the chart that would show it is a flat line at the ceiling. What moves is what
+              batching <em>costs</em>, so that is the chart.
             </p>
             <Chart runs={current} s={COST} />
             <Legend runs={current} />
@@ -570,11 +561,10 @@ export default function BatchEval(): ReactElement {
                   {f.worst.n}).
                 </>
               )}{" "}
-              The degradation-with-N that batch-prompting papers report on classification and
-              reasoning tasks did not transfer to translation. That is not surprising once stated
-              plainly: translating segment 300 does not depend on having reasoned correctly about
-              segment 299. The items are independent, and the failures that do occur are sporadic
-              rather than progressive.
+              Batching is often expected to degrade as N grows, but that did not happen here, and
+              the reason is structural: translating one segment does not depend on having translated
+              the others correctly. The segments are independent, so the failures that do occur are
+              sporadic rather than progressive.
             </p>
             {f.smallRate != null && f.largeRate != null && (
               <p>
@@ -622,13 +612,10 @@ export default function BatchEval(): ReactElement {
               )}
             </p>
             <p>
-              So the ceiling that matters is a <strong>token budget</strong>, not a block count —
-              which is what kapi packs against. The block cap is a backstop, and the measurement
-              moved it: it was {"≤"}16, inferred from the literature on adjacent tasks, and is now{" "}
-              {"≤"}
-              {SHIPPED_CEILING} — comfortably inside the measured-clean range, and four times fewer
-              calls on a catalog of short UI strings. The output budget still binds first on
-              anything longer.
+              So the limit that matters is a <strong>token budget</strong>, not a block count, and
+              that is what kapi packs against. The block cap is a backstop, set at N{"≤"}
+              {SHIPPED_CEILING} — inside the measured-clean range, and few enough that the output
+              budget binds first on anything longer than a short UI string.
             </p>
 
             <h2>What it costs, and what you give up</h2>
@@ -943,47 +930,11 @@ export default function BatchEval(): ReactElement {
           </>
         )}
 
-        {experiments.length > 1 && (
-          <>
-            <h2>The corpus is part of the experiment</h2>
-            <p>
-              The first version of this sweep used a 30-block corpus and reported a flat 100% line
-              at every batch size up to 32. That result was an artefact. With only 30 blocks, N=32
-              does not test a batch of thirty-two — it tests <em>the whole document in one call</em>
-              , and N=16 tests two calls. The sweep had saturated: the ceiling being measured was
-              the corpus&rsquo;s, not the models&rsquo;. It is kept below rather than deleted,
-              because a measurement that could not have found the thing it was looking for should be
-              visible as such.
-            </p>
-            {experiments.slice(1).map((e) => (
-              <div key={e.digest} style={{ marginBottom: 24 }}>
-                <h3 style={{ marginBottom: 4 }}>
-                  {e.blocks || "?"}-block corpus{" "}
-                  <span
-                    style={{
-                      fontWeight: 400,
-                      fontSize: "0.85rem",
-                      color: "var(--ifm-color-emphasis-600)",
-                    }}
-                  >
-                    {e.date} · corpus <code>{e.digest}</code> · largest meaningful N ={" "}
-                    {e.blocks || "?"}
-                  </span>
-                </h3>
-                <Chart runs={e.runs} s={COST} />
-                <Legend runs={e.runs} />
-              </div>
-            ))}
-          </>
-        )}
-
         <h2>Reproducing this</h2>
         <p>
-          The harness is <code>scripts/batcheval</code>. It translates a fixed corpus — long prose,
-          placeholders, inline markup, and the same source text under two different keys — at each
-          N, and scores what came back. A run against the built-in demo stub exercises the harness
-          and measures nothing about any model; such runs are marked <code>simulated</code> and are
-          excluded from every chart on this page.
+          The harness is <code>scripts/batcheval</code>. A run against the built-in demo stub
+          exercises the harness and measures nothing about any model; such runs are marked{" "}
+          <code>simulated</code> and are excluded from every chart on this page.
         </p>
         <pre>
           <code>{`make batch-eval                     # demo stub: proves the harness, measures nothing
