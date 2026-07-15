@@ -141,8 +141,15 @@ func run(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) error {
 		return err
 	}
 
-	fmt.Printf("wrote %s/{formats,tools,reference-gaps,commands,prompts}.json — %d formats, %d tools, %d commands, %d prompts\n",
-		outDir, len(formatEntries), len(toolEntries), len(cmdDataset.Commands), len(promptDataset.Prompts))
+	// Generate the model catalog from providers/ai/models.json, resolved through
+	// the provider registry for display labels.
+	modelDataset := collectModelDataset(now)
+	if err := writeJSON(filepath.Join(outDir, "models.json"), modelDataset); err != nil {
+		return err
+	}
+
+	fmt.Printf("wrote %s/{formats,tools,reference-gaps,commands,prompts,models}.json — %d formats, %d tools, %d commands, %d prompts, %d models\n",
+		outDir, len(formatEntries), len(toolEntries), len(cmdDataset.Commands), len(promptDataset.Prompts), len(modelDataset.Models))
 	printGapSummary(report)
 	return nil
 }

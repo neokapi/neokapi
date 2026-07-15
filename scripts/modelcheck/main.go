@@ -1,22 +1,27 @@
 // Command modelcheck asks the providers what models they actually serve today, and
-// checks that against what kapi claims to know about.
+// checks that against the neokapi model catalog (providers/ai/models.json).
 //
-// Two things rot silently, and both are load-bearing:
+// The catalog is curated, because the lifecycle facts it carries — when a model
+// entered neokapi, what replaced it, when it retires — are not in any provider API.
+// modelcheck is the alarm that keeps that curation honest, catching the two things
+// that rot silently:
 //
-//   - **Models retire.** gemini-3-pro-preview answered 404 "no longer available"
-//     in the middle of a benchmark sweep. A default model that has been retired is
-//     not a degraded experience, it is a hard failure on the first call.
-//   - **Prices move.** A cost published on a dashboard is a number people budget
-//     against. A stale one is worse than none.
+//   - **A catalogued model retires.** gemini-3-pro-preview answered 404 "no longer
+//     available" in the middle of a benchmark sweep. A model kapi still lists as
+//     active — worse, defaults to — is a hard failure on a user's first call. Such a
+//     model should be removed from the catalog (it holds no dead entries), and this
+//     reports it.
+//   - **A price outlives its model.** The /batch-eval price table must only quote
+//     models the catalog knows; a stale key is a cost published for something kapi
+//     no longer supports. This is checked statically, every run.
 //
-// This command handles the first: it lists live models from each provider's own
-// API (the authoritative source — the docs lag) and reports anything kapi pins,
-// prices, or defaults to that no longer exists. Pricing is refreshed separately by
-// `make update-model-prices`, which reads the vendors' pricing pages, because no
-// vendor exposes prices over an API.
+// It also reports, on request, live models the catalog does not list — candidates
+// worth considering. Prices themselves are refreshed separately by
+// `make update-model-prices`; no vendor exposes prices over an API.
 //
 //	go run ./scripts/modelcheck              # report
-//	go run ./scripts/modelcheck -check       # non-zero exit if anything kapi uses is gone
+//	go run ./scripts/modelcheck -check       # non-zero exit if a catalogued model is gone
+//	go run ./scripts/modelcheck -candidates  # also list live models not in the catalog
 package main
 
 import (
@@ -42,7 +47,8 @@ func main() {
 }
 
 func run() error {
-	check := flag.Bool("check", false, "exit non-zero if a model kapi pins or prices no longer exists")
+	check := flag.Bool("check", false, "exit non-zero if a catalogued model is no longer served, or a price outlives its model")
+	candidates := flag.Bool("candidates", false, "also list live models the catalog does not include")
 	flag.Parse()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -69,29 +75,39 @@ func run() error {
 		fmt.Printf("%s: %d models live\n", p.name, len(models))
 	}
 
-	missing := checkPinned(live)
-	for _, m := range missing {
-		fmt.Printf("\n  GONE: %s\n    %s\n", m.model, m.where)
+	// Static: the price table must only quote catalogued models. Needs no live
+	// list, so it runs even with no API keys.
+	priced := priceKeyProblems()
+	for _, p := range priced {
+		fmt.Printf("\n  PRICE: %s\n", p)
 	}
-	if len(missing) == 0 {
-		fmt.Println("\nevery model kapi pins or prices is still served")
+
+	missing := checkCatalogued(live)
+	for _, m := range missing {
+		fmt.Printf("\n  GONE: %s:%s\n    %s\n    → the provider no longer serves it; remove it from models.json\n", m.provider, m.model, m.where)
+	}
+
+	if *candidates {
+		reportCandidates(live)
+	}
+
+	if len(missing) == 0 && len(priced) == 0 {
+		fmt.Println("\nthe catalog matches what the providers serve, and every price is for a catalogued model")
 		return nil
 	}
 	if *check {
-		return fmt.Errorf("%d model(s) kapi uses no longer exist", len(missing))
+		return fmt.Errorf("%d catalogued model(s) gone, %d price(s) off-catalog", len(missing), len(priced))
 	}
 	return nil
 }
 
-type gone struct{ model, where string }
-
-// checkPinned reports models kapi depends on that the provider no longer serves.
-// Only providers we could actually reach are judged — an unreachable provider
-// tells us nothing about its models, and treating that as "retired" would be the
-// same false-cliff mistake the batch eval is built to avoid.
-func checkPinned(live map[string][]string) []gone {
-	var out []gone
-	for _, p := range pinnedModels() {
+// checkCatalogued reports catalogued models the provider no longer serves. Only
+// providers we could actually reach are judged — an unreachable provider tells us
+// nothing about its models, and treating that as "retired" would be the same
+// false-cliff mistake the batch eval is built to avoid.
+func checkCatalogued(live map[string][]string) []checkable {
+	var out []checkable
+	for _, p := range catalogModels() {
 		models, reachable := live[p.provider]
 		if !reachable {
 			continue
@@ -99,10 +115,35 @@ func checkPinned(live map[string][]string) []gone {
 		if !slices.ContainsFunc(models, func(m string) bool {
 			return m == p.model || strings.HasPrefix(m, p.model)
 		}) {
-			out = append(out, gone{model: p.provider + ":" + p.model, where: p.where})
+			out = append(out, p)
 		}
 	}
 	return out
+}
+
+// reportCandidates lists live models no catalog entry matches — the models a
+// provider serves that kapi has not adopted. Informational only: providers serve
+// many models (embeddings, TTS, legacy snapshots) kapi will never translate with,
+// so this is a prompt to look, not a failure.
+func reportCandidates(live map[string][]string) {
+	catalogued := catalogModels()
+	for provider, models := range live {
+		var news []string
+		for _, m := range models {
+			matched := slices.ContainsFunc(catalogued, func(c checkable) bool {
+				return c.provider == provider && (m == c.model || strings.HasPrefix(m, c.model))
+			})
+			if !matched {
+				news = append(news, m)
+			}
+		}
+		if len(news) > 0 {
+			fmt.Printf("\n  %s: %d live models not in the catalog:\n", provider, len(news))
+			for _, m := range news {
+				fmt.Printf("    - %s\n", m)
+			}
+		}
+	}
 }
 
 func listGemini(ctx context.Context) ([]string, error) {

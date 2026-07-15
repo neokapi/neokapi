@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-14T04:49:52Z",
+  "generatedAt": "2026-07-15T04:10:01Z",
   "commands": [
     {
       "id": "brand",
@@ -129,7 +129,7 @@
         },
         {
           "name": "color",
-          "usage": "colorize JSON output: auto, always, never",
+          "usage": "colorize output: auto, always, never",
           "default": "auto",
           "type": "string"
         },
@@ -213,7 +213,7 @@
       "flags": [
         {
           "name": "color",
-          "usage": "colorize JSON output: auto, always, never",
+          "usage": "colorize output: auto, always, never",
           "default": "auto",
           "type": "string"
         },
@@ -297,7 +297,7 @@
       "flags": [
         {
           "name": "color",
-          "usage": "colorize JSON output: auto, always, never",
+          "usage": "colorize output: auto, always, never",
           "default": "auto",
           "type": "string"
         },
@@ -355,7 +355,7 @@
       "flags": [
         {
           "name": "color",
-          "usage": "colorize JSON output: auto, always, never",
+          "usage": "colorize output: auto, always, never",
           "default": "auto",
           "type": "string"
         },
@@ -491,7 +491,7 @@
         },
         {
           "name": "color",
-          "usage": "colorize JSON output: auto, always, never",
+          "usage": "colorize output: auto, always, never",
           "default": "auto",
           "type": "string"
         },
@@ -576,7 +576,7 @@
       "flags": [
         {
           "name": "color",
-          "usage": "colorize JSON output: auto, always, never",
+          "usage": "colorize output: auto, always, never",
           "default": "auto",
           "type": "string"
         },

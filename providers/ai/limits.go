@@ -2,7 +2,6 @@ package aiprovider
 
 import (
 	"context"
-	"strings"
 )
 
 // What a model can actually emit — and why anyone should care.
@@ -73,56 +72,21 @@ func LimitsOf(p LLMProvider) Limits {
 	return Limits{MaxOutputTokens: ConservativeMaxOutputTokens}
 }
 
-// modelLimits maps a model-ID prefix to its ceilings. Prefix-matched, so a dated
-// snapshot (claude-sonnet-5-20260115) resolves to its family without needing a
-// row per release.
-//
-// Longest prefix wins, so a more specific entry can override a family default.
-var modelLimits = map[string]Limits{
-	// Anthropic — 1M context is standard, not a beta, and carries no long-context
-	// surcharge.
-	"claude-opus-4-8":  {MaxOutputTokens: 128_000, ContextWindow: 1_000_000},
-	"claude-sonnet-5":  {MaxOutputTokens: 128_000, ContextWindow: 1_000_000},
-	"claude-fable-5":   {MaxOutputTokens: 128_000, ContextWindow: 1_000_000},
-	"claude-haiku-4-5": {MaxOutputTokens: 64_000, ContextWindow: 200_000},
-	"claude-opus-4":    {MaxOutputTokens: 32_000, ContextWindow: 200_000},
-	"claude-sonnet-4":  {MaxOutputTokens: 64_000, ContextWindow: 200_000},
-	"claude-3-5":       {MaxOutputTokens: 8_192, ContextWindow: 200_000},
-
-	// OpenAI
-	"gpt-5.6": {MaxOutputTokens: 128_000, ContextWindow: 1_050_000},
-	"gpt-5":   {MaxOutputTokens: 128_000, ContextWindow: 400_000},
-	"gpt-4.1": {MaxOutputTokens: 32_768, ContextWindow: 1_047_576},
-	"gpt-4o":  {MaxOutputTokens: 16_384, ContextWindow: 128_000},
-	"o3":      {MaxOutputTokens: 100_000, ContextWindow: 200_000},
-	"gpt-4-":  {MaxOutputTokens: 4_096, ContextWindow: 128_000},
-	"gpt-3.5": {MaxOutputTokens: 4_096, ContextWindow: 16_385},
-	// Gemini. 3.5 Flash is 65k; the rest of the Gemini 3 family is 64k. Longest
-	// prefix wins, so the specific entry overrides the family.
-	"gemini-3.5-flash": {MaxOutputTokens: 65_536, ContextWindow: 1_048_576},
-	"gemini-3":         {MaxOutputTokens: 64_000, ContextWindow: 1_048_576},
-	"gemini-2":         {MaxOutputTokens: 8_192, ContextWindow: 1_048_576},
-	"gemini-1.5":       {MaxOutputTokens: 8_192, ContextWindow: 1_048_576},
-}
-
 // LimitsForModel resolves a model ID to its known ceilings by longest-prefix
 // match, returning ok=false for a model this build has never heard of.
+//
+// The ceilings live in the model catalog (models.json), not a table here: a
+// model's output limit is a fact about the model, and it belongs with the model's
+// provider, status, and lifecycle rather than in a parallel map that has to be
+// kept in step by hand. An entry with no declared ceiling (a local Ollama model,
+// whose limit depends on the pulled quantisation) reports ok=false and falls back
+// to the conservative default, exactly as an unknown model does.
 func LimitsForModel(model string) (Limits, bool) {
-	m := strings.ToLower(strings.TrimSpace(model))
-	if m == "" {
+	m, ok := ModelForID(model)
+	if !ok || m.MaxOutputTokens == 0 {
 		return Limits{}, false
 	}
-
-	var best string
-	for prefix := range modelLimits {
-		if strings.HasPrefix(m, prefix) && len(prefix) > len(best) {
-			best = prefix
-		}
-	}
-	if best == "" {
-		return Limits{}, false
-	}
-	return modelLimits[best], true
+	return Limits{MaxOutputTokens: m.MaxOutputTokens, ContextWindow: m.ContextWindow}, true
 }
 
 // maxTokensKey carries a per-request output budget.

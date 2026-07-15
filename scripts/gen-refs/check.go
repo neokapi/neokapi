@@ -54,6 +54,10 @@ func checkDrift(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) e
 	if diff := comparePrompts(filepath.Join(outDir, "prompts.json"), wantPrompts); diff != "" {
 		problems = append(problems, "prompts.json: "+diff)
 	}
+	wantModels := collectModelDataset("")
+	if diff := compareModels(filepath.Join(outDir, "models.json"), wantModels); diff != "" {
+		problems = append(problems, "models.json: "+diff)
+	}
 
 	if len(problems) > 0 {
 		for _, p := range problems {
@@ -62,8 +66,8 @@ func checkDrift(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) e
 		return fmt.Errorf("committed reference dataset is stale; run `make generate-reference-docs` and commit the result")
 	}
 
-	fmt.Printf("reference dataset is fresh (built-in subset: %d formats, %d tools, %d gaps, %d prompts)\n",
-		countBuiltIn(formatEntries), countBuiltIn(toolEntries), len(builtInGaps(wantGaps)), len(wantPrompts.Prompts))
+	fmt.Printf("reference dataset is fresh (built-in subset: %d formats, %d tools, %d gaps, %d prompts, %d models)\n",
+		countBuiltIn(formatEntries), countBuiltIn(toolEntries), len(builtInGaps(wantGaps)), len(wantPrompts.Prompts), len(collectModelDataset("").Models))
 	return nil
 }
 
@@ -197,6 +201,37 @@ func comparePrompts(path string, want PromptDataset) string {
 	}
 	if string(gotJSON) != string(wantJSON) {
 		return "the committed prompt reference no longer matches the prompts kapi sends"
+	}
+	return ""
+}
+
+// compareModels gates the committed model reference against the live catalog.
+// Editing providers/ai/models.json without regenerating fails this, so the
+// published /models page cannot describe a catalog kapi no longer ships.
+func compareModels(path string, want ModelDataset) string {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Sprintf("cannot read %s: %v", path, err)
+	}
+	var got ModelDataset
+	if err := json.Unmarshal(raw, &got); err != nil {
+		return fmt.Sprintf("cannot parse %s: %v", path, err)
+	}
+
+	// generatedAt changes every run and is not part of the contract.
+	got.GeneratedAt = ""
+	want.GeneratedAt = ""
+
+	gotJSON, err := json.Marshal(got)
+	if err != nil {
+		return fmt.Sprintf("cannot re-encode %s: %v", path, err)
+	}
+	wantJSON, err := json.Marshal(want)
+	if err != nil {
+		return fmt.Sprintf("cannot encode catalog: %v", err)
+	}
+	if string(gotJSON) != string(wantJSON) {
+		return "the committed model reference no longer matches providers/ai/models.json"
 	}
 	return ""
 }

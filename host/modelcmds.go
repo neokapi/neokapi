@@ -226,12 +226,22 @@ func BuildModelRows(pluginModels []PluginModel, installed []aiprovider.OllamaMod
 		if !keep(output.ModelSourceCloud, string(p.Name)) {
 			continue
 		}
-		rows = append(rows, output.ModelRow{
+		row := output.ModelRow{
 			Source:   output.ModelSourceCloud,
 			Provider: string(p.Name),
 			Model:    p.DefaultModel,
 			Status:   "cloud · needs key",
-		})
+		}
+		// Surface the default's lifecycle from the catalog: a superseded or retired
+		// default is worth flagging where a user is choosing a provider, not only on
+		// the /models page. Azure defaults to gpt-4o, which is superseded — say so.
+		if m, ok := aiprovider.ModelForID(p.DefaultModel); ok && m.Status != aiprovider.StatusActive {
+			row.Note = string(m.Status)
+			if m.SupersededBy != "" {
+				row.Note += " · newer: " + m.SupersededBy
+			}
+		}
+		rows = append(rows, row)
 	}
 
 	return rows
