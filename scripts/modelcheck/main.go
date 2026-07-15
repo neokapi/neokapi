@@ -100,14 +100,12 @@ func run() error {
 	return nil
 }
 
-type gone struct{ provider, model, where string }
-
 // checkCatalogued reports catalogued models the provider no longer serves. Only
 // providers we could actually reach are judged — an unreachable provider tells us
 // nothing about its models, and treating that as "retired" would be the same
 // false-cliff mistake the batch eval is built to avoid.
-func checkCatalogued(live map[string][]string) []gone {
-	var out []gone
+func checkCatalogued(live map[string][]string) []checkable {
+	var out []checkable
 	for _, p := range catalogModels() {
 		models, reachable := live[p.provider]
 		if !reachable {
@@ -116,7 +114,7 @@ func checkCatalogued(live map[string][]string) []gone {
 		if !slices.ContainsFunc(models, func(m string) bool {
 			return m == p.model || strings.HasPrefix(m, p.model)
 		}) {
-			out = append(out, gone{provider: p.provider, model: p.model, where: p.where})
+			out = append(out, p)
 		}
 	}
 	return out
