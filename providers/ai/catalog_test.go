@@ -46,6 +46,21 @@ func TestDefaultForOnlyNamesRealProviders(t *testing.T) {
 	}
 }
 
+// An active model a provider defaults to cannot be "not recommended" — demoting
+// your own current default to the Advanced shelf is incoherent. (A superseded
+// default, like Azure's gpt-4o, is a separate already-flagged smell and is exempt:
+// it is legacy by status, not by this axis.)
+func TestActiveDefaultsAreRecommended(t *testing.T) {
+	t.Parallel()
+
+	for _, m := range Models() {
+		if len(m.DefaultFor) > 0 && m.Status == StatusActive {
+			assert.Truef(t, m.IsRecommended(),
+				"%q is an active default for %v but is marked not recommended", m.ID, m.DefaultFor)
+		}
+	}
+}
+
 func TestLimitsResolveThroughTheCatalog(t *testing.T) {
 	t.Parallel()
 

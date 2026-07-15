@@ -34,7 +34,12 @@ not in any provider API. Your job is to keep the curation honest.
    prefix), `provider`, `label`, `max_output_tokens` and `context_window` (from the
    vendor's model card), `status: "active"`, and `introduced` set to today. If it
    replaces an existing model, set the old one's `status: "superseded"` and
-   `superseded_by` to the new id.
+   `superseded_by` to the new id. If the new model is capable-but-premium (a top-tier
+   or reasoning model, dear and overkill for translation) or tuned for other tasks
+   (creative writing), add `"recommended": false` so it lands under "Advanced" rather
+   than the primary list — it stays fully usable, just not advertised as a default
+   choice. Leave the field off for an everyday workhorse. Never mark a provider's
+   current default non-recommended; a test rejects it.
 
 4. When you change a provider's current best model, update the corresponding
    `DefaultXModel` constant in `providers/ai/<provider>.go` too, and add
