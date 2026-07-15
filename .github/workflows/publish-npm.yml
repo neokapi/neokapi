@@ -49,7 +49,7 @@ jobs:
 
       # setup-node with registry-url is applied last so npm's registry/OIDC
       # config is the final node setup in effect for the publish step.
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
