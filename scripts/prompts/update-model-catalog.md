@@ -24,11 +24,11 @@ not in any provider API. Your job is to keep the curation honest.
      (embeddings, TTS, dated snapshots kapi will never translate with); a few are
      genuinely new models worth adopting.
 
-2. For each **GONE** model, move it to `"status": "retired"`. Keep it in the file
-   as a tombstone — a recipe that still pins it should fail with an explanation,
-   not a bare 404. Record `retirement_date` only if you can establish it from the
-   vendor's deprecation page; otherwise leave it empty and say so in `note` ("no
-   longer served, confirmed <date> by check-models"). Do not invent a date.
+2. For each **GONE** model, **remove its entry** from the catalog. The catalog
+   holds only models kapi supports; a dead one is deleted, not kept as a tombstone.
+   (If the vendor has announced a *future* retirement for a model that is still
+   served, leave the entry and set `retirement_date` to the announced date — a
+   warning, not a removal.)
 
 3. For a genuinely new model worth supporting, add an entry: `id` (the family
    prefix), `provider`, `label`, `max_output_tokens` and `context_window` (from the

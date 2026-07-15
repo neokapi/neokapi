@@ -9,7 +9,8 @@
 //   - **A catalogued model retires.** gemini-3-pro-preview answered 404 "no longer
 //     available" in the middle of a benchmark sweep. A model kapi still lists as
 //     active — worse, defaults to — is a hard failure on a user's first call. Such a
-//     model should be moved to status: retired (or superseded), and this reports it.
+//     model should be removed from the catalog (it holds no dead entries), and this
+//     reports it.
 //   - **A price outlives its model.** The /batch-eval price table must only quote
 //     models the catalog knows; a stale key is a cost published for something kapi
 //     no longer supports. This is checked statically, every run.
@@ -83,7 +84,7 @@ func run() error {
 
 	missing := checkCatalogued(live)
 	for _, m := range missing {
-		fmt.Printf("\n  GONE: %s:%s\n    %s\n    → move it to status: retired (or superseded) in models.json\n", m.provider, m.model, m.where)
+		fmt.Printf("\n  GONE: %s:%s\n    %s\n    → the provider no longer serves it; remove it from models.json\n", m.provider, m.model, m.where)
 	}
 
 	if *candidates {

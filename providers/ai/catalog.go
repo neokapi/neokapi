@@ -28,6 +28,12 @@ import (
 var modelsJSON []byte
 
 // ModelStatus is where a model sits in its neokapi life.
+//
+// There is no "retired" status: a model the provider has stopped serving is
+// removed from the catalog outright, not kept as a tombstone. The catalog is the
+// list of models kapi supports, and a dead model supports nothing. An upcoming
+// retirement is recorded as a date on a still-live entry (RetirementDate), not as
+// a terminal state.
 type ModelStatus string
 
 const (
@@ -36,10 +42,6 @@ const (
 	// StatusSuperseded: still callable, but a newer model is preferred. Kept in
 	// the catalog because a user may still name it and kapi must know its ceilings.
 	StatusSuperseded ModelStatus = "superseded"
-	// StatusRetired: the provider no longer serves it. Kept only as a tombstone —
-	// with a retirement date — so a recipe that pins it fails with an explanation
-	// rather than a bare 404.
-	StatusRetired ModelStatus = "retired"
 )
 
 // Model is one entry in the catalog: a model family kapi supports, keyed by the
@@ -75,8 +77,9 @@ type Model struct {
 	// SupersededBy is the id of the model that replaced this one, when Status is
 	// superseded.
 	SupersededBy string `json:"superseded_by,omitempty"`
-	// RetirementDate is when the provider stops (or stopped) serving the model,
-	// YYYY-MM-DD, when known.
+	// RetirementDate is a *scheduled future* retirement, YYYY-MM-DD, when the
+	// vendor has announced one — a warning on a model still being served. Once the
+	// model is actually gone the entry is removed, not kept with a past date.
 	RetirementDate string `json:"retirement_date,omitempty"`
 	// Note is any additional context — a caveat, a pricing condition, a reason.
 	Note string `json:"note,omitempty"`

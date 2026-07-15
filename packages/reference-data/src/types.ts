@@ -228,8 +228,9 @@ export interface PromptDataset {
   prompts: PromptEntry[];
 }
 
-/** Where a model sits in its neokapi lifecycle. */
-export type ModelStatus = "active" | "superseded" | "retired";
+/** Where a model sits in its neokapi lifecycle. A model the provider stops serving
+ *  is removed from the catalog, not marked retired, so there is no "retired". */
+export type ModelStatus = "active" | "superseded";
 
 /** One catalogued model — a family kapi ships support for, with its ceilings and
  *  neokapi lifecycle. Generated from providers/ai/models.json. */
@@ -251,7 +252,8 @@ export interface ModelEntry {
   introduced?: string;
   /** The id of the model that replaced this one, when superseded. */
   supersededBy?: string;
-  /** When the provider stops (or stopped) serving it (YYYY-MM-DD), when known. */
+  /** A scheduled future retirement the vendor has announced (YYYY-MM-DD) — a
+   *  warning on a still-live model. Actually-retired models are removed. */
   retirementDate?: string;
   note?: string;
 }

@@ -16,11 +16,12 @@ import (
 // that the provider no longer serves is a claim kapi cannot honour — a 404 on a
 // user's first call if it is a default, and a lie on the /models page either way.
 //
-// Retired entries are skipped: they are tombstones, expected to be gone. Local
-// models (Ollama) are skipped: they are not served by a cloud list API. And only
-// the providers modelcheck can actually enumerate (anthropic, openai, gemini) are
-// checked — an endpoint-specific provider like Azure has no public model list, so
-// its models ride under their openai-family catalog entry instead.
+// The catalog holds no dead models (a retired model is removed, not tombstoned),
+// so every entry is expected to be live. Local models (Ollama) are skipped: they
+// are not served by a cloud list API. And only the providers modelcheck can
+// actually enumerate (anthropic, openai, gemini) are checked — an endpoint-specific
+// provider like Azure has no public model list, so its models ride under their
+// openai-family catalog entry instead.
 type checkable struct {
 	provider string
 	model    string // catalog id, used as a match prefix against live ids
@@ -32,7 +33,7 @@ type checkable struct {
 func catalogModels() []checkable {
 	var out []checkable
 	for _, m := range aiprovider.Models() {
-		if m.Status == aiprovider.StatusRetired || aiprovider.IsLocalProvider(m.Provider) {
+		if aiprovider.IsLocalProvider(m.Provider) {
 			continue
 		}
 		switch m.Provider {

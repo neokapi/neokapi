@@ -170,16 +170,19 @@ Those are facts about *our* support, and only a human (or an agent reading a mod
 card) can supply them.
 
 **Each entry** carries the model's provider, aliases, output/context ceilings, and
-its lifecycle: `status` (`active` | `superseded` | `retired`), `introduced`,
-`superseded_by`, and `retirement_date`. A model can be one provider's current
-default while superseded elsewhere — Azure still defaults to `gpt-4o` — and the
-catalog records that rather than papering over it; `kapi models list` and the
-`/models` page both surface it.
+its lifecycle: `status` (`active` | `superseded`), `introduced`, `superseded_by`,
+and `retirement_date`. There is no `retired` status: a model the provider stops
+serving is **removed** from the catalog, not kept as a tombstone — the catalog is
+the list of models kapi supports, and a dead model supports nothing. An announced
+*future* retirement is a date on a still-live entry, shown as a warning. A model can
+be one provider's current default while superseded elsewhere — Azure still defaults
+to `gpt-4o` — and the catalog records that rather than papering over it; `kapi
+models list` and the `/models` page both surface it.
 
 **Staying honest.** Curation rots, so `make check-models` (`scripts/modelcheck`)
 is the alarm: it lists what each provider serves today and reports any catalogued
-model that is gone (move it to `retired`) or, with `-candidates`, any live model
-the catalog omits. The live half needs provider credentials and stays a manual or
+model that is gone (remove it) or, with `-candidates`, any live model the catalog
+omits. The live half needs provider credentials and stays a manual or
 scheduled tool — a rate-limited provider must never be mistaken for a retired one,
 the same false-cliff trap the [batch eval](/batch-eval) guards against. The keyless
 half — every published price must be for a catalogued model — is an ordinary unit

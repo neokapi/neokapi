@@ -23,9 +23,8 @@ func TestEveryProviderDefaultIsCatalogued(t *testing.T) {
 		if info.Name == ClaudeCode {
 			// claude-code's default is a bare alias (sonnet) resolved against the
 			// signed-in account; it goes through the alias path, not prefix match.
-			m, ok := ModelByAlias(info.DefaultModel)
+			_, ok := ModelByAlias(info.DefaultModel)
 			require.Truef(t, ok, "claude-code default %q has no catalog entry", info.DefaultModel)
-			assert.NotEqual(t, StatusRetired, m.Status, "a provider default must not be retired")
 			continue
 		}
 
@@ -33,8 +32,6 @@ func TestEveryProviderDefaultIsCatalogued(t *testing.T) {
 		require.Truef(t, ok, "provider %s default %q has no catalog entry", info.Name, info.DefaultModel)
 		assert.Containsf(t, m.DefaultFor, info.Name,
 			"catalog entry %q is provider %s's default but does not list it in default_for", m.ID, info.Name)
-		assert.NotEqualf(t, StatusRetired, m.Status,
-			"provider %s defaults to %q, which the catalog marks retired", info.Name, m.ID)
 	}
 }
 
@@ -94,7 +91,7 @@ func TestCatalogIsInternallyConsistent(t *testing.T) {
 		assert.Truef(t, ok, "%q names unknown provider %q", m.ID, m.Provider)
 
 		switch m.Status {
-		case StatusActive, StatusSuperseded, StatusRetired:
+		case StatusActive, StatusSuperseded:
 		default:
 			t.Errorf("%q has unknown status %q", m.ID, m.Status)
 		}

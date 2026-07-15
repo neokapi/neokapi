@@ -5,8 +5,8 @@ import type { ModelEntry, ModelStatus } from "@neokapi/reference-data";
 
 // The AI model reference. kapi ships support for a curated set of models, and the
 // facts about them — which provider, what ceilings, and crucially where each sits
-// in its life (current, superseded, retired) — used to live nowhere a reader could
-// see. This page renders the committed catalog (providers/ai/models.json, via
+// in its life (current, or superseded by a newer one) — used to live nowhere a
+// reader could see. This page renders the committed catalog (providers/ai/models.json, via
 // @neokapi/reference-data), so the list ships with the docs and cannot quietly
 // describe a model kapi no longer supports: a drift gate (make check-reference-docs)
 // fails the build if the page and the catalog disagree.
@@ -27,10 +27,6 @@ const statusStyle: Record<ModelStatus, CSSProperties> = {
   superseded: {
     background: "var(--ifm-color-warning-contrast-background)",
     color: "var(--ifm-color-warning-dark)",
-  },
-  retired: {
-    background: "var(--ifm-color-danger-contrast-background)",
-    color: "var(--ifm-color-danger-dark)",
   },
 };
 
@@ -115,11 +111,19 @@ function ProviderTable({ rows, all }: { rows: ModelEntry[]; all: ModelEntry[] })
                     superseded by <strong>{label(m.supersededBy, all)}</strong>
                   </span>
                 )}
-                {m.status === "retired" && (
-                  <span>retired{m.retirementDate ? ` ${m.retirementDate}` : ""}</span>
-                )}
                 {m.status === "active" && (
                   <span style={{ color: "var(--ifm-color-emphasis-500)" }}>current</span>
+                )}
+                {m.retirementDate && (
+                  <div
+                    style={{
+                      color: "var(--ifm-color-warning-dark)",
+                      fontSize: "0.8rem",
+                      marginTop: 2,
+                    }}
+                  >
+                    retires {m.retirementDate}
+                  </div>
                 )}
                 {m.note && (
                   <div
@@ -150,7 +154,7 @@ export default function Models(): ReactElement {
   return (
     <Layout
       title="AI Models"
-      description="The models kapi ships support for — provider, output and context ceilings, and where each sits in its neokapi lifecycle (introduced, superseded, retired)."
+      description="The models kapi ships support for — provider, output and context ceilings, and where each sits in its neokapi lifecycle (introduced, superseded, scheduled retirement)."
     >
       <main className="container margin-vert--lg" style={{ maxWidth: 960 }}>
         <h1>AI Models</h1>
@@ -162,12 +166,14 @@ export default function Models(): ReactElement {
         </p>
         <p>
           <strong>Status</strong> is a fact about neokapi, not the vendor: <em>active</em> is a
-          model to reach for today, <em>superseded</em> is still callable but has a preferred
-          successor, and <em>retired</em> is a tombstone kept so a recipe that pins it fails with an
-          explanation rather than a bare error. &ldquo;In neokapi since&rdquo; is the date the model
-          id entered the source tree; models present when the catalog was first seeded share that
-          date, and precise dates are recorded going forward. For what these models <em>cost</em>{" "}
-          and how they behave under batching, see <a href="/batch-eval">the batch eval</a>.
+          model to reach for today, and <em>superseded</em> is still callable but has a preferred
+          successor. A model the provider stops serving is removed from this list rather than kept
+          as a tombstone, so every model here is one you can actually call; a model with an
+          announced future retirement stays, with the date shown as a warning. &ldquo;In neokapi
+          since&rdquo; is the date the model id entered the source tree; models present when the
+          catalog was first seeded share that date, and precise dates are recorded going forward.
+          For what these models <em>cost</em> and how they behave under batching, see{" "}
+          <a href="/batch-eval">the batch eval</a>.
         </p>
 
         {providers.map((p) => {

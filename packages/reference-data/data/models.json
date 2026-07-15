@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-15T03:26:04Z",
+  "generatedAt": "2026-07-15T04:10:01Z",
   "asOf": "2026-07-15",
   "note": "Generated from providers/ai/models.json via scripts/gen-refs. Do not edit here; edit the catalog and run `make generate-reference-docs`.",
   "models": [
@@ -244,17 +244,6 @@
       "status": "superseded",
       "introduced": "2026-07-14",
       "supersededBy": "gemini-3.5-flash"
-    },
-    {
-      "id": "gemini-1.5",
-      "provider": "gemini",
-      "providerLabel": "Gemini",
-      "label": "Gemini 1.5",
-      "maxOutputTokens": 8192,
-      "contextWindow": 1048576,
-      "status": "retired",
-      "introduced": "2026-07-14",
-      "note": "No longer served by the Gemini API (confirmed 2026-07-15 by make check-models). Kept as a tombstone so a recipe that pins it fails with an explanation rather than a bare 404. Its successor is gemini-3.5-flash."
     },
     {
       "id": "llama3.2",
