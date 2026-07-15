@@ -165,24 +165,57 @@ export default function Models(): ReactElement {
           build actually supports, not a hand-maintained copy that drifts.
         </p>
         <p>
-          <strong>Status</strong> is a fact about neokapi, not the vendor: <em>active</em> is a
-          model to reach for today, and <em>superseded</em> is still callable but has a preferred
-          successor. A model the provider stops serving is removed from this list rather than kept
-          as a tombstone, so every model here is one you can actually call; a model with an
-          announced future retirement stays, with the date shown as a warning. &ldquo;In neokapi
-          since&rdquo; is the date the model id entered the source tree; models present when the
-          catalog was first seeded share that date, and precise dates are recorded going forward.
-          For what these models <em>cost</em> and how they behave under batching, see{" "}
+          Each provider leads with the models <strong>recommended</strong> for the work kapi does —
+          translation, review, terminology — which for most projects is a short list.{" "}
+          <strong>Advanced &amp; specialised</strong> holds models that are fully supported but not
+          the usual choice: capable-but-premium ones (Opus, Gemini Pro) that are overkill for
+          faithful content work, or ones tuned for other tasks (Fable, for creative writing).{" "}
+          <strong>Legacy</strong> holds superseded models — still callable, with a newer successor.
+          Nothing here is hidden or blocked: every model, in any group, can be named with{" "}
+          <code>--model</code>, and a model the provider stops serving is removed from the catalog
+          rather than kept as a tombstone.
+        </p>
+        <p>
+          &ldquo;In neokapi since&rdquo; is the date the model id entered the source tree; models
+          present when the catalog was first seeded share that date, and precise dates are recorded
+          going forward. For what these models <em>cost</em> and how they behave under batching, see{" "}
           <a href="/batch-eval">the batch eval</a>.
         </p>
 
         {providers.map((p) => {
           const rows = all.filter((m) => m.provider === p);
           const providerLabel = rows[0]?.providerLabel ?? p;
+          // Three buckets. Recommended active models lead; capable-but-premium or
+          // off-task active models fold into "Advanced"; superseded ones into
+          // "Legacy". The last two collapse, so the common case is a short list.
+          const recommended = rows.filter((m) => m.status === "active" && m.recommended);
+          const advanced = rows.filter((m) => m.status === "active" && !m.recommended);
+          const legacy = rows.filter((m) => m.status === "superseded");
           return (
             <section key={p} style={{ marginTop: 32 }}>
               <h2 style={{ marginBottom: 8 }}>{providerLabel}</h2>
-              <ProviderTable rows={rows} all={all} />
+              <ProviderTable rows={recommended.length ? recommended : rows} all={all} />
+              {advanced.length > 0 && (
+                <details style={{ marginTop: 10 }}>
+                  <summary style={{ cursor: "pointer", color: "var(--ifm-color-emphasis-700)" }}>
+                    Advanced &amp; specialised ({advanced.length}) — capable but premium, or tuned
+                    for other tasks
+                  </summary>
+                  <div style={{ marginTop: 8 }}>
+                    <ProviderTable rows={advanced} all={all} />
+                  </div>
+                </details>
+              )}
+              {legacy.length > 0 && (
+                <details style={{ marginTop: 10 }}>
+                  <summary style={{ cursor: "pointer", color: "var(--ifm-color-emphasis-700)" }}>
+                    Legacy ({legacy.length}) — superseded, still callable
+                  </summary>
+                  <div style={{ marginTop: 8 }}>
+                    <ProviderTable rows={legacy} all={all} />
+                  </div>
+                </details>
+              )}
             </section>
           );
         })}

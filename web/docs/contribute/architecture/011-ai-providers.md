@@ -179,6 +179,19 @@ be one provider's current default while superseded elsewhere — Azure still def
 to `gpt-4o` — and the catalog records that rather than papering over it; `kapi
 models list` and the `/models` page both surface it.
 
+**Recommended vs known.** The catalog is *descriptive*, not an allowlist: naming a
+model it does not list is never rejected — the string goes to the provider API as-is
+(the provider accepts or 404s it), and `LimitsForModel` simply falls back to a
+conservative batch size until an entry exists. So the catalog serves two audiences
+at once, and a `recommended` flag (absent = yes) separates them. It stays `true` for
+the models most projects should reach for, and is set `false` for a model that is
+fully supported but a poor default — capable-but-premium (Opus, Gemini Pro, o3),
+overkill for faithful content work, or off-task (Fable, tuned for creative writing).
+A non-recommended model keeps its ceilings and is callable by name; it just sits
+under "Advanced" on the `/models` page rather than in the primary list, which is
+sorted Recommended → Advanced → Legacy (superseded). An *active default* can never
+be non-recommended — a test enforces it.
+
 **Staying honest.** Curation rots, so `make check-models` (`scripts/modelcheck`)
 is the alarm: it lists what each provider serves today and reports any catalogued
 model that is gone (remove it) or, with `-candidates`, any live model the catalog

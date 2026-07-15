@@ -6,19 +6,26 @@
       "id": "claude-opus-4-8",
       "provider": "anthropic",
       "label": "Claude Opus 4.8",
-      "aliases": ["opus"],
+      "aliases": [
+        "opus"
+      ],
       "max_output_tokens": 128000,
       "context_window": 1000000,
       "status": "active",
       "introduced": "2026-07-14",
-      "note": "1M context is standard, with no long-context surcharge."
+      "note": "1M context is standard, with no long-context surcharge.",
+      "recommended": false
     },
     {
       "id": "claude-sonnet-5",
       "provider": "anthropic",
       "label": "Claude Sonnet 5",
-      "aliases": ["sonnet"],
-      "default_for": ["anthropic"],
+      "aliases": [
+        "sonnet"
+      ],
+      "default_for": [
+        "anthropic"
+      ],
       "max_output_tokens": 128000,
       "context_window": 1000000,
       "status": "active",
@@ -28,17 +35,22 @@
       "id": "claude-fable-5",
       "provider": "anthropic",
       "label": "Claude Fable 5",
-      "aliases": ["fable"],
+      "aliases": [
+        "fable"
+      ],
       "max_output_tokens": 128000,
       "context_window": 1000000,
       "status": "active",
-      "introduced": "2026-07-14"
+      "introduced": "2026-07-14",
+      "recommended": false
     },
     {
       "id": "claude-haiku-4-5",
       "provider": "anthropic",
       "label": "Claude Haiku 4.5",
-      "aliases": ["haiku"],
+      "aliases": [
+        "haiku"
+      ],
       "max_output_tokens": 64000,
       "context_window": 200000,
       "status": "active",
@@ -79,7 +91,9 @@
       "id": "gpt-5.6",
       "provider": "openai",
       "label": "GPT-5.6",
-      "default_for": ["openai"],
+      "default_for": [
+        "openai"
+      ],
       "max_output_tokens": 128000,
       "context_window": 1050000,
       "status": "active",
@@ -110,7 +124,9 @@
       "id": "gpt-4o",
       "provider": "openai",
       "label": "GPT-4o",
-      "default_for": ["azureopenai"],
+      "default_for": [
+        "azureopenai"
+      ],
       "max_output_tokens": 16384,
       "context_window": 128000,
       "status": "superseded",
@@ -126,7 +142,8 @@
       "context_window": 200000,
       "status": "active",
       "introduced": "2026-06-22",
-      "note": "Reasoning model; kept for callers who name it explicitly."
+      "note": "Reasoning model; kept for callers who name it explicitly.",
+      "recommended": false
     },
     {
       "id": "gpt-4-",
@@ -153,7 +170,9 @@
       "id": "gemini-3.5-flash",
       "provider": "gemini",
       "label": "Gemini 3.5 Flash",
-      "default_for": ["gemini"],
+      "default_for": [
+        "gemini"
+      ],
       "max_output_tokens": 65536,
       "context_window": 1048576,
       "status": "active",
@@ -167,7 +186,8 @@
       "context_window": 1048576,
       "status": "active",
       "introduced": "2026-07-14",
-      "note": "Prompts over 200k input tokens are billed at a higher tier."
+      "note": "Prompts over 200k input tokens are billed at a higher tier.",
+      "recommended": false
     },
     {
       "id": "gemini-3.1-flash-lite",
@@ -196,7 +216,8 @@
       "context_window": 1048576,
       "status": "active",
       "introduced": "2026-04-03",
-      "note": "Fallback ceilings for any Gemini 3.x id without a more specific entry."
+      "note": "Fallback ceilings for any Gemini 3.x id without a more specific entry.",
+      "recommended": false
     },
     {
       "id": "gemini-2",
@@ -212,7 +233,9 @@
       "id": "llama3.2",
       "provider": "ollama",
       "label": "Llama 3.2 (3B)",
-      "default_for": ["ollama"],
+      "default_for": [
+        "ollama"
+      ],
       "status": "active",
       "introduced": "2026-06-22",
       "note": "Runs locally through Ollama; ceilings depend on the pulled quantisation, so none are pinned here."

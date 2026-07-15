@@ -62,6 +62,20 @@ type Model struct {
 	// still defaults to gpt-4o), which is exactly the kind of fact worth surfacing.
 	DefaultFor []ProviderID `json:"default_for,omitempty"`
 
+	// Recommended reports whether this model is a sensible default choice for the
+	// tasks kapi drives — translation, review, terminology, entity extraction. Absent
+	// means yes, which is the common case, so only the exceptions carry the field.
+	//
+	// It is set false for a model that is fully supported but not what most users
+	// should reach for: a capable-but-premium model (Opus, Gemini Pro, o3) that is
+	// overkill and dear for faithful content work, or an off-task one (Fable, tuned
+	// for creative writing, where fidelity is the wrong instinct). A non-recommended
+	// model is not hidden or blocked — it stays catalogued, keeps its ceilings, and
+	// is callable by name; it simply sits under "Advanced" rather than in the primary
+	// list. It does NOT overlap with Status: a superseded model is legacy regardless,
+	// and this axis only sorts the *active* ones.
+	Recommended *bool `json:"recommended,omitempty"`
+
 	// MaxOutputTokens and ContextWindow are the model's hard ceilings. These fold in
 	// what used to be the limits.go table; LimitsForModel now reads them from here.
 	MaxOutputTokens int `json:"max_output_tokens,omitempty"`
@@ -106,6 +120,10 @@ func loadCatalog() modelCatalog {
 
 // Models returns the curated catalog, in file order.
 func Models() []Model { return append([]Model(nil), catalog.Models...) }
+
+// IsRecommended reports whether the model belongs in the primary user-facing list.
+// Absent (the common case) means recommended; only demoted models say otherwise.
+func (m Model) IsRecommended() bool { return m.Recommended == nil || *m.Recommended }
 
 // CatalogAsOf reports the date the catalog was last reviewed.
 func CatalogAsOf() string { return catalog.AsOf }

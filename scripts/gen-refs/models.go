@@ -27,6 +27,7 @@ type ModelEntry struct {
 	Label           string   `json:"label"`
 	Aliases         []string `json:"aliases,omitempty"`
 	DefaultFor      []string `json:"defaultFor,omitempty"`
+	Recommended     bool     `json:"recommended"`
 	MaxOutputTokens int      `json:"maxOutputTokens,omitempty"`
 	ContextWindow   int      `json:"contextWindow,omitempty"`
 	Status          string   `json:"status"`
@@ -57,6 +58,7 @@ func collectModelDataset(now string) ModelDataset {
 			Label:           m.Label,
 			Aliases:         m.Aliases,
 			DefaultFor:      defaults,
+			Recommended:     m.IsRecommended(),
 			MaxOutputTokens: m.MaxOutputTokens,
 			ContextWindow:   m.ContextWindow,
 			Status:          string(m.Status),

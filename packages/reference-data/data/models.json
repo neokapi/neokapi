@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-15T04:10:01Z",
+  "generatedAt": "2026-07-15T04:48:00Z",
   "asOf": "2026-07-15",
   "note": "Generated from providers/ai/models.json via scripts/gen-refs. Do not edit here; edit the catalog and run `make generate-reference-docs`.",
   "models": [
@@ -11,6 +11,7 @@
       "aliases": [
         "opus"
       ],
+      "recommended": false,
       "maxOutputTokens": 128000,
       "contextWindow": 1000000,
       "status": "active",
@@ -28,6 +29,7 @@
       "defaultFor": [
         "anthropic"
       ],
+      "recommended": true,
       "maxOutputTokens": 128000,
       "contextWindow": 1000000,
       "status": "active",
@@ -41,6 +43,7 @@
       "aliases": [
         "fable"
       ],
+      "recommended": false,
       "maxOutputTokens": 128000,
       "contextWindow": 1000000,
       "status": "active",
@@ -54,6 +57,7 @@
       "aliases": [
         "haiku"
       ],
+      "recommended": true,
       "maxOutputTokens": 64000,
       "contextWindow": 200000,
       "status": "active",
@@ -64,6 +68,7 @@
       "provider": "anthropic",
       "providerLabel": "Anthropic",
       "label": "Claude Sonnet 4",
+      "recommended": true,
       "maxOutputTokens": 64000,
       "contextWindow": 200000,
       "status": "superseded",
@@ -76,6 +81,7 @@
       "provider": "anthropic",
       "providerLabel": "Anthropic",
       "label": "Claude Opus 4",
+      "recommended": true,
       "maxOutputTokens": 32000,
       "contextWindow": 200000,
       "status": "superseded",
@@ -87,6 +93,7 @@
       "provider": "anthropic",
       "providerLabel": "Anthropic",
       "label": "Claude 3.5 (Sonnet / Haiku)",
+      "recommended": true,
       "maxOutputTokens": 8192,
       "contextWindow": 200000,
       "status": "superseded",
@@ -101,6 +108,7 @@
       "defaultFor": [
         "openai"
       ],
+      "recommended": true,
       "maxOutputTokens": 128000,
       "contextWindow": 1050000,
       "status": "active",
@@ -112,6 +120,7 @@
       "provider": "openai",
       "providerLabel": "OpenAI",
       "label": "GPT-5",
+      "recommended": true,
       "maxOutputTokens": 128000,
       "contextWindow": 400000,
       "status": "superseded",
@@ -123,6 +132,7 @@
       "provider": "openai",
       "providerLabel": "OpenAI",
       "label": "GPT-4.1",
+      "recommended": true,
       "maxOutputTokens": 32768,
       "contextWindow": 1047576,
       "status": "superseded",
@@ -137,6 +147,7 @@
       "defaultFor": [
         "azureopenai"
       ],
+      "recommended": true,
       "maxOutputTokens": 16384,
       "contextWindow": 128000,
       "status": "superseded",
@@ -149,6 +160,7 @@
       "provider": "openai",
       "providerLabel": "OpenAI",
       "label": "OpenAI o3",
+      "recommended": false,
       "maxOutputTokens": 100000,
       "contextWindow": 200000,
       "status": "active",
@@ -160,6 +172,7 @@
       "provider": "openai",
       "providerLabel": "OpenAI",
       "label": "GPT-4 (legacy family)",
+      "recommended": true,
       "maxOutputTokens": 4096,
       "contextWindow": 128000,
       "status": "superseded",
@@ -172,6 +185,7 @@
       "provider": "openai",
       "providerLabel": "OpenAI",
       "label": "GPT-3.5",
+      "recommended": true,
       "maxOutputTokens": 4096,
       "contextWindow": 16385,
       "status": "superseded",
@@ -186,6 +200,7 @@
       "defaultFor": [
         "gemini"
       ],
+      "recommended": true,
       "maxOutputTokens": 65536,
       "contextWindow": 1048576,
       "status": "active",
@@ -196,6 +211,7 @@
       "provider": "gemini",
       "providerLabel": "Gemini",
       "label": "Gemini 3.1 Pro",
+      "recommended": false,
       "maxOutputTokens": 64000,
       "contextWindow": 1048576,
       "status": "active",
@@ -207,6 +223,7 @@
       "provider": "gemini",
       "providerLabel": "Gemini",
       "label": "Gemini 3.1 Flash-Lite",
+      "recommended": true,
       "maxOutputTokens": 64000,
       "contextWindow": 1048576,
       "status": "active",
@@ -217,6 +234,7 @@
       "provider": "gemini",
       "providerLabel": "Gemini",
       "label": "Gemini 3 Flash",
+      "recommended": true,
       "maxOutputTokens": 64000,
       "contextWindow": 1048576,
       "status": "superseded",
@@ -228,6 +246,7 @@
       "provider": "gemini",
       "providerLabel": "Gemini",
       "label": "Gemini 3 (family default)",
+      "recommended": false,
       "maxOutputTokens": 64000,
       "contextWindow": 1048576,
       "status": "active",
@@ -239,6 +258,7 @@
       "provider": "gemini",
       "providerLabel": "Gemini",
       "label": "Gemini 2",
+      "recommended": true,
       "maxOutputTokens": 8192,
       "contextWindow": 1048576,
       "status": "superseded",
@@ -253,6 +273,7 @@
       "defaultFor": [
         "ollama"
       ],
+      "recommended": true,
       "status": "active",
       "introduced": "2026-06-22",
       "note": "Runs locally through Ollama; ceilings depend on the pulled quantisation, so none are pinned here."

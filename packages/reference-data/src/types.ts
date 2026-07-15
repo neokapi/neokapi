@@ -245,6 +245,9 @@ export interface ModelEntry {
   aliases?: string[];
   /** Providers whose built-in default this model is. */
   defaultFor?: string[];
+  /** Whether this is a sensible primary choice for kapi's tasks. False = a
+   *  capable-but-premium or off-task model, shown under "Advanced" not hidden. */
+  recommended: boolean;
   maxOutputTokens?: number;
   contextWindow?: number;
   status: ModelStatus;
