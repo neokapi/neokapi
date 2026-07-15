@@ -129,13 +129,18 @@ that fits rather than discovering the limit at call time:
 
 ### Built-in providers
 
-| Provider      | File                          | Default Model            | Notes                                |
-| ------------- | ----------------------------- | ------------------------ | ------------------------------------ |
-| Anthropic     | `providers/ai/anthropic.go`   | claude-sonnet-4-20250514 | Extended thinking support            |
-| OpenAI        | `providers/ai/openai.go`      | gpt-4o                   | `response_format` JSON schema        |
-| Azure OpenAI  | `providers/ai/azureopenai.go` | deployment-specific      | Managed Identity via `TokenProvider` |
-| Ollama        | `providers/ai/ollama.go`      | llama3.2:3b              | On-device local models (GPU); no key. Streaming, `format: json`, options + `keep_alive`, reasoning disabled. Managed via `kapi models ollama` |
-| Google Gemini | `providers/ai/gemini.go`      | gemini-3-flash-preview   | SSE streaming with `includeThoughts` |
+| Provider      | File                          | Notes                                |
+| ------------- | ----------------------------- | ------------------------------------ |
+| Anthropic     | `providers/ai/anthropic.go`   | Extended thinking support            |
+| OpenAI        | `providers/ai/openai.go`      | `response_format` JSON schema        |
+| Azure OpenAI  | `providers/ai/azureopenai.go` | Managed Identity via `TokenProvider` |
+| Ollama        | `providers/ai/ollama.go`      | On-device local models (GPU); no key. Streaming, `format: json`, options + `keep_alive`, reasoning disabled. Managed via `kapi models ollama` |
+| Google Gemini | `providers/ai/gemini.go`      | SSE streaming with `includeThoughts` |
+
+Default models are deliberately absent from this table — they change with
+every model generation, and a hardcoded list here would be wrong within
+weeks. They live in the model catalog (below), and the current set is on the
+generated [AI Models reference](/models).
 
 Two non-network providers round out the registry: a mock provider
 (`providers/ai/mock.go`) for deterministic tests, and a `demo` provider
@@ -144,6 +149,44 @@ output so the browser playground can run AI commands with no API keys. The
 provider list is generated from the registry in `providers/ai/provider.go`
 (`Providers()`), not hardcoded — the live set surfaces as the `provider`
 option in the [`translate` reference](/reference/tools/translate).
+
+### The model catalog
+
+The models kapi supports are described in one place: `providers/ai/models.json`,
+a curated catalog embedded into the framework and read as `aiprovider.Models()`.
+It is the single source of truth, and the rest derives from it.
+
+**Why data, and why curated.** Model knowledge used to be scattered across four
+places — a `DefaultXModel` constant per provider, a prefix→ceilings map in
+`limits.go`, a price table under `scripts/batcheval`, and nothing at all for the
+question a user actually asks: *is this model current, superseded, or retired, and
+since when?* The catalog folds the first two in (`LimitsForModel` resolves through
+it; a test asserts every provider default is catalogued and marked `default_for`
+that provider) and adds the lifecycle the others never carried. It is **data**
+because a model list hardcoded in Go goes stale silently; it is **curated**
+because the vendors' APIs return only what is live today as a flat list of ids —
+they do not say when a model entered neokapi, what replaced it, or when it retires.
+Those are facts about *our* support, and only a human (or an agent reading a model
+card) can supply them.
+
+**Each entry** carries the model's provider, aliases, output/context ceilings, and
+its lifecycle: `status` (`active` | `superseded` | `retired`), `introduced`,
+`superseded_by`, and `retirement_date`. A model can be one provider's current
+default while superseded elsewhere — Azure still defaults to `gpt-4o` — and the
+catalog records that rather than papering over it; `kapi models list` and the
+`/models` page both surface it.
+
+**Staying honest.** Curation rots, so `make check-models` (`scripts/modelcheck`)
+is the alarm: it lists what each provider serves today and reports any catalogued
+model that is gone (move it to `retired`) or, with `-candidates`, any live model
+the catalog omits. The live half needs provider credentials and stays a manual or
+scheduled tool — a rate-limited provider must never be mistaken for a retired one,
+the same false-cliff trap the [batch eval](/batch-eval) guards against. The keyless
+half — every published price must be for a catalogued model — is an ordinary unit
+test, so it runs in `make test`. The `/models` page is generated from the catalog
+through `@neokapi/reference-data` and gated by `make check-reference-docs`, so it
+cannot describe a model the catalog no longer lists. Refreshing the catalog itself
+is driven by `scripts/prompts/update-model-catalog.md`.
 
 Each provider takes a `Config` struct with API key, base URL, model name,
 and generation parameters (temperature, max tokens, etc.). Azure OpenAI

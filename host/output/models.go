@@ -106,9 +106,9 @@ func (o ModelsListOutput) FormatText(w io.Writer) error {
 
 	if rows := o.rows(ModelSourceCloud); len(rows) > 0 {
 		section("Cloud providers · require an API key", func(t *Table) {
-			t.Headers("PROVIDER", "DEFAULT MODEL")
+			t.Headers("PROVIDER", "DEFAULT MODEL", "")
 			for _, m := range rows {
-				t.Row(m.Provider, m.Model)
+				t.Row(m.Provider, m.Model, m.Note)
 			}
 		})
 	}
