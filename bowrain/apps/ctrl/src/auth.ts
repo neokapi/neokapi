@@ -1,6 +1,12 @@
 // ---------------------------------------------------------------------------
-// OIDC auth against the bowrain-admin Keycloak realm
-// Uses authorization code flow with PKCE (public client in browser).
+// Admin auth (BFF cookie session).
+//
+// The ctrl SPA runs the bowrain-admin Keycloak OIDC flow (authorization code +
+// PKCE, public client) in the browser, but it does NOT keep the realm tokens.
+// Instead it hands the resulting id_token to the server's
+// /api/admin/auth/exchange endpoint, which verifies it and sets an HttpOnly
+// admin session cookie. All admin API calls then authenticate with that cookie
+// plus an X-Bowrain-Csrf header — no admin token lives in the browser.
 // ---------------------------------------------------------------------------
 
 function resolveIssuerUrl(): string {
@@ -18,22 +24,31 @@ function resolveIssuerUrl(): string {
 const ISSUER_URL = resolveIssuerUrl();
 const CLIENT_ID = import.meta.env.VITE_ADMIN_OIDC_CLIENT_ID ?? "bowrain-admin";
 const REDIRECT_URI = `${window.location.origin}/auth/callback`;
-const TOKEN_KEY = "bowrain_admin_token";
-const REFRESH_KEY = "bowrain_admin_refresh";
 const VERIFIER_KEY = "bowrain_admin_verifier";
+
+// CSRF header the server requires on cookie-authenticated admin requests.
+const CSRF_HEADER = "X-Bowrain-Csrf";
+
+/** React Query key for the current admin session probe (/api/admin/auth/me). */
+export const ADMIN_SESSION_QUERY_KEY = ["admin-session"] as const;
+
+export interface AdminUser {
+  email: string;
+  name: string;
+}
 
 interface TokenResponse {
   access_token: string;
+  id_token?: string;
   refresh_token?: string;
   expires_in: number;
   token_type: string;
 }
 
-interface TokenPayload {
-  exp: number;
-  email?: string;
-  name?: string;
-  preferred_username?: string;
+// Same-origin admin API base: every deployment fronts ctrl with a proxy that
+// forwards /api/* to bowrain-server. Kept in sync with api.ts.
+function adminApiBase(): string {
+  return import.meta.env.VITE_ADMIN_API_URL ?? "/api/admin";
 }
 
 // ---------------------------------------------------------------------------
@@ -68,31 +83,10 @@ async function generatePKCE(): Promise<{ verifier: string; challenge: string }> 
 }
 
 // ---------------------------------------------------------------------------
-// Token helpers
-// ---------------------------------------------------------------------------
-
-function parseToken(token: string): TokenPayload | null {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-    return payload as TokenPayload;
-  } catch {
-    return null;
-  }
-}
-
-function isTokenExpired(token: string): boolean {
-  const payload = parseToken(token);
-  if (!payload) return true;
-  // Consider expired 30 seconds before actual expiry
-  return payload.exp * 1000 < Date.now() + 30_000;
-}
-
-// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
+/** Start the admin OIDC flow by redirecting to the Keycloak authorize endpoint. */
 export async function login(): Promise<void> {
   const { verifier, challenge } = await generatePKCE();
   sessionStorage.setItem(VERIFIER_KEY, verifier);
@@ -109,6 +103,11 @@ export async function login(): Promise<void> {
   window.location.href = `${ISSUER_URL}/protocol/openid-connect/auth?${params.toString()}`;
 }
 
+/**
+ * Complete the OIDC redirect: exchange the code for tokens at Keycloak, then
+ * hand the id_token to the server, which verifies it and sets the HttpOnly
+ * admin session cookie. The realm tokens are never persisted in the browser.
+ */
 export async function handleCallback(code: string): Promise<void> {
   const verifier = sessionStorage.getItem(VERIFIER_KEY);
   if (!verifier) {
@@ -135,78 +134,53 @@ export async function handleCallback(code: string): Promise<void> {
   }
 
   const data = (await response.json()) as TokenResponse;
-  sessionStorage.setItem(TOKEN_KEY, data.access_token);
-  if (data.refresh_token) {
-    sessionStorage.setItem(REFRESH_KEY, data.refresh_token);
+  if (!data.id_token) {
+    throw new Error("No id_token in OIDC response");
+  }
+
+  // BFF boundary: the server verifies the id_token and sets the admin session
+  // cookie. Nothing is stored client-side.
+  const exchange = await fetch(`${adminApiBase()}/auth/exchange`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", [CSRF_HEADER]: "1" },
+    body: JSON.stringify({ id_token: data.id_token }),
+  });
+  if (!exchange.ok) {
+    throw new Error(`Admin session exchange failed: ${exchange.status}`);
   }
 }
 
-export async function refreshToken(): Promise<boolean> {
-  const refresh = sessionStorage.getItem(REFRESH_KEY);
-  if (!refresh) return false;
-
+/**
+ * Probe the current admin session. Returns the admin identity when the session
+ * cookie is valid, or null (unauthenticated). Used as the React Query source of
+ * truth for auth state.
+ */
+export async function fetchAdminSession(): Promise<AdminUser | null> {
   try {
-    const body = new URLSearchParams({
-      grant_type: "refresh_token",
-      client_id: CLIENT_ID,
-      refresh_token: refresh,
-    });
-
-    const response = await fetch(`${ISSUER_URL}/protocol/openid-connect/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
-    });
-
-    if (!response.ok) return false;
-
-    const data = (await response.json()) as TokenResponse;
-    sessionStorage.setItem(TOKEN_KEY, data.access_token);
-    if (data.refresh_token) {
-      sessionStorage.setItem(REFRESH_KEY, data.refresh_token);
-    }
-    return true;
+    const resp = await fetch(`${adminApiBase()}/auth/me`, { credentials: "same-origin" });
+    if (!resp.ok) return null;
+    return (await resp.json()) as AdminUser;
   } catch {
-    return false;
+    return null;
   }
 }
 
-export function getToken(): string | null {
-  const token = sessionStorage.getItem(TOKEN_KEY);
-  if (!token) return null;
-  if (isTokenExpired(token)) return null;
-  return token;
-}
+/** Clear the server admin session, then end the Keycloak SSO session. */
+export async function logout(): Promise<void> {
+  try {
+    await fetch(`${adminApiBase()}/auth/logout`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { [CSRF_HEADER]: "1" },
+    });
+  } catch {
+    // Best-effort — still redirect to terminate the SSO session.
+  }
 
-export function isAuthenticated(): boolean {
-  return getToken() !== null;
-}
-
-export function getAdminUser(): { email: string; name: string } | null {
-  const token = sessionStorage.getItem(TOKEN_KEY);
-  if (!token) return null;
-  const payload = parseToken(token);
-  if (!payload) return null;
-  return {
-    email: payload.email ?? payload.preferred_username ?? "admin",
-    name: payload.name ?? payload.email ?? "Admin",
-  };
-}
-
-export function logout(): void {
-  const token = sessionStorage.getItem(TOKEN_KEY);
-  sessionStorage.removeItem(TOKEN_KEY);
-  sessionStorage.removeItem(REFRESH_KEY);
-  sessionStorage.removeItem(VERIFIER_KEY);
-
-  // Redirect to Keycloak end session
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
     post_logout_redirect_uri: window.location.origin,
   });
-  if (token) {
-    params.set("id_token_hint", token);
-  }
-
   window.location.href = `${ISSUER_URL}/protocol/openid-connect/logout?${params.toString()}`;
 }

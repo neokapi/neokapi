@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { handleCallback, login, isAuthenticated } from "../auth";
+import { useQueryClient } from "@tanstack/react-query";
+import { handleCallback, login, fetchAdminSession, ADMIN_SESSION_QUERY_KEY } from "../auth";
 
 export function AuthCallbackRoute() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const search = useSearch({ strict: false }) as { action?: string };
   const [error, setError] = useState<string | null>(null);
 
@@ -19,18 +21,25 @@ export function AuthCallbackRoute() {
       const code = params.get("code");
 
       if (!code) {
-        // Already authenticated, redirect to dashboard
-        if (isAuthenticated()) {
+        // No code: if a session already exists, go to the dashboard.
+        const session = await queryClient.ensureQueryData({
+          queryKey: ADMIN_SESSION_QUERY_KEY,
+          queryFn: fetchAdminSession,
+        });
+        if (session) {
           void navigate({ to: "/", replace: true });
           return;
         }
-        // No code and not authenticated — start login
+        // Not authenticated — start login.
         await login();
         return;
       }
 
       try {
         await handleCallback(code);
+        // The exchange set the session cookie; refresh the cached probe so the
+        // guard and layout see the new session.
+        await queryClient.invalidateQueries({ queryKey: ADMIN_SESSION_QUERY_KEY });
         void navigate({ to: "/", replace: true });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Authentication failed");
@@ -38,7 +47,7 @@ export function AuthCallbackRoute() {
     }
 
     void processCallback();
-  }, [navigate, search.action]);
+  }, [navigate, queryClient, search.action]);
 
   if (error) {
     return (

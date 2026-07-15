@@ -22,9 +22,15 @@ const (
 	// validated on every parse, so a token signed with the session secret for
 	// some other purpose can never be replayed as a session token.
 	TokenIssuer = "bowrain"
-	// TokenAudience scopes a session JWT to the Bowrain API. Validation requires
-	// this audience, rejecting a token minted for a different consumer.
+	// TokenAudience scopes a regular user session JWT to the Bowrain API.
+	// Validation requires this audience, rejecting a token minted for a
+	// different consumer.
 	TokenAudience = "bowrain-api"
+	// TokenAudienceAdmin scopes an admin control-plane session JWT. It is a
+	// DISTINCT audience from TokenAudience so an admin session token can never be
+	// accepted on a user route and a user session token can never be accepted on
+	// an admin route — the audience check enforces the admin/user split.
+	TokenAudienceAdmin = "bowrain-admin"
 )
 
 // ErrEmptySecret is returned when a JWT operation is attempted with an empty
@@ -32,8 +38,9 @@ const (
 // otherwise produce trivially forgeable tokens, so we fail closed.
 var ErrEmptySecret = errors.New("jwt: empty signing secret")
 
-// GenerateToken creates a signed JWT for the given user.
-func GenerateToken(user *User, secret string, expiry time.Duration) (string, error) {
+// generateToken mints a signed HS256 JWT with the Bowrain issuer and the given
+// audience.
+func generateToken(subject, email, name, secret, audience string, expiry time.Duration) (string, error) {
 	if secret == "" {
 		return "", ErrEmptySecret
 	}
@@ -41,27 +48,37 @@ func GenerateToken(user *User, secret string, expiry time.Duration) (string, err
 	claims := Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    TokenIssuer,
-			Subject:   user.ID,
-			Audience:  jwt.ClaimStrings{TokenAudience},
+			Subject:   subject,
+			Audience:  jwt.ClaimStrings{audience},
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(expiry)),
 		},
-		Email: user.Email,
-		Name:  user.Name,
+		Email: email,
+		Name:  name,
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signed, err := token.SignedString([]byte(secret))
+	signed, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(secret))
 	if err != nil {
 		return "", fmt.Errorf("sign token: %w", err)
 	}
 	return signed, nil
 }
 
-// ValidateToken verifies a JWT string and returns the embedded claims. It pins
-// the signing method to HS256, requires the Bowrain issuer and audience, and
-// requires an expiry — so a token that is valid for some other purpose (or has
-// no expiry) is rejected as a session token.
-func ValidateToken(tokenString, secret string) (*Claims, error) {
+// GenerateToken creates a signed user session JWT (audience bowrain-api).
+func GenerateToken(user *User, secret string, expiry time.Duration) (string, error) {
+	return generateToken(user.ID, user.Email, user.Name, secret, TokenAudience, expiry)
+}
+
+// GenerateAdminToken creates a signed admin control-plane session JWT (audience
+// bowrain-admin). The identity comes from the admin-realm id_token (subject,
+// email, name), not the user store — admin identity is deliberately separate.
+func GenerateAdminToken(subject, email, name, secret string, expiry time.Duration) (string, error) {
+	return generateToken(subject, email, name, secret, TokenAudienceAdmin, expiry)
+}
+
+// validateToken parses and validates an HS256 JWT, requiring the Bowrain issuer,
+// the given audience, and an expiry. A token for a different audience (or one
+// with no expiry, or signed with a non-HS256 method) is rejected.
+func validateToken(tokenString, secret, audience string) (*Claims, error) {
 	if secret == "" {
 		return nil, ErrEmptySecret
 	}
@@ -70,7 +87,7 @@ func ValidateToken(tokenString, secret string) (*Claims, error) {
 	},
 		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
 		jwt.WithIssuer(TokenIssuer),
-		jwt.WithAudience(TokenAudience),
+		jwt.WithAudience(audience),
 		jwt.WithExpirationRequired(),
 	)
 	if err != nil {
@@ -81,6 +98,18 @@ func ValidateToken(tokenString, secret string) (*Claims, error) {
 		return nil, errors.New("invalid token claims")
 	}
 	return claims, nil
+}
+
+// ValidateToken verifies a user session JWT (audience bowrain-api).
+func ValidateToken(tokenString, secret string) (*Claims, error) {
+	return validateToken(tokenString, secret, TokenAudience)
+}
+
+// ValidateAdminToken verifies an admin control-plane session JWT (audience
+// bowrain-admin). A user session token fails this check and an admin session
+// token fails ValidateToken, keeping the two identities strictly separated.
+func ValidateAdminToken(tokenString, secret string) (*Claims, error) {
+	return validateToken(tokenString, secret, TokenAudienceAdmin)
 }
 
 // GenerateRefreshToken returns a cryptographically random opaque token string.

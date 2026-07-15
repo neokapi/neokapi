@@ -1234,7 +1234,10 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		if accessVerifier == nil {
 			accessVerifier = s.AdminVerifier
 		}
-		adminMiddleware = billing.AdminGuard(s.AdminVerifier, accessVerifier)
+		// Accept either the admin BFF session cookie (with CSRF) or an admin-realm
+		// Bearer token. The cookie path is the ctrl SPA's default; the Bearer
+		// fallback keeps any token-based admin client working.
+		adminMiddleware = s.adminAuthMiddleware(billing.AdminGuard(s.AdminVerifier, accessVerifier))
 		mountAdmin = true
 	case s.Config.AllowInsecureAdminAuth && s.Config.JWTSecret != "":
 		slog.Warn("admin API mounted with INSECURE user-JWT auth (no admin-role check); " +
@@ -1247,8 +1250,20 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 				"(set ADMIN_OIDC_ISSUER_URL, or AllowInsecureAdminAuth for local dev)")
 		}
 	}
+	// Admin BFF auth (Bowrain AD-018): the ctrl SPA runs the admin-realm OIDC
+	// flow in the browser and POSTs the resulting id_token here; the server
+	// verifies it and sets an HttpOnly admin session cookie (no admin token in
+	// the browser). These establish/clear the session, so they are
+	// unauthenticated and registered OUTSIDE the admin guard. Only wired when an
+	// admin OIDC verifier exists to verify the exchanged token.
+	if s.AdminVerifier != nil {
+		e.POST("/api/admin/auth/exchange", s.HandleAdminAuthExchange)
+		e.POST("/api/admin/auth/logout", s.HandleAdminAuthLogout)
+	}
+
 	if mountAdmin {
 		adminGroup := e.Group("/api/admin", adminMiddleware)
+		adminGroup.GET("/auth/me", s.HandleAdminAuthMe)
 		adminGroup.GET("/workspaces", s.HandleAdminListWorkspaces)
 		adminGroup.GET("/workspaces/:id", s.HandleAdminGetWorkspace)
 		adminGroup.PUT("/workspaces/:id/plan", s.HandleAdminUpdatePlan)
