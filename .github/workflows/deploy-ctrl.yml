@@ -34,8 +34,15 @@ jobs:
         working-directory: packages/kapi-react
         run: vp run build
 
+      # The ctrl SPA runs the admin OIDC flow in the browser and resolves the
+      # provider's endpoints from discovery, so it only needs the issuer + client
+      # id at build time. Set for hosted prod (Cognito admin pool); left empty for
+      # self-host, where auth.ts derives the Keycloak admin realm from the hostname.
       - name: Build ctrl app
         working-directory: bowrain/apps/ctrl
+        env:
+          VITE_ADMIN_OIDC_ISSUER_URL: ${{ vars.ADMIN_OIDC_ISSUER_URL }}
+          VITE_ADMIN_OIDC_CLIENT_ID: ${{ vars.ADMIN_OIDC_CLIENT_ID }}
         run: vp run build
 
       - name: Upload ctrl artifacts
