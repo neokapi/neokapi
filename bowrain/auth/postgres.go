@@ -461,15 +461,90 @@ func (s *PostgresAuthStore) DeleteInvite(ctx context.Context, inviteID string) e
 // ---------------------------------------------------------------------------
 
 func (s *PostgresAuthStore) StoreRefreshToken(ctx context.Context, userID, tokenHash string, expiresAt time.Time) (string, error) {
-	id := id.New()
+	tokenID := id.New()
 	now := time.Now().UTC()
+	// A freshly stored token opens a new rotation family (family_id = its own id).
+	// Successors minted by RotateRefreshToken inherit this family_id.
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, created_at) VALUES ($1, $2, $3, $4, $5)`,
-		id, userID, tokenHash, expiresAt, now)
+		`INSERT INTO refresh_tokens (id, user_id, token_hash, family_id, expires_at, created_at)
+		 VALUES ($1, $2, $3, $1, $4, $5)`,
+		tokenID, userID, tokenHash, expiresAt, now)
 	if err != nil {
 		return "", fmt.Errorf("insert refresh token: %w", err)
 	}
-	return id, nil
+	return tokenID, nil
+}
+
+// RotateRefreshToken atomically consumes the presented refresh token and mints
+// its successor in the same family. Reuse of an already-consumed token revokes
+// the whole family (see ErrRefreshTokenReuse). All work happens in one
+// serialized transaction with SELECT ... FOR UPDATE so concurrent rotations of
+// the same token cannot both succeed.
+func (s *PostgresAuthStore) RotateRefreshToken(ctx context.Context, presentedHash, newTokenHash string, newExpiresAt time.Time) (string, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", fmt.Errorf("begin rotate refresh token: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var (
+		rowID      string
+		userID     string
+		familyID   string
+		expiresAt  time.Time
+		consumedAt sql.NullTime
+	)
+	err = tx.QueryRowContext(ctx,
+		`SELECT id, user_id, family_id, expires_at, consumed_at
+		   FROM refresh_tokens WHERE token_hash = $1 FOR UPDATE`,
+		presentedHash).Scan(&rowID, &userID, &familyID, &expiresAt, &consumedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrRefreshTokenInvalid
+	}
+	if err != nil {
+		return "", fmt.Errorf("lookup refresh token: %w", err)
+	}
+
+	// Reuse detection: a consumed token presented again means it was replayed
+	// (the legitimate client already rotated it). Revoke the entire family so a
+	// stolen token — and any successor derived from it — is invalidated.
+	if consumedAt.Valid {
+		if _, derr := tx.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE family_id = $1`, familyID); derr != nil {
+			return "", fmt.Errorf("revoke reused token family: %w", derr)
+		}
+		if derr := tx.Commit(); derr != nil {
+			return "", fmt.Errorf("commit family revocation: %w", derr)
+		}
+		return "", ErrRefreshTokenReuse
+	}
+
+	// Expired: consume it and reject.
+	if time.Now().After(expiresAt) {
+		if _, derr := tx.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE id = $1`, rowID); derr != nil {
+			return "", fmt.Errorf("delete expired refresh token: %w", derr)
+		}
+		if derr := tx.Commit(); derr != nil {
+			return "", fmt.Errorf("commit expired deletion: %w", derr)
+		}
+		return "", ErrRefreshTokenInvalid
+	}
+
+	// Mark the presented token consumed and insert its successor in the family.
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE refresh_tokens SET consumed_at = NOW() WHERE id = $1`, rowID); err != nil {
+		return "", fmt.Errorf("mark refresh token consumed: %w", err)
+	}
+	newID := id.New()
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO refresh_tokens (id, user_id, token_hash, family_id, expires_at, created_at)
+		 VALUES ($1, $2, $3, $4, $5, NOW())`,
+		newID, userID, newTokenHash, familyID, newExpiresAt); err != nil {
+		return "", fmt.Errorf("insert rotated refresh token: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return "", fmt.Errorf("commit refresh token rotation: %w", err)
+	}
+	return userID, nil
 }
 
 func (s *PostgresAuthStore) ValidateRefreshTokenByHash(ctx context.Context, tokenHash string) (string, error) {

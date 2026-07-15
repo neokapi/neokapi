@@ -114,6 +114,9 @@ func AuthMiddleware(jwtSecret string, authStore auth.AuthStore) echo.MiddlewareF
 			// Fall back to session cookie.
 			claims := validateSessionCookie(c, jwtSecret)
 			if claims != nil {
+				if err := enforceCSRFForCookie(c); err != nil {
+					return err
+				}
 				setClaimsOnContext(c, claims)
 				return next(c)
 			}
@@ -235,6 +238,9 @@ func ClaimOrAuthMiddleware(jwtSecret string, authStore auth.AuthStore) echo.Midd
 			// Fall back to session cookie.
 			claims := validateSessionCookie(c, jwtSecret)
 			if claims != nil {
+				if err := enforceCSRFForCookie(c); err != nil {
+					return err
+				}
 				setClaimsOnContext(c, claims)
 				return next(c)
 			}

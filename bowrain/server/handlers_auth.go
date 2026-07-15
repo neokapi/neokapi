@@ -472,11 +472,11 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "nonce mismatch"})
 	}
 
-	var claims struct {
-		Email string `json:"email"`
-		Name  string `json:"name"`
-	}
-	if err := idToken.Claims(&claims); err != nil {
+	claims, err := identityFromToken(idToken, !s.Config.AllowUnverifiedEmail)
+	if err != nil {
+		if errors.Is(err, errEmailNotVerified) {
+			return c.JSON(http.StatusForbidden, ErrorResponse{Error: "email address is not verified"})
+		}
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "extract claims: " + err.Error()})
 	}
 
@@ -715,11 +715,11 @@ func (s *Server) HandleDeviceAuthCallback(c echo.Context) error {
 		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "nonce mismatch"})
 	}
 
-	var claims struct {
-		Email string `json:"email"`
-		Name  string `json:"name"`
-	}
-	if err := idToken.Claims(&claims); err != nil {
+	claims, err := identityFromToken(idToken, !s.Config.AllowUnverifiedEmail)
+	if err != nil {
+		if errors.Is(err, errEmailNotVerified) {
+			return c.JSON(http.StatusForbidden, ErrorResponse{Error: "email address is not verified"})
+		}
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "extract claims: " + err.Error()})
 	}
 
@@ -738,9 +738,19 @@ func (s *Server) HandleDeviceAuthCallback(c echo.Context) error {
 
 const refreshCookieName = "bowrain_refresh"
 
+// cookieSecure reports whether session cookies should carry the Secure flag.
+// It is true on a real HTTPS request OR when ForceSecureCookies is set. The
+// override matters behind CloudFront→ALB: TLS terminates at the edge and the
+// ALB→task hop is plaintext, so c.Scheme() depends on X-Forwarded-Proto
+// reaching the task. Forcing it in prod removes that implicit dependency so a
+// proxy-header change can never silently drop Secure.
+func (s *Server) cookieSecure(c echo.Context) bool {
+	return c.Scheme() == "https" || s.Config.ForceSecureCookies
+}
+
 // setSessionCookies sets HttpOnly cookies for the access and refresh tokens.
-func setSessionCookies(c echo.Context, accessToken, refreshToken string) {
-	secure := c.Scheme() == "https"
+func (s *Server) setSessionCookies(c echo.Context, accessToken, refreshToken string) {
+	secure := s.cookieSecure(c)
 
 	c.SetCookie(&http.Cookie{
 		Name:     sessionCookieName,
@@ -766,8 +776,8 @@ func setSessionCookies(c echo.Context, accessToken, refreshToken string) {
 }
 
 // clearSessionCookies removes the session and refresh cookies.
-func clearSessionCookies(c echo.Context) {
-	secure := c.Scheme() == "https"
+func (s *Server) clearSessionCookies(c echo.Context) {
+	secure := s.cookieSecure(c)
 
 	c.SetCookie(&http.Cookie{
 		Name:     sessionCookieName,
@@ -850,11 +860,11 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "nonce mismatch"})
 	}
 
-	var claims struct {
-		Email string `json:"email"`
-		Name  string `json:"name"`
-	}
-	if err := idToken.Claims(&claims); err != nil {
+	claims, err := identityFromToken(idToken, !s.Config.AllowUnverifiedEmail)
+	if err != nil {
+		if errors.Is(err, errEmailNotVerified) {
+			return c.JSON(http.StatusForbidden, ErrorResponse{Error: "email address is not verified"})
+		}
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "extract claims: " + err.Error()})
 	}
 
@@ -883,7 +893,7 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 	}
 
 	// Set HttpOnly cookies and redirect to frontend (no tokens in URL).
-	setSessionCookies(c, token, refreshToken)
+	s.setSessionCookies(c, token, refreshToken)
 
 	// Store the raw OIDC ID token for RP-Initiated Logout (id_token_hint).
 	_ = s.SessionStore.Set(ctx, prefixIDToken+user.ID, []byte(rawIDToken), 24*time.Hour)
@@ -893,7 +903,7 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 	if rp, err := c.Cookie("bowrain_return_path"); err == nil && rp.Value != "" {
 		returnPath = sanitizeReturnPath(rp.Value)
 		// Clear the return-path cookie.
-		secure := c.Scheme() == "https"
+		secure := s.cookieSecure(c)
 		c.SetCookie(&http.Cookie{
 			Name:     "bowrain_return_path",
 			Value:    "",
@@ -939,10 +949,31 @@ func (s *Server) HandleTokenRefresh(c echo.Context) error {
 	hash := sha256.Sum256([]byte(rawRefresh))
 	tokenHash := hex.EncodeToString(hash[:])
 
-	ctx := c.Request().Context()
-	userID, err := s.AuthStore.ValidateRefreshTokenByHash(ctx, tokenHash)
+	// Generate the successor refresh token up front so rotation is a single
+	// atomic operation (consume the old + insert the new in one transaction).
+	newRefreshToken, err := platformAuth.GenerateRefreshToken()
 	if err != nil {
-		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid or expired refresh token"})
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to generate refresh token"})
+	}
+	newHashArr := sha256.Sum256([]byte(newRefreshToken))
+	newHash := hex.EncodeToString(newHashArr[:])
+
+	ctx := c.Request().Context()
+	userID, err := s.AuthStore.RotateRefreshToken(ctx, tokenHash, newHash, time.Now().Add(30*24*time.Hour))
+	if err != nil {
+		switch {
+		case errors.Is(err, auth.ErrRefreshTokenReuse):
+			// A rotated token was replayed (likely stolen). The family is now
+			// revoked; clear the session so the client must re-authenticate.
+			s.clearSessionCookies(c)
+			slog.WarnContext(ctx, "refresh token reuse detected; token family revoked", "ip", c.RealIP())
+			return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "session revoked, please sign in again"})
+		case errors.Is(err, auth.ErrRefreshTokenInvalid):
+			s.clearSessionCookies(c)
+			return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid or expired refresh token"})
+		default:
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to rotate refresh token"})
+		}
 	}
 
 	// Get user info for the new JWT.
@@ -957,18 +988,8 @@ func (s *Server) HandleTokenRefresh(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to generate token"})
 	}
 
-	// Generate new refresh token (rotation).
-	newRefreshToken, err := platformAuth.GenerateRefreshToken()
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to generate refresh token"})
-	}
-	newHash := sha256.Sum256([]byte(newRefreshToken))
-	if _, err = s.AuthStore.StoreRefreshToken(ctx, userID, hex.EncodeToString(newHash[:]), time.Now().Add(30*24*time.Hour)); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to store refresh token"})
-	}
-
 	// Set cookies (for web clients) and return JSON (for CLI/desktop).
-	setSessionCookies(c, accessToken, newRefreshToken)
+	s.setSessionCookies(c, accessToken, newRefreshToken)
 
 	return c.JSON(http.StatusOK, platformAuth.TokenResponse{
 		AccessToken:  accessToken,
@@ -1020,7 +1041,7 @@ func (s *Server) HandleAuthLogout(c echo.Context) error {
 		s.emitAuthEvent(c, platev.EventAuthLogout, userID, name, "oidc")
 	}
 
-	clearSessionCookies(c)
+	s.clearSessionCookies(c)
 
 	resp := map[string]string{"status": "logged out"}
 

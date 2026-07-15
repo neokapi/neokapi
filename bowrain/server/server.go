@@ -89,10 +89,13 @@ type Server struct {
 	// EmailSender. Nil when email sending is not configured.
 	Mailer *mailer.Mailer
 
-	// KeycloakAdmin writes through identity changes (email, etc.) to Keycloak
-	// via its Admin API. Nil when Config.KeycloakAdminURL is unset, in which
-	// case Bowrain-managed email change is unavailable.
-	KeycloakAdmin *auth.KeycloakAdminClient
+	// KeycloakAdmin writes through identity changes (email, etc.) to the upstream
+	// IdP via the provider-neutral IdentityAdmin port. Nil when no admin client
+	// is configured (Config.KeycloakAdminURL unset), in which case
+	// Bowrain-managed email change is unavailable. The concrete implementation is
+	// the Keycloak admin client today; the hosted platform swaps in a Cognito
+	// adapter without touching the call sites.
+	KeycloakAdmin auth.IdentityAdmin
 
 	// collabHub manages collaborative editing WebSocket rooms.
 	collabHub *collabHub

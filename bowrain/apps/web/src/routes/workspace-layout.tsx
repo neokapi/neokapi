@@ -551,6 +551,9 @@ export function WorkspaceLayout() {
       const resp = await fetch("/api/v1/auth/logout", {
         method: "POST",
         credentials: "same-origin",
+        // Cookie-authenticated mutation: send the CSRF header the server
+        // requires on the cookie auth path (this route bypasses RestApiAdapter).
+        headers: { "X-Bowrain-Csrf": "1" },
       });
       if (resp.ok) {
         const data = await resp.json();
