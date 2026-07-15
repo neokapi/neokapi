@@ -19,7 +19,7 @@ import (
 var errNotConnected = errors.New("not connected to server")
 
 // DefaultServerURL is the Bowrain SaaS instance URL used when no custom server is specified.
-const DefaultServerURL = "https://bowrain.cloud"
+const DefaultServerURL = "https://app.bowrain.cloud"
 
 // ConnectionState represents the connection state of the desktop client.
 type ConnectionState string
