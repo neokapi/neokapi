@@ -227,3 +227,40 @@ export interface PromptDataset {
   version: string;
   prompts: PromptEntry[];
 }
+
+/** Where a model sits in its neokapi lifecycle. */
+export type ModelStatus = "active" | "superseded" | "retired";
+
+/** One catalogued model — a family kapi ships support for, with its ceilings and
+ *  neokapi lifecycle. Generated from providers/ai/models.json. */
+export interface ModelEntry {
+  /** Canonical model id, also the match prefix (a dated id resolves to it). */
+  id: string;
+  provider: string;
+  /** Human-readable provider name (e.g. "Anthropic"). */
+  providerLabel: string;
+  label: string;
+  /** Bare names that resolve here (e.g. the claude-code aliases sonnet/opus/haiku). */
+  aliases?: string[];
+  /** Providers whose built-in default this model is. */
+  defaultFor?: string[];
+  maxOutputTokens?: number;
+  contextWindow?: number;
+  status: ModelStatus;
+  /** Date this model id entered neokapi's source tree (YYYY-MM-DD). */
+  introduced?: string;
+  /** The id of the model that replaced this one, when superseded. */
+  supersededBy?: string;
+  /** When the provider stops (or stopped) serving it (YYYY-MM-DD), when known. */
+  retirementDate?: string;
+  note?: string;
+}
+
+/** The generated model catalog for the /models reference page. */
+export interface ModelDataset {
+  generatedAt: string;
+  /** Date the catalog was last reviewed. */
+  asOf: string;
+  note: string;
+  models: ModelEntry[];
+}

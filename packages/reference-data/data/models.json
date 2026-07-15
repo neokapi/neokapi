@@ -1,0 +1,272 @@
+{
+  "generatedAt": "2026-07-15T03:17:57Z",
+  "asOf": "2026-07-15",
+  "note": "Generated from providers/ai/models.json via scripts/gen-refs. Do not edit here; edit the catalog and run `make generate-reference-docs`.",
+  "models": [
+    {
+      "id": "claude-opus-4-8",
+      "provider": "anthropic",
+      "providerLabel": "Anthropic",
+      "label": "Claude Opus 4.8",
+      "aliases": [
+        "opus"
+      ],
+      "maxOutputTokens": 128000,
+      "contextWindow": 1000000,
+      "status": "active",
+      "introduced": "2026-07-14",
+      "note": "1M context is standard, with no long-context surcharge."
+    },
+    {
+      "id": "claude-sonnet-5",
+      "provider": "anthropic",
+      "providerLabel": "Anthropic",
+      "label": "Claude Sonnet 5",
+      "aliases": [
+        "sonnet"
+      ],
+      "defaultFor": [
+        "anthropic"
+      ],
+      "maxOutputTokens": 128000,
+      "contextWindow": 1000000,
+      "status": "active",
+      "introduced": "2026-07-14"
+    },
+    {
+      "id": "claude-fable-5",
+      "provider": "anthropic",
+      "providerLabel": "Anthropic",
+      "label": "Claude Fable 5",
+      "aliases": [
+        "fable"
+      ],
+      "maxOutputTokens": 128000,
+      "contextWindow": 1000000,
+      "status": "active",
+      "introduced": "2026-07-14"
+    },
+    {
+      "id": "claude-haiku-4-5",
+      "provider": "anthropic",
+      "providerLabel": "Anthropic",
+      "label": "Claude Haiku 4.5",
+      "aliases": [
+        "haiku"
+      ],
+      "maxOutputTokens": 64000,
+      "contextWindow": 200000,
+      "status": "active",
+      "introduced": "2026-07-03"
+    },
+    {
+      "id": "claude-sonnet-4",
+      "provider": "anthropic",
+      "providerLabel": "Anthropic",
+      "label": "Claude Sonnet 4",
+      "maxOutputTokens": 64000,
+      "contextWindow": 200000,
+      "status": "superseded",
+      "introduced": "2026-04-03",
+      "supersededBy": "claude-sonnet-5",
+      "note": "Reached in production through the Bedrock inference profile eu.anthropic.claude-sonnet-4-6."
+    },
+    {
+      "id": "claude-opus-4",
+      "provider": "anthropic",
+      "providerLabel": "Anthropic",
+      "label": "Claude Opus 4",
+      "maxOutputTokens": 32000,
+      "contextWindow": 200000,
+      "status": "superseded",
+      "introduced": "2026-07-14",
+      "supersededBy": "claude-opus-4-8"
+    },
+    {
+      "id": "claude-3-5",
+      "provider": "anthropic",
+      "providerLabel": "Anthropic",
+      "label": "Claude 3.5 (Sonnet / Haiku)",
+      "maxOutputTokens": 8192,
+      "contextWindow": 200000,
+      "status": "superseded",
+      "introduced": "2026-06-22",
+      "supersededBy": "claude-haiku-4-5"
+    },
+    {
+      "id": "gpt-5.6",
+      "provider": "openai",
+      "providerLabel": "OpenAI",
+      "label": "GPT-5.6",
+      "defaultFor": [
+        "openai"
+      ],
+      "maxOutputTokens": 128000,
+      "contextWindow": 1050000,
+      "status": "active",
+      "introduced": "2026-07-14",
+      "note": "The default id is gpt-5.6-sol, which resolves to this family."
+    },
+    {
+      "id": "gpt-5",
+      "provider": "openai",
+      "providerLabel": "OpenAI",
+      "label": "GPT-5",
+      "maxOutputTokens": 128000,
+      "contextWindow": 400000,
+      "status": "superseded",
+      "introduced": "2026-07-14",
+      "supersededBy": "gpt-5.6"
+    },
+    {
+      "id": "gpt-4.1",
+      "provider": "openai",
+      "providerLabel": "OpenAI",
+      "label": "GPT-4.1",
+      "maxOutputTokens": 32768,
+      "contextWindow": 1047576,
+      "status": "superseded",
+      "introduced": "2026-07-14",
+      "supersededBy": "gpt-5.6"
+    },
+    {
+      "id": "gpt-4o",
+      "provider": "openai",
+      "providerLabel": "OpenAI",
+      "label": "GPT-4o",
+      "defaultFor": [
+        "azureopenai"
+      ],
+      "maxOutputTokens": 16384,
+      "contextWindow": 128000,
+      "status": "superseded",
+      "introduced": "2026-04-03",
+      "supersededBy": "gpt-5.6",
+      "note": "Superseded on the OpenAI API, but still the Azure OpenAI default — Azure deployments lag the public API, so the default is deliberately conservative."
+    },
+    {
+      "id": "o3",
+      "provider": "openai",
+      "providerLabel": "OpenAI",
+      "label": "OpenAI o3",
+      "maxOutputTokens": 100000,
+      "contextWindow": 200000,
+      "status": "active",
+      "introduced": "2026-06-22",
+      "note": "Reasoning model; kept for callers who name it explicitly."
+    },
+    {
+      "id": "gpt-4-",
+      "provider": "openai",
+      "providerLabel": "OpenAI",
+      "label": "GPT-4 (legacy family)",
+      "maxOutputTokens": 4096,
+      "contextWindow": 128000,
+      "status": "superseded",
+      "introduced": "2026-07-14",
+      "supersededBy": "gpt-5.6",
+      "note": "The trailing dash keeps this prefix from matching gpt-4o or gpt-4.1."
+    },
+    {
+      "id": "gpt-3.5",
+      "provider": "openai",
+      "providerLabel": "OpenAI",
+      "label": "GPT-3.5",
+      "maxOutputTokens": 4096,
+      "contextWindow": 16385,
+      "status": "superseded",
+      "introduced": "2026-07-14",
+      "supersededBy": "gpt-5.6"
+    },
+    {
+      "id": "gemini-3.5-flash",
+      "provider": "gemini",
+      "providerLabel": "Gemini",
+      "label": "Gemini 3.5 Flash",
+      "defaultFor": [
+        "gemini"
+      ],
+      "maxOutputTokens": 65536,
+      "contextWindow": 1048576,
+      "status": "active",
+      "introduced": "2026-07-14"
+    },
+    {
+      "id": "gemini-3.1-pro",
+      "provider": "gemini",
+      "providerLabel": "Gemini",
+      "label": "Gemini 3.1 Pro",
+      "maxOutputTokens": 64000,
+      "contextWindow": 1048576,
+      "status": "active",
+      "introduced": "2026-07-14",
+      "note": "Prompts over 200k input tokens are billed at a higher tier."
+    },
+    {
+      "id": "gemini-3.1-flash-lite",
+      "provider": "gemini",
+      "providerLabel": "Gemini",
+      "label": "Gemini 3.1 Flash-Lite",
+      "maxOutputTokens": 64000,
+      "contextWindow": 1048576,
+      "status": "active",
+      "introduced": "2026-07-14"
+    },
+    {
+      "id": "gemini-3-flash",
+      "provider": "gemini",
+      "providerLabel": "Gemini",
+      "label": "Gemini 3 Flash",
+      "maxOutputTokens": 64000,
+      "contextWindow": 1048576,
+      "status": "superseded",
+      "introduced": "2026-04-03",
+      "supersededBy": "gemini-3.5-flash"
+    },
+    {
+      "id": "gemini-3",
+      "provider": "gemini",
+      "providerLabel": "Gemini",
+      "label": "Gemini 3 (family default)",
+      "maxOutputTokens": 64000,
+      "contextWindow": 1048576,
+      "status": "active",
+      "introduced": "2026-04-03",
+      "note": "Fallback ceilings for any Gemini 3.x id without a more specific entry."
+    },
+    {
+      "id": "gemini-2",
+      "provider": "gemini",
+      "providerLabel": "Gemini",
+      "label": "Gemini 2",
+      "maxOutputTokens": 8192,
+      "contextWindow": 1048576,
+      "status": "superseded",
+      "introduced": "2026-07-14",
+      "supersededBy": "gemini-3.5-flash"
+    },
+    {
+      "id": "gemini-1.5",
+      "provider": "gemini",
+      "providerLabel": "Gemini",
+      "label": "Gemini 1.5",
+      "maxOutputTokens": 8192,
+      "contextWindow": 1048576,
+      "status": "superseded",
+      "introduced": "2026-07-14",
+      "supersededBy": "gemini-3.5-flash"
+    },
+    {
+      "id": "llama3.2",
+      "provider": "ollama",
+      "providerLabel": "Ollama",
+      "label": "Llama 3.2 (3B)",
+      "defaultFor": [
+        "ollama"
+      ],
+      "status": "active",
+      "introduced": "2026-06-22",
+      "note": "Runs locally through Ollama; ceilings depend on the pulled quantisation, so none are pinned here."
+    }
+  ]
+}

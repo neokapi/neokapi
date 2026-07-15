@@ -469,6 +469,7 @@ const config: Config = {
             { label: "Kapi CLI Commands", to: "/commands" },
             { label: "Formats", to: "/formats" },
             { label: "Tools", to: "/tools" },
+            { label: "AI Models", to: "/models" },
             { label: "Project file", to: "/reference/project-file" },
             { label: "KLF format", to: "/reference/klf/overview" },
             { label: "MCP Server", to: "/reference/mcp" },
