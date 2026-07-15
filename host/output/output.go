@@ -112,14 +112,15 @@ func Print(cmd Command, data any) error {
 	}
 	// Resolve --color once, here, so FormatText (which only gets an io.Writer)
 	// can reach it via Theme/Renderer.
-	SetColorMode(resolveColorMode(cmd))
+	SetColorMode(ResolveColorMode(cmd))
 	return printText(w, data)
 }
 
-// resolveColorMode maps the --color flag onto a ColorMode. Auto is left to the
+// ResolveColorMode maps the --color flag onto a ColorMode. Auto is left to the
 // renderer, which probes the destination writer and honors NO_COLOR and
-// CLICOLOR_FORCE.
-func resolveColorMode(cmd Command) ColorMode {
+// CLICOLOR_FORCE. Callers that render before Print (help) pair it with
+// ThemeWithMode to avoid mutating the process-global color mode.
+func ResolveColorMode(cmd Command) ColorMode {
 	switch c, _ := cmd.Flags().GetString("color"); c {
 	case "always", "force":
 		return ColorAlways

@@ -33,13 +33,22 @@ var colorMode atomic.Int32
 // call it to pin a profile.
 func SetColorMode(m ColorMode) { colorMode.Store(int32(m)) }
 
-// Renderer returns a lipgloss renderer bound to w.
+// Renderer returns a lipgloss renderer bound to w, using the process-global
+// color mode (set by Print via SetColorMode). Callers that resolve the mode
+// themselves — help rendering, which runs before Print — should use
+// RendererWithMode instead of mutating the global.
+func Renderer(w io.Writer) *lipgloss.Renderer {
+	return RendererWithMode(w, ColorMode(colorMode.Load()))
+}
+
+// RendererWithMode returns a lipgloss renderer bound to w for an explicitly
+// supplied color mode, touching no package state.
 //
 // It is deliberately writer-scoped rather than lipgloss's package-level default
 // renderer, which probes os.Stdout at init. host is linked into Kapi Desktop
 // (Wails, no TTY) and the js/wasm CLI, and tests redirect output with
 // cmd.SetOut, so a global stdout-derived profile would be wrong in all three.
-func Renderer(w io.Writer) *lipgloss.Renderer {
+func RendererWithMode(w io.Writer, mode ColorMode) *lipgloss.Renderer {
 	r := lipgloss.NewRenderer(w)
 
 	// Never let lipgloss resolve a background. Its AdaptiveColor path writes an
@@ -52,7 +61,7 @@ func Renderer(w io.Writer) *lipgloss.Renderer {
 	// never runs.
 	r.SetHasDarkBackground(true)
 
-	switch ColorMode(colorMode.Load()) {
+	switch mode {
 	case ColorNever:
 		r.SetColorProfile(termenv.Ascii)
 	case ColorAlways:
@@ -126,9 +135,16 @@ type Styles struct {
 	Error   lipgloss.Style
 }
 
-// Theme returns the style set bound to w.
+// Theme returns the style set bound to w, using the process-global color mode.
 func Theme(w io.Writer) *Styles {
-	r := Renderer(w)
+	return ThemeWithMode(w, ColorMode(colorMode.Load()))
+}
+
+// ThemeWithMode returns the style set bound to w for an explicitly supplied
+// color mode, touching no package state. Use it when the caller resolves
+// --color itself (e.g. help, which renders before Print sets the global).
+func ThemeWithMode(w io.Writer, mode ColorMode) *Styles {
+	r := RendererWithMode(w, mode)
 	return &Styles{
 		r:       r,
 		Title:   r.NewStyle().Bold(true),
