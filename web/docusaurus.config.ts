@@ -35,19 +35,21 @@ const buildStamp = (() => {
 const baseUrl = process.env.DOCS_BASE_URL ?? "/";
 
 // Large immutable assets (the wasm engine, ONNX vision models, walkthrough
-// videos) can be offloaded to an external CDN (Cloudflare R2) to keep the
-// GitHub Pages artifact small and the deploy fast. An empty DOCS_CDN_URL — the
-// default, and the local-dev case — leaves every asset same-origin, so nothing
-// changes until the CDN is configured. DOCS_CDN_VERSION cache-busts the
-// per-build wasm under /kapi/wasm/<version>/.
+// videos) can be offloaded to an external CDN (S3 + CloudFront, cdn.<domain>) to
+// keep the GitHub Pages artifact small and the deploy fast. An empty
+// DOCS_CDN_URL — the default, and the local-dev case — leaves every asset
+// same-origin, so nothing changes until the CDN is configured. DOCS_CDN_VERSION
+// cache-busts the per-build wasm under /kapi/wasm/<version>/ and is set only on
+// push-to-main (where CI publishes that sha's wasm); empty on PRs/local, so the
+// playground serves wasm same-origin (see KapiPlayground/config.ts).
 const cdnBaseUrl = process.env.DOCS_CDN_URL ?? "";
 const cdnWasmVersion = process.env.DOCS_CDN_VERSION ?? "dev";
 
 // ICU4X (the `icu` npm package, used by the Segmentation Lab) loads its wasm via
 // a hardcoded `new URL('icu_capi.wasm', import.meta.url)` — no wasmPaths-style
 // override like onnxruntime-web. When the CDN is enabled we rewrite that asset's
-// URL to R2 at build time (cdnIcuWasm plugin); pin the package version so the R2
-// path is immutable and cache-busts on an icu bump. Publish the file with
+// URL to the CDN at build time (cdnIcuWasm plugin); pin the package version so
+// the path is immutable and cache-busts on an icu bump. Publish the file with
 // `make publish-cdn-icu`.
 const icuVersion = (() => {
   // `icu`'s package.json `exports` only declares the "import" entry, so
@@ -139,30 +141,6 @@ const config: Config = {
         ],
       },
     ],
-    // Cloudflare Web Analytics: inject the beacon script just before </body> on
-    // every page (postBodyTags renders at the end of <body>). Gated to production
-    // builds so it ships on the deployed site + PR previews but not in local
-    // `vp run start` dev, where the beacon would report nothing useful.
-    function cloudflareWebAnalytics() {
-      return {
-        name: "cloudflare-web-analytics",
-        injectHtmlTags() {
-          if (process.env.NODE_ENV !== "production") return {};
-          return {
-            postBodyTags: [
-              {
-                tagName: "script",
-                attributes: {
-                  defer: true,
-                  src: "https://static.cloudflareinsights.com/beacon.min.js",
-                  "data-cf-beacon": '{"token": "3b1c27d17cee44beb47518685678a1e6"}',
-                },
-              },
-            ],
-          };
-        },
-      };
-    },
     // Silence a few benign third-party webpack warnings. Each predicate is
     // scoped to the specific offending module/message so an equivalent warning
     // from our OWN code is never suppressed.
@@ -339,10 +317,10 @@ const config: Config = {
     // ICU4X wasm (Segmentation Lab). The `icu` package hardcodes
     // `new URL('icu_capi.wasm', import.meta.url)`, so — unlike onnxruntime-web —
     // there's no runtime path hook. When the CDN is enabled, rewrite the emitted
-    // asset's URL to R2 (kapi/icu/<version>/icu_capi.wasm) and skip writing the
-    // ~16 MB file; otherwise it stays same-origin (local dev unchanged). The R2
-    // object must exist first (`make publish-cdn-icu`) or the lab 404s. R2 serves
-    // it with Content-Type application/wasm so instantiateStreaming accepts it.
+    // asset's URL to the CDN (kapi/icu/<version>/icu_capi.wasm) and skip writing
+    // the ~16 MB file; otherwise it stays same-origin (local dev unchanged). The
+    // CDN object must exist first (`make publish-cdn-icu`) or the lab 404s; it is
+    // served with Content-Type application/wasm so instantiateStreaming accepts it.
     function cdnIcuWasm() {
       return {
         name: "cdn-icu-wasm",

@@ -60,13 +60,21 @@ jobs:
   build:
     needs: build-wasm
     runs-on: ubuntu-latest
-    # CDN_URL is the R2 origin to serve large assets (wasm, vision models,
-    # videos) from (the DOCS_CDN_URL repo variable). Empty → assets stay
-    # same-origin. It is now ON for push AND same-repo PRs: previews are served
-    # from R2 (not committed to git), so referencing the shared assets from the
-    # CDN keeps each preview tiny — only the PR's own wasm is published (by sha).
-    # FORK PRs keep it empty: they can't read the R2 publish secret and never get
-    # a deployed preview anyway, so they build same-origin (assets simply absent).
+    # id-token: write lets the push-to-main wasm publish assume the AWS OIDC
+    # deploy role (configure-aws-credentials); contents: read for checkout.
+    permissions:
+      contents: read
+      id-token: write
+    # CDN_URL is the CDN origin (cdn.<domain>, S3+CloudFront) to serve large
+    # assets (wasm, vision models, videos, images) from — the DOCS_CDN_URL repo
+    # variable. Empty → assets stay same-origin. It is ON for push AND same-repo
+    # PRs so previews reference the shared, already-published video/model/image
+    # assets by URL instead of staging them into the artifact. WASM is different:
+    # only push-to-main publishes it to the CDN (via the OIDC deploy role, which
+    # PRs can't assume), so same-repo PR previews serve their own wasm
+    # same-origin (see the wasm publish step + DOCS_CDN_VERSION below). FORK PRs
+    # keep CDN_URL empty and never get a deployed preview, so they build fully
+    # same-origin.
     env:
       CDN_URL: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && vars.DOCS_CDN_URL || '' }}
     steps:
@@ -135,18 +143,26 @@ jobs:
       - name: Stage PDFium wasm (browser PDF)
         run: make web-pdfium-wasm
 
-      # When serving from the CDN: sync the freshly built wasm (kapi-cli + pdfium
-      # + wasm_exec.js, versioned by commit sha) to R2, then drop it from the
-      # site artifact so GitHub Pages stays small. The site is built below
-      # pointing at /kapi/wasm/<sha>/ on the CDN (DOCS_CDN_VERSION).
-      - name: Publish wasm to R2 + slim artifact
-        if: ${{ env.CDN_URL != '' }}
+      # On push to main: publish the freshly built wasm (kapi-cli + pdfium +
+      # wasm_exec.js, versioned by commit sha) to the S3 CDN origin via the OIDC
+      # deploy role, then drop it from the site artifact so GitHub Pages stays
+      # small — the site is built below pointing at /kapi/wasm/<sha>/ on the CDN
+      # (DOCS_CDN_VERSION). PRs can't assume the deploy role (its trust pins the
+      # subject to main / the prod environment), so they skip this and serve
+      # their own wasm same-origin — config.ts falls back when the version is
+      # unset, while videos/models/images still resolve from the CDN by URL.
+      - name: Configure AWS credentials (OIDC)
+        if: ${{ github.event_name != 'pull_request' && env.CDN_URL != '' }}
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Publish wasm to CDN (S3) + slim artifact
+        if: ${{ github.event_name != 'pull_request' && env.CDN_URL != '' }}
         env:
-          R2_BUCKET: ${{ vars.R2_BUCKET }}
-          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_VERSION: ${{ github.sha }}
+          CDN_BUCKET: ${{ vars.CDN_BUCKET }}
+          CDN_VERSION: ${{ github.sha }}
         run: |
           bash scripts/publish-cdn-assets.sh wasm
           rm -rf web/static/wasm
@@ -216,10 +232,13 @@ jobs:
         working-directory: web
         env:
           DOCS_BASE_URL: ${{ steps.base.outputs.docs_base }}
-          # Empty CDN_URL → assets resolve same-origin (unchanged). Set → wasm
-          # (versioned by sha), vision models, and videos load from the CDN.
+          # Empty CDN_URL → assets resolve same-origin (unchanged). Set → vision
+          # models, videos, and images load from the CDN. DOCS_CDN_VERSION points
+          # wasm at /kapi/wasm/<sha>/ on the CDN and is set ONLY on push-to-main
+          # (where the wasm publish step above ran). On PRs it stays empty, so
+          # config.ts serves wasm same-origin while other assets use the CDN.
           DOCS_CDN_URL: ${{ env.CDN_URL }}
-          DOCS_CDN_VERSION: ${{ github.sha }}
+          DOCS_CDN_VERSION: ${{ github.event_name != 'pull_request' && github.sha || '' }}
 
       - name: Upload kapi site artifact
         uses: actions/upload-artifact@v7
