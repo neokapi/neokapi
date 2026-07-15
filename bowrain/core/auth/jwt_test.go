@@ -75,6 +75,35 @@ func TestValidateTokenRejectsWrongClaims(t *testing.T) {
 	})
 }
 
+// TestAdminTokenAudienceSeparation verifies that admin and user session tokens
+// cannot be used interchangeably: each validates only under its own audience.
+func TestAdminTokenAudienceSeparation(t *testing.T) {
+	t.Parallel()
+
+	secret := "test-secret-key-32-bytes-long!!!"
+	user := &User{ID: "u-1", Email: "u@example.com", Name: "User"}
+
+	userTok, err := GenerateToken(user, secret, time.Hour)
+	require.NoError(t, err)
+	adminTok, err := GenerateAdminToken("admin-sub", "admin@example.com", "Admin", secret, time.Hour)
+	require.NoError(t, err)
+
+	// Each validates under its own audience.
+	uc, err := ValidateToken(userTok, secret)
+	require.NoError(t, err)
+	assert.Equal(t, "u-1", uc.Subject)
+	ac, err := ValidateAdminToken(adminTok, secret)
+	require.NoError(t, err)
+	assert.Equal(t, "admin-sub", ac.Subject)
+	assert.Equal(t, "admin@example.com", ac.Email)
+
+	// Cross-use is rejected: a user token is not an admin token and vice versa.
+	_, err = ValidateAdminToken(userTok, secret)
+	assert.Error(t, err, "user session token must not validate as admin")
+	_, err = ValidateToken(adminTok, secret)
+	assert.Error(t, err, "admin session token must not validate as user")
+}
+
 func TestValidateTokenWrongSecret(t *testing.T) {
 	t.Parallel()
 
