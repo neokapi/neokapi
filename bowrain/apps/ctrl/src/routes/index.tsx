@@ -5,7 +5,7 @@ import {
   redirect,
 } from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
-import { isAuthenticated } from "../auth";
+import { fetchAdminSession, ADMIN_SESSION_QUERY_KEY } from "../auth";
 import { RootLayout } from "./root-layout";
 import { AuthCallbackRoute } from "./auth-callback";
 import { DashboardRoute } from "./dashboard";
@@ -78,8 +78,16 @@ const authCallbackRoute = createRoute({
 // Protected routes — redirect to login if not authenticated
 // ---------------------------------------------------------------------------
 
-function requireAuth() {
-  if (!isAuthenticated()) {
+// requireAuth gates protected routes on a valid admin session. Auth state is the
+// HttpOnly session cookie, which the browser cannot read, so it is probed via
+// /api/admin/auth/me through React Query (cached across navigations, refetched
+// after login/logout invalidation).
+async function requireAuth({ context }: { context: RouterContext }) {
+  const session = await context.queryClient.ensureQueryData({
+    queryKey: ADMIN_SESSION_QUERY_KEY,
+    queryFn: fetchAdminSession,
+  });
+  if (!session) {
     throw redirect({ to: "/auth/callback", search: { action: "login" } });
   }
 }

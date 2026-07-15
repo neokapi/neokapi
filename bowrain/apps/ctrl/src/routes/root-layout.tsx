@@ -1,34 +1,45 @@
 import { Outlet, useRouteContext } from "@tanstack/react-router";
 import { ThemeProvider, TooltipProvider, AccountMenu } from "@neokapi/ui";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import type { RouterContext } from ".";
 import { CtrlShell } from "../components/CtrlShell";
-import { isAuthenticated, getAdminUser, logout } from "../auth";
+import { fetchAdminSession, ADMIN_SESSION_QUERY_KEY, logout } from "../auth";
 
-export function RootLayout() {
-  const { queryClient } = useRouteContext({ strict: false }) as RouterContext;
-  const authenticated = isAuthenticated();
-  const adminUser = getAdminUser();
+function Shell() {
+  const { data: session } = useQuery({
+    queryKey: ADMIN_SESSION_QUERY_KEY,
+    queryFn: fetchAdminSession,
+  });
 
-  const user = adminUser
-    ? { id: "", email: adminUser.email, name: adminUser.name, avatar_url: "" }
+  const user = session
+    ? { id: "", email: session.email, name: session.name, avatar_url: "" }
     : null;
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <TooltipProvider>
-          {authenticated ? (
-            <CtrlShell
-              headerSlot={user && <AccountMenu user={user} onSignOut={logout} variant="icon" />}
-            >
-              <Outlet />
-            </CtrlShell>
-          ) : (
+    <ThemeProvider>
+      <TooltipProvider>
+        {user ? (
+          <CtrlShell
+            headerSlot={<AccountMenu user={user} onSignOut={() => void logout()} variant="icon" />}
+          >
             <Outlet />
-          )}
-        </TooltipProvider>
-      </ThemeProvider>
+          </CtrlShell>
+        ) : (
+          <Outlet />
+        )}
+      </TooltipProvider>
+    </ThemeProvider>
+  );
+}
+
+export function RootLayout() {
+  const { queryClient } = useRouteContext({ strict: false }) as RouterContext;
+
+  // useQuery must run inside the provider, so the shell (which reads the admin
+  // session) is a child component of QueryClientProvider.
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Shell />
     </QueryClientProvider>
   );
 }

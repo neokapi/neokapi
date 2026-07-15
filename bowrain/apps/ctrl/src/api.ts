@@ -2,7 +2,7 @@
 // Admin API client wrapping /api/admin/* endpoints
 // ---------------------------------------------------------------------------
 
-import { getToken, refreshToken, login } from "./auth";
+import { login } from "./auth";
 import type {
   AdminWorkspace,
   AdminWorkspaceDetail,
@@ -31,56 +31,26 @@ function resolveApiBaseUrl(): string {
 
 const BASE_URL = resolveApiBaseUrl();
 
-async function getValidToken(): Promise<string> {
-  let token = getToken();
-  if (token) return token;
-
-  // Try refreshing
-  const refreshed = await refreshToken();
-  if (refreshed) {
-    token = getToken();
-    if (token) return token;
-  }
-
-  // No valid token — redirect to login
-  await login();
-  // Will not reach here (page navigates away)
-  throw new Error("Redirecting to login");
-}
+// CSRF header required by the server on cookie-authenticated admin requests.
+const CSRF_HEADER = "X-Bowrain-Csrf";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const token = await getValidToken();
-
+  // Admin auth is the HttpOnly bowrain_admin_session cookie (BFF). Send it with
+  // every request plus the CSRF header; no Bearer token lives in the browser.
   const response = await fetch(`${BASE_URL}${path}`, {
     ...options,
+    credentials: "same-origin",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+      [CSRF_HEADER]: "1",
       ...(options?.headers as Record<string, string>),
     },
   });
 
   if (response.status === 401) {
-    // Token expired mid-request — try refresh once
-    const refreshed = await refreshToken();
-    if (refreshed) {
-      const retryToken = getToken();
-      if (retryToken) {
-        const retryResponse = await fetch(`${BASE_URL}${path}`, {
-          ...options,
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${retryToken}`,
-            ...(options?.headers as Record<string, string>),
-          },
-        });
-        if (!retryResponse.ok) {
-          throw new Error(`API error: ${retryResponse.status}`);
-        }
-        return retryResponse.json() as Promise<T>;
-      }
-    }
+    // Admin session cookie missing or expired — re-run the admin OIDC flow.
     await login();
+    // Will not reach here (page navigates away).
     throw new Error("Redirecting to login");
   }
 
