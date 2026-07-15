@@ -99,9 +99,9 @@ func TestAdminTokenAudienceSeparation(t *testing.T) {
 
 	// Cross-use is rejected: a user token is not an admin token and vice versa.
 	_, err = ValidateAdminToken(userTok, secret)
-	assert.Error(t, err, "user session token must not validate as admin")
+	require.Error(t, err, "user session token must not validate as admin")
 	_, err = ValidateToken(adminTok, secret)
-	assert.Error(t, err, "admin session token must not validate as user")
+	require.Error(t, err, "admin session token must not validate as user")
 }
 
 func TestValidateTokenWrongSecret(t *testing.T) {
