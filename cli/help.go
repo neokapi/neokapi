@@ -38,17 +38,12 @@ func SetupStyledHelp(root *cobra.Command) {
 }
 
 // themeFor resolves --color from the command's flags (help renders before any
-// PreRun hook, so nothing else has set it) and returns a Theme bound to w.
+// PreRun hook, so nothing else has set it) and returns a Theme bound to w. It
+// passes the mode explicitly rather than through output's process-global, so
+// help never leaks its color decision into later Print calls in the same
+// process (embedded runs, Kapi Desktop, the wasm CLI, tests).
 func themeFor(cmd *cobra.Command, w io.Writer) *output.Styles {
-	switch c, _ := cmd.Flags().GetString("color"); c {
-	case "always", "force":
-		output.SetColorMode(output.ColorAlways)
-	case "never", "none":
-		output.SetColorMode(output.ColorNever)
-	default:
-		output.SetColorMode(output.ColorAuto)
-	}
-	return output.Theme(w)
+	return output.ThemeWithMode(w, output.ResolveColorMode(cmd))
 }
 
 func renderStyledUsage(cmd *cobra.Command, w io.Writer) error {
