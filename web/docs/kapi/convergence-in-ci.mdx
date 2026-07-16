@@ -1,0 +1,232 @@
+---
+sidebar_position: 4
+title: Convergence in CI
+description: Run the convergence loop where the work already lives — your CI. Converge on a schedule and deliver a pull request, gate merges on content quality, and report the translation cost of a change on its PR, on GitHub, GitLab, or any container-based runner.
+keywords: [kapi, convergence, CI, CD, continuous localization, GitHub Actions, GitLab CI, pipeline, ship gate, kapi up, container image, multilingual publishing]
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+import { PhaseFlow } from "@neokapi/docs-shared";
+
+# Convergence in CI
+
+Source content changes on every merge, and everything derived from it — its
+translations, its brand and terminology conformance — falls behind. That drift
+is the normal state of a shipping project, not an error. Running the
+[convergence loop](/kapi/convergence) in CI keeps content shippable, in every
+language, from the pipeline that produces the drift: converge what a machine
+can close, deliver it as a reviewable pull request, and enforce the release
+bar on merges — content quality treated like any other test. This covers the
+source language too: the ship gate includes the source gates (brand,
+terminology) alongside translation coverage and QA.
+
+<PhaseFlow
+  nodes={[
+    { label: "change", sub: "a merge or a schedule tick", role: "io" },
+    {
+      label: "converge",
+      sub: "kapi up — TM first, then AI, then checks",
+      role: "translate",
+      loop: ["each pass re-derives", "coverage and repeats"],
+    },
+    { label: "deliver", sub: "a pull request with the convergence report", role: "io", edge: "converged / parked" },
+    { label: "gate", sub: "kapi check --ship on merge requests", role: "qa", edge: "exit 3 blocks the merge" },
+  ]}
+  caption="CI converges and delivers; the gate — not drift — decides what blocks a merge."
+/>
+
+Inside a pass, for every language behind its gate, the default flow does three
+things in order: **reuse** — exact translation-memory matches fill first, for
+free; **translate** — the configured AI provider fills what remains, with the
+project's terminology and brand context; **check** — deterministic checks run
+over what was produced (placeholder integrity, inline tags, do-not-translate
+terms), and a unit with a failing finding counts as *drafted*, not translated,
+so bad output can never lift a language over its gate. What a machine cannot
+decide **parks** for [review](/kapi/recipes/review-and-approve); an approval is
+recorded in the committed state store, and the next run sees it.
+
+Three commands carry the whole model, and they divide the work cleanly:
+
+| Command | Role | Exit behavior |
+|---|---|---|
+| `kapi status` | **Observe** — per-locale coverage and gate standing | Always `0`: behind is pending work, not an error |
+| `kapi up` | **Produce** — the convergence loop | `0` whether the run *converged* or *parked*; non-zero only when the run broke |
+| `kapi check --ship` | **Enforce** — the release bar | `0` pass, `3` gate unmet, `1` operational error |
+
+An ordinary build never fails because a target language is behind. The gate is
+the explicit, opt-in enforcement point — wire it into merge-request pipelines
+and a quality regression cannot merge, while day-to-day drift flows through
+review instead of breaking builds.
+
+## The surfaces
+
+| CI | Install | Run |
+|---|---|---|
+| GitHub Actions | [`setup-kapi`](https://github.com/neokapi/setup-kapi) (CLI + plugins, cached) | [`kapi-action`](https://github.com/neokapi/kapi-action), or the one-line [reusable workflows](https://github.com/neokapi/kapi-workflows) |
+| GitLab CI | — (the components run on the image) | [`kapi-components`](https://gitlab.com/neokapi/kapi-components) from the CI/CD Catalog |
+| Anything container-based | `ghcr.io/neokapi/kapi` (cosign-signed; the `-bowrain` variant adds server sync) | The CLI directly — the exit codes above are the contract |
+
+## Converge on a schedule, deliver a pull request
+
+The produced translations land as a branch and a pull request carrying the
+convergence report — outcome, passes, parked locales. A run that **parks**
+(work remains that needs a person) still delivers what did converge; the
+parked locales are the review queue, not a failure.
+
+<Tabs groupId="ci" queryString>
+<TabItem value="github" label="GitHub Actions" default>
+
+```yaml title=".github/workflows/translations.yml"
+name: Translations
+on:
+  schedule:
+    - cron: "0 6 * * 1-5"
+  workflow_dispatch:
+
+jobs:
+  up:
+    uses: neokapi/kapi-workflows/.github/workflows/up.yml@v1
+    permissions:
+      contents: write
+      pull-requests: write
+    secrets:
+      anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+The reusable workflow composes `setup-kapi` and `kapi-action`; use the action
+directly (`create-pull-request: "true"`) when the job needs a custom shape.
+
+</TabItem>
+<TabItem value="gitlab" label="GitLab CI">
+
+```yaml title=".gitlab-ci.yml"
+include:
+  - component: gitlab.com/neokapi/kapi-components/up@0.1.0
+```
+
+The component's job runs on scheduled and web-triggered pipelines by default,
+opens the merge request through the API (`GITLAB_API_TOKEN`, api scope), and
+exposes `KAPI_OUTCOME`, `KAPI_PASSES`, and `KAPI_PARKED_LOCALES` to downstream
+jobs via dotenv.
+
+</TabItem>
+</Tabs>
+
+## Gate merges on content quality
+
+`kapi check --ship` runs the project's bound quality gates — brand,
+terminology, QA — plus its ship/source coverage gates, and exits `3` when any
+gate is unmet. Machine-produced translations fail quietly: a dropped
+placeholder, a competitor's term, wording that drifts off the approved
+vocabulary. The gate turns those from something a reader finds into something
+a pipeline finds.
+
+<Tabs groupId="ci" queryString>
+<TabItem value="github" label="GitHub Actions" default>
+
+```yaml title=".github/workflows/ship-gate.yml"
+name: Ship gate
+on:
+  pull_request:
+    paths: ["content/**", "src/locales/**"]
+
+jobs:
+  ship-gate:
+    uses: neokapi/kapi-workflows/.github/workflows/gate.yml@v1
+    permissions:
+      contents: read
+      pull-requests: write
+```
+
+An unmet gate fails the job with a distinct "gate unmet" annotation and posts
+one sticky report comment that re-runs update in place.
+
+</TabItem>
+<TabItem value="gitlab" label="GitLab CI">
+
+```yaml title=".gitlab-ci.yml"
+include:
+  - component: gitlab.com/neokapi/kapi-components/check@0.1.0
+```
+
+The job runs on merge-request pipelines, fails on exit `3`, and posts one
+threaded MR note with the failing gates and findings; the full
+`kapi.check/v1` report is kept as a job artifact.
+
+</TabItem>
+</Tabs>
+
+The [Ship gates & CI](/kapi/recipes/gate-localization-in-ci) recipe walks the
+gate end to end, including the committed state store that lets a `reviewed`
+threshold pass on a runner.
+
+## Report the cost of a change on its pull request
+
+`kapi up --plan` dry-runs the loop: pending units, TM leverage, and a token
+estimate — no writes, no provider calls, no keys. Posted on the pull request
+that created the work, it answers "what does this change cost in translation?"
+before anyone merges:
+
+<Tabs groupId="ci" queryString>
+<TabItem value="github" label="GitHub Actions" default>
+
+```yaml
+- uses: neokapi/kapi-action@v1
+  with:
+    plan: "true"
+    pr-comment: "true"
+```
+
+</TabItem>
+<TabItem value="gitlab" label="GitLab CI">
+
+```yaml
+include:
+  - component: gitlab.com/neokapi/kapi-components/up@0.1.0
+    inputs:
+      plan: true
+      deliver: "none"
+      rules:
+        - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+```
+
+</TabItem>
+</Tabs>
+
+> This change leaves **42 unit(s)** of pending translation work: 30
+> recoverable from TM, 12 for AI (~450 tokens estimated).
+
+## Credentials and state on a runner
+
+- **A producing job uses an API key** — set a provider key (for example
+  `ANTHROPIC_API_KEY`) as a CI secret. A subscription sign-in is bound to your
+  user and its usage window; see
+  [Let kapi run Claude](/kapi/get-started/use-with-claude#let-kapi-run-claude).
+  In a server-connected project (a recipe with a `server:` block) the server
+  holds the keys instead, and the job authenticates with a server token.
+- **A gate-only job needs no keys at all** — `check --ship` and `up --plan`
+  read the working tree.
+- **Review decisions travel with the repo** — a `reviewed` threshold reads the
+  committed [state store](/kapi/project-store) (`.kapi-state.json`); commit it
+  in the PR or the runner sees no approvals.
+- **The cache is rebuildable, and cacheable** — `.kapi/cache` (block store,
+  extractions) is gitignored and rebuilt on a fresh runner. Restore it across
+  runs to skip re-extraction:
+
+  ```yaml
+  - uses: actions/cache@v5
+    with:
+      path: .kapi/cache
+      key: kapi-cache-${{ hashFiles('*.kapi', 'src/locales/en/**') }}
+      restore-keys: kapi-cache-
+  ```
+
+  Server-connected projects skip this — convergence state lives on the server.
+
+## Next
+
+- [Convergence](/kapi/convergence) — the derived-state model behind `status`, `up`, and the gates.
+- [Ship gates & CI](/kapi/recipes/gate-localization-in-ci) — the enforcement recipe, end to end.
+- [Estimate a run's cost](/kapi/recipes/estimate-cost) — sizing a job with `kapi stats` before commissioning it.
+- [Review & approve](/kapi/recipes/review-and-approve) — the human half of a parked run.
