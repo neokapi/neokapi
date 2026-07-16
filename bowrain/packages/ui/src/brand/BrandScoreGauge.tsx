@@ -15,10 +15,10 @@ function scoreColor(score: number): string {
 }
 
 function strokeColor(score: number): string {
-  if (score >= 80) return "stroke-green-500";
-  if (score >= 60) return "stroke-yellow-500";
-  if (score >= 40) return "stroke-orange-500";
-  return "stroke-red-500";
+  if (score >= 80) return "stroke-success";
+  if (score >= 60) return "stroke-warning";
+  if (score >= 40) return "stroke-warning";
+  return "stroke-destructive";
 }
 
 export function BrandScoreGauge({ score, size = 120, className, label }: BrandScoreGaugeProps) {
