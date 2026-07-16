@@ -447,11 +447,12 @@ export class RestApiAdapter implements ApiAdapter {
   }
 
   // ── Account security (passkeys) ─────────────────────────────────────────
-  // The server holds the identity-provider access token (minted on demand from
-  // a retained refresh token) and relays only the WebAuthn ceremony; the
-  // browser runs navigator.credentials.* on a challenge and posts the result
-  // back. A 409 with error "reauth_required" means the retained refresh token
-  // lapsed — the caller should re-run the login round-trip.
+  // The server relays only the WebAuthn ceremony (no identity-provider token
+  // reaches the browser): the browser runs navigator.credentials.* on a
+  // challenge and posts the result back. Managing credentials needs a
+  // short-lived, self-service-scoped token the server obtains via an explicit
+  // step-up; a 409 with error "elevation_required" means the caller should send
+  // the user through /api/v1/account/security/elevate (see beginElevation).
 
   async getAccountSecurity(): Promise<AccountSecurity> {
     return this.fetchJSON("/api/v1/account/security");

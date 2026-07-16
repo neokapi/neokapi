@@ -96,7 +96,24 @@ export function isWebAuthnSupported(): boolean {
   );
 }
 
-/** True when the thrown fetch error signals the 409 reauth_required contract. */
-export function isReauthRequired(err: unknown): boolean {
-  return err instanceof Error && err.message.includes("reauth_required");
+/** The server's step-up entry point (top-level GET navigation). */
+const ELEVATE_URL = "/api/v1/account/security/elevate";
+
+/**
+ * True when the thrown fetch error signals the 409 elevation_required contract:
+ * credential management needs a fresh, self-service-scoped token, obtained via a
+ * step-up re-authentication.
+ */
+export function isElevationRequired(err: unknown): boolean {
+  return err instanceof Error && err.message.includes("elevation_required");
+}
+
+/**
+ * Send the browser through a step-up re-auth. This is a full-page navigation to
+ * the server, which redirects to the identity provider and back to `returnPath`
+ * (defaults to the current path) with ?elevated=1 on success (0 on failure).
+ */
+export function beginElevation(returnPath?: string): void {
+  const ret = returnPath ?? window.location.pathname;
+  window.location.href = `${ELEVATE_URL}?return=${encodeURIComponent(ret)}`;
 }

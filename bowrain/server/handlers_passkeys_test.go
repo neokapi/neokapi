@@ -3,9 +3,9 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -32,7 +32,7 @@ type fakeCredentialManager struct {
 	lastDeleteID    string
 }
 
-func (f *fakeCredentialManager) InApp() bool             { return f.inApp }
+func (f *fakeCredentialManager) InApp() bool              { return f.inApp }
 func (f *fakeCredentialManager) AccountURL(string) string { return f.accountURL }
 func (f *fakeCredentialManager) ListPasskeys(_ context.Context, at string) ([]auth.Passkey, error) {
 	f.lastAccessToken = at
@@ -52,36 +52,18 @@ func (f *fakeCredentialManager) DeletePasskey(_ context.Context, at, id string) 
 	return f.deleteErr
 }
 
-type fakeUpstreamTokenStore struct {
-	token     string
-	expiresAt time.Time
-	has       bool
-	deleted   bool
-}
-
-func (f *fakeUpstreamTokenStore) PutRefreshToken(_ context.Context, _, _, tok string, exp time.Time) error {
-	f.token, f.expiresAt, f.has = tok, exp, true
-	return nil
-}
-func (f *fakeUpstreamTokenStore) GetRefreshToken(_ context.Context, _, _ string) (string, time.Time, error) {
-	if !f.has {
-		return "", time.Time{}, auth.ErrUpstreamTokenNotFound
-	}
-	return f.token, f.expiresAt, nil
-}
-func (f *fakeUpstreamTokenStore) DeleteRefreshToken(_ context.Context, _, _ string) error {
-	f.deleted = true
-	f.has = false
-	return nil
-}
-func (f *fakeUpstreamTokenStore) Close() error { return nil }
-
 // newMemSession returns a MemorySessionStore closed at test end (goleak-clean).
 func newMemSession(t *testing.T) *MemorySessionStore {
 	t.Helper()
 	ss := NewMemorySessionStore()
 	t.Cleanup(func() { _ = ss.Close() })
 	return ss
+}
+
+// elevated seeds a live elevated access token for userID.
+func elevated(t *testing.T, s *Server, userID, token string) {
+	t.Helper()
+	require.NoError(t, s.storeElevatedToken(context.Background(), userID, token, time.Time{}))
 }
 
 func newPasskeyCtx(t *testing.T, method, target, body, userID string) (echo.Context, *httptest.ResponseRecorder) {
@@ -162,101 +144,139 @@ func TestHandleListPasskeys_Guards(t *testing.T) {
 		assert.Equal(t, "account_console_required", body["error"])
 		assert.Equal(t, "https://console", body["account_url"])
 	})
-	t.Run("409 reauth_required when no upstream token", func(t *testing.T) {
-		s := &Server{CredentialManager: &fakeCredentialManager{inApp: true}, UpstreamTokens: &fakeUpstreamTokenStore{}}
+	t.Run("409 elevation_required when not elevated", func(t *testing.T) {
+		s := &Server{CredentialManager: &fakeCredentialManager{inApp: true}, SessionStore: newMemSession(t)}
 		c, rec := newPasskeyCtx(t, http.MethodGet, "/account/passkeys", "", "user-1")
 		require.NoError(t, s.HandleListPasskeys(c))
 		assert.Equal(t, http.StatusConflict, rec.Code)
 		var body map[string]any
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
-		assert.Equal(t, "reauth_required", body["error"])
+		assert.Equal(t, "elevation_required", body["error"])
+		assert.Equal(t, elevatePath, body["elevate_url"])
+	})
+	t.Run("200 with elevated token", func(t *testing.T) {
+		fake := &fakeCredentialManager{inApp: true, listResult: []auth.Passkey{{ID: "c1", Name: "phone"}}}
+		s := &Server{CredentialManager: fake, SessionStore: newMemSession(t)}
+		elevated(t, s, "user-1", "AT-elev")
+		c, rec := newPasskeyCtx(t, http.MethodGet, "/account/passkeys", "", "user-1")
+		require.NoError(t, s.HandleListPasskeys(c))
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "AT-elev", fake.lastAccessToken)
+	})
+	t.Run("scope error re-elevates and clears the stale token", func(t *testing.T) {
+		fake := &fakeCredentialManager{
+			inApp:   true,
+			listErr: errors.New("cognito list webauthn credentials: NotAuthorizedException: Access Token does not have required scopes"),
+		}
+		s := &Server{CredentialManager: fake, SessionStore: newMemSession(t)}
+		elevated(t, s, "user-1", "AT-stale")
+		c, rec := newPasskeyCtx(t, http.MethodGet, "/account/passkeys", "", "user-1")
+		require.NoError(t, s.HandleListPasskeys(c))
+		assert.Equal(t, http.StatusConflict, rec.Code)
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		assert.Equal(t, "elevation_required", body["error"])
+		// The stale token must be dropped so the next attempt re-elevates.
+		_, err := s.elevatedCognitoAccessToken(context.Background(), "user-1")
+		require.ErrorIs(t, err, errElevationRequired)
 	})
 }
 
-// --- freshCognitoAccessToken (token-endpoint refresh) -----------------------
+// --- elevated token store ---------------------------------------------------
 
-// oidcTestServer serves an OIDC discovery doc and a token endpoint that returns
-// tokenStatus/tokenBody. It also records the last token-request form + auth.
-type oidcTestServer struct {
-	srv         *httptest.Server
-	tokenStatus int
-	tokenBody   string
-	lastForm    url.Values
-	lastUser    string
-	lastPass    string
+func TestElevatedTokenRoundTrip(t *testing.T) {
+	s := &Server{SessionStore: newMemSession(t)}
+	ctx := context.Background()
+
+	_, err := s.elevatedCognitoAccessToken(ctx, "user-1")
+	require.ErrorIs(t, err, errElevationRequired)
+
+	require.NoError(t, s.storeElevatedToken(ctx, "user-1", "AT-1", time.Now().Add(time.Hour)))
+	got, err := s.elevatedCognitoAccessToken(ctx, "user-1")
+	require.NoError(t, err)
+	assert.Equal(t, "AT-1", got)
+
+	// Bounded by the token's own (past) expiry → refused.
+	require.Error(t, s.storeElevatedToken(ctx, "user-2", "AT-2", time.Now().Add(-time.Minute)))
 }
 
-func newOIDCTestServer(t *testing.T) *oidcTestServer {
-	t.Helper()
-	ots := &oidcTestServer{tokenStatus: http.StatusOK, tokenBody: `{"access_token":"AT-minted","token_type":"Bearer","expires_in":3600}`}
-	mux := http.NewServeMux()
-	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, _ *http.Request) {
-		base := ots.srv.URL
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"issuer":"` + base + `","authorization_endpoint":"` + base + `/auth","token_endpoint":"` + base + `/token","jwks_uri":"` + base + `/jwks"}`))
-	})
-	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
-		_ = r.ParseForm()
-		ots.lastForm = r.PostForm
-		ots.lastUser, ots.lastPass, _ = r.BasicAuth()
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(ots.tokenStatus)
-		_, _ = w.Write([]byte(ots.tokenBody))
-	})
-	ots.srv = httptest.NewServer(mux)
-	t.Cleanup(ots.srv.Close)
-	return ots
+// --- helpers ----------------------------------------------------------------
+
+func TestIsScopeError(t *testing.T) {
+	assert.True(t, isScopeError(errors.New("NotAuthorizedException: Access Token does not have required scopes")))
+	assert.False(t, isScopeError(errors.New("NotAuthorizedException: user is disabled")))
+	assert.False(t, isScopeError(errors.New("some other error")))
+	assert.False(t, isScopeError(nil))
 }
 
-func TestFreshCognitoAccessToken(t *testing.T) {
-	t.Run("no store -> reauth", func(t *testing.T) {
+func TestSanitizeReturnPath(t *testing.T) {
+	assert.Equal(t, "/settings", sanitizeReturnPath("/settings"))
+	assert.Equal(t, "/w/1/user-settings?tab=security", sanitizeReturnPath("/w/1/user-settings?tab=security"))
+	assert.Equal(t, "/", sanitizeReturnPath(""))
+	assert.Equal(t, "/", sanitizeReturnPath("//evil.com"))
+	assert.Equal(t, "/", sanitizeReturnPath("https://evil.com"))
+	assert.Equal(t, "/", sanitizeReturnPath("/\\evil"))
+}
+
+// --- elevate handler guards -------------------------------------------------
+
+func TestHandleSecurityElevate_Guards(t *testing.T) {
+	t.Run("503 when credential manager unconfigured", func(t *testing.T) {
 		s := &Server{}
-		_, err := s.freshCognitoAccessToken(context.Background(), "user-1")
-		require.ErrorIs(t, err, errReauthRequired)
+		c, rec := newPasskeyCtx(t, http.MethodGet, elevatePath, "", "user-1")
+		require.NoError(t, s.HandleSecurityElevate(c))
+		assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
 	})
-
-	t.Run("no stored token -> reauth", func(t *testing.T) {
-		s := &Server{UpstreamTokens: &fakeUpstreamTokenStore{}}
-		_, err := s.freshCognitoAccessToken(context.Background(), "user-1")
-		require.ErrorIs(t, err, errReauthRequired)
+	t.Run("401 without user", func(t *testing.T) {
+		s := &Server{CredentialManager: &fakeCredentialManager{inApp: true}}
+		c, rec := newPasskeyCtx(t, http.MethodGet, elevatePath, "", "")
+		require.NoError(t, s.HandleSecurityElevate(c))
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	})
-
-	t.Run("mints access token from refresh token", func(t *testing.T) {
-		ots := newOIDCTestServer(t)
-		store := &fakeUpstreamTokenStore{token: "refresh-abc", expiresAt: time.Now().Add(time.Hour), has: true}
-		s := &Server{
-			Config:         Config{OIDCIssuerURL: ots.srv.URL, OIDCClientID: "client-id", OIDCClientSecret: "client-secret"},
-			UpstreamTokens: store,
-		}
-		at, err := s.freshCognitoAccessToken(context.Background(), "user-1")
-		require.NoError(t, err)
-		assert.Equal(t, "AT-minted", at)
-		// Correct grant + confidential-client Basic auth.
-		assert.Equal(t, "refresh_token", ots.lastForm.Get("grant_type"))
-		assert.Equal(t, "refresh-abc", ots.lastForm.Get("refresh_token"))
-		assert.Equal(t, "client-id", ots.lastUser)
-		assert.Equal(t, "client-secret", ots.lastPass)
-	})
-
-	t.Run("invalid_grant prunes token and returns reauth", func(t *testing.T) {
-		ots := newOIDCTestServer(t)
-		ots.tokenStatus = http.StatusBadRequest
-		ots.tokenBody = `{"error":"invalid_grant"}`
-		store := &fakeUpstreamTokenStore{token: "refresh-expired", expiresAt: time.Now().Add(time.Hour), has: true}
-		s := &Server{
-			Config:         Config{OIDCIssuerURL: ots.srv.URL, OIDCClientID: "client-id", OIDCClientSecret: "client-secret"},
-			UpstreamTokens: store,
-		}
-		_, err := s.freshCognitoAccessToken(context.Background(), "user-1")
-		require.ErrorIs(t, err, errReauthRequired)
-		assert.True(t, store.deleted, "dead refresh token should be pruned")
+	t.Run("409 account_console for non-in-app provider", func(t *testing.T) {
+		s := &Server{CredentialManager: &fakeCredentialManager{inApp: false, accountURL: "https://console"}}
+		c, rec := newPasskeyCtx(t, http.MethodGet, elevatePath, "", "user-1")
+		require.NoError(t, s.HandleSecurityElevate(c))
+		assert.Equal(t, http.StatusConflict, rec.Code)
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		assert.Equal(t, "account_console_required", body["error"])
 	})
 }
+
+func TestHandleSecurityElevateCallback_Guards(t *testing.T) {
+	t.Run("401 without user", func(t *testing.T) {
+		s := &Server{SessionStore: newMemSession(t)}
+		c, rec := newPasskeyCtx(t, http.MethodGet, "/account/security/elevate/callback?state=x&code=y", "", "")
+		require.NoError(t, s.HandleSecurityElevateCallback(c))
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	})
+	t.Run("unknown state redirects to root with elevated=0", func(t *testing.T) {
+		s := &Server{SessionStore: newMemSession(t)}
+		c, rec := newPasskeyCtx(t, http.MethodGet, "/account/security/elevate/callback?state=missing&code=y", "", "user-1")
+		require.NoError(t, s.HandleSecurityElevateCallback(c))
+		assert.Equal(t, http.StatusFound, rec.Code)
+		assert.Contains(t, rec.Header().Get("Location"), "elevated=0")
+	})
+	t.Run("state bound to another user fails closed", func(t *testing.T) {
+		s := &Server{SessionStore: newMemSession(t)}
+		ctx := context.Background()
+		entry := &elevateEntry{CodeVerifier: "v", Nonce: "n", UserID: "other-user", Return: "/settings"}
+		require.NoError(t, sessionSet(ctx, s.SessionStore, prefixElevateState, "st-1", entry, time.Minute))
+		c, rec := newPasskeyCtx(t, http.MethodGet, "/account/security/elevate/callback?state=st-1&code=y", "", "user-1")
+		require.NoError(t, s.HandleSecurityElevateCallback(c))
+		assert.Equal(t, http.StatusFound, rec.Code)
+		assert.Contains(t, rec.Header().Get("Location"), "/settings?elevated=0")
+	})
+}
+
+// --- register finish nonce lifecycle ----------------------------------------
 
 func TestHandleRegisterFinish_NonceSingleUse(t *testing.T) {
+	// No elevated token → after the nonce is consumed, the token check yields
+	// 409 elevation_required.
 	s := &Server{
 		CredentialManager: &fakeCredentialManager{inApp: true},
-		UpstreamTokens:    &fakeUpstreamTokenStore{}, // no token → token mint fails after nonce check
 		SessionStore:      newMemSession(t),
 	}
 	ctx := context.Background()
@@ -264,13 +284,13 @@ func TestHandleRegisterFinish_NonceSingleUse(t *testing.T) {
 
 	body := `{"nonce":"nonce-abc","attestation":{"id":"cred-1"}}`
 
-	// First call: nonce is valid and consumed; token mint then fails → 409 reauth.
+	// First call: nonce valid and consumed; not elevated → 409 elevation_required.
 	c1, rec1 := newPasskeyCtx(t, http.MethodPost, "/account/passkeys/register/finish", body, "user-1")
 	require.NoError(t, s.HandleRegisterFinish(c1))
 	assert.Equal(t, http.StatusConflict, rec1.Code)
 	var b1 map[string]any
 	require.NoError(t, json.Unmarshal(rec1.Body.Bytes(), &b1))
-	assert.Equal(t, "reauth_required", b1["error"])
+	assert.Equal(t, "elevation_required", b1["error"])
 
 	// Second call with the same nonce: it was consumed → 400 invalid nonce.
 	c2, rec2 := newPasskeyCtx(t, http.MethodPost, "/account/passkeys/register/finish", body, "user-1")
@@ -281,18 +301,32 @@ func TestHandleRegisterFinish_NonceSingleUse(t *testing.T) {
 func TestHandleRegisterFinish_BadNonce(t *testing.T) {
 	s := &Server{
 		CredentialManager: &fakeCredentialManager{inApp: true},
-		UpstreamTokens:    &fakeUpstreamTokenStore{token: "r", expiresAt: time.Now().Add(time.Hour), has: true},
 		SessionStore:      newMemSession(t),
 	}
-	// No nonce seeded → any nonce is invalid, and the token mint is never reached.
+	elevated(t, s, "user-1", "AT-elev")
+	// No nonce seeded → any nonce is invalid, and the manager is never reached.
 	body := `{"nonce":"whatever","attestation":{"id":"cred-1"}}`
 	c, rec := newPasskeyCtx(t, http.MethodPost, "/account/passkeys/register/finish", body, "user-1")
 	require.NoError(t, s.HandleRegisterFinish(c))
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
+func TestHandleRegisterFinish_Success(t *testing.T) {
+	fake := &fakeCredentialManager{inApp: true}
+	s := &Server{CredentialManager: fake, SessionStore: newMemSession(t)}
+	elevated(t, s, "user-1", "AT-elev")
+	ctx := context.Background()
+	require.NoError(t, s.SessionStore.Set(ctx, prefixPasskeyNonce+"user-1", []byte("nonce-ok"), time.Minute))
+
+	body := `{"nonce":"nonce-ok","attestation":{"id":"cred-1"}}`
+	c, rec := newPasskeyCtx(t, http.MethodPost, "/account/passkeys/register/finish", body, "user-1")
+	require.NoError(t, s.HandleRegisterFinish(c))
+	assert.Equal(t, http.StatusCreated, rec.Code)
+	assert.Equal(t, "AT-elev", fake.lastAccessToken)
+}
+
 func TestHandleDeletePasskey_Guards(t *testing.T) {
-	s := &Server{CredentialManager: &fakeCredentialManager{inApp: true}, UpstreamTokens: &fakeUpstreamTokenStore{}}
+	s := &Server{CredentialManager: &fakeCredentialManager{inApp: true}, SessionStore: newMemSession(t)}
 	// Missing id → echo would not route, but calling directly with empty param:
 	c, rec := newPasskeyCtx(t, http.MethodDelete, "/account/passkeys/", "", "user-1")
 	require.NoError(t, s.HandleDeletePasskey(c))

@@ -2,11 +2,21 @@
 //
 // Account self-service passkey (WebAuthn) management via the provider-neutral
 // CredentialManager port. On hosted prod (Cognito) the server relays the
-// WebAuthn ceremony to the browser: it mints a short-lived, user-scoped access
-// token on demand from the retained upstream refresh token, calls the IdP's
-// WebAuthn APIs, and returns only the ceremony payload — no IdP token ever
-// reaches the browser (BFF invariant). On self-host (Keycloak) InApp() is false
-// and these endpoints steer the client to the account console instead.
+// WebAuthn ceremony to the browser and never exposes an IdP token (BFF
+// invariant). On self-host (Keycloak) InApp() is false and these endpoints
+// steer the client to the account console instead.
+//
+// Security model — step-up elevation (not always-on scope). Cognito's WebAuthn
+// APIs are user-self-service and require an access token carrying the broad
+// aws.cognito.signin.user.admin scope (it can also change email, drop MFA,
+// delete the account). Rather than bake that scope into every login — which
+// would make each retained token account-takeover-grade — the server requests
+// it ONLY during an explicit step-up ("elevation"): a fresh authorization-code
+// round-trip (prompt=login) that yields a short-lived access token. That token
+// is stashed encrypted in the ephemeral session store for a brief window
+// (elevationWindow) and used server-side for the ceremony; no long-lived
+// admin-capable secret is ever persisted, and an ordinary session can never
+// manage credentials.
 package server
 
 import (
@@ -16,122 +26,96 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"golang.org/x/oauth2"
 )
 
-// upstreamProviderCognito is the provider key under which the Cognito refresh
-// token is retained in UpstreamTokenStore.
-const upstreamProviderCognito = "cognito"
+// cognitoSelfServiceScope is the OAuth scope Cognito requires on the access
+// token for its user-self-service APIs (WebAuthn included). Requested only at
+// step-up, never at ordinary login.
+const cognitoSelfServiceScope = "aws.cognito.signin.user.admin"
+
+// elevationWindow bounds how long a single step-up authorizes credential
+// management before the user must confirm their identity again. The stored
+// token never outlives this, nor its own (shorter) IdP expiry.
+const elevationWindow = 10 * time.Minute
 
 // passkeyNonceTTL bounds the start→finish registration handshake.
 const passkeyNonceTTL = 5 * time.Minute
 
-// errReauthRequired signals that a user-scoped access token could not be minted
-// (no retained refresh token, or it expired/was revoked). The handlers map it
-// to 409 {"error":"reauth_required"} so the UI can prompt a fresh login.
-var errReauthRequired = errors.New("reauth required")
+// elevatePath is the step-up entry point the UI is steered to on 409.
+const elevatePath = "/api/v1/account/security/elevate"
 
-// retainUpstreamRefreshToken persists the Cognito refresh token from a login
-// exchange (encrypted) so later passkey operations can mint a user-scoped
-// access token without re-prompting. No-op unless the provider is Cognito, the
-// store is configured, and the token carries a refresh_token.
-func (s *Server) retainUpstreamRefreshToken(ctx context.Context, userID string, token *oauth2.Token) {
-	if s.UpstreamTokens == nil || s.Config.AuthProvider != AuthProviderCognito || token == nil || userID == "" {
-		return
-	}
-	refreshToken, _ := token.Extra("refresh_token").(string)
-	if refreshToken == "" {
-		return
-	}
-	// The customer app client's refresh_token_validity is 30 days; store to
-	// match so an expired token is treated as gone (→ reauth_required) rather
-	// than sent on a doomed refresh.
-	if err := s.UpstreamTokens.PutRefreshToken(ctx, userID, upstreamProviderCognito, refreshToken, time.Now().Add(30*24*time.Hour)); err != nil {
-		slog.WarnContext(ctx, "retain upstream refresh token", "user_id", userID, "error", err)
-	}
+// errElevationRequired signals that no live elevated access token is available
+// (never elevated, or the window expired). Handlers map it to
+// 409 {"error":"elevation_required","elevate_url":…} so the UI can start a
+// step-up re-auth.
+var errElevationRequired = errors.New("elevation required")
+
+// elevateEntry is the pending step-up state, keyed by the OIDC `state` in the
+// session store. UserID binds the callback to the session that started it;
+// Return is the sanitized same-origin path to send the browser back to.
+type elevateEntry struct {
+	CodeVerifier string `json:"code_verifier"`
+	Nonce        string `json:"nonce"`
+	UserID       string `json:"user_id"`
+	Return       string `json:"return"`
 }
 
-// freshCognitoAccessToken loads the retained refresh token and exchanges it at
-// the Cognito token endpoint (grant_type=refresh_token, HTTP Basic client auth)
-// for a short-lived user-scoped access token. The token is used only for the
-// duration of the server-side call and never returned to the browser. Returns
-// errReauthRequired when no live refresh token is available or the grant is
-// rejected.
-func (s *Server) freshCognitoAccessToken(ctx context.Context, userID string) (string, error) {
-	if s.UpstreamTokens == nil {
-		return "", errReauthRequired
+// storeElevatedToken seals the access token and stores it in the ephemeral
+// session store under the user, bounded by elevationWindow (and never past the
+// token's own expiry).
+func (s *Server) storeElevatedToken(ctx context.Context, userID, accessToken string, exp time.Time) error {
+	if s.SessionStore == nil {
+		return errors.New("session store is not configured")
 	}
-	refreshToken, _, err := s.UpstreamTokens.GetRefreshToken(ctx, userID, upstreamProviderCognito)
-	if err != nil {
-		// Not found or expired — force a fresh login before managing credentials.
-		return "", errReauthRequired
-	}
-
-	oidcCtx := s.oidcContext(ctx)
-	oauth2Cfg, err := auth.NewOAuth2Config(oidcCtx, auth.OIDCConfig{
-		IssuerURL:    s.Config.OIDCIssuerURL,
-		ClientID:     s.Config.OIDCClientID,
-		ClientSecret: s.Config.OIDCClientSecret,
-	})
-	if err != nil {
-		return "", fmt.Errorf("oidc discovery: %w", err)
-	}
-
-	form := url.Values{}
-	form.Set("grant_type", "refresh_token")
-	form.Set("refresh_token", refreshToken)
-
-	req, err := http.NewRequestWithContext(oidcCtx, http.MethodPost, oauth2Cfg.Endpoint.TokenURL, strings.NewReader(form.Encode()))
-	if err != nil {
-		return "", fmt.Errorf("build token request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Accept", "application/json")
-	// Confidential client → HTTP Basic (client_id:client_secret). This avoids
-	// InitiateAuth / SECRET_HASH entirely and needs no IAM.
-	req.SetBasicAuth(s.Config.OIDCClientID, s.Config.OIDCClientSecret)
-
-	client := http.DefaultClient
-	if hc, ok := oidcCtx.Value(oauth2.HTTPClient).(*http.Client); ok && hc != nil {
-		client = hc
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("token endpoint request: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		// invalid_grant (expired/revoked refresh token) surfaces as 400/401.
-		// Prune the dead token and force re-login.
-		if resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusUnauthorized {
-			_ = s.UpstreamTokens.DeleteRefreshToken(ctx, userID, upstreamProviderCognito)
-			return "", errReauthRequired
+	ttl := elevationWindow
+	if !exp.IsZero() {
+		if until := time.Until(exp); until < ttl {
+			ttl = until
 		}
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
-		return "", fmt.Errorf("token endpoint status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
+	if ttl <= 0 {
+		return errors.New("elevated token already expired")
+	}
+	sealed, err := s.secretsCipher.Seal(accessToken)
+	if err != nil {
+		return err
+	}
+	return s.SessionStore.Set(ctx, prefixElevatedToken+userID, []byte(sealed), ttl)
+}
 
-	var tr struct {
-		AccessToken string `json:"access_token"`
+// elevatedCognitoAccessToken returns the user's current elevated access token,
+// or errElevationRequired if none is live.
+func (s *Server) elevatedCognitoAccessToken(ctx context.Context, userID string) (string, error) {
+	if s.SessionStore == nil {
+		return "", errElevationRequired
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&tr); err != nil {
-		return "", fmt.Errorf("decode token response: %w", err)
+	sealed, err := s.SessionStore.Get(ctx, prefixElevatedToken+userID)
+	if err != nil {
+		return "", errElevationRequired
 	}
-	if tr.AccessToken == "" {
-		return "", errReauthRequired
+	token, err := s.secretsCipher.Open(string(sealed))
+	if err != nil || token == "" {
+		return "", errElevationRequired
 	}
-	return tr.AccessToken, nil
+	return token, nil
+}
+
+// clearElevatedToken drops the stored elevated token (best effort). Used when
+// the IdP reports the token no longer carries the required scope, so the next
+// attempt re-elevates rather than replays a stale token.
+func (s *Server) clearElevatedToken(ctx context.Context, userID string) {
+	if s.SessionStore != nil {
+		_ = s.SessionStore.Delete(ctx, prefixElevatedToken+userID)
+	}
 }
 
 // passkeyGuard enforces the common preconditions for the in-app passkey
@@ -158,12 +142,34 @@ func (s *Server) passkeyGuard(c echo.Context) (userID string, ok bool) {
 	return userID, true
 }
 
-// passkeyTokenError maps a freshCognitoAccessToken failure to an HTTP response.
-func (s *Server) passkeyTokenError(c echo.Context, err error) error {
-	if errors.Is(err, errReauthRequired) {
-		return c.JSON(http.StatusConflict, ErrorResponse{Error: "reauth_required"})
+// elevationRequiredJSON writes the 409 the UI treats as "start a step-up".
+func elevationRequiredJSON(c echo.Context) error {
+	return c.JSON(http.StatusConflict, map[string]any{
+		"error":       "elevation_required",
+		"elevate_url": elevatePath,
+	})
+}
+
+// isScopeError reports whether an IdP operation failed because the access token
+// lacks the self-service scope. It can happen if a token was minted before the
+// scope was allowed; treat it as "re-elevate" rather than a hard 502.
+func isScopeError(err error) bool {
+	if err == nil {
+		return false
 	}
-	return c.JSON(http.StatusBadGateway, ErrorResponse{Error: "mint access token: " + err.Error()})
+	msg := err.Error()
+	return strings.Contains(msg, "NotAuthorizedException") && strings.Contains(msg, "required scopes")
+}
+
+// passkeyOpError maps a CredentialManager operation error to a response: a
+// missing-scope failure becomes 409 elevation_required (re-elevate); anything
+// else is a 502 with the given prefix.
+func (s *Server) passkeyOpError(c echo.Context, userID, prefix string, err error) error {
+	if isScopeError(err) {
+		s.clearElevatedToken(c.Request().Context(), userID)
+		return elevationRequiredJSON(c)
+	}
+	return c.JSON(http.StatusBadGateway, ErrorResponse{Error: prefix + ": " + err.Error()})
 }
 
 // passkeyJSON is the wire shape for a listed credential.
@@ -195,7 +201,8 @@ func passkeysToJSON(pks []auth.Passkey) []passkeyJSON {
 
 // HandleAccountSecurity reports how credential management is surfaced for the
 // configured provider: in-app (Cognito) or via an external account console
-// (Keycloak, with a deep link).
+// (Keycloak, with a deep link). It needs no elevated token — it only reports
+// capability.
 func (s *Server) HandleAccountSecurity(c echo.Context) error {
 	if s.CredentialManager == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "account security is not configured"})
@@ -211,6 +218,146 @@ func (s *Server) HandleAccountSecurity(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]any{"in_app": inApp, "account_url": accountURL})
 }
 
+// HandleSecurityElevate begins a step-up re-authentication that yields a
+// short-lived, self-service-scoped Cognito access token. It redirects the
+// browser to the IdP authorize endpoint requesting cognitoSelfServiceScope with
+// prompt=login (fresh auth). The callback stashes only the resulting access
+// token (encrypted, short TTL). This is a top-level GET navigation, so it rides
+// the SameSite=Lax session cookie and is CSRF-exempt.
+func (s *Server) HandleSecurityElevate(c echo.Context) error {
+	if s.CredentialManager == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "account security is not configured"})
+	}
+	userID, ok := c.Get("user_id").(string)
+	if !ok || userID == "" {
+		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "not authenticated"})
+	}
+	if !s.CredentialManager.InApp() {
+		// Keycloak et al. manage credentials in their own console — no step-up.
+		return c.JSON(http.StatusConflict, map[string]any{
+			"error":       "account_console_required",
+			"account_url": s.CredentialManager.AccountURL(""),
+		})
+	}
+	if s.SessionStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "session store is not configured"})
+	}
+	if s.Config.OIDCIssuerURL == "" || s.Config.OIDCClientID == "" {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "OIDC not configured"})
+	}
+
+	oidcCtx := s.oidcContext(c.Request().Context())
+	provider, err := oidc.NewProvider(oidcCtx, s.Config.OIDCIssuerURL)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "OIDC discovery failed: " + err.Error()})
+	}
+	authURL := provider.Endpoint().AuthURL
+	if s.Config.OIDCPublicURL != "" && s.Config.OIDCPublicURL != s.Config.OIDCIssuerURL {
+		authURL = strings.Replace(authURL, s.Config.OIDCIssuerURL, s.Config.OIDCPublicURL, 1)
+	}
+
+	ap, err := newOIDCAuthParams()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	ctx := c.Request().Context()
+	entry := &elevateEntry{
+		CodeVerifier: ap.CodeVerifier,
+		Nonce:        ap.Nonce,
+		UserID:       userID,
+		Return:       sanitizeReturnPath(c.QueryParam("return")),
+	}
+	if err := sessionSet(ctx, s.SessionStore, prefixElevateState, ap.State, entry, authStateTTL); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "store elevate state: " + err.Error()})
+	}
+
+	redirectURI := requestBaseURL(c) + "/api/v1/account/security/elevate/callback"
+	params := url.Values{
+		"client_id":             {s.Config.OIDCClientID},
+		"redirect_uri":          {redirectURI},
+		"response_type":         {"code"},
+		"scope":                 {"openid " + cognitoSelfServiceScope},
+		"state":                 {ap.State},
+		"code_challenge":        {ap.Challenge},
+		"code_challenge_method": {"S256"},
+		"nonce":                 {ap.Nonce},
+		// Force a fresh authentication for this sensitive step-up rather than
+		// silently reusing the IdP SSO session.
+		"prompt": {"login"},
+	}
+	return c.Redirect(http.StatusFound, authURL+"?"+params.Encode())
+}
+
+// HandleSecurityElevateCallback completes the step-up: it validates the bound
+// state, exchanges the code for a self-service-scoped access token, stashes it
+// (encrypted, short TTL), and redirects the browser back to the Security page
+// with ?elevated=1 (or ?elevated=0 on any failure — never a hard error page,
+// since this is a UX gate the user can retry).
+func (s *Server) HandleSecurityElevateCallback(c echo.Context) error {
+	userID, ok := c.Get("user_id").(string)
+	if !ok || userID == "" {
+		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "not authenticated"})
+	}
+	ctx := c.Request().Context()
+
+	code := c.QueryParam("code")
+	state := c.QueryParam("state")
+	if state == "" {
+		return c.Redirect(http.StatusFound, "/?elevated=0")
+	}
+	entry, err := sessionGet[elevateEntry](ctx, s.SessionStore, prefixElevateState, state)
+	if err != nil {
+		return c.Redirect(http.StatusFound, "/?elevated=0")
+	}
+	_ = sessionDelete(ctx, s.SessionStore, prefixElevateState, state)
+
+	returnTo := sanitizeReturnPath(entry.Return)
+	fail := func() error { return c.Redirect(http.StatusFound, returnTo+"?elevated=0") }
+
+	// Bind the callback to the session that initiated the step-up.
+	if entry.UserID != userID {
+		return fail()
+	}
+	if code == "" {
+		return fail()
+	}
+
+	redirectURI := requestBaseURL(c) + "/api/v1/account/security/elevate/callback"
+	oidcCtx := s.oidcContext(ctx)
+	oauth2Cfg, err := auth.NewOAuth2Config(oidcCtx, auth.OIDCConfig{
+		IssuerURL:    s.Config.OIDCIssuerURL,
+		ClientID:     s.Config.OIDCClientID,
+		ClientSecret: s.Config.OIDCClientSecret,
+		RedirectURL:  redirectURI,
+	})
+	if err != nil {
+		return fail()
+	}
+	token, err := oauth2Cfg.Exchange(oidcCtx, code, oauth2.VerifierOption(entry.CodeVerifier))
+	if err != nil {
+		return fail()
+	}
+	// Verify the id_token nonce (replay protection) when present.
+	if raw, hasID := token.Extra("id_token").(string); hasID && raw != "" {
+		verifier, verr := auth.NewOIDCVerifier(oidcCtx, s.Config.OIDCIssuerURL, s.Config.OIDCClientID)
+		if verr != nil {
+			return fail()
+		}
+		idToken, ierr := verifier.Verify(oidcCtx, raw)
+		if ierr != nil || idToken.Nonce != entry.Nonce {
+			return fail()
+		}
+	}
+	if token.AccessToken == "" {
+		return fail()
+	}
+	if err := s.storeElevatedToken(ctx, userID, token.AccessToken, token.Expiry); err != nil {
+		return fail()
+	}
+	return c.Redirect(http.StatusFound, returnTo+"?elevated=1")
+}
+
 // HandleListPasskeys returns the signed-in user's registered passkeys.
 func (s *Server) HandleListPasskeys(c echo.Context) error {
 	userID, ok := s.passkeyGuard(c)
@@ -218,13 +365,13 @@ func (s *Server) HandleListPasskeys(c echo.Context) error {
 		return nil
 	}
 	ctx := c.Request().Context()
-	accessToken, err := s.freshCognitoAccessToken(ctx, userID)
+	accessToken, err := s.elevatedCognitoAccessToken(ctx, userID)
 	if err != nil {
-		return s.passkeyTokenError(c, err)
+		return elevationRequiredJSON(c)
 	}
 	passkeys, err := s.CredentialManager.ListPasskeys(ctx, accessToken)
 	if err != nil {
-		return c.JSON(http.StatusBadGateway, ErrorResponse{Error: "list passkeys: " + err.Error()})
+		return s.passkeyOpError(c, userID, "list passkeys", err)
 	}
 	return c.JSON(http.StatusOK, map[string]any{"passkeys": passkeysToJSON(passkeys)})
 }
@@ -241,13 +388,13 @@ func (s *Server) HandleRegisterStart(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "session store is not configured"})
 	}
 	ctx := c.Request().Context()
-	accessToken, err := s.freshCognitoAccessToken(ctx, userID)
+	accessToken, err := s.elevatedCognitoAccessToken(ctx, userID)
 	if err != nil {
-		return s.passkeyTokenError(c, err)
+		return elevationRequiredJSON(c)
 	}
 	options, err := s.CredentialManager.RegisterStart(ctx, accessToken)
 	if err != nil {
-		return c.JSON(http.StatusBadGateway, ErrorResponse{Error: "start registration: " + err.Error()})
+		return s.passkeyOpError(c, userID, "start registration", err)
 	}
 	nonce, err := newPasskeyNonce()
 	if err != nil {
@@ -294,12 +441,12 @@ func (s *Server) HandleRegisterFinish(c echo.Context) error {
 	}
 	_ = s.SessionStore.Delete(ctx, prefixPasskeyNonce+userID)
 
-	accessToken, err := s.freshCognitoAccessToken(ctx, userID)
+	accessToken, err := s.elevatedCognitoAccessToken(ctx, userID)
 	if err != nil {
-		return s.passkeyTokenError(c, err)
+		return elevationRequiredJSON(c)
 	}
 	if err := s.CredentialManager.RegisterFinish(ctx, accessToken, req.Attestation); err != nil {
-		return c.JSON(http.StatusBadGateway, ErrorResponse{Error: "complete registration: " + err.Error()})
+		return s.passkeyOpError(c, userID, "complete registration", err)
 	}
 	return c.JSON(http.StatusCreated, map[string]any{"status": "registered"})
 }
@@ -315,12 +462,12 @@ func (s *Server) HandleDeletePasskey(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "credential id is required"})
 	}
 	ctx := c.Request().Context()
-	accessToken, err := s.freshCognitoAccessToken(ctx, userID)
+	accessToken, err := s.elevatedCognitoAccessToken(ctx, userID)
 	if err != nil {
-		return s.passkeyTokenError(c, err)
+		return elevationRequiredJSON(c)
 	}
 	if err := s.CredentialManager.DeletePasskey(ctx, accessToken, credentialID); err != nil {
-		return c.JSON(http.StatusBadGateway, ErrorResponse{Error: "delete passkey: " + err.Error()})
+		return s.passkeyOpError(c, userID, "delete passkey", err)
 	}
 	return c.JSON(http.StatusOK, map[string]any{"status": "deleted"})
 }
