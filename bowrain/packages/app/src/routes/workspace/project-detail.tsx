@@ -32,12 +32,14 @@ import type {
   StreamInfo,
 } from "@neokapi/ui";
 import { projectQueryOptions, brandProfilesQueryOptions } from "../../queries";
+import { usePlatform } from "../../platform";
 import type { WorkspaceRouteContext } from "..";
 
 export function ProjectDetailRoute() {
   const navigate = useNavigate();
   const { workspace, projectId } = useParams({ strict: false });
   const adapter = useApi();
+  const platform = usePlatform();
   const queryClient = useQueryClient();
   const { activeWorkspace } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
   const ws = activeWorkspace.slug;
@@ -384,7 +386,14 @@ export function ProjectDetailRoute() {
         onOpenTerms={() =>
           navigate({ to: "/$workspace/termbase", params: { workspace: workspace ?? ws } })
         }
-        serverMode={ws ? { serverURL: window.location.origin, workspaceSlug: ws } : undefined}
+        // The "Open in Bowrain Desktop" banner is a web-only upsell — never show
+        // it inside the desktop app itself (window.location.origin there is the
+        // webview asset host, not the server).
+        serverMode={
+          platform.kind === "web" && ws
+            ? { serverURL: window.location.origin, workspaceSlug: ws }
+            : undefined
+        }
         // Project actions
         onManageMembers={() => setShowMembers(true)}
         onEditProject={() => setShowEditProject(true)}
