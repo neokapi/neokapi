@@ -2,6 +2,7 @@ package brand
 
 import (
 	"context"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
@@ -30,7 +31,8 @@ func ResolveProfileFromContext(ctx context.Context, rc ResolveContext, store Bra
 	}
 
 	channel := resolveChannel(rc)
-	return ResolveProfile(profile, rc.Locale, channel), nil
+	persona := resolvePersona(rc)
+	return ResolveProfile(profile, rc.Locale, channel, persona), nil
 }
 
 // resolveProfileID walks the inheritance chain to find the most specific profile ID.
@@ -61,9 +63,30 @@ func resolveChannel(rc ResolveContext) string {
 	return rc.ProjectProperties[PropertyChannel]
 }
 
-// ResolveProfile returns the most specific profile configuration for a given scope.
-// It applies locale and channel overrides to the base profile.
-func ResolveProfile(profile *VoiceProfile, loc model.LocaleID, channel string) *VoiceProfile {
+// resolvePersona finds the most specific author persona key. An explicit
+// rc.Persona (supplied at check time) wins; otherwise the collection, stream,
+// and project scope maps are consulted in specificity order, mirroring channel
+// resolution.
+func resolvePersona(rc ResolveContext) string {
+	if rc.Persona != "" {
+		return rc.Persona
+	}
+	if p := rc.CollectionConfig[PropertyPersona]; p != "" {
+		return p
+	}
+	if p := rc.StreamProperties[PropertyPersona]; p != "" {
+		return p
+	}
+	return rc.ProjectProperties[PropertyPersona]
+}
+
+// ResolveProfile returns the most specific profile configuration for a given
+// scope. It layers, in order, locale → channel → persona overrides on the base
+// profile. Persona is applied last, so an author persona's tone/style win over
+// a channel's, while its vocabulary deltas stay bounded by the brand's
+// guardrails (see PersonaOverride): Avoided terms tighten the forbidden set and
+// a Preferred term the brand already forbids is dropped, never re-allowed.
+func ResolveProfile(profile *VoiceProfile, loc model.LocaleID, channel, persona string) *VoiceProfile {
 	if profile == nil {
 		return nil
 	}
@@ -106,7 +129,71 @@ func ResolveProfile(profile *VoiceProfile, loc model.LocaleID, channel string) *
 		}
 	}
 
+	// Apply persona override last, inside the brand's guardrails. Tone/Style
+	// replace what a channel set (persona wins over channel). Vocabulary deltas
+	// can only tighten: Avoided terms extend the forbidden set, and a Preferred
+	// term the brand already forbids is dropped so a persona can never re-allow
+	// a brand-prohibited word.
+	if persona != "" {
+		if override, ok := profile.Personas[persona]; ok {
+			if override.Tone != nil {
+				resolved.Tone = *override.Tone
+			}
+			if override.Style != nil {
+				resolved.Style = *override.Style
+			}
+			resolved.Vocabulary.ForbiddenTerms = appendTermRules(
+				resolved.Vocabulary.ForbiddenTerms, override.Avoided...,
+			)
+			for _, pref := range override.Preferred {
+				if vocabularyForbids(resolved.Vocabulary, pref.Term) {
+					continue
+				}
+				resolved.Vocabulary.PreferredTerms = appendTermRules(
+					resolved.Vocabulary.PreferredTerms, pref,
+				)
+			}
+		}
+	}
+
 	return &resolved
+}
+
+// appendTermRules returns base with extra appended, always onto a freshly
+// allocated slice. ResolveProfile works on a shallow copy of the source
+// profile, so a plain append could grow into (and corrupt) the source's
+// backing array when it has spare capacity; copying keeps the source pristine
+// across repeated resolutions with different personas.
+func appendTermRules(base []TermRule, extra ...TermRule) []TermRule {
+	if len(extra) == 0 {
+		return base
+	}
+	out := make([]TermRule, 0, len(base)+len(extra))
+	out = append(out, base...)
+	out = append(out, extra...)
+	return out
+}
+
+// vocabularyForbids reports whether the vocabulary rules already forbid term —
+// as a forbidden term or a competitor term — compared case-insensitively. It is
+// the guardrail that stops a persona re-allowing a brand-forbidden word through
+// a Preferred rule.
+func vocabularyForbids(v VocabularyRules, term string) bool {
+	want := strings.ToLower(strings.TrimSpace(term))
+	if want == "" {
+		return false
+	}
+	for _, r := range v.ForbiddenTerms {
+		if strings.ToLower(strings.TrimSpace(r.Term)) == want {
+			return true
+		}
+	}
+	for _, r := range v.CompetitorTerms {
+		if strings.ToLower(strings.TrimSpace(r.Term)) == want {
+			return true
+		}
+	}
+	return false
 }
 
 // matchLocaleOverride finds the override whose key matches loc, tolerating

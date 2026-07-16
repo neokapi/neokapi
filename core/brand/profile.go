@@ -36,6 +36,7 @@ type VoiceProfile struct {
 	Examples    []VoiceExample                    `json:"examples" yaml:"examples"`
 	Locales     map[model.LocaleID]LocaleOverride `json:"locales,omitempty" yaml:"locales,omitempty"`
 	Channels    map[string]ChannelOverride        `json:"channels,omitempty" yaml:"channels,omitempty"`
+	Personas    map[string]PersonaOverride        `json:"personas,omitempty" yaml:"personas,omitempty"`
 	WorkspaceID string                            `json:"workspace_id" yaml:"workspace_id,omitempty"`
 	Autonomy    AutonomyConfig                    `json:"autonomy,omitzero" yaml:"autonomy,omitempty"`
 	Version     int                               `json:"version" yaml:"version,omitempty"`
@@ -72,6 +73,10 @@ func (p *VoiceProfile) Clone() *VoiceProfile {
 	if p.Channels != nil {
 		c.Channels = make(map[string]ChannelOverride, len(p.Channels))
 		maps.Copy(c.Channels, p.Channels)
+	}
+	if p.Personas != nil {
+		c.Personas = make(map[string]PersonaOverride, len(p.Personas))
+		maps.Copy(c.Personas, p.Personas)
 	}
 	return &c
 }
@@ -165,4 +170,23 @@ type LocaleOverride struct {
 type ChannelOverride struct {
 	Tone  *ToneProfile `json:"tone,omitempty" yaml:"tone,omitempty"`
 	Style *StyleRules  `json:"style,omitempty" yaml:"style,omitempty"`
+}
+
+// PersonaOverride layers an individual author's voice on top of a brand
+// profile. It is shaped like ChannelOverride — an optional Tone and Style that
+// replace the resolved tone/style — plus additive vocabulary deltas: Preferred
+// terms the author leans on and Avoided terms the author personally steers
+// clear of.
+//
+// A persona composes strictly inside the brand's guardrails. Its deltas can
+// only tighten vocabulary, never loosen it: Avoided terms add to the profile's
+// forbidden set, and a Preferred term that the brand already forbids (or lists
+// as a competitor term) is dropped rather than re-allowed. This "brand always
+// wins" rule is enforced by ResolveProfile's merge order, not by trusting the
+// persona author, so a personal voice can never override a brand prohibition.
+type PersonaOverride struct {
+	Tone      *ToneProfile `json:"tone,omitempty" yaml:"tone,omitempty"`
+	Style     *StyleRules  `json:"style,omitempty" yaml:"style,omitempty"`
+	Preferred []TermRule   `json:"preferred_terms,omitempty" yaml:"preferred_terms,omitempty"`
+	Avoided   []TermRule   `json:"avoided_terms,omitempty" yaml:"avoided_terms,omitempty"`
 }

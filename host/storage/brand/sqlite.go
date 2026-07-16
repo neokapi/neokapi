@@ -38,6 +38,7 @@ var migrations = []storage.Migration{
 			examples TEXT NOT NULL DEFAULT '[]',
 			locales TEXT NOT NULL DEFAULT '{}',
 			channels TEXT NOT NULL DEFAULT '{}',
+			personas TEXT NOT NULL DEFAULT '{}',
 			autonomy TEXT NOT NULL DEFAULT '{}',
 			version INTEGER NOT NULL DEFAULT 1,
 			created_at TEXT NOT NULL,
@@ -133,14 +134,15 @@ func (s *SQLiteBrandStore) CreateProfile(ctx context.Context, profile *corebrand
 	examples, _ := json.Marshal(profile.Examples)
 	locales, _ := json.Marshal(profile.Locales)
 	channels, _ := json.Marshal(profile.Channels)
+	personas, _ := json.Marshal(profile.Personas)
 	autonomy, _ := json.Marshal(profile.Autonomy)
 
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO brand_profiles (id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, autonomy, version, created_at, updated_at, created_by)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO brand_profiles (id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, personas, autonomy, version, created_at, updated_at, created_by)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		profile.ID, profile.WorkspaceID, profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
-		string(locales), string(channels), string(autonomy), profile.Version,
+		string(locales), string(channels), string(personas), string(autonomy), profile.Version,
 		profile.CreatedAt.Format(time.RFC3339), profile.UpdatedAt.Format(time.RFC3339),
 		profile.CreatedBy)
 	if err != nil {
@@ -152,15 +154,15 @@ func (s *SQLiteBrandStore) CreateProfile(ctx context.Context, profile *corebrand
 func (s *SQLiteBrandStore) GetProfile(ctx context.Context, id string) (*corebrand.VoiceProfile, error) {
 	var p corebrand.VoiceProfile
 	var desc *string
-	var toneJSON, styleJSON, vocabJSON, examplesJSON, localesJSON, channelsJSON, autonomyJSON string
+	var toneJSON, styleJSON, vocabJSON, examplesJSON, localesJSON, channelsJSON, personasJSON, autonomyJSON string
 	var createdStr, updatedStr string
 
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, autonomy, version, created_at, updated_at, created_by
+		`SELECT id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, personas, autonomy, version, created_at, updated_at, created_by
 		 FROM brand_profiles WHERE id = ?`, id).
 		Scan(&p.ID, &p.WorkspaceID, &p.Name, &desc,
 			&toneJSON, &styleJSON, &vocabJSON, &examplesJSON,
-			&localesJSON, &channelsJSON, &autonomyJSON, &p.Version,
+			&localesJSON, &channelsJSON, &personasJSON, &autonomyJSON, &p.Version,
 			&createdStr, &updatedStr, &p.CreatedBy)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("profile not found: %s", id)
@@ -191,6 +193,9 @@ func (s *SQLiteBrandStore) GetProfile(ctx context.Context, id string) (*corebran
 	}
 	if err := json.Unmarshal([]byte(channelsJSON), &p.Channels); err != nil {
 		p.Channels = map[string]corebrand.ChannelOverride{}
+	}
+	if err := json.Unmarshal([]byte(personasJSON), &p.Personas); err != nil {
+		p.Personas = map[string]corebrand.PersonaOverride{}
 	}
 	if err := json.Unmarshal([]byte(autonomyJSON), &p.Autonomy); err != nil {
 		p.Autonomy = corebrand.AutonomyConfig{}
@@ -227,14 +232,15 @@ func (s *SQLiteBrandStore) UpdateProfile(ctx context.Context, profile *corebrand
 	examples, _ := json.Marshal(profile.Examples)
 	locales, _ := json.Marshal(profile.Locales)
 	channels, _ := json.Marshal(profile.Channels)
+	personas, _ := json.Marshal(profile.Personas)
 	autonomy, _ := json.Marshal(profile.Autonomy)
 
 	result, err := s.db.ExecContext(ctx,
-		`UPDATE brand_profiles SET name = ?, description = ?, tone = ?, style = ?, vocabulary = ?, examples = ?, locales = ?, channels = ?, autonomy = ?, version = ?, updated_at = ?
+		`UPDATE brand_profiles SET name = ?, description = ?, tone = ?, style = ?, vocabulary = ?, examples = ?, locales = ?, channels = ?, personas = ?, autonomy = ?, version = ?, updated_at = ?
 		 WHERE id = ?`,
 		profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
-		string(locales), string(channels), string(autonomy), profile.Version,
+		string(locales), string(channels), string(personas), string(autonomy), profile.Version,
 		profile.UpdatedAt.Format(time.RFC3339), profile.ID)
 	if err != nil {
 		return fmt.Errorf("update profile: %w", err)

@@ -32,7 +32,8 @@ func extractParamBefore(uri, prefix, suffix string) string {
 }
 
 // resolveProfile is a convenience wrapper around corebrand.ResolveProfile
-// that handles empty locale/channel gracefully.
+// that handles empty locale/channel gracefully. Prompt generators do not carry
+// an author persona, so none is applied here.
 func resolveProfile(profile *corebrand.VoiceProfile, locale, channel string) *corebrand.VoiceProfile {
-	return corebrand.ResolveProfile(profile, model.LocaleID(locale), channel)
+	return corebrand.ResolveProfile(profile, model.LocaleID(locale), channel, "")
 }

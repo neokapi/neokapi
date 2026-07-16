@@ -71,17 +71,21 @@ func (s *PostgresBrandStore) CreateProfile(ctx context.Context, profile *corebra
 	if err != nil {
 		return fmt.Errorf("marshal channels: %w", err)
 	}
+	personas, err := json.Marshal(profile.Personas)
+	if err != nil {
+		return fmt.Errorf("marshal personas: %w", err)
+	}
 	autonomy, err := json.Marshal(profile.Autonomy)
 	if err != nil {
 		return fmt.Errorf("marshal autonomy: %w", err)
 	}
 
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO brand_profiles (id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, autonomy, version, created_at, updated_at, created_by)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+		`INSERT INTO brand_profiles (id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, personas, autonomy, version, created_at, updated_at, created_by)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
 		profile.ID, profile.WorkspaceID, profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
-		string(locales), string(channels), string(autonomy),
+		string(locales), string(channels), string(personas), string(autonomy),
 		profile.Version, now, now, profile.CreatedBy)
 	if err != nil {
 		return fmt.Errorf("insert brand profile: %w", err)
@@ -91,7 +95,7 @@ func (s *PostgresBrandStore) CreateProfile(ctx context.Context, profile *corebra
 
 func (s *PostgresBrandStore) GetProfile(ctx context.Context, profileID string) (*corebrand.VoiceProfile, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, autonomy, version, created_at, updated_at, created_by
+		`SELECT id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, personas, autonomy, version, created_at, updated_at, created_by
 		 FROM brand_profiles WHERE id = $1`, profileID)
 	return scanProfile(row)
 }
@@ -139,6 +143,10 @@ func (s *PostgresBrandStore) UpdateProfile(ctx context.Context, profile *corebra
 	if err != nil {
 		return fmt.Errorf("marshal channels: %w", err)
 	}
+	personas, err := json.Marshal(profile.Personas)
+	if err != nil {
+		return fmt.Errorf("marshal personas: %w", err)
+	}
 	autonomy, err := json.Marshal(profile.Autonomy)
 	if err != nil {
 		return fmt.Errorf("marshal autonomy: %w", err)
@@ -147,11 +155,11 @@ func (s *PostgresBrandStore) UpdateProfile(ctx context.Context, profile *corebra
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE brand_profiles
 		 SET name=$1, description=$2, tone=$3, style=$4, vocabulary=$5, examples=$6,
-		     locales=$7, channels=$8, autonomy=$9, version=$10, updated_at=$11
-		 WHERE id=$12`,
+		     locales=$7, channels=$8, personas=$9, autonomy=$10, version=$11, updated_at=$12
+		 WHERE id=$13`,
 		profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
-		string(locales), string(channels), string(autonomy),
+		string(locales), string(channels), string(personas), string(autonomy),
 		profile.Version, now, profile.ID)
 	if err != nil {
 		return fmt.Errorf("update brand profile: %w", err)
@@ -177,7 +185,7 @@ func (s *PostgresBrandStore) DeleteProfile(ctx context.Context, profileID string
 
 func (s *PostgresBrandStore) ListProfiles(ctx context.Context, workspaceID string) ([]*corebrand.VoiceProfile, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, autonomy, version, created_at, updated_at, created_by
+		`SELECT id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, personas, autonomy, version, created_at, updated_at, created_by
 		 FROM brand_profiles WHERE workspace_id = $1 ORDER BY name`, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("list brand profiles: %w", err)
@@ -635,12 +643,12 @@ type scanner = storage.Scanner
 
 func scanProfile(row scanner) (*corebrand.VoiceProfile, error) {
 	var p corebrand.VoiceProfile
-	var toneJSON, styleJSON, vocabJSON, examplesJSON, localesJSON, channelsJSON, autonomyJSON string
+	var toneJSON, styleJSON, vocabJSON, examplesJSON, localesJSON, channelsJSON, personasJSON, autonomyJSON string
 
 	err := row.Scan(
 		&p.ID, &p.WorkspaceID, &p.Name, &p.Description,
 		&toneJSON, &styleJSON, &vocabJSON, &examplesJSON,
-		&localesJSON, &channelsJSON, &autonomyJSON,
+		&localesJSON, &channelsJSON, &personasJSON, &autonomyJSON,
 		&p.Version, &p.CreatedAt, &p.UpdatedAt, &p.CreatedBy)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -666,6 +674,9 @@ func scanProfile(row scanner) (*corebrand.VoiceProfile, error) {
 	}
 	if err := json.Unmarshal([]byte(channelsJSON), &p.Channels); err != nil {
 		p.Channels = map[string]corebrand.ChannelOverride{}
+	}
+	if err := json.Unmarshal([]byte(personasJSON), &p.Personas); err != nil {
+		p.Personas = map[string]corebrand.PersonaOverride{}
 	}
 	if err := json.Unmarshal([]byte(autonomyJSON), &p.Autonomy); err != nil {
 		p.Autonomy = corebrand.AutonomyConfig{}

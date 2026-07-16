@@ -42,6 +42,12 @@ type Scope struct {
 	// beats one bound via properties.
 	Locale  model.LocaleID
 	Channel string
+
+	// Persona selects an author persona override on the resolved profile,
+	// applied after channel and bounded by the brand's guardrails. It is
+	// normally supplied explicitly at check time (e.g. an MCP scoring call)
+	// rather than bound to a scope.
+	Persona string
 }
 
 // ScopeStore is the subset of store.ContentStore brandscope needs to read the
@@ -83,9 +89,10 @@ func Resolve(ctx context.Context, cs ScopeStore, wd WorkspaceDefault, bs brand.B
 	if err != nil || profile == nil {
 		return profile, err
 	}
-	// An explicit per-call channel wins over any channel bound via properties.
-	if sc.Channel != "" {
-		profile = brand.ResolveProfile(profile, "", sc.Channel)
+	// An explicit per-call channel/persona wins over anything bound via
+	// properties. Persona is applied after channel, inside the brand guardrails.
+	if sc.Channel != "" || sc.Persona != "" {
+		profile = brand.ResolveProfile(profile, "", sc.Channel, sc.Persona)
 	}
 	return profile, nil
 }

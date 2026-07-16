@@ -58,6 +58,20 @@ export interface ChannelOverride {
   style?: StyleRules;
 }
 
+/**
+ * PersonaOverride layers an individual author's voice on top of the brand
+ * profile. Tone/style replace the resolved tone/style; the vocabulary deltas
+ * are additive and bounded by the brand's guardrails — avoided_terms extend the
+ * forbidden set, and a preferred_term the brand already forbids is dropped
+ * rather than re-allowed. Mirror of Go core/brand.PersonaOverride.
+ */
+export interface PersonaOverride {
+  tone?: ToneProfile;
+  style?: StyleRules;
+  preferred_terms?: TermRule[];
+  avoided_terms?: TermRule[];
+}
+
 export interface VoiceProfile {
   id: string;
   name: string;
@@ -68,6 +82,7 @@ export interface VoiceProfile {
   examples: VoiceExample[];
   locales?: Record<string, LocaleOverride>;
   channels?: Record<string, ChannelOverride>;
+  personas?: Record<string, PersonaOverride>;
   workspace_id: string;
   version: number;
   created_at: string;
@@ -129,6 +144,7 @@ export interface CreateVoiceProfileRequest {
   style: StyleRules;
   vocabulary: VocabularyRules;
   examples: VoiceExample[];
+  personas?: Record<string, PersonaOverride>;
 }
 
 export interface UpdateVoiceProfileRequest extends CreateVoiceProfileRequest {
@@ -185,4 +201,43 @@ export interface DriftResult {
   recent_days: number;
   recent_count: number;
   reason?: string;
+}
+
+// ── Workspace brand-compliance rollup ──────────────────────────────────────
+
+/** Coarse score-trend direction; "" when a project has no history yet. */
+export type BrandTrend = "up" | "down" | "flat" | "";
+
+/** One project's row in the workspace brand-compliance rollup. */
+export interface BrandRollupEntry {
+  project_id: string;
+  project_name: string;
+  /** Effective bound profile (resolution ladder); absent when nothing is bound. */
+  profile_id?: string;
+  profile_name?: string;
+  /** Rounded mean of stored block scores; null when the project was never scored. */
+  overall: number | null;
+  dimensions?: DimensionScore[];
+  trend: BrandTrend;
+  drift?: DriftResult;
+  scored_blocks: number;
+  /** ISO timestamp of the most recent check; null when never scored. */
+  last_scored_at: string | null;
+}
+
+/** The workspace-wide brand-compliance rollup, plus its pagination envelope. */
+export interface BrandRollup {
+  projects: BrandRollupEntry[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+/** Query options for the rollup: pagination + drift-window overrides. */
+export interface BrandRollupOptions {
+  limit?: number;
+  offset?: number;
+  recentDays?: number;
+  minScore?: number;
+  dropPoints?: number;
 }

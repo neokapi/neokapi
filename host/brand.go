@@ -35,6 +35,7 @@ func AddProfileFlags(cmd Command) {
 	cmd.Flags().String("pack", "", "built-in starter pack name")
 	cmd.Flags().String("locale", "", "apply locale-specific overrides")
 	cmd.Flags().String("channel", "", "apply channel-specific overrides")
+	cmd.Flags().String("persona", "", "apply an author persona's overrides (within brand guardrails)")
 	AddProjectFlag(cmd)
 	AddResourceFlags(cmd)
 }
@@ -256,6 +257,7 @@ func (a *App) ResolveBrandProfileCmd(cmd Command) (*brand.VoiceProfile, string, 
 	name, _ := cmd.Flags().GetString("profile")
 	locale, _ := cmd.Flags().GetString("locale")
 	channel, _ := cmd.Flags().GetString("channel")
+	persona, _ := cmd.Flags().GetString("persona")
 
 	count := 0
 	for _, v := range []string{file, pack, name} {
@@ -271,7 +273,7 @@ func (a *App) ResolveBrandProfileCmd(cmd Command) (*brand.VoiceProfile, string, 
 		// (defaults.brand_voice) or a convention file at the project root.
 		// This makes `kapi brand check DRAFT.md` work flag-free inside a
 		// project directory.
-		profile, src, ok, perr := a.resolveProjectBrandProfile(cmd, locale, channel)
+		profile, src, ok, perr := a.resolveProjectBrandProfile(cmd, locale, channel, persona)
 		if perr != nil {
 			return nil, "", perr
 		}
@@ -309,8 +311,8 @@ func (a *App) ResolveBrandProfileCmd(cmd Command) (*brand.VoiceProfile, string, 
 		profile, src = p, "store:"+name
 	}
 
-	if locale != "" || channel != "" {
-		profile = brand.ResolveProfile(profile, model.LocaleID(locale), channel)
+	if locale != "" || channel != "" || persona != "" {
+		profile = brand.ResolveProfile(profile, model.LocaleID(locale), channel, persona)
 	}
 	return profile, src, nil
 }
@@ -324,7 +326,7 @@ func (a *App) ResolveBrandProfileCmd(cmd Command) (*brand.VoiceProfile, string, 
 // Returns (profile, source, found, error). found is false (with nil error)
 // when no project is in scope or the project carries no brand binding and no
 // convention file — letting the caller surface the "specify a profile" error.
-func (a *App) resolveProjectBrandProfile(cmd Command, locale, channel string) (*brand.VoiceProfile, string, bool, error) {
+func (a *App) resolveProjectBrandProfile(cmd Command, locale, channel, persona string) (*brand.VoiceProfile, string, bool, error) {
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil {
 		return nil, "", false, err
@@ -352,16 +354,18 @@ func (a *App) resolveProjectBrandProfile(cmd Command, locale, channel string) (*
 	}
 
 	return a.ResolveBrandProfile(CmdContext(cmd), proj, root, BrandResolveOptions{
-		Locale: locale, Channel: channel, StorePath: storePath,
+		Locale: locale, Channel: channel, Persona: persona, StorePath: storePath,
 	})
 }
 
 // BrandResolveOptions configures ResolveBrandProfile.
 type BrandResolveOptions struct {
-	// Locale and Channel apply per-audience overrides to the resolved profile
-	// (brand.ResolveProfile). Empty means the base profile.
+	// Locale, Channel, and Persona apply per-audience overrides to the resolved
+	// profile (brand.ResolveProfile). Empty means the base profile. Persona is
+	// an author voice layered inside the brand's guardrails.
 	Locale  string
 	Channel string
+	Persona string
 	// StorePath is the local SQLite brand store consulted when the recipe
 	// binds defaults.brand_voice.profile. Empty means "brand.db" relative to
 	// the project root (the CLI's flag-free default resolves against the
@@ -413,8 +417,8 @@ func (a *App) ResolveBrandProfile(ctx context.Context, proj *project.KapiProject
 		return nil, "", false, nil
 	}
 
-	if opts.Locale != "" || opts.Channel != "" {
-		profile = brand.ResolveProfile(profile, model.LocaleID(opts.Locale), opts.Channel)
+	if opts.Locale != "" || opts.Channel != "" || opts.Persona != "" {
+		profile = brand.ResolveProfile(profile, model.LocaleID(opts.Locale), opts.Channel, opts.Persona)
 	}
 	return profile, src, true, nil
 }

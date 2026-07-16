@@ -115,6 +115,8 @@ import type {
   CandidateRule,
   BlastRadius,
   DriftResult,
+  BrandRollup,
+  BrandRollupOptions,
 } from "../brand/types";
 import type {
   ListConceptsParams,
@@ -786,6 +788,12 @@ export interface ApiAdapter {
   deleteBrandProfile(workspaceSlug: string, profileId: string): Promise<void>;
   getBrandScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]>;
   getBrandTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]>;
+  /**
+   * Workspace-wide brand-compliance rollup: one row per project (effective
+   * profile, latest score, per-dimension breakdown, trend, drift, last
+   * activity), aggregated from stored scores. Paginated for large workspaces.
+   */
+  getBrandRollup(workspaceSlug: string, opts?: BrandRollupOptions): Promise<BrandRollup>;
   // Correction-learning loop (AD-019)
   listBrandCandidates(
     workspaceSlug: string,

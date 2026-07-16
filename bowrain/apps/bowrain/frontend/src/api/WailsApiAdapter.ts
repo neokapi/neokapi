@@ -1,4 +1,5 @@
 import type { ApiAdapter } from "@neokapi/ui";
+import { rollupEntry } from "@neokapi/ui";
 import type {
   ConvergenceRun,
   User,
@@ -67,6 +68,8 @@ import type {
   CandidateRule,
   BlastRadius,
   DriftResult,
+  BrandRollup,
+  BrandRollupOptions,
   ModelUsageResponse,
   TranslationDashboardStats,
   ActivityInfo,
@@ -1159,6 +1162,33 @@ export class WailsApiAdapter implements ApiAdapter {
   }
   async getBrandTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]> {
     return Backend.GetBrandTrends(workspaceSlug, projectId) as Promise<ScoreTrend[]>;
+  }
+  async getBrandRollup(workspaceSlug: string, opts?: BrandRollupOptions): Promise<BrandRollup> {
+    // The desktop has no server rollup endpoint to proxy, so it composes the same
+    // per-project brand reads it already exposes (scores + drift) and folds them
+    // with the shared rollupEntry aggregation. Effective-profile resolution is a
+    // server-side ladder, so the profile column stays blank on desktop.
+    const all = await this.listProjects();
+    const sorted = [...all].sort(
+      (a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id),
+    );
+    const offset = Math.max(0, opts?.offset ?? 0);
+    const limit = Math.max(1, Math.min(opts?.limit ?? 50, 200));
+    const page = sorted.slice(offset, offset + limit);
+    const driftOpts =
+      opts?.recentDays || opts?.minScore || opts?.dropPoints
+        ? { recentDays: opts.recentDays, minScore: opts.minScore, dropPoints: opts.dropPoints }
+        : undefined;
+    const projects = await Promise.all(
+      page.map(async (p) => {
+        const [scores, drift] = await Promise.all([
+          this.getBrandScores(workspaceSlug, p.id).catch(() => [] as StoredScore[]),
+          this.getBrandDrift(workspaceSlug, p.id, driftOpts).catch(() => undefined),
+        ]);
+        return rollupEntry({ id: p.id, name: p.name, scores, drift });
+      }),
+    );
+    return { projects, total: sorted.length, limit, offset };
   }
   async listStarterPacks(): Promise<{ name: string; description: string }[]> {
     return Backend.ListStarterPacks() as Promise<{ name: string; description: string }[]>;

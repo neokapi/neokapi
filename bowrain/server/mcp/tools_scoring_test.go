@@ -110,6 +110,76 @@ func TestScoreBrandCompliance_NoProfileAnywhere(t *testing.T) {
 	assert.Contains(t, err.Error(), "no brand voice profile")
 }
 
+// findingForTerm reports whether any finding was raised for the given term.
+func findingForTerm(findings []corebrand.BrandVoiceFinding, term string) bool {
+	for _, f := range findings {
+		if f.OriginalText == term {
+			return true
+		}
+	}
+	return false
+}
+
+// personaScoringServer returns a server whose single profile "hexP" forbids
+// "utilize" (brand guardrail) and defines a "jordan" persona that additionally
+// avoids "synergy". contentStore is nil so an explicit profile_id short-circuits
+// scope resolution.
+func personaScoringServer() *MCPServer {
+	return &MCPServer{
+		brandStore: &memBrandStore{profiles: []*corebrand.VoiceProfile{{
+			ID:          "hexP",
+			Name:        "WithPersona",
+			WorkspaceID: "ws1",
+			Vocabulary: corebrand.VocabularyRules{
+				ForbiddenTerms: []corebrand.TermRule{{Term: "utilize", Replacement: "use"}},
+			},
+			Personas: map[string]corebrand.PersonaOverride{
+				"jordan": {Avoided: []corebrand.TermRule{{Term: "synergy"}}},
+			},
+		}}},
+	}
+}
+
+func TestScoreBrandCompliance_PersonaRespected(t *testing.T) {
+	ms := personaScoringServer()
+
+	// With the persona, its avoided term is flagged on top of the brand's own.
+	_, out, err := ms.handleScoreBrandCompliance(t.Context(), nil, scoreBrandComplianceInput{
+		ProfileID:       "hexP",
+		Text:            "utilize synergy today",
+		brandScopeInput: brandScopeInput{Persona: "jordan"},
+	})
+	require.NoError(t, err)
+	assert.True(t, findingForTerm(out.Score.Findings, "utilize"), "brand forbidden term is always flagged")
+	assert.True(t, findingForTerm(out.Score.Findings, "synergy"), "persona avoided term is flagged when the persona is applied")
+}
+
+func TestScoreBrandCompliance_NoPersonaDoesNotApplyPersonaVocab(t *testing.T) {
+	ms := personaScoringServer()
+
+	_, out, err := ms.handleScoreBrandCompliance(t.Context(), nil, scoreBrandComplianceInput{
+		ProfileID: "hexP",
+		Text:      "utilize synergy today",
+	})
+	require.NoError(t, err)
+	assert.True(t, findingForTerm(out.Score.Findings, "utilize"), "brand forbidden term is flagged")
+	assert.False(t, findingForTerm(out.Score.Findings, "synergy"), "persona avoided term is not flagged without the persona")
+}
+
+func TestScoreBrandCompliance_UnknownPersonaFallsBackToBaseProfile(t *testing.T) {
+	ms := personaScoringServer()
+
+	// An unknown persona is not an error: it leaves the base profile in force.
+	_, out, err := ms.handleScoreBrandCompliance(t.Context(), nil, scoreBrandComplianceInput{
+		ProfileID:       "hexP",
+		Text:            "utilize synergy today",
+		brandScopeInput: brandScopeInput{Persona: "nobody"},
+	})
+	require.NoError(t, err)
+	assert.True(t, findingForTerm(out.Score.Findings, "utilize"), "brand forbidden term is still flagged")
+	assert.False(t, findingForTerm(out.Score.Findings, "synergy"), "an unknown persona adds nothing")
+}
+
 func TestScoreBrandCompliance_StreamBindingBeatsProject(t *testing.T) {
 	cs := &scopeContentStore{
 		project: &store.Project{

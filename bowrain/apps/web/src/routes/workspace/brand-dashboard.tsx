@@ -33,6 +33,12 @@ export function BrandDashboardRoute() {
       onViewVoice={() =>
         void navigate({ to: "/$workspace/brand/voice", params: { workspace: ws } })
       }
+      onOpenProject={(projectId) =>
+        void navigate({
+          to: "/$workspace/p/$projectId/s/$stream/dashboard",
+          params: { workspace: ws, projectId, stream: "main" },
+        })
+      }
     />
   );
 }

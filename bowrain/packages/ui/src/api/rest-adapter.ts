@@ -125,6 +125,8 @@ import type {
   CandidateRule,
   BlastRadius,
   DriftResult,
+  BrandRollup,
+  BrandRollupOptions,
 } from "../brand/types";
 import type {
   ListConceptsParams,
@@ -2152,6 +2154,17 @@ export class RestApiAdapter implements ApiAdapter {
     return this.fetchJSON(
       `${this.projectEp(workspaceSlug, projectId)}/brand-voice/${this.ref()}/trends`,
     );
+  }
+
+  async getBrandRollup(workspaceSlug: string, opts?: BrandRollupOptions): Promise<BrandRollup> {
+    const q = new URLSearchParams();
+    if (opts?.limit) q.set("limit", String(opts.limit));
+    if (opts?.offset) q.set("offset", String(opts.offset));
+    if (opts?.recentDays) q.set("recent_days", String(opts.recentDays));
+    if (opts?.minScore) q.set("min_score", String(opts.minScore));
+    if (opts?.dropPoints) q.set("drop_points", String(opts.dropPoints));
+    const qs = q.toString();
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/brand-voice/rollup${qs ? `?${qs}` : ""}`);
   }
 
   // ── Correction-learning loop (AD-019) ──────────────────────────────────────
