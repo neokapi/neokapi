@@ -1,9 +1,11 @@
 import { Check, Gift, Zap, Users, Building2 } from "lucide-react";
+import { CONTACT_EMAIL, SIGNUP_URL } from "../links";
+import { useReveal } from "../useReveal";
 
-// Tiers mirror the real billing model in bowrain/billing/plans.go:
-// plan IDs free/pro/team/enterprise, weekly AI credits, and seat/project
-// limits. Prices are not defined in code, so they are shown as placeholders
-// (tier + credits + cadence) rather than invented dollar amounts.
+// Tiers mirror the real billing model one-for-one:
+// bowrain/billing/plans.go (plan ids, weekly credits, seat/project limits,
+// feature gates) and DECISIONS L4 ($0 / $25 / $20 per seat / custom; $5
+// credit pack = 200K credits, packs don't expire). Never per-word pricing.
 const CREDITS = {
   free: "50K",
   pro: "500K",
@@ -19,7 +21,6 @@ type Tier = {
   priceNote: string;
   cta: string;
   ctaHref: string;
-  ctaStyle: string;
   featured?: boolean;
   features: string[];
 };
@@ -31,17 +32,15 @@ const TIERS: Tier[] = [
     icon: Gift,
     description: "For an individual evaluating the platform or running a single project.",
     price: "$0",
-    priceNote: "/mo",
+    priceNote: "forever",
     cta: "Get started",
-    ctaHref: "#get-started",
-    ctaStyle:
-      "border border-neutral-700 bg-neutral-900/50 text-neutral-200 hover:border-neutral-500 hover:text-white",
+    ctaHref: SIGNUP_URL,
     features: [
       `${CREDITS.free} AI credits / week`,
       "1 project, 1 seat",
       "All formats and workflow tools",
       "Translation memory & terminology",
-      "Visual translation editor",
+      "Shared editor with review",
       "Bring your own AI key — uses no credits",
       "Community support",
     ],
@@ -51,12 +50,10 @@ const TIERS: Tier[] = [
     name: "Pro",
     icon: Zap,
     description: "For a practitioner running several projects with connectors and the API.",
-    price: "Pricing",
-    priceNote: "billed monthly",
+    price: "$25",
+    priceNote: "/month",
     cta: "Start free trial",
-    ctaHref: "#get-started",
-    ctaStyle:
-      "border border-neutral-700 bg-neutral-900/50 text-neutral-200 hover:border-neutral-500 hover:text-white",
+    ctaHref: SIGNUP_URL,
     features: [
       "Everything in Free, plus:",
       `${CREDITS.pro} AI credits / week`,
@@ -70,17 +67,16 @@ const TIERS: Tier[] = [
     name: "Team",
     icon: Users,
     description: "For teams that need collaboration, shared review, and automation.",
-    price: "Pricing",
-    priceNote: "billed monthly",
+    price: "$20",
+    priceNote: "/seat/month",
     cta: "Start free trial",
-    ctaHref: "#get-started",
-    ctaStyle: "bg-brand-500 text-white hover:bg-brand-600",
+    ctaHref: SIGNUP_URL,
     featured: true,
     features: [
       "Everything in Pro, plus:",
       `${CREDITS.team} AI credits / week`,
       "Unlimited projects & seats",
-      "Team collaboration & review",
+      "Custom connectors",
       "Priority support",
     ],
   },
@@ -92,9 +88,7 @@ const TIERS: Tier[] = [
     price: "Custom",
     priceNote: "",
     cta: "Talk to us",
-    ctaHref: "mailto:hello@bowrain.com",
-    ctaStyle:
-      "border border-neutral-700 bg-neutral-900/50 text-neutral-200 hover:border-neutral-500 hover:text-white",
+    ctaHref: `mailto:${CONTACT_EMAIL}`,
     features: [
       "Everything in Team, plus:",
       "Unlimited AI credits",
@@ -107,99 +101,109 @@ const TIERS: Tier[] = [
 ];
 
 export function Plans() {
+  const ref = useReveal();
+
   return (
-    <section id="plans" className="mx-auto max-w-6xl px-6 py-24">
-      <div className="mx-auto max-w-3xl text-center">
-        <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">Plans</h2>
-        <p className="mt-3 text-neutral-400">
-          The open-source{" "}
-          <code className="rounded bg-neutral-800/50 px-1.5 py-0.5 text-xs text-neutral-300">
-            kapi
-          </code>{" "}
-          toolchain is free and runs anywhere. Add Bowrain when a team needs shared governance,
-          connectors, collaboration, and version history on the server. Every plan includes a weekly
-          allowance of AI translation credits.
-        </p>
-      </div>
+    <section id="pricing" className="mx-auto max-w-6xl px-6 py-24">
+      <div ref={ref} className="reveal">
+        <div className="mx-auto max-w-3xl text-center">
+          <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Plans</h2>
+          <p className="mt-3 text-muted-foreground">
+            Every plan includes a weekly allowance of AI credits, refreshed automatically. Top-up
+            packs are $5 for 200K credits and never expire — and if you bring your own AI key, those
+            runs use no credits at all.
+          </p>
+        </div>
 
-      <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {TIERS.map((tier) => {
-          const Icon = tier.icon;
-          const hasNote = tier.priceNote !== "";
+        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {TIERS.map((tier) => {
+            const Icon = tier.icon;
+            const hasNote = tier.priceNote !== "";
 
-          return (
-            <div
-              key={tier.id}
-              className={`relative flex flex-col rounded-xl border p-6 ${
-                tier.featured
-                  ? "border-brand-500/50 bg-brand-500/5 shadow-lg shadow-brand-500/5"
-                  : "border-neutral-800 bg-neutral-900/30"
-              }`}
-            >
-              {tier.featured && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-brand-500 px-3 py-0.5 text-xs font-medium text-white">
-                  Most popular
+            return (
+              <div
+                key={tier.id}
+                className={`relative flex flex-col rounded-xl border p-6 ${
+                  tier.featured
+                    ? "border-primary/50 bg-primary/5 shadow-lg shadow-primary/5"
+                    : "border-border bg-card"
+                }`}
+              >
+                {tier.featured && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-xs font-medium text-primary-foreground">
+                    Most popular
+                  </div>
+                )}
+
+                <div className="mb-4 flex items-center gap-3">
+                  <div
+                    className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+                      tier.featured ? "bg-primary/15" : "bg-secondary"
+                    }`}
+                  >
+                    <Icon
+                      className={`h-5 w-5 ${tier.featured ? "text-primary" : "text-muted-foreground"}`}
+                    />
+                  </div>
+                  <h3 className="text-xl font-semibold">{tier.name}</h3>
                 </div>
-              )}
 
-              <div className="mb-4 flex items-center gap-3">
-                <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-                    tier.featured ? "bg-brand-500/20" : "bg-neutral-800"
+                <p className="text-sm text-muted-foreground">{tier.description}</p>
+
+                <div className="mt-6 mb-6">
+                  <div className="text-3xl font-bold">{tier.price}</div>
+                  {hasNote && (
+                    <div className="mt-1 text-sm text-muted-foreground">{tier.priceNote}</div>
+                  )}
+                </div>
+
+                <a
+                  href={tier.ctaHref}
+                  className={`mb-8 flex items-center justify-center rounded-xl px-6 py-3 text-sm font-medium transition ${
+                    tier.featured
+                      ? "bg-primary text-primary-foreground hover:opacity-90"
+                      : "border border-border bg-card hover:border-muted-foreground"
                   }`}
                 >
-                  <Icon
-                    className={`h-5 w-5 ${tier.featured ? "text-brand-400" : "text-neutral-400"}`}
-                  />
-                </div>
-                <h3 className="text-xl font-semibold text-white">{tier.name}</h3>
+                  {tier.cta}
+                </a>
+
+                <ul className="flex-1 space-y-3">
+                  {tier.features.map((feature, i) => {
+                    const isHeader = feature.endsWith(":");
+                    return (
+                      <li
+                        key={i}
+                        className={`flex items-start gap-2 text-sm ${
+                          isHeader ? "font-medium" : "text-muted-foreground"
+                        }`}
+                      >
+                        {!isHeader && (
+                          <Check
+                            className={`mt-0.5 h-4 w-4 shrink-0 ${
+                              tier.featured ? "text-primary" : "text-muted-foreground/60"
+                            }`}
+                          />
+                        )}
+                        {feature}
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
+            );
+          })}
+        </div>
 
-              <p className="text-sm text-neutral-400">{tier.description}</p>
-
-              <div className="mt-6 mb-6">
-                <div className="text-3xl font-bold text-white">{tier.price}</div>
-                {hasNote && <div className="mt-1 text-sm text-neutral-500">{tier.priceNote}</div>}
-              </div>
-
-              <a
-                href={tier.ctaHref}
-                className={`mb-8 flex items-center justify-center rounded-xl px-6 py-3 text-sm font-medium transition ${tier.ctaStyle}`}
-              >
-                {tier.cta}
-              </a>
-
-              <ul className="flex-1 space-y-3">
-                {tier.features.map((feature, i) => {
-                  const isHeader = feature.endsWith(":");
-                  return (
-                    <li
-                      key={i}
-                      className={`flex items-start gap-2 text-sm ${isHeader ? "text-neutral-300 font-medium" : "text-neutral-400"}`}
-                    >
-                      {!isHeader && (
-                        <Check
-                          className={`mt-0.5 h-4 w-4 shrink-0 ${tier.featured ? "text-brand-400" : "text-neutral-600"}`}
-                        />
-                      )}
-                      {feature}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          );
-        })}
+        <p className="mt-8 text-center text-sm text-muted-foreground/80">
+          The open-source{" "}
+          <code className="rounded bg-secondary px-1.5 py-0.5 text-xs text-secondary-foreground">
+            kapi
+          </code>{" "}
+          toolchain is free — formats, workflow tools, and AI translation, on your own machine. No
+          account required.
+        </p>
       </div>
-
-      <p className="mt-8 text-center text-sm text-neutral-600">
-        The open-source{" "}
-        <code className="rounded bg-neutral-800/50 px-1.5 py-0.5 text-xs text-neutral-400">
-          kapi
-        </code>{" "}
-        toolchain is free — formats, workflow tools, and AI translation, on your own machine. No
-        account required.
-      </p>
     </section>
   );
 }

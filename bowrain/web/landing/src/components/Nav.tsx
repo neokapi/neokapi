@@ -1,112 +1,124 @@
-import { Terminal, Menu, X } from "lucide-react";
+import { Menu, Moon, Sun, X } from "lucide-react";
 import { useState } from "react";
 import { GithubIcon } from "./GithubIcon";
+import { Logo } from "./Logo";
+import { APP_URL, GITHUB_URL, SIGNUP_URL, docsUrl } from "../links";
+import { isDark, toggleMode } from "../theme";
+
+const LINKS = [
+  { href: "#product", label: "Product" },
+  { href: "#loop", label: "How it works" },
+  { href: "#try", label: "Try it" },
+  { href: "#pricing", label: "Pricing" },
+];
 
 export function Nav() {
   const [open, setOpen] = useState(false);
-  // Relative to the deploy base so it follows the site: /web/bowrain/docs/ on
-  // GitHub Pages today, /docs/ once bowrain moves to its own domain.
-  const docsUrl = `${import.meta.env.BASE_URL}docs/`;
+  const [dark, setDark] = useState(isDark());
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-neutral-800/50 bg-neutral-950/80 backdrop-blur-xl">
+    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
-        <a
-          href="#"
-          className="flex items-center gap-2 text-lg font-semibold tracking-tight text-white"
-        >
-          <img
-            src={`${import.meta.env.BASE_URL}favicon.svg`}
-            alt="Bowrain logo"
-            className="h-7 w-7"
-          />
+        <a href="#" className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+          <Logo className="h-7 w-7" />
           bowrain
         </a>
 
-        <div className="hidden items-center gap-8 md:flex">
+        <div className="hidden items-center gap-7 md:flex">
+          {LINKS.map((l) => (
+            <a
+              key={l.href}
+              href={l.href}
+              className="text-sm text-muted-foreground transition hover:text-foreground"
+            >
+              {l.label}
+            </a>
+          ))}
           <a
-            href="#pseudo-challenge"
-            className="text-sm text-neutral-400 transition hover:text-white"
+            href={docsUrl()}
+            className="text-sm text-muted-foreground transition hover:text-foreground"
           >
-            Pseudo Challenge
-          </a>
-          <a
-            href="#brand-challenge"
-            className="text-sm text-neutral-400 transition hover:text-white"
-          >
-            On-Brand Challenge
-          </a>
-          <a href="#platform" className="text-sm text-neutral-400 transition hover:text-white">
-            Platform
-          </a>
-          <a href="#open-source" className="text-sm text-neutral-400 transition hover:text-white">
-            Open Source
-          </a>
-          <a href="#plans" className="text-sm text-neutral-400 transition hover:text-white">
-            Plans
-          </a>
-          <a href={docsUrl} className="text-sm text-neutral-400 transition hover:text-white">
             Docs
           </a>
         </div>
 
-        <div className="hidden items-center gap-3 md:flex">
+        <div className="hidden items-center gap-2 md:flex">
+          <button
+            type="button"
+            onClick={() => setDark(toggleMode())}
+            aria-label="Toggle color theme"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+          >
+            {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
           <a
-            href="https://github.com/neokapi"
+            href={GITHUB_URL}
             target="_blank"
             rel="noopener"
-            className="flex items-center gap-2 rounded-lg border border-neutral-700 px-3 py-1.5 text-sm text-neutral-300 transition hover:border-neutral-500 hover:text-white"
+            aria-label="GitHub"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-secondary hover:text-foreground"
           >
             <GithubIcon className="h-4 w-4" />
-            GitHub
           </a>
           <a
-            href="#get-started"
-            className="flex items-center gap-2 rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-brand-600"
+            href={APP_URL}
+            className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition hover:bg-secondary hover:text-foreground"
           >
-            <Terminal className="h-4 w-4" />
-            Get Started
+            Sign in
+          </a>
+          <a
+            href={SIGNUP_URL}
+            className="rounded-lg bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+          >
+            Get started
           </a>
         </div>
 
-        <button onClick={() => setOpen(!open)} className="md:hidden text-neutral-400">
+        <button
+          onClick={() => setOpen(!open)}
+          className="text-muted-foreground md:hidden"
+          aria-label="Toggle menu"
+        >
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </div>
 
       {open && (
-        <div className="border-t border-neutral-800/50 bg-neutral-950/95 px-6 py-4 md:hidden">
+        <div className="border-t border-border/60 bg-background/95 px-6 py-4 md:hidden">
           <div className="flex flex-col gap-3">
+            {LINKS.map((l) => (
+              <a
+                key={l.href}
+                href={l.href}
+                onClick={() => setOpen(false)}
+                className="text-sm text-muted-foreground"
+              >
+                {l.label}
+              </a>
+            ))}
             <a
-              href="#pseudo-challenge"
+              href={docsUrl()}
               onClick={() => setOpen(false)}
-              className="text-sm text-neutral-400"
+              className="text-sm text-muted-foreground"
             >
-              Pseudo Challenge
-            </a>
-            <a
-              href="#brand-challenge"
-              onClick={() => setOpen(false)}
-              className="text-sm text-neutral-400"
-            >
-              On-Brand Challenge
-            </a>
-            <a href="#platform" onClick={() => setOpen(false)} className="text-sm text-neutral-400">
-              Platform
-            </a>
-            <a
-              href="#open-source"
-              onClick={() => setOpen(false)}
-              className="text-sm text-neutral-400"
-            >
-              Open Source
-            </a>
-            <a href="#plans" onClick={() => setOpen(false)} className="text-sm text-neutral-400">
-              Plans
-            </a>
-            <a href={docsUrl} onClick={() => setOpen(false)} className="text-sm text-neutral-400">
               Docs
             </a>
+            <div className="mt-2 flex items-center gap-3">
+              <a
+                href={SIGNUP_URL}
+                className="rounded-lg bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground"
+              >
+                Get started
+              </a>
+              <button
+                type="button"
+                onClick={() => setDark(toggleMode())}
+                aria-label="Toggle color theme"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground"
+              >
+                {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
         </div>
       )}

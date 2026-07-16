@@ -1,41 +1,44 @@
 import { Nav } from "./components/Nav";
 import { Hero } from "./components/Hero";
 import { Problem } from "./components/Problem";
-import { OpenSource } from "./components/OpenSource";
-import { SourceGovernance } from "./components/SourceGovernance";
+import { Loop } from "./components/Loop";
+import { Surfaces } from "./components/Surfaces";
+import { Product } from "./components/Product";
 import { PseudoChallenge } from "./components/PseudoChallenge";
 import { BrandChallenge } from "./components/BrandChallenge";
-import { Platform } from "./components/Platform";
-import { Desktop } from "./components/Desktop";
+import { Apps } from "./components/Apps";
+import { OpenSource } from "./components/OpenSource";
 import { Plans } from "./components/Plans";
 import { CTA } from "./components/CTA";
 import { Footer } from "./components/Footer";
 
 const Divider = () => (
   <div className="mx-auto max-w-6xl px-6">
-    <hr className="border-neutral-800/50" />
+    <hr className="border-border/50" />
   </div>
 );
 
 function App() {
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100">
+    <div className="min-h-screen bg-background text-foreground">
       <Nav />
       <Hero />
       <Divider />
       <Problem />
       <Divider />
-      <PseudoChallenge />
+      <Loop />
       <Divider />
-      <SourceGovernance />
+      <Surfaces />
+      <Divider />
+      <Product />
+      <Divider />
+      <PseudoChallenge />
       <Divider />
       <BrandChallenge />
       <Divider />
+      <Apps />
+      <Divider />
       <OpenSource />
-      <Divider />
-      <Platform />
-      <Divider />
-      <Desktop />
       <Divider />
       <Plans />
       <Divider />

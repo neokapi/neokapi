@@ -58,6 +58,14 @@
   --color-info: var(--info);
   --color-info-foreground: var(--info-foreground);
 
+  /* ── Prism ramp (brand accent; themes without one inherit the
+     chart palette hues via their own :root values) ───────────── */
+  --color-prism-1: var(--prism-1, var(--chart-5));
+  --color-prism-2: var(--prism-2, var(--chart-4));
+  --color-prism-3: var(--prism-3, var(--chart-2));
+  --color-prism-4: var(--prism-4, var(--chart-1));
+  --color-prism-5: var(--prism-5, var(--chart-3));
+
   /* ── Border radius scale ─────────────────────────────────── */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);

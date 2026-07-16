@@ -12,6 +12,7 @@
     "fmt": "vp fmt"
   },
   "dependencies": {
+    "@fontsource-variable/fraunces": "^5.2.8",
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "lucide-react": "^1.24.0",
