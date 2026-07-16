@@ -34,7 +34,7 @@ const BOWRAIN_WEB_SITE =
 
 const config: Config = {
   title: "Bowrain",
-  tagline: "Keep your content on-brand, in every language — as a team",
+  tagline: "Keep your content on-brand, in every language — solo or as a team",
   favicon: "img/favicon.png",
 
   url: "https://neokapi.github.io",

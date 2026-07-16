@@ -55,8 +55,8 @@ export function Product() {
             The work of staying on-brand, made visible.
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Everything a team needs to run the loop — editing, review, voice, memory, automation,
-            and the systems your content already lives in.
+            Everything you need to run the loop — editing, review, voice, memory, automation, and
+            the systems your content already lives in.
           </p>
         </div>
 

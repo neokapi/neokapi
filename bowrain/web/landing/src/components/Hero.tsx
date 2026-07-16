@@ -32,7 +32,7 @@ export function Hero() {
       <div className="relative z-10 mx-auto max-w-3xl text-center">
         <div className="animate-fade-in-up mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-1.5 text-sm text-muted-foreground">
           <span className="h-1.5 w-1.5 rounded-full bg-success" />
-          Content operations for product teams
+          Content operations for everything you publish
         </div>
 
         <h1 className="animate-fade-in-up-delay-1 font-display text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl md:text-6xl">
@@ -41,9 +41,10 @@ export function Hero() {
         </h1>
 
         <p className="animate-fade-in-up-delay-2 mx-auto mt-6 max-w-xl text-lg text-muted-foreground md:text-xl">
-          Bowrain keeps your team's content converged across your app, site, docs, and posts. AI
-          drafts against your brand voice, terminology, and translation memory — your team reviews —
-          and every correction becomes a rule the next draft follows.
+          Bowrain keeps your content converged across your app, site, docs, and posts. AI drafts
+          against your brand voice, terminology, and translation memory — you review — and every
+          correction becomes a rule the next draft follows. Built for one person with many surfaces,
+          ready for a team.
         </p>
 
         <div className="animate-fade-in-up-delay-3 mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">

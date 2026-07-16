@@ -286,7 +286,7 @@ export function PseudoChallenge() {
         {level === 1 &&
           "Level 1: Basic pseudo-localization. Proves your pipeline handles non-ASCII."}
         {level === 2 &&
-          "Level 2: kapi reads brand terms from your glossary and protects them. On Bowrain, that glossary is shared across the team."}
+          "Level 2: kapi reads brand terms from your glossary and protects them. On Bowrain, that glossary follows you across every project — and every teammate."}
         {level === 3 && "Level 3: Expansion testing reveals UI truncation and layout breaks."}
         {level === 4 &&
           "Level 4: Same pipeline, real language. Glossary and voice rules carry through."}
