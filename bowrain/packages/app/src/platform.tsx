@@ -9,9 +9,12 @@ import { createContext, useContext, type ReactNode } from "react";
  * than a direct `window.*` / analytics call, so the app package never imports
  * shell-specific code.
  *
- * Only `openExternal` and `analytics` are exercised today. The remaining
- * members are desktop-only capabilities modelled ahead of Phase 2 — optional so
- * the web shell can omit them and callers must feature-detect before use.
+ * `openExternal` and `analytics` are consumed by the shared routes today. The
+ * remaining members are desktop capabilities the Wails shell provides (Phase 2);
+ * they are optional so the web shell can omit them and callers must
+ * feature-detect before use. `onDeepLink` is the one wired into the router in
+ * this package (see BowrainApp); the rest are consumed by components migrated
+ * to the seam in later phases.
  */
 export interface PlatformAdapter {
   kind: "web" | "desktop";
@@ -22,16 +25,25 @@ export interface PlatformAdapter {
     identify(user: { id: string; email?: string; name?: string }): void;
     reset(): void;
   };
-  /** Desktop working-copy connectivity (Phase 2). */
+  /** Desktop working-copy connectivity. */
   connectivity?: {
     state(): "connected" | "offline";
     onChange(cb: (s: "connected" | "offline") => void): () => void;
     pendingCount?(): Promise<number>;
     failedCount?(): Promise<number>;
   };
+  /** Native window file-drop (paths, not File objects). */
   onFilesDropped?(cb: (paths: string[]) => void): () => void;
+  /** Reveal/open a path with the OS default handler. */
   openInOS?(path: string): Promise<void>;
+  /** Presence-collaboration session (server URL + keychain token) for Yjs. */
   collabSession?(): Promise<{ serverUrl: string; authToken: string } | null>;
+  /**
+   * OS deep links (e.g. bowrain://…) normalized by the shell to an in-app route
+   * path. BowrainApp subscribes and navigates the router. Returns an
+   * unsubscribe.
+   */
+  onDeepLink?(cb: (path: string) => void): () => void;
   checkForUpdates?(): Promise<void>;
 }
 
