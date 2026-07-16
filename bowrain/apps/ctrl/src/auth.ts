@@ -197,10 +197,11 @@ export async function fetchAdminSession(): Promise<AdminUser | null> {
 }
 
 /**
- * Clear the server admin session, then end the provider SSO session via
- * RP-initiated logout when the provider advertises an end_session_endpoint
- * (Keycloak does). Cognito omits it from discovery, so there the local logout
- * is authoritative and the Managed Login SSO cookie is left to expire.
+ * Clear the server admin session, then end the provider SSO session via the
+ * provider's end_session_endpoint (both Keycloak and Cognito Managed Login
+ * advertise one). Cognito's /logout is not OIDC-RP-initiated-logout compatible:
+ * it wants client_id + logout_uri (a registered sign-out URL), whereas Keycloak
+ * uses the standard post_logout_redirect_uri — so branch on the provider.
  */
 export async function logout(): Promise<void> {
   try {
@@ -217,15 +218,18 @@ export async function logout(): Promise<void> {
     (): OidcEndpoints => ({ authorization_endpoint: "", token_endpoint: "" }),
   );
   if (!end_session_endpoint) {
-    // No RP-initiated logout (e.g. Cognito): the server session is already
-    // cleared; just return to the app root.
+    // No RP-initiated logout advertised: the server session is already cleared;
+    // just return to the app root.
     window.location.href = window.location.origin;
     return;
   }
 
-  const params = new URLSearchParams({
-    client_id: CLIENT_ID,
-    post_logout_redirect_uri: window.location.origin,
-  });
+  const params = new URLSearchParams({ client_id: CLIENT_ID });
+  if (/(^|\.)amazoncognito\.com$/i.test(new URL(end_session_endpoint).hostname)) {
+    // Cognito: logout_uri must exactly match a registered sign-out URL.
+    params.set("logout_uri", window.location.origin);
+  } else {
+    params.set("post_logout_redirect_uri", window.location.origin);
+  }
   window.location.href = `${end_session_endpoint}?${params.toString()}`;
 }

@@ -1045,15 +1045,56 @@ func (s *Server) HandleAuthLogout(c echo.Context) error {
 
 	resp := map[string]string{"status": "logged out"}
 
-	// Discover the OIDC end_session_endpoint for RP-Initiated Logout.
-	if endSessionURL := s.discoverEndSessionEndpoint(ctx); endSessionURL != "" {
+	// Fully-formed, provider-appropriate logout URL (terminates upstream SSO,
+	// returns to the app origin). The frontend redirects to it verbatim.
+	if endSessionURL := s.buildEndSessionURL(ctx, c, rawIDToken); endSessionURL != "" {
 		resp["end_session_url"] = endSessionURL
-		if rawIDToken != "" {
-			resp["id_token_hint"] = rawIDToken
-		}
 	}
 
 	return c.JSON(http.StatusOK, resp)
+}
+
+// buildEndSessionURL returns a complete provider-appropriate logout URL, or ""
+// when the provider advertises no end_session_endpoint.
+//
+// Cognito's /logout is NOT OIDC-RP-initiated-logout compatible: it requires
+// client_id + logout_uri (a registered sign-out URL) and rejects the standard
+// id_token_hint/post_logout_redirect_uri pair — including any expired
+// id_token_hint (its ID tokens live only 15 min) — by bouncing to /login with a
+// 400. Keycloak uses the standard pair. Branch on the provider so both work.
+func (s *Server) buildEndSessionURL(ctx context.Context, c echo.Context, rawIDToken string) string {
+	endSession := s.discoverEndSessionEndpoint(ctx)
+	if endSession == "" {
+		return ""
+	}
+	// The app origin, matching the client's registered sign-out URL (trailing /).
+	return composeEndSessionURL(endSession, s.Config.AuthProvider, s.Config.OIDCClientID, requestBaseURL(c)+"/", rawIDToken)
+}
+
+// composeEndSessionURL adds the provider-appropriate query params to an
+// end_session_endpoint. Cognito → client_id + logout_uri (simple logout);
+// everything else → the standard OIDC post_logout_redirect_uri (+ id_token_hint,
+// + client_id). Pure, so it is unit-testable without OIDC discovery.
+func composeEndSessionURL(endpoint, provider, clientID, postLogout, rawIDToken string) string {
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return ""
+	}
+	q := u.Query()
+	if provider == AuthProviderCognito {
+		q.Set("client_id", clientID)
+		q.Set("logout_uri", postLogout)
+	} else {
+		q.Set("post_logout_redirect_uri", postLogout)
+		if rawIDToken != "" {
+			q.Set("id_token_hint", rawIDToken)
+		}
+		if clientID != "" {
+			q.Set("client_id", clientID)
+		}
+	}
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 // discoverEndSessionEndpoint fetches the OIDC provider's end_session_endpoint
