@@ -12,5 +12,5 @@ export function BrandMCPGuideRoute() {
     }
   }, [activeWorkspace]);
 
-  return <BrandMCPGuide />;
+  return <BrandMCPGuide serverUrl={window.location.origin} />;
 }

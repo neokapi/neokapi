@@ -14,7 +14,9 @@ import { useState, useCallback } from "react";
 import { Copy, Check } from "../components/icons";
 
 interface BrandMCPGuideProps {
+  /** Origin of the Bowrain server this workspace lives on (shown in the sign-in + CI steps). */
   serverUrl?: string;
+  /** API token for headless/CI auth (BOWRAIN_AUTH_TOKEN). */
   apiToken?: string;
 }
 
@@ -45,54 +47,29 @@ function ConfigBlock({ title, config }: { title: string; config: string }) {
 }
 
 export function BrandMCPGuide({
-  serverUrl = "http://localhost:8080",
+  serverUrl = "https://app.bowrain.cloud",
   apiToken = "<your-api-token>",
 }: BrandMCPGuideProps) {
-  const claudeDesktopConfig = JSON.stringify(
+  // The MCP server is `kapi mcp` (stdio) with the kapi-bowrain plugin installed.
+  // The editor launches it as a subprocess; it discovers the workspace's .kapi
+  // recipe (server: block) by upward walk and authenticates from the keychain
+  // written by `kapi auth login`. No env vars are needed for the interactive path.
+  const mcpServer = { command: "kapi", args: ["mcp"] };
+
+  const claudeDesktopConfig = JSON.stringify({ mcpServers: { kapi: mcpServer } }, null, 2);
+  const cursorConfig = JSON.stringify({ mcpServers: { kapi: mcpServer } }, null, 2);
+  const vscodeConfig = JSON.stringify({ mcp: { servers: { kapi: mcpServer } } }, null, 2);
+
+  // Headless/CI: skip interactive login by passing the server + token through env.
+  const ciConfig = JSON.stringify(
     {
       mcpServers: {
-        bowrain: {
-          command: "bowrain",
-          args: ["mcp", "serve"],
+        kapi: {
+          command: "kapi",
+          args: ["mcp"],
           env: {
             BOWRAIN_SERVER_URL: serverUrl,
-            BOWRAIN_API_TOKEN: apiToken,
-          },
-        },
-      },
-    },
-    null,
-    2,
-  );
-
-  const cursorConfig = JSON.stringify(
-    {
-      "mcp.servers": {
-        bowrain: {
-          command: "bowrain",
-          args: ["mcp", "serve"],
-          env: {
-            BOWRAIN_SERVER_URL: serverUrl,
-            BOWRAIN_API_TOKEN: apiToken,
-          },
-        },
-      },
-    },
-    null,
-    2,
-  );
-
-  const vscodeConfig = JSON.stringify(
-    {
-      mcp: {
-        servers: {
-          bowrain: {
-            command: "bowrain",
-            args: ["mcp", "serve"],
-            env: {
-              BOWRAIN_SERVER_URL: serverUrl,
-              BOWRAIN_API_TOKEN: apiToken,
-            },
+            BOWRAIN_AUTH_TOKEN: apiToken,
           },
         },
       },
@@ -107,7 +84,8 @@ export function BrandMCPGuide({
         <h1 className="text-lg font-semibold">MCP Connection Guide</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Connect your AI coding assistant to Bowrain for brand-aware translations and compliance
-          checking via the Model Context Protocol (MCP).
+          checking via the Model Context Protocol (MCP). The kapi CLI serves the MCP endpoint; the
+          kapi-bowrain plugin adds the project-sync and brand knowledge tools.
         </p>
       </div>
 
@@ -121,20 +99,29 @@ export function BrandMCPGuide({
               1
             </Badge>
             <span>
-              Install the <code className="text-xs bg-muted px-1 rounded">bowrain</code> CLI
+              Install the CLI and Bowrain plugin:{" "}
+              <code className="text-xs bg-muted px-1 rounded">
+                brew install neokapi/tap/bowrain-cli
+              </code>{" "}
+              (brings the <code className="text-xs bg-muted px-1 rounded">kapi</code> CLI and the{" "}
+              <code className="text-xs bg-muted px-1 rounded">kapi-bowrain</code> plugin)
             </span>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-[10px]">
               2
             </Badge>
-            <span>Generate an API token from Settings</span>
+            <span>
+              Sign in from your project directory:{" "}
+              <code className="text-xs bg-muted px-1 rounded">kapi auth login</code> (authenticates
+              against <code className="text-xs bg-muted px-1 rounded">{serverUrl}</code>)
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-[10px]">
               3
             </Badge>
-            <span>Add the MCP server configuration to your editor</span>
+            <span>Add the MCP server configuration below to your editor</span>
           </div>
         </CardContent>
       </Card>
@@ -162,8 +149,8 @@ export function BrandMCPGuide({
         <TabsContent value="cursor">
           <Card className="p-5 space-y-4">
             <p className="text-sm text-muted-foreground">
-              Add the following to your Cursor settings (
-              <code className="text-xs bg-muted px-1 rounded">.cursor/mcp.json</code>):
+              Add the following to your Cursor MCP config (
+              <code className="text-xs bg-muted px-1 rounded">~/.cursor/mcp.json</code>):
             </p>
             <ConfigBlock title=".cursor/mcp.json" config={cursorConfig} />
           </Card>
@@ -182,16 +169,56 @@ export function BrandMCPGuide({
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Available MCP Tools</CardTitle>
+          <CardTitle className="text-sm">Headless / CI</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <p className="text-muted-foreground">
+            Where interactive <code className="text-xs bg-muted px-1 rounded">kapi auth login</code>{" "}
+            isn&rsquo;t possible, generate an API token from Settings and pass it — with the server
+            URL — through the process environment instead:
+          </p>
+          <ConfigBlock title="token auth (CI)" config={ciConfig} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Available MCP tools</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
+          <p className="text-xs text-muted-foreground">
+            Exposed by <code className="text-xs bg-muted px-1 rounded">kapi mcp</code> with the
+            kapi-bowrain plugin installed.
+          </p>
           <div className="grid gap-2">
             {[
-              { name: "brand_check", desc: "Check content against your brand voice profile" },
-              { name: "brand_profiles", desc: "List and manage brand voice profiles" },
-              { name: "brand_suggest", desc: "Get brand-compliant text suggestions" },
-              { name: "translate", desc: "Translate content with brand voice awareness" },
-              { name: "terminology", desc: "Look up approved terminology" },
+              {
+                name: "project_status",
+                desc: "Show sync status: pending push/pull and server connection",
+              },
+              { name: "project_push", desc: "Upload local changes to the Bowrain server" },
+              { name: "project_pull", desc: "Download translations from the Bowrain server" },
+              {
+                name: "concept_search",
+                desc: "Search the workspace brand knowledge graph for governed terms",
+              },
+              {
+                name: "concept_story",
+                desc: "Show a concept's timeline: revisions, observations, change-sets",
+              },
+              {
+                name: "experiment_status",
+                desc: "Report brand knowledge-graph change-sets and blast radius",
+              },
+              {
+                name: "brand_check",
+                desc: "Score text against a brand voice profile (0–100 + findings)",
+              },
+              {
+                name: "brand_rewrite",
+                desc: "Rewrite off-brand copy by substituting forbidden/competitor terms",
+              },
+              { name: "term_lookup", desc: "Look up approved terminology in the termbase" },
             ].map((tool) => (
               <div key={tool.name} className="flex items-start gap-2 border rounded px-3 py-2">
                 <code className="text-xs bg-muted px-1 rounded shrink-0">{tool.name}</code>

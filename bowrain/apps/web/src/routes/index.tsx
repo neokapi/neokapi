@@ -359,6 +359,18 @@ const runsRoute = createRoute({
   },
 });
 
+const connectorsRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "p/$projectId/s/$stream/connectors",
+  component: lazyRouteComponent(() => import("./workspace/connectors"), "ConnectorsRoute"),
+  pendingComponent: TablePageSkeleton,
+  loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
+    await queryClient.ensureQueryData(
+      projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
+    );
+  },
+});
+
 const translationDashboardRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "p/$projectId/s/$stream/dashboard",
@@ -527,7 +539,8 @@ const memoryRoute = createRoute({
   component: lazyRouteComponent(() => import("./workspace/memory"), "MemoryRoute"),
 });
 
-// Locale demand — DESIGN PROTOTYPE (mock data only, no plan-tier gating yet).
+// Locale demand — live when a PostHog connector is configured; sample data
+// otherwise. No plan-tier gating yet.
 const localeDemandRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "locale-demand",
@@ -691,6 +704,7 @@ const routeTree = rootRoute.addChildren([
     preProcessRoute,
     automationsRoute,
     runsRoute,
+    connectorsRoute,
     translationDashboardRoute,
     brandRoute.addChildren([
       brandIndexRoute,

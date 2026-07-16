@@ -1,14 +1,15 @@
 import { Badge, Button, Card } from "@neokapi/ui-primitives";
 import type { VoiceProfile } from "./types";
-import { Trash2 } from "../components/icons";
+import { MessageSquare, Trash2 } from "../components/icons";
 
 interface BrandProfileCardProps {
   profile: VoiceProfile;
   onClick: (profile: VoiceProfile) => void;
+  onReview?: (profile: VoiceProfile) => void;
   onDelete?: (profile: VoiceProfile) => void;
 }
 
-export function BrandProfileCard({ profile, onClick, onDelete }: BrandProfileCardProps) {
+export function BrandProfileCard({ profile, onClick, onReview, onDelete }: BrandProfileCardProps) {
   return (
     <Card
       className="cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all"
@@ -24,18 +25,39 @@ export function BrandProfileCard({ profile, onClick, onDelete }: BrandProfileCar
               </p>
             )}
           </div>
-          {onDelete && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-              onClick={(e: React.MouseEvent) => {
-                e.stopPropagation();
-                onDelete(profile);
-              }}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </Button>
+          {(onReview || onDelete) && (
+            <div className="flex shrink-0 items-center gap-0.5">
+              {onReview && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-primary"
+                  title="Review corrections"
+                  aria-label="Review corrections"
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    onReview(profile);
+                  }}
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                </Button>
+              )}
+              {onDelete && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                  title="Delete profile"
+                  aria-label="Delete profile"
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    onDelete(profile);
+                  }}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              )}
+            </div>
           )}
         </div>
 

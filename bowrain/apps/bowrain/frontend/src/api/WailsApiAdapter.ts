@@ -47,6 +47,8 @@ import type {
   StreamDiffResult,
   StreamMergeResult,
   CollectionInfo,
+  ConnectorInfo,
+  ConnectorSyncStatus,
   PostHogConnectorConfig,
   PostHogDemandResponse,
   AuditEntry,
@@ -497,6 +499,72 @@ export class WailsApiAdapter implements ApiAdapter {
   }
   async uploadToCollection(): Promise<ProjectInfo> {
     throw new Error("Not implemented");
+  }
+
+  // --- Integration connectors (Bowrain AD-011) ---
+  // The desktop keeps connectors in-process (workspace-agnostic), so the
+  // workspace argument is ignored, matching the rest of this adapter. These
+  // wire straight to the real Wails bindings the ConnectorPanel already uses.
+  async listConnectors(): Promise<ConnectorInfo[]> {
+    const list = ((await Backend.ListConnectors()) ?? []) as {
+      id: string;
+      name: string;
+      category: string;
+    }[];
+    return list.map((c) => ({ id: c.id, name: c.name, category: c.category }));
+  }
+
+  async addConnector(
+    _ws: string,
+    type: string,
+    config: Record<string, string>,
+  ): Promise<ConnectorInfo> {
+    const c = (await Backend.ConfigureConnector(type, config)) as {
+      id: string;
+      name: string;
+      category: string;
+    };
+    return { id: c.id, name: c.name, category: c.category };
+  }
+
+  async removeConnector(_ws: string, connectorId: string): Promise<void> {
+    await Backend.RemoveConnector(connectorId);
+  }
+
+  async getConnectorStatus(_ws: string, connectorId: string): Promise<ConnectorSyncStatus> {
+    const s = (await Backend.GetConnectorStatus(connectorId)) as {
+      connector_id: string;
+      last_sync: string;
+      item_count: number;
+    };
+    return {
+      connectorId: s.connector_id,
+      lastSync: s.last_sync ?? "",
+      itemCount: s.item_count ?? 0,
+      fileCount: 0,
+      wordCount: 0,
+      pendingPull: 0,
+      pendingPush: 0,
+      errors: [],
+    };
+  }
+
+  async fetchConnector(
+    _ws: string,
+    connectorId: string,
+    projectId: string,
+  ): Promise<{ items_fetched: number }> {
+    const items = ((await Backend.FetchContent(connectorId, projectId)) ?? []) as unknown[];
+    return { items_fetched: items.length };
+  }
+
+  async publishConnector(
+    _ws: string,
+    connectorId: string,
+    projectId: string,
+  ): Promise<{ status: string }> {
+    await Backend.PublishContent(connectorId, projectId);
+    return { status: "ok" };
   }
 
   // --- PostHog locale-demand connector (web-only surface) ---

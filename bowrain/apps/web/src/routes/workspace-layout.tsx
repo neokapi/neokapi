@@ -45,7 +45,8 @@ import { useWorkspaceEvents } from "../hooks/useWorkspaceEvents";
 import type { WorkspaceRouteContext } from ".";
 
 // Web-only workspace nav entries appended after the shared ones (Projects,
-// Brand, Memory). Locale demand is a design prototype surface (mock data).
+// Brand, Memory). Locale demand shows live data when a PostHog connector is
+// configured, and a sample dataset otherwise.
 const workspaceExtraNavItems: NavItem[] = [
   { id: "locale-demand", label: "Locale demand", icon: <Earth /> },
 ];
@@ -76,8 +77,9 @@ function parseProjectParams(pathname: string, workspaceSlug: string) {
 
   const isAutomations = parts.length >= 4 && parts[3] === "automations";
   const isRuns = parts.length >= 4 && parts[3] === "runs";
+  const isConnectors = parts.length >= 4 && parts[3] === "connectors";
 
-  return { projectId, stream, itemId, isAutomations, isRuns };
+  return { projectId, stream, itemId, isAutomations, isRuns, isConnectors };
 }
 
 // ---------------------------------------------------------------------------
@@ -470,7 +472,9 @@ export function WorkspaceLayout() {
       ? ("automations" as const)
       : projectParams.isRuns
         ? ("runs" as const)
-        : ("dashboard" as const);
+        : projectParams.isConnectors
+          ? ("connectors" as const)
+          : ("dashboard" as const);
 
     return {
       level: "project",
@@ -478,9 +482,12 @@ export function WorkspaceLayout() {
       activeStream: projectParams.stream,
       activeProjectView,
       onBack:
-        projectParams.itemId || projectParams.isAutomations || projectParams.isRuns
+        projectParams.itemId ||
+        projectParams.isAutomations ||
+        projectParams.isRuns ||
+        projectParams.isConnectors
           ? () => {
-              // Editor/automations/runs → project detail (up one level)
+              // Editor/automations/runs/connectors → project detail (up one level)
               void navigate({
                 to: "/$workspace/p/$projectId/s/$stream",
                 params: {
@@ -532,6 +539,16 @@ export function WorkspaceLayout() {
       onOpenRuns: () => {
         void navigate({
           to: "/$workspace/p/$projectId/s/$stream/runs",
+          params: {
+            workspace: workspaceSlug ?? ws,
+            projectId: project.id,
+            stream: projectParams.stream,
+          },
+        });
+      },
+      onOpenConnectors: () => {
+        void navigate({
+          to: "/$workspace/p/$projectId/s/$stream/connectors",
           params: {
             workspace: workspaceSlug ?? ws,
             projectId: project.id,

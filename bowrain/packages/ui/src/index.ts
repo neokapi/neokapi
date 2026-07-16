@@ -238,6 +238,8 @@ export type {
 } from "./components/FilterBar";
 export { ConfirmDialog } from "./components/ConfirmDialog";
 export type { ConfirmDialogProps } from "./components/ConfirmDialog";
+export { ConnectorsPanel } from "./components/ConnectorsPanel";
+export type { ConnectorsPanelProps } from "./components/ConnectorsPanel";
 export { ProjectFormDialog } from "./components/ProjectFormDialog";
 export type { ProjectFormDialogProps, ProjectFormData } from "./components/ProjectFormDialog";
 export { AuditLogView } from "./components/AuditLogView";
@@ -517,6 +519,8 @@ export type {
   PasskeyRegisterStartResponse,
   PasskeyRegisterFinishRequest,
   SlugReservation,
+  ConnectorInfo,
+  ConnectorSyncStatus,
   PostHogConnectorConfig,
   PostHogConnectorConfigRequest,
   PostHogLanguageSessions,

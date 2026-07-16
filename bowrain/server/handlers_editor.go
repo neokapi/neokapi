@@ -66,48 +66,6 @@ func (s *Server) HandleGetEditorProject(c echo.Context) error {
 	return c.JSON(http.StatusOK, info)
 }
 
-// HandleListEditorProjects lists all editor projects for a workspace.
-func (s *Server) HandleListEditorProjects(c echo.Context) error {
-	if s.ContentStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
-	}
-
-	wsID, _ := c.Get("workspace_id").(string)
-	ctx := c.Request().Context()
-
-	projects, err := s.ContentStore.ListProjects(ctx)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
-	}
-
-	// Filter by workspace (using UUID from middleware context).
-	var result []*ProjectInfoResponse
-	for _, p := range projects {
-		if p.WorkspaceID == wsID {
-			info := projectToInfoResponse(p)
-			// Populate items so the dashboard can show file counts.
-			stream := streamParamWithProject(c, p)
-			items, err := s.ContentStore.ListItems(ctx, p.ID, stream)
-			if err == nil {
-				for _, item := range items {
-					info.Items = append(info.Items, ProjectItemResponse{
-						ID:     item.ID,
-						Name:   item.Name,
-						Format: item.Format,
-						Type:   item.ItemType,
-						Size:   0,
-					})
-				}
-			}
-			result = append(result, info)
-		}
-	}
-	if result == nil {
-		result = []*ProjectInfoResponse{}
-	}
-	return c.JSON(http.StatusOK, result)
-}
-
 // HandleUpdateEditorProject updates a project's name and locales.
 func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageProject); err != nil {
