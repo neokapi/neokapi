@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
-import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { useSuspenseQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useApi,
   useStream,
@@ -13,7 +13,7 @@ import {
   Switch,
 } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
-import { projectQueryOptions } from "../../queries";
+import { projectQueryOptions, brandProfilesQueryOptions } from "../../queries";
 
 export function ProjectSettingsRoute() {
   const navigate = useNavigate();
@@ -27,6 +27,8 @@ export function ProjectSettingsRoute() {
   const { data: project } = useSuspenseQuery(
     projectQueryOptions(adapter, ws, projectId!, activeStream),
   );
+
+  const { data: brandProfiles } = useQuery(brandProfilesQueryOptions(adapter, ws));
 
   useEffect(() => {
     document.title = `Settings — ${project.name} — ${activeWorkspace.name} — Bowrain`;
@@ -147,6 +149,44 @@ export function ProjectSettingsRoute() {
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Brand voice</CardTitle>
+          <CardDescription>
+            Choose the brand voice profile that governs checks and scoring for this project. Leave
+            as the workspace default to inherit; streams and collections can override it.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Profile</p>
+              <p className="text-xs text-muted-foreground">
+                Applied when scoring or rewriting this project's content
+              </p>
+            </div>
+            <select
+              className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+              value={project.properties?.brand_voice_profile_id ?? ""}
+              onChange={async (e) => {
+                await adapter.updateProject(ws, project.id, {
+                  properties: { brand_voice_profile_id: e.target.value },
+                });
+                invalidateProject();
+              }}
+              aria-label="Project brand voice profile"
+            >
+              <option value="">Workspace default</option>
+              {brandProfiles?.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </CardContent>
       </Card>
 

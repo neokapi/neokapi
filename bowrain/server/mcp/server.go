@@ -13,6 +13,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	"github.com/neokapi/neokapi/bowrain/core/brandscope"
 	"github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	corebrand "github.com/neokapi/neokapi/core/brand"
@@ -70,6 +71,7 @@ type SandboxResult struct {
 type MCPServer struct {
 	brandStore   corebrand.BrandStore
 	contentStore store.ContentStore
+	wsDefault    brandscope.WorkspaceDefault
 	tmResolver   TMResolver
 	tbResolver   TBResolver
 	connResolver ConnectorResolver
@@ -143,6 +145,13 @@ func (s *MCPServer) authorizeWorkspaceForUser(ctx context.Context, workspaceID, 
 // WithSandbox adds sandbox code execution.
 func WithSandbox(e SandboxExecutor) Option {
 	return func(s *MCPServer) { s.sandbox = e }
+}
+
+// WithWorkspaceDefault supplies the workspace-level default brand-voice profile
+// lookup, forming the base rung of the scoring tools' resolution ladder. When
+// unset, the workspace default is skipped and resolution stops at the project.
+func WithWorkspaceDefault(wd brandscope.WorkspaceDefault) Option {
+	return func(s *MCPServer) { s.wsDefault = wd }
 }
 
 // WithToolRegistry adds the tool registry for flow resolution.

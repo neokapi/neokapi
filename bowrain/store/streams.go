@@ -37,11 +37,15 @@ func (s *PostgresStore) CreateStream(ctx context.Context, st *platstore.Stream) 
 		st.BaseCursor = cursor
 	}
 
-	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO streams (project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+	propsJSON, err := json.Marshal(st.Properties)
+	if err != nil {
+		return fmt.Errorf("marshal stream properties: %w", err)
+	}
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO streams (project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by, properties)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
 		st.ProjectID, st.Name, st.Parent, st.BaseCursor, st.Archived,
-		string(st.Visibility), st.Description, now, st.CreatedBy)
+		string(st.Visibility), st.Description, now, st.CreatedBy, string(propsJSON))
 	if err != nil {
 		return fmt.Errorf("insert stream: %w", err)
 	}
@@ -62,7 +66,7 @@ func (s *PostgresStore) CreateStream(ctx context.Context, st *platstore.Stream) 
 
 func (s *PostgresStore) GetStream(ctx context.Context, projectID, name string) (*platstore.Stream, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by, locked, locked_by, locked_at
+		`SELECT project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by, locked, locked_by, locked_at, properties
 		 FROM streams WHERE project_id = $1 AND name = $2`, projectID, name)
 	return scanStreamPg(row)
 }
@@ -71,11 +75,11 @@ func (s *PostgresStore) ListStreams(ctx context.Context, projectID string, inclu
 	var query string
 	var args []any
 	if includeArchived {
-		query = `SELECT project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by, locked, locked_by, locked_at
+		query = `SELECT project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by, locked, locked_by, locked_at, properties
 				 FROM streams WHERE project_id = $1 ORDER BY name`
 		args = []any{projectID}
 	} else {
-		query = `SELECT project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by, locked, locked_by, locked_at
+		query = `SELECT project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by, locked, locked_by, locked_at, properties
 				 FROM streams WHERE project_id = $1 AND archived = FALSE ORDER BY name`
 		args = []any{projectID}
 	}
@@ -98,11 +102,15 @@ func (s *PostgresStore) ListStreams(ctx context.Context, projectID string, inclu
 }
 
 func (s *PostgresStore) UpdateStream(ctx context.Context, st *platstore.Stream) error {
+	propsJSON, err := json.Marshal(st.Properties)
+	if err != nil {
+		return fmt.Errorf("marshal stream properties: %w", err)
+	}
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE streams SET parent=$1, base_cursor=$2, archived=$3, visibility=$4, description=$5, locked=$6, locked_by=$7, locked_at=$8
-		 WHERE project_id=$9 AND name=$10`,
+		`UPDATE streams SET parent=$1, base_cursor=$2, archived=$3, visibility=$4, description=$5, locked=$6, locked_by=$7, locked_at=$8, properties=$9
+		 WHERE project_id=$10 AND name=$11`,
 		st.Parent, st.BaseCursor, st.Archived, string(st.Visibility),
-		st.Description, st.Locked, st.LockedBy, st.LockedAt, st.ProjectID, st.Name)
+		st.Description, st.Locked, st.LockedBy, st.LockedAt, string(propsJSON), st.ProjectID, st.Name)
 	if err != nil {
 		return fmt.Errorf("update stream: %w", err)
 	}
@@ -430,13 +438,19 @@ func (s *PostgresStore) ListProjectTags(ctx context.Context, projectID string, k
 func scanStreamPg(row scanner) (*platstore.Stream, error) {
 	var st platstore.Stream
 	var visibility string
+	var propsJSON string
 	err := row.Scan(&st.ProjectID, &st.Name, &st.Parent, &st.BaseCursor,
 		&st.Archived, &visibility, &st.Description, &st.CreatedAt, &st.CreatedBy,
-		&st.Locked, &st.LockedBy, &st.LockedAt)
+		&st.Locked, &st.LockedBy, &st.LockedAt, &propsJSON)
 	if err != nil {
 		return nil, fmt.Errorf("scan stream: %w", err)
 	}
 	st.Visibility = platstore.StreamVisibility(visibility)
+	if propsJSON != "" {
+		if err := json.Unmarshal([]byte(propsJSON), &st.Properties); err != nil {
+			return nil, fmt.Errorf("unmarshal stream properties: %w", err)
+		}
+	}
 	return &st, nil
 }
 

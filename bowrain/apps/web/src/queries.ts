@@ -29,6 +29,13 @@ export const projectsQueryOptions = (api: ApiAdapter, workspaceSlug: string) =>
     staleTime: 30_000,
   });
 
+export const brandProfilesQueryOptions = (api: ApiAdapter, workspaceSlug: string) =>
+  queryOptions({
+    queryKey: ["brand-profiles", workspaceSlug],
+    queryFn: () => api.listBrandProfiles(workspaceSlug),
+    staleTime: 30_000,
+  });
+
 export const projectQueryOptions = (
   api: ApiAdapter,
   workspaceSlug: string,
