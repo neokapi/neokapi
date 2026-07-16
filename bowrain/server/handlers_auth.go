@@ -487,6 +487,11 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 	s.trackUserLogin(user.ID, user.Email, user.CreatedAt)
 	s.emitAuthEvent(c, platev.EventAuthLogin, user.ID, user.Name, "oidc")
 
+	// Retain the upstream (Cognito) refresh token, encrypted, so self-service
+	// passkey management can mint a user-scoped access token on demand without
+	// re-prompting — no IdP token is ever exposed to the browser (BFF).
+	s.retainUpstreamRefreshToken(ctx, user.ID, oauth2Token)
+
 	token, err := s.Services.Auth.GenerateToken(user, 15*time.Minute)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "generate token: " + err.Error()})
@@ -874,6 +879,11 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 	}
 	s.trackUserLogin(user.ID, user.Email, user.CreatedAt)
 	s.emitAuthEvent(c, platev.EventAuthLogin, user.ID, user.Name, "oidc")
+
+	// Retain the upstream (Cognito) refresh token, encrypted, so self-service
+	// passkey management can mint a user-scoped access token on demand without
+	// re-prompting — no IdP token is ever exposed to the browser (BFF).
+	s.retainUpstreamRefreshToken(ctx, user.ID, oauth2Token)
 
 	token, err := s.Services.Auth.GenerateToken(user, 15*time.Minute)
 	if err != nil {

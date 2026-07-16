@@ -103,6 +103,10 @@ import type {
   SlugCheckResponse,
   EmailChangeRequestResponse,
   EmailChangeConfirmResponse,
+  AccountSecurity,
+  PasskeyListResponse,
+  PasskeyRegisterStartResponse,
+  PasskeyRegisterFinishRequest,
   SlugReservation,
   ReviewDemotion,
   BrandScanRequest,
@@ -439,6 +443,40 @@ export class RestApiAdapter implements ApiAdapter {
     return this.fetchJSON("/api/v1/auth/email/confirm", {
       method: "POST",
       body: JSON.stringify({ token }),
+    });
+  }
+
+  // ── Account security (passkeys) ─────────────────────────────────────────
+  // The server holds the identity-provider access token (minted on demand from
+  // a retained refresh token) and relays only the WebAuthn ceremony; the
+  // browser runs navigator.credentials.* on a challenge and posts the result
+  // back. A 409 with error "reauth_required" means the retained refresh token
+  // lapsed — the caller should re-run the login round-trip.
+
+  async getAccountSecurity(): Promise<AccountSecurity> {
+    return this.fetchJSON("/api/v1/account/security");
+  }
+
+  async listPasskeys(): Promise<PasskeyListResponse> {
+    return this.fetchJSON("/api/v1/account/passkeys");
+  }
+
+  async passkeyRegisterStart(): Promise<PasskeyRegisterStartResponse> {
+    return this.fetchJSON("/api/v1/account/passkeys/register/start", {
+      method: "POST",
+    });
+  }
+
+  async passkeyRegisterFinish(req: PasskeyRegisterFinishRequest): Promise<void> {
+    await this.fetchJSON("/api/v1/account/passkeys/register/finish", {
+      method: "POST",
+      body: JSON.stringify(req),
+    });
+  }
+
+  async deletePasskey(id: string): Promise<void> {
+    await this.fetchJSON(`/api/v1/account/passkeys/${encodeURIComponent(id)}`, {
+      method: "DELETE",
     });
   }
 

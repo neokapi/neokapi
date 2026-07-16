@@ -128,6 +128,7 @@ const (
 	prefixDeviceVerify = "deviceverify:"
 	prefixUserCode     = "usercode:" // secondary index: userCode → deviceCode
 	prefixIDToken      = "idtoken:"  // OIDC ID token for logout (keyed by user ID)
+	prefixPasskeyNonce = "pknonce:"  // single-use passkey registration nonce (keyed by user ID)
 )
 
 // Typed helper functions for storing/retrieving auth states via the SessionStateStore.

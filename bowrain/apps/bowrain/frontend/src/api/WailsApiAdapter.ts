@@ -198,6 +198,23 @@ export class WailsApiAdapter implements ApiAdapter {
   async confirmEmailChange(): Promise<never> {
     throw new Error("email change is not available in the desktop app");
   }
+  // Passkey management is a web account-surface feature; the desktop app is a
+  // server working copy, not an account-management tool.
+  async getAccountSecurity(): Promise<never> {
+    throw new Error("passkey management is not available in the desktop app");
+  }
+  async listPasskeys(): Promise<never> {
+    throw new Error("passkey management is not available in the desktop app");
+  }
+  async passkeyRegisterStart(): Promise<never> {
+    throw new Error("passkey management is not available in the desktop app");
+  }
+  async passkeyRegisterFinish(): Promise<never> {
+    throw new Error("passkey management is not available in the desktop app");
+  }
+  async deletePasskey(): Promise<never> {
+    throw new Error("passkey management is not available in the desktop app");
+  }
   async adminListSlugReservations() {
     return [];
   }

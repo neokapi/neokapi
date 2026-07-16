@@ -42,6 +42,48 @@ export interface EmailChangeConfirmResponse {
   new_email: string;
 }
 
+/**
+ * Response from GET /api/v1/account/security — how self-service credential
+ * management is surfaced for the configured identity provider.
+ */
+export interface AccountSecurity {
+  /** True when passkeys are managed in-app (server-relayed WebAuthn ceremony). */
+  in_app: boolean;
+  /** External account-console URL when in_app is false (e.g. Keycloak). */
+  account_url: string;
+}
+
+/** A registered WebAuthn credential (passkey). */
+export interface Passkey {
+  id: string;
+  name: string;
+  created_at?: string;
+  transports?: string[];
+  rp_id?: string;
+}
+
+/** Response from GET /api/v1/account/passkeys. */
+export interface PasskeyListResponse {
+  passkeys: Passkey[];
+}
+
+/**
+ * Response from POST /api/v1/account/passkeys/register/start. `options` is the
+ * opaque PublicKeyCredentialCreationOptions (JSON, base64url binary fields) to
+ * hand to navigator.credentials.create(); `nonce` binds the finish call.
+ */
+export interface PasskeyRegisterStartResponse {
+  options: unknown;
+  nonce: string;
+}
+
+/** Body for POST /api/v1/account/passkeys/register/finish. */
+export interface PasskeyRegisterFinishRequest {
+  nonce: string;
+  /** Opaque RegistrationResponseJSON from the browser's attestation. */
+  attestation: unknown;
+}
+
 /** Active slug rename reservation (admin view). */
 export interface SlugReservation {
   slug: string;
