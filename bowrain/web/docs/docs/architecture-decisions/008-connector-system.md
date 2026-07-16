@@ -111,17 +111,62 @@ const (
 
 `CategoryTMS` is **reserved** — the constant is declared, but no
 connector currently registers under it. The connectors that ship today
-are file (`file`), git (`code`), WordPress (`cms`), Figma (`design`), and
-HubSpot (`marketing`); the category list names the integration space the
-registry classifies, not a set of shipping integrations. External TMS
-integration is a future slot in that space rather than an available
-connector.
+are file (`file`), git (`code`), forge (`code`), WordPress (`cms`),
+Figma (`design`), and HubSpot (`marketing`); the category list names the
+integration space the registry classifies, not a set of shipping
+integrations. External TMS integration is a future slot in that space
+rather than an available connector.
 
 Each populated category has characteristic behaviors: CMS connectors
 paginate through entries and publish via content APIs; design connectors
 read text layers and write back translated overlays; code connectors
 commit to branches and open pull requests; marketing connectors sync
 campaigns and assets across locales.
+
+### The forge connector: the delivery tier
+
+The `forge` connector is the git connector plus the forge itself (GitHub
+or GitLab, cloud or self-managed): source ingestion from the tracked
+branch, and **delivery as a pull/merge request** rather than a direct
+push. It is what makes a repository a zero-CI-configuration Bowrain
+project:
+
+1. **Inbound**: the forge sends push webhooks to
+   `POST /api/webhooks/forge/<connector-id>` — unauthenticated, verified
+   with the connector's `webhook_secret` (GitHub signs the body with
+   HMAC-SHA256 in `X-Hub-Signature-256`; GitLab echoes the secret in
+   `X-Gitlab-Token`). A verified push to the tracked branch re-ingests
+   the source and publishes `connector.push.completed`, so the project
+   converges under its normal on-push policy. Pushes to any other branch
+   — including the connector's own delivery branch — are acknowledged and
+   ignored, which is the loop guard.
+2. **Outbound**: when a convergence run ends converged or parked
+   (`convergence.run.completed` on the event bus), the server
+   materializes per-locale target files from the block store (each
+   locale's translations promoted into the source position at the
+   conventional target path) and the connector writes them to a stable
+   delivery branch (`bowrain/translations` by default, recreated from the
+   tracked tip on every delivery), then creates — or updates in place —
+   the one open pull/merge request for that branch, carrying the
+   convergence report. Once the request merges, the same output stops
+   producing deliveries: the loop terminates instead of re-opening merged
+   work.
+
+Forge API calls (find/create/update the request) live in
+`bowrain/forge`, deliberately thin over `net/http`. The API token and
+webhook secret are sealed at rest like every connector credential, and
+the token reaches git over https via `GIT_CONFIG_*` environment
+variables — never argv. Failed and canceled runs deliver nothing.
+
+On GitHub the connector can run in **App mode** (`auth: app`): the server
+holds one registered GitHub App (app id + private key + webhook secret,
+`GITHUB_APP_*` config), authenticates to its API with a short-lived RS256
+JWT, and mints cached per-installation access tokens for each delivery —
+connectors then carry no credentials at all, and one app-level endpoint
+(`/api/webhooks/github-app`) receives pushes for every installed
+repository, routed to the tracked connector by repository path.
+Installing the app on a repository is the only per-repo step. GitLab has
+no app equivalent; its connectors use project access tokens.
 
 ### Options and Status
 

@@ -28,6 +28,7 @@ var secretConfigKeys = map[string][]string{
 	"wordpress": {"password"},
 	"figma":     {"token"},
 	"hubspot":   {"api_key"},
+	"forge":     {"token", "webhook_secret"},
 }
 
 // secretKeySet returns the secret config keys for a connector type as a set.

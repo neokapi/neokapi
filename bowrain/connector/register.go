@@ -1,6 +1,7 @@
 package connector
 
 import (
+	"github.com/neokapi/neokapi/bowrain/forge"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/core/registry"
 )
@@ -30,6 +31,9 @@ func registerLocal(r *platconn.Registry, formatReg *registry.FormatRegistry) {
 		return NewFileConnector(formatReg, config)
 	})
 
+	r.Register("forge", platconn.CategoryCode, func(config map[string]string) (platconn.IntegrationConnector, error) {
+		return NewForgeConnector(formatReg, config)
+	})
 	r.Register("git", platconn.CategoryCode, func(config map[string]string) (platconn.IntegrationConnector, error) {
 		return NewGitConnector(formatReg, config)
 	})
@@ -50,5 +54,16 @@ func RegisterRemote(r *platconn.Registry) {
 
 	r.Register("hubspot", platconn.CategoryMarketing, func(config map[string]string) (platconn.IntegrationConnector, error) {
 		return NewHubSpotConnector(config)
+	})
+}
+
+// RegisterForgeApp re-registers the forge connector wired to the server's
+// GitHub App, so configs with `auth: app` mint per-installation tokens
+// instead of carrying one. Call after RegisterAll and before connector
+// rehydration on servers that configure an app; static-token forge configs
+// keep working unchanged.
+func RegisterForgeApp(r *platconn.Registry, formatReg *registry.FormatRegistry, app *forge.GitHubApp) {
+	r.Register("forge", platconn.CategoryCode, func(config map[string]string) (platconn.IntegrationConnector, error) {
+		return NewForgeConnectorWithApp(formatReg, config, app)
 	})
 }

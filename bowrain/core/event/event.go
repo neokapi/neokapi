@@ -80,6 +80,13 @@ const (
 	// Connector events
 	EventPullCompleted EventType = "connector.pull.completed"
 	EventPushCompleted EventType = "connector.push.completed"
+
+	// EventConvergenceRunCompleted fires when a server-side convergence run
+	// reaches a terminal state. Data carries run_id, state (converged | parked
+	// | canceled | failed), and passes; ProjectID is the converged project.
+	// The forge delivery tier subscribes to it to publish produced
+	// translations as a pull/merge request.
+	EventConvergenceRunCompleted EventType = "convergence.run.completed"
 	EventSyncCompleted EventType = "connector.sync.completed"
 
 	// Flow events

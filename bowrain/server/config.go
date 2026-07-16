@@ -110,6 +110,16 @@ type Config struct {
 	// In production, the web UI is served by a separate container (bowrain-web).
 	WebUIDir string
 
+	// GitHub App credentials (forge delivery in app mode). When all three are
+	// set, the server authenticates to installed repositories as the app —
+	// forge connectors with `auth: app` carry no tokens, and the app-level
+	// webhook endpoint (/api/webhooks/github-app) accepts push events for
+	// every installation. Register the app once (see the connectors guide);
+	// GitHub generates the key and the app id at registration.
+	GitHubAppID            string // numeric app id
+	GitHubAppPrivateKey    string // PEM (the downloaded .pem file's contents)
+	GitHubAppWebhookSecret string // the app's webhook secret
+
 	// PulseUIDir is the path to built Pulse dashboard static files (development only).
 	// When set, requests to the pulse subdomain are served from this directory.
 	PulseUIDir string

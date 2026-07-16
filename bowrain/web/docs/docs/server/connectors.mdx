@@ -61,6 +61,91 @@ syncs, the credentials it needs, setup, and its limitations:
 - [WordPress](/server/connectors/wordpress) — CMS posts (title, content, excerpt)
 - [Figma](/server/connectors/figma) — design text layers (pull-only)
 - [HubSpot](/server/connectors/hubspot) — CMS page title and meta description
+- Forge (GitHub / GitLab) — a repository delivers translations as a pull/merge
+  request with zero CI configuration (below)
+
+### Forge delivery (GitHub / GitLab)
+
+The `forge` connector turns a repository into a connected project with no CI
+configuration in the repository at all: a push webhook triggers the server,
+the server converges, and the produced translations come back as **one open
+pull/merge request** that every delivery updates in place — never a direct
+push to the tracked branch. When a run parks work for a person, the request
+says so; approvals travel through the project's review queue and arrive in a
+later delivery.
+
+Create it through the workspace connectors API (`manage-connectors`
+permission), then point a webhook at the server:
+
+```bash
+curl -X POST "$SERVER/api/v1/$WORKSPACE/connectors"   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"   -d '{
+    "type": "forge",
+    "name": "website",
+    "config": {
+      "repo": "https://github.com/acme/website.git",
+      "branch": "main",
+      "project_id": "<project-id>",
+      "token": "<forge API token>",
+      "webhook_secret": "<random secret>",
+      "patterns": "src/locales/**/*.json"
+    }
+  }'
+```
+
+Then add a **push webhook** in the repository settings pointing at
+`$SERVER/api/webhooks/forge/<connector-id>` with the same secret — GitHub
+signs the payload (secret field), GitLab sends it as the secret token. The
+token needs pull/merge-request write access: a GitHub fine-grained PAT with
+contents + pull-requests write, or a GitLab project access token with api
+scope.
+
+Optional config: `forge` (`github` | `gitlab`; default inferred from the repo
+host — self-managed GitLab included), `delivery_branch` (default
+`bowrain/translations`), `pr_title`, `pr_labels`. Target files land at the
+conventional per-locale path — a path segment or filename stem equal to the
+source language becomes the target language (`locales/en/app.json →
+locales/fr/app.json`); other layouts get the locale suffixed to the stem.
+
+Credentials are sealed at rest like every connector secret. Pushes to
+branches other than the tracked one — including the delivery branch itself —
+are ignored, so the connector's own deliveries never re-trigger a run.
+
+#### GitHub App mode (no tokens, no per-repo webhooks)
+
+With a GitHub App registered for your server, connectors on GitHub need
+neither a token nor a webhook secret — GitHub routes every installed
+repository's pushes to one app endpoint, and the server mints short-lived
+per-installation tokens for each delivery:
+
+```json
+{
+  "type": "forge",
+  "name": "website",
+  "config": {
+    "repo": "https://github.com/acme/website.git",
+    "branch": "main",
+    "project_id": "<project-id>",
+    "auth": "app",
+    "patterns": "src/locales/**/*.json"
+  }
+}
+```
+
+Register the app once (GitHub → Settings → Developer settings → GitHub Apps →
+New) with **webhook URL** `$SERVER/api/webhooks/github-app`, a webhook
+secret, the **push** event, and repository permissions **Contents:
+read & write**, **Pull requests: read & write**, **Metadata: read**. Download
+the private key and configure the server:
+
+```bash
+GITHUB_APP_ID=<app id>
+GITHUB_APP_PRIVATE_KEY_FILE=/etc/bowrain/github-app.pem   # or GITHUB_APP_PRIVATE_KEY (PEM text)
+GITHUB_APP_WEBHOOK_SECRET=<webhook secret>
+```
+
+Installing the app on a repository is then the only per-repo step. Static
+tokens keep working alongside app mode — GitLab always uses a project access
+token.
 
 :::warning Work in progress
 

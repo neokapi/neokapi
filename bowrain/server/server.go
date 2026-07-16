@@ -49,6 +49,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/platformconfig"
 	mcpserver "github.com/neokapi/neokapi/bowrain/server/mcp"
 	"github.com/neokapi/neokapi/bowrain/service"
+	"github.com/neokapi/neokapi/bowrain/forge"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	bwblockstore "github.com/neokapi/neokapi/bowrain/store/blockstore"
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
@@ -87,6 +88,10 @@ type Server struct {
 	// store and re-instantiates each connector. Nil until PostgreSQL stores are
 	// initialized (the in-memory/desktop path runs connectors live-only).
 	ConnectorConfigStore *bstore.ConnectorConfigStore
+
+	// GitHubApp authenticates forge delivery as an installed GitHub App
+	// (nil unless the GITHUB_APP_* config is complete).
+	GitHubApp *forge.GitHubApp
 
 	// EmailSender sends raw transactional emails. Prefer Mailer for
 	// template-rendered messages. Kept for backward compatibility with tests.
@@ -381,8 +386,27 @@ func NewServer(cfg Config) *Server {
 	connReg := platconn.NewRegistry()
 	connector.RegisterAll(connReg, formatReg)
 
+	// GitHub App for forge delivery: when configured, forge connectors may use
+	// `auth: app` (per-installation tokens, no stored credentials) and the
+	// app-level webhook endpoint accepts pushes for every installation. Wired
+	// before connector rehydration so persisted app-mode configs come back.
+	var githubApp *forge.GitHubApp
+	if cfg.GitHubAppID != "" || cfg.GitHubAppPrivateKey != "" || cfg.GitHubAppWebhookSecret != "" {
+		app, err := forge.NewGitHubApp(cfg.GitHubAppID, cfg.GitHubAppPrivateKey, cfg.GitHubAppWebhookSecret)
+		if err != nil {
+			// A half-configured app must be loud: silently ignoring it would
+			// strand every auth:app connector.
+			slog.Error("github app disabled (incomplete or invalid GITHUB_APP_* config)", "error", err)
+		} else {
+			githubApp = app
+			connector.RegisterForgeApp(connReg, formatReg, app)
+			slog.Info("github app enabled for forge delivery", "app_id", cfg.GitHubAppID)
+		}
+	}
+
 	s := &Server{
 		Config:          cfg,
+		GitHubApp:       githubApp,
 		FormatRegistry:  formatReg,
 		ToolRegistry:    toolReg,
 		ConnectorReg:    connReg,
@@ -671,6 +695,7 @@ func NewServer(cfg Config) *Server {
 		// row (F3). Startup wiring — no request context exists yet.
 		s.convergence.SweepInterruptedRuns(context.Background())
 		s.subscribeConvergeOnPush()
+		s.subscribeForgeDelivery()
 	}
 
 	// Unclaimed-project purge (epic 003 item 6): periodically remove expired
@@ -1317,6 +1342,12 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 
 	// Stripe webhook (no auth, signature-verified) (Bowrain AD-018).
 	e.POST("/api/webhooks/stripe", s.HandleStripeWebhook)
+	// Forge push webhooks (GitHub/GitLab). Unauthenticated like the Stripe
+	// hook: verified by the connector's webhook secret, not a session.
+	e.POST("/api/webhooks/forge/:configID", s.HandleForgeWebhook)
+	// The app-level variant: one endpoint for every repository the GitHub App
+	// is installed on, verified with the app's webhook secret.
+	e.POST("/api/webhooks/github-app", s.HandleGitHubAppWebhook)
 
 	// Admin routes (admin realm auth) (Bowrain AD-018).
 	//

@@ -85,6 +85,11 @@ type PublishOptions struct {
 	Force   bool   // Publish even if remote hasn't changed
 	DryRun  bool   // Report what would change without modifying
 	Message string // Commit/change message for systems that support it
+	// Metadata carries connector-specific publish parameters that don't
+	// generalize into first-class fields — e.g. the forge connector reads
+	// pr_title and pr_body for the pull request it maintains. Connectors
+	// ignore keys they don't understand.
+	Metadata map[string]string
 }
 
 // IntegrationConnector represents a system that Bowrain reaches into.
