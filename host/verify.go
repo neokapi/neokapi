@@ -457,7 +457,7 @@ func (a *App) projectTermbaseBound(cmd Command) (bool, error) {
 // voice — the gate only runs when there is something to check. Reuses the
 // brand check path (NewBrandVocabCheckTool + CalculateScore).
 func (a *App) verifyBrand(cmd Command, proj *project.KapiProject, root string, args []string) (*verifyGateResult, error) {
-	profile, _, found, err := a.resolveProjectBrandProfile(cmd, "", "")
+	profile, _, found, err := a.resolveProjectBrandProfile(cmd, "", "", "")
 	if err != nil {
 		return nil, err
 	}

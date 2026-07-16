@@ -53,7 +53,7 @@ func (s *MCPServer) handleCheckVocabulary(ctx context.Context, req *mcp.CallTool
 	}
 
 	if input.Locale != "" {
-		profile = corebrand.ResolveProfile(profile, model.LocaleID(input.Locale), "")
+		profile = corebrand.ResolveProfile(profile, model.LocaleID(input.Locale), "", "")
 	}
 
 	runs := []model.Run{{Text: &model.TextRun{Text: input.Text}}}
@@ -123,7 +123,7 @@ func (s *MCPServer) handleGetVoiceGuide(ctx context.Context, req *mcp.CallToolRe
 		return nil, getVoiceGuideOutput{}, fmt.Errorf("get profile: %w", err)
 	}
 
-	resolved := corebrand.ResolveProfile(profile, model.LocaleID(input.Locale), input.Channel)
+	resolved := corebrand.ResolveProfile(profile, model.LocaleID(input.Locale), input.Channel, "")
 	guide := formatVoiceGuide(resolved)
 
 	return nil, getVoiceGuideOutput{Guide: guide}, nil

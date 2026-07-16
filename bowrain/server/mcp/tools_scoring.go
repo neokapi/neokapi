@@ -23,14 +23,17 @@ type brandScopeInput struct {
 	ProjectID    string `json:"project_id,omitempty" jsonschema:"optional project to resolve the bound brand voice profile from"`
 	Stream       string `json:"stream,omitempty" jsonschema:"optional stream (branch) whose brand voice binding overrides the project"`
 	CollectionID string `json:"collection_id,omitempty" jsonschema:"optional collection whose brand voice binding overrides the stream"`
+	Persona      string `json:"persona,omitempty" jsonschema:"optional author persona to apply on top of the brand profile (within its guardrails); unknown persona falls back to the base profile"`
 }
 
 // resolveProfile selects the effective brand-voice profile for a scoring call.
 // An explicit profileID wins; otherwise the profile is resolved from the
 // organizational hierarchy (collection → stream → project → workspace default).
-// locale and channel overrides are applied to the selected profile. Returns an
-// error when no profile is bound at any level, matching the prior behavior of
-// an empty/unknown profile ID.
+// locale and channel overrides are applied to the selected profile, then the
+// scope's author persona (if any) is layered on inside the brand's guardrails;
+// an unknown persona simply leaves the base profile unchanged. Returns an error
+// when no profile is bound at any level, matching the prior behavior of an
+// empty/unknown profile ID.
 func (s *MCPServer) resolveProfile(ctx context.Context, profileID string, scope brandScopeInput, locale, channel string) (*corebrand.VoiceProfile, error) {
 	projectID := scope.ProjectID
 	if s.contentStore != nil {
@@ -43,6 +46,7 @@ func (s *MCPServer) resolveProfile(ctx context.Context, profileID string, scope 
 		CollectionID:      scope.CollectionID,
 		Locale:            model.LocaleID(locale),
 		Channel:           channel,
+		Persona:           scope.Persona,
 	})
 	if err != nil {
 		return nil, err

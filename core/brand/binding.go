@@ -11,6 +11,7 @@ import (
 const (
 	PropertyProfileID = "brand_voice_profile_id"
 	PropertyChannel   = "brand_voice_channel"
+	PropertyPersona   = "brand_voice_persona"
 )
 
 // BrandVoiceBinding associates a brand voice profile with an organizational scope.
@@ -39,6 +40,11 @@ type ResolveContext struct {
 
 	// Locale is the target locale for locale-specific override resolution.
 	Locale model.LocaleID
+
+	// Persona, when set, selects an author persona override and takes priority
+	// over any persona bound via the scope maps. A persona is normally supplied
+	// explicitly at check time rather than bound to a scope.
+	Persona string
 }
 
 // ProfileResolver resolves the effective brand voice profile for a given context.

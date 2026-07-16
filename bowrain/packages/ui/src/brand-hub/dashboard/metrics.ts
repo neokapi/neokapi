@@ -4,7 +4,7 @@
 // governance queue.
 import type { ConceptInfo } from "../../types/api";
 import type { ChangeSet } from "../../types/brand-graph";
-import type { DimensionScore, StoredScore } from "../../brand/types";
+import type { BrandTrend, DimensionScore, DriftResult, StoredScore } from "../../brand/types";
 
 /** Per-locale completeness of the concept vocabulary. */
 export interface LocaleCoverage {
@@ -87,6 +87,31 @@ export function aggregateDimensions(scores: StoredScore[]): DimensionScore[] {
 function dimRank(dimension: string): number {
   const i = DIMENSION_ORDER.indexOf(dimension);
   return i === -1 ? DIMENSION_ORDER.length : i;
+}
+
+/**
+ * trendDirection maps a drift analysis to the rollup's coarse arrow: the recent
+ * window sitting a point or more above its baseline reads as "up", a point or
+ * more below as "down", otherwise "flat". No recent activity is "flat" (nothing
+ * moved); no drift data at all is "" (unknown). Mirrors the server's rollupTrend
+ * so the web and desktop rollups agree.
+ */
+export function trendDirection(drift?: DriftResult): BrandTrend {
+  if (!drift) return "";
+  if (drift.recent_count === 0) return "flat";
+  const diff = drift.recent_avg - drift.baseline_avg;
+  if (diff >= 1) return "up";
+  if (diff <= -1) return "down";
+  return "flat";
+}
+
+/** latestChecked returns the most recent checked_at ISO string, or null. */
+export function latestChecked(scores: StoredScore[]): string | null {
+  let latest: string | null = null;
+  for (const s of scores) {
+    if (!latest || s.checked_at > latest) latest = s.checked_at;
+  }
+  return latest;
 }
 
 /** The instant a change-set started waiting on a steward. */

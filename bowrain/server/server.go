@@ -1519,6 +1519,10 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/brand-profiles/:id/evaluate-rule", s.HandleEvaluateRulePromotion)
 	g.GET("/brand-profiles/starter-packs", s.HandleListStarterPacks)
 
+	// Workspace brand-compliance rollup — the all-surfaces board aggregating
+	// every project's stored scores/trends into one matrix: /:ws/brand-voice/rollup
+	g.GET("/brand-voice/rollup", s.HandleGetBrandVoiceRollup)
+
 	// AI brand onboarding scans — epic 016: /:ws/brand-scans. The scan
 	// endpoint burns platform credits (QuotaGuard + the handler's 402
 	// pre-check); the draft tester is deterministic (aiLimit only).

@@ -582,6 +582,10 @@ export type {
   CollectionBlastRadius,
   BlastRadius,
   DriftResult,
+  BrandTrend,
+  BrandRollupEntry,
+  BrandRollup,
+  BrandRollupOptions,
   StarterPackMeta,
 } from "./brand";
 
@@ -708,6 +712,9 @@ export {
   ExperimentDetailView,
   ActivityView,
   BrandDashboardView,
+  RollupMatrix,
+  aggregateBrandRollup,
+  rollupEntry,
 } from "./brand-hub";
 export type {
   BrandHubProps,
@@ -719,6 +726,7 @@ export type {
   ExperimentDetailViewProps,
   ActivityViewProps,
   BrandDashboardViewProps,
+  RollupProjectInput,
 } from "./brand-hub";
 
 // Brand knowledge graph value exports (ordered constant arrays)

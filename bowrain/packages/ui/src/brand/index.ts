@@ -16,6 +16,7 @@ export { BrandVoicePreview } from "./BrandVoicePreview";
 export { PatternListEditor } from "./PatternListEditor";
 export { VocabularyEditor } from "./VocabularyEditor";
 export { ExamplesEditor } from "./ExamplesEditor";
+export { PersonasEditor } from "./PersonasEditor";
 export { CandidateRulesList } from "./CandidateRulesList";
 export { BlastRadiusSummary } from "./BlastRadiusSummary";
 export { DriftAlert } from "./DriftAlert";
@@ -29,6 +30,7 @@ export type {
   VoiceExample,
   LocaleOverride,
   ChannelOverride,
+  PersonaOverride,
   Dimension,
   BrandSeverity,
   BrandVoiceFinding,
@@ -44,6 +46,10 @@ export type {
   CollectionBlastRadius,
   BlastRadius,
   DriftResult,
+  BrandTrend,
+  BrandRollupEntry,
+  BrandRollup,
+  BrandRollupOptions,
 } from "./types";
 export type { StarterPackMeta } from "./data/starter-packs";
 export { starterPacks } from "./data/starter-packs";

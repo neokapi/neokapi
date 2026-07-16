@@ -22,6 +22,7 @@ var brandMigrations = []storage.Migration{
 				examples     JSONB NOT NULL DEFAULT '[]',
 				locales      JSONB NOT NULL DEFAULT '{}',
 				channels     JSONB NOT NULL DEFAULT '{}',
+				personas     JSONB NOT NULL DEFAULT '{}',
 				autonomy     JSONB NOT NULL DEFAULT '{}',
 				version      INTEGER NOT NULL DEFAULT 1,
 				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),

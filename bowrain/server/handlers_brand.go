@@ -24,6 +24,7 @@ type BrandProfileRequest struct {
 	Examples    []corebrand.VoiceExample                    `json:"examples"`
 	Locales     map[model.LocaleID]corebrand.LocaleOverride `json:"locales,omitempty"`
 	Channels    map[string]corebrand.ChannelOverride        `json:"channels,omitempty"`
+	Personas    map[string]corebrand.PersonaOverride        `json:"personas,omitempty"`
 }
 
 // BrandCheckRequest is the request body for checking text against a brand profile.
@@ -94,6 +95,7 @@ func (s *Server) HandleCreateBrandProfile(c echo.Context) error {
 		Examples:    req.Examples,
 		Locales:     req.Locales,
 		Channels:    req.Channels,
+		Personas:    req.Personas,
 		WorkspaceID: wsID,
 		Version:     1,
 		CreatedAt:   now,
@@ -169,6 +171,7 @@ func (s *Server) HandleUpdateBrandProfile(c echo.Context) error {
 	profile.Examples = req.Examples
 	profile.Locales = req.Locales
 	profile.Channels = req.Channels
+	profile.Personas = req.Personas
 	profile.Version++
 	profile.UpdatedAt = time.Now().UTC()
 

@@ -487,3 +487,38 @@ func TestProfileAutonomyRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 5, got.Autonomy.AutoPromoteAtCount)
 }
+
+func TestProfilePersonasRoundTrip(t *testing.T) {
+	ctx := t.Context()
+	store := newTestStore(t)
+	p := testProfile()
+	p.Personas = map[string]corebrand.PersonaOverride{
+		"jordan": {
+			Tone:      &corebrand.ToneProfile{Formality: "casual", Humor: "frequent"},
+			Preferred: []corebrand.TermRule{{Term: "let's"}},
+			Avoided:   []corebrand.TermRule{{Term: "synergy"}},
+		},
+	}
+	require.NoError(t, store.CreateProfile(ctx, p))
+
+	got, err := store.GetProfile(ctx, "p1")
+	require.NoError(t, err)
+	require.Len(t, got.Personas, 1)
+	persona := got.Personas["jordan"]
+	require.NotNil(t, persona.Tone)
+	assert.Equal(t, "frequent", persona.Tone.Humor)
+	require.Len(t, persona.Preferred, 1)
+	assert.Equal(t, "let's", persona.Preferred[0].Term)
+	require.Len(t, persona.Avoided, 1)
+	assert.Equal(t, "synergy", persona.Avoided[0].Term)
+
+	// An update preserves personas through the version/round-trip path.
+	got.Personas["jordan"] = corebrand.PersonaOverride{
+		Avoided: []corebrand.TermRule{{Term: "leverage"}},
+	}
+	require.NoError(t, store.UpdateProfile(ctx, got))
+	updated, err := store.GetProfile(ctx, "p1")
+	require.NoError(t, err)
+	require.Len(t, updated.Personas["jordan"].Avoided, 1)
+	assert.Equal(t, "leverage", updated.Personas["jordan"].Avoided[0].Term)
+}

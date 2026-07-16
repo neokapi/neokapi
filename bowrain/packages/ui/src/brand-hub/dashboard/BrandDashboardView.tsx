@@ -18,6 +18,7 @@ import { ChangeSetStatusBadge, EmptyState, formatRelative } from "../shell/atoms
 import { activeExperiments, pendingDecisions, sortByRecent } from "./metrics";
 import { PendingDecisions } from "./PendingDecisions";
 import { ComplianceOverview } from "./ComplianceOverview";
+import { RollupMatrix } from "./RollupMatrix";
 import { VocabularyByStatus, LocaleCoveragePanel, MarketsPanel } from "./CoveragePanel";
 
 export interface BrandDashboardViewProps {
@@ -26,6 +27,8 @@ export interface BrandDashboardViewProps {
   onViewConcepts?: () => void;
   onViewVoice?: () => void;
   onOpenConcept?: (conceptId: string) => void;
+  /** Opens a project's own brand view from the compliance rollup. */
+  onOpenProject?: (projectId: string) => void;
 }
 
 export function BrandDashboardView({
@@ -34,6 +37,7 @@ export function BrandDashboardView({
   onViewConcepts,
   onViewVoice,
   onOpenConcept,
+  onOpenProject,
 }: BrandDashboardViewProps) {
   const { data: allConcepts, isLoading: conceptsLoading } = useConcepts({ limit: 1 });
   const { data: changesets, isLoading: csLoading } = useChangesets();
@@ -84,6 +88,8 @@ export function BrandDashboardView({
           loading={csLoading}
           onOpen={onOpenExperiment}
         />
+
+        <RollupMatrix onOpenProject={onOpenProject} />
 
         <ComplianceOverview />
 

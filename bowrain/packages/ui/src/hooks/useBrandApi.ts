@@ -1,7 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
-import type { CreateVoiceProfileRequest, UpdateVoiceProfileRequest } from "../brand/types";
+import type {
+  BrandRollupOptions,
+  CreateVoiceProfileRequest,
+  UpdateVoiceProfileRequest,
+} from "../brand/types";
 
 export function useBrandProfiles() {
   const api = useApi();
@@ -83,6 +87,19 @@ export function useBrandScores(projectId: string) {
     queryKey: ["brand-scores", ws, projectId],
     queryFn: () => api.getBrandScores(ws, projectId),
     enabled: !!ws && !!projectId,
+    staleTime: 30_000,
+  });
+}
+
+export function useBrandRollup(opts?: BrandRollupOptions) {
+  const api = useApi();
+  const { activeWorkspace } = useWorkspace();
+  const ws = activeWorkspace?.slug ?? "";
+
+  return useQuery({
+    queryKey: ["brand-rollup", ws, opts ?? {}],
+    queryFn: () => api.getBrandRollup(ws, opts),
+    enabled: !!ws,
     staleTime: 30_000,
   });
 }

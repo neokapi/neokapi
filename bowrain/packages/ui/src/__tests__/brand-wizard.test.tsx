@@ -112,8 +112,8 @@ describe("BrandProfileWizard", () => {
     const descInput = screen.getByLabelText("Description");
     await user.type(descInput, "A test description");
 
-    // Jump to last step via nav
-    await user.click(screen.getByRole("button", { name: /Vocabulary/ }));
+    // Jump to last step via nav (Personas is the final step)
+    await user.click(screen.getByRole("button", { name: /Personas/ }));
     // Click Create Profile
     await user.click(screen.getByRole("button", { name: "Create Profile" }));
 

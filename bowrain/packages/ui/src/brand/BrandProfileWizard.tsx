@@ -1,6 +1,13 @@
 import { Button, Card, Input, Label, Switch } from "@neokapi/ui-primitives";
 import { useState, useCallback } from "react";
-import type { VoiceProfile, ToneProfile, StyleRules, VocabularyRules, VoiceExample } from "./types";
+import type {
+  VoiceProfile,
+  ToneProfile,
+  StyleRules,
+  VocabularyRules,
+  VoiceExample,
+  PersonaOverride,
+} from "./types";
 import { ArrowLeft, Check } from "../components/icons";
 import { defaultTone, defaultStyle, defaultVocabulary } from "./defaults";
 import { ToneSpectrumSelector } from "./ToneSpectrumSelector";
@@ -9,6 +16,7 @@ import { BrandVoicePreview } from "./BrandVoicePreview";
 import { PatternListEditor } from "./PatternListEditor";
 import { VocabularyEditor } from "./VocabularyEditor";
 import { ExamplesEditor } from "./ExamplesEditor";
+import { PersonasEditor } from "./PersonasEditor";
 import {
   formalitySpectrum,
   emotionSpectrum,
@@ -34,6 +42,7 @@ const steps = [
   { key: "tone", label: "Tone" },
   { key: "style", label: "Style" },
   { key: "content", label: "Vocabulary & Examples" },
+  { key: "personas", label: "Personas" },
 ] as const;
 
 type StepKey = (typeof steps)[number]["key"];
@@ -48,6 +57,9 @@ export function BrandProfileWizard({ profile, onSave, onCancel }: BrandProfileWi
     profile?.vocabulary ?? defaultVocabulary(),
   );
   const [examples, setExamples] = useState<VoiceExample[]>(profile?.examples ?? []);
+  const [personas, setPersonas] = useState<Record<string, PersonaOverride>>(
+    profile?.personas ?? {},
+  );
 
   const currentIndex = steps.findIndex((s) => s.key === currentStep);
 
@@ -64,8 +76,8 @@ export function BrandProfileWizard({ profile, onSave, onCancel }: BrandProfileWi
   }, [currentIndex]);
 
   const handleSubmit = useCallback(() => {
-    onSave({ name, description, tone, style, vocabulary, examples });
-  }, [name, description, tone, style, vocabulary, examples, onSave]);
+    onSave({ name, description, tone, style, vocabulary, examples, personas });
+  }, [name, description, tone, style, vocabulary, examples, personas, onSave]);
 
   const isLastStep = currentIndex === steps.length - 1;
   const canProceed = currentStep === "identity" ? name.trim().length > 0 : true;
@@ -284,6 +296,17 @@ export function BrandProfileWizard({ profile, onSave, onCancel }: BrandProfileWi
                 <ExamplesEditor examples={examples} onChange={setExamples} />
               </Card>
             </div>
+          )}
+
+          {currentStep === "personas" && (
+            <Card className="p-5">
+              <PersonasEditor
+                personas={personas}
+                onChange={setPersonas}
+                seedTone={tone}
+                seedStyle={style}
+              />
+            </Card>
           )}
 
           {/* Navigation */}

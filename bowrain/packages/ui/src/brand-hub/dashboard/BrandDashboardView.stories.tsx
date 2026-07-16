@@ -45,6 +45,53 @@ const profiles = [
   { id: "vp-2", name: "Support voice" },
 ];
 
+const rollup = {
+  projects: [
+    {
+      project_id: "p-web",
+      project_name: "Marketing Website",
+      profile_id: "vp-1",
+      profile_name: "Core voice",
+      overall: 78,
+      dimensions,
+      trend: "down" as const,
+      drift: {
+        drifted: true,
+        recent_avg: 76.4,
+        baseline_avg: 83.1,
+        drop: 6.7,
+        recent_days: 7,
+        recent_count: 14,
+        reason: "vocabulary slips on the new landing pages",
+      },
+      scored_blocks: 14,
+      last_scored_at: "2026-06-13T10:00:00Z",
+    },
+    {
+      project_id: "p-app",
+      project_name: "Mobile App",
+      profile_id: "vp-2",
+      profile_name: "Support voice",
+      overall: 91,
+      dimensions,
+      trend: "up" as const,
+      scored_blocks: 6,
+      last_scored_at: "2026-06-12T09:00:00Z",
+    },
+    {
+      project_id: "p-docs",
+      project_name: "Docs Portal",
+      overall: null,
+      trend: "" as const,
+      scored_blocks: 0,
+      last_scored_at: null,
+    },
+  ],
+  total: 3,
+  limit: 50,
+  offset: 0,
+};
+
 const complianceOverrides: Partial<ApiAdapter> = {
   listProjects: async () => projects as never,
   getBrandScores: async () => storedScores as never,
@@ -58,6 +105,7 @@ const complianceOverrides: Partial<ApiAdapter> = {
     recent_count: 14,
     reason: "vocabulary slips on the new landing pages",
   }),
+  getBrandRollup: async () => rollup as never,
   listBrandProfiles: async () => profiles as never,
 };
 

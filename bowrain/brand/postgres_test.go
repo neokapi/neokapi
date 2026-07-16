@@ -41,7 +41,10 @@ func TestScanProfile_Roundtrip(t *testing.T) {
 		},
 		Locales:  map[model.LocaleID]corebrand.LocaleOverride{"de": {Formality: "formal"}},
 		Channels: map[string]corebrand.ChannelOverride{},
-		Version:  1,
+		Personas: map[string]corebrand.PersonaOverride{
+			"jordan": {Avoided: []corebrand.TermRule{{Term: "synergy"}}},
+		},
+		Version: 1,
 	}
 
 	assert.NotEmpty(t, profile.ID)
@@ -49,6 +52,7 @@ func TestScanProfile_Roundtrip(t *testing.T) {
 	assert.Equal(t, "neutral", profile.Tone.Formality)
 	assert.Len(t, profile.Vocabulary.PreferredTerms, 1)
 	assert.Len(t, profile.Locales, 1)
+	assert.Len(t, profile.Personas, 1)
 }
 
 func TestBrandMigrations_NotEmpty(t *testing.T) {
@@ -58,7 +62,7 @@ func TestBrandMigrations_NotEmpty(t *testing.T) {
 	assert.NotEmpty(t, brandMigrations[0].SQL)
 	// The correction-learning loop's schema is part of the baseline.
 	sql := brandMigrations[0].SQL
-	for _, want := range []string{"brand_rule_decisions", "brand_voice_corrections", "brand_profile_versions", "autonomy"} {
+	for _, want := range []string{"brand_rule_decisions", "brand_voice_corrections", "brand_profile_versions", "personas", "autonomy"} {
 		assert.Contains(t, sql, want)
 	}
 }
