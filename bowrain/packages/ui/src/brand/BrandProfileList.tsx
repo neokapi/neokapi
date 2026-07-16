@@ -23,6 +23,8 @@ interface BrandProfileListProps {
   onSelect: (profile: VoiceProfile) => void;
   onCreate: () => void;
   onDelete: (profileId: string) => Promise<void>;
+  /** Opens the correction-review surface for a profile (correction-learning loop). */
+  onReview?: (profileId: string) => void;
   /** Opens the AI brand scan (epic 016). Renders the empty-state CTA when set. */
   onScanBrand?: () => void;
   /** Opens the local-lane guidance (kapi Agent Skill). */
@@ -34,6 +36,7 @@ export function BrandProfileList({
   onSelect,
   onCreate,
   onDelete,
+  onReview,
   onScanBrand,
   onLocalLane,
 }: BrandProfileListProps) {
@@ -126,6 +129,7 @@ export function BrandProfileList({
                 key={profile.id}
                 profile={profile}
                 onClick={onSelect}
+                onReview={onReview ? (p) => onReview(p.id) : undefined}
                 onDelete={setDeleteTarget}
               />
             ))}

@@ -60,21 +60,36 @@ export function ProjectDetailRoute() {
   // Files the server declined to import on the last upload (and why).
   const [uploadSkipped, setUploadSkipped] = useState<SkippedFile[]>([]);
 
+  // Why the last file/collection/stream mutation failed. Dialogs and the
+  // ProjectView fire these handlers fire-and-forget, so a throw is caught here
+  // and surfaced in the strip rather than lost as an unhandled rejection.
+  const [actionError, setActionError] = useState<string | null>(null);
+  const runAction = useCallback(async (fn: () => Promise<void>): Promise<void> => {
+    setActionError(null);
+    try {
+      await fn();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    }
+  }, []);
+
   const handleUploadFiles = useCallback(
-    async (files: File[]) => {
-      const result = await adapter.uploadFiles(ws, project.id, files, activeStream);
-      setUploadSkipped(result.skipped ?? []);
-      invalidateProject();
-    },
-    [ws, adapter, project.id, activeStream, invalidateProject],
+    (files: File[]) =>
+      runAction(async () => {
+        const result = await adapter.uploadFiles(ws, project.id, files, activeStream);
+        setUploadSkipped(result.skipped ?? []);
+        invalidateProject();
+      }),
+    [ws, adapter, project.id, activeStream, invalidateProject, runAction],
   );
 
   const handleRemoveFile = useCallback(
-    async (fileName: string) => {
-      await adapter.removeFile(ws, project.id, fileName, activeStream);
-      invalidateProject();
-    },
-    [ws, adapter, project.id, activeStream, invalidateProject],
+    (fileName: string) =>
+      runAction(async () => {
+        await adapter.removeFile(ws, project.id, fileName, activeStream);
+        invalidateProject();
+      }),
+    [ws, adapter, project.id, activeStream, invalidateProject, runAction],
   );
 
   // ── Project actions ────────────────────────────────────────────────
@@ -110,19 +125,20 @@ export function ProjectDetailRoute() {
   >(undefined);
 
   const handleCreateCollection = useCallback(
-    async (data: { name: string; kind: "uploaded" | "connected"; item_label: string }) => {
-      if (editingCollection) {
-        // Edit mode — update existing collection
-        await adapter.updateCollection(ws, project.id, editingCollection.id, data);
-      } else {
-        // Create mode
-        await adapter.createCollection(ws, project.id, data);
-      }
-      setShowCollectionDialog(false);
-      setEditingCollection(undefined);
-      invalidateProject();
-    },
-    [ws, adapter, project.id, editingCollection, invalidateProject],
+    (data: { name: string; kind: "uploaded" | "connected"; item_label: string }) =>
+      runAction(async () => {
+        if (editingCollection) {
+          // Edit mode — update existing collection
+          await adapter.updateCollection(ws, project.id, editingCollection.id, data);
+        } else {
+          // Create mode
+          await adapter.createCollection(ws, project.id, data);
+        }
+        setShowCollectionDialog(false);
+        setEditingCollection(undefined);
+        invalidateProject();
+      }),
+    [ws, adapter, project.id, editingCollection, invalidateProject, runAction],
   );
 
   const handleEditCollection = useCallback((collection: import("@neokapi/ui").CollectionInfo) => {
@@ -131,26 +147,31 @@ export function ProjectDetailRoute() {
   }, []);
 
   const [deleteCollectionId, setDeleteCollectionId] = useState<string | null>(null);
-  const confirmDeleteCollection = useCallback(async () => {
-    if (!deleteCollectionId) return;
-    await adapter.deleteCollection(ws, project.id, deleteCollectionId);
-    setDeleteCollectionId(null);
-    invalidateProject();
-  }, [ws, adapter, project.id, deleteCollectionId, invalidateProject]);
+  const confirmDeleteCollection = useCallback(
+    () =>
+      runAction(async () => {
+        if (!deleteCollectionId) return;
+        await adapter.deleteCollection(ws, project.id, deleteCollectionId);
+        setDeleteCollectionId(null);
+        invalidateProject();
+      }),
+    [ws, adapter, project.id, deleteCollectionId, invalidateProject, runAction],
+  );
 
   const handleUploadToCollection = useCallback(
-    async (collectionId: string, files: File[]) => {
-      const result = await adapter.uploadToCollection(
-        ws,
-        project.id,
-        collectionId,
-        files,
-        activeStream,
-      );
-      setUploadSkipped(result.skipped ?? []);
-      invalidateProject();
-    },
-    [ws, adapter, project.id, activeStream, invalidateProject],
+    (collectionId: string, files: File[]) =>
+      runAction(async () => {
+        const result = await adapter.uploadToCollection(
+          ws,
+          project.id,
+          collectionId,
+          files,
+          activeStream,
+        );
+        setUploadSkipped(result.skipped ?? []);
+        invalidateProject();
+      }),
+    [ws, adapter, project.id, activeStream, invalidateProject, runAction],
   );
 
   // ── Stream handlers ──────────────────────────────────────────────────
@@ -165,18 +186,14 @@ export function ProjectDetailRoute() {
   const [diffResult, setDiffResult] = useState<StreamDiffResult | null>(null);
 
   const handleCreateStream = useCallback(
-    async (data: {
-      name: string;
-      parent: string;
-      visibility: StreamVisibility;
-      description: string;
-    }) => {
-      await adapter.createStream(ws, project.id, data);
-      setShowCreateStream(false);
-      setActiveStream(data.name);
-      invalidateProject();
-    },
-    [ws, adapter, project.id, setActiveStream, invalidateProject],
+    (data: { name: string; parent: string; visibility: StreamVisibility; description: string }) =>
+      runAction(async () => {
+        await adapter.createStream(ws, project.id, data);
+        setShowCreateStream(false);
+        setActiveStream(data.name);
+        invalidateProject();
+      }),
+    [ws, adapter, project.id, setActiveStream, invalidateProject, runAction],
   );
 
   const handleEditStream = useCallback((stream: StreamInfo) => {
@@ -184,57 +201,68 @@ export function ProjectDetailRoute() {
   }, []);
 
   const handleEditStreamSubmit = useCallback(
-    async (data: { description: string; visibility: StreamVisibility }) => {
-      if (!editingStream) return;
-      await adapter.updateStream(ws, project.id, editingStream.name, data);
-      setEditingStream(null);
-      invalidateProject();
-    },
-    [ws, adapter, project.id, editingStream, invalidateProject],
+    (data: { description: string; visibility: StreamVisibility }) =>
+      runAction(async () => {
+        if (!editingStream) return;
+        await adapter.updateStream(ws, project.id, editingStream.name, data);
+        setEditingStream(null);
+        invalidateProject();
+      }),
+    [ws, adapter, project.id, editingStream, invalidateProject, runAction],
   );
 
   const handleMergeStream = useCallback(
-    async (streamName: string) => {
-      const stream = project.streams?.find((s) => s.name === streamName);
-      if (!stream) return;
-      // Dry run first
-      const result = await adapter.mergeStream(ws, project.id, streamName, true);
-      setMergeResult({
-        result,
-        streamName,
-        parentName: stream.parent || "main",
-      });
-    },
-    [ws, adapter, project.id, project.streams],
+    (streamName: string) =>
+      runAction(async () => {
+        const stream = project.streams?.find((s) => s.name === streamName);
+        if (!stream) return;
+        // Dry run first
+        const result = await adapter.mergeStream(ws, project.id, streamName, true);
+        setMergeResult({
+          result,
+          streamName,
+          parentName: stream.parent || "main",
+        });
+      }),
+    [ws, adapter, project.id, project.streams, runAction],
   );
 
-  const handleConfirmMerge = useCallback(async () => {
-    if (!mergeResult) return;
-    await adapter.mergeStream(ws, project.id, mergeResult.streamName);
-    setMergeResult(null);
-    setActiveStream(mergeResult.parentName);
-    invalidateProject();
-  }, [ws, adapter, project.id, mergeResult, setActiveStream, invalidateProject]);
+  const handleConfirmMerge = useCallback(
+    () =>
+      runAction(async () => {
+        if (!mergeResult) return;
+        await adapter.mergeStream(ws, project.id, mergeResult.streamName);
+        setMergeResult(null);
+        setActiveStream(mergeResult.parentName);
+        invalidateProject();
+      }),
+    [ws, adapter, project.id, mergeResult, setActiveStream, invalidateProject, runAction],
+  );
 
   const handleDiffStream = useCallback(
-    async (streamName: string) => {
-      const result = await adapter.diffStream(ws, project.id, streamName);
-      setDiffResult(result);
-    },
-    [ws, adapter, project.id],
+    (streamName: string) =>
+      runAction(async () => {
+        const result = await adapter.diffStream(ws, project.id, streamName);
+        setDiffResult(result);
+      }),
+    [ws, adapter, project.id, runAction],
   );
 
   const [archiveStreamName, setArchiveStreamName] = useState<string | null>(null);
   const handleDeleteStream = useCallback((streamName: string) => {
     setArchiveStreamName(streamName);
   }, []);
-  const confirmArchiveStream = useCallback(async () => {
-    if (!archiveStreamName) return;
-    await adapter.deleteStream(ws, project.id, archiveStreamName);
-    setArchiveStreamName(null);
-    setActiveStream("main");
-    invalidateProject();
-  }, [ws, adapter, project.id, archiveStreamName, setActiveStream, invalidateProject]);
+  const confirmArchiveStream = useCallback(
+    () =>
+      runAction(async () => {
+        if (!archiveStreamName) return;
+        await adapter.deleteStream(ws, project.id, archiveStreamName);
+        setArchiveStreamName(null);
+        setActiveStream("main");
+        invalidateProject();
+      }),
+    [ws, adapter, project.id, archiveStreamName, setActiveStream, invalidateProject, runAction],
+  );
 
   // Register stream actions into context so the TopBar StreamSelector can use them
   const { setActions } = useStreamActions();
@@ -279,6 +307,27 @@ export function ProjectDetailRoute() {
             onClick={() => setUploadSkipped([])}
             aria-label="Dismiss"
             data-testid="upload-skipped-dismiss"
+          >
+            <X className="w-3.5 h-3.5" />
+          </Button>
+        </Alert>
+      )}
+      {/* Why the last file/collection/stream action failed */}
+      {actionError && (
+        <Alert
+          variant="destructive"
+          className="mb-3 relative pr-10"
+          data-testid="action-error-alert"
+        >
+          <AlertTitle>Action failed</AlertTitle>
+          <AlertDescription>{actionError}</AlertDescription>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="absolute top-2 right-2 h-6 w-6 p-0"
+            onClick={() => setActionError(null)}
+            aria-label="Dismiss"
+            data-testid="action-error-dismiss"
           >
             <X className="w-3.5 h-3.5" />
           </Button>

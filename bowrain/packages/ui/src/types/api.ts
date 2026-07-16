@@ -1551,6 +1551,40 @@ export interface ProjectMembership {
   role_template?: RoleTemplate;
 }
 
+// ── Integration connectors (Bowrain AD-011) ─────────────────────────────────
+// Workspace-scoped CMS / design / marketing integrations (WordPress, Figma,
+// HubSpot). A connector is added once per workspace; fetch and publish then bind
+// it to a specific project. Distinct from the PostHog locale-demand connector
+// below, which is a project-scoped, read-only analytics source with its own
+// dedicated routes.
+
+/** An active connector as listed by the server (`GET /:ws/connectors`). */
+export interface ConnectorInfo {
+  id: string;
+  /** User-supplied display name; may be empty, in which case fall back to type. */
+  name: string;
+  /** Connector category: "cms", "design", "marketing", … */
+  category: string;
+}
+
+/**
+ * A connector's sync state. Counts are best-effort — a connector reports what it
+ * can compute cheaply, so some may be zero — and `errors` carries any problems
+ * surfaced by the connector's last status probe. Normalised from the server's
+ * PascalCase `SyncStatus` wire shape into camelCase by the adapter.
+ */
+export interface ConnectorSyncStatus {
+  connectorId: string;
+  /** RFC 3339 timestamp of the last sync, or "" if the connector never synced. */
+  lastSync: string;
+  itemCount: number;
+  fileCount: number;
+  wordCount: number;
+  pendingPull: number;
+  pendingPush: number;
+  errors: string[];
+}
+
 // ── PostHog locale-demand connector (phase 0, read-only) ────────────────────
 
 /**

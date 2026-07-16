@@ -56,6 +56,8 @@ import type {
   CreateStreamTagRequest,
   CollectionInfo,
   CreateCollectionRequest,
+  ConnectorInfo,
+  ConnectorSyncStatus,
   PostHogConnectorConfig,
   PostHogConnectorConfigRequest,
   PostHogDemandResponse,
@@ -185,6 +187,22 @@ interface CreditLedgerEntryDTO {
   operation: string;
   reference_id?: string;
   created_at: string;
+}
+
+/**
+ * Connector sync status exactly as the Go server marshals it: `connector.SyncStatus`
+ * has no JSON tags, so every field is PascalCase. Mapped into the UI's camelCase
+ * ConnectorSyncStatus so consumers never touch the wire casing.
+ */
+interface ConnectorSyncStatusDTO {
+  ConnectorID: string;
+  LastSync: string;
+  ItemCount: number;
+  FileCount: number;
+  WordCount: number;
+  PendingPull: number;
+  PendingPush: number;
+  Errors: string[] | null;
 }
 
 /**
@@ -1033,6 +1051,81 @@ export class RestApiAdapter implements ApiAdapter {
     await this.fetchJSON(
       `${this.projectEp(workspaceSlug, projectId)}/collections/${collectionId}`,
       { method: "DELETE" },
+    );
+  }
+
+  // ── Integration connectors (Bowrain AD-011) ─────────────────────────────
+  // /:ws/connectors — workspace-scoped CMS/design/marketing integrations.
+  // A connector is added once per workspace; fetch/publish carry the project
+  // in the body so one connector can serve any project in the workspace.
+
+  async listConnectors(workspaceSlug: string): Promise<ConnectorInfo[]> {
+    return (await this.fetchJSON<ConnectorInfo[]>(`/api/v1/${workspaceSlug}/connectors`)) ?? [];
+  }
+
+  async addConnector(
+    workspaceSlug: string,
+    type: string,
+    config: Record<string, string>,
+  ): Promise<ConnectorInfo> {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/connectors`, {
+      method: "POST",
+      body: JSON.stringify({ type, config }),
+    });
+  }
+
+  async removeConnector(workspaceSlug: string, connectorId: string): Promise<void> {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/connectors/${encodeURIComponent(connectorId)}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getConnectorStatus(
+    workspaceSlug: string,
+    connectorId: string,
+  ): Promise<ConnectorSyncStatus> {
+    const dto = await this.fetchJSON<ConnectorSyncStatusDTO>(
+      `/api/v1/${workspaceSlug}/connectors/${encodeURIComponent(connectorId)}/status`,
+    );
+    return {
+      connectorId: dto.ConnectorID,
+      lastSync: dto.LastSync,
+      itemCount: dto.ItemCount,
+      fileCount: dto.FileCount,
+      wordCount: dto.WordCount,
+      pendingPull: dto.PendingPull,
+      pendingPush: dto.PendingPush,
+      errors: dto.Errors ?? [],
+    };
+  }
+
+  async fetchConnector(
+    workspaceSlug: string,
+    connectorId: string,
+    projectId: string,
+    paths?: string[],
+  ): Promise<{ items_fetched: number }> {
+    return this.fetchJSON(
+      `/api/v1/${workspaceSlug}/connectors/${encodeURIComponent(connectorId)}/fetch`,
+      {
+        method: "POST",
+        body: JSON.stringify({ connector_id: connectorId, project_id: projectId, paths }),
+      },
+    );
+  }
+
+  async publishConnector(
+    workspaceSlug: string,
+    connectorId: string,
+    projectId: string,
+    message?: string,
+  ): Promise<{ status: string }> {
+    return this.fetchJSON(
+      `/api/v1/${workspaceSlug}/connectors/${encodeURIComponent(connectorId)}/publish`,
+      {
+        method: "POST",
+        body: JSON.stringify({ connector_id: connectorId, project_id: projectId, message }),
+      },
     );
   }
 

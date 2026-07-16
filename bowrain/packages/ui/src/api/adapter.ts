@@ -53,6 +53,8 @@ import type {
   CreateStreamTagRequest,
   CollectionInfo,
   CreateCollectionRequest,
+  ConnectorInfo,
+  ConnectorSyncStatus,
   PostHogConnectorConfig,
   PostHogConnectorConfigRequest,
   PostHogDemandResponse,
@@ -384,6 +386,33 @@ export interface ApiAdapter {
     files: File[],
     stream?: string,
   ): Promise<UploadFilesResult>;
+
+  // Integration connectors (Bowrain AD-011). Workspace-scoped CMS/design/
+  // marketing integrations (WordPress, Figma, HubSpot); a connector is added
+  // once per workspace, and fetch/publish bind it to a specific project.
+  // Config secrets are write-only — the list never echoes them back.
+  listConnectors(workspaceSlug: string): Promise<ConnectorInfo[]>;
+  addConnector(
+    workspaceSlug: string,
+    type: string,
+    config: Record<string, string>,
+  ): Promise<ConnectorInfo>;
+  removeConnector(workspaceSlug: string, connectorId: string): Promise<void>;
+  getConnectorStatus(workspaceSlug: string, connectorId: string): Promise<ConnectorSyncStatus>;
+  /** Pull content from the connector into the given project (synchronous). */
+  fetchConnector(
+    workspaceSlug: string,
+    connectorId: string,
+    projectId: string,
+    paths?: string[],
+  ): Promise<{ items_fetched: number }>;
+  /** Publish the given project's content out through the connector (synchronous). */
+  publishConnector(
+    workspaceSlug: string,
+    connectorId: string,
+    projectId: string,
+    message?: string,
+  ): Promise<{ status: string }>;
 
   // PostHog locale-demand connector (project-scoped, phase 0, read-only).
   // The personal API key is write-only: config reads return a masked tail.

@@ -56,6 +56,16 @@ export function BrandProfilesRoute() {
     });
   }, [navigate, workspace]);
 
+  const handleReview = useCallback(
+    (profileId: string) => {
+      void navigate({
+        to: "/$workspace/brand/voice/review/$profileId",
+        params: { workspace: workspace ?? "", profileId },
+      });
+    },
+    [navigate, workspace],
+  );
+
   const handleDelete = useCallback(
     async (profileId: string) => {
       await deleteMutation.mutateAsync(profileId);
@@ -73,6 +83,7 @@ export function BrandProfilesRoute() {
       onSelect={handleSelect}
       onCreate={handleCreate}
       onDelete={handleDelete}
+      onReview={handleReview}
       // Only servers running the brand-scan job system get the hosted-scan
       // CTA; the local lane (kapi Agent Skill) is always available.
       onScanBrand={brandScanAvailable ? handleScanBrand : undefined}

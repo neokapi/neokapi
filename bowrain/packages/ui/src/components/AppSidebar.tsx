@@ -34,6 +34,7 @@ import {
   FlaskConical,
   Activity,
   Rocket,
+  Plug,
 } from "./icons";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { MobileWorkspaceSwitcher } from "./MobileWorkspaceSwitcher";
@@ -58,7 +59,7 @@ export interface SubNavItem {
 
 type ConnectionState = "disconnected" | "connecting" | "connected" | "offline";
 
-export type ProjectView = "dashboard" | "automations" | "runs";
+export type ProjectView = "dashboard" | "automations" | "runs" | "connectors";
 
 export type SidebarContext =
   | { level: "workspace"; activeView: View }
@@ -78,6 +79,7 @@ export type SidebarContext =
       onDeleteStream?: (streamName: string) => void;
       onOpenAutomations?: () => void;
       onOpenRuns?: () => void;
+      onOpenConnectors?: () => void;
     };
 
 export interface AppSidebarProps<V extends string = string> {
@@ -211,6 +213,18 @@ function IconNav<V extends string>({
                     data-testid="sidebar-runs"
                   >
                     <Rocket />
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              {ctx.onOpenConnectors && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    tooltip="Connectors"
+                    isActive={ctx.activeProjectView === "connectors"}
+                    onClick={ctx.onOpenConnectors}
+                    data-testid="sidebar-connectors"
+                  >
+                    <Plug />
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
