@@ -17,6 +17,8 @@ import { Backend } from "./backend";
  *                      web app on browser-only flows (passkeys, OIDC step-up)
  *   - signOut        → Logout (clear keychain token + disconnect), which returns
  *                      the connection gate to ServerConnect
+ *   - watchProject   → StartWatching + the ProjectWatcher's Wails freshness
+ *                      events, normalized to the web SSE change-type shape
  *   - onDeepLink     → the deep-link-project event (bowrain://…), normalized to
  *                      an in-app route the router can navigate to
  *
@@ -93,6 +95,37 @@ export function createDesktopPlatform(): PlatformAdapter {
       // Clears the keychain token + disconnects; the resulting
       // connection-state-changed event drops the gate back to ServerConnect.
       await (Backend.Logout() as Promise<void>);
+    },
+    watchProject: (projectId, onChange) => {
+      // The Go ProjectWatcher (StartWatching) reads the server's SSE change
+      // stream and re-emits collapsed Wails events; each ChangeEvent payload
+      // carries the original server type in `event_type`. Prefer that for
+      // web-parity invalidation, falling back to a representative type per
+      // event name. presence-changed is intentionally not watched (cursor
+      // frames, no data to refetch).
+      const fallbackType: Record<string, string> = {
+        "blocks-changed": "block.changed",
+        "project-changed": "project.changed",
+        "connector-sync": "connector.sync",
+        "flow-changed": "flow.changed",
+        "membership-changed": "member.changed",
+        "brand-voice-changed": "brand.changed",
+        "termbase-changed": "term.changed",
+        "stream-changed": "stream.changed",
+      };
+      const cancels = Object.keys(fallbackType).map((name) =>
+        Events.On(name, (event: { data: unknown }) => {
+          const serverType = (event.data as { event_type?: string } | undefined)?.event_type;
+          onChange({ type: serverType || fallbackType[name] });
+        }),
+      );
+      // A reconnect may have missed any number of external changes → full refresh.
+      cancels.push(Events.On("reconnected", () => onChange({ type: "reconnected" })));
+      if (projectId) void Backend.StartWatching(projectId);
+      return () => {
+        for (const cancel of cancels) cancel?.();
+        void Backend.StopWatching();
+      };
     },
     onDeepLink: (cb) => {
       const cancel = Events.On("deep-link-project", (event: { data: unknown }) => {
