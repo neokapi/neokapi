@@ -195,6 +195,15 @@ export function createDesktopAdapter(): ApiAdapter {
   const wails = new WailsApiAdapter();
   const rest = new RestApiAdapter("", null, proxyTransport);
 
+  // A 401 the adapter can't refresh means the keychain token is dead. The web
+  // default here redirects to /api/v1/auth/login (a cookie/OIDC browser flow
+  // that is meaningless in the webview). Instead, clear the bad token and
+  // disconnect: Backend.Logout fires connection-state-changed, and App.tsx's
+  // gate demotes to ServerConnect for a fresh sign-in — never the web redirect.
+  rest.onSessionExpired = () => {
+    void Backend.Logout();
+  };
+
   return new Proxy(rest, {
     get(target, prop, receiver) {
       if (typeof prop === "string" && LOCAL_FIRST.has(prop)) {

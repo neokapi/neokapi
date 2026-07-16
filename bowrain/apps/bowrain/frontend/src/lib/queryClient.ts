@@ -1,13 +1,11 @@
 /**
  * Shared @tanstack/react-query client for the Bowrain desktop app.
  *
- * Server state in the desktop app is the local working copy reached over Wails
- * bindings (the `WailsApiAdapter`, plus the `Backend` binding for a few
- * desktop-only reads). react-query gives us the same caching / dedup /
- * invalidation model the web / ctrl / pulse apps already use: the Wails calls
- * are the query fns, and the backend freshness events (`useBackendEvents`)
- * become `queryClient.invalidateQueries` triggers (see
- * `hooks/useInvalidateOnEvent`). This matches kapi-desktop (#1142).
+ * This singleton is handed to the mounted @neokapi/bowrain-app so the connection
+ * gate and the shared route tree share one cache. Server state reaches the app
+ * through the composite ApiAdapter (REST proxy + Wails local-first bindings);
+ * freshness is driven by the platform seam's `watchProject` (the Go SSE→Wails
+ * watcher), which invalidates the same caches the web SSE layer does.
  */
 
 import { QueryClient } from "@tanstack/react-query";

@@ -21,6 +21,7 @@ export interface TopBarProps {
   onSettings?: () => void;
   connectionState?: ConnectionState;
   pendingChanges?: number;
+  failedChanges?: number;
   notifications?: NotificationInfo[];
   unreadCount?: number;
   onMarkNotificationRead?: (id: string) => void;
@@ -100,9 +101,11 @@ export function TopBar({
   onViewAllTasks,
   leftSlot,
   beforeAvatarSlot,
+  failedChanges,
 }: TopBarProps) {
   const { theme, setTheme } = useTheme();
   const isOffline = connectionState === "offline";
+  const hasFailed = failedChanges != null && failedChanges > 0;
 
   return (
     <>
@@ -114,6 +117,15 @@ export function TopBar({
         <span className="flex items-center gap-1 text-xs text-warning">
           <WifiOff className="size-3" />
           <span>{pendingChanges} pending</span>
+        </span>
+      )}
+
+      {/* Failed-changes indicator — shown regardless of connection state, since
+          rejected edits persist until the user resolves them. */}
+      {hasFailed && (
+        <span className="flex items-center gap-1 text-xs text-destructive">
+          <WifiOff className="size-3" />
+          <span>{failedChanges} failed</span>
         </span>
       )}
 

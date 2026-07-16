@@ -6,6 +6,7 @@ import type {
   Workspace,
   Membership,
   ProjectInfo,
+  UploadFilesResult,
   ConfigResponse,
   PublicPlatformConfig,
   BlockInfo,
@@ -459,10 +460,13 @@ export class WailsApiAdapter implements ApiAdapter {
   async deleteProject(_ws: string, projectId: string): Promise<void> {
     return Backend.CloseProject(projectId);
   }
-  async uploadFiles(_ws: string, projectId: string, files: File[]): Promise<ProjectInfo> {
+  async uploadFiles(_ws: string, projectId: string, files: File[]): Promise<UploadFilesResult> {
     // In Wails v3, File objects from DnD have a .path property
     const paths = files.map((f) => (f as unknown as { path?: string }).path || f.name);
-    return Backend.AddItems(projectId, paths) as Promise<ProjectInfo>;
+    const info = (await Backend.AddItems(projectId, paths)) as ProjectInfo;
+    // AddItems does not report skipped files; return the shared result shape
+    // with an empty skipped list so callers reading `.skipped` are type-correct.
+    return { ...info, skipped: [] };
   }
   async removeFile(_ws: string, projectId: string, fileName: string): Promise<ProjectInfo> {
     return Backend.RemoveItem(projectId, fileName) as Promise<ProjectInfo>;
@@ -501,14 +505,17 @@ export class WailsApiAdapter implements ApiAdapter {
   async deleteCollection(): Promise<void> {
     throw new Error("Not implemented");
   }
-  async uploadToCollection(): Promise<ProjectInfo> {
+  async uploadToCollection(): Promise<UploadFilesResult> {
+    // Unused under the composite adapter (collection uploads proxy to REST); the
+    // signature matches ApiAdapter so the class satisfies the interface.
     throw new Error("Not implemented");
   }
 
   // --- Integration connectors (Bowrain AD-011) ---
   // The desktop keeps connectors in-process (workspace-agnostic), so the
   // workspace argument is ignored, matching the rest of this adapter. These
-  // wire straight to the real Wails bindings the ConnectorPanel already uses.
+  // wire straight to the real Wails connector bindings (local-first in the
+  // composite adapter), which the shared connectors UI now drives.
   async listConnectors(): Promise<ConnectorInfo[]> {
     const list = ((await Backend.ListConnectors()) ?? []) as {
       id: string;

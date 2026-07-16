@@ -42,6 +42,8 @@ import { useUIStore } from "../stores/ui-store";
 import { viewFromPath, type WorkspaceView } from "./view-from-path";
 import { activitiesQueryOptions, myTasksQueryOptions } from "../queries";
 import { useWorkspaceEvents } from "../hooks/useWorkspaceEvents";
+import { useDesktopFreshness } from "../hooks/useDesktopFreshness";
+import { useConnectivity } from "../hooks/useConnectivity";
 import type { WorkspaceRouteContext } from ".";
 
 // Web-only workspace nav entries appended after the shared ones (Projects,
@@ -112,6 +114,7 @@ function ConnectedTopBar({
 }) {
   const api = useApi();
   const queryClient = useQueryClient();
+  const connectivity = useConnectivity();
 
   const { data: activitiesData } = useQuery(activitiesQueryOptions(api, workspaceSlug));
   const { data: myTasksData } = useQuery(myTasksQueryOptions(api, workspaceSlug));
@@ -129,6 +132,9 @@ function ConnectedTopBar({
       user={user}
       onSignOut={onSignOut}
       onSettings={onSettings}
+      connectionState={connectivity.state}
+      pendingChanges={connectivity.pendingChanges}
+      failedChanges={connectivity.failedChanges}
       leftSlot={leftSlot}
       beforeAvatarSlot={beforeAvatarSlot}
       activities={activitiesData?.activities}
@@ -450,6 +456,9 @@ export function WorkspaceLayout() {
   // bridge instead, so pass no slug to keep the stream off (the hook early-
   // returns on an empty slug).
   useWorkspaceEvents(platform.kind === "web" ? ws : undefined, activeProjectId);
+  // Desktop freshness: the Go SSE→Wails-events watcher, invalidating the same
+  // caches. No-op on web (the hook gates on kind === "desktop").
+  useDesktopFreshness(ws, activeProjectId);
 
   const sidebarContext = useMemo<SidebarContext | undefined>(() => {
     const projectParams = parseProjectParams(pathname, workspaceSlug ?? "");

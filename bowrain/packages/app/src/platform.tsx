@@ -54,6 +54,19 @@ export interface PlatformAdapter {
    */
   signOut?(): Promise<void>;
   /**
+   * Watch a project for backend content-change events (desktop only). The web
+   * shell reads freshness from a same-origin SSE EventSource; the desktop cannot
+   * (keychain-Bearer auth over Wails), so the Go backend runs the SSE→Wails-events
+   * watcher instead. Each change is normalized to the same `{ type }` the web SSE
+   * relay emits, so the caller invalidates React Query identically. A reconnect
+   * after an offline gap is reported as `{ type: "reconnected" }`. Returns an
+   * unsubscribe that stops the watcher. Web omits this member.
+   */
+  watchProject?(
+    projectId: string | undefined,
+    onChange: (event: { type: string }) => void,
+  ): () => void;
+  /**
    * OS deep links (e.g. bowrain://…) normalized by the shell to an in-app route
    * path. BowrainApp subscribes and navigates the router. Returns an
    * unsubscribe.
