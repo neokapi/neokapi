@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vite-plus/test";
-import { router, rootRoute } from "./index";
+import { createBowrainRouter, rootRoute } from "./index";
 
 // TanStack Router's internal types are complex; use loose typing for structural tests.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -7,6 +7,7 @@ type AnyRoute = any;
 
 describe("route tree", () => {
   it("creates a router with defined routes", () => {
+    const router = createBowrainRouter({ queryClient: undefined!, api: undefined! });
     expect(router).toBeDefined();
     expect(router.routeTree).toBeDefined();
   });

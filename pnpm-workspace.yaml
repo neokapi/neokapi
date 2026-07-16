@@ -9,7 +9,7 @@
 # only a subtree of the monorepo; with globs those builds see a valid (smaller)
 # workspace instead of erroring on missing member directories.
 #
-# These ten globs match exactly the 23 frontend members and nothing else
+# These ten globs match exactly the 24 frontend members and nothing else
 # (packages/kapi-claude-plugin, bowrain/apps/bowrain and the standalone
 # e2e/harness trees have no package.json under these globs; bowrain/web/landing
 # is listed explicitly so the non-member bowrain/web/docs is not pulled in).

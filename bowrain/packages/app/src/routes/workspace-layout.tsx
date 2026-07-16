@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, type ReactNode } from "react";
-import { identifyUser } from "../posthog";
+import { usePlatform } from "../platform";
 import {
   Outlet,
   useNavigate,
@@ -236,6 +236,7 @@ export function WorkspaceLayout() {
   const { workspace: workspaceSlug, stream } = useParams({ strict: false });
   const queryClient = useQueryClient();
   const adapter = useApi();
+  const platform = usePlatform();
 
   // Data from route beforeLoad — already fetched, no loading state needed.
   const { serverMode, user, workspaces, activeWorkspace } = useRouteContext({
@@ -244,9 +245,9 @@ export function WorkspaceLayout() {
 
   useEffect(() => {
     if (user && user.id !== "local") {
-      identifyUser(user.id, { email: user.email, name: user.name });
+      platform.analytics?.identify({ id: user.id, email: user.email, name: user.name });
     }
-  }, [user]);
+  }, [user, platform]);
 
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = useUIStore((s) => s.setSidebarCollapsed);

@@ -1,0 +1,7 @@
+@import "@neokapi/ui/styles/globals.css";
+@import "@neokapi/flow-editor/styles/sources.css";
+
+/* Register this package's route/component source as a Tailwind content source.
+ * Consuming apps import this stylesheet, so their Tailwind build scans the
+ * shared app shell here — without this the seam's classes would be purged. */
+@source "./";

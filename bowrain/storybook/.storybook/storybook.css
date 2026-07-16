@@ -10,4 +10,4 @@
 @source "../../apps/bowrain/frontend/src";
 @source "../../emails/src";
 @source "../../apps/keycloak-theme/src";
-@source "../../apps/web/src";
+@source "../../packages/app/src";

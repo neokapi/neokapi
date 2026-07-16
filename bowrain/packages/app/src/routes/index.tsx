@@ -747,18 +747,22 @@ const routeTree = rootRoute.addChildren([
 ]);
 
 // ---------------------------------------------------------------------------
-// Router instance
+// Router factory
 // ---------------------------------------------------------------------------
 
-export const router = createRouter({
-  routeTree,
-  context: { queryClient: undefined!, api: undefined! },
-  defaultPendingMinMs: 0,
-  defaultPendingMs: 100,
-});
+// Each shell (web, desktop) builds its own router with its ApiAdapter +
+// QueryClient baked into the context. The route tree is shared.
+export function createBowrainRouter(context: RouterContext) {
+  return createRouter({
+    routeTree,
+    context,
+    defaultPendingMinMs: 0,
+    defaultPendingMs: 100,
+  });
+}
 
 declare module "@tanstack/react-router" {
   interface Register {
-    router: typeof router;
+    router: ReturnType<typeof createBowrainRouter>;
   }
 }
