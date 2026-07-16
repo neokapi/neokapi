@@ -37,27 +37,27 @@ func TestNewForgeConnectorValidation(t *testing.T) {
 	cfg := base()
 	delete(cfg, "token")
 	_, err = NewForgeConnector(reg, cfg)
-	assert.ErrorContains(t, err, "token")
+	require.ErrorContains(t, err, "token")
 
 	cfg = base()
 	delete(cfg, "project_id")
 	_, err = NewForgeConnector(reg, cfg)
-	assert.ErrorContains(t, err, "project_id")
+	require.ErrorContains(t, err, "project_id")
 
 	cfg = base()
 	cfg["repo"] = "git@github.com:acme/site.git"
 	_, err = NewForgeConnector(reg, cfg)
-	assert.ErrorContains(t, err, "https")
+	require.ErrorContains(t, err, "https")
 
 	cfg = base()
 	cfg["delivery_branch"] = "main"
 	_, err = NewForgeConnector(reg, cfg)
-	assert.ErrorContains(t, err, "must differ")
+	require.ErrorContains(t, err, "must differ")
 
 	cfg = base()
 	cfg["forge"] = "bitbucket"
 	_, err = NewForgeConnector(reg, cfg)
-	assert.ErrorContains(t, err, "unknown forge")
+	require.ErrorContains(t, err, "unknown forge")
 
 	cfg = base()
 	cfg["repo"] = "https://gitlab.example.com/group/site.git"
@@ -81,7 +81,7 @@ func (f *fakeForgeClient) EnsureDeliveryPR(_ context.Context, req forge.Delivery
 // gitRun is a test helper: run git in dir, fail the test on error.
 func gitRun(t *testing.T, dir string, args ...string) string {
 	t.Helper()
-	cmd := exec.Command("git", args...)
+	cmd := exec.CommandContext(context.Background(), "git", args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(),
 		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.com",

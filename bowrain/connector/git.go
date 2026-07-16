@@ -308,8 +308,12 @@ func (c *GitConnector) Publish(ctx context.Context, items []*platconn.ContentIte
 	}
 
 	// Commit. The "--" separator keeps the message bound to -m and prevents any
-	// trailing positional argument from being parsed as an option.
-	commitCmd := gitCommand(ctx, "-C", c.localPath, "commit", "-m", message)
+	// trailing positional argument from being parsed as an option. The
+	// committer identity is explicit: the server has no global gitconfig, and
+	// a commit without one fails outright.
+	commitCmd := gitCommand(ctx, "-C", c.localPath,
+		"-c", "user.name=Bowrain Bot", "-c", "user.email=bot@bowrain.cloud",
+		"commit", "-m", message)
 	if out, err := commitCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("git commit: %s: %w", string(out), err)
 	}

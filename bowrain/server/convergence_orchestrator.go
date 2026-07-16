@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"log/slog"
 	"strings"
 	"sync"
@@ -342,7 +343,7 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 			Data: map[string]string{
 				"run_id": run.ID,
 				"state":  run.State,
-				"passes": fmt.Sprintf("%d", run.Passes),
+				"passes": strconv.Itoa(run.Passes),
 			},
 		})
 	}

@@ -31,10 +31,10 @@ func TestParseRepo(t *testing.T) {
 	assert.Equal(t, Repo{Host: "gitlab.example.com", Path: "group/sub/site"}, r)
 
 	_, err = ParseRepo("git@github.com:acme/site.git")
-	assert.Error(t, err, "ssh URLs cannot carry token auth or API calls")
+	require.Error(t, err, "ssh URLs cannot carry token auth or API calls")
 
 	_, err = ParseRepo("https://github.com/")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestGitHubEnsureDeliveryPR_CreatesWhenNoneOpen(t *testing.T) {
@@ -48,7 +48,7 @@ func TestGitHubEnsureDeliveryPR_CreatesWhenNoneOpen(t *testing.T) {
 			assert.Equal(t, "Bearer tok", r.Header.Get("Authorization"))
 			_, _ = w.Write([]byte("[]"))
 		case r.Method == http.MethodPost && r.URL.Path == "/repos/acme/site/pulls":
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&createdBody))
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&createdBody))
 			w.WriteHeader(http.StatusCreated)
 			_, _ = w.Write([]byte(`{"number": 7, "html_url": "https://github.com/acme/site/pull/7"}`))
 		case r.Method == http.MethodPost && r.URL.Path == "/repos/acme/site/issues/7/labels":
@@ -84,7 +84,7 @@ func TestGitHubEnsureDeliveryPR_UpdatesExisting(t *testing.T) {
 		case r.Method == http.MethodGet && r.URL.Path == "/repos/acme/site/pulls":
 			_, _ = w.Write([]byte(`[{"number": 3, "html_url": "https://github.com/acme/site/pull/3"}]`))
 		case r.Method == http.MethodPatch && r.URL.Path == "/repos/acme/site/pulls/3":
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&patched))
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&patched))
 			_, _ = w.Write([]byte(`{}`))
 		default:
 			t.Errorf("unexpected request %s %s", r.Method, r.URL)
@@ -111,11 +111,11 @@ func TestGitLabEnsureDeliveryPR_CreateAndUpdate(t *testing.T) {
 		case r.Method == http.MethodGet && r.URL.Path == "/projects/group/sub/site/merge_requests":
 			_, _ = w.Write([]byte(openMRs))
 		case r.Method == http.MethodPost && r.URL.Path == "/projects/group/sub/site/merge_requests":
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&created))
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&created))
 			w.WriteHeader(http.StatusCreated)
 			_, _ = w.Write([]byte(`{"iid": 11, "web_url": "https://gitlab.example.com/group/sub/site/-/merge_requests/11"}`))
 		case r.Method == http.MethodPut && r.URL.Path == "/projects/group/sub/site/merge_requests/11":
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&updated))
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&updated))
 			_, _ = w.Write([]byte(`{}`))
 		default:
 			t.Errorf("unexpected request %s %s", r.Method, r.URL)

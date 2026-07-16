@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"maps"
 	"log/slog"
 	"os/exec"
 	"strings"
@@ -48,6 +49,8 @@ type ForgeConnector struct {
 	deliveryBranch string
 	prTitle        string
 	prLabels       []string
+	gitUserName    string
+	gitUserEmail   string
 
 	// newClient builds the forge API client; tests inject a fake.
 	newClient func() forge.Client
@@ -72,9 +75,7 @@ func NewForgeConnector(formatReg *registry.FormatRegistry, config map[string]str
 	// The git connector does the clone/fetch/file mechanics; default its id
 	// so the two types never collide on the same repo basename.
 	gitCfg := make(map[string]string, len(config))
-	for k, v := range config {
-		gitCfg[k] = v
-	}
+	maps.Copy(gitCfg, config)
 	if gitCfg["id"] == "" {
 		gitCfg["id"] = "forge-" + repo.Path[strings.LastIndex(repo.Path, "/")+1:]
 	}
@@ -108,10 +109,19 @@ func NewForgeConnector(formatReg *registry.FormatRegistry, config map[string]str
 		prTitle = "Update translations"
 	}
 	var prLabels []string
-	for _, l := range strings.Split(config["pr_labels"], ",") {
+	for l := range strings.SplitSeq(config["pr_labels"], ",") {
 		if l = strings.TrimSpace(l); l != "" {
 			prLabels = append(prLabels, l)
 		}
+	}
+
+	gitUserName := config["git_user_name"]
+	if gitUserName == "" {
+		gitUserName = "Bowrain Bot"
+	}
+	gitUserEmail := config["git_user_email"]
+	if gitUserEmail == "" {
+		gitUserEmail = "bot@bowrain.cloud"
 	}
 
 	fc := &ForgeConnector{
@@ -123,6 +133,8 @@ func NewForgeConnector(formatReg *registry.FormatRegistry, config map[string]str
 		deliveryBranch: deliveryBranch,
 		prTitle:        prTitle,
 		prLabels:       prLabels,
+		gitUserName:    gitUserName,
+		gitUserEmail:   gitUserEmail,
 	}
 	fc.newClient = func() forge.Client { return forge.NewClient(fc.kind, fc.token, nil) }
 	return fc, nil
@@ -237,7 +249,11 @@ func (c *ForgeConnector) Publish(ctx context.Context, items []*platconn.ContentI
 	if message == "" {
 		message = "Update translations"
 	}
-	commitCmd := gitCommand(ctx, "-C", c.git.localPath, "commit", "-m", message)
+	// Explicit committer identity: the server has no global gitconfig, and a
+	// commit without one fails outright.
+	commitCmd := gitCommand(ctx, "-C", c.git.localPath,
+		"-c", "user.name="+c.gitUserName, "-c", "user.email="+c.gitUserEmail,
+		"commit", "-m", message)
 	if out, err := commitCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("git commit: %s: %w", string(out), err)
 	}
