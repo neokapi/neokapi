@@ -21,8 +21,12 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 ARG TARGETARCH
 COPY bins/${TARGETARCH}/kapi /usr/local/bin/kapi
-ENTRYPOINT ["kapi"]
-CMD ["--help"]
+# No ENTRYPOINT, by design: CI executors (GitLab docker executor, GitHub
+# job containers) run job scripts through a shell, and an ENTRYPOINT ["kapi"]
+# turns that into `kapi sh -c …` → "unknown command sh". This is a CI-first
+# image; invoke the binary by name (`docker run … kapi version`), like the
+# golang/node tool images.
+CMD ["kapi", "--help"]
 
 # Variant with the kapi-bowrain plugin preinstalled in the system plugin root
 # (host/pluginhost/discover.go scans /usr/share/kapi/plugins), so

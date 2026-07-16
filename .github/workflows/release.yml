@@ -762,11 +762,11 @@ jobs:
           HAS_PLUGIN: ${{ steps.stage.outputs.has_plugin }}
         run: |
           set -euo pipefail
-          docker run --rm "${IMAGE}:${VERSION}" version
+          docker run --rm "${IMAGE}:${VERSION}" kapi version
           if [ "${HAS_PLUGIN}" = "true" ]; then
             # The variant must discover the baked-in plugin from the system
             # root with no user-level install or config.
-            docker run --rm "${IMAGE}:${VERSION}-bowrain" plugins list
+            docker run --rm "${IMAGE}:${VERSION}-bowrain" kapi plugins list
           fi
 
   build-kapi-desktop:
