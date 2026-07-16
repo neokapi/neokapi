@@ -13,6 +13,10 @@ import { Backend } from "./backend";
  *   - onFilesDropped → the native window's files-dropped event (paths)
  *   - openInOS       → OpenFileInOS
  *   - collabSession  → GetCollabSession (server URL + keychain token for Yjs)
+ *   - webBaseUrl     → GetConnectionState().server_url, for openExternal to the
+ *                      web app on browser-only flows (passkeys, OIDC step-up)
+ *   - signOut        → Logout (clear keychain token + disconnect), which returns
+ *                      the connection gate to ServerConnect
  *   - onDeepLink     → the deep-link-project event (bowrain://…), normalized to
  *                      an in-app route the router can navigate to
  *
@@ -76,6 +80,19 @@ export function createDesktopPlatform(): PlatformAdapter {
       } catch {
         return null;
       }
+    },
+    webBaseUrl: async () => {
+      try {
+        const ci = (await Backend.GetConnectionState()) as { server_url?: string };
+        return ci?.server_url ? ci.server_url.replace(/\/$/, "") : null;
+      } catch {
+        return null;
+      }
+    },
+    signOut: async () => {
+      // Clears the keychain token + disconnects; the resulting
+      // connection-state-changed event drops the gate back to ServerConnect.
+      await (Backend.Logout() as Promise<void>);
     },
     onDeepLink: (cb) => {
       const cancel = Events.On("deep-link-project", (event: { data: unknown }) => {

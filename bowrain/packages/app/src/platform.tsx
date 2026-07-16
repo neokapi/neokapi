@@ -39,6 +39,21 @@ export interface PlatformAdapter {
   /** Presence-collaboration session (server URL + keychain token) for Yjs. */
   collabSession?(): Promise<{ serverUrl: string; authToken: string } | null>;
   /**
+   * Base URL of the connected server's web app. The desktop hosts the same
+   * routes in a webview, but a few flows (WebAuthn passkeys, OIDC step-up) only
+   * work at a real browser origin; a route uses this to `openExternal` the
+   * equivalent page in the browser. Resolves null when not connected.
+   */
+  webBaseUrl?(): Promise<string | null>;
+  /**
+   * Sign out at the host level. The web app's default sign-out is an OIDC
+   * cookie/redirect round-trip that has no meaning in the desktop webview
+   * (Bearer-token auth, no browser origin); when present, the shared app calls
+   * this instead. The desktop clears the keychain token and disconnects, which
+   * returns the connection gate to the ServerConnect screen.
+   */
+  signOut?(): Promise<void>;
+  /**
    * OS deep links (e.g. bowrain://…) normalized by the shell to an in-app route
    * path. BowrainApp subscribes and navigates the router. Returns an
    * unsubscribe.

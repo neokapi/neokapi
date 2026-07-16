@@ -570,6 +570,15 @@ export function WorkspaceLayout() {
   // -----------------------------------------------------------------------
 
   const handleSignOut = useCallback(async () => {
+    // Desktop signs out at the host: the OIDC cookie/redirect round-trip below
+    // is a browser flow with no meaning in the webview (Bearer-token auth). The
+    // host clears the keychain token and disconnects; the connection gate then
+    // returns to ServerConnect.
+    if (platform.signOut) {
+      queryClient.clear();
+      await platform.signOut();
+      return;
+    }
     try {
       const resp = await fetch("/api/v1/auth/logout", {
         method: "POST",
@@ -594,7 +603,7 @@ export function WorkspaceLayout() {
     }
     queryClient.clear();
     setSignedOut(true);
-  }, [queryClient]);
+  }, [queryClient, platform]);
 
   const handleViewChange = useCallback(
     (view: WorkspaceView) => {
@@ -709,8 +718,12 @@ export function WorkspaceLayout() {
   const isEditor = activeView === "translate";
 
   // @bravo is dark by default (epic 015): only surface it when the server reports
-  // the workspace is entitled (plan matrix + per-workspace override).
-  const bravoEnabled = Boolean(activeWorkspace.features?.bravo);
+  // the workspace is entitled (plan matrix + per-workspace override). It is also
+  // web-only: @bravo streams over an EventSource-style SSE response, which the
+  // desktop's request/response Wails proxy transport cannot carry (it buffers the
+  // whole body and times out), so we withhold the chrome rather than render a
+  // chat that never streams.
+  const bravoEnabled = platform.kind === "web" && Boolean(activeWorkspace.features?.bravo);
 
   return (
     <AuthProvider initialUser={user}>

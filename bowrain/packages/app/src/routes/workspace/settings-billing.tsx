@@ -21,6 +21,7 @@ import {
   type RunnerUsage,
   ModelUsageTable,
 } from "@neokapi/ui";
+import { usePlatform } from "../../platform";
 
 function formatTokens(value: number): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
@@ -53,7 +54,16 @@ function UsageBreakdownRow({ label, value }: { label: string; value: number }) {
 export function SettingsBillingRoute() {
   const { activeWorkspace } = useWorkspace();
   const api = useApi();
+  const platform = usePlatform();
   const ws = activeWorkspace?.slug ?? "";
+
+  // Stripe portal/checkout URLs are external redirects. In the browser we
+  // navigate the tab; in the desktop webview that would trap the user on
+  // Stripe (and Stripe cannot redirect back to the app), so open the OS browser.
+  const openBilling = (url: string) => {
+    if (platform.kind === "desktop") platform.openExternal(url);
+    else window.location.href = url;
+  };
 
   const [overview, setOverview] = useState<BillingOverview | null>(null);
   const [plans, setPlans] = useState<BillingPlansResponse | null>(null);
@@ -103,7 +113,7 @@ export function SettingsBillingRoute() {
     setCheckoutError(null);
     try {
       const { url } = await api.billingCreatePortal(ws, window.location.href);
-      window.location.href = url;
+      openBilling(url);
     } catch (err) {
       setCheckoutError(err instanceof Error ? err.message : "Could not open the billing portal.");
     }
@@ -123,7 +133,7 @@ export function SettingsBillingRoute() {
           `${window.location.origin}/${ws}/settings/billing?success=true`,
           `${window.location.origin}/${ws}/settings/billing`,
         );
-        window.location.href = url;
+        openBilling(url);
       } catch (err) {
         setCheckoutError(err instanceof Error ? err.message : "Could not start checkout.");
       }
@@ -140,7 +150,7 @@ export function SettingsBillingRoute() {
         `${window.location.origin}/${ws}/settings/billing?credits=purchased`,
         `${window.location.origin}/${ws}/settings/billing`,
       );
-      window.location.href = url;
+      openBilling(url);
     } catch (err) {
       setCheckoutError(err instanceof Error ? err.message : "Could not start the purchase.");
     }

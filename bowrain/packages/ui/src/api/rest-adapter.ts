@@ -216,10 +216,19 @@ interface ConnectorSyncStatusDTO {
  * - Bearer token mode (desktop/CLI): token set via setToken(), sent as Authorization header.
  * - Cookie mode (web): no token set, browser sends HttpOnly cookies automatically.
  */
+/**
+ * A fetch-compatible transport. Defaults to the global `fetch`; the desktop
+ * passes one backed by a Wails ProxyRequest binding so all server calls the
+ * desktop doesn't implement with a dedicated binding go Go-side (keychain auth,
+ * no webview-origin/CORS concerns) through this same adapter.
+ */
+export type ApiTransport = (input: string, init?: RequestInit) => Promise<Response>;
+
 export class RestApiAdapter implements ApiAdapter {
   private baseUrl: string;
   private token: string | null;
   private refreshToken: string | null;
+  protected fetchImpl: ApiTransport;
 
   /** Called when tokens are refreshed so the consumer can persist them. */
   onTokenRefresh?: (token: string, refreshToken: string) => void;
@@ -229,10 +238,11 @@ export class RestApiAdapter implements ApiAdapter {
 
   private refreshPromise: Promise<boolean> | null = null;
 
-  constructor(baseUrl: string = "", token: string | null = null) {
+  constructor(baseUrl: string = "", token: string | null = null, transport?: ApiTransport) {
     this.baseUrl = baseUrl;
     this.token = token;
     this.refreshToken = null;
+    this.fetchImpl = transport ?? ((input, init) => fetch(input, init));
   }
 
   setToken(token: string) {
@@ -266,7 +276,7 @@ export class RestApiAdapter implements ApiAdapter {
   /** Attempt to refresh the access token using the stored refresh token or cookie. */
   private async tryRefresh(): Promise<boolean> {
     try {
-      const resp = await fetch(`${this.baseUrl}/api/v1/auth/refresh`, {
+      const resp = await this.fetchImpl(`${this.baseUrl}/api/v1/auth/refresh`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
@@ -286,7 +296,7 @@ export class RestApiAdapter implements ApiAdapter {
   }
 
   private async fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
-    const resp = await fetch(`${this.baseUrl}${path}`, {
+    const resp = await this.fetchImpl(`${this.baseUrl}${path}`, {
       ...init,
       headers: {
         ...this.headers(),
@@ -304,7 +314,7 @@ export class RestApiAdapter implements ApiAdapter {
       const refreshed = await this.refreshPromise;
       if (refreshed) {
         // Retry the original request with the new token.
-        const retry = await fetch(`${this.baseUrl}${path}`, {
+        const retry = await this.fetchImpl(`${this.baseUrl}${path}`, {
           ...init,
           headers: {
             ...this.headers(),
@@ -333,7 +343,7 @@ export class RestApiAdapter implements ApiAdapter {
   }
 
   private async fetchBlob(path: string, init?: RequestInit): Promise<Blob> {
-    const resp = await fetch(`${this.baseUrl}${path}`, {
+    const resp = await this.fetchImpl(`${this.baseUrl}${path}`, {
       ...init,
       headers: {
         ...this.headers(),
@@ -349,7 +359,7 @@ export class RestApiAdapter implements ApiAdapter {
   }
 
   private async fetchText(path: string, init?: RequestInit): Promise<string> {
-    const resp = await fetch(`${this.baseUrl}${path}`, {
+    const resp = await this.fetchImpl(`${this.baseUrl}${path}`, {
       ...init,
       headers: {
         ...this.headers(),
@@ -365,7 +375,7 @@ export class RestApiAdapter implements ApiAdapter {
       }
       const refreshed = await this.refreshPromise;
       if (refreshed) {
-        const retry = await fetch(`${this.baseUrl}${path}`, {
+        const retry = await this.fetchImpl(`${this.baseUrl}${path}`, {
           ...init,
           headers: {
             ...this.headers(),
@@ -421,7 +431,7 @@ export class RestApiAdapter implements ApiAdapter {
     // (ClaimPage, JoinPage) render their unauthenticated UI instead of
     // hanging on the loading spinner forever.
     try {
-      const resp = await fetch(`${this.baseUrl}/api/v1/auth/me`, {
+      const resp = await this.fetchImpl(`${this.baseUrl}/api/v1/auth/me`, {
         headers: this.headers(),
         credentials: "same-origin",
       });
@@ -971,7 +981,7 @@ export class RestApiAdapter implements ApiAdapter {
       formData.append("files", file);
     }
     const url = `${this.projectEp(workspaceSlug, projectId)}/items/${this.ref(stream)}`;
-    const resp = await fetch(`${this.baseUrl}${url}`, {
+    const resp = await this.fetchImpl(`${this.baseUrl}${url}`, {
       method: "POST",
       headers: this.token ? { Authorization: `Bearer ${this.token}` } : {},
       credentials: "same-origin",
@@ -1201,7 +1211,7 @@ export class RestApiAdapter implements ApiAdapter {
     }
     // Server route (Bowrain AD-011): /:ws/:id/collections/:ref/:cid/items
     const url = `${this.projectEp(workspaceSlug, projectId)}/collections/${this.ref(stream)}/${encodeURIComponent(collectionId)}/items`;
-    const resp = await fetch(`${this.baseUrl}${url}`, {
+    const resp = await this.fetchImpl(`${this.baseUrl}${url}`, {
       method: "POST",
       headers: this.token ? { Authorization: `Bearer ${this.token}` } : {},
       credentials: "same-origin",
@@ -2280,7 +2290,7 @@ export class RestApiAdapter implements ApiAdapter {
     for (const file of files) {
       formData.append("files", file);
     }
-    const resp = await fetch(`${this.baseUrl}${this.brandScanEp(workspaceSlug)}/uploads`, {
+    const resp = await this.fetchImpl(`${this.baseUrl}${this.brandScanEp(workspaceSlug)}/uploads`, {
       method: "POST",
       headers: this.token ? { Authorization: `Bearer ${this.token}` } : {},
       credentials: "same-origin",
@@ -2683,7 +2693,7 @@ export class RestApiAdapter implements ApiAdapter {
 
     const run = async () => {
       try {
-        const resp = await fetch(url, {
+        const resp = await this.fetchImpl(url, {
           method: "POST",
           headers: {
             ...this.headers(),
