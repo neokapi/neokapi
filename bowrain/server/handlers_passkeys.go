@@ -257,7 +257,7 @@ func (s *Server) HandleRegisterStart(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "persist nonce: " + err.Error()})
 	}
 	return c.JSON(http.StatusOK, map[string]any{
-		"options": json.RawMessage(options),
+		"options": options,
 		"nonce":   nonce,
 	})
 }

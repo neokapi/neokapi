@@ -119,7 +119,7 @@ func TestHandleAccountSecurity(t *testing.T) {
 		var body map[string]any
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 		assert.Equal(t, true, body["in_app"])
-		assert.Equal(t, "", body["account_url"])
+		assert.Empty(t, body["account_url"])
 	})
 	t.Run("console provider exposes account_url", func(t *testing.T) {
 		s := &Server{CredentialManager: &fakeCredentialManager{inApp: false, accountURL: "https://auth/realms/bowrain/account"}}
@@ -212,13 +212,13 @@ func TestFreshCognitoAccessToken(t *testing.T) {
 	t.Run("no store -> reauth", func(t *testing.T) {
 		s := &Server{}
 		_, err := s.freshCognitoAccessToken(context.Background(), "user-1")
-		assert.ErrorIs(t, err, errReauthRequired)
+		require.ErrorIs(t, err, errReauthRequired)
 	})
 
 	t.Run("no stored token -> reauth", func(t *testing.T) {
 		s := &Server{UpstreamTokens: &fakeUpstreamTokenStore{}}
 		_, err := s.freshCognitoAccessToken(context.Background(), "user-1")
-		assert.ErrorIs(t, err, errReauthRequired)
+		require.ErrorIs(t, err, errReauthRequired)
 	})
 
 	t.Run("mints access token from refresh token", func(t *testing.T) {
@@ -248,7 +248,7 @@ func TestFreshCognitoAccessToken(t *testing.T) {
 			UpstreamTokens: store,
 		}
 		_, err := s.freshCognitoAccessToken(context.Background(), "user-1")
-		assert.ErrorIs(t, err, errReauthRequired)
+		require.ErrorIs(t, err, errReauthRequired)
 		assert.True(t, store.deleted, "dead refresh token should be pruned")
 	})
 }

@@ -182,11 +182,11 @@ func TestCognitoCredentialManager_PropagatesAPIErrors(t *testing.T) {
 	m := &CognitoCredentialManager{api: &fakeCognitoCredentialAPI{listErr: sentinel, startErr: sentinel, compErr: sentinel, delErr: sentinel}}
 
 	_, err := m.ListPasskeys(context.Background(), "AT")
-	assert.ErrorContains(t, err, "boom")
+	require.ErrorContains(t, err, "boom")
 	_, err = m.RegisterStart(context.Background(), "AT")
-	assert.ErrorContains(t, err, "boom")
-	assert.ErrorContains(t, m.RegisterFinish(context.Background(), "AT", json.RawMessage(`{}`)), "boom")
-	assert.ErrorContains(t, m.DeletePasskey(context.Background(), "AT", "cred"), "boom")
+	require.ErrorContains(t, err, "boom")
+	require.ErrorContains(t, m.RegisterFinish(context.Background(), "AT", json.RawMessage(`{}`)), "boom")
+	require.ErrorContains(t, m.DeletePasskey(context.Background(), "AT", "cred"), "boom")
 }
 
 func TestKeycloakCredentialManager(t *testing.T) {
@@ -196,11 +196,11 @@ func TestKeycloakCredentialManager(t *testing.T) {
 
 	// In-app ops are refused defensively.
 	_, err := m.ListPasskeys(context.Background(), "AT")
-	assert.ErrorIs(t, err, ErrNotInApp)
+	require.ErrorIs(t, err, ErrNotInApp)
 	_, err = m.RegisterStart(context.Background(), "AT")
-	assert.ErrorIs(t, err, ErrNotInApp)
-	assert.ErrorIs(t, m.RegisterFinish(context.Background(), "AT", nil), ErrNotInApp)
-	assert.ErrorIs(t, m.DeletePasskey(context.Background(), "AT", "cred"), ErrNotInApp)
+	require.ErrorIs(t, err, ErrNotInApp)
+	require.ErrorIs(t, m.RegisterFinish(context.Background(), "AT", nil), ErrNotInApp)
+	require.ErrorIs(t, m.DeletePasskey(context.Background(), "AT", "cred"), ErrNotInApp)
 
 	// Blank issuer → empty account URL, no panic.
 	assert.Empty(t, NewKeycloakCredentialManager("").AccountURL("x"))

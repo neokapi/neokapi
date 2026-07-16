@@ -65,7 +65,7 @@ func TestUpstreamTokenStore_Upsert(t *testing.T) {
 func TestUpstreamTokenStore_NotFound(t *testing.T) {
 	s, _ := newTestUpstreamStore(t)
 	_, _, err := s.GetRefreshToken(context.Background(), "nobody", "cognito")
-	assert.ErrorIs(t, err, ErrUpstreamTokenNotFound)
+	require.ErrorIs(t, err, ErrUpstreamTokenNotFound)
 }
 
 func TestUpstreamTokenStore_ExpiredTreatedAsGone(t *testing.T) {
@@ -74,7 +74,7 @@ func TestUpstreamTokenStore_ExpiredTreatedAsGone(t *testing.T) {
 
 	require.NoError(t, s.PutRefreshToken(ctx, "user-1", "cognito", "stale", time.Now().Add(-time.Minute)))
 	_, _, err := s.GetRefreshToken(ctx, "user-1", "cognito")
-	assert.ErrorIs(t, err, ErrUpstreamTokenNotFound)
+	require.ErrorIs(t, err, ErrUpstreamTokenNotFound)
 
 	// Expired rows are pruned on read.
 	var count int
@@ -90,7 +90,7 @@ func TestUpstreamTokenStore_Delete(t *testing.T) {
 	require.NoError(t, s.PutRefreshToken(ctx, "user-1", "cognito", "tok", time.Now().Add(time.Hour)))
 	require.NoError(t, s.DeleteRefreshToken(ctx, "user-1", "cognito"))
 	_, _, err := s.GetRefreshToken(ctx, "user-1", "cognito")
-	assert.ErrorIs(t, err, ErrUpstreamTokenNotFound)
+	require.ErrorIs(t, err, ErrUpstreamTokenNotFound)
 
 	// Deleting a missing row is a no-op.
 	require.NoError(t, s.DeleteRefreshToken(ctx, "user-1", "cognito"))
@@ -99,7 +99,7 @@ func TestUpstreamTokenStore_Delete(t *testing.T) {
 func TestUpstreamTokenStore_Validation(t *testing.T) {
 	s, _ := newTestUpstreamStore(t)
 	ctx := context.Background()
-	assert.Error(t, s.PutRefreshToken(ctx, "", "cognito", "tok", time.Now().Add(time.Hour)))
-	assert.Error(t, s.PutRefreshToken(ctx, "user", "", "tok", time.Now().Add(time.Hour)))
-	assert.Error(t, s.PutRefreshToken(ctx, "user", "cognito", "", time.Now().Add(time.Hour)))
+	require.Error(t, s.PutRefreshToken(ctx, "", "cognito", "tok", time.Now().Add(time.Hour)))
+	require.Error(t, s.PutRefreshToken(ctx, "user", "", "tok", time.Now().Add(time.Hour)))
+	require.Error(t, s.PutRefreshToken(ctx, "user", "cognito", "", time.Now().Add(time.Hour)))
 }
