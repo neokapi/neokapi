@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "paths": {
+      "@neokapi/ui-primitives": ["../../../packages/ui/src/index.ts"],
+      "@neokapi/ui-primitives/*": ["../../../packages/ui/src/*"],
+      "@neokapi/ui": ["../ui/src/index.ts"],
+      "@neokapi/ui/*": ["../ui/src/*"],
+      "@neokapi/flow-editor": ["../../../packages/flow-editor/src/index.ts"],
+      "@neokapi/flow-editor/*": ["../../../packages/flow-editor/src/*"]
+    },
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.stories.tsx", "src/**/*.stories.ts"]
+}

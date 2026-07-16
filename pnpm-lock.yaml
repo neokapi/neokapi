@@ -375,33 +375,15 @@ importers:
       '@fontsource/dm-mono':
         specifier: ^5.2.7
         version: 5.2.7
-      '@lexical/react':
-        specifier: ^0.47.0
-        version: 0.47.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@7.0.2)(yjs@13.6.31)
-      '@neokapi/flow-editor':
+      '@neokapi/bowrain-app':
         specifier: '*'
-        version: link:../../../packages/flow-editor
+        version: link:../../packages/app
       '@neokapi/ui':
         specifier: '*'
         version: link:../../packages/ui
       '@tailwindcss/vite':
         specifier: ^4.3.2
         version: 4.3.2(@voidzero-dev/vite-plus-core@0.2.4(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1))
-      '@tanstack/react-query':
-        specifier: 5.94.5
-        version: 5.94.5(react@19.2.7)
-      '@tanstack/react-router':
-        specifier: ^1.170.17
-        version: 1.170.17(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      d3-geo:
-        specifier: 3.1.1
-        version: 3.1.1
-      lexical:
-        specifier: ^0.47.0
-        version: 0.47.0(typescript@7.0.2)
-      lucide-react:
-        specifier: ^1.24.0
-        version: 1.24.0(react@19.2.7)
       posthog-js:
         specifier: ^1.399.2
         version: 1.399.2
@@ -411,21 +393,9 @@ importers:
       react-dom:
         specifier: ^19.2.7
         version: 19.2.7(react@19.2.7)
-      recharts:
-        specifier: ^3.9.2
-        version: 3.9.2(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react-is@17.0.2)(react@19.2.7)(redux@5.0.1)
       tailwindcss:
         specifier: ^4.3.2
         version: 4.3.2
-      topojson-client:
-        specifier: 3.1.0
-        version: 3.1.0
-      world-atlas:
-        specifier: 2.0.2
-        version: 2.0.2
-      zustand:
-        specifier: ^5.0.12
-        version: 5.0.14(@types/react@19.2.17)(immer@11.1.11)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
     devDependencies:
       '@playwright/test':
         specifier: ^1.61.1
@@ -439,21 +409,12 @@ importers:
       '@testing-library/user-event':
         specifier: ^14.6.1
         version: 14.6.1(@testing-library/dom@10.4.1)
-      '@types/d3-geo':
-        specifier: 3.1.0
-        version: 3.1.0
       '@types/react':
         specifier: ^19.2.17
         version: 19.2.17
       '@types/react-dom':
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
-      '@types/topojson-client':
-        specifier: 3.1.5
-        version: 3.1.5
-      '@types/topojson-specification':
-        specifier: 1.0.5
-        version: 1.0.5
       '@vitejs/plugin-react':
         specifier: ^6.0.3
         version: 6.0.3(@voidzero-dev/vite-plus-core@0.2.4(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(typescript@7.0.2))
@@ -491,6 +452,79 @@ importers:
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
+
+  bowrain/packages/app:
+    dependencies:
+      '@neokapi/flow-editor':
+        specifier: '*'
+        version: link:../../../packages/flow-editor
+      '@neokapi/ui':
+        specifier: '*'
+        version: link:../ui
+      '@tanstack/react-query':
+        specifier: 5.94.5
+        version: 5.94.5(react@19.2.7)
+      '@tanstack/react-router':
+        specifier: ^1.170.17
+        version: 1.170.17(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      d3-geo:
+        specifier: 3.1.1
+        version: 3.1.1
+      lucide-react:
+        specifier: ^1.24.0
+        version: 1.24.0(react@19.2.7)
+      recharts:
+        specifier: ^3.9.2
+        version: 3.9.2(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react-is@17.0.2)(react@19.2.7)(redux@5.0.1)
+      topojson-client:
+        specifier: 3.1.0
+        version: 3.1.0
+      world-atlas:
+        specifier: 2.0.2
+        version: 2.0.2
+      zustand:
+        specifier: ^5.0.12
+        version: 5.0.14(@types/react@19.2.17)(immer@11.1.11)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
+    devDependencies:
+      '@testing-library/jest-dom':
+        specifier: ^6.9.1
+        version: 6.9.1
+      '@testing-library/react':
+        specifier: ^16.3.2
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@testing-library/user-event':
+        specifier: ^14.6.1
+        version: 14.6.1(@testing-library/dom@10.4.1)
+      '@types/d3-geo':
+        specifier: 3.1.0
+        version: 3.1.0
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.17)
+      '@types/topojson-client':
+        specifier: 3.1.5
+        version: 3.1.5
+      '@types/topojson-specification':
+        specifier: 1.0.5
+        version: 1.0.5
+      jsdom:
+        specifier: ^29.1.1
+        version: 29.1.1
+      react:
+        specifier: ^19.2.7
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.2.7
+        version: 19.2.7(react@19.2.7)
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vite-plus:
+        specifier: ^0.2.4
+        version: 0.2.4(@types/node@25.9.3)(@voidzero-dev/vite-plus-core@0.2.4(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(typescript@7.0.2))(esbuild@0.28.1)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.49.0)(tsx@4.23.1)(typescript@7.0.2)
 
   bowrain/packages/ui:
     dependencies:

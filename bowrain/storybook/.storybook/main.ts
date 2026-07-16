@@ -16,7 +16,8 @@ const config = createMainConfig(
       // Bowrain apps
       "../../emails/src/**/*.stories.@(ts|tsx)",
       "../../apps/keycloak-theme/src/**/*.stories.@(ts|tsx)",
-      "../../apps/web/src/**/*.stories.@(ts|tsx)",
+      // Shared Bowrain app shell (auth + locale-demand stories moved here).
+      "../../packages/app/src/**/*.stories.@(ts|tsx)",
       "../../apps/bowrain/frontend/src/**/*.stories.@(ts|tsx)",
       "../../apps/ctrl/src/**/*.stories.@(ts|tsx)",
     ],
