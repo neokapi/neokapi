@@ -54,15 +54,20 @@ See [Project sync](/cli/overview) for the kapi workflow.
 
 Server-side connectors are configured per workspace in the Bowrain web UI. Once set up, they run automatically and can trigger automation rules when content arrives or translations are ready.
 
-Connectors are configured in **Workspace Settings > Connectors**.
+Remote connectors are configured per workspace through the connectors API, which
+requires the manage-connectors permission. Each guide covers the content it
+syncs, the credentials it needs, setup, and its limitations:
+
+- [WordPress](/server/connectors/wordpress) — CMS posts (title, content, excerpt)
+- [Figma](/server/connectors/figma) — design text layers (pull-only)
+- [HubSpot](/server/connectors/hubspot) — CMS page title and meta description
 
 :::warning Work in progress
 
-Server-side connectors are under active development. Currently supported:
-
-- **File connector** via kapi
-- **GitHub connector** (in progress)
-- **Contentful connector** (planned)
+Server-side connectors are under active development. The remote connectors above
+are configured through the workspace connectors API rather than a web form; a
+configuration UI is planned. The local-file and Git connectors run server-side
+and are driven by kapi (see the [kapi connector](#the-kapi-connector-local-files--git) above).
 
 :::
 
