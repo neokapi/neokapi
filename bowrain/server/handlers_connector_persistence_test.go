@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path/filepath"
 	"testing"
 
@@ -276,4 +277,93 @@ func TestFetchPrefersPathIDOverBody(t *testing.T) {
 	require.NoError(t, s.HandleFetch(c))
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	require.Equal(t, []string{"body-id"}, fetched, "with no path id, the body connector_id is used")
+}
+
+// listingConnector is a stub IntegrationConnector whose List returns a fixed set
+// of content items, so a test can exercise the read-only content-listing route.
+type listingConnector struct {
+	id    string
+	items []*platconn.ContentItem
+}
+
+func (l *listingConnector) ID() string                        { return l.id }
+func (l *listingConnector) Name() string                      { return l.id }
+func (l *listingConnector) Category() platconn.Category       { return platconn.CategoryCMS }
+func (l *listingConnector) Configure(map[string]string) error { return nil }
+func (l *listingConnector) Close() error                      { return nil }
+func (l *listingConnector) Fetch(context.Context, platconn.FetchOptions) ([]*platconn.ContentItem, error) {
+	return nil, nil
+}
+func (l *listingConnector) Publish(context.Context, []*platconn.ContentItem, platconn.PublishOptions) error {
+	return nil
+}
+func (l *listingConnector) List(context.Context) ([]*platconn.ContentItem, error) { return l.items, nil }
+func (l *listingConnector) Status(context.Context) (*platconn.SyncStatus, error) {
+	return &platconn.SyncStatus{ConnectorID: l.id}, nil
+}
+
+// connContentCtx builds an echo context for a workspace-member caller hitting the
+// read-only content route, with the :id path param and an optional ?paths= query.
+func connContentCtx(t *testing.T, wsID, pathID, paths string) (echo.Context, *httptest.ResponseRecorder) {
+	t.Helper()
+	target := "/connectors/" + pathID + "/content"
+	if paths != "" {
+		target += "?paths=" + url.QueryEscape(paths)
+	}
+	r := httptest.NewRequest(http.MethodGet, target, nil)
+	rec := httptest.NewRecorder()
+	c := echo.New().NewContext(r, rec)
+	c.Set("workspace_id", wsID)
+	c.SetParamNames("id")
+	c.SetParamValues(pathID)
+	return c, rec
+}
+
+func TestConnectorContentListsItems(t *testing.T) {
+	s, _ := newConnectorPersistenceServer(t, connectorTestCipher(t))
+	const wsID = "ws-1"
+
+	items := []*platconn.ContentItem{
+		{ID: "home", Path: "/home", Name: "Home", Format: "html"},
+		{ID: "about", Path: "/about", Name: "About", Format: "html"},
+	}
+	s.ConnectorReg.Register("listing", platconn.CategoryCMS, func(config map[string]string) (platconn.IntegrationConnector, error) {
+		return &listingConnector{id: config["id"], items: items}, nil
+	})
+	_, err := s.Services.Connector.AddConnector(wsID, "listing", map[string]string{"id": "wp-1"})
+	require.NoError(t, err)
+
+	// Full listing returns every item, marshaled with the ContentItem struct's
+	// own (PascalCase) JSON keys under a stable {items:[...]} envelope.
+	c, rec := connContentCtx(t, wsID, "wp-1", "")
+	require.NoError(t, s.HandleConnectorContent(c))
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	var resp struct {
+		Items []*platconn.ContentItem `json:"items"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Items, 2)
+	assert.Equal(t, "home", resp.Items[0].ID)
+	assert.Equal(t, "/home", resp.Items[0].Path)
+	assert.Equal(t, "Home", resp.Items[0].Name)
+	assert.Contains(t, rec.Body.String(), `"Path":"/home"`, "items use the ContentItem struct JSON shape verbatim")
+
+	// ?paths= narrows to the matching item (matched by Path or ID).
+	c, rec = connContentCtx(t, wsID, "wp-1", "/about")
+	require.NoError(t, s.HandleConnectorContent(c))
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Items, 1)
+	assert.Equal(t, "about", resp.Items[0].ID)
+
+	// An unknown connector id is a 404.
+	c, rec = connContentCtx(t, wsID, "does-not-exist", "")
+	require.NoError(t, s.HandleConnectorContent(c))
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+
+	// The connector is workspace-scoped: another workspace cannot address it.
+	c, rec = connContentCtx(t, "ws-other", "wp-1", "")
+	require.NoError(t, s.HandleConnectorContent(c))
+	assert.Equal(t, http.StatusNotFound, rec.Code)
 }

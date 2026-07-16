@@ -10,14 +10,25 @@ import {
 } from "@neokapi/ui-primitives";
 import { useState, useEffect } from "react";
 import type { CollectionKind, CollectionInfo } from "../types/api";
+import type { VoiceProfile } from "../brand/types";
 import { Upload, Plug } from "./icons";
+
+/** Binding key stored inside a collection's connector_config map. */
+const BRAND_VOICE_KEY = "brand_voice_profile_id";
 
 export interface CreateCollectionDialogProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: { name: string; kind: CollectionKind; item_label: string }) => void;
+  onSubmit: (data: {
+    name: string;
+    kind: CollectionKind;
+    item_label: string;
+    connector_config?: Record<string, string>;
+  }) => void;
   /** When set, the dialog operates in edit mode. */
   editCollection?: CollectionInfo;
+  /** Workspace brand-voice profiles; when non-empty the dialog offers a voice picker. */
+  brandProfiles?: VoiceProfile[];
 }
 
 export function CreateCollectionDialog({
@@ -25,12 +36,15 @@ export function CreateCollectionDialog({
   onClose,
   onSubmit,
   editCollection,
+  brandProfiles,
 }: CreateCollectionDialogProps) {
   const [name, setName] = useState("");
   const [kind, setKind] = useState<CollectionKind>("uploaded");
   const [itemLabel, setItemLabel] = useState("");
+  const [brandVoiceProfileId, setBrandVoiceProfileId] = useState("");
 
   const isEdit = !!editCollection;
+  const showBrandPicker = !!brandProfiles && brandProfiles.length > 0;
 
   // Populate fields when editing
   useEffect(() => {
@@ -38,6 +52,7 @@ export function CreateCollectionDialog({
       setName(editCollection.name);
       setKind(editCollection.kind);
       setItemLabel(editCollection.item_label === "item" ? "" : editCollection.item_label);
+      setBrandVoiceProfileId(editCollection.connector_config?.[BRAND_VOICE_KEY] ?? "");
     }
   }, [editCollection, open]);
 
@@ -45,6 +60,7 @@ export function CreateCollectionDialog({
     setName("");
     setKind("uploaded");
     setItemLabel("");
+    setBrandVoiceProfileId("");
   };
 
   const handleOpenChange = (v: boolean) => {
@@ -56,10 +72,26 @@ export function CreateCollectionDialog({
 
   const handleSubmit = () => {
     if (!name.trim()) return;
+    // Preserve any existing connector_config (secrets are re-added server-side)
+    // and layer the brand-voice binding on top. On create, only send the map
+    // when a profile is picked; on edit, always send it so clearing back to
+    // "Inherit" persists an empty binding.
+    let connectorConfig: Record<string, string> | undefined;
+    if (showBrandPicker) {
+      if (isEdit) {
+        connectorConfig = {
+          ...(editCollection?.connector_config ?? {}),
+          [BRAND_VOICE_KEY]: brandVoiceProfileId,
+        };
+      } else if (brandVoiceProfileId) {
+        connectorConfig = { [BRAND_VOICE_KEY]: brandVoiceProfileId };
+      }
+    }
     onSubmit({
       name: name.trim(),
       kind,
       item_label: itemLabel.trim() || "item",
+      ...(connectorConfig ? { connector_config: connectorConfig } : {}),
     });
     resetForm();
   };
@@ -166,6 +198,30 @@ export function CreateCollectionDialog({
               How items in this collection are referred to in the UI
             </p>
           </div>
+
+          {showBrandPicker && (
+            <div>
+              <Label className="text-muted-foreground">Brand voice</Label>
+              <select
+                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                value={brandVoiceProfileId}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  setBrandVoiceProfileId(e.target.value)
+                }
+                aria-label="Collection brand voice profile"
+              >
+                <option value="">Inherit (stream/project)</option>
+                {brandProfiles?.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Overrides the stream and project brand voice for content in this collection
+              </p>
+            </div>
+          )}
         </div>
 
         <DialogFooter>

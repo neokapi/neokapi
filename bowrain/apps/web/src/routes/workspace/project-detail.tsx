@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
-import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { useSuspenseQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Alert,
   AlertDescription,
@@ -31,7 +31,7 @@ import type {
   StreamDiffResult,
   StreamInfo,
 } from "@neokapi/ui";
-import { projectQueryOptions } from "../../queries";
+import { projectQueryOptions, brandProfilesQueryOptions } from "../../queries";
 import type { WorkspaceRouteContext } from "..";
 
 export function ProjectDetailRoute() {
@@ -46,6 +46,10 @@ export function ProjectDetailRoute() {
   const { data: project } = useSuspenseQuery(
     projectQueryOptions(adapter, ws, projectId!, activeStream),
   );
+
+  // Workspace brand-voice profiles feed the per-collection / per-stream voice
+  // pickers; the dialogs render the control only when profiles exist.
+  const { data: brandProfiles } = useQuery(brandProfilesQueryOptions(adapter, ws));
 
   useEffect(() => {
     document.title = `${project.name} — ${activeWorkspace.name} — Bowrain`;
@@ -125,7 +129,12 @@ export function ProjectDetailRoute() {
   >(undefined);
 
   const handleCreateCollection = useCallback(
-    (data: { name: string; kind: "uploaded" | "connected"; item_label: string }) =>
+    (data: {
+      name: string;
+      kind: "uploaded" | "connected";
+      item_label: string;
+      connector_config?: Record<string, string>;
+    }) =>
       runAction(async () => {
         if (editingCollection) {
           // Edit mode — update existing collection
@@ -186,7 +195,13 @@ export function ProjectDetailRoute() {
   const [diffResult, setDiffResult] = useState<StreamDiffResult | null>(null);
 
   const handleCreateStream = useCallback(
-    (data: { name: string; parent: string; visibility: StreamVisibility; description: string }) =>
+    (data: {
+      name: string;
+      parent: string;
+      visibility: StreamVisibility;
+      description: string;
+      properties?: Record<string, string>;
+    }) =>
       runAction(async () => {
         await adapter.createStream(ws, project.id, data);
         setShowCreateStream(false);
@@ -201,7 +216,11 @@ export function ProjectDetailRoute() {
   }, []);
 
   const handleEditStreamSubmit = useCallback(
-    (data: { description: string; visibility: StreamVisibility }) =>
+    (data: {
+      description: string;
+      visibility: StreamVisibility;
+      properties?: Record<string, string>;
+    }) =>
       runAction(async () => {
         if (!editingStream) return;
         await adapter.updateStream(ws, project.id, editingStream.name, data);
@@ -422,6 +441,7 @@ export function ProjectDetailRoute() {
         }}
         onSubmit={handleCreateCollection}
         editCollection={editingCollection}
+        brandProfiles={brandProfiles}
       />
 
       {/* Create Stream Dialog */}
@@ -430,6 +450,7 @@ export function ProjectDetailRoute() {
         open={showCreateStream}
         onClose={() => setShowCreateStream(false)}
         onSubmit={handleCreateStream}
+        brandProfiles={brandProfiles}
       />
 
       {/* Edit Stream Dialog */}
@@ -438,6 +459,7 @@ export function ProjectDetailRoute() {
         open={editingStream !== null}
         onClose={() => setEditingStream(null)}
         onSubmit={handleEditStreamSubmit}
+        brandProfiles={brandProfiles}
       />
 
       {/* Merge Stream Dialog */}

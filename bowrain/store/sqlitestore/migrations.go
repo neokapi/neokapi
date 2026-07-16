@@ -2,12 +2,16 @@ package sqlitestore
 
 import "github.com/neokapi/neokapi/bowrain/storage"
 
-// storeMigrations defines the complete SQLite content store schema.
-// Mirrors bowrain/store/migrations.go (the Postgres schema) with the
-// dialect differences translated (TIMESTAMPTZ → TEXT, JSONB → TEXT,
-// BIGSERIAL → INTEGER PRIMARY KEY AUTOINCREMENT). Bowrain is not yet
-// in production; there is no migration history to preserve, so we
-// keep a single baseline migration that represents the current design.
+// storeMigrations defines the SQLite content store schema. Mirrors
+// bowrain/store/migrations.go (the Postgres schema) with the dialect
+// differences translated (TIMESTAMPTZ → TEXT, JSONB → TEXT, BIGSERIAL →
+// INTEGER PRIMARY KEY AUTOINCREMENT). Version 1 is the launch baseline;
+// desktops carry long-lived local databases, so every schema change after it
+// MUST be an incremental migration.
+//
+// RETIRED VERSION NUMBERS — never reuse: 2 ("Live Preview", AD-023/AD-036)
+// and 3 ("block occurrences", AD-036) ran on live databases before being
+// folded into the v1 baseline. New migrations start at 4.
 var storeMigrations = []storage.Migration{
 	{
 		Version:     1,
@@ -572,14 +576,14 @@ var storeMigrations = []storage.Migration{
 		`,
 	},
 	{
-		Version:     2,
+		Version:     4,
 		Description: "workspace-scoped connector configs (durable connectors)",
 		SQL: `
-			-- Mirrors connector_configs in bowrain/store/migrations.go (Version 3).
+			-- Mirrors connector_configs in bowrain/store/migrations.go (Version 5).
 			-- config is a JSON map (TEXT) whose secret values are sealed with
 			-- crypto.Cipher; timestamps are TEXT RFC3339 so a single
 			-- ConnectorConfigStore(*sql.DB) scans identically on both drivers.
-			CREATE TABLE connector_configs (
+			CREATE TABLE IF NOT EXISTS connector_configs (
 				id           TEXT NOT NULL,
 				workspace_id TEXT NOT NULL,
 				type         TEXT NOT NULL,
@@ -589,14 +593,14 @@ var storeMigrations = []storage.Migration{
 				updated_at   TEXT NOT NULL DEFAULT '',
 				PRIMARY KEY (workspace_id, id)
 			);
-			CREATE INDEX idx_connector_configs_ws ON connector_configs(workspace_id);
+			CREATE INDEX IF NOT EXISTS idx_connector_configs_ws ON connector_configs(workspace_id);
 		`,
 	},
 	{
-		Version:     3,
+		Version:     5,
 		Description: "stream properties (extensible metadata, incl. brand voice binding)",
 		SQL: `
-			-- Mirrors streams.properties in bowrain/store/migrations.go (Version 4):
+			-- Mirrors streams.properties in bowrain/store/migrations.go (Version 6):
 			-- a JSON TEXT map carrying the stream-level brand-voice binding
 			-- (brand_voice_profile_id) and other extensible metadata.
 			ALTER TABLE streams ADD COLUMN properties TEXT NOT NULL DEFAULT '{}';

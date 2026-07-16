@@ -50,6 +50,7 @@ import type {
   CollectionInfo,
   ConnectorInfo,
   ConnectorSyncStatus,
+  ConnectorContentItem,
   PostHogConnectorConfig,
   PostHogDemandResponse,
   AuditEntry,
@@ -568,6 +569,31 @@ export class WailsApiAdapter implements ApiAdapter {
   ): Promise<{ status: string }> {
     await Backend.PublishContent(connectorId, projectId);
     return { status: "ok" };
+  }
+
+  async listConnectorContent(_ws: string, connectorId: string): Promise<ConnectorContentItem[]> {
+    // The desktop binding returns its own ContentItemInfo shape
+    // ({id, path, title, block_count}), not the server's verbatim ContentItem.
+    // Map it into the PascalCase ConnectorContentItem: title → Name, and the
+    // fields the binding doesn't carry (Format, Locale, Blocks, Metadata,
+    // LastChanged) stay empty/null — matching a server listing where Blocks is
+    // null too.
+    const items = ((await Backend.ListContentItems(connectorId)) ?? []) as {
+      id: string;
+      path: string;
+      title: string;
+      block_count: number;
+    }[];
+    return items.map((it) => ({
+      ID: it.id,
+      Name: it.title,
+      Path: it.path,
+      Format: "",
+      Locale: "",
+      Blocks: null,
+      Metadata: null,
+      LastChanged: "",
+    }));
   }
 
   // --- PostHog locale-demand connector (web-only surface) ---

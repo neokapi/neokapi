@@ -53,7 +53,7 @@ func NewWordPressConnector(config map[string]string) (*WordPressConnector, error
 
 	id := config["id"]
 	if id == "" {
-		id = "wp-" + strings.ReplaceAll(baseURL, "/", "-")
+		id = "wp-" + urlSafeID(baseURL)
 	}
 
 	return &WordPressConnector{

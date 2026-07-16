@@ -2,14 +2,17 @@ package server
 
 import (
 	"context"
+	"net/url"
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/connector"
+	"github.com/neokapi/neokapi/bowrain/service"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
@@ -102,6 +105,19 @@ func (s *Server) rehydrateConnectors(ctx context.Context) {
 	if rehydrated > 0 {
 		slog.Info("connector rehydration complete", "count", rehydrated)
 	}
+}
+
+
+// connectorIDParam returns the :id path parameter percent-decoded. Echo hands
+// back the raw matched segment, and connector ids can carry characters the
+// client must escape (the WordPress connector historically derived ids
+// containing ':'), so every handler must unescape before lookups.
+func connectorIDParam(c echo.Context) string {
+	raw := c.Param("id")
+	if id, err := url.PathUnescape(raw); err == nil {
+		return id
+	}
+	return raw
 }
 
 func (s *Server) HandleListActiveConnectors(c echo.Context) error {
@@ -219,7 +235,7 @@ func (s *Server) HandleUpdateConnector(c echo.Context) error {
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
-	id := c.Param("id")
+	id := connectorIDParam(c)
 
 	// Load the existing config to learn its type (the request may omit it) and
 	// to 404 a missing/cross-tenant id before touching anything.
@@ -300,7 +316,7 @@ func (s *Server) HandleRemoveConnector(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 	wsID, _ := c.Get("workspace_id").(string)
-	id := c.Param("id")
+	id := connectorIDParam(c)
 
 	// With persistence wired, the persisted row is the source of truth: remove
 	// the live instance best-effort (it is normally present via rehydration),
@@ -326,7 +342,7 @@ func (s *Server) HandleRemoveConnector(c echo.Context) error {
 // connectorIDFromRequest prefers the path :id and falls back to the body's
 // connector_id for backward compatibility with the pre-path callers.
 func connectorIDFromRequest(c echo.Context, bodyID string) string {
-	if id := c.Param("id"); id != "" {
+	if id := connectorIDParam(c); id != "" {
 		return id
 	}
 	return bodyID
@@ -387,9 +403,73 @@ func (s *Server) HandleConnectorStatus(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 	wsID, _ := c.Get("workspace_id").(string)
-	status, err := s.Services.Connector.ConnectorStatus(c.Request().Context(), wsID, c.Param("id"))
+	status, err := s.Services.Connector.ConnectorStatus(c.Request().Context(), wsID, connectorIDParam(c))
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 	return c.JSON(http.StatusOK, status)
+}
+
+// contentListResponse wraps the content items so the payload has a stable
+// top-level shape ({items: [...]}). Each item is a core/connector ContentItem
+// marshaled verbatim — the web UI builds its TS types against that struct.
+type contentListResponse struct {
+	Items []*connector.ContentItem `json:"items"`
+}
+
+// HandleConnectorContent lists the content items a connector exposes, mirroring
+// the desktop app's in-process ListContentItems binding (a connector-wide List
+// that does not fetch full content into the store). It is read-only, so it is
+// gated only by workspace membership (the wsSpecific group), not
+// PermManageConnectors.
+//
+// An optional ?paths= (comma-separated paths or IDs) narrows the result. An
+// optional ?project_id= is accepted for request symmetry with fetch but does
+// not scope the listing — a connector's content set is connector-wide, not
+// per-project.
+func (s *Server) HandleConnectorContent(c echo.Context) error {
+	if s.Services == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+	}
+	wsID, _ := c.Get("workspace_id").(string)
+	items, err := s.Services.Connector.ListContent(c.Request().Context(), wsID, connectorIDParam(c))
+	if err != nil {
+		if errors.Is(err, service.ErrConnectorNotFound) {
+			return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+		}
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	items = filterContentByPaths(items, c.QueryParam("paths"))
+	if items == nil {
+		items = []*connector.ContentItem{}
+	}
+	return c.JSON(http.StatusOK, contentListResponse{Items: items})
+}
+
+// filterContentByPaths narrows items to those whose Path or ID appears in the
+// comma-separated paths list. An empty list is a no-op (returns items as-is).
+func filterContentByPaths(items []*connector.ContentItem, paths string) []*connector.ContentItem {
+	if strings.TrimSpace(paths) == "" {
+		return items
+	}
+	want := make(map[string]struct{})
+	for p := range strings.SplitSeq(paths, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			want[p] = struct{}{}
+		}
+	}
+	if len(want) == 0 {
+		return items
+	}
+	filtered := make([]*connector.ContentItem, 0, len(items))
+	for _, it := range items {
+		if _, ok := want[it.Path]; ok {
+			filtered = append(filtered, it)
+			continue
+		}
+		if _, ok := want[it.ID]; ok {
+			filtered = append(filtered, it)
+		}
+	}
+	return filtered
 }

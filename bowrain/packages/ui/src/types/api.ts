@@ -199,6 +199,8 @@ export interface StreamInfo {
   created_at: string;
   created_by: string;
   shared_with?: string[];
+  /** Extensible metadata, e.g. the stream-level brand-voice binding under `brand_voice_profile_id`. */
+  properties?: Record<string, string>;
 }
 
 /** Stream diff block change */
@@ -230,6 +232,8 @@ export interface CreateStreamRequest {
   parent?: string;
   visibility?: StreamVisibility;
   description?: string;
+  /** Extensible metadata, e.g. `brand_voice_profile_id` for the stream-level brand-voice binding. */
+  properties?: Record<string, string>;
 }
 
 /** Stream tag kind */
@@ -1583,6 +1587,28 @@ export interface ConnectorSyncStatus {
   pendingPull: number;
   pendingPush: number;
   errors: string[];
+}
+
+/**
+ * One item a connector can see, for the read-only content browser. This is a
+ * verbatim mirror of the Go `core/connector.ContentItem` struct, which the
+ * server marshals with NO json tags — so keys are PascalCase, not camelCase.
+ * On a listing `Blocks` is null (List does not fetch content) and `LastChanged`
+ * is an RFC3339 string. The desktop maps its ContentItemInfo binding into the
+ * same shape.
+ */
+export interface ConnectorContentItem {
+  ID: string;
+  Name: string;
+  Path: string;
+  /** Detected format/type id (e.g. "html", "json"); "" when the source reports none. */
+  Format: string;
+  Locale: string;
+  /** Full block payload; null on listings (List does not fetch content into the store). */
+  Blocks: unknown[] | null;
+  Metadata: Record<string, string> | null;
+  /** RFC3339 timestamp of the item's last change. */
+  LastChanged: string;
 }
 
 // ── PostHog locale-demand connector (phase 0, read-only) ────────────────────

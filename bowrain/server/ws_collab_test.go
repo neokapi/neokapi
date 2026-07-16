@@ -141,8 +141,16 @@ func TestCollabWebSocket_RelayMessages(t *testing.T) {
 		defer resp2.Body.Close()
 	}
 
-	// Give server time to register both clients.
-	time.Sleep(100 * time.Millisecond)
+	// Wait until the server has actually registered both clients in the room.
+	// websocket.Dial returns as soon as the handshake completes (server-side,
+	// when websocket.Accept returns) — but the handler adds the client to the
+	// room only afterwards. A fixed sleep races that registration: if conn1
+	// writes before conn2 is in the room, the broadcast fan-out skips conn2 and
+	// its Read blocks until the read deadline, failing the test intermittently.
+	// Poll the real condition instead.
+	require.Eventually(t, func() bool {
+		return hubClientCount(s.collabHub) == 2
+	}, 5*time.Second, 5*time.Millisecond, "both clients must join the room before relaying")
 
 	// Send a binary message from conn1.
 	testMsg := []byte{0x01, 0x02, 0x03}
@@ -163,4 +171,25 @@ func TestCollabWebSocket_RelayMessages(t *testing.T) {
 	defer noEchoCancel()
 	_, _, err = conn1.Read(noEchoCtx)
 	assert.Error(t, err, "sender should not receive their own message")
+}
+
+// hubClientCount returns the total number of registered clients across all rooms
+// in the hub. Tests use it to wait for asynchronous client registration to
+// complete (the WebSocket handshake finishes before the handler adds the client
+// to its room), reading the hub's state under its own locks.
+func hubClientCount(hub *collabHub) int {
+	hub.mu.RLock()
+	rooms := make([]*collabRoom, 0, len(hub.rooms))
+	for _, r := range hub.rooms {
+		rooms = append(rooms, r)
+	}
+	hub.mu.RUnlock()
+
+	total := 0
+	for _, r := range rooms {
+		r.mu.RLock()
+		total += len(r.clients)
+		r.mu.RUnlock()
+	}
+	return total
 }

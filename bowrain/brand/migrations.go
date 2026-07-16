@@ -2,10 +2,10 @@ package brand
 
 import "github.com/neokapi/neokapi/bowrain/storage"
 
-// brandMigrations defines the complete brand-voice schema as a single baseline.
-// The platform is pre-launch with no databases to preserve, so the schema is one
-// clean definition (the correction-learning loop's tables included) rather than
-// an incremental migration history.
+// brandMigrations holds the brand-voice schema. Version 1 is the launch
+// baseline; the platform is live now, so every schema change after it MUST be
+// an incremental migration — existing databases only ever run new versions,
+// never a re-run of the baseline.
 var brandMigrations = []storage.Migration{
 	{
 		Version:     1,
@@ -22,7 +22,6 @@ var brandMigrations = []storage.Migration{
 				examples     JSONB NOT NULL DEFAULT '[]',
 				locales      JSONB NOT NULL DEFAULT '{}',
 				channels     JSONB NOT NULL DEFAULT '{}',
-				personas     JSONB NOT NULL DEFAULT '{}',
 				autonomy     JSONB NOT NULL DEFAULT '{}',
 				version      INTEGER NOT NULL DEFAULT 1,
 				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -95,6 +94,14 @@ var brandMigrations = []storage.Migration{
 				decided_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (profile_id, term)
 			);
+		`,
+	},
+	{
+		Version:     2,
+		Description: "author personas on brand profiles",
+		SQL: `
+			ALTER TABLE brand_profiles
+				ADD COLUMN IF NOT EXISTS personas JSONB NOT NULL DEFAULT '{}';
 		`,
 	},
 }
