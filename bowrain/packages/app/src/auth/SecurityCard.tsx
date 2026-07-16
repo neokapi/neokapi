@@ -23,6 +23,7 @@ import {
   isElevationRequired,
   beginElevation,
 } from "./webauthn";
+import { usePlatform } from "../platform";
 
 /**
  * SecurityCard — self-service passkey (WebAuthn) management.
@@ -40,6 +41,7 @@ import {
 export function SecurityCard() {
   const api = useApi();
   const queryClient = useQueryClient();
+  const platform = usePlatform();
 
   // Surface the outcome of a step-up round-trip (?elevated=1|0), then strip the
   // param so a refresh doesn't re-show it.
@@ -86,6 +88,39 @@ export function SecurityCard() {
   // Feature unavailable on this deployment (e.g. OIDC not configured → 503).
   if (!security) {
     return null;
+  }
+
+  // ── Desktop: passkeys are browser-only. ─────────────────────────────────
+  // WebAuthn ceremonies (navigator.credentials.*) and the OIDC step-up redirect
+  // both require a real browser origin, which the Wails webview is not. Rather
+  // than render a manager whose buttons fail, send the user to the web app —
+  // the account console when the provider has one (Keycloak), else the connected
+  // server's web app (Cognito's in-app manager).
+  if (platform.kind === "desktop") {
+    const openInBrowser = async () => {
+      const target = security.account_url || (await platform.webBaseUrl?.());
+      if (target) platform.openExternal(target);
+    };
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Security</CardTitle>
+          <CardDescription>Manage passkeys and sign-in methods for your account.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          <p className="text-muted-foreground text-sm">
+            Passkeys are set up in your browser. Open Bowrain there to add or remove passkeys and
+            manage sign-in methods.
+          </p>
+          <div>
+            <Button variant="outline" onClick={() => void openInBrowser()}>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Manage in your browser
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   // ── Account-console provider (Keycloak): link out. ──────────────────────

@@ -7,7 +7,7 @@ import { Loader2 } from "lucide-react";
 import { Events } from "@wailsio/runtime";
 import { ServerConnect } from "./components/ServerConnect";
 import { useConnection } from "./hooks/useApi";
-import { WailsApiAdapter } from "./api/WailsApiAdapter";
+import { createDesktopAdapter } from "./api/desktopAdapter";
 import { createDesktopPlatform } from "./api/desktopPlatform";
 import { queryClient } from "./lib/queryClient";
 
@@ -15,12 +15,12 @@ type AppMode = "loading" | "connecting" | "ready";
 
 // One adapter + platform + history for the app's lifetime.
 //
-// The WailsApiAdapter reports `mode: "standalone"` to the shared app, so the
-// router self-configures as a single local working copy (workspace slug
-// "local") and never takes the server-auth/login-redirect path — the real
-// server auth is the ServerConnect gate below. The adapter proxies the
-// connected server's currently-selected workspace under the hood.
-const wailsAdapter = new WailsApiAdapter();
+// The composite adapter runs the shared RestApiAdapter over a Wails ProxyRequest
+// transport (real server, keychain auth), with the desktop's local-first
+// surfaces served by bindings. It reports the server's real config, so the
+// shared router runs in server mode against the connected server — the real
+// server auth is the ServerConnect gate below.
+const desktopAdapter = createDesktopAdapter();
 const desktopPlatform = createDesktopPlatform();
 // Hash history: the Wails webview serves the frontend from a static asset root,
 // so browser history would 404 on refresh or deep navigation. Hash keeps every
@@ -86,6 +86,20 @@ function AppInner() {
     }
   }, [connection.info.state, mode]);
 
+  // Demote back to the gate when the session drops after mounting — the desktop
+  // sign-out (platform.signOut → Logout) disconnects, and this returns the user
+  // to ServerConnect. A transient network blip reports "offline" (still a valid
+  // working copy), so only a true disconnect/unauthenticated state demotes.
+  useEffect(() => {
+    if (
+      mode === "ready" &&
+      connection.info.state !== "connected" &&
+      connection.info.state !== "offline"
+    ) {
+      setMode("connecting");
+    }
+  }, [connection.info.state, mode]);
+
   // Initial probe: reuse a stored/auto session if present, else show the gate.
   useEffect(() => {
     connection
@@ -146,7 +160,7 @@ function AppInner() {
   // and a hash history.
   return (
     <BowrainApp
-      api={wailsAdapter}
+      api={desktopAdapter}
       platform={desktopPlatform}
       queryClient={queryClient}
       history={desktopHistory}

@@ -2172,6 +2172,44 @@ export class ProviderConfigInfo {
 }
 
 /**
+ * ProxyResponse is the raw result of a ProxyRequest.
+ */
+export class ProxyResponse {
+    /**
+     * Creates a new ProxyResponse instance.
+     * @param {Partial<ProxyResponse>} [$$source = {}] - The source object to create the ProxyResponse.
+     */
+    constructor($$source = {}) {
+        if (!("status" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["status"] = 0;
+        }
+        if (!("body" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["body"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProxyResponse instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ProxyResponse}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ProxyResponse(/** @type {Partial<ProxyResponse>} */($$parsedSource));
+    }
+}
+
+/**
  * ReviewArgs is the body of POST /changesets/:id/approve|reject (ReviewRequest).
  */
 export class ReviewArgs {

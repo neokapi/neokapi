@@ -349,7 +349,7 @@ export { StreamActionsProvider, useStreamActions } from "./context/StreamActions
 
 // API
 export type { ApiAdapter } from "./api/adapter";
-export { RestApiAdapter } from "./api/rest-adapter";
+export { RestApiAdapter, type ApiTransport } from "./api/rest-adapter";
 
 // Collaboration
 export { PresenceAvatars } from "./components/PresenceAvatars";

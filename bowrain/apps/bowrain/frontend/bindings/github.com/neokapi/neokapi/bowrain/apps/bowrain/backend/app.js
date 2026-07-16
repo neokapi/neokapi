@@ -1160,6 +1160,43 @@ export function PromoteRule(workspaceSlug, profileID, rule) {
 }
 
 /**
+ * ProxyMultipart is the multipart/form-data companion to ProxyRequest. The
+ * string-only ProxyRequest cannot carry file uploads, so surfaces that POST a
+ * FormData (brand-scan sources, collection uploads) route here instead: the
+ * frontend serializes the form into proxyMultipartPayload (files base64-encoded)
+ * and this rebuilds a genuine multipart body, forwarding it to the connected
+ * server with the keychain Bearer token. Same connection/auth contract and raw
+ * status+body result as ProxyRequest.
+ * @param {string} method
+ * @param {string} path
+ * @param {string} payloadJSON
+ * @returns {$CancellablePromise<$models.ProxyResponse>}
+ */
+export function ProxyMultipart(method, path, payloadJSON) {
+    return $Call.ByID(227792476, method, path, payloadJSON).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType59($result);
+    }));
+}
+
+/**
+ * ProxyRequest forwards an arbitrary REST call (method + path, e.g.
+ * "/api/v1/acme/projects") to the connected bowrain server with the keychain
+ * Bearer token, returning the raw HTTP status and body. body is the request
+ * payload (a JSON string, or "" for none). A non-2xx status is returned in
+ * ProxyResponse.Status, not as an error; err is non-nil only for a missing
+ * connection/token or a transport failure.
+ * @param {string} method
+ * @param {string} path
+ * @param {string} body
+ * @returns {$CancellablePromise<$models.ProxyResponse>}
+ */
+export function ProxyRequest(method, path, body) {
+    return $Call.ByID(1673185545, method, path, body).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType59($result);
+    }));
+}
+
+/**
  * PseudoTranslateItem pseudo-translates all blocks in an item. When connected
  * the action runs on the server (source of truth) and the local cache is
  * refreshed from the result; on failure or offline it runs locally against the
@@ -1171,7 +1208,7 @@ export function PromoteRule(workspaceSlug, profileID, rule) {
  */
 export function PseudoTranslateItem(projectID, itemName, targetLocale) {
     return $Call.ByID(274883483, projectID, itemName, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType60($result);
+        return $$createType61($result);
     }));
 }
 
@@ -1339,7 +1376,7 @@ export function SaveFlowDefinition(projectID, info) {
  */
 export function SaveProviderConfig(req) {
     return $Call.ByID(832952266, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType61($result);
+        return $$createType62($result);
     }));
 }
 
@@ -1438,7 +1475,7 @@ export function SubmitChangeset(workspaceSlug, changesetID) {
  */
 export function TMTranslateItem(projectID, itemName, targetLocale) {
     return $Call.ByID(1701277356, projectID, itemName, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType60($result);
+        return $$createType61($result);
     }));
 }
 
@@ -1455,7 +1492,7 @@ export function TMTranslateItem(projectID, itemName, targetLocale) {
  */
 export function TermEnforceItem(projectID, itemName, targetLocale) {
     return $Call.ByID(88031319, projectID, itemName, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType63($result);
+        return $$createType64($result);
     }));
 }
 
@@ -1625,8 +1662,9 @@ const $$createType55 = $models.TermLookupResult.createFrom;
 const $$createType56 = $Create.Nullable($$createType55);
 const $$createType57 = $models.BlockTermMatch.createFrom;
 const $$createType58 = $Create.Array($$createType57);
-const $$createType59 = $models.TranslationStats.createFrom;
-const $$createType60 = $Create.Nullable($$createType59);
-const $$createType61 = $Create.Nullable($$createType45);
-const $$createType62 = $models.TermEnforceResult.createFrom;
-const $$createType63 = $Create.Array($$createType62);
+const $$createType59 = $models.ProxyResponse.createFrom;
+const $$createType60 = $models.TranslationStats.createFrom;
+const $$createType61 = $Create.Nullable($$createType60);
+const $$createType62 = $Create.Nullable($$createType45);
+const $$createType63 = $models.TermEnforceResult.createFrom;
+const $$createType64 = $Create.Array($$createType63);

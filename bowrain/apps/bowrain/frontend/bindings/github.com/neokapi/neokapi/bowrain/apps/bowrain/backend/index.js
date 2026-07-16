@@ -44,6 +44,7 @@ export {
     ProjectInfo,
     ProjectItem,
     ProviderConfigInfo,
+    ProxyResponse,
     ReviewArgs,
     RunConstraintsInfo,
     RunInfo,
