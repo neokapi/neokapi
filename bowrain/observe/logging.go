@@ -34,7 +34,7 @@ func SetupLogger(format, level string) *slog.Logger {
 	var sink slog.Handler
 	switch strings.ToLower(format) {
 	case "text", "dev":
-		sink = tint.NewHandler(os.Stdout, &tint.Options{
+		sink = tint.NewTextHandler(os.Stdout, &tint.Options{
 			Level:      lvl,
 			TimeFormat: time.Kitchen,
 		})
