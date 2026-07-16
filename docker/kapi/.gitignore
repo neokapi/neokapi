@@ -1,0 +1,4 @@
+# Staged at CI time by the publish-cli-image job (release.yml): the prebuilt
+# binaries and plugin payload copied next to the Dockerfile as build context.
+bins/
+plugins/
