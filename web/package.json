@@ -19,10 +19,10 @@
     "typecheck": "vp check --no-fmt --no-lint"
   },
   "dependencies": {
-    "@docusaurus/core": "3.10.1",
-    "@docusaurus/plugin-client-redirects": "3.10.1",
-    "@docusaurus/preset-classic": "3.10.1",
-    "@docusaurus/theme-mermaid": "3.10.1",
+    "@docusaurus/core": "3.10.2",
+    "@docusaurus/plugin-client-redirects": "3.10.2",
+    "@docusaurus/preset-classic": "3.10.2",
+    "@docusaurus/theme-mermaid": "3.10.2",
     "@mdx-js/react": "^3.1.1",
     "@neokapi/docs-shared": "workspace:*",
     "@neokapi/flow-editor": "*",
@@ -42,11 +42,11 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
-    "@docusaurus/module-type-aliases": "^3.10.0",
-    "@docusaurus/tsconfig": "^3.10.0",
-    "@docusaurus/types": "^3.10.0",
-    "@tailwindcss/postcss": "^4.3.1",
-    "tailwindcss": "^4.3.1",
+    "@docusaurus/module-type-aliases": "^3.10.2",
+    "@docusaurus/tsconfig": "^3.10.2",
+    "@docusaurus/types": "^3.10.2",
+    "@tailwindcss/postcss": "^4.3.2",
+    "tailwindcss": "^4.3.2",
     "typescript": "^7.0.2"
   },
   "browserslist": {

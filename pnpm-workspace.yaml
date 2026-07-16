@@ -55,8 +55,14 @@ enablePrePostScripts: true
 # "Excessive stack depth" / TS2769 in vite.config.ts. vitest is bundled into
 # vite-plus in 0.2.x (the @voidzero-dev/vite-plus-test wrapper is gone), and the
 # repo has no direct vitest/browser-mode usage, so only `vite` is aliased.
+#
+# This pin MUST track the vite-plus devDependency version in the root
+# package.json (vite-plus 0.2.4 vendors vite-plus-core 0.2.4): dependabot bumps
+# vite-plus but cannot follow this npm-alias indirection, so when it raises
+# vite-plus, bump this entry to match — otherwise the plugins' `vite` build and
+# vite-plus's own build diverge and the TS2321/TS2769 overflow above returns.
 catalog:
-  vite: npm:@voidzero-dev/vite-plus-core@0.2.1
+  vite: npm:@voidzero-dev/vite-plus-core@0.2.4
 
 # Cross-workspace version pins (was the root package.json npm "overrides").
 overrides:
