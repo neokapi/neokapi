@@ -25,6 +25,20 @@ function resolveIssuerUrl(): string {
 }
 
 const ISSUER_URL = resolveIssuerUrl();
+
+// Whether the admin pool is fronted by Cognito. Detected from the STABLE OIDC
+// issuer host (cognito-idp.<region>.amazonaws.com), NOT the Managed Login domain:
+// the latter may be a custom domain (auth.ctrl.bowrain.cloud) whose hostname is
+// no longer an *.amazoncognito.com signal, so keying logout off it would wrongly
+// treat Cognito as Keycloak and break sign-out.
+const IS_COGNITO = (() => {
+  try {
+    return /^cognito-idp\.[a-z0-9-]+\.amazonaws\.com$/i.test(new URL(ISSUER_URL).hostname);
+  } catch {
+    return false;
+  }
+})();
+
 const CLIENT_ID = import.meta.env.VITE_ADMIN_OIDC_CLIENT_ID ?? "bowrain-admin";
 const REDIRECT_URI = `${window.location.origin}/auth/callback`;
 const VERIFIER_KEY = "bowrain_admin_verifier";
@@ -225,7 +239,7 @@ export async function logout(): Promise<void> {
   }
 
   const params = new URLSearchParams({ client_id: CLIENT_ID });
-  if (/(^|\.)amazoncognito\.com$/i.test(new URL(end_session_endpoint).hostname)) {
+  if (IS_COGNITO) {
     // Cognito: logout_uri must exactly match a registered sign-out URL.
     params.set("logout_uri", window.location.origin);
   } else {
