@@ -14,8 +14,10 @@ ARG BASE=ubuntu:24.04
 FROM ${BASE} AS kapi
 # git: CI jobs commit produced translations back to the repo.
 # ca-certificates: TLS to AI/MT providers and the Bowrain server.
+# jq + curl: CI components parse `kapi --json` output and call the forge API
+# (MR creation, threaded notes) — table stakes for a CI-job image.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates git \
+  && apt-get install -y --no-install-recommends ca-certificates git jq curl \
   && rm -rf /var/lib/apt/lists/*
 ARG TARGETARCH
 COPY bins/${TARGETARCH}/kapi /usr/local/bin/kapi
