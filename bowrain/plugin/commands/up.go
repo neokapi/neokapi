@@ -33,17 +33,17 @@ var (
 var upCmd = &cobra.Command{
 	Use:    "server-up",
 	Hidden: true,
-	Short:  "Plumbing for kapi up's server venue: push, converge on the server, stream progress, pull results",
+	Short:  "Plumbing for kapi up's server venue: push, run the loop on the server, stream progress, pull results",
 	Args:   cobra.NoArgs,
-	Long: `Reconcile the project toward its ship gates: treat the recipe as the desired
-state and run the project's default flow over all content across every target
-language, looping until every gated scope ships or is parked for a human.
+	Long: `Bring the project up to date against its ship gates: run the project's default
+flow over all content across every target language, looping until every gated
+scope ships or is parked for a human.
 
 In a server-connected project (a recipe with a server: block) the loop runs on
 the Bowrain server by default — on the org's keys, against the org's TM and
 terminology — and this command pushes local changes, streams the server run's
-live progress, and pulls the produced targets when it converges. Parked units
-land in the team's review queue on the server.
+live progress, and pulls the produced targets when the run finishes. Parked
+units land in the team's review queue on the server.
 
   --local   run the loop on this machine instead, then push the results so the
             server stays up to date.
@@ -53,8 +53,8 @@ the open-source binary.
 
 --plan is always computed locally against the working tree (no server call): it
 reports the pending work, TM leverage, and a token estimate per locale.`,
-	Example: `  kapi up            # connected project: converge on the server, stream progress, pull results
-  kapi up --local    # converge on this machine, then push the results to the server
+	Example: `  kapi up            # connected project: run the loop on the server, stream progress, pull results
+  kapi up --local    # run the loop on this machine, then push the results to the server
   kapi up --plan     # dry run: pending work and a token estimate (computed locally)`,
 	RunE: runUp,
 }
@@ -98,11 +98,11 @@ func runUp(cmd *cobra.Command, _ []string) error {
 // so the remote copy never lags behind a `kapi up --local`.
 func pushAfterLocalConverge(cmd *cobra.Command, server *project.ServerSpec) error {
 	if !app.Quiet {
-		fmt.Fprintln(cmd.ErrOrStderr(), "Pushing converged results to the server...")
+		fmt.Fprintln(cmd.ErrOrStderr(), "Pushing produced results to the server...")
 	}
 	pr, conn, err := doPush(cmd.Context(), connector.PushOptions{}, nil)
 	if err != nil {
-		return fmt.Errorf("push after local converge: %w", err)
+		return fmt.Errorf("push after local run: %w", err)
 	}
 	defer conn.Close()
 	if proj, perr := project.FindProject(""); perr == nil {
@@ -172,7 +172,7 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 	// Phase 2: start (or join) the server convergence run.
 	run, err := client.StartConvergenceRun(ctx, apiclient.StartConvergenceRunRequest{Trigger: "cli"})
 	if err != nil {
-		return fmt.Errorf("start convergence run: %w", err)
+		return fmt.Errorf("start server run: %w", err)
 	}
 	if !app.Quiet && !jsonOut {
 		fmt.Fprintf(stderr, "Server run %s started.\n", run.ID)
@@ -203,7 +203,7 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 	if err := client.StreamConvergenceRunEvents(streamCtx, run.ID, onEvent); err != nil {
 		// A timeout is not a failure: pull whatever landed and report.
 		if !errors.Is(err, context.DeadlineExceeded) {
-			return fmt.Errorf("stream convergence run: %w", err)
+			return fmt.Errorf("stream server run: %w", err)
 		}
 		if !app.Quiet && !jsonOut {
 			fmt.Fprintln(stderr, "Timed out waiting for the run; pulling available results...")
@@ -256,7 +256,7 @@ func syncConvergePolicy(ctx context.Context, client *apiclient.BowrainClient, se
 		return
 	}
 	if err := client.SetConvergePolicy(ctx, string(server.ResolvedConverge())); err != nil && !app.Quiet {
-		fmt.Fprintf(os.Stderr, "warning: could not update the server's convergence policy: %v\n", err)
+		fmt.Fprintf(os.Stderr, "warning: could not update the server's converge policy (server.converge): %v\n", err)
 	}
 }
 
@@ -267,7 +267,7 @@ func init() {
 	// command factory, which receives the App.
 	cli.AddProjectFlag(upCmd)
 	cli.AddUpFlags(upCmd)
-	upCmd.Flags().BoolVar(&upLocal, "local", false, "converge on this machine instead of the server, then push the results")
+	upCmd.Flags().BoolVar(&upLocal, "local", false, "run the loop on this machine instead of the server, then push the results")
 	upCmd.Flags().DurationVar(&upTimeout, "timeout", 15*time.Minute, "maximum time to wait for a server run to finish before pulling available results")
 	cli.RegisterCommandFactory(func(parent *cobra.Command, a *cli.App) {
 		// Match the built-in `kapi up` flag surface exactly (NewUpCmd adds the

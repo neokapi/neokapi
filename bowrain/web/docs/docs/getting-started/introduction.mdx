@@ -51,13 +51,13 @@ A persistent, versioned content store keeps the history of every block, branch, 
 
 ## One command to bring content up to date
 
-With the plugin installed, a kapi project whose recipe declares a `server:` block runs the whole convergence loop in a single step:
+With the plugin installed, a kapi project whose recipe declares a `server:` block runs the whole kapi loop in a single step:
 
 ```bash
 kapi up
 ```
 
-[`kapi up`](/cli/commands/up) is the convergence verb: on a connected project it pushes changed content, the server runs the loop (translation, QA, terminology) on the organization's keys and shared memory, progress streams back live, and the results pull down — one invocation from code change to translated files. In CI it replaces a multi-job pipeline. (`kapi push` and `kapi pull` stay available as pure transport when you want to move content without converging.)
+[`kapi up`](/cli/commands/up) is the verb that runs the kapi loop: on a connected project it pushes changed content, the server runs the loop (translation, QA, terminology) on the organization's keys and shared memory, progress streams back live, and the results pull down — one invocation from code change to translated files. In CI it replaces a multi-job pipeline. (`kapi push` and `kapi pull` stay available as pure transport when you want to move content without catching up.)
 
 Content does not have to start locally, though: a [connector](/server/connectors) to a CMS, a design tool, or a git repository pulls source into the workspace server-side, with no checkout at all. `kapi up` is the path for a developer working from a local codebase — one of several ways content reaches the platform.
 

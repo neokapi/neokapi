@@ -65,7 +65,7 @@ func (r *convergeRenderer) OnEvent(ev convergence.Event) {
 			r.rows[loc] = &convergeRow{state: "queued"}
 		}
 		if !r.tty {
-			fmt.Fprintf(r.w, "pass %d/%d · converging %s\n", ev.Pass, ev.MaxPasses, strings.Join(ev.Pending, ", "))
+			fmt.Fprintf(r.w, "pass %d/%d · catching up %s\n", ev.Pass, ev.MaxPasses, strings.Join(ev.Pending, ", "))
 			return
 		}
 		r.redraw()

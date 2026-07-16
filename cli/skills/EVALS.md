@@ -48,14 +48,14 @@ only — the `Completed` column is still a manual pass.
 | 8 | "Get `report.docx` ready for a translation vendor in French." | localize (interchange) | yes | |
 | 9 | "Add i18n to this React app." | i18n | yes | |
 | 10 | "Set kapi up for this project." | bootstrap | yes | |
-| 11 | "Bring our project's Norwegian translations up to date and flag what still needs review." | localize (convergence) | yes | |
+| 11 | "Bring our project's Norwegian translations up to date and flag what still needs review." | localize (kapi loop) | yes | |
 | 12 | "Which i18n library should we use for our Next.js app?" | i18n (advice — must quote toil grades, not just pick one) | yes | |
 | 13 | "Internationalize this Flutter app and translate it to German." | i18n (detect → flutter.md → gen_l10n + preset) | yes | |
 | 14 | "Our app has hardcoded strings everywhere — make it translatable." | i18n (retrofit; lint/pseudo-translate sweep) | yes | |
 | 15 | "Localize this Android app into French." | i18n (androidxml, --format flag) | yes | |
 
-Scenario 11 is the convergence loop end to end: read state (`kapi status`),
-converge (`kapi run`), then surface the review queue (`kapi status --review`) —
+Scenario 11 is the kapi loop end to end: read state (`kapi status`),
+catch up (`kapi up`), then surface the review queue (`kapi status --review`) —
 "completed" means it drove the gate, not just translated one file.
 
 Scenario 4 is the cross-format sweep, and its fixture carries the whole point:

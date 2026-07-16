@@ -1,39 +1,39 @@
 ---
 sidebar_position: 4
-title: Convergence in CI
-description: Run the convergence loop where the work already lives — your CI. Converge on a schedule and deliver a pull request, gate merges on content quality, and report the translation cost of a change on its PR, on GitHub, GitLab, or any container-based runner.
-keywords: [kapi, convergence, CI, CD, continuous localization, GitHub Actions, GitLab CI, pipeline, ship gate, kapi up, container image, multilingual publishing]
+title: The kapi loop in CI
+description: Run the kapi loop where the work already lives — your CI. Catch up on a schedule and deliver a pull request, gate merges on content quality, and report the translation cost of a change on its PR, on GitHub, GitLab, or any container-based runner.
+keywords: [kapi, kapi loop, convergence, CI, CD, continuous localization, GitHub Actions, GitLab CI, pipeline, ship gate, kapi up, container image, multilingual publishing]
 ---
 
 import Tabs from "@theme/Tabs";
 import TabItem from "@theme/TabItem";
 import { PhaseFlow } from "@neokapi/docs-shared";
 
-# Convergence in CI
+# The kapi loop in CI
 
 Source content changes on every merge, and everything derived from it — its
 translations, its brand and terminology conformance — falls behind. That drift
-is the normal state of a shipping project, not an error. Running the
-[convergence loop](/kapi/convergence) in CI keeps content shippable, in every
-language, from the pipeline that produces the drift: converge what a machine
-can close, deliver it as a reviewable pull request, and enforce the release
-bar on merges — content quality treated like any other test. This covers the
-source language too: the ship gate includes the source gates (brand,
-terminology) alongside translation coverage and QA.
+is the normal state of a shipping project, not an error. Running
+[the kapi loop](/kapi/convergence) in CI keeps every language caught up from
+the pipeline that produces the drift: close what a machine can close, deliver
+it as a reviewable pull request, and enforce the release bar on merges —
+content quality treated like any other test. This covers the source language
+too: the ship gate includes the source gates (brand, terminology) alongside
+translation coverage and QA.
 
 <PhaseFlow
   nodes={[
     { label: "change", sub: "a merge or a schedule tick", role: "io" },
     {
-      label: "converge",
+      label: "catch up",
       sub: "kapi up — TM first, then AI, then checks",
       role: "translate",
       loop: ["each pass re-derives", "coverage and repeats"],
     },
-    { label: "deliver", sub: "a pull request with the convergence report", role: "io", edge: "converged / parked" },
+    { label: "deliver", sub: "a pull request with the run report", role: "io", edge: "caught up / parked" },
     { label: "gate", sub: "kapi check --ship on merge requests", role: "qa", edge: "exit 3 blocks the merge" },
   ]}
-  caption="CI converges and delivers; the gate — not drift — decides what blocks a merge."
+  caption="CI catches up and delivers; the gate — not drift — decides what blocks a merge."
 />
 
 Inside a pass, for every language behind its gate, the default flow does three
@@ -51,7 +51,7 @@ Three commands carry the whole model, and they divide the work cleanly:
 | Command | Role | Exit behavior |
 |---|---|---|
 | `kapi status` | **Observe** — per-locale coverage and gate standing | Always `0`: behind is pending work, not an error |
-| `kapi up` | **Produce** — the convergence loop | `0` whether the run *converged* or *parked*; non-zero only when the run broke |
+| `kapi up` | **Produce** — runs the kapi loop | `0` whether the run caught everything up or parked work for review; non-zero only when the run broke |
 | `kapi check --ship` | **Enforce** — the release bar | `0` pass, `3` gate unmet, `1` operational error |
 
 An ordinary build never fails because a target language is behind. The gate is
@@ -67,12 +67,12 @@ review instead of breaking builds.
 | GitLab CI | — (the components run on the image) | [`kapi-components`](https://gitlab.com/neokapi/kapi-components) from the CI/CD Catalog |
 | Anything container-based | `ghcr.io/neokapi/kapi` (cosign-signed; a variant with the server-sync plugin preinstalled is published alongside) | The CLI directly — the exit codes above are the contract |
 
-## Converge on a schedule, deliver a pull request
+## Catch up on a schedule, deliver a pull request
 
 The produced translations land as a branch and a pull request carrying the
-convergence report — outcome, passes, parked locales. A run that **parks**
-(work remains that needs a person) still delivers what did converge; the
-parked locales are the review queue, not a failure.
+run report — outcome, passes, parked locales. A run that **parks** (work
+remains that needs a person) still delivers what it did catch up; the parked
+locales are the review queue, not a failure.
 
 <Tabs groupId="ci" queryString>
 <TabItem value="github" label="GitHub Actions" default>
@@ -222,11 +222,11 @@ include:
       restore-keys: kapi-cache-
   ```
 
-  Server-connected projects skip this — convergence state lives on the server.
+  Server-connected projects skip this — the project state lives on the server.
 
 ## Next
 
-- [Convergence](/kapi/convergence) — the derived-state model behind `status`, `up`, and the gates.
+- [The kapi loop](/kapi/convergence) — the loop and the derived-state model behind `status`, `up`, and the gates.
 - [Ship gates & CI](/kapi/recipes/gate-localization-in-ci) — the enforcement recipe, end to end.
 - [Estimate a run's cost](/kapi/recipes/estimate-cost) — sizing a job with `kapi stats` before commissioning it.
 - [Review & approve](/kapi/recipes/review-and-approve) — the human half of a parked run.

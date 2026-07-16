@@ -31,8 +31,8 @@ of file types.`
 func KapiCommandSet(a *App) []*cobra.Command {
 	var cmds []*cobra.Command
 
-	// Porcelain (#1078 C1): `kapi up` reconciles the project toward its ship
-	// gates; `kapi translate` / `kapi pseudo-translate` run the guardrailed
+	// Porcelain (#1078 C1): `kapi up` brings the project up to date against its
+	// ship gates; `kapi translate` / `kapi pseudo-translate` run the guardrailed
 	// built-in flows over ad-hoc files; the bare `kapi run` remains as the
 	// custom-flow surface.
 	cmds = append(cmds, NewUpCmd(a))

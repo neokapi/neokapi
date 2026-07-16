@@ -42,14 +42,14 @@ pre-filled from the TM, and `merge` applies the return.
 
 Scaffold a project with `kapi init`, list the tracked content with `kapi ls`,
 seed the project translation memory with `kapi tm import`, and read the
-before-grid with `kapi status`. Then `kapi up` converges the project — the
-recipe's TM-only flow fills real `fr` targets, no LLM, fully offline. The
+before-grid with `kapi status`. Then `kapi up` brings the project up to date —
+the recipe's TM-only flow fills real `fr` targets, no LLM, fully offline. The
 closing beats run the plumbing by hand: one `kapi run` pass into the store,
 `kapi merge` to write `messages.fr.json`, the after-grid at 100%, and
 `kapi extract` as the translator handoff.
 
 ## Closing
 
-Commit the `.kapi` recipe and anyone who clones the repository converges the
-same project with one command — the recipe is the portable contract, and
-`kapi up` is the verb that reconciles reality to it.
+Commit the `.kapi` recipe and anyone who clones the repository brings the
+same project up to date with one command — the recipe is the portable contract,
+and `kapi up` is the verb that reconciles reality to it.

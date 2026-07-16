@@ -6,7 +6,7 @@ sidebar_position: 10
 # Local Development
 
 A full bowrain instance is a few cooperating processes: the **server** (REST +
-gRPC API; also drives convergence runs), an **async worker** (processes the
+gRPC API; also drives the kapi loop's runs), an **async worker** (processes the
 translation jobs those runs enqueue, and push ingestion), and backing
 services — PostgreSQL, NATS (job queue + event bus), Redis, Keycloak (OIDC),
 and Mailpit (SMTP). The server and
@@ -101,7 +101,7 @@ Keycloak is on `http://localhost:8180` (admin/admin) and Mailpit on
 
 ## The translation worker
 
-The `bowrain-worker` processes the translation jobs that convergence runs
+The `bowrain-worker` processes the translation jobs that loop runs
 enqueue (a push to an `on-push` project starts one — AD-022). Its upstream
 provider for these platform jobs is configured by environment:
 
@@ -132,7 +132,7 @@ mkdir myapp && cd myapp
 kapi init --server http://localhost:8080 --anonymous --source-locale en --target-locale fr,de
 echo '{"greeting":"Hello"}' > en.json
 kapi add en.json
-kapi up                         # converge fr,de on the server: push → converge → pull
+kapi up                         # catch fr,de up on the server: push → catch up → pull
 cat fr.json                     # translated catalog
 ```
 

@@ -165,15 +165,15 @@ large jobs.
 If neither Service Bus nor NATS is configured, the server uses an
 in-memory channel queue (suitable only for single-instance development).
 
-## Convergence Integration
+## The kapi loop
 
-Translation jobs are the produce step of the server's convergence engine
-([AD-022](/architecture-decisions/022-convergence-as-a-service)): a
-convergence run — started by a push to an `on-push` project, by `kapi up`
+Translation jobs are the produce step of the server's kapi loop — *convergence as
+a service* ([AD-022](/architecture-decisions/022-convergence-as-a-service)): a
+loop run — started by a push to an `on-push` project, by `kapi up`
 from a connected checkout, or manually — enqueues one job per pending
 (item, locale) pair for the locales its pass fans out, waits for their
 completion, and re-derives coverage before the next pass. Jobs link back
 to the triggering push via `push_id`.
 
 The `kapi up` CLI command (and the GitHub Action) coordinates the
-full round-trip on a connected project: push → server convergence → pull results.
+full round-trip on a connected project: push → server catch-up → pull results.

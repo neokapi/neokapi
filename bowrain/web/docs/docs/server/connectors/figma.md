@@ -78,7 +78,7 @@ layer as a block on the target project's main content stream. Call
 The response reports how many items were fetched. Fetching stores source
 content; it does not itself start translation. Translate the fetched content the
 way you would any project content — for example by running a flow or by letting
-the project's convergence policy produce and review targets.
+the project's `server.converge` policy produce and review targets.
 
 Because the connector does not publish, translated strings are consumed
 elsewhere: export them from Bowrain, or read them through the API, and apply

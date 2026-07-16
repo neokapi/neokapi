@@ -40,7 +40,7 @@ The action downloads the correct binary for the runner platform (Linux, macOS, o
 | `version`   | Installed version (e.g. `1.1.0`) |
 | `cache-hit` | Whether the plugin cache was hit |
 
-## Recommended: Converge with `kapi-action`
+## Recommended: Catch up with `kapi-action`
 
 The simplest CI pattern uses two actions together:
 
@@ -48,7 +48,7 @@ The simplest CI pattern uses two actions together:
 - [`neokapi/kapi-action`](https://github.com/neokapi/kapi-action) — runs a `kapi` command (here, `kapi up`) and commits translations
 
 ```yaml
-name: Converge Translations
+name: Catch up translations
 
 on:
   workflow_dispatch:
@@ -81,7 +81,7 @@ jobs:
         run: echo "Translations committed at ${{ steps.up.outputs.commit-sha }}"
 ```
 
-With `command: up` (the default), the action runs `kapi up` — the convergence loop on the server (push → converge → pull) — then checks for changes, commits, and pushes. A run that **converged** (every gated scope cleared its ship gate) commits the produced translations; a run that **parked** (work remains that needs a person) commits what did converge and annotates the parked locales; a **failed** run exits non-zero and commits nothing. It sets outputs you can use in subsequent steps:
+With `command: up` (the default), the action runs `kapi up` — the kapi loop on the server (push → catch up → pull) — then checks for changes, commits, and pushes. A run that **caught up** (`converged` — every gated scope cleared its ship gate) commits the produced translations; a run that **parked** (work remains that needs a person) commits what did catch up and annotates the parked locales; a **failed** run exits non-zero and commits nothing. It sets outputs you can use in subsequent steps:
 
 | Output           | Description                                                        |
 | ---------------- | ------------------------------------------------------------------ |
@@ -146,7 +146,7 @@ enforcement point.
 ## Example: Push source on Push to Main
 
 Send source changes to Bowrain Cloud when they land on `main`. Push is pure
-transport; with `server.converge: on-push` the server converges on its own clock.
+transport; with `server.converge: on-push` the server catches the project up on its own clock.
 Use `kapi up` instead of `kapi push` if you want CI to watch the run and commit
 the results back:
 
@@ -176,14 +176,14 @@ jobs:
 
 The `auth-token` and `server` inputs export `BOWRAIN_AUTH_TOKEN` and `BOWRAIN_SERVER_URL` as environment variables, which the CLI picks up automatically.
 
-## Example: Scheduled Convergence
+## Example: Scheduled catch-up
 
-Converge on a schedule (e.g. nightly) to keep target locales up to date.
+Catch up on a schedule (e.g. nightly) to keep target locales up to date.
 `kapi-action` runs `kapi up` and handles the commit, so no manual git plumbing
 is needed:
 
 ```yaml
-name: Nightly Convergence
+name: Nightly catch-up
 
 on:
   schedule:
@@ -206,7 +206,7 @@ jobs:
       - uses: neokapi/kapi-action@v1
 ```
 
-To translate specific files ad hoc instead of converging a project, `kapi
+To translate specific files ad hoc instead of catching a project up, `kapi
 translate` takes explicit inputs: `kapi translate src/locales/en/app.json
 --target-lang fr` (an AI provider key such as `ANTHROPIC_API_KEY` must be set
 for a CI run that produces translations).
@@ -312,7 +312,7 @@ Use `latest` (the default) for workflows where you always want the newest releas
 
 - [CLI Overview](/cli/overview)
 - [Flow Hooks](/cli/flows/hooks)
-- [kapi up](/cli/commands/up) — run the convergence loop on the server (push → converge → pull)
+- [kapi up](/cli/commands/up) — run the kapi loop on the server (push → catch up → pull)
 - [kapi push](/cli/commands/push) and [kapi pull](/cli/commands/pull)
 - [kapi auth](/cli/commands/auth)
 - [Source Language Preparation](/cli/use-cases/source-prep) — QA on source content in CI

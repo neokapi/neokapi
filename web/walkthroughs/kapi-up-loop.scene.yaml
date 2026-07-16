@@ -2,7 +2,7 @@
 # full schema. Regenerate with:
 #   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-up-loop
 #
-# The convergence trust moment, end to end: preview the work (`up --plan`),
+# The kapi-loop trust moment, end to end: preview the work (`up --plan`),
 # produce (`up` fills every target from the TM, then parks — the ship gate
 # wants review, and review needs a person), read the worklist
 # (`status --review`), watch the gate block (`check --ship`, exit 3), record

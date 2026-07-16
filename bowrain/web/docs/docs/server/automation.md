@@ -102,11 +102,11 @@ automations:
 
 If `qa` finds issues and `fail_on_error` is `true`, the push is aborted.
 
-### Converging on every push
+### Catching up on every push
 
-Server-side convergence on push is not an automation — it is the project's
+Catching the project up on push is not an automation — it is the project's
 `server.converge` policy. With the default `on-push`, the server runs the full
-convergence loop (translation, QA, terminology, gates, parking) after every push,
+kapi loop (translation, QA, terminology, gates, parking) after every push,
 recorded as a run anyone can watch:
 
 ```yaml
@@ -116,7 +116,7 @@ server:
   converge: on-push        # on-push (default) | manual | schedule
 ```
 
-`kapi push` from CI just pushes; the server converges on its own clock; `kapi up`
+`kapi push` from CI just pushes; the server catches the project up on its own clock; `kapi up`
 is push + *watch the run* + pull. See
 [AD-022: Convergence as a Service](/architecture-decisions/022-convergence-as-a-service).
 

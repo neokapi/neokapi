@@ -119,7 +119,7 @@ const BowrainFeatures: ProductItem[] = [
   {
     title: "Bring a project up to date with kapi",
     description:
-      "A kapi project whose recipe declares a server: block runs the convergence loop on the server in a single step. In CI, kapi up replaces a multi-job pipeline — one invocation from code change to translated files.",
+      "A kapi project whose recipe declares a server: block runs the kapi loop on the server in a single step. In CI, kapi up replaces a multi-job pipeline — one invocation from code change to translated files.",
     link: "/cli/overview",
     linkText: "Connect (CLI)",
   },

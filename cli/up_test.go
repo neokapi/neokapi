@@ -48,7 +48,7 @@ func TestUp_ConvergesByDefault(t *testing.T) {
 		require.NoError(t, rerr, "up must write %s", loc)
 	}
 	assert.Contains(t, out, "over 2 locale(s)")
-	assert.Contains(t, out, "Converged: every gated scope is shippable")
+	assert.Contains(t, out, "Up to date: every gated scope is shippable")
 }
 
 // TestUp_BuiltinDefaultFlow: a recipe with NO defaults.flow and NO flows map
@@ -66,7 +66,7 @@ func TestUp_BuiltinDefaultFlow(t *testing.T) {
 	out, upErr := runUp(t, a, recipe)
 	require.NoError(t, upErr, out)
 	assert.Contains(t, out, `Ran flow "default (built-in)"`)
-	assert.Contains(t, out, "Converged: every gated scope is shippable")
+	assert.Contains(t, out, "Up to date: every gated scope is shippable")
 	for _, f := range []string{"a.json", "b.json"} {
 		_, statErr := os.Stat(filepath.Join(root, "src/locales/nb-NO", f))
 		require.NoError(t, statErr, "the built-in default must materialize %s", f)
@@ -98,7 +98,7 @@ func TestUp_SinglePass(t *testing.T) {
 	out, err := runUp(t, a, recipe, "--passes", "1")
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "in 1 pass.", "a single pass must be reported")
-	assert.Contains(t, out, "Converged")
+	assert.Contains(t, out, "Up to date")
 }
 
 // TestUp_ParksUnreachableGate: a gate the deterministic flow cannot satisfy
@@ -111,7 +111,7 @@ func TestUp_ParksUnreachableGate(t *testing.T) {
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, "parked work is reported, never a build failure")
 	assert.Contains(t, out, "parked (needs human)")
-	assert.Contains(t, out, "Not fully converged")
+	assert.Contains(t, out, "Not yet up to date")
 }
 
 // TestUp_PassesCapsLoop: --passes N caps the until-gate loop at N passes.
@@ -230,7 +230,7 @@ func TestUp_MaterializePolicyManualByDefault(t *testing.T) {
 
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, out)
-	assert.Contains(t, out, "Converged", out)
+	assert.Contains(t, out, "Up to date", out)
 	assert.NotContains(t, out, "Materialized", "defaults.materialize is manual — no post-loop write")
 }
 
@@ -247,7 +247,7 @@ func TestUp_MaterializeOnConverge(t *testing.T) {
 
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, out)
-	assert.Contains(t, out, "Converged", out)
+	assert.Contains(t, out, "Up to date", out)
 	assert.Contains(t, out, "Materialized 2 localized file(s) from the project store.", out)
 	for _, f := range []string{"a.json", "b.json"} {
 		_, statErr := os.Stat(filepath.Join(root, "src/locales/nb-NO", f))
@@ -315,10 +315,10 @@ func TestUp_FirstRunInlineWizard(t *testing.T) {
 
 	// The wizard persisted the pick…
 	assert.Equal(t, "claude-code", saved["ai.provider"])
-	// …and the original command continued to convergence.
+	// …and the original command continued to run the loop.
 	_, rerr := os.Stat(filepath.Join(root, "src/locales/nb-NO", "a.json"))
 	require.NoError(t, rerr, "up must continue after the inline wizard")
-	assert.Contains(t, out, "Converged")
+	assert.Contains(t, out, "Up to date")
 }
 
 // TestUp_ConfiguredSkipsWizard: with a provider already configured the wizard

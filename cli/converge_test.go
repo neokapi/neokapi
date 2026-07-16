@@ -117,7 +117,7 @@ func TestConverge_MaterializesFilesAndConverges(t *testing.T) {
 		assert.NotEmpty(t, data)
 	}
 
-	assert.Contains(t, out, "Converged: every gated scope is shippable",
+	assert.Contains(t, out, "Up to date: every gated scope is shippable",
 		"a present target meets translated:100 (presence baseline)")
 	assert.Contains(t, out, "✓ shippable")
 }
@@ -137,7 +137,7 @@ func TestConverge_AllTargetLocales(t *testing.T) {
 		require.NoError(t, rerr, "convergence must write %s", loc)
 	}
 	assert.Contains(t, out, "over 2 locale(s)")
-	assert.Contains(t, out, "Converged")
+	assert.Contains(t, out, "Up to date")
 }
 
 // TestConverge_NoDefaultFlowUsesBuiltin: with no defaults.flow, the no-arg run
@@ -156,7 +156,7 @@ func TestConverge_NoDefaultFlowUsesBuiltin(t *testing.T) {
 	out, runErr := runConverge(t, a, recipe, ConvergeOptions{})
 	require.NoError(t, runErr, out)
 	assert.Contains(t, out, `Ran flow "default (built-in)"`)
-	assert.Contains(t, out, "Converged: every gated scope is shippable")
+	assert.Contains(t, out, "Up to date: every gated scope is shippable")
 }
 
 // TestConverge_MissingExplicitDefaultFlow: an explicitly configured
@@ -185,5 +185,5 @@ func TestConverge_UntilGateParksUnreachableGate(t *testing.T) {
 	require.NoError(t, err, "parked work is reported, never a build failure")
 
 	assert.Contains(t, out, "parked (needs human)", "reviewed:100 cannot be reached by an automated flow")
-	assert.Contains(t, out, "Not fully converged")
+	assert.Contains(t, out, "Not yet up to date")
 }

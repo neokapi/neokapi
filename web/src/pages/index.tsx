@@ -126,7 +126,7 @@ const NeokapiFeatures: ProductItem[] = [
   {
     title: "Every language — and you can trust it",
     description:
-      "One command — kapi up — reconciles every language toward its ship gates and parks what needs a person. You review, edit, and approve in the desktop Review surface; approvals stick, and only what changed is re-done. The gate check runs in CI.",
+      "One command — kapi up — catches every language up to its ship gates and parks what needs a person. You review, edit, and approve in the desktop Review surface; approvals stick, and only what changed is re-done. The gate check runs in CI.",
     link: "/kapi/get-started/add-languages",
     linkText: "Go multilingual",
   },

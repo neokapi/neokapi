@@ -39,7 +39,7 @@ func TestUp_ChecksInLoop_FailingPlaceholderParks(t *testing.T) {
 	require.NoError(t, err, "failing checks park the locale — never a build failure")
 	assert.Contains(t, out, "parked (needs human)", out)
 	assert.Contains(t, out, "1 failing check(s)", out)
-	assert.Contains(t, out, "Not fully converged", out)
+	assert.Contains(t, out, "Not yet up to date", out)
 
 	// The pass DID produce the target file — the unit is produced but failing
 	// guardrails, so it is held at draft, not counted as translated.
@@ -51,7 +51,7 @@ func TestUp_ChecksInLoop_FailingPlaceholderParks(t *testing.T) {
 	a2 := processOnlyApp(t)
 	out2, err := runUp(t, a2, recipe)
 	require.NoError(t, err, out2)
-	assert.Contains(t, out2, "Converged: every gated scope is shippable", out2)
+	assert.Contains(t, out2, "Up to date: every gated scope is shippable", out2)
 	assert.NotContains(t, out2, "failing check(s)", out2)
 }
 
@@ -65,7 +65,7 @@ func TestUp_NoChecksOptsOut(t *testing.T) {
 
 	out, err := runUp(t, a, recipe, "--no-checks")
 	require.NoError(t, err, out)
-	assert.Contains(t, out, "Converged", out)
+	assert.Contains(t, out, "Up to date", out)
 	assert.NotContains(t, out, "failing check(s)", out)
 }
 

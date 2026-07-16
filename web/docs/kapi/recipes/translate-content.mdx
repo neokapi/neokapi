@@ -2,7 +2,7 @@
 id: translate-content
 title: "Translate with your AI"
 sidebar_label: "Translate with your AI"
-description: "Get your content into other languages with the AI you already have — kapi up reconciles a project toward its ship gates; kapi translate handles a single file — while every format round-trips back intact."
+description: "Get your content into other languages with the AI you already have — kapi up catches a project up to its ship gates; kapi translate handles a single file — while every format round-trips back intact."
 hide_table_of_contents: true
 ---
 
@@ -12,7 +12,7 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Translate with your AI
 
-**Goal:** the same content in other languages — only the text changes; keys, tags, and structure round-trip back intact. In a project the verb is **`kapi up`**: it reconciles every target language toward its ship gate and parks what needs a person. For a loose file, `kapi translate` does one file, one language. The trade-offs behind the model choice live in [Choose a translation model](/kapi/recipes/choose-a-translation-provider); how translation works as a tool in [Translation](/framework/translation).
+**Goal:** the same content in other languages — only the text changes; keys, tags, and structure round-trip back intact. In a project the verb is **`kapi up`**: it catches every target language up to its ship gate and parks what needs a person. For a loose file, `kapi translate` does one file, one language. The trade-offs behind the model choice live in [Choose a translation model](/kapi/recipes/choose-a-translation-provider); how translation works as a tool in [Translation](/framework/translation).
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
@@ -45,7 +45,7 @@ The assistant routes the work **through kapi** so the guardrails apply — appro
 **In a project** — the recipe declares the languages and content, so the whole job is one verb:
 
 ```bash
-kapi up                # reconcile every locale toward its ship gate; park the rest
+kapi up                # catch every locale up to its ship gate; park the rest
 kapi up --passes 1     # a single pass (the behavior of the bare 'kapi run')
 kapi status            # coverage per locale — informational, never fails
 ```

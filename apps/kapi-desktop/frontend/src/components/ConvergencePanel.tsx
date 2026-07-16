@@ -126,14 +126,14 @@ export function ConvergencePanel({
   if (error && !report) {
     return (
       <div className="p-4" data-slot="convergence-error">
-        <ErrorNotice error={error} title={t("Failed to load convergence status")} variant="panel" />
+        <ErrorNotice error={error} title={t("Failed to load project status")} variant="panel" />
       </div>
     );
   }
   if (!report) {
     return (
       <div className="p-4 text-sm text-muted-foreground" data-slot="convergence-loading">
-        {t("Loading convergence status…")}
+        {t("Loading project status…")}
       </div>
     );
   }
@@ -144,14 +144,14 @@ export function ConvergencePanel({
   return (
     <div className="space-y-3" data-slot="convergence-panel">
       <div className="flex items-center justify-between">
-        {showTitle ? <h3 className="text-sm font-medium">{t("Convergence")}</h3> : <span />}
+        {showTitle ? <h3 className="text-sm font-medium">{t("Ship readiness")}</h3> : <span />}
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="xs"
             onClick={() => refresh()}
             disabled={running}
-            aria-label={t("Refresh convergence status")}
+            aria-label={t("Refresh project status")}
             data-slot="convergence-refresh"
           >
             <RefreshCw size={12} />

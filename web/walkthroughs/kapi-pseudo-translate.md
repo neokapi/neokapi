@@ -37,5 +37,5 @@ loop, not the translation pipeline.
 ## Closing
 
 When the UI holds up, `kapi translate` produces the real translations for
-ad-hoc files, and `kapi up` converges a whole project toward its ship gates.
+ad-hoc files, and `kapi up` catches a whole project up to its ship gates.
 For deeper QA, see [Quality checks](/docs/features/qa-checks).

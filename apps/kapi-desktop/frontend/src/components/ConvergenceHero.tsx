@@ -233,7 +233,7 @@ export function ConvergenceHero({
             onClick={() => setPlanOpen(true)}
             disabled={!loaded}
             data-slot="hero-plan"
-            aria-label={t("Preview the convergence plan")}
+            aria-label={t("Preview the catch-up plan")}
           >
             <ClipboardList size={13} />
             {t("Plan…")}
@@ -354,7 +354,7 @@ export function ConvergePlanDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg" data-slot="converge-plan-dialog">
         <DialogHeader>
-          <DialogTitle>{t("Convergence plan")}</DialogTitle>
+          <DialogTitle>{t("Catch-up plan")}</DialogTitle>
           <DialogDescription>
             {t("A dry run of the pending work — nothing is written and no provider is called.")}
           </DialogDescription>

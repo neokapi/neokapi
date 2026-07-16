@@ -14,7 +14,7 @@ scenes:
 
 ## Story
 
-Convergence keeps three verbs separate: a flow **produces** (it drives each unit
+The kapi loop keeps three verbs separate: a flow **produces** (it drives each unit
 as far up its lifecycle as a machine can, typically to *translated*), a person
 **reviews** (advancing what a machine can't decide, *translated → reviewed*), and
 a gate **releases**. This walkthrough is the middle verb — the human decision —

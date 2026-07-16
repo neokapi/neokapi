@@ -117,9 +117,9 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 	t.Render()
 	fmt.Fprintln(w)
 	if o.Converged {
-		fmt.Fprintln(w, "Converged: every gated scope is shippable.")
+		fmt.Fprintln(w, "Up to date: every gated scope is shippable.")
 	} else {
-		fmt.Fprintln(w, "Not fully converged — parked locales await human review (never a build failure).")
+		fmt.Fprintln(w, "Not yet up to date — parked locales await human review (never a build failure).")
 	}
 	if o.MaterializedFiles > 0 {
 		fmt.Fprintf(w, "Materialized %d localized file(s) from the project store.\n", o.MaterializedFiles)
@@ -150,7 +150,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		spec = proj.Flow(flowName)
 		if spec == nil {
 			if BuiltinComposedFlowNames()[flowName] {
-				return fmt.Errorf("defaults.flow %q is a built-in flow; define it under the project's `flows:` map to use it as the convergence default", flowName)
+				return fmt.Errorf("defaults.flow %q is a built-in flow; define it under the project's `flows:` map to use it as `kapi up`'s default flow", flowName)
 			}
 			return fmt.Errorf("default flow %q not found in the project's `flows:`", flowName)
 		}
@@ -181,7 +181,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		sources = append(sources, rf.Path)
 	}
 	if len(sources) == 0 {
-		return errors.New("no content to converge (add content patterns to the project)")
+		return errors.New("no content to catch up (add content patterns to the project)")
 	}
 
 	// Standing project context + bindings, so flow steps honor brand-voice /

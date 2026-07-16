@@ -53,7 +53,7 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi status",
       narration:
-        "The grid up converges toward — fr translated 100%. Coverage is derived from the files on every run, never tracked as state.",
+        "The grid `up` catches up toward — fr translated 100%. Coverage is derived from the files on every run, never tracked as state.",
     },
     {
       command: "kapi extract --target-lang fr",

@@ -19,8 +19,8 @@ func NewRunCmd(a *App, opts RunCmdOptions) *cobra.Command {
 
 Flows are multi-tool pipelines. For single-tool operations, use the
 tool directly (e.g. "kapi translate" instead of "kapi run translate").
-To reconcile the whole project toward its ship gates, use 'kapi up' —
-run is the escape hatch for one named pipeline, one pass.
+To bring the whole project up to date, use 'kapi up' — the kapi loop
+lives there; run is the escape hatch for one named pipeline, one pass.
 
 Built-in flows:
   translate-qa    Translate + quality check using AI/LLM
@@ -39,10 +39,10 @@ Use -p to run a flow from a .kapi project file:
 				return err
 			}
 
-			// run takes a flow name; convergence lives in `kapi up` (looped to
+			// run takes a flow name; the loop lives in `kapi up` (looped to
 			// the gates, venue-aware). No bare-run fallback.
 			if len(args) == 0 {
-				return errors.New("kapi run needs a flow name (see 'kapi flows') — to reconcile the project toward its gates, use 'kapi up' ('kapi up --passes 1' for a single pass)")
+				return errors.New("kapi run needs a flow name (see 'kapi flows') — to bring the project up to date, use 'kapi up' ('kapi up --passes 1' for a single pass)")
 			}
 
 			flowName := args[0]

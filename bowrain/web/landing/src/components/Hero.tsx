@@ -41,10 +41,10 @@ export function Hero() {
         </h1>
 
         <p className="animate-fade-in-up-delay-2 mx-auto mt-6 max-w-xl text-lg text-muted-foreground md:text-xl">
-          Bowrain keeps your content converged across your app, site, docs, and posts. AI drafts
-          against your brand voice, terminology, and translation memory — you review — and every
-          correction becomes a rule the next draft follows. Built for one person with many surfaces,
-          ready for a team.
+          Bowrain keeps your content caught up and on brand across your app, site, docs, and posts.
+          AI drafts against your brand voice, terminology, and translation memory — you review — and
+          every correction becomes a rule the next draft follows. Built for one person with many
+          surfaces, ready for a team.
         </p>
 
         <div className="animate-fade-in-up-delay-3 mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">

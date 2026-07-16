@@ -14,7 +14,7 @@ scenes:
 
 ## Story
 
-Convergence separates three verbs: a flow **produces** (a machine takes each
+The kapi loop separates three verbs: a flow **produces** (a machine takes each
 unit as far as it can), a person **decides** (translated → reviewed), and a
 gate **releases**. This walkthrough shows the whole loop on one small project
 whose ship gate demands both translated 100% and reviewed 100% — a bar a

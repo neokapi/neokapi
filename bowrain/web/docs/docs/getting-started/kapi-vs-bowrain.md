@@ -61,7 +61,7 @@ through [connectors](/server/connectors), on the host the server runs on.
 
 - You run **several projects or publish on several surfaces** — an app, a site,
   a blog — and want one memory, glossary, and voice that compound across all of
-  them, converging continuously on the server rather than only when you run kapi.
+  them, catching up continuously on the server rather than only when you run kapi.
 - Several people — writers, translators, reviewers — work on the same content
   and need to [see each other and edit together](/server/collaboration).
 - One brand voice, glossary, and translation memory should be **shared and

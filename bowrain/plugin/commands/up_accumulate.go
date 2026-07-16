@@ -39,13 +39,13 @@ func (a *runAccumulator) terminalError(final *apiclient.ConvergenceRun) error {
 	}
 	switch state {
 	case convergence.RunFailed:
-		msg := "server convergence run failed"
+		msg := "server run failed"
 		if final != nil && final.Error != "" {
 			msg += ": " + final.Error
 		}
 		return errors.New(msg)
 	case convergence.RunCanceled:
-		return errors.New("server convergence run was canceled")
+		return errors.New("server run was canceled")
 	}
 	return nil
 }

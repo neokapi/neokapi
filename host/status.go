@@ -332,7 +332,7 @@ func (a *App) statusVenue(proj *project.KapiProject) *StatusVenue {
 		return v
 	}
 	v.Venue = "local"
-	v.Note = "bowrain plugin not installed — kapi up converges on this machine and does not push"
+	v.Note = "bowrain plugin not installed — kapi up runs on this machine and does not push"
 	return v
 }
 

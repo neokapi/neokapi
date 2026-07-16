@@ -90,5 +90,5 @@ func TestUp_JobsFlag(t *testing.T) {
 
 	out, err := runUp(t, a, recipe, "--jobs", "1")
 	require.NoError(t, err, out)
-	assert.Contains(t, out, "Converged: every gated scope is shippable")
+	assert.Contains(t, out, "Up to date: every gated scope is shippable")
 }

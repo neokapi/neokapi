@@ -10,7 +10,7 @@ import (
 // top-level verbs that run built-in flows, not raw tools. The pitch command
 // therefore carries the guardrails — TM reuse and deterministic checks wrap
 // the AI step — while every raw tool keeps exactly one spelling under
-// `kapi exec <name>`. The verb ladder: `kapi up` reconciles a project,
+// `kapi exec <name>`. The verb ladder: `kapi up` brings a project up to date,
 // `kapi translate` produces for files, `kapi exec` runs one bare tool.
 
 // NewTranslateCmd creates `kapi translate`: run the built-in translate flow
@@ -27,8 +27,8 @@ inline tags, untranslated text) over what was produced.
 
 This is the guardrailed spelling — the same three-step flow 'kapi up' loops
 over a project, applied to ad-hoc files. The raw translate tool (no TM pass,
-no checks) stays available as 'kapi exec translate'. To reconcile a whole
-project toward its ship gates, use 'kapi up'.`,
+no checks) stays available as 'kapi exec translate'. To bring a whole project
+up to date, use 'kapi up'.`,
 		Example: `  kapi translate messages.json --target-lang fr
   kapi translate docs/*.md --target-lang de -o out/{name}_{lang}.{ext}
   kapi translate app.xliff --target-lang ja --provider ollama`,

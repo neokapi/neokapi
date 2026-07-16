@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-15T04:10:01Z",
+  "generatedAt": "2026-07-16T16:49:18Z",
   "commands": [
     {
       "id": "brand",
@@ -88,6 +88,11 @@
           "type": "string"
         },
         {
+          "name": "persona",
+          "usage": "apply an author persona's overrides (within brand guardrails)",
+          "type": "string"
+        },
+        {
           "name": "profile",
           "usage": "brand voice profile name in the local store",
           "type": "string"
@@ -173,6 +178,11 @@
         {
           "name": "pack",
           "usage": "built-in starter pack name",
+          "type": "string"
+        },
+        {
+          "name": "persona",
+          "usage": "apply an author persona's overrides (within brand guardrails)",
           "type": "string"
         },
         {
@@ -455,6 +465,11 @@
           "type": "string"
         },
         {
+          "name": "persona",
+          "usage": "apply an author persona's overrides (within brand guardrails)",
+          "type": "string"
+        },
+        {
           "name": "profile",
           "usage": "brand voice profile name in the local store",
           "type": "string"
@@ -535,6 +550,11 @@
         {
           "name": "pack",
           "usage": "built-in starter pack name",
+          "type": "string"
+        },
+        {
+          "name": "persona",
+          "usage": "apply an author persona's overrides (within brand guardrails)",
           "type": "string"
         },
         {
@@ -913,7 +933,7 @@
       ],
       "use": "exec",
       "short": "Execute one registry tool on files (the raw layer under the porcelain verbs)",
-      "long": "Execute any CLI-visible registry tool on files — one tool, one pass, no\nguardrails around it. The top-level verbs are porcelain workflows over this\nlayer: 'kapi translate' wraps recycle → translate → checks, 'kapi up'\nreconciles a whole project, 'kapi check' verifies, 'kapi stats' measures.\nReach for exec when you want exactly one tool's behavior — a bare\n'exec translate' with no TM pass, a single 'exec term-check', a format\nconverter. The verb pairs with 'kapi run \u003cflow\u003e' the way 'kapi tools' pairs\nwith 'kapi flows': run composes a pipeline, exec executes one tool.\n\nDiscover tools and their options with 'kapi tools list' and\n'kapi tools schema \u003cname\u003e'.",
+      "long": "Execute any CLI-visible registry tool on files — one tool, one pass, no\nguardrails around it. The top-level verbs are porcelain workflows over this\nlayer: 'kapi translate' wraps recycle → translate → checks, 'kapi up'\nbrings a whole project up to date, 'kapi check' verifies, 'kapi stats' measures.\nReach for exec when you want exactly one tool's behavior — a bare\n'exec translate' with no TM pass, a single 'exec term-check', a format\nconverter. The verb pairs with 'kapi run \u003cflow\u003e' the way 'kapi tools' pairs\nwith 'kapi flows': run composes a pipeline, exec executes one tool.\n\nDiscover tools and their options with 'kapi tools list' and\n'kapi tools schema \u003cname\u003e'.",
       "groupID": "advanced",
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -4681,7 +4701,7 @@
       ],
       "use": "run [flow-name] [flags]",
       "short": "Run a composed flow (a named multi-tool pipeline)",
-      "long": "Run a composed flow that chains multiple tools together.\n\nFlows are multi-tool pipelines. For single-tool operations, use the\ntool directly (e.g. \"kapi translate\" instead of \"kapi run translate\").\nTo reconcile the whole project toward its ship gates, use 'kapi up' —\nrun is the escape hatch for one named pipeline, one pass.\n\nBuilt-in flows:\n  translate-qa    Translate + quality check using AI/LLM\n\nCustom flows can be defined in .kapi project files or .bowrain/flows/ as YAML files.\n\nUse -p to run a flow from a .kapi project file:\n  kapi run translate -p myproject.kapi",
+      "long": "Run a composed flow that chains multiple tools together.\n\nFlows are multi-tool pipelines. For single-tool operations, use the\ntool directly (e.g. \"kapi translate\" instead of \"kapi run translate\").\nTo bring the whole project up to date, use 'kapi up' — the kapi loop\nlives there; run is the escape hatch for one named pipeline, one pass.\n\nBuilt-in flows:\n  translate-qa    Translate + quality check using AI/LLM\n\nCustom flows can be defined in .kapi project files or .bowrain/flows/ as YAML files.\n\nUse -p to run a flow from a .kapi project file:\n  kapi run translate -p myproject.kapi",
       "groupID": "advanced",
       "flags": [
         {
@@ -5732,7 +5752,7 @@
       ],
       "use": "translate [files...]",
       "short": "Translate files with guardrails — TM reuse, AI translate, then checks",
-      "long": "Translate files through the built-in translate flow: leverage a bound\ntranslation memory first (a no-op without one), translate the rest with the\nconfigured AI provider, then run the deterministic checks (placeholders,\ninline tags, untranslated text) over what was produced.\n\nThis is the guardrailed spelling — the same three-step flow 'kapi up' loops\nover a project, applied to ad-hoc files. The raw translate tool (no TM pass,\nno checks) stays available as 'kapi exec translate'. To reconcile a whole\nproject toward its ship gates, use 'kapi up'.",
+      "long": "Translate files through the built-in translate flow: leverage a bound\ntranslation memory first (a no-op without one), translate the rest with the\nconfigured AI provider, then run the deterministic checks (placeholders,\ninline tags, untranslated text) over what was produced.\n\nThis is the guardrailed spelling — the same three-step flow 'kapi up' loops\nover a project, applied to ad-hoc files. The raw translate tool (no TM pass,\nno checks) stays available as 'kapi exec translate'. To bring a whole project\nup to date, use 'kapi up'.",
       "groupID": "localization",
       "flags": [
         {
@@ -5881,8 +5901,8 @@
         "up"
       ],
       "use": "up",
-      "short": "Reconcile the project toward its ship gates (run the default flow until converged)",
-      "long": "Reconcile the project toward its ship gates: treat the recipe as the desired\nstate and run the project's default flow (defaults.flow) over all content\nacross every target language, looping until every gated scope is shippable or\nparked for a human.\n\nWithout defaults.flow, up runs the built-in default flow — TM reuse (recycle)\nfollowed by AI translate — so a recipe needs no flow YAML at all to converge.\nSetting defaults.flow replaces the built-in default.\n\nBefore each pass, up re-syncs the project block store with the working tree:\nedited source files, a store written by another kapi version, or a missing\nstore trigger a re-extraction (the same shared path behind the desktop's\nRe-extract). --no-extract opts out.\n\nEach pass re-derives coverage from the working tree, runs the flow only for\nthe locales still short of their gate, and stops when everything ships, a pass\nmakes no progress (the remainder parks — it needs a human), or the pass cap is\nreached. After each pass the project's bound checks run over what was\nproduced: a unit with failing findings (dropped placeholders, glossary\nviolations) counts as drafted, not translated, so it cannot lift its locale\nover the gate until fixed. --no-checks opts out.\n\nWhen the loop ends, the materialize policy decides whether localized files\nare written from the project store: 'defaults.materialize: on-converge' (or\nthe --materialize flag) writes them for every locale whose gated scopes are\nall shippable; the default ('manual') leaves that to 'kapi merge'.\n\nVenue: in a server-connected project (a recipe with a server: block, with the\nbowrain plugin installed) the loop runs on the Bowrain server by default — on\nthe org's keys, against the org's shared TM and terminology — and this command\npushes local changes, streams the server run's live progress, and pulls the\nproduced targets. --local keeps the loop on this machine and then pushes the\nresults so the server never goes stale; --server fails rather than falling\nback to a local run. The resolved venue is printed first whenever a server:\nblock is present. Without a server: block, up is purely local.\n\n--plan is a dry run in every venue: instead of running anything, up reports\nthe pending work per (collection, locale) — units missing a target, exact TM\nleverage, the remaining AI work, and a rough token estimate — computed locally\nagainst the working tree, with no provider calls and no writes. Combine with\n--json for agents.\n\nup never fails the build on target drift: parked, pending target content is\nnormal toil, reported rather than thrown. Use 'kapi status' to inspect\nstanding without running anything, and 'kapi check --ship' to enforce the\ngates (e.g. before a release tag).\n\n--passes 1 runs a single pass (the behavior of the bare 'kapi run');\n--passes N caps the loop at N passes.",
+      "short": "Bring the project up to date (run the default flow until every gated scope ships or parks)",
+      "long": "Bring the project up to date: the recipe declares the languages, the flow, and\nthe gates that decide shippable; kapi up runs the project's default flow\n(defaults.flow) over every target language, looping until every gated scope is\nshippable or parked for a human.\n\nWithout defaults.flow, up runs the built-in default flow — TM reuse (recycle)\nfollowed by AI translate — so a recipe needs no flow YAML at all to catch up.\nSetting defaults.flow replaces the built-in default.\n\nBefore each pass, up re-syncs the project block store with the working tree:\nedited source files, a store written by another kapi version, or a missing\nstore trigger a re-extraction (the same shared path behind the desktop's\nRe-extract). --no-extract opts out.\n\nEach pass re-derives coverage from the working tree, runs the flow only for\nthe locales still short of their gate, and stops when everything ships, a pass\nmakes no progress (the remainder parks — it needs a human), or the pass cap is\nreached. After each pass the project's bound checks run over what was\nproduced: a unit with failing findings (dropped placeholders, glossary\nviolations) counts as drafted, not translated, so it cannot lift its locale\nover the gate until fixed. --no-checks opts out.\n\nWhen the loop ends, the materialize policy decides whether localized files\nare written from the project store: 'defaults.materialize: on-converge' (or\nthe --materialize flag) writes them for every locale whose gated scopes are\nall shippable; the default ('manual') leaves that to 'kapi merge'.\n\nVenue: in a server-connected project (a recipe with a server: block, with the\nbowrain plugin installed) the loop runs on the Bowrain server by default — on\nthe org's keys, against the org's shared TM and terminology — and this command\npushes local changes, streams the server run's live progress, and pulls the\nproduced targets. --local keeps the loop on this machine and then pushes the\nresults so the server never goes stale; --server fails rather than falling\nback to a local run. The resolved venue is printed first whenever a server:\nblock is present. Without a server: block, up is purely local.\n\n--plan is a dry run in every venue: instead of running anything, up reports\nthe pending work per (collection, locale) — units missing a target, exact TM\nleverage, the remaining AI work, and a rough token estimate — computed locally\nagainst the working tree, with no provider calls and no writes. Combine with\n--json for agents.\n\nup never fails the build on target drift: parked, pending target content is\nnormal toil, reported rather than thrown. Use 'kapi status' to inspect\nstanding without running anything, and 'kapi check --ship' to enforce the\ngates (e.g. before a release tag).\n\n--passes 1 runs a single pass (the behavior of the bare 'kapi run');\n--passes N caps the loop at N passes.",
       "groupID": "work",
       "flags": [
         {
@@ -5945,7 +5965,7 @@
         },
         {
           "name": "jobs",
-          "usage": "how many languages to converge concurrently per pass (0 = the recipe's defaults.jobs, else 4)",
+          "usage": "how many languages to catch up concurrently per pass (0 = the recipe's defaults.jobs, else 4)",
           "default": "0",
           "type": "int"
         },
@@ -5957,7 +5977,7 @@
         },
         {
           "name": "local",
-          "usage": "converge on this machine even when the recipe declares a server (the results are then pushed so the server stays current)",
+          "usage": "run the loop on this machine even when the recipe declares a server (the results are then pushed so the server stays current)",
           "default": "false",
           "type": "bool"
         },
@@ -6004,7 +6024,7 @@
         },
         {
           "name": "passes",
-          "usage": "maximum reconciliation passes (0 = loop until converged or parked, capped at 5; 1 = single pass)",
+          "usage": "maximum reconciliation passes (0 = loop until up to date or parked, capped at 5; 1 = single pass)",
           "default": "0",
           "type": "int"
         },
@@ -6028,7 +6048,7 @@
         },
         {
           "name": "server",
-          "usage": "require the server venue: fail rather than converge locally when the recipe has no server or the server plumbing is unavailable",
+          "usage": "require the server venue: fail rather than run the loop locally when the recipe has no server or the server plumbing is unavailable",
           "default": "false",
           "type": "bool"
         },
@@ -6076,8 +6096,8 @@
         "kapi up --plan         # dry run: pending work, TM leverage, and a token estimate per locale",
         "kapi up --passes 1     # a single pass over every locale that needs work",
         "kapi up --materialize  # also write localized files for the shippable locales",
-        "kapi up --local        # connected project: converge on this machine, then push the results",
-        "kapi up -p app.kapi    # reconcile an explicit project recipe"
+        "kapi up --local        # connected project: run the loop on this machine, then push the results",
+        "kapi up -p app.kapi    # bring an explicit project recipe up to date"
       ],
       "offlineCapable": false,
       "runnableInBrowser": false,
