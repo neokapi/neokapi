@@ -600,12 +600,6 @@ export function WorkspaceLayout() {
             params: { workspace: wsSlug },
           });
           break;
-        case "termbase":
-          void navigate({
-            to: "/$workspace/termbase",
-            params: { workspace: wsSlug },
-          });
-          break;
         case "memory":
           void navigate({
             to: "/$workspace/memory",

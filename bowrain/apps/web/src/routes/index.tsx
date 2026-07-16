@@ -1,10 +1,9 @@
-// TODO(flow-editor): The Bowrain web app has no flow list/CRUD route because the
-// server exposes no flow-definition REST API yet (only the @bravo MCP run_flow /
-// list_flows tools — see bowrain/server/mcp/tools_flow.go). When a flow REST API
-// lands, add a `/workspace/$slug/flows` route that renders the shared
-// `@neokapi/flow-editor` <FlowEditor>, bridging the node/edge definitions via the
-// shared `defToSpec` / `specToDef` adapter (the same component + adapter the
-// desktop FlowBuilder uses). Do NOT fork the editor for the web.
+// Flow editing lives project-scoped under Automations › Flows
+// (ProjectFlowsEditor over the flow-definition REST API); there is deliberately
+// no workspace-level flows route because flow definitions are per-project.
+// If one is ever added, render the shared `@neokapi/flow-editor` via the same
+// `defToSpec` / `specToDef` adapter the desktop FlowBuilder uses — do NOT fork
+// the editor for the web.
 import {
   createRootRouteWithContext,
   createRoute,
