@@ -11,12 +11,15 @@ description: Short, honest answers — kapi versus Bowrain, self-hosting, credit
 kapi is the open-source, single-user toolchain: it reads, translates, and ships
 content in many formats, runs checks, and uses translation memory — all locally,
 from files you own, with no server or account. Bowrain is the server platform that
-hosts brand voice, terminology, and translation memory once for a whole team, adds
-real-time collaboration, connectors, automation, and versioned history, and turns
-a team's corrections into enforced checks.
+hosts brand voice, terminology, and translation memory once — across every
+project, surface, and teammate — adds real-time collaboration, connectors,
+automation, and versioned history, and turns your corrections into enforced
+checks.
 
 The relationship is the same as git and GitHub: you start in kapi and connect a
-project to Bowrain when the team and governance needs arrive. The full comparison
+project to Bowrain when the work should outlive a single run — several projects
+or surfaces to keep consistent, corrections that should compound, or a team.
+Bowrain is as much for a solo developer with many surfaces as it is for a team. The full comparison
 is in [Kapi vs Bowrain](/getting-started/kapi-vs-bowrain).
 
 ## Can I self-host Bowrain?

@@ -10,7 +10,7 @@ const STEPS = [
   {
     icon: Users,
     title: "Review",
-    body: "Your team reviews in a shared editor: suggestions, term highlights, notes, history — with live presence, so everyone sees who's working where.",
+    body: "Review in a shared editor: suggestions, term highlights, notes, history. Solo, it is your quality gate; with a team, live presence shows who's working where.",
   },
   {
     icon: Lightbulb,

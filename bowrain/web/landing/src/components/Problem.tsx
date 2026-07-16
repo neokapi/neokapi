@@ -36,7 +36,7 @@ export function Problem() {
             AI made content cheap to produce — and hard to keep right.
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Every team now generates more copy, in more languages, on more surfaces than it can
+            Everyone now generates more copy, in more languages, on more surfaces than they can
             read. The bottleneck moved from writing to trusting what was written.
           </p>
         </div>

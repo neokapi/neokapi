@@ -11,7 +11,8 @@ keywords: [kapi vs bowrain, when to use, comparison, platform, toolchain]
 [Kapi](https://neokapi.github.io/web/neokapi/) and Bowrain are not alternatives —
 Bowrain is built on kapi. The split is the same as **git and GitHub**: the
 toolchain runs anywhere and belongs to you; the platform adds the persistent,
-multi-user, governed layer a team needs.
+governed layer that keeps working when you are not at the keyboard — for one
+builder with many projects and surfaces as much as for a team.
 
 - **Kapi** is the open-source, single-user toolchain. It reads, translates, and
   ships content in any format, runs checks (terminology, QA, brand voice), and
@@ -19,8 +20,8 @@ multi-user, governed layer a team needs.
   or account. It is also where your AI assistant plugs in, over MCP.
 - **Bowrain** is the server platform. It hosts the brand-voice profile,
   terminology, and translation memory once for everyone; adds real-time
-  collaboration, connectors, automation, and versioned history; and turns a
-  team's corrections into enforced checks. You keep using kapi — the bowrain
+  collaboration, connectors, automation, and versioned history; and turns your
+  corrections into enforced checks. You keep using kapi — the bowrain
   plugin connects a kapi project to a server and runs [`kapi up`](/cli/commands/up)
   on it.
 
@@ -40,7 +41,7 @@ through [connectors](/server/connectors), on the host the server runs on.
 | | **Kapi** | **Bowrain** |
 | --- | --- | --- |
 | Shape | A CLI + desktop app you install | A server + web and desktop clients |
-| Users | One person, one checkout | A team, one shared workspace |
+| Users | One person, one checkout | One workspace — you, and your team when you have one |
 | State | Local files + local TM/termbase | Hosted, versioned content store (desktop holds a local **cache** only) |
 | Brand & terminology | A profile/glossary you carry in files | Shared, governed, and **learned from corrections** |
 | Collaboration | — | [Real-time presence & co-editing](/server/collaboration) |
@@ -58,6 +59,9 @@ through [connectors](/server/connectors), on the host the server runs on.
 
 ## Reach for Bowrain when
 
+- You run **several projects or publish on several surfaces** — an app, a site,
+  a blog — and want one memory, glossary, and voice that compound across all of
+  them, converging continuously on the server rather than only when you run kapi.
 - Several people — writers, translators, reviewers — work on the same content
   and need to [see each other and edit together](/server/collaboration).
 - One brand voice, glossary, and translation memory should be **shared and
@@ -68,5 +72,6 @@ through [connectors](/server/connectors), on the host the server runs on.
   [versioned, enforced check](/server/brand-voice).
 
 You do not choose one forever. Start in kapi; connect a project to Bowrain when
-the team and the governance needs arrive. See the
+the work should outlive a single run — more projects, more surfaces, a team, or
+all three. See the
 [introduction](/introduction) for how the two fit together.

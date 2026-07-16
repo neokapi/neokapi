@@ -63,12 +63,12 @@ function HomepageHeader() {
             {siteConfig.title}
           </Heading>
           <p className={styles.heroSubtitle}>
-            The team platform for keeping content <strong>on brand and in every language</strong>:
-            shared, versioned governance of brand voice, terminology, and translation memory &mdash;
-            that learns from every correction &mdash; plus collaborative editing, connectors to the
+            The platform for keeping content <strong>on brand and in every language</strong>:
+            versioned governance of brand voice, terminology, and translation memory &mdash; that
+            learns from every correction &mdash; plus collaborative editing, connectors to the
             systems your content already lives in, and automation. It governs the content{" "}
-            <strong>kapi</strong> parses and edits &mdash; the persistent, multi-user layer a team
-            needs.
+            <strong>kapi</strong> parses and edits &mdash; the persistent layer for one builder
+            with many surfaces, or a whole team.
           </p>
           <div className={styles.buttons}>
             <Link className={clsx("button button--lg", styles.tryButton)} to="/quickstart">
@@ -156,7 +156,7 @@ export default function Home() {
   return (
     <Layout
       title={siteConfig.title}
-      description="Bowrain — the team platform for governed brand voice, terminology, and translation, built on the kapi toolchain"
+      description="Bowrain — the platform for governed brand voice, terminology, and translation, built on the kapi toolchain — solo or as a team"
     >
       <HomepageHeader />
       <main>
