@@ -41,8 +41,8 @@ bus.Unsubscribe(sub)
 | `connector.pulled` | Content is pulled from a connector   |
 | `connector.pushed` | Content is pushed to a connector     |
 | `flow.started`     | A flow begins execution              |
-| `flow.completed`   | A flow completes successfully        |
-| `flow.failed`      | A flow fails                         |
+| `flow.completed`   | A flow completes successfully (defined; not yet emitted) |
+| `flow.failed`      | A flow fails (defined; not yet emitted) |
 | `quality.passed`   | Quality gate passes                  |
 | `quality.failed`   | Quality gate fails                   |
 | `quality.warning`  | Quality gate issues advisory warning |

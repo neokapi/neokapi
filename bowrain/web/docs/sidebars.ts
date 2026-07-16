@@ -233,6 +233,7 @@ const sidebars: SidebarsConfig = {
         "architecture-decisions/019-correction-learning-loop",
         "architecture-decisions/020-governance-audit-rollback",
         "architecture-decisions/021-brand-knowledge-graph",
+        "architecture-decisions/022-convergence-as-a-service",
       ],
     },
     {
