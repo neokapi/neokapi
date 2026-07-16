@@ -74,10 +74,20 @@ func TestProxyMultipartRebuildsForm(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
 		gotCT = r.Header.Get("Content-Type")
-		require.NoError(t, r.ParseMultipartForm(1<<20))
+		// t.Error, not require: the handler runs off the test goroutine, where
+		// require's FailNow does not stop the test (testifylint go-require).
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Error(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		gotField = r.FormValue("ws")
 		f, hdr, err := r.FormFile("files")
-		require.NoError(t, err)
+		if err != nil {
+			t.Error(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		defer f.Close()
 		gotFileName = hdr.Filename
 		b, _ := io.ReadAll(f)
