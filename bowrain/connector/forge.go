@@ -43,7 +43,8 @@ type ForgeConnector struct {
 	git   *GitConnector
 	kind  forge.Kind
 	repo  forge.Repo
-	token string
+	token string           // static token; empty in app mode
+	app   *forge.GitHubApp // set in app mode: tokens minted per delivery
 
 	projectID      string
 	deliveryBranch string
@@ -52,20 +53,33 @@ type ForgeConnector struct {
 	gitUserName    string
 	gitUserEmail   string
 
-	// newClient builds the forge API client; tests inject a fake.
-	newClient func() forge.Client
+	// newClient builds the forge API client for a resolved token; tests
+	// inject a fake.
+	newClient func(token string) forge.Client
 }
 
 // NewForgeConnector builds a forge connector from config. The repo URL must be
 // https — token auth and the forge API don't exist over ssh remotes.
 func NewForgeConnector(formatReg *registry.FormatRegistry, config map[string]string) (*ForgeConnector, error) {
+	return NewForgeConnectorWithApp(formatReg, config, nil)
+}
+
+// NewForgeConnectorWithApp builds a forge connector that may authenticate as
+// a GitHub App: with `auth: app` in the config, the connector carries no
+// token of its own — a per-installation access token is minted for every
+// delivery. Static-token configs behave exactly as NewForgeConnector.
+func NewForgeConnectorWithApp(formatReg *registry.FormatRegistry, config map[string]string, app *forge.GitHubApp) (*ForgeConnector, error) {
 	repo, err := forge.ParseRepo(config["repo"])
 	if err != nil {
 		return nil, err
 	}
+	appMode := config["auth"] == "app"
+	if appMode && app == nil {
+		return nil, errors.New("forge connector: auth 'app' needs the server's GitHub App configured (GITHUB_APP_ID / GITHUB_APP_PRIVATE_KEY / GITHUB_APP_WEBHOOK_SECRET)")
+	}
 	token := config["token"]
-	if token == "" {
-		return nil, errors.New("forge connector requires 'token' config (forge API token)")
+	if token == "" && !appMode {
+		return nil, errors.New("forge connector requires 'token' config (forge API token), or auth 'app' on a server with a GitHub App")
 	}
 	projectID := config["project_id"]
 	if projectID == "" {
@@ -91,6 +105,9 @@ func NewForgeConnector(formatReg *registry.FormatRegistry, config map[string]str
 		kind = forge.KindForRepo(config["repo"])
 	default:
 		return nil, fmt.Errorf("forge connector: unknown forge %q (github or gitlab)", config["forge"])
+	}
+	if appMode && kind != forge.KindGitHub {
+		return nil, errors.New("forge connector: auth 'app' is a GitHub App — GitLab uses a project access token")
 	}
 
 	deliveryBranch := config["delivery_branch"]
@@ -129,6 +146,7 @@ func NewForgeConnector(formatReg *registry.FormatRegistry, config map[string]str
 		kind:           kind,
 		repo:           repo,
 		token:          token,
+		app:            appIfMode(appMode, app),
 		projectID:      projectID,
 		deliveryBranch: deliveryBranch,
 		prTitle:        prTitle,
@@ -136,8 +154,26 @@ func NewForgeConnector(formatReg *registry.FormatRegistry, config map[string]str
 		gitUserName:    gitUserName,
 		gitUserEmail:   gitUserEmail,
 	}
-	fc.newClient = func() forge.Client { return forge.NewClient(fc.kind, fc.token, nil) }
+	fc.newClient = func(token string) forge.Client { return forge.NewClient(fc.kind, token, nil) }
 	return fc, nil
+}
+
+// appIfMode keeps the app handle only when the config asked for app auth, so
+// a static-token connector on an app-enabled server stays static.
+func appIfMode(appMode bool, app *forge.GitHubApp) *forge.GitHubApp {
+	if appMode {
+		return app
+	}
+	return nil
+}
+
+// tokenFor resolves the credential for one delivery: the static token, or a
+// freshly minted installation token in app mode.
+func (c *ForgeConnector) tokenFor(ctx context.Context) (string, error) {
+	if c.app != nil {
+		return c.app.TokenForRepo(ctx, c.repo.Path)
+	}
+	return c.token, nil
 }
 
 // ProjectID returns the Bowrain project this repository feeds.
@@ -177,12 +213,12 @@ func (c *ForgeConnector) List(ctx context.Context) ([]*platconn.ContentItem, err
 // forge token as an https Authorization header — environment, not argv, so the
 // credential never shows up in a process listing. The basic-auth username is
 // the forge's token convention; both forges only check the password half.
-func (c *ForgeConnector) tokenAuthEnv() []string {
+func (c *ForgeConnector) tokenAuthEnv(token string) []string {
 	user := "oauth2"
 	if c.kind == forge.KindGitHub {
 		user = "x-access-token"
 	}
-	basic := base64.StdEncoding.EncodeToString([]byte(user + ":" + c.token))
+	basic := base64.StdEncoding.EncodeToString([]byte(user + ":" + token))
 	return []string{
 		"GIT_CONFIG_COUNT=1",
 		"GIT_CONFIG_KEY_0=http.extraHeader",
@@ -191,9 +227,9 @@ func (c *ForgeConnector) tokenAuthEnv() []string {
 }
 
 // deliveryGit runs a git command in the clone with token auth injected.
-func (c *ForgeConnector) deliveryGit(ctx context.Context, args ...string) *exec.Cmd {
+func (c *ForgeConnector) deliveryGit(ctx context.Context, token string, args ...string) *exec.Cmd {
 	cmd := gitCommand(ctx, append(c.git.globalArgs(), args...)...)
-	cmd.Env = append(cmd.Env, c.tokenAuthEnv()...)
+	cmd.Env = append(cmd.Env, c.tokenAuthEnv(token)...)
 	return cmd
 }
 
@@ -216,9 +252,14 @@ func (c *ForgeConnector) Publish(ctx context.Context, items []*platconn.ContentI
 		return err
 	}
 
+	token, err := c.tokenFor(ctx)
+	if err != nil {
+		return err
+	}
+
 	// Recreate the delivery branch from the tracked branch tip. -B resets it
 	// if a previous delivery left it behind.
-	checkout := c.deliveryGit(ctx, "-C", c.git.localPath, "checkout", "-B", c.deliveryBranch, c.git.branch)
+	checkout := c.deliveryGit(ctx, token, "-C", c.git.localPath, "checkout", "-B", c.deliveryBranch, c.git.branch)
 	if out, err := checkout.CombinedOutput(); err != nil {
 		return fmt.Errorf("git checkout %s: %s: %w", c.deliveryBranch, string(out), err)
 	}
@@ -260,7 +301,7 @@ func (c *ForgeConnector) Publish(ctx context.Context, items []*platconn.ContentI
 
 	// Force-push: the branch was recreated from the tracked tip, so its
 	// history is deliberately rewritten on every delivery.
-	pushCmd := c.deliveryGit(ctx, "-C", c.git.localPath, "push", "--force", "origin", "--", c.deliveryBranch)
+	pushCmd := c.deliveryGit(ctx, token, "-C", c.git.localPath, "push", "--force", "origin", "--", c.deliveryBranch)
 	if out, err := pushCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("git push %s: %s: %w", c.deliveryBranch, string(out), err)
 	}
@@ -274,7 +315,7 @@ func (c *ForgeConnector) Publish(ctx context.Context, items []*platconn.ContentI
 		body = "Translations produced by the Bowrain convergence loop."
 	}
 
-	pr, err := c.newClient().EnsureDeliveryPR(ctx, forge.DeliveryRequest{
+	pr, err := c.newClient(token).EnsureDeliveryPR(ctx, forge.DeliveryRequest{
 		Repo:       c.repo,
 		HeadBranch: c.deliveryBranch,
 		BaseBranch: c.git.branch,

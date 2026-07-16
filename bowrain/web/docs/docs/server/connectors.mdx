@@ -110,6 +110,43 @@ Credentials are sealed at rest like every connector secret. Pushes to
 branches other than the tracked one — including the delivery branch itself —
 are ignored, so the connector's own deliveries never re-trigger a run.
 
+#### GitHub App mode (no tokens, no per-repo webhooks)
+
+With a GitHub App registered for your server, connectors on GitHub need
+neither a token nor a webhook secret — GitHub routes every installed
+repository's pushes to one app endpoint, and the server mints short-lived
+per-installation tokens for each delivery:
+
+```json
+{
+  "type": "forge",
+  "name": "website",
+  "config": {
+    "repo": "https://github.com/acme/website.git",
+    "branch": "main",
+    "project_id": "<project-id>",
+    "auth": "app",
+    "patterns": "src/locales/**/*.json"
+  }
+}
+```
+
+Register the app once (GitHub → Settings → Developer settings → GitHub Apps →
+New) with **webhook URL** `$SERVER/api/webhooks/github-app`, a webhook
+secret, the **push** event, and repository permissions **Contents:
+read & write**, **Pull requests: read & write**, **Metadata: read**. Download
+the private key and configure the server:
+
+```bash
+GITHUB_APP_ID=<app id>
+GITHUB_APP_PRIVATE_KEY_FILE=/etc/bowrain/github-app.pem   # or GITHUB_APP_PRIVATE_KEY (PEM text)
+GITHUB_APP_WEBHOOK_SECRET=<webhook secret>
+```
+
+Installing the app on a repository is then the only per-repo step. Static
+tokens keep working alongside app mode — GitLab always uses a project access
+token.
+
 :::warning Work in progress
 
 Server-side connectors are under active development. The remote connectors above

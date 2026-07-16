@@ -2,6 +2,10 @@ package connector
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -64,12 +68,47 @@ func TestNewForgeConnectorValidation(t *testing.T) {
 	c, err = NewForgeConnector(reg, cfg)
 	require.NoError(t, err)
 	assert.Equal(t, forge.KindGitLab, c.Kind(), "self-managed hosts default to GitLab")
+
+	// App mode: no token needed, but the server must have an app, and the
+	// forge must be GitHub.
+	cfg = base()
+	delete(cfg, "token")
+	cfg["auth"] = "app"
+	_, err = NewForgeConnectorWithApp(reg, cfg, nil)
+	require.ErrorContains(t, err, "GitHub App")
+
+	app := testGitHubApp(t)
+	cfg = base()
+	delete(cfg, "token")
+	cfg["auth"] = "app"
+	c, err = NewForgeConnectorWithApp(reg, cfg, app)
+	require.NoError(t, err)
+	assert.Equal(t, forge.KindGitHub, c.Kind())
+
+	cfg = base()
+	cfg["auth"] = "app"
+	cfg["repo"] = "https://gitlab.com/acme/site.git"
+	_, err = NewForgeConnectorWithApp(reg, cfg, app)
+	require.ErrorContains(t, err, "GitLab uses a project access token")
+}
+
+// testGitHubApp builds a GitHubApp with a throwaway key for construction-level
+// tests (no API calls).
+func testGitHubApp(t *testing.T) *forge.GitHubApp {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
+	app, err := forge.NewGitHubApp("1", string(pemBytes), "sec")
+	require.NoError(t, err)
+	return app
 }
 
 // fakeForgeClient records the delivery request instead of calling a forge.
 type fakeForgeClient struct {
 	req    *forge.DeliveryRequest
 	called int
+	token  string
 }
 
 func (f *fakeForgeClient) EnsureDeliveryPR(_ context.Context, req forge.DeliveryRequest) (forge.PR, error) {
@@ -133,7 +172,7 @@ func TestForgeConnectorPublish_BranchAndPR(t *testing.T) {
 	})
 	require.NoError(t, err)
 	fake := &fakeForgeClient{}
-	c.newClient = func() forge.Client { return fake }
+	c.newClient = func(token string) forge.Client { fake.token = token; return fake }
 
 	items := []*platconn.ContentItem{{
 		ID:     "fr.txt",

@@ -158,6 +158,16 @@ webhook secret are sealed at rest like every connector credential, and
 the token reaches git over https via `GIT_CONFIG_*` environment
 variables — never argv. Failed and canceled runs deliver nothing.
 
+On GitHub the connector can run in **App mode** (`auth: app`): the server
+holds one registered GitHub App (app id + private key + webhook secret,
+`GITHUB_APP_*` config), authenticates to its API with a short-lived RS256
+JWT, and mints cached per-installation access tokens for each delivery —
+connectors then carry no credentials at all, and one app-level endpoint
+(`/api/webhooks/github-app`) receives pushes for every installed
+repository, routed to the tracked connector by repository path.
+Installing the app on a repository is the only per-repo step. GitLab has
+no app equivalent; its connectors use project access tokens.
+
 ### Options and Status
 
 ```go

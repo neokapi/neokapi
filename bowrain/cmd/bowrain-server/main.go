@@ -318,6 +318,20 @@ func run() error {
 	if v := os.Getenv("BOWRAIN_AUDIT_SIEM_WEBHOOK_URL"); v != "" {
 		cfg.AuditSIEMWebhookURL = v
 	}
+	// GitHub App (forge delivery, app mode). The key arrives as PEM text or,
+	// more conveniently under systemd/compose, as a file path.
+	cfg.GitHubAppID = os.Getenv("GITHUB_APP_ID")
+	cfg.GitHubAppWebhookSecret = os.Getenv("GITHUB_APP_WEBHOOK_SECRET")
+	if v := os.Getenv("GITHUB_APP_PRIVATE_KEY"); v != "" {
+		cfg.GitHubAppPrivateKey = v
+	} else if v := os.Getenv("GITHUB_APP_PRIVATE_KEY_FILE"); v != "" {
+		pemBytes, err := os.ReadFile(v)
+		if err != nil {
+			slog.Error("GITHUB_APP_PRIVATE_KEY_FILE unreadable — GitHub App disabled", "error", err)
+		} else {
+			cfg.GitHubAppPrivateKey = string(pemBytes)
+		}
+	}
 
 	// Fail-fast boot validation. A malformed database URL is always fatal;
 	// MISSING JWT secret / database URL are fatal unless the insecure-dev

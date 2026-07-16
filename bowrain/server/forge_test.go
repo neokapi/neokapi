@@ -3,8 +3,12 @@ package server
 import (
 	"context"
 	"crypto/hmac"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
+	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -17,6 +21,7 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/event"
+	"github.com/neokapi/neokapi/bowrain/forge"
 	"github.com/neokapi/neokapi/bowrain/service"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
@@ -208,6 +213,64 @@ func TestForgeDelivery_IgnoresFailedRuns(t *testing.T) {
 	})
 	time.Sleep(100 * time.Millisecond)
 	assert.Nil(t, stub.published, "failed runs deliver nothing")
+}
+
+func TestGitHubAppWebhook_RoutesByRepo(t *testing.T) {
+	s, stub := newForgeTestServer(t, "conn1", "proj1", "s3cret")
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
+	app, err := forge.NewGitHubApp("1", string(pemBytes), "app-secret")
+	require.NoError(t, err)
+	s.GitHubApp = app
+
+	pushed := make(chan platev.Event, 1)
+	s.EventBus.Subscribe(platev.EventPushCompleted, func(ev platev.Event) { pushed <- ev })
+
+	post := func(body string, headers map[string]string) *httptest.ResponseRecorder {
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodPost, "/api/webhooks/github-app", strings.NewReader(body))
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		rec := httptest.NewRecorder()
+		_ = s.HandleGitHubAppWebhook(e.NewContext(req, rec))
+		return rec
+	}
+
+	body := `{"ref":"refs/heads/main","repository":{"full_name":"acme/site"}}`
+
+	// Bad signature: rejected.
+	rec := post(body, map[string]string{"X-GitHub-Event": "push", "X-Hub-Signature-256": "sha256=deadbeef"})
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+
+	// Installation lifecycle events are acknowledged without action.
+	rec = post(`{"action":"created"}`, map[string]string{
+		"X-GitHub-Event": "installation", "X-Hub-Signature-256": githubSign("app-secret", []byte(`{"action":"created"}`))})
+	assert.Equal(t, http.StatusAccepted, rec.Code)
+	assert.Equal(t, 0, stub.fetched)
+
+	// A push on a repository no connector tracks is not ours.
+	other := `{"ref":"refs/heads/main","repository":{"full_name":"acme/other"}}`
+	rec = post(other, map[string]string{
+		"X-GitHub-Event": "push", "X-Hub-Signature-256": githubSign("app-secret", []byte(other))})
+	assert.Equal(t, http.StatusAccepted, rec.Code)
+	assert.Equal(t, 0, stub.fetched)
+
+	// A push on the tracked repository's tracked branch routes to the
+	// connector: re-ingest + the push event that starts convergence.
+	rec = post(body, map[string]string{
+		"X-GitHub-Event": "push", "X-Hub-Signature-256": githubSign("app-secret", []byte(body))})
+	assert.Equal(t, http.StatusAccepted, rec.Code)
+	select {
+	case ev := <-pushed:
+		assert.Equal(t, "proj1", ev.ProjectID)
+		assert.Equal(t, "acme/site", ev.Data["repo"])
+	case <-time.After(5 * time.Second):
+		t.Fatal("no EventPushCompleted after an app push webhook")
+	}
+	assert.Equal(t, 1, stub.fetched)
 }
 
 func TestTargetPathFor(t *testing.T) {

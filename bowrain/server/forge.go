@@ -86,14 +86,19 @@ func (s *Server) HandleForgeWebhook(c echo.Context) error {
 		return c.NoContent(http.StatusAccepted)
 	}
 
+	s.forgeIngest(cfg, ev)
+	return c.NoContent(http.StatusAccepted)
+}
+
+// forgeIngest re-ingests a connector's source and announces the push, off the
+// webhook request — forges time webhooks out in seconds, while a fetch
+// clones/pulls a repository.
+func (s *Server) forgeIngest(cfg bstore.ConnectorConfig, ev forge.PushEvent) {
 	projectID := cfg.Config["project_id"]
 	workspaceID := cfg.WorkspaceID
 	connectorID := cfg.ID
-
-	// Ingest + converge off the request: forges time webhooks out in seconds,
-	// while a fetch clones/pulls a repository.
 	go func() {
-		ctx, cancel := context.WithTimeout(context.WithoutCancel(c.Request().Context()), 10*time.Minute)
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(context.Background()), 10*time.Minute)
 		defer cancel()
 		if _, err := s.Services.Connector.Fetch(ctx, workspaceID, connectorID, projectID, platconn.FetchOptions{}); err != nil {
 			slog.Warn("forge webhook: fetch failed", "connector", connectorID, "project", projectID, "error", err)
@@ -112,8 +117,77 @@ func (s *Server) HandleForgeWebhook(c echo.Context) error {
 			},
 		})
 	}()
+}
 
+// HandleGitHubAppWebhook receives push webhooks for every repository the
+// server's GitHub App is installed on: POST /api/webhooks/github-app.
+//
+// One endpoint serves the whole app — GitHub routes all installation events
+// here, signed with the app's webhook secret. A push to a repository is
+// matched to the forge connector tracking it (by repository path); everything
+// downstream is the same flow as the per-connector webhook. Installation
+// lifecycle events and pings are acknowledged without action.
+func (s *Server) HandleGitHubAppWebhook(c echo.Context) error {
+	if s.GitHubApp == nil || s.ConnectorConfigStore == nil || s.Services == nil || s.Services.Connector == nil || s.EventBus == nil {
+		return c.NoContent(http.StatusNotFound)
+	}
+	body, err := io.ReadAll(io.LimitReader(c.Request().Body, maxForgeWebhookBody))
+	if err != nil {
+		return c.NoContent(http.StatusBadRequest)
+	}
+	if !forge.VerifyGitHubSignature(s.GitHubApp.WebhookSecret(), body, c.Request().Header.Get("X-Hub-Signature-256")) {
+		return c.NoContent(http.StatusUnauthorized)
+	}
+
+	if c.Request().Header.Get("X-GitHub-Event") != "push" {
+		// installation created/removed, ping, … — acknowledged; connectors
+		// bind repositories explicitly, so there is nothing to mirror here.
+		return c.NoContent(http.StatusAccepted)
+	}
+	ev, ok := forge.ParsePushEvent(forge.KindGitHub, body)
+	if !ok {
+		return c.NoContent(http.StatusAccepted)
+	}
+
+	cfg, ok := s.forgeConfigByRepo(c.Request().Context(), ev.RepoPath)
+	if !ok {
+		// The app is installed on repositories that aren't connected projects;
+		// their pushes are simply not ours.
+		return c.NoContent(http.StatusAccepted)
+	}
+	baseBranch := cfg.Config["branch"]
+	if baseBranch == "" {
+		baseBranch = "main"
+	}
+	if ev.Branch != baseBranch {
+		return c.NoContent(http.StatusAccepted)
+	}
+
+	s.forgeIngest(cfg, ev)
 	return c.NoContent(http.StatusAccepted)
+}
+
+// forgeConfigByRepo finds the forge connector tracking a GitHub repository
+// path (app-level webhooks carry the repository, not a connector id).
+func (s *Server) forgeConfigByRepo(ctx context.Context, repoPath string) (bstore.ConnectorConfig, bool) {
+	configs, err := s.ConnectorConfigStore.ListAll(ctx)
+	if err != nil {
+		slog.Warn("github app webhook: config lookup failed", "error", err)
+		return bstore.ConnectorConfig{}, false
+	}
+	for _, cfg := range configs {
+		if cfg.Type != "forge" {
+			continue
+		}
+		repo, err := forge.ParseRepo(cfg.Config["repo"])
+		if err != nil {
+			continue
+		}
+		if strings.EqualFold(repo.Path, repoPath) {
+			return cfg, true
+		}
+	}
+	return bstore.ConnectorConfig{}, false
 }
 
 // forgeConfigByID finds a persisted forge connector config by id across
