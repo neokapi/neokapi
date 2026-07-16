@@ -16,8 +16,9 @@ The loop is two commands:
 1. [`kapi pull`](/cli/commands/pull) fetches translations and, when the project
    is claimed into a workspace, also snapshots the workspace's governed concepts
    and their relations into the project's local termbase (`.kapi/termbase.db`).
-2. `kapi check --ship --terms` checks the project's target files against that termbase
-   and exits non-zero when a file violates it.
+2. `kapi check --ship` runs the project's bound gates — the terminology gate
+   checks the project's target files against that termbase and exits non-zero
+   when a file violates it.
 
 Pull the truth once, then verify offline — no per-file server round-trip, and
 the gate enforces exactly what the hub shows.
@@ -38,27 +39,27 @@ the gate enforces exactly what the hub shows.
 # 1. Pull translations and governed terminology from the workspace.
 kapi pull
 
-# 2. Gate the project's target files against it.
-kapi check --ship --terms
+# 2. Gate the project against its bound gates, terminology included.
+kapi check --ship
 ```
 
-`kapi check --ship --terms` runs only the terminology gate. With no gate flag, `kapi
-verify` runs every bound gate (brand, terminology, QA); naming `--terms`
-restricts it to terminology — and, because the gate is requested explicitly, an
-unbound termbase becomes a reported failure rather than a silent skip, so CI
-cannot pass by doing nothing.
+`kapi check --ship` runs every gate the project binds — brand, terminology,
+QA — plus its ship/source coverage gates. The terminology gate runs because
+the project binds a termbase (the conventional `.kapi/termbase.db`, which is
+exactly where `kapi pull` snapshots the governed concepts), so the gate
+enforces what the hub shows with no extra configuration.
 
-Scope the check to one locale with `--locale`, or point at a specific glossary
-with `--termbase`:
+Scope the check to one locale with `--locale`, or point the terminology gate
+at a specific glossary with `--termbase`:
 
 ```bash
-kapi check --ship --terms --locale fr
+kapi check --ship --locale fr
 ```
 
 ## In GitHub Actions
 
 Install kapi and the bowrain plugin with
-[`setup-bowrain`](/cli/use-cases/github-actions), pull terminology, then verify:
+[`setup-kapi`](/cli/use-cases/github-actions), pull terminology, then gate:
 
 ```yaml
 name: Brand terminology gate
@@ -76,17 +77,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: neokapi/setup-bowrain@v1
+      - uses: neokapi/setup-kapi@v1
         with:
-          token: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
+          plugins: kapi-bowrain
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
       - name: Pull translations and governed terminology
         run: kapi pull
 
-      - name: Gate against governed terminology
-        run: kapi check --ship --terms
+      - name: Gate against the project's bound gates
+        run: kapi check --ship
 ```
 
 The `auth-token` and `server` inputs export `BOWRAIN_AUTH_TOKEN` and
@@ -99,8 +100,8 @@ gate exits non-zero and fails the job.
 
 | Exit | Meaning                                                                 |
 | ---- | ---------------------------------------------------------------------- |
-| `0`  | Pass — every requested gate passed                                     |
-| `3`  | A gate failed (including a requested gate whose binding is missing)    |
+| `0`  | Pass — every bound gate passed                                         |
+| `3`  | A gate failed                                                          |
 | `1`  | Operational error (project not found, unreadable file, …)             |
 
 Exit `3` means "not on-spec yet", not a crash: read the findings and fix them.
@@ -111,7 +112,7 @@ gating, where the non-zero exit is the point.
 Add `--json` to feed the structured findings to another tool:
 
 ```bash
-kapi check --ship --terms --json
+kapi check --ship --json
 ```
 
 ## Keeping the snapshot fresh
