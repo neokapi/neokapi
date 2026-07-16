@@ -89,6 +89,15 @@ pcdir=$(mktemp -d)
 # harmless — the linker dedupes them with a warning.
 libs="$a_i18n $a_uc $a_data -l$cxx_lib"
 
+# The ICU archives call libm (pow/log in i18n number formatting). macOS folds
+# libm into libSystem so no flag is needed, but on Linux the GNU linker runs
+# with --as-needed and the DSO must be named on the command line *after* the
+# archives that use it — without this, any cgo link against the static
+# archives dies with "libm.so.6: DSO missing from command line".
+if [[ "$uname_s" == "Linux" ]]; then
+  libs="$libs -lm"
+fi
+
 for name in icu-uc icu-i18n; do
   cat > "$pcdir/$name.pc" <<EOF
 libdir=$libdir
