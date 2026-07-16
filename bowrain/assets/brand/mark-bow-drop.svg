@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <!-- bowrain mark candidate 1: "Bow & Drop" — three prismatic arc bands
-       sheltering a single raindrop that falls from under the bow. -->
-  <path d="M6 44 A26 26 0 0 1 58 44" stroke="#9a71d0" stroke-width="6"/>
-  <path d="M13 44 A19 19 0 0 1 51 44" stroke="#4f8bd6" stroke-width="6"/>
-  <path d="M20 44 A12 12 0 0 1 44 44" stroke="#5cab7d" stroke-width="6"/>
-  <path d="M32 32 C32 32 25 41 25 46 a7 7 0 0 0 14 0 C39 41 32 32 32 32 Z" fill="#4f8bd6"/>
-</svg>

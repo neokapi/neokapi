@@ -20,8 +20,32 @@ const env = Object.fromEntries(
     .map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1)]),
 );
 const BASE = env.BOWRAIN_BACKEND_URL ?? "http://localhost:8080";
-const TOKEN = env.BOWRAIN_SESSION_TOKEN;
-if (!TOKEN) throw new Error("BOWRAIN_SESSION_TOKEN missing — run `make harness-seed` first");
+const API = `${BASE}/api/v1`;
+
+// Mint a fresh 15-min JWT via the server's device flow (same as the seeder),
+// so each context starts with a full TTL regardless of how long a pass takes.
+async function deviceAuth(email, name) {
+  const form = (url, body) =>
+    fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+      redirect: "manual",
+    });
+  const start = await (await form(`${API}/auth/device/start`, "client_id=e2e-shared")).json();
+  await form(
+    `${API}/auth/device/verify`,
+    `user_code=${start.user_code}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(name)}`,
+  );
+  const poll = await (
+    await form(
+      `${API}/auth/device/poll`,
+      `device_code=${start.device_code}&grant_type=urn:ietf:params:oauth:grant-type:device_code`,
+    )
+  ).json();
+  if (!poll.access_token) throw new Error(`device auth (${email}): no access_token`);
+  return poll.access_token;
+}
 
 const BRANDS = ["rainlight", "indigo", "graphite", "petrichor"];
 const WS = env.BOWRAIN_WORKSPACE_SLUG ?? "bowmart";
@@ -50,10 +74,11 @@ for (const mode of ["light", "dark"]) {
     deviceScaleFactor: 2,
     colorScheme: mode,
   });
+  const token = await deviceAuth("admin@example.com", "Alex Rivera");
   await context.addCookies([
     {
       name: "bowrain_session",
-      value: TOKEN,
+      value: token,
       domain: u.hostname,
       path: "/api/",
       httpOnly: true,
@@ -72,9 +97,9 @@ for (const mode of ["light", "dark"]) {
   }, mode);
 
   for (const route of ROUTES) {
-    await page.goto(`${BASE}${route.path}`, { waitUntil: "networkidle" }).catch(() => {});
-    // settle fonts/animations
-    await page.waitForTimeout(1200);
+    await page.goto(`${BASE}${route.path}`, { waitUntil: "domcontentloaded" }).catch(() => {});
+    // settle data fetches/fonts (networkidle never fires — the app holds SSE open)
+    await page.waitForTimeout(3500);
     for (const brand of BRANDS) {
       await page.evaluate(
         ({ text, m }) => {

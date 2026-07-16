@@ -30,26 +30,31 @@
   display: none; /* never show a collapse caret on a static heading */
 }
 
+/* Rainlight — the bowrain brand palette (canonical copy:
+   packages/ui/src/styles/theme-colors.css). Calm rain blue as the docs
+   primary; cool slate backgrounds in dark mode. */
 :root {
-  --ifm-color-primary: #2e8555;
-  --ifm-color-primary-dark: #29784c;
-  --ifm-color-primary-darker: #277148;
-  --ifm-color-primary-darkest: #205d3b;
-  --ifm-color-primary-light: #33925d;
-  --ifm-color-primary-lighter: #359962;
-  --ifm-color-primary-lightest: #3cad6e;
+  --ifm-color-primary: #2f63c7;
+  --ifm-color-primary-dark: #2a59b3;
+  --ifm-color-primary-darker: #2854a9;
+  --ifm-color-primary-darkest: #21458b;
+  --ifm-color-primary-light: #3f70cf;
+  --ifm-color-primary-lighter: #4a78d2;
+  --ifm-color-primary-lightest: #648cda;
   --ifm-code-font-size: 95%;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
 }
 
 [data-theme="dark"] {
-  --ifm-color-primary: #25c2a0;
-  --ifm-color-primary-dark: #21af90;
-  --ifm-color-primary-darker: #1fa588;
-  --ifm-color-primary-darkest: #1a8870;
-  --ifm-color-primary-light: #29d5b0;
-  --ifm-color-primary-lighter: #32d8b4;
-  --ifm-color-primary-lightest: #4fddbf;
+  --ifm-color-primary: #7aa5e8;
+  --ifm-color-primary-dark: #5f92e3;
+  --ifm-color-primary-darker: #5188e1;
+  --ifm-color-primary-darkest: #2c6bd8;
+  --ifm-color-primary-light: #95b8ed;
+  --ifm-color-primary-lighter: #a3c1ef;
+  --ifm-color-primary-lightest: #cbdcf6;
+  --ifm-background-color: #1c2331;
+  --ifm-background-surface-color: #232b3c;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
 
