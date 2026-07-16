@@ -1,0 +1,145 @@
+/*
+ * bowrain — Candidate theme D: "Petrichor" (plain, but not mono; no blue/violet)
+ *
+ * The smell of rain on earth: quiet neutral surfaces with a barely-there green
+ * undertone and a grounded moss-green primary. Deliberately plain — the UI is
+ * calm and gray-forward — but with a real color identity, not monochrome.
+ * Prism ramp is an earth spectrum (green → teal → gold → copper).
+ * Drop-in replacement for theme-colors.css.
+ */
+
+:root {
+  /* ── Surfaces ──────────────────────────────────────────── */
+  --background: oklch(0.985 0.002 150);
+  --foreground: oklch(0.245 0.015 155);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.245 0.015 155);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.245 0.015 155);
+
+  /* ── Primary — grounded moss green ─────────────────────── */
+  --primary: oklch(0.5 0.11 160);
+  --primary-foreground: oklch(0.985 0.003 150);
+
+  /* ── Secondary — pale sage-gray ────────────────────────── */
+  --secondary: oklch(0.955 0.008 150);
+  --secondary-foreground: oklch(0.34 0.03 155);
+
+  /* ── Muted ─────────────────────────────────────────────── */
+  --muted: oklch(0.955 0.007 145);
+  --muted-foreground: oklch(0.52 0.02 150);
+
+  /* ── Accent — sage tint ────────────────────────────────── */
+  --accent: oklch(0.93 0.02 150);
+  --accent-foreground: oklch(0.3 0.05 155);
+
+  /* ── Destructive ───────────────────────────────────────── */
+  --destructive: oklch(0.58 0.21 25);
+  --destructive-foreground: oklch(1 0 0);
+
+  /* ── Status — semantic ─────────────────────────────────── */
+  --success: oklch(0.55 0.14 150);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.75 0.15 80);
+  --warning-foreground: oklch(0.25 0.02 70);
+  --info: oklch(0.6 0.13 250);
+  --info-foreground: oklch(1 0 0);
+
+  /* ── Borders & controls ────────────────────────────────── */
+  --border: oklch(0.915 0.01 145);
+  --input: oklch(0.915 0.01 145);
+  --ring: oklch(0.5 0.11 160);
+
+  --radius: 0.5rem;
+
+  /* ── Prism ramp — earth spectrum ───────────────────────── */
+  --prism-1: oklch(0.55 0.13 160);
+  --prism-2: oklch(0.65 0.11 190);
+  --prism-3: oklch(0.78 0.13 88);
+  --prism-4: oklch(0.62 0.12 45);
+  --prism-5: oklch(0.5 0.09 130);
+
+  /* ── Chart palette ─────────────────────────────────────── */
+  --chart-1: oklch(0.55 0.13 160);
+  --chart-2: oklch(0.65 0.11 190);
+  --chart-3: oklch(0.78 0.13 88);
+  --chart-4: oklch(0.55 0.03 250);
+  --chart-5: oklch(0.62 0.12 45);
+
+  /* ── Sidebar ───────────────────────────────────────────── */
+  --sidebar: oklch(0.962 0.006 148);
+  --sidebar-foreground: oklch(0.245 0.015 155);
+  --sidebar-primary: oklch(0.5 0.11 160);
+  --sidebar-primary-foreground: oklch(0.985 0.003 150);
+  --sidebar-accent: oklch(0.93 0.012 148);
+  --sidebar-accent-foreground: oklch(0.245 0.015 155);
+  --sidebar-border: oklch(0.91 0.01 145);
+  --sidebar-ring: oklch(0.5 0.11 160);
+}
+
+.dark {
+  /* ── Surfaces — deep green-gray ────────────────────────── */
+  --background: oklch(0.205 0.012 155);
+  --foreground: oklch(0.95 0.005 150);
+  --card: oklch(0.235 0.013 155);
+  --card-foreground: oklch(0.95 0.005 150);
+  --popover: oklch(0.235 0.013 155);
+  --popover-foreground: oklch(0.95 0.005 150);
+
+  /* ── Primary — luminous moss ───────────────────────────── */
+  --primary: oklch(0.72 0.13 160);
+  --primary-foreground: oklch(0.18 0.02 155);
+
+  /* ── Secondary ─────────────────────────────────────────── */
+  --secondary: oklch(0.28 0.018 155);
+  --secondary-foreground: oklch(0.86 0.01 150);
+
+  /* ── Muted ─────────────────────────────────────────────── */
+  --muted: oklch(0.27 0.016 152);
+  --muted-foreground: oklch(0.68 0.015 150);
+
+  /* ── Accent ────────────────────────────────────────────── */
+  --accent: oklch(0.31 0.025 155);
+  --accent-foreground: oklch(0.93 0.008 150);
+
+  /* ── Destructive ───────────────────────────────────────── */
+  --destructive: oklch(0.62 0.19 25);
+  --destructive-foreground: oklch(1 0 0);
+
+  /* ── Status — semantic ─────────────────────────────────── */
+  --success: oklch(0.66 0.13 150);
+  --success-foreground: oklch(0.15 0.02 150);
+  --warning: oklch(0.78 0.14 80);
+  --warning-foreground: oklch(0.2 0.02 70);
+  --info: oklch(0.68 0.13 250);
+  --info-foreground: oklch(1 0 0);
+
+  /* ── Borders & controls ────────────────────────────────── */
+  --border: oklch(0.3 0.018 152);
+  --input: oklch(0.3 0.018 152);
+  --ring: oklch(0.72 0.13 160);
+
+  /* ── Prism ramp ────────────────────────────────────────── */
+  --prism-1: oklch(0.72 0.13 160);
+  --prism-2: oklch(0.74 0.11 190);
+  --prism-3: oklch(0.82 0.12 88);
+  --prism-4: oklch(0.7 0.12 45);
+  --prism-5: oklch(0.66 0.1 130);
+
+  /* ── Chart palette ─────────────────────────────────────── */
+  --chart-1: oklch(0.72 0.13 160);
+  --chart-2: oklch(0.74 0.11 190);
+  --chart-3: oklch(0.82 0.12 88);
+  --chart-4: oklch(0.7 0.03 250);
+  --chart-5: oklch(0.7 0.12 45);
+
+  /* ── Sidebar ───────────────────────────────────────────── */
+  --sidebar: oklch(0.18 0.012 155);
+  --sidebar-foreground: oklch(0.95 0.005 150);
+  --sidebar-primary: oklch(0.72 0.13 160);
+  --sidebar-primary-foreground: oklch(0.18 0.02 155);
+  --sidebar-accent: oklch(0.28 0.018 155);
+  --sidebar-accent-foreground: oklch(0.95 0.005 150);
+  --sidebar-border: oklch(0.3 0.018 152);
+  --sidebar-ring: oklch(0.72 0.13 160);
+}

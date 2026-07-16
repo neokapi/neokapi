@@ -1,0 +1,145 @@
+/*
+ * bowrain — Candidate theme A: "Rainlight" (after the rain)
+ *
+ * Cool rain-glass neutrals (slate with a blue undertone), one calm deep-blue
+ * primary, and the rainbow appearing only as a restrained prismatic accent
+ * (--prism-1..5) on key moments: logo, hero gradient, focus states.
+ * Drop-in replacement for theme-colors.css (same token contract +
+ * the prism ramp, which the other candidates also define).
+ */
+
+:root {
+  /* ── Surfaces ──────────────────────────────────────────── */
+  --background: oklch(0.985 0.003 240);
+  --foreground: oklch(0.24 0.02 255);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.24 0.02 255);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.24 0.02 255);
+
+  /* ── Primary — calm rain blue ──────────────────────────── */
+  --primary: oklch(0.5 0.17 255);
+  --primary-foreground: oklch(0.985 0.003 240);
+
+  /* ── Secondary — pale slate ────────────────────────────── */
+  --secondary: oklch(0.955 0.008 240);
+  --secondary-foreground: oklch(0.35 0.03 255);
+
+  /* ── Muted — misty gray ────────────────────────────────── */
+  --muted: oklch(0.955 0.008 240);
+  --muted-foreground: oklch(0.52 0.02 250);
+
+  /* ── Accent — sky tint ─────────────────────────────────── */
+  --accent: oklch(0.93 0.02 240);
+  --accent-foreground: oklch(0.3 0.05 255);
+
+  /* ── Destructive ───────────────────────────────────────── */
+  --destructive: oklch(0.58 0.21 25);
+  --destructive-foreground: oklch(1 0 0);
+
+  /* ── Status — semantic ─────────────────────────────────── */
+  --success: oklch(0.58 0.14 155);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.75 0.15 80);
+  --warning-foreground: oklch(0.25 0.02 70);
+  --info: oklch(0.6 0.14 250);
+  --info-foreground: oklch(1 0 0);
+
+  /* ── Borders & controls ────────────────────────────────── */
+  --border: oklch(0.915 0.01 240);
+  --input: oklch(0.915 0.01 240);
+  --ring: oklch(0.5 0.17 255);
+
+  --radius: 0.5rem;
+
+  /* ── Prism ramp — restrained rainbow accent ────────────── */
+  --prism-1: oklch(0.65 0.13 15);
+  --prism-2: oklch(0.78 0.12 85);
+  --prism-3: oklch(0.68 0.12 150);
+  --prism-4: oklch(0.62 0.14 250);
+  --prism-5: oklch(0.6 0.14 300);
+
+  /* ── Chart palette ─────────────────────────────────────── */
+  --chart-1: oklch(0.55 0.16 255);
+  --chart-2: oklch(0.65 0.12 185);
+  --chart-3: oklch(0.6 0.15 295);
+  --chart-4: oklch(0.78 0.13 85);
+  --chart-5: oklch(0.65 0.15 15);
+
+  /* ── Sidebar ───────────────────────────────────────────── */
+  --sidebar: oklch(0.965 0.006 240);
+  --sidebar-foreground: oklch(0.24 0.02 255);
+  --sidebar-primary: oklch(0.5 0.17 255);
+  --sidebar-primary-foreground: oklch(0.985 0.003 240);
+  --sidebar-accent: oklch(0.93 0.012 240);
+  --sidebar-accent-foreground: oklch(0.24 0.02 255);
+  --sidebar-border: oklch(0.91 0.01 240);
+  --sidebar-ring: oklch(0.5 0.17 255);
+}
+
+.dark {
+  /* ── Surfaces — deep blue slate ────────────────────────── */
+  --background: oklch(0.2 0.015 255);
+  --foreground: oklch(0.95 0.007 240);
+  --card: oklch(0.23 0.015 255);
+  --card-foreground: oklch(0.95 0.007 240);
+  --popover: oklch(0.23 0.015 255);
+  --popover-foreground: oklch(0.95 0.007 240);
+
+  /* ── Primary — luminous rain blue ──────────────────────── */
+  --primary: oklch(0.7 0.14 250);
+  --primary-foreground: oklch(0.17 0.02 255);
+
+  /* ── Secondary ─────────────────────────────────────────── */
+  --secondary: oklch(0.28 0.02 255);
+  --secondary-foreground: oklch(0.86 0.01 240);
+
+  /* ── Muted ─────────────────────────────────────────────── */
+  --muted: oklch(0.27 0.018 255);
+  --muted-foreground: oklch(0.68 0.015 245);
+
+  /* ── Accent ────────────────────────────────────────────── */
+  --accent: oklch(0.32 0.03 255);
+  --accent-foreground: oklch(0.93 0.01 240);
+
+  /* ── Destructive ───────────────────────────────────────── */
+  --destructive: oklch(0.62 0.19 25);
+  --destructive-foreground: oklch(1 0 0);
+
+  /* ── Status — semantic ─────────────────────────────────── */
+  --success: oklch(0.64 0.14 155);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.78 0.14 80);
+  --warning-foreground: oklch(0.2 0.02 70);
+  --info: oklch(0.68 0.13 250);
+  --info-foreground: oklch(1 0 0);
+
+  /* ── Borders & controls ────────────────────────────────── */
+  --border: oklch(0.3 0.02 255);
+  --input: oklch(0.3 0.02 255);
+  --ring: oklch(0.7 0.14 250);
+
+  /* ── Prism ramp ────────────────────────────────────────── */
+  --prism-1: oklch(0.7 0.13 15);
+  --prism-2: oklch(0.82 0.12 85);
+  --prism-3: oklch(0.74 0.12 150);
+  --prism-4: oklch(0.7 0.13 250);
+  --prism-5: oklch(0.68 0.13 300);
+
+  /* ── Chart palette ─────────────────────────────────────── */
+  --chart-1: oklch(0.7 0.14 250);
+  --chart-2: oklch(0.72 0.11 185);
+  --chart-3: oklch(0.68 0.13 295);
+  --chart-4: oklch(0.82 0.12 85);
+  --chart-5: oklch(0.7 0.13 15);
+
+  /* ── Sidebar ───────────────────────────────────────────── */
+  --sidebar: oklch(0.175 0.015 255);
+  --sidebar-foreground: oklch(0.95 0.007 240);
+  --sidebar-primary: oklch(0.7 0.14 250);
+  --sidebar-primary-foreground: oklch(0.17 0.02 255);
+  --sidebar-accent: oklch(0.28 0.02 255);
+  --sidebar-accent-foreground: oklch(0.95 0.007 240);
+  --sidebar-border: oklch(0.3 0.02 255);
+  --sidebar-ring: oklch(0.7 0.14 250);
+}

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- bowrain mark candidate 2: "Prism Drop" — a single raindrop holding the
+       whole spectrum as a diagonal iridescent gradient. Simplest silhouette;
+       reads at 16px. -->
+  <defs>
+    <linearGradient id="prism" x1="14" y1="10" x2="52" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4f8bd6"/>
+      <stop offset="0.3" stop-color="#57a3a8"/>
+      <stop offset="0.55" stop-color="#5cab7d"/>
+      <stop offset="0.78" stop-color="#d9b34a"/>
+      <stop offset="1" stop-color="#d4737d"/>
+    </linearGradient>
+  </defs>
+  <path d="M32 6 C32 6 14 30 14 41 a18 18 0 0 0 36 0 C50 30 32 6 32 6 Z" fill="url(#prism)"/>
+</svg>

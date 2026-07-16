@@ -1,0 +1,145 @@
+/*
+ * bowrain — Candidate theme C: "Graphite" (minimal mono + one vivid accent)
+ *
+ * Near-monochrome zinc surfaces in the Linear/Vercel register: primary is
+ * near-black (light) / near-white (dark), typography carries the identity,
+ * and a single iridescent cyan appears only on focus rings, links, charts,
+ * and the logo. Prism ramp is a subtle cyan→blue→violet iridescence.
+ * Drop-in replacement for theme-colors.css.
+ */
+
+:root {
+  /* ── Surfaces ──────────────────────────────────────────── */
+  --background: oklch(0.99 0 0);
+  --foreground: oklch(0.205 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.205 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.205 0 0);
+
+  /* ── Primary — ink ─────────────────────────────────────── */
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.99 0 0);
+
+  /* ── Secondary ─────────────────────────────────────────── */
+  --secondary: oklch(0.96 0 0);
+  --secondary-foreground: oklch(0.32 0 0);
+
+  /* ── Muted ─────────────────────────────────────────────── */
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.55 0 0);
+
+  /* ── Accent — whisper gray ─────────────────────────────── */
+  --accent: oklch(0.955 0 0);
+  --accent-foreground: oklch(0.25 0 0);
+
+  /* ── Destructive ───────────────────────────────────────── */
+  --destructive: oklch(0.58 0.21 25);
+  --destructive-foreground: oklch(1 0 0);
+
+  /* ── Status — semantic ─────────────────────────────────── */
+  --success: oklch(0.58 0.14 155);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.75 0.15 80);
+  --warning-foreground: oklch(0.25 0.02 70);
+  --info: oklch(0.62 0.13 215);
+  --info-foreground: oklch(1 0 0);
+
+  /* ── Borders & controls ────────────────────────────────── */
+  --border: oklch(0.92 0 0);
+  --input: oklch(0.92 0 0);
+  --ring: oklch(0.62 0.13 215);
+
+  --radius: 0.5rem;
+
+  /* ── Prism ramp — iridescent cyan→violet ───────────────── */
+  --prism-1: oklch(0.72 0.12 195);
+  --prism-2: oklch(0.65 0.13 215);
+  --prism-3: oklch(0.6 0.14 245);
+  --prism-4: oklch(0.58 0.14 275);
+  --prism-5: oklch(0.6 0.14 300);
+
+  /* ── Chart palette ─────────────────────────────────────── */
+  --chart-1: oklch(0.62 0.13 215);
+  --chart-2: oklch(0.45 0 0);
+  --chart-3: oklch(0.65 0 0);
+  --chart-4: oklch(0.78 0 0);
+  --chart-5: oklch(0.58 0.14 275);
+
+  /* ── Sidebar ───────────────────────────────────────────── */
+  --sidebar: oklch(0.975 0 0);
+  --sidebar-foreground: oklch(0.205 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.94 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.92 0 0);
+  --sidebar-ring: oklch(0.62 0.13 215);
+}
+
+.dark {
+  /* ── Surfaces — near-black ─────────────────────────────── */
+  --background: oklch(0.155 0 0);
+  --foreground: oklch(0.95 0 0);
+  --card: oklch(0.19 0 0);
+  --card-foreground: oklch(0.95 0 0);
+  --popover: oklch(0.19 0 0);
+  --popover-foreground: oklch(0.95 0 0);
+
+  /* ── Primary — paper ───────────────────────────────────── */
+  --primary: oklch(0.95 0 0);
+  --primary-foreground: oklch(0.155 0 0);
+
+  /* ── Secondary ─────────────────────────────────────────── */
+  --secondary: oklch(0.24 0 0);
+  --secondary-foreground: oklch(0.86 0 0);
+
+  /* ── Muted ─────────────────────────────────────────────── */
+  --muted: oklch(0.235 0 0);
+  --muted-foreground: oklch(0.66 0 0);
+
+  /* ── Accent ────────────────────────────────────────────── */
+  --accent: oklch(0.27 0 0);
+  --accent-foreground: oklch(0.93 0 0);
+
+  /* ── Destructive ───────────────────────────────────────── */
+  --destructive: oklch(0.62 0.19 25);
+  --destructive-foreground: oklch(1 0 0);
+
+  /* ── Status — semantic ─────────────────────────────────── */
+  --success: oklch(0.64 0.14 155);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.78 0.14 80);
+  --warning-foreground: oklch(0.2 0.02 70);
+  --info: oklch(0.72 0.12 215);
+  --info-foreground: oklch(0.15 0.02 215);
+
+  /* ── Borders & controls ────────────────────────────────── */
+  --border: oklch(0.27 0 0);
+  --input: oklch(0.27 0 0);
+  --ring: oklch(0.72 0.12 215);
+
+  /* ── Prism ramp ────────────────────────────────────────── */
+  --prism-1: oklch(0.78 0.11 195);
+  --prism-2: oklch(0.72 0.12 215);
+  --prism-3: oklch(0.68 0.13 245);
+  --prism-4: oklch(0.66 0.13 275);
+  --prism-5: oklch(0.68 0.13 300);
+
+  /* ── Chart palette ─────────────────────────────────────── */
+  --chart-1: oklch(0.72 0.12 215);
+  --chart-2: oklch(0.75 0 0);
+  --chart-3: oklch(0.55 0 0);
+  --chart-4: oklch(0.4 0 0);
+  --chart-5: oklch(0.66 0.13 275);
+
+  /* ── Sidebar ───────────────────────────────────────────── */
+  --sidebar: oklch(0.135 0 0);
+  --sidebar-foreground: oklch(0.95 0 0);
+  --sidebar-primary: oklch(0.95 0 0);
+  --sidebar-primary-foreground: oklch(0.155 0 0);
+  --sidebar-accent: oklch(0.24 0 0);
+  --sidebar-accent-foreground: oklch(0.95 0 0);
+  --sidebar-border: oklch(0.27 0 0);
+  --sidebar-ring: oklch(0.72 0.12 215);
+}

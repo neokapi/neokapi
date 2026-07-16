@@ -178,11 +178,11 @@ function analyzeText(text: string, profileId: string): { violations: Violation[]
 }
 
 const DIMENSION_COLORS: Record<string, string> = {
-  Tone: "text-violation bg-violation/10",
-  Vocabulary: "text-brand-400 bg-brand-500/10",
-  Style: "text-purple-400 bg-purple-500/10",
-  Clarity: "text-yellow-400 bg-yellow-500/10",
-  Brand: "text-forbidden bg-forbidden/10",
+  Tone: "text-warning bg-warning/10",
+  Vocabulary: "text-primary bg-primary/10",
+  Style: "text-prism-5 bg-prism-5/10",
+  Clarity: "text-prism-2 bg-prism-2/10",
+  Brand: "text-destructive bg-destructive/10",
 };
 
 export function BrandChallenge() {
@@ -206,21 +206,21 @@ export function BrandChallenge() {
 
   const scoreColor =
     analysis.score >= 80
-      ? "text-suggestion"
+      ? "text-success"
       : analysis.score >= 50
-        ? "text-violation"
-        : "text-forbidden";
+        ? "text-warning"
+        : "text-destructive";
 
   return (
     <section id="brand-challenge" className="mx-auto max-w-6xl px-6 py-24">
       <div className="mx-auto max-w-3xl text-center">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-neutral-800 px-3 py-1 text-xs text-neutral-400 font-mono">
-          RUNS LOCALLY WITH KAPI
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 font-mono text-xs text-muted-foreground">
+          TRY IT — RUNS LOCALLY WITH KAPI
         </div>
-        <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
+        <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
           The On-Brand Challenge
         </h2>
-        <p className="mt-3 text-neutral-400">
+        <p className="mt-3 text-muted-foreground">
           Pick a style profile. Write or paste content. See it scored against the profile live, and
           fix the violations to reach 100. The check runs in kapi; Bowrain is where the profile is
           shared and governed across the team.
@@ -229,8 +229,8 @@ export function BrandChallenge() {
 
       <div className="mt-10 grid gap-6 lg:grid-cols-[1fr_320px]">
         {/* Editor */}
-        <div className="overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950">
-          <div className="flex items-center justify-between border-b border-neutral-800 px-4 py-2.5">
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
             <div className="flex gap-2">
               {PROFILES.map((p) => (
                 <button
@@ -241,8 +241,8 @@ export function BrandChallenge() {
                   }}
                   className={`rounded-md px-3 py-1 text-xs transition ${
                     profile === p.id
-                      ? "bg-brand-500/10 text-brand-400"
-                      : "text-neutral-500 hover:text-neutral-300"
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {p.label}
@@ -251,7 +251,7 @@ export function BrandChallenge() {
             </div>
             <button
               onClick={loadSample}
-              className="text-xs text-neutral-600 transition hover:text-neutral-400"
+              className="text-xs text-muted-foreground/70 transition hover:text-muted-foreground"
             >
               Load sample
             </button>
@@ -260,12 +260,12 @@ export function BrandChallenge() {
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={8}
-            className="w-full resize-none bg-transparent p-4 text-sm text-neutral-200 outline-none placeholder:text-neutral-700"
+            className="w-full resize-none bg-transparent p-4 text-sm outline-none placeholder:text-muted-foreground/50"
             placeholder="Write or paste your content here..."
           />
           {/* Inline violation highlights */}
           {analysis.violations.length > 0 && (
-            <div className="border-t border-neutral-800 p-4">
+            <div className="border-t border-border p-4">
               <div className="flex flex-wrap gap-2">
                 {analysis.violations.map((v, i) => (
                   <span
@@ -283,21 +283,21 @@ export function BrandChallenge() {
 
         {/* Score panel */}
         <div className="space-y-4">
-          <div className="rounded-xl border border-neutral-800 bg-neutral-900/30 p-6 text-center">
-            <div className="text-xs uppercase tracking-wider text-neutral-500">
+          <div className="rounded-xl border border-border bg-card p-6 text-center">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">
               Brand Compliance Score
             </div>
             <div className={`mt-2 text-5xl font-bold ${scoreColor}`}>{analysis.score}</div>
-            <div className="mt-1 text-sm text-neutral-500">/ 100</div>
+            <div className="mt-1 text-sm text-muted-foreground">/ 100</div>
             {/* Score bar */}
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-neutral-800">
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-secondary">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
                   analysis.score >= 80
-                    ? "bg-suggestion"
+                    ? "bg-success"
                     : analysis.score >= 50
-                      ? "bg-violation"
-                      : "bg-forbidden"
+                      ? "bg-warning"
+                      : "bg-destructive"
                 }`}
                 style={{ width: `${analysis.score}%` }}
               />
@@ -305,8 +305,8 @@ export function BrandChallenge() {
           </div>
 
           {/* Dimension breakdown */}
-          <div className="rounded-xl border border-neutral-800 bg-neutral-900/30 p-4">
-            <div className="text-xs uppercase tracking-wider text-neutral-500 mb-3">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="mb-3 text-xs uppercase tracking-wider text-muted-foreground">
               Violations by dimension
             </div>
             <div className="space-y-2">
@@ -314,10 +314,10 @@ export function BrandChallenge() {
                 const count = analysis.violations.filter((v) => v.dimension === dim).length;
                 return (
                   <div key={dim} className="flex items-center justify-between text-sm">
-                    <span className="text-neutral-400">{dim}</span>
+                    <span className="text-muted-foreground">{dim}</span>
                     <span
                       className={
-                        count > 0 ? "text-violation font-mono" : "text-neutral-700 font-mono"
+                        count > 0 ? "font-mono text-warning" : "font-mono text-muted-foreground/50"
                       }
                     >
                       {count}
@@ -329,21 +329,21 @@ export function BrandChallenge() {
           </div>
 
           {/* Profile info */}
-          <div className="rounded-xl border border-neutral-800 bg-neutral-900/30 p-4">
-            <div className="text-xs uppercase tracking-wider text-neutral-500 mb-2">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
               Active Profile
             </div>
-            <div className="text-sm font-medium text-white">
+            <div className="text-sm font-medium">
               {PROFILES.find((p) => p.id === profile)?.label}
             </div>
-            <div className="mt-1 text-xs text-neutral-500">
+            <div className="mt-1 text-xs text-muted-foreground">
               Tone: {PROFILES.find((p) => p.id === profile)?.tone}
             </div>
           </div>
         </div>
       </div>
 
-      <div className="mt-6 text-center text-sm text-neutral-500">
+      <div className="mt-6 text-center text-sm text-muted-foreground">
         Edit the text and watch the score update in real time. Remove the violations to reach 100.
       </div>
     </section>

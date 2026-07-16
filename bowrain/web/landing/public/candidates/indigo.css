@@ -1,0 +1,144 @@
+/*
+ * bowrain — Candidate theme B: "Indigo" (evolution of the landing's #6366f1)
+ *
+ * Violet-tinted neutrals with the landing page's indigo deepened into a full
+ * token system. Least disruptive candidate — the marketing site already half
+ * lives here. Prism ramp leans indigo-family (sky → indigo → violet → fuchsia).
+ * Drop-in replacement for theme-colors.css.
+ */
+
+:root {
+  /* ── Surfaces ──────────────────────────────────────────── */
+  --background: oklch(0.985 0.002 285);
+  --foreground: oklch(0.235 0.015 285);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.235 0.015 285);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.235 0.015 285);
+
+  /* ── Primary — indigo ──────────────────────────────────── */
+  --primary: oklch(0.585 0.2 277);
+  --primary-foreground: oklch(1 0 0);
+
+  /* ── Secondary — pale violet-gray ──────────────────────── */
+  --secondary: oklch(0.955 0.008 285);
+  --secondary-foreground: oklch(0.35 0.03 283);
+
+  /* ── Muted ─────────────────────────────────────────────── */
+  --muted: oklch(0.955 0.008 285);
+  --muted-foreground: oklch(0.52 0.02 285);
+
+  /* ── Accent — lavender tint ────────────────────────────── */
+  --accent: oklch(0.93 0.025 285);
+  --accent-foreground: oklch(0.32 0.08 280);
+
+  /* ── Destructive ───────────────────────────────────────── */
+  --destructive: oklch(0.58 0.21 25);
+  --destructive-foreground: oklch(1 0 0);
+
+  /* ── Status — semantic ─────────────────────────────────── */
+  --success: oklch(0.58 0.14 155);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.75 0.15 80);
+  --warning-foreground: oklch(0.25 0.02 70);
+  --info: oklch(0.6 0.14 250);
+  --info-foreground: oklch(1 0 0);
+
+  /* ── Borders & controls ────────────────────────────────── */
+  --border: oklch(0.915 0.01 285);
+  --input: oklch(0.915 0.01 285);
+  --ring: oklch(0.585 0.2 277);
+
+  --radius: 0.5rem;
+
+  /* ── Prism ramp — indigo-family spectrum ───────────────── */
+  --prism-1: oklch(0.68 0.12 235);
+  --prism-2: oklch(0.62 0.17 260);
+  --prism-3: oklch(0.585 0.2 277);
+  --prism-4: oklch(0.62 0.17 300);
+  --prism-5: oklch(0.66 0.18 330);
+
+  /* ── Chart palette ─────────────────────────────────────── */
+  --chart-1: oklch(0.585 0.2 277);
+  --chart-2: oklch(0.62 0.17 300);
+  --chart-3: oklch(0.68 0.12 235);
+  --chart-4: oklch(0.66 0.18 330);
+  --chart-5: oklch(0.68 0.11 185);
+
+  /* ── Sidebar ───────────────────────────────────────────── */
+  --sidebar: oklch(0.965 0.006 285);
+  --sidebar-foreground: oklch(0.235 0.015 285);
+  --sidebar-primary: oklch(0.585 0.2 277);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.93 0.015 285);
+  --sidebar-accent-foreground: oklch(0.235 0.015 285);
+  --sidebar-border: oklch(0.91 0.01 285);
+  --sidebar-ring: oklch(0.585 0.2 277);
+}
+
+.dark {
+  /* ── Surfaces — violet charcoal ────────────────────────── */
+  --background: oklch(0.205 0.015 285);
+  --foreground: oklch(0.95 0.006 285);
+  --card: oklch(0.235 0.018 285);
+  --card-foreground: oklch(0.95 0.006 285);
+  --popover: oklch(0.235 0.018 285);
+  --popover-foreground: oklch(0.95 0.006 285);
+
+  /* ── Primary — luminous indigo ─────────────────────────── */
+  --primary: oklch(0.68 0.16 277);
+  --primary-foreground: oklch(0.17 0.02 280);
+
+  /* ── Secondary ─────────────────────────────────────────── */
+  --secondary: oklch(0.285 0.022 285);
+  --secondary-foreground: oklch(0.86 0.012 285);
+
+  /* ── Muted ─────────────────────────────────────────────── */
+  --muted: oklch(0.275 0.02 285);
+  --muted-foreground: oklch(0.68 0.018 285);
+
+  /* ── Accent ────────────────────────────────────────────── */
+  --accent: oklch(0.325 0.04 283);
+  --accent-foreground: oklch(0.93 0.012 285);
+
+  /* ── Destructive ───────────────────────────────────────── */
+  --destructive: oklch(0.62 0.19 25);
+  --destructive-foreground: oklch(1 0 0);
+
+  /* ── Status — semantic ─────────────────────────────────── */
+  --success: oklch(0.64 0.14 155);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.78 0.14 80);
+  --warning-foreground: oklch(0.2 0.02 70);
+  --info: oklch(0.68 0.13 250);
+  --info-foreground: oklch(1 0 0);
+
+  /* ── Borders & controls ────────────────────────────────── */
+  --border: oklch(0.305 0.022 285);
+  --input: oklch(0.305 0.022 285);
+  --ring: oklch(0.68 0.16 277);
+
+  /* ── Prism ramp ────────────────────────────────────────── */
+  --prism-1: oklch(0.74 0.11 235);
+  --prism-2: oklch(0.7 0.15 260);
+  --prism-3: oklch(0.68 0.16 277);
+  --prism-4: oklch(0.7 0.15 300);
+  --prism-5: oklch(0.72 0.16 330);
+
+  /* ── Chart palette ─────────────────────────────────────── */
+  --chart-1: oklch(0.68 0.16 277);
+  --chart-2: oklch(0.7 0.15 300);
+  --chart-3: oklch(0.74 0.11 235);
+  --chart-4: oklch(0.72 0.16 330);
+  --chart-5: oklch(0.72 0.11 185);
+
+  /* ── Sidebar ───────────────────────────────────────────── */
+  --sidebar: oklch(0.18 0.015 285);
+  --sidebar-foreground: oklch(0.95 0.006 285);
+  --sidebar-primary: oklch(0.68 0.16 277);
+  --sidebar-primary-foreground: oklch(0.17 0.02 280);
+  --sidebar-accent: oklch(0.285 0.022 285);
+  --sidebar-accent-foreground: oklch(0.95 0.006 285);
+  --sidebar-border: oklch(0.305 0.022 285);
+  --sidebar-ring: oklch(0.68 0.16 277);
+}

@@ -91,6 +91,8 @@ const GERMAN_TRANSLATIONS: Record<string, string> = {
 
 type Level = 1 | 2 | 3 | 4;
 
+// The terminal window deliberately stays dark in both color modes — a light
+// terminal reads as a text box, not a shell.
 export function PseudoChallenge() {
   const [level, setLevel] = useState<Level>(1);
   const [running, setRunning] = useState(false);
@@ -131,18 +133,18 @@ export function PseudoChallenge() {
   const totalPreserved = results.reduce((acc, r) => acc + r.preserved.length, 0);
 
   return (
-    <section id="pseudo-challenge" className="mx-auto max-w-6xl px-6 py-24">
+    <section id="try" className="mx-auto max-w-6xl px-6 py-24">
       <div className="mx-auto max-w-3xl text-center">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-neutral-800 px-3 py-1 text-xs text-neutral-400 font-mono">
-          RUNS LOCALLY WITH KAPI
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 font-mono text-xs text-muted-foreground">
+          TRY IT — RUNS LOCALLY WITH KAPI
         </div>
-        <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-          The <span className="text-brand-400">Ṗšëüđö</span> Challenge
+        <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+          The <span className="prism-text">Ṗšëüđö</span> Challenge
         </h2>
-        <p className="mt-3 text-neutral-400">
-          This is kapi, the open toolchain Bowrain builds on, running on your own machine. Go from
-          zero to a multilingual-ready pipeline and see the result in seconds. Bowrain is what makes
-          the glossary and voice rules below shared across a team.
+        <p className="mt-3 text-muted-foreground">
+          This is kapi, the open engine under Bowrain, running in your browser. Go from zero to a
+          multilingual-ready pipeline in seconds. Bowrain is what makes the glossary and voice rules
+          below shared across a team.
         </p>
       </div>
 
@@ -165,8 +167,8 @@ export function PseudoChallenge() {
             }}
             className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm transition ${
               level === l
-                ? "border-brand-500 bg-brand-500/10 text-brand-400"
-                : "border-neutral-800 text-neutral-500 hover:border-neutral-600 hover:text-neutral-300"
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground"
             }`}
           >
             <Icon className="h-4 w-4" />
@@ -177,17 +179,17 @@ export function PseudoChallenge() {
       </div>
 
       {/* Terminal */}
-      <div className="mt-8 overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950">
+      <div className="mt-8 overflow-hidden rounded-xl border border-border bg-neutral-950">
         <div className="flex items-center gap-2 border-b border-neutral-800 px-4 py-2.5">
           <div className="h-2.5 w-2.5 rounded-full bg-red-500/60" />
           <div className="h-2.5 w-2.5 rounded-full bg-yellow-500/60" />
           <div className="h-2.5 w-2.5 rounded-full bg-green-500/60" />
-          <span className="ml-2 text-xs text-neutral-600 font-mono">terminal</span>
+          <span className="ml-2 font-mono text-xs text-neutral-600">terminal</span>
         </div>
 
         <div className="p-6 font-mono text-sm">
           <div className="flex items-center gap-2 text-neutral-400">
-            <span className="text-suggestion">$</span>
+            <span className="text-emerald-400">$</span>
             <span>
               {level === 1 && "kapi run pseudo"}
               {level === 2 && "kapi run pseudo --protect-terms"}
@@ -195,14 +197,14 @@ export function PseudoChallenge() {
               {level === 4 && "kapi run translate --target-lang de"}
             </span>
             {!running && results.length === 0 && (
-              <span className="cursor-blink text-brand-400">▋</span>
+              <span className="cursor-blink text-sky-400">▋</span>
             )}
           </div>
 
           {results.length === 0 && !running && (
             <button
               onClick={runPseudo}
-              className="mt-4 flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-600"
+              className="mt-4 flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90"
             >
               <Play className="h-4 w-4" />
               Run
@@ -211,7 +213,7 @@ export function PseudoChallenge() {
 
           {running && (
             <div className="mt-4 flex items-center gap-2 text-neutral-500">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-neutral-600 border-t-brand-400" />
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-neutral-600 border-t-sky-400" />
               Processing...
             </div>
           )}
@@ -224,7 +226,7 @@ export function PseudoChallenge() {
                     <span className="text-neutral-500">#</span> {r.original}
                   </div>
                   <div className="flex items-start gap-2">
-                    <ChevronRight className="mt-0.5 h-3 w-3 text-suggestion" />
+                    <ChevronRight className="mt-0.5 h-3 w-3 text-emerald-400" />
                     <span className="text-neutral-200">
                       {level >= 2 ? renderPreserved(r.pseudo, r.preserved) : r.pseudo}
                     </span>
@@ -232,7 +234,7 @@ export function PseudoChallenge() {
                   {level >= 2 && r.preserved.length > 0 && (
                     <div className="ml-5 flex gap-2">
                       {r.preserved.map((term, j) => (
-                        <span key={j} className="text-xs text-preserved">
+                        <span key={j} className="text-xs text-sky-400">
                           ✓ "{term}" preserved
                         </span>
                       ))}
@@ -244,15 +246,15 @@ export function PseudoChallenge() {
               {typingIndex >= results.length && (
                 <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-neutral-800 pt-4">
                   <span className="text-xs text-neutral-500">
-                    Completed in <span className="text-suggestion">{elapsed}ms</span>
+                    Completed in <span className="text-emerald-400">{elapsed}ms</span>
                   </span>
                   {level >= 2 && (
-                    <span className="text-xs text-preserved">
+                    <span className="text-xs text-sky-400">
                       {totalPreserved} brand terms protected
                     </span>
                   )}
                   {level >= 3 && (
-                    <span className="text-xs text-violation">
+                    <span className="text-xs text-amber-400">
                       ~30% expansion detected — check for UI truncation
                     </span>
                   )}
@@ -263,13 +265,13 @@ export function PseudoChallenge() {
                         setResults([]);
                         setElapsed(null);
                       }}
-                      className="ml-auto flex items-center gap-1 text-xs text-brand-400 transition hover:text-brand-300"
+                      className="ml-auto flex items-center gap-1 text-xs text-sky-400 transition hover:text-sky-300"
                     >
                       Next level <ChevronRight className="h-3 w-3" />
                     </button>
                   )}
                   {level === 4 && (
-                    <span className="ml-auto text-xs text-suggestion">
+                    <span className="ml-auto text-xs text-emerald-400">
                       Pipeline complete — from pseudo to production.
                     </span>
                   )}
@@ -280,7 +282,7 @@ export function PseudoChallenge() {
         </div>
       </div>
 
-      <div className="mt-6 text-center text-sm text-neutral-500">
+      <div className="mt-6 text-center text-sm text-muted-foreground">
         {level === 1 &&
           "Level 1: Basic pseudo-localization. Proves your pipeline handles non-ASCII."}
         {level === 2 &&
@@ -327,7 +329,7 @@ function renderPreserved(text: string, preserved: string[]) {
     <>
       {parts.map((part, i) =>
         part.isPreserved ? (
-          <span key={i} className="rounded bg-preserved/10 px-0.5 text-preserved font-semibold">
+          <span key={i} className="rounded bg-sky-400/10 px-0.5 font-semibold text-sky-400">
             {part.text}
           </span>
         ) : (
