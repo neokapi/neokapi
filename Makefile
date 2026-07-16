@@ -352,6 +352,9 @@ ci-test-all: ## Run all module tests with full CI flags locally
 # — provided libicu-dev is on PKG_CONFIG_PATH, which the lint CI job installs.
 
 ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web frontends
+	# Guard against vite-plus / vite-alias version drift before any vp check runs,
+	# so the failure is an actionable one-liner rather than a puzzling TS2321.
+	bash scripts/audit-vite-alias.sh
 	# bowrain/packages/ui and bowrain/apps/web consume @neokapi/{ui,flow-editor},
 	# which import `@neokapi/kapi-react/runtime` (a built ./dist subpath export).
 	# Build kapi-react first so that subpath resolves (mirrors ci-kapi-desktop-frontend).
@@ -1300,7 +1303,10 @@ batch-eval-publish: ## Sweep the real models → /batch-eval dashboard data (cos
 
 # ── Frontend Checks ──────────────────────────────────────────────────────────
 
-frontend-check-all: ## Run lint, format, and typecheck across all frontend projects
+audit-vite-alias: ## Assert the vite catalog alias tracks the vite-plus devDependency version
+	bash scripts/audit-vite-alias.sh
+
+frontend-check-all: audit-vite-alias ## Run lint, format, and typecheck across all frontend projects
 	$(MAKE) -C bowrain frontend-check-all
 
 story-coverage: ## Report frontend components >=200 lines that lack a Storybook story (non-blocking)
@@ -1735,7 +1741,7 @@ help: ## Show this help
         ci-test-framework ci-test-cli ci-test-kapi ci-test-platform \
         ci-test-bowrain ci-test-kapi-desktop ci-test-bowrain-desktop ci-test-all \
         ci-frontend ci-kapi-desktop-frontend ci-bowrain-desktop-frontend ci-kapi-react ci-build ci-tidy \
-        verify-isolation audit-modules \
+        verify-isolation audit-modules audit-vite-alias \
         build build-all build-server build-worker build-kapi-bowrain-plugin build-bowrain-plugin build-bowrain build-headless \
         plugin-bundle dev-skills \
         install install-kapi-bowrain-plugin \
