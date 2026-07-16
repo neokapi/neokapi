@@ -11,6 +11,7 @@ import {
   lazyRouteComponent,
   Outlet,
   redirect,
+  type RouterHistory,
 } from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
 import type { ApiAdapter, User, Workspace } from "@neokapi/ui";
@@ -752,12 +753,18 @@ const routeTree = rootRoute.addChildren([
 
 // Each shell (web, desktop) builds its own router with its ApiAdapter +
 // QueryClient baked into the context. The route tree is shared.
-export function createBowrainRouter(context: RouterContext) {
+//
+// `history` lets a shell override the default browser history: the desktop
+// (Wails webview) passes a hash history so route changes and refreshes never
+// hit the asset server (which would 404 on a deep path). Omitted on the web,
+// where createRouter defaults to browser history.
+export function createBowrainRouter(context: RouterContext, opts?: { history?: RouterHistory }) {
   return createRouter({
     routeTree,
     context,
     defaultPendingMinMs: 0,
     defaultPendingMs: 100,
+    ...(opts?.history ? { history: opts.history } : {}),
   });
 }
 

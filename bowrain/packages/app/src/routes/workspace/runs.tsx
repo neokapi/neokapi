@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, ConvergenceRunsList, ConvergenceRunView, useApi, useWorkspace } from "@neokapi/ui";
 import { convergenceRunsQueryOptions } from "../../queries";
 import { useConvergenceRunEvents } from "../../hooks/useConvergenceRunEvents";
+import { usePlatform } from "../../platform";
 
 /**
  * Project-scoped Runs surface: the recent server-side convergence runs
@@ -14,6 +15,7 @@ export function RunsRoute() {
   const { projectId } = useParams({ strict: false });
   const { activeWorkspace } = useWorkspace();
   const api = useApi();
+  const platform = usePlatform();
   const queryClient = useQueryClient();
   const ws = activeWorkspace?.slug ?? "";
 
@@ -54,7 +56,14 @@ export function RunsRoute() {
 
   // As a live run reaches its terminal event, refresh the list so its row
   // shows the settled state/timestamps.
-  const { model, connecting } = useConvergenceRunEvents(ws, projectId ?? undefined, selectedRunId);
+  // The run stream is a cookie-authenticated same-origin EventSource (web only);
+  // the desktop reaches the server over Wails, so keep it off there and let the
+  // list settle via the terminal-state invalidation below.
+  const { model, connecting } = useConvergenceRunEvents(
+    platform.kind === "web" ? ws : undefined,
+    projectId ?? undefined,
+    selectedRunId,
+  );
   const runDone = model.done;
   useEffect(() => {
     if (runDone) {

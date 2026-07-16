@@ -1,1 +1,5 @@
-@import "@neokapi/ui/styles/globals.css";
+/* The shared app stylesheet brings @neokapi/ui globals, the flow-editor
+ * sources, and — crucially — the Tailwind @source for @neokapi/bowrain-app, so
+ * the desktop build scans the shared route tree's classes. The desktop's own
+ * src/ is auto-scanned by Tailwind as the Vite root. */
+@import "@neokapi/bowrain-app/styles.css";

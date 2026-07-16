@@ -161,6 +161,9 @@ importers:
       '@lexical/react':
         specifier: ^0.47.0
         version: 0.47.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@7.0.2)(yjs@13.6.31)
+      '@neokapi/bowrain-app':
+        specifier: '*'
+        version: link:../../../packages/app
       '@neokapi/contract-types':
         specifier: '*'
         version: link:../../../../packages/contract-types
@@ -176,6 +179,9 @@ importers:
       '@tanstack/react-query':
         specifier: 5.94.5
         version: 5.94.5(react@19.2.7)
+      '@tanstack/react-router':
+        specifier: ^1.170.17
+        version: 1.170.17(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@wailsio/runtime':
         specifier: ^3.0.0-alpha.79
         version: 3.0.0-alpha.79

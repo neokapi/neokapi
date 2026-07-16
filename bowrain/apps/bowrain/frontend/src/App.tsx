@@ -1,630 +1,112 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
-import { TopBar } from "@neokapi/ui";
-import { ServerConnect } from "./components/ServerConnect";
-import { SettingsPage } from "./components/SettingsPage";
-import {
-  ApiProvider,
-  WorkspaceProvider,
-  ThemeProvider,
-  TooltipProvider,
-  AppShell,
-  CreateWorkspaceDialog,
-  ProjectDashboard,
-  ProjectView,
-  TMBrowser,
-  TermbaseBrowser,
-  useTMBrowserAdapter,
-  useTermbaseBrowserAdapter,
-  cn,
-  type View,
-  type NavItem,
-  type SidebarContext,
-} from "@neokapi/ui";
-import {
-  ReviewSurface,
-  PreProcessSurface,
-  EditorSurfaceTabs,
-  type EditorSurface,
-} from "@neokapi/ui";
-import { FlowBuilder } from "./components/FlowBuilder";
-import { ConnectorPanel } from "./components/ConnectorPanel";
-import { DesktopTranslateView } from "./components/DesktopTranslateView";
-import { MembersPage } from "./components/MembersPage";
-import { BrandHubPage, type BrandSection } from "./components/BrandHubPage";
-import { useConnection } from "./hooks/useApi";
-import { BackendEventsProvider, useBackendEvents } from "./hooks/useBackendEvents";
-import { WailsApiAdapter } from "./api/WailsApiAdapter";
-import type { ProjectInfo, Workspace, User } from "@neokapi/ui";
-import { Shuffle, Link, Loader2, Users } from "lucide-react";
-import { Events } from "@wailsio/runtime";
+import { useState, useCallback, useEffect } from "react";
+import { ThemeProvider } from "@neokapi/ui";
+import { BowrainApp } from "@neokapi/bowrain-app";
+import { createHashHistory } from "@tanstack/react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Backend } from "./api/backend";
+import { Loader2 } from "lucide-react";
+import { Events } from "@wailsio/runtime";
+import { ServerConnect } from "./components/ServerConnect";
+import { useConnection } from "./hooks/useApi";
+import { WailsApiAdapter } from "./api/WailsApiAdapter";
+import { createDesktopPlatform } from "./api/desktopPlatform";
 import { queryClient } from "./lib/queryClient";
 
-type AppView = View | "flows" | "connectors" | "members" | "brand";
 type AppMode = "loading" | "connecting" | "ready";
 
-function toWorkspace(ws: {
-  id: string;
-  slug: string;
-  name: string;
-  description: string;
-  role: string;
-}): Workspace {
-  return { ...ws, logo_url: "", type: "team" as const, role: ws.role as "owner" };
-}
-
-const baseNavItems: NavItem[] = [
-  { id: "flows", label: "Flows", icon: <Shuffle className="w-4 h-4" /> },
-  { id: "connectors", label: "Connectors", icon: <Link className="w-4 h-4" /> },
-];
-
-// Governance nav entries require a connected server + workspace, so they only
-// appear in server mode. The Brand hub is contributed by the shared sidebar's
-// workspace nav, so it is not repeated here.
-const governanceNavItems: NavItem[] = [
-  { id: "members", label: "Members", icon: <Users className="w-4 h-4" /> },
-];
-
-/**
- * FreshnessBridge wires the backend freshness events to the App's refetch
- * callbacks. Rendered inside BackendEventsProvider so its useBackendEvents
- * subscriptions reach the shared Wails event fan-out. On reconnect, every
- * registered listener re-runs (handled by the provider), so all open views
- * pull fresh authoritative state after an offline gap.
- */
-function FreshnessBridge({
-  reloadProjects,
-  reloadActiveProject,
-  reloadOpenEditor,
-}: {
-  reloadProjects: () => void;
-  reloadActiveProject: () => void;
-  reloadOpenEditor: () => void;
-}) {
-  // Block edits from other users / pushes / flows → reload the open editor and
-  // the project counts.
-  useBackendEvents(["blocks-changed", "flow-changed"], () => {
-    reloadOpenEditor();
-    reloadActiveProject();
-  });
-  // Item add/remove, project lifecycle, connector sync → reload project + list.
-  useBackendEvents(["project-changed", "connector-sync"], () => {
-    reloadActiveProject();
-    reloadProjects();
-  });
-  // Membership/brand/termbase/stream changes → refresh the active project view
-  // (members/brand/term panels read from it) and the list.
-  useBackendEvents(
-    ["membership-changed", "brand-voice-changed", "termbase-changed", "stream-changed"],
-    () => {
-      reloadActiveProject();
-      reloadProjects();
-    },
-  );
-  return null;
-}
-
+// One adapter + platform + history for the app's lifetime.
+//
+// The WailsApiAdapter reports `mode: "standalone"` to the shared app, so the
+// router self-configures as a single local working copy (workspace slug
+// "local") and never takes the server-auth/login-redirect path — the real
+// server auth is the ServerConnect gate below. The adapter proxies the
+// connected server's currently-selected workspace under the hood.
 const wailsAdapter = new WailsApiAdapter();
-const localWorkspace = {
-  id: "local",
-  name: "Personal",
-  slug: "personal",
-  description: "",
-  logo_url: "",
-  type: "personal" as const,
-  role: "owner" as const,
-};
+const desktopPlatform = createDesktopPlatform();
+// Hash history: the Wails webview serves the frontend from a static asset root,
+// so browser history would 404 on refresh or deep navigation. Hash keeps every
+// route change client-side.
+const desktopHistory = createHashHistory();
 
 /**
- * Renders the shared @neokapi/ui-primitives TM browser against bowrain's REST
- * adapter. Must live below ApiProvider/WorkspaceProvider so the adapter hook
- * can resolve the active workspace.
+ * Desktop entry. A thin connection gate (loading spinner → ServerConnect PKCE
+ * screen) precedes the shared @neokapi/bowrain-app, which mounts once the
+ * backend reports a connected (or offline) working copy. Phase 2 of the
+ * web/desktop unification (#1273): the desktop now renders the identical shared
+ * route tree the web app does, over a WailsApiAdapter + desktop PlatformAdapter.
  */
-function DesktopTMBrowser({
-  sourceLocale,
-  targetLocales,
-}: {
-  sourceLocale: string;
-  targetLocales: string[];
-}) {
-  const adapter = useTMBrowserAdapter(sourceLocale, targetLocales);
-  if (!adapter) return null;
-  return <TMBrowser adapter={adapter} sourceLocale={sourceLocale} targetLocales={targetLocales} />;
-}
-
-/** Renders the shared termbase browser against bowrain's REST adapter. */
-function DesktopTermbaseBrowser({
-  sourceLocale,
-  targetLocales,
-}: {
-  sourceLocale: string;
-  targetLocales: string[];
-}) {
-  const adapter = useTermbaseBrowserAdapter();
-  if (!adapter) return null;
-  return (
-    <TermbaseBrowser adapter={adapter} sourceLocale={sourceLocale} targetLocales={targetLocales} />
-  );
-}
-
 function AppInner() {
   const connection = useConnection();
-
-  // Connection flow state
   const [mode, setMode] = useState<AppMode>("loading");
-  const [workspace, setWorkspace] = useState<Workspace>(localWorkspace);
-  const [allWorkspaces, setAllWorkspaces] = useState<Workspace[]>([localWorkspace]);
-  const [isServerMode, setIsServerMode] = useState(false);
 
-  // App state
-  const [activeView, setActiveView] = useState<AppView>("translate");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
-  // Brand hub state (AD-021). The desktop has no router, so the active section
-  // (AppShell brand sub-nav) and the concept/change-set drill-down selection are
-  // React state here, passed down to BrandHubPage.
-  const [brandSection, setBrandSection] = useState<BrandSection>("concepts");
-  const [brandConceptId, setBrandConceptId] = useState("");
-  const [brandChangesetId, setBrandChangesetId] = useState("");
-
-  // Project state
-  const [projects, setProjects] = useState<ProjectInfo[]>([]);
-  const [activeProject, setActiveProject] = useState<ProjectInfo | null>(null);
-  const [activeFile, setActiveFile] = useState<string | null>(null);
-  // Which per-file editor surface is showing (translate / review / pre-process).
-  const [fileSurface, setFileSurface] = useState<EditorSurface>("translate");
-  const [showTMExplorer, setShowTMExplorer] = useState(false);
-  const [showTermExplorer, setShowTermExplorer] = useState(false);
-  const [pendingChanges, setPendingChanges] = useState(0);
-  const [showCreateWs, setShowCreateWs] = useState(false);
-
-  // Bumped by the backend-events freshness layer to force the open editor to
-  // reload blocks when an external change touches the active project.
-  const [blocksReloadSignal, setBlocksReloadSignal] = useState(0);
-
-  // Listen for connection state changes from the backend (e.g. going offline).
-  useEffect(() => {
-    const cancel = Events.On("connection-state-changed", (event: { data: unknown }) => {
-      const info = event.data as { state: string };
-      void connection.refresh();
-      if (info?.state === "offline") {
-        Backend.GetPendingChangesCount?.()
-          .then((n: number) => setPendingChanges(n))
-          .catch(() => {});
-      } else if (info?.state === "connected") {
-        setPendingChanges(0);
-      }
-    });
-    return () => {
-      cancel?.();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Listen for deep-link-project events from bowrain:// URL handler.
-  useEffect(() => {
-    const cancel = Events.On("deep-link-project", (event: { data: unknown }) => {
-      const info = event.data as { project_id: string; server_url: string; workspace: string };
-      if (!info?.project_id) return;
-      void connection.refresh().then((ci) => {
-        if (ci.state === "connected") {
-          wailsAdapter
-            .getProject(info.workspace || "", info.project_id)
-            .then((proj) => {
-              setActiveProject(proj);
-              setActiveFile(null);
-              setShowTMExplorer(false);
-              setShowTermExplorer(false);
-            })
-            .catch(() => {
-              console.warn("Deep link: could not open project", info.project_id);
-            });
+  // The shared app reads projects via the adapter, which proxies the backend's
+  // currently-selected server workspace. Make sure one is selected so those
+  // reads resolve when the connection didn't pin a workspace itself.
+  const ensureWorkspaceSelected = useCallback(
+    async (ci: { workspace?: string }) => {
+      if (ci.workspace) return;
+      try {
+        const wsList = await connection.getServerWorkspaces();
+        if (wsList.length > 0) {
+          await connection.selectWorkspace(wsList[0].slug);
         }
-      });
+      } catch {
+        /* offline or single-tenant — the adapter still resolves locally */
+      }
+    },
+    [connection],
+  );
+
+  const handleServerConnect = useCallback(
+    async (serverURL: string) => {
+      const ci = await connection.connect(serverURL);
+      if (ci.state === "connected") {
+        await ensureWorkspaceSelected(ci);
+        setMode("ready");
+      }
+      return ci;
+    },
+    [connection, ensureWorkspaceSelected],
+  );
+
+  // Keep the gate responsive to backend connection changes (the auto-connect
+  // race, where the first refresh() returns disconnected): refresh the snapshot
+  // whenever the backend reports a change.
+  useEffect(() => {
+    const cancel = Events.On("connection-state-changed", () => {
+      void connection.refresh();
     });
-    return () => {
-      cancel?.();
-    };
+    return () => cancel?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- Connection flow ---
-
-  // Transition out of "connecting" once the backend reports "connected".
-  // This handles the auto-connect (BOWRAIN_TOKEN) race where the first
-  // refresh() may return "disconnected" because the autoconnect path
-  // hasn't completed yet — connectWithToken emits "connection-state-changed"
-  // when it succeeds, useConnection's listener calls refresh(), info updates,
-  // and this effect promotes mode to "ready".
+  // Promote to the app once the backend reports connected.
   useEffect(() => {
     if (connection.info.state === "connected" && mode === "connecting") {
       setMode("ready");
     }
   }, [connection.info.state, mode]);
 
+  // Initial probe: reuse a stored/auto session if present, else show the gate.
   useEffect(() => {
     connection
       .refresh()
       .then(async (ci) => {
-        if (ci.state === "connected") {
-          setIsServerMode(true);
-          try {
-            const wsList = await connection.getServerWorkspaces();
-            const mapped = wsList.map(toWorkspace);
-            setAllWorkspaces(mapped);
-            if (ci.workspace) {
-              const ws = mapped.find((w) => w.slug === ci.workspace);
-              setWorkspace(
-                ws ??
-                  toWorkspace({
-                    id: ci.workspace,
-                    slug: ci.workspace,
-                    name: ci.workspace,
-                    description: "",
-                    role: "owner",
-                  }),
-              );
-            } else if (mapped.length > 0) {
-              await connection.selectWorkspace(mapped[0].slug);
-              setWorkspace(mapped[0]);
-            }
-          } catch {
-            if (ci.workspace) {
-              setWorkspace(
-                toWorkspace({
-                  id: ci.workspace,
-                  slug: ci.workspace,
-                  name: ci.workspace,
-                  description: "",
-                  role: "owner",
-                }),
-              );
-            }
-          }
+        if (ci.state === "connected" || ci.state === "offline") {
+          await ensureWorkspaceSelected(ci);
           setMode("ready");
-        } else if (ci.state === "offline" && ci.workspace) {
-          setWorkspace(
-            toWorkspace({
-              id: ci.workspace,
-              slug: ci.workspace,
-              name: ci.workspace,
-              description: "",
-              role: "owner",
-            }),
-          );
-          setIsServerMode(true);
-          setMode("ready");
-          Backend.GetPendingChangesCount?.()
-            .then((n: number) => setPendingChanges(n))
-            .catch(() => {});
-        } else if ((window as any).__skipConnection) {
-          // Headless server mode (e2e tests): skip connection screen, use local workspace.
+        } else if ((window as { __skipConnection?: boolean }).__skipConnection) {
           setMode("ready");
         } else {
           setMode("connecting");
         }
       })
       .catch(() => {
-        if ((window as any).__skipConnection) {
-          setMode("ready");
-        } else {
-          setMode("connecting");
-        }
+        setMode(
+          (window as { __skipConnection?: boolean }).__skipConnection ? "ready" : "connecting",
+        );
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (mode !== "ready") return;
-    Backend.ListProjects()
-      .then((serverProjects: ProjectInfo[]) => {
-        if (serverProjects?.length) {
-          setProjects(serverProjects);
-        }
-      })
-      .catch(() => {});
-  }, [mode]);
-
-  const handleServerConnect = useCallback(
-    async (serverURL: string) => {
-      const ci = await connection.connect(serverURL);
-      if (ci.state === "connected") {
-        setIsServerMode(true);
-        try {
-          const wsList = await connection.getServerWorkspaces();
-          const mapped = wsList.map(toWorkspace);
-          setAllWorkspaces(mapped);
-          if (mapped.length > 0) {
-            await connection.selectWorkspace(mapped[0].slug);
-            setWorkspace(mapped[0]);
-          }
-        } catch {
-          /* ignore */
-        }
-        setMode("ready");
-      }
-      return ci;
-    },
-    [connection],
-  );
-
-  const handleSelectWorkspace = useCallback(
-    async (ws: Workspace) => {
-      if (isServerMode) {
-        await connection.selectWorkspace(ws.slug);
-      }
-      setWorkspace(ws);
-      setActiveProject(null);
-      setActiveFile(null);
-      setShowTMExplorer(false);
-      setShowTermExplorer(false);
-      Backend.ListProjects()
-        .then((p: ProjectInfo[]) => setProjects(p?.length ? p : []))
-        .catch(() => setProjects([]));
-    },
-    [connection, isServerMode],
-  );
-
-  const handleWorkspaceCreated = useCallback(
-    async (ws: Workspace) => {
-      setShowCreateWs(false);
-      setAllWorkspaces((prev) => [...prev, ws]);
-      if (isServerMode) {
-        await connection.selectWorkspace(ws.slug);
-      }
-      setWorkspace(ws);
-      setActiveProject(null);
-      setActiveFile(null);
-      setShowTMExplorer(false);
-      setShowTermExplorer(false);
-      Backend.ListProjects()
-        .then((p: ProjectInfo[]) => setProjects(p?.length ? p : []))
-        .catch(() => setProjects([]));
-    },
-    [connection, isServerMode],
-  );
-
-  const handleSignOut = useCallback(async () => {
-    await connection.logout();
-    setIsServerMode(false);
-    setWorkspace(localWorkspace);
-    setAllWorkspaces([localWorkspace]);
-    setActiveProject(null);
-    setActiveFile(null);
-    setProjects([]);
-    setMode("connecting");
-  }, [connection]);
-
-  // --- Project callbacks ---
-
-  const handleCreateProject = useCallback(
-    async (name: string, sourceLang: string, targetLangs: string[]) => {
-      try {
-        const info = await wailsAdapter.createProject("personal", name, sourceLang, targetLangs);
-        setProjects((prev) => [...prev, info]);
-        setActiveProject(info);
-      } catch (e) {
-        console.error("Create project failed:", e);
-      }
-    },
-    [],
-  );
-
-  const handleOpenProject = useCallback(async (project: ProjectInfo) => {
-    try {
-      const fresh = await wailsAdapter.getProject("personal", project.id);
-      setActiveProject(fresh);
-      setProjects((prev) => prev.map((p) => (p.id === fresh.id ? fresh : p)));
-    } catch {
-      setActiveProject(project);
-    }
-    setActiveFile(null);
-  }, []);
-
-  const handleUploadFiles = useCallback(
-    async (files: File[]) => {
-      if (!activeProject) return;
-      try {
-        const updated = await wailsAdapter.uploadFiles("personal", activeProject.id, files);
-        setActiveProject(updated);
-        setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-      } catch (e) {
-        console.error("Add files failed:", e);
-      }
-    },
-    [activeProject],
-  );
-
-  const handleRemoveFile = useCallback(
-    async (fileName: string) => {
-      if (!activeProject) return;
-      try {
-        const updated = await wailsAdapter.removeFile("personal", activeProject.id, fileName);
-        setActiveProject(updated);
-        setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-      } catch (e) {
-        console.error("Remove file failed:", e);
-      }
-    },
-    [activeProject],
-  );
-
-  const handleOpenFile = useCallback(
-    (itemId: string) => {
-      // Resolve item ID to filename from active project's items.
-      const item = activeProject?.items?.find((i) => i.id === itemId);
-      setActiveFile(item?.name ?? itemId);
-      setFileSurface("translate");
-    },
-    [activeProject],
-  );
-
-  const handleBackToProjects = useCallback(() => {
-    setActiveProject(null);
-    setActiveFile(null);
-    setShowTMExplorer(false);
-    setShowTermExplorer(false);
-  }, []);
-
-  const handleBackToProject = useCallback(() => {
-    setActiveFile(null);
-    setShowTMExplorer(false);
-    setShowTermExplorer(false);
-  }, []);
-
-  // --- Freshness: reload data on external changes ---
-
-  // Reload the active project (item list, counts) from the server. Used when an
-  // external change (another user, kapi push, connector sync, automation,
-  // item add/remove) touches the open project.
-  const reloadActiveProject = useCallback(() => {
-    setActiveProject((current) => {
-      if (!current) return current;
-      void wailsAdapter
-        .getProject(workspace.slug, current.id)
-        .then((fresh) => {
-          setActiveProject(fresh);
-          setProjects((prev) => prev.map((p) => (p.id === fresh.id ? fresh : p)));
-        })
-        .catch(() => {
-          /* keep current on failure */
-        });
-      return current;
-    });
-  }, [workspace.slug]);
-
-  // Reload the workspace project list (project create/delete/rename elsewhere).
-  const reloadProjects = useCallback(() => {
-    Backend.ListProjects()
-      .then((p: ProjectInfo[]) => setProjects(p?.length ? p : []))
-      .catch(() => {
-        /* keep current on failure */
-      });
-  }, []);
-
-  // Force the open editor to reload its blocks.
-  const reloadOpenEditor = useCallback(() => {
-    setBlocksReloadSignal((n) => n + 1);
-  }, []);
-
-  // Open/close the SSE project-events stream as the active project changes (server
-  // mode only). This is what feeds the typed backend events the freshness layer
-  // listens to; without it no external change would ever reach the desktop UI.
-  useEffect(() => {
-    if (!isServerMode || !activeProject) {
-      void connection.stopWatching();
-      return;
-    }
-    void connection.startWatching(activeProject.id);
-    return () => {
-      void connection.stopWatching();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isServerMode, activeProject?.id]);
-
-  const handleOpenTM = useCallback(() => {
-    setShowTMExplorer(true);
-    setShowTermExplorer(false);
-  }, []);
-
-  const handleOpenTerms = useCallback(() => {
-    setShowTermExplorer(true);
-    setShowTMExplorer(false);
-  }, []);
-
-  const handleViewChange = useCallback((view: AppView) => {
-    setActiveView(view);
-    if (view !== "translate") {
-      setActiveProject(null);
-      setActiveFile(null);
-      setShowTMExplorer(false);
-    }
-  }, []);
-
-  // --- Brand hub callbacks (AD-021) ---
-
-  // A brand sub-nav click switches section and drops any drill-down selection so
-  // the section opens on its list (not a stale concept/change-set detail).
-  const handleBrandSubNavChange = useCallback((id: string) => {
-    setBrandSection(id as BrandSection);
-    setBrandConceptId("");
-    setBrandChangesetId("");
-  }, []);
-
-  const brandGotoSection = useCallback((section: BrandSection) => {
-    setBrandSection(section);
-    setBrandConceptId("");
-    setBrandChangesetId("");
-  }, []);
-
-  const brandOpenConcept = useCallback((conceptId: string) => {
-    setBrandSection("concepts");
-    setBrandConceptId(conceptId);
-    setBrandChangesetId("");
-  }, []);
-
-  const brandOpenExperiment = useCallback((changesetId: string) => {
-    setBrandSection("experiments");
-    setBrandChangesetId(changesetId);
-    setBrandConceptId("");
-  }, []);
-
-  const brandCloseConcept = useCallback(() => setBrandConceptId(""), []);
-  const brandCloseExperiment = useCallback(() => setBrandChangesetId(""), []);
-
-  const handleDesktopExport = useCallback((_blob: Blob, _fileName: string) => {
-    // No-op: WailsApiAdapter.exportTranslatedFile already exported to disk and opened in OS
-  }, []);
-
-  const sidebarUser: User | null =
-    isServerMode && connection.info.user_name
-      ? {
-          id: "server",
-          email: connection.info.user_name,
-          name: connection.info.user_name,
-          avatar_url: "",
-        }
-      : null;
-
-  const connectionState = isServerMode
-    ? (connection.info.state as "disconnected" | "connecting" | "connected" | "offline")
-    : undefined;
-
-  // Show governance nav (members, brand) only in server mode — those screens
-  // proxy server REST endpoints and need a connected workspace.
-  const desktopNavItems = useMemo<NavItem[]>(
-    () => (isServerMode ? [...baseNavItems, ...governanceNavItems] : baseNavItems),
-    [isServerMode],
-  );
-
-  // Build sidebar context so the sidebar transforms based on navigation depth.
-  // Must be before early returns to maintain consistent hook call order.
-  const sidebarContext = useMemo<SidebarContext | undefined>(() => {
-    if (activeView !== "translate" || !activeProject) {
-      return { level: "workspace", activeView: activeView as View };
-    }
-    return {
-      level: "project",
-      project: activeProject,
-      activeStream: "main",
-      activeProjectView: "dashboard" as const,
-      // Home goes up one level: editor → project, project → workspace
-      onBack: activeFile ? handleBackToProject : handleBackToProjects,
-      onOpenDashboard: handleBackToProject,
-      onOpenFile: handleOpenFile,
-      onStreamChange: () => {},
-    };
-  }, [
-    activeView,
-    activeProject,
-    activeFile,
-    handleBackToProjects,
-    handleBackToProject,
-    handleOpenFile,
-  ]);
-
-  // --- Pre-app screens ---
 
   if (mode === "loading") {
     return (
@@ -659,199 +141,23 @@ function AppInner() {
     );
   }
 
-  // --- Main app (mode === "ready") ---
-
-  const renderView = () => {
-    if (activeView === "translate" && activeProject && showTermExplorer) {
-      return (
-        <DesktopTermbaseBrowser
-          sourceLocale={activeProject.default_source_language}
-          targetLocales={activeProject.target_languages}
-        />
-      );
-    }
-
-    if (activeView === "translate" && activeProject && showTMExplorer) {
-      return (
-        <DesktopTMBrowser
-          sourceLocale={activeProject.default_source_language}
-          targetLocales={activeProject.target_languages}
-        />
-      );
-    }
-
-    if (activeView === "translate" && activeProject && activeFile) {
-      const surfaceTabs = <EditorSurfaceTabs active={fileSurface} onSelect={setFileSurface} />;
-      if (fileSurface === "review") {
-        return (
-          <ReviewSurface
-            project={activeProject}
-            fileName={activeFile}
-            onBack={handleBackToProject}
-            surfaceTabs={surfaceTabs}
-          />
-        );
-      }
-      if (fileSurface === "pre-process") {
-        return (
-          <PreProcessSurface
-            project={activeProject}
-            fileName={activeFile}
-            onBack={handleBackToProject}
-            surfaceTabs={surfaceTabs}
-          />
-        );
-      }
-      return (
-        <DesktopTranslateView
-          adapter={wailsAdapter}
-          project={activeProject}
-          fileName={activeFile}
-          workspaceSlug={isServerMode ? workspace.slug : ""}
-          onBack={handleBackToProject}
-          onExport={handleDesktopExport}
-          surfaceTabs={surfaceTabs}
-          reloadSignal={blocksReloadSignal}
-        />
-      );
-    }
-
-    if (activeView === "translate" && activeProject) {
-      return (
-        <ProjectView
-          project={activeProject}
-          onBack={handleBackToProjects}
-          onOpenFile={handleOpenFile}
-          onUploadFiles={handleUploadFiles}
-          onRemoveFile={handleRemoveFile}
-          onOpenTM={handleOpenTM}
-          onOpenTerms={handleOpenTerms}
-        />
-      );
-    }
-
-    switch (activeView) {
-      case "translate":
-        return (
-          <ProjectDashboard
-            projects={projects}
-            onCreateProject={handleCreateProject}
-            onOpenProject={handleOpenProject}
-          />
-        );
-      case "termbase":
-        return (
-          <div className="text-muted-foreground p-6">Select a project to explore its termbase.</div>
-        );
-      case "memory":
-        return (
-          <div className="text-muted-foreground p-6">
-            Select a project to explore its translation memory.
-          </div>
-        );
-      case "settings":
-        return <SettingsPage />;
-      case "flows":
-        return <FlowBuilder projectId={activeProject?.id} />;
-      case "connectors":
-        return <ConnectorPanel />;
-      case "members":
-        return <MembersPage />;
-      case "brand":
-        return (
-          <BrandHubPage
-            projects={projects}
-            section={brandSection}
-            conceptId={brandConceptId}
-            changesetId={brandChangesetId}
-            onOpenConcept={brandOpenConcept}
-            onCloseConcept={brandCloseConcept}
-            onOpenExperiment={brandOpenExperiment}
-            onCloseExperiment={brandCloseExperiment}
-            onGotoSection={brandGotoSection}
-          />
-        );
-    }
-  };
-
-  const isEditor = activeView === "translate" && activeProject != null && activeFile != null;
-  const isFlowBuilder = activeView === "flows";
-
+  // Connected (or offline working copy): mount the shared app. It owns theme,
+  // providers, and routing; the desktop passes the Wails data + platform seams
+  // and a hash history.
   return (
-    <ThemeProvider>
-      <TooltipProvider>
-        <ApiProvider adapter={wailsAdapter}>
-          <WorkspaceProvider initialWorkspace={workspace}>
-            <BackendEventsProvider>
-              <FreshnessBridge
-                reloadProjects={reloadProjects}
-                reloadActiveProject={reloadActiveProject}
-                reloadOpenEditor={reloadOpenEditor}
-              />
-              <AppShell
-                workspaces={allWorkspaces}
-                activeWorkspace={workspace}
-                onSelectWorkspace={handleSelectWorkspace}
-                onCreateWorkspace={isServerMode ? () => setShowCreateWs(true) : undefined}
-                activeView={activeView}
-                onViewChange={handleViewChange}
-                extraNavItems={desktopNavItems}
-                user={sidebarUser}
-                onSignOut={isServerMode ? handleSignOut : undefined}
-                collapsed={sidebarCollapsed}
-                onCollapsedChange={setSidebarCollapsed}
-                topBar
-                connectionState={connectionState}
-                pendingChanges={pendingChanges}
-                showThemeToggle={false}
-                sidebarContext={sidebarContext}
-                // Surface the shared Brand sub-nav (subNavConfig.brand) only on
-                // the Brand hub; passing onSubNavChange for other views would
-                // wrongly render their secondary panels (e.g. Settings).
-                activeSubNav={activeView === "brand" ? brandSection : undefined}
-                onSubNavChange={activeView === "brand" ? handleBrandSubNavChange : undefined}
-                headerSlot={
-                  <TopBar
-                    user={sidebarUser}
-                    onSignOut={isServerMode ? handleSignOut : undefined}
-                    connectionState={
-                      isServerMode
-                        ? (connection.info.state as
-                            | "disconnected"
-                            | "connecting"
-                            | "connected"
-                            | "offline")
-                        : undefined
-                    }
-                    pendingChanges={pendingChanges}
-                  />
-                }
-                contentClassName={cn(
-                  isEditor || isFlowBuilder ? "overflow-hidden" : "overflow-auto",
-                )}
-              >
-                {renderView()}
-              </AppShell>
-
-              <CreateWorkspaceDialog
-                open={showCreateWs}
-                onOpenChange={setShowCreateWs}
-                onCreate={handleWorkspaceCreated}
-              />
-            </BackendEventsProvider>
-          </WorkspaceProvider>
-        </ApiProvider>
-      </TooltipProvider>
-    </ThemeProvider>
+    <BowrainApp
+      api={wailsAdapter}
+      platform={desktopPlatform}
+      queryClient={queryClient}
+      history={desktopHistory}
+    />
   );
 }
 
 /**
- * App root. Provides the app-wide react-query client so every view (Settings,
- * Connectors, Members, Brand, the shared @neokapi/ui surfaces) shares one cache
- * and invalidation model — matching kapi-desktop (#1142) and web/ctrl/pulse.
- * The provider wraps the pre-app screens too (loading / ServerConnect), since
- * those read server state via react-query as well.
+ * App root. Provides the app-wide react-query client so the connection gate and
+ * the shared app share one cache; the shared app's RootLayout re-provides the
+ * same client, so invalidations are visible across both.
  */
 function App() {
   return (

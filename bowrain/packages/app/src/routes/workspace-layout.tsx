@@ -444,7 +444,12 @@ export function WorkspaceLayout() {
     () => parseProjectParams(pathname, workspaceSlug ?? "")?.projectId,
     [pathname, workspaceSlug],
   );
-  useWorkspaceEvents(ws, activeProjectId);
+  // The change-event stream is a raw same-origin EventSource with cookie auth —
+  // that only works in the browser. On the desktop the server is reached over
+  // Wails with a keychain token, and freshness arrives via the backend-event
+  // bridge instead, so pass no slug to keep the stream off (the hook early-
+  // returns on an empty slug).
+  useWorkspaceEvents(platform.kind === "web" ? ws : undefined, activeProjectId);
 
   const sidebarContext = useMemo<SidebarContext | undefined>(() => {
     const projectParams = parseProjectParams(pathname, workspaceSlug ?? "");
