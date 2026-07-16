@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { NotificationSettings, useWorkspace, useApi, type DigestSettingsDTO } from "@neokapi/ui";
 import { ProfileEmailCard } from "../../auth/ProfileEmailCard";
 import { ProfileHandleCard } from "../../auth/ProfileHandleCard";
+import { SecurityCard } from "../../auth/SecurityCard";
 
 export function UserSettingsRoute() {
   const { activeWorkspace } = useWorkspace();
@@ -51,6 +52,7 @@ export function UserSettingsRoute() {
 
       <ProfileEmailCard />
       <ProfileHandleCard />
+      <SecurityCard />
 
       {settings ? (
         <NotificationSettings settings={settings} onChange={handleChange} saving={saving} />

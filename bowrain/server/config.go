@@ -54,6 +54,14 @@ type Config struct {
 	// is treated as "keycloak".
 	AuthProvider string
 
+	// PasskeysEnabled gates the self-service passkey (WebAuthn) management
+	// feature. Default (false) ships it dark: the CredentialManager is not
+	// constructed, so the account-security endpoints return 503 and the web
+	// Security card renders nothing. Enable it (BOWRAIN_PASSKEYS_ENABLED=true)
+	// once the Cognito WebAuthn Relying Party ID and upstream-token retention
+	// are verified in the target environment.
+	PasskeysEnabled bool
+
 	// AllowUnverifiedEmail opts OUT of requiring a verified email at login.
 	// Default (false) is fail-safe: the OIDC callback rejects an ID token whose
 	// email_verified claim is not true. This matters because login provisioning

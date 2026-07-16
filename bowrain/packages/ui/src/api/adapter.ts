@@ -92,6 +92,10 @@ import type {
   SlugCheckResponse,
   EmailChangeRequestResponse,
   EmailChangeConfirmResponse,
+  AccountSecurity,
+  PasskeyListResponse,
+  PasskeyRegisterStartResponse,
+  PasskeyRegisterFinishRequest,
   SlugReservation,
   UploadFilesResult,
   ReviewDemotion,
@@ -156,6 +160,15 @@ export interface ApiAdapter {
   checkSlug(slug: string): Promise<SlugCheckResponse>;
   requestEmailChange(newEmail: string): Promise<EmailChangeRequestResponse>;
   confirmEmailChange(token: string): Promise<EmailChangeConfirmResponse>;
+
+  // Account security — self-service passkey (WebAuthn) management. The server
+  // relays the ceremony (Cognito) or steers to an account console (Keycloak);
+  // no identity-provider token ever reaches the browser.
+  getAccountSecurity(): Promise<AccountSecurity>;
+  listPasskeys(): Promise<PasskeyListResponse>;
+  passkeyRegisterStart(): Promise<PasskeyRegisterStartResponse>;
+  passkeyRegisterFinish(req: PasskeyRegisterFinishRequest): Promise<void>;
+  deletePasskey(id: string): Promise<void>;
 
   // Admin: workspace slug-rename reservations.
   adminListSlugReservations(): Promise<SlugReservation[]>;

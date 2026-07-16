@@ -98,6 +98,20 @@ type Server struct {
 	// unaware of which is in play.
 	IdentityAdmin auth.IdentityAdmin
 
+	// CredentialManager is the provider-neutral seam for a user's self-service
+	// credential management (passkeys). Like IdentityAdmin its concrete
+	// implementation is chosen by Config.AuthProvider — Cognito relays the
+	// WebAuthn ceremony in-app (hosted prod), Keycloak hands off to its account
+	// console (self-host). Nil when OIDC is not configured, in which case the
+	// account-security endpoints return 503.
+	CredentialManager auth.CredentialManager
+
+	// UpstreamTokens retains the user's upstream IdP refresh token (encrypted)
+	// so the BFF can mint a fresh user-scoped access token on demand for
+	// CredentialManager operations, without keeping any IdP token in the
+	// browser. Nil when PostgreSQL is not configured.
+	UpstreamTokens auth.UpstreamTokenStore
+
 	// collabHub manages collaborative editing WebSocket rooms.
 	collabHub *collabHub
 
@@ -439,6 +453,35 @@ func NewServer(cfg Config) *Server {
 		}
 	}
 
+	// Initialize the provider-neutral CredentialManager (self-service passkey
+	// management) for the configured provider — the parallel of IdentityAdmin.
+	// Cognito relays the WebAuthn ceremony in-app; Keycloak hands off to its
+	// account console. Gated behind PasskeysEnabled so it ships dark (nil →
+	// account-security endpoints report 503 → the web Security card hides) until
+	// the RP ID + upstream-token retention are verified in the environment.
+	if cfg.PasskeysEnabled {
+		switch cfg.AuthProvider {
+		case AuthProviderCognito:
+			if adminCfg, err := auth.CognitoConfigFromIssuer(cfg.OIDCIssuerURL); err != nil {
+				slog.Warn("cognito credential manager disabled", "error", err)
+			} else if cm, err := auth.NewCognitoCredentialManager(context.Background(), adminCfg); err != nil {
+				slog.Warn("cognito credential manager disabled", "error", err)
+			} else {
+				s.CredentialManager = cm
+				slog.Info("credential manager: cognito (in-app passkeys)", "region", adminCfg.Region)
+			}
+		default: // "keycloak" (and the empty default)
+			if cfg.OIDCIssuerURL != "" {
+				// Prefer the browser-facing URL for the account-console deep link.
+				issuer := cfg.OIDCPublicURL
+				if issuer == "" {
+					issuer = cfg.OIDCIssuerURL
+				}
+				s.CredentialManager = auth.NewKeycloakCredentialManager(issuer)
+			}
+		}
+	}
+
 	// Initialize stores from PostgreSQL DatabaseURL.
 	if cfg.DatabaseURL != "" {
 		var pg *pgStores
@@ -462,6 +505,15 @@ func NewServer(cfg Config) *Server {
 			}
 			if pgStore, ok := pg.Content.(*bstore.PostgresStore); ok {
 				pgStore.SetSecretsCipher(secretsCipher)
+			}
+			// Upstream IdP refresh-token store (encrypted with the same cipher):
+			// backs on-demand minting of user-scoped access tokens for passkey
+			// management. Degrades to disabled (endpoints 409 reauth_required) on
+			// migration failure rather than blocking server startup.
+			if ut, uerr := auth.NewUpstreamTokenStoreFromDB(pg.DB, secretsCipher); uerr != nil {
+				slog.Warn("upstream token store disabled (passkey management will require re-login)", "error", uerr)
+			} else {
+				s.UpstreamTokens = ut
 			}
 			s.Services = service.NewServices(pg.Content, connReg, formatReg, toolReg)
 			s.JobStore = pg.Job
@@ -1095,6 +1147,20 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		authProtected.POST("/me/email", s.HandleRequestEmailChange)
 		authProtected.POST("/logout", s.HandleAuthLogout)
 		authProtected.POST("/token/exchange", s.HandleTokenExchange)
+
+		// Account self-service (Security section): passkey management via the
+		// provider-neutral CredentialManager. Cookie-authenticated (CSRF gate on
+		// the POST/DELETE routes is enforced by AuthMiddleware); state-changing
+		// IdP calls run server-side with a user-scoped access token minted on
+		// demand from the retained upstream refresh token — no IdP token reaches
+		// the browser.
+		accountGroup := v1.Group("/account")
+		accountGroup.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
+		accountGroup.GET("/security", s.HandleAccountSecurity)
+		accountGroup.GET("/passkeys", s.HandleListPasskeys)
+		accountGroup.POST("/passkeys/register/start", s.HandleRegisterStart)
+		accountGroup.POST("/passkeys/register/finish", s.HandleRegisterFinish)
+		accountGroup.DELETE("/passkeys/:id", s.HandleDeletePasskey)
 
 		// Per-IP throttles for invite and AI-consuming routes (env-overridable).
 		// Shared instances so all invite routes / all AI routes each draw from a

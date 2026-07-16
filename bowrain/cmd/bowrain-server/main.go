@@ -166,6 +166,11 @@ func run() error {
 	if v := os.Getenv("BOWRAIN_ALLOW_UNVERIFIED_EMAIL"); v != "" {
 		cfg.AllowUnverifiedEmail, _ = strconv.ParseBool(v)
 	}
+	// Self-service passkey management (default: off / ship dark). Enable once the
+	// Cognito WebAuthn RP ID + upstream-token retention are verified in prod.
+	if v := os.Getenv("BOWRAIN_PASSKEYS_ENABLED"); v != "" {
+		cfg.PasskeysEnabled, _ = strconv.ParseBool(v)
+	}
 	// Force Secure cookies (set true in TLS-fronted prod). See Config docs.
 	if v := os.Getenv("BOWRAIN_FORCE_SECURE_COOKIES"); v != "" {
 		cfg.ForceSecureCookies, _ = strconv.ParseBool(v)
