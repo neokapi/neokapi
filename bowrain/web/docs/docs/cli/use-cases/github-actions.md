@@ -9,7 +9,7 @@ This guide shows how to use kapi (with the bowrain plugin) in GitHub Actions wor
 
 ## Overview
 
-The [`setup-kapi`](https://github.com/neokapi/setup-kapi) GitHub Action installs kapi on any runner and, through its `plugins` input, the bowrain plugin (`kapi-bowrain`). It handles platform detection, checksum verification, binary caching, and optional server authentication — so your workflow steps can focus on localization tasks.
+The [`setup-kapi`](https://github.com/neokapi/setup-kapi) GitHub Action installs kapi on any runner, with the bowrain plugin included by default. It handles platform detection, checksum verification, binary caching, and optional server authentication — so your workflow steps can focus on localization tasks.
 
 ## Setup
 
@@ -20,8 +20,6 @@ steps:
   - uses: actions/checkout@v4
 
   - uses: neokapi/setup-kapi@v1
-    with:
-      plugins: kapi-bowrain
 ```
 
 The action downloads the correct binary for the runner platform (Linux, macOS, or Windows), verifies its SHA-256 checksum, and adds it to `PATH`. The built-in workflow token covers public release downloads, so no `token` input is required. On subsequent runs, the binary is restored from cache.
@@ -30,8 +28,8 @@ The action downloads the correct binary for the runner platform (Linux, macOS, o
 
 | Input        | Description                                                | Default  |
 | ------------ | ---------------------------------------------------------- | -------- |
-| `version`    | CLI version (e.g. `0.5.0` or `latest`)                     | `latest` |
-| `plugins`    | Comma or newline-separated plugin refs to install          | `""`     |
+| `version`    | CLI version (e.g. `1.1.0` or `latest`)                     | `latest` |
+| `plugins`    | Comma or newline-separated plugin refs to install, as the registry names them (`''` to install nothing) | `bowrain` |
 | `auth-token` | Bowrain server JWT (exported as `BOWRAIN_AUTH_TOKEN`)      | `""`     |
 | `server`     | Bowrain server URL (exported as `BOWRAIN_SERVER_URL`)      | `""`     |
 
@@ -39,14 +37,14 @@ The action downloads the correct binary for the runner platform (Linux, macOS, o
 
 | Output      | Description                      |
 | ----------- | -------------------------------- |
-| `version`   | Installed version (e.g. `0.5.0`) |
+| `version`   | Installed version (e.g. `1.1.0`) |
 | `cache-hit` | Whether the plugin cache was hit |
 
 ## Recommended: Converge with `kapi-action`
 
 The simplest CI pattern uses two actions together:
 
-- [`neokapi/setup-kapi`](https://github.com/neokapi/setup-kapi) — installs kapi and the bowrain plugin (`kapi-bowrain`)
+- [`neokapi/setup-kapi`](https://github.com/neokapi/setup-kapi) — installs kapi (the bowrain plugin is included by default)
 - [`neokapi/kapi-action`](https://github.com/neokapi/kapi-action) — runs a `kapi` command (here, `kapi up`) and commits translations
 
 ```yaml
@@ -70,7 +68,6 @@ jobs:
 
       - uses: neokapi/setup-kapi@v1
         with:
-          plugins: kapi-bowrain
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
@@ -84,37 +81,44 @@ jobs:
         run: echo "Translations committed at ${{ steps.up.outputs.commit-sha }}"
 ```
 
-With `command: up`, the action runs `kapi up` — the convergence loop on the server (push → converge → pull) — then checks for changes, commits, and pushes. It sets outputs you can use in subsequent steps:
+With `command: up` (the default), the action runs `kapi up` — the convergence loop on the server (push → converge → pull) — then checks for changes, commits, and pushes. A run that **converged** (every gated scope cleared its ship gate) commits the produced translations; a run that **parked** (work remains that needs a person) commits what did converge and annotates the parked locales; a **failed** run exits non-zero and commits nothing. It sets outputs you can use in subsequent steps:
 
-| Output       | Description                          |
-| ------------ | ------------------------------------ |
-| `status`     | `success`, `no-changes`, or `failed` |
-| `committed`  | `true` if a commit was created       |
-| `commit-sha` | SHA of the created commit            |
+| Output           | Description                                                        |
+| ---------------- | ------------------------------------------------------------------ |
+| `status`         | `success`, `no-changes`, or `failed`                               |
+| `outcome`        | With `command: up`: `converged` or `parked`                        |
+| `passes`         | With `command: up`: how many reconciliation passes the run took    |
+| `parked-locales` | With `command: up`: comma-separated locales still short of their gate |
+| `committed`      | `true` if a commit was created                                     |
+| `commit-sha`     | SHA of the created commit                                          |
 
 ### kapi-action Inputs
 
-| Input            | Default                                | Description                              |
-| ---------------- | -------------------------------------- | ---------------------------------------- |
-| `command`        | `run`                                  | The `kapi` command to run (use `sync`)   |
-| `args`           | `""`                                   | Additional arguments                     |
-| `project`        | `""`                                   | Path to the `.kapi` recipe (`-p` flag)   |
-| `commit`         | `true`                                 | Whether to commit changes               |
-| `commit-message` | `chore: sync translations via Bowrain` | Commit message                          |
-| `git-user-name`  | `Bowrain Bot`                          | Git committer name                      |
-| `git-user-email` | `bot@bowrain.cloud`                    | Git committer email                     |
-| `paths`          | `i18n/ docs/ blog/`                    | Space-separated paths to stage for commit |
+| Input            | Default                                 | Description                              |
+| ---------------- | --------------------------------------- | ---------------------------------------- |
+| `command`        | `up`                                    | The `kapi` command to run                |
+| `args`           | `""`                                    | Additional arguments                     |
+| `project`        | `""`                                    | Path to the `.kapi` recipe (`-p` flag)   |
+| `fail-on-parked` | `false`                                 | With `command: up`, fail the workflow when the run parks instead of committing partial progress |
+| `commit`         | `true`                                  | Whether to commit changes                |
+| `commit-message` | `chore: update translations via kapi`   | Commit message                           |
+| `git-user-name`  | `Kapi Bot`                              | Git committer name                       |
+| `git-user-email` | `bot@kapi.dev`                          | Git committer email                      |
+| `paths`          | `""` (all changes)                      | Space-separated paths to stage for commit |
 
 :::note
 The workflow needs `permissions: contents: write` for the action to push commits.
 :::
 
-## Example: Translation on Pull Request
+## Example: Ship Gate on Pull Request
 
-Run AI translation and quality checks whenever localization files change:
+Gate pull requests on the project's release bar whenever localization files
+change. `kapi check --ship` runs the project's bound quality gates (brand,
+terminology, QA) plus its ship/source coverage gates, and exits `3` — failing
+the job — when any gate is unmet:
 
 ```yaml
-name: Translate
+name: Ship gate
 
 on:
   pull_request:
@@ -124,23 +128,20 @@ on:
       - ".kapi/**"
 
 jobs:
-  translate:
+  ship-gate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: neokapi/setup-kapi@v1
-        with:
-          plugins: kapi-bowrain
 
-      - name: Run translation flow
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: kapi translate
-
-      - name: Run QA checks
-        run: kapi exec qa
+      - name: Enforce the ship gates
+        run: kapi check --ship
 ```
+
+Ordinary builds never fail on target-language drift — a locale that is behind
+is pending work, not an error. `check --ship` is the explicit, opt-in
+enforcement point.
 
 ## Example: Push source on Push to Main
 
@@ -166,7 +167,6 @@ jobs:
 
       - uses: neokapi/setup-kapi@v1
         with:
-          plugins: kapi-bowrain
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
@@ -176,40 +176,40 @@ jobs:
 
 The `auth-token` and `server` inputs export `BOWRAIN_AUTH_TOKEN` and `BOWRAIN_SERVER_URL` as environment variables, which the CLI picks up automatically.
 
-## Example: Scheduled Translation
+## Example: Scheduled Convergence
 
-Run translation flows on a schedule (e.g. nightly) to keep target locales up to date:
+Converge on a schedule (e.g. nightly) to keep target locales up to date.
+`kapi-action` runs `kapi up` and handles the commit, so no manual git plumbing
+is needed:
 
 ```yaml
-name: Nightly Translation
+name: Nightly Convergence
 
 on:
   schedule:
     - cron: "0 2 * * *" # 2 AM UTC
 
+permissions:
+  contents: write
+
 jobs:
-  translate:
+  up:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: neokapi/setup-kapi@v1
         with:
-          plugins: kapi-bowrain
+          auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
+          server: https://dev.bowrain.cloud
 
-      - name: Run translation flow
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: kapi translate
-
-      - name: Commit translations
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add src/locales/
-          git diff --cached --quiet || git commit -m "chore: update translations"
-          git push
+      - uses: neokapi/kapi-action@v1
 ```
+
+To translate specific files ad hoc instead of converging a project, `kapi
+translate` takes explicit inputs: `kapi translate src/locales/en/app.json
+--target-lang fr` (an AI provider key such as `ANTHROPIC_API_KEY` must be set
+for a CI run that produces translations).
 
 ## Example: Pull and Merge Server Changes
 
@@ -231,7 +231,6 @@ jobs:
 
       - uses: neokapi/setup-kapi@v1
         with:
-          plugins: kapi-bowrain
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
@@ -285,15 +284,14 @@ You can list and revoke tokens with `kapi auth token list` and `kapi auth token 
 
 ## Plugins
 
-Install plugins by listing them in the `plugins` input. The bowrain plugin (`kapi-bowrain`) is required for sync, push, and pull; add any others alongside it:
+The `plugins` input defaults to `bowrain` — the plugin that provides sync, push, and pull. List refs (as the registry names them) to add others alongside it, or pass `''` to install nothing:
 
 ```yaml
 - uses: neokapi/setup-kapi@v1
   with:
     plugins: |
-      kapi-bowrain
-      okapi-filters
-      custom-tool
+      bowrain
+      okapi-bridge
 ```
 
 Plugins are cached between runs. The cache key includes a hash of the plugin list, so changes to the list trigger a fresh install.
@@ -305,8 +303,7 @@ Pin the CLI version to avoid surprises from new releases:
 ```yaml
 - uses: neokapi/setup-kapi@v1
   with:
-    plugins: kapi-bowrain
-    version: "0.5.0"
+    version: "1.1.0"
 ```
 
 Use `latest` (the default) for workflows where you always want the newest release.
