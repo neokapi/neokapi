@@ -56,7 +56,7 @@ func TestConnectorConfigCRUDAndSealing(t *testing.T) {
 	assert.Equal(t, "wp-1", saved.ID)
 	assert.Equal(t, "wordpress", saved.Type)
 	// The returned view redacts the secret but keeps the key and non-secrets.
-	assert.Equal(t, "", saved.Config["password"], "Upsert must redact the secret in its returned view")
+	assert.Empty(t, saved.Config["password"], "Upsert must redact the secret in its returned view")
 	assert.Equal(t, "https://blog.example.com", saved.Config["url"])
 	assert.Equal(t, "editor", saved.Config["username"])
 
@@ -78,7 +78,7 @@ func TestConnectorConfigCRUDAndSealing(t *testing.T) {
 	list, err := store.List(ctx, wsID)
 	require.NoError(t, err)
 	require.Len(t, list, 1)
-	assert.Equal(t, "", list[0].Config["password"], "List must not return the secret")
+	assert.Empty(t, list[0].Config["password"], "List must not return the secret")
 	assert.Equal(t, "editor", list[0].Config["username"])
 }
 
@@ -161,7 +161,7 @@ func TestConnectorConfigListAllAndDelete(t *testing.T) {
 
 	// Delete is workspace-scoped: wrong workspace is a not-found no-op.
 	err = store.Delete(ctx, "ws-2", "wp-1")
-	assert.ErrorIs(t, err, bstore.ErrConnectorConfigNotFound, "cross-workspace delete must not match")
+	require.ErrorIs(t, err, bstore.ErrConnectorConfigNotFound, "cross-workspace delete must not match")
 	_, err = store.Get(ctx, "ws-1", "wp-1")
 	require.NoError(t, err, "the connector must survive a cross-workspace delete attempt")
 
@@ -183,7 +183,7 @@ func TestConnectorConfigCrossWorkspaceIsolation(t *testing.T) {
 
 	// A different workspace cannot read it (indistinguishable from missing).
 	_, err = store.Get(ctx, "ws-2", "wp-1")
-	assert.ErrorIs(t, err, bstore.ErrConnectorConfigNotFound)
+	require.ErrorIs(t, err, bstore.ErrConnectorConfigNotFound)
 
 	// A different workspace's List does not reveal it.
 	list, err := store.List(ctx, "ws-2")
@@ -203,7 +203,7 @@ func TestConnectorConfigNilCipherRedactsButPassesThrough(t *testing.T) {
 		Config: map[string]string{"api_key": "key-plain"},
 	})
 	require.NoError(t, err)
-	assert.Equal(t, "", saved.Config["api_key"], "the secret is redacted even with no cipher")
+	assert.Empty(t, saved.Config["api_key"], "the secret is redacted even with no cipher")
 
 	// Stored plaintext (no cipher), but Get still returns it for rehydration.
 	var stored string

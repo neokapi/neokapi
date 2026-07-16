@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -47,7 +48,7 @@ func (s *MCPServer) resolveProfile(ctx context.Context, profileID string, scope 
 		return nil, err
 	}
 	if profile == nil {
-		return nil, fmt.Errorf("no brand voice profile: pass profile_id or bind one to the project, stream, collection, or workspace")
+		return nil, errors.New("no brand voice profile: pass profile_id or bind one to the project, stream, collection, or workspace")
 	}
 	return profile, nil
 }

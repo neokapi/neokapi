@@ -138,7 +138,7 @@ func TestConnectorUpdatePreservesBlankSecret(t *testing.T) {
 	// Response redacts the secret.
 	var updated connectorInfo
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &updated))
-	assert.Equal(t, "", updated.Config["password"], "update response must not echo the secret")
+	assert.Empty(t, updated.Config["password"], "update response must not echo the secret")
 	assert.Equal(t, "https://new.example.com", updated.Config["url"])
 
 	// Stored: password preserved, url updated.
@@ -177,11 +177,11 @@ func TestConnectorRemoveDeletesPersistedRow(t *testing.T) {
 
 	// The persisted row is gone.
 	_, err := s.ConnectorConfigStore.Get(context.Background(), wsID, id)
-	assert.ErrorIs(t, err, bstore.ErrConnectorConfigNotFound)
+	require.ErrorIs(t, err, bstore.ErrConnectorConfigNotFound)
 
 	// The live instance is gone too.
 	_, err = s.Services.Connector.GetConnector(wsID, id)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// A second remove is a 404.
 	c, rec = connCtx(t, http.MethodDelete, "", wsID, id)
@@ -212,7 +212,7 @@ func TestListConnectorsRedactsSecretsFromPersistedSet(t *testing.T) {
 	assert.Equal(t, "Marketing", list[0].Name)
 	assert.Equal(t, platconn.CategoryMarketing, list[0].Category, "category is enriched from the registry")
 	assert.Contains(t, list[0].Config, "api_key", "the secret key is present so the UI knows it is set")
-	assert.Equal(t, "", list[0].Config["api_key"], "the secret value is redacted")
+	assert.Empty(t, list[0].Config["api_key"], "the secret value is redacted")
 
 	// A different workspace sees nothing.
 	c, rec = connCtx(t, http.MethodGet, "", "ws-other", "")
