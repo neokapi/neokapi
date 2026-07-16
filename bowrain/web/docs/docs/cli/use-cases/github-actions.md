@@ -9,7 +9,7 @@ This guide shows how to use kapi (with the bowrain plugin) in GitHub Actions wor
 
 ## Overview
 
-The [`setup-kapi`](https://github.com/neokapi/setup-kapi) GitHub Action installs kapi on any runner and, through its `plugins` input, the bowrain plugin (`kapi-bowrain`). It handles platform detection, checksum verification, binary caching, and optional server authentication — so your workflow steps can focus on localization tasks.
+The [`setup-kapi`](https://github.com/neokapi/setup-kapi) GitHub Action installs kapi on any runner, with the bowrain plugin included by default. It handles platform detection, checksum verification, binary caching, and optional server authentication — so your workflow steps can focus on localization tasks.
 
 ## Setup
 
@@ -20,8 +20,6 @@ steps:
   - uses: actions/checkout@v4
 
   - uses: neokapi/setup-kapi@v1
-    with:
-      plugins: kapi-bowrain
 ```
 
 The action downloads the correct binary for the runner platform (Linux, macOS, or Windows), verifies its SHA-256 checksum, and adds it to `PATH`. The built-in workflow token covers public release downloads, so no `token` input is required. On subsequent runs, the binary is restored from cache.
@@ -31,7 +29,7 @@ The action downloads the correct binary for the runner platform (Linux, macOS, o
 | Input        | Description                                                | Default  |
 | ------------ | ---------------------------------------------------------- | -------- |
 | `version`    | CLI version (e.g. `1.1.0` or `latest`)                     | `latest` |
-| `plugins`    | Comma or newline-separated plugin refs to install          | `""`     |
+| `plugins`    | Comma or newline-separated plugin refs to install, as the registry names them (`''` to install nothing) | `bowrain` |
 | `auth-token` | Bowrain server JWT (exported as `BOWRAIN_AUTH_TOKEN`)      | `""`     |
 | `server`     | Bowrain server URL (exported as `BOWRAIN_SERVER_URL`)      | `""`     |
 
@@ -46,7 +44,7 @@ The action downloads the correct binary for the runner platform (Linux, macOS, o
 
 The simplest CI pattern uses two actions together:
 
-- [`neokapi/setup-kapi`](https://github.com/neokapi/setup-kapi) — installs kapi and the bowrain plugin (`kapi-bowrain`)
+- [`neokapi/setup-kapi`](https://github.com/neokapi/setup-kapi) — installs kapi (the bowrain plugin is included by default)
 - [`neokapi/kapi-action`](https://github.com/neokapi/kapi-action) — runs a `kapi` command (here, `kapi up`) and commits translations
 
 ```yaml
@@ -70,7 +68,6 @@ jobs:
 
       - uses: neokapi/setup-kapi@v1
         with:
-          plugins: kapi-bowrain
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
@@ -137,8 +134,6 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: neokapi/setup-kapi@v1
-        with:
-          plugins: kapi-bowrain
 
       - name: Enforce the ship gates
         run: kapi check --ship
@@ -172,7 +167,6 @@ jobs:
 
       - uses: neokapi/setup-kapi@v1
         with:
-          plugins: kapi-bowrain
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
@@ -206,7 +200,6 @@ jobs:
 
       - uses: neokapi/setup-kapi@v1
         with:
-          plugins: kapi-bowrain
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
@@ -238,7 +231,6 @@ jobs:
 
       - uses: neokapi/setup-kapi@v1
         with:
-          plugins: kapi-bowrain
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
@@ -292,13 +284,13 @@ You can list and revoke tokens with `kapi auth token list` and `kapi auth token 
 
 ## Plugins
 
-Install plugins by listing them in the `plugins` input. The bowrain plugin (`kapi-bowrain`) is required for sync, push, and pull; add any others alongside it:
+The `plugins` input defaults to `bowrain` — the plugin that provides sync, push, and pull. List refs (as the registry names them) to add others alongside it, or pass `''` to install nothing:
 
 ```yaml
 - uses: neokapi/setup-kapi@v1
   with:
     plugins: |
-      kapi-bowrain
+      bowrain
       okapi-bridge
 ```
 
@@ -311,7 +303,6 @@ Pin the CLI version to avoid surprises from new releases:
 ```yaml
 - uses: neokapi/setup-kapi@v1
   with:
-    plugins: kapi-bowrain
     version: "1.1.0"
 ```
 

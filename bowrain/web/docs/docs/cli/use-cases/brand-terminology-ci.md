@@ -58,8 +58,8 @@ kapi check --ship --locale fr
 
 ## In GitHub Actions
 
-Install kapi and the bowrain plugin with
-[`setup-kapi`](/cli/use-cases/github-actions), pull terminology, then gate:
+Install kapi with [`setup-kapi`](/cli/use-cases/github-actions) (the bowrain
+plugin is included by default), pull terminology, then gate:
 
 ```yaml
 name: Brand terminology gate
@@ -79,7 +79,6 @@ jobs:
 
       - uses: neokapi/setup-kapi@v1
         with:
-          plugins: kapi-bowrain
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
