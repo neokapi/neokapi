@@ -41,10 +41,11 @@ func (s *Server) HandleCreateStream(c echo.Context) error {
 	projectID := c.Param("id")
 
 	var req struct {
-		Name        string `json:"name"`
-		Parent      string `json:"parent"`
-		Description string `json:"description"`
-		Visibility  string `json:"visibility"`
+		Name        string            `json:"name"`
+		Parent      string            `json:"parent"`
+		Description string            `json:"description"`
+		Visibility  string            `json:"visibility"`
+		Properties  map[string]string `json:"properties,omitempty"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
@@ -79,6 +80,9 @@ func (s *Server) HandleCreateStream(c echo.Context) error {
 		Visibility:  visibility,
 		Description: req.Description,
 		CreatedBy:   createdBy,
+		// Properties carry extensible metadata such as the stream-level
+		// brand-voice binding (brand_voice_profile_id).
+		Properties: req.Properties,
 	}
 
 	if err := s.ContentStore.CreateStream(c.Request().Context(), st); err != nil {

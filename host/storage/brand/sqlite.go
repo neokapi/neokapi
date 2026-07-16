@@ -19,9 +19,10 @@ type SQLiteBrandStore struct {
 	db *storage.DB
 }
 
-// migrations is the brand voice store's single baseline schema. The platform is
-// pre-launch with no databases to preserve, so the schema is expressed as one
-// clean definition rather than an incremental migration history.
+// migrations holds the brand voice store's schema. Version 1 is the launch
+// baseline; user machines carry long-lived local databases, so every schema
+// change after it MUST be an incremental migration — existing databases only
+// ever run new versions, never a re-run of the baseline.
 var migrations = []storage.Migration{
 	{
 		Version:     1,
@@ -38,7 +39,6 @@ var migrations = []storage.Migration{
 			examples TEXT NOT NULL DEFAULT '[]',
 			locales TEXT NOT NULL DEFAULT '{}',
 			channels TEXT NOT NULL DEFAULT '{}',
-			personas TEXT NOT NULL DEFAULT '{}',
 			autonomy TEXT NOT NULL DEFAULT '{}',
 			version INTEGER NOT NULL DEFAULT 1,
 			created_at TEXT NOT NULL,
@@ -105,6 +105,13 @@ var migrations = []storage.Migration{
 			decided_at TEXT NOT NULL,
 			PRIMARY KEY (profile_id, term)
 		);
+		`,
+	},
+	{
+		Version:     2,
+		Description: "author personas on brand profiles",
+		SQL: `
+		ALTER TABLE brand_profiles ADD COLUMN personas TEXT NOT NULL DEFAULT '{}';
 		`,
 	},
 }

@@ -521,6 +521,7 @@ export type {
   SlugReservation,
   ConnectorInfo,
   ConnectorSyncStatus,
+  ConnectorContentItem,
   PostHogConnectorConfig,
   PostHogConnectorConfigRequest,
   PostHogLanguageSessions,

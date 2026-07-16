@@ -1531,6 +1531,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.PUT("/connectors/:id", s.HandleUpdateConnector)
 	g.DELETE("/connectors/:id", s.HandleRemoveConnector)
 	g.GET("/connectors/:id/status", s.HandleConnectorStatus)
+	g.GET("/connectors/:id/content", s.HandleConnectorContent)
 	g.POST("/connectors/:id/fetch", s.HandleFetch)
 	g.POST("/connectors/:id/publish", s.HandlePublish)
 

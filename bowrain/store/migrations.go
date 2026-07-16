@@ -737,8 +737,13 @@ var storeMigrations = []storage.Migration{
 				WHERE workspace_slug != '';
 		`,
 	},
+	// RETIRED VERSION NUMBERS — never reuse: 3 ("Live Preview: per-project
+	// settings + block content key", AD-023/AD-036) and 4 ("block occurrences",
+	// AD-036) ran on live databases before being folded into the v1 baseline.
+	// A live database records those numbers as applied, so a new migration
+	// reusing them is silently skipped. New migrations start at 5.
 	{
-		Version:     3,
+		Version:     5,
 		Description: "workspace-scoped connector configs (durable connectors)",
 		SQL: `
 			-- Per-workspace connector configurations. The ConnectorService keeps
@@ -753,7 +758,7 @@ var storeMigrations = []storage.Migration{
 			-- username, file_key, …) are stored in plaintext. Timestamps are TEXT
 			-- RFC3339 (UTC) so one ConnectorConfigStore(*sql.DB) scans identically
 			-- on PostgreSQL and SQLite.
-			CREATE TABLE connector_configs (
+			CREATE TABLE IF NOT EXISTS connector_configs (
 				id           TEXT NOT NULL,
 				workspace_id TEXT NOT NULL,
 				type         TEXT NOT NULL,
@@ -763,18 +768,18 @@ var storeMigrations = []storage.Migration{
 				updated_at   TEXT NOT NULL DEFAULT '',
 				PRIMARY KEY (workspace_id, id)
 			);
-			CREATE INDEX idx_connector_configs_ws ON connector_configs(workspace_id);
+			CREATE INDEX IF NOT EXISTS idx_connector_configs_ws ON connector_configs(workspace_id);
 		`,
 	},
 	{
-		Version:     4,
+		Version:     6,
 		Description: "stream properties (extensible metadata, incl. brand voice binding)",
 		SQL: `
 			-- Streams carry extensible key/value metadata like projects and items
 			-- do — most immediately the stream-level brand-voice binding
 			-- (brand_voice_profile_id), a rung in the hierarchical profile
 			-- resolver. Stored as a JSON TEXT map, matching items.properties.
-			ALTER TABLE streams ADD COLUMN properties TEXT NOT NULL DEFAULT '{}';
+			ALTER TABLE streams ADD COLUMN IF NOT EXISTS properties TEXT NOT NULL DEFAULT '{}';
 		`,
 	},
 }

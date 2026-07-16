@@ -58,6 +58,7 @@ import type {
   CreateCollectionRequest,
   ConnectorInfo,
   ConnectorSyncStatus,
+  ConnectorContentItem,
   PostHogConnectorConfig,
   PostHogConnectorConfigRequest,
   PostHogDemandResponse,
@@ -755,7 +756,7 @@ export class RestApiAdapter implements ApiAdapter {
     workspaceSlug: string,
     projectId: string,
     streamName: string,
-    data: { description?: string; visibility?: string },
+    data: { description?: string; visibility?: string; properties?: Record<string, string> },
   ): Promise<StreamInfo> {
     return this.fetchJSON(
       `${this.streamEp(workspaceSlug, projectId)}/${encodeURIComponent(streamName)}`,
@@ -1129,6 +1130,20 @@ export class RestApiAdapter implements ApiAdapter {
         body: JSON.stringify({ connector_id: connectorId, project_id: projectId, message }),
       },
     );
+  }
+
+  async listConnectorContent(
+    workspaceSlug: string,
+    connectorId: string,
+    projectId?: string,
+  ): Promise<ConnectorContentItem[]> {
+    // The server marshals connector.ContentItem verbatim (PascalCase), so the
+    // items already match ConnectorContentItem — no field mapping needed.
+    const query = projectId ? `?project_id=${encodeURIComponent(projectId)}` : "";
+    const res = await this.fetchJSON<{ items?: ConnectorContentItem[] | null }>(
+      `/api/v1/${workspaceSlug}/connectors/${encodeURIComponent(connectorId)}/content${query}`,
+    );
+    return res?.items ?? [];
   }
 
   // ── PostHog locale-demand connector ─────────────────────────────────────

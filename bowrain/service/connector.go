@@ -109,6 +109,18 @@ func (s *ConnectorService) ListActive(workspaceID string) []connector.Integratio
 	return result
 }
 
+// ListContent returns the content items available from a connector without
+// fetching full content into the store. It mirrors the desktop app's in-process
+// ListContentItems binding (a plain c.List): read-only, connector-wide, and
+// project-agnostic. Callers may narrow the result by path/ID after the fact.
+func (s *ConnectorService) ListContent(ctx context.Context, workspaceID, connectorID string) ([]*connector.ContentItem, error) {
+	c, err := s.lookup(workspaceID, connectorID)
+	if err != nil {
+		return nil, err
+	}
+	return c.List(ctx)
+}
+
 // Fetch retrieves content from a connector and stores it in the project.
 func (s *ConnectorService) Fetch(ctx context.Context, workspaceID, connectorID, projectID string, opts connector.FetchOptions) ([]*connector.ContentItem, error) {
 	if projectID == "" {

@@ -55,6 +55,7 @@ import type {
   CreateCollectionRequest,
   ConnectorInfo,
   ConnectorSyncStatus,
+  ConnectorContentItem,
   PostHogConnectorConfig,
   PostHogConnectorConfigRequest,
   PostHogDemandResponse,
@@ -274,7 +275,7 @@ export interface ApiAdapter {
     workspaceSlug: string,
     projectId: string,
     streamName: string,
-    data: { description?: string; visibility?: string },
+    data: { description?: string; visibility?: string; properties?: Record<string, string> },
   ): Promise<StreamInfo>;
   deleteStream(workspaceSlug: string, projectId: string, streamName: string): Promise<void>;
   diffStream(
@@ -415,6 +416,15 @@ export interface ApiAdapter {
     projectId: string,
     message?: string,
   ): Promise<{ status: string }>;
+  /**
+   * List the content a connector can see, for the read-only content browser.
+   * `projectId` scopes the listing when a connector can serve multiple projects.
+   */
+  listConnectorContent(
+    workspaceSlug: string,
+    connectorId: string,
+    projectId?: string,
+  ): Promise<ConnectorContentItem[]>;
 
   // PostHog locale-demand connector (project-scoped, phase 0, read-only).
   // The personal API key is write-only: config reads return a masked tail.

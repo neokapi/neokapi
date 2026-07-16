@@ -18,12 +18,29 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
   Skeleton,
 } from "@neokapi/ui-primitives";
-import { AlertTriangle, Clock, Globe, Loader2, Palette, Plug, Plus, Trash2, Upload } from "./icons";
+import {
+  AlertTriangle,
+  Clock,
+  FileText,
+  FolderOpen,
+  Globe,
+  Loader2,
+  Palette,
+  Plug,
+  Plus,
+  Trash2,
+  Upload,
+} from "./icons";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { useApi } from "../context/ApiContext";
-import type { ConnectorInfo } from "../types/api";
+import type { ConnectorInfo, ConnectorContentItem } from "../types/api";
 
 // ---------------------------------------------------------------------------
 // Connector type catalog
@@ -308,6 +325,7 @@ function ConnectorRow({
   const api = useApi();
   const queryClient = useQueryClient();
   const [publishConfirm, setPublishConfirm] = useState(false);
+  const [browseOpen, setBrowseOpen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -385,6 +403,16 @@ function ConnectorRow({
             variant="outline"
             size="sm"
             disabled={busy}
+            onClick={() => setBrowseOpen(true)}
+            data-testid={`connector-browse-${connector.id}`}
+          >
+            <FileText className="size-4" />
+            Browse content
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy}
             onClick={() => fetchMutation.mutate()}
             data-testid={`connector-fetch-${connector.id}`}
           >
@@ -431,7 +459,121 @@ function ConnectorRow({
         loading={publishMutation.isPending}
         onConfirm={() => publishMutation.mutate()}
       />
+
+      <ContentBrowserSheet
+        open={browseOpen}
+        onOpenChange={setBrowseOpen}
+        workspaceSlug={workspaceSlug}
+        connectorId={connector.id}
+        projectId={projectId}
+        connectorName={displayName}
+      />
     </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Content browser
+// ---------------------------------------------------------------------------
+
+// A read-only listing of the content a connector can see. Fetches lazily when
+// opened; no actions on items yet.
+function ContentBrowserSheet({
+  open,
+  onOpenChange,
+  workspaceSlug,
+  connectorId,
+  projectId,
+  connectorName,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  workspaceSlug: string;
+  connectorId: string;
+  projectId: string;
+  connectorName: string;
+}) {
+  const api = useApi();
+
+  const {
+    data: items,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["connector-content", workspaceSlug, connectorId, projectId],
+    queryFn: () => api.listConnectorContent(workspaceSlug, connectorId, projectId),
+    enabled: open,
+    staleTime: 15_000,
+    retry: false,
+  });
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="flex w-full flex-col gap-0 sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
+            <FileText className="size-4 shrink-0" />
+            <span className="truncate">Content — {connectorName}</span>
+          </SheetTitle>
+          <SheetDescription>
+            Items this connector can see. Read-only — use “Fetch now” to pull them into the project.
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="mt-4 flex-1 overflow-y-auto">
+          {isLoading ? (
+            <div className="flex flex-col gap-2">
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+            </div>
+          ) : error ? (
+            <Card className="border-destructive/40 bg-destructive/10 text-destructive flex items-start gap-2 p-3 text-sm">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+              <span>Couldn't list content: {errorMessage(error)}</span>
+            </Card>
+          ) : !items || items.length === 0 ? (
+            <div className="text-muted-foreground flex flex-col items-center gap-3 px-6 py-12 text-center">
+              <span className="bg-muted flex size-12 items-center justify-center rounded-full">
+                <FolderOpen className="size-6" />
+              </span>
+              <p className="text-sm">This connector reports no content yet.</p>
+            </div>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {items.map((item) => (
+                <ContentItemRow key={item.ID} item={item} />
+              ))}
+            </ul>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function ContentItemRow({ item }: { item: ConnectorContentItem }) {
+  const title = item.Name || item.Path || item.ID;
+  // Blocks is null on listings; show a count only if the payload ever carries one.
+  const blockCount = item.Blocks?.length ?? 0;
+  return (
+    <li className="border-border/60 flex items-start gap-3 rounded-md border p-3">
+      <FileText className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-foreground truncate text-sm font-medium">{title}</span>
+          {item.Format && <Badge variant="secondary">{item.Format}</Badge>}
+        </div>
+        {item.Path && item.Path !== title && (
+          <p className="text-muted-foreground mt-0.5 truncate text-xs">{item.Path}</p>
+        )}
+      </div>
+      {blockCount > 0 && (
+        <span className="text-muted-foreground shrink-0 text-xs">
+          {blockCount} block{blockCount === 1 ? "" : "s"}
+        </span>
+      )}
+    </li>
   );
 }
 

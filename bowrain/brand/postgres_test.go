@@ -1,11 +1,13 @@
 package brand
 
 import (
+	"strings"
 	"testing"
 
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPostgresBrandStore_ImplementsInterface(t *testing.T) {
@@ -56,13 +58,23 @@ func TestScanProfile_Roundtrip(t *testing.T) {
 }
 
 func TestBrandMigrations_NotEmpty(t *testing.T) {
-	// Single clean baseline (pre-launch — no migration history to preserve).
-	assert.Len(t, brandMigrations, 1)
+	// Version 1 is the launch baseline; post-launch schema changes arrive as
+	// incremental migrations (live databases never re-run the baseline).
+	require.GreaterOrEqual(t, len(brandMigrations), 2)
 	assert.Equal(t, 1, brandMigrations[0].Version)
 	assert.NotEmpty(t, brandMigrations[0].SQL)
 	// The correction-learning loop's schema is part of the baseline.
 	sql := brandMigrations[0].SQL
-	for _, want := range []string{"brand_rule_decisions", "brand_voice_corrections", "brand_profile_versions", "personas", "autonomy"} {
+	for _, want := range []string{"brand_rule_decisions", "brand_voice_corrections", "brand_profile_versions", "autonomy"} {
 		assert.Contains(t, sql, want)
 	}
+	// Versions are contiguous, and personas arrives via an incremental
+	// migration so pre-personas databases (incl. production) gain the column.
+	var all strings.Builder
+	for i, m := range brandMigrations {
+		assert.Equal(t, i+1, m.Version, "migration versions must be contiguous")
+		all.WriteString(m.SQL)
+	}
+	assert.NotContains(t, brandMigrations[0].SQL, "personas", "personas must not be baseline-only — live DBs would never get it")
+	assert.Contains(t, all.String(), "personas")
 }

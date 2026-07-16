@@ -15,6 +15,10 @@ import {
 } from "@neokapi/ui-primitives";
 import { useState, useEffect } from "react";
 import type { StreamInfo, StreamVisibility } from "../types/api";
+import type { VoiceProfile } from "../brand/types";
+
+/** Binding key stored inside a stream's properties map. */
+const BRAND_VOICE_KEY = "brand_voice_profile_id";
 
 export interface StreamCreateDialogProps {
   /** Existing streams for parent selection. */
@@ -25,19 +29,31 @@ export interface StreamCreateDialogProps {
     parent: string;
     visibility: StreamVisibility;
     description: string;
+    properties?: Record<string, string>;
   }) => void;
   /** Called to close the dialog. */
   onClose: () => void;
   /** Whether the dialog is open. */
   open: boolean;
+  /** Workspace brand-voice profiles; when non-empty the dialog offers a voice picker. */
+  brandProfiles?: VoiceProfile[];
 }
 
 /** Modal dialog for creating a new stream. */
-export function StreamCreateDialog({ streams, onSubmit, onClose, open }: StreamCreateDialogProps) {
+export function StreamCreateDialog({
+  streams,
+  onSubmit,
+  onClose,
+  open,
+  brandProfiles,
+}: StreamCreateDialogProps) {
   const [name, setName] = useState("");
   const [parent, setParent] = useState("");
   const [visibility, setVisibility] = useState<StreamVisibility>("private");
   const [description, setDescription] = useState("");
+  const [brandVoiceProfileId, setBrandVoiceProfileId] = useState("");
+
+  const showBrandPicker = !!brandProfiles && brandProfiles.length > 0;
 
   // Set parent to a sensible default when dialog opens or streams change
   useEffect(() => {
@@ -55,6 +71,11 @@ export function StreamCreateDialog({ streams, onSubmit, onClose, open }: StreamC
       parent,
       visibility,
       description: description.trim(),
+      // Only bind a voice at creation when one is picked; the server merges
+      // properties, so an omitted map simply inherits from the project.
+      ...(showBrandPicker && brandVoiceProfileId
+        ? { properties: { [BRAND_VOICE_KEY]: brandVoiceProfileId } }
+        : {}),
     });
     resetForm();
   };
@@ -64,6 +85,7 @@ export function StreamCreateDialog({ streams, onSubmit, onClose, open }: StreamC
     setParent(streams[0]?.name ?? "");
     setVisibility("private");
     setDescription("");
+    setBrandVoiceProfileId("");
   };
 
   const handleOpenChange = (v: boolean) => {
@@ -139,6 +161,30 @@ export function StreamCreateDialog({ streams, onSubmit, onClose, open }: StreamC
               className="mt-1"
             />
           </div>
+
+          {showBrandPicker && (
+            <div>
+              <Label className="text-muted-foreground">Brand voice</Label>
+              <select
+                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                value={brandVoiceProfileId}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  setBrandVoiceProfileId(e.target.value)
+                }
+                aria-label="Stream brand voice profile"
+              >
+                <option value="">Inherit (project)</option>
+                {brandProfiles?.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Overrides the project brand voice for content in this stream
+              </p>
+            </div>
+          )}
         </div>
 
         <DialogFooter>
