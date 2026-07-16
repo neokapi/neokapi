@@ -193,6 +193,11 @@ _fw-test:
 	$(GOTEST_BASE) ./... -count=1
 	cd cli && $(GOTEST_BASE) ./... -count=1
 	cd kapi && $(GOTEST_BASE) ./... -count=1
+# The eval harnesses are their own workspace modules (they import bowrain's
+# Bedrock provider), so the root ./... pattern never reaches them — without
+# these lines their corpus/scoring gates would not run anywhere.
+	cd scripts/batcheval && $(GOTEST_BASE) ./... -count=1
+	cd scripts/contexteval && $(GOTEST_BASE) ./... -count=1
 
 _fw-test-fast:
 	$(GOTEST_BASE) ./...
@@ -221,6 +226,8 @@ _fw-vet:
 	$(GOVET) ./...
 	cd cli && $(GOVET) ./...
 	cd kapi && $(GOVET) ./...
+	cd scripts/batcheval && $(GOVET) ./...
+	cd scripts/contexteval && $(GOVET) ./...
 
 _fw-lint:
 ifdef GOLANGCI_LINT
@@ -258,12 +265,24 @@ _fw-deps-update:
 # JSON output. Locally they run fast with -count=1 only.
 # Use `make ci-test-<module>` to reproduce CI behavior locally.
 
-test-framework: ## Run framework module tests only
+test-framework: ## Run framework module tests only (incl. the eval-harness modules)
 	@mkdir -p $(COVER_DIR)
 ifdef CI
-	$(GOTEST_BASE) $(call cov,$(COVER_DIR)/framework.out) -json ./... > test-results-framework.json
+# The eval harnesses (scripts/batcheval, scripts/contexteval) are separate
+# workspace modules, so the root ./... pattern never reaches them. Their tests
+# gate the corpora, the scoring, and the price-table sync — keyless and fast.
+# One shell, `|| rc=$$?` per suite: a root-suite failure must not stop the eval
+# suites from running (and from appearing in the JSON the reporters read) —
+# the single-run form completed every package even when some failed.
+	rc=0; \
+	$(GOTEST_BASE) $(call cov,$(COVER_DIR)/framework.out) -json ./... > test-results-framework.json || rc=$$?; \
+	( cd scripts/batcheval && $(GOTEST_BASE) -json ./... >> ../../test-results-framework.json ) || rc=$$?; \
+	( cd scripts/contexteval && $(GOTEST_BASE) -json ./... >> ../../test-results-framework.json ) || rc=$$?; \
+	exit $$rc
 else
 	$(GOTEST_BASE) ./... -count=1
+	cd scripts/batcheval && $(GOTEST_BASE) ./... -count=1
+	cd scripts/contexteval && $(GOTEST_BASE) ./... -count=1
 endif
 
 test-cli: ## Run host + cli module tests only
@@ -1281,6 +1300,9 @@ check-models: ## Report catalogued models a provider no longer serves (and, with
 update-model-prices: ## Refresh scripts/batcheval/prices.json from the vendors' pricing pages
 	@command -v claude >/dev/null || { echo "needs the claude CLI: brew install claude"; exit 1; }
 	claude -p "$$(cat scripts/prompts/update-model-prices.md)"
+# batcheval's table is canonical; contexteval embeds a copy, byte-identical
+# (TestPricesMatchBatcheval gates the drift).
+	cp scripts/batcheval/prices.json scripts/contexteval/prices.json
 
 # The catalog carries lifecycle facts no API exposes, so refreshing it is a curation
 # job: reconcile check-models against the live lists, retire what is gone, adopt what
@@ -1300,6 +1322,46 @@ batch-eval-publish: ## Sweep the real models → /batch-eval dashboard data (cos
 	$(GO) run ./scripts/batcheval -models $(BATCHEVAL_BEDROCK) -blocks $(BATCHEVAL_BLOCKS) \
 		-n $(BATCHEVAL_N) -repeat 1 -concurrency 2 -append $(BATCHEVAL_DATA)
 	@echo "Published batch-eval history → $(BATCHEVAL_DATA)"
+
+# ── Context-adherence eval ───────────────────────────────────────────────────
+# The batch eval's sibling: measures whether a model *follows the context kapi
+# injects* — glossary, brand voice, instruction — as a differential (adherence
+# with context minus adherence without = lift), scored per dimension with the
+# framework's own check tools over an engineered trap corpus. The headline is
+# lift per 1,000 context tokens: is the brand guide earning what it costs to
+# send on this model? Design note: strategy/2026-07-model-evals.md.
+#
+# The default target runs the demo stub: it proves the harness and measures
+# NOTHING about any model, and says so.
+CONTEXTEVAL_ARGS ?=
+context-eval: ## Measure context-adherence lift (demo stub unless -models given)
+	$(GO) run ./scripts/contexteval $(CONTEXTEVAL_ARGS)
+
+# The published sweep behind the /context-eval dashboard. Steerability is model-
+# and time-specific — an alias like `sonnet` points at different weights over
+# time — so re-run it when the models move. Same-day re-runs correct their entry.
+#
+# Judges are cross-family by construction (self-preference bias): the Claude and
+# Bedrock sweeps are judged by Gemini, the Gemini sweep by Claude. Judged scores
+# stay unpublished until `-judge-validate` records agreement above the bar.
+CONTEXTEVAL_DATA    ?= web/src/pages/context-eval/_contexteval.json
+CONTEXTEVAL_TARGETS ?= de,fr,en-GB
+CONTEXTEVAL_GEMINI  ?= gemini:gemini-3.5-flash,gemini:gemini-3.1-flash-lite,gemini:gemini-3.1-pro-preview
+CONTEXTEVAL_CLAUDE  ?= claude-code:opus,claude-code:sonnet,claude-code:haiku
+CONTEXTEVAL_BEDROCK ?= bedrock:eu.anthropic.claude-sonnet-4-6
+CONTEXTEVAL_JUDGE_FOR_CLAUDE ?= gemini:gemini-3.5-flash
+CONTEXTEVAL_JUDGE_FOR_GEMINI ?= claude-code:sonnet
+
+context-eval-publish: ## Sweep real models for context adherence → /context-eval dashboard data (costs calls)
+	$(GO) run ./scripts/contexteval -models $(CONTEXTEVAL_GEMINI) -targets $(CONTEXTEVAL_TARGETS) \
+		-repeat 2 -concurrency 4 -judge $(CONTEXTEVAL_JUDGE_FOR_GEMINI) -append $(CONTEXTEVAL_DATA)
+	$(GO) run ./scripts/contexteval -models $(CONTEXTEVAL_CLAUDE) -targets $(CONTEXTEVAL_TARGETS) \
+		-repeat 1 -concurrency 3 -judge $(CONTEXTEVAL_JUDGE_FOR_CLAUDE) -append $(CONTEXTEVAL_DATA)
+# Bedrock rate-limits on requests; low concurrency, and a throttled run is
+# recorded as unmeasured rather than as 0% adherence.
+	$(GO) run ./scripts/contexteval -models $(CONTEXTEVAL_BEDROCK) -targets $(CONTEXTEVAL_TARGETS) \
+		-repeat 1 -concurrency 2 -judge $(CONTEXTEVAL_JUDGE_FOR_CLAUDE) -append $(CONTEXTEVAL_DATA)
+	@echo "Published context-eval history → $(CONTEXTEVAL_DATA)"
 
 # ── Frontend Checks ──────────────────────────────────────────────────────────
 
@@ -1733,7 +1795,7 @@ help: ## Show this help
 	@echo ""
 
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
-        parity-sandbox parity-test parity-publish parity-clean parity-fixtures regen-okapi-fixtures check-eval batch-eval batch-eval-publish check-models update-model-prices update-model-catalog \
+        parity-sandbox parity-test parity-publish parity-clean parity-fixtures regen-okapi-fixtures check-eval batch-eval batch-eval-publish context-eval context-eval-publish check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
         fmt vet lint check check-framework check-bowrain test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \

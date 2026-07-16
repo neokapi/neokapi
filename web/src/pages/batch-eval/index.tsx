@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactElement } from "react";
+import Link from "@docusaurus/Link";
 import Layout from "@theme/Layout";
 import history from "./_batcheval.json";
 
@@ -476,6 +477,8 @@ export default function BatchEval(): ReactElement {
           kapi packs several blocks into a single LLM call, because one call per string is slow and
           expensive. How many is safe? kapi&rsquo;s ceiling began as an informed guess; this page is
           the measurement that replaced it, re-run as models change so it does not quietly go stale.
+          The sibling <Link to="/context-eval">context eval</Link> measures the other axis: whether
+          a model follows the context kapi injects.
         </p>
 
         <h2>How it is measured</h2>

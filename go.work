@@ -11,6 +11,7 @@ use (
 	./host
 	./kapi
 	./scripts/batcheval
+	./scripts/contexteval
 	./scripts/contract-audit
 	./scripts/gen-contract-types
 	./scripts/gen-refs
