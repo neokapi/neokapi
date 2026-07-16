@@ -574,20 +574,12 @@ export function WorkspaceLayout() {
       });
       if (resp.ok) {
         const data = await resp.json();
-        // If the server returned an OIDC end_session_url, redirect the browser
-        // to Keycloak to terminate the SSO session. Keycloak redirects back to
-        // our origin after logout.
+        // The server returns a fully-formed, provider-appropriate end_session_url
+        // (Cognito or Keycloak); redirect to it verbatim to terminate the upstream
+        // SSO session. The IdP returns the browser to our origin afterward.
         if (data.end_session_url) {
-          const endSessionUrl = new URL(data.end_session_url);
-          if (data.id_token_hint) {
-            endSessionUrl.searchParams.set("id_token_hint", data.id_token_hint);
-            endSessionUrl.searchParams.set(
-              "post_logout_redirect_uri",
-              window.location.origin + "/",
-            );
-          }
           queryClient.clear();
-          window.location.href = endSessionUrl.toString();
+          window.location.href = data.end_session_url;
           return;
         }
       }
