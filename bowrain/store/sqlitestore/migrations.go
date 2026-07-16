@@ -571,4 +571,35 @@ var storeMigrations = []storage.Migration{
 				ON overlays_ext(project_id, stream, block_id);
 		`,
 	},
+	{
+		Version:     2,
+		Description: "workspace-scoped connector configs (durable connectors)",
+		SQL: `
+			-- Mirrors connector_configs in bowrain/store/migrations.go (Version 3).
+			-- config is a JSON map (TEXT) whose secret values are sealed with
+			-- crypto.Cipher; timestamps are TEXT RFC3339 so a single
+			-- ConnectorConfigStore(*sql.DB) scans identically on both drivers.
+			CREATE TABLE connector_configs (
+				id           TEXT NOT NULL,
+				workspace_id TEXT NOT NULL,
+				type         TEXT NOT NULL,
+				name         TEXT NOT NULL DEFAULT '',
+				config       TEXT NOT NULL DEFAULT '{}',
+				created_at   TEXT NOT NULL DEFAULT '',
+				updated_at   TEXT NOT NULL DEFAULT '',
+				PRIMARY KEY (workspace_id, id)
+			);
+			CREATE INDEX idx_connector_configs_ws ON connector_configs(workspace_id);
+		`,
+	},
+	{
+		Version:     3,
+		Description: "stream properties (extensible metadata, incl. brand voice binding)",
+		SQL: `
+			-- Mirrors streams.properties in bowrain/store/migrations.go (Version 4):
+			-- a JSON TEXT map carrying the stream-level brand-voice binding
+			-- (brand_voice_profile_id) and other extensible metadata.
+			ALTER TABLE streams ADD COLUMN properties TEXT NOT NULL DEFAULT '{}';
+		`,
+	},
 }

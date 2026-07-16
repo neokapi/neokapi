@@ -737,4 +737,44 @@ var storeMigrations = []storage.Migration{
 				WHERE workspace_slug != '';
 		`,
 	},
+	{
+		Version:     3,
+		Description: "workspace-scoped connector configs (durable connectors)",
+		SQL: `
+			-- Per-workspace connector configurations. The ConnectorService keeps
+			-- only live instances in memory, so without this table a connector —
+			-- and its credentials — is lost on restart. On boot the server reads
+			-- these rows and re-instantiates each connector.
+			--
+			-- config is a JSON map (stored as TEXT, like collections.connector_config)
+			-- whose SECRET values (wordpress=password, figma=token, hubspot=api_key)
+			-- are individually sealed with crypto.Cipher / BOWRAIN_SECRETS_KEY,
+			-- exactly like provider_configs.api_key_sealed. Non-secret fields (url,
+			-- username, file_key, …) are stored in plaintext. Timestamps are TEXT
+			-- RFC3339 (UTC) so one ConnectorConfigStore(*sql.DB) scans identically
+			-- on PostgreSQL and SQLite.
+			CREATE TABLE connector_configs (
+				id           TEXT NOT NULL,
+				workspace_id TEXT NOT NULL,
+				type         TEXT NOT NULL,
+				name         TEXT NOT NULL DEFAULT '',
+				config       TEXT NOT NULL DEFAULT '{}',
+				created_at   TEXT NOT NULL DEFAULT '',
+				updated_at   TEXT NOT NULL DEFAULT '',
+				PRIMARY KEY (workspace_id, id)
+			);
+			CREATE INDEX idx_connector_configs_ws ON connector_configs(workspace_id);
+		`,
+	},
+	{
+		Version:     4,
+		Description: "stream properties (extensible metadata, incl. brand voice binding)",
+		SQL: `
+			-- Streams carry extensible key/value metadata like projects and items
+			-- do — most immediately the stream-level brand-voice binding
+			-- (brand_voice_profile_id), a rung in the hierarchical profile
+			-- resolver. Stored as a JSON TEXT map, matching items.properties.
+			ALTER TABLE streams ADD COLUMN properties TEXT NOT NULL DEFAULT '{}';
+		`,
+	},
 }

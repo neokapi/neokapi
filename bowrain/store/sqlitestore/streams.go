@@ -45,12 +45,16 @@ func (s *SQLiteStore) CreateStream(ctx context.Context, st *platstore.Stream) er
 		archived = 1
 	}
 
-	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO streams (project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	propsJSON, err := json.Marshal(st.Properties)
+	if err != nil {
+		return fmt.Errorf("marshal stream properties: %w", err)
+	}
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO streams (project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by, properties)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		st.ProjectID, st.Name, st.Parent, st.BaseCursor, archived,
 		string(st.Visibility), st.Description,
-		now.Format(time.RFC3339), st.CreatedBy)
+		now.Format(time.RFC3339), st.CreatedBy, string(propsJSON))
 	if err != nil {
 		return fmt.Errorf("insert stream: %w", err)
 	}
@@ -73,7 +77,7 @@ func (s *SQLiteStore) CreateStream(ctx context.Context, st *platstore.Stream) er
 // GetStream returns a stream by project and name.
 func (s *SQLiteStore) GetStream(ctx context.Context, projectID, name string) (*platstore.Stream, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by, locked, locked_by, locked_at
+		`SELECT project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by, locked, locked_by, locked_at, properties
 		 FROM streams WHERE project_id = ? AND name = ?`,
 		projectID, name)
 	return scanStream(row)
@@ -84,11 +88,11 @@ func (s *SQLiteStore) ListStreams(ctx context.Context, projectID string, include
 	var query string
 	var args []any
 	if includeArchived {
-		query = `SELECT project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by, locked, locked_by, locked_at
+		query = `SELECT project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by, locked, locked_by, locked_at, properties
 				 FROM streams WHERE project_id = ? ORDER BY name`
 		args = []any{projectID}
 	} else {
-		query = `SELECT project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by, locked, locked_by, locked_at
+		query = `SELECT project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by, locked, locked_by, locked_at, properties
 				 FROM streams WHERE project_id = ? AND archived = 0 ORDER BY name`
 		args = []any{projectID}
 	}
@@ -126,10 +130,14 @@ func (s *SQLiteStore) UpdateStream(ctx context.Context, st *platstore.Stream) er
 		lockedAt = &s
 	}
 
+	propsJSON, err := json.Marshal(st.Properties)
+	if err != nil {
+		return fmt.Errorf("marshal stream properties: %w", err)
+	}
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE streams SET description = ?, visibility = ?, archived = ?, locked = ?, locked_by = ?, locked_at = ?
+		`UPDATE streams SET description = ?, visibility = ?, archived = ?, locked = ?, locked_by = ?, locked_at = ?, properties = ?
 		 WHERE project_id = ? AND name = ?`,
-		st.Description, string(st.Visibility), archived, locked, st.LockedBy, lockedAt, st.ProjectID, st.Name)
+		st.Description, string(st.Visibility), archived, locked, st.LockedBy, lockedAt, string(propsJSON), st.ProjectID, st.Name)
 	if err != nil {
 		return fmt.Errorf("update stream: %w", err)
 	}
@@ -498,11 +506,17 @@ func scanStream(row scanner) (*platstore.Stream, error) {
 	var archived, locked int
 	var visibility, createdStr, lockedBy string
 	var lockedAtStr *string
+	var propsJSON string
 	err := row.Scan(&st.ProjectID, &st.Name, &st.Parent, &st.BaseCursor,
 		&archived, &visibility, &st.Description, &createdStr, &st.CreatedBy,
-		&locked, &lockedBy, &lockedAtStr)
+		&locked, &lockedBy, &lockedAtStr, &propsJSON)
 	if err != nil {
 		return nil, fmt.Errorf("scan stream: %w", err)
+	}
+	if propsJSON != "" {
+		if err := json.Unmarshal([]byte(propsJSON), &st.Properties); err != nil {
+			return nil, fmt.Errorf("unmarshal stream properties: %w", err)
+		}
 	}
 	st.Archived = archived != 0
 	st.Locked = locked != 0

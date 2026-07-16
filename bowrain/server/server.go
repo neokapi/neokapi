@@ -80,6 +80,14 @@ type Server struct {
 	// /:ws/providers surface. Nil until PostgreSQL stores are initialized.
 	ProviderStore *bstore.ProviderConfigStore
 
+	// ConnectorConfigStore persists workspace-scoped connector configurations
+	// (WordPress, Figma, HubSpot, …) so they survive a restart, with credential
+	// fields sealed at rest under BOWRAIN_SECRETS_KEY. The ConnectorService only
+	// holds live instances in memory; on boot rehydrateConnectors reads this
+	// store and re-instantiates each connector. Nil until PostgreSQL stores are
+	// initialized (the in-memory/desktop path runs connectors live-only).
+	ConnectorConfigStore *bstore.ConnectorConfigStore
+
 	// EmailSender sends raw transactional emails. Prefer Mailer for
 	// template-rendered messages. Kept for backward compatibility with tests.
 	// Nil if email is not configured.
@@ -520,6 +528,9 @@ func NewServer(cfg Config) *Server {
 			// Workspace-scoped AI provider configs (Epic 004), sealed at rest with
 			// the same cipher. Backs the /:ws/providers handlers.
 			s.ProviderStore = bstore.NewProviderConfigStore(pgSQL, secretsCipher)
+			// Workspace-scoped connector configs, sealed at rest with the same
+			// cipher. Backs the /:ws/connectors handlers and boot rehydration.
+			s.ConnectorConfigStore = bstore.NewConnectorConfigStore(pgSQL, secretsCipher)
 			s.AuditLogger = event.NewAuditLogger(pgSQL, s.EventBus)
 			if cfg.AuditRetentionDays > 0 {
 				s.AuditRetention = event.NewAuditRetentionCleaner(
@@ -636,6 +647,11 @@ func NewServer(cfg Config) *Server {
 			}
 		}
 	}
+
+	// Rehydrate persisted connectors into the (now-final) ConnectorService so
+	// remote connectors and their credentials survive a restart. Fail-soft per
+	// connector; never aborts boot. Startup wiring — no request context exists.
+	s.rehydrateConnectors(context.Background())
 
 	// Wire up automation engine with run manager (Bowrain AD-013).
 	s.runHub = newAutomationRunHub()
@@ -818,6 +834,12 @@ func NewServer(cfg Config) *Server {
 		// client-supplied workspace_id can't be used to reach another tenant.
 		if s.AuthStore != nil && cfg.JWTSecret != "" {
 			mcpOpts = append(mcpOpts, mcpserver.WithMembershipChecker(&mcpMembershipAdapter{auth: s.AuthStore}))
+		}
+		// Base rung of the brand-voice resolution ladder: the workspace default
+		// profile, resolved from the workspace record when no more-specific
+		// (project/stream/collection) binding is bound on a scoring call.
+		if s.AuthStore != nil {
+			mcpOpts = append(mcpOpts, mcpserver.WithWorkspaceDefault(&mcpWorkspaceDefaultAdapter{auth: s.AuthStore}))
 		}
 		if s.ToolRegistry != nil {
 			mcpOpts = append(mcpOpts, mcpserver.WithToolRegistry(s.ToolRegistry))
@@ -1475,6 +1497,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// Connectors — Bowrain AD-011: /:ws/connectors (moved from public)
 	g.GET("/connectors", s.HandleListActiveConnectors)
 	g.POST("/connectors", s.HandleAddConnector)
+	g.PUT("/connectors/:id", s.HandleUpdateConnector)
 	g.DELETE("/connectors/:id", s.HandleRemoveConnector)
 	g.GET("/connectors/:id/status", s.HandleConnectorStatus)
 	g.POST("/connectors/:id/fetch", s.HandleFetch)

@@ -36,6 +36,7 @@ var authMigrationsPg = []storage.Migration{
 				pulse_term_sources   TEXT NOT NULL DEFAULT '{"terminology":true,"brand_vocabulary":false}',
 				pulse_access_key     TEXT NOT NULL DEFAULT '',
 				preferred_model      TEXT NOT NULL DEFAULT '',
+				brand_voice_profile_id TEXT NOT NULL DEFAULT '',
 				created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
@@ -275,6 +276,14 @@ var authMigrationsPg = []storage.Migration{
 			UPDATE refresh_tokens SET family_id = id WHERE family_id = '';
 			CREATE INDEX IF NOT EXISTS idx_refresh_tokens_family
 				ON refresh_tokens(family_id);
+		`,
+	},
+	{
+		Version:     6,
+		Description: "workspace default brand-voice profile (hierarchical resolver base)",
+		SQL: `
+			ALTER TABLE workspaces
+				ADD COLUMN IF NOT EXISTS brand_voice_profile_id TEXT NOT NULL DEFAULT '';
 		`,
 	},
 }

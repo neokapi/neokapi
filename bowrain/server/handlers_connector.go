@@ -1,12 +1,16 @@
 package server
 
 import (
+	"context"
+	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/connector"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
 // connectorFeature maps a connector type to the plan feature it requires. Types
@@ -18,7 +22,7 @@ var connectorFeature = map[string]billing.Feature{
 	"git": billing.FeatureConnectorsGit,
 }
 
-// ConnectorAddRequest is the request for adding a connector.
+// ConnectorAddRequest is the request for adding or updating a connector.
 type ConnectorAddRequest struct {
 	Type   string            `json:"type"`
 	Config map[string]string `json:"config"`
@@ -38,23 +42,102 @@ type PublishRequest struct {
 	Message     string `json:"message,omitempty"`
 }
 
+// connectorInfo is the API view of a connector on the listing: identity and
+// which config fields are set, never a secret. Config carries the persisted
+// config with secret values redacted to "" (the key is kept so a UI can show
+// the field is configured).
+type connectorInfo struct {
+	ID       string             `json:"id"`
+	Type     string             `json:"type"`
+	Name     string             `json:"name"`
+	Category connector.Category `json:"category"`
+	Config   map[string]string  `json:"config,omitempty"`
+}
+
+// connectorCategory resolves a connector type to its category via the registry.
+// Returns "" for an unknown type.
+func (s *Server) connectorCategory(connectorType string) connector.Category {
+	if s.ConnectorReg == nil {
+		return ""
+	}
+	for _, info := range s.ConnectorReg.List() {
+		if info.Name == connectorType {
+			return info.Category
+		}
+	}
+	return ""
+}
+
+// rehydrateConnectors re-instantiates every persisted connector into the live
+// ConnectorService at boot, so remote connectors survive a restart. It is
+// fail-soft: a connector that no longer instantiates (bad config, retired type)
+// is logged and skipped, never aborting boot. No-op when persistence is not
+// wired (the in-memory/desktop path runs connectors live-only).
+func (s *Server) rehydrateConnectors(ctx context.Context) {
+	if s.ConnectorConfigStore == nil || s.Services == nil || s.Services.Connector == nil {
+		return
+	}
+	configs, err := s.ConnectorConfigStore.ListAll(ctx)
+	if err != nil {
+		slog.Warn("connector rehydration: list failed", "error", err)
+		return
+	}
+	rehydrated := 0
+	for _, cfg := range configs {
+		config := cfg.Config
+		if config == nil {
+			config = map[string]string{}
+		}
+		// Pin the persisted id so the live instance stays addressable by the
+		// same id after restart, regardless of how the connector derives one.
+		config["id"] = cfg.ID
+		if _, err := s.Services.Connector.AddConnector(cfg.WorkspaceID, cfg.Type, config); err != nil {
+			slog.Warn("connector rehydration: skipped a connector",
+				"id", cfg.ID, "type", cfg.Type, "workspace", cfg.WorkspaceID, "error", err)
+			continue
+		}
+		rehydrated++
+	}
+	if rehydrated > 0 {
+		slog.Info("connector rehydration complete", "count", rehydrated)
+	}
+}
+
 func (s *Server) HandleListActiveConnectors(c echo.Context) error {
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 	wsID, _ := c.Get("workspace_id").(string)
-	active := s.Services.Connector.ListActive(wsID)
-	type connectorInfo struct {
-		ID       string             `json:"id"`
-		Name     string             `json:"name"`
-		Category connector.Category `json:"category"`
+
+	// When persistence is wired, the persisted set is the source of truth: it
+	// carries type + name + redacted config even for connectors not yet touched
+	// this process. Without a store (desktop/in-memory), fall back to the live
+	// instances.
+	if s.ConnectorConfigStore != nil {
+		configs, err := s.ConnectorConfigStore.List(c.Request().Context(), wsID)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		}
+		result := make([]connectorInfo, len(configs))
+		for i, cfg := range configs {
+			result[i] = connectorInfo{
+				ID:       cfg.ID,
+				Type:     cfg.Type,
+				Name:     cfg.Name,
+				Category: s.connectorCategory(cfg.Type),
+				Config:   cfg.Config, // secrets already redacted by the store
+			}
+		}
+		return c.JSON(http.StatusOK, result)
 	}
+
+	active := s.Services.Connector.ListActive(wsID)
 	result := make([]connectorInfo, len(active))
-	for i, c := range active {
+	for i, conn := range active {
 		result[i] = connectorInfo{
-			ID:       c.ID(),
-			Name:     c.Name(),
-			Category: c.Category(),
+			ID:       conn.ID(),
+			Name:     conn.Name(),
+			Category: conn.Category(),
 		}
 	}
 	return c.JSON(http.StatusOK, result)
@@ -91,10 +174,120 @@ func (s *Server) HandleAddConnector(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
+
+	// Persist so the connector (and its sealed credentials) survives a restart.
+	// If persistence fails, undo the live registration so the two never diverge.
+	if s.ConnectorConfigStore != nil {
+		if _, err := s.ConnectorConfigStore.Upsert(c.Request().Context(), &bstore.ConnectorConfig{
+			ID:          conn.ID(),
+			WorkspaceID: wsID,
+			Type:        req.Type,
+			Name:        conn.Name(),
+			Config:      req.Config,
+		}); err != nil {
+			_ = s.Services.Connector.RemoveConnector(wsID, conn.ID())
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		}
+	}
+
 	return c.JSON(http.StatusCreated, map[string]string{
 		"id":       conn.ID(),
 		"name":     conn.Name(),
 		"category": string(conn.Category()),
+	})
+}
+
+// HandleUpdateConnector reconfigures a connector in place: it re-instantiates
+// the live instance with the new config and re-persists it. Secret fields follow
+// preserve-on-blank semantics — an empty secret in the request keeps the stored
+// credential (so an endpoint or name edit does not wipe the password/token).
+func (s *Server) HandleUpdateConnector(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
+		return err
+	}
+	if s.Services == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+	}
+	if s.ConnectorConfigStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "connector persistence not configured"})
+	}
+
+	var req ConnectorAddRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	wsID, _ := c.Get("workspace_id").(string)
+	id := c.Param("id")
+
+	// Load the existing config to learn its type (the request may omit it) and
+	// to 404 a missing/cross-tenant id before touching anything.
+	existing, err := s.ConnectorConfigStore.Get(c.Request().Context(), wsID, id)
+	if err != nil {
+		if errors.Is(err, bstore.ErrConnectorConfigNotFound) {
+			return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+		}
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	connType := req.Type
+	if connType == "" {
+		connType = existing.Type
+	}
+
+	// The git billing gate applies to updates too — a Free workspace must not be
+	// able to reconfigure its way into a git connector.
+	if feature, ok := connectorFeature[connType]; ok {
+		if err := billing.RequireFeature(c, feature, s.billingGuardEvent()); err != nil {
+			return err
+		}
+	}
+
+	// Persist first: the store seals new secrets and preserves blank ones.
+	saved, err := s.ConnectorConfigStore.Upsert(c.Request().Context(), &bstore.ConnectorConfig{
+		ID:          id,
+		WorkspaceID: wsID,
+		Type:        connType,
+		Name:        req.Config["name"],
+		Config:      req.Config,
+	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	// Re-read the effective (decrypted) config — this is the persisted config
+	// with blank secrets resolved to their stored values — and re-instantiate
+	// the live instance from it so the running connector matches what is stored.
+	effective, err := s.ConnectorConfigStore.Get(c.Request().Context(), wsID, id)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	config := effective.Config
+	if config == nil {
+		config = map[string]string{}
+	}
+	config["id"] = id // keep the live instance addressable by the same id
+	_ = s.Services.Connector.RemoveConnector(wsID, id)
+	if _, err := s.Services.Connector.AddConnector(wsID, connType, config); err != nil {
+		// The new config doesn't instantiate — restore the previous persisted
+		// config and its live instance so a bad update can't strand a broken
+		// row (and a dead connector) behind a 400.
+		if _, rbErr := s.ConnectorConfigStore.Upsert(c.Request().Context(), &existing); rbErr == nil {
+			prev := existing.Config
+			if prev == nil {
+				prev = map[string]string{}
+			}
+			prev["id"] = id
+			_, _ = s.Services.Connector.AddConnector(wsID, existing.Type, prev)
+		}
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, connectorInfo{
+		ID:       saved.ID,
+		Type:     saved.Type,
+		Name:     saved.Name,
+		Category: s.connectorCategory(saved.Type),
+		Config:   saved.Config, // secrets redacted by the store
 	})
 }
 
@@ -106,10 +299,36 @@ func (s *Server) HandleRemoveConnector(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 	wsID, _ := c.Get("workspace_id").(string)
-	if err := s.Services.Connector.RemoveConnector(wsID, c.Param("id")); err != nil {
+	id := c.Param("id")
+
+	// With persistence wired, the persisted row is the source of truth: remove
+	// the live instance best-effort (it is normally present via rehydration),
+	// then delete the row — a missing row is a 404.
+	if s.ConnectorConfigStore != nil {
+		_ = s.Services.Connector.RemoveConnector(wsID, id)
+		if err := s.ConnectorConfigStore.Delete(c.Request().Context(), wsID, id); err != nil {
+			if errors.Is(err, bstore.ErrConnectorConfigNotFound) {
+				return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+			}
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		}
+		return c.NoContent(http.StatusNoContent)
+	}
+
+	// Live-only path (desktop/in-memory): the in-memory instance is authoritative.
+	if err := s.Services.Connector.RemoveConnector(wsID, id); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 	return c.NoContent(http.StatusNoContent)
+}
+
+// connectorIDFromRequest prefers the path :id and falls back to the body's
+// connector_id for backward compatibility with the pre-path callers.
+func connectorIDFromRequest(c echo.Context, bodyID string) string {
+	if id := c.Param("id"); id != "" {
+		return id
+	}
+	return bodyID
 }
 
 func (s *Server) HandleFetch(c echo.Context) error {
@@ -126,7 +345,8 @@ func (s *Server) HandleFetch(c echo.Context) error {
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
-	items, err := s.Services.Connector.Fetch(c.Request().Context(), wsID, req.ConnectorID, req.ProjectID, connector.FetchOptions{
+	connID := connectorIDFromRequest(c, req.ConnectorID)
+	items, err := s.Services.Connector.Fetch(c.Request().Context(), wsID, connID, req.ProjectID, connector.FetchOptions{
 		Paths: req.Paths,
 	})
 	if err != nil {
@@ -150,7 +370,8 @@ func (s *Server) HandlePublish(c echo.Context) error {
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
-	err := s.Services.Connector.Publish(c.Request().Context(), wsID, req.ConnectorID, req.ProjectID, connector.PublishOptions{
+	connID := connectorIDFromRequest(c, req.ConnectorID)
+	err := s.Services.Connector.Publish(c.Request().Context(), wsID, connID, req.ProjectID, connector.PublishOptions{
 		Message: req.Message,
 	})
 	if err != nil {

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"maps"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -126,8 +127,9 @@ func (s *Server) HandleUpdateStream(c echo.Context) error {
 	}
 
 	var req struct {
-		Description *string `json:"description"`
-		Visibility  *string `json:"visibility"`
+		Description *string           `json:"description"`
+		Visibility  *string           `json:"visibility"`
+		Properties  map[string]string `json:"properties,omitempty"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
@@ -138,6 +140,15 @@ func (s *Server) HandleUpdateStream(c echo.Context) error {
 	}
 	if req.Visibility != nil {
 		st.Visibility = store.StreamVisibility(*req.Visibility)
+	}
+	// Properties carry extensible metadata such as the stream-level brand-voice
+	// binding (brand_voice_profile_id). Merge so a single-key update never drops
+	// other keys, mirroring the project properties merge.
+	if req.Properties != nil {
+		if st.Properties == nil {
+			st.Properties = make(map[string]string)
+		}
+		maps.Copy(st.Properties, req.Properties)
 	}
 
 	if err := s.ContentStore.UpdateStream(ctx, st); err != nil {
