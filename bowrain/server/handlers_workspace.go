@@ -406,24 +406,35 @@ func (s *Server) HandleRemoveMember(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-// HandleListWorkspaceProjects lists projects in a workspace, filtered by workspace_id.
+// HandleListWorkspaceProjects lists projects in a workspace, filtered by
+// workspace_id, enriched with per-item block/word counts so the dashboard
+// cards can show real file and word totals (they compute them client-side
+// from items[] — a bare store.Project rendered as "0 files / 0 words").
 func (s *Server) HandleListWorkspaceProjects(c echo.Context) error {
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 	workspaceID, _ := c.Get("workspace_id").(string)
-	allProjects, err := s.Services.Project.ListProjects(c.Request().Context())
+	ctx := c.Request().Context()
+	allProjects, err := s.Services.Project.ListProjects(ctx)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
-	// Filter to only projects belonging to this workspace.
-	filtered := make([]*store.Project, 0)
+	result := make([]*ProjectInfoResponse, 0)
 	for _, p := range allProjects {
-		if p.WorkspaceID == workspaceID {
-			filtered = append(filtered, p)
+		if p.WorkspaceID != workspaceID {
+			continue
 		}
+		info := projectToInfoResponse(p)
+		if s.ContentStore != nil {
+			// Fail-soft: a broken item must not blank the whole dashboard.
+			if items, _, err := editorBuildProjectItems(ctx, s.ContentStore, p.ID, streamParamWithProject(c, p)); err == nil {
+				info.Items = items
+			}
+		}
+		result = append(result, info)
 	}
-	return c.JSON(http.StatusOK, filtered)
+	return c.JSON(http.StatusOK, result)
 }
 
 // HandleCreateWorkspaceProject creates a project in a workspace.

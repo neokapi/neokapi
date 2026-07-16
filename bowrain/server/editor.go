@@ -1191,25 +1191,27 @@ func projectToInfoResponse(p *store.Project) *ProjectInfoResponse {
 }
 
 // editorBuildProjectInfo builds a full ProjectInfoResponse from store data.
-func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *store.Project, stream string) (*ProjectInfoResponse, error) {
-	info := projectToInfoResponse(proj)
-
-	items, err := cs.ListItems(ctx, proj.ID, stream)
+// editorBuildProjectItems loads a project's items with per-item block and
+// word counts, plus the per-collection item tally. Shared by the single-project
+// info builder and the workspace project list (the dashboard cards need the
+// same counts).
+func editorBuildProjectItems(ctx context.Context, cs store.ContentStore, projID, stream string) ([]ProjectItemResponse, map[string]int, error) {
+	items, err := cs.ListItems(ctx, projID, stream)
 	if err != nil {
-		return nil, fmt.Errorf("list items: %w", err)
+		return nil, nil, fmt.Errorf("list items: %w", err)
 	}
 
-	// Count items per collection for the response.
 	itemCounts := map[string]int{}
+	out := make([]ProjectItemResponse, 0, len(items))
 
 	for _, item := range items {
 		blocks, err := cs.GetBlocks(ctx, store.BlockQuery{
-			ProjectID: proj.ID,
+			ProjectID: projID,
 			Stream:    stream,
 			ItemName:  item.Name,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("get blocks for %q: %w", item.Name, err)
+			return nil, nil, fmt.Errorf("get blocks for %q: %w", item.Name, err)
 		}
 
 		wordCount := 0
@@ -1219,7 +1221,7 @@ func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *st
 			}
 		}
 
-		info.Items = append(info.Items, ProjectItemResponse{
+		out = append(out, ProjectItemResponse{
 			ID:           item.ID,
 			Name:         item.Name,
 			Format:       item.Format,
@@ -1231,6 +1233,17 @@ func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *st
 		})
 		itemCounts[item.CollectionID]++
 	}
+	return out, itemCounts, nil
+}
+
+func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *store.Project, stream string) (*ProjectInfoResponse, error) {
+	info := projectToInfoResponse(proj)
+
+	items, itemCounts, err := editorBuildProjectItems(ctx, cs, proj.ID, stream)
+	if err != nil {
+		return nil, err
+	}
+	info.Items = items
 
 	// Include collections in the response.
 	colls, _ := cs.ListCollections(ctx, proj.ID, stream)
