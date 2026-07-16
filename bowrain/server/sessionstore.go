@@ -122,13 +122,15 @@ func (s *MemorySessionStore) cleanup() {
 
 // Key prefixes for the four auth state stores.
 const (
-	prefixDeviceCode   = "device:"
-	prefixWebAuth      = "webauth:"
-	prefixDesktopAuth  = "desktop:"
-	prefixDeviceVerify = "deviceverify:"
-	prefixUserCode     = "usercode:" // secondary index: userCode → deviceCode
-	prefixIDToken      = "idtoken:"  // OIDC ID token for logout (keyed by user ID)
-	prefixPasskeyNonce = "pknonce:"  // single-use passkey registration nonce (keyed by user ID)
+	prefixDeviceCode    = "device:"
+	prefixWebAuth       = "webauth:"
+	prefixDesktopAuth   = "desktop:"
+	prefixDeviceVerify  = "deviceverify:"
+	prefixUserCode      = "usercode:" // secondary index: userCode → deviceCode
+	prefixIDToken       = "idtoken:"  // OIDC ID token for logout (keyed by user ID)
+	prefixPasskeyNonce  = "pknonce:"  // single-use passkey registration nonce (keyed by user ID)
+	prefixElevateState  = "elevst:"   // pending passkey step-up state (keyed by OIDC state)
+	prefixElevatedToken = "elevtok:"  // short-lived elevated Cognito access token (keyed by user ID), sealed
 )
 
 // Typed helper functions for storing/retrieving auth states via the SessionStateStore.

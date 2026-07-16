@@ -106,11 +106,11 @@ type Server struct {
 	// account-security endpoints return 503.
 	CredentialManager auth.CredentialManager
 
-	// UpstreamTokens retains the user's upstream IdP refresh token (encrypted)
-	// so the BFF can mint a fresh user-scoped access token on demand for
-	// CredentialManager operations, without keeping any IdP token in the
-	// browser. Nil when PostgreSQL is not configured.
-	UpstreamTokens auth.UpstreamTokenStore
+	// secretsCipher seals secret values at rest (connector credentials, provider
+	// keys, and the short-lived elevated Cognito access token stashed in the
+	// session store for passkey management). Nil when no secrets key is
+	// configured (pass-through, dev only).
+	secretsCipher *crypto.Cipher
 
 	// collabHub manages collaborative editing WebSocket rooms.
 	collabHub *collabHub
@@ -386,6 +386,14 @@ func NewServer(cfg Config) *Server {
 		posthogDemand:   newPostHogDemandCache(),
 	}
 
+	// Build the at-rest secrets cipher once (also seals the short-lived elevated
+	// access token for passkey step-up). An invalid/empty key is pass-through.
+	if cipher, cerr := crypto.NewCipher(cfg.SecretsKey); cerr != nil {
+		slog.Error("invalid secrets key; secret values stored unencrypted", "error", cerr)
+	} else {
+		s.secretsCipher = cipher
+	}
+
 	// Initialize session state store (Redis or in-memory).
 	if cfg.RedisURL != "" {
 		rs, err := NewRedisSessionStore(cfg.RedisURL, cfg.RedisPassword)
@@ -496,24 +504,11 @@ func NewServer(cfg Config) *Server {
 		} else {
 			s.ContentStore = pg.Content
 			// Encrypt secret columns (connector credentials, AI provider keys) at
-			// rest when a key is configured. The key was validated at startup; log
-			// defensively. The same cipher seals the provider_configs store below.
-			secretsCipher, cerr := crypto.NewCipher(cfg.SecretsKey)
-			if cerr != nil {
-				slog.Error("invalid secrets key; connector config and provider keys stored unencrypted", "error", cerr)
-				secretsCipher = nil
-			}
+			// rest when a key is configured (the cipher was built above and also
+			// seals the provider_configs store below).
+			secretsCipher := s.secretsCipher
 			if pgStore, ok := pg.Content.(*bstore.PostgresStore); ok {
 				pgStore.SetSecretsCipher(secretsCipher)
-			}
-			// Upstream IdP refresh-token store (encrypted with the same cipher):
-			// backs on-demand minting of user-scoped access tokens for passkey
-			// management. Degrades to disabled (endpoints 409 reauth_required) on
-			// migration failure rather than blocking server startup.
-			if ut, uerr := auth.NewUpstreamTokenStoreFromDB(pg.DB, secretsCipher); uerr != nil {
-				slog.Warn("upstream token store disabled (passkey management will require re-login)", "error", uerr)
-			} else {
-				s.UpstreamTokens = ut
 			}
 			s.Services = service.NewServices(pg.Content, connReg, formatReg, toolReg)
 			s.JobStore = pg.Job
@@ -1157,6 +1152,10 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		accountGroup := v1.Group("/account")
 		accountGroup.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
 		accountGroup.GET("/security", s.HandleAccountSecurity)
+		// Step-up elevation for credential management (top-level browser GET
+		// navigations — cookie-authenticated, CSRF-exempt).
+		accountGroup.GET("/security/elevate", s.HandleSecurityElevate)
+		accountGroup.GET("/security/elevate/callback", s.HandleSecurityElevateCallback)
 		accountGroup.GET("/passkeys", s.HandleListPasskeys)
 		accountGroup.POST("/passkeys/register/start", s.HandleRegisterStart)
 		accountGroup.POST("/passkeys/register/finish", s.HandleRegisterFinish)

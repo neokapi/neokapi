@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Card,
@@ -15,24 +15,24 @@ import {
   useApi,
   type Passkey,
 } from "@neokapi/ui";
-import { KeyRound, Trash2, Plus, ExternalLink, Loader2 } from "lucide-react";
+import { KeyRound, Trash2, Plus, ExternalLink, Loader2, ShieldCheck } from "lucide-react";
 import {
   decodeCreationOptions,
   encodeAttestation,
   isWebAuthnSupported,
-  isReauthRequired,
+  isElevationRequired,
+  beginElevation,
 } from "./webauthn";
-
-const LOGIN_URL = "/api/v1/auth/login";
 
 /**
  * SecurityCard — self-service passkey (WebAuthn) management.
  *
- * The server relays the WebAuthn ceremony: it mints a short-lived,
- * user-scoped identity-provider access token from a retained refresh token and
- * calls the provider's WebAuthn APIs. The browser only runs
- * navigator.credentials.create() on the relayed challenge — no provider token
- * is ever exposed here (BFF invariant).
+ * The server relays the WebAuthn ceremony (BFF invariant: no identity-provider
+ * token reaches the browser). Because Cognito's credential APIs are broadly
+ * scoped, managing passkeys requires a step-up ("elevation"): the server sends
+ * the browser through a fresh re-authentication that yields a short-lived,
+ * self-service-scoped token it holds server-side. Until the user elevates, the
+ * section is gated behind a "Confirm your identity" prompt.
  *
  * On identity providers that manage credentials through their own account
  * console (Keycloak, self-host), the card links out to that console instead.
@@ -40,6 +40,20 @@ const LOGIN_URL = "/api/v1/auth/login";
 export function SecurityCard() {
   const api = useApi();
   const queryClient = useQueryClient();
+
+  // Surface the outcome of a step-up round-trip (?elevated=1|0), then strip the
+  // param so a refresh doesn't re-show it.
+  const [elevateFailed, setElevateFailed] = useState(false);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const outcome = params.get("elevated");
+    if (outcome === "1" || outcome === "0") {
+      setElevateFailed(outcome === "0");
+      params.delete("elevated");
+      const qs = params.toString();
+      window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
+    }
+  }, []);
 
   const { data: security, isLoading: securityLoading } = useQuery({
     queryKey: ["account-security"],
@@ -96,7 +110,7 @@ export function SecurityCard() {
 
   // ── In-app manager (Cognito). ───────────────────────────────────────────
   const passkeys = passkeyData?.passkeys ?? [];
-  const needsReauth = isReauthRequired(passkeysError);
+  const needsElevation = isElevationRequired(passkeysError);
 
   const handleAdd = async () => {
     setActionError(null);
@@ -116,8 +130,9 @@ export function SecurityCard() {
       await api.passkeyRegisterFinish({ nonce, attestation: encodeAttestation(credential) });
       void queryClient.invalidateQueries({ queryKey: ["account-passkeys"] });
     } catch (err: unknown) {
-      if (isReauthRequired(err)) {
-        window.location.href = LOGIN_URL;
+      // The elevation window can expire mid-flow — send the user back through it.
+      if (isElevationRequired(err)) {
+        beginElevation();
         return;
       }
       setActionError({ title: "Couldn't add a passkey", cause: err });
@@ -138,8 +153,8 @@ export function SecurityCard() {
       void queryClient.invalidateQueries({ queryKey: ["account-passkeys"] });
     } catch (err: unknown) {
       setToDelete(null);
-      if (isReauthRequired(err)) {
-        window.location.href = LOGIN_URL;
+      if (isElevationRequired(err)) {
+        beginElevation();
         return;
       }
       setActionError({ title: "Couldn't remove the passkey", cause: err });
@@ -157,12 +172,20 @@ export function SecurityCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {needsReauth ? (
+        {elevateFailed && (
+          <Alert variant="destructive">
+            <AlertDescription>
+              We couldn&rsquo;t confirm your identity. Please try again.
+            </AlertDescription>
+          </Alert>
+        )}
+        {needsElevation ? (
           <Alert>
             <AlertDescription className="flex items-center justify-between gap-3">
-              <span>Please sign in again to manage your passkeys.</span>
-              <Button size="sm" onClick={() => (window.location.href = LOGIN_URL)}>
-                Sign in
+              <span>Confirm your identity to view and manage your sign-in methods.</span>
+              <Button size="sm" onClick={() => beginElevation()}>
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                Confirm identity
               </Button>
             </AlertDescription>
           </Alert>
@@ -214,7 +237,7 @@ export function SecurityCard() {
           <ErrorNotice title={actionError.title} error={actionError.cause} variant="inline" />
         )}
 
-        {!needsReauth && (
+        {!needsElevation && (
           <div>
             <Button onClick={handleAdd} disabled={adding}>
               {adding ? (

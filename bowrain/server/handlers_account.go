@@ -291,11 +291,9 @@ func (s *Server) HandleConfirmEmailChange(c echo.Context) error {
 	if err := s.AuthStore.RevokeUserRefreshTokens(ctx, user.ID); err != nil {
 		slog.WarnContext(ctx, "revoke refresh tokens after email change", "user_id", user.ID, "error", err)
 	}
-	// Drop the retained upstream refresh token too: the identity just changed and
-	// all sessions are being invalidated, so the next login should re-seed it.
-	if s.UpstreamTokens != nil {
-		_ = s.UpstreamTokens.DeleteRefreshToken(ctx, user.ID, upstreamProviderCognito)
-	}
+	// Drop any elevated credential-management token too: the identity just
+	// changed and all sessions are being invalidated, so re-elevation is required.
+	s.clearElevatedToken(ctx, user.ID)
 	s.clearSessionCookies(c)
 
 	return c.JSON(http.StatusOK, map[string]any{

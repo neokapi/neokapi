@@ -26,9 +26,9 @@ type Passkey struct {
 // credential management (passkeys today; password/MFA later). Unlike
 // IdentityAdmin — which performs admin writes with the server's own role or
 // service-account secret — these are USER-scoped operations: they act as the
-// signed-in user and need that user's upstream access token, obtained on demand
-// from the retained refresh token (see UpstreamTokenStore). The token is
-// threaded in by the handler, never stored on the adapter.
+// signed-in user and need that user's upstream access token. The handler obtains
+// a short-lived, self-service-scoped token via an explicit step-up ("elevation")
+// and threads it in; it is never stored on the adapter.
 //
 // The port abstracts the decision (InApp), not a forced-identical
 // implementation: hosted Cognito relays the WebAuthn ceremony inline, while
