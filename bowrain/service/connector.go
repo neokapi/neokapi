@@ -60,6 +60,14 @@ func (s *ConnectorService) AddConnector(workspaceID, name string, config map[str
 }
 
 // lookup returns an active connector within a workspace, or ErrConnectorNotFound.
+// Connector returns the live connector instance for a workspace, for callers
+// that need the concrete connector surface (e.g. forge delivery drives
+// Publish with per-item target files rather than the generic single-item
+// grouping of ConnectorService.Publish).
+func (s *ConnectorService) Connector(workspaceID, id string) (connector.IntegrationConnector, error) {
+	return s.lookup(workspaceID, id)
+}
+
 func (s *ConnectorService) lookup(workspaceID, id string) (connector.IntegrationConnector, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

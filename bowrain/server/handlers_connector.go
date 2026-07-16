@@ -19,7 +19,8 @@ import (
 // paywall, and leaving out one that is advertised gives it away (which is what
 // happened to git).
 var connectorFeature = map[string]billing.Feature{
-	"git": billing.FeatureConnectorsGit,
+	"git":   billing.FeatureConnectorsGit,
+	"forge": billing.FeatureConnectorsGit, // the git connector plus PR/MR delivery — same sold feature
 }
 
 // ConnectorAddRequest is the request for adding or updating a connector.

@@ -30,6 +30,9 @@ func registerLocal(r *platconn.Registry, formatReg *registry.FormatRegistry) {
 		return NewFileConnector(formatReg, config)
 	})
 
+	r.Register("forge", platconn.CategoryCode, func(config map[string]string) (platconn.IntegrationConnector, error) {
+		return NewForgeConnector(formatReg, config)
+	})
 	r.Register("git", platconn.CategoryCode, func(config map[string]string) (platconn.IntegrationConnector, error) {
 		return NewGitConnector(formatReg, config)
 	})

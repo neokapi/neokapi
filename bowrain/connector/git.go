@@ -23,6 +23,11 @@ import (
 // or local file paths.
 const gitAllowProtocol = "https:ssh:git"
 
+// allowedGitProtocols is what gitCommand actually pins. It exists as a var
+// only so connector tests can widen it to reach a local (file-transport)
+// fixture remote; production code never changes it.
+var allowedGitProtocols = gitAllowProtocol
+
 // scpLikeURLRe matches the scp-like SSH syntax git accepts, e.g.
 // "git@github.com:org/repo.git" or "user@host.example.com:path/to/repo".
 // The host part may not contain a slash (which would make it a path) and the
@@ -117,7 +122,7 @@ func (c *GitConnector) validate() error {
 // safe transport set as defense-in-depth.
 func gitCommand(ctx context.Context, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, "git", args...)
-	cmd.Env = append(os.Environ(), "GIT_ALLOW_PROTOCOL="+gitAllowProtocol)
+	cmd.Env = append(os.Environ(), "GIT_ALLOW_PROTOCOL="+allowedGitProtocols)
 	return cmd
 }
 

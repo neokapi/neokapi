@@ -671,6 +671,7 @@ func NewServer(cfg Config) *Server {
 		// row (F3). Startup wiring — no request context exists yet.
 		s.convergence.SweepInterruptedRuns(context.Background())
 		s.subscribeConvergeOnPush()
+		s.subscribeForgeDelivery()
 	}
 
 	// Unclaimed-project purge (epic 003 item 6): periodically remove expired
@@ -1317,6 +1318,9 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 
 	// Stripe webhook (no auth, signature-verified) (Bowrain AD-018).
 	e.POST("/api/webhooks/stripe", s.HandleStripeWebhook)
+	// Forge push webhooks (GitHub/GitLab). Unauthenticated like the Stripe
+	// hook: verified by the connector's webhook secret, not a session.
+	e.POST("/api/webhooks/forge/:configID", s.HandleForgeWebhook)
 
 	// Admin routes (admin realm auth) (Bowrain AD-018).
 	//

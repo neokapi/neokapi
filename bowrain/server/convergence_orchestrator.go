@@ -327,6 +327,25 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 	if run.State == bstore.ConvergenceRunConverged || run.State == bstore.ConvergenceRunParked {
 		o.createCompletionReviewTasks(context.WithoutCancel(ctx), run)
 	}
+
+	// Announce the terminal state on the bus: the forge delivery tier (and any
+	// future subscriber) reacts to finished runs without polling the run store.
+	// Published for every terminal state — subscribers filter; a canceled or
+	// failed run must be as observable as a converged one.
+	if o.server.EventBus != nil {
+		o.server.EventBus.Publish(platev.Event{
+			ID:        id.New(),
+			Type:      platev.EventConvergenceRunCompleted,
+			Source:    "convergence",
+			ProjectID: run.ProjectID,
+			Timestamp: time.Now().UTC(),
+			Data: map[string]string{
+				"run_id": run.ID,
+				"state":  run.State,
+				"passes": fmt.Sprintf("%d", run.Passes),
+			},
+		})
+	}
 }
 
 // deriveFunc builds the server venue's Derive: coverage from the block store,
