@@ -55,6 +55,8 @@ const sidebars: SidebarsConfig = {
       className: "sidebar-section-heading",
       items: [
         "server/workspaces",
+        "server/members-and-roles",
+        "server/billing-and-credits",
       ],
     },
     {
@@ -97,6 +99,9 @@ const sidebars: SidebarsConfig = {
       className: "sidebar-section-heading",
       items: [
         "server/connectors",
+        "server/connectors/wordpress",
+        "server/connectors/figma",
+        "server/connectors/hubspot",
         "server/flows",
         "server/automation",
       ],
@@ -108,6 +113,17 @@ const sidebars: SidebarsConfig = {
       className: "sidebar-section-heading",
       items: [
         "server/desktop-app",
+      ],
+    },
+    {
+      type: "category",
+      label: "Trust & support",
+      collapsible: false,
+      className: "sidebar-section-heading",
+      items: [
+        "server/security-and-privacy",
+        "server/troubleshooting",
+        "server/faq",
       ],
     },
   ],
@@ -233,6 +249,7 @@ const sidebars: SidebarsConfig = {
         "architecture-decisions/019-correction-learning-loop",
         "architecture-decisions/020-governance-audit-rollback",
         "architecture-decisions/021-brand-knowledge-graph",
+        "architecture-decisions/022-convergence-as-a-service",
       ],
     },
     {

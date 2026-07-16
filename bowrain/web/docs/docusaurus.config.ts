@@ -34,8 +34,7 @@ const BOWRAIN_WEB_SITE =
 
 const config: Config = {
   title: "Bowrain",
-  tagline:
-    "Govern and steward brand voice, terminology, and translation — as a team",
+  tagline: "Keep your content on-brand, in every language — as a team",
   favicon: "img/favicon.png",
 
   url: "https://neokapi.github.io",

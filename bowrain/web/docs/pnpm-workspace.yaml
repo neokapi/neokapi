@@ -5,4 +5,4 @@ packages: []
 
 # core-js' install script only prints a funding banner — not needed.
 allowBuilds:
-  core-js: false
+  core-js: set this to true or false
