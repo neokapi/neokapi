@@ -591,6 +591,15 @@ func RenderBlockContent(block *model.Block, runs []model.Run) string {
 	if prefix, ok := block.Properties[BlockPropLinePrefix]; ok && prefix != "" && strings.Contains(rendered, "\n") {
 		rendered = strings.ReplaceAll(rendered, "\n", "\n"+prefix)
 	}
+	if block.SemanticRole() == model.RoleTableCell {
+		// GFM row splitting sees an unescaped `|` as a cell boundary wherever
+		// it appears — even inside a code span — so the reader receives cell
+		// text with `\|` already unescaped and every pipe must be re-escaped
+		// on the way out. Without this, a cell like `--output-format
+		// <json\|text>` round-trips with a bare pipe that splits the cell and
+		// leaves an unterminated code span (invalid MDX downstream).
+		rendered = strings.ReplaceAll(rendered, "|", "\\|")
+	}
 	return rendered
 }
 

@@ -66,6 +66,11 @@ apps/kapi-desktop/frontend/i18n-nb/
 # nb build — see CLAUDE.md "Target-language drift must never block the build".
 # Regenerate with kapi; the nb locale falls back to English until then.
 web/i18n/nb/
+# Same policy for the bowrain docs site: the docs-bowrain surface of the root
+# recipe generates bowrain/web/docs/i18n/<locale>/ from bowrain/web/docs/docs/**
+# (make l10n-bowrain-docs). Build artefact, never committed; the nb locale
+# falls back to English until regenerated.
+bowrain/web/docs/i18n/nb/
 
 # Dogfood project state for the root neokapi.kapi recipe — rebuilt from the
 # committed seeds via `make l10n-seed`.

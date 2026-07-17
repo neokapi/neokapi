@@ -463,7 +463,7 @@
         ],
         "nb": [
           {
-            "text": "Modell: {provider.model}"
+            "text": "Modell: "
           }
         ]
       },
@@ -1237,7 +1237,7 @@
         ],
         "nb": [
           {
-            "text": "{collection.blockCount} blokker"
+            "text": " blokker"
           }
         ]
       },
@@ -1407,7 +1407,18 @@
             }
           },
           {
-            "text": "({unmatchedFiles.length})"
+            "text": "("
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{unmatchedFiles.length}",
+              "equiv": "unmatchedFiles.length"
+            }
+          },
+          {
+            "text": ")"
           },
           {
             "pcClose": {
@@ -1774,7 +1785,12 @@
             }
           },
           {
-            "text": "{shortPath}"
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{shortPath}",
+              "equiv": "shortPath"
+            }
           },
           {
             "pcClose": {
@@ -1798,7 +1814,15 @@
             }
           },
           {
-            "text": "· {length}"
+            "text": "· "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:var",
+              "data": "{length}",
+              "equiv": "length"
+            }
           },
           {
             "pcClose": {
@@ -1896,7 +1920,12 @@
             }
           },
           {
-            "text": "{corruptName}"
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{corruptName}",
+              "equiv": "corruptName"
+            }
           },
           {
             "pcClose": {
@@ -2142,7 +2171,10 @@
         ],
         "nb": [
           {
-            "text": "{tools.length} verktøy tilgjengelig i {categories.size} kategorier"
+            "text": " verktøy tilgjengelig i "
+          },
+          {
+            "text": " kategorier"
           }
         ]
       },
@@ -2178,7 +2210,10 @@
         ],
         "nb": [
           {
-            "text": "Verktøy ({toolCaps.length})"
+            "text": "Verktøy ("
+          },
+          {
+            "text": ")"
           }
         ]
       },
@@ -2250,7 +2285,7 @@
         ],
         "nb": [
           {
-            "text": "{job.fileCount} filer"
+            "text": " filer"
           }
         ]
       },
@@ -2588,7 +2623,18 @@
             }
           },
           {
-            "text": " {value} "
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " "
           },
           {
             "pcClose": {
@@ -2831,7 +2877,10 @@
         ],
         "nb": [
           {
-            "text": "krever {issue.required}, installert {issue.installed_version}"
+            "text": "krever "
+          },
+          {
+            "text": ", installert "
           }
         ]
       },
@@ -2939,7 +2988,7 @@
         ],
         "nb": [
           {
-            "text": "v{plugin.version}"
+            "text": "v"
           }
         ]
       },
@@ -2983,7 +3032,15 @@
             }
           },
           {
-            "text": " Produserer: {portLabel}"
+            "text": " Produserer: "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{portLabel}",
+              "equiv": "portLabel"
+            }
           }
         ]
       },
@@ -3019,7 +3076,10 @@
         ],
         "nb": [
           {
-            "text": "{value} aktive, {hiddenCount} skjulte {value_2}"
+            "text": " aktive, "
+          },
+          {
+            "text": " skjulte "
           }
         ]
       },
@@ -3174,7 +3234,18 @@
             }
           },
           {
-            "text": " Verktøy ({toolCaps.length})"
+            "text": " Verktøy ("
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{toolCaps.length}",
+              "equiv": "toolCaps.length"
+            }
+          },
+          {
+            "text": ")"
           }
         ]
       },
@@ -3522,7 +3593,15 @@
             }
           },
           {
-            "text": " Tar imot: {portLabel}"
+            "text": " Tar imot: "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{portLabel}",
+              "equiv": "portLabel"
+            }
           }
         ]
       },
@@ -3947,7 +4026,18 @@
             }
           },
           {
-            "text": " Formater ({formatCaps.length})"
+            "text": " Formater ("
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{formatCaps.length}",
+              "equiv": "formatCaps.length"
+            }
+          },
+          {
+            "text": ")"
           }
         ]
       },
@@ -4091,7 +4181,10 @@
         ],
         "nb": [
           {
-            "text": "Alle ({tools.length})"
+            "text": "Alle ("
+          },
+          {
+            "text": ")"
           }
         ]
       },
@@ -4721,7 +4814,7 @@
         ],
         "nb": [
           {
-            "text": "{documentedCount} dokumenterte formater"
+            "text": " dokumenterte formater"
           }
         ]
       },
@@ -4811,7 +4904,7 @@
         ],
         "nb": [
           {
-            "text": "Produserer: {portLabel}"
+            "text": "Produserer: "
           }
         ]
       },
@@ -4973,7 +5066,10 @@
         ],
         "nb": [
           {
-            "text": "Installert ({plugins.length})"
+            "text": "Installert ("
+          },
+          {
+            "text": ")"
           }
         ]
       },
@@ -5216,7 +5312,18 @@
             }
           },
           {
-            "text": " Inspiserer {filename}…"
+            "text": " Inspiserer "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{filename}",
+              "equiv": "filename"
+            }
+          },
+          {
+            "text": "…"
           }
         ]
       },
@@ -5342,7 +5449,10 @@
         ],
         "nb": [
           {
-            "text": "krever {issue.required}, har {issue.installed_version}"
+            "text": "krever "
+          },
+          {
+            "text": ", har "
           }
         ]
       },
@@ -5792,7 +5902,7 @@
         ],
         "nb": [
           {
-            "text": "{shortPath} · {length}"
+            "text": " · "
           }
         ]
       },
@@ -5930,7 +6040,29 @@
             }
           },
           {
-            "text": " {current}/{total} "
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{current}",
+              "equiv": "current"
+            }
+          },
+          {
+            "text": "/"
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{total}",
+              "equiv": "total"
+            }
+          },
+          {
+            "text": " "
           },
           {
             "pcClose": {
@@ -5954,7 +6086,18 @@
             }
           },
           {
-            "text": " {round}% "
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:var",
+              "data": "{round}",
+              "equiv": "round"
+            }
+          },
+          {
+            "text": "% "
           },
           {
             "pcClose": {
@@ -6251,7 +6394,10 @@
         ],
         "nb": [
           {
-            "text": "Inspiserer {filename}…"
+            "text": "Inspiserer "
+          },
+          {
+            "text": "…"
           }
         ]
       },
@@ -6534,7 +6680,29 @@
             }
           },
           {
-            "text": " {progress.current} / {progress.total} filer "
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{progress.current}",
+              "equiv": "progress.current"
+            }
+          },
+          {
+            "text": " / "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{progress.total}",
+              "equiv": "progress.total"
+            }
+          },
+          {
+            "text": " filer "
           },
           {
             "pcClose": {
@@ -6558,7 +6726,15 @@
             }
           },
           {
-            "text": "{round}%"
+            "ph": {
+              "id": "5",
+              "type": "jsx:var",
+              "data": "{round}",
+              "equiv": "round"
+            }
+          },
+          {
+            "text": "%"
           },
           {
             "pcClose": {
@@ -6693,7 +6869,7 @@
         ],
         "nb": [
           {
-            "text": "{item.stepCount} steg"
+            "text": " steg"
           }
         ]
       },
@@ -6819,7 +6995,10 @@
         ],
         "nb": [
           {
-            "text": "Formater ({formatCaps.length})"
+            "text": "Formater ("
+          },
+          {
+            "text": ")"
           }
         ]
       },
@@ -7277,7 +7456,12 @@
             }
           },
           {
-            "text": "{project.preset}"
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{project.preset}",
+              "equiv": "project.preset"
+            }
           },
           {
             "pcClose": {
@@ -7718,7 +7902,10 @@
         ],
         "nb": [
           {
-            "text": "+{value} til"
+            "text": "+"
+          },
+          {
+            "text": " til"
           }
         ]
       },
@@ -7838,7 +8025,40 @@
             }
           },
           {
-            "text": " ({matches.length} samsvarer {value} {value_2}) "
+            "text": " ("
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{matches.length}",
+              "equiv": "matches.length"
+            }
+          },
+          {
+            "text": " samsvarer "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{value_2}",
+              "equiv": "value_2"
+            }
+          },
+          {
+            "text": ") "
           },
           {
             "pcClose": {
@@ -7973,7 +8193,7 @@
         ],
         "nb": [
           {
-            "text": "Tar imot: {portLabel}"
+            "text": "Tar imot: "
           }
         ]
       },
@@ -8117,7 +8337,13 @@
         ],
         "nb": [
           {
-            "text": "{translated} / {c.blockCount} ({pct}%)"
+            "text": " / "
+          },
+          {
+            "text": " ("
+          },
+          {
+            "text": "%)"
           }
         ]
       },
@@ -8602,7 +8828,12 @@
             }
           },
           {
-            "text": "{corruptName}"
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{corruptName}",
+              "equiv": "corruptName"
+            }
           },
           {
             "pcClose": {
@@ -9406,7 +9637,7 @@
         ],
         "nb": [
           {
-            "text": "Alle stier er relative til {shortenHome}"
+            "text": "Alle stier er relative til "
           }
         ]
       },

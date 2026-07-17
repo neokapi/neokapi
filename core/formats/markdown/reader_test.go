@@ -1202,3 +1202,15 @@ func TestSkeletonRoundtrip_CRLF(t *testing.T) {
 	output := roundtripWithSkeleton(t, input)
 	assert.Equal(t, input, output)
 }
+
+// A `\|` inside a table cell (here inside a code span — GFM row splitting
+// consumes the escape wherever it sits, so the cell text carries a bare pipe)
+// must be re-escaped by the writer. Without the escape the emitted row gains a
+// cell boundary mid-code-span, corrupting the table (and producing invalid MDX
+// when the page is compiled by Docusaurus).
+func TestTableCellEscapedPipeRoundtrip(t *testing.T) {
+	input := "| Flag | Description |\n" +
+		"| --- | --- |\n" +
+		"| `--output-format <json\\|text>` | Select the output format |\n"
+	assert.Equal(t, input, roundtripWithSkeleton(t, input), "escaped pipe survives the round-trip")
+}

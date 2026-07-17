@@ -1103,11 +1103,30 @@ l10n-demos: l10n-seed ## Demo narration → harness/demos/<id>/demo.<lang>.yaml 
 		done; \
 	done
 
+# Docs sites: TM-recycle the markdown/mdx sources into each site's gitignored
+# i18n/<lang>/ tree (never committed — see CLAUDE.md "Target-language drift
+# must never block the build"; TM misses fall back to English and the sites
+# build with the tree absent). Scoped to the surface by passing its source
+# files as -i; with no -o, the flow-run path resolves every output from the
+# matching content item's target template in neokapi.kapi. Frontmatter keys
+# bind via defaults.formats (the flow-run path reads only the defaults).
+l10n-docs: l10n-seed ## kapi docs site → web/i18n/<lang>/... (TM-driven, gitignored)
+	@for lang in $(L10N_LANGS); do \
+		./bin/kapi run tm-recycle --target-lang $$lang -q \
+			-i "$$(find web/docs -type f \( -name '*.md' -o -name '*.mdx' \) | sort | paste -sd, -)" || exit 1; \
+	done
+
+l10n-bowrain-docs: l10n-seed ## bowrain docs site → bowrain/web/docs/i18n/<lang>/... (TM-driven, gitignored)
+	@for lang in $(L10N_LANGS); do \
+		./bin/kapi run tm-recycle --target-lang $$lang -q \
+			-i "$$(find bowrain/web/docs/docs -type f \( -name '*.md' -o -name '*.mdx' \) | sort | paste -sd, -)" || exit 1; \
+	done
+
 # (The former l10n-landing target is gone with web/landing: the landing page
 # was folded into the Docusaurus home, so its strings localize through the
 # docs-site path. l10n/tm/landing-nb.klftm stays — the TM leverages that copy
 # wherever it resurfaces.)
-l10n: l10n-builtins l10n-desktop l10n-cli l10n-demos ## Rebuild all dogfood localization outputs from the l10n/ seeds
+l10n: l10n-builtins l10n-desktop l10n-cli l10n-demos l10n-docs l10n-bowrain-docs ## Rebuild all dogfood localization outputs from the l10n/ seeds
 
 l10n-verify: l10n-builtins l10n-cli l10n-demos ## CI gate: committed l10n artifacts regenerate byte-identically from the seeds
 	git diff --exit-code core/i18n/builtins core/i18n/catalogs host/i18n/commands.json host/i18n/catalogs ':(glob)harness/demos/*/demo.*.yaml'

@@ -22,6 +22,12 @@ gitignored).
   surface and locale (e.g. `builtins-nb.klftm`). Imported into
   `.kapi/tm.db`; every localized output is produced from the TM by
   `recycle`, so generated catalogs only ever contain reviewed strings.
+  The docs sites have one seed each: `docs-nb.klftm` for the kapi site
+  (surface `docs`: `web/docs/**` → `web/i18n/nb/...`, `make l10n-docs`)
+  and `bowrain-docs-nb.klftm` for the bowrain site (surface
+  `docs-bowrain`: `bowrain/web/docs/docs/**` →
+  `bowrain/web/docs/i18n/nb/...`, `make l10n-bowrain-docs`); the
+  termbase is shared.
 
 Workflow for a new or changed surface string:
 
@@ -96,12 +102,17 @@ intermediates, `l10n/review/`).
    apps ship them as static assets. `make l10n-verify` (CI: the
    l10n-drift job) fails on any byte drift from the seeds. Never
    hand-edit.
-3. **Materialized targets — derived but checkpointed.** The translated
-   docs pages under `web/i18n/<locale>/.../current/`. Derived from
-   source + TM, but committed deliberately: re-materialization is not a
-   pure function (TM gaps and ambiguous matches intentionally fall back
-   to English rather than guess), review and publishing operate on the
-   pages themselves, and Docusaurus treats locale trees as content.
-   Hand-edits here bypass the TM — fold corrections back through
-   `kapi extract`/`merge` (or the seeds) instead. A docs-drift gate
-   (re-materialize and diff, like l10n-verify) is a planned follow-up.
+3. **Materialized targets — generated, never committed.** The translated
+   docs pages under `web/i18n/<locale>/.../current/` (kapi docs site,
+   `make l10n-docs`) and `bowrain/web/docs/i18n/<locale>/.../current/`
+   (bowrain docs site, `make l10n-bowrain-docs`). Derived from source +
+   TM; gitignored build artefacts, because committing them made every
+   source-doc edit go stale and hard-fail the nb build (see CLAUDE.md
+   "Target-language drift must never block the build"). TM misses fall
+   back to English, and both Docusaurus sites build with the tree absent.
+   Corrections land in the seeds, never in the pages. The docs gate (the
+   `docs-l10n-drift` job in `reference-data-drift.yml`) re-materializes
+   both surfaces twice and fails only if the runs are not byte-identical
+   (or on a hard error, e.g. a corrupted seed failing import); it also
+   writes a per-surface nb coverage summary to the job summary, which
+   never gates — drift is pending work, not an error.
