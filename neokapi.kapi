@@ -20,6 +20,16 @@
 #                      bowrain/web/docs/i18n/<locale>/ tree
 #   demo-narration   — harness demo scripts → generated demo.<lang>.yaml
 #                      sidecars (harness/demos/<id>/, overlaid at load time)
+#   emails           — KLF catalogs extracted from the React Email templates
+#                      (bowrain/emails/src) by @neokapi/kapi-react → per-locale
+#                      template renders under bowrain/mailer/templates/<lang>/
+#                      (make l10n-emails)
+#   email-subjects   — transactional-email subject lines
+#                      (bowrain/mailer/subjects/en.json) → subjects/<lang>.json
+#   landing          — KLF catalogs extracted from the bowrain landing SPA
+#                      (bowrain/web/landing/src) → committed runtime catalogs
+#                      bowrain/web/landing/translations/<lang>.json
+#                      (make l10n-landing)
 #
 # Drive it with the l10n-* Makefile targets. Seeds (brand voice, termbase,
 # reviewed TM) live under l10n/.
@@ -132,6 +142,20 @@ content:
             translateFrontMatter: true
             frontMatterKeys: [title, description, sidebar_label]
         target: bowrain/web/docs/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
+  - name: emails
+    items:
+      - path: bowrain/emails/i18n/**/*.klf
+        target: bowrain/emails/i18n-{lang}/{filename}
+  - name: email-subjects
+    items:
+      - path: bowrain/mailer/subjects/en.json
+        format:
+          name: json
+        target: bowrain/mailer/subjects/{lang}.json
+  - name: landing
+    items:
+      - path: bowrain/web/landing/i18n/**/*.klf
+        target: bowrain/web/landing/i18n-{lang}/{filename}
   - name: demo-narration
     items:
       # Narrated demo-video scripts. The English demo.yaml is the master;

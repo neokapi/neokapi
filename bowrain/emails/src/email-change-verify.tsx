@@ -46,10 +46,7 @@ export const EmailChangeVerifyEmail = ({
 }: EmailChangeVerifyProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>
-      {"Confirm your new Bowrain email "}
-      {newEmail}
-    </Preview>
+    <Preview>Confirm your new Bowrain email {newEmail}</Preview>
     <Body style={main}>
       <Container style={container}>
         <Section style={header}>
@@ -59,13 +56,12 @@ export const EmailChangeVerifyEmail = ({
 
         <Section style={card}>
           <Heading as="h1" style={h1}>
-            {"Confirm your new email"}
+            Confirm your new email
           </Heading>
 
           <Text style={paragraph}>
-            {"Someone — hopefully you — asked to change a Bowrain account's email to "}
-            <strong>{newEmail}</strong>
-            {". Click the button below to confirm and finish the switch."}
+            Someone — hopefully you — asked to change a Bowrain account&apos;s email to{" "}
+            <strong>{newEmail}</strong>. Click the button below to confirm and finish the switch.
           </Text>
 
           <Section style={btnWrapper}>
@@ -77,25 +73,23 @@ export const EmailChangeVerifyEmail = ({
           <Hr style={hr} />
 
           <Text style={fallback}>
-            {"Button not working? Copy and paste this link into your browser:"}
+            Button not working? Copy and paste this link into your browser:
           </Text>
           <Link href={confirmURL} style={link}>
             {confirmURL}
           </Link>
 
           <Text style={paragraph}>
-            {"This link expires in "}
-            {expiresIn}
-            {". After confirmation, you'll need to sign in again with your new email."}
+            This link expires in {expiresIn}. After confirmation, you&apos;ll need to sign in again
+            with your new email.
           </Text>
         </Section>
 
         <Section style={footer}>
-          <Text style={footerText}>{"© Bowrain. All rights reserved."}</Text>
+          <Text style={footerText}>© Bowrain. All rights reserved.</Text>
           <Text style={footerText}>
-            {
-              "If you didn't request this change, you can safely ignore this email — your account stays as-is."
-            }
+            If you didn&apos;t request this change, you can safely ignore this email — your account
+            stays as-is.
           </Text>
         </Section>
       </Container>

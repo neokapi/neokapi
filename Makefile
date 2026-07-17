@@ -1225,12 +1225,91 @@ l10n-bowrain-docs: l10n-seed ## bowrain docs site → bowrain/web/docs/i18n/<lan
 			-i "$$(find bowrain/web/docs/docs -type f \( -name '*.md' -o -name '*.mdx' \) | sort | paste -sd, -)" || exit 1; \
 	done
 
-# (The former l10n-landing target is gone with web/landing: the landing page
-# was folded into the Docusaurus home, so its strings localize through the
-# docs-site path. l10n/tm/landing-nb.klftm stays — the TM leverages that copy
-# wherever it resurfaces.)
-l10n: l10n-builtins l10n-desktop l10n-cli l10n-demos l10n-docs l10n-bowrain-docs l10n-bowrain-app l10n-bowrain-ctrl l10n-bowrain-pulse ## Rebuild all dogfood localization outputs from the l10n/ seeds
+l10n: l10n-builtins l10n-desktop l10n-cli l10n-demos l10n-docs l10n-bowrain-docs l10n-bowrain-app l10n-bowrain-ctrl l10n-bowrain-pulse l10n-emails l10n-landing ## Rebuild all dogfood localization outputs from the l10n/ seeds
 
+# ── Transactional emails (bowrain/emails → bowrain/mailer) ──────────────────
+# kapi-react extraction over the React Email templates; qps via pseudo, nb via
+# TM recycle from l10n/tm/emails-nb.klftm; compiled catalogs are inlined into
+# per-locale template renders (bowrain/mailer/templates/<lang>/*.html) and the
+# subject catalogs (bowrain/mailer/subjects/<lang>.json) — both committed and
+# embedded into the server binary, so they are drift-gated (emails-l10n-verify).
+EMAILS_DIR := bowrain/emails
+KAPI_EMAILS_EXTRACT_SRC := --src "src/*.tsx" --ignore "src/*.stories.tsx" --ignore "src/storybook-decorator.tsx"
+
+emails-frontend-deps: ## Install email template dependencies
+	cd $(EMAILS_DIR) && vp install
+
+emails-extract: emails-frontend-deps kapi-react-build ## Extract translatable email blocks → bowrain/emails/i18n/ (per-file .klf)
+	cd $(EMAILS_DIR) && $(KAPI_REACT_CLI) extract --config kapi-react.config.json --out i18n/ --target-locale qps $(KAPI_EMAILS_EXTRACT_SRC)
+
+emails-pseudo-translate: emails-extract bin/kapi ## Pseudo-translate email strings + subjects → qps
+	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $(EMAILS_DIR)/i18n \
+		--target-lang qps \
+		-o $(EMAILS_DIR)/i18n-qps \
+		-q
+	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate bowrain/mailer/subjects/en.json \
+		--target-lang qps \
+		-f json \
+		-o bowrain/mailer/subjects/qps.json \
+		-q
+
+l10n-emails: l10n-seed emails-pseudo-translate ## Transactional emails → bowrain/mailer/{templates/<lang>/,subjects/<lang>.json} (TM-driven)
+	@for lang in $(L10N_LANGS); do \
+		./bin/kapi exec recycle $(EMAILS_DIR)/i18n \
+			--target-lang $$lang \
+			-o $(EMAILS_DIR)/i18n-$$lang || exit 1; \
+		./bin/kapi exec recycle bowrain/mailer/subjects/en.json -f json \
+			--target-lang $$lang -o bowrain/mailer/subjects/$$lang.json || exit 1; \
+	done
+	cd $(EMAILS_DIR) && $(KAPI_REACT_CLI) compile i18n-qps/ --out translations
+	@for lang in $(L10N_LANGS); do \
+		(cd $(EMAILS_DIR) && $(KAPI_REACT_CLI) compile i18n-$$lang/ --out translations --locale $$lang) || exit 1; \
+	done
+	cd $(EMAILS_DIR) && vp run build
+
+emails-l10n-verify: l10n-emails ## CI gate: rendered email templates + subject catalogs regenerate byte-identically from source + seeds
+	git diff --exit-code bowrain/mailer/templates bowrain/mailer/subjects
+
+# ── Landing page (bowrain/web/landing) ──────────────────────────────────────
+# kapi-react extraction over the landing SPA; compiled runtime catalogs
+# (translations/{qps,nb}.json) are committed so web-landing.yml can build the
+# nb variant (LOCALE=nb → dist/nb/, inline mode) without a kapi toolchain.
+# Keep the extract glob in sync with the `extract` script in
+# bowrain/web/landing/package.json.
+LANDING_DIR := bowrain/web/landing
+
+landing-frontend-deps: ## Install landing page dependencies
+	cd $(LANDING_DIR) && vp install
+
+landing-extract: landing-frontend-deps kapi-react-build ## Extract translatable landing blocks → bowrain/web/landing/i18n/
+	cd $(LANDING_DIR) && $(KAPI_REACT_CLI) extract --out i18n/ --target-locale qps --src "src/**/*.{tsx,jsx}"
+
+landing-pseudo-translate: landing-extract bin/kapi ## Pseudo-translate landing strings → i18n-qps/
+	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $(LANDING_DIR)/i18n \
+		--target-lang qps \
+		-o $(LANDING_DIR)/i18n-qps \
+		-q
+
+l10n-landing: l10n-seed landing-pseudo-translate ## Landing page strings → bowrain/web/landing/translations/<lang>.json (TM-driven, committed)
+	cd $(LANDING_DIR) && $(KAPI_REACT_CLI) compile i18n-qps/ --out translations
+	@for lang in $(L10N_LANGS); do \
+		./bin/kapi exec recycle $(LANDING_DIR)/i18n \
+			--target-lang $$lang \
+			-o $(LANDING_DIR)/i18n-$$lang || exit 1; \
+		(cd $(LANDING_DIR) && $(KAPI_REACT_CLI) compile i18n-$$lang/ --out translations --locale $$lang) || exit 1; \
+	done
+
+landing-l10n-verify: l10n-landing ## CI gate: landing runtime catalogs regenerate byte-identically from source + seeds
+	git diff --exit-code $(LANDING_DIR)/translations
+
+landing-build-nb: ## Build the nb landing variant → bowrain/web/landing/dist/nb (inline mode from committed translations)
+	cd $(LANDING_DIR) && vp run build:nb
+
+l10n: l10n-builtins l10n-desktop l10n-cli l10n-demos l10n-docs l10n-bowrain-docs l10n-emails l10n-landing ## Rebuild all dogfood localization outputs from the l10n/ seeds
+
+# Node-free gate (runs in the go-only l10n-drift CI job); the node-dependent
+# email/landing surfaces have their own gates (emails-l10n-verify,
+# landing-l10n-verify) wired into ci.yml where the node toolchain exists.
 l10n-verify: l10n-builtins l10n-cli l10n-demos ## CI gate: committed l10n artifacts regenerate byte-identically from the seeds
 	git diff --exit-code core/i18n/builtins core/i18n/catalogs host/i18n/commands.json host/i18n/catalogs ':(glob)harness/demos/*/demo.*.yaml'
 
@@ -1766,8 +1845,9 @@ BOWRAIN_LANDING_BASE := /web/bowrain/
 NEOKAPI_DOCS_BASE    := /web/neokapi/
 BOWRAIN_DOCS_BASE    := /web/bowrain/docs/
 
-landing-build: ## Build the bowrain landing page with its production base URL → bowrain/web/landing/dist
+landing-build: ## Build the bowrain landing page (en + nb variants) with its production base URL → bowrain/web/landing/dist
 	cd bowrain/web/landing && VITE_BASE=$(BOWRAIN_LANDING_BASE) vp run build
+	cd bowrain/web/landing && VITE_BASE=$(BOWRAIN_LANDING_BASE) vp run build:nb
 
 docs-build-prod: web-wasm-demo web-wasm-cli ## Build the kapi docs+landing site with the production base (set DOCS_CDN_URL so videos/models/images resolve from R2) → web/build
 	cd web && DOCS_BASE_URL=$(NEOKAPI_DOCS_BASE) vp run build
@@ -1954,7 +2034,9 @@ help: ## Show this help
         generate-format-docs generate-reference-docs check-reference-docs generate-reference-pages \
         generate-contract-types check-contract-types \
         docs-deps docs-dev docs-wasm docs-build docs-serve docs-verify-snippets \
-        landing-build docs-build-prod bowrain-docs-build-prod publish-landing publish-website \
+        landing-build landing-build-nb docs-build-prod bowrain-docs-build-prod publish-landing publish-website \
+        emails-frontend-deps emails-extract emails-pseudo-translate l10n-emails emails-l10n-verify \
+        landing-frontend-deps landing-extract landing-pseudo-translate l10n-landing landing-l10n-verify \
         tools setup-remote gha-lint clean \
         _fw-fmt _fw-test _fw-test-fast _fw-test-unit _fw-test-race _fw-test-verbose _fw-test-integration \
         _fw-vet _fw-lint _fw-proto _fw-deps _fw-deps-update

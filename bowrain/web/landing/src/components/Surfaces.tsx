@@ -1,16 +1,17 @@
 import { AppWindow, Globe2, BookOpen, Rss, Mail, MessageCircle } from "lucide-react";
+import { t } from "@neokapi/kapi-react/runtime";
 import { Logo } from "./Logo";
 import { useReveal } from "../useReveal";
 
 // One brand, many surfaces: each surface is a project in the workspace; all of
 // them draw on the same brand profiles, terminology, and translation memory.
 const SURFACES = [
-  { icon: AppWindow, label: "App strings", note: "JSON, XLIFF, mobile formats" },
-  { icon: Globe2, label: "Website", note: "HTML, Markdown, CMS" },
-  { icon: BookOpen, label: "Docs", note: "Markdown, MDX" },
-  { icon: Rss, label: "Blog", note: "long-form, per-author" },
-  { icon: Mail, label: "Email", note: "templates, campaigns" },
-  { icon: MessageCircle, label: "Posts", note: "social, announcements" },
+  { icon: AppWindow, label: t("App strings"), note: t("JSON, XLIFF, mobile formats") },
+  { icon: Globe2, label: t("Website"), note: t("HTML, Markdown, CMS") },
+  { icon: BookOpen, label: t("Docs"), note: t("Markdown, MDX") },
+  { icon: Rss, label: t("Blog"), note: t("long-form, per-author") },
+  { icon: Mail, label: t("Email"), note: t("templates, campaigns") },
+  { icon: MessageCircle, label: t("Posts"), note: t("social, announcements") },
 ];
 
 export function Surfaces() {
@@ -40,7 +41,9 @@ export function Surfaces() {
                 className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3"
               >
                 <s.icon className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">{s.label}</span>
+                <span translate="no" className="text-sm font-medium">
+                  {s.label}
+                </span>
                 <span className="ml-auto text-xs text-muted-foreground">{s.note}</span>
               </div>
             ))}
@@ -65,7 +68,9 @@ export function Surfaces() {
                 className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3"
               >
                 <s.icon className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">{s.label}</span>
+                <span translate="no" className="text-sm font-medium">
+                  {s.label}
+                </span>
                 <span className="ml-auto text-xs text-muted-foreground">{s.note}</span>
               </div>
             ))}

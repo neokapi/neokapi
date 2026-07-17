@@ -473,9 +473,15 @@ importers:
         specifier: ^19.2.7
         version: 19.2.7
     devDependencies:
+      '@neokapi/kapi-react':
+        specifier: '*'
+        version: link:../../packages/kapi-react
       '@types/react':
         specifier: ^19.2.17
         version: 19.2.17
+      esbuild:
+        specifier: ^0.28.1
+        version: 0.28.1
       react-email:
         specifier: 6.7.0
         version: 6.7.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -736,6 +742,9 @@ importers:
       '@fontsource-variable/jetbrains-mono':
         specifier: ^5.2.8
         version: 5.2.8
+      '@neokapi/kapi-react':
+        specifier: '*'
+        version: link:../../../packages/kapi-react
       lucide-react:
         specifier: ^1.24.0
         version: 1.24.0(react@19.2.7)

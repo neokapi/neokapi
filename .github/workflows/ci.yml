@@ -33,6 +33,7 @@ jobs:
       kapi_desktop: ${{ github.event_name == 'push' || steps.filter.outputs.kapi_desktop }}
       bowrain_desktop: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain_desktop }}
       kapi_react: ${{ github.event_name == 'push' || steps.filter.outputs.kapi_react }}
+      l10n_surfaces: ${{ github.event_name == 'push' || steps.filter.outputs.l10n_surfaces }}
       workflows: ${{ github.event_name == 'push' || steps.filter.outputs.workflows }}
       any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework || steps.filter.outputs.cli || steps.filter.outputs.platform || steps.filter.outputs.kapi || steps.filter.outputs.bowrain_plugin || steps.filter.outputs.bowrain }}
     steps:
@@ -80,6 +81,7 @@ jobs:
           check_paths kapi_desktop '^apps/kapi-desktop/' '^packages/(ui|flow-editor)/'
           check_paths bowrain_desktop '^bowrain/apps/bowrain/' '^bowrain/packages/ui/'
           check_paths kapi_react '^packages/kapi-(format|react)/'
+          check_paths l10n_surfaces '^bowrain/emails/' '^bowrain/web/landing/' '^bowrain/mailer/' '^l10n/' '^packages/kapi-(format|react)/' '^neokapi\.kapi$'
           check_paths workflows '^\.github/workflows/'
 
   # ── Frontend checks & builds ─────────────────────────────────────────────
@@ -143,6 +145,34 @@ jobs:
       # wrong/old translations), so keep it in lockstep with the UI strings.
       - name: Kapi Desktop l10n catalog is fresh
         run: make kapi-desktop-l10n-verify
+
+  # ── Emails + landing dogfood l10n gate ───────────────────────────────────
+  # Mirrors kapi-desktop-l10n-verify for the two node-dependent dogfood
+  # surfaces the go-only l10n-drift job cannot cover: regenerates the email
+  # extraction → qps pseudo + nb TM-recycle → compiled catalogs → per-locale
+  # template renders (bowrain/mailer/templates, subjects) and the landing
+  # runtime catalogs (bowrain/web/landing/translations), and fails on any
+  # byte drift from the committed artifacts. A stale catalog would ship
+  # wrong/old strings in the qps/nb emails and landing variant.
+  emails-landing-l10n:
+    name: Emails + Landing l10n
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.l10n_surfaces == 'true'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-node-ui
+
+      - uses: ./.github/actions/setup-go-modules
+
+      - name: Install libicu (kapi fts5 build dependency)
+        run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
+
+      - name: Email templates + subject catalogs are fresh
+        run: make emails-l10n-verify
+
+      - name: Landing runtime catalogs are fresh
+        run: make landing-l10n-verify
 
   # ── Bowrain Desktop (Wails app: frontend vitest + Go backend) ────────────
   bowrain-desktop:

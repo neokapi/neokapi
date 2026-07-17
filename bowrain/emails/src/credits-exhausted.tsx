@@ -52,10 +52,7 @@ export const CreditsExhaustedEmail = ({
 }: CreditsExhaustedEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>
-      {"Your AI credits are exhausted in "}
-      {workspaceName}
-    </Preview>
+    <Preview>Your AI credits are exhausted in {workspaceName}</Preview>
     <Body style={main}>
       <Container style={container}>
         {/* ── Header ─────────────────────────────────── */}
@@ -67,23 +64,18 @@ export const CreditsExhaustedEmail = ({
         {/* ── Body ───────────────────────────────────── */}
         <Section style={card}>
           <Heading as="h1" style={h1}>
-            {"Your AI credits are exhausted"}
+            Your AI credits are exhausted
           </Heading>
 
           <Text style={paragraph}>
-            {"The workspace "}
-            <strong>{workspaceName}</strong>
-            {
-              " has used all of its AI credits. AI-powered features such as machine translation and quality checks are paused until your credits reset."
-            }
+            The workspace <strong>{workspaceName}</strong> has used all of its AI credits.
+            AI-powered features such as machine translation and quality checks are paused until your
+            credits reset.
           </Text>
 
           <Text style={paragraph}>
-            {"Your credits will automatically reset on "}
-            <strong>{resetDate}</strong>
-            {
-              ". If you need credits sooner, you can upgrade your plan or purchase additional credits."
-            }
+            Your credits will automatically reset on <strong>{resetDate}</strong>. If you need
+            credits sooner, you can upgrade your plan or purchase additional credits.
           </Text>
 
           <Section style={btnWrapper}>
@@ -100,12 +92,12 @@ export const CreditsExhaustedEmail = ({
 
           <Hr style={hr} />
 
-          <Text style={fallback}>{"Upgrade: "}</Text>
+          <Text style={fallback}>Upgrade: </Text>
           <Link href={upgradeURL} style={link}>
             {upgradeURL}
           </Link>
 
-          <Text style={fallback}>{"Buy credits: "}</Text>
+          <Text style={fallback}>Buy credits: </Text>
           <Link href={buyCreditsURL} style={link}>
             {buyCreditsURL}
           </Link>
@@ -113,9 +105,9 @@ export const CreditsExhaustedEmail = ({
 
         {/* ── Footer ─────────────────────────────────── */}
         <Section style={footer}>
-          <Text style={footerText}>{"© Bowrain. All rights reserved."}</Text>
+          <Text style={footerText}>© Bowrain. All rights reserved.</Text>
           <Text style={footerText}>
-            {"You received this email because you are an admin of this workspace."}
+            You received this email because you are an admin of this workspace.
           </Text>
         </Section>
       </Container>

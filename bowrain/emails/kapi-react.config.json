@@ -1,0 +1,14 @@
+{
+  "componentMap": {
+    "Text": "p",
+    "Heading": "h1",
+    "Button": "a",
+    "Link": "a",
+    "Preview": "span",
+    "Section": "div",
+    "Container": "div",
+    "Body": "div",
+    "Row": "tr",
+    "Column": "td"
+  }
+}

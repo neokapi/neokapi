@@ -71,10 +71,7 @@ export const DigestEmail = ({
     <Html lang="en" dir="ltr">
       <Head />
       <Preview>
-        {title}
-        {" — "}
-        {totalUpdates}
-        {" updates"}
+        {title} — {totalUpdates} updates
       </Preview>
       <Body style={main}>
         <Container style={digestContainer}>
@@ -89,10 +86,7 @@ export const DigestEmail = ({
             <Heading as="h1" style={titleH1}>
               {title}
             </Heading>
-            <Text style={subtitle}>
-              {totalUpdates}
-              {" new updates"}
-            </Text>
+            <Text style={subtitle}>{totalUpdates} new updates</Text>
           </Section>
 
           {/* ── Body ───────────────────────────────────── */}
@@ -100,10 +94,7 @@ export const DigestEmail = ({
             {groups.map((group) => (
               <Section key={group.category} style={categorySection}>
                 <Text style={categoryHeader}>
-                  {group.label}
-                  {" ("}
-                  {group.items.length}
-                  {")"}
+                  {group.label} ({group.items.length})
                 </Text>
                 {group.items.map((item, idx) => (
                   <Section
@@ -129,13 +120,13 @@ export const DigestEmail = ({
           {/* ── Footer ─────────────────────────────────── */}
           <Section style={footerBase}>
             <Text style={footerText}>
-              {"You can change your digest frequency in "}
+              You can change your digest frequency in{" "}
               <a href={settingsURL} style={footerLink}>
                 notification settings
               </a>
               .
             </Text>
-            <Text style={footerText}>{"© Bowrain. All rights reserved."}</Text>
+            <Text style={footerText}>© Bowrain. All rights reserved.</Text>
           </Section>
         </Container>
       </Body>

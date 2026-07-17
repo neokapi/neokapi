@@ -52,10 +52,7 @@ export const SubscriptionChangedEmail = ({
 }: SubscriptionChangedEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>
-      {"Your subscription has been updated for "}
-      {workspaceName}
-    </Preview>
+    <Preview>Your subscription has been updated for {workspaceName}</Preview>
     <Body style={main}>
       <Container style={container}>
         {/* ── Header ─────────────────────────────────── */}
@@ -67,13 +64,12 @@ export const SubscriptionChangedEmail = ({
         {/* ── Body ───────────────────────────────────── */}
         <Section style={card}>
           <Heading as="h1" style={h1}>
-            {"Your subscription has been updated"}
+            Your subscription has been updated
           </Heading>
 
           <Text style={paragraph}>
-            {"The subscription for "}
-            <strong>{workspaceName}</strong>
-            {" has been updated. Here are the details:"}
+            The subscription for <strong>{workspaceName}</strong> has been updated. Here are the
+            details:
           </Text>
 
           {/* ── Plan details ─────────────────────────── */}
@@ -85,9 +81,8 @@ export const SubscriptionChangedEmail = ({
           </Section>
 
           <Text style={paragraph}>
-            {
-              "You can view your full billing details and manage your subscription from the billing page."
-            }
+            You can view your full billing details and manage your subscription from the billing
+            page.
           </Text>
 
           <Section style={btnWrapper}>
@@ -99,7 +94,7 @@ export const SubscriptionChangedEmail = ({
           <Hr style={hr} />
 
           <Text style={fallback}>
-            {"Button not working? Copy and paste this link into your browser:"}
+            Button not working? Copy and paste this link into your browser:
           </Text>
           <Link href={billingURL} style={link}>
             {billingURL}
@@ -108,9 +103,9 @@ export const SubscriptionChangedEmail = ({
 
         {/* ── Footer ─────────────────────────────────── */}
         <Section style={footer}>
-          <Text style={footerText}>{"© Bowrain. All rights reserved."}</Text>
+          <Text style={footerText}>© Bowrain. All rights reserved.</Text>
           <Text style={footerText}>
-            {"You received this email because you are an admin of this workspace."}
+            You received this email because you are an admin of this workspace.
           </Text>
         </Section>
       </Container>

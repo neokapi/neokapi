@@ -1,15 +1,16 @@
 import { Menu, Moon, Sun, X } from "lucide-react";
 import { useState } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import { GithubIcon } from "./GithubIcon";
 import { Logo } from "./Logo";
 import { APP_URL, GITHUB_URL, SIGNUP_URL, docsUrl } from "../links";
 import { isDark, toggleMode } from "../theme";
 
 const LINKS = [
-  { href: "#product", label: "Product" },
-  { href: "#loop", label: "How it works" },
-  { href: "#try", label: "Try it" },
-  { href: "#pricing", label: "Pricing" },
+  { href: "#product", label: t("Product") },
+  { href: "#loop", label: t("How it works") },
+  { href: "#try", label: t("Try it") },
+  { href: "#pricing", label: t("Pricing") },
 ];
 
 export function Nav() {
@@ -29,6 +30,7 @@ export function Nav() {
             <a
               key={l.href}
               href={l.href}
+              translate="no"
               className="text-sm text-muted-foreground transition hover:text-foreground"
             >
               {l.label}
@@ -91,6 +93,7 @@ export function Nav() {
                 key={l.href}
                 href={l.href}
                 onClick={() => setOpen(false)}
+                translate="no"
                 className="text-sm text-muted-foreground"
               >
                 {l.label}

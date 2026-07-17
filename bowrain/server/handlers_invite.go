@@ -78,7 +78,9 @@ func (s *Server) HandleCreateInvite(c echo.Context) error {
 	return c.JSON(http.StatusCreated, inv)
 }
 
-// sendInviteEmail renders and sends a branded invite email.
+// sendInviteEmail renders and sends a branded invite email. When the invited
+// address already belongs to a Bowrain user, the email is rendered in that
+// user's locale; unknown recipients get English.
 func (s *Server) sendInviteEmail(ctx context.Context, inv *platauth.Invite, baseURL, workspaceName string) {
 	joinURL := baseURL + "/join/" + inv.Code
 
@@ -88,7 +90,14 @@ func (s *Server) sendInviteEmail(ctx context.Context, inv *platauth.Invite, base
 		JoinURL:       joinURL,
 	}
 
-	if err := s.Mailer.SendInvite(ctx, inv.Email, data); err != nil {
+	locale := ""
+	if s.AuthStore != nil {
+		if u, err := s.AuthStore.GetUserByEmail(ctx, inv.Email); err == nil && u != nil {
+			locale = u.Locale
+		}
+	}
+
+	if err := s.Mailer.SendInvite(ctx, inv.Email, locale, data); err != nil {
 		slog.Info("failed to send invite email to", "id", inv.Email, "error", err)
 	}
 }

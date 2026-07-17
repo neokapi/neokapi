@@ -46,11 +46,7 @@ interface InviteEmailProps {
 export const InviteEmail = ({ workspaceName, role, joinURL }: InviteEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>
-      {"You've been invited to join "}
-      {workspaceName}
-      {" on Bowrain"}
-    </Preview>
+    <Preview>You&apos;ve been invited to join {workspaceName} on Bowrain</Preview>
     <Body style={main}>
       <Container style={container}>
         {/* ── Header ─────────────────────────────────── */}
@@ -62,13 +58,11 @@ export const InviteEmail = ({ workspaceName, role, joinURL }: InviteEmailProps) 
         {/* ── Body ───────────────────────────────────── */}
         <Section style={card}>
           <Heading as="h1" style={h1}>
-            {"You're Invited 🎉"}
+            You&apos;re Invited 🎉
           </Heading>
 
           <Text style={paragraph}>
-            {"You've been invited to join "}
-            <strong>{workspaceName}</strong>
-            {" on Bowrain as "}
+            You&apos;ve been invited to join <strong>{workspaceName}</strong> on Bowrain as{" "}
             <strong>{role}</strong>.
           </Text>
 
@@ -85,7 +79,7 @@ export const InviteEmail = ({ workspaceName, role, joinURL }: InviteEmailProps) 
           <Hr style={hr} />
 
           <Text style={fallback}>
-            {"Button not working? Copy and paste this link into your browser:"}
+            Button not working? Copy and paste this link into your browser:
           </Text>
           <Link href={joinURL} style={link}>
             {joinURL}
@@ -94,9 +88,9 @@ export const InviteEmail = ({ workspaceName, role, joinURL }: InviteEmailProps) 
 
         {/* ── Footer ─────────────────────────────────── */}
         <Section style={footer}>
-          <Text style={footerText}>{"© Bowrain. All rights reserved."}</Text>
+          <Text style={footerText}>© Bowrain. All rights reserved.</Text>
           <Text style={footerText}>
-            {"If you didn't request this invitation, you can safely ignore this email."}
+            If you didn&apos;t request this invitation, you can safely ignore this email.
           </Text>
         </Section>
       </Container>

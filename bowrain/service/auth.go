@@ -38,15 +38,26 @@ func NewAuthService(store auth.AuthStore, jwtSecret string) *AuthService {
 // is provisioned — the web app routes new users through /welcome where
 // they pick a handle, after which CompleteOnboarding creates the workspace.
 // If oidcSub is provided and the existing user lacks one, it is backfilled.
-func (s *AuthService) GetOrCreateUser(ctx context.Context, email, name, avatarURL, oidcSub string) (*platauth.User, error) {
+// locale is the sign-in request's preferred locale (BCP-47 primary subtag,
+// e.g. from Accept-Language); it is stored on first creation and backfilled
+// onto existing users that have no locale yet. Empty means unknown.
+func (s *AuthService) GetOrCreateUser(ctx context.Context, email, name, avatarURL, oidcSub, locale string) (*platauth.User, error) {
 	if email == "" {
 		return nil, errors.New("email is required")
 	}
 	u, err := s.store.GetUserByEmail(ctx, email)
 	if err == nil {
-		// Backfill OIDC subject if not yet stored.
+		// Backfill OIDC subject and locale if not yet stored.
+		changed := false
 		if oidcSub != "" && u.OIDCSub == "" {
 			u.OIDCSub = oidcSub
+			changed = true
+		}
+		if locale != "" && u.Locale == "" {
+			u.Locale = locale
+			changed = true
+		}
+		if changed {
 			_ = s.store.UpdateUser(ctx, u)
 		}
 		return u, nil
@@ -56,6 +67,7 @@ func (s *AuthService) GetOrCreateUser(ctx context.Context, email, name, avatarUR
 		Name:      name,
 		AvatarURL: avatarURL,
 		OIDCSub:   oidcSub,
+		Locale:    locale,
 	}
 	if err := s.store.CreateUser(ctx, u); err != nil {
 		return nil, fmt.Errorf("create user: %w", err)

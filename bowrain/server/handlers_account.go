@@ -198,7 +198,15 @@ func (s *Server) HandleRequestEmailChange(c echo.Context) error {
 	}
 
 	confirmURL := s.confirmEmailURL(c, plaintext)
-	if err := s.Mailer.SendEmailChangeVerify(ctx, newEmail, mailer.EmailChangeVerifyData{
+	// Render in the requesting user's locale (the recipient is that same
+	// user's new address); English when unset.
+	locale := ""
+	if s.AuthStore != nil {
+		if u, err := s.AuthStore.GetUser(ctx, userID); err == nil && u != nil {
+			locale = u.Locale
+		}
+	}
+	if err := s.Mailer.SendEmailChangeVerify(ctx, newEmail, locale, mailer.EmailChangeVerifyData{
 		NewEmail:   newEmail,
 		ConfirmURL: confirmURL,
 		ExpiresIn:  "24 hours",

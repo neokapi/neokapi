@@ -43,6 +43,12 @@ jobs:
       - name: Install workspace dependencies
         run: vp install
 
+      # landing/vite.config.ts imports @neokapi/kapi-react's vite plugin (i18n
+      # extraction transform), a built ./dist subpath export — build it first
+      # so the config loads (mirrors ci-frontend / kapi-desktop-frontend).
+      - name: Build kapi-react (landing vite plugin dependency)
+        run: cd packages/kapi-react && vp run build
+
       - name: Determine VITE_BASE per environment
         id: base
         run: |
@@ -63,6 +69,18 @@ jobs:
           VITE_POSTHOG_KEY: ${{ github.event_name != 'pull_request' && 'phc_9TMOqaMSUH5wE6xPTeTKjYBBJWVRdzOlUMahZAr7twD' || '' }}
           VITE_POSTHOG_HOST: https://eu.i.posthog.com
         run: vp run build
+
+      # nb variant → dist/nb/ (same artifact). Inline-mode build from the
+      # committed translations/nb.json catalog (drift-gated by the
+      # emails-landing-l10n CI job), so no kapi toolchain is needed here.
+      # English falls through for any string the seed does not yet cover.
+      - name: Build bowrain-web-landing (nb variant)
+        working-directory: bowrain/web/landing
+        env:
+          VITE_BASE: ${{ steps.base.outputs.bowrain_base }}
+          VITE_POSTHOG_KEY: ${{ github.event_name != 'pull_request' && 'phc_9TMOqaMSUH5wE6xPTeTKjYBBJWVRdzOlUMahZAr7twD' || '' }}
+          VITE_POSTHOG_HOST: https://eu.i.posthog.com
+        run: vp run build:nb
 
       - name: Upload bowrain-web artifact
         uses: actions/upload-artifact@v7

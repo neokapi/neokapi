@@ -56,10 +56,7 @@ export const CreditsWarningEmail = ({
 }: CreditsWarningEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>
-      {"Your AI credits are running low in "}
-      {workspaceName}
-    </Preview>
+    <Preview>Your AI credits are running low in {workspaceName}</Preview>
     <Body style={main}>
       <Container style={container}>
         {/* ── Header ─────────────────────────────────── */}
@@ -71,21 +68,15 @@ export const CreditsWarningEmail = ({
         {/* ── Body ───────────────────────────────────── */}
         <Section style={card}>
           <Heading as="h1" style={h1}>
-            {"Your AI credits are running low"}
+            Your AI credits are running low
           </Heading>
 
           <Text style={paragraph}>
-            {"The workspace "}
-            <strong>{workspaceName}</strong>
-            {" has used "}
+            The workspace <strong>{workspaceName}</strong> has used{" "}
             <strong>
-              {usedCredits}
-              {" of "}
-              {totalCredits}
-            </strong>
-            {" AI credits ("}
-            {usagePercent}
-            {"%)."}
+              {usedCredits} of {totalCredits}
+            </strong>{" "}
+            AI credits ({usagePercent}%).
           </Text>
 
           {/* ── Usage bar ────────────────────────────── */}
@@ -94,9 +85,8 @@ export const CreditsWarningEmail = ({
           </Section>
 
           <Text style={paragraph}>
-            {"Your credits will reset on "}
-            <strong>{resetDate}</strong>
-            {". To avoid interruption, consider upgrading your plan for a higher credit allowance."}
+            Your credits will reset on <strong>{resetDate}</strong>. To avoid interruption, consider
+            upgrading your plan for a higher credit allowance.
           </Text>
 
           <Section style={btnWrapper}>
@@ -108,7 +98,7 @@ export const CreditsWarningEmail = ({
           <Hr style={hr} />
 
           <Text style={fallback}>
-            {"Button not working? Copy and paste this link into your browser:"}
+            Button not working? Copy and paste this link into your browser:
           </Text>
           <Link href={upgradeURL} style={link}>
             {upgradeURL}
@@ -117,9 +107,9 @@ export const CreditsWarningEmail = ({
 
         {/* ── Footer ─────────────────────────────────── */}
         <Section style={footer}>
-          <Text style={footerText}>{"© Bowrain. All rights reserved."}</Text>
+          <Text style={footerText}>© Bowrain. All rights reserved.</Text>
           <Text style={footerText}>
-            {"You received this email because you are an admin of this workspace."}
+            You received this email because you are an admin of this workspace.
           </Text>
         </Section>
       </Container>

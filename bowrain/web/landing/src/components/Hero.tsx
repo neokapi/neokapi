@@ -15,6 +15,29 @@ export function Hero() {
     void videoRef.current?.play();
   };
 
+  // Hoisted inline links: keeping these as JSX-expression variables (rather
+  // than inline elements split across prettier-wrapped lines with {" "}
+  // spacers) lets kapi-react extract the surrounding sentences as single
+  // blocks with named {kapiLink}/{githubLink} placeholders.
+  const kapiLink = (
+    <a
+      href={KAPI_SITE_URL}
+      className="underline-offset-2 transition hover:text-foreground hover:underline"
+    >
+      kapi
+    </a>
+  );
+  const githubLink = (
+    <a
+      href={GITHUB_URL}
+      target="_blank"
+      rel="noopener"
+      className="underline-offset-2 transition hover:text-foreground hover:underline"
+    >
+      View on GitHub
+    </a>
+  );
+
   return (
     <section className="relative flex flex-col items-center overflow-hidden px-6 pb-20 pt-36 grain">
       {/* Atmosphere: the bow arc rising behind the headline. */}
@@ -36,7 +59,7 @@ export function Hero() {
         </div>
 
         <h1 className="animate-fade-in-up-delay-1 font-display text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl md:text-6xl">
-          On-brand, in every language,{" "}
+          On-brand, in every language,
           <span className="prism-text block">everywhere you publish.</span>
         </h1>
 
@@ -65,22 +88,7 @@ export function Hero() {
 
         {/* kapi is the open foundation, deliberately a footnote to the outcome above. */}
         <p className="mt-6 text-sm text-muted-foreground/80">
-          Open core — built on the Apache-2.0{" "}
-          <a
-            href={KAPI_SITE_URL}
-            className="underline-offset-2 transition hover:text-foreground hover:underline"
-          >
-            kapi
-          </a>{" "}
-          toolchain.{" "}
-          <a
-            href={GITHUB_URL}
-            target="_blank"
-            rel="noopener"
-            className="underline-offset-2 transition hover:text-foreground hover:underline"
-          >
-            View on GitHub
-          </a>
+          Open core — built on the Apache-2.0 {kapiLink} toolchain. {githubLink}
         </p>
       </div>
 

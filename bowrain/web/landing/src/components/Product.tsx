@@ -1,4 +1,5 @@
 import { PenTool, ClipboardCheck, Fingerprint, Database, Zap, Plug } from "lucide-react";
+import { t } from "@neokapi/kapi-react/runtime";
 import { useReveal } from "../useReveal";
 
 // Every claim here traces to a shipped code path (epic 011 claims discipline):
@@ -8,39 +9,51 @@ import { useReveal } from "../useReveal";
 const CAPABILITIES = [
   {
     icon: PenTool,
-    title: "A shared editor for every format",
-    body: "In-context visual preview for HTML, Markdown, MDX, and JSX; structured block editing for everything else — app strings, XLIFF, subtitles, office documents. Suggestions from memory, term highlights, and QA checks inline.",
-    detail: ["Visual preview · 4 formats", "Block editing · all formats", "Live presence"],
+    title: t("A shared editor for every format"),
+    body: t(
+      "In-context visual preview for HTML, Markdown, MDX, and JSX; structured block editing for everything else — app strings, XLIFF, subtitles, office documents. Suggestions from memory, term highlights, and QA checks inline.",
+    ),
+    detail: [t("Visual preview · 4 formats"), t("Block editing · all formats"), t("Live presence")],
   },
   {
     icon: ClipboardCheck,
-    title: "Review with a memory",
-    body: "Block statuses, notes, and per-block history with rollback. A workspace audit log records who changed what — and can be cryptographically verified.",
-    detail: ["Draft → reviewed → approved", "History & rollback", "Verifiable audit log"],
+    title: t("Review with a memory"),
+    body: t(
+      "Block statuses, notes, and per-block history with rollback. A workspace audit log records who changed what — and can be cryptographically verified.",
+    ),
+    detail: [t("Draft → reviewed → approved"), t("History & rollback"), t("Verifiable audit log")],
   },
   {
     icon: Fingerprint,
-    title: "Brand voice, scored",
-    body: "Profiles hold tone, style, and vocabulary rules. Drafts score 0–100 across five dimensions; trends and drift show where a surface is sliding off voice.",
-    detail: ["Five-dimension score", "Drift detection", "Rules from corrections"],
+    title: t("Brand voice, scored"),
+    body: t(
+      "Profiles hold tone, style, and vocabulary rules. Drafts score 0–100 across five dimensions; trends and drift show where a surface is sliding off voice.",
+    ),
+    detail: [t("Five-dimension score"), t("Drift detection"), t("Rules from corrections")],
   },
   {
     icon: Database,
-    title: "Terminology & translation memory",
-    body: "One termbase and one memory for the whole workspace, applied in every draft and every lookup. Import from CSV or JSON; entity-aware matching reuses past work even when names and numbers change.",
-    detail: ["Shared termbase & TM", "CSV / JSON import", "Entity-aware reuse"],
+    title: t("Terminology & translation memory"),
+    body: t(
+      "One termbase and one memory for the whole workspace, applied in every draft and every lookup. Import from CSV or JSON; entity-aware matching reuses past work even when names and numbers change.",
+    ),
+    detail: [t("Shared termbase & TM"), t("CSV / JSON import"), t("Entity-aware reuse")],
   },
   {
     icon: Zap,
-    title: "Automation that keeps pace",
-    body: "When content arrives, translation starts; reviewers get tasks; people get notified. Runs are visible with per-step logs, and the server runs the kapi loop, keeping every locale caught up.",
-    detail: ["Translate on push", "Review tasks & notifications", "Run logs"],
+    title: t("Automation that keeps pace"),
+    body: t(
+      "When content arrives, translation starts; reviewers get tasks; people get notified. Runs are visible with per-step logs, and the server runs the kapi loop, keeping every locale caught up.",
+    ),
+    detail: [t("Translate on push"), t("Review tasks & notifications"), t("Run logs")],
   },
   {
     icon: Plug,
-    title: "Connected to where content lives",
-    body: "WordPress, Figma, and HubSpot connectors sync content in and publish translations back. Files and git repositories connect through the server — or push and pull from any repo or CI with kapi.",
-    detail: ["WordPress · Figma · HubSpot", "Files & git", "kapi push / pull"],
+    title: t("Connected to where content lives"),
+    body: t(
+      "WordPress, Figma, and HubSpot connectors sync content in and publish translations back. Files and git repositories connect through the server — or push and pull from any repo or CI with kapi.",
+    ),
+    detail: [t("WordPress · Figma · HubSpot"), t("Files & git"), t("kapi push / pull")],
   },
 ];
 
@@ -69,7 +82,9 @@ export function Product() {
               <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                 <c.icon className="h-5 w-5 text-primary" />
               </div>
-              <h3 className="text-lg font-semibold">{c.title}</h3>
+              <h3 translate="no" className="text-lg font-semibold">
+                {c.title}
+              </h3>
               <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">{c.body}</p>
               <div className="mt-4 flex flex-wrap gap-1.5">
                 {c.detail.map((d) => (

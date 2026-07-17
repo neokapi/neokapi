@@ -1,10 +1,25 @@
 import { useState, useEffect } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 
+// label/tone are user-visible and translatable; id and formality are
+// programmatic keys (rule lookup) and stay literal. The rule patterns,
+// suggestions, and sample texts below analyze *English* input by design,
+// so they are deliberately not marked for translation.
 const PROFILES = [
-  { id: "b2b", label: "Professional B2B", tone: "authoritative, precise", formality: "formal" },
-  { id: "dtc", label: "Friendly DTC", tone: "warm, conversational", formality: "casual" },
-  { id: "docs", label: "Technical Docs", tone: "clear, concise", formality: "neutral" },
-  { id: "support", label: "Customer Support", tone: "empathetic, helpful", formality: "warm" },
+  {
+    id: "b2b",
+    label: t("Professional B2B"),
+    tone: t("authoritative, precise"),
+    formality: "formal",
+  },
+  { id: "dtc", label: t("Friendly DTC"), tone: t("warm, conversational"), formality: "casual" },
+  { id: "docs", label: t("Technical Docs"), tone: t("clear, concise"), formality: "neutral" },
+  {
+    id: "support",
+    label: t("Customer Support"),
+    tone: t("empathetic, helpful"),
+    formality: "warm",
+  },
 ];
 
 interface Violation {
@@ -211,6 +226,12 @@ export function BrandChallenge() {
         ? "text-warning"
         : "text-destructive";
 
+  // Hoisted so kapi-react extracts "Tone: {activeProfileTone}" as one block
+  // with a named placeholder instead of an opaque expression.
+  const activeProfile = PROFILES.find((p) => p.id === profile);
+  const activeProfileLabel = activeProfile?.label;
+  const activeProfileTone = activeProfile?.tone;
+
   return (
     <section id="brand-challenge" className="mx-auto max-w-6xl px-6 py-24">
       <div className="mx-auto max-w-3xl text-center">
@@ -244,6 +265,7 @@ export function BrandChallenge() {
                       ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
+                  translate="no"
                 >
                   {p.label}
                 </button>
@@ -333,12 +355,8 @@ export function BrandChallenge() {
             <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
               Active Profile
             </div>
-            <div className="text-sm font-medium">
-              {PROFILES.find((p) => p.id === profile)?.label}
-            </div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              Tone: {PROFILES.find((p) => p.id === profile)?.tone}
-            </div>
+            <div className="text-sm font-medium">{activeProfileLabel}</div>
+            <div className="mt-1 text-xs text-muted-foreground">Tone: {activeProfileTone}</div>
           </div>
         </div>
       </div>
