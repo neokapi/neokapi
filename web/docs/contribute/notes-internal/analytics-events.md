@@ -62,6 +62,8 @@ the PostHog **workspace** group (`$groups: {workspace: <id>}`).
 | `review_approved` | a review decision (single or batch) persists with `approve` | `batch_size`, `locale` (single decisions), `workspace_id` (when known) |
 | `review_rejected` | a review decision (single or batch) persists with `reject` | `batch_size`, `locale` (single decisions), `workspace_id` (when known) |
 | `connector_published` | `service.ConnectorService.Publish` resolves | `workspace_id`, `project_id`, `connector_type`, `outcome` (`completed` / `failed`), `block_count_bucket` |
+| `convergence_run_started` | a server convergence run starts (`convergenceOrchestrator.StartRun`) | `workspace_id` (when known), `project_id`, `trigger` (`cli` / `push` / `manual`) |
+| `convergence_run_completed` | a server convergence run reaches a terminal state (`convergenceOrchestrator.driveWith`) | `workspace_id` (when known), `project_id`, `outcome` (`converged` / `parked` / `failed` / `canceled`), `stall_reason` (`needs_credits` / `needs_ai_key` / `rate_limited` / `no_progress` / `checks_failing`, empty on converge), `passes`, `via_tm` / `via_ai` (count buckets), `duration_bucket` |
 
 ## MCP surface
 

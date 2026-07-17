@@ -56,6 +56,48 @@ const (
 	RunCanceled  = "canceled"
 )
 
+// Stage names the loop phase an event was emitted from — the venue-neutral
+// vocabulary a surface renders as "where in the loop the run is" (strategy
+// 2026-07-dogfood doc 06, theme D). The Event.Stage field is optional: a
+// consumer that predates it ignores an empty Stage, and a venue that does not
+// distinguish phases may leave it unset. sync/derive are loop-owned;
+// recycle/ai_translate/checks/materialize are what a venue's Produce and finish
+// steps report.
+const (
+	StageSync        = "sync"         // pre-pass source sync / drift re-extract
+	StageDerive      = "derive"       // coverage + bound-check derivation
+	StageRecycle     = "recycle"      // TM-leverage stage of production
+	StageAITranslate = "ai_translate" // AI/MT drafting stage of production
+	StageChecks      = "checks"       // post-production QA checks
+	StageMaterialize = "materialize"  // writing shippable output
+)
+
+// StallReason is the machine-readable cause a run did not converge — the label
+// that turns a silent stuck spinner into an actionable state (strategy
+// 2026-07-dogfood doc 06, theme C). It is set on the run row and carried on the
+// terminal done event so the UI and analytics can distinguish "out of credits"
+// from "pending human review".
+type StallReason = string
+
+const (
+	// StallNone is the zero value: the run converged, or has no blocking
+	// reason recorded.
+	StallNone StallReason = ""
+	// StallNeedsCredits: the platform credit pre-check refused to produce (a
+	// zero-credit workspace). Work so far is saved; add credits and resume.
+	StallNeedsCredits StallReason = "needs_credits"
+	// StallNeedsAIKey: no usable AI provider/key (provider or auth error).
+	StallNeedsAIKey StallReason = "needs_ai_key"
+	// StallRateLimited: the provider returned repeated 429s.
+	StallRateLimited StallReason = "rate_limited"
+	// StallNoProgress: a full pass produced nothing new and the remainder
+	// cannot advance unaided — ordinary parking (genuine pending work).
+	StallNoProgress StallReason = "no_progress"
+	// StallChecksFailing: coverage is complete but bound checks demote units
+	// below the gate, so the locale parks on failing terminology/length checks.
+	StallChecksFailing StallReason = "checks_failing"
+)
+
 // Event is one progress event of a convergence run — the single protocol every
 // venue and surface speaks: the CLI's live renderer, `kapi up --json` (NDJSON,
 // one event per line), the desktop's run view, and a Bowrain server run's SSE
@@ -68,6 +110,13 @@ const (
 // constants; unused fields stay zero and are omitted from JSON.
 type Event struct {
 	Type EventType `json:"type"`
+
+	// Stage is the loop phase this event was emitted from
+	// (sync|derive|recycle|ai_translate|checks|materialize). Optional and
+	// back-compatible: a consumer may ignore it, and it is omitted from JSON
+	// when unset. It gives a surface "where in the loop the run is" without
+	// inferring it from the event type (theme D).
+	Stage string `json:"stage,omitempty"`
 
 	// Pass-scoped fields (pass_start, pass_done; Pass also stamps every
 	// locale-scoped event so consumers need no ambient state).
@@ -98,6 +147,12 @@ type Event struct {
 	// leave it empty and a consumer should take authoritative per-locale state
 	// from the run's final standing, not from a streamed locale_done.
 	State string `json:"state,omitempty"`
+
+	// StallReason (done) is the machine-readable cause a run did not converge:
+	// needs_credits | needs_ai_key | rate_limited | no_progress |
+	// checks_failing. Empty on a converged run (or when no reason is recorded),
+	// so an actionable stall is distinguishable from a clean finish (theme C).
+	StallReason StallReason `json:"stallReason,omitempty"`
 
 	// Materialized file count (materialized).
 	Files int `json:"files,omitempty"`

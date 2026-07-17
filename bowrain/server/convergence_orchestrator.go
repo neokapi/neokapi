@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"log/slog"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/analytics"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/event"
@@ -200,6 +201,7 @@ func (o *convergenceOrchestrator) StartRun(ctx context.Context, projectID, trigg
 	o.cancels[run.ID] = cancel
 	o.mu.Unlock()
 
+	o.trackRunStarted(ctx, run)
 	go o.drive(runCtx, run, locales)
 	return run, true, nil
 }
@@ -256,6 +258,18 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 	standing := convergence.NewStanding()
 	emit := convergence.NewEmitter(func(ev convergence.Event) {
 		standing.Observe(ev)
+		// Track the run's live loop position (theme D): the stage the event was
+		// emitted from, the locale being produced, and a heartbeat. last_activity
+		// advances on every event so a frozen value while jobs are still awaited
+		// reads as stalled, not merely slow.
+		if ev.Stage != "" {
+			run.CurrentStage = ev.Stage
+		}
+		if ev.Locale != "" {
+			run.CurrentLocale = ev.Locale
+		}
+		now := time.Now().UTC()
+		run.LastActivity = &now
 		payload, _ := json.Marshal(ev)
 		seq, err := store.AppendEvent(context.WithoutCancel(ctx), run.ID, payload)
 		if err != nil {
@@ -270,6 +284,7 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 		o.hub.broadcast(run.ID, convergenceFrame{seq: seq, data: payload})
 		// Persist the run-row rollup at pass boundaries (cheap, keeps ListRuns
 		// and the active-run guard current without a write per unit_progress).
+		// The loop-position columns ride the same boundary write.
 		if ev.Type == convergence.EventPassDone || ev.Type == convergence.EventLocaleDone {
 			run.Passes = standing.Passes()
 			run.FailingChecks = standing.FailingChecks()
@@ -293,28 +308,50 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 	// The error field carries the cause the CLI prints for a failed/canceled
 	// run (cancellation surfaces as a loop error too, so it is checked first and
 	// gets a clean message rather than "context canceled").
+	//
+	// A typed stall (e.g. a credit refusal) is NOT a hard failure: the loop
+	// returns it as an error because Produce could not advance, but the correct
+	// outcome is a PARKED run with a machine-readable stall_reason and a human
+	// message — work so far is saved, and the UI/analytics can offer the next
+	// action (buy credits / add a key). So the stall sentinel is matched before
+	// the generic failed branch (theme C).
+	run.StallReason = convergence.StallNone
+	var stall *stallError
 	switch {
 	case ctx.Err() != nil:
 		run.State = bstore.ConvergenceRunCanceled
 		run.Error = "canceled"
+	case loopErr != nil && errors.As(loopErr, &stall):
+		run.State = bstore.ConvergenceRunParked
+		run.StallReason = stall.reason
+		run.Error = stall.message
+		slog.Info("convergence: run parked on stall", "run", run.ID, "stall_reason", stall.reason)
 	case loopErr != nil:
 		run.State = bstore.ConvergenceRunFailed
 		run.Error = loopErr.Error()
 		slog.Warn("convergence: run failed", "run", run.ID, "error", loopErr)
 	case len(res.Final.Pending) > 0:
 		run.State = bstore.ConvergenceRunParked
+		run.StallReason = parkedStallReason(res.Final)
 	default:
 		run.State = bstore.ConvergenceRunConverged
 	}
 
+	// A terminal run has stopped moving; freeze the loop position so the row does
+	// not read as "producing ai_translate" after it finished.
+	run.CurrentStage = ""
+	run.CurrentLocale = ""
+
 	// Emit the terminal done event (venue policy, after the loop) so every
 	// subscriber sees the same closing frame the CLI venue emits. State carries
 	// the REAL outcome — converged | parked | canceled | failed — so a caller
-	// never mistakes a failed/canceled run for parked work and exits 0 (F2).
-	// The store's state strings are exactly the core/convergence.Run* wire
-	// values. Emit BEFORE the final row write so the done event settles the
-	// per-locale standing (parked locales) into the snapshot the run records.
-	emit.Emit(convergence.Event{Type: convergence.EventDone, State: run.State})
+	// never mistakes a failed/canceled run for parked work and exits 0 (F2); the
+	// stall_reason rides the same frame so the UI can label WHY a parked run
+	// stopped without a second round-trip. The store's state strings are exactly
+	// the core/convergence.Run* wire values. Emit BEFORE the final row write so
+	// the done event settles the per-locale standing (parked locales) into the
+	// snapshot the run records.
+	emit.Emit(convergence.Event{Type: convergence.EventDone, State: run.State, StallReason: run.StallReason})
 
 	run.Standing = standing.Locales()
 	_ = store.UpdateRun(context.WithoutCancel(ctx), run)
@@ -341,12 +378,15 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 			ProjectID: run.ProjectID,
 			Timestamp: time.Now().UTC(),
 			Data: map[string]string{
-				"run_id": run.ID,
-				"state":  run.State,
-				"passes": strconv.Itoa(run.Passes),
+				"run_id":       run.ID,
+				"state":        run.State,
+				"passes":       strconv.Itoa(run.Passes),
+				"stall_reason": run.StallReason,
 			},
 		})
 	}
+
+	o.trackRunCompleted(context.WithoutCancel(ctx), run, standing)
 }
 
 // deriveFunc builds the server venue's Derive: coverage from the block store,
@@ -483,12 +523,21 @@ func (o *convergenceOrchestrator) produceFunc(projectID string) func(context.Con
 			return 0, 0, 0, nil
 		}
 		pushID := id.New()
-		jobIDs := s.createTranslationJobs(ctx, proj, itemNames, []string{locale}, pushID, o.workspaceSlug(ctx, proj), "")
+		// A credit refusal returns errStallNeedsCredits (not a silent empty
+		// list): propagate it so driveWith labels the run's stall_reason
+		// (needs_credits) instead of parking with no reason (theme C). Work so
+		// far is untouched — the refusal spawns nothing, it discards nothing.
+		jobIDs, err := s.createTranslationJobs(ctx, proj, itemNames, []string{locale}, pushID, o.workspaceSlug(ctx, proj), "")
+		if err != nil {
+			return 0, 0, 0, err
+		}
 		if len(jobIDs) == 0 {
 			return 0, 0, 0, nil
 		}
 		// Job completion is the "this pass is done producing" signal; the
-		// translated-BLOCK count is the reported progress.
+		// translated-BLOCK count is the reported progress. Each poll refreshes
+		// the run's last_activity from the newest job updated_at so a "slow but
+		// alive" run is distinguishable from a stalled one (theme D).
 		translated := 0
 		for {
 			if err := ctx.Err(); err != nil {
@@ -506,8 +555,8 @@ func (o *convergenceOrchestrator) produceFunc(projectID string) func(context.Con
 			}
 			translated = o.localeTranslatedBlocks(ctx, proj, locale)
 			emit.Emit(convergence.Event{
-				Type: convergence.EventUnitProgress, Pass: pass, Locale: locale,
-				Done: translated, ViaAI: translated,
+				Type: convergence.EventUnitProgress, Stage: convergence.StageAITranslate,
+				Pass: pass, Locale: locale, Done: translated, ViaAI: translated,
 			})
 			if inProgress == 0 {
 				// viaTM is unknown server-side; attribute produced units to AI.
@@ -573,3 +622,96 @@ func (o *convergenceOrchestrator) createCompletionReviewTasks(ctx context.Contex
 	o.server.createReviewTasks(ctx, event.AutomationAction{Config: map[string]string{"mode": "review"}}, ev, "")
 }
 
+// stallError is a Produce failure that is really a labeled, resumable stall
+// (out of credits, no AI key, rate-limited) rather than a hard error. The loop
+// surfaces it as an error because production could not advance; driveWith
+// unwraps it to a PARKED run carrying the machine-readable reason and a human
+// message, keeping the work so far (strategy 2026-07-dogfood doc 06, theme C).
+type stallError struct {
+	reason  convergence.StallReason
+	message string
+}
+
+func (e *stallError) Error() string { return e.message }
+
+// errStallNeedsCredits is the typed refusal a zero-credit platform-key
+// production returns instead of a silent empty job list. Its message is the
+// same two-ways-forward copy the enqueue handler surfaces.
+var errStallNeedsCredits = &stallError{
+	reason:  convergence.StallNeedsCredits,
+	message: "out of platform credits — buy a credit pack, wait for the weekly reset, or configure your own AI provider key",
+}
+
+// parkedStallReason labels an ordinary parked outcome (no typed stall error):
+// checks_failing when the bound checks demoted units below the gate, otherwise
+// no_progress (genuine pending work the flow cannot advance unaided). This is
+// the "real pending review" case, distinct from an out-of-credits block.
+func parkedStallReason(final convergence.PassState) convergence.StallReason {
+	if final.FailingChecks > 0 {
+		return convergence.StallChecksFailing
+	}
+	return convergence.StallNoProgress
+}
+
+// trackRunStarted emits the convergence_run_started analytics event (epic 018
+// spine, theme D). Distinct-id is the workspace (falling back to the project),
+// matching the service layer's system-event convention.
+func (o *convergenceOrchestrator) trackRunStarted(ctx context.Context, run *bstore.ConvergenceRun) {
+	if o.server.PostHogClient == nil {
+		return
+	}
+	wsID := o.projectWorkspaceID(ctx, run.ProjectID)
+	props := analytics.Props(wsID, run.ProjectID)
+	props["trigger"] = run.Trigger
+	o.server.trackEvent(convergenceDistinctID(wsID, run.ProjectID), analytics.EventConvergenceRunStarted, props)
+}
+
+// trackRunCompleted emits the convergence_run_completed analytics event at a
+// terminal state, carrying the outcome, the machine-readable stall_reason, and
+// coarse TM/AI attribution + duration so the fleet-wide "where do runs stall"
+// question is answerable (theme D / D3). Never carries content.
+func (o *convergenceOrchestrator) trackRunCompleted(ctx context.Context, run *bstore.ConvergenceRun, standing *convergence.Standing) {
+	if o.server.PostHogClient == nil {
+		return
+	}
+	viaTM, viaAI := 0, 0
+	for _, ls := range standing.Locales() {
+		viaTM += ls.ViaTM
+		viaAI += ls.ViaAI
+	}
+	duration := time.Duration(0)
+	if run.FinishedAt != nil && !run.CreatedAt.IsZero() {
+		duration = run.FinishedAt.Sub(run.CreatedAt)
+	}
+	wsID := o.projectWorkspaceID(ctx, run.ProjectID)
+	props := analytics.Props(wsID, run.ProjectID)
+	props["outcome"] = run.State
+	props["stall_reason"] = run.StallReason
+	props["passes"] = run.Passes
+	props["via_tm"] = analytics.CountBucket(viaTM)
+	props["via_ai"] = analytics.CountBucket(viaAI)
+	props["duration_bucket"] = analytics.DurationBucket(duration)
+	o.server.trackEvent(convergenceDistinctID(wsID, run.ProjectID), analytics.EventConvergenceRunCompleted, props)
+}
+
+// projectWorkspaceID best-effort resolves a project's workspace for analytics
+// scope ("" when unknown, which the Props helper omits).
+func (o *convergenceOrchestrator) projectWorkspaceID(ctx context.Context, projectID string) string {
+	if o.server.ContentStore == nil {
+		return ""
+	}
+	if proj, err := o.server.ContentStore.GetProject(ctx, projectID); err == nil && proj != nil {
+		return proj.WorkspaceID
+	}
+	return ""
+}
+
+// convergenceDistinctID picks the PostHog distinct-id for a run's system events
+// (no user in scope): the workspace, falling back to the project — the same
+// convention service-layer system events use.
+func convergenceDistinctID(workspaceID, projectID string) string {
+	if workspaceID != "" {
+		return workspaceID
+	}
+	return projectID
+}
