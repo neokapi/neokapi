@@ -1,11 +1,14 @@
 package commands
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/mattn/go-isatty"
@@ -169,8 +172,27 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 		}
 	}
 
-	// Phase 2: start (or join) the server convergence run.
-	run, err := client.StartConvergenceRun(ctx, apiclient.StartConvergenceRunRequest{Trigger: "cli"})
+	// Phase 2: pre-flight — show the estimate (source readiness FIRST, then the
+	// credit/scope estimate) and gate a large run behind confirmation. --yes and
+	// --json skip the prompt; a non-TTY without --yes proceeds (CI must not hang).
+	proceed, err := confirmServerRun(cmd, client, jsonOut)
+	if err != nil {
+		return err
+	}
+	if !proceed {
+		if !app.Quiet && !jsonOut {
+			fmt.Fprintln(stderr, "Aborted — no run started. Settle your source or add credits, then re-run kapi up.")
+		}
+		return nil
+	}
+
+	// Phase 2b: start (or join) the server convergence run. Scope defaults to
+	// "all" (the CLI gates via the confirm above, not a subset); Confirmed records
+	// that the estimate was shown and accepted.
+	run, err := client.StartConvergenceRun(ctx, apiclient.StartConvergenceRunRequest{
+		Trigger:   "cli",
+		Confirmed: true,
+	})
 	if err != nil {
 		return fmt.Errorf("start server run: %w", err)
 	}
@@ -285,4 +307,90 @@ func init() {
 func flagBool(cmd *cobra.Command, name string) bool {
 	v, _ := cmd.Flags().GetBool(name)
 	return v
+}
+
+// confirmAITokenThreshold is the AI-work size above which `kapi up` asks for
+// confirmation even when the balance covers it — so a large paid run is never
+// started blind. Below it, a covered run proceeds without a prompt.
+const confirmAITokenThreshold = 50_000
+
+// confirmServerRun fetches the provider-free pre-flight estimate and shows it
+// before a server run: source readiness FIRST ("N blocks held on source: settle
+// your source first"), then the credit/scope estimate. It returns whether the
+// run should proceed. A run is gated behind an interactive y/N confirmation when
+// the AI work exceeds the workspace balance OR a size threshold; --yes, --quiet,
+// and --json skip the prompt (assume yes), and a non-interactive terminal
+// without --yes proceeds rather than hanging CI. A best-effort estimate error
+// never blocks the run (the run itself is the source of truth).
+func confirmServerRun(cmd *cobra.Command, client *apiclient.BowrainClient, jsonOut bool) (bool, error) {
+	stderr := cmd.ErrOrStderr()
+	est, err := client.EstimateConvergence(cmd.Context())
+	if err != nil {
+		// Estimate is advisory: an older server or a transient error must not stop
+		// the run. Proceed silently (the run still gates source-first server-side).
+		return true, nil
+	}
+
+	if !jsonOut && !app.Quiet {
+		printEstimate(stderr, est)
+	}
+
+	if !runNeedsConfirm(est) || app.AssumeYes || jsonOut {
+		return true, nil
+	}
+	// Non-interactive without --yes: proceed rather than hang (CI safety), but say
+	// so, so the surprise-spend guard is at least visible in logs.
+	if !isatty.IsTerminal(os.Stdin.Fd()) {
+		fmt.Fprintln(stderr, "Proceeding without confirmation (non-interactive; pass --yes to silence this, or run interactively to confirm).")
+		return true, nil
+	}
+	fmt.Fprintf(stderr, "\nStart this run? [y/N] ")
+	reader := bufio.NewReader(cmd.InOrStdin())
+	line, _ := reader.ReadString('\n')
+	ans := strings.ToLower(strings.TrimSpace(line))
+	return ans == "y" || ans == "yes", nil
+}
+
+// runNeedsConfirm reports whether the estimate warrants an explicit y/N
+// confirmation: the run does paid AI work (ViaAI > 0) AND either the workspace
+// balance does not cover it OR the AI work is large (over the token threshold).
+// A run with no AI work (all recycled, or all source held) never prompts. Pure
+// so the gating decision is unit-tested without a live server.
+func runNeedsConfirm(est *apiclient.ConvergenceEstimate) bool {
+	if est == nil || est.Totals.ViaAI == 0 {
+		return false
+	}
+	exceedsBalance := est.Credits != nil && !est.Credits.CoversAllAI
+	large := est.Totals.TokenEstimate >= confirmAITokenThreshold
+	return exceedsBalance || large
+}
+
+// printEstimate renders the pre-flight estimate to w: source readiness first,
+// then the per-locale/credit estimate for the ready source.
+func printEstimate(w io.Writer, est *apiclient.ConvergenceEstimate) {
+	src := est.Source
+	fmt.Fprintln(w, "\nPre-flight estimate:")
+	// Source readiness FIRST (epic 019): held source is the honest, cheap message.
+	if src.Held > 0 {
+		fmt.Fprintf(w, "  Source: %d of %d blocks ready; %d held on source — settle your source first (terminology, brand, source QA), or set defaults.source_gate: none to translate anyway.\n",
+			src.Ready, src.Total, src.Held)
+	} else if src.Total > 0 {
+		fmt.Fprintf(w, "  Source: all %d blocks ready.\n", src.Total)
+	}
+
+	if est.Totals.Pending == 0 {
+		fmt.Fprintln(w, "  Translate: nothing pending over the ready source.")
+		return
+	}
+	fmt.Fprintf(w, "  Translate (ready source): %d pending · TM %d (free) · AI %d · ~%d tokens.\n",
+		est.Totals.Pending, est.Totals.ViaTM, est.Totals.ViaAI, est.Totals.TokenEstimate)
+	if c := est.Credits; c != nil {
+		fmt.Fprintf(w, "  Credits: ~%d credits (~$%.2f) for the AI work; balance %d",
+			c.EstimatedCredits, c.EstimatedUSD, c.Balance)
+		if c.CoversAllAI {
+			fmt.Fprintln(w, " — covers all AI work.")
+		} else {
+			fmt.Fprintf(w, " — covers ~%d of %d AI units. Add credits to translate the rest.\n", c.CoversAIUnits, est.Totals.ViaAI)
+		}
+	}
 }

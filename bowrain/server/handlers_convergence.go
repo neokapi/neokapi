@@ -39,23 +39,28 @@ type convergenceRunView struct {
 	CurrentStage  string `json:"current_stage,omitempty"`
 	CurrentLocale string `json:"current_locale,omitempty"`
 	LastActivity  string `json:"last_activity,omitempty"`
-	CreatedAt     string `json:"created_at,omitempty"`
-	FinishedAt    string `json:"finished_at,omitempty"`
+	// BlockedOnSource is how many source blocks the source-first settle phase held
+	// below the gate (epic 019): the UI renders it as "N blocks need settling /
+	// source review" on a source_not_ready hold. Omitted when zero.
+	BlockedOnSource int    `json:"blocked_on_source,omitempty"`
+	CreatedAt       string `json:"created_at,omitempty"`
+	FinishedAt      string `json:"finished_at,omitempty"`
 }
 
 func toConvergenceRunView(r *bstore.ConvergenceRun) convergenceRunView {
 	v := convergenceRunView{
-		ID:            r.ID,
-		ProjectID:     r.ProjectID,
-		Trigger:       r.Trigger,
-		State:         r.State,
-		Passes:        r.Passes,
-		Locales:       r.Standing,
-		FailingChecks: r.FailingChecks,
-		Error:         r.Error,
-		StallReason:   r.StallReason,
-		CurrentStage:  r.CurrentStage,
-		CurrentLocale: r.CurrentLocale,
+		ID:              r.ID,
+		ProjectID:       r.ProjectID,
+		Trigger:         r.Trigger,
+		State:           r.State,
+		Passes:          r.Passes,
+		Locales:         r.Standing,
+		FailingChecks:   r.FailingChecks,
+		Error:           r.Error,
+		StallReason:     r.StallReason,
+		CurrentStage:    r.CurrentStage,
+		CurrentLocale:   r.CurrentLocale,
+		BlockedOnSource: r.BlockedOnSource,
 	}
 	if !r.CreatedAt.IsZero() {
 		v.CreatedAt = r.CreatedAt.UTC().Format(time.RFC3339)
@@ -69,10 +74,41 @@ func toConvergenceRunView(r *bstore.ConvergenceRun) convergenceRunView {
 	return v
 }
 
-// startConvergenceRunRequest is the POST body to start a run.
+// Convergence run scope (roadmap epic 019, theme B2): the explicit translation
+// scope the pre-flight consent picks, so a large run is never started blind.
+// The source gate is orthogonal to scope — source-held blocks never translate
+// regardless — so "all" and "ready-only" both honor the gate; the difference is
+// only whether the caller consented to the full estimate.
+const (
+	// ConvergenceScopeAll translates every pending locale over the ready source —
+	// the full estimate the consent dialog priced. The default when no scope is
+	// given (preserving the pre-019 on-push/CLI behavior).
+	ConvergenceScopeAll = "all"
+	// ConvergenceScopeReadyOnly is the same gated fan-out as "all"; it is the
+	// explicit "translate only the ready source" consent label. Held source never
+	// translates under either scope, so this is a semantic marker for the UI and
+	// analytics, not a second code path.
+	ConvergenceScopeReadyOnly = "ready-only"
+	// ConvergenceScopeNone is transport-only: no translation run is started. The
+	// consent dialog's [Transport only] choice maps here so "push, don't
+	// translate" is a first-class, side-effect-free outcome (204, no run).
+	ConvergenceScopeNone = "none"
+)
+
+// startConvergenceRunRequest is the POST body to start a run. Scope and
+// Confirmed are the epic-019 pre-flight fields: a UI/CLI that showed the
+// estimate sets them so a large run isn't started blind. An omitted Scope
+// defaults to "all" (the pre-019 behavior), so existing callers are unaffected.
 type startConvergenceRunRequest struct {
 	Trigger string   `json:"trigger"`
 	Locales []string `json:"locales,omitempty"`
+	// Scope is the translation scope the consent picked: all | ready-only | none.
+	// Empty defaults to "all". "none" is transport-only — no run is started.
+	Scope string `json:"scope,omitempty"`
+	// Confirmed records that the caller explicitly confirmed the estimate — carried
+	// for analytics/audit. The client owns the gate; the server never starts a run
+	// for Scope "none" but does not otherwise refuse an unconfirmed run.
+	Confirmed bool `json:"confirmed,omitempty"`
 }
 
 // HandleStartConvergenceRun starts (or joins) a project convergence run.
@@ -87,6 +123,12 @@ func (s *Server) HandleStartConvergenceRun(c echo.Context) error {
 	var req startConvergenceRunRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	// Transport-only scope: the caller consented to push without translating, so
+	// no run is started. Answer 204 so the client distinguishes it from a started
+	// (201) or joined (200) run.
+	if req.Scope == ConvergenceScopeNone {
+		return c.NoContent(http.StatusNoContent)
 	}
 	trigger := req.Trigger
 	if trigger == "" {

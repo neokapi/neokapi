@@ -2,6 +2,8 @@ import type { ApiAdapter } from "@neokapi/ui";
 import { rollupEntry } from "@neokapi/ui";
 import type {
   ConvergenceRun,
+  ConvergenceEstimate,
+  ConvergenceRunScope,
   User,
   Workspace,
   Membership,
@@ -1369,11 +1371,19 @@ export class WailsApiAdapter implements ApiAdapter {
   async startConvergenceRun(
     _ws: string,
     _projectId: string,
-    _opts?: { trigger?: string; locales?: string[] },
-  ): Promise<ConvergenceRun> {
+    _opts?: {
+      trigger?: string;
+      locales?: string[];
+      scope?: ConvergenceRunScope;
+      confirmed?: boolean;
+    },
+  ): Promise<ConvergenceRun | null> {
     throw new Error("Convergence runs are not yet surfaced in the desktop app");
   }
   async cancelConvergenceRun(_ws: string, _projectId: string, _runId: string): Promise<void> {
+    throw new Error("Convergence runs are not yet surfaced in the desktop app");
+  }
+  async estimateConvergence(_ws: string, _projectId: string): Promise<ConvergenceEstimate> {
     throw new Error("Convergence runs are not yet surfaced in the desktop app");
   }
 

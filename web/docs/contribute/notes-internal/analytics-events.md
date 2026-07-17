@@ -139,6 +139,8 @@ workspace group.
 | `brand_voice_saved` | a brand-voice profile create/update persists | `mode` (`created` / `updated`) |
 | `glossary_saved` | a concept term status change persists in the Brand · Concepts edit dialog | `status`, `locale` |
 | `locale_demand_connect_clicked` | the "Connect PostHog" / "Fix connection" affordance is clicked on the locale-demand page (AD-018 demand path) | `reconnect` |
+| `convergence_estimate_viewed` | the run-now consent dialog opens and the source-readiness-first pre-flight estimate is shown, before any run starts (epic 019) | `source_held` (bool — any source blocks held on the gate), `covers_all_ai` (bool — balance covers the AI remainder) |
+| `convergence_run_started` | a convergence run is started from the run-now consent dialog after the user picks a scope and confirms (epic 019) — the web/client complement of the server's same-named event, distinguished by `surface` | `scope` (`all` / `ready-only` / `none`), `source_held` (bool) |
 
 ## Client surfaces
 

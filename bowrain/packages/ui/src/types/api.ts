@@ -1054,9 +1054,77 @@ export interface ConvergenceRun {
   passes: number;
   locales?: ConvergenceLocaleStanding[];
   failing_checks?: number;
+  /** Terminal cause of a failed/canceled run. */
+  error?: string;
+  /**
+   * Machine-readable cause a run did not converge — needs_credits |
+   * source_not_ready | needs_ai_key | rate_limited | no_progress |
+   * checks_failing (epic 019). Empty on a converged run; drives the labeled
+   * stall/hold banner and next action.
+   */
+  stall_reason?: string;
+  /** Live loop position: settle-source | translate | recycle | … (epic 019 theme D). */
+  current_stage?: string;
+  current_locale?: string;
+  /** Last observable progress — a frozen value while awaiting jobs reads as "waiting…". */
+  last_activity?: string;
+  /** How many source blocks the settle phase held below the gate ("settle first"). */
+  blocked_on_source?: number;
   created_at?: string;
   finished_at?: string;
 }
+
+/** The source-first readiness split of a convergence estimate. */
+export interface ConvergenceSourceReadiness {
+  /** Resolved gate level: none | authored | checked | approved. */
+  gate: string;
+  total: number;
+  ready: number;
+  held: number;
+}
+
+/** One locale's estimated work over the ready source. */
+export interface ConvergenceEstimateLocale {
+  locale: string;
+  pending: number;
+  via_tm: number;
+  via_ai: number;
+  token_estimate: number;
+}
+
+/** Cross-locale rollup of the estimate. */
+export interface ConvergenceEstimateTotals {
+  pending: number;
+  via_tm: number;
+  via_ai: number;
+  token_estimate: number;
+}
+
+/** The credit/$ side of the estimate: AI cost, workspace balance, coverage. */
+export interface ConvergenceEstimateCredits {
+  estimated_credits: number;
+  estimated_usd: number;
+  balance: number;
+  covers_all_ai: boolean;
+  covers_ai_units: number;
+}
+
+/**
+ * The provider-free pre-flight estimate for a project's next convergence run
+ * (epic 019, theme B): source readiness first, then per-locale TM/AI work for
+ * the ready source, then the workspace credit balance. Matches the server's
+ * convergenceEstimateView.
+ */
+export interface ConvergenceEstimate {
+  source: ConvergenceSourceReadiness;
+  locales?: ConvergenceEstimateLocale[];
+  totals: ConvergenceEstimateTotals;
+  credits?: ConvergenceEstimateCredits;
+  note?: string;
+}
+
+/** The scope a run-now consent picks: all | ready-only | none (transport-only). */
+export type ConvergenceRunScope = "all" | "ready-only" | "none";
 
 // The convergence event protocol is the framework's (core/convergence.Event),
 // shared with kapi-desktop through @neokapi/status-views — which also owns the

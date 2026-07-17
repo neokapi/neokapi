@@ -40,6 +40,17 @@ export const AnalyticsEvents = {
   glossarySaved: "glossary_saved",
   /** The locale-demand "Connect PostHog" affordance was clicked ({reconnect}). */
   localeDemandConnectClicked: "locale_demand_connect_clicked",
+  /**
+   * The run-now consent dialog opened and the pre-flight estimate was shown
+   * ({source_held?, covers_all_ai?}) — the source-readiness-first gate (epic
+   * 019). Fired before any run is started.
+   */
+  convergenceEstimateViewed: "convergence_estimate_viewed",
+  /**
+   * A convergence run was started from the consent dialog ({scope, source_held?})
+   * — the user chose a scope (all | ready-only | none) and confirmed (epic 019).
+   */
+  convergenceRunStarted: "convergence_run_started",
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvents)[keyof typeof AnalyticsEvents];
