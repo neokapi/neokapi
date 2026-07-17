@@ -226,6 +226,31 @@ func TestDisconnectResetsState(t *testing.T) {
 	assert.False(t, app.isConnected())
 }
 
+// Disconnect must emit connection-state-changed so the desktop launch gate
+// observes a sign-out / rejected session and demotes to the connect screen
+// (rather than sitting on a stale "connected" snapshot).
+func TestDisconnectEmitsStateChange(t *testing.T) {
+	app := newTestApp(t)
+	app.mu.Lock()
+	app.connState = StateConnected
+	app.serverURL = "http://localhost:8080"
+	app.mu.Unlock()
+
+	var events []ConnectionInfo
+	app.SetEventSink(func(name string, data any) {
+		if name == "connection-state-changed" {
+			if ci, ok := data.(ConnectionInfo); ok {
+				events = append(events, ci)
+			}
+		}
+	})
+
+	app.Disconnect()
+
+	require.Len(t, events, 1)
+	assert.Equal(t, StateDisconnected, events[0].State)
+}
+
 func TestLogoutRemovesAuthFile(t *testing.T) {
 	keyring.MockInit()
 	tmpDir := t.TempDir()
