@@ -83,6 +83,9 @@ interface JudgeValidation {
   items: number;
   agreement: number;
   kappa: number;
+  /** Locales the human labels covered — a judge validated on en-GB and nb is
+   *  being trusted on de and fr, and the page says so. */
+  targets?: string[];
 }
 interface History {
   runs: Run[];
@@ -603,7 +606,10 @@ function ExperimentSection({ e }: { e: Experiment }): ReactElement {
                 )}{" "}
                 <span style={{ color: "var(--ifm-color-emphasis-600)" }}>
                   (judge {j.provider}:{j.model}, agreement kappa {v!.kappa.toFixed(2)} over {v!.items}{" "}
-                  verdicts)
+                  verdicts{v!.targets?.length ? `, human-validated on ${v!.targets.join(", ")}` : ""}
+                  {v!.targets?.length && !v!.targets.includes(r.target)
+                    ? ` — trusted, not validated, on ${r.target}`
+                    : ""})
                 </span>
               </p>
             );

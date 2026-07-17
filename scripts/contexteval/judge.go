@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -269,6 +271,7 @@ func runJudgeValidation(ctx context.Context, judge *judgeTarget, labelsPath, his
 	}
 
 	var judgeYes, humanYes, agree, total int
+	targets := map[string]bool{}
 	for _, item := range labels.Items {
 		verdicts, err := judge.judgeOne(ctx, item.Target, item.Source, item.Translation)
 		if err != nil {
@@ -283,6 +286,7 @@ func runJudgeValidation(ctx context.Context, judge *judgeTarget, labelsPath, his
 			if !ok {
 				return fmt.Errorf("item %s: judge returned no verdict for %q", item.ID, c.ID)
 			}
+			targets[item.Target] = true
 			total++
 			if jv {
 				judgeYes++
@@ -312,6 +316,7 @@ func runJudgeValidation(ctx context.Context, judge *judgeTarget, labelsPath, his
 		Agreement:    agreement,
 		Kappa:        kappa,
 		LabelsDigest: hex.EncodeToString(sum[:])[:12],
+		Targets:      slices.Sorted(maps.Keys(targets)),
 	}
 	h, err := LoadHistory(historyPath)
 	if err != nil {
@@ -326,8 +331,8 @@ func runJudgeValidation(ctx context.Context, judge *judgeTarget, labelsPath, his
 	if kappa >= MinJudgeKappa && total >= MinJudgeItems {
 		verdict = "meets the publication bar"
 	}
-	fmt.Printf("judge %s:%s vs human labels: %d verdicts, agreement %.2f, kappa %.2f — %s (need kappa ≥ %.1f over ≥ %d verdicts)\n",
-		judge.provider, judge.model, total, agreement, kappa, verdict, MinJudgeKappa, MinJudgeItems)
+	fmt.Printf("judge %s:%s vs human labels: %d verdicts on %s, agreement %.2f, kappa %.2f — %s (need kappa ≥ %.1f over ≥ %d verdicts)\n",
+		judge.provider, judge.model, total, strings.Join(v.Targets, "/"), agreement, kappa, verdict, MinJudgeKappa, MinJudgeItems)
 	fmt.Printf("recorded in %s\n", historyPath)
 	return nil
 }

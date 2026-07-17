@@ -142,8 +142,11 @@ func CorpusFor(target string) TestCorpus {
 	}
 }
 
-// Targets lists the locales the corpus carries expectations for.
-func Targets() []string { return []string{"de", "fr", "en-GB"} }
+// Targets lists the locales the corpus carries expectations for. de and fr are
+// machine-scored only; en-GB and nb are also the human-auditable pair — the
+// founder reads English and Norwegian, so judge-validation ground truth comes
+// from those two.
+func Targets() []string { return []string{"de", "fr", "en-GB", "nb"} }
 
 // Words counts source words across the corpus — the cost denominator, same
 // unit as batcheval (content budgets are denominated in words, not tokens).
@@ -334,6 +337,28 @@ func contextFor(target string) Context {
 			{Term: "seamless", Replacement: "unified"},
 		}
 		ctx.Instruction = instruction + " Use British English spelling."
+	case "nb":
+		// Norwegian mandates are chosen inflection-safe: term-check matches
+		// substrings, and Norwegian suffixes both plurals and definiteness onto
+		// the stem ("varsel" → "varsler" loses the mandate; "alarmmelding" →
+		// "alarmmeldinger"/"alarmmeldingen" keeps it). There are no formality
+		// checks for nb — du-form IS the correct register in modern Bokmål, so
+		// a De-form mandate would punish natural output.
+		ctx.Glossary = map[string]string{
+			"dashboard": "styringspanel",    // naive: dashbord / instrumentpanel
+			"alert":     "alarmmelding",     // naive: varsel
+			"sync":      "samstilling",      // naive: synkronisering
+			"report":    "driftsrapport",    // naive: rapport
+			"berth":     "fortøyningsplass", // naive: kaiplass
+			"vessel":    "farkost",          // naive: fartøy
+			"Tidewatch": "Tidewatch",
+			"Compass":   "Compass",
+			"tidectl":   "tidectl",
+		}
+		profile.Vocabulary.ForbiddenTerms = []brand.TermRule{
+			{Term: "båt", Replacement: "farkost", Note: "casual register"},
+			{Term: "sømløs", Replacement: "helhetlig"},
+		}
 	}
 	ctx.DNT = []string{"Tidewatch", "Compass", "tidectl"}
 	return ctx
@@ -351,6 +376,7 @@ func allFixtures() []Fixture {
 			Checks: map[string][]Check{
 				"de": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"dashboard", "Leitstand"}}},
 				"fr": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"dashboard", "poste de pilotage"}}},
+				"nb": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"dashboard", "styringspanel"}}},
 			},
 		},
 		{
@@ -369,6 +395,10 @@ func allFixtures() []Fixture {
 				"en-GB": {
 					{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b2\b`, MustNotMatch: `(?i)\btwo\b`},
 				},
+				"nb": {
+					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"alert", "alarmmelding"}},
+					{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b2\b`, MustNotMatch: `(?i)(^|[^\p{L}])to($|[^\p{L}])`},
+				},
 			},
 		},
 		{
@@ -378,6 +408,7 @@ func allFixtures() []Fixture {
 			Checks: map[string][]Check{
 				"de": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"sync", "Datenabgleich"}}},
 				"fr": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"sync", "rapprochement des données"}}},
+				"nb": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"sync", "samstilling"}}},
 			},
 		},
 		{
@@ -387,6 +418,7 @@ func allFixtures() []Fixture {
 			Checks: map[string][]Check{
 				"de": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"report", "Report"}}},
 				"fr": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"report", "compte rendu"}}},
+				"nb": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"report", "driftsrapport"}}},
 			},
 		},
 		{
@@ -401,6 +433,10 @@ func allFixtures() []Fixture {
 				"fr": {
 					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"berth", "appontement"}},
 					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"vessel", "bâtiment"}},
+				},
+				"nb": {
+					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"berth", "fortøyningsplass"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"vessel", "farkost"}},
 				},
 			},
 		},
@@ -427,6 +463,7 @@ func allFixtures() []Fixture {
 			Checks: map[string][]Check{
 				"de": {{Dimension: DimTerminology, Kind: "term-distractor", MustNotMatch: `(?i)anlegeplatz`}},
 				"fr": {{Dimension: DimTerminology, Kind: "term-distractor", MustNotMatch: `(?i)appontement`}},
+				"nb": {{Dimension: DimTerminology, Kind: "term-distractor", MustNotMatch: `(?i)fortøyningsplass`}},
 			},
 		},
 		{
@@ -476,6 +513,11 @@ func allFixtures() []Fixture {
 					{Dimension: DimTerminology, Kind: "dnt", DNT: "Compass"},
 					{Dimension: DimTerminology, Kind: "dnt", MustNotMatch: `(?i)\b(boussole|compas)\b`},
 				},
+				"nb": {
+					{Dimension: DimTerminology, Kind: "dnt", DNT: "Compass"},
+					// "kompass" never matches the preserved "Compass" (k vs C).
+					{Dimension: DimTerminology, Kind: "dnt", MustNotMatch: `(?i)kompass`},
+				},
 			},
 		},
 		{
@@ -485,6 +527,7 @@ func allFixtures() []Fixture {
 			Checks: map[string][]Check{
 				"de": {{Dimension: DimTerminology, Kind: "dnt", DNT: "Tidewatch"}},
 				"fr": {{Dimension: DimTerminology, Kind: "dnt", DNT: "Tidewatch"}},
+				"nb": {{Dimension: DimTerminology, Kind: "dnt", DNT: "Tidewatch"}},
 			},
 		},
 		{
@@ -496,6 +539,7 @@ func allFixtures() []Fixture {
 				// requiring \bKompass would fail the more natural translation.
 				"de": {{Dimension: DimTerminology, Kind: "dnt-distractor", MustMatch: `(?i)kompass`}},
 				"fr": {{Dimension: DimTerminology, Kind: "dnt-distractor", MustMatch: `(?i)(boussole|compas)`}},
+				"nb": {{Dimension: DimTerminology, Kind: "dnt-distractor", MustMatch: `(?i)kompass`}},
 			},
 		},
 		{
@@ -514,6 +558,10 @@ func allFixtures() []Fixture {
 				"en-GB": {
 					{Dimension: DimInstruction, Kind: "verbatim", MustMatch: "`tidectl sync`"},
 				},
+				"nb": {
+					{Dimension: DimTerminology, Kind: "dnt", DNT: "tidectl"},
+					{Dimension: DimInstruction, Kind: "verbatim", MustMatch: "`tidectl sync`"},
+				},
 			},
 		},
 		{
@@ -530,6 +578,10 @@ func allFixtures() []Fixture {
 					{Dimension: DimInstruction, Kind: "verbatim", MustMatch: "`tidectl report --daily`"},
 				},
 				"en-GB": {
+					{Dimension: DimInstruction, Kind: "verbatim", MustMatch: "`tidectl report --daily`"},
+				},
+				"nb": {
+					{Dimension: DimTerminology, Kind: "dnt", DNT: "tidectl"},
 					{Dimension: DimInstruction, Kind: "verbatim", MustMatch: "`tidectl report --daily`"},
 				},
 			},
@@ -587,6 +639,9 @@ func allFixtures() []Fixture {
 				"en-GB": {
 					{Dimension: DimInstruction, Kind: "exclamation", MustNotMatch: `!`},
 				},
+				"nb": {
+					{Dimension: DimInstruction, Kind: "exclamation", MustNotMatch: `!`},
+				},
 			},
 		},
 		{
@@ -600,20 +655,22 @@ func allFixtures() []Fixture {
 		{
 			Key:    "harbor.traffic.title",
 			Source: "Track every boat in the harbor.",
-			Note:   "fr: 'bateau' is the naive word and is forbidden; en-GB: harbor → harbour",
+			Note:   "fr/nb: the naive word (bateau/båt) is forbidden; en-GB: harbor → harbour",
 			Checks: map[string][]Check{
 				"fr": {{Dimension: DimVoice, Kind: "vocab", VocabClean: true}},
 				"en-GB": {
 					{Dimension: DimInstruction, Kind: "spelling", MustMatch: `\bharbour\b`, MustNotMatch: `\bharbor\b`},
 				},
+				"nb": {{Dimension: DimVoice, Kind: "vocab", VocabClean: true}},
 			},
 		},
 		{
 			Key:    "marketing.api.blurb",
 			Source: "Leverage our API for a seamless view of your fleet.",
-			Note:   "two forbidden en-GB terms with mandated swaps (use, unified)",
+			Note:   "forbidden marketing vocabulary with mandated swaps: en-GB leverage/seamless, nb 'sømløs'",
 			Checks: map[string][]Check{
 				"en-GB": {{Dimension: DimVoice, Kind: "vocab", VocabClean: true}},
+				"nb":    {{Dimension: DimVoice, Kind: "vocab", VocabClean: true}},
 			},
 		},
 
@@ -626,6 +683,7 @@ func allFixtures() []Fixture {
 				"de":    {{Dimension: DimInstruction, Kind: "exclamation", MustNotMatch: `!`}},
 				"fr":    {{Dimension: DimInstruction, Kind: "exclamation", MustNotMatch: `!`}},
 				"en-GB": {{Dimension: DimInstruction, Kind: "exclamation", MustNotMatch: `!`}},
+				"nb":    {{Dimension: DimInstruction, Kind: "exclamation", MustNotMatch: `!`}},
 			},
 		},
 		{
@@ -636,6 +694,7 @@ func allFixtures() []Fixture {
 				"de":    {{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b3\b`, MustNotMatch: `(?i)\bdrei\b`}},
 				"fr":    {{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b3\b`, MustNotMatch: `(?i)\btrois\b`}},
 				"en-GB": {{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b3\b`, MustNotMatch: `(?i)\bthree\b`}},
+				"nb":    {{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b3\b`, MustNotMatch: `(?i)(^|[^\p{L}])tre($|[^\p{L}])`}},
 			},
 		},
 		{
@@ -685,6 +744,13 @@ func allFixtures() []Fixture {
 					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"sign in", "log on"}},
 					{Dimension: DimVoice, Kind: "contractions", MustNotMatch: contractionRe},
 					{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b5\b`, MustNotMatch: `(?i)\bfive\b`},
+					{Dimension: DimInstruction, Kind: "exclamation", MustNotMatch: `!`},
+				},
+				"nb": {
+					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"dashboard", "styringspanel"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"vessel", "farkost"}},
+					{Dimension: DimTerminology, Kind: "dnt", DNT: "Compass"},
+					{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b5\b`, MustNotMatch: `(?i)(^|[^\p{L}])fem($|[^\p{L}])`},
 					{Dimension: DimInstruction, Kind: "exclamation", MustNotMatch: `!`},
 				},
 			},

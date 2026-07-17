@@ -1345,7 +1345,7 @@ context-eval: ## Measure context-adherence lift (demo stub unless -models given)
 # Bedrock sweeps are judged by Gemini, the Gemini sweep by Claude. Judged scores
 # stay unpublished until `-judge-validate` records agreement above the bar.
 CONTEXTEVAL_DATA    ?= web/src/pages/context-eval/_contexteval.json
-CONTEXTEVAL_TARGETS ?= de,fr,en-GB
+CONTEXTEVAL_TARGETS ?= de,fr,en-GB,nb
 CONTEXTEVAL_GEMINI  ?= gemini:gemini-3.5-flash,gemini:gemini-3.1-flash-lite,gemini:gemini-3.1-pro-preview
 CONTEXTEVAL_CLAUDE  ?= claude-code:opus,claude-code:sonnet,claude-code:haiku
 CONTEXTEVAL_BEDROCK ?= bedrock:eu.anthropic.claude-sonnet-4-6

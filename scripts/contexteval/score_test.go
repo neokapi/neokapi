@@ -129,6 +129,28 @@ func TestContractionPatternSparesPossessives(t *testing.T) {
 		"a possessive apostrophe is not a contraction")
 }
 
+func TestNorwegianVocabTrap(t *testing.T) {
+	naive := scoreOne(t, "nb", "harbor.traffic.title", "Spor hver båt i havnen.")
+	assert.Equal(t, Counts{Scored: 1, Passed: 0}, kindCounts(naive, DimVoice, "vocab"))
+
+	swapped := scoreOne(t, "nb", "harbor.traffic.title", "Spor hver farkost i havnen.")
+	assert.Equal(t, Counts{Scored: 1, Passed: 1}, kindCounts(swapped, DimVoice, "vocab"))
+}
+
+func TestNorwegianMandateSurvivesInflection(t *testing.T) {
+	// Norwegian suffixes plural and definiteness onto the stem, so the mandated
+	// compound must be chosen to survive: "alarmmeldinger" still contains
+	// "alarmmelding". This pins that an obedient plural rendering passes both
+	// the term mandate and the digits rule.
+	obedient := scoreOne(t, "nb", "alerts.badge.tooltip", "2 nye alarmmeldinger krever din oppmerksomhet.")
+	assert.Equal(t, Counts{Scored: 1, Passed: 1}, kindCounts(obedient, DimTerminology, "term"))
+	assert.Equal(t, Counts{Scored: 1, Passed: 1}, kindCounts(obedient, DimInstruction, "digits"))
+
+	naive := scoreOne(t, "nb", "alerts.badge.tooltip", "To nye varsler krever din oppmerksomhet.")
+	assert.Equal(t, Counts{Scored: 1, Passed: 0}, kindCounts(naive, DimTerminology, "term"))
+	assert.Equal(t, Counts{Scored: 1, Passed: 0}, kindCounts(naive, DimInstruction, "digits"))
+}
+
 func TestDigitsInstruction(t *testing.T) {
 	spelled := scoreOne(t, "fr", "alerts.count.new", "Vous avez trois nouveaux avis de vigilance dans votre boîte de réception.")
 	assert.Equal(t, Counts{Scored: 1, Passed: 0}, kindCounts(spelled, DimInstruction, "digits"))

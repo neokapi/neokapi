@@ -156,6 +156,11 @@ type JudgeValidation struct {
 	Agreement    float64 `json:"agreement"` // raw fraction of matching verdicts
 	Kappa        float64 `json:"kappa"`     // Cohen's kappa (chance-corrected)
 	LabelsDigest string  `json:"labels_digest,omitempty"`
+	// Targets records which locales the human labels covered. The labeler can
+	// only audit languages they read (here: en, nb), so a validation's scope is
+	// part of the finding — a judge validated on en-GB and nb is being *trusted*
+	// on de and fr, and the dashboard says so rather than implying otherwise.
+	Targets []string `json:"targets,omitempty"`
 }
 
 // key identifies a run. The corpus digest is part of it: the same model swept
