@@ -65,7 +65,7 @@ narration:
     beat: progress
     caption: Progress toward done, across the file.
     text: >-
-      The progress bar tracks the file from draft to translated to reviewed, so
+      The status counts track the file from draft to translated to reviewed, so
       the team always knows what is left.
 
   - id: outro

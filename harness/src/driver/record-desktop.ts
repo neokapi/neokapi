@@ -739,9 +739,23 @@ async function beatEls_okapiCard(c: WalkCtx, id: string): Promise<void> {
 // These record the real bowrain web app (target: "web"); nav is via data-testid
 // (the bowrain sidebar uses testids, not aria-labels).
 
-/** Bowrain web: shared translation memory + terminology governance. */
+/** Dismiss the web-only "Open in Desktop" banner if it's on screen. It renders
+ *  at the top of every project view (ProjectView → OpenInDesktop) and would sit
+ *  over the project header for the rest of a walk. bowrain-web-collaboration
+ *  deliberately KEEPS it for its closing desktop-handoff beat. */
+async function dismissOpenInDesktop(page: Page): Promise<void> {
+  const dismiss = page.getByTestId("dismiss-open-in-desktop");
+  if (await dismiss.count()) {
+    await humanClick(page, dismiss).catch(() => {});
+    await page.waitForTimeout(400);
+  }
+}
+
+/** Bowrain web: shared translation memory + terminology governed as concepts
+ *  (Brand → Concepts — the old standalone termbase nav is gone; /termbase now
+ *  redirects into the Brand hub's Concepts section). */
 async function bowrainGovernanceWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls, cursorTo } = c;
+  const { page, beat, beatEls } = c;
   const tap = (id: string) => humanClick(page, page.getByTestId(id));
   await beat("intro", null, async () => {
     await idle(page, 2200);
@@ -749,34 +763,41 @@ async function bowrainGovernanceWalk(c: WalkCtx): Promise<void> {
   // Open the workspace translation memory.
   await beat("open-memory", null, async () => {
     await tap("nav-memory");
-    await page.waitForTimeout(1500);
+    await page.waitForSelector('[data-testid="tm-browser"]', { timeout: 20_000 }).catch(() => {});
+    await page.waitForTimeout(1200);
   });
   await beat("tm-list", { x: 0.02, y: 0.1, w: 0.96, h: 0.82 }, async () => {
     await moveTo(page, WIDTH * 0.5, HEIGHT * 0.42, 700);
     await page.waitForTimeout(2400);
   });
   // Search the memory.
-  await beatEls("tm-search", ['[data-testid="tm-search-input"]'], async () => {
-    const s = page.getByTestId("tm-search-input");
+  await beatEls("tm-search", ['[data-testid="tm-search"]'], async () => {
+    const s = page.getByTestId("tm-search");
     if (await s.count()) await humanType(page, s, "mission", { submit: true });
     await page.waitForTimeout(1600);
   });
-  // Open the terminology base.
-  await beat("open-terms", null, async () => {
-    await tap("nav-termbase");
+  // Open the Brand hub — Concepts is its landing section (nav-brand lands on
+  // /brand, which redirects to /brand/concepts).
+  await beat("open-concepts", null, async () => {
+    await tap("nav-brand");
+    await page
+      .waitForSelector('input[aria-label="Search concepts"]', { timeout: 20_000 })
+      .catch(() => {});
     await page.waitForTimeout(1500);
   });
-  await beat("term-list", { x: 0.02, y: 0.1, w: 0.96, h: 0.82 }, async () => {
+  await beat("concept-list", { x: 0.02, y: 0.1, w: 0.96, h: 0.82 }, async () => {
     await moveTo(page, WIDTH * 0.5, HEIGHT * 0.42, 700);
     await page.waitForTimeout(2400);
   });
-  // Spotlight a concept's multi-locale terms.
-  await beatEls("term-detail", ['[data-testid^="term-concept"]'], async () => {
-    const sel = '[data-testid^="term-concept"]';
-    if (await page.locator(sel).count()) {
-      await page.locator(sel).first().scrollIntoViewIfNeeded().catch(() => {});
-      await cursorTo(sel);
+  // Open one concept — its story: the terms in every locale, with agreed status.
+  // The ConceptList rows are plain buttons in the card list (no testids yet).
+  await beat("concept-detail", { x: 0.02, y: 0.08, w: 0.96, h: 0.74 }, async () => {
+    const row = page.locator("ul.divide-y li button").first();
+    if (await row.count()) {
+      await humanClick(page, row);
+      await page.waitForTimeout(1600);
     }
+    await moveTo(page, WIDTH * 0.4, HEIGHT * 0.36, 700);
     await page.waitForTimeout(2300);
   });
 }
@@ -794,6 +815,7 @@ async function bowrainEditorWalk(c: WalkCtx): Promise<void> {
     const card = page.locator('[data-testid^="project-card"]', { hasText: "Company Website" }).first();
     await humanClick(page, (await card.count()) ? card : page.locator('[data-testid^="project-card"]').first());
     await page.waitForTimeout(1600);
+    await dismissOpenInDesktop(page);
   });
   // Open a file → the editor.
   await beat("open-file", null, async () => {
@@ -801,27 +823,25 @@ async function bowrainEditorWalk(c: WalkCtx): Promise<void> {
     await page.waitForTimeout(2400);
   });
   // Switch to the Visual view: an inline editing card over a live document preview.
-  // Open the context panel at the tail so it's already present for the next beat.
   await beat("split", { x: 0.03, y: 0.16, w: 0.74, h: 0.5 }, async () => {
     const sh = page.getByTestId("view-visual");
     if (await sh.count()) await humanClick(page, sh);
     await page.waitForTimeout(1600);
     await moveTo(page, WIDTH * 0.42, HEIGHT * 0.42, 700);
     await page.waitForTimeout(1200);
-    const cp = page.getByTestId("context-panel-toggle");
-    if ((await cp.count()) && !(await page.getByTestId("context-panel").isVisible().catch(() => false)))
-      await humanClick(page, cp);
-    await page.waitForTimeout(700);
   });
   // Spotlight the shared TM + terminology context, surfaced inline as you edit:
-  // select a block that carries a workspace TM match (panel already open).
+  // the visual card's "TM Matches" expander (tm-toggle) opens the context panel,
+  // and term matches dock in the term sidebar on the right.
   await beat("context", { x: 0.43, y: 0.16, w: 0.56, h: 0.62 }, async () => {
-    const block = page.locator('[data-testid^="block-row"]', { hasText: "Mission" }).first();
-    const target = (await block.count()) ? block : page.getByTestId("block-row-2");
-    if (await target.count()) await humanClick(page, target);
+    const tm = page.getByTestId("tm-toggle");
+    if ((await tm.count()) && !(await page.getByTestId("context-panel").isVisible().catch(() => false)))
+      await humanClick(page, tm);
     await page.waitForTimeout(900);
     if (await page.getByTestId("context-panel").isVisible().catch(() => false))
       await cursorTo('[data-testid="context-panel"]');
+    else if (await page.getByTestId("term-sidebar").count())
+      await cursorTo('[data-testid="term-sidebar"]');
     await page.waitForTimeout(1800);
   });
   // One editor, every target locale.
@@ -858,6 +878,7 @@ async function bowrainReviewWalk(c: WalkCtx): Promise<void> {
     const card = page.locator('[data-testid^="project-card"]', { hasText: "Company Website" }).first();
     await humanClick(page, (await card.count()) ? card : page.locator('[data-testid^="project-card"]').first());
     await page.waitForTimeout(1600);
+    await dismissOpenInDesktop(page);
   });
   await beat("open-file", null, async () => {
     await humanClick(page, page.locator('[data-testid^="open-file"]').first());
@@ -868,8 +889,8 @@ async function bowrainReviewWalk(c: WalkCtx): Promise<void> {
     const rev = page.getByTestId("surface-tab-review");
     if (await rev.count()) await humanClick(page, rev);
     await page.waitForTimeout(1400);
-    const list = page.getByTestId("review-list");
-    if (await list.count()) await cursorTo('[data-testid="review-list"]');
+    const row = page.locator('[data-testid^="review-row-"]').first();
+    if (await row.count()) await cursorTo('[data-testid^="review-row-"]');
     await page.waitForTimeout(1200);
   });
   // Approve — mark reviewed in the Review surface; progress advances to reviewed.
@@ -877,7 +898,7 @@ async function bowrainReviewWalk(c: WalkCtx): Promise<void> {
     // The bulk action enables only once rows are selected — pick all/first rows
     // so the approve action is live (and the click never blocks on a disabled
     // button).
-    const selectAll = page.locator('[data-testid="review-select-all"], [data-testid^="review-row-select"], [data-testid="review-list"] input[type="checkbox"]').first();
+    const selectAll = page.locator('[data-testid="select-all"], [data-testid^="review-select-"]').first();
     if (await selectAll.count()) await humanClick(page, selectAll).catch(() => {});
     await page.waitForTimeout(700);
     const mark = page.getByTestId("bulk-mark-reviewed");
@@ -887,9 +908,10 @@ async function bowrainReviewWalk(c: WalkCtx): Promise<void> {
     }
     await page.waitForTimeout(1600);
   });
-  // Progress across the file: draft → translated → reviewed.
-  await beatEls("progress", ['[data-testid="progress-bar"]'], async () => {
-    await cursorTo('[data-testid="progress-bar"]');
+  // Progress across the file: the status filter chips carry the per-status
+  // tallies (draft → translated → reviewed) — the review surface's progress readout.
+  await beatEls("progress", ['[data-testid="status-filters"]'], async () => {
+    await cursorTo('[data-testid="status-filters"]');
     await page.waitForTimeout(1800);
   });
 }
@@ -993,7 +1015,7 @@ async function bowrainCollaborationWalk(c: WalkCtx): Promise<void> {
 
   // Governance frame: the workspace is shared and governed — members carry
   // roles (member / admin / viewer), so everyone has exactly the access they
-  // should. Shown last so the closing read is "a team, in one governed place".
+  // should.
   await beatEls("members", ['[data-testid="settings-heading"]', '[role="dialog"]', '[data-testid="invite-open-dialog-btn"]'], async () => {
     await page.goto(`${wsBase}/settings/members${themeQ}`, { waitUntil: "domcontentloaded" });
     await injectCursor(page); // re-add cursor after navigation
@@ -1013,10 +1035,37 @@ async function bowrainCollaborationWalk(c: WalkCtx): Promise<void> {
     }
     await page.waitForTimeout(1200);
   });
+
+  // Closing hand-off: the same workspace opens natively. Land back on the
+  // project view, where the web-only "Open in Bowrain Desktop" banner renders
+  // (this walk deliberately never dismisses it — the banner IS the beat).
+  await beatEls("desktop-handoff", ['[data-testid="open-in-desktop-banner"]'], async () => {
+    if (projectId) {
+      await page.goto(`${wsBase}/p/${projectId}/s/main${themeQ}`, { waitUntil: "domcontentloaded" });
+      await injectCursor(page); // re-add cursor after navigation
+    } else {
+      // No seed — reach the first project's view via the dashboard.
+      await page.goto(`${wsBase}${themeQ}`, { waitUntil: "domcontentloaded" });
+      await injectCursor(page);
+      await page.waitForSelector('[data-testid^="project-card"]', { timeout: 15_000 }).catch(() => {});
+      const card = page.locator('[data-testid^="project-card"]').first();
+      if (await card.count()) await humanClick(page, card);
+    }
+    await page
+      .waitForSelector('[data-testid="open-in-desktop-banner"]', { timeout: 15_000 })
+      .catch(() => {});
+    await page.waitForTimeout(800);
+    if (await page.getByTestId("open-in-desktop-banner").count())
+      await cursorTo('[data-testid="open-in-desktop-banner"]');
+    await page.waitForTimeout(1800);
+  });
 }
 
 /** Bowrain Desktop: the native app connected to a team's bowrain-server,
- *  showing the same workspace — projects, languages, and file counts. */
+ *  showing the same workspace — projects, languages, and file counts. The
+ *  desktop mounts the SAME shared app (@neokapi/bowrain-app) the browser runs,
+ *  so nav testids match the web: workspace-level nav-* rail, project-scoped
+ *  sidebar-* views (dashboard | automations | runs | connectors). */
 async function bowrainDesktopWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls } = c;
   await beat("intro", null, async () => {
@@ -1032,11 +1081,17 @@ async function bowrainDesktopWalk(c: WalkCtx): Promise<void> {
     await moveTo(page, WIDTH * 0.4, HEIGHT * 0.42, 700);
     await page.waitForTimeout(2200);
   });
-  // Connectors — a desktop-only surface for wiring content sources. Open the
-  // add-connector dialog so the available connector types are on screen (the
-  // empty list alone reads as a blank page).
+  // Connectors are project-scoped in the unified app: open a project, then its
+  // Connectors view. Open the add-connector dialog so the available connector
+  // types are on screen (the empty list alone reads as a blank page).
   await beatEls("connectors", ['[data-testid="connector-form"]', '[role="dialog"]', '[data-testid="add-connector-btn"]'], async () => {
-    const n = page.getByTestId("nav-connectors");
+    const card = page.locator('[data-testid^="project-card"]').first();
+    if (await card.count()) await humanClick(page, card);
+    await page
+      .waitForSelector('[data-testid="sidebar-connectors"]', { timeout: 20_000 })
+      .catch(() => {});
+    await page.waitForTimeout(900);
+    const n = page.getByTestId("sidebar-connectors");
     if (await n.count()) await humanClick(page, n);
     await page.waitForTimeout(1400);
     const add = page.getByTestId("add-connector-btn");
@@ -1045,29 +1100,43 @@ async function bowrainDesktopWalk(c: WalkCtx): Promise<void> {
   });
 }
 
-/** Bowrain Desktop: build localization flows visually (the FlowBuilder is a
- *  desktop-only surface — the web editor has no flow canvas). */
-async function bowrainDesktopFlowsWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls } = c;
+/** Bowrain Desktop: a project's automation rules and its server-side run
+ *  history — the unified project views (dashboard | automations | runs |
+ *  connectors) that replaced the decommissioned flows/FlowBuilder screens.
+ *  Flow editing still exists, but as the Flows tab inside Automations. */
+async function bowrainDesktopAutomationsWalk(c: WalkCtx): Promise<void> {
+  const { page, beat, beatEls, cursorTo } = c;
+  // Land on the workspace dashboard, then open the first project — the
+  // project-scoped sidebar only exists inside a project.
   await beat("intro", null, async () => {
     await idle(page, 1800);
+    const card = page.locator('[data-testid^="project-card"]').first();
+    if (await card.count()) await humanClick(page, card);
+    await page
+      .waitForSelector('[data-testid="sidebar-automations"]', { timeout: 20_000 })
+      .catch(() => {});
+    await page.waitForTimeout(1400);
   });
-  // The flow library: built-in pipelines (AI translate, QA, pseudo, …).
-  await beat("flows", null, async () => {
-    const n = page.getByTestId("nav-flows");
+  // Automations → the Rules tab (the route lands on its Runs tab by default;
+  // the tab strip is plain buttons — Runs · Rules · Flows — without testids).
+  await beatEls("automations", ['h2:has-text("Automation Rules")', 'button:has-text("New Rule")'], async () => {
+    const n = page.getByTestId("sidebar-automations");
     if (await n.count()) await humanClick(page, n);
+    await page.waitForTimeout(1400);
+    const rules = page.locator('button:has-text("Rules")').first();
+    if (await rules.count()) await humanClick(page, rules);
     await page.waitForTimeout(2000);
   });
-  // Open a multi-step flow to reveal its visual pipeline.
-  await beatEls("open", ['[data-testid="flow-builder"]'], async () => {
-    const f = page.getByTestId("flow-item-translate-qa");
-    if (await f.count()) await humanClick(page, f);
-    await page.waitForTimeout(2400);
-  });
-  // The node graph: input → AI translate → QA → output.
-  await beatEls("pipeline", ['[data-testid="flow-builder"]'], async () => {
-    await moveTo(page, WIDTH * 0.55, HEIGHT * 0.5, 700);
-    await page.waitForTimeout(2400);
+  // Runs — the server-side loop history (ConvergenceRunsList): run states
+  // ("Up to date" / "Parked"), triggers (Manual / kapi up / On push), the
+  // per-locale summary, and the "Run now" button.
+  await beatEls("runs", ['h2:has-text("Runs")', 'button:has-text("Run now")', "table"], async () => {
+    const n = page.getByTestId("sidebar-runs");
+    if (await n.count()) await humanClick(page, n);
+    await page.waitForTimeout(1800);
+    if (await page.locator('button:has-text("Run now")').count())
+      await cursorTo('button:has-text("Run now")');
+    await page.waitForTimeout(2200);
   });
 }
 
@@ -1142,7 +1211,7 @@ const WALKTHROUGHS: Record<string, (c: WalkCtx) => Promise<void>> = {
   "bowrain-web-collaboration": bowrainCollaborationWalk,
   "bowrain-web-correction-loop": bowrainCorrectionLoopWalk,
   "bowrain-desktop-dashboard": bowrainDesktopWalk,
-  "bowrain-desktop-flows": bowrainDesktopFlowsWalk,
+  "bowrain-desktop-automations": bowrainDesktopAutomationsWalk,
 };
 
 async function runWalkthrough(page: Page, t0: number, demoId: string, peer?: PeerSession): Promise<Beat[]> {
@@ -1380,9 +1449,9 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
   if (opts.bowrainDesktop) {
     const stack = await startBowrainStack();
     const browser = await chromium.launch();
-    // App-shell-loaded markers on the desktop dashboard/projects view. (The old
-    // nav-translate/nav-flows testids were removed from the UI — keep this in
-    // sync with the shared ProjectDashboard / sidebar testids.)
+    // App-shell-loaded markers on the desktop dashboard/projects view (the
+    // desktop mounts the shared @neokapi/bowrain-app — keep this in sync with
+    // the shared ProjectDashboard / AppSidebar testids).
     const ready =
       '[data-testid^="project-card"], [data-testid="empty-projects"], [data-testid="new-project-btn"], [data-testid="sidebar-dashboard"]';
     try {

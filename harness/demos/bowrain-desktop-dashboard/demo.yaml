@@ -25,10 +25,10 @@ narration:
     kind: desktop
     beat: intro
     text: >-
-      Bowrain also ships as a native desktop app — an equal, real-time client of
-      the server. It opens the very same workspace the web editor does, with
-      presence and edits shared live, and it keeps working offline, syncing back
-      when you reconnect.
+      Bowrain also ships as a native desktop app — the same shared app the
+      browser runs, mounted natively. It opens the very same workspace, with
+      presence and edits shared live, and an offline edit queue that keeps you
+      working without a connection and syncs back when you reconnect.
 
   - id: stats
     kind: desktop
@@ -51,8 +51,9 @@ narration:
     beat: connectors
     caption: Connect remote content sources.
     text: >-
-      It also connects remote content sources — like a CMS or a design tool —
-      so the team can pull content in, alongside the visual flow builder.
+      Connectors are wired per project. Open one, and its Connectors view
+      attaches remote content sources — a CMS, a design tool — so content flows
+      in and finished translations flow back out.
 
   - id: outro
     kind: outro

@@ -72,6 +72,14 @@ narration:
       member, admin, or viewer — so the workspace stays open to the team but
       controlled.
 
+  - id: desktop-handoff
+    kind: desktop
+    beat: desktop-handoff
+    caption: The same workspace, in the desktop app.
+    text: >-
+      And when you want native speed and offline, the same workspace opens in
+      the desktop app.
+
   - id: outro
     kind: outro
     text: >-
