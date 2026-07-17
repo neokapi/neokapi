@@ -11,6 +11,7 @@ import {
   DialogFooter,
 } from "@neokapi/ui";
 import { updatePlan } from "../api";
+import { capture } from "../analytics";
 
 const PLANS = ["free", "pro", "team", "enterprise"] as const;
 
@@ -33,6 +34,7 @@ export function ChangePlanDialog({
   const mutation = useMutation({
     mutationFn: () => updatePlan(workspaceId, selectedPlan),
     onSuccess: () => {
+      capture("admin_plan_changed", { workspace_id: workspaceId, plan: selectedPlan });
       void queryClient.invalidateQueries({ queryKey: ["admin", "workspace", workspaceId] });
       void queryClient.invalidateQueries({ queryKey: ["admin", "workspaces"] });
       onOpenChange(false);

@@ -1,12 +1,59 @@
 import { useEffect, useState, useCallback } from "react";
-import { NotificationSettings, useWorkspace, useApi, type DigestSettingsDTO } from "@neokapi/ui";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  NotificationSettings,
+  Switch,
+  useWorkspace,
+  useApi,
+  type DigestSettingsDTO,
+} from "@neokapi/ui";
 import { ProfileEmailCard } from "../../auth/ProfileEmailCard";
 import { ProfileHandleCard } from "../../auth/ProfileHandleCard";
 import { SecurityCard } from "../../auth/SecurityCard";
+import { usePlatform, type PlatformAdapter } from "../../platform";
+
+/**
+ * Usage-statistics toggle for local clients (decision D1). Rendered only when
+ * the shell exposes the telemetry opt-out through the platform seam (the
+ * desktop does; the web omits it — the cloud app is covered by the privacy
+ * policy, not a client-side toggle).
+ */
+type TelemetryOptOut = NonNullable<NonNullable<PlatformAdapter["analytics"]>["optOut"]>;
+
+function TelemetryCard({ optOut }: { optOut: TelemetryOptOut }) {
+  const [enabled, setEnabled] = useState(() => optOut.enabled());
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Usage statistics</CardTitle>
+        <CardDescription>
+          Share anonymous usage statistics — page views and feature usage, never your content,
+          project names, or file paths.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex items-center justify-between">
+        <span className="text-sm">Send anonymous usage statistics</span>
+        <Switch
+          checked={enabled}
+          onCheckedChange={(checked) => {
+            optOut.setEnabled(checked);
+            setEnabled(checked);
+          }}
+        />
+      </CardContent>
+    </Card>
+  );
+}
 
 export function UserSettingsRoute() {
   const { activeWorkspace } = useWorkspace();
   const api = useApi();
+  const platform = usePlatform();
+  const telemetryOptOut = platform.analytics?.optOut;
   const [settings, setSettings] = useState<DigestSettingsDTO | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -53,6 +100,7 @@ export function UserSettingsRoute() {
       <ProfileEmailCard />
       <ProfileHandleCard />
       <SecurityCard />
+      {telemetryOptOut && <TelemetryCard optOut={telemetryOptOut} />}
 
       {settings ? (
         <NotificationSettings settings={settings} onChange={handleChange} saving={saving} />

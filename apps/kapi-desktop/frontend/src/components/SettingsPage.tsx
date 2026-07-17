@@ -6,12 +6,14 @@ import { useError } from "./ErrorBanner";
 import {
   Card,
   CardContent,
+  Switch,
   Tabs,
   TabsList,
   TabsTrigger,
   TabsContent,
   LoadingSpinner,
 } from "@neokapi/ui-primitives";
+import { analyticsAvailable, setTelemetryEnabled } from "../analytics";
 import { DevPseudoCard } from "./DevPseudoCard";
 import { CredentialsPage } from "./CredentialsPage";
 import { PluginManager } from "./PluginManager";
@@ -48,6 +50,7 @@ export function SettingsPage({ theme: propTheme, uiLanguage: propLang }: Setting
   const [uiLanguage, setUILanguage] = useState<UILanguage>(propLang ?? "en");
   const [loading, setLoading] = useState(!propTheme);
   const [version, setVersion] = useState<VersionInfo | null>(null);
+  const [telemetryOn, setTelemetryOn] = useState(true);
 
   const { showError } = useError();
 
@@ -72,6 +75,7 @@ export function SettingsPage({ theme: propTheme, uiLanguage: propLang }: Setting
           setTheme(t);
           const l = (settings.ui_language || "en") as UILanguage;
           setUILanguage(l);
+          setTelemetryOn(!settings.telemetry_disabled);
         }
       })
       .catch((err) => {
@@ -103,6 +107,18 @@ export function SettingsPage({ theme: propTheme, uiLanguage: propLang }: Setting
         await api.setTheme(next);
       } catch (err) {
         showError("Failed to save theme", err);
+      }
+    },
+    [showError],
+  );
+
+  const handleTelemetryChange = useCallback(
+    async (next: boolean) => {
+      setTelemetryOn(next);
+      try {
+        await setTelemetryEnabled(next);
+      } catch (err) {
+        showError("Failed to save telemetry setting", err);
       }
     },
     [showError],
@@ -196,6 +212,27 @@ export function SettingsPage({ theme: propTheme, uiLanguage: propLang }: Setting
                 </p>
               </CardContent>
             </Card>
+
+            {/* Usage statistics (D1 opt-out) — only meaningful in builds that
+                carry an analytics key; keyless builds never emit anything. */}
+            {analyticsAvailable() && (
+              <Card>
+                <CardContent className="p-4">
+                  <div className="mb-3 text-sm font-medium">{t("Usage statistics")}</div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-xs text-muted-foreground">
+                      {t(
+                        "Share anonymous usage statistics — screen views and feature usage, never your content, project names, or file paths.",
+                      )}
+                    </span>
+                    <Switch
+                      checked={telemetryOn}
+                      onCheckedChange={(checked) => void handleTelemetryChange(checked)}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <DevPseudoCard />
 

@@ -43,6 +43,10 @@ jobs:
         env:
           VITE_ADMIN_OIDC_ISSUER_URL: ${{ vars.ADMIN_OIDC_ISSUER_URL }}
           VITE_ADMIN_OIDC_CLIENT_ID: ${{ vars.ADMIN_OIDC_CLIENT_ID }}
+          # Public client-side key (same project as _build-web.yml); this
+          # workflow only builds on push/dispatch, never for PRs.
+          VITE_POSTHOG_KEY: phc_9TMOqaMSUH5wE6xPTeTKjYBBJWVRdzOlUMahZAr7twD
+          VITE_POSTHOG_HOST: https://eu.i.posthog.com
         run: vp run build
 
       - name: Upload ctrl artifacts

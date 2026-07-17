@@ -373,7 +373,13 @@ export const api = {
 
   // Settings
   getSettings: () =>
-    call<{ theme: string; ui_language?: string; samples_dismissed?: boolean }>("GetSettings"),
+    call<{
+      theme: string;
+      ui_language?: string;
+      samples_dismissed?: boolean;
+      telemetry_disabled?: boolean;
+      telemetry_notice_shown?: boolean;
+    }>("GetSettings"),
   saveSettings: (s: Record<string, unknown>) => call<void>("SaveSettings", s),
   dismissSamples: () => call<void>("DismissSamples"),
   getTheme: () => call<string>("GetTheme"),

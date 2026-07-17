@@ -43,6 +43,26 @@ export function BowrainApp({ api, platform, queryClient, history }: BowrainAppPr
   const [plat] = useState(() => platform ?? webPlatform());
   const [router] = useState(() => createBowrainRouter({ queryClient: qc, api }, { history }));
 
+  // Route-pattern pageviews through the platform seam: one $pageview per
+  // navigation carrying the matched route pattern (e.g. "/$workspace/p/$pid"),
+  // never the concrete URL — no project names, slugs stay in params. No-op for
+  // shells whose analytics member has no capture.
+  useEffect(() => {
+    const capture = plat.analytics?.capture?.bind(plat.analytics);
+    if (!capture) return;
+    let lastPath: string | undefined;
+    const fire = () => {
+      const { matches, location } = router.state;
+      const leaf = matches[matches.length - 1];
+      if (!leaf || location.pathname === lastPath) return;
+      lastPath = location.pathname;
+      capture("$pageview", { route: leaf.routeId });
+    };
+    // The initial navigation may resolve before this effect subscribes.
+    fire();
+    return router.subscribe("onResolved", fire);
+  }, [plat, router]);
+
   // Deep links (bowrain://…) are normalized by the desktop shell to an in-app
   // path; navigate the router to it. No-op on the web (webPlatform has no
   // onDeepLink), so this leaves web behavior untouched.

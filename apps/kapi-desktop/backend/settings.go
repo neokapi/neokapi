@@ -34,6 +34,17 @@ type AppSettings struct {
 	// ActiveProject is the recipe path of the project tab that was active
 	// (focused) in the last session. Empty when no project was open.
 	ActiveProject string `json:"active_project,omitempty"`
+
+	// TelemetryDisabled persists the anonymous-analytics opt-out (decision
+	// D1: opt-out, default ON — the zero value keeps telemetry enabled, so
+	// legacy settings files stay on the default). The frontend reads and
+	// writes it through GetSettings/SaveSettings; keyless builds never emit
+	// regardless of this flag.
+	TelemetryDisabled bool `json:"telemetry_disabled,omitempty"`
+
+	// TelemetryNoticeShown records that the one-time first-run telemetry
+	// notice has been displayed.
+	TelemetryNoticeShown bool `json:"telemetry_notice_shown,omitempty"`
 }
 
 // CustomLocale is a user-defined locale with code and display name.

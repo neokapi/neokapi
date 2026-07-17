@@ -894,6 +894,13 @@ jobs:
 
       - name: Build Kapi Desktop frontend
         working-directory: apps/kapi-desktop/frontend
+        env:
+          # Public client-side key (same project as _build-web.yml). Keys this
+          # release build's opt-out desktop analytics (D1: default ON, first-run
+          # notice + settings toggle, DNT honored); dev/self-builds are keyless
+          # and silent.
+          VITE_POSTHOG_KEY: phc_9TMOqaMSUH5wE6xPTeTKjYBBJWVRdzOlUMahZAr7twD
+          VITE_POSTHOG_HOST: https://eu.i.posthog.com
         run: vp run build:dev
 
       - name: Generate icons

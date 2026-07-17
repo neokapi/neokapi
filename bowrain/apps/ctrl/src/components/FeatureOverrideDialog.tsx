@@ -13,6 +13,7 @@ import {
   DialogFooter,
 } from "@neokapi/ui";
 import { setFeatureOverride } from "../api";
+import { capture } from "../analytics";
 
 const FEATURES = [
   "bravo-code-exec",
@@ -43,6 +44,7 @@ export function FeatureOverrideDialog({
     mutationFn: () =>
       setFeatureOverride(workspaceId, feature, enabled, reason, expiresAt || undefined),
     onSuccess: () => {
+      capture("admin_feature_override_set", { workspace_id: workspaceId, feature, enabled });
       void queryClient.invalidateQueries({
         queryKey: ["admin", "workspace", workspaceId, "overrides"],
       });

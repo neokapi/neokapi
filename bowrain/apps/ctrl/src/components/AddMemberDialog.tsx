@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@neokapi/ui";
 import { listUsers, addMemberToWorkspace } from "../api";
+import { capture } from "../analytics";
 
 interface AddMemberDialogProps {
   open: boolean;
@@ -47,6 +48,11 @@ export function AddMemberDialog({ open, onOpenChange, workspaceId }: AddMemberDi
   const mutation = useMutation({
     mutationFn: () => addMemberToWorkspace(workspaceId, selectedUserId, role),
     onSuccess: () => {
+      capture("admin_member_added", {
+        workspace_id: workspaceId,
+        user_id: selectedUserId,
+        role,
+      });
       void queryClient.invalidateQueries({ queryKey: ["admin", "workspace", workspaceId] });
       onOpenChange(false);
       setSearch("");

@@ -1,6 +1,9 @@
 import { createRoot } from "react-dom/client";
 import { StrictMode } from "react";
 import { ThemeProvider } from "@neokapi/ui";
+// Import the analytics module directly (not the package index) so the theme
+// bundle never pulls the docs diagram components or their CSS.
+import { captureDocsEvent, initDocsAnalytics } from "@neokapi/docs-shared/analytics.ts";
 import { KcPage } from "./kc.gen";
 
 // In dev mode, allow rendering any page via ?kcPageId= query parameter.
@@ -14,6 +17,25 @@ if (import.meta.env.DEV && !window.kcContext) {
       pageId: pageId as any,
       overrides: {},
     });
+  }
+}
+
+// Cookieless analytics (memory persistence, DNT respected): auth pages must
+// never write cookies or storage for analytics. Keyless builds (self-host,
+// local dev) are inert. Only the two page-view events below are emitted —
+// auth *outcome* events fire post-auth in the app, keeping the theme dumb.
+if (window.kcContext) {
+  initDocsAnalytics({
+    key: import.meta.env.VITE_POSTHOG_KEY,
+    host: import.meta.env.VITE_POSTHOG_HOST,
+    surface: "keycloak",
+    environment: import.meta.env.PROD ? "prod" : "dev",
+  });
+  const { pageId } = window.kcContext;
+  if (pageId === "login.ftl" || pageId === "login-username.ftl") {
+    captureDocsEvent("login_page_viewed", { template: pageId });
+  } else if (pageId === "register.ftl") {
+    captureDocsEvent("register_page_viewed", { template: pageId });
   }
 }
 

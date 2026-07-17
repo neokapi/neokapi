@@ -5,3 +5,12 @@
 // (`vp check` / tsc) accepts the side-effect imports. `*.css` and
 // `import.meta.env` are already covered by the vite/client reference above.
 declare module "@fontsource-variable/*";
+
+interface ImportMetaEnv {
+  readonly VITE_POSTHOG_KEY?: string;
+  readonly VITE_POSTHOG_HOST?: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
