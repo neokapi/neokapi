@@ -29,6 +29,7 @@
     "@xyflow/react": "^12.11.2",
     "lexical": "^0.47.0",
     "lucide-react": "^1.24.0",
+    "posthog-js": "^1.399.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "tailwindcss": "^4.3.2"

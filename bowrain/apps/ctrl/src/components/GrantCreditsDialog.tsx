@@ -12,6 +12,7 @@ import {
   DialogFooter,
 } from "@neokapi/ui";
 import { grantCredits } from "../api";
+import { capture } from "../analytics";
 
 interface GrantCreditsDialogProps {
   open: boolean;
@@ -27,6 +28,7 @@ export function GrantCreditsDialog({ open, onOpenChange, workspaceId }: GrantCre
   const mutation = useMutation({
     mutationFn: () => grantCredits(workspaceId, Number(amount), reason),
     onSuccess: () => {
+      capture("admin_credits_granted", { workspace_id: workspaceId, amount: Number(amount) });
       void queryClient.invalidateQueries({ queryKey: ["admin", "workspace", workspaceId] });
       void queryClient.invalidateQueries({
         queryKey: ["admin", "workspace", workspaceId, "ledger"],

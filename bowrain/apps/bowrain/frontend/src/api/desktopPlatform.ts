@@ -1,6 +1,15 @@
 import { Browser, Events } from "@wailsio/runtime";
 import type { PlatformAdapter } from "@neokapi/bowrain-app";
 import { Backend } from "./backend";
+import {
+  analyticsAvailable,
+  captureEvent,
+  identifyUser,
+  isTelemetryEnabled,
+  resetAnalytics,
+  groupAnalytics,
+  setTelemetryEnabled,
+} from "../analytics";
 
 /**
  * Desktop implementation of the shared app's host-capability seam
@@ -26,7 +35,11 @@ import { Backend } from "./backend";
  * updater (backend InitUpdater, periodic background check) with no
  * frontend-callable binding, and the seam says not to invent one.
  *
- * `analytics` is absent too — the desktop does not run PostHog.
+ * `analytics` is the opt-out desktop telemetry (decision D1): PostHog keyed at
+ * build time (keyless dev = silent), gated on the persisted telemetry setting
+ * and Do Not Track, identifying by user id only and reporting route patterns,
+ * never URLs/paths/content — see ../analytics.ts. `optOut` backs the settings
+ * page toggle and the first-run notice's Disable button.
  */
 export function createDesktopPlatform(): PlatformAdapter {
   // connectivity.state() is synchronous, but GetConnectionState is a binding
@@ -53,6 +66,22 @@ export function createDesktopPlatform(): PlatformAdapter {
     kind: "desktop",
     openExternal: (url) => {
       void Browser.OpenURL(url);
+    },
+    analytics: {
+      identify: (user) => identifyUser(user.id),
+      reset: () => resetAnalytics(),
+      capture: (event, properties) => captureEvent(event, properties),
+      group: (type, key, props) => groupAnalytics(type, key, props),
+      // The settings toggle renders only when telemetry can exist at all
+      // (keyed build, DNT unset) — keyless builds show no dead switch.
+      ...(analyticsAvailable()
+        ? {
+            optOut: {
+              enabled: () => isTelemetryEnabled(),
+              setEnabled: (enabled: boolean) => setTelemetryEnabled(enabled),
+            },
+          }
+        : {}),
     },
     connectivity: {
       state: () => lastState,

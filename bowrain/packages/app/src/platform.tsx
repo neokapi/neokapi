@@ -21,10 +21,12 @@ export interface PlatformAdapter {
   /** Open a URL outside the app (a new browser tab, or the OS browser). */
   openExternal(url: string): void;
   /**
-   * Product analytics. Backed by PostHog on the web; absent on desktop, so
-   * every call site must optional-chain (`platform.analytics?.capture(...)`).
-   * Event names live in the shared `AnalyticsEvents` module (@neokapi/ui) —
-   * never inline literals — and props carry ids/enum-ish values only.
+   * Product analytics, backed by PostHog. The web shell always provides it
+   * (key-gated); the desktop shell provides it gated on the persisted
+   * telemetry setting (opt-out with first-run notice, decision D1). Call
+   * sites must optional-chain (`platform.analytics?.capture(...)`). Event
+   * names live in the shared `AnalyticsEvents` module (@neokapi/ui) — never
+   * inline literals — and props carry ids/enum-ish values only.
    */
   analytics?: {
     identify(user: { id: string; email?: string; name?: string }): void;
@@ -33,6 +35,15 @@ export interface PlatformAdapter {
     capture(event: string, props?: Record<string, unknown>): void;
     /** Associate the session with a PostHog group (e.g. "workspace"). */
     group(type: string, key: string, props?: Record<string, unknown>): void;
+    /**
+     * Local-client telemetry opt-out control (desktop shells only; absent on
+     * the web, where the privacy policy covers the cloud app). When present,
+     * the settings page renders a usage-statistics toggle.
+     */
+    optOut?: {
+      enabled(): boolean;
+      setEnabled(enabled: boolean): void;
+    };
   };
   /** Desktop working-copy connectivity. */
   connectivity?: {

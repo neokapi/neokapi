@@ -17,6 +17,8 @@ import { TabBar } from "./components/TabBar";
 import { SaveBar } from "./components/SaveBar";
 import { UnsavedDialog } from "./components/UnsavedDialog";
 import { RunningFlowDialog } from "./components/RunningFlowDialog";
+import { TelemetryNoticeDialog } from "./components/TelemetryNoticeDialog";
+import { initAnalytics, capturePageview } from "./analytics";
 import { ViewSwitch } from "./components/ViewSwitch";
 import { NewProjectDialog } from "./components/NewProjectDialog";
 import { useShortenHome } from "./hooks/useShortenHome";
@@ -64,6 +66,22 @@ function AppInner() {
   useEffect(() => {
     refreshRecent();
   }, [refreshRecent, tm.tabs.length]);
+
+  // Opt-out desktop analytics (D1): keyless builds and DNT stay silent; the
+  // persisted app setting gates capture. The one-time first-run notice shows
+  // only in keyed builds.
+  const [showTelemetryNotice, setShowTelemetryNotice] = useState(false);
+  useEffect(() => {
+    void initAnalytics().then(({ showNotice }) => setShowTelemetryNotice(showNotice));
+  }, []);
+
+  // Panel pageviews: static view ids only (e.g. "projects/flows"), never
+  // project names or file paths.
+  useEffect(() => {
+    const view = tm.effectiveView;
+    const route = view === "home" || view === "app-settings" ? view : `${tm.mode}/${view}`;
+    capturePageview(route);
+  }, [tm.mode, tm.effectiveView]);
 
   // Warn before window close/quit if there are unsaved changes or running flows.
   useEffect(() => {
@@ -347,6 +365,9 @@ function AppInner() {
             onDiscard={handleUnsavedDiscard}
             onCancel={() => setPendingCloseTabID(null)}
           />
+        )}
+        {showTelemetryNotice && (
+          <TelemetryNoticeDialog onClose={() => setShowTelemetryNotice(false)} />
         )}
       </div>
     </ActiveFilterProvider>

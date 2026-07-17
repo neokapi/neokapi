@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import { api } from "../hooks/useApi";
+import { captureEvent, durationBucket } from "../analytics";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -103,6 +104,9 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   // Tracks the ID of the job that is currently waiting for backend events.
   const activeIdRef = useRef<string | null>(null);
+  // Analytics context for the active run — flow name + start time only (never
+  // file paths or project names). Settled on the terminal event.
+  const activeRunRef = useRef<{ flow: string; start: number } | null>(null);
 
   // startJob is called from RunnerPage BEFORE api.runFlow — pre-creates
   // the job with project name and context.
@@ -110,6 +114,8 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
     (flowName: string, projectName?: string, targetLangs?: string[], fileCount?: number) => {
       const id = `${flowName}-${Date.now()}`;
       activeIdRef.current = id;
+      activeRunRef.current = { flow: flowName, start: Date.now() };
+      captureEvent("flow_run_started", { flow: flowName, file_count: fileCount });
       const job: Job = {
         id,
         flowName,
@@ -136,6 +142,15 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
     const id = activeIdRef.current;
     if (!id) return;
     activeIdRef.current = null;
+    const run = activeRunRef.current;
+    if (run) {
+      activeRunRef.current = null;
+      captureEvent("flow_run_completed", {
+        flow: run.flow,
+        outcome: "failed",
+        duration_bucket: durationBucket(Date.now() - run.start),
+      });
+    }
     setJobs((prev) =>
       prev.map((j) =>
         j.id === id && j.status === "running"
@@ -151,6 +166,25 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
   // a new job is created.
   useWailsEvent("flow:event", (data) => {
     const e = data as RunEvent;
+
+    // Analytics: settle the active run on its terminal event, outside the
+    // state updater below (which React may re-invoke). Only the flow name,
+    // outcome, and a bucketed duration are reported.
+    if (e.type === "complete" || e.type === "error") {
+      const run = activeRunRef.current;
+      if (run) {
+        activeRunRef.current = null;
+        const message = e.message ?? "";
+        const isCanceled =
+          e.type === "error" &&
+          (message.includes("context canceled") || message.includes("context cancelled"));
+        captureEvent("flow_run_completed", {
+          flow: run.flow,
+          outcome: e.type === "complete" ? "completed" : isCanceled ? "canceled" : "failed",
+          duration_bucket: durationBucket(e.duration_ms ?? Date.now() - run.start),
+        });
+      }
+    }
 
     setJobs((prev) => {
       const activeId = activeIdRef.current;

@@ -96,8 +96,8 @@ retired rather than dual-fired.
 Client-side events from the browser SPA (`bowrain/apps/web` +
 `bowrain/packages/app` + `@neokapi/ui`), epic-018 workstream B. They flow
 through the platform seam (`platform.analytics.capture`, wired to `posthog-js`
-in `bowrain/apps/web/src/posthog.ts`; the desktop shell leaves the seam
-unwired, so every capture is a no-op there) and the shared-component capture
+in `bowrain/apps/web/src/posthog.ts`; the desktop shell wires the same seam
+gated on its telemetry setting — see Client surfaces) and the shared-component capture
 seam (`useAnalytics()` in `@neokapi/ui`). Event names are defined once in
 `bowrain/packages/ui/src/analytics-events.ts`.
 
@@ -138,6 +138,59 @@ workspace group.
 | `glossary_saved` | a concept term status change persists in the Brand · Concepts edit dialog | `status`, `locale` |
 | `locale_demand_connect_clicked` | the "Connect PostHog" / "Fix connection" affordance is clicked on the locale-demand page (AD-018 demand path) | `reconnect` |
 
+## Client surfaces
+
+Client-side captures go through `posthog-js` and are key-gated the same way
+as the server: a build without `VITE_POSTHOG_KEY` emits nothing. Each surface
+registers its name as a super-property on every event:
+
+| Surface | App | Consent class | Behavior |
+|---|---|---|---|
+| `kapi-docs`, `bowrain-docs`, `landing` | docs sites + landing (`@neokapi/docs-shared` cookieless init) | docs/marketing | explicit `$pageview` per route; memory persistence, DNT respected, no cookies/storage |
+| `ctrl` | admin panel (`bowrain/apps/ctrl/src/analytics.ts`) | cloud app | route-pattern `$pageview` + the admin actions below; no PII beyond ids |
+| `pulse` | real-time dashboard (`bowrain/apps/pulse/src/analytics.ts`) | cloud app | route-pattern `$pageview` only |
+| `keycloak` | auth theme (`bowrain/apps/keycloak-theme`, cookieless `@neokapi/docs-shared` init) | cloud app, cookieless | the two page-view events below only; auth *outcome* events fire post-auth in the app, keeping the theme dumb |
+| `bowrain-desktop` | Bowrain desktop shell (`bowrain/apps/bowrain/frontend/src/analytics.ts`, wired through the platform seam) | local client (opt-out, D1) | route-pattern `$pageview`; identifies by user id only; URL default properties scrubbed |
+| `kapi-desktop` | Kapi Desktop (`apps/kapi-desktop/frontend/src/analytics.ts`) | local client (opt-out, D1) | `app_opened`, panel `$pageview`, flow-run events below; URL default properties scrubbed |
+
+Local clients (both desktops) follow decision D1: telemetry defaults ON with a
+one-time first-run notice (OK / Disable), a persistent settings toggle, Do Not
+Track honored, and keyless builds silent. They never carry file paths, project
+names, or content — pageviews report the matched route pattern or a static
+view id only, and the URL-bearing default properties (`$current_url`,
+`$pathname`, referrers, …) are stripped from every event.
+
+### Pageviews
+
+| Event | Fired when | Properties |
+|---|---|---|
+| `$pageview` | route/panel change on ctrl, pulse, both desktops, and the docs sites | `route` (matched route pattern or static view id; docs sites attach the URL instead) |
+
+### Ctrl admin actions
+
+| Event | Fired when | Properties |
+|---|---|---|
+| `admin_plan_changed` | a workspace's plan is updated (ChangePlanDialog) | `workspace_id`, `plan` |
+| `admin_feature_override_set` | a feature override is applied, bypassing the plan matrix — the L8 OSS-grant flow (FeatureOverrideDialog) | `workspace_id`, `feature`, `enabled` |
+| `admin_credits_granted` | credits are granted to a workspace (GrantCreditsDialog) | `workspace_id`, `amount` |
+| `admin_member_added` | a user is added to a workspace (AddMemberDialog) | `workspace_id`, `user_id`, `role` |
+| `admin_workspace_impersonated` | an admin impersonates a workspace | `workspace_id` |
+
+### Keycloak theme
+
+| Event | Fired when | Properties |
+|---|---|---|
+| `login_page_viewed` | a login template renders (`login.ftl`, `login-username.ftl`) | `template` |
+| `register_page_viewed` | the register template renders (`register.ftl`) | `template` |
+
+### Kapi Desktop
+
+| Event | Fired when | Properties |
+|---|---|---|
+| `app_opened` | app start with telemetry enabled | — |
+| `flow_run_started` | a flow run is triggered (JobFeed `startJob` — covers the runner and convergence) | `flow`, `file_count` |
+| `flow_run_completed` | the run's terminal event arrives (also emitted server-side; the `surface` property discriminates the local variant) | `flow`, `outcome` (`completed` / `failed` / `canceled`), `duration_bucket` |
+
 ## Adding an event
 
 1. Add the constant to `bowrain/analytics/events.go` (server events) or
@@ -145,7 +198,11 @@ workspace group.
    snake_case `domain_action`.
 2. Capture it at the service seam (preferred) or, where no service layer
    exists, at the handler success point — always fire-and-forget, after the
-   operation succeeded, never carrying content. Client events go through the
-   platform/`useAnalytics` capture seam, never a direct `posthog-js` import.
-3. Document it in this file (the `events_test.go` and
-   `analytics-events.test.ts` drift gates enforce this).
+   operation succeeded, never carrying content. Web-app client events go
+   through the platform/`useAnalytics` capture seam, never a direct
+   `posthog-js` import.
+3. Document it in this file. Server constants are gated by `events_test.go`
+   and web-app client names by `analytics-events.test.ts`; client events on
+   the other surfaces (ctrl, pulse, keycloak theme, desktops, docs) have no
+   automated gate — document them in the client-surfaces section in the same
+   change.

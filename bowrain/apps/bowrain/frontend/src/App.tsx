@@ -11,6 +11,8 @@ import { useConnection } from "./hooks/useApi";
 import { createDesktopAdapter } from "./api/desktopAdapter";
 import { createDesktopPlatform } from "./api/desktopPlatform";
 import { queryClient } from "./lib/queryClient";
+import { initAnalytics } from "./analytics";
+import { TelemetryNotice } from "./components/TelemetryNotice";
 
 // "offline" is the designed launch state (#1284): the server is configured but
 // unreachable, distinct from "connecting" (no/expired session → sign in).
@@ -25,6 +27,9 @@ type AppMode = "loading" | "connecting" | "offline" | "ready";
 // server auth is the ServerConnect gate below.
 const desktopAdapter = createDesktopAdapter();
 const desktopPlatform = createDesktopPlatform();
+// Opt-out desktop analytics (D1): keyless builds and DNT stay silent; the
+// persisted telemetry setting gates capture (first-run notice below).
+initAnalytics();
 // Hash history: the Wails webview serves the frontend from a static asset root,
 // so browser history would 404 on refresh or deep navigation. Hash keeps every
 // route change client-side.
@@ -271,12 +276,15 @@ function AppInner() {
   // providers, and routing; the desktop passes the Wails data + platform seams
   // and a hash history.
   return (
-    <BowrainApp
-      api={desktopAdapter}
-      platform={desktopPlatform}
-      queryClient={queryClient}
-      history={desktopHistory}
-    />
+    <>
+      <BowrainApp
+        api={desktopAdapter}
+        platform={desktopPlatform}
+        queryClient={queryClient}
+        history={desktopHistory}
+      />
+      <TelemetryNotice />
+    </>
   );
 }
 

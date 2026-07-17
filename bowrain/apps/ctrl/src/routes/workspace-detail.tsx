@@ -24,6 +24,7 @@ import { GrantCreditsDialog } from "../components/GrantCreditsDialog";
 import { FeatureOverrideDialog } from "../components/FeatureOverrideDialog";
 import { AddNoteDialog } from "../components/AddNoteDialog";
 import { AddMemberDialog } from "../components/AddMemberDialog";
+import { capture } from "../analytics";
 
 function CreditBar({ used, total }: { used: number; total: number }) {
   const pct = total > 0 ? Math.min((used / total) * 100, 100) : 0;
@@ -75,6 +76,7 @@ export function WorkspaceDetailRoute() {
   const impersonate = useMutation({
     mutationFn: () => impersonateWorkspace(workspaceId!),
     onSuccess: (data) => {
+      capture("admin_workspace_impersonated", { workspace_id: workspaceId });
       void navigator.clipboard.writeText(data.token);
       window.open(data.url, "_blank");
     },
