@@ -16,7 +16,7 @@ formats, see the neokapi reference:
   processing tool and its inputs and outputs.
 - [Format reference](https://neokapi.github.io/web/neokapi/formats) — every
   format reader/writer and its configurable parameters.
-- [Flows](https://neokapi.github.io/web/neokapi/docs/framework/flows) — the
+- [Flows](https://neokapi.github.io/web/neokapi/framework/flows) — the
   streaming-pipeline model.
 
 ## Flows in a synced project

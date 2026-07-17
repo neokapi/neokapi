@@ -59,7 +59,7 @@ Push/pull workflow similar to git:
 kapi status    # Show local changes
 kapi diff      # Compare local vs. server
 kapi pull      # Fetch from server
-kapi push -m "message"  # Upload to server
+kapi push      # Upload to server
 ```
 
 Only changed blocks transfer (content-addressed sync).

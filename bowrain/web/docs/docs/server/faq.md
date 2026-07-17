@@ -52,7 +52,7 @@ your content hostage.
 Bowrain reads and writes the same formats the neokapi engine supports:
 localization formats, document formats, data formats, subtitle formats, and office
 formats. Rather than repeat a list that changes as formats are added, see the
-generated [format reference](https://neokapi.github.io/web/neokapi/docs/features/formats)
+generated [format reference](https://neokapi.github.io/web/neokapi/formats)
 for the current, complete set.
 
 ## Does Bowrain train models on my content?

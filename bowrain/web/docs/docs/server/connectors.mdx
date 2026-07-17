@@ -52,11 +52,23 @@ See [Project sync](/cli/overview) for the kapi workflow.
 
 ## Server-side connectors
 
-Server-side connectors are configured per workspace in the Bowrain web UI. Once set up, they run automatically and can trigger automation rules when content arrives or translations are ready.
+Server-side connectors are scoped to a workspace and managed from a project's
+**Connectors** view in the web app: add a WordPress, Figma, or HubSpot
+connector there (saved credentials are write-only — used for sync, never
+displayed again), browse the content it can see, fetch it into the project,
+and publish translations back. The same operations are available through the
+workspace connectors API for scripting. Both surfaces require the
+**manage connectors** permission; the forge connector is the exception and is
+configured through the API only (below).
 
-Remote connectors are configured per workspace through the connectors API, which
-requires the manage-connectors permission. Each guide covers the content it
-syncs, the credentials it needs, setup, and its limitations:
+Sync is explicit: content moves when you select **Fetch now** or **Publish**,
+or call the corresponding endpoints. A fetch does not emit an event, so
+automation rules do not react to it — the convergence orchestrator subscribes
+to push completion. Catch up fetched content by starting a run or a flow, or
+let the project's `server.converge` policy produce and review targets.
+
+Each guide covers the content it syncs, the credentials it needs, setup, and
+its limitations:
 
 - [WordPress](/server/connectors/wordpress) — CMS posts (title, content, excerpt)
 - [Figma](/server/connectors/figma) — design text layers (pull-only)
@@ -74,6 +86,7 @@ push to the tracked branch. When a run parks work for a person, the request
 says so; approvals travel through the project's review queue and arrive in a
 later delivery.
 
+The forge connector is not offered in the web app's add-connector dialog.
 Create it through the workspace connectors API (`manage-connectors`
 permission), then point a webhook at the server:
 
@@ -147,12 +160,11 @@ Installing the app on a repository is then the only per-repo step. Static
 tokens keep working alongside app mode — GitLab always uses a project access
 token.
 
-:::warning Work in progress
+:::note
 
-Server-side connectors are under active development. The remote connectors above
-are configured through the workspace connectors API rather than a web form; a
-configuration UI is planned. The local-file and Git connectors run server-side
-and are driven by kapi (see the [kapi connector](#the-kapi-connector-local-files--git) above).
+The local-file and Git connectors run server-side and are driven by kapi (see
+the [kapi connector](#the-kapi-connector-local-files--git) above); they do not
+appear in the web app's Connectors view.
 
 :::
 

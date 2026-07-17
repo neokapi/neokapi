@@ -149,7 +149,7 @@ Only the connection coordinates sit under `server:`:
 
 Lifecycle (`hooks`, `automations`) and content/governance (`assets`, `brand_voice`) live at the **top level** of the recipe, not under `server:` — they describe project-owned policy, not server identity.
 
-The framework has no built-in notion of a server: `server:` (and `hooks:`, `automations:`, `assets:`, `brand_voice:`) are bowrain **recipe extensions** decoded only when the `kapi-bowrain` plugin is installed (the framework round-trips them verbatim otherwise). So `kapi init` / `kapi init-connect` (and `kapi config server.url …`) declare `requires: { bowrain: "*" }` whenever they write a `server:` block. A plain `kapi` binary without the plugin then refuses the recipe with an actionable "requires the bowrain plugin" error rather than silently ignoring the connection. See [AD-framework-008: Project model — recipe extension mechanism](https://neokapi.github.io/web/neokapi/docs/architecture/008-project-model).
+The framework has no built-in notion of a server: `server:` (and `hooks:`, `automations:`, `assets:`, `brand_voice:`) are bowrain **recipe extensions** decoded only when the `kapi-bowrain` plugin is installed (the framework round-trips them verbatim otherwise). So `kapi init` / `kapi init-connect` (and `kapi config server.url …`) declare `requires: { bowrain: "*" }` whenever they write a `server:` block. A plain `kapi` binary without the plugin then refuses the recipe with an actionable "requires the bowrain plugin" error rather than silently ignoring the connection. See [AD-framework-008: Project model — recipe extension mechanism](https://neokapi.github.io/web/neokapi/contribute/architecture/008-project-model).
 
 ## Content Collections
 

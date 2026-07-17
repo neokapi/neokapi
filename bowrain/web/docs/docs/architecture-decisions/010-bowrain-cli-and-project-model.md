@@ -21,7 +21,7 @@ The `kapi` binary contains **zero bowrain code**. It discovers the
 installed plugin at runtime by reading its `manifest.json`, then dispatches
 `kapi push`, `kapi pull`, … to `kapi-bowrain` as a subprocess. The
 discovery and dispatch mechanics are the framework's unified plugin model —
-see [AD-framework-007: Plugin System](https://neokapi.github.io/web/neokapi/docs/architecture/007-plugin-system).
+see [AD-framework-007: Plugin System](https://neokapi.github.io/web/neokapi/contribute/architecture/007-plugin-system).
 The legacy standalone `bowrain` binary, the build-time blank-import of
 `bowrain/plugin` into `kapi`, and the `-tags pure` / `kapi-pure` split are
 all retired: there is one user-facing CLI, `kapi`, and bowrain is something
@@ -52,7 +52,7 @@ They need a first-class command surface that:
 - stores its own configuration alongside the code it describes.
 
 The framework's `.kapi` recipe model
-([AD-framework-008: Kapi Project Model](https://neokapi.github.io/web/neokapi/docs/architecture/008-project-model))
+([AD-framework-008: Kapi Project Model](https://neokapi.github.io/web/neokapi/contribute/architecture/008-project-model))
 already provides a portable, gitignore-aware project layout with stateless
 recipe + sibling state directory. Bowrain extends it with a `server:`
 block and a few top-level lifecycle/governance fields.
@@ -118,7 +118,7 @@ brew install neokapi/tap/bowrain-cli  # Homebrew (depends on the kapi formula)
 
 Discovery and dispatch are not bowrain-specific — they are the framework's
 unified plugin model, shared with okapi-bridge and any other plugin. See
-[AD-framework-007: Plugin System](https://neokapi.github.io/web/neokapi/docs/architecture/007-plugin-system)
+[AD-framework-007: Plugin System](https://neokapi.github.io/web/neokapi/contribute/architecture/007-plugin-system)
 for the manifest schema, discovery precedence, and the A/B/C transport
 modes referenced below.
 
@@ -393,8 +393,8 @@ ever created.
 
 ## Related
 
-- [AD-framework-007: Plugin System](https://neokapi.github.io/web/neokapi/docs/architecture/007-plugin-system) — the manifest discovery and A/B/C dispatch model that loads `kapi-bowrain`
-- [AD-framework-008: Kapi Project Model](https://neokapi.github.io/web/neokapi/docs/architecture/008-project-model) — the recipe schema this AD layers `server:` onto
+- [AD-framework-007: Plugin System](https://neokapi.github.io/web/neokapi/contribute/architecture/007-plugin-system) — the manifest discovery and A/B/C dispatch model that loads `kapi-bowrain`
+- [AD-framework-008: Kapi Project Model](https://neokapi.github.io/web/neokapi/contribute/architecture/008-project-model) — the recipe schema this AD layers `server:` onto
 - [AD-009: Sync Protocol](009-sync-protocol) — the on-the-wire contract used by push/pull
 - [AD-011: REST API](011-rest-api) — the bowrain-server endpoints consumed by the source connector
 - [AD-013: Automation Engine](013-automation-engine) — server-side automation paired with local `hooks` / `automations`

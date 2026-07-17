@@ -22,7 +22,7 @@ Apache-2.0 `bowrain/plugin/schema` recipe-vocabulary sub-module.
 The neokapi framework is the Apache-licensed core: content model, formats,
 tools, pipeline executor, plugin system, TM, terminology, and AI/MT providers.
 It has zero platform dependencies — no database, no server, no authentication.
-See [AD-framework-001: Vision and Module Architecture](https://neokapi.github.io/web/neokapi/docs/architecture/001-vision-and-modules).
+See [AD-framework-001: Vision and Module Architecture](https://neokapi.github.io/web/neokapi/contribute/architecture/001-vision-and-modules).
 
 Bowrain is the commercial-grade platform layered on top. It persists content,
 syncs with live systems (CMS, design tools, code repos, marketing platforms),
@@ -251,4 +251,4 @@ members.
 - [AD-004: Content Store and Versioning](004-content-store.md)
 - [AD-008: Connector System](008-connector-system.md)
 - [AD-009: Sync Protocol](009-sync-protocol.md)
-- [AD-framework-001: Vision and Module Architecture](https://neokapi.github.io/web/neokapi/docs/architecture/001-vision-and-modules)
+- [AD-framework-001: Vision and Module Architecture](https://neokapi.github.io/web/neokapi/contribute/architecture/001-vision-and-modules)

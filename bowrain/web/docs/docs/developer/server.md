@@ -42,14 +42,17 @@ GET    /api/v1/projects/:id/versions # List versions
 
 #### Connectors
 
+Connector instances are workspace-scoped (`:ws` is the workspace slug) and require the manage-connectors permission. See [Connectors](/server/connectors) for setup guides.
+
 ```
-GET    /api/v1/connectors/types      # List connector types
-GET    /api/v1/connectors            # List active connectors
-POST   /api/v1/connectors            # Add connector
-DELETE /api/v1/connectors/:id        # Remove connector
-GET    /api/v1/connectors/:id/status # Sync status
-POST   /api/v1/pull                  # Pull from connector
-POST   /api/v1/push                  # Push to connector
+GET    /api/v1/:ws/connectors              # List active connectors
+POST   /api/v1/:ws/connectors              # Add connector
+PUT    /api/v1/:ws/connectors/:id          # Update connector
+DELETE /api/v1/:ws/connectors/:id          # Remove connector
+GET    /api/v1/:ws/connectors/:id/status   # Sync status
+GET    /api/v1/:ws/connectors/:id/content  # Browse available content
+POST   /api/v1/:ws/connectors/:id/fetch    # Fetch content from the external system
+POST   /api/v1/:ws/connectors/:id/publish  # Publish translations back
 ```
 
 #### Processing

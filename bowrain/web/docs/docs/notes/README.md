@@ -13,7 +13,7 @@ signatures, and other reference material. They exist alongside the
 the design choices; notes describe the implementation.
 
 Framework-level notes (formats, plugin bridge, TM matching, etc.) live in the
-framework's [Implementation Notes](https://neokapi.github.io/web/neokapi/docs/notes-internal/index).
+framework's [Implementation Notes](https://neokapi.github.io/web/neokapi/contribute/notes-internal/index).
 
 | Note                                                      | Parent AD                                                 | Content                                                     |
 | --------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------- |
@@ -27,6 +27,7 @@ framework's [Implementation Notes](https://neokapi.github.io/web/neokapi/docs/no
 | [Translation Job Queue](translation-job-queue.md)         | [AD-015](../architecture-decisions/015-server-ai-operations) | Job model, worker algorithm, quota schema               |
 | [Brand Voice Data Model](brand-voice-data-model.md)       | [AD-015](../architecture-decisions/015-server-ai-operations) | VoiceProfile, scoring dimensions                        |
 | [Entity & Term Extraction](entity-term-extraction.md)     | [AD-015](../architecture-decisions/015-server-ai-operations) | NER pipeline, review queue schema                       |
+| [Knowledge Graph Data Model](knowledge-graph-data-model.md) | [AD-021](../architecture-decisions/021-brand-knowledge-graph) | Concept/relation schema, change-set ops, REST routes  |
 | [Bravo Agent Implementation](bravo-agent-implementation.md) | [AD-016](../architecture-decisions/016-bravo-agent)     | ZeroClaw integration, MCP cloud tools                     |
 | [CLI Commands Reference](cli-commands-reference.md)       | [AD-010](../architecture-decisions/010-bowrain-cli-and-project-model) | Command tree, REST routes                   |
 | [Admin Control Plane](admin-control-plane.md)             | [AD-017](../architecture-decisions/017-bowrain-apps)      | Realm separation, impersonation audit                       |
