@@ -33,26 +33,41 @@ not a `description` bug: give the scenario a file the skill actually owns.
 
 ## Positive — must trigger
 
-Last run: **2026-07-11**, headless (see Notes), against `cab47a875`. Triggering
-only — the `Completed` column is still a manual pass.
+Triggering last run: **2026-07-11**, headless, against `cab47a875`.
+Completion last run: **2026-07-17**, headless, against `8bb195640` in a
+dedicated **sandboxed** kapi (isolated config/data/cache/plugins; Gemini via env
+only; the user's installed kapi and keychain are never used). Completion is
+**catalog-gate depth** by decision — `kapi check --ship` green on the generated
+catalogs; the app is not booted, so in-locale *rendering* is not verified here
+(still a manual pass for the render-gated rows).
 
 | # | Prompt | Path | Triggered | Completed |
 |---|--------|------|-----------|-----------|
-| 1 | "What does slide 3 of `pitch.pptx` say?" | read/edit (binary) | yes | |
-| 2 | "Make the intro of `report.docx` more concise — keep the formatting." | edit | yes | |
-| 3 | "Check `README.md` against our brand voice and fix what's off." | brand | yes | |
-| 4 | "Find every 'utilize' across `docs/` and change it to 'use'." (`docs/` **must** hold at least one opaque file — a `.docx`/`.json` — or the skill correctly won't fire; see above) | edit / toolbox | yes | |
-| 5 | "Set up a brand voice for us from our landing page." | brand create | yes | |
-| 6 | "Translate `announcement.docx` into Japanese." | localize | yes | |
-| 7 | "Localize `src/locales/en.json` into fr and de using our glossary." | localize | yes | |
-| 8 | "Get `report.docx` ready for a translation vendor in French." | localize (interchange) | yes | |
-| 9 | "Add i18n to this React app." | i18n | yes | |
-| 10 | "Set kapi up for this project." | bootstrap | yes | |
-| 11 | "Bring our project's Norwegian translations up to date and flag what still needs review." | localize (kapi loop) | yes | |
-| 12 | "Which i18n library should we use for our Next.js app?" | i18n (advice — must quote toil grades, not just pick one) | yes | |
-| 13 | "Internationalize this Flutter app and translate it to German." | i18n (detect → flutter.md → gen_l10n + preset) | yes | |
-| 14 | "Our app has hardcoded strings everywhere — make it translatable." | i18n (retrofit; lint/pseudo-translate sweep) | yes | |
-| 15 | "Localize this Android app into French." | i18n (androidxml, --format flag) | yes | |
+| 1 | "What does slide 3 of `pitch.pptx` say?" | read/edit (binary) | yes | yes — read via `kcat` |
+| 2 | "Make the intro of `report.docx` more concise — keep the formatting." | edit | yes | yes — `ksed`, formatting preserved |
+| 3 | "Check `README.md` against our brand voice and fix what's off." | brand | yes | yes — `kapi brand check` gate |
+| 4 | "Find every 'utilize' across `docs/` and change it to 'use'." (`docs/` **must** hold at least one opaque file — a `.docx`/`.json` — or the skill correctly won't fire; see above) | edit / toolbox | yes | yes — replaced across `.docx`+`.json`+`.md` |
+| 5 | "Set up a brand voice for us from our landing page." | brand create | yes | yes — `brand.yaml` + `brand check --min-score` |
+| 6 | "Translate `announcement.docx` into Japanese." | localize | yes | yes — round-trip → `kapi check` |
+| 7 | "Localize `src/locales/en.json` into fr and de using our glossary." | localize | yes | partial — fr/de translated + checked, but the fixture shipped **no glossary**, so the term dimension wasn't exercised (fixture gap, not a skill miss) |
+| 8 | "Get `report.docx` ready for a translation vendor in French." | localize (interchange) | yes | yes — `pack`/extract → merge, TM seeded (~45 turns; exploratory) |
+| 9 | "Add i18n to this React app." | i18n | yes | blocked — correct Path A workflow, but `@neokapi/kapi-react*` npm is served from a private registry (`localhost:4873`) absent in the sandbox; extraction can't install its toolchain |
+| 10 | "Set kapi up for this project." | bootstrap | yes | yes — `kapi init` scaffolded recipe + state (needs ≥25 turns; below that it reads as full i18n adoption) |
+| 11 | "Bring our project's Norwegian translations up to date and flag what still needs review." | localize (kapi loop) | yes | yes — drove `kapi status`, caught nb up to 100%, surfaced the review queue |
+| 12 | "Which i18n library should we use for our Next.js app?" | i18n (advice — must quote toil grades, not just pick one) | yes | partial — read the registry + `react.md` and gave a sound next-intl vs kapi-react recommendation, but did **not** quote the toil grades to the user (the stated bar) |
+| 13 | "Internationalize this Flutter app and translate it to German." | i18n (detect → flutter.md → gen_l10n + preset) | yes | yes (catalog) — `check --ship` green, de 100%; SDK codegen/render not run in sandbox |
+| 14 | "Our app has hardcoded strings everywhere — make it translatable." | i18n (retrofit; lint/pseudo-translate sweep) | yes | blocked — same `@neokapi/kapi-react*` private-registry limit as #9; retrofit lint can't install |
+| 15 | "Localize this Android app into French." | i18n (androidxml, --format flag) | yes | yes — `check --ship` green, fr 100%, `values-fr/` created |
+
+Completion summary: **12/15 green** at catalog-gate depth, **2 partial** (#7
+glossary fixture gap, #12 didn't surface grades), **2 blocked** on the
+`@neokapi/kapi-react` private npm registry being unavailable in the sandbox
+(#9, #14 — the same root cause; not a skill defect). The two blocked and the
+Flutter render step are the residual manual pass. Two scenario-shape lessons
+worth folding back into the fixtures: **give #7 a real glossary** (else it
+tests nothing it claims to), and **the kapi-react Path A rows can only reach a
+green gate where `@neokapi/kapi-react*` is installable** — either run the local
+registry or complete them against a catalog-library path.
 
 Scenario 11 is the kapi loop end to end: read state (`kapi status`),
 catch up (`kapi up`), then surface the review queue (`kapi status --review`) —
