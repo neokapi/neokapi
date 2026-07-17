@@ -7,7 +7,8 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 
 # kapi up
 
-Catch the project up to its ship gates — the verb that runs the kapi loop. `kapi up`
+Catch the project up to its ship gates — the verb that runs
+[the kapi loop](/the-loop). `kapi up`
 treats the recipe as the desired state and runs the project's default flow over
 all content across every target language, looping until every gated scope is
 shippable or parks for a human.
@@ -54,6 +55,8 @@ kapi up --passes 1
 | -------------- | --------------------------------------------------------------------------- | -------------- |
 | `--plan`       | Dry run: report pending work, TM leverage, and a token estimate — no writes | `false`        |
 | `--local`      | Catch up on this machine, then push the results (override the server venue)  | `false`        |
+| `--server`     | Require the server venue: fail rather than fall back to a local run          | `false`        |
+| `--timeout`    | Server venue: maximum time to wait for the server run before pulling available results | `15m` |
 | `--passes`     | Maximum reconciliation passes (`0` = loop until caught up or parked; `1` = one) | `0`          |
 | `--jobs`       | How many languages to catch up concurrently per pass                        | `4`            |
 | `--materialize`| After the loop, write localized files for every shippable locale            | `false`        |
@@ -110,7 +113,8 @@ Use `kapi up` for the daily reconcile — bringing every locale up to date again
 the project's gates, locally or on the server:
 
 - **CI/CD pipelines** — `kapi up --json` from a workflow to catch up on push and
-  fail only on an explicit `kapi check --ship` gate.
+  fail only on an explicit `kapi check --ship` gate; see
+  [The loop in CI](/cli/ci/overview) for the ready-made surfaces.
 - **Developer workflows** — update source content, then `kapi up` to get
   translations back and see what still needs a human.
 

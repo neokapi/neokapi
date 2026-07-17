@@ -1,116 +1,128 @@
 ---
-sidebar_position: 3
-title: Quick Start
+sidebar_position: 4
+title: Quick start
 slug: /quickstart
 ---
 
-# Quick Start
+# Quick start
 
-Get content into Bowrain in 5 minutes. There are two ways in: **connect a source system** server-side (a CMS, design tool, or git host — no install, no checkout), or **sync a local codebase** with kapi. Pick the one that matches where your content lives.
+There are two ways into Bowrain, and they meet in the same workspace. **Start
+from your content** if the work lives in a CMS, a design tool, or documents —
+no install, nothing local. **Start from a codebase** if the source files live
+in a repository you work in. Either way, the workspace's brand voice,
+terminology, and translation memory govern what gets produced, and the
+[kapi loop](/the-loop) keeps it caught up.
 
-## Connect a source system (no checkout)
+## Start from your content
 
-If your content already lives in a CMS, a design tool, or a git host, connect it server-side. In the web app, open **Workspace Settings → Connectors**, add a connector (WordPress, Figma, HubSpot, git), and Bowrain pulls the source in; translated results publish back to where they came from. See [Connectors](/server/connectors) and the [server getting-started](/server/getting-started) — no CLI needed.
+You write and publish content; you want it on brand, and optionally in more
+languages. Nothing to install — open [bowrain.cloud](https://bowrain.cloud)
+(or your own server) and sign in. A personal workspace is created on first
+login.
 
-## From a local codebase with kapi
+1. **Create a project** and bring content in. Upload files directly in the web
+   app — the editor works on the formats you already publish — or have your
+   content systems connected server-side (WordPress, HubSpot, Figma) so source
+   flows in and published results flow back. See
+   [Getting started on the server](/server/getting-started) and
+   [Connectors](/server/connectors).
+2. **Establish the brand context.** Run a [brand scan](/server/brand-scan) over
+   content you already trust — it drafts a voice profile and glossary
+   candidates for you to review and adopt. Terminology and translation memory
+   grow in the workspace from there.
+3. **Translate and check.** In the [editor](/server/translation-editor), AI
+   drafts against the workspace's voice profile, terminology, and memory;
+   checks flag what drifts.
+4. **Review and publish.** Step through the [Review surface](/server/review),
+   approve what's right — corrections feed the
+   [learning loop](/server/brand-voice) — then export, or publish back through
+   the connector.
 
-If your source files live in a repository you work in, sync them with kapi (with the bowrain plugin installed). The steps below walk that path.
+The end-to-end path for this door is
+[Publish on brand](/server/publish-on-brand).
 
-### Initialize a Project
+## Start from a codebase
 
-Create a `.kapi` project — a `<dir-name>.kapi` recipe at the project root with a sibling `.kapi/` state directory (like `.git` for localization):
+Your source files live in a repository. Sync them with the
+[kapi CLI](/installation) (with the bowrain plugin installed) and let the loop
+run on the server.
+
+### Initialize a project
+
+Create a `.kapi` project — a `<dir-name>.kapi` recipe at the project root with
+a sibling `.kapi/` state directory (like `.git` for content):
 
 ```bash
 kapi init
 ```
 
-The interactive wizard guides you through setup:
-
-1. **Sign in to Bowrain** — authenticate and create a server-connected project
-2. **Email me a claim link** — create an anonymous project with email claim
-3. **Continue without signing in** — create an anonymous project (prints claim URL)
-4. **Local only** — no server connection, pure local project
-
-Or skip the wizard with flags:
+The interactive wizard signs you in and connects the project to a workspace on
+your server (or creates an anonymous project with a claim link, or a local-only
+project). Or skip the wizard with flags:
 
 ```bash
-kapi init --name "My Project" --source en-US --targets fr-FR,de-DE
+kapi init --name my-app --source en --targets fr,de
 ```
 
-This writes `<dir-name>.kapi` (the recipe) and `.kapi/` (state, including `flows/`).
+### Bring it up to date
 
-### Translate Files
-
-Run the built-in AI translation tool:
+One verb runs the [kapi loop](/the-loop): reuse what the workspace has
+translated before, AI-translate the rest, check everything produced, park what
+needs a person:
 
 ```bash
-kapi translate
+kapi up          # runs on the server — org keys, shared memory and terminology
+kapi up --plan   # dry run: pending work, TM leverage, and a token estimate
 ```
 
-kapi automatically:
+On a connected project `kapi up` prints its venue first (*server*), streams the
+run's progress into your terminal, and pulls the results down. Parked units
+land in the team's [review queue](/server/review).
 
-- Reads files matching your recipe's `content:` collections
-- Translates from source to target locales
-- Commits translations to the project store (run `kapi merge` to write local files, or `kapi push` to send them to the server)
-
-### Sync with Bowrain Server
-
-Push translations to the server for team collaboration:
+### See where things stand
 
 ```bash
-kapi push -m "Translate UI strings"
+kapi status      # per-locale coverage, server standing, and the venue
+kapi diff        # what changed locally since the last sync
 ```
 
-Pull translations from teammates:
+### Move content without translating
+
+`kapi push` and `kapi pull` are pure transport — like `git push` and
+`git fetch`, they move project state and never produce translations:
 
 ```bash
-kapi pull
+kapi push        # send local changes to the server
+kapi pull        # fetch teammates' and reviewers' work
 ```
 
-Check sync status:
+### Run a specific flow
 
-```bash
-kapi status
-```
-
-### Create a Custom Flow
-
-Define a workflow in `.kapi/flows/my-flow.yaml`:
-
-```yaml
-name: my-flow
-description: Translate with AI and run QA checks
-
-steps:
-  - tool: translate
-  - tool: qa
-```
-
-Run it:
+For a custom composition — one named flow, one pass, no gate loop — define a
+flow in `.kapi/flows/` and run it:
 
 ```bash
 kapi run my-flow
 ```
 
-### Key Commands
+See [Flows](/cli/flows/overview).
 
-| Command                    | Description                       |
-| -------------------------- | --------------------------------- |
-| `kapi init`             | Initialize a project              |
-| `kapi status`           | Show sync state                   |
-| `kapi translate`     | Translate with AI                 |
-| `kapi pseudo-translate` | Generate pseudo-translations      |
-| `kapi exec qa`         | Run quality checks                |
-| `kapi run <flow>`       | Execute a composed or custom flow |
-| `kapi flows`            | List available flows              |
-| `kapi tools`            | List available tools              |
-| `kapi push`             | Upload to server                  |
-| `kapi pull`             | Fetch from server                 |
-| `kapi config`           | View or set configuration         |
+### Key commands
 
-## Next Steps
+| Command                 | Description                                     |
+| ----------------------- | ----------------------------------------------- |
+| `kapi init`             | Initialize a project                            |
+| `kapi up`               | Run the loop — catch every language up          |
+| `kapi status`           | Coverage, sync state, and venue                 |
+| `kapi diff`             | What changed since the last sync                |
+| `kapi push` / `kapi pull` | Pure transport to and from the server         |
+| `kapi check --ship`     | The release gate (exit 3 when unmet)            |
+| `kapi run <flow>`       | Execute a composed or custom flow               |
+| `kapi pseudo-translate` | Local pseudo-translation for testing            |
 
-- **Connect a source system**: [Connectors](/server/connectors) — sync a CMS, design tool, or git host server-side
-- **Server getting-started**: [Getting started on the server](/server/getting-started)
-- **The kapi developer path**: [Walkthrough](/walkthroughs/bowrain-getting-started), then `kapi flows` and `kapi tools`
-- **CLI reference**: [Bowrain CLI](/cli/commands/init)
+## Next steps
+
+- [The kapi loop on Bowrain](/the-loop) — how produce, promote, and release fit together
+- [Publish on brand](/server/publish-on-brand) — the content door, end to end
+- [The loop in CI](/cli/ci/overview) — GitHub Actions, GitLab CI, and the Bowrain GitHub App
+- [Walkthrough](/walkthroughs/bowrain-getting-started) — the developer path on video
