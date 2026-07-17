@@ -41,7 +41,7 @@ kapi config server.url        # Read the compound server URL
 
 # The bowrain global config file (its niche)
 kapi bowrain config --global server.url                       # Read the default server URL
-kapi bowrain config --global server.url https://bowrain.cloud # Set it (applies to all projects)
+kapi bowrain config --global server.url https://app.bowrain.cloud # Set it (applies to all projects)
 ```
 
 ## Options
@@ -59,14 +59,14 @@ kapi bowrain config --global server.url https://bowrain.cloud # Set it (applies 
 | `name`                       | Project name                                               | `My App`                                           |
 | `defaults.source_language`   | Source locale (BCP 47)                                     | `en-US`                                            |
 | `defaults.target_languages`  | Target locales (list)                                      | `[fr-FR, de-DE]`                                   |
-| `server.url`                 | Compound server URL (encodes server / workspace / project) | `https://bowrain.cloud/my-team/proj_abc123`  |
+| `server.url`                 | Compound server URL (encodes server / workspace / project) | `https://app.bowrain.cloud/my-team/proj_abc123`  |
 | `server.stream`              | Server stream (`$auto` for auto-detect)                    | `$auto`                                            |
 
 ### Global Config (`~/.config/bowrain/bowrain.yaml`)
 
 | Key                | Description                         | Example                       |
 | ------------------ | ----------------------------------- | ----------------------------- |
-| `server.url`       | Default server URL for all projects | `https://bowrain.cloud` |
+| `server.url`       | Default server URL for all projects | `https://app.bowrain.cloud` |
 | `plugin_directory` | Plugin directory path               | `/home/user/.config/bowrain/plugins` |
 
 ## Global vs Project Config
@@ -77,7 +77,7 @@ overrides global values for the current project.
 For example, set the server URL globally so all `kapi init` commands use it:
 
 ```bash
-kapi bowrain config --global server.url https://bowrain.cloud
+kapi bowrain config --global server.url https://app.bowrain.cloud
 ```
 
 Then override it for a specific project if needed:

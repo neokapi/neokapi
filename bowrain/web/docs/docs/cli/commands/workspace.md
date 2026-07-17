@@ -17,7 +17,8 @@ kapi workspace create --name "<name>" [--slug <slug>]
 ```
 
 The server is resolved from `--server`, then `BOWRAIN_SERVER_URL` /
-`server.url` in `~/.config/bowrain/bowrain.yaml`, then your stored login.
+`server.url` in `~/.config/bowrain/bowrain.yaml`, then your stored login,
+falling back to the hosted service (`https://app.bowrain.cloud`).
 
 ## Subcommands
 

@@ -49,7 +49,9 @@ The server URL is determined from (first match wins):
   1. --server flag
   2. BOWRAIN_SERVER_URL environment variable / server.url in ~/.config/bowrain/bowrain.yaml
   3. Existing auth state (from kapi auth login)
-  4. Built-in default (http://localhost:8080)
+  4. The hosted service (https://app.bowrain.cloud) — used only when init
+     contacts a server (sign-in, --anonymous, --email, --project); a plain
+     init with nothing configured writes a recipe with no server: block
 
 Use --anonymous to create a project without signing in.
 Use --email to create a project and email a link to claim it.`,
@@ -110,11 +112,6 @@ func existingRecipePath(dir string) (string, error) {
 func resolveServerURL() string {
 	return resolveServerURLFrom(initServerURL)
 }
-
-const serverURLHelp = `Server URL not configured. Set it via one of:
-  kapi config --global server.url https://bowrain.example.com
-  export BOWRAIN_SERVER_URL=https://bowrain.example.com
-  kapi init --server https://bowrain.example.com`
 
 // parseTargetLocales splits a comma-separated locale string into a slice.
 func parseTargetLocales(s string) []model.LocaleID {
@@ -185,16 +182,13 @@ func runInitNonInteractive(ctx context.Context, cwd string) (*output.InitOutput,
 
 	// If --project is specified, use it directly (requires auth).
 	if initProjectID != "" {
-		serverURL := resolveServerURL()
-		if serverURL == "" {
-			return nil, errors.New("--server or BOWRAIN_SERVER_URL is required when --project is specified")
-		}
+		serverURL := resolveServerURLOrDefault(initServerURL)
 		auth, err := loadAuth()
 		if err != nil {
 			return nil, errors.New("not authenticated with server (run: kapi auth login)")
 		}
-		if auth.ServerURL != serverURL {
-			return nil, fmt.Errorf("authenticated with different server (%s), please login to %s first", auth.ServerURL, serverURL)
+		if authServer := config.NormalizeServerURL(auth.ServerURL); authServer != "" && authServer != serverURL {
+			return nil, fmt.Errorf("authenticated with different server (%s), please login to %s first", authServer, serverURL)
 		}
 		setServerURL(recipe, project.FormatProjectURL(serverURL, "", initProjectID))
 		fmt.Printf("Connecting to Bowrain Server: %s\n", serverURL)
@@ -204,10 +198,7 @@ func runInitNonInteractive(ctx context.Context, cwd string) (*output.InitOutput,
 
 	// Anonymous mode: --anonymous or --email.
 	if initAnonymous || initEmail != "" {
-		serverURL := resolveServerURL()
-		if serverURL == "" {
-			return nil, fmt.Errorf("%s", serverURLHelp)
-		}
+		serverURL := resolveServerURLOrDefault(initServerURL)
 		projectName := initProjectName
 		if projectName == "" {
 			projectName = filepath.Base(cwd)
@@ -238,9 +229,11 @@ func runInitNonInteractive(ctx context.Context, cwd string) (*output.InitOutput,
 func runInitInteractive(cmd *cobra.Command, cwd string) (*output.InitOutput, error) {
 	ctx := cmd.Context()
 
-	// Check if already logged in.
+	// Check if already logged in. The wizard's server-touching choices
+	// (sign in, email claim, anonymous) target the hosted service unless a
+	// server is configured; "Local only" ignores it.
 	stored, authErr := loadAuth()
-	serverURL := resolveServerURL()
+	serverURL := resolveServerURLOrDefault(initServerURL)
 
 	if authErr == nil && stored.ServerURL != "" {
 		// Already logged in — select workspace first, then project details.

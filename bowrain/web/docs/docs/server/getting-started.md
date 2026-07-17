@@ -14,8 +14,8 @@ your first file in Bowrain. The steps below use the browser; the
 ## Prerequisites
 
 You need access to a Bowrain server — a hosted workspace at
-[bowrain.cloud](https://bowrain.cloud) or one your team runs. Open your server
-URL in a browser to begin. (Running your own server? See
+[app.bowrain.cloud](https://app.bowrain.cloud) or one your team runs. Open
+your server URL in a browser to begin. (Running your own server? See
 [For developers → Self-hosting](/server/installation).)
 
 ## Logging In
@@ -129,7 +129,7 @@ invites, see usage counts, and revoke invites that are no longer needed.
 Connect kapi to your server for command-line workflows:
 
 ```bash
-kapi auth login --server https://bowrain.cloud
+kapi auth login    # the hosted service is the default; --server for self-hosted
 ```
 
 This starts a [device authorization flow](https://www.rfc-editor.org/rfc/rfc8628):

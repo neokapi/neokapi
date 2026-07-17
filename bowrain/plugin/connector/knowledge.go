@@ -23,7 +23,7 @@ func NewKnowledgeClient(project *Project) (*apiclient.BowrainClient, error) {
 		return nil, errors.New("no server configuration in the kapi recipe (add a `server:` block)")
 	}
 
-	serverURL := recipe.Server.ServerURL()
+	serverURL := config.NormalizeServerURL(recipe.Server.ServerURL())
 	projectID := recipe.Server.ProjectID()
 	workspace := recipe.Server.Workspace()
 
@@ -38,7 +38,7 @@ func NewKnowledgeClient(project *Project) (*apiclient.BowrainClient, error) {
 	if err != nil {
 		return nil, errors.New("reading the workspace knowledge graph requires authentication: run 'kapi auth login' (or set BOWRAIN_AUTH_TOKEN in CI)")
 	}
-	if authInfo.ServerURL != "" && authInfo.ServerURL != serverURL {
+	if authServer := config.NormalizeServerURL(authInfo.ServerURL); authServer != "" && authServer != serverURL {
 		return nil, fmt.Errorf("auth token is for %s but project points to %s", authInfo.ServerURL, serverURL)
 	}
 

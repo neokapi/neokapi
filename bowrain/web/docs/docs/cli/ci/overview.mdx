@@ -109,18 +109,21 @@ kapi auth token create --name "ci" --expire-days 90
 ```
 
 The token (`bwt_…`) is shown once — store it as a CI secret immediately. On
-the runner, two environment variables carry the connection, and the CLI
-checks them before any stored credential:
+the runner, `BOWRAIN_AUTH_TOKEN` carries the credential, and the CLI checks
+it before any stored login:
 
 ```bash
 BOWRAIN_AUTH_TOKEN=bwt_...
-BOWRAIN_SERVER_URL=https://bowrain.example.com
+BOWRAIN_SERVER_URL=https://bowrain.example.com   # self-hosted only
 ```
 
-On GitHub Actions, `setup-kapi`'s `auth-token` and `server` inputs export
-exactly these two variables. On GitLab, set them as masked CI/CD variables.
-List and revoke tokens with `kapi auth token list` and
-`kapi auth token delete`.
+`BOWRAIN_SERVER_URL` is only needed for a **self-hosted** server: the hosted
+service (`https://app.bowrain.cloud`) is the built-in default, and project
+commands (`kapi up`, `push`, `pull`, `check`) read the server from the
+checked-out recipe's `server:` block in any case. On GitHub Actions,
+`setup-kapi`'s `auth-token` and `server` inputs export exactly these two
+variables. On GitLab, set them as masked CI/CD variables. List and revoke
+tokens with `kapi auth token list` and `kapi auth token delete`.
 
 What a job needs beyond the server token depends on its venue:
 

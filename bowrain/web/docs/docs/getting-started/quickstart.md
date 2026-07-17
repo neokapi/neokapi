@@ -16,9 +16,9 @@ terminology, and translation memory govern what gets produced, and the
 ## Start from your content
 
 You write and publish content; you want it on brand, and optionally in more
-languages. Nothing to install — open [bowrain.cloud](https://bowrain.cloud)
-(or your own server) and sign in. A personal workspace is created on first
-login.
+languages. Nothing to install — open
+[app.bowrain.cloud](https://app.bowrain.cloud) (or your own server) and sign
+in. A personal workspace is created on first login.
 
 1. **Create a project** and bring content in. Upload files directly in the web
    app — the editor works on the formats you already publish — or have your

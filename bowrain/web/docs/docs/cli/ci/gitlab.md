@@ -19,8 +19,8 @@ Set these under **Settings → CI/CD → Variables**:
 | Variable | Purpose |
 |---|---|
 | `BOWRAIN_AUTH_TOKEN` | Server auth token, minted with `kapi auth token create` — mark it **masked** |
-| `BOWRAIN_SERVER_URL` | The Bowrain server URL |
 | `GITLAB_API_TOKEN` | Project access token with **api** scope — opens and updates the MR, posts MR notes |
+| `BOWRAIN_SERVER_URL` | **Self-hosted only.** The hosted service (`https://app.bowrain.cloud`) is the built-in default, and project commands read the server from the checked-out recipe's `server:` block |
 
 On a connected project (a recipe with a `server:` block), `kapi up` runs the
 loop on the **server**: the organization's AI keys, shared translation

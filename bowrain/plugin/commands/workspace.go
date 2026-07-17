@@ -81,13 +81,9 @@ func workspaceAuth() (serverURL, token string, err error) {
 	if err != nil || stored == nil {
 		return "", "", errors.New("not authenticated — run: kapi auth login")
 	}
-	serverURL = resolveServerURLFrom(workspaceServerURL)
-	if serverURL == "" {
-		serverURL = stored.ServerURL
-	}
-	if serverURL == "" {
-		return "", "", errors.New("server URL not configured — set BOWRAIN_SERVER_URL or use --server")
-	}
+	// resolveServerURLFrom already prefers the stored login's server; the
+	// hosted default only applies when nothing is configured anywhere.
+	serverURL = resolveServerURLOrDefault(workspaceServerURL)
 	return serverURL, stored.AccessToken, nil
 }
 

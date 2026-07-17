@@ -98,7 +98,9 @@ func SaveAuth(a StoredAuth) error {
 func LoadAuth() (*StoredAuth, error) {
 	if token := os.Getenv("BOWRAIN_AUTH_TOKEN"); token != "" {
 		return &StoredAuth{
-			ServerURL:   os.Getenv("BOWRAIN_SERVER_URL"),
+			// Empty when unset: project commands then trust the recipe's
+			// server. Normalized so the landing host resolves to the app host.
+			ServerURL:   NormalizeServerURL(os.Getenv("BOWRAIN_SERVER_URL")),
 			AccessToken: token,
 		}, nil
 	}

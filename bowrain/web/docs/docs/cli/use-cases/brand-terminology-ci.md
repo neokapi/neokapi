@@ -89,9 +89,10 @@ jobs:
         run: kapi check --ship
 ```
 
-The `auth-token` and `server` inputs export `BOWRAIN_AUTH_TOKEN` and
-`BOWRAIN_SERVER_URL`, which `kapi pull` uses to reach the workspace. A failing
-gate exits non-zero and fails the job.
+The `auth-token` input exports `BOWRAIN_AUTH_TOKEN`, which `kapi pull` uses to
+reach the workspace; the `server` input (exported as `BOWRAIN_SERVER_URL`) is
+only needed for a self-hosted server — the hosted service is the default. A
+failing gate exits non-zero and fails the job.
 
 ## Exit codes
 

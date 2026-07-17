@@ -35,7 +35,7 @@ The action downloads the correct binary for the runner platform (Linux, macOS, o
 | `version`    | CLI version (e.g. `1.1.0` or `latest`)                     | `latest` |
 | `plugins`    | Comma or newline-separated plugin refs to install, as the registry names them (`''` to install nothing) | `bowrain` |
 | `auth-token` | Bowrain server JWT (exported as `BOWRAIN_AUTH_TOKEN`)      | `""`     |
-| `server`     | Bowrain server URL (exported as `BOWRAIN_SERVER_URL`)      | `""`     |
+| `server`     | Bowrain server URL (exported as `BOWRAIN_SERVER_URL`) — self-hosted only; the hosted service is the default | `""`     |
 
 ### Action Outputs
 

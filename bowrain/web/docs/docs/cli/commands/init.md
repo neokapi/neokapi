@@ -51,7 +51,7 @@ kapi init --anonymous --name "My App" --source en
 kapi init --name "My App" --email alex@example.com
 
 # Non-interactive: connect to existing server project
-kapi init --server https://bowrain.cloud --project abc123
+kapi init --server https://app.bowrain.cloud --project abc123
 ```
 
 ## What Happens
@@ -94,9 +94,9 @@ kapi init --anonymous --name "My App" --source en --json
   "recipe": "/path/to/my-app/my-app.kapi",
   "state_dir": "/path/to/my-app/.kapi",
   "project_id": "proj_abc123",
-  "server": "https://bowrain.cloud",
+  "server": "https://app.bowrain.cloud",
   "claim_token": "clm_def456",
-  "claim_url": "https://bowrain.cloud/claim/clm_def456"
+  "claim_url": "https://app.bowrain.cloud/claim/clm_def456"
 }
 ```
 
@@ -120,7 +120,7 @@ content:
 
 # Optional: connect to Bowrain Server (compound URL)
 server:
-  url: https://bowrain.cloud/my-team/abc123
+  url: https://app.bowrain.cloud/my-team/abc123
   stream: $auto
 
 # Hooks: flows to run at lifecycle points (schema only — not yet executed; see /cli/flows/hooks)
@@ -139,12 +139,14 @@ The server URL is resolved from (first match wins):
 2. `BOWRAIN_SERVER_URL` environment variable
 3. `server.url` in global config (`~/.config/bowrain/bowrain.yaml`)
 4. Existing auth state (from `kapi auth login`)
-5. Built-in default (`http://localhost:8080`)
+5. The hosted service (`https://app.bowrain.cloud`) — used only when init
+   contacts a server (sign-in, `--anonymous`, `--email`, `--project`); a plain
+   init with nothing configured writes a recipe with no `server:` block
 
 Set it once globally with:
 
 ```bash
-kapi bowrain config --global server.url https://bowrain.cloud
+kapi bowrain config --global server.url https://app.bowrain.cloud
 ```
 
 ## Project Discovery

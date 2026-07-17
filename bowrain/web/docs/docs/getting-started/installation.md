@@ -22,8 +22,8 @@ update tracks — pick one; they are mutually exclusive.
 ## The web app
 
 The web editor is served by your Bowrain server — there is nothing to install.
-Open [bowrain.cloud](https://bowrain.cloud) (or your own server's URL) in a
-browser and sign in.
+Open [app.bowrain.cloud](https://app.bowrain.cloud) (or your own server's URL)
+in a browser and sign in.
 
 ## Bowrain Desktop
 
