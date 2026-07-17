@@ -239,6 +239,13 @@ jobs:
           # config.ts serves wasm same-origin while other assets use the CDN.
           DOCS_CDN_URL: ${{ env.CDN_URL }}
           DOCS_CDN_VERSION: ${{ github.event_name != 'pull_request' && github.sha || '' }}
+          # Cookieless analytics (see web/src/clientModules/analytics.ts). The
+          # key is the PUBLIC client-side key already hardcoded in
+          # _build-web.yml; set only on push so PR previews and forks never
+          # initialize analytics. Empty key → the site executes zero analytics
+          # code. The host is the PostHog EU ingestion endpoint.
+          POSTHOG_KEY: ${{ github.event_name != 'pull_request' && 'phc_9TMOqaMSUH5wE6xPTeTKjYBBJWVRdzOlUMahZAr7twD' || '' }}
+          POSTHOG_HOST: https://eu.i.posthog.com
 
       - name: Upload kapi site artifact
         uses: actions/upload-artifact@v7

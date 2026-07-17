@@ -82,6 +82,12 @@ jobs:
           DOCS_BASE_URL: ${{ steps.base.outputs.docs_base }}
           # Empty → videos same-origin (unchanged). Set → videos load from the CDN.
           DOCS_CDN_URL: ${{ env.CDN_URL }}
+          # Cookieless analytics (see src/clientModules/analytics.ts). The key
+          # is the PUBLIC client-side key already hardcoded in _build-web.yml;
+          # set only on push so PR previews and forks never initialize
+          # analytics. Empty key → the site executes zero analytics code.
+          POSTHOG_KEY: ${{ github.event_name != 'pull_request' && 'phc_9TMOqaMSUH5wE6xPTeTKjYBBJWVRdzOlUMahZAr7twD' || '' }}
+          POSTHOG_HOST: https://eu.i.posthog.com
 
       - name: Upload bowrain site artifact
         uses: actions/upload-artifact@v7

@@ -32,6 +32,20 @@ const KAPI_WEB_SITE =
 const BOWRAIN_WEB_SITE =
   process.env.BOWRAIN_WEB_SITE || "https://neokapi.github.io/web/bowrain/";
 
+// PR previews are served from /web/prs/<N>/bowrain/docs/ (see baseUrl below);
+// production sits at /web/bowrain/docs/.
+const docsBaseUrl = process.env.DOCS_BASE_URL ?? "/web/bowrain/docs/";
+
+// Cookieless analytics (pageviews + app CTA clicks; see
+// src/clientModules/analytics.ts and @neokapi/docs-shared). Key-gated: with no
+// POSTHOG_KEY at build time — local dev, fork builds, PR previews — the client
+// module never initializes and no analytics code loads. The host defaults to
+// the PostHog EU ingestion endpoint. PR previews are keyless in CI; the /prs/
+// base-path marker additionally tags any keyed preview build as "preview".
+const posthogKey = process.env.POSTHOG_KEY ?? "";
+const posthogHost = process.env.POSTHOG_HOST ?? "https://eu.i.posthog.com";
+const analyticsEnvironment = docsBaseUrl.includes("/prs/") ? "preview" : "prod";
+
 const config: Config = {
   title: "Bowrain",
   tagline: "Keep your content on-brand, in every language — solo or as a team",
@@ -43,7 +57,7 @@ const config: Config = {
   // /web/prs/<N>/bowrain/docs/ instead, so the deploy workflow overrides the
   // base path via DOCS_BASE_URL — without it, a preview build would bake the
   // production prefix and 404 every asset (mirrors the kapi docs site).
-  baseUrl: process.env.DOCS_BASE_URL ?? "/web/bowrain/docs/",
+  baseUrl: docsBaseUrl,
 
   organizationName: "neokapi",
   projectName: "neokapi",
@@ -65,7 +79,14 @@ const config: Config = {
     cdnBaseUrl: process.env.DOCS_CDN_URL ?? "",
     cdnSitePrefix: "bowrain",
     cdnWasmVersion: process.env.DOCS_CDN_VERSION ?? "dev",
+    posthogKey,
+    posthogHost,
+    analyticsEnvironment,
   },
+
+  // Cookieless analytics: pageviews + app CTA clicks (key-gated no-op without
+  // POSTHOG_KEY).
+  clientModules: ["./src/clientModules/analytics.ts"],
 
   markdown: {
     mermaid: true,
