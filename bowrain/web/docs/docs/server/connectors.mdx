@@ -68,7 +68,7 @@ syncs, the credentials it needs, setup, and its limitations:
 
 The `forge` connector turns a repository into a connected project with no CI
 configuration in the repository at all: a push webhook triggers the server,
-the server converges, and the produced translations come back as **one open
+the server catches up, and the produced translations come back as **one open
 pull/merge request** that every delivery updates in place — never a direct
 push to the tracked branch. When a run parks work for a person, the request
 says so; approvals travel through the project's review queue and arrive in a

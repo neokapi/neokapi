@@ -46,8 +46,8 @@ func compactTokens(n int) string {
 // the up verb in a server-connected install (kapi-bowrain) presents the exact
 // same local surface and delegates to ExecuteUp for the local venue.
 func AddUpFlags(cmd Command) {
-	cmd.Flags().Int("passes", 0, "maximum reconciliation passes (0 = loop until converged or parked, capped at 5; 1 = single pass)")
-	cmd.Flags().Int("jobs", 0, "how many languages to converge concurrently per pass (0 = the recipe's defaults.jobs, else 4)")
+	cmd.Flags().Int("passes", 0, "maximum reconciliation passes (0 = loop until up to date or parked, capped at 5; 1 = single pass)")
+	cmd.Flags().Int("jobs", 0, "how many languages to catch up concurrently per pass (0 = the recipe's defaults.jobs, else 4)")
 	cmd.Flags().Bool("no-extract", false, "skip the pre-pass source-drift check and block-store re-extraction")
 	cmd.Flags().Bool("no-checks", false, "skip the bound checks in the loop (produced units count as translated even when failing guardrails)")
 	cmd.Flags().Bool("materialize", false, "after the loop, write localized files from the project store for every shippable locale (forces defaults.materialize: on-converge)")
@@ -102,7 +102,7 @@ func (a *App) WarnIfServerRecipeConvergingLocally(cmd Command, projectPath strin
 	}
 	fmt.Fprintln(cmd.ErrOrStderr(),
 		"warning: this project declares a server: block, but the bowrain plugin is not installed — "+
-			"converging locally on your own AI provider; results are NOT pushed to the server. "+
+			"running the loop locally on your own AI provider; results are NOT pushed to the server. "+
 			"Install kapi-bowrain to run `kapi up` on the server (org keys, shared TM, team review).")
 }
 
@@ -133,7 +133,7 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 
 	passes, _ := cmd.Flags().GetInt("passes")
 	if passes < 0 {
-		return fmt.Errorf("--passes must be >= 0 (0 = loop until converged), got %d", passes)
+		return fmt.Errorf("--passes must be >= 0 (0 = loop until up to date), got %d", passes)
 	}
 	// --passes 1 is a single pass (no loop); 0 loops to the default cap;
 	// N > 1 loops with N as the cap.

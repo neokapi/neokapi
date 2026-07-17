@@ -36,9 +36,9 @@ describe("ProjectStatusPanel", () => {
     expect(document.querySelector("[data-slot='convergence-coverage']")).not.toBeNull();
     // ...working body absent...
     expect(document.querySelector("[data-slot='translation-status-panel']")).toBeNull();
-    // ...and the embedded panel suppresses its own "Convergence" heading (the
+    // ...and the embedded panel suppresses its own "Ship readiness" heading (the
     // toggle is the heading).
-    expect(screen.queryByText("Convergence")).toBeNull();
+    expect(screen.queryByText("Ship readiness")).toBeNull();
     expect(screen.getByText("Project status")).toBeInTheDocument();
   });
 

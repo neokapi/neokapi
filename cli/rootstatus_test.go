@@ -42,7 +42,7 @@ func TestRootRunE_InProject(t *testing.T) {
 
 	combined := stdout + buf.String()
 	assert.Contains(t, combined, "scope", "the status coverage grid renders")
-	assert.Contains(t, combined, "run `kapi up` to reconcile")
+	assert.Contains(t, combined, "run `kapi up` to catch up")
 	assert.Contains(t, combined, "kapi --help for all commands")
 	assert.NotContains(t, combined, "Usage:", "in-project bare kapi shows status, not help")
 }
@@ -57,5 +57,5 @@ func TestRootRunE_NoProject(t *testing.T) {
 
 	require.NoError(t, cmd.Execute())
 	assert.Contains(t, buf.String(), "Usage:", "outside a project the bare root shows help")
-	assert.NotContains(t, buf.String(), "run `kapi up` to reconcile")
+	assert.NotContains(t, buf.String(), "run `kapi up` to catch up")
 }

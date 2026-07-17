@@ -56,7 +56,7 @@ func NewToolCommands(a *App) []*cobra.Command {
 		Long: `Execute any CLI-visible registry tool on files — one tool, one pass, no
 guardrails around it. The top-level verbs are porcelain workflows over this
 layer: 'kapi translate' wraps recycle → translate → checks, 'kapi up'
-reconciles a whole project, 'kapi check' verifies, 'kapi stats' measures.
+brings a whole project up to date, 'kapi check' verifies, 'kapi stats' measures.
 Reach for exec when you want exactly one tool's behavior — a bare
 'exec translate' with no TM pass, a single 'exec term-check', a format
 converter. The verb pairs with 'kapi run <flow>' the way 'kapi tools' pairs

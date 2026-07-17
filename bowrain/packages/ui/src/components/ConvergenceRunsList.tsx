@@ -20,6 +20,16 @@ const runStateColor: Record<ConvergenceRunState, string> = {
   failed: "bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive",
 };
 
+// Display labels for the machine run states — the wire value `converged` reads
+// as the product's "up to date"; the rest keep their plain casing.
+const runStateLabel: Record<ConvergenceRunState, string> = {
+  running: "Running",
+  converged: "Up to date",
+  parked: "Parked",
+  canceled: "Canceled",
+  failed: "Failed",
+};
+
 function triggerLabel(trigger: string): string {
   const labels: Record<string, string> = {
     manual: "Manual",
@@ -78,7 +88,7 @@ export function ConvergenceRunsList({
         <div>
           <h2 className="text-sm font-semibold">Runs</h2>
           <p className="text-[11px] text-muted-foreground">
-            Server-side convergence — the team runs <code>kapi up</code> for your project.
+            Runs on the server — the team's <code>kapi up</code> for this project.
           </p>
         </div>
         <Button size="sm" onClick={onRunNow} disabled={starting}>
@@ -118,8 +128,8 @@ export function ConvergenceRunsList({
                   className={cn("cursor-pointer", selectedRunId === run.id && "bg-accent/40")}
                 >
                   <TableCell>
-                    <Badge className={cn("text-[10px] capitalize", runStateColor[run.state])}>
-                      {run.state}
+                    <Badge className={cn("text-[10px]", runStateColor[run.state])}>
+                      {runStateLabel[run.state] ?? run.state}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-xs">{triggerLabel(run.trigger)}</TableCell>

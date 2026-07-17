@@ -12,7 +12,7 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Review & approve
 
-**Goal:** take translations past what a machine can decide. [`kapi up`](/kapi/recipes/translate-content) produces — it brings every unit to *translated* and parks the rest; a person promotes — *reviewed*, then optionally *signed-off*. Each decision lands in the project's committed state store, bound to the content hash of the exact translation it blesses, so an approval can never silently outlive the text it approved. The model is [Convergence](/kapi/convergence); the store is [the project store](/kapi/project-store).
+**Goal:** take translations past what a machine can decide. [`kapi up`](/kapi/recipes/translate-content) produces — it brings every unit to *translated* and parks the rest; a person promotes — *reviewed*, then optionally *signed-off*. Each decision lands in the project's committed state store, bound to the content hash of the exact translation it blesses, so an approval can never silently outlive the text it approved. The model is [the kapi loop](/kapi/convergence); the store is [the project store](/kapi/project-store).
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
@@ -66,5 +66,5 @@ Piping works at scale: `kapi status --review --json` through your own filter int
 ## Next
 
 - [Ship gates & CI](/kapi/recipes/gate-localization-in-ci) — the `reviewed` thresholds these decisions satisfy.
-- [Convergence](/kapi/convergence) — produce / promote / release, kept separate.
+- [The kapi loop](/kapi/convergence) — produce / promote / release, kept separate.
 - [The project store](/kapi/project-store) — why the state store is the one committed artifact.

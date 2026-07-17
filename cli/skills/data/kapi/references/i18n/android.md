@@ -38,7 +38,7 @@ discovery); the recommended config below buys it down to T2's best case.
   3. **Packaging:** `androidResources.localeFilters` controls which locales
      ship. Warn if the project still uses `resourceConfigurations`/
      `resConfigs` — deprecated as of AGP 8.8; migrate to `localeFilters`.
-  4. **kapi convergence + qa** (the s/r buy): route all catalog fills through
+  4. **the kapi loop + qa** (the s/r buy): route all catalog fills through
      kapi and gate with `translate-qa` — the platform ships no sync tooling.
 - **Plural traps (all real, all shipped by someone):**
   - **English `quantity="zero"` is silently ignored** — English grammar

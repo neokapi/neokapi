@@ -10,7 +10,7 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Add languages
 
-Going multilingual is one loop: declare the target locales, let `kapi up` reconcile every language toward its ship gate, review what needs a person, and gate the release on `kapi check --ship`. Translation drift never breaks a build — a language that is behind is pending work, not an error.
+Going multilingual is one loop: declare the target locales, let `kapi up` catch every language up to its ship gate, review what needs a person, and gate the release on `kapi check --ship`. Translation drift never breaks a build — a language that is behind is pending work, not an error.
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
@@ -47,7 +47,7 @@ content:
     target: "src/locales/{lang}"
 ```
 
-Then reconcile, inspect, and gate:
+Then catch up, inspect, and gate:
 
 ```bash
 kapi up                  # run the default flow until every gated scope ships or parks
@@ -63,7 +63,7 @@ kapi check --ship        # enforce the gates — the pre-release bar, exit 3 whe
 
 ## How the gate thinks
 
-Each translation climbs a ladder — draft, translated, reviewed, signed-off — and a **ship gate** is coverage thresholds over that ladder (`{ translated: 100, reviewed: 80 }`). `kapi up` produces, review promotes, `kapi check --ship` releases. [Convergence](/kapi/convergence) explains the model.
+Each translation climbs a ladder — draft, translated, reviewed, signed-off — and a **ship gate** is coverage thresholds over that ladder (`{ translated: 100, reviewed: 80 }`). `kapi up` produces, review promotes, `kapi check --ship` releases. [The kapi loop](/kapi/convergence) explains the model.
 
 ## Next
 

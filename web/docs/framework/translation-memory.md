@@ -18,7 +18,7 @@ In the CLI, the TM is the engine under `kapi exec recycle` — the single-tool
 leverage pass — and under the first step of `kapi up`'s default flow, which
 recycles from memory before any AI translation runs. See
 [Understanding the CLI layers](/kapi/direct-execution-layer) for how the
-single-tool, flow, and convergence surfaces relate.
+single-tool, flow, and project-loop surfaces relate.
 
 ## Content-aware matching
 

@@ -21,7 +21,7 @@ import (
 // delta), not a second differently-shaped status.
 var serverStatusCmd = &cobra.Command{
 	Use:    "server-status",
-	Short:  "Emit the server sync + convergence-run standing as JSON (plumbing for kapi status)",
+	Short:  "Emit the server sync + loop-run standing as JSON (plumbing for kapi status)",
 	Hidden: true,
 	RunE:   runServerStatus,
 }

@@ -67,7 +67,7 @@ i18n-tasks check-consistent-interpolations   # %{name} parity across locales
   environment, so missing keys fail tests instead of rendering
   "translation missing" in production.
 - The key-rename-on-copy-change convention, in the PR checklist.
-- kapi convergence to fill what i18n-tasks flags (next section).
+- the kapi loop to fill what i18n-tasks flags (next section).
 
 ## kapi
 

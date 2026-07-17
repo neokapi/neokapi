@@ -54,7 +54,7 @@ kapi status
 - **terms**: when the workspace's governed terminology was last snapshotted
   into the local termbase (concept/relation counts), or `never synced` when
   no concept pull has run — refresh it with `kapi pull --concepts`
-- **venue**: where `kapi up` would run the convergence loop (`server` or
+- **venue**: where `kapi up` would run the kapi loop (`server` or
   `local`) and the recipe's `server.converge` policy
 
 ### Sync Cache

@@ -20,7 +20,7 @@ import type { SidebarsConfig } from "@docusaurus/plugin-content-docs";
 const sidebars: SidebarsConfig = {
   // Desktop-first revamp. Get started walks the on-ramp (install → first
   // project → languages → Claude); Concepts hold the working model (projects,
-  // store, convergence); the two guide groups are task pages, each showing the
+  // store, the kapi loop); the two guide groups are task pages, each showing the
   // three doors (Desktop → Agent → CLI). Every group is a top-level
   // `collapsible: false` heading — no nested collapsible sub-menus.
   kapiSidebar: [
@@ -47,7 +47,7 @@ const sidebars: SidebarsConfig = {
       items: [
         { type: "doc", id: "kapi/projects", label: "Projects" },
         { type: "doc", id: "kapi/project-store", label: "The project store" },
-        { type: "doc", id: "kapi/convergence", label: "Convergence" },
+        { type: "doc", id: "kapi/convergence", label: "The kapi loop" },
       ],
     },
     {

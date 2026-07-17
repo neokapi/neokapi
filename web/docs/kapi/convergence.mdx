@@ -1,35 +1,49 @@
 ---
 sidebar_position: 3
-title: Convergence
-description: How kapi keeps a project up to date — the derived state model behind status, gates, up, and review. Convergence produces, review promotes, the gate releases; the same kapi up runs on your machine or on a connected server.
-keywords: [kapi, convergence, kapi up, ship gate, source gate, status, check, review, lifecycle, coverage, venue, transport]
+title: The kapi loop
+description: How kapi keeps a project caught up — kapi up produces, review promotes, the gate releases. One loop, two halves — get the source right, then get every language caught up; the same kapi up runs on your machine or on a connected server. Formally, the model is called convergence.
+keywords: [kapi, kapi loop, kapi up, convergence, ship gate, source gate, status, check, review, lifecycle, coverage, venue, transport]
 ---
 
 import { AxisLadderDiagram, PhaseFlow, LanesDiagram } from "@neokapi/docs-shared";
 import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
 
-# Convergence
+# The kapi loop
 
-Localization is continuous toil: source content changes, and its translations
-fall behind. Kapi treats catching up as the normal state of a project, not an
-error. **Convergence** is the model that drives a project's content toward
-*shippable* and reports what still needs a person — without ever blocking the
-author.
+Your source content changed. Its translations, its terminology, its brand
+conformance are now behind — and that is normal, not an error. Kapi treats
+catching up as the everyday state of a shipping project, and gives it one
+verb: **`kapi up`**.
 
-The recipe is the **desired state** — the languages a project targets, the flow
-that produces them, the gates that decide *shippable*. The working tree is the
-**actual state**. Convergence is the loop that reconciles the two, the way
-`terraform apply` or `pulumi up` reconciles infrastructure to a program. One
-verb runs it: **`kapi up`**.
+`kapi up` runs **the kapi loop**, and the loop has two halves: first get the
+source right — the brand and terminology checks on what you wrote — then get
+every language caught up to it: reuse what you've translated before,
+AI-translate the rest, check everything produced. What a machine cannot decide
+**parks** for a person; the loop never blocks the author. A monolingual
+project simply stops after the first half.
+
+The recipe declares what *caught up* means — the languages the project
+targets, the flow that produces them, the gates that decide *shippable*. Every
+run measures the working tree against that declaration and closes what it can.
 
 Three roles, kept separate:
 
-- **Convergence produces** — `kapi up` drives each unit as far up its lifecycle
+- **The loop produces** — `kapi up` drives each unit as far up its lifecycle
   as a flow can take it unaided (typically to *translated*).
 - **Review promotes** — a person advances a unit past what a machine can decide
   (*translated → reviewed*).
 - **The gate releases** — it drives nothing; it answers one question, *is this
   scope shippable?*
+
+:::note[The formal name]
+The model behind the loop — derived state, the lifecycle ladders, coverage
+gates — is called **convergence**: each `kapi up` pass converges the working
+tree on the state the recipe declares, the way `terraform apply` converges
+infrastructure on a program. The
+[architecture pages](/contribute/architecture/033-project-state-model), the
+run's event stream, and the `--json` output keep that vocabulary; these pages
+say *the loop*.
+:::
 
 ## State is derived, not tracked
 
@@ -163,11 +177,11 @@ ordinary build; `--ship` is the explicit, opt-in enforcement point. (A bare
 counterpart to a test runner.) See
 [Check translations in CI](/kapi/recipes/gate-localization-in-ci).
 
-## Reconciling: `kapi up`
+## Running the loop: `kapi up`
 
-`kapi up` is the convergence verb. It treats the recipe as the desired state and
-runs the project's default flow (`defaults.flow`) over all content across every
-target language, **looping** until every gated scope is shippable or parks for a
+`kapi up` runs the loop. It reads what the recipe declares, then runs the
+project's default flow (`defaults.flow`) over all content across every target
+language, **looping** until every gated scope is shippable or parks for a
 human:
 
 ```yaml
@@ -176,7 +190,7 @@ defaults:
 ```
 
 Without `defaults.flow`, `up` runs the built-in default flow — TM reuse (recycle)
-followed by AI translate — so a recipe needs no flow YAML at all to converge.
+followed by AI translate — so a recipe needs no flow YAML at all to catch up.
 
 ```bash
 kapi up                # loop the default flow until every gated scope ships or parks
@@ -218,8 +232,8 @@ checks in the loop.
 
 `up` starts by printing a one-line **plan** — units missing a target, exact-TM
 leverage, remaining AI work, a token estimate, and the provider it will use — so
-cost is visible before any tokens burn (the pulumi preview-then-apply rhythm;
-`--plan` alone is the full dry-run table). It then renders progress as the loop
+cost is visible before any tokens burn (preview before apply; `--plan` alone
+is the full dry-run table). It then renders progress as the loop
 runs: one line per locale, repainted in place on a terminal, a line per event on
 a plain stream.
 
@@ -233,11 +247,11 @@ pass 1/5
   ja-JP   queued
   nb-NO   ✓ shippable         96/96
 
-Converged in 2 passes · 3 locales shippable · de-DE parked: 2 units need review
+Up to date in 2 passes · 3 locales shippable · de-DE parked: 2 units need review
   → kapi status --review
 ```
 
-Locales are independent within a pass, so `up` converges them **concurrently** —
+Locales are independent within a pass, so `up` catches them up **concurrently** —
 `--jobs N` sets how many run at once (default 4; recipe override `defaults.jobs`;
 `--jobs 1` restores serial execution). The pass barrier stays: coverage is
 re-derived, checks run, and parking is decided once per pass, over all locales
@@ -260,7 +274,7 @@ passes view.
 
 `kapi run <flow>` remains the escape hatch for a **custom** pipeline — one named
 flow, one pass, no gate loop. Reach for it when you want a specific composition;
-reach for `kapi up` for the daily reconcile.
+reach for `kapi up` for the daily catch-up.
 
 ### Drift, watched end to end
 
@@ -302,50 +316,51 @@ instead stay *pending* until a person re-approves that unit.
 
 ## One verb, two venues
 
-Convergence compute has to run *somewhere*. That **venue** is a property of the
+The loop's compute has to run *somewhere*. That **venue** is a property of the
 project, not a different verb. Three concerns stay orthogonal, each owned by one
 surface:
 
 <LanesDiagram
   lanes={[
     { title: "Transport", sub: "kapi push / pull", role: "io", steps: ["move project state", "Merkle diff", "no translation"] },
-    { title: "Convergence", sub: "kapi up", role: "translate", steps: ["drift → plan", "produce → check", "loop or park"] },
+    { title: "The loop", sub: "kapi up", role: "translate", steps: ["drift → plan", "produce → check", "loop or park"] },
     { title: "Venue", sub: "local | server", role: "qa", steps: ["your machine + keys", "or a connected server", "same events either way"] },
   ]}
-  caption="Transport moves state, convergence produces work, venue is where the loop runs — three orthogonal concerns."
+  caption="Transport moves state, the loop produces work, venue is where it runs — three orthogonal concerns."
 />
 
 - **Transport** — `kapi push` and `kapi pull` make a local checkout and a server
   replica consistent. Pure data movement (Merkle diff, conflicts, terminology
   hand-off); they never produce translations. The analogy is `git push` /
   `git fetch`.
-- **Convergence** — `kapi up`, the one loop that produces work toward the gates.
+- **The loop** — `kapi up`, the one verb that produces work toward the gates.
 - **Venue** — *where* `up`'s compute executes: your machine (your AI
   subscription or keys) or a connected server (the org's keys, shared TM and
   terminology, always-on).
 
-In a **file-only** project `kapi up` converges locally — this is the whole story
+In a **file-only** project the loop runs locally — this is the whole story
 for the open-source `kapi` binary, which carries no server code. In a
 **server-connected** project — a recipe with a `server:` block — the same
-`kapi up` runs on the server by default: it pushes the drift, the server
-converges on the org's keys and shared assets, progress streams back live into
+`kapi up` runs on the server by default: it pushes the drift, the server runs
+the loop on the org's keys and shared assets, progress streams back live into
 the same terminal view, results pull down, and parked units land in the *team's*
 review queue. The run's event stream is identical in either venue, and the venue
 itself is never implicit: whenever a `server:` block makes the choice ambiguous,
 `kapi up` prints the resolved venue as its first line, and `kapi status` reports
 the effective venue and `server.converge` policy alongside the coverage grid.
-`kapi up --local` overrides the venue for one run, converging on your machine and
-then pushing the results so the server is never left stale; `kapi up --server`
-requires the server venue, failing rather than falling back to a local run (for
-CI that must never spend local keys).
+`kapi up --local` overrides the venue for one run, running the loop on your
+machine and then pushing the results so the server is never left stale;
+`kapi up --server` requires the server venue, failing rather than falling back
+to a local run (for CI that must never spend local keys).
 
 Because transport is pure, **`kapi push` no longer translates behind your back**:
-server-side continuous convergence is an explicit, per-project policy the way
-`git push` triggering CI is a repository policy, not a property of `git`.
+a server that keeps the project continuously caught up (`server.converge`) is an
+explicit, per-project policy the way `git push` triggering CI is a repository
+policy, not a property of `git`.
 
 :::note
 The server venue — the `server:` block, `kapi push`/`pull`/`up --local`, the
-continuous-convergence policy, and the server-side Runs surface — is provided by
+continuous catch-up policy, and the server-side Runs surface — is provided by
 the connected platform, not the open-source `kapi` binary. See the platform
 documentation for setting up a connected project and *convergence as a service*.
 :::

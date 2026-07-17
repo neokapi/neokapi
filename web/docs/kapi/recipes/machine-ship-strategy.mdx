@@ -15,7 +15,7 @@ important strings reviewed and the long tail machine-translated; a long-tail
 locale ships as soon as the machine's own review is clean. Ship gates encode
 that policy per market in the recipe, and one command —
 [`kapi check --ship`](/kapi/recipes/gate-localization-in-ci) — enforces all of
-it. The gate model is [Convergence](/kapi/convergence); the schema is the
+it. The gate model is [the kapi loop](/kapi/convergence); the schema is the
 [project-file reference](/reference/project-file#ship-gates).
 
 ## The tiers
@@ -103,7 +103,7 @@ gate evaluation makes no provider calls. The workflow wiring is
 
 ## Next
 
-- [Convergence](/kapi/convergence) — ladders, gates, approver classes, and the derived-state model.
+- [The kapi loop](/kapi/convergence) — ladders, gates, approver classes, and the derived-state model.
 - [Ship gates & CI](/kapi/recipes/gate-localization-in-ci) — the enforcement job on every PR.
 - [Review & approve](/kapi/recipes/review-and-approve) — working the worklist the human tiers depend on.
 - [Project file](/reference/project-file#ship-gates) — the full `ship_gates:` schema.

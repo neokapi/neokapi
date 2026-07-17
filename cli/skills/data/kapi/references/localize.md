@@ -89,12 +89,13 @@ written back unchanged (round-trip), preserving structure, tags, and placeholder
 
 ## Bring a project up to date (status → up → review)
 
-In a project, don't translate file by file — converge. State is derived from the
-files on every command (like `git status`), so always start by reading it:
+In a project, don't translate file by file — bring the whole project up to date.
+State is derived from the files on every command (like `git status`), so always
+start by reading it:
 
 ```bash
 kapi status                  # per-locale coverage + each scope's ship standing
-kapi up                      # converge: loop the project's default flow over ALL
+kapi up                      # catch up: loop the project's default flow over ALL
                              #   content × every target language until each scope
                              #   ships or "parks"; runs locales concurrently
 kapi up --plan               # dry run: pending work, TM leverage, token estimate
@@ -102,7 +103,7 @@ kapi up --json               # NDJSON event stream (one event per line, final
                              #   record = the result) — use this to drive the loop
 ```
 
-`kapi up` is the one convergence verb. With no `defaults.flow` in the recipe it
+`kapi up` is the one verb that runs the loop. With no `defaults.flow` in the recipe it
 runs the built-in default flow (TM recycle → AI translate) and materializes the
 localized files. Drift is never an error — a behind locale is *pending*, and work
 a machine can't finish *parks* (reported, exit 0), so neither blocks you. Use
@@ -112,7 +113,7 @@ expose the same loop and dry run to an assistant. `kapi run <flow>` is only for 
 
 In a server-connected project (recipe has a `server:` block), `kapi up` runs on
 the Bowrain server by default and streams progress back; `kapi up --local`
-converges on this machine and pushes the results. `kapi push` / `kapi pull` are
+runs the loop on this machine and pushes the results. `kapi push` / `kapi pull` are
 **transport only** — they move project state and never translate. There is no
 `kapi sync`.
 

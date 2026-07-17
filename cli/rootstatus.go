@@ -34,7 +34,7 @@ func RootRunE(a *App, cmd *cobra.Command, _ []string) error {
 
 	out := cmd.OutOrStdout()
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "run `kapi up` to reconcile")
+	fmt.Fprintln(out, "run `kapi up` to catch up")
 	fmt.Fprintln(out, "kapi --help for all commands")
 	return nil
 }

@@ -159,6 +159,17 @@ export function ConvergenceRunView({
   );
 }
 
+/**
+ * Display label for a run's terminal state. The machine value `converged`
+ * (from the server/CLI) reads as the product's "up to date"; other states pass
+ * through with their own casing.
+ */
+function finalStateLabel(state?: string): string {
+  if (state === "converged") return t("Up to date");
+  if (state === "parked") return t("Parked");
+  return state ?? t("done");
+}
+
 /** The header's live/terminal status badge (bowrain's Runs surface). */
 function RunStatusBadge({
   model,
@@ -174,13 +185,13 @@ function RunStatusBadge({
     return (
       <Badge
         className={cn(
-          "shrink-0 text-[11px] capitalize",
+          "shrink-0 text-[11px]",
           converged
             ? "bg-green-500/10 text-green-600 dark:text-green-500"
             : "bg-amber-500/10 text-amber-600 dark:text-amber-500",
         )}
       >
-        {model.finalState ?? t("done")}
+        {finalStateLabel(model.finalState)}
       </Badge>
     );
   }
@@ -201,9 +212,7 @@ function ConvergeDoneFooter({ model }: { model: ConvergenceRunModel }) {
       className="flex items-center gap-3 border-t border-border pt-2 text-xs text-muted-foreground"
       data-slot="converge-done-footer"
     >
-      <span className="font-medium capitalize text-foreground">
-        {model.finalState ?? t("done")}
-      </span>
+      <span className="font-medium text-foreground">{finalStateLabel(model.finalState)}</span>
       {model.materializedFiles != null && (
         <span>{t("{count} files written", { count: model.materializedFiles })}</span>
       )}
@@ -230,7 +239,7 @@ function ConvergeOutcomeBlock({
       {result.converged ? (
         <p className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-500">
           <CheckCircle2 size={13} />
-          {t("Converged in {count} pass(es) — every gated scope is shippable.", {
+          {t("Up to date in {count} pass(es) — every gated scope is shippable.", {
             count: result.passes,
           })}
         </p>

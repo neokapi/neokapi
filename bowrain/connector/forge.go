@@ -312,7 +312,7 @@ func (c *ForgeConnector) Publish(ctx context.Context, items []*platconn.ContentI
 	}
 	body := opts.Metadata["pr_body"]
 	if body == "" {
-		body = "Translations produced by the Bowrain convergence loop."
+		body = "Translations produced by the kapi loop running on Bowrain."
 	}
 
 	pr, err := c.newClient(token).EnsureDeliveryPR(ctx, forge.DeliveryRequest{

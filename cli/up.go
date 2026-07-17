@@ -10,12 +10,13 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// NewUpCmd creates `kapi up`: reconcile the project toward its ship gates.
-// It is the porcelain home of convergence (issue #1078 C1): the recipe is the
-// desired state, and `up` runs the project's default flow over all content
-// across every target language, looping until every gated scope ships or is
-// parked for a human. It reuses the same engine as the no-argument `kapi run`
-// (RunDefaultFlowConverge), with until-gate looping ON by default.
+// NewUpCmd creates `kapi up`: bring the project up to date.
+// It is the porcelain home of the kapi loop (the convergence model, issue
+// #1078 C1): the recipe is the desired state, and `up` runs the project's
+// default flow over all content across every target language, looping until
+// every gated scope ships or is parked for a human. It reuses the same engine
+// as the no-argument `kapi run` (RunDefaultFlowConverge), with until-gate
+// looping ON by default.
 //
 // up owns the verb in every install (the no-shadowing rule). The venue is
 // resolved here: when the recipe declares a server: block and a plugin
@@ -26,16 +27,16 @@ import (
 func NewUpCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "up",
-		Short:   "Reconcile the project toward its ship gates (run the default flow until converged)",
+		Short:   "Bring the project up to date (run the default flow until every gated scope ships or parks)",
 		GroupID: "work",
 		Args:    cobra.NoArgs,
-		Long: `Reconcile the project toward its ship gates: treat the recipe as the desired
-state and run the project's default flow (defaults.flow) over all content
-across every target language, looping until every gated scope is shippable or
-parked for a human.
+		Long: `Bring the project up to date: the recipe declares the languages, the flow, and
+the gates that decide shippable; kapi up runs the project's default flow
+(defaults.flow) over every target language, looping until every gated scope is
+shippable or parked for a human.
 
 Without defaults.flow, up runs the built-in default flow — TM reuse (recycle)
-followed by AI translate — so a recipe needs no flow YAML at all to converge.
+followed by AI translate — so a recipe needs no flow YAML at all to catch up.
 Setting defaults.flow replaces the built-in default.
 
 Before each pass, up re-syncs the project block store with the working tree:
@@ -82,8 +83,8 @@ gates (e.g. before a release tag).
   kapi up --plan         # dry run: pending work, TM leverage, and a token estimate per locale
   kapi up --passes 1     # a single pass over every locale that needs work
   kapi up --materialize  # also write localized files for the shippable locales
-  kapi up --local        # connected project: converge on this machine, then push the results
-  kapi up -p app.kapi    # reconcile an explicit project recipe`,
+  kapi up --local        # connected project: run the loop on this machine, then push the results
+  kapi up -p app.kapi    # bring an explicit project recipe up to date`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			projectPath, err := ResolveProjectPath(cmd)
 			if err != nil {
@@ -99,8 +100,8 @@ gates (e.g. before a release tag).
 	AddProjectFlag(cmd)
 	a.AddFlowRunFlags(cmd)
 	AddUpFlags(cmd)
-	cmd.Flags().Bool("local", false, "converge on this machine even when the recipe declares a server (the results are then pushed so the server stays current)")
-	cmd.Flags().Bool("server", false, "require the server venue: fail rather than converge locally when the recipe has no server or the server plumbing is unavailable")
+	cmd.Flags().Bool("local", false, "run the loop on this machine even when the recipe declares a server (the results are then pushed so the server stays current)")
+	cmd.Flags().Bool("server", false, "require the server venue: fail rather than run the loop locally when the recipe has no server or the server plumbing is unavailable")
 	cmd.Flags().Duration("timeout", 15*time.Minute, "server venue: maximum time to wait for the server run to finish before pulling available results")
 	return cmd
 }
@@ -162,10 +163,10 @@ func printUpVenue(a *App, cmd *cobra.Command, local bool, serverURL string) {
 		target = "server"
 	}
 	if local {
-		fmt.Fprintf(cmd.ErrOrStderr(), "Venue: local (--local) — converging on this machine; results push to %s.\n", target)
+		fmt.Fprintf(cmd.ErrOrStderr(), "Venue: local (--local) — running the loop on this machine; results push to %s.\n", target)
 		return
 	}
-	fmt.Fprintf(cmd.ErrOrStderr(), "Venue: server — converging on %s (use --local to converge on this machine).\n", target)
+	fmt.Fprintf(cmd.ErrOrStderr(), "Venue: server — running the loop on %s (use --local to run it on this machine).\n", target)
 }
 
 // forwardedFlagArgs re-renders the flags the user set as argv for the plugin

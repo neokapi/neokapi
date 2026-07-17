@@ -17,4 +17,4 @@ steps:
       Expands every string with locale-shaped accent characters and length
       padding, so truncation, concatenation, and hardcoded-string bugs surface
       before any real translation is bought. No AI provider, no keys.
-  - comment: When the UI holds up, `kapi translate` produces the real translations for ad-hoc files — or `kapi up` converges a whole project.
+  - comment: When the UI holds up, `kapi translate` produces the real translations for ad-hoc files — or `kapi up` brings a whole project up to date.

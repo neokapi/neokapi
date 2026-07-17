@@ -17,7 +17,7 @@ scenes:
 
 ## Story
 
-`kapi up` is porcelain: one verb that reconciles a project toward its ship
+`kapi up` is porcelain: one verb that catches a project up to its ship
 gates. This walkthrough is the plumbing track — the direct execution layer a
 localization engineer reaches for when one move at a time is the point. It
 pairs with the docs page [Understanding the CLI

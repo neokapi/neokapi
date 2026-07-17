@@ -102,7 +102,7 @@ describe("ConvergeRunView — live locale rows", () => {
     };
     render(<ConvergeRunView events={[...liveEvents, converged]} />);
     expect(
-      screen.getByText("Converged in 1 pass(es) — every gated scope is shippable."),
+      screen.getByText("Up to date in 1 pass(es) — every gated scope is shippable."),
     ).toBeInTheDocument();
     expect(
       screen.getByText("Materialized 4 localized file(s) from the project store."),

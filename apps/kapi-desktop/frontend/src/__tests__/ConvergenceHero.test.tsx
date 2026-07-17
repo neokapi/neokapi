@@ -182,7 +182,7 @@ describe("ConvergenceHero", () => {
         plan={driftedPlan}
       />,
     );
-    await userEvent.click(screen.getByRole("button", { name: "Preview the convergence plan" }));
+    await userEvent.click(screen.getByRole("button", { name: "Preview the catch-up plan" }));
 
     // Per-(collection, locale) rows: missing / TM-exact / AI-remainder.
     const dialog = await screen.findByRole("dialog");

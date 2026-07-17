@@ -2,7 +2,7 @@
 # full schema. Regenerate with:
 #   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-review-and-approve
 #
-# The review→approve loop of the convergence model. A flow takes each unit as far
+# The review→approve half of the kapi loop. A flow takes each unit as far
 # as a machine can (to *translated*); a person takes the ones that matter to
 # *reviewed*. That decision is the one thing the caches can't rebuild, so it lands
 # in the committed project state store (.kapi-state.json), bound to the

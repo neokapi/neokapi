@@ -250,7 +250,7 @@ func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowNa
 	a.runState.mu.Unlock()
 
 	parked := len(out.ParkedScopes)
-	msg := fmt.Sprintf("Converged in %d pass(es) in %s", out.Passes, time.Since(start).Round(time.Millisecond))
+	msg := fmt.Sprintf("Up to date in %d pass(es) in %s", out.Passes, time.Since(start).Round(time.Millisecond))
 	if !out.Converged {
 		msg = fmt.Sprintf("Finished %d pass(es) in %s — %d scope(s) parked for review",
 			out.Passes, time.Since(start).Round(time.Millisecond), parked)

@@ -33,7 +33,7 @@ const CAPABILITIES = [
   {
     icon: Zap,
     title: "Automation that keeps pace",
-    body: "When content arrives, translation starts; reviewers get tasks; people get notified. Runs are visible with per-step logs, and server-side convergence keeps every locale caught up.",
+    body: "When content arrives, translation starts; reviewers get tasks; people get notified. Runs are visible with per-step logs, and the server runs the kapi loop, keeping every locale caught up.",
     detail: ["Translate on push", "Review tasks & notifications", "Run logs"],
   },
   {

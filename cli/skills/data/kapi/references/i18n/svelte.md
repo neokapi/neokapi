@@ -118,7 +118,7 @@ SolidStart has no first-party i18n; the community standard is
   solidjs-community; type safety is inferred from the base dictionary (keys
   and params — quite good); lazy per-locale loading via `createResource`;
   locale switching through `startTransition`. Plurals: roll your own or embed
-  functions in the dictionary. The registry's `buys` is **kapi convergence
+  functions in the dictionary. The registry's `buys` is **the kapi loop
   over the JSON dictionaries** — with no extractor, kapi's catalog diffing is
   the only drift detection you get.
 - **solid-i18next** when runtime/CMS-driven catalogs are needed: the full

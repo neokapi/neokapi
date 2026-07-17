@@ -13,7 +13,7 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Ship gates & CI
 
-**Goal:** treat content quality like any other test. A **ship gate** is the project's release bar — coverage thresholds over the translation lifecycle plus the bound quality gates (brand, terminology, QA). `kapi check --ship` evaluates all of it in one shot and exits non-zero when a gate is unmet, so a regression never merges. Ordinary builds never fail on target drift — a language that is behind is pending work; `--ship` is the explicit, opt-in enforcement point. The model is [Convergence](/kapi/convergence); this guide is the task. Needs a committed [`.kapi` project](/kapi/get-started/first-project).
+**Goal:** treat content quality like any other test. A **ship gate** is the project's release bar — coverage thresholds over the translation lifecycle plus the bound quality gates (brand, terminology, QA). `kapi check --ship` evaluates all of it in one shot and exits non-zero when a gate is unmet, so a regression never merges. Ordinary builds never fail on target drift — a language that is behind is pending work; `--ship` is the explicit, opt-in enforcement point. The model is [the kapi loop](/kapi/convergence); this guide is the task. Needs a committed [`.kapi` project](/kapi/get-started/first-project).
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
@@ -76,7 +76,7 @@ include:
   - component: gitlab.com/neokapi/kapi-components/check@0.1.0
 ```
 
-The full pipeline picture — converge on a schedule, deliver a PR/MR, gate merges, report the cost of a change — is in [Convergence in CI](/kapi/convergence-in-ci).
+The full pipeline picture — catch up on a schedule, deliver a PR/MR, gate merges, report the cost of a change — is in [The kapi loop in CI](/kapi/convergence-in-ci).
 
 </TabItem>
 </Tabs>
@@ -94,7 +94,7 @@ half.
 
 ## Next
 
-- [Convergence](/kapi/convergence) — gates, ladders, and the derived-state model.
+- [The kapi loop](/kapi/convergence) — gates, ladders, and the derived-state model.
 - [Tier gates per market](/kapi/recipes/machine-ship-strategy) — different review bars per locale, one enforcement job.
 - [Review & approve](/kapi/recipes/review-and-approve) — raising the `reviewed` coverage a gate measures.
 - [Check content like tests](/kapi/recipes/verify-content) — the file-level checkset and Report.

@@ -19,7 +19,7 @@
 # TM — so every runnable step works in the browser embed. `kapi up` itself is
 # not wired into the wasm build (kapi/cmd/kapi-wasm-cli); it is offline: false
 # and appears in the tape + narration only. The run → merge beats do the same
-# work in the embed, so both venues end on the same converged grid.
+# work in the embed, so both venues end on the same up-to-date grid.
 
 id: kapi-project-workflow
 scene: project-workflow
@@ -91,7 +91,7 @@ steps:
     smoke: true
   - comment: One verb brings the project up to date.
   - command: kapi up
-    narration: up treats the recipe as the desired state. It runs the project's flow across every target locale, pass after pass, until each ship gate is met or the rest parks for a person. Here the TM covers everything, so fr converges in one pass.
+    narration: up treats the recipe as the desired state. It runs the project's flow across every target locale, pass after pass, until each ship gate is met or the rest parks for a person. Here the TM covers everything, so fr catches up in one pass.
     # offline:false — `up` is not wired into the wasm build; the run → merge
     # beats below do the same work in the embed.
     offline: false
@@ -106,7 +106,7 @@ steps:
     # smoke:false — consumes the overlays committed by the prior run step.
     smoke: false
   - command: kapi status
-    narration: The grid up converges toward — fr translated 100%. Coverage is derived from the files on every run, never tracked as state.
+    narration: The grid `up` catches up toward — fr translated 100%. Coverage is derived from the files on every run, never tracked as state.
     # smoke:false — depends on the merge step above having written the target.
     smoke: false
   - comment: extract and merge are also the interchange doors when a person translates.

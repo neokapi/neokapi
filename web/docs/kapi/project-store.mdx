@@ -42,7 +42,7 @@ The store also explains the two stages of a run:
    files*.
 2. **Ship** — `kapi merge` writes those overlays out to the **target files**;
    `kapi status` then reads the files (plus the state store) for the real ship
-   state — the [convergence](/kapi/convergence) ladder and gates.
+   state — the [kapi loop](/kapi/convergence)'s ladders and gates.
 
 So coverage has two honest readings: "what's translated in the store" (working,
 pre-merge) and "what's in the files and reviewed" (ship). The Kapi desktop shows
@@ -79,7 +79,7 @@ it **pushes** its state to a remote (`kapi push`) and **pulls** it back
 
 ## See also
 
-- [Convergence](/kapi/convergence) — the derived ladder, gates, and review queue.
+- [The kapi loop](/kapi/convergence) — the derived ladder, gates, and review queue.
 - [Projects](/kapi/projects) — how a run's source and sink resolve.
 - [Project file reference](/reference/project-file) — `defaults.state` and the
   other recipe fields.

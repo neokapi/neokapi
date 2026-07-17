@@ -30,10 +30,10 @@ A **project** is a small `.kapi` recipe file (your languages, which files count 
 | Setup | none | a `.kapi` recipe (commit it) |
 | Memory | nothing saved | a store accumulates work (TM, terms, approvals) |
 | Finds your files | you name them | discovered automatically |
-| The main verb | `kapi <tool> <file>` | `kapi up` — reconcile toward the ship gates |
+| The main verb | `kapi <tool> <file>` | `kapi up` — bring the project up to date |
 | Best for | one-offs, scripts, CI | a repo you work on repeatedly |
 
-Set one up: [your first project](/kapi/get-started/first-project). In a project, `kapi up` runs the default flow until every gated scope is shippable or parked for a human, `kapi status` shows standing, and `kapi check --ship` enforces the gates — the model behind those verbs is [Convergence](/kapi/convergence).
+Set one up: [your first project](/kapi/get-started/first-project). In a project, `kapi up` runs the default flow until every gated scope is shippable or parked for a human, `kapi status` shows standing, and `kapi check --ship` enforces the gates — the model behind those verbs is [the kapi loop](/kapi/convergence).
 
 ## The mechanics: source → flow → sink
 
@@ -72,7 +72,7 @@ kapi run translate-qa -i app.json --explain          # inside a project
 
 ## Two project loops, both ending at `merge`
 
-**1 — Reconcile loop** (the everyday one): `kapi up` runs the default flow over every locale short of its gate and materializes the localized files; what a machine can't finish parks for [review](/kapi/recipes/review-and-approve).
+**1 — The kapi loop** (the everyday one): `kapi up` runs the default flow over every locale short of its gate and materializes the localized files; what a machine can't finish parks for [review](/kapi/recipes/review-and-approve).
 
 **2 — Interchange loop** (hand bilingual files to a translator or CAT tool):
 
@@ -125,7 +125,7 @@ A tool run *inside* a project (`kapi translate src/app.json`) still picks up the
 
 ## See also
 
-- [Convergence](/kapi/convergence) — the derived-state model behind `up`, `status`, gates, and review.
+- [The kapi loop](/kapi/convergence) — the derived-state model behind `up`, `status`, gates, and review.
 - [Ship gates & CI](/kapi/recipes/gate-localization-in-ci) — enforce the gates with `kapi check --ship`.
 - [Flows](/framework/flows) — authoring composed flows and the source/sink ends.
 - [`.kapi` project file](/reference/project-file) — the recipe format.

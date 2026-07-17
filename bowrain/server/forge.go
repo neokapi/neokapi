@@ -368,10 +368,10 @@ func forgeDeliveryReport(ev platev.Event, proj *platstore.Project) (title, body 
 
 	var b strings.Builder
 	b.WriteString("<!-- bowrain-convergence-report -->\n")
-	b.WriteString("## Convergence report\n\n")
+	b.WriteString("## kapi up report\n\n")
 	fmt.Fprintf(&b, "| | |\n|---|---|\n| Outcome | **%s** |\n| Passes | %s |\n| Project | %s |\n",
 		state, ev.Data["passes"], proj.Name)
-	b.WriteString("\nProduced by the Bowrain convergence loop. ")
+	b.WriteString("\nProduced by the kapi loop running on Bowrain. ")
 	if state == bstore.ConvergenceRunParked {
 		b.WriteString("Some work parked for a person — it is waiting in the project's review queue and will arrive in a later delivery once approved.")
 	} else {

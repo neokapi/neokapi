@@ -32,7 +32,7 @@ export function Loop() {
       <div ref={ref} className="reveal">
         <div className="mx-auto max-w-3xl text-center">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 font-mono text-xs text-muted-foreground">
-            THE CONVERGENCE LOOP
+            THE LEARNING LOOP
           </div>
           <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
             Every correction makes the next draft better.

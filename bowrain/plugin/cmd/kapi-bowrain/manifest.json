@@ -12,12 +12,12 @@
   "capabilities": {
     "commands": [
       {"name": "server-up", "hidden": true,
-        "short": "Plumbing for kapi up's server venue: push, converge on the server, stream progress, pull results"},
+        "short": "Plumbing for kapi up's server venue: push, run the loop on the server, stream progress, pull results"},
       {"name": "push",   "short": "Upload local changes to the server",
         "args": [{"name": "paths", "variadic": true, "optional": true}]},
       {"name": "pull",   "short": "Download translations from the server"},
       {"name": "server-status", "hidden": true,
-        "short": "Emit the server sync + convergence-run standing as JSON (plumbing for kapi status)"},
+        "short": "Emit the server sync + loop-run standing as JSON (plumbing for kapi status)"},
       {"name": "server-ls", "hidden": true,
         "short": "Emit per-file sync standing as JSON (plumbing for kapi ls)",
         "args": [{"name": "paths", "variadic": true, "optional": true}]},
