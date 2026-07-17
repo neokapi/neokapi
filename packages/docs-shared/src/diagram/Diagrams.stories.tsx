@@ -10,6 +10,7 @@ import { RedactionDiagram } from "./RedactionDiagram";
 import { AxisLadderDiagram } from "./AxisLadderDiagram";
 import { AxisFamiliesDiagram } from "./AxisFamiliesDiagram";
 import { CycleDiagram } from "./CycleDiagram";
+import { GatedLoopDiagram } from "./GatedLoopDiagram";
 import { withDiagramTheme } from "./storyEnv";
 
 /*
@@ -85,7 +86,12 @@ export const Stream: Story = {
           role: "layer",
           note: "child layer",
         },
-        { kind: "PartBlock", detail: '"<b>Hello</b>"', depth: 2, role: "block" },
+        {
+          kind: "PartBlock",
+          detail: '"<b>Hello</b>"',
+          depth: 2,
+          role: "block",
+        },
         { kind: "PartLayerEnd", depth: 1, role: "end" },
         { kind: "PartLayerEnd", role: "end" },
       ]}
@@ -154,7 +160,11 @@ export const Lanes: Story = {
           title: "Writer Thread",
           sub: "writerPool, unbounded",
           role: "translate",
-          steps: ["receive events", "re-assemble the skeleton", "write target bytes"],
+          steps: [
+            "receive events",
+            "re-assemble the skeleton",
+            "write target bytes",
+          ],
         },
       ]}
     />
@@ -201,7 +211,11 @@ export const AxisLadder: Story = {
         { grade: "G0", name: "opaque", gloss: "bytes only" },
         { grade: "G1", name: "metadata", gloss: "title, author, page count" },
         { grade: "G2", name: "linear text", gloss: "reading-order characters" },
-        { grade: "G3", name: "roles", gloss: "headings, tables, reading order" },
+        {
+          grade: "G3",
+          name: "roles",
+          gloss: "headings, tables, reading order",
+        },
         { grade: "G4", name: "geometry", gloss: "page coords, bounding boxes" },
       ]}
       caption="Structure & Geometry — how much document structure we recover, rung by rung."
@@ -214,9 +228,17 @@ export const ConvergenceTargetLadder: Story = {
   render: () => (
     <AxisLadderDiagram
       rungs={[
-        { grade: "1", name: "draft", gloss: "machine placeholder or fuzzy leverage" },
+        {
+          grade: "1",
+          name: "draft",
+          gloss: "machine placeholder or fuzzy leverage",
+        },
         { grade: "2", name: "translated", gloss: "a real translation exists" },
-        { grade: "3", name: "reviewed", gloss: "a person approved this exact pair" },
+        {
+          grade: "3",
+          name: "reviewed",
+          gloss: "a person approved this exact pair",
+        },
         { grade: "4", name: "signed-off", gloss: "final" },
       ]}
       caption="Target lifecycle — how far a translation has progressed."
@@ -230,8 +252,16 @@ export const ConvergenceSourceLadder: Story = {
     <AxisLadderDiagram
       rungs={[
         { grade: "1", name: "authored", gloss: "source content exists" },
-        { grade: "2", name: "checked", gloss: "clears its brand & terminology checks" },
-        { grade: "3", name: "approved", gloss: "a person signed off on the source" },
+        {
+          grade: "2",
+          name: "checked",
+          gloss: "clears its brand & terminology checks",
+        },
+        {
+          grade: "3",
+          name: "approved",
+          gloss: "a person signed off on the source",
+        },
       ]}
       caption="Source authoring readiness — the source-side counterpart."
     />
@@ -287,6 +317,66 @@ export const Cycle: Story = {
         { label: "Reflect", sub: "learnings" },
       ]}
       caption="The format-ops runbook is a self-feeding loop; each run records what it consumed."
+    />
+  ),
+};
+
+export const GatedLoop: Story = {
+  name: "GatedLoopDiagram (source-first ship-gates)",
+  render: () => (
+    <GatedLoopDiagram
+      nodes={[
+        {
+          kind: "phase",
+          role: "source",
+          label: "settle source",
+          steps: ["term-check + protect", "brand-check", "source QA"],
+        },
+        {
+          kind: "gate",
+          label: "source ship-gate",
+          sub: "source_gate",
+          hold: "hold — settle your source first",
+        },
+        {
+          kind: "phase",
+          role: "translate",
+          label: "translate approved source",
+          steps: ["recycle (TM-first)", "AI remainder", "target QA"],
+        },
+        {
+          kind: "gate",
+          label: "target ship-gate",
+          sub: "ship_gate",
+          hold: "park — needs review",
+        },
+        { kind: "done", label: "converged" },
+      ]}
+      caption="Get the source right, gate it, then translate the approved source per locale — a gate that is not met holds the work for a person rather than shipping."
+    />
+  ),
+};
+
+export const GatedLoopMonolingual: Story = {
+  name: "GatedLoopDiagram (source-only — monolingual)",
+  render: () => (
+    <GatedLoopDiagram
+      nodes={[
+        {
+          kind: "phase",
+          role: "source",
+          label: "settle source",
+          steps: ["term-check + protect", "brand-check", "source QA"],
+        },
+        {
+          kind: "gate",
+          label: "source ship-gate",
+          sub: "source_gate",
+          hold: "hold — settle your source first",
+        },
+        { kind: "done", label: "on brand" },
+      ]}
+      caption="A monolingual project stops after the first half: settle the source, clear its gate."
     />
   ),
 };

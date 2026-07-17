@@ -5,7 +5,7 @@ description: How kapi keeps a project caught up — kapi up produces, review pro
 keywords: [kapi, kapi loop, kapi up, convergence, ship gate, source gate, status, check, review, lifecycle, coverage, venue, transport]
 ---
 
-import { AxisLadderDiagram, PhaseFlow, LanesDiagram } from "@neokapi/docs-shared";
+import { AxisLadderDiagram, PhaseFlow, LanesDiagram, GatedLoopDiagram } from "@neokapi/docs-shared";
 import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
 
 # The kapi loop
@@ -15,12 +15,14 @@ conformance are now behind — and that is normal, not an error. Kapi treats
 catching up as the everyday state of a shipping project, and gives it one
 verb: **`kapi up`**.
 
-`kapi up` runs **the kapi loop**, and the loop has two halves: first get the
-source right — the brand and terminology checks on what you wrote — then get
-every language caught up to it: reuse what you've translated before,
-AI-translate the rest, check everything produced. What a machine cannot decide
-**parks** for a person; the loop never blocks the author. A monolingual
-project simply stops after the first half.
+`kapi up` runs **the kapi loop**, and the loop has two halves with a gate
+between them. First get the source right — the brand and terminology checks on
+what you wrote — and hold there until it clears its bar. Only then get every
+language caught up to it: reuse what you've translated before, AI-translate the
+rest, check everything produced. Settling the source first is deliberate: every
+defect in the source would otherwise multiply across each target language. What
+a machine cannot decide **parks** for a person; the loop never blocks the
+author. A monolingual project simply stops after the first half.
 
 The recipe declares what *caught up* means — the languages the project
 targets, the flow that produces them, the gates that decide *shippable*. Every
@@ -153,6 +155,68 @@ The full schema — threshold forms, rule selection, the named registry — is i
 the [project-file reference](/reference/project-file#ship-gates); a worked
 per-market strategy is
 [Tier gates per market](/kapi/recipes/machine-ship-strategy).
+
+## Source first: settle, gate, then translate {#source-first}
+
+The two ladders are not run in parallel — they run in order, with the **source
+ship-gate** between them. Source content is shared across every locale, so a
+term left unresolved or a sentence left off-brand would be paid for once per
+language, then paid for again when the source is fixed and everything
+retranslates. The loop settles the source *once* and holds the fan-out until it
+is ready.
+
+<GatedLoopDiagram
+  nodes={[
+    {
+      kind: "phase",
+      role: "source",
+      label: "settle source",
+      steps: ["term-check + protect", "brand-check", "source QA"],
+    },
+    {
+      kind: "gate",
+      label: "source ship-gate",
+      sub: "source_gate",
+      hold: "hold — settle your source first",
+    },
+    {
+      kind: "phase",
+      role: "translate",
+      label: "translate approved source",
+      steps: ["recycle (TM-first)", "AI remainder", "target QA"],
+    },
+    {
+      kind: "gate",
+      label: "target ship-gate",
+      sub: "ship_gate",
+      hold: "park — needs review",
+    },
+    { kind: "done", label: "converged" },
+  ]}
+  caption="Settle the source, clear its gate, then translate the approved source per locale — each gate holds work that is not ready rather than shipping it."
+/>
+
+Read the loop left to right:
+
+1. **Settle the source.** Check terminology and mark the terms that must not be
+   translated, check brand voice, run source QA. This lifts source units up the
+   authoring ladder (*authored → checked → approved*).
+2. **Hold at the source ship-gate.** The optional `source_gate` (for example,
+   `{ checked: 100 }`) is the source-side counterpart of `ship_gate`. Source
+   that has not cleared its bar **holds** — the honest, cheap outcome is *settle
+   your source first*, not a machine translation of content you are about to
+   change.
+3. **Translate the approved source.** Only settled source fans out per locale,
+   TM-first: recycle what you have already translated, AI-translate the
+   remainder, check what was produced. The protected terms stay protected.
+4. **Hold at the target ship-gate.** A locale that clears its `ship_gate` is
+   shippable; whatever a machine cannot decide **parks** for review rather than
+   shipping under-reviewed.
+
+A gate never *fails*: it holds work and routes it to a person — a source-review
+worklist, or the target review queue — and the command still exits zero. Editing
+a source unit re-opens the source gate for only the changed segments, so a fix
+re-settles and re-translates just those, never the whole corpus.
 
 ## Seeing it: `status` and `check`
 

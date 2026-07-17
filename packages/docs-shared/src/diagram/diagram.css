@@ -164,6 +164,69 @@
   font-weight: 600;
 }
 
+/* ── Ship-gate (GatedLoopDiagram) ──────────────────────── */
+/* A gate is a green governance seam: it holds work when a phase isn't ready
+   and releases it (green) when the phase clears its bar. Green = brand-primary
+   `--kdx-io`, so a gate reads as "the shippable line" across light/dark. */
+.kdx-gate {
+  fill: var(--kdx-surface);
+  stroke: var(--kdx-io);
+  stroke-width: 2;
+}
+.kdx-gate-fill {
+  fill: var(--kdx-io);
+  opacity: 0.1;
+}
+.kdx-gate-t {
+  fill: var(--kdx-io);
+  font-weight: 700;
+}
+.kdx-gate-sub {
+  fill: var(--kdx-io);
+  opacity: 0.85;
+  font-family: var(--kdx-mono, ui-monospace, "Source Code Pro", monospace);
+}
+.kdx-gate-check {
+  fill: none;
+  stroke: var(--kdx-io);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* A phase band — a settle-source / translate stage that runs several tools. */
+.kdx-phase {
+  fill: var(--kdx-surface-2);
+  stroke: var(--kdx-border);
+  stroke-width: 1.5;
+}
+.kdx-phase--source {
+  stroke: var(--kdx-annotate);
+}
+.kdx-phase--translate {
+  stroke: var(--kdx-translate);
+}
+.kdx-phase-t {
+  fill: var(--kdx-ink);
+  font-weight: 600;
+}
+.kdx-phase-step {
+  fill: var(--kdx-muted);
+  font-family: var(--kdx-mono, ui-monospace, "Source Code Pro", monospace);
+}
+/* The "held" branch — where under-ready work waits for a person, drawn as a
+   muted amber (QA/attention) dashed edge to a review node. */
+.kdx-hold {
+  fill: none;
+  stroke: var(--kdx-qa);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  opacity: 0.85;
+}
+.kdx-hold-t {
+  fill: var(--kdx-qa);
+  font-weight: 600;
+}
+
 /* self-loop arc (PhaseFlow) */
 .kdx-loop {
   fill: none;
