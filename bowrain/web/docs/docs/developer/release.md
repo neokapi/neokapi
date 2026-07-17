@@ -130,3 +130,7 @@ git tag -d bowrain-v2.1.0
 - [ ] `make release-bowrain-windows` has uploaded the signed Windows assets
 - [ ] GitHub release has all expected assets
 - [ ] `brew install --cask neokapi/tap/bowrain` works and `kapi version` is correct
+- [ ] Docs download links regenerated:
+      `./scripts/update-website-downloads.sh --bowrain bowrain-vX.Y.Z`, review the
+      diff on `bowrain/web/docs/docs/getting-started/installation.md`, commit.
+      Re-run after the out-of-band Windows signing so the Windows rows appear.
