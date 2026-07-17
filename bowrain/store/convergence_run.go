@@ -58,6 +58,12 @@ type ConvergenceRun struct {
 	// "slow but alive" from "stalled" (theme D).
 	LastActivity *time.Time `json:"last_activity,omitempty"`
 
+	// BlockedOnSource is how many source blocks the source-first settle phase
+	// held below the gate (settle-then-translate). The UI renders it as "N
+	// segments need source review before translating"; a non-zero count with a
+	// source_not_ready stall is the "settle your source first" hold (epic 019).
+	BlockedOnSource int `json:"blocked_on_source,omitempty"`
+
 	CreatedAt  time.Time  `json:"created_at"`
 	FinishedAt *time.Time `json:"finished_at,omitempty"`
 }
@@ -98,11 +104,12 @@ func (s *ConvergenceRunStore) CreateRun(ctx context.Context, run *ConvergenceRun
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO convergence_runs
 			(id, project_id, trigger, state, passes, standing, failing_checks, error,
-			 stall_reason, current_stage, current_locale, last_activity, created_at, finished_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+			 stall_reason, current_stage, current_locale, last_activity, blocked_on_source, created_at, finished_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
 		run.ID, run.ProjectID, run.Trigger, run.State, run.Passes,
 		string(standing), run.FailingChecks, run.Error,
 		run.StallReason, run.CurrentStage, run.CurrentLocale, finishedText(run.LastActivity),
+		run.BlockedOnSource,
 		run.CreatedAt.UTC().Format(rfc3339Nano), finishedText(run.FinishedAt))
 	if err != nil {
 		return fmt.Errorf("create convergence run: %w", err)
@@ -137,11 +144,12 @@ func (s *ConvergenceRunStore) UpdateRun(ctx context.Context, run *ConvergenceRun
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE convergence_runs
 			SET state=$1, passes=$2, standing=$3, failing_checks=$4, error=$5,
-			    stall_reason=$6, current_stage=$7, current_locale=$8, last_activity=$9, finished_at=$10
-			WHERE id=$11`,
+			    stall_reason=$6, current_stage=$7, current_locale=$8, last_activity=$9,
+			    blocked_on_source=$10, finished_at=$11
+			WHERE id=$12`,
 		run.State, run.Passes, string(standing), run.FailingChecks, run.Error,
 		run.StallReason, run.CurrentStage, run.CurrentLocale, finishedText(run.LastActivity),
-		finishedText(run.FinishedAt), run.ID)
+		run.BlockedOnSource, finishedText(run.FinishedAt), run.ID)
 	if err != nil {
 		return fmt.Errorf("update convergence run: %w", err)
 	}
@@ -167,7 +175,7 @@ func (s *ConvergenceRunStore) FailInterruptedRuns(ctx context.Context, reason st
 // GetRun retrieves a run by ID.
 func (s *ConvergenceRunStore) GetRun(ctx context.Context, runID string) (*ConvergenceRun, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, trigger, state, passes, standing, failing_checks, error, stall_reason, current_stage, current_locale, last_activity, created_at, finished_at
+		`SELECT id, project_id, trigger, state, passes, standing, failing_checks, error, stall_reason, current_stage, current_locale, last_activity, blocked_on_source, created_at, finished_at
 		 FROM convergence_runs WHERE id = $1`, runID)
 	return scanConvergenceRun(row)
 }
@@ -178,7 +186,7 @@ func (s *ConvergenceRunStore) ListRuns(ctx context.Context, projectID string, li
 		limit = 20
 	}
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, project_id, trigger, state, passes, standing, failing_checks, error, stall_reason, current_stage, current_locale, last_activity, created_at, finished_at
+		`SELECT id, project_id, trigger, state, passes, standing, failing_checks, error, stall_reason, current_stage, current_locale, last_activity, blocked_on_source, created_at, finished_at
 		 FROM convergence_runs WHERE project_id = $1 ORDER BY created_at DESC LIMIT $2`, projectID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list convergence runs: %w", err)
@@ -199,7 +207,7 @@ func (s *ConvergenceRunStore) ListRuns(ctx context.Context, projectID string, li
 // none is in flight — the guard a start uses to avoid a second concurrent run.
 func (s *ConvergenceRunStore) ActiveRun(ctx context.Context, projectID string) (*ConvergenceRun, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, trigger, state, passes, standing, failing_checks, error, stall_reason, current_stage, current_locale, last_activity, created_at, finished_at
+		`SELECT id, project_id, trigger, state, passes, standing, failing_checks, error, stall_reason, current_stage, current_locale, last_activity, blocked_on_source, created_at, finished_at
 		 FROM convergence_runs WHERE project_id = $1 AND state = $2 ORDER BY created_at DESC LIMIT 1`,
 		projectID, ConvergenceRunRunning)
 	run, err := scanConvergenceRun(row)
@@ -281,6 +289,7 @@ func scanConvergenceRun(row scannable) (*ConvergenceRun, error) {
 	if err := row.Scan(&r.ID, &r.ProjectID, &r.Trigger, &r.State, &r.Passes,
 		&standing, &r.FailingChecks, &r.Error,
 		&r.StallReason, &r.CurrentStage, &r.CurrentLocale, &activityStr,
+		&r.BlockedOnSource,
 		&createdStr, &finishedStr); err != nil {
 		return nil, err
 	}

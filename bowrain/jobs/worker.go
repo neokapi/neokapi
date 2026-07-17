@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/billing"
@@ -314,6 +315,15 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		return fmt.Errorf("get blocks: %w", err)
 	}
 
+	// Source-first gate (epic 019): translate only the blocks whose source has
+	// settled to (or above) the project's source gate. A block held below the
+	// gate is skipped here — never translated into this locale — so a partially
+	// settled item translates only its ready segments and an off-brand /
+	// un-term-checked source is not fanned out. The orchestrator already refuses
+	// to spawn a job for an item with nothing producible; this is the per-block
+	// enforcement that also protects the direct auto-translate path.
+	storedBlocks = gateBlocksBySource(storedBlocks, store.SourceGateFor(proj))
+
 	totalBlocks := len(storedBlocks)
 	if err := deps.JobStore.UpdateJobProgress(ctx, job.ID, epoch, 0, totalBlocks); err != nil {
 		return fmt.Errorf("set total blocks: %w", err)
@@ -396,6 +406,11 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		TargetLocale:     model.LocaleID(job.TargetLocale),
 		BatchSize:        batchSz,
 		BatchConcurrency: concurrency,
+		// Do-not-translate terms are ENFORCED, not merely prompted: the tool
+		// masks each protected span before the model and restores it verbatim
+		// after, so a product name / trademark / code identifier cannot be
+		// translated (epic 019, item 4). Sourced from project settings.
+		DNT: projectDNTTerms(proj),
 	})
 
 	// Process blocks in progress-reporting chunks. The tool handles
@@ -641,6 +656,58 @@ func estimateTokens(blocks []*store.StoredBlock) int {
 		}
 	}
 	return totalChars / 4
+}
+
+// projectDNTTerms reads the project's do-not-translate terms from settings
+// (comma-separated in Properties["dnt_terms"]) — product names, trademarks, and
+// code identifiers that must survive verbatim into every target. The AI
+// translate tool masks and restores these spans so they cannot be translated.
+// Empty when unset.
+func projectDNTTerms(proj *store.Project) []string {
+	if proj == nil || proj.Properties == nil {
+		return nil
+	}
+	raw := strings.TrimSpace(proj.Properties["dnt_terms"])
+	if raw == "" {
+		return nil
+	}
+	var terms []string
+	for t := range strings.SplitSeq(raw, ",") {
+		if t = strings.TrimSpace(t); t != "" {
+			terms = append(terms, t)
+		}
+	}
+	return terms
+}
+
+// gateBlocksBySource keeps only the blocks whose source clears the source-first
+// gate (epic 019): a block the settle phase explicitly held below the gate is
+// dropped so it is never translated. It is the per-block refinement of the
+// orchestrator's item-level gate, so a partially-settled item translates only
+// its ready segments.
+//
+// A block that was never settled (SourceStatusNew — no committed status) is
+// PASSED THROUGH: the worker is not the settle phase, and holding an unstamped
+// block here would silently strand every non-source-first path (auto-translate,
+// projects that never ran a settle pass). The gate holds only what settlement
+// committed below it — an authored/checked block a settle pass demoted or left
+// short. A non-translatable block (no source to gate) and a disabled gate
+// (SourceGateNone) always pass.
+func gateBlocksBySource(blocks []*store.StoredBlock, gate model.SourceGateLevel) []*store.StoredBlock {
+	if gate == model.SourceGateNone {
+		return blocks
+	}
+	kept := blocks[:0:0]
+	for _, sb := range blocks {
+		if sb == nil || sb.Block == nil {
+			continue
+		}
+		status := sb.Block.SourceStatus
+		if !sb.Block.Translatable || status == model.SourceStatusNew || gate.Admits(status) {
+			kept = append(kept, sb)
+		}
+	}
+	return kept
 }
 
 // storedBlocksToParts converts stored blocks to Part slice (same as editor.go).

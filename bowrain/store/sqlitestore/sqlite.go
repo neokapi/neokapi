@@ -578,7 +578,10 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 		if err != nil {
 			return fmt.Errorf("marshal source for block %s: %w", internalID, err)
 		}
-		propsJSON, err := json.Marshal(b.Properties)
+		// Fold the source-authoring status into properties: the store has no
+		// SourceStatus column, so the source-first gate's stamp must ride here to
+		// survive the round-trip (bowrain/core/store.PropsForStore).
+		propsJSON, err := json.Marshal(platstore.PropsForStore(b))
 		if err != nil {
 			return fmt.Errorf("marshal properties for block %s: %w", internalID, err)
 		}
@@ -1029,6 +1032,9 @@ func scanStoredBlock(row scanner) (*platstore.StoredBlock, error) {
 	if err := json.Unmarshal([]byte(propsJSON), &sb.Block.Properties); err != nil {
 		sb.Block.Properties = make(map[string]string)
 	}
+	// Lift the folded source-authoring status back onto the block (source-first
+	// gate). Symmetric with PropsForStore on the write side.
+	platstore.ApplySourceStatusFromProps(sb.Block)
 	// Targets + Annotations hydrated via bstore.HydrateOverlays after
 	// the caller has scanned all rows. Leave empty here.
 	sb.Block.Targets = make(map[model.VariantKey]*model.Target)

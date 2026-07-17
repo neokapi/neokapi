@@ -620,4 +620,15 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE convergence_runs ADD COLUMN last_activity  TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	{
+		Version:     7,
+		Description: "source-first convergence: blocked-on-source count on a run",
+		SQL: `
+			-- Mirrors bowrain/store/migrations.go (Version 8): the source-first
+			-- settle phase holds source blocks below the gate; the run row carries
+			-- how many, so the UI can render "N segments need source review"
+			-- (strategy 2026-07-dogfood doc 07 / roadmap epic 019).
+			ALTER TABLE convergence_runs ADD COLUMN blocked_on_source INTEGER NOT NULL DEFAULT 0;
+		`,
+	},
 }

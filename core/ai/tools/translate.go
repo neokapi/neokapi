@@ -29,8 +29,9 @@ type AITranslateTool struct {
 	sourceLocale  model.LocaleID
 	targetLocale  model.LocaleID
 	glossary      map[string]string
-	voiceGuide    string // compact brand voice guidance injected into every prompt
-	instruction   string // caller-supplied directive injected into every prompt
+	dnt           []string // do-not-translate terms; masked before the model, restored after
+	voiceGuide    string   // compact brand voice guidance injected into every prompt
+	instruction   string   // caller-supplied directive injected into every prompt
 	skipMatched   bool
 	batchSize     int
 	contextPolicy string
@@ -98,8 +99,24 @@ type AITranslateConfig struct {
 	// injected into the translation prompt so output is on-brand at generation
 	// time. Not serializable via the schema/CLI; supplied programmatically or
 	// via the .kapi brand binding.
-	Profile     *brand.VoiceProfile `json:"-" schema:"-"`
-	SkipMatched bool                `json:"skipMatched,omitempty"  schema:"title=Skip Matched,description=Skip blocks that already have a target translation"`
+	Profile *brand.VoiceProfile `json:"-" schema:"-"`
+
+	// DNT are do-not-translate terms (product names, trademarks, code
+	// identifiers) that must survive VERBATIM into the target — the enforced
+	// counterpart of the advisory Glossary. Where the glossary only asks the
+	// model to prefer a rendering, DNT LOCKS the span: each occurrence in the
+	// source is masked with a sentinel placeholder before the model sees it and
+	// restored to the exact original after, so the term cannot be translated,
+	// transliterated, or dropped no matter what the model returns. Sourced from
+	// the recipe, a checkset, or termbase do-not-translate/forbidden terms.
+	//
+	// Masking a span is only safe per block (the sentinel must survive a single
+	// generation), so a tool configured with DNT terms translates one block per
+	// call regardless of the batching setting — correctness over throughput for
+	// the (usually small) set of protected terms.
+	DNT []string `json:"dnt,omitempty" schema:"-"`
+
+	SkipMatched bool `json:"skipMatched,omitempty"  schema:"title=Skip Matched,description=Skip blocks that already have a target translation"`
 
 	// Batching selects how many blocks share one LLM call.
 	//
@@ -217,6 +234,7 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 		sourceLocale: cfg.SourceLocale,
 		targetLocale: cfg.TargetLocale,
 		glossary:     cfg.Glossary,
+		dnt:          sanitizeDNT(cfg.DNT),
 		voiceGuide:   brand.RenderVoiceGuideCompact(cfg.Profile),
 		instruction:  cfg.Instruction,
 		skipMatched:  cfg.SkipMatched,
@@ -256,6 +274,21 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 	// keying off batchSize < 1.)
 	if cfg.BatchSize < 1 && aiprovider.IsLocalProvider(aiprovider.ProviderID(cfg.Provider)) {
 		t.batchSize = 1
+	}
+	// Do-not-translate enforcement masks each protected span with a sentinel
+	// that must survive a single generation intact, so a tool with DNT terms
+	// translates one block per call — the batch path packs many sources into one
+	// structured-JSON generation where a per-span sentinel cannot be tracked
+	// safely. Correctness for the (small) protected set outweighs the batch win.
+	// Neighbour context also routes through the batched path (Process), which
+	// never applies the mask, so DNT downgrades context to `key` — the mask,
+	// which needs the single-block path, wins over the neighbourhood hint.
+	if len(t.dnt) > 0 {
+		t.batchSize = 1
+		t.concurrency = 1
+		if t.contextPolicy == ContextNeighbours {
+			t.contextPolicy = ContextKey
+		}
 	}
 	if t.concurrency < 1 {
 		t.concurrency = DefaultBatchConcurrency
@@ -594,9 +627,14 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 		return t.translateWithInlineCodes(v, sourceRuns)
 	}
 
+	// Do-not-translate enforcement: mask each protected span before the model
+	// sees it and restore it verbatim after, so a DNT term cannot be translated
+	// or dropped (epic 019, item 4). No-op when no DNT terms are configured.
+	maskedSource, dntRestoreMap := dntMask(sourceText, t.dnt)
+
 	// Plain text translation.
 	resp, err := t.translateBlock(v.Context(), aiprovider.TranslateRequest{
-		Source:         sourceText,
+		Source:         maskedSource,
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
 		Glossary:       t.glossary,
@@ -609,7 +647,7 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 	}
 	t.addUsage(resp.Usage)
 
-	v.SetTargetText(t.targetLocale, resp.Translation)
+	v.SetTargetText(t.targetLocale, dntRestore(resp.Translation, dntRestoreMap))
 	t.annotateTranslation(v, resp)
 
 	t.emitProgress(true, "")
@@ -654,12 +692,18 @@ func (t *AITranslateTool) translateBlock(ctx context.Context, req aiprovider.Tra
 func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRuns []model.Run) error {
 	sourceText := model.RunsPlaceholderText(sourceRuns)
 
+	// DNT enforcement (epic 019, item 4): mask protected spans in the
+	// placeholder text before translation and restore them in the model's reply
+	// before it is parsed back into runs — the sentinels ride through as plain
+	// text runs, so restoration lands the exact original term in the target.
+	maskedSource, dntRestoreMap := dntMask(sourceText, t.dnt)
+
 	// Source is the content to translate, never an instruction: PreserveTags
 	// carries the tag rule into the prompt. (This path used to pass a fully
 	// built instruction as Source, which standardTranslate then wrapped in a
 	// second instruction — so the model was handed a prompt to translate.)
 	resp, err := t.translateBlock(v.Context(), aiprovider.TranslateRequest{
-		Source:         sourceText,
+		Source:         maskedSource,
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
 		Glossary:       t.glossary,
@@ -672,7 +716,7 @@ func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRun
 	}
 	t.addUsage(resp.Usage)
 
-	targetRuns := model.ParseRunsPlaceholderText(resp.Translation, sourceRuns)
+	targetRuns := model.ParseRunsPlaceholderText(dntRestore(resp.Translation, dntRestoreMap), sourceRuns)
 	v.SetTargetRuns(t.targetLocale, targetRuns)
 	t.annotateTranslation(v, resp)
 
