@@ -1,0 +1,693 @@
+package main
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"maps"
+	"slices"
+	"strings"
+
+	"github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/model"
+)
+
+// The corpus is engineered so that a *naive* translation violates the injected
+// context — otherwise a pass is a freebie and the fixture measures nothing.
+// Each fixture exists to tempt a specific violation:
+//
+//   - a glossary term whose natural translation differs from the mandated one
+//     ("dashboard" → the anglicism, where the glossary mandates "Leitstand");
+//   - a product name that reads like a common noun ("Compass"), which a model
+//     will translate unless told not to;
+//   - casual English that tempts an informal register where the brand voice is
+//     formal, and contractions where the brand forbids them;
+//   - rule-shaped instructions the source actively violates ("no exclamation
+//     marks" on a source that ends in one).
+//
+// It also carries distractors — a lowercase "compass" that is a real compass
+// and must be translated, an idiomatic "wide berth" that must not receive the
+// technical term — and declared-winner conflicts, where the glossary pins a
+// compound that contains a forbidden vocabulary word. The fixture states what
+// is expected to win; the scorer enforces exactly that.
+//
+// The brand, the products and the guide are synthetic ("Northsea", a fictional
+// maritime-operations vendor) and engineered for trap density. They must not
+// resemble any real customer's brand guide.
+//
+// Fixture keys are sent to the model (Context: key, the production default), so
+// they must be realistic i18n keys and must never leak the expectation — a key
+// like "formal_greeting" would hand the bare run the answer.
+
+// Dimensions attribute every expectation to the piece of context that carries
+// it, so the dashboard can say which part of the payload earns its tokens.
+const (
+	// DimTerminology is carried by the glossary (term mandates and the identity
+	// pins that keep do-not-translate names verbatim).
+	DimTerminology = "terminology"
+	// DimVoice is carried by the brand voice profile — the slice of it that
+	// production actually injects (brand.RenderVoiceGuideCompact): formality,
+	// contractions, and forbidden-term swaps.
+	DimVoice = "voice"
+	// DimInstruction is carried by the free-form instruction string.
+	DimInstruction = "instruction"
+)
+
+// Check is one deterministic expectation on a fixture's translation. Exactly
+// one scoring backend applies, chosen by which fields are set:
+//
+//   - Term: the real term-check tool (mandated target term must appear);
+//   - DNT: the real dnt-check tool (term must survive verbatim);
+//   - VocabClean: the real brand-vocab-check tool over the translation
+//     (no unexcused forbidden/competitor hits);
+//   - MustMatch / MustNotMatch: the real pattern-check tool (either or both).
+type Check struct {
+	Dimension string
+	// Kind labels the trap for the per-kind breakdown: term, term-distractor,
+	// term-conflict, dnt, dnt-distractor, vocab, vocab-conflict, formality,
+	// contractions, exclamation, digits, verbatim, spelling.
+	Kind string
+
+	Term         *GlossaryTerm
+	DNT          string
+	VocabClean   bool
+	MustMatch    string
+	MustNotMatch string
+}
+
+// GlossaryTerm is a source term with its mandated target rendering.
+type GlossaryTerm struct {
+	Source string
+	Target string
+}
+
+// Fixture is one corpus entry: a source string plus, per target locale, the
+// observable properties its translation must (or must not) have. A fixture
+// with no checks for the swept target is not part of that target's corpus.
+type Fixture struct {
+	Key    string
+	Source string
+	Checks map[string][]Check
+	// AllowVocab names profile vocabulary terms excused for this fixture — the
+	// declared winner of an engineered conflict (e.g. the glossary pins
+	// "Nutzer-ID" while the profile forbids "Nutzer"; the pin wins).
+	AllowVocab []string
+	// Note says what the trap is and what the naive translation gets wrong, so
+	// a failure can be inspected rather than trusted.
+	Note string
+}
+
+// Context is the payload under test for one target locale — injected into the
+// translate prompt exactly the way production injects it (glossary map,
+// brand.VoiceProfile rendered compact, instruction section) and withheld
+// entirely on the bare pass.
+type Context struct {
+	// Glossary is the term → mandated-rendering map the prompt's glossary
+	// section renders. Do-not-translate names ride here as identity pins, which
+	// is how a termbase concept whose preferred target term equals the source
+	// term reaches generation in production (ResolveProjectGlossary).
+	Glossary map[string]string
+	// DNT lists the names that must survive verbatim — what dnt-check enforces.
+	DNT []string
+	// Profile is the synthetic brand voice. Only what
+	// brand.RenderVoiceGuideCompact renders reaches the model — formality,
+	// personality, contractions, and forbidden-term swaps that carry a
+	// replacement — so every voice fixture tests exactly that slice.
+	Profile *brand.VoiceProfile
+	// Instruction is the free-form steering string.
+	Instruction string
+}
+
+// TestCorpus is the swept unit: the fixtures that carry expectations for one
+// target locale, plus the context injected on the steered pass.
+type TestCorpus struct {
+	Target   string
+	Fixtures []Fixture
+	Ctx      Context
+}
+
+// CorpusFor assembles the corpus for one target locale. Targets without
+// authored expectations yield an empty corpus, which the sweep rejects.
+func CorpusFor(target string) TestCorpus {
+	var fixtures []Fixture
+	for _, f := range allFixtures() {
+		if len(f.Checks[target]) > 0 {
+			fixtures = append(fixtures, f)
+		}
+	}
+	return TestCorpus{
+		Target:   target,
+		Fixtures: fixtures,
+		Ctx:      contextFor(target),
+	}
+}
+
+// Targets lists the locales the corpus carries expectations for.
+func Targets() []string { return []string{"de", "fr", "en-GB"} }
+
+// Words counts source words across the corpus — the cost denominator, same
+// unit as batcheval (content budgets are denominated in words, not tokens).
+func (c TestCorpus) Words() int {
+	n := 0
+	for _, f := range c.Fixtures {
+		n += len(strings.Fields(f.Source))
+	}
+	return n
+}
+
+// Checks counts the scoreable expectations in the corpus for its target.
+func (c TestCorpus) Checks() int {
+	n := 0
+	for _, f := range c.Fixtures {
+		n += len(f.Checks[c.Target])
+	}
+	return n
+}
+
+// Digest identifies the exact experiment: the fixtures, their expectations,
+// and the context payload the steered pass injects. Change any of them — a
+// reworded source, a new glossary mandate, a different voice guide — and the
+// digest moves, so runs measured on different experiments are never plotted
+// as one trend.
+func (c TestCorpus) Digest() string {
+	h := sha256.New()
+	fmt.Fprintf(h, "target:%s\x00", c.Target)
+	for _, f := range c.Fixtures {
+		fmt.Fprintf(h, "%s\x00%s\x00", f.Key, f.Source)
+		for _, chk := range f.Checks[c.Target] {
+			fmt.Fprintf(h, "%s|%s", chk.Dimension, chk.Kind)
+			if chk.Term != nil {
+				fmt.Fprintf(h, "|term:%s→%s", chk.Term.Source, chk.Term.Target)
+			}
+			if chk.DNT != "" {
+				fmt.Fprintf(h, "|dnt:%s", chk.DNT)
+			}
+			if chk.VocabClean {
+				fmt.Fprintf(h, "|vocab")
+			}
+			if chk.MustMatch != "" {
+				fmt.Fprintf(h, "|match:%s", chk.MustMatch)
+			}
+			if chk.MustNotMatch != "" {
+				fmt.Fprintf(h, "|not:%s", chk.MustNotMatch)
+			}
+			fmt.Fprint(h, "\x00")
+		}
+		fmt.Fprintf(h, "allow:%s\x00", strings.Join(f.AllowVocab, ","))
+	}
+	for _, k := range slices.Sorted(maps.Keys(c.Ctx.Glossary)) {
+		fmt.Fprintf(h, "g:%s→%s\x00", k, c.Ctx.Glossary[k])
+	}
+	fmt.Fprintf(h, "dnt:%s\x00", strings.Join(c.Ctx.DNT, ","))
+	// The rendered guide, not the profile struct: what the model sees is what
+	// the experiment is.
+	fmt.Fprintf(h, "voice:%s\x00", brand.RenderVoiceGuideCompact(c.Ctx.Profile))
+	fmt.Fprintf(h, "instruction:%s\x00", c.Ctx.Instruction)
+	return hex.EncodeToString(h.Sum(nil))[:12]
+}
+
+func (c TestCorpus) Describe() string {
+	byDim := map[string]int{}
+	for _, f := range c.Fixtures {
+		for _, chk := range f.Checks[c.Target] {
+			byDim[chk.Dimension]++
+		}
+	}
+	var parts []string
+	for _, d := range []string{DimTerminology, DimVoice, DimInstruction} {
+		if n := byDim[d]; n > 0 {
+			parts = append(parts, fmt.Sprintf("%d %s", n, d))
+		}
+	}
+	return fmt.Sprintf("%d fixtures, %d checks (%s)", len(c.Fixtures), c.Checks(), strings.Join(parts, ", "))
+}
+
+// Blocks renders the corpus as translatable blocks. The key rides in Name so
+// the production `Context: key` policy has something to send.
+func (c TestCorpus) Blocks() []*model.Block {
+	out := make([]*model.Block, len(c.Fixtures))
+	for i, f := range c.Fixtures {
+		b := model.NewBlock(fmt.Sprintf("tu%d", i+1), f.Source)
+		b.Name = f.Key
+		b.Translatable = true
+		out[i] = b
+	}
+	return out
+}
+
+// contractionRe tempts on straight and curly apostrophes, and is restricted to
+// unambiguous contractions (n't, pronoun+'re/'ll/'ve/'d, it's/there's, I'm) so a
+// legitimate possessive ("the vessel's position") never scores as a violation.
+const contractionRe = `(?i)(\b\w+n['’]t\b|\b(it|we|you|they|there|that|who)['’](s|re|ll|ve|d)\b|\bi['’]m\b)`
+
+// Informal-address patterns. Go's \b is ASCII-only, which makes it a word
+// boundary next to any accented letter — `\btes\b` matches the tail of "êtes",
+// `\bte\b` the middle of "boîte" — so a perfectly formal French sentence would
+// score as informal. The guards are explicit non-letter classes instead
+// (Unicode-aware), and case-insensitive because informal German capitalizes
+// "Du" in letters.
+const (
+	informalDE = `(?i)(^|[^\p{L}])(du|dich|dir|dein\p{L}*|euch|euer\p{L}*|eure\p{L}*)($|[^\p{L}])`
+	informalFR = `(?i)(^|[^\p{L}])(tu|te|toi|ton|ta|tes)($|[^\p{L}])`
+)
+
+// contextFor builds the payload for one target. The glossary and the profile
+// vocabulary are target-language artefacts (a German mandate is useless in
+// French), so each target gets its own; tone, style and the instruction are
+// shared, the way one brand config covers many locales in production.
+func contextFor(target string) Context {
+	instruction := "Never use exclamation marks. Write numbers as digits, never as words. " +
+		"Keep any text wrapped in backticks exactly as it appears in the source."
+
+	profile := &brand.VoiceProfile{
+		ID:          "northsea-voice",
+		Name:        "Northsea",
+		Description: "Synthetic brand voice for the context eval — engineered for trap density, resembling no real customer.",
+		Tone: brand.ToneProfile{
+			Personality: []string{"precise", "calm"},
+			Formality:   "formal",
+			Emotion:     "neutral",
+			Humor:       "none",
+		},
+		Style: brand.StyleRules{
+			ActiveVoice:  true,
+			Contractions: "never",
+			PersonPOV:    "second",
+		},
+	}
+
+	ctx := Context{Profile: profile, Instruction: instruction}
+	switch target {
+	case "de":
+		ctx.Glossary = map[string]string{
+			"dashboard": "Leitstand",
+			"alert":     "Warnmeldung",
+			"sync":      "Datenabgleich",
+			"report":    "Report", // the reverse trap: the brand mandates the anglicism, naive German says "Bericht"
+			"berth":     "Anlegeplatz",
+			"vessel":    "Wasserfahrzeug",
+			"user ID":   "Nutzer-ID", // declared conflict: contains the forbidden "Nutzer"; the pin wins
+			"Tidewatch": "Tidewatch",
+			"Compass":   "Compass",
+			"tidectl":   "tidectl",
+		}
+		// Every forbidden term carries a replacement, deliberately: production
+		// injection (RenderVoiceGuideCompact) only renders swaps that have one,
+		// so a ban without a replacement never reaches the model and would
+		// measure our injection gap, not the model's steerability.
+		profile.Vocabulary.ForbiddenTerms = []brand.TermRule{
+			{Term: "einfach", Replacement: "direkt", Note: "filler minimizer"},
+			{Term: "Nutzer", Replacement: "Benutzer"},
+			{Term: "App", Replacement: "Anwendung"},
+		}
+	case "fr":
+		ctx.Glossary = map[string]string{
+			"dashboard": "poste de pilotage",
+			"alert":     "avis de vigilance",
+			"sync":      "rapprochement des données",
+			"report":    "compte rendu",
+			// Apostrophe-free by design: term-check scores by exact substring,
+			// and a mandate like "poste d'amarrage" would false-fail whenever a
+			// model emits the typographic apostrophe (d’amarrage). That
+			// normalization gap belongs to term-check, not to this corpus.
+			"berth":     "appontement",
+			"vessel":    "bâtiment",
+			"workboat":  "bateau de service", // declared conflict: contains the forbidden "bateau"; the pin wins
+			"Tidewatch": "Tidewatch",
+			"Compass":   "Compass",
+			"tidectl":   "tidectl",
+		}
+		profile.Vocabulary.ForbiddenTerms = []brand.TermRule{
+			{Term: "simplement", Replacement: "directement", Note: "filler minimizer"},
+			{Term: "bateau", Replacement: "navire"},
+		}
+	case "en-GB":
+		ctx.Glossary = map[string]string{
+			"sign in":   "log on",
+			"settings":  "preferences",
+			"Tidewatch": "Tidewatch",
+			"Compass":   "Compass",
+			"tidectl":   "tidectl",
+		}
+		profile.Vocabulary.ForbiddenTerms = []brand.TermRule{
+			{Term: "leverage", Replacement: "use"},
+			{Term: "seamless", Replacement: "unified"},
+		}
+		ctx.Instruction = instruction + " Use British English spelling."
+	}
+	ctx.DNT = []string{"Tidewatch", "Compass", "tidectl"}
+	return ctx
+}
+
+// allFixtures returns the authored corpus. Order is stable — it feeds the
+// digest.
+func allFixtures() []Fixture {
+	return []Fixture{
+		// ---- Terminology: glossary mandates whose naive rendering differs ----
+		{
+			Key:    "nav.overview.title",
+			Source: "Open the dashboard to review today's traffic.",
+			Note:   "naive: the anglicism (de) / tableau de bord (fr); the glossary mandates the house term",
+			Checks: map[string][]Check{
+				"de": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"dashboard", "Leitstand"}}},
+				"fr": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"dashboard", "poste de pilotage"}}},
+			},
+		},
+		{
+			Key:    "alerts.badge.tooltip",
+			Source: "Two new alerts need your attention.",
+			Note:   "term trap (alert) plus the digits instruction on a spelled-out number",
+			Checks: map[string][]Check{
+				"de": {
+					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"alert", "Warnmeldung"}},
+					{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b2\b`, MustNotMatch: `(?i)\bzwei\b`},
+				},
+				"fr": {
+					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"alert", "avis de vigilance"}},
+					{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b2\b`, MustNotMatch: `(?i)\bdeux\b`},
+				},
+				"en-GB": {
+					{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b2\b`, MustNotMatch: `(?i)\btwo\b`},
+				},
+			},
+		},
+		{
+			Key:    "sync.status.failed",
+			Source: "The last sync failed. Check your connection and try again.",
+			Note:   "naive: Synchronisierung / synchronisation",
+			Checks: map[string][]Check{
+				"de": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"sync", "Datenabgleich"}}},
+				"fr": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"sync", "rapprochement des données"}}},
+			},
+		},
+		{
+			Key:    "reports.menu.label",
+			Source: "Generate a report for the selected period.",
+			Note:   "reverse trap in German: the brand mandates the anglicism 'Report', naive is 'Bericht'",
+			Checks: map[string][]Check{
+				"de": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"report", "Report"}}},
+				"fr": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"report", "compte rendu"}}},
+			},
+		},
+		{
+			Key:    "berths.assign.action",
+			Source: "Assign each vessel a berth before it arrives.",
+			Note:   "two mandates in one string; naive de: Liegeplatz/Schiff, fr: poste à quai/navire",
+			Checks: map[string][]Check{
+				"de": {
+					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"berth", "Anlegeplatz"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"vessel", "Wasserfahrzeug"}},
+				},
+				"fr": {
+					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"berth", "appontement"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"vessel", "bâtiment"}},
+				},
+			},
+		},
+		{
+			Key:    "settings.menu.label",
+			Source: "Open your settings to change how alerts appear.",
+			Note:   "en-GB mandate: settings → preferences; models keep 'settings'",
+			Checks: map[string][]Check{
+				"en-GB": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"settings", "preferences"}}},
+			},
+		},
+		{
+			Key:    "account.signin.button",
+			Source: "Sign in to view your fleet.",
+			Note:   "en-GB mandate: sign in → log on",
+			Checks: map[string][]Check{
+				"en-GB": {{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"sign in", "log on"}}},
+			},
+		},
+		{
+			Key:    "safety.notice.shallow",
+			Source: "Give the shallow bank a wide berth.",
+			Note:   "distractor: idiomatic 'berth' — forcing the technical mandate here is wrong",
+			Checks: map[string][]Check{
+				"de": {{Dimension: DimTerminology, Kind: "term-distractor", MustNotMatch: `(?i)anlegeplatz`}},
+				"fr": {{Dimension: DimTerminology, Kind: "term-distractor", MustNotMatch: `(?i)appontement`}},
+			},
+		},
+		{
+			Key:    "account.link.label",
+			Source: "Enter your user ID to link the mobile app.",
+			Note:   "declared conflict: glossary pins 'Nutzer-ID' while the profile forbids 'Nutzer' — the pin wins",
+			Checks: map[string][]Check{
+				"de": {
+					{Dimension: DimTerminology, Kind: "term-conflict", Term: &GlossaryTerm{"user ID", "Nutzer-ID"}},
+					{Dimension: DimVoice, Kind: "vocab-conflict", VocabClean: true},
+				},
+			},
+			AllowVocab: []string{"Nutzer"},
+		},
+		{
+			Key: "workboats.map.legend",
+			// Singular by design: a plural source ("Workboats") would earn the
+			// obedient rendering "bateaux de service", which the substring-based
+			// term-check cannot credit against the singular mandate — the eval
+			// would punish obedience. Inflection-aware term matching is a
+			// term-check concern, not this corpus's.
+			Source: "Each workboat appears in amber on the map.",
+			Note:   "declared conflict: glossary pins 'bateau de service' while the profile forbids 'bateau' — the pin wins",
+			Checks: map[string][]Check{
+				"fr": {
+					{Dimension: DimTerminology, Kind: "term-conflict", Term: &GlossaryTerm{"workboat", "bateau de service"}},
+					{Dimension: DimVoice, Kind: "vocab-conflict", VocabClean: true},
+				},
+			},
+			AllowVocab: []string{"bateau"},
+		},
+
+		// ---- Terminology: do-not-translate names that read like common nouns ----
+		{
+			Key:    "compass.overview.tagline",
+			Source: "Compass shows every vessel in a single view.",
+			Note:   "product name that is a common noun; naive: Kompass / boussole",
+			Checks: map[string][]Check{
+				"de": {
+					{Dimension: DimTerminology, Kind: "dnt", DNT: "Compass"},
+					// (?i)kompass, not \bKompass\b: the translated product could
+					// land in a compound ("Schiffskompass"), and "Compass" itself
+					// never matches (C vs K).
+					{Dimension: DimTerminology, Kind: "dnt", MustNotMatch: `(?i)kompass`},
+				},
+				"fr": {
+					{Dimension: DimTerminology, Kind: "dnt", DNT: "Compass"},
+					{Dimension: DimTerminology, Kind: "dnt", MustNotMatch: `(?i)\b(boussole|compas)\b`},
+				},
+			},
+		},
+		{
+			Key:    "tidewatch.intro.body",
+			Source: "Tidewatch alerts you before conditions change.",
+			Note:   "coined product name; a model may 'localize' it (Gezeitenwacht) without the pin",
+			Checks: map[string][]Check{
+				"de": {{Dimension: DimTerminology, Kind: "dnt", DNT: "Tidewatch"}},
+				"fr": {{Dimension: DimTerminology, Kind: "dnt", DNT: "Tidewatch"}},
+			},
+		},
+		{
+			Key:    "nav.instrument.calibrate",
+			Source: "Calibrate the ship's compass before departure.",
+			Note:   "distractor: a real compass, lowercase — it must be translated, not protected",
+			Checks: map[string][]Check{
+				// (?i)kompass so the idiomatic compound ("Schiffskompass") passes;
+				// requiring \bKompass would fail the more natural translation.
+				"de": {{Dimension: DimTerminology, Kind: "dnt-distractor", MustMatch: `(?i)kompass`}},
+				"fr": {{Dimension: DimTerminology, Kind: "dnt-distractor", MustMatch: `(?i)(boussole|compas)`}},
+			},
+		},
+		{
+			Key:    "cli.sync.hint",
+			Source: "Run `tidectl sync` to fetch the latest data.",
+			Note:   "backtick verbatim rule plus a lowercase code identifier under DNT",
+			Checks: map[string][]Check{
+				"de": {
+					{Dimension: DimTerminology, Kind: "dnt", DNT: "tidectl"},
+					{Dimension: DimInstruction, Kind: "verbatim", MustMatch: "`tidectl sync`"},
+				},
+				"fr": {
+					{Dimension: DimTerminology, Kind: "dnt", DNT: "tidectl"},
+					{Dimension: DimInstruction, Kind: "verbatim", MustMatch: "`tidectl sync`"},
+				},
+				"en-GB": {
+					{Dimension: DimInstruction, Kind: "verbatim", MustMatch: "`tidectl sync`"},
+				},
+			},
+		},
+		{
+			Key:    "cli.report.hint",
+			Source: "Run `tidectl report --daily` before you export.",
+			Note:   "verbatim span containing a glossary word ('report') — the backtick rule wins inside the span",
+			Checks: map[string][]Check{
+				"de": {
+					{Dimension: DimTerminology, Kind: "dnt", DNT: "tidectl"},
+					{Dimension: DimInstruction, Kind: "verbatim", MustMatch: "`tidectl report --daily`"},
+				},
+				"fr": {
+					{Dimension: DimTerminology, Kind: "dnt", DNT: "tidectl"},
+					{Dimension: DimInstruction, Kind: "verbatim", MustMatch: "`tidectl report --daily`"},
+				},
+				"en-GB": {
+					{Dimension: DimInstruction, Kind: "verbatim", MustMatch: "`tidectl report --daily`"},
+				},
+			},
+		},
+
+		// ---- Voice: the slice the compact guide actually injects ----
+		{
+			Key:    "onboarding.done.note",
+			Source: "Hey, you're all set. Grab your files whenever you want.",
+			Note:   "casual source tempts du/tu and contractions; the profile is formal, contractions never",
+			Checks: map[string][]Check{
+				"de":    {{Dimension: DimVoice, Kind: "formality", MustNotMatch: informalDE}},
+				"fr":    {{Dimension: DimVoice, Kind: "formality", MustNotMatch: informalFR}},
+				"en-GB": {{Dimension: DimVoice, Kind: "contractions", MustNotMatch: contractionRe}},
+			},
+		},
+		{
+			Key:    "files.share.hint",
+			Source: "Share your files with your crew — they'll see updates as you make them.",
+			Checks: map[string][]Check{
+				"de":    {{Dimension: DimVoice, Kind: "formality", MustNotMatch: informalDE}},
+				"fr":    {{Dimension: DimVoice, Kind: "formality", MustNotMatch: informalFR}},
+				"en-GB": {{Dimension: DimVoice, Kind: "contractions", MustNotMatch: contractionRe}},
+			},
+		},
+		{
+			Key:    "status.update.progress",
+			Source: "We're updating your workspace. It'll only take a moment. Don't close this window.",
+			Note:   "three contractions; the en-GB pass must expand them all",
+			Checks: map[string][]Check{
+				"en-GB": {{Dimension: DimVoice, Kind: "contractions", MustNotMatch: contractionRe}},
+			},
+		},
+		{
+			Key:    "apps.mobile.promo",
+			Source: "Download the app to get alerts on your phone.",
+			Note:   "'App' is the natural German rendering; the profile forbids it in favour of 'Anwendung'",
+			Checks: map[string][]Check{
+				"de": {{Dimension: DimVoice, Kind: "vocab", VocabClean: true}},
+			},
+		},
+		{
+			Key:    "map.marker.add",
+			Source: "Just click the map to add your first marker!",
+			Note:   "tempts the filler ('einfach'/'simplement') and keeps the exclamation mark",
+			Checks: map[string][]Check{
+				"de": {
+					{Dimension: DimVoice, Kind: "vocab", VocabClean: true},
+					{Dimension: DimInstruction, Kind: "exclamation", MustNotMatch: `!`},
+				},
+				"fr": {
+					{Dimension: DimVoice, Kind: "vocab", VocabClean: true},
+					{Dimension: DimInstruction, Kind: "exclamation", MustNotMatch: `!`},
+				},
+				"en-GB": {
+					{Dimension: DimInstruction, Kind: "exclamation", MustNotMatch: `!`},
+				},
+			},
+		},
+		{
+			Key:    "users.alerts.perms",
+			Source: "Every user can adjust their alert thresholds.",
+			Note:   "'user' tempts the forbidden 'Nutzer'; the swap mandates 'Benutzer'",
+			Checks: map[string][]Check{
+				"de": {{Dimension: DimVoice, Kind: "vocab", VocabClean: true}},
+			},
+		},
+		{
+			Key:    "harbor.traffic.title",
+			Source: "Track every boat in the harbor.",
+			Note:   "fr: 'bateau' is the naive word and is forbidden; en-GB: harbor → harbour",
+			Checks: map[string][]Check{
+				"fr": {{Dimension: DimVoice, Kind: "vocab", VocabClean: true}},
+				"en-GB": {
+					{Dimension: DimInstruction, Kind: "spelling", MustMatch: `\bharbour\b`, MustNotMatch: `\bharbor\b`},
+				},
+			},
+		},
+		{
+			Key:    "marketing.api.blurb",
+			Source: "Leverage our API for a seamless view of your fleet.",
+			Note:   "two forbidden en-GB terms with mandated swaps (use, unified)",
+			Checks: map[string][]Check{
+				"en-GB": {{Dimension: DimVoice, Kind: "vocab", VocabClean: true}},
+			},
+		},
+
+		// ---- Instruction: rule-shaped steering the source actively violates ----
+		{
+			Key:    "welcome.aboard.title",
+			Source: "Welcome aboard! Your account is ready to go!",
+			Note:   "two exclamation marks; a bare pass keeps them",
+			Checks: map[string][]Check{
+				"de":    {{Dimension: DimInstruction, Kind: "exclamation", MustNotMatch: `!`}},
+				"fr":    {{Dimension: DimInstruction, Kind: "exclamation", MustNotMatch: `!`}},
+				"en-GB": {{Dimension: DimInstruction, Kind: "exclamation", MustNotMatch: `!`}},
+			},
+		},
+		{
+			Key:    "alerts.count.new",
+			Source: "You have three new alerts in your inbox.",
+			Note:   "spelled-out number; the instruction mandates digits",
+			Checks: map[string][]Check{
+				"de":    {{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b3\b`, MustNotMatch: `(?i)\bdrei\b`}},
+				"fr":    {{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b3\b`, MustNotMatch: `(?i)\btrois\b`}},
+				"en-GB": {{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b3\b`, MustNotMatch: `(?i)\bthree\b`}},
+			},
+		},
+		{
+			Key:    "fleet.category.color",
+			Source: "Choose a color for each vessel category.",
+			Note:   "en-GB spelling: colour. Both passes know the target is en-GB; the lift isolates what the explicit instruction adds",
+			Checks: map[string][]Check{
+				"en-GB": {{Dimension: DimInstruction, Kind: "spelling", MustMatch: `\bcolour\b`, MustNotMatch: `\bcolor\b`}},
+			},
+		},
+		{
+			Key:    "fleet.groups.hint",
+			Source: "Organize your fleet into groups to center the map on what matters.",
+			Checks: map[string][]Check{
+				"en-GB": {
+					{Dimension: DimInstruction, Kind: "spelling", MustMatch: `(?i)\borganis`, MustNotMatch: `(?i)\borganiz`},
+					{Dimension: DimInstruction, Kind: "spelling", MustMatch: `\bcentre\b`, MustNotMatch: `\bcenter\b`},
+				},
+			},
+		},
+
+		// ---- Prose: several context types must hold at once ----
+		{
+			Key: "docs.getting_started.body",
+			Source: "Getting started takes about five minutes. Sign in, open the dashboard, and Compass " +
+				"will chart every vessel it can see. If anything looks off, you can reach us at any " +
+				"time — just don't wait for the next tide!",
+			Note: "prose where terminology, voice and instruction apply simultaneously",
+			Checks: map[string][]Check{
+				"de": {
+					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"dashboard", "Leitstand"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"vessel", "Wasserfahrzeug"}},
+					{Dimension: DimTerminology, Kind: "dnt", DNT: "Compass"},
+					{Dimension: DimVoice, Kind: "formality", MustNotMatch: informalDE},
+					{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b5\b`, MustNotMatch: `(?i)\bfünf\b`},
+					{Dimension: DimInstruction, Kind: "exclamation", MustNotMatch: `!`},
+				},
+				"fr": {
+					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"dashboard", "poste de pilotage"}},
+					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"vessel", "bâtiment"}},
+					{Dimension: DimTerminology, Kind: "dnt", DNT: "Compass"},
+					{Dimension: DimVoice, Kind: "formality", MustNotMatch: informalFR},
+					{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b5\b`, MustNotMatch: `(?i)\bcinq\b`},
+					{Dimension: DimInstruction, Kind: "exclamation", MustNotMatch: `!`},
+				},
+				"en-GB": {
+					{Dimension: DimTerminology, Kind: "term", Term: &GlossaryTerm{"sign in", "log on"}},
+					{Dimension: DimVoice, Kind: "contractions", MustNotMatch: contractionRe},
+					{Dimension: DimInstruction, Kind: "digits", MustMatch: `\b5\b`, MustNotMatch: `(?i)\bfive\b`},
+					{Dimension: DimInstruction, Kind: "exclamation", MustNotMatch: `!`},
+				},
+			},
+		},
+	}
+}
