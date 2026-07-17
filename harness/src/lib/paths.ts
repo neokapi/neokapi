@@ -108,6 +108,9 @@ export function kapiIsolationEnv(): Record<string, string> {
     KAPI_CONFIG_DIR: KAPI_ISO_HOME,
     KAPI_PLUGINS_DIR: KAPI_ISO_PLUGINS,
     KAPI_PLUGINS_DIR_ONLY: "1",
+    // Demo recordings must never emit telemetry or show the first-run
+    // notice, even against a keyed release build.
+    KAPI_TELEMETRY: "0",
   };
 }
 

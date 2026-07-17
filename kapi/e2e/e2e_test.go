@@ -50,6 +50,9 @@ func TestMain(m *testing.M) {
 	isoEnv = []string{
 		"NO_COLOR=1",
 		"KAPI_NO_PROJECT=1",
+		// Zero telemetry in e2e runs: even a keyed release-like build must
+		// not notice or emit (the isolation contract, epic 018 workstream G).
+		"KAPI_TELEMETRY=0",
 		"KAPI_CONFIG_DIR=" + filepath.Join(iso, "config"),
 		"XDG_DATA_HOME=" + filepath.Join(iso, "data"),
 		"XDG_CACHE_HOME=" + filepath.Join(iso, "cache"),

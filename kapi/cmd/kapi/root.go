@@ -98,6 +98,17 @@ func init() {
 		rootCmd.AddCommand(cmd)
 	}
 
+	// Snapshot the built-in verb set BEFORE plugin commands attach: the
+	// opt-out telemetry reporter (epic 018, workstream G) only ever names
+	// built-in verbs — plugin-dispatched or unknown verbs report as
+	// "plugin"/"other". The reporter runs on cli.Run's exit path after the
+	// command completes, and flushes best-effort within 100 ms.
+	builtinVerbs := make(map[string]bool, len(rootCmd.Commands()))
+	for _, cmd := range rootCmd.Commands() {
+		builtinVerbs[cmd.Name()] = true
+	}
+	cli.SetCommandReporter(cli.NewTelemetryReporter(app, builtinVerbs))
+
 	// Plugins (e.g. bowrain via blank import in main.go) register their
 	// commands at init() time; wire them in after the built-in command
 	// tree is constructed.
