@@ -185,6 +185,56 @@ func (a *GitHubApp) InstallationToken(ctx context.Context, installationID int64)
 	return out.Token, nil
 }
 
+// InstallationRepo is one repository an app installation covers.
+type InstallationRepo struct {
+	FullName      string `json:"full_name"`
+	DefaultBranch string `json:"default_branch"`
+	Private       bool   `json:"private"`
+}
+
+// ListInstallationRepos lists every repository an installation grants access
+// to — what the post-install setup page offers for binding to projects.
+func (a *GitHubApp) ListInstallationRepos(ctx context.Context, installationID int64) ([]InstallationRepo, error) {
+	token, err := a.InstallationToken(ctx, installationID)
+	if err != nil {
+		return nil, err
+	}
+	var repos []InstallationRepo
+	for page := 1; ; page++ {
+		u := fmt.Sprintf("%s/installation/repositories?per_page=100&page=%d", a.api(), page)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Accept", "application/vnd.github+json")
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+		resp, err := a.http.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		var out struct {
+			TotalCount   int                `json:"total_count"`
+			Repositories []InstallationRepo `json:"repositories"`
+		}
+		if resp.StatusCode < 200 || resp.StatusCode > 299 {
+			msg, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+			resp.Body.Close()
+			return nil, fmt.Errorf("github installation repositories: %s: %s", resp.Status, strings.TrimSpace(string(msg)))
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+			resp.Body.Close()
+			return nil, err
+		}
+		resp.Body.Close()
+		repos = append(repos, out.Repositories...)
+		if len(out.Repositories) < 100 || len(repos) >= out.TotalCount {
+			break
+		}
+	}
+	return repos, nil
+}
+
 // TokenForRepo resolves the repository's installation and returns an access
 // token for it — the one-call surface the forge connector uses in app mode.
 func (a *GitHubApp) TokenForRepo(ctx context.Context, repoPath string) (string, error) {

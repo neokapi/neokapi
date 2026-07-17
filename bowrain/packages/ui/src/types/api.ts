@@ -1783,3 +1783,30 @@ export interface BrandScanCheckResult {
   score: { overall: number; dimensions?: unknown[]; word_count?: number };
   findings: unknown[];
 }
+
+/** One repository a GitHub App installation covers, with its binding if a
+ * forge connector already tracks it. */
+export interface InstallationRepo {
+  full_name: string;
+  default_branch: string;
+  private: boolean;
+  connector_id?: string;
+  project_id?: string;
+}
+
+/** Request to bind an installed repository to a project. */
+export interface BindInstallationRepoRequest {
+  repository: string;
+  project_id: string;
+  branch?: string;
+  patterns?: string;
+  name?: string;
+}
+
+/** Result of binding an installed repository. */
+export interface BindInstallationRepoResult {
+  connector_id: string;
+  repository: string;
+  project_id: string;
+  branch: string;
+}

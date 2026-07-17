@@ -30,6 +30,7 @@ import {
   Clock,
   FileText,
   FolderOpen,
+  GitPullRequest,
   Globe,
   Loader2,
   Palette,
@@ -64,16 +65,59 @@ interface ConnectorType {
   /** Human category shown in the picker; the server echoes its own on the connector. */
   category: string;
   description: string;
-  /** Docs page slug under the connectors section. */
+  /** Docs page slug under the connectors section ("" = link to the section itself). */
   docsSlug: string;
   icon: ReactNode;
   fields: ConnectorField[];
+  /** Config injected verbatim on create — settings the form never asks for. */
+  fixed?: Record<string, string>;
+  /** Inject the panel's project id as config.project_id on create. */
+  projectScoped?: boolean;
 }
 
-// Only the remote/CMS connectors are configurable from the browser — local
-// files and git checkouts are a server-side concern (kapi owns local files).
-// Fields mirror the connector structs in bowrain/connector/*.go exactly.
+// Remote connectors plus the GitHub forge connector are configurable from the
+// browser — local files and plain git checkouts stay a server-side concern
+// (kapi owns local files). Fields mirror the connector structs in
+// bowrain/connector/*.go exactly.
 const CONNECTOR_TYPES: ConnectorType[] = [
+  {
+    type: "forge",
+    label: "GitHub",
+    category: "Code",
+    description:
+      "Deliver this project's translations to a GitHub repository as one pull request the loop keeps up to date. Uses the server's GitHub App — install it on the repository first; no tokens to paste.",
+    docsSlug: "",
+    icon: <GitPullRequest className="size-4" />,
+    projectScoped: true,
+    fixed: { auth: "app" },
+    fields: [
+      {
+        key: "name",
+        label: "Display name",
+        placeholder: "Website",
+        help: "Optional label shown in this list.",
+      },
+      {
+        key: "repo",
+        label: "Repository URL",
+        placeholder: "https://github.com/acme/website.git",
+        required: true,
+        help: "The https clone URL of a repository the GitHub App is installed on.",
+      },
+      {
+        key: "branch",
+        label: "Tracked branch",
+        placeholder: "main",
+        help: "Pushes to this branch trigger the loop; deliveries open a pull request against it.",
+      },
+      {
+        key: "patterns",
+        label: "Content patterns",
+        placeholder: "src/locales/**/*.json",
+        help: "Comma-separated globs for the source content to ingest.",
+      },
+    ],
+  },
   {
     type: "wordpress",
     label: "WordPress",
@@ -280,6 +324,7 @@ export function ConnectorsPanel({
         open={addOpen}
         onOpenChange={setAddOpen}
         workspaceSlug={workspaceSlug}
+        projectId={projectId}
         docsBaseUrl={docsBaseUrl}
         onAdded={() => {
           setAddOpen(false);
@@ -671,12 +716,14 @@ function AddConnectorDialog({
   open,
   onOpenChange,
   workspaceSlug,
+  projectId,
   docsBaseUrl,
   onAdded,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   workspaceSlug: string;
+  projectId: string;
   docsBaseUrl: string;
   onAdded: () => void;
 }) {
@@ -710,6 +757,8 @@ function AddConnectorDialog({
       for (const [k, v] of Object.entries(values)) {
         if (v.trim()) config[k] = v.trim();
       }
+      if (typeDef?.fixed) Object.assign(config, typeDef.fixed);
+      if (typeDef?.projectScoped) config.project_id = projectId;
       return api.addConnector(workspaceSlug, type, config);
     },
     onSuccess: () => {
@@ -763,7 +812,7 @@ function AddConnectorDialog({
               <p className="text-muted-foreground text-xs">
                 {typeDef.description}{" "}
                 <a
-                  href={`${docsBaseUrl}/${typeDef.docsSlug}`}
+                  href={typeDef.docsSlug ? `${docsBaseUrl}/${typeDef.docsSlug}` : docsBaseUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary underline-offset-4 hover:underline"

@@ -74,6 +74,13 @@ func newForgeTestServer(t *testing.T, cfgID, projectID, secret string) (*Server,
 	reg := platconn.NewRegistry()
 	stub := &stubForgeConnector{id: cfgID}
 	reg.Register("forge", platconn.CategoryCode, func(config map[string]string) (platconn.IntegrationConnector, error) {
+		// The shared stub serves the harness's pinned connector; anything else
+		// (e.g. a setup-flow bind) gets its own identity, mirroring how the
+		// real constructor derives ids — a pinned-id stub would collide with
+		// the pre-seeded config row.
+		if config["id"] == "" && config["name"] != "" {
+			return &stubForgeConnector{id: "forge-" + config["name"]}, nil
+		}
 		return stub, nil
 	})
 	formatReg := registry.NewFormatRegistry()

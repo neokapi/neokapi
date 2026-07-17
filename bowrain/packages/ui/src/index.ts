@@ -536,6 +536,9 @@ export type {
   PostHogLanguageDemandInfo,
   PostHogDemandSourceInfo,
   PostHogDemandResponse,
+  InstallationRepo,
+  BindInstallationRepoRequest,
+  BindInstallationRepoResult,
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 

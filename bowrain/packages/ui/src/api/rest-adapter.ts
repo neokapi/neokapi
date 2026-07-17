@@ -116,6 +116,9 @@ import type {
   BrandScanUploadResult,
   BrandScanJob,
   BrandScanCheckResult,
+  InstallationRepo,
+  BindInstallationRepoRequest,
+  BindInstallationRepoResult,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -1085,6 +1088,28 @@ export class RestApiAdapter implements ApiAdapter {
       method: "POST",
       body: JSON.stringify({ type, config }),
     });
+  }
+
+  async listInstallationRepos(
+    workspaceSlug: string,
+    installationId: string,
+  ): Promise<InstallationRepo[]> {
+    return (
+      (await this.fetchJSON<InstallationRepo[]>(
+        `/api/v1/${workspaceSlug}/github/installations/${encodeURIComponent(installationId)}/repositories`,
+      )) ?? []
+    );
+  }
+
+  async bindInstallationRepo(
+    workspaceSlug: string,
+    installationId: string,
+    req: BindInstallationRepoRequest,
+  ): Promise<BindInstallationRepoResult> {
+    return this.fetchJSON(
+      `/api/v1/${workspaceSlug}/github/installations/${encodeURIComponent(installationId)}/repositories`,
+      { method: "POST", body: JSON.stringify(req) },
+    );
   }
 
   async removeConnector(workspaceSlug: string, connectorId: string): Promise<void> {
