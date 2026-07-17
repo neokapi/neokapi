@@ -1564,6 +1564,18 @@ context-eval-publish: ## Sweep real models for context adherence → /context-ev
 		-repeat 1 -concurrency 2 -judge $(CONTEXTEVAL_JUDGE_FOR_CLAUDE) -append $(CONTEXTEVAL_DATA)
 	@echo "Published context-eval history → $(CONTEXTEVAL_DATA)"
 
+# Measure judge–human agreement on the committed Norwegian seed set and record
+# it (both cross-family judges). The judged voice dimension stays unpublished
+# until a judge clears kappa >= 0.6 over >= 30 verdicts — reporting an
+# unvalidated judge's opinion as a model's behaviour is how adherence evals rot.
+# -dump prints the per-item disagreements so a low kappa can be inspected.
+CONTEXTEVAL_LABELS ?= scripts/contexteval/evaldata/nb-labels.json
+context-eval-validate: ## Measure judge–human agreement on the labeled seed set → dashboard gate
+	$(GO) run ./scripts/contexteval -judge $(CONTEXTEVAL_JUDGE_FOR_CLAUDE) \
+		-judge-validate $(CONTEXTEVAL_LABELS) -append $(CONTEXTEVAL_DATA) $(CONTEXTEVAL_VALIDATE_ARGS)
+	$(GO) run ./scripts/contexteval -judge $(CONTEXTEVAL_JUDGE_FOR_GEMINI) \
+		-judge-validate $(CONTEXTEVAL_LABELS) -append $(CONTEXTEVAL_DATA) $(CONTEXTEVAL_VALIDATE_ARGS)
+
 # ── Frontend Checks ──────────────────────────────────────────────────────────
 
 audit-vite-alias: ## Assert the vite catalog alias tracks the vite-plus devDependency version
@@ -1997,7 +2009,7 @@ help: ## Show this help
 	@echo ""
 
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
-        parity-sandbox parity-test parity-publish parity-clean parity-fixtures regen-okapi-fixtures check-eval batch-eval batch-eval-publish context-eval context-eval-publish check-models update-model-prices update-model-catalog \
+        parity-sandbox parity-test parity-publish parity-clean parity-fixtures regen-okapi-fixtures check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
         fmt vet lint check check-framework check-bowrain test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \

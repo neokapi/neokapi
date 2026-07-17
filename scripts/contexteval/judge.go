@@ -296,6 +296,12 @@ func runJudgeValidation(ctx context.Context, judge *judgeTarget, labelsPath, his
 		return errors.New("labels file has no items")
 	}
 
+	// perCriterion tracks agreement on each rubric axis, because a single pooled
+	// kappa hides which axis the judge and human diverge on — and that is the
+	// actionable finding (register may be near-perfect while naturalness is a
+	// coin flip).
+	type crit struct{ agree, total, judgeYes, humanYes int }
+	perCriterion := map[string]*crit{}
 	var judgeYes, humanYes, agree, total, skippedSameLang int
 	targets := map[string]bool{}
 	for _, item := range labels.Items {
@@ -319,15 +325,30 @@ func runJudgeValidation(ctx context.Context, judge *judgeTarget, labelsPath, his
 				return fmt.Errorf("item %s: judge returned no verdict for %q", item.ID, c.ID)
 			}
 			targets[item.Target] = true
+			pc := perCriterion[c.ID]
+			if pc == nil {
+				pc = &crit{}
+				perCriterion[c.ID] = pc
+			}
+			pc.total++
 			total++
 			if jv {
 				judgeYes++
+				pc.judgeYes++
 			}
 			if human {
 				humanYes++
+				pc.humanYes++
 			}
 			if jv == human {
 				agree++
+				pc.agree++
+			} else if dumpFailures {
+				// A disagreement nobody can look at is a number, not a finding —
+				// so -dump prints each one, with who said what, exactly as the
+				// sweep dumps its scored failures.
+				fmt.Fprintf(os.Stderr, "    [disagree:%s] %s\n      human=%v judge=%v\n      %q\n",
+					c.ID, item.ID, human, jv, item.Translation)
 			}
 		}
 	}
@@ -336,6 +357,13 @@ func runJudgeValidation(ctx context.Context, judge *judgeTarget, labelsPath, his
 	}
 	if total == 0 {
 		return errors.New("labels file labels none of the rubric's criteria on a judgeable (different-language) target")
+	}
+	for _, c := range rubric() {
+		if pc := perCriterion[c.ID]; pc != nil {
+			k := cohenKappa(pc.agree, pc.judgeYes, pc.humanYes, pc.total)
+			fmt.Printf("  %-12s agreement %.2f  kappa %.2f  (human failed %d/%d, judge failed %d/%d)\n",
+				c.ID, float64(pc.agree)/float64(pc.total), k, pc.total-pc.humanYes, pc.total, pc.total-pc.judgeYes, pc.total)
+		}
 	}
 
 	agreement := float64(agree) / float64(total)
