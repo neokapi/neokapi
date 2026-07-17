@@ -9,6 +9,7 @@ const backend = vi.hoisted(() => ({
   ProxyMultipart: vi.fn(),
   Logout: vi.fn(),
   GetItemBlocks: vi.fn(),
+  GetProject: vi.fn(),
 }));
 vi.mock("./backend", () => ({ Backend: backend }));
 
@@ -56,5 +57,45 @@ describe("createDesktopAdapter (composite)", () => {
     void api.getConfig();
 
     await vi.waitFor(() => expect(backend.Logout).toHaveBeenCalled());
+  });
+
+  // getProject is REST-first (server view: collections/streams/items) with a
+  // fallback to the local working copy only when the server is unreachable.
+  describe("getProject", () => {
+    it("reads the server project through the proxy, not the local binding", async () => {
+      backend.ProxyRequest.mockResolvedValue({
+        status: 200,
+        body: JSON.stringify({ id: "utulp9hb", name: "Company Website", collections: [{}] }),
+      });
+      const api = createDesktopAdapter();
+
+      const project = await api.getProject("bowmart", "utulp9hb", "main");
+
+      expect(backend.ProxyRequest).toHaveBeenCalledWith("GET", "/api/v1/bowmart/utulp9hb", "");
+      expect(backend.GetProject).not.toHaveBeenCalled();
+      expect(project).toMatchObject({ id: "utulp9hb", collections: [{}] });
+    });
+
+    it("falls back to the local working copy when the server is unreachable", async () => {
+      // A rejected proxy binding = no connection/token or transport failure.
+      backend.ProxyRequest.mockRejectedValue(new Error("not connected"));
+      backend.GetProject.mockResolvedValue({ id: "utulp9hb", name: "Company Website (offline)" });
+      const api = createDesktopAdapter();
+
+      const project = await api.getProject("bowmart", "utulp9hb", "main");
+
+      expect(backend.GetProject).toHaveBeenCalledWith("utulp9hb");
+      expect(project).toMatchObject({ name: "Company Website (offline)" });
+    });
+
+    it("propagates a server HTTP error (404) without falling back to local", async () => {
+      // A reachable server returning 404 is authoritative — the project is gone,
+      // not offline, so the stale local copy must not mask it.
+      backend.ProxyRequest.mockResolvedValue({ status: 404, body: "not found" });
+      const api = createDesktopAdapter();
+
+      await expect(api.getProject("bowmart", "gone", "main")).rejects.toThrow(/404/);
+      expect(backend.GetProject).not.toHaveBeenCalled();
+    });
   });
 });
