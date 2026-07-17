@@ -211,8 +211,15 @@ flows:
 #
 # neokapi is the first real workspace on Bowrain. `kapi push` sends every surface
 # above to the project below; nb drafts land in the governed review queue and
-# approved segments round-trip back into l10n/tm/*.klftm. converge: on-push runs
-# the loop on the server when a push lands content.
+# approved segments round-trip back into l10n/tm/*.klftm.
+#
+# converge: manual — a push moves content but does NOT auto-start a server AI
+# convergence run. The first on-push run (2026-07-17) tried to AI-draft the whole
+# ~18.8k-block untranslated corpus with an empty server TM (TM 0 · AI everything)
+# and stalled on the workspace credit allowance. Convergence is now started
+# deliberately — scoped, and only once the server TM is seeded and/or a BYO AI
+# key is set (BYO burns no credits, DECISIONS L3) — via `kapi up` or the REST
+# convergence endpoint. Transport (kapi push) stays pure either way.
 #
 # This `server:` block makes the recipe bowrain-connected. It is the ONLY in-repo
 # kapi invocation that binds here — every other one isolates via KAPI_NO_PROJECT
@@ -225,4 +232,4 @@ flows:
 server:
   url: "https://app.bowrain.cloud/bowrain-hq/uek630Q5"   # <server>/<workspace>/<project-id>
   stream: "$auto"      # auto-detect from git branch / CI (default)
-  converge: on-push    # server runs the loop when a push lands content
+  converge: manual     # push never auto-converges; start the loop deliberately

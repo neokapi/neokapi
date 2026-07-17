@@ -19,7 +19,11 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Plan only (kapi up --explain), do not push"
+        description: "Plan only (kapi status + push --dry-run), move nothing"
+        type: boolean
+        default: false
+      converge:
+        description: "Also run kapi up (server AI convergence — burns credits). Off by default: the nightly job only transports content."
         type: boolean
         default: false
 
@@ -76,17 +80,22 @@ jobs:
       - name: kapi status
         run: ./bin/kapi status
 
-      - name: kapi up (converge) or plan
-        run: |
-          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
-            ./bin/kapi up --explain
-          else
-            ./bin/kapi up
-          fi
-
-      - name: kapi push
+      # Default: transport only (kapi push). converge: manual in the recipe means
+      # a push never auto-starts a server AI run, so the nightly job keeps content
+      # synced without burning credits. Server AI convergence over the ~18.8k-block
+      # corpus is opt-in (the `converge` dispatch input → kapi up) and should only
+      # be run once the server TM is seeded and/or a BYO AI key is set.
+      - name: kapi push (transport)
         if: ${{ github.event.inputs.dry_run != 'true' }}
         run: ./bin/kapi push
+
+      - name: kapi push --dry-run (plan)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        run: ./bin/kapi push --dry-run
+
+      - name: kapi up (server convergence — opt-in, burns credits)
+        if: ${{ github.event.inputs.converge == 'true' && github.event.inputs.dry_run != 'true' }}
+        run: ./bin/kapi up
 
       - name: Summary
         if: always()
