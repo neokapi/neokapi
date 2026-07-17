@@ -26,53 +26,64 @@ Connectors → ContentStore ← → Flows/Tools
 
 ## ContentStore Interface
 
+`ContentStore` (`bowrain/core/store/store.go`) is the union of role
+interfaces, one per concern. All content operations are **stream-scoped**: an
+empty stream name defaults to `"main"`, which every project implicitly has.
+
 ```go
+// ContentStore is the primary persistence interface for localization content,
+// the union of the role interfaces. All content operations are stream-scoped.
 type ContentStore interface {
-    // Project management
-    CreateProject(ctx context.Context, p *Project) error
-    GetProject(ctx context.Context, id string) (*Project, error)
-    ListProjects(ctx context.Context) ([]*Project, error)
-    UpdateProject(ctx context.Context, p *Project) error
-    DeleteProject(ctx context.Context, id string) error
-
-    // Block storage with content-addressable deduplication
-    StoreBlocks(ctx context.Context, projectID string, blocks []*model.Block) error
-    GetBlock(ctx context.Context, projectID, blockID string) (*StoredBlock, error)
-    GetBlocks(ctx context.Context, query BlockQuery) ([]*StoredBlock, error)
-    DeleteBlock(ctx context.Context, projectID, blockID string) error
-
-    // Version management
-    CreateVersion(ctx context.Context, projectID, label, description string) (*Version, error)
-    GetVersion(ctx context.Context, versionID string) (*Version, error)
-    ListVersions(ctx context.Context, projectID string) ([]*Version, error)
-    Diff(ctx context.Context, fromVersion, toVersion string) (*VersionDiff, error)
+    ProjectStore    // projects: create, get, list, update, delete
+    StreamStore     // streams within a project
+    CollectionStore // collections (stream-scoped)
+    ItemStore       // items (stream-scoped)
+    BlockStore      // blocks, notes, history (stream-scoped)
+    VersionStore    // named versions + diffs (stream-scoped)
+    ChangeFeed      // incremental sync change log (stream-scoped)
+    AssetStore      // assets and locale variants (AD-007)
 
     Close() error
 }
 ```
 
-## SQLite Backend
-
-The default implementation uses SQLite via the shared `bowrain/storage` layer with WAL mode for concurrent access:
+Representative signatures — note the `stream` parameter throughout:
 
 ```go
-store, err := store.NewSQLiteStore("project.db")
+// BlockStore
+StoreBlocks(ctx context.Context, projectID, stream string, blocks []*model.Block) error
+GetBlocks(ctx context.Context, query BlockQuery) ([]*StoredBlock, error)
+
+// VersionStore
+CreateVersion(ctx context.Context, projectID, stream, label, description string) (*Version, error)
+Diff(ctx context.Context, fromVersion, toVersion string) (*VersionDiff, error)
+```
+
+## Backends
+
+Two backends implement `ContentStore`, with different roles:
+
+- **PostgreSQL** is the server's only backend. `bowrain-server` refuses to
+  start without a `postgres://` database URL and builds all of its stores on
+  that connection. This is the source of truth for every workspace.
+- **SQLite** (`bowrain/store/sqlitestore`) backs the desktop app's local
+  working copy — a cache for speed and offline edits that mirrors the server
+  and is never a source of truth (see
+  [AD-017: Bowrain Apps](/architecture-decisions/017-bowrain-apps)).
+
+```go
+import "github.com/neokapi/neokapi/bowrain/store/sqlitestore"
+
+store, err := sqlitestore.NewSQLiteStore("working-copy.db")
 if err != nil {
     log.Fatal(err)
 }
 defer store.Close()
 ```
 
-### Schema
-
-The SQLite backend uses four tables:
-
-| Table            | Purpose                                       |
-| ---------------- | --------------------------------------------- |
-| `projects`       | Project metadata and locale configuration     |
-| `blocks`         | Block content with content-addressable hashes |
-| `versions`       | Named version snapshots                       |
-| `version_blocks` | Block-to-version mapping for diff computation |
+Both backends share one logical schema — projects, streams, collections,
+items, blocks, versions, the change log, and assets — documented in the
+[Content Store Schema](/notes/content-store-schema) note.
 
 ## Block Identity
 
@@ -95,11 +106,11 @@ This enables:
 Versions are named snapshots of a project's block state:
 
 ```go
-// Create a snapshot
-v, err := store.CreateVersion(ctx, projectID, "v1.0", "Initial release")
+// Create a snapshot of a stream
+v, err := store.CreateVersion(ctx, projectID, "main", "v1.0", "Initial release")
 
-// List versions
-versions, err := store.ListVersions(ctx, projectID)
+// List a stream's versions
+versions, err := store.ListVersions(ctx, projectID, "main")
 
 // Diff two versions
 diff, err := store.Diff(ctx, v1.ID, v2.ID)
@@ -110,10 +121,7 @@ for _, change := range diff.Changes {
 
 ## Flow Integration
 
-Flows can be connected to the content store via `WithStore()`:
-
-```go
-executor := flow.NewFlowExecutor(
-    flow.WithStore(contentStore, projectID),
-)
-```
+Server-side flows read from and write to the content store through the flow
+service rather than a flow-executor option — a run loads the project's blocks
+from the store, executes the flow, and stores the produced targets back. See
+[Server-Side Flows](/server/flows).

@@ -52,9 +52,12 @@ bus.Unsubscribe(sub)
 The `EventEmittingStore` decorator wraps a `ContentStore` and emits events on all mutations:
 
 ```go
-store := store.NewSQLiteStore("project.db")
+cs, err := sqlitestore.NewSQLiteStore("working-copy.db")
+if err != nil {
+    log.Fatal(err)
+}
 bus := event.NewChannelEventBus()
-emittingStore := event.NewEventEmittingStore(store, bus)
+emittingStore := event.NewEventEmittingStore(cs, bus)
 ```
 
 ## Automation Rules

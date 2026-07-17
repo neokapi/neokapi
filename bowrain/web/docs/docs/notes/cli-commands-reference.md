@@ -205,16 +205,17 @@ PUT    /api/v1/workspaces/:ws/members/:uid/role
 DELETE /api/v1/workspaces/:ws/members/:uid
 ```
 
-### Connector Management
+### Connector Management (workspace-scoped)
 
 ```
-GET    /api/v1/connectors/types                      # List connector types
-GET    /api/v1/connectors                            # List active connectors
-POST   /api/v1/connectors                            # Add connector
-DELETE /api/v1/connectors/:id                        # Remove connector
-GET    /api/v1/connectors/:id/status                 # Check status
-POST   /api/v1/fetch                                 # Fetch content via connector
-POST   /api/v1/publish                               # Publish content via connector
+GET    /api/v1/:ws/connectors                        # List active connectors
+POST   /api/v1/:ws/connectors                        # Add connector
+PUT    /api/v1/:ws/connectors/:id                    # Update connector
+DELETE /api/v1/:ws/connectors/:id                    # Remove connector
+GET    /api/v1/:ws/connectors/:id/status             # Check status
+GET    /api/v1/:ws/connectors/:id/content            # Browse available content
+POST   /api/v1/:ws/connectors/:id/fetch              # Fetch content via connector
+POST   /api/v1/:ws/connectors/:id/publish            # Publish content via connector
 ```
 
 ## gRPC Service Definitions

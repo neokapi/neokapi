@@ -85,7 +85,7 @@ requires:
 # Optional bowrain-server connection — presence enables push/pull and makes the
 # server the default venue for `kapi up`.
 server:
-  url: https://bowrain.cloud/my-team/abc123
+  url: https://app.bowrain.cloud/my-team/abc123
   stream: $auto              # auto-detect from git branch / CI
   converge: on-push          # on-push (default) | manual | schedule
 
@@ -149,7 +149,7 @@ Only the connection coordinates sit under `server:`:
 
 Lifecycle (`hooks`, `automations`) and content/governance (`assets`, `brand_voice`) live at the **top level** of the recipe, not under `server:` — they describe project-owned policy, not server identity.
 
-The framework has no built-in notion of a server: `server:` (and `hooks:`, `automations:`, `assets:`, `brand_voice:`) are bowrain **recipe extensions** decoded only when the `kapi-bowrain` plugin is installed (the framework round-trips them verbatim otherwise). So `kapi init` / `kapi init-connect` (and `kapi config server.url …`) declare `requires: { bowrain: "*" }` whenever they write a `server:` block. A plain `kapi` binary without the plugin then refuses the recipe with an actionable "requires the bowrain plugin" error rather than silently ignoring the connection. See [AD-framework-008: Project model — recipe extension mechanism](https://neokapi.github.io/web/neokapi/docs/architecture/008-project-model).
+The framework has no built-in notion of a server: `server:` (and `hooks:`, `automations:`, `assets:`, `brand_voice:`) are bowrain **recipe extensions** decoded only when the `kapi-bowrain` plugin is installed (the framework round-trips them verbatim otherwise). So `kapi init` / `kapi init-connect` (and `kapi config server.url …`) declare `requires: { bowrain: "*" }` whenever they write a `server:` block. A plain `kapi` binary without the plugin then refuses the recipe with an actionable "requires the bowrain plugin" error rather than silently ignoring the connection. See [AD-framework-008: Project model — recipe extension mechanism](https://neokapi.github.io/web/neokapi/contribute/architecture/008-project-model).
 
 ## Content Collections
 
@@ -303,13 +303,13 @@ For non-interactive usage (e.g. CI/CD), use flags:
 kapi init --source en-US --targets fr-FR,de-DE,ja-JP
 
 # Connect to a server (anonymous claim)
-kapi init --server https://bowrain.cloud --anonymous
+kapi init --server https://app.bowrain.cloud --anonymous
 
 # Apply a framework preset
 kapi init --preset nextjs
 
 # Connect to an existing project
-kapi init --server https://bowrain.cloud --project abc123
+kapi init --server https://app.bowrain.cloud --project abc123
 ```
 
 ### Init flags
@@ -339,10 +339,10 @@ The `server.url` field is a compound URL that encodes the server address, worksp
 ```yaml
 server:
   # Workspace project
-  url: https://bowrain.cloud/my-team/abc123
+  url: https://app.bowrain.cloud/my-team/abc123
 
   # Direct project (no workspace)
-  # url: https://bowrain.cloud/projects/abc123
+  # url: https://app.bowrain.cloud/projects/abc123
 
   stream: $auto
 ```
@@ -361,7 +361,8 @@ The active server URL is resolved from (first match wins):
 2. `--server` flag
 3. `BOWRAIN_SERVER_URL` environment variable / `server.url` in `~/.config/bowrain/bowrain.yaml`
 4. Existing auth state (from `kapi auth login`)
-5. Built-in default (`http://localhost:8080`)
+5. The hosted service (`https://app.bowrain.cloud`) — commands that contact a
+   server fall back to it; self-hosted deployments configure one of the above
 
 ## Next Steps
 

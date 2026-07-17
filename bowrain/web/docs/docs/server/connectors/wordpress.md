@@ -9,13 +9,14 @@ The WordPress connector is a CMS connector. It reads posts from a WordPress
 site over the REST API, delivers them to Bowrain for translation, and writes
 approved text back to the same posts.
 
-:::note How connectors are configured today
+:::note
 
-WordPress, Figma, and HubSpot connectors are configured through the workspace
-**connectors API** described below. The web app does not yet provide a
-dedicated configuration form for them; the local-file and Git connectors are a
-separate, server-side surface (see [Connectors](/server/connectors)). All
-connector operations require the **manage connectors** permission.
+WordPress, Figma, and HubSpot connectors are added in a project's
+**Connectors** view in the web app, or through the workspace **connectors
+API** described below. Saved credentials are write-only — used for sync,
+never displayed again. The local-file and Git connectors are a separate,
+server-side surface (see [Connectors](/server/connectors)). All connector
+operations require the **manage connectors** permission.
 
 :::
 
@@ -53,9 +54,9 @@ publish.
 
 ## Setup
 
-Add the connector to your workspace by posting its type and configuration to
-`POST /api/v1/{workspace}/connectors`. Connectors are scoped to the workspace
-they are added in.
+Add the connector from a project's **Connectors** view in the web app, or by
+posting its type and configuration to `POST /api/v1/{workspace}/connectors`.
+Connectors are scoped to the workspace they are added in.
 
 ```json
 {
@@ -74,9 +75,9 @@ for subsequent fetch, publish, status, and remove calls.
 
 ## How sync works
 
-Sync is explicit: content moves only when you call the fetch or publish
-endpoint. The connector does not poll the site on a schedule and does not
-receive WordPress webhooks.
+Sync is explicit: content moves only when you fetch or publish — **Fetch now**
+and **Publish** in the Connectors view, or the endpoints below. The connector
+does not poll the site on a schedule and does not receive WordPress webhooks.
 
 **Fetch** requests the first 100 posts from the site and stores their title,
 content, and excerpt as blocks on the target project's main content stream. Call
@@ -114,5 +115,3 @@ current view of the site.
   are out of scope.
 - Publishing writes the fields of an already-fetched post. It does not create
   posts and does not change post status.
-- Connector instances are held per workspace for the life of the server process
-  and are not persisted; re-add a connector after a server restart.

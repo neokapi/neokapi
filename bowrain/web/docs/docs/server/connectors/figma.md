@@ -10,13 +10,14 @@ file over the Figma REST API and delivers each text layer to Bowrain for
 translation. It is a one-directional connector: it fetches text but does not
 write translations back to Figma.
 
-:::note How connectors are configured today
+:::note
 
-WordPress, Figma, and HubSpot connectors are configured through the workspace
-**connectors API** described below. The web app does not yet provide a
-dedicated configuration form for them; the local-file and Git connectors are a
-separate, server-side surface (see [Connectors](/server/connectors)). All
-connector operations require the **manage connectors** permission.
+WordPress, Figma, and HubSpot connectors are added in a project's
+**Connectors** view in the web app, or through the workspace **connectors
+API** described below. Saved credentials are write-only — used for sync,
+never displayed again. The local-file and Git connectors are a separate,
+server-side surface (see [Connectors](/server/connectors)). All connector
+operations require the **manage connectors** permission.
 
 :::
 
@@ -44,9 +45,9 @@ The connector accepts the following configuration keys:
 
 ## Setup
 
-Add the connector to your workspace by posting its type and configuration to
-`POST /api/v1/{workspace}/connectors`. Connectors are scoped to the workspace
-they are added in.
+Add the connector from a project's **Connectors** view in the web app, or by
+posting its type and configuration to `POST /api/v1/{workspace}/connectors`.
+Connectors are scoped to the workspace they are added in.
 
 ```json
 {
@@ -64,8 +65,9 @@ for subsequent fetch and status calls.
 
 ## How sync works
 
-Sync is explicit: text is read only when you call the fetch endpoint. The
-connector does not poll Figma on a schedule and does not receive Figma webhooks.
+Sync is explicit: text is read only when you fetch — **Fetch now** in the
+Connectors view, or the fetch endpoint. The connector does not poll Figma on a
+schedule and does not receive Figma webhooks.
 
 **Fetch** reads the file, walks its layer tree, and stores each non-empty text
 layer as a block on the target project's main content stream. Call
@@ -94,5 +96,3 @@ current view of the file.
 - It reads one file per connector instance, identified by `file_key`.
 - Only text layers are read. Component names, variables, and other non-text
   content are out of scope.
-- Connector instances are held per workspace for the life of the server process
-  and are not persisted; re-add a connector after a server restart.

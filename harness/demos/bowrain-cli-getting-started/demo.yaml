@@ -1,6 +1,6 @@
 id: bowrain-cli-getting-started
 title: Connect a project and bring it up to date
-subtitle: kapi init connects your local files to a Bowrain server; push and pull move content like git, and kapi up runs the convergence loop on the server.
+subtitle: kapi init connects your local files to a Bowrain server; push and pull move content like git, and kapi up runs the loop on the server.
 tagline: your files stay yours — the server adds the team, the memory, and the governance.
 kind: use-case
 publishAs: bowrain-cli-getting-started
@@ -16,20 +16,20 @@ aspects:
   - kapi init · push · up
   - your files, the team's server
   - push/pull like git
-  - convergence on the server
+  - the loop, run on the server
 
 script:
   - comment: BowMart's help-center copy — English, sitting in your repo.
   - command: cat src/locales/en.json
-  - comment: Connect this project to your Bowrain server, in the BowMart workspace.
-  - command: kapi init --name help-center --workspace bowmart --source-locale en --target-locale fr --target-locale de --server $BOWRAIN_SERVER_URL -y
+  - comment: Connect this project to your Bowrain server.
+  - command: kapi init --name help-center --source en --targets fr,de --server $BOWRAIN_SERVER_URL -y
   - comment: Track the files you want translated.
   - command: kapi add "src/locales/*.json"
   - comment: Push the source up — pure transport, like git push.
   - command: kapi push
   - comment: Check standing — coverage and what's pending, like git status.
   - command: kapi status
-  - comment: Reconcile the project — kapi up runs the convergence loop on the server and pulls the results back.
+  - comment: Catch the project up — kapi up runs the loop on the server and pulls the results back.
   - command: kapi up
 
 narration:
@@ -43,8 +43,8 @@ narration:
     kind: terminal
     text: >
       Here is BowMart's help-center copy — a few English strings in a JSON file.
-      kapi init scaffolds the project and connects it to the BowMart workspace on
-      your Bowrain server, with the source and target languages set.
+      kapi init scaffolds the project and creates it in your workspace on the
+      Bowrain server, with the source and target languages set.
     caption: "kapi init — connect the project to Bowrain"
   - id: push
     kind: terminal
@@ -59,14 +59,14 @@ narration:
   - id: up
     kind: terminal
     text: >
-      kapi up is the convergence verb, and it prints its venue first — server,
-      because the recipe declares one. The loop runs on the Bowrain server — the
-      team's keys, shared memory, and gates — streams the progress back into your
-      terminal, and pulls the results into the same files and format you started
-      with. Anything a machine can't finish is parked in your team's review queue.
-      Before spending anything, kapi up --plan previews the pending work
-      and its cost. This is the command your CI runs to keep every locale up to
-      date.
-    caption: "kapi up — reconcile the project on the server"
+      kapi up runs the loop, and it prints its venue first: server, because the
+      recipe declares one. Everything behind catches up on the Bowrain server,
+      with the team's keys, shared memory, and gates — memory first, then AI,
+      then checks — and it streams the progress back into your terminal, pulling
+      the results into the same files and format you started with. Anything that
+      needs a person is parked for review. Before spending anything, kapi up
+      --plan previews the pending work and its cost. This is the command your CI
+      runs.
+    caption: "kapi up — run the loop on the server"
   - id: outro
     kind: outro

@@ -19,7 +19,7 @@ import (
 var errNotConnected = errors.New("not connected to server")
 
 // DefaultServerURL is the Bowrain SaaS instance URL used when no custom server is specified.
-const DefaultServerURL = "https://app.bowrain.cloud"
+const DefaultServerURL = config.DefaultServerURL
 
 // ConnectionState represents the connection state of the desktop client.
 type ConnectionState string
@@ -124,7 +124,7 @@ func (a *App) connectWithToken(serverURL, token string) error {
 // to the Bowrain SaaS instance URL.
 func (a *App) GetDefaultServerURL() string {
 	if envURL := os.Getenv("BOWRAIN_SERVER_URL"); envURL != "" {
-		return strings.TrimRight(envURL, "/")
+		return config.NormalizeServerURL(envURL)
 	}
 	return DefaultServerURL
 }
@@ -167,7 +167,7 @@ func (a *App) GetFailedChangesCount() int {
 // using stored credentials. The URL should be the HTTP base URL
 // (e.g. "http://localhost:8080").
 func (a *App) ConnectToServer(serverURL string) error {
-	serverURL = strings.TrimRight(serverURL, "/")
+	serverURL = config.NormalizeServerURL(serverURL)
 	a.mu.Lock()
 	a.connState = StateConnecting
 	a.serverURL = serverURL

@@ -96,7 +96,7 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 		return nil, errors.New("no server configuration in the kapi recipe (add a `server:` block)")
 	}
 
-	serverURL := recipe.Server.ServerURL()
+	serverURL := config.NormalizeServerURL(recipe.Server.ServerURL())
 	projectID := recipe.Server.ProjectID()
 	workspace := recipe.Server.Workspace()
 
@@ -118,8 +118,8 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 		if err != nil {
 			return nil, errors.New("workspace sync requires authentication: run 'kapi auth login'")
 		}
-		if authInfo.ServerURL != "" && authInfo.ServerURL != serverURL {
-			return nil, fmt.Errorf("auth token is for %s but project points to %s", authInfo.ServerURL, serverURL)
+		if authServer := config.NormalizeServerURL(authInfo.ServerURL); authServer != "" && authServer != serverURL {
+			return nil, fmt.Errorf("auth token is for %s but project points to %s", authServer, serverURL)
 		}
 		client = apiclient.NewWorkspaceBowrainClient(serverURL, workspace, projectID, authInfo.AccessToken)
 		if authInfo.RefreshToken != "" {

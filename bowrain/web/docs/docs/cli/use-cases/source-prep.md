@@ -149,7 +149,7 @@ jobs:
 
       - uses: neokapi/setup-kapi@v1
         with:
-          plugins: kapi-bowrain
+          plugins: bowrain
 
       - name: Run source QA
         run: kapi run source-qa
@@ -163,6 +163,6 @@ This catches source-language issues at the PR stage, before they propagate to tr
 ## Related
 
 - [Translation Flows](/cli/flows/overview) — available tools and flow configuration
-- [Terminology](https://neokapi.github.io/web/neokapi/docs/features/terminology) — managing termbases
-- [QA Checks](https://neokapi.github.io/web/neokapi/docs/features/qa-checks) — rule-based quality checks
+- [Terminology](https://neokapi.github.io/web/neokapi/framework/terminology) — managing termbases
+- [QA Checks](https://neokapi.github.io/web/neokapi/framework/checks/qa-checks) — rule-based quality checks
 - [GitHub Actions](/cli/use-cases/github-actions) — CI/CD integration

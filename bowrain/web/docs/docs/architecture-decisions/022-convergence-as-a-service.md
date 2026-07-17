@@ -9,7 +9,7 @@ title: "AD-022: Convergence as a Service"
 ## Summary
 
 Convergence — the loop that reconciles a project's translations toward its ship
-gates ([AD-framework-033: Project State Model](https://neokapi.github.io/web/neokapi/docs/architecture/033-project-state-model)) —
+gates ([AD-framework-033: Project State Model](https://neokapi.github.io/web/neokapi/contribute/architecture/033-project-state-model)) —
 is a single verb, `kapi up`, that runs in one of two **venues**: the developer's
 machine or the Bowrain server. The server venue is *convergence as a service*:
 `kapi up` on a connected project dispatches the whole loop to bowrain-server,
@@ -152,7 +152,7 @@ new plugin transport is needed beyond the established subprocess dispatch
 
 ## Related
 
-- [AD-framework-033: Project State Model](https://neokapi.github.io/web/neokapi/docs/architecture/033-project-state-model) — the derived state, ladders, gates, and parking the loop reconciles toward
+- [AD-framework-033: Project State Model](https://neokapi.github.io/web/neokapi/contribute/architecture/033-project-state-model) — the derived state, ladders, gates, and parking the loop reconciles toward
 - [AD-010: Bowrain CLI and Project Model](010-bowrain-cli-and-project-model.md) — transport vs convergence vs venue; the `server.converge` policy; plugin dispatch
 - [AD-009: Sync Protocol](009-sync-protocol.md) — the wire contract that `push`/`pull` use for transport
 - [AD-013: Automation Engine](013-automation-engine.md) — the rule/run/SSE machinery the convergence run builds on

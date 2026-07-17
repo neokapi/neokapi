@@ -62,10 +62,7 @@ func runInitConnect(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	serverURL := connectServer
-	if serverURL == "" {
-		serverURL = resolveServerURL()
-	}
+	serverURL := resolveServerURLOrDefault(connectServer)
 
 	if recipe.Defaults.SourceLanguage == "" {
 		recipe.Defaults.SourceLanguage = "en"

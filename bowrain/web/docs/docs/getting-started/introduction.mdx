@@ -12,6 +12,8 @@ Bowrain is the server-side platform companion to [kapi](https://neokapi.github.i
 
 It is to kapi what GitHub is to git. The toolchain stays open and runs anywhere; Bowrain adds the persistent, multi-user, governed layer an organization needs.
 
+Bowrain serves two kinds of work. Developers connect a codebase and keep it caught up with [the kapi loop](/the-loop); writers and content owners work entirely in the browser — content comes in from the systems it already lives in, gets drafted and checked against the brand, and publishes back. Both meet in the same workspace, governed by the same voice profile, terminology, and memory.
+
 A team shares one workspace through a browser and a native desktop app — editing, terminology, translation memory, presence, and reviews all live on the server.
 
 <ThemedVideo
@@ -57,7 +59,7 @@ With the plugin installed, a kapi project whose recipe declares a `server:` bloc
 kapi up
 ```
 
-[`kapi up`](/cli/commands/up) is the verb that runs the kapi loop: on a connected project it pushes changed content, the server runs the loop (translation, QA, terminology) on the organization's keys and shared memory, progress streams back live, and the results pull down — one invocation from code change to translated files. In CI it replaces a multi-job pipeline. (`kapi push` and `kapi pull` stay available as pure transport when you want to move content without catching up.)
+[`kapi up`](/cli/commands/up) is the verb that runs [the kapi loop](/the-loop): on a connected project it pushes changed content, the server runs the loop (translation, QA, terminology) on the organization's keys and shared memory, progress streams back live, and the results pull down — one invocation from code change to translated files. In [CI](/cli/ci/overview) it replaces a multi-job pipeline. (`kapi push` and `kapi pull` stay available as pure transport when you want to move content without catching up.)
 
 Content does not have to start locally, though: a [connector](/server/connectors) to a CMS, a design tool, or a git repository pulls source into the workspace server-side, with no checkout at all. `kapi up` is the path for a developer working from a local codebase — one of several ways content reaches the platform.
 
@@ -92,9 +94,11 @@ Content enters the workspace from a connector — a CMS, a design tool, a git re
 
 ## What's next
 
+- [The kapi loop on Bowrain](/the-loop) — how a connected project stays caught up
 - [Installation](/installation) — install the server, the web/desktop editor, or the bowrain plugin for kapi
-- [Quick start](/quickstart) — get content into Bowrain from a connector or from kapi
+- [Quick start](/quickstart) — get content into Bowrain from your systems or from a codebase
 - [Connectors](/server/connectors) — sync from a CMS, a design tool, or a git repository
+- [The loop in CI](/cli/ci/overview) — GitHub Actions, GitLab CI, and the Bowrain GitHub App
 - [Walkthrough](/walkthroughs/bowrain-getting-started) — the developer path, from connect to automated CI/CD
 
 ## Just need the local tools?

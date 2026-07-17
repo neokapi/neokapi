@@ -18,7 +18,7 @@ kapi mcp
 This launches a JSON-RPC server on stdio. You don't run it manually — your AI tool starts it as a subprocess. The server requires a `.kapi` project (it walks upward looking for a `*.kapi` recipe, like git).
 
 :::tip
-For ad-hoc file processing without a project, use the [Kapi MCP server](https://neokapi.github.io/web/neokapi/docs/kapi-cli/mcp) instead.
+For ad-hoc file processing without a project, use the [Kapi MCP server](https://neokapi.github.io/web/neokapi/reference/mcp) instead.
 :::
 
 ## Setup
@@ -142,14 +142,19 @@ If `kapi` is not in your `$PATH`, use the full path to the binary (e.g. `/usr/lo
 
 Once connected, your AI assistant can call these tools:
 
-| Tool             | What it does                                                          |
-| ---------------- | --------------------------------------------------------------------- |
-| `project_config` | Read project configuration from the `.kapi` recipe                    |
-| `project_status` | Show sync status — pending push/pull counts, server connection        |
-| `project_ls`     | List tracked files with optional stats (word counts, dirty detection) |
-| `project_push`   | Upload local changes to Bowrain Server                                |
-| `project_pull`   | Download translations from Bowrain Server                             |
-| `list_flows`     | List available flows (built-in and project-defined)                   |
+| Tool                | What it does                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------- |
+| `project_config`    | Read project configuration from the `.kapi` recipe                                    |
+| `project_status`    | Show sync status — pending push/pull counts, server connection                        |
+| `project_ls`        | List tracked files with optional stats (word counts, dirty detection)                 |
+| `project_push`      | Upload local changes to Bowrain Server                                                |
+| `project_pull`      | Download translations from Bowrain Server                                             |
+| `list_flows`        | List available flows (built-in and project-defined)                                   |
+| `concept_search`    | Search the workspace brand knowledge graph for governed concepts                      |
+| `concept_story`     | Show the chronological timeline of a governed concept                                 |
+| `experiment_status` | Report brand knowledge-graph change-sets, with detail and blast radius for one change-set |
+
+The three concept tools read the workspace [brand knowledge graph](/server/brand); they require a project connected to a workspace on a Bowrain server.
 
 ## Example Conversations
 
@@ -247,6 +252,35 @@ List available processing flows. Returns both built-in flows and project-defined
 
 No parameters.
 
+### concept_search
+
+Search the workspace [brand knowledge graph](/server/brand) for governed concepts (terms, status, domain) matching a query.
+
+| Parameter | Type   | Required | Description                                                              |
+| --------- | ------ | -------- | ------------------------------------------------------------------------ |
+| `query`   | string | no       | Free-text query against the term text                                    |
+| `status`  | string | no       | Filter by term lifecycle status (preferred, admitted, deprecated, forbidden) |
+| `market`  | string | no       | Filter by market validity tag                                            |
+| `domain`  | string | no       | Filter by subject-field domain                                           |
+| `limit`   | int    | no       | Maximum number of concepts to return (default 50)                        |
+
+### concept_story
+
+Show the chronological timeline of a governed concept — revisions, observations, comments, and change-sets.
+
+| Parameter    | Type   | Required | Description                          |
+| ------------ | ------ | -------- | ------------------------------------ |
+| `concept_id` | string | yes      | The concept ID whose timeline to fetch |
+
+### experiment_status
+
+Report brand knowledge-graph change-sets. With a `changeset_id`, returns that change-set's detail and a blast-radius summary (affected blocks, new violations, resolved violations, words); without one, lists the workspace's change-sets.
+
+| Parameter      | Type   | Required | Description                                                            |
+| -------------- | ------ | -------- | ---------------------------------------------------------------------- |
+| `changeset_id` | string | no       | A change-set ID to detail; omit to list all change-sets                |
+| `status`       | string | no       | When listing, filter by status (draft, in_review, approved, merged, abandoned) |
+
 ## How It Works
 
 No server process, ports, or additional authentication is needed. Your AI tool starts `kapi mcp` as a subprocess, communicates over stdin/stdout, and shuts it down when the session ends. It discovers your project the same way the CLI does — by walking up the directory tree to find the nearest `*.kapi` recipe.
@@ -256,4 +290,4 @@ No server process, ports, or additional authentication is needed. Your AI tool s
 - [CLI Overview](/cli/overview)
 - [Project Model](/cli/project-model)
 - [Commands Reference](/cli/commands/init)
-- [kapi MCP Server](https://neokapi.github.io/web/neokapi/docs/kapi-cli/mcp) — for standalone file processing
+- [kapi MCP Server](https://neokapi.github.io/web/neokapi/reference/mcp) — for standalone file processing

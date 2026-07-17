@@ -1,0 +1,166 @@
+---
+sidebar_position: 3
+title: The kapi loop on Bowrain
+slug: /the-loop
+description: How a connected project stays caught up — kapi up (or a push, or a connector sync) produces on the server, review in the web app promotes, the ship gate in CI releases. Formally, the model is called convergence.
+keywords: [kapi loop, kapi up, convergence, bowrain, server, converge on push, ship gate, review, runs, parked]
+---
+
+import { PhaseFlow, LanesDiagram, ThemedVideo, KapiLink } from "@neokapi/docs-shared";
+
+# The kapi loop on Bowrain
+
+Your source content changed. Its translations, its terminology, its brand
+conformance are now behind — and that is normal, not an error. Kapi treats
+catching up as the everyday state of a shipping project and gives it one verb,
+**`kapi up`**: reuse what you've translated before, AI-translate the rest,
+check everything produced, and **park** what a machine cannot decide for a
+person. That cycle is **the kapi loop**.
+
+Bowrain is where the loop runs *hosted*. On a project whose recipe declares a
+`server:` block, the same `kapi up` executes on your Bowrain server — the
+organization's AI keys, the shared translation memory, terminology, and
+brand checks — and what it parks lands in the team's review queue instead of a
+solo worklist. Content that never touches a checkout converges the same way:
+a [connector](/server/connectors) pulls it in server-side, and the loop catches
+it up where it lives.
+
+This page covers what Bowrain adds to the loop. The model itself — the
+lifecycle ladders, coverage gates, and approver classes — is documented once,
+on the kapi site:
+<KapiLink to="/kapi/convergence">The kapi loop</KapiLink>.
+
+## Three roles, three surfaces
+
+The loop keeps producing, promoting, and releasing separate. On a connected
+project, each role has a home:
+
+<PhaseFlow
+  nodes={[
+    {
+      label: "produce",
+      sub: "kapi up · on push · connector sync — the loop runs on the server",
+      role: "translate",
+      loop: ["each pass re-derives", "coverage and repeats"],
+    },
+    {
+      label: "promote",
+      sub: "Review in the web or desktop app",
+      role: "annotate",
+      edge: "parked units land here",
+    },
+    {
+      label: "release",
+      sub: "kapi check --ship — the gate, in CI",
+      role: "qa",
+      edge: "gate met",
+    },
+  ]}
+  caption="The loop produces on the server; review in the app promotes what a machine can't decide; the ship gate releases."
+/>
+
+- **The loop produces.** `kapi up` — or a push under the `server.converge`
+  policy, or a server-side flow on connector content — drives every unit as far
+  up its lifecycle as a flow can take it unaided.
+- **Review promotes.** What the loop parks appears in the project's
+  [Review surface](/server/review), where a person (or several — decisions are
+  shared) advances a unit past what a machine can decide.
+- **The gate releases.** [`kapi check --ship`](/cli/use-cases/brand-terminology-ci)
+  answers one question — *is this scope shippable?* — and is the explicit,
+  opt-in enforcement point for a release. Target-language drift never fails an
+  ordinary build.
+
+:::note[The formal name]
+The model behind the loop — derived state, lifecycle ladders, coverage gates —
+is formally called **convergence**; the server-side runs are *convergence as a
+service* ([AD-022](/architecture-decisions/022-convergence-as-a-service)). The
+REST API, the run event stream, and `--json` output keep that vocabulary; these
+pages say *the loop*.
+:::
+
+## Who starts the loop
+
+Three starters, one loop — each suits a different way of working:
+
+<LanesDiagram
+  lanes={[
+    {
+      title: "A terminal",
+      sub: "kapi up",
+      role: "translate",
+      steps: ["push the drift", "server runs the loop", "progress streams back"],
+    },
+    {
+      title: "A push",
+      sub: "server.converge: on-push",
+      role: "io",
+      steps: ["kapi push arrives", "the server catches up", "results wait for pull"],
+    },
+    {
+      title: "CI or a connector",
+      sub: "kapi-action · GitLab · GitHub App · sync",
+      role: "qa",
+      steps: ["change detected", "converge server-side", "deliver a PR / publish back"],
+    },
+  ]}
+  caption="The same server-side loop, started from a terminal, a push policy, or an automated pipeline."
+/>
+
+- **From a terminal.** [`kapi up`](/cli/commands/up) on a connected project
+  prints its resolved venue first (*server*), pushes the drift, streams the
+  server run's progress live into the same terminal view, and pulls the results
+  down. `kapi up --local` overrides the venue for one run — the loop executes on
+  your machine and your keys, and the results are pushed so the server is never
+  left stale. `kapi up --server` requires the server venue, failing rather than
+  falling back (for CI that must never spend local keys).
+- **From a push.** With `server.converge: on-push` on the recipe's `server:`
+  block, every `kapi push` triggers a server-side run — the project stays
+  continuously caught up without anyone running `up`. The policy is explicit
+  and per-project, the way `git push` triggering CI is a repository policy. See
+  [Automation](/server/automation).
+- **From CI, or no pipeline at all.** [GitHub Actions, GitLab CI, or the
+  Bowrain GitHub App](/cli/ci/overview) run the loop on a schedule or on every
+  change and deliver the results as a pull request. Content connected
+  server-side — a CMS, a design tool — converges without any checkout when a
+  [server-side flow](/server/flows) or automation rule runs over it, and
+  publishes back to where it came from.
+
+## Seeing it
+
+Every surface reads the same derived state:
+
+- **In the terminal**, [`kapi status`](/cli/commands/status) shows the
+  per-locale coverage grid, the server standing, and the effective venue and
+  `server.converge` policy.
+- **In the web and desktop app**, a project's **Runs** view lists the
+  server-side runs — *Running*, *Up to date*, *Parked*, with the trigger
+  (*Manual*, *kapi up*, *On push*), the pass count, and a per-locale summary
+  such as "3 shippable · 1 parked". A **Run now** button starts a run from the
+  app, and an in-flight run can be canceled.
+- **In the review queue**, parked units are the worklist: the loop reports them
+  as awaiting a person and still exits zero. Parked work is pending review, not
+  an error.
+
+A run started in a terminal and a run started from the app emit the same event
+stream, so progress rendered in the CLI, the Runs view, and `--json` for agents
+never disagree.
+
+## See it run
+
+The developer path end to end — connect a project, push, and bring it up to
+date on the server:
+
+<ThemedVideo
+  sources={{
+    light: "/video/bowrain-cli/bowrain-cli-getting-started-light.webm",
+    dark: "/video/bowrain-cli/bowrain-cli-getting-started-dark.webm",
+  }}
+/>
+
+## What's next
+
+- [Quick start](/quickstart) — get content in, from your systems or from a codebase
+- [`kapi up` reference](/cli/commands/up) — flags, venue resolution, the run stream
+- [The loop in CI](/cli/ci/overview) — GitHub Actions, GitLab CI, and the Bowrain GitHub App
+- [Review](/server/review) — where parked work gets promoted
+- <KapiLink to="/kapi/convergence">The full model on the kapi site</KapiLink> — ladders, gates, approver classes

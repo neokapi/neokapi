@@ -9,13 +9,14 @@ The HubSpot connector is a marketing connector. It reads CMS site pages from
 HubSpot over the CMS API, delivers their title and meta description to Bowrain
 for translation, and writes approved text back to the same pages.
 
-:::note How connectors are configured today
+:::note
 
-WordPress, Figma, and HubSpot connectors are configured through the workspace
-**connectors API** described below. The web app does not yet provide a
-dedicated configuration form for them; the local-file and Git connectors are a
-separate, server-side surface (see [Connectors](/server/connectors)). All
-connector operations require the **manage connectors** permission.
+WordPress, Figma, and HubSpot connectors are added in a project's
+**Connectors** view in the web app, or through the workspace **connectors
+API** described below. Saved credentials are write-only — used for sync,
+never displayed again. The local-file and Git connectors are a separate,
+server-side surface (see [Connectors](/server/connectors)). All connector
+operations require the **manage connectors** permission.
 
 :::
 
@@ -47,9 +48,9 @@ The connector accepts the following configuration keys:
 
 ## Setup
 
-Add the connector to your workspace by posting its type and configuration to
-`POST /api/v1/{workspace}/connectors`. Connectors are scoped to the workspace
-they are added in.
+Add the connector from a project's **Connectors** view in the web app, or by
+posting its type and configuration to `POST /api/v1/{workspace}/connectors`.
+Connectors are scoped to the workspace they are added in.
 
 ```json
 {
@@ -66,9 +67,9 @@ for subsequent fetch, publish, status, and remove calls.
 
 ## How sync works
 
-Sync is explicit: content moves only when you call the fetch or publish
-endpoint. The connector does not poll HubSpot on a schedule and does not receive
-HubSpot webhooks.
+Sync is explicit: content moves only when you fetch or publish — **Fetch now**
+and **Publish** in the Connectors view, or the endpoints below. The connector
+does not poll HubSpot on a schedule and does not receive HubSpot webhooks.
 
 **Fetch** requests site pages and stores each page's title and meta description
 as blocks on the target project's main content stream. Call
@@ -107,5 +108,3 @@ current view of HubSpot.
   paginate; accounts with more pages are not fully covered.
 - Publishing updates the page object through a PATCH and does not push the page
   live; a separate publish action in HubSpot may be required.
-- Connector instances are held per workspace for the life of the server process
-  and are not persisted; re-add a connector after a server restart.

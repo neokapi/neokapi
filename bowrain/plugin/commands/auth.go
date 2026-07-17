@@ -36,13 +36,11 @@ var authLoginCmd = &cobra.Command{
 Server URL is resolved from (first match wins):
   1. --server flag
   2. BOWRAIN_SERVER_URL environment variable / server.url in ~/.config/bowrain/bowrain.yaml
-  3. Built-in default (http://localhost:8080)`,
+  3. The server of the stored login on this machine
+  4. The hosted service (https://app.bowrain.cloud) — self-hosted deployments
+     set BOWRAIN_SERVER_URL or pass --server`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		serverURL := resolveServerURLFrom(authServerURL)
-		if serverURL == "" {
-			return errors.New("server URL not configured — set BOWRAIN_SERVER_URL or use --server")
-		}
-		_, err := performLogin(cmd, serverURL)
+		_, err := performLogin(cmd, resolveServerURLOrDefault(authServerURL))
 		return err
 	},
 }
@@ -247,22 +245,36 @@ func init() {
 }
 
 // resolveServerURLFrom resolves the server URL from an explicit override,
-// then global config (env + file), then auth state, then baked-in default.
+// then global config (env + file), then auth state. Returns "" when nothing
+// is configured — callers that contact a server fall back to the hosted
+// default via resolveServerURLOrDefault; callers that merely record a server
+// (init writing a recipe) treat "" as "leave the recipe serverless".
 func resolveServerURLFrom(explicit string) string {
 	if explicit != "" {
-		return explicit
+		return config.NormalizeServerURL(explicit)
 	}
 	// Check bowrain config (includes BOWRAIN_SERVER_URL env via Viper BindEnv).
 	cfg := newBowrainAppConfig()
 	_ = cfg.Load()
 	if u := cfg.GetString("server.url"); u != "" {
-		return u
+		return config.NormalizeServerURL(u)
 	}
-	// Fall back to auth state.
+	// Fall back to auth state — the server this machine last logged into.
 	if stored, err := loadAuth(); err == nil && stored.ServerURL != "" {
-		return stored.ServerURL
+		return config.NormalizeServerURL(stored.ServerURL)
 	}
 	return ""
+}
+
+// resolveServerURLOrDefault is resolveServerURLFrom with the hosted instance
+// (config.DefaultServerURL) as the final fallback. Use it for commands that
+// contact a server; self-hosted deployments override via --server or
+// BOWRAIN_SERVER_URL.
+func resolveServerURLOrDefault(explicit string) string {
+	if u := resolveServerURLFrom(explicit); u != "" {
+		return u
+	}
+	return config.DefaultServerURL
 }
 
 func saveAuth(a config.StoredAuth) error { return config.SaveAuth(a) }
