@@ -169,6 +169,16 @@ const deviceAuthorizedRoute = createRoute({
   component: DeviceAuthorizedRoute,
 });
 
+const githubSetupRoute = createRoute({
+  getParentRoute: () => authLayout,
+  path: "github/setup",
+  validateSearch: (search: Record<string, unknown>) => ({
+    installation_id:
+      typeof search.installation_id === "string" ? search.installation_id : undefined,
+  }),
+  component: lazyRouteComponent(() => import("./github-setup"), "GithubSetupRoute"),
+});
+
 const welcomeRoute = createRoute({
   getParentRoute: () => authLayout,
   path: "welcome",
@@ -690,6 +700,7 @@ const routeTree = rootRoute.addChildren([
   authLayout.addChildren([
     joinRoute,
     claimRoute,
+    githubSetupRoute,
     deviceVerifyRoute,
     deviceAuthorizedRoute,
     welcomeRoute,

@@ -106,6 +106,9 @@ import type {
   BrandScanUploadResult,
   BrandScanJob,
   BrandScanCheckResult,
+  InstallationRepo,
+  BindInstallationRepoRequest,
+  BindInstallationRepoResult,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -401,6 +404,15 @@ export interface ApiAdapter {
     config: Record<string, string>,
   ): Promise<ConnectorInfo>;
   removeConnector(workspaceSlug: string, connectorId: string): Promise<void>;
+  // GitHub App post-install setup: the repositories an installation covers
+  // (annotated with existing bindings), and binding one to a project — which
+  // creates an app-auth forge connector server-side.
+  listInstallationRepos(workspaceSlug: string, installationId: string): Promise<InstallationRepo[]>;
+  bindInstallationRepo(
+    workspaceSlug: string,
+    installationId: string,
+    req: BindInstallationRepoRequest,
+  ): Promise<BindInstallationRepoResult>;
   getConnectorStatus(workspaceSlug: string, connectorId: string): Promise<ConnectorSyncStatus>;
   /** Pull content from the connector into the given project (synchronous). */
   fetchConnector(

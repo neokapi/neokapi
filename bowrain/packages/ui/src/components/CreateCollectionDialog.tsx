@@ -80,7 +80,7 @@ export function CreateCollectionDialog({
     if (showBrandPicker) {
       if (isEdit) {
         connectorConfig = {
-          ...(editCollection?.connector_config ?? {}),
+          ...editCollection?.connector_config,
           [BRAND_VOICE_KEY]: brandVoiceProfileId,
         };
       } else if (brandVoiceProfileId) {

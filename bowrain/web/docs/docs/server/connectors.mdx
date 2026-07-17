@@ -156,9 +156,13 @@ GITHUB_APP_PRIVATE_KEY_FILE=/etc/bowrain/github-app.pem   # or GITHUB_APP_PRIVAT
 GITHUB_APP_WEBHOOK_SECRET=<webhook secret>
 ```
 
-Installing the app on a repository is then the only per-repo step. Static
-tokens keep working alongside app mode — GitLab always uses a project access
-token.
+Installing the app on a repository is then the only per-repo step: GitHub
+redirects to the server's setup page (set the app's **Setup URL** to
+`$SERVER/github/setup`), which lists the installation's repositories and
+binds each to a project with one selection — no curl, no tokens. The same
+binding is available from a project's Connectors page ("GitHub"), and the
+workspace connectors API remains the automation path. Static tokens keep
+working alongside app mode — GitLab always uses a project access token.
 
 :::note
 
