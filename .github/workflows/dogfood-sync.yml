@@ -1,0 +1,94 @@
+# Customer #1 dogfood sync — neokapi's own content → bowrain.cloud.
+#
+# INERT BY DEFAULT (roadmap epic 017-F, decision D2). Every job is gated on the
+# repo variable DOGFOOD_SYNC_ENABLED == 'true', so until the founder activates
+# it (see web/docs/contribute/notes-internal/dogfood-sync.md) this workflow is a
+# no-op: scheduled runs and manual dispatches evaluate the gate and skip.
+#
+# Activation checklist:
+#   1. Uncomment + fill the `server:` block in neokapi.kapi (compound project URL).
+#   2. Add repo secret  BOWRAIN_AUTH_TOKEN  (from `kapi auth token` after signup).
+#   3. Set   repo variable  DOGFOOD_SYNC_ENABLED = true.
+# Deactivate at any time by unsetting DOGFOOD_SYNC_ENABLED — fully reversible.
+
+name: Dogfood Sync
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # 03:00 UTC nightly
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Plan only (kapi up --explain), do not push"
+        type: boolean
+        default: false
+
+concurrency:
+  group: dogfood-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    # The single gate. No secret is referenced and no content moves unless the
+    # founder has explicitly armed the dogfood by setting this repo variable.
+    if: ${{ vars.DOGFOOD_SYNC_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Real dogfood workflow: this is the ONE in-repo kapi invocation that binds
+      # the root recipe (CLAUDE.md isolation contract) — so no KAPI_NO_PROJECT.
+      BOWRAIN_AUTH_TOKEN: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build kapi + the kapi-bowrain plugin
+        # The plugin must be discoverable by the kapi binary at run time. The
+        # exact install/discovery wiring (KAPI_PLUGINS_DIR vs. a system install)
+        # is the one step to confirm at activation — it cannot be exercised here
+        # until a server exists. `make install-kapi-bowrain-plugin` is the
+        # intended path; adjust if discovery needs a KAPI_PLUGINS_DIR export.
+        run: |
+          make build build-bowrain-plugin
+          make install-kapi-bowrain-plugin
+
+      - name: Guard — recipe must declare a server block
+        run: |
+          if ! grep -qE '^\s*server:' neokapi.kapi; then
+            echo "::error::DOGFOOD_SYNC_ENABLED is set but neokapi.kapi has no active server: block. Uncomment it (see the recipe footer) before arming the sync." >&2
+            exit 1
+          fi
+
+      - name: kapi status
+        run: ./bin/kapi status
+
+      - name: kapi up (converge) or plan
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ./bin/kapi up --explain
+          else
+            ./bin/kapi up
+          fi
+
+      - name: kapi push
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: ./bin/kapi push
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Dogfood sync"
+            echo ""
+            echo '```'
+            ./bin/kapi status || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
