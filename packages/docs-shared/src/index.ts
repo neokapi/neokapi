@@ -5,6 +5,10 @@ export { KapiLink, BowrainLink } from "./CrossSiteLink";
 export { readCdnConfig, cdnEnabled, cdnHref } from "./cdn";
 export type { CdnConfig } from "./cdn";
 
+// Cookieless analytics shared by both docs sites (key-gated; see analytics.ts).
+export { initDocsAnalytics, captureDocsEvent, captureDocsPageview } from "./analytics";
+export type { DocsAnalyticsOptions } from "./analytics";
+
 // Diagram kit — uniform, theme-aware SVG diagrams shared by both docs sites.
 // Each component imports its own `diagram.css`, so the styles ship with the
 // component (no separate CSS import needed at the consumer).

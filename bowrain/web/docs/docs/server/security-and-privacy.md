@@ -133,6 +133,11 @@ events. Analytics cover product usage and conversion, not billing or access
 decisions, which run entirely on the server. A self-hosted deployment that does
 not configure a key collects no product analytics.
 
+The documentation sites and the landing page use the same service in a
+cookieless mode: analytics state is held in memory only, nothing is written to
+cookies or local storage, the browser's Do Not Track setting is respected, and
+events go to the EU ingestion host.
+
 ## Your content: ownership and export
 
 Bowrain stores your content, translation memory, and terminology so a team can

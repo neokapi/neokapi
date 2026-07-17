@@ -34,6 +34,16 @@ const buildStamp = (() => {
 // and navigate out of the preview.
 const baseUrl = process.env.DOCS_BASE_URL ?? "/";
 
+// Cookieless analytics (pageviews only on this site; see
+// src/clientModules/analytics.ts and @neokapi/docs-shared). Key-gated: with no
+// POSTHOG_KEY at build time — local dev, fork builds, PR previews — the client
+// module never initializes and no analytics code loads. The host defaults to
+// the PostHog EU ingestion endpoint. PR previews are keyless in CI; the /prs/
+// base-path marker additionally tags any keyed preview build as "preview".
+const posthogKey = process.env.POSTHOG_KEY ?? "";
+const posthogHost = process.env.POSTHOG_HOST ?? "https://eu.i.posthog.com";
+const analyticsEnvironment = baseUrl.includes("/prs/") ? "preview" : "prod";
+
 // Large immutable assets (the wasm engine, ONNX vision models, walkthrough
 // videos) can be offloaded to an external CDN (S3 + CloudFront, cdn.<domain>) to
 // keep the GitHub Pages artifact small and the deploy fast. An empty
@@ -110,7 +120,13 @@ const config: Config = {
     cdnSitePrefix: "kapi",
     cdnWasmVersion,
     cdnModelsVersion,
+    posthogKey,
+    posthogHost,
+    analyticsEnvironment,
   },
+
+  // Cookieless pageview analytics (key-gated no-op without POSTHOG_KEY).
+  clientModules: ["./src/clientModules/analytics.ts"],
 
   markdown: {
     mermaid: true,

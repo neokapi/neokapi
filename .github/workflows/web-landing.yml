@@ -56,6 +56,12 @@ jobs:
         working-directory: bowrain/web/landing
         env:
           VITE_BASE: ${{ steps.base.outputs.bowrain_base }}
+          # Cookieless analytics (see src/analytics.ts). The key is the PUBLIC
+          # client-side key already hardcoded in _build-web.yml; set only on
+          # push so PR previews and forks never initialize analytics. Empty
+          # key → the page executes zero analytics code.
+          VITE_POSTHOG_KEY: ${{ github.event_name != 'pull_request' && 'phc_9TMOqaMSUH5wE6xPTeTKjYBBJWVRdzOlUMahZAr7twD' || '' }}
+          VITE_POSTHOG_HOST: https://eu.i.posthog.com
         run: vp run build
 
       - name: Upload bowrain-web artifact
