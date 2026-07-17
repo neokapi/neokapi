@@ -32,12 +32,12 @@ const buildStamp = `${new Date().toISOString().slice(0, 16).replace("T", " ")} U
 // build). `vp run build && vp run build:nb` emits dist/ + dist/nb/.
 const locale = process.env.LOCALE ?? "";
 const targetLocales = Object.keys(localeMeta) as (keyof typeof localeMeta)[];
-const rootBase = process.env.VITE_BASE ?? "/web/bowrain/";
+const rootBase = process.env.VITE_BASE ?? "/";
 const base = locale ? `${rootBase}${locale}/` : rootBase;
 // Absolute origin for hreflang alternates (they must be fully qualified).
 // Defaults to the GitHub Pages host the workflow deploys to; override with
 // LANDING_ORIGIN when the site moves to its own domain.
-const origin = process.env.LANDING_ORIGIN ?? "https://neokapi.github.io";
+const origin = process.env.LANDING_ORIGIN ?? "https://bowrain.cloud";
 
 // Per-locale <html lang>, <title>/description/og swaps (from the human-owned
 // locale-meta.json sidecar), and hreflang alternate links on every variant.

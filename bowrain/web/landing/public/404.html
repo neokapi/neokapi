@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Page not found · bowrain</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f8fafc;
+        --fg: #242b3a;
+        --muted: #5b6474;
+        --primary: #2f5fd0;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #1c2230;
+          --fg: #eef0f4;
+          --muted: #aab2c0;
+          --primary: #5f95e8;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        text-align: center;
+        padding: 2rem;
+      }
+      .mark { width: 64px; height: 64px; }
+      h1 { font-size: 1.5rem; margin: 1.25rem 0 0.5rem; letter-spacing: -0.02em; }
+      p { color: var(--muted); margin: 0 0 1.75rem; max-width: 30rem; }
+      .links { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+      a {
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.95rem;
+        padding: 0.6rem 1.1rem;
+        border-radius: 8px;
+      }
+      .primary { background: var(--primary); color: #fff; }
+      .secondary { color: var(--primary); border: 1px solid var(--primary); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <svg class="mark" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="bow" x1="6" y1="10" x2="54" y2="54" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#d4737d" />
+            <stop offset="0.3" stop-color="#d9b34a" />
+            <stop offset="0.55" stop-color="#5cab7d" />
+            <stop offset="0.8" stop-color="#4f8bd6" />
+            <stop offset="1" stop-color="#9a71d0" />
+          </linearGradient>
+        </defs>
+        <path d="M6 6 A52 52 0 0 1 58 58 L38 58 A32 32 0 0 0 6 26 Z" fill="url(#bow)" />
+      </svg>
+      <h1>Page not found</h1>
+      <p>The page you were looking for isn't here. It may have moved, or the link may be out of date.</p>
+      <div class="links">
+        <a class="primary" href="/">Back to bowrain</a>
+        <a class="secondary" href="/docs/">Read the docs</a>
+      </div>
+    </main>
+  </body>
+</html>

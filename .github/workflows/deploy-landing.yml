@@ -1,0 +1,139 @@
+name: Deploy Landing + Docs
+
+# Publishes the bowrain public site to the apex (https://bowrain.cloud): the
+# Vite landing at "/" and the Docusaurus docs under "/docs/", into one S3 origin
+# behind CloudFront (module.apex-site in bowrain-infra). PR previews are a
+# separate path (Web Landing / Docs — bowrain → pages-deploy → R2); this
+# workflow is production only.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "bowrain/web/landing/**"
+      - "bowrain/web/docs/**"
+      - "packages/docs-shared/**"
+      - ".github/workflows/deploy-landing.yml"
+
+concurrency:
+  group: deploy-landing-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # The docs reference videos/screenshots from the CDN (cdn.bowrain.cloud) by
+      # URL, so nothing large is baked into the bundle. Same repo var the docs
+      # build already uses.
+      CDN_URL: ${{ vars.DOCS_CDN_URL }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version: "22"
+          cache: true
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install workspace dependencies
+        run: vp install
+
+      # landing/vite.config.ts imports @neokapi/kapi-react's vite plugin (a built
+      # ./dist subpath export) — build it first so the config loads (mirrors
+      # web-landing.yml / ci-frontend).
+      - name: Build kapi-react (landing vite plugin dependency)
+        run: cd packages/kapi-react && vp run build
+
+      # English only for the apex production build. The nb variant (dist/nb/) is
+      # a separate per-locale SPA root that the apex CloudFront router does not
+      # yet resolve, and nb is target-language drift (English is authoritative) —
+      # PR previews still build it via web-landing.yml. VITE_POSTHOG_KEY is the
+      # PUBLIC client-side key (same as _build-web.yml); prod always has analytics.
+      - name: Build bowrain-web-landing (apex root)
+        working-directory: bowrain/web/landing
+        env:
+          VITE_BASE: /
+          VITE_POSTHOG_KEY: phc_9TMOqaMSUH5wE6xPTeTKjYBBJWVRdzOlUMahZAr7twD
+          VITE_POSTHOG_HOST: https://eu.i.posthog.com
+        run: vp run build
+
+      # bowrain/web/docs is a standalone Docusaurus app (not in the pnpm
+      # workspace, by design — see PR #425); install it on its own.
+      - name: Install bowrain docs site dependencies
+        working-directory: bowrain/web/docs
+        run: corepack pnpm install --ignore-workspace --config.strict-dep-builds=false
+
+      # English only: nb is target-language drift (English is authoritative) and
+      # the nb locale root (/docs/nb/) needs directory-index routing the apex
+      # CloudFront function doesn't do yet. Deferred with the nb landing above.
+      - name: Build bowrain Docusaurus site (/docs/)
+        working-directory: bowrain/web/docs
+        env:
+          DOCS_BASE_URL: /docs/
+          DOCS_CDN_URL: ${{ env.CDN_URL }}
+          POSTHOG_KEY: phc_9TMOqaMSUH5wE6xPTeTKjYBBJWVRdzOlUMahZAr7twD
+          POSTHOG_HOST: https://eu.i.posthog.com
+        run: vpx docusaurus build --locale en
+
+      - name: Assemble site tree (landing at /, docs at /docs/)
+        run: |
+          set -euo pipefail
+          rm -rf site && mkdir -p site
+          cp -r bowrain/web/landing/dist/. site/
+          mkdir -p site/docs
+          cp -r bowrain/web/docs/build/. site/docs/
+
+      - name: Upload site artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: bowrain-apex-site
+          path: site
+          retention-days: 7
+
+  deploy:
+    name: Deploy to S3 + CloudFront
+    # No-op until the apex bucket exists: with LANDING_BUCKET unset the job is
+    # skipped and the workflow stays green (build + artifact only).
+    if: ${{ vars.LANDING_BUCKET != '' }}
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    environment: prod
+    steps:
+      - name: Download site
+        uses: actions/download-artifact@v8
+        with:
+          name: bowrain-apex-site
+          path: site
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # Sync fingerprinted assets long-cached-immutable; re-put HTML/JSON/XML with
+      # no-cache so a new release is picked up immediately (the final CloudFront
+      # invalidation purges the edge). One bucket holds both the landing at / and
+      # the docs at /docs/. Rollback = re-run this workflow from an older commit.
+      - name: Sync to S3 and invalidate CloudFront
+        env:
+          BUCKET: ${{ vars.LANDING_BUCKET }}
+          DISTRIBUTION_ID: ${{ vars.LANDING_DISTRIBUTION_ID }}
+        run: |
+          set -euo pipefail
+          aws s3 sync site "s3://$BUCKET" --delete \
+            --cache-control "public,max-age=31536000,immutable" \
+            --exclude "*.html" --exclude "*.xml" --exclude "*.txt" --exclude "*.json"
+          aws s3 sync site "s3://$BUCKET" \
+            --cache-control "no-cache" \
+            --exclude "*" --include "*.html" --include "*.xml" --include "*.txt" --include "*.json"
+          aws cloudfront create-invalidation \
+            --distribution-id "$DISTRIBUTION_ID" --paths "/*" > /dev/null

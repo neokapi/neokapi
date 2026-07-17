@@ -7,10 +7,14 @@ name: Pages Deploy
 #
 #   PRODUCTION (committed to neokapi.github.io)
 #     /                        kapi/framework Docusaurus site (SITE ROOT)
-#     /web/bowrain/            bowrain-web Vite app
-#     /web/bowrain/docs/       bowrain Docusaurus site
 #     /storybook/kapi/         kapi storybook
 #     /storybook/bowrain/      bowrain storybook
+#
+#   The bowrain landing + docs PRODUCTION site moved off GitHub Pages to
+#   https://bowrain.cloud (S3+CloudFront) — published by deploy-landing.yml. The
+#   Web Landing / Docs — bowrain workflows are now PR-preview only, so a
+#   production run of this workflow no longer receives their artifacts (the
+#   discover step simply finds none). PR previews below are unchanged.
 #
 #   PR PREVIEWS (synced to R2 previews/ prefix, served at $DOCS_PREVIEW_URL)
 #     /web/prs/{N}/...         site/app previews

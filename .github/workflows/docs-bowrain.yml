@@ -1,13 +1,12 @@
 name: Docs — bowrain
 
+# Builds the bowrain Docusaurus site for PR PREVIEWS (Pages Deploy → R2 at
+# /web/prs/<N>/bowrain/docs/). PRODUCTION now publishes to
+# https://bowrain.cloud/docs/ (S3+CloudFront) via deploy-landing.yml, so this
+# workflow is preview-only and no longer runs on push to main.
+
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "bowrain/web/docs/**"
-      - "packages/docs-shared/**"
-      - ".github/workflows/docs-bowrain.yml"
   pull_request:
     paths:
       - "bowrain/web/docs/**"
