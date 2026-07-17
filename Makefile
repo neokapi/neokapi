@@ -23,7 +23,20 @@ export VERSION     ?= $(shell git describe --tags --match 'v[0-9]*' --always --d
 export COMMIT      := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 export BUILD_DATE  := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 export VERSION_PKG := github.com/neokapi/neokapi/core/version
-export LDFLAGS     := -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
+# Opt-out CLI telemetry (epic 018, workstream G): release builds bake the
+# PostHog project key (and optionally a first-party endpoint) into
+# host/telemetry via ldflags. Both are OPTIONAL — unset, dev and self-built
+# binaries carry no key and emit nothing. Set KAPI_POSTHOG_KEY (and, for a
+# proxy host, KAPI_POSTHOG_ENDPOINT) in the release environment to enable.
+export TELEMETRY_PKG := github.com/neokapi/neokapi/host/telemetry
+LDFLAGS_X := -X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)
+ifneq ($(strip $(KAPI_POSTHOG_KEY)),)
+LDFLAGS_X += -X $(TELEMETRY_PKG).apiKey=$(KAPI_POSTHOG_KEY)
+ifneq ($(strip $(KAPI_POSTHOG_ENDPOINT)),)
+LDFLAGS_X += -X $(TELEMETRY_PKG).endpoint=$(KAPI_POSTHOG_ENDPOINT)
+endif
+endif
+export LDFLAGS     := -ldflags "$(LDFLAGS_X)"
 
 GO := go
 # FTS5 build tag is required by mattn/go-sqlite3 to enable FTS5 full-text
@@ -57,7 +70,7 @@ COVER_DIR := coverage
 # discovers no globally-installed plugins at all.
 # Prefix in-repo kapi calls with $(KAPI_ISO_ENV). See CLAUDE.md "Dogfooding".
 KAPI_ISO_DIR := $(CURDIR)/.kapi-iso
-KAPI_ISO_ENV := KAPI_NO_PROJECT=1 KAPI_PLUGINS_DIR_ONLY=1 KAPI_CONFIG_DIR=$(KAPI_ISO_DIR)/config XDG_DATA_HOME=$(KAPI_ISO_DIR)/data XDG_CACHE_HOME=$(KAPI_ISO_DIR)/cache
+KAPI_ISO_ENV := KAPI_NO_PROJECT=1 KAPI_TELEMETRY=0 KAPI_PLUGINS_DIR_ONLY=1 KAPI_CONFIG_DIR=$(KAPI_ISO_DIR)/config XDG_DATA_HOME=$(KAPI_ISO_DIR)/data XDG_CACHE_HOME=$(KAPI_ISO_DIR)/cache
 
 GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || { test -x "$$(go env GOPATH)/bin/golangci-lint" && echo "$$(go env GOPATH)/bin/golangci-lint"; })
 PROTOC        := $(shell which protoc 2>/dev/null)

@@ -79,6 +79,7 @@ func KapiCommandSet(a *App) []*cobra.Command {
 		NewBrandCmd(a),
 		NewCredentialsCmd(a),
 		NewConfigCmd(a),
+		NewTelemetryCmd(a),
 		NewVersionCmd(a, "kapi"),
 		NewUpdateCmd(a),
 		NewCompletionCmd(a),

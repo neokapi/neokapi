@@ -453,6 +453,7 @@ const config: Config = {
             { label: "MCP Server", to: "/reference/mcp" },
             { label: "Scripting & JSON contract", to: "/reference/cli-contract" },
             { label: "Engine service (gRPC)", to: "/reference/engine-service" },
+            { label: "Telemetry", to: "/reference/telemetry" },
           ],
         },
         {

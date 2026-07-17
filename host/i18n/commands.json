@@ -369,6 +369,20 @@
           "long": "Show, per target locale, how much of the project's tracked content is\ntranslated and whether it clears its ship gate — a derived dashboard, like\ngit status. Coverage is recomputed from the content × target files on every run;\nnothing is tracked as state.\n\nThis is the informational counterpart to 'kapi check --ship' (the quality gate). It\nnever fails: a locale that is behind is reported as pending, not an error —\ntarget-language drift is normal, expected work, not a build break.",
           "short": "Show per-locale translation coverage and ship-gate standing"
         },
+        "telemetry": {
+          "example": "  kapi telemetry status\n  kapi telemetry off",
+          "long": "kapi collects anonymous usage telemetry to guide development: the name of the\nbuilt-in command that ran, a coarse duration bucket, the exit class, the kapi\nversion, and the operating system and architecture, keyed by a random\nanonymous ID. It never collects arguments, flag values, file paths, file\ncontents, or project names.\n\nTelemetry is disabled by any of: 'kapi telemetry off', KAPI_TELEMETRY=0,\nDO_NOT_TRACK=1, a CI environment, a build made with -tags notelemetry, or a\nbuild without a telemetry key (any build you compile yourself).\n\nSee https://neokapi.github.io/reference/telemetry for the full event list.",
+          "off": {
+            "short": "Disable anonymous usage telemetry (persists to the global config file)"
+          },
+          "on": {
+            "short": "Enable anonymous usage telemetry (persists to the global config file)"
+          },
+          "short": "Show or change anonymous usage telemetry (status, on, off)",
+          "status": {
+            "short": "Show whether telemetry is enabled, why, and the exact payload shape"
+          }
+        },
         "termbase": {
           "example": "  kapi termbase stats\n  kapi termbase lookup \"dashboard\" -s en -t fr\n  kapi termbase import glossary.csv -s en -t fr",
           "export": {
