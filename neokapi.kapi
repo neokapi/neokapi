@@ -181,3 +181,31 @@ flows:
   pseudo:
     steps:
       - tool: pseudo-translate
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Customer #1: bowrain.cloud dogfood (INERT — see roadmap epic 017-F, decision D2)
+#
+# When this recipe grows a `server:` block, neokapi becomes the first real
+# workspace on Bowrain: `kapi push` sends every surface above to the server, the
+# nb drafts land in the governed review queue, and approved segments round-trip
+# back into l10n/tm/*.klftm. This is deliberately LEFT COMMENTED so that the
+# repo-root recipe stays a pure local project — an active server: block would
+# make EVERY in-repo kapi invocation bowrain-connected, which the isolation
+# contract (CLAUDE.md "Dogfooding kapi") does not want by default.
+#
+# Sequencing (decision D2): compose/dev now → flip the URL to production
+# bowrain.cloud the day epic 002's cloud-e2e passes. The flip doubles as the
+# production acceptance test.
+#
+# TO ACTIVATE (founder, post-signup — see the runbook at
+# web/docs/contribute/notes-internal/dogfood-sync.md):
+#   1. Sign up through the public funnel, create the `neokapi` workspace, claim
+#      the project; copy its compound project URL.
+#   2. Uncomment the block below and set `url:` to that compound URL.
+#   3. Add the repo secret BOWRAIN_AUTH_TOKEN and set the repo variable
+#      DOGFOOD_SYNC_ENABLED=true to arm .github/workflows/dogfood-sync.yml.
+#
+# server:
+#   url: "https://app.bowrain.cloud/neokapi/<project-id>"   # compound project URL
+#   stream: "$auto"      # auto-detect from git branch / CI (default)
+#   converge: on-push    # server runs the loop when a push lands content
