@@ -1,6 +1,6 @@
 {
   "name": "@neokapi/kapi-format",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": false,
   "description": "Canonical TypeScript schema for the Kapi Localization Format (KLF). Block/Run content model, reference Level-1 preview renderer, target validator, annotation overlay resolver. Mirrors core/klf in Go byte-for-byte against shared golden fixtures.",
   "repository": {
