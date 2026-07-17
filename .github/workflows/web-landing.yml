@@ -1,7 +1,9 @@
 name: Web Landing
 
-# Builds the bowrain-web-landing Vite app and uploads it as an artifact. Pages
-# Deploy picks it up and slots it at /web/bowrain/ on neokapi.github.io.
+# Builds the bowrain-web-landing Vite app and uploads it as an artifact for PR
+# PREVIEWS: Pages Deploy slots it at /web/prs/<N>/bowrain/ on R2. PRODUCTION now
+# publishes to https://bowrain.cloud (S3+CloudFront) via deploy-landing.yml — so
+# this workflow is preview-only and no longer runs on push to main.
 #
 # (The neokapi landing was retired: the neokapi Docusaurus site is now the
 # product landing page at /web/neokapi/, built by the "Docs — kapi" workflow.)
@@ -9,11 +11,6 @@ name: Web Landing
 on:
   workflow_dispatch:
   pull_request:
-    paths:
-      - "bowrain/web/landing/**"
-      - ".github/workflows/web-landing.yml"
-  push:
-    branches: [main]
     paths:
       - "bowrain/web/landing/**"
       - ".github/workflows/web-landing.yml"

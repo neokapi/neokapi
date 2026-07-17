@@ -26,15 +26,15 @@ const KAPI_WEB_SITE =
   process.env.KAPI_WEB_SITE || "https://neokapi.github.io/web/neokapi/";
 
 // URL of the Bowrain marketing landing page (the bowrain-web Vite app that sits
-// one level up from these docs, at /web/bowrain/). The top-left navbar logo
-// links here so it navigates back out to the product landing page; override via
-// env var locally to point at a localhost build of the bowrain site.
+// at the apex root, with these docs one level deeper at /docs/). The top-left
+// navbar logo links here so it navigates back out to the product landing page;
+// override via env var locally to point at a localhost build of the bowrain site.
 const BOWRAIN_WEB_SITE =
-  process.env.BOWRAIN_WEB_SITE || "https://neokapi.github.io/web/bowrain/";
+  process.env.BOWRAIN_WEB_SITE || "https://bowrain.cloud/";
 
 // PR previews are served from /web/prs/<N>/bowrain/docs/ (see baseUrl below);
-// production sits at /web/bowrain/docs/.
-const docsBaseUrl = process.env.DOCS_BASE_URL ?? "/web/bowrain/docs/";
+// production sits at /docs/ on the apex (https://bowrain.cloud/docs/).
+const docsBaseUrl = process.env.DOCS_BASE_URL ?? "/docs/";
 
 // Cookieless analytics (pageviews + app CTA clicks; see
 // src/clientModules/analytics.ts and @neokapi/docs-shared). Key-gated: with no
@@ -51,12 +51,12 @@ const config: Config = {
   tagline: "Keep your content on-brand, in every language — solo or as a team",
   favicon: "img/favicon.png",
 
-  url: "https://neokapi.github.io",
-  // The bowrain-web Vite app sits at /web/bowrain/; this Docusaurus instance
-  // lives one level deeper at /web/bowrain/docs/. PR previews are served from
-  // /web/prs/<N>/bowrain/docs/ instead, so the deploy workflow overrides the
-  // base path via DOCS_BASE_URL — without it, a preview build would bake the
-  // production prefix and 404 every asset (mirrors the kapi docs site).
+  url: "https://bowrain.cloud",
+  // The bowrain-web Vite app sits at the apex root (https://bowrain.cloud/);
+  // this Docusaurus instance lives one level deeper at /docs/. PR previews are
+  // served from /web/prs/<N>/bowrain/docs/ instead, so the deploy workflow
+  // overrides the base path via DOCS_BASE_URL — without it, a preview build
+  // would bake the production prefix and 404 every asset.
   baseUrl: docsBaseUrl,
 
   organizationName: "neokapi",
