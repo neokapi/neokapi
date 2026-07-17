@@ -24,10 +24,18 @@ import { Backend } from "./backend";
  * `getProject` is REST-first too (see the explicit override below): the server
  * project carries the collections, streams, and item/label model the web renders,
  * so the desktop project overview matches the web instead of the flat local-file
- * view. Its items are keyed by the same server item IDs the local working copy
- * uses, so the editor's local-first `getFileBlocks` still opens them. When the
- * server is unreachable it falls back to the local working copy so an offline
- * desktop still renders a cached project rather than an empty view.
+ * view. Items resolve by name (both sides generate item IDs independently), so
+ * the editor's local-first `getFileBlocks` still opens them. When the server is
+ * unreachable it falls back to the local working copy — normalized to the shared
+ * shape — so an offline desktop still renders a cached project rather than an
+ * empty view.
+ *
+ * `createProject` and `deleteProject` also fall through to REST (#1283): the
+ * desktop is a working copy, never a source of truth, so it must never mint a
+ * server-unknown project (which the now-server-sourced `getProject`/`listProjects`
+ * would then fail to show or open). A server mutation while offline fails loud
+ * via the connectivity error rather than queueing a local-only project that would
+ * 404 later; the Go create/close bindings stay for other callers.
  */
 const LOCAL_FIRST: ReadonlySet<string> = new Set<string>([
   "listMembers",
@@ -37,8 +45,6 @@ const LOCAL_FIRST: ReadonlySet<string> = new Set<string>([
   "listInvites",
   "createInvite",
   "deleteInvite",
-  "createProject",
-  "deleteProject",
   "uploadFiles",
   "removeFile",
   "listConnectors",
@@ -257,7 +263,18 @@ export function createDesktopAdapter(): ApiAdapter {
     } catch (err) {
       if (err instanceof ProxyConnectivityError) {
         const [ws, projectId] = args;
-        return wails.getProject(ws, projectId);
+        const local = await wails.getProject(ws, projectId);
+        // The local working-copy shape omits the server-only projection
+        // (collections/streams/active_stream). Default them explicitly so every
+        // shared consumer renders the offline flat view rather than risking a
+        // crash on a missing array, regardless of how it reads the project.
+        return {
+          ...local,
+          items: local.items ?? [],
+          collections: local.collections ?? [],
+          streams: local.streams ?? [],
+          active_stream: local.active_stream ?? "main",
+        };
       }
       throw err;
     }
