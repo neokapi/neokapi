@@ -73,6 +73,8 @@ import type {
   TranslationDashboardStats,
   ActivityInfo,
   ConvergenceRun,
+  ConvergenceEstimate,
+  ConvergenceRunScope,
   TaskInfo,
   CreateTaskRequest,
   NotificationPreference,
@@ -905,9 +907,20 @@ export interface ApiAdapter {
   startConvergenceRun(
     workspaceSlug: string,
     projectId: string,
-    opts?: { trigger?: string; locales?: string[] },
-  ): Promise<ConvergenceRun>;
+    opts?: {
+      trigger?: string;
+      locales?: string[];
+      scope?: ConvergenceRunScope;
+      confirmed?: boolean;
+    },
+  ): Promise<ConvergenceRun | null>;
   cancelConvergenceRun(workspaceSlug: string, projectId: string, runId: string): Promise<void>;
+  /**
+   * The provider-free pre-flight estimate for a project's next run (epic 019):
+   * source readiness first, then per-locale TM/AI work and credit cost for the
+   * ready source, then the workspace balance. Starts no run.
+   */
+  estimateConvergence(workspaceSlug: string, projectId: string): Promise<ConvergenceEstimate>;
 
   // Tasks (Bowrain AD-014)
   listTasks(

@@ -203,6 +203,10 @@ export { ConvergenceRunView } from "@neokapi/status-views";
 export type { ConvergenceRunViewProps } from "@neokapi/status-views";
 export { ConvergenceRunsList } from "./components/ConvergenceRunsList";
 export type { ConvergenceRunsListProps } from "./components/ConvergenceRunsList";
+export { ConvergenceRunContext } from "./components/ConvergenceRunContext";
+export type { ConvergenceRunContextProps } from "./components/ConvergenceRunContext";
+export { ConvergenceRunNowDialog } from "./components/ConvergenceRunNowDialog";
+export type { ConvergenceRunNowDialogProps } from "./components/ConvergenceRunNowDialog";
 export { reduceRun, applyEvent, emptyRunModel } from "@neokapi/status-views";
 export type {
   ConvergenceRunModel,
@@ -476,6 +480,12 @@ export type {
   ConvergenceRun,
   ConvergenceRunState,
   ConvergenceLocaleStanding,
+  ConvergenceEstimate,
+  ConvergenceSourceReadiness,
+  ConvergenceEstimateLocale,
+  ConvergenceEstimateTotals,
+  ConvergenceEstimateCredits,
+  ConvergenceRunScope,
   ConvergenceEvent,
   ConvergenceEventType,
   TaskInfo,

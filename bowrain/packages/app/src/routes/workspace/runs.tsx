@@ -1,25 +1,41 @@
 import { useEffect, useState } from "react";
-import { useParams } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, ConvergenceRunsList, ConvergenceRunView, useApi, useWorkspace } from "@neokapi/ui";
-import { convergenceRunsQueryOptions } from "../../queries";
+import {
+  AnalyticsEvents,
+  Card,
+  ConvergenceRunContext,
+  ConvergenceRunNowDialog,
+  ConvergenceRunsList,
+  ConvergenceRunView,
+  useAnalytics,
+  useApi,
+  useWorkspace,
+} from "@neokapi/ui";
+import type { ConvergenceRunScope } from "@neokapi/ui";
+import { convergenceEstimateQueryOptions, convergenceRunsQueryOptions } from "../../queries";
 import { useConvergenceRunEvents } from "../../hooks/useConvergenceRunEvents";
 import { usePlatform } from "../../platform";
 
 /**
  * Project-scoped Runs surface: the recent server-side convergence runs
- * ("the server runs `kapi up` for the team"), a "Run now" trigger, per-run
- * cancel, and a live detail pane driven by the selected run's SSE stream.
+ * ("the server runs `kapi up` for the team"), a source-readiness-first Run-now
+ * consent gate (epic 019), per-run cancel, and a live detail pane driven by the
+ * selected run's SSE stream. The detail pane renders the run's loop position and
+ * a labeled stall/hold banner with a next action — never a silent spinner.
  */
 export function RunsRoute() {
   const { projectId } = useParams({ strict: false });
   const { activeWorkspace } = useWorkspace();
   const api = useApi();
   const platform = usePlatform();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { capture } = useAnalytics();
   const ws = activeWorkspace?.slug ?? "";
 
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [consentOpen, setConsentOpen] = useState(false);
 
   useEffect(() => {
     if (activeWorkspace) {
@@ -33,6 +49,13 @@ export function RunsRoute() {
   });
   const runs = runsQuery.data ?? [];
 
+  // The pre-flight estimate — fetched only while the consent dialog is open.
+  const estimateQuery = useQuery({
+    ...convergenceEstimateQueryOptions(api, ws, projectId ?? ""),
+    enabled: consentOpen && !!ws && !!projectId,
+  });
+  const estimate = estimateQuery.data;
+
   // Default the detail pane to the newest run once the list loads.
   useEffect(() => {
     if (!selectedRunId && runs.length > 0) {
@@ -40,10 +63,28 @@ export function RunsRoute() {
     }
   }, [runs, selectedRunId]);
 
+  // Fire the estimate-viewed event once the estimate lands in the open dialog.
+  useEffect(() => {
+    if (consentOpen && estimate) {
+      capture(AnalyticsEvents.convergenceEstimateViewed, {
+        source_held: (estimate.source.held ?? 0) > 0,
+        covers_all_ai: estimate.credits?.covers_all_ai ?? true,
+      });
+    }
+  }, [consentOpen, estimate, capture]);
+
   const startRun = useMutation({
-    mutationFn: () => api.startConvergenceRun(ws, projectId ?? "", { trigger: "manual" }),
-    onSuccess: (run) => {
-      setSelectedRunId(run.id);
+    mutationFn: (scope: ConvergenceRunScope) =>
+      api.startConvergenceRun(ws, projectId ?? "", { trigger: "manual", scope, confirmed: true }),
+    onSuccess: (run, scope) => {
+      capture(AnalyticsEvents.convergenceRunStarted, {
+        scope,
+        source_held: (estimate?.source.held ?? 0) > 0,
+      });
+      setConsentOpen(false);
+      // Transport-only (scope "none") starts no run — the server answered 204 and
+      // the mutation resolves null; just refresh the list.
+      if (run) setSelectedRunId(run.id);
       void queryClient.invalidateQueries({ queryKey: ["convergenceRuns", ws, projectId] });
     },
   });
@@ -81,6 +122,12 @@ export function RunsRoute() {
 
   const selectedRun = runs.find((r) => r.id === selectedRunId);
 
+  // Next-action navigation for the stall/hold banner + consent dialog. Source
+  // review lands in the workspace task queue (AD-014); credits in settings.
+  const goToTasks = () => void navigate({ to: "/$workspace/tasks", params: { workspace: ws } });
+  const goToBilling = () =>
+    void navigate({ to: "/$workspace/settings/billing", params: { workspace: ws } });
+
   return (
     <div className="mx-auto w-full max-w-5xl p-4 md:p-6 space-y-6">
       <ConvergenceRunsList
@@ -90,12 +137,19 @@ export function RunsRoute() {
         starting={startRun.isPending}
         cancelingRunId={cancelRun.isPending ? cancelRun.variables : null}
         onSelect={setSelectedRunId}
-        onRunNow={() => startRun.mutate()}
+        onRunNow={() => setConsentOpen(true)}
         onCancel={(runId) => cancelRun.mutate(runId)}
       />
 
-      {selectedRunId && (
-        <Card className="p-4">
+      {selectedRunId && selectedRun && (
+        <Card className="p-4 space-y-4">
+          <ConvergenceRunContext
+            run={selectedRun}
+            live={platform.kind === "web" && !model.done}
+            onSettleSource={goToTasks}
+            onBuyCredits={goToBilling}
+            onOpenReview={goToTasks}
+          />
           <ConvergenceRunView
             model={model}
             run={selectedRun}
@@ -104,6 +158,18 @@ export function RunsRoute() {
           />
         </Card>
       )}
+
+      <ConvergenceRunNowDialog
+        open={consentOpen}
+        onOpenChange={setConsentOpen}
+        estimate={estimate}
+        loading={estimateQuery.isLoading}
+        error={estimateQuery.error ? String(estimateQuery.error) : undefined}
+        starting={startRun.isPending}
+        onStart={(scope) => startRun.mutate(scope)}
+        onSettleSource={goToTasks}
+        onBuyCredits={goToBilling}
+      />
     </div>
   );
 }

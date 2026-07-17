@@ -36,8 +36,18 @@ type ConvergenceRun struct {
 	Locales       []ConvergenceLocaleStanding `json:"locales,omitempty"`
 	FailingChecks int                         `json:"failing_checks,omitempty"`
 	Error         string                      `json:"error,omitempty"` // set when State is failed/canceled
-	CreatedAt     time.Time                   `json:"created_at,omitzero"`
-	FinishedAt    *time.Time                  `json:"finished_at,omitempty"`
+	// StallReason is the machine-readable cause a run did not converge
+	// (needs_credits | source_not_ready | needs_ai_key | …), so the CLI/UI offers
+	// the right next action (epic 019). Empty on a converged run.
+	StallReason string `json:"stall_reason,omitempty"`
+	// CurrentStage/CurrentLocale surface the run's live loop position
+	// (settle-source | translate | …); BlockedOnSource is how many source blocks
+	// the settle phase held below the gate ("settle your source first").
+	CurrentStage    string     `json:"current_stage,omitempty"`
+	CurrentLocale   string     `json:"current_locale,omitempty"`
+	BlockedOnSource int        `json:"blocked_on_source,omitempty"`
+	CreatedAt       time.Time  `json:"created_at,omitzero"`
+	FinishedAt      *time.Time `json:"finished_at,omitempty"`
 }
 
 // ConvergenceLocaleStanding is one locale's standing within a run — the final
@@ -50,6 +60,87 @@ type ConvergenceLocaleStanding = convergence.LocaleStanding
 type StartConvergenceRunRequest struct {
 	Trigger string   `json:"trigger"`           // cli | push | manual (defaults to manual server-side)
 	Locales []string `json:"locales,omitempty"` // limit to these locales; empty = all pending
+	// Scope is the epic-019 pre-flight consent scope: all | ready-only | none.
+	// Empty defaults to "all". "none" is transport-only (no run started).
+	Scope string `json:"scope,omitempty"`
+	// Confirmed records explicit estimate confirmation (analytics/audit).
+	Confirmed bool `json:"confirmed,omitempty"`
+}
+
+// ConvergenceEstimate is the provider-free pre-flight the server computes before
+// a run (epic 019, theme B): source readiness first, then the per-locale TM/AI
+// split and credit cost for the ready source, then the workspace balance. It
+// mirrors the server's convergenceEstimateView.
+type ConvergenceEstimate struct {
+	Source  ConvergenceSourceReadiness  `json:"source"`
+	Locales []ConvergenceEstimateLocale `json:"locales,omitempty"`
+	Totals  ConvergenceEstimateTotals   `json:"totals"`
+	Credits *ConvergenceEstimateCredits `json:"credits,omitempty"`
+	Note    string                      `json:"note,omitempty"`
+}
+
+// ConvergenceSourceReadiness is the source-first split: ready vs. held on the
+// gate.
+type ConvergenceSourceReadiness struct {
+	Gate  string `json:"gate"`
+	Total int    `json:"total"`
+	Ready int    `json:"ready"`
+	Held  int    `json:"held"`
+}
+
+// ConvergenceEstimateLocale is one locale's estimated work over the ready
+// source.
+type ConvergenceEstimateLocale struct {
+	Locale        string `json:"locale"`
+	Pending       int    `json:"pending"`
+	ViaTM         int    `json:"via_tm"`
+	ViaAI         int    `json:"via_ai"`
+	TokenEstimate int    `json:"token_estimate"`
+}
+
+// ConvergenceEstimateTotals rolls the per-locale work up across locales.
+type ConvergenceEstimateTotals struct {
+	Pending       int `json:"pending"`
+	ViaTM         int `json:"via_tm"`
+	ViaAI         int `json:"via_ai"`
+	TokenEstimate int `json:"token_estimate"`
+}
+
+// ConvergenceEstimateCredits is the credit/$ side: the AI remainder's cost, the
+// workspace balance, and how much of the AI work it covers.
+type ConvergenceEstimateCredits struct {
+	EstimatedCredits int64   `json:"estimated_credits"`
+	EstimatedUSD     float64 `json:"estimated_usd"`
+	Balance          int64   `json:"balance"`
+	CoversAllAI      bool    `json:"covers_all_ai"`
+	CoversAIUnits    int     `json:"covers_ai_units"`
+}
+
+// EstimateConvergence fetches the provider-free pre-flight estimate for the
+// project's next run. It starts no run and calls no AI provider.
+func (c *BowrainClient) EstimateConvergence(ctx context.Context) (*ConvergenceEstimate, error) {
+	if c == nil {
+		return nil, errors.New("bowrain: project is not connected to a server")
+	}
+	url := c.projectPrefix() + "/convergence/estimate"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	resp, err := c.doRequest(req)
+	if err != nil {
+		return nil, fmt.Errorf("estimate convergence: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("estimate convergence (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+	var est ConvergenceEstimate
+	if err := json.NewDecoder(resp.Body).Decode(&est); err != nil {
+		return nil, fmt.Errorf("decode estimate: %w", err)
+	}
+	return &est, nil
 }
 
 // convergencePrefix is the project-scoped base for run endpoints.
