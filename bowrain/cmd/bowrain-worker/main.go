@@ -15,6 +15,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/neokapi/neokapi/bowrain/agent"
+	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/cmd/internal/boot"
@@ -234,6 +235,20 @@ func runWorker(dbURL string) error {
 		ProviderStore: providerStore,
 		Queue:         translationQueue,
 		QuotaStore:    pgQS,
+	}
+
+	// Product analytics (epic 018): the worker emits content_pushed after sync
+	// push processing. Keyless deployments stay silent (nil tracker). Mirrors
+	// the server's POSTHOG_API_KEY / POSTHOG_HOST configuration.
+	if phKey := os.Getenv("POSTHOG_API_KEY"); phKey != "" {
+		phClient, err := analytics.NewPostHogClient(phKey, os.Getenv("POSTHOG_HOST"))
+		if err != nil {
+			slog.Warn("failed to init PostHog client, analytics disabled", "error", err)
+		} else {
+			translationDeps.Tracker = phClient
+			defer func() { _ = phClient.Close() }()
+			slog.Info("PostHog analytics enabled")
+		}
 	}
 
 	// Wire billing credit deduction + Stripe meter reporting into the worker

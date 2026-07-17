@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/analytics"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -382,6 +383,20 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 				}
 			}
 		}
+	}
+
+	// Fire-and-forget analytics: only pulls that actually returned changed
+	// content emit, so sync polling with no changes stays silent. Counts are
+	// bucketed; never content.
+	if s.PostHogClient != nil && len(resp.Blocks) > 0 {
+		userID, _ := c.Get("user_id").(string)
+		props := analytics.Props("", projectID)
+		if wsID, ok := c.Get("workspace_id").(string); ok && wsID != "" {
+			props[analytics.PropWorkspaceID] = wsID
+		}
+		props["block_count_bucket"] = analytics.CountBucket(len(resp.Blocks))
+		props["has_more"] = resp.HasMore
+		s.trackEvent(userID, analytics.EventContentPulled, props)
 	}
 
 	return writePullResponse(c, resp)

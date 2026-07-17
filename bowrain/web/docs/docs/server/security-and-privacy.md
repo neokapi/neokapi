@@ -126,11 +126,15 @@ deployments run wherever you run them.
 
 ## Analytics
 
-The web app can send product-analytics events to PostHog. The default ingestion
-host is PostHog's EU host (`eu.i.posthog.com`), and analytics are only active when
-an analytics key is configured — a deployment with no key configured sends no
-events. Analytics cover product usage and conversion, not billing or access
-decisions, which run entirely on the server. A self-hosted deployment that does
+The web app and the server can send product-analytics events to PostHog. The
+default ingestion host is PostHog's EU host (`eu.i.posthog.com`), and analytics
+are only active when an analytics key is configured — a deployment with no key
+configured sends no events. Server-side events cover product usage and
+conversion: workspace, project, and membership lifecycle; flow runs; content
+sync and connector publishes; review decisions; and the subscription funnel.
+Events carry identifiers, outcomes, and bucketed counts — never your content,
+file paths, or source text — and billing and access decisions themselves run
+entirely on the server, outside analytics. A self-hosted deployment that does
 not configure a key collects no product analytics.
 
 ## Your content: ownership and export

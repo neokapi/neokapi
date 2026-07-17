@@ -7,6 +7,8 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/labstack/echo/v4"
+
+	"github.com/neokapi/neokapi/bowrain/analytics"
 )
 
 // contextKeyWorkspacePlan is the echo context key for the workspace plan.
@@ -50,7 +52,7 @@ func PlanGuard(feature Feature, onBlock ...GuardEventFunc) echo.MiddlewareFunc {
 
 			if len(onBlock) > 0 && onBlock[0] != nil {
 				wsID, _ := c.Get("workspace_id").(string)
-				onBlock[0]("billing.feature_gate_hit", wsID, map[string]any{
+				onBlock[0](analytics.EventFeatureGateHit, wsID, map[string]any{
 					"feature":      string(feature),
 					"plan":         planStr,
 					"minimum_plan": string(MinimumPlanFor(feature)),
@@ -90,7 +92,7 @@ func RequireFeature(c echo.Context, feature Feature, onBlock ...GuardEventFunc) 
 
 	if len(onBlock) > 0 && onBlock[0] != nil {
 		wsID, _ := c.Get("workspace_id").(string)
-		onBlock[0]("billing.feature_gate_hit", wsID, map[string]any{
+		onBlock[0](analytics.EventFeatureGateHit, wsID, map[string]any{
 			"feature":      string(feature),
 			"plan":         planStr,
 			"minimum_plan": string(MinimumPlanFor(feature)),
@@ -155,7 +157,7 @@ func creditsExhaustedResponse(c echo.Context, plan Plan, onBlock ...GuardEventFu
 	c.Response().Header().Set("Retry-After", retryAfter.Format(time.RFC1123))
 	if len(onBlock) > 0 && onBlock[0] != nil {
 		workspaceID, _ := c.Get("workspace_id").(string)
-		onBlock[0]("billing.credits_exhausted", workspaceID, map[string]any{
+		onBlock[0](analytics.EventCreditsExhausted, workspaceID, map[string]any{
 			"plan": string(plan),
 			"path": c.Path(),
 		})

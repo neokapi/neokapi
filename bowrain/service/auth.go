@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/core/id"
@@ -19,6 +20,10 @@ import (
 type AuthService struct {
 	store     auth.AuthStore
 	jwtSecret string
+
+	// tracker captures workspace/member/project lifecycle analytics events.
+	// Optional; nil disables capture (see Services.SetEventTracker).
+	tracker EventTracker
 }
 
 // NewAuthService creates a new AuthService.
@@ -253,7 +258,13 @@ func (s *AuthService) CreateWorkspaceWithOwner(ctx context.Context, w *platauth.
 		return fmt.Errorf("add owner: %w", err)
 	}
 	// Seed default role templates for the new workspace.
-	if err := s.store.SeedDefaultRoleTemplates(ctx, w.ID); err != nil {
+	seedErr := s.store.SeedDefaultRoleTemplates(ctx, w.ID)
+
+	props := analytics.Props(w.ID, "")
+	props["workspace_type"] = string(w.Type)
+	track(s.tracker, ownerID, analytics.EventWorkspaceCreated, props)
+
+	if seedErr != nil {
 		// Log but don't fail — workspace and owner were created successfully.
 		return nil
 	}
@@ -333,6 +344,9 @@ func (s *AuthService) ClaimProject(ctx context.Context, userID, claimToken strin
 		return "", "", fmt.Errorf("delete unclaimed: %w", err)
 	}
 
+	track(s.tracker, userID, analytics.EventProjectClaimed,
+		analytics.Props(personalWS.ID, unclaimed.ProjectID))
+
 	return unclaimed.ProjectID, personalWS.Slug, nil
 }
 
@@ -361,6 +375,11 @@ func (s *AuthService) CreateInvite(ctx context.Context, workspaceID, createdBy s
 	if err := s.store.CreateInvite(ctx, inv); err != nil {
 		return nil, err
 	}
+
+	props := analytics.Props(workspaceID, "")
+	props["role"] = string(role)
+	track(s.tracker, createdBy, analytics.EventMemberInvited, props)
+
 	return inv, nil
 }
 
@@ -454,6 +473,10 @@ func (s *AuthService) AcceptInvite(ctx context.Context, code, userID string) err
 	if err := s.store.IncrementInviteUseCount(ctx, inv.ID); err != nil {
 		return fmt.Errorf("increment use count: %w", err)
 	}
+
+	props := analytics.Props(inv.WorkspaceID, "")
+	props["role"] = string(inv.Role)
+	track(s.tracker, userID, analytics.EventMemberJoined, props)
 
 	return nil
 }

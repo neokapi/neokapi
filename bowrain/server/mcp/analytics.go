@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/neokapi/neokapi/bowrain/analytics"
 )
 
 // EventTracker captures product analytics events.
@@ -52,7 +54,7 @@ func (s *MCPServer) trackSessionStart(req mcp.Request) {
 	if wsID := extractWorkspaceID(req); wsID != "" {
 		props["workspace_id"] = wsID
 	}
-	s.tracker.TrackEvent(userID, "mcp_session_start", props)
+	s.tracker.TrackEvent(userID, analytics.EventMCPSessionStart, props)
 }
 
 // trackToolCall emits an mcp_tool_call event.
@@ -84,7 +86,7 @@ func (s *MCPServer) trackToolCall(req mcp.Request) {
 		}
 	}
 
-	s.tracker.TrackEvent(userID, "mcp_tool_call", props)
+	s.tracker.TrackEvent(userID, analytics.EventMCPToolCall, props)
 }
 
 // trackResourceRead emits an mcp_resource_read event.
@@ -102,7 +104,7 @@ func (s *MCPServer) trackResourceRead(req mcp.Request) {
 		}
 	}
 
-	s.tracker.TrackEvent(userID, "mcp_resource_read", props)
+	s.tracker.TrackEvent(userID, analytics.EventMCPResourceRead, props)
 }
 
 // extractUserID returns the user ID from the request's bearer token info,

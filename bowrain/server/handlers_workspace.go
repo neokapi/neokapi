@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -98,6 +99,15 @@ func (s *Server) HandleCreateWorkspace(c echo.Context) error {
 	}
 	billing.SetupTrialWith(ctx, s.BillingStore, w.ID,
 		billing.Plan(s.PlatformConfig.DefaultPlan()), s.PlatformConfig.TrialDays(), planSyncer)
+
+	// The trial is local and card-free, so it never surfaces as a Stripe
+	// webhook — this call site is where trial_started is known (epic 018).
+	if s.BillingStore != nil {
+		props := analytics.Props(w.ID, "")
+		props["plan"] = s.PlatformConfig.DefaultPlan()
+		props["trial_days"] = s.PlatformConfig.TrialDays()
+		s.trackEvent(userID, analytics.EventTrialStarted, props)
+	}
 
 	// Re-read workspace to reflect synced plan in the response.
 	if updated, err := s.AuthStore.GetWorkspace(ctx, w.ID); err == nil {
