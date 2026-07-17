@@ -207,29 +207,22 @@ flows:
       - tool: pseudo-translate
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Customer #1: bowrain.cloud dogfood (INERT — see roadmap epic 017-F, decision D2)
+# Customer #1: bowrain.cloud dogfood — ACTIVATED 2026-07-17 (epic 017-F, D2)
 #
-# When this recipe grows a `server:` block, neokapi becomes the first real
-# workspace on Bowrain: `kapi push` sends every surface above to the server, the
-# nb drafts land in the governed review queue, and approved segments round-trip
-# back into l10n/tm/*.klftm. This is deliberately LEFT COMMENTED so that the
-# repo-root recipe stays a pure local project — an active server: block would
-# make EVERY in-repo kapi invocation bowrain-connected, which the isolation
-# contract (CLAUDE.md "Dogfooding kapi") does not want by default.
+# neokapi is the first real workspace on Bowrain. `kapi push` sends every surface
+# above to the project below; nb drafts land in the governed review queue and
+# approved segments round-trip back into l10n/tm/*.klftm. converge: on-push runs
+# the loop on the server when a push lands content.
 #
-# Sequencing (decision D2): compose/dev now → flip the URL to production
-# bowrain.cloud the day epic 002's cloud-e2e passes. The flip doubles as the
-# production acceptance test.
+# This `server:` block makes the recipe bowrain-connected. It is the ONLY in-repo
+# kapi invocation that binds here — every other one isolates via KAPI_NO_PROJECT
+# (CLAUDE.md "Dogfooding kapi"), so tests / make targets / recorders are
+# unaffected. The nightly + manual sync runs in .github/workflows/dogfood-sync.yml
+# (gated on the DOGFOOD_SYNC_ENABLED repo variable, token in BOWRAIN_AUTH_TOKEN).
 #
-# TO ACTIVATE (founder, post-signup — see the runbook at
-# web/docs/contribute/notes-internal/dogfood-sync.md):
-#   1. Sign up through the public funnel, create the `neokapi` workspace, claim
-#      the project; copy its compound project URL.
-#   2. Uncomment the block below and set `url:` to that compound URL.
-#   3. Add the repo secret BOWRAIN_AUTH_TOKEN and set the repo variable
-#      DOGFOOD_SYNC_ENABLED=true to arm .github/workflows/dogfood-sync.yml.
-#
-# server:
-#   url: "https://app.bowrain.cloud/neokapi/<project-id>"   # compound project URL
-#   stream: "$auto"      # auto-detect from git branch / CI (default)
-#   converge: on-push    # server runs the loop when a push lands content
+# To disconnect: re-comment this block and unset DOGFOOD_SYNC_ENABLED. Runbook:
+# web/docs/contribute/notes-internal/dogfood-sync.md
+server:
+  url: "https://app.bowrain.cloud/bowrain-hq/uek630Q5"   # <server>/<workspace>/<project-id>
+  stream: "$auto"      # auto-detect from git branch / CI (default)
+  converge: on-push    # server runs the loop when a push lands content

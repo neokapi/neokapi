@@ -51,14 +51,20 @@ jobs:
           cache: true
 
       - name: Build kapi + the kapi-bowrain plugin
-        # The plugin must be discoverable by the kapi binary at run time. The
-        # exact install/discovery wiring (KAPI_PLUGINS_DIR vs. a system install)
-        # is the one step to confirm at activation — it cannot be exercised here
-        # until a server exists. `make install-kapi-bowrain-plugin` is the
-        # intended path; adjust if discovery needs a KAPI_PLUGINS_DIR export.
+        run: make build build-bowrain-plugin
+
+      - name: Install the kapi-bowrain plugin for discovery
+        # kapi discovers plugins from $KAPI_PLUGINS_DIR/<name>/{binary,manifest.json},
+        # where <name> is the manifest's plugin name ("bowrain"). Stage the built
+        # binary + its manifest under that layout and export the dir for the
+        # subsequent steps (GITHUB_ENV persists it across steps).
         run: |
-          make build build-bowrain-plugin
-          make install-kapi-bowrain-plugin
+          PLUGDIR="$RUNNER_TEMP/kapi-plugins"
+          mkdir -p "$PLUGDIR/bowrain"
+          cp bin/kapi-bowrain "$PLUGDIR/bowrain/"
+          cp bowrain/plugin/cmd/kapi-bowrain/manifest.json "$PLUGDIR/bowrain/"
+          echo "KAPI_PLUGINS_DIR=$PLUGDIR" >> "$GITHUB_ENV"
+          ./bin/kapi plugins list --plugins-dir "$PLUGDIR" || KAPI_PLUGINS_DIR="$PLUGDIR" ./bin/kapi plugins list
 
       - name: Guard — recipe must declare a server block
         run: |
