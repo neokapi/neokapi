@@ -135,6 +135,27 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 		}
 	}
 
+	// --explain is a plan, never a run: render the resolved bindings and
+	// locale passes and return before any tool is built, store or TM opened,
+	// or file written. The built-in path gates this inside RunFlow; without
+	// this gate the project-flow path fell through to execution and wrote
+	// outputs project-wide (#1295).
+	if explain, _ := cmd.Flags().GetBool("explain"); explain {
+		outputFlag, _ := cmd.Flags().GetString("output")
+		locales := []string{a.TargetLang}
+		if !cmd.Flags().Changed("target-lang") {
+			if passes := flow.ResolveFlowLocales(spec, flow.BuildToolInfoMap(a.ToolReg), a.SourceLang, localeStrings(ctx.TargetLocales)); len(passes) > 0 {
+				locales = locales[:0]
+				for _, pass := range passes {
+					if len(pass) > 1 {
+						locales = append(locales, pass[1])
+					}
+				}
+			}
+		}
+		return explainProjectFlowRun(cmd.OutOrStdout(), flowName, inputPaths, outputFlag, locales)
+	}
+
 	// Store project context for downstream reader/writer configuration.
 	a.ProjectContext = ctx
 	defer func() { a.ProjectContext = nil }()

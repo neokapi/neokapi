@@ -169,6 +169,32 @@ func explainBindings(w io.Writer, flowName string, inputPaths []string, outputFl
 	return err
 }
 
+// explainProjectFlowRun renders the plan for a project-defined flow run
+// without executing it — the project-path counterpart of explainBindings
+// (kapi run <project-flow> --explain), sharing its source → sink rendering.
+// One binding line per resolved input (explicit -i or content-derived), then
+// the locale pass(es) the run would execute. Plan only: no tool is built, no
+// store or TM is opened, and nothing is written (#1295).
+func explainProjectFlowRun(w io.Writer, flowName string, inputPaths []string, outputFlag string, locales []string) error {
+	for _, in := range inputPaths {
+		if err := explainBindings(w, flowName, []string{in}, outputFlag); err != nil {
+			return err
+		}
+	}
+	shown := make([]string, 0, len(locales))
+	for _, l := range locales {
+		if l != "" {
+			shown = append(shown, l)
+		}
+	}
+	if len(shown) > 0 {
+		if _, err := fmt.Fprintf(w, "locales: %s\n", strings.Join(shown, ", ")); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ListFlows outputs the list of available flows.
 func (a *App) ListFlows(cmd Command, opts FlowCmdOptions) error {
 	flows := builtinComposedFlows()
