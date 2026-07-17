@@ -446,12 +446,16 @@ func (a *App) Disconnect() {
 	a.StopWatching()
 
 	a.mu.Lock()
-	defer a.mu.Unlock()
-
 	a.remoteHTTP = nil
 	a.connState = StateDisconnected
 	a.authInfo = nil
 	a.activeWS = ""
+	a.mu.Unlock()
+
+	// A disconnect is a state change the gate must observe — sign-out and a
+	// rejected session demote to the connect screen. emitConnectionState takes
+	// the lock, so emit after releasing it.
+	a.emitConnectionState()
 }
 
 // editorRemote returns the REST editor client and active workspace slug under

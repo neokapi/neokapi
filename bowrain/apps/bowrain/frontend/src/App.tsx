@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { ThemeProvider } from "@neokapi/ui";
 import { BowrainApp } from "@neokapi/bowrain-app";
 import { createHashHistory } from "@tanstack/react-router";
@@ -6,12 +6,15 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { Events } from "@wailsio/runtime";
 import { ServerConnect } from "./components/ServerConnect";
+import { OfflineLaunch } from "./components/OfflineLaunch";
 import { useConnection } from "./hooks/useApi";
 import { createDesktopAdapter } from "./api/desktopAdapter";
 import { createDesktopPlatform } from "./api/desktopPlatform";
 import { queryClient } from "./lib/queryClient";
 
-type AppMode = "loading" | "connecting" | "ready";
+// "offline" is the designed launch state (#1284): the server is configured but
+// unreachable, distinct from "connecting" (no/expired session → sign in).
+type AppMode = "loading" | "connecting" | "offline" | "ready";
 
 // One adapter + platform + history for the app's lifetime.
 //
@@ -37,6 +40,12 @@ const desktopHistory = createHashHistory();
 function AppInner() {
   const connection = useConnection();
   const [mode, setMode] = useState<AppMode>("loading");
+  // Mirror mode for async guards: a stale probe finishing after a user action
+  // (e.g. "Use a different server") must not override the new state.
+  const modeRef = useRef<AppMode>("loading");
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
 
   // The shared app reads projects via the adapter, which proxies the backend's
   // currently-selected server workspace. Make sure one is selected so those
@@ -56,6 +65,57 @@ function AppInner() {
     [connection],
   );
 
+  // The backend reports "connected" optimistically from a stored token without a
+  // round-trip, so a launch probe is what tells apart three outcomes:
+  //   "app"     — reachable and authenticated (getConfig ok, getCurrentUser ok)
+  //   "signin"  — reachable but the session is rejected (getConfig is public, so
+  //               getCurrentUser returning null is the real signal)
+  //   "offline" — the server is unreachable at all
+  // getConfig seeds the shared config cache so the router's own first getConfig
+  // reuses it (no second round-trip, no race); getCurrentUser seeds the user.
+  const probeLaunch = useCallback(async (): Promise<"app" | "signin" | "offline"> => {
+    let config;
+    try {
+      config = await desktopAdapter.getConfig();
+    } catch {
+      // Unreachable / transport failure — stay in the calm offline state.
+      return "offline";
+    }
+    queryClient.setQueryData(["config"], config);
+    // Reachable — is the stored session still valid? getConfig is unauthenticated,
+    // so this is what distinguishes a rejected token (sign-in) from connected.
+    const user = await desktopAdapter.getCurrentUser();
+    if (!user) return "signin";
+    queryClient.setQueryData(["currentUser"], user);
+    return "app";
+  }, []);
+
+  // Act on a launch probe: enter the app, drop the dead session to sign-in, or
+  // fall into the offline-launch state. Returns true once it has left the probing
+  // state (so the offline retry loop can stop); false means "still offline".
+  const applyProbeOutcome = useCallback(
+    async (ci: { workspace?: string }): Promise<boolean> => {
+      const outcome = await probeLaunch();
+      // A concurrent user action may have moved us out of the launch/offline flow
+      // (e.g. "Use a different server" → sign-in) while this probe was in flight —
+      // don't let the stale result override it.
+      if (modeRef.current !== "loading" && modeRef.current !== "offline") return true;
+      if (outcome === "app") {
+        await ensureWorkspaceSelected(ci);
+        setMode("ready");
+        return true;
+      }
+      if (outcome === "signin") {
+        await connection.logout(); // clear the rejected token so sign-in starts clean
+        setMode("connecting");
+        return true;
+      }
+      setMode("offline");
+      return false;
+    },
+    [probeLaunch, ensureWorkspaceSelected, connection],
+  );
+
   const handleServerConnect = useCallback(
     async (serverURL: string) => {
       const ci = await connection.connect(serverURL);
@@ -68,28 +128,47 @@ function AppInner() {
     [connection, ensureWorkspaceSelected],
   );
 
-  // Keep the gate responsive to backend connection changes (the auto-connect
-  // race, where the first refresh() returns disconnected): refresh the snapshot
-  // whenever the backend reports a change.
+  // Re-probe from the offline-launch state (auto-retry + manual "Try again").
+  // Reachable → enter the app; a rejected session → sign-in. Either way the
+  // retry loop stops (true); false keeps the offline state waiting.
+  const handleOfflineRetry = useCallback(async (): Promise<boolean> => {
+    const ci = await connection.refresh();
+    if (ci.state === "disconnected") {
+      setMode("connecting");
+      return true;
+    }
+    return applyProbeOutcome(ci);
+  }, [connection, applyProbeOutcome]);
+
+  // "Use a different server": drop the (unreachable) connection so the optimistic
+  // "connected" state can't auto-promote, then show the ServerConnect form.
+  const handleUseDifferentServer = useCallback(async () => {
+    await connection.disconnect();
+    setMode("connecting");
+  }, [connection]);
+
+  // A rejected/expired session (sign-out, or a 401 the adapter could not refresh)
+  // disconnects the backend — route that to ServerConnect sign-in, whether from
+  // the app, the offline-launch state, or launch itself. A mid-session network
+  // drop reports "offline" (a valid cached working copy) and stays in the app.
   useEffect(() => {
     const cancel = Events.On("connection-state-changed", () => {
-      void connection.refresh();
+      void connection.refresh().then((ci) => {
+        if (ci.state === "disconnected") setMode("connecting");
+      });
     });
     return () => cancel?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Promote to the app once the backend reports connected.
-  useEffect(() => {
-    if (connection.info.state === "connected" && mode === "connecting") {
-      setMode("ready");
-    }
-  }, [connection.info.state, mode]);
+  // Entering the app always goes through a reachability probe (launch effect,
+  // handleServerConnect, handleOfflineRetry) — never a bare "connected" state,
+  // which is optimistic and would mount against an unreachable server.
 
-  // Demote back to the gate when the session drops after mounting — the desktop
-  // sign-out (platform.signOut → Logout) disconnects, and this returns the user
-  // to ServerConnect. A transient network blip reports "offline" (still a valid
-  // working copy), so only a true disconnect/unauthenticated state demotes.
+  // Demote out of the mounted app when the session drops — the desktop sign-out
+  // (platform.signOut → Logout) disconnects, returning the user to ServerConnect.
+  // A transient network blip reports "offline" (still a valid working copy), so
+  // only a true disconnect/unauthenticated state demotes.
   useEffect(() => {
     if (
       mode === "ready" &&
@@ -100,14 +179,21 @@ function AppInner() {
     }
   }, [connection.info.state, mode]);
 
-  // Initial probe: reuse a stored/auto session if present, else show the gate.
+  // Launch: reuse a stored/auto session if present. "connected" is optimistic, so
+  // verify reachability — reachable enters the app, unreachable shows the
+  // offline-launch state. No/expired session shows sign-in.
   useEffect(() => {
+    let aborted = false;
     connection
       .refresh()
       .then(async (ci) => {
-        if (ci.state === "connected" || ci.state === "offline") {
+        if (aborted) return;
+        if (ci.state === "connected") {
+          if (!aborted) await applyProbeOutcome(ci);
+        } else if (ci.state === "offline") {
+          // Backend already holds a mid-session offline working copy — mount it.
           await ensureWorkspaceSelected(ci);
-          setMode("ready");
+          if (!aborted) setMode("ready");
         } else if ((window as { __skipConnection?: boolean }).__skipConnection) {
           setMode("ready");
         } else {
@@ -115,10 +201,15 @@ function AppInner() {
         }
       })
       .catch(() => {
-        setMode(
-          (window as { __skipConnection?: boolean }).__skipConnection ? "ready" : "connecting",
-        );
+        if (!aborted) {
+          setMode(
+            (window as { __skipConnection?: boolean }).__skipConnection ? "ready" : "connecting",
+          );
+        }
       });
+    return () => {
+      aborted = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -149,6 +240,27 @@ function AppInner() {
             onStartLogin={connection.startLogin}
             onWaitForLogin={connection.waitForLogin}
             onCancelLogin={connection.cancelLogin}
+          />
+        </div>
+      </ThemeProvider>
+    );
+  }
+
+  if (mode === "offline") {
+    return (
+      <ThemeProvider>
+        <div className="h-screen bg-background flex flex-col">
+          <div
+            className="h-10 shrink-0"
+            style={{
+              // @ts-expect-error non-standard CSS property for Wails
+              "--wails-draggable": "drag",
+            }}
+          />
+          <OfflineLaunch
+            serverURL={connection.info.server_url || ""}
+            onRetry={handleOfflineRetry}
+            onUseDifferentServer={handleUseDifferentServer}
           />
         </div>
       </ThemeProvider>

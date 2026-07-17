@@ -10,6 +10,21 @@ if (typeof globalThis.ResizeObserver === "undefined") {
   };
 }
 
+// Polyfill matchMedia for the theme provider (prefers-color-scheme) in jsdom.
+if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
+  window.matchMedia = (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }) as unknown as MediaQueryList;
+}
+
 // Mock @wailsio/runtime to prevent network calls during tests.
 vi.mock("@wailsio/runtime", () => ({
   Call: vi.fn().mockRejectedValue(new Error("not in wails")),
