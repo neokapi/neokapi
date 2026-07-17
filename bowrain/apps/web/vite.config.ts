@@ -1,8 +1,21 @@
 import { defineConfig } from "vite-plus";
+import type { PluginOption } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import neokapi from "@neokapi/kapi-react/vite";
+import kapiReactConfig from "../../packages/app/kapi-react.config.json" with { type: "json" };
+
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  // neokapi() is bounded to vite's own PluginOption to stop a type-instantiation
+  // overflow against vite-plus's UserConfig — see apps/kapi-desktop/frontend/
+  // vite.config.ts for the full rationale. The componentMap is the SAME file the
+  // extract CLI reads (bowrain/packages/app/kapi-react.config.json) so the
+  // build-time transform and the extracted catalogs hash identically.
+  plugins: [
+    neokapi({ mode: "runtime", componentMap: kapiReactConfig.componentMap }) as PluginOption,
+    react(),
+    tailwindcss(),
+  ],
   server: {
     open: "https://bowrain.mymac",
     port: 5173,
@@ -30,7 +43,7 @@ export default defineConfig({
     include: ["src/**/*.test.{ts,tsx}"],
   },
   lint: {
-    ignorePatterns: ["dist/**"],
+    ignorePatterns: ["dist/**", "public/translations/**"],
     options: {
       typeAware: true,
       typeCheck: false,
@@ -38,6 +51,6 @@ export default defineConfig({
   },
   fmt: {
     singleQuote: false,
-    ignorePatterns: ["dist/**"],
+    ignorePatterns: ["dist/**", "public/translations/**"],
   },
 });

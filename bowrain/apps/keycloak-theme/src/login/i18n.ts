@@ -20,6 +20,13 @@ const { useI18n, ofTypeI18n } = i18nBuilder
       backToLogin: "Volver al inicio de sesión",
       backToApplication: "Volver a la aplicación",
     },
+    // Keycloak's Norwegian locale code is "no" (not "nb"): the base theme
+    // ships messages_no.properties, so custom keys must use the same code to
+    // merge with it. Everything else comes from Keycloak's own no bundle.
+    no: {
+      backToLogin: "Tilbake til innlogging",
+      backToApplication: "Tilbake til applikasjonen",
+    },
   })
   .build();
 

@@ -10,6 +10,11 @@
 #                      embedded in the kapi binary (core/i18n)
 #   kapi-desktop-ui  — KLF catalogs extracted from the React frontend by
 #                      @neokapi/kapi-react → public/translations/<locale>.json
+#   bowrain-app-ui   — the shared bowrain SPA (bowrain/packages/{app,ui} + the
+#                      web and desktop shells), same kapi-react pipeline →
+#                      each shell's public/translations/<locale>.json
+#   bowrain-ctrl-ui  — the ctrl admin app (bowrain/apps/ctrl)
+#   bowrain-pulse-ui — the pulse dashboard (bowrain/apps/pulse)
 #   docs             — the kapi Docusaurus site → web/i18n/<locale>/ tree
 #   docs-bowrain     — the bowrain Docusaurus site (bowrain/web/docs) →
 #                      bowrain/web/docs/i18n/<locale>/ tree
@@ -83,6 +88,18 @@ content:
     items:
       - path: apps/kapi-desktop/frontend/i18n/**/*.klf
         target: apps/kapi-desktop/frontend/i18n-{lang}/{filename}
+  - name: bowrain-app-ui
+    items:
+      - path: bowrain/packages/app/i18n/**/*.klf
+        target: bowrain/packages/app/i18n-{lang}/{filename}
+  - name: bowrain-ctrl-ui
+    items:
+      - path: bowrain/apps/ctrl/i18n/**/*.klf
+        target: bowrain/apps/ctrl/i18n-{lang}/{filename}
+  - name: bowrain-pulse-ui
+    items:
+      - path: bowrain/apps/pulse/i18n/**/*.klf
+        target: bowrain/apps/pulse/i18n-{lang}/{filename}
   - name: docs
     items:
       - path: web/docs/**/*.md

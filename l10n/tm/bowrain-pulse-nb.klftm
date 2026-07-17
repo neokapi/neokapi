@@ -1,0 +1,96 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-tm-format",
+  "entries": [
+    {
+      "id": "bowrain-pulse-nb:318655cea4",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Languages"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Språk"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-pulse-nb:04e2a9728a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Projects"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Prosjekter"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-pulse-nb:1377264ba3",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Workspaces"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Arbeidsområder"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-pulse-nb:abbc13c13e",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Translated"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Oversatt"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-pulse-nb:4664827f8e",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Progress"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Fremdrift"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    }
+  ]
+}
