@@ -68,6 +68,20 @@ export const convergenceRunsQueryOptions = (
     refetchInterval: 30_000,
   });
 
+// The provider-free pre-flight estimate for a project's next convergence run
+// (epic 019): fetched when the run-now consent dialog opens. Short staleTime so a
+// re-open reflects a freshly-settled source or an added credit pack.
+export const convergenceEstimateQueryOptions = (
+  api: ApiAdapter,
+  workspaceSlug: string,
+  projectId: string,
+) =>
+  queryOptions({
+    queryKey: ["convergenceEstimate", workspaceSlug, projectId],
+    queryFn: () => api.estimateConvergence(workspaceSlug, projectId),
+    staleTime: 5_000,
+  });
+
 export const myTasksQueryOptions = (api: ApiAdapter, workspaceSlug: string) =>
   queryOptions({
     queryKey: ["myTasks", workspaceSlug],

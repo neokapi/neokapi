@@ -76,6 +76,8 @@ import type {
   TranslationDashboardStats,
   ActivityInfo,
   ConvergenceRun,
+  ConvergenceEstimate,
+  ConvergenceRunScope,
   TaskInfo,
   CreateTaskRequest,
   NotificationPreference,
@@ -2412,12 +2414,28 @@ export class RestApiAdapter implements ApiAdapter {
   async startConvergenceRun(
     workspaceSlug: string,
     projectId: string,
-    opts?: { trigger?: string; locales?: string[] },
-  ): Promise<ConvergenceRun> {
-    return this.fetchJSON(this.convergenceRunsEp(workspaceSlug, projectId), {
-      method: "POST",
-      body: JSON.stringify({ trigger: opts?.trigger ?? "manual", locales: opts?.locales }),
-    });
+    opts?: {
+      trigger?: string;
+      locales?: string[];
+      scope?: ConvergenceRunScope;
+      confirmed?: boolean;
+    },
+  ): Promise<ConvergenceRun | null> {
+    // Scope "none" is transport-only: the server answers 204 and starts no run,
+    // so fetchJSON resolves undefined — normalize to null for the caller.
+    const run = await this.fetchJSON<ConvergenceRun | undefined>(
+      this.convergenceRunsEp(workspaceSlug, projectId),
+      {
+        method: "POST",
+        body: JSON.stringify({
+          trigger: opts?.trigger ?? "manual",
+          locales: opts?.locales,
+          scope: opts?.scope,
+          confirmed: opts?.confirmed,
+        }),
+      },
+    );
+    return run ?? null;
   }
 
   async cancelConvergenceRun(
@@ -2429,6 +2447,13 @@ export class RestApiAdapter implements ApiAdapter {
       `${this.convergenceRunsEp(workspaceSlug, projectId)}/${encodeURIComponent(runId)}/cancel`,
       { method: "POST" },
     );
+  }
+
+  async estimateConvergence(
+    workspaceSlug: string,
+    projectId: string,
+  ): Promise<ConvergenceEstimate> {
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/convergence/estimate`);
   }
 
   // ── Tasks (Bowrain AD-014) ────────────────────────────────────────────────────

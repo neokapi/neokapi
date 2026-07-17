@@ -1821,6 +1821,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 // workspace group (/:ws/:id/...) and the flat unclaimed group
 // (/projects/:id/...) so both client route styles reach the same handlers.
 func (s *Server) registerConvergenceRoutes(g *echo.Group) {
+	g.GET("/:id/convergence/estimate", s.HandleConvergenceEstimate)
 	g.POST("/:id/convergence/runs", s.HandleStartConvergenceRun)
 	g.GET("/:id/convergence/runs", s.HandleListConvergenceRuns)
 	g.GET("/:id/convergence/runs/:runID", s.HandleGetConvergenceRun)
