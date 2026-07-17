@@ -15,9 +15,19 @@ name: Publish npm packages
 #     `git tag kapi-react-v1.0.1 && git push origin kapi-react-v1.0.1`.
 #   - Run the workflow manually (workflow_dispatch) as a fallback / re-run.
 #
-# First publish of a brand-new package must be bootstrapped once (npm login +
-# npm publish locally), because a trusted publisher is configured on an existing
-# package's settings page. Subsequent releases run here, tokenless.
+# First publish of a brand-new package must be bootstrapped once locally,
+# because a trusted publisher is configured on an existing package's settings
+# page. Bootstrap with the SAME pnpm-pack path this workflow uses — never a
+# bare `npm publish` in the package dir. The @neokapi packages split their
+# in-repo `src` exports from their built `dist` exports via `publishConfig`,
+# and only `pnpm pack` / `pnpm publish` apply that substitution; a bare
+# `npm publish` ships the `src`-based exports and consumers get raw TypeScript,
+# which fails to load on modern Node (this is exactly how kapi-format@1.0.0
+# shipped broken). Bootstrap a new package with:
+#   ( cd packages/<pkg> && corepack pnpm install && corepack pnpm run build \
+#       && corepack pnpm pack --pack-destination "$TMPDIR" )
+#   npm publish "$TMPDIR/<tarball>.tgz" --access public
+# Subsequent releases run here, tokenless.
 
 on:
   push:
