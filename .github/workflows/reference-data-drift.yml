@@ -203,8 +203,7 @@ jobs:
             for spec in \
               "docs web/docs web/i18n/nb/docusaurus-plugin-content-docs/current" \
               "docs-bowrain bowrain/web/docs/docs bowrain/web/docs/i18n/nb/docusaurus-plugin-content-docs/current"; do
-              set -- $spec
-              name=$1; src=$2; gen=$3
+              read -r name src gen <<< "$spec"
               total=0; translated=0
               while IFS= read -r f; do
                 rel=${f#"$gen"/}
