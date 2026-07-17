@@ -76,7 +76,7 @@ jobs:
           else
             echo "bowrain=false" >> "$GITHUB_OUTPUT"
           fi
-          check_paths frontend  '^bowrain/apps/(web|bowrain/frontend|ctrl|pulse|keycloak-theme)/' '^bowrain/packages/ui/' '^bowrain/emails/'
+          check_paths frontend  '^bowrain/apps/(web|bowrain/frontend|ctrl|pulse|keycloak-theme)/' '^bowrain/packages/(ui|app)/' '^bowrain/emails/'
           check_paths kapi_desktop '^apps/kapi-desktop/' '^packages/(ui|flow-editor)/'
           check_paths bowrain_desktop '^bowrain/apps/bowrain/' '^bowrain/packages/ui/'
           check_paths kapi_react '^packages/kapi-(format|react)/'
@@ -96,6 +96,19 @@ jobs:
       # locally). See the "CI job bodies (thin-CI)" section of the Makefile.
       - name: Check + test + build the bowrain web frontends
         run: make ci-frontend
+
+      # The bowrain UI l10n gates need bin/kapi (pseudo-translate), so Go is
+      # set up after the pure-node checks — mirrors the kapi-desktop job.
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.0"
+
+      # Regenerate the bowrain app/ctrl/pulse pseudo catalogs from source and
+      # fail on drift, exactly like kapi-desktop-l10n-verify: a stale catalog
+      # ships wrong/old translations (and can leak raw {=mN} markers).
+      - name: Bowrain UI l10n catalogs are fresh
+        run: make bowrain-l10n-verify
 
   # ── Kapi Desktop frontend ───────────────────────────────────────────────
   kapi-desktop:

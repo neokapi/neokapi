@@ -125,7 +125,7 @@ export function AppShell<V extends string = string>({
   // hiddenSubNavIds arrives via sidebarProps (inherited from AppSidebarProps) and
   // is also spread to AppSidebar below, so both sub-nav render paths stay in sync.
   const subNavItems = activeView
-    ? subNavConfig[activeView]?.filter((item) => !sidebarProps.hiddenSubNavIds?.includes(item.id))
+    ? subNavConfig()[activeView]?.filter((item) => !sidebarProps.hiddenSubNavIds?.includes(item.id))
     : undefined;
   const showSecondary = !!(subNavItems && subNavItems.length > 0 && onSubNavChange);
 

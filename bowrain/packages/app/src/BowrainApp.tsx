@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { RouterProvider, type RouterHistory } from "@tanstack/react-router";
 import { QueryClient } from "@tanstack/react-query";
+import { useNeokapi } from "@neokapi/kapi-react/runtime";
 import { AnalyticsProvider, type ApiAdapter } from "@neokapi/ui";
 import { createBowrainRouter } from "./routes";
+import { applyUILocale, getStoredUILocale } from "./i18n";
 import { PlatformProvider, webPlatform, type PlatformAdapter } from "./platform";
 import { AnalyticsEvents, PAGEVIEW_EVENT, featureFromRoutePattern } from "./analytics-events";
 
@@ -42,6 +44,18 @@ export function BowrainApp({ api, platform, queryClient, history }: BowrainAppPr
   const [qc] = useState(() => queryClient ?? makeQueryClient());
   const [plat] = useState(() => platform ?? webPlatform());
   const [router] = useState(() => createBowrainRouter({ queryClient: qc, api }, { history }));
+
+  // Subscribe the root to kapi-react's translation store so the whole route
+  // tree re-renders when the dictionary changes (startup catalog load below,
+  // or the user switching language in User Settings). Mirrors kapi-desktop.
+  useNeokapi();
+
+  // Activate the persisted UI locale on mount. English is the source locale,
+  // so there is nothing to load (and no flash) in the default case; for other
+  // locales the tree renders English until the catalog resolves.
+  useEffect(() => {
+    void applyUILocale(getStoredUILocale());
+  }, []);
 
   // Route-pattern pageviews through the platform seam: one $pageview per
   // navigation carrying the matched route pattern (e.g. "/$workspace/p/$pid"),

@@ -1024,6 +1024,71 @@ kapi-desktop-translations: kapi-desktop-pseudo-translate kapi-desktop-compile ##
 kapi-desktop-l10n-verify: kapi-desktop-translations ## CI gate: the desktop qps catalog regenerates byte-identically from source (a stale catalog would leak {=mN} placeholders in pseudo/translated UI)
 	git diff --exit-code $(KAPI_DESKTOP_DIR)/frontend/public/translations/qps.json
 
+# ── Bowrain app UIs (kapi-react) — mirrors the kapi-desktop family ──────────
+# One extraction per surface: bowrain-app (packages/app + packages/ui + the
+# web and desktop shells — they compile from the same i18n/ tree into each
+# shell's public/translations/), bowrain-ctrl and bowrain-pulse (standalone
+# admin apps, own src only; @neokapi/ui strings fall back to English there).
+# The componentMap lives in bowrain/packages/app/kapi-react.config.json and is
+# shared by the extract CLI and every shell's vite transform so hashes match.
+BOWRAIN_APP_DIR := bowrain/packages/app
+BOWRAIN_UI_IGNORES := --ignore "**/*.stories.tsx" --ignore "**/*.test.tsx" --ignore "**/__tests__/**" --ignore "**/stories/**" --ignore "**/demo/**"
+BOWRAIN_APP_EXTRACT_SRC := --src "src/**/*.{tsx,jsx}" --src "../ui/src/**/*.tsx" --src "../../apps/web/src/**/*.tsx" --src "../../apps/bowrain/frontend/src/**/*.tsx" $(BOWRAIN_UI_IGNORES)
+
+bowrain-app-extract: kapi-react-build ## Extract bowrain app+ui+shell strings to bowrain/packages/app/i18n/ (per-file .klf)
+	cd $(BOWRAIN_APP_DIR) && $(KAPI_REACT_CLI) extract --config kapi-react.config.json --out i18n/ --target-locale qps $(BOWRAIN_APP_EXTRACT_SRC)
+
+bowrain-app-pseudo-translate: bowrain-app-extract bin/kapi ## Pseudo-translate bowrain app i18n/ → i18n-qps/
+	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $(BOWRAIN_APP_DIR)/i18n \
+		--target-lang qps \
+		-o $(BOWRAIN_APP_DIR)/i18n-qps \
+		-q
+
+bowrain-app-compile: kapi-react-build ## Compile bowrain app i18n-qps/ → both shells' public/translations/
+	cd $(BOWRAIN_APP_DIR) && $(KAPI_REACT_CLI) compile i18n-qps/ --out ../../apps/web/public/translations
+	cd $(BOWRAIN_APP_DIR) && $(KAPI_REACT_CLI) compile i18n-qps/ --out ../../apps/bowrain/frontend/public/translations
+
+bowrain-app-translations: bowrain-app-pseudo-translate bowrain-app-compile ## Extract → pseudo-translate → compile (bowrain app)
+
+bowrain-app-l10n-verify: bowrain-app-translations ## CI gate: both bowrain app qps catalogs regenerate byte-identically from source
+	git diff --exit-code bowrain/apps/web/public/translations/qps.json bowrain/apps/bowrain/frontend/public/translations/qps.json
+
+bowrain-ctrl-extract: kapi-react-build ## Extract ctrl admin-app strings to bowrain/apps/ctrl/i18n/
+	cd bowrain/apps/ctrl && $(KAPI_REACT_CLI) extract --config ../../packages/app/kapi-react.config.json --out i18n/ --target-locale qps --src "src/**/*.{tsx,jsx}" $(BOWRAIN_UI_IGNORES)
+
+bowrain-ctrl-pseudo-translate: bowrain-ctrl-extract bin/kapi ## Pseudo-translate ctrl i18n/ → i18n-qps/
+	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate bowrain/apps/ctrl/i18n \
+		--target-lang qps \
+		-o bowrain/apps/ctrl/i18n-qps \
+		-q
+
+bowrain-ctrl-compile: kapi-react-build ## Compile ctrl i18n-qps/ → public/translations/
+	cd bowrain/apps/ctrl && $(KAPI_REACT_CLI) compile i18n-qps/ --out public/translations
+
+bowrain-ctrl-translations: bowrain-ctrl-pseudo-translate bowrain-ctrl-compile ## Extract → pseudo-translate → compile (ctrl)
+
+bowrain-ctrl-l10n-verify: bowrain-ctrl-translations ## CI gate: the ctrl qps catalog regenerates byte-identically from source
+	git diff --exit-code bowrain/apps/ctrl/public/translations/qps.json
+
+bowrain-pulse-extract: kapi-react-build ## Extract pulse dashboard strings to bowrain/apps/pulse/i18n/
+	cd bowrain/apps/pulse && $(KAPI_REACT_CLI) extract --config ../../packages/app/kapi-react.config.json --out i18n/ --target-locale qps --src "src/**/*.{tsx,jsx}" $(BOWRAIN_UI_IGNORES)
+
+bowrain-pulse-pseudo-translate: bowrain-pulse-extract bin/kapi ## Pseudo-translate pulse i18n/ → i18n-qps/
+	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate bowrain/apps/pulse/i18n \
+		--target-lang qps \
+		-o bowrain/apps/pulse/i18n-qps \
+		-q
+
+bowrain-pulse-compile: kapi-react-build ## Compile pulse i18n-qps/ → public/translations/
+	cd bowrain/apps/pulse && $(KAPI_REACT_CLI) compile i18n-qps/ --out public/translations
+
+bowrain-pulse-translations: bowrain-pulse-pseudo-translate bowrain-pulse-compile ## Extract → pseudo-translate → compile (pulse)
+
+bowrain-pulse-l10n-verify: bowrain-pulse-translations ## CI gate: the pulse qps catalog regenerates byte-identically from source
+	git diff --exit-code bowrain/apps/pulse/public/translations/qps.json
+
+bowrain-l10n-verify: bowrain-app-l10n-verify bowrain-ctrl-l10n-verify bowrain-pulse-l10n-verify ## CI gate: all bowrain UI qps catalogs are fresh
+
 kapi-i18n-generate: ## Regenerate core/i18n/builtins/metadata.json from Go registries
 	go generate ./core/i18n/...
 
@@ -1085,6 +1150,31 @@ l10n-desktop: l10n-seed kapi-desktop-extract ## Kapi Desktop UI strings → publ
 		(cd $(KAPI_DESKTOP_DIR)/frontend && vp run compile:$$lang) || exit 1; \
 	done
 
+l10n-bowrain-app: l10n-seed bowrain-app-extract ## Bowrain app UI strings → both shells' public/translations/<lang>.json (TM-driven)
+	@for lang in $(L10N_LANGS); do \
+		./bin/kapi exec recycle $(BOWRAIN_APP_DIR)/i18n \
+			--target-lang $$lang \
+			-o $(BOWRAIN_APP_DIR)/i18n-$$lang || exit 1; \
+		(cd $(BOWRAIN_APP_DIR) && $(KAPI_REACT_CLI) compile i18n-$$lang/ --out ../../apps/web/public/translations --locale $$lang) || exit 1; \
+		(cd $(BOWRAIN_APP_DIR) && $(KAPI_REACT_CLI) compile i18n-$$lang/ --out ../../apps/bowrain/frontend/public/translations --locale $$lang) || exit 1; \
+	done
+
+l10n-bowrain-ctrl: l10n-seed bowrain-ctrl-extract ## ctrl admin-app strings → public/translations/<lang>.json (TM-driven)
+	@for lang in $(L10N_LANGS); do \
+		./bin/kapi exec recycle bowrain/apps/ctrl/i18n \
+			--target-lang $$lang \
+			-o bowrain/apps/ctrl/i18n-$$lang || exit 1; \
+		(cd bowrain/apps/ctrl && $(KAPI_REACT_CLI) compile i18n-$$lang/ --out public/translations --locale $$lang) || exit 1; \
+	done
+
+l10n-bowrain-pulse: l10n-seed bowrain-pulse-extract ## pulse dashboard strings → public/translations/<lang>.json (TM-driven)
+	@for lang in $(L10N_LANGS); do \
+		./bin/kapi exec recycle bowrain/apps/pulse/i18n \
+			--target-lang $$lang \
+			-o bowrain/apps/pulse/i18n-$$lang || exit 1; \
+		(cd bowrain/apps/pulse && $(KAPI_REACT_CLI) compile i18n-$$lang/ --out public/translations --locale $$lang) || exit 1; \
+	done
+
 kapi-cli-i18n-generate: ## Regenerate host/i18n/commands.json from the cobra command tree
 	cd cli && go generate ./i18ngen/...
 
@@ -1139,7 +1229,7 @@ l10n-bowrain-docs: l10n-seed ## bowrain docs site → bowrain/web/docs/i18n/<lan
 # was folded into the Docusaurus home, so its strings localize through the
 # docs-site path. l10n/tm/landing-nb.klftm stays — the TM leverages that copy
 # wherever it resurfaces.)
-l10n: l10n-builtins l10n-desktop l10n-cli l10n-demos l10n-docs l10n-bowrain-docs ## Rebuild all dogfood localization outputs from the l10n/ seeds
+l10n: l10n-builtins l10n-desktop l10n-cli l10n-demos l10n-docs l10n-bowrain-docs l10n-bowrain-app l10n-bowrain-ctrl l10n-bowrain-pulse ## Rebuild all dogfood localization outputs from the l10n/ seeds
 
 l10n-verify: l10n-builtins l10n-cli l10n-demos ## CI gate: committed l10n artifacts regenerate byte-identically from the seeds
 	git diff --exit-code core/i18n/builtins core/i18n/catalogs host/i18n/commands.json host/i18n/catalogs ':(glob)harness/demos/*/demo.*.yaml'
@@ -1844,6 +1934,13 @@ help: ## Show this help
         kapi-desktop-frontend-deps kapi-desktop-frontend-dev kapi-desktop-frontend-build \
         kapi-desktop-frontend-test kapi-desktop-frontend-check kapi-desktop-extract \
         kapi-desktop-pseudo-translate kapi-desktop-compile kapi-desktop-translations \
+        bowrain-app-extract bowrain-app-pseudo-translate bowrain-app-compile \
+        bowrain-app-translations bowrain-app-l10n-verify \
+        bowrain-ctrl-extract bowrain-ctrl-pseudo-translate bowrain-ctrl-compile \
+        bowrain-ctrl-translations bowrain-ctrl-l10n-verify \
+        bowrain-pulse-extract bowrain-pulse-pseudo-translate bowrain-pulse-compile \
+        bowrain-pulse-translations bowrain-pulse-l10n-verify bowrain-l10n-verify \
+        l10n-bowrain-app l10n-bowrain-ctrl l10n-bowrain-pulse \
         kapi-i18n-generate kapi-i18n-pseudo-translate kapi-i18n-translations \
         flow-editor-deps flow-editor-check flow-editor-test \
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \

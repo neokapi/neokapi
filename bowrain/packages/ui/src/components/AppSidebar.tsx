@@ -12,6 +12,7 @@ import {
   useSidebar,
 } from "@neokapi/ui-primitives";
 import { useMemo } from "react";
+import { t } from "@neokapi/kapi-react/runtime";
 import type { Workspace, User, ProjectInfo, StreamInfo } from "../types/api";
 import {
   Brain,
@@ -111,39 +112,46 @@ export interface AppSidebarProps<V extends string = string> {
 // ---------------------------------------------------------------------------
 // Nav data
 // ---------------------------------------------------------------------------
+// Getter functions, not module-level consts: the labels go through t() so the
+// kapi-react transform extracts them and looks them up in the active locale's
+// dictionary at CALL time. Evaluating these per render (the components call
+// them below) picks up a locale switch; a module-level const would freeze the
+// labels in whatever locale was active at import time.
 
-const workspaceNavItems: NavItem[] = [
-  { id: "translate", label: "Projects", icon: <Home /> },
-  { id: "brand", label: "Brand", icon: <Palette /> },
-  { id: "memory", label: "Memory", icon: <Brain /> },
+const workspaceNavItems = (): NavItem[] => [
+  { id: "translate", label: t("Projects"), icon: <Home /> },
+  { id: "brand", label: t("Brand"), icon: <Palette /> },
+  { id: "memory", label: t("Memory"), icon: <Brain /> },
 ];
 
-const workspaceBottomItems: NavItem[] = [{ id: "settings", label: "Settings", icon: <Settings /> }];
+const workspaceBottomItems = (): NavItem[] => [
+  { id: "settings", label: t("Settings"), icon: <Settings /> },
+];
 
 /** Sub-navigation items for views that have secondary menus. Exported for AppShell. */
-export const subNavConfig: Record<string, SubNavItem[]> = {
+export const subNavConfig = (): Record<string, SubNavItem[]> => ({
   brand: [
-    { id: "concepts", label: "Concepts", icon: <Network /> },
-    { id: "voice", label: "Voice", icon: <Palette /> },
-    { id: "experiments", label: "Experiments", icon: <FlaskConical /> },
-    { id: "activity", label: "Activity", icon: <Activity /> },
-    { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard /> },
+    { id: "concepts", label: t("Concepts"), icon: <Network /> },
+    { id: "voice", label: t("Voice"), icon: <Palette /> },
+    { id: "experiments", label: t("Experiments"), icon: <FlaskConical /> },
+    { id: "activity", label: t("Activity"), icon: <Activity /> },
+    { id: "dashboard", label: t("Dashboard"), icon: <LayoutDashboard /> },
   ],
   settings: [
-    { id: "general", label: "General", icon: <Settings /> },
-    { id: "languages", label: "Languages", icon: <Globe /> },
-    { id: "members", label: "Members", icon: <Users /> },
-    { id: "roles", label: "Roles", icon: <Shield /> },
-    { id: "governance", label: "Governance", icon: <Lock /> },
-    { id: "providers", label: "Providers", icon: <KeyRound /> },
-    { id: "tokens", label: "API Tokens", icon: <KeyRound /> },
-    { id: "auditlog", label: "Audit Log", icon: <Clock /> },
-    { id: "bin", label: "Recycle Bin", icon: <Trash2 /> },
-    { id: "bravo", label: "@bravo Agent", icon: <Sparkles /> },
-    { id: "billing", label: "Billing", icon: <CreditCard /> },
-    { id: "system", label: "System Info", icon: <Info /> },
+    { id: "general", label: t("General"), icon: <Settings /> },
+    { id: "languages", label: t("Languages"), icon: <Globe /> },
+    { id: "members", label: t("Members"), icon: <Users /> },
+    { id: "roles", label: t("Roles"), icon: <Shield /> },
+    { id: "governance", label: t("Governance"), icon: <Lock /> },
+    { id: "providers", label: t("Providers"), icon: <KeyRound /> },
+    { id: "tokens", label: t("API Tokens"), icon: <KeyRound /> },
+    { id: "auditlog", label: t("Audit Log"), icon: <Clock /> },
+    { id: "bin", label: t("Recycle Bin"), icon: <Trash2 /> },
+    { id: "bravo", label: t("@bravo Agent"), icon: <Sparkles /> },
+    { id: "billing", label: t("Billing"), icon: <CreditCard /> },
+    { id: "system", label: t("System Info"), icon: <Info /> },
   ],
-};
+});
 
 // ---------------------------------------------------------------------------
 // Desktop: Icon-only rail
@@ -160,7 +168,7 @@ function IconNav<V extends string>({
   extraNavItems?: NavItem[];
   sidebarContext: SidebarContext;
 }) {
-  const mainItems = [...workspaceNavItems, ...extraNavItems];
+  const mainItems = [...workspaceNavItems(), ...extraNavItems];
   const isProject = sidebarContext.level === "project";
 
   if (isProject) {
@@ -259,7 +267,7 @@ function IconNav<V extends string>({
       <SidebarGroup className="mt-auto">
         <SidebarGroupContent>
           <SidebarMenu>
-            {workspaceBottomItems.map(({ id, label, icon }) => (
+            {workspaceBottomItems().map(({ id, label, icon }) => (
               <SidebarMenuItem key={id}>
                 <SidebarMenuButton
                   tooltip={label}
@@ -300,7 +308,7 @@ function MobileNav<V extends string>({
   hiddenSubNavIds?: string[];
 }) {
   const { setOpenMobile } = useSidebar();
-  const mainItems = [...workspaceNavItems, ...extraNavItems];
+  const mainItems = [...workspaceNavItems(), ...extraNavItems];
   const isProject = sidebarContext.level === "project";
 
   const handleNav = (id: string) => {
@@ -392,7 +400,7 @@ function MobileNav<V extends string>({
 
   // Workspace-level: show main nav items. Keep undefined (not []) when a view has
   // no sub-nav, so the secondary menu stays hidden for those views.
-  const subItems = subNavConfig[activeView as string]?.filter(
+  const subItems = subNavConfig()[activeView as string]?.filter(
     (item) => !hiddenSubNavIds?.includes(item.id),
   );
 
@@ -422,7 +430,7 @@ function MobileNav<V extends string>({
       <SidebarGroup>
         <SidebarGroupContent>
           <SidebarMenu>
-            {workspaceBottomItems.map(({ id, label, icon }) => (
+            {workspaceBottomItems().map(({ id, label, icon }) => (
               <SidebarMenuItem key={id}>
                 <SidebarMenuButton
                   isActive={activeView === id}

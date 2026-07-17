@@ -27,7 +27,12 @@ gitignored).
   and `bowrain-docs-nb.klftm` for the bowrain site (surface
   `docs-bowrain`: `bowrain/web/docs/docs/**` →
   `bowrain/web/docs/i18n/nb/...`, `make l10n-bowrain-docs`); the
-  termbase is shared.
+  termbase is shared. The bowrain UIs have one seed per surface —
+  `bowrain-app-nb.klftm` (surface `bowrain-app-ui`: the shared SPA in
+  `bowrain/packages/{app,ui}` + web/desktop shells,
+  `make l10n-bowrain-app`), `bowrain-ctrl-nb.klftm` and
+  `bowrain-pulse-nb.klftm` (`make l10n-bowrain-{ctrl,pulse}`) — compiled
+  into each shell's committed `public/translations/nb.json`.
 
 Workflow for a new or changed surface string:
 

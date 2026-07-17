@@ -2,6 +2,7 @@ import "./app.css";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { loadTranslations } from "@neokapi/kapi-react/runtime";
 import { router } from "./routes";
 import { initAnalytics, capturePageview } from "./analytics";
 
@@ -23,8 +24,19 @@ const queryClient = new QueryClient({
   },
 });
 
-createRoot(document.getElementById("root")!).render(
-  <QueryClientProvider client={queryClient}>
-    <RouterProvider router={router} context={{ queryClient }} />
-  </QueryClientProvider>,
-);
+// Activate the persisted UI locale (same key the shared Bowrain app writes)
+// before first render so no store subscription is needed. Untranslated or
+// missing catalogs fall back to the English source — never a blocker.
+async function bootstrap() {
+  const locale = localStorage.getItem("bowrain.ui-locale");
+  if (locale && locale !== "en") {
+    await loadTranslations(locale, `/translations/${locale}.json`).catch(() => {});
+  }
+  createRoot(document.getElementById("root")!).render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} context={{ queryClient }} />
+    </QueryClientProvider>,
+  );
+}
+
+void bootstrap();

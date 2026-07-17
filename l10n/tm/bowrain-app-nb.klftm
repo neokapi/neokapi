@@ -1,0 +1,1014 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-tm-format",
+  "entries": [
+    {
+      "id": "bowrain-app-nb:04e2a9728a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Projects"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Prosjekter"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:090ed4316f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Brand"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Merkevare"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:c3963aedaa",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Memory"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Minne"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:74a883a037",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Settings"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Innstillinger"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:0d0a8c6df3",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Concepts"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Konsepter"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:87bf2bc085",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Voice"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Stemme"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:716b52c42e",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Experiments"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Eksperimenter"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:38da1505ca",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Activity"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Aktivitet"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:67b6964686",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Dashboard"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Dashbord"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:c910d474dc",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "General"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Generelt"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:318655cea4",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Languages"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Språk"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:1044a4c056",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Members"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Medlemmer"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:c253370554",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Roles"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Roller"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:86f8a69415",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Governance"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Styring"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:996c32b35f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Providers"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Leverandører"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:674d6510aa",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "API Tokens"
+          }
+        ],
+        "nb": [
+          {
+            "text": "API-tokener"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:47751f88ed",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Audit Log"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Revisjonslogg"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:fa56abc468",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Recycle Bin"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Papirkurv"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:463bedfd8a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "@bravo Agent"
+          }
+        ],
+        "nb": [
+          {
+            "text": "@bravo-agent"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:3ac8bbca9a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Billing"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Fakturering"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:c47bb18fad",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "System Info"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Systeminfo"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:87bb59ba2f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Workspace"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Arbeidsområde"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:19766ed6cc",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Cancel"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Avbryt"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:1509f561f2",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Save"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Lagre"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:dcd1d5223f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Name"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Navn"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:526e0087cc",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Description"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Beskrivelse"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:ff8059dc67",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Actions"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Handlinger"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:464c4ffd01",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Edit"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Rediger"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:e2d0a54968",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Delete"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Slett"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:ddbb6a3910",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Translation Memory"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Oversettelsesminne"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:9615bd0ba9",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Terminology"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Terminologi"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:47d2a515ef",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Loading..."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Laster..."
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:e21f935f11",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Copy"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kopier"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:0e570ca6fa",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Source"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kilde"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:978354db0c",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Target"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Mål"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:d8b8392e2c",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Try again"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Prøv igjen"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:1ff57a29d7",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Next"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Neste"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:76900f1bfd",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Back"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Tilbake"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:7d9eb7acb1",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Close"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Lukk"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:11a6767d56",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Done"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Ferdig"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:49c266baaa",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Search"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Søk"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:9859597853",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Project"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Prosjekt"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:0e91610117",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Refresh"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Oppdater"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:14736a2eb9",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Role"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Rolle"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:b512d97e7c",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "User"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Bruker"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:5e2c614c23",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Model"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Modell"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:21b111cbfe",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Default"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Standard"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:70a8ce6674",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Select a workspace"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Velg et arbeidsområde"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:2555f16917",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Welcome to Bowrain"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Velkommen til Bowrain"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:4b89227784",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Create workspace"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Opprett arbeidsområde"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:818ed0c875",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "User Settings"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Brukerinnstillinger"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:848f54e896",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Runs"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kjøringer"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:d47d7cb0e4",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "More"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Mer"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:0ce7cdd138",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Brand voice"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Merkevarestemme"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:a4fe65264e",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Language"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Språk"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-app-nb:928452cd3a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Display language for the Bowrain interface. Untranslated text falls back to English."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Visningsspråk for Bowrain-grensesnittet. Uoversatt tekst faller tilbake til engelsk."
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    }
+  ]
+}

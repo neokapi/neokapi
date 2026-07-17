@@ -6,11 +6,17 @@ import {
   CardHeader,
   CardTitle,
   NotificationSettings,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Switch,
   useWorkspace,
   useApi,
   type DigestSettingsDTO,
 } from "@neokapi/ui";
+import { getStoredUILocale, setUILocale, UI_LOCALES, type UILocale } from "../../i18n";
 import { ProfileEmailCard } from "../../auth/ProfileEmailCard";
 import { ProfileHandleCard } from "../../auth/ProfileHandleCard";
 import { SecurityCard } from "../../auth/SecurityCard";
@@ -44,6 +50,51 @@ function TelemetryCard({ optOut }: { optOut: TelemetryOptOut }) {
             setEnabled(checked);
           }}
         />
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * UI-language picker. Persists the choice per browser/app install (see
+ * src/i18n.ts) and applies it live — the kapi-react store re-renders the tree
+ * from BowrainApp's useNeokapi() subscription. The pseudo locale (qps) is
+ * offered only in dev builds for layout/coverage QA.
+ */
+function LanguageCard() {
+  const [locale, setLocale] = useState<UILocale>(() => getStoredUILocale());
+
+  const handleChange = useCallback((next: string) => {
+    setLocale(next as UILocale);
+    void setUILocale(next as UILocale);
+  }, []);
+
+  const options: Array<{ value: UILocale; label: string }> = [...UI_LOCALES];
+  if (import.meta.env.DEV || locale === "qps") {
+    options.push({ value: "qps", label: "Pseudo (qps)" });
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Language</CardTitle>
+        <CardDescription>
+          Display language for the Bowrain interface. Untranslated text falls back to English.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Select value={locale} onValueChange={handleChange}>
+          <SelectTrigger className="w-56" aria-label="Interface language">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </CardContent>
     </Card>
   );
@@ -100,6 +151,7 @@ export function UserSettingsRoute() {
       <ProfileEmailCard />
       <ProfileHandleCard />
       <SecurityCard />
+      <LanguageCard />
       {telemetryOptOut && <TelemetryCard optOut={telemetryOptOut} />}
 
       {settings ? (

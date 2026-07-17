@@ -1,0 +1,96 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-tm-format",
+  "entries": [
+    {
+      "id": "bowrain-ctrl-nb:19766ed6cc",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Cancel"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Avbryt"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-ctrl-nb:87bb59ba2f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Workspace"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Arbeidsområde"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-ctrl-nb:d70b9e24bc",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Created"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Opprettet"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-ctrl-nb:1044a4c056",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Members"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Medlemmer"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-ctrl-nb:dcd1d5223f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Name"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Navn"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    }
+  ]
+}

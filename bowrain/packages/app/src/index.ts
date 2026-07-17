@@ -14,3 +14,11 @@ export {
   featureFromRoutePattern,
   type AnalyticsEventName,
 } from "./analytics-events";
+export {
+  UI_LOCALES,
+  UI_LOCALE_STORAGE_KEY,
+  applyUILocale,
+  getStoredUILocale,
+  setUILocale,
+  type UILocale,
+} from "./i18n";

@@ -1,0 +1,23 @@
+{
+  "componentMap": {
+    "AlertDescription": "div",
+    "AlertTitle": "div",
+    "AvatarGroupCount": "div",
+    "Badge": "span",
+    "Button": "button",
+    "Card": "div",
+    "CardDescription": "div",
+    "CardTitle": "div",
+    "CollapsibleTrigger": "button",
+    "ComboboxEmpty": "div",
+    "DialogDescription": "p",
+    "DialogTitle": "h2",
+    "InputGroupText": "span",
+    "Label": "label",
+    "SelectItem": "div",
+    "SidebarFooter": "div",
+    "SidebarHeader": "div",
+    "TooltipContent": "div",
+    "TooltipTrigger": "button"
+  }
+}

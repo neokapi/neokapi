@@ -173,6 +173,9 @@ importers:
       '@neokapi/flow-editor':
         specifier: '*'
         version: link:../../../../packages/flow-editor
+      '@neokapi/kapi-react':
+        specifier: '*'
+        version: link:../../../../packages/kapi-react
       '@neokapi/ui':
         specifier: '*'
         version: link:../../../packages/ui
@@ -243,6 +246,9 @@ importers:
 
   bowrain/apps/ctrl:
     dependencies:
+      '@neokapi/kapi-react':
+        specifier: '*'
+        version: link:../../../packages/kapi-react
       '@neokapi/ui':
         specifier: '*'
         version: link:../../packages/ui
@@ -335,6 +341,9 @@ importers:
 
   bowrain/apps/pulse:
     dependencies:
+      '@neokapi/kapi-react':
+        specifier: '*'
+        version: link:../../../packages/kapi-react
       '@neokapi/ui':
         specifier: '*'
         version: link:../../packages/ui
@@ -399,6 +408,9 @@ importers:
       '@neokapi/bowrain-app':
         specifier: '*'
         version: link:../../packages/app
+      '@neokapi/kapi-react':
+        specifier: '*'
+        version: link:../../../packages/kapi-react
       '@neokapi/ui':
         specifier: '*'
         version: link:../../packages/ui
@@ -479,6 +491,9 @@ importers:
       '@neokapi/flow-editor':
         specifier: '*'
         version: link:../../../packages/flow-editor
+      '@neokapi/kapi-react':
+        specifier: '*'
+        version: link:../../../packages/kapi-react
       '@neokapi/ui':
         specifier: '*'
         version: link:../ui
@@ -573,6 +588,9 @@ importers:
       '@neokapi/kapi-format':
         specifier: '*'
         version: link:../../../packages/kapi-format
+      '@neokapi/kapi-react':
+        specifier: '*'
+        version: link:../../../packages/kapi-react
       '@neokapi/status-views':
         specifier: '*'
         version: link:../../../packages/status-views
