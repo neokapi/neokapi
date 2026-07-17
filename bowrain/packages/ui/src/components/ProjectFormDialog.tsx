@@ -51,6 +51,8 @@ export interface ProjectFormDialogProps {
   editProject?: ProjectInfo;
   /** Workspace languages — when set, locale pickers are restricted to these. */
   workspaceLanguages?: string[];
+  /** Pre-fill the name in create mode (e.g. a repository name). */
+  initialName?: string;
 }
 
 export function ProjectFormDialog({
@@ -59,6 +61,7 @@ export function ProjectFormDialog({
   onSubmit,
   editProject,
   workspaceLanguages,
+  initialName,
 }: ProjectFormDialogProps) {
   const [name, setName] = useState("");
   const [sourceLang, setSourceLang] = useState("en");
@@ -76,13 +79,14 @@ export function ProjectFormDialog({
       setTargetLangs([...editProject.target_languages]);
       setTargetMode((editProject.target_language_mode as "defined" | "open") || "defined");
     } else if (open && !editProject) {
+      setName(initialName ?? "");
       // Set sensible defaults from workspace languages
       if (effectiveLangs.length > 0) {
         setSourceLang(effectiveLangs[0]);
         setTargetLangs(effectiveLangs.length > 1 ? [effectiveLangs[1]] : []);
       }
     }
-  }, [open, editProject, effectiveLangs.length > 0, workspaceLanguages]);
+  }, [open, editProject, effectiveLangs.length > 0, workspaceLanguages, initialName]);
 
   const handleSubmit = () => {
     if (!name.trim()) return;

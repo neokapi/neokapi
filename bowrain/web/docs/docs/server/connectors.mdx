@@ -159,10 +159,14 @@ GITHUB_APP_WEBHOOK_SECRET=<webhook secret>
 Installing the app on a repository is then the only per-repo step: GitHub
 redirects to the server's setup page (set the app's **Setup URL** to
 `$SERVER/github/setup`), which lists the installation's repositories and
-binds each to a project with one selection — no curl, no tokens. The same
-binding is available from a project's Connectors page ("GitHub"), and the
-workspace connectors API remains the automation path. Static tokens keep
-working alongside app mode — GitLab always uses a project access token.
+binds each to a project with one selection — no curl, no tokens. The setup
+page is a complete on-ramp: a visitor who arrives without a Bowrain account
+signs in or creates one (the installation is preserved through login), gets a
+workspace if they have none, and can create a project from the repository
+inline. The same binding is available from a project's Connectors page
+("GitHub"), and the workspace connectors API remains the automation path.
+Static tokens keep working alongside app mode — GitLab always uses a project
+access token.
 
 :::note
 
