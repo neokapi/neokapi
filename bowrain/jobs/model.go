@@ -28,12 +28,18 @@ type TranslationJob struct {
 	Progress         int       `json:"progress"` // 0-100
 	TotalBlocks      int       `json:"total_blocks"`
 	DoneBlocks       int       `json:"done_blocks"`
-	BatchSize        int       `json:"batch_size,omitempty"`
-	Concurrency      int       `json:"concurrency,omitempty"`
-	TokensUsed       int       `json:"tokens_used"`
-	Error            string    `json:"error,omitempty"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	// ViaTM/ViaAI record the TM-first split for this job: how many blocks were
+	// recycled from the project TM vs. sent to the AI translator. The
+	// convergence produce emitter sums these across a locale's jobs to report a
+	// truthful "TM N · AI M" (theme A2).
+	ViaTM       int       `json:"via_tm"`
+	ViaAI       int       `json:"via_ai"`
+	BatchSize   int       `json:"batch_size,omitempty"`
+	Concurrency int       `json:"concurrency,omitempty"`
+	TokensUsed  int       `json:"tokens_used"`
+	Error       string    `json:"error,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // IsPlatformProvider returns true if the job should use the platform-provided
