@@ -59,7 +59,7 @@ func rubric() []Criterion {
 // judgePromptVersion is folded into the rubric digest: rewording the prompt
 // changes what the judge is being asked, which makes past agreement
 // measurements void.
-const judgePromptVersion = "v1"
+const judgePromptVersion = "v2" // v2: house vocabulary included so obedience is not judged unnatural
 
 // rubricDigest identifies the exact rubric + prompt a judgement or a
 // validation was made under. Agreement measured under one digest says nothing
@@ -183,9 +183,22 @@ func (j *judgeTarget) judgePass(ctx context.Context, corpus TestCorpus, blocks [
 // judgeOne asks the judge for a yes/no per criterion, blind: the prompt names
 // the target language, the source, the candidate translation and the rubric —
 // never the producing model, and never which variant the text came from.
+//
+// The house vocabulary IS included. The mandates are deliberately non-naive
+// (that is what makes obedience measurable), so a judge who does not know them
+// penalizes obedience as unnaturalness; terminology itself is owned by the
+// deterministic checks and explicitly excluded from the rubric's scope. The
+// list is constant per target, so it identifies no model and no variant.
 func (j *judgeTarget) judgeOne(ctx context.Context, target, source, translation string) (map[string]bool, error) {
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "Target language: %s\n\nSource (English):\n%s\n\nCandidate translation:\n%s\n\nCriteria:\n", target, source, translation)
+	fmt.Fprintf(&sb, "Target language: %s\n\nSource (English):\n%s\n\nCandidate translation:\n%s\n", target, source, translation)
+	if hs := contextFor(target).HouseStyle(); len(hs) > 0 {
+		sb.WriteString("\nHouse vocabulary (mandated by the client; treat as given and judge the writing around it, never the term choice itself):\n")
+		for _, line := range hs {
+			fmt.Fprintf(&sb, "- %s\n", line)
+		}
+	}
+	sb.WriteString("\nCriteria:\n")
 	for _, c := range rubric() {
 		fmt.Fprintf(&sb, "- %s: %s\n", c.ID, c.Text)
 	}
@@ -193,6 +206,8 @@ func (j *judgeTarget) judgeOne(ctx context.Context, target, source, translation 
 		aiprovider.TextMessage(aiprovider.RoleSystem,
 			"You are scoring a translation against a fixed style rubric. "+
 				"For each criterion answer pass=true only if the translation clearly satisfies it. "+
+				"Some vocabulary is mandated by the client's house style; a mandated rendering is never "+
+				"unnatural or off-register by itself — judge the writing around it. "+
 				"Judge only the translation text you are given; you know nothing about how it was produced."),
 		aiprovider.TextMessage(aiprovider.RoleUser, sb.String()),
 	}

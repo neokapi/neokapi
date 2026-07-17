@@ -155,6 +155,30 @@ func TestConflictsDeclareTheirWinner(t *testing.T) {
 	}
 }
 
+// TestHouseStyleNamesEveryMandate: what the judge and the human labeler are
+// told must cover every non-identity mandate and every forbidden swap — a
+// mandate they don't know about gets judged as unnaturalness, punishing
+// obedience. Identity pins ride the product-names line instead.
+func TestHouseStyleNamesEveryMandate(t *testing.T) {
+	for _, target := range Targets() {
+		c := contextFor(target)
+		joined := strings.Join(c.HouseStyle(), "\n")
+		for k, v := range c.Glossary {
+			if k == v {
+				assert.NotContains(t, joined, k+" → ", "%s: identity pin %q should not be a mandate line", target, k)
+				continue
+			}
+			assert.Contains(t, joined, k+" → "+v, "%s: mandate %q missing from house style", target, k)
+		}
+		for _, r := range c.Profile.Vocabulary.ForbiddenTerms {
+			assert.Contains(t, joined, r.Term, "%s: forbidden term %q missing from house style", target, r.Term)
+		}
+		for _, dnt := range c.DNT {
+			assert.Contains(t, joined, dnt, "%s: product name %q missing from house style", target, dnt)
+		}
+	}
+}
+
 // TestKeysDoNotLeakExpectations: fixture keys are sent to the model (Context:
 // key), so a key naming its trap would hand the bare pass the answer.
 func TestKeysDoNotLeakExpectations(t *testing.T) {

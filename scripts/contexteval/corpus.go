@@ -118,6 +118,33 @@ type Context struct {
 	Instruction string
 }
 
+// HouseStyle renders the target's mandated vocabulary as short lines for
+// anyone judging subjective quality — the LLM judge and the human labeler
+// alike. A mandate is deliberately non-naive (that is what makes it
+// measurable), so a judge who does not know it will penalize obedience as
+// unnaturalness — "alarmmelding" reads odd to a Norwegian who expects
+// "varsling", but it is the commanded rendering, and terminology is owned by
+// the deterministic checks, never by the rubric. Identity pins are folded into
+// the product-names line.
+func (c Context) HouseStyle() []string {
+	var out []string
+	for _, k := range slices.Sorted(maps.Keys(c.Glossary)) {
+		if c.Glossary[k] == k {
+			continue
+		}
+		out = append(out, fmt.Sprintf("%s → %s", k, c.Glossary[k]))
+	}
+	if c.Profile != nil {
+		for _, r := range c.Profile.Vocabulary.ForbiddenTerms {
+			out = append(out, fmt.Sprintf("avoid %q (use %q)", r.Term, r.Replacement))
+		}
+	}
+	if len(c.DNT) > 0 {
+		out = append(out, "product names kept verbatim: "+strings.Join(c.DNT, ", "))
+	}
+	return out
+}
+
 // TestCorpus is the swept unit: the fixtures that carry expectations for one
 // target locale, plus the context injected on the steered pass.
 type TestCorpus struct {
