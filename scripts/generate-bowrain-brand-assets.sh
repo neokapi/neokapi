@@ -34,6 +34,11 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MARK="$REPO_ROOT/bowrain/assets/brand/mark.svg"
 [[ -f "$MARK" ]] || { echo "Error: $MARK not found" >&2; exit 1; }
 
+# Simplified glyph for tiny sizes (≤32px): the full mark's fine rain blurs
+# into the arch below ~32px, so favicons render this bolder companion instead.
+GLYPH="$REPO_ROOT/bowrain/assets/brand/mark-favicon.svg"
+[[ -f "$GLYPH" ]] || { echo "Error: $GLYPH not found" >&2; exit 1; }
+
 # Solid tile background for surfaces that need one (app icons, touch icons).
 # Rainlight light background (oklch(0.985 0.003 240)).
 TILE_BG="#f8fafc"
@@ -58,7 +63,10 @@ resize() { # <source> <size> <output>
 
 make_favicon() { # <source> <output.ico>
   local src="$1" out="$2"
-  for s in 16 32 48; do resize "$src" "$s" "$TMPDIR/ico-$s.png"; done
+  # 16/32 render from the simplified glyph (crisp at tab size); 48 from the mark.
+  rsvg-convert -w 16 -h 16 "$GLYPH" -o "$TMPDIR/ico-16.png"
+  rsvg-convert -w 32 -h 32 "$GLYPH" -o "$TMPDIR/ico-32.png"
+  resize "$src" 48 "$TMPDIR/ico-48.png"
   magick "$TMPDIR/ico-16.png" "$TMPDIR/ico-32.png" "$TMPDIR/ico-48.png" "$out"
 }
 
@@ -80,7 +88,8 @@ macos_icon() { # <canvas> <output>
 # --- Landing ---------------------------------------------------------------
 echo "  landing: favicon.svg favicon.ico og.png"
 LANDING="$REPO_ROOT/bowrain/web/landing/public"
-cp "$MARK" "$LANDING/favicon.svg"
+# SVG favicon renders at tab size, so ship the crisp simplified glyph here.
+cp "$GLYPH" "$LANDING/favicon.svg"
 make_favicon "$MASTER" "$LANDING/favicon.ico"
 # OG card: tile background, mark left, wordmark + tagline. Text is rendered
 # by librsvg (fontconfig system fonts), not ImageMagick, which ships fontless.
@@ -141,7 +150,7 @@ resize "$TILE" 180 "$DESKTOP/frontend/public/apple-touch-icon.png"
 echo "  docs site images"
 DOCS="$REPO_ROOT/bowrain/web/docs/static/img"
 resize "$MASTER" 256 "$DOCS/logo.png"
-resize "$MASTER" 32 "$DOCS/favicon.png"
+rsvg-convert -w 32 -h 32 "$GLYPH" -o "$DOCS/favicon.png"  # glyph: crisp at tab size
 make_favicon "$MASTER" "$DOCS/favicon.ico"
 resize "$TILE" 512 "$DOCS/hero-logo.png"
 resize "$TILE" 180 "$DOCS/apple-touch-icon.png"
