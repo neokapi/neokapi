@@ -20,6 +20,22 @@ import { Backend } from "./backend";
  * the shared router runs in real server mode (real user + workspaces, not the
  * old single-user hardcodes), and project listing so it is workspace-correct by
  * URL rather than tied to the backend's single selected workspace.
+ *
+ * `getProject` is REST-first too (see the explicit override below): the server
+ * project carries the collections, streams, and item/label model the web renders,
+ * so the desktop project overview matches the web instead of the flat local-file
+ * view. Items resolve by name (both sides generate item IDs independently), so
+ * the editor's local-first `getFileBlocks` still opens them. When the server is
+ * unreachable it falls back to the local working copy — normalized to the shared
+ * shape — so an offline desktop still renders a cached project rather than an
+ * empty view.
+ *
+ * `createProject` and `deleteProject` also fall through to REST (#1283): the
+ * desktop is a working copy, never a source of truth, so it must never mint a
+ * server-unknown project (which the now-server-sourced `getProject`/`listProjects`
+ * would then fail to show or open). A server mutation while offline fails loud
+ * via the connectivity error rather than queueing a local-only project that would
+ * 404 later; the Go create/close bindings stay for other callers.
  */
 const LOCAL_FIRST: ReadonlySet<string> = new Set<string>([
   "listMembers",
@@ -29,9 +45,6 @@ const LOCAL_FIRST: ReadonlySet<string> = new Set<string>([
   "listInvites",
   "createInvite",
   "deleteInvite",
-  "createProject",
-  "getProject",
-  "deleteProject",
   "uploadFiles",
   "removeFile",
   "listConnectors",
@@ -126,6 +139,38 @@ const LOCAL_FIRST: ReadonlySet<string> = new Set<string>([
 /** A raw {status, body} pair as returned by the Go proxy bindings. */
 type ProxyResult = { status: number; body: string };
 
+/**
+ * Thrown by the proxy transport when a `Backend.ProxyRequest` /
+ * `Backend.ProxyMultipart` binding call itself rejects — i.e. the Go side could
+ * not reach or authenticate the server (no connection, dead token, or transport
+ * failure). A reachable server that returns an HTTP error status comes back as a
+ * ProxyResult (status + body), NOT a rejection, so it never becomes this error.
+ * `getProject` uses this to distinguish "offline → fall back to the local
+ * working copy" from "server said 404 → propagate".
+ */
+export class ProxyConnectivityError extends Error {
+  constructor(cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause));
+    this.name = "ProxyConnectivityError";
+    // Preserve the original rejection for error reporting (parseAppError reads
+    // `.cause`). Assigned directly rather than via the Error options bag, which
+    // this lib target's constructor typing doesn't accept.
+    (this as { cause?: unknown }).cause = cause;
+  }
+}
+
+/**
+ * Await a proxy binding call, converting a rejection (never an HTTP status —
+ * that returns a ProxyResult) into a typed {@link ProxyConnectivityError}.
+ */
+async function callProxyBinding(call: Promise<unknown>): Promise<ProxyResult> {
+  try {
+    return (await call) as ProxyResult;
+  } catch (err) {
+    throw new ProxyConnectivityError(err);
+  }
+}
+
 /** 204/205/304 must not carry a body (the Response constructor throws otherwise). */
 function proxyResponse(res: ProxyResult): Response {
   const noBody = res.status === 204 || res.status === 205 || res.status === 304;
@@ -164,7 +209,7 @@ async function proxyMultipart(method: string, path: string, form: FormData): Pro
     }
   }
   const payload = JSON.stringify({ fields, files });
-  const res = (await Backend.ProxyMultipart(method, path, payload)) as ProxyResult;
+  const res = await callProxyBinding(Backend.ProxyMultipart(method, path, payload));
   return proxyResponse(res);
 }
 
@@ -182,7 +227,7 @@ const proxyTransport: ApiTransport = async (input, init) => {
     return proxyMultipart(method, input, rawBody);
   }
   const body = typeof rawBody === "string" ? rawBody : "";
-  const res = (await Backend.ProxyRequest(method, input, body)) as ProxyResult;
+  const res = await callProxyBinding(Backend.ProxyRequest(method, input, body));
   return proxyResponse(res);
 };
 
@@ -204,8 +249,40 @@ export function createDesktopAdapter(): ApiAdapter {
     void Backend.Logout();
   };
 
+  // getProject: REST-first (server view — collections/streams/items), falling
+  // back to the local working copy only when the server is unreachable. A
+  // ProxyConnectivityError means the transport couldn't reach/authenticate the
+  // server, so the cached working copy is the best available view; any other
+  // error (an HTTP status from a reachable server, e.g. 404) is authoritative
+  // and propagates.
+  const getProjectServerFirst = async (
+    ...args: Parameters<ApiAdapter["getProject"]>
+  ): ReturnType<ApiAdapter["getProject"]> => {
+    try {
+      return await rest.getProject(...args);
+    } catch (err) {
+      if (err instanceof ProxyConnectivityError) {
+        const [ws, projectId] = args;
+        const local = await wails.getProject(ws, projectId);
+        // The local working-copy shape omits the server-only projection
+        // (collections/streams/active_stream). Default them explicitly so every
+        // shared consumer renders the offline flat view rather than risking a
+        // crash on a missing array, regardless of how it reads the project.
+        return {
+          ...local,
+          items: local.items ?? [],
+          collections: local.collections ?? [],
+          streams: local.streams ?? [],
+          active_stream: local.active_stream ?? "main",
+        };
+      }
+      throw err;
+    }
+  };
+
   return new Proxy(rest, {
     get(target, prop, receiver) {
+      if (prop === "getProject") return getProjectServerFirst;
       if (typeof prop === "string" && LOCAL_FIRST.has(prop)) {
         const fn = (wails as unknown as Record<string, unknown>)[prop];
         if (typeof fn === "function") {
