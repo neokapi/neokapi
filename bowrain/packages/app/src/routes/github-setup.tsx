@@ -1,63 +1,197 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearch, Link } from "@tanstack/react-router";
+import { useNavigate, useSearch, Link } from "@tanstack/react-router";
 import {
   Badge,
   Button,
   Card,
+  GitPullRequest,
+  Loader2,
+  ProjectFormDialog,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
   useApi,
+  useAuth,
+  type InstallationRepo,
+  type ProjectFormData,
 } from "@neokapi/ui";
-import type { InstallationRepo } from "@neokapi/ui";
 import { projectsQueryOptions, workspacesQueryOptions } from "../queries";
 
 /**
- * GitHub App post-install landing: GitHub redirects here (the app's Setup
- * URL) with the installation id. The page lists the repositories the
- * installation covers and binds each to a project — one selection, no
- * tokens, no CI configuration. Binding creates the server-side app-auth
- * forge connector; from the next push the loop delivers translations as a
- * pull request.
+ * GitHub App post-install landing: GitHub redirects here (the app's Setup URL)
+ * with the installation id. The page turns a fresh install into a connected
+ * project — signing in or creating an account, a workspace and a project as
+ * needed, then binding each repository. Binding creates the server-side
+ * app-auth forge connector; from the next push the loop delivers translations
+ * as a pull request.
+ *
+ * It owns its own auth (like the invite/claim pages): a logged-out visitor is
+ * welcomed rather than silently bounced, and the installation id round-trips
+ * through login via the return-path cookie.
  */
+
+/** Short-lived cookie so the server redirects back here after OIDC. */
+function setReturnPathCookie(path: string) {
+  document.cookie = `bowrain_return_path=${encodeURIComponent(path)}; path=/; max-age=600; SameSite=Lax`;
+}
+
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mx-auto mt-12 w-full max-w-2xl px-4">
+      <Card className="p-8">
+        <div className="mb-6 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+            <GitPullRequest className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold leading-tight">Connect your repositories</h1>
+            <p className="text-sm text-muted-foreground">
+              Translations come back as one pull request the loop keeps up to date — no CI, no
+              tokens.
+            </p>
+          </div>
+        </div>
+        {children}
+      </Card>
+    </div>
+  );
+}
+
+function Spinner() {
+  return (
+    <div className="flex justify-center py-8">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
+
 export function GithubSetupRoute() {
   const { installation_id: installationId } = useSearch({ strict: false }) as {
     installation_id?: string;
   };
   const api = useApi();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user, setUser } = useAuth();
 
-  const workspaces = useQuery(workspacesQueryOptions(api));
+  // Own the auth check: this page is reachable logged-out (GitHub sends the
+  // user straight here), so resolve the session before deciding what to show.
+  const [checkingAuth, setCheckingAuth] = useState(!user);
+  useEffect(() => {
+    if (user) {
+      setCheckingAuth(false);
+      return;
+    }
+    void (async () => {
+      try {
+        const current = await api.getCurrentUser();
+        if (current) setUser(current);
+      } catch {
+        // No session — stays logged out.
+      } finally {
+        setCheckingAuth(false);
+      }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setupPath = `/github/setup?installation_id=${installationId ?? ""}`;
+
+  const workspaces = useQuery({ ...workspacesQueryOptions(api), enabled: !!user });
   const [workspaceSlug, setWorkspaceSlug] = useState<string>("");
   const activeSlug = workspaceSlug || workspaces.data?.[0]?.slug || "";
 
   const projects = useQuery({
     ...projectsQueryOptions(api, activeSlug),
-    enabled: !!activeSlug,
+    enabled: !!user && !!activeSlug,
   });
   const repos = useQuery({
     queryKey: ["github-installation-repos", activeSlug, installationId],
     queryFn: () => api.listInstallationRepos(activeSlug, installationId ?? ""),
-    enabled: !!activeSlug && !!installationId,
+    enabled: !!user && !!activeSlug && !!installationId,
   });
 
+  // --- No installation id: opened out of context. -------------------------
   if (!installationId) {
     return (
-      <SetupShell>
+      <Shell>
         <p className="text-sm text-muted-foreground">
-          This page is where GitHub sends you after installing the app. Open it from the app
-          installation flow, or add <code>?installation_id=…</code> from the installation&apos;s
-          settings page.
+          This page is where GitHub sends you after installing the app. Install{" "}
+          <a
+            className="underline underline-offset-2"
+            href="https://github.com/apps/bowraincloud/installations/new"
+          >
+            the Bowrain app
+          </a>{" "}
+          on a repository, or open this page from the installation&apos;s settings.
         </p>
-      </SetupShell>
+      </Shell>
     );
   }
 
+  if (checkingAuth) {
+    return (
+      <Shell>
+        <Spinner />
+      </Shell>
+    );
+  }
+
+  // --- Logged out: welcome + sign-in/sign-up. -----------------------------
+  if (!user) {
+    return (
+      <Shell>
+        <p className="text-sm text-muted-foreground">
+          The GitHub App is installed. Sign in or create an account to connect the repositories to a
+          Bowrain project.
+        </p>
+        <Button
+          className="mt-5"
+          size="lg"
+          onClick={() => {
+            setReturnPathCookie(setupPath);
+            window.location.href = "/api/v1/auth/login";
+          }}
+        >
+          Sign in or create an account
+        </Button>
+      </Shell>
+    );
+  }
+
+  if (workspaces.isLoading) {
+    return (
+      <Shell>
+        <Spinner />
+      </Shell>
+    );
+  }
+
+  // --- Signed in but no workspace yet: onboard first, then return here. ----
+  if ((workspaces.data?.length ?? 0) === 0) {
+    return (
+      <Shell>
+        <p className="text-sm text-muted-foreground">
+          Welcome. Create your workspace to continue — you&apos;ll come right back here to connect
+          your repositories.
+        </p>
+        <Button
+          className="mt-5"
+          size="lg"
+          onClick={() => void navigate({ to: "/welcome", search: { return_to: setupPath } })}
+        >
+          Create your workspace
+        </Button>
+      </Shell>
+    );
+  }
+
+  const projectList = projects.data?.map((p) => ({ id: p.id, name: p.name })) ?? [];
+
   return (
-    <SetupShell>
+    <Shell>
       {(workspaces.data?.length ?? 0) > 1 && (
         <div className="mb-4 flex items-center gap-2">
           <span className="text-sm text-muted-foreground">Workspace</span>
@@ -76,7 +210,7 @@ export function GithubSetupRoute() {
         </div>
       )}
 
-      {repos.isLoading && <p className="text-sm text-muted-foreground">Loading repositories…</p>}
+      {repos.isLoading && <Spinner />}
       {repos.isError && (
         <p className="text-sm text-destructive">
           Could not list the installation&apos;s repositories: {(repos.error as Error).message}
@@ -90,12 +224,15 @@ export function GithubSetupRoute() {
             repo={repo}
             workspaceSlug={activeSlug}
             installationId={installationId}
-            projects={projects.data?.map((p) => ({ id: p.id, name: p.name })) ?? []}
-            onBound={() =>
+            projects={projectList}
+            onChanged={() => {
               void queryClient.invalidateQueries({
                 queryKey: ["github-installation-repos", activeSlug, installationId],
-              })
-            }
+              });
+              void queryClient.invalidateQueries({
+                queryKey: projectsQueryOptions(api, activeSlug).queryKey,
+              });
+            }}
           />
         ))}
         {repos.data?.length === 0 && (
@@ -105,23 +242,7 @@ export function GithubSetupRoute() {
           </p>
         )}
       </div>
-    </SetupShell>
-  );
-}
-
-function SetupShell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mx-auto mt-12 w-full max-w-2xl px-4">
-      <Card className="p-8">
-        <h1 className="text-xl font-semibold">Connect your repositories</h1>
-        <p className="mt-1 mb-6 text-sm text-muted-foreground">
-          The GitHub App is installed. Pick a project for each repository — from the next push,
-          translations come back as one pull request the loop keeps up to date. No CI configuration,
-          no tokens.
-        </p>
-        {children}
-      </Card>
-    </div>
+    </Shell>
   );
 }
 
@@ -130,25 +251,49 @@ function RepoRow({
   workspaceSlug,
   installationId,
   projects,
-  onBound,
+  onChanged,
 }: {
   repo: InstallationRepo;
   workspaceSlug: string;
   installationId: string;
   projects: { id: string; name: string }[];
-  onBound: () => void;
+  onChanged: () => void;
 }) {
   const api = useApi();
   const [projectId, setProjectId] = useState("");
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const repoShortName = repo.full_name.slice(repo.full_name.lastIndexOf("/") + 1);
+
   const bind = useMutation({
-    mutationFn: () =>
+    mutationFn: (pid: string) =>
       api.bindInstallationRepo(workspaceSlug, installationId, {
         repository: repo.full_name,
-        project_id: projectId,
+        project_id: pid,
       }),
-    onSuccess: onBound,
+    onSuccess: onChanged,
+    onError: (e) => setError((e as Error).message),
+  });
+
+  // Create a project from the repo, then bind it in one step.
+  const createAndBind = useMutation({
+    mutationFn: async (data: ProjectFormData) => {
+      const project = await api.createProject(
+        workspaceSlug,
+        data.name,
+        data.default_source_language,
+        data.target_languages,
+      );
+      return api.bindInstallationRepo(workspaceSlug, installationId, {
+        repository: repo.full_name,
+        project_id: project.id,
+      });
+    },
+    onSuccess: () => {
+      setCreating(false);
+      onChanged();
+    },
     onError: (e) => setError((e as Error).message),
   });
 
@@ -164,7 +309,7 @@ function RepoRow({
     >
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <span className="truncate font-medium text-sm">{repo.full_name}</span>
+          <span className="truncate text-sm font-medium">{repo.full_name}</span>
           {repo.private && <Badge variant="secondary">private</Badge>}
         </div>
         <div className="text-xs text-muted-foreground">tracked branch: {repo.default_branch}</div>
@@ -184,6 +329,15 @@ function RepoRow({
             </Link>
           )}
         </div>
+      ) : projects.length === 0 ? (
+        <Button
+          size="sm"
+          className="shrink-0"
+          disabled={bind.isPending || createAndBind.isPending}
+          onClick={() => setCreating(true)}
+        >
+          Create a project
+        </Button>
       ) : (
         <div className="flex shrink-0 items-center gap-2">
           <Select value={projectId} onValueChange={setProjectId}>
@@ -196,13 +350,31 @@ function RepoRow({
                   {p.name}
                 </SelectItem>
               ))}
+              <SelectItem value="__new__">+ New project…</SelectItem>
             </SelectContent>
           </Select>
-          <Button size="sm" disabled={!projectId || bind.isPending} onClick={() => bind.mutate()}>
-            {bind.isPending ? "Connecting…" : "Connect"}
-          </Button>
+          {projectId === "__new__" ? (
+            <Button size="sm" onClick={() => setCreating(true)}>
+              Create
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              disabled={!projectId || bind.isPending}
+              onClick={() => bind.mutate(projectId)}
+            >
+              {bind.isPending ? "Connecting…" : "Connect"}
+            </Button>
+          )}
         </div>
       )}
+
+      <ProjectFormDialog
+        open={creating}
+        onOpenChange={setCreating}
+        initialName={repoShortName}
+        onSubmit={(data) => createAndBind.mutate(data)}
+      />
     </div>
   );
 }

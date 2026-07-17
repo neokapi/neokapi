@@ -111,7 +111,7 @@ const indexRoute = createRoute({
     // (set by CompleteOnboarding) and fall back to "no workspaces" so older
     // accounts that predate the flag still resolve.
     if (!user.onboarded_at && (!workspaces || workspaces.length === 0)) {
-      throw redirect({ to: "/welcome", replace: true });
+      throw redirect({ to: "/welcome", search: { return_to: undefined }, replace: true });
     }
 
     if (!workspaces || workspaces.length === 0) {
@@ -182,6 +182,9 @@ const githubSetupRoute = createRoute({
 const welcomeRoute = createRoute({
   getParentRoute: () => authLayout,
   path: "welcome",
+  validateSearch: (search: Record<string, unknown>) => ({
+    return_to: typeof search.return_to === "string" ? search.return_to : undefined,
+  }),
   component: WelcomeRoute,
 });
 
@@ -238,7 +241,7 @@ const workspaceRoute = createRoute({
       // Bounce un-onboarded users to /welcome before they can access any
       // workspace URL. This handles direct navigation/bookmarks.
       if (!fetchedUser.onboarded_at && (!fetchedWorkspaces || fetchedWorkspaces.length === 0)) {
-        throw redirect({ to: "/welcome", replace: true });
+        throw redirect({ to: "/welcome", search: { return_to: undefined }, replace: true });
       }
 
       user = fetchedUser;
