@@ -10,7 +10,9 @@ PostHog (roadmap epic 018). Event names are `snake_case` `domain_action`. The
 server-side constants live in `bowrain/analytics/events.go`; a drift test
 (`bowrain/analytics/events_test.go`) fails when a constant defined there is
 missing from this document, so adding an event without documenting it does not
-pass CI.
+pass CI. The client-side (web app) constants live in
+`bowrain/packages/ui/src/analytics-events.ts` with the same gate
+(`bowrain/packages/ui/src/__tests__/analytics-events.test.ts`).
 
 ## Invariants
 
@@ -89,11 +91,61 @@ retired rather than dual-fired.
 | `feature_gate_hit` | a plan guard blocks a request needing a paid feature | `workspace_id`, `feature`, `plan`, `minimum_plan` |
 | `credits_exhausted` | the quota guard blocks a request with no credits left | `workspace_id`, `plan` |
 
+## Web app (client)
+
+Client-side events from the browser SPA (`bowrain/apps/web` +
+`bowrain/packages/app` + `@neokapi/ui`), epic-018 workstream B. They flow
+through the platform seam (`platform.analytics.capture`, wired to `posthog-js`
+in `bowrain/apps/web/src/posthog.ts`; the desktop shell leaves the seam
+unwired, so every capture is a no-op there) and the shared-component capture
+seam (`useAnalytics()` in `@neokapi/ui`). Event names are defined once in
+`bowrain/packages/ui/src/analytics-events.ts`.
+
+Super-properties registered at init and attached to **every** client event
+(including `$pageview` and autocapture):
+
+| Property | Value |
+|---|---|
+| `surface` | `"web-app"` |
+| `environment` | the Vite build mode (`production` / `development`) |
+
+Client events carry ids, locales, and enum-ish values only — never free-text
+names, document content, or file paths. Group association: on workspace
+switch/load the web shell calls `posthog.group("workspace", workspaceId)`
+(platform seam `analytics.group`), scoping subsequent events to the active
+workspace group.
+
+### Navigation
+
+| Event | Fired when | Properties |
+|---|---|---|
+| `$pageview` | every TanStack Router navigation (including the initial load — `capture_pageview` is off; the router subscription in `BowrainApp` owns all pageviews) | `path_pattern` — the matched route PATTERN with params unresolved (e.g. `/$workspace/p/$projectId/s/$stream/$itemId/translate`), so slugs/ids never appear |
+| `feature_entered` | the route-derived feature changes on navigation (deduped against the previous feature) | `feature` — snake_case surface name derived from the route pattern (`dashboard`, `translate`, `review`, `brand_concepts`, `settings_members`, `locale_demand`, …) |
+
+### Form / action events
+
+| Event | Fired when | Properties |
+|---|---|---|
+| `project_create_submitted` | the create-project (or sample-project) call succeeds on the dashboard — client complement of the server's `project_created` | `source_language`, `target_count`, `sample` (sample project only) |
+| `connector_added` | the add-connector dialog's create call succeeds | `connector_type` (`wordpress` / `figma` / `hubspot`) |
+| `connector_publish_clicked` | the publish confirmation is confirmed (before the server round-trip; the server's `connector_published` reports the outcome) | `connector_category` |
+| `review_decision_clicked` | a per-block Approve/Reject (translate editor or review surface) or the bulk mark-reviewed action — client complement of the server's `review_approved` / `review_rejected` | `decision` (`approve` / `reject` / `clear`), `locale`, `bulk` (bulk action only) |
+| `translation_saved` | a block target save persists (editor save or TM-match apply) | `locale`, `method` (`editor` / `tm`) |
+| `settings_saved` | a workspace settings section persists a change (general/pulse visibility, governance SoD mode, role overrides) | `section` (`general` / `governance`) |
+| `member_invite_sent` | an invite is created in the members settings | `role` |
+| `locale_added` | a language is added in the workspace language settings | `locale` |
+| `brand_voice_saved` | a brand-voice profile create/update persists | `mode` (`created` / `updated`) |
+| `glossary_saved` | a concept term status change persists in the Brand · Concepts edit dialog | `status`, `locale` |
+| `locale_demand_connect_clicked` | the "Connect PostHog" / "Fix connection" affordance is clicked on the locale-demand page (AD-018 demand path) | `reconnect` |
+
 ## Adding an event
 
-1. Add the constant to `bowrain/analytics/events.go` (snake_case
-   `domain_action`).
+1. Add the constant to `bowrain/analytics/events.go` (server events) or
+   `bowrain/packages/ui/src/analytics-events.ts` (web app client events) —
+   snake_case `domain_action`.
 2. Capture it at the service seam (preferred) or, where no service layer
    exists, at the handler success point — always fire-and-forget, after the
-   operation succeeded, never carrying content.
-3. Document it in this file (the `events_test.go` drift gate enforces this).
+   operation succeeded, never carrying content. Client events go through the
+   platform/`useAnalytics` capture seam, never a direct `posthog-js` import.
+3. Document it in this file (the `events_test.go` and
+   `analytics-events.test.ts` drift gates enforce this).

@@ -26,6 +26,8 @@ import {
 import type { Concept, ConceptDataSource, Term, TermStatus } from "@neokapi/concept-ui";
 import { TERM_STATUSES, TERM_STATUS_LABEL, primaryName } from "@neokapi/concept-ui";
 import { ErrorNotice } from "../../errors";
+import { useAnalytics } from "../../context/AnalyticsContext";
+import { AnalyticsEvents } from "../../analytics-events";
 import { isGovernedEditError } from "./restConceptSource";
 
 export interface ConceptEditDialogProps {
@@ -46,6 +48,7 @@ export function ConceptEditDialog({
   onOpenChange,
   onApplied,
 }: ConceptEditDialogProps) {
+  const { capture } = useAnalytics();
   const [terms, setTerms] = useState<Term[]>(concept.terms);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [error, setError] = useState<{ title: string; cause?: unknown } | null>(null);
@@ -65,6 +68,7 @@ export function ConceptEditDialog({
     setError(null);
     try {
       await source.setTermStatus(concept.id, { locale: term.locale, text: term.text }, status);
+      capture(AnalyticsEvents.glossarySaved, { status, locale: term.locale });
       setTerms((prev) =>
         prev.map((t) => (t.locale === term.locale && t.text === term.text ? { ...t, status } : t)),
       );

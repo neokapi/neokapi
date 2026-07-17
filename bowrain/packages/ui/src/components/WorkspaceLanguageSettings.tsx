@@ -2,6 +2,8 @@ import { Card } from "@neokapi/ui-primitives";
 import { useState, useEffect, useCallback } from "react";
 import { X, Plus } from "lucide-react";
 import { useApi } from "../context/ApiContext";
+import { useAnalytics } from "../context/AnalyticsContext";
+import { AnalyticsEvents } from "../analytics-events";
 import { useLocales } from "../hooks/useLocales";
 import { LocaleSelect } from "./LocaleSelect";
 import type { Workspace } from "../types/api";
@@ -37,6 +39,7 @@ interface WorkspaceLanguageSettingsProps {
 
 export function WorkspaceLanguageSettings({ workspace, onUpdate }: WorkspaceLanguageSettingsProps) {
   const api = useApi();
+  const { capture } = useAnalytics();
   const { getDisplayName } = useLocales();
   const [languages, setLanguages] = useState<string[]>(
     workspace.languages && workspace.languages.length > 0 ? workspace.languages : DEFAULT_LANGUAGES,
@@ -76,9 +79,10 @@ export function WorkspaceLanguageSettings({ workspace, onUpdate }: WorkspaceLang
       }
       const next = [...languages, code].sort();
       setAdding(false);
+      capture(AnalyticsEvents.localeAdded, { locale: code });
       void save(next);
     },
-    [languages, save],
+    [languages, save, capture],
   );
 
   const handleRemove = useCallback(

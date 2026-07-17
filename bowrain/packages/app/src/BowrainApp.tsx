@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { RouterProvider, type RouterHistory } from "@tanstack/react-router";
 import { QueryClient } from "@tanstack/react-query";
-import type { ApiAdapter } from "@neokapi/ui";
+import { AnalyticsProvider, type ApiAdapter } from "@neokapi/ui";
 import { createBowrainRouter } from "./routes";
 import { PlatformProvider, webPlatform, type PlatformAdapter } from "./platform";
+import { AnalyticsEvents, PAGEVIEW_EVENT, featureFromRoutePattern } from "./analytics-events";
 
 export interface BowrainAppProps {
   /** Data seam — RestApiAdapter on the web, WailsApiAdapter on the desktop. */
@@ -54,9 +55,49 @@ export function BowrainApp({ api, platform, queryClient, history }: BowrainAppPr
     });
   }, [plat, router]);
 
+  // SPA navigation analytics (epic 018, workstream B): posthog-js only fires
+  // $pageview on full document loads, so router navigations are captured here
+  // through the platform seam. Events carry the matched route PATTERN
+  // ("/$workspace/p/$projectId/s/$stream/$itemId/translate"), never resolved
+  // params, so slugs/ids stay out of the properties. A feature_entered event
+  // is derived from the same pattern, deduped against the previous feature.
+  // No-op when the host wires no analytics (desktop).
+  useEffect(() => {
+    const analytics = plat.analytics;
+    if (!analytics) return;
+    let lastPathname: string | undefined;
+    let lastFeature: string | undefined;
+    const fire = () => {
+      const matches = router.state.matches;
+      const leaf = matches[matches.length - 1];
+      if (!leaf) return;
+      const pathname = router.state.location.pathname;
+      if (pathname === lastPathname) return; // search-only change or duplicate resolve
+      lastPathname = pathname;
+      const pattern = leaf.fullPath;
+      analytics.capture?.(PAGEVIEW_EVENT, { path_pattern: pattern });
+      const feature = featureFromRoutePattern(pattern);
+      if (feature && feature !== lastFeature) {
+        lastFeature = feature;
+        analytics.capture?.(AnalyticsEvents.featureEntered, { feature });
+      }
+    };
+    fire(); // the initial load may resolve before this effect subscribes
+    return router.subscribe("onResolved", fire);
+  }, [plat, router]);
+
   return (
     <PlatformProvider platform={plat}>
-      <RouterProvider router={router} context={{ queryClient: qc, api }} />
+      {/* Bridge the platform seam into the shared components' capture seam:
+          @neokapi/ui call sites use useAnalytics(), which no-ops when the
+          host (desktop) wires no analytics. */}
+      <AnalyticsProvider
+        capture={
+          plat.analytics ? (event, props) => plat.analytics?.capture?.(event, props) : undefined
+        }
+      >
+        <RouterProvider router={router} context={{ queryClient: qc, api }} />
+      </AnalyticsProvider>
     </PlatformProvider>
   );
 }

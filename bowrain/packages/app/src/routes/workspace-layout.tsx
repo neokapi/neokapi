@@ -255,6 +255,15 @@ export function WorkspaceLayout() {
     }
   }, [user, platform]);
 
+  // Workspace group analytics (epic 018): scope subsequent events to the
+  // active workspace so funnels can be cut per workspace. Standalone mode has
+  // no real workspace identity, so it stays out of group analytics.
+  useEffect(() => {
+    if (serverMode === "server" && activeWorkspace?.id) {
+      platform.analytics?.group?.("workspace", activeWorkspace.id);
+    }
+  }, [serverMode, activeWorkspace?.id, platform]);
+
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = useUIStore((s) => s.setSidebarCollapsed);
   const setLastWorkspaceSlug = useUIStore((s) => s.setLastWorkspaceSlug);

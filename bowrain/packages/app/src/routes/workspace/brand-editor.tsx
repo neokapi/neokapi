@@ -6,6 +6,8 @@ import {
   useBrandProfile,
   useCreateBrandProfile,
   useUpdateBrandProfile,
+  useAnalytics,
+  AnalyticsEvents,
 } from "@neokapi/ui";
 import type { StarterPackMeta } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
@@ -273,6 +275,7 @@ export function BrandEditorRoute() {
   const { data: profile } = useBrandProfile(isNew ? "" : (profileId ?? ""));
   const createMutation = useCreateBrandProfile();
   const updateMutation = useUpdateBrandProfile();
+  const { capture } = useAnalytics();
 
   useEffect(() => {
     const name = isNew ? "New Profile" : (profile?.name ?? "Edit Profile");
@@ -301,12 +304,13 @@ export function BrandEditorRoute() {
       } else {
         await updateMutation.mutateAsync({ ...data, id: profileId ?? "" });
       }
+      capture(AnalyticsEvents.brandVoiceSaved, { mode: isNew ? "created" : "updated" });
       void navigate({
         to: "/$workspace/brand/voice",
         params: { workspace: workspace ?? "" },
       });
     },
-    [isNew, profileId, createMutation, updateMutation, navigate, workspace],
+    [isNew, profileId, createMutation, updateMutation, capture, navigate, workspace],
   );
 
   const handleSelectPack = useCallback((pack: StarterPackMeta) => {

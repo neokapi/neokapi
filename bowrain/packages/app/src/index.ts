@@ -8,3 +8,9 @@ export { BowrainApp, type BowrainAppProps } from "./BowrainApp";
 export { createBowrainRouter } from "./routes";
 export type { RouterContext, WorkspaceRouteContext } from "./routes";
 export { PlatformProvider, usePlatform, webPlatform, type PlatformAdapter } from "./platform";
+export {
+  AnalyticsEvents,
+  PAGEVIEW_EVENT,
+  featureFromRoutePattern,
+  type AnalyticsEventName,
+} from "./analytics-events";

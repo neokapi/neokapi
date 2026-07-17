@@ -2,6 +2,8 @@ import { useEffect, useCallback } from "react";
 import {
   useWorkspace,
   useApi,
+  useAnalytics,
+  AnalyticsEvents,
   Card,
   CardContent,
   CardHeader,
@@ -27,6 +29,7 @@ function SettingsField({ label, value, mono }: { label: string; value: string; m
 export function SettingsIndexRoute() {
   const { activeWorkspace, setActiveWorkspace } = useWorkspace();
   const adapter = useApi();
+  const { capture } = useAnalytics();
 
   useEffect(() => {
     if (activeWorkspace) {
@@ -40,9 +43,10 @@ export function SettingsIndexRoute() {
       const updated = await adapter.updateWorkspace(activeWorkspace.slug, {
         dashboard_visibility: visibility,
       });
+      capture(AnalyticsEvents.settingsSaved, { section: "general" });
       setActiveWorkspace(updated);
     },
-    [activeWorkspace, adapter, setActiveWorkspace],
+    [activeWorkspace, adapter, capture, setActiveWorkspace],
   );
 
   if (!activeWorkspace) {

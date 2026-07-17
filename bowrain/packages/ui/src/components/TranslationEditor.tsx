@@ -28,6 +28,8 @@ import type {
 } from "../types/api";
 import { useEditorApi } from "../hooks/useEditorApi";
 import { useApi } from "../context/ApiContext";
+import { useAnalytics } from "../context/AnalyticsContext";
+import { AnalyticsEvents } from "../analytics-events";
 import { useWorkspace } from "../context/WorkspaceContext";
 import { useLocales } from "../hooks/useLocales";
 import { useSetBreadcrumb } from "../context/BreadcrumbContext";
@@ -148,6 +150,7 @@ export function TranslationEditor({
   useSetBreadcrumb(breadcrumbNode);
 
   const api = useEditorApi();
+  const { capture } = useAnalytics();
   const { getFileBlocks, getWordCount: getWordCountApi } = api;
 
   // Load blocks
@@ -420,6 +423,7 @@ export function TranslationEditor({
             ),
           );
         }
+        capture(AnalyticsEvents.translationSaved, { locale: targetLocale, method: "editor" });
         const nextIndex = index + 1;
         setEditingIndex(null);
         if (nextIndex < filteredBlocks.length) setSelectedIndex(nextIndex);
@@ -427,7 +431,7 @@ export function TranslationEditor({
         setError({ title: "Couldn't save the translation", cause: e });
       }
     },
-    [filteredBlocks, api, project.id, fileName, targetLocale],
+    [filteredBlocks, api, capture, project.id, fileName, targetLocale],
   );
 
   const handleExport = async () => {
@@ -471,6 +475,10 @@ export function TranslationEditor({
       // rollback ever removes (approval is guarded by the callers and the
       // server's 422).
       if (!reviewed && !getTargetText(block, targetLocale).trim()) return true;
+      capture(AnalyticsEvents.reviewDecisionClicked, {
+        decision: reviewed ? "approve" : demoteTo === "draft" ? "reject" : "clear",
+        locale: targetLocale,
+      });
       let snapshot: TargetStatusSnapshot = { existed: false, status: "" };
       setBlocks((prev) =>
         prev.map((b) => {
@@ -501,7 +509,7 @@ export function TranslationEditor({
         return false;
       }
     },
-    [api, project.id, fileName, targetLocale],
+    [api, capture, project.id, fileName, targetLocale],
   );
 
   // Visual card handlers.
@@ -552,6 +560,7 @@ export function TranslationEditor({
           text: match.target,
         })
         .then(() => {
+          capture(AnalyticsEvents.translationSaved, { locale: targetLocale, method: "tm" });
           setBlocks((prev) =>
             prev.map((b) =>
               b.id === block.id
@@ -565,7 +574,7 @@ export function TranslationEditor({
           );
         });
     },
-    [tmMatches, filteredBlocks, selectedIndex, api, project.id, fileName, targetLocale],
+    [tmMatches, filteredBlocks, selectedIndex, api, capture, project.id, fileName, targetLocale],
   );
 
   // Insert a target term. When a target editor is open for the selected

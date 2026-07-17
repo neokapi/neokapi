@@ -12,6 +12,8 @@ import {
 } from "@neokapi/ui-primitives";
 import { useCallback, useEffect, useState } from "react";
 import { useApi } from "../context/ApiContext";
+import { useAnalytics } from "../context/AnalyticsContext";
+import { AnalyticsEvents } from "../analytics-events";
 import { useWorkspace } from "../context/WorkspaceContext";
 import { ErrorNotice } from "../errors";
 import type { DenyRule, Group, SoDMode } from "../types/api";
@@ -31,6 +33,7 @@ const WORKSPACE_ROLES = ["owner", "admin", "member", "viewer"] as const;
  */
 export function GovernanceSettings() {
   const api = useApi();
+  const { capture } = useAnalytics();
   const { activeWorkspace } = useWorkspace();
   const ws = activeWorkspace?.slug ?? "";
 
@@ -87,6 +90,7 @@ export function GovernanceSettings() {
     setSod(mode);
     try {
       await api.setSoDMode(ws, mode);
+      capture(AnalyticsEvents.settingsSaved, { section: "governance" });
     } catch (e) {
       setError({ title: "Couldn't change the separation-of-duties mode", cause: e });
     } finally {
@@ -130,6 +134,7 @@ export function GovernanceSettings() {
       .filter(Boolean);
     try {
       await api.setRoleOverride(ws, role, perms);
+      capture(AnalyticsEvents.settingsSaved, { section: "governance" });
       await reload();
     } catch (e) {
       setError({ title: "Couldn't save the role override", cause: e });
