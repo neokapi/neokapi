@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/analytics"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -85,8 +86,9 @@ func (s *Server) HandleCreateProject(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	s.trackEvent(userID, "project_created", map[string]any{
+	s.trackEvent(userID, analytics.EventProjectCreated, map[string]any{
 		"project_id":      p.ID,
+		"workspace_id":    targetWS.ID,
 		"project_name":    p.Name,
 		"source_language": string(p.DefaultSourceLanguage),
 		"target_count":    len(req.TargetLanguages),
@@ -217,8 +219,17 @@ func (s *Server) HandleDeleteProject(c echo.Context) error {
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
-	if err := s.Services.Project.DeleteProject(c.Request().Context(), c.Param("id")); err != nil {
+	projectID := c.Param("id")
+	if err := s.Services.Project.DeleteProject(c.Request().Context(), projectID); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
+
+	userID, _ := c.Get("user_id").(string)
+	props := analytics.Props("", projectID)
+	if wsID, ok := c.Get("workspace_id").(string); ok && wsID != "" {
+		props[analytics.PropWorkspaceID] = wsID
+	}
+	s.trackEvent(userID, analytics.EventProjectDeleted, props)
+
 	return c.NoContent(http.StatusNoContent)
 }

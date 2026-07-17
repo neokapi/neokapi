@@ -59,9 +59,18 @@ type WorkerDeps struct {
 	}
 	// EventBus publishes events after sync push processing.
 	EventBus platev.EventBus
+	// Tracker captures product analytics events (content_pushed). Optional;
+	// nil disables capture. Fire-and-forget — never blocks job processing.
+	Tracker EventTracker
 	// MaxJobAttempts bounds transient-failure retries before a job is failed.
 	// Zero uses defaultMaxJobAttempts.
 	MaxJobAttempts int
+}
+
+// EventTracker captures product analytics events (implemented by
+// *analytics.PostHogClient).
+type EventTracker interface {
+	CaptureEvent(distinctID, event string, properties map[string]any)
 }
 
 // maxJobAttempts returns the configured retry budget or the default.

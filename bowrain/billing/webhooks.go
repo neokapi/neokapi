@@ -10,6 +10,8 @@ import (
 
 	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/webhook"
+
+	"github.com/neokapi/neokapi/bowrain/analytics"
 )
 
 // WorkspacePlanSyncer updates the cached plan and Stripe customer ID
@@ -54,6 +56,14 @@ func (h *WebhookHandler) SetNotifier(notifier *BillingNotifier) {
 // SetEventTracker configures the event tracker for conversion tracking.
 func (h *WebhookHandler) SetEventTracker(tracker EventTracker) {
 	h.tracker = tracker
+}
+
+// track fires a fire-and-forget analytics event when a tracker is configured.
+func (h *WebhookHandler) track(distinctID, event string, props map[string]any) {
+	if h.tracker == nil {
+		return
+	}
+	h.tracker.CaptureEvent(distinctID, event, props)
 }
 
 // syncPlan updates the cached workspace plan. Errors are logged, not returned,
@@ -164,6 +174,10 @@ func (h *WebhookHandler) handleCheckoutCompleted(ctx context.Context, event stri
 		if _, err := h.store.GrantPurchasedCredits(ctx, workspaceID, CreditPackCredits, sess.ID); err != nil {
 			return fmt.Errorf("grant credits: %w", err)
 		}
+		h.track(workspaceID, analytics.EventCheckoutCompleted, map[string]any{
+			"workspace_id": workspaceID,
+			"type":         "credit_pack",
+		})
 		return nil
 	}
 
@@ -173,6 +187,15 @@ func (h *WebhookHandler) handleCheckoutCompleted(ctx context.Context, event stri
 	// waiting for a subsequent subscription event; when that event does arrive it
 	// re-derives the same plan from the price's `bowrain_plan` metadata.
 	plan := planFromMetadata(sess.Metadata)
+
+	// A checkout that lands while the workspace is on the local card-free
+	// trial is a trial conversion (epic 007/018 funnel join).
+	wasTrialing := false
+	if existing, err := h.store.GetSubscription(ctx, workspaceID); err == nil &&
+		existing != nil && existing.Status == "trialing" {
+		wasTrialing = true
+	}
+
 	sub := &Subscription{
 		WorkspaceID:          workspaceID,
 		StripeCustomerID:     sess.Customer.ID,
@@ -188,11 +211,17 @@ func (h *WebhookHandler) handleCheckoutCompleted(ctx context.Context, event stri
 
 	h.syncPlan(ctx, workspaceID, sub.Plan, sess.Customer.ID)
 
-	// Track checkout completed conversion event.
-	if h.tracker != nil {
-		h.tracker.CaptureEvent(workspaceID, "billing.checkout_completed", map[string]any{
+	// Track checkout completed conversion (and trial conversion when the
+	// workspace was on the local card-free trial).
+	h.track(workspaceID, analytics.EventCheckoutCompleted, map[string]any{
+		"workspace_id": workspaceID,
+		"customer_id":  sess.Customer.ID,
+		"plan":         string(sub.Plan),
+		"seats":        sub.SeatCount,
+	})
+	if wasTrialing {
+		h.track(workspaceID, analytics.EventTrialConverted, map[string]any{
 			"workspace_id": workspaceID,
-			"customer_id":  sess.Customer.ID,
 			"plan":         string(sub.Plan),
 		})
 	}
@@ -329,6 +358,17 @@ func (h *WebhookHandler) handleSubscriptionDeleted(ctx context.Context, event st
 
 	h.syncPlan(ctx, workspaceID, PlanFree, stripeSub.Customer.ID)
 
+	// The plan being cancelled: deleted-subscription payloads may omit items,
+	// so guard before deriving from price metadata.
+	cancelledPlan := PlanFree
+	if stripeSub.Items != nil {
+		cancelledPlan = planFromSubscription(&stripeSub)
+	}
+	h.track(workspaceID, analytics.EventSubscriptionCancelled, map[string]any{
+		"workspace_id": workspaceID,
+		"plan":         string(cancelledPlan),
+	})
+
 	return h.store.RecordBillingEvent(ctx, &BillingEvent{
 		WorkspaceID: workspaceID,
 		EventType:   "subscription_deleted",
@@ -394,6 +434,10 @@ func (h *WebhookHandler) handlePaymentFailed(ctx context.Context, event stripe.E
 	if h.notifier != nil && inv.CustomerEmail != "" {
 		h.notifier.NotifyPaymentFailed(ctx, inv.CustomerEmail, workspaceID)
 	}
+
+	h.track(workspaceID, analytics.EventPaymentFailed, map[string]any{
+		"workspace_id": workspaceID,
+	})
 
 	return h.store.RecordBillingEvent(ctx, &BillingEvent{
 		WorkspaceID: workspaceID,

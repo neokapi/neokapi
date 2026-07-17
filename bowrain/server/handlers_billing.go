@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/jobs"
@@ -300,7 +301,7 @@ func (s *Server) HandleCreateCheckout(c echo.Context) error {
 	// Track checkout started event.
 	if s.PostHogClient != nil {
 		userID, _ := c.Get("user_id").(string)
-		s.PostHogClient.CaptureEvent(userID, "billing.checkout_started", map[string]any{
+		s.PostHogClient.CaptureEvent(userID, analytics.EventCheckoutStarted, map[string]any{
 			"workspace_id": wsID,
 			"plan":         string(plan),
 			"seats":        seats,

@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/registry"
@@ -53,6 +54,10 @@ type FlowService struct {
 	// admissionWait bounds how long AcquireCapacity queues for budget before
 	// shedding with ErrCapacityExhausted. <= 0 means block until available.
 	admissionWait time.Duration
+
+	// tracker captures flow_run_completed analytics events. Optional; nil
+	// disables capture (see Services.SetEventTracker).
+	tracker EventTracker
 }
 
 // NewFlowService creates a new FlowService with a server-level admission budget
@@ -151,8 +156,10 @@ func (s *FlowService) ExecuteFlow(ctx context.Context, f *flow.Flow, items []*fl
 		flow.WithFailFast(true),
 	}
 
+	start := time.Now()
 	executor := flow.NewExecutor(opts...)
 	if err := executor.Execute(ctx, f, items); err != nil {
+		s.trackFlowRun(f.Name, projectID, len(items), time.Since(start), "failed")
 		return fmt.Errorf("execute flow: %w", err)
 	}
 
@@ -161,13 +168,29 @@ func (s *FlowService) ExecuteFlow(ctx context.Context, f *flow.Flow, items []*fl
 		for _, item := range items {
 			if len(item.OutputBlocks) > 0 {
 				if err := s.store.StoreBlocks(ctx, projectID, "main", item.OutputBlocks); err != nil {
+					s.trackFlowRun(f.Name, projectID, len(items), time.Since(start), "persist_failed")
 					return fmt.Errorf("persist flow output blocks: %w", err)
 				}
 			}
 		}
 	}
 
+	s.trackFlowRun(f.Name, projectID, len(items), time.Since(start), "completed")
 	return nil
+}
+
+// trackFlowRun captures a flow_run_completed analytics event after a flow
+// execution finishes (fire-and-forget, nil-safe; never carries content).
+func (s *FlowService) trackFlowRun(flowName, projectID string, parts int, d time.Duration, outcome string) {
+	if s.tracker == nil {
+		return
+	}
+	props := analytics.Props("", projectID)
+	props["flow"] = flowName
+	props["duration_bucket"] = analytics.DurationBucket(d)
+	props["outcome"] = outcome
+	props["part_count"] = parts
+	track(s.tracker, projectID, analytics.EventFlowRunCompleted, props)
 }
 
 // flowItemsWeight estimates the in-flight byte weight of a batch: the sum of

@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
@@ -144,8 +146,10 @@ func (s *MCPServer) handleRunFlow(ctx context.Context, req *mcp.CallToolRequest,
 	}
 
 	// Execute.
+	start := time.Now()
 	executor := flow.NewExecutor(flow.WithFailFast(true))
 	if err := executor.Execute(ctx, f, items); err != nil {
+		s.trackFlowRun(req, input, len(items), time.Since(start), "failed")
 		return nil, runFlowOutput{}, fmt.Errorf("execute flow: %w", err)
 	}
 
@@ -160,11 +164,30 @@ func (s *MCPServer) handleRunFlow(ctx context.Context, req *mcp.CallToolRequest,
 		}
 	}
 
+	s.trackFlowRun(req, input, len(items), time.Since(start), "completed")
+
 	return nil, runFlowOutput{
 		Status:        "completed",
 		FlowName:      input.FlowName,
 		BlocksUpdated: len(allBlocks),
 	}, nil
+}
+
+// trackFlowRun captures a flow_run_completed event for an MCP-initiated flow
+// run (fire-and-forget; the MCP flow path executes inline rather than through
+// service.FlowService, so it captures at its own completion point).
+func (s *MCPServer) trackFlowRun(req *mcp.CallToolRequest, input runFlowInput, parts int, d time.Duration, outcome string) {
+	if s.tracker == nil {
+		return
+	}
+	props := map[string]any{
+		"flow":            input.FlowName,
+		"duration_bucket": analytics.DurationBucket(d),
+		"outcome":         outcome,
+		"part_count":      parts,
+		"project_id":      input.ProjectID,
+	}
+	s.tracker.TrackEvent(extractUserID(req), analytics.EventFlowRunCompleted, props)
 }
 
 type getFlowStatusInput struct {

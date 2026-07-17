@@ -41,6 +41,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/bowrain/crypto"
 	"github.com/neokapi/neokapi/bowrain/event"
+	"github.com/neokapi/neokapi/bowrain/forge"
 	platgraph "github.com/neokapi/neokapi/bowrain/graph"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
@@ -49,7 +50,6 @@ import (
 	"github.com/neokapi/neokapi/bowrain/platformconfig"
 	mcpserver "github.com/neokapi/neokapi/bowrain/server/mcp"
 	"github.com/neokapi/neokapi/bowrain/service"
-	"github.com/neokapi/neokapi/bowrain/forge"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	bwblockstore "github.com/neokapi/neokapi/bowrain/store/blockstore"
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
@@ -924,7 +924,7 @@ func NewServer(cfg Config) *Server {
 	if cfg.PostHogAPIKey != "" {
 		host := cfg.PostHogHost
 		if host == "" {
-			host = "https://us.i.posthog.com"
+			host = analytics.DefaultHost
 		}
 		phClient, err := analytics.NewPostHogClient(cfg.PostHogAPIKey, host)
 		if err != nil {
@@ -938,6 +938,13 @@ func NewServer(cfg Config) *Server {
 	// Wire PostHog to webhook handler now that both are initialized.
 	if s.PostHogClient != nil && s.WebhookHandler != nil {
 		s.WebhookHandler.SetEventTracker(s.PostHogClient)
+	}
+
+	// Wire PostHog into the service layer so domain events (flow runs,
+	// connector publishes, workspace/member/project lifecycle) emit regardless
+	// of the transport that invoked them (epic 018 workstream D).
+	if s.PostHogClient != nil && s.Services != nil {
+		s.Services.SetEventTracker(s.PostHogClient)
 	}
 
 	// Initialize admin OIDC verifier (Bowrain AD-018).

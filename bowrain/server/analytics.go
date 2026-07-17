@@ -1,6 +1,10 @@
 package server
 
-import "time"
+import (
+	"time"
+
+	"github.com/neokapi/neokapi/bowrain/analytics"
+)
 
 // trackEvent captures a PostHog product analytics event if the client is configured.
 func (s *Server) trackEvent(userID, event string, properties map[string]any) {
@@ -22,11 +26,11 @@ func (s *Server) trackUserLogin(userID, email string, createdAt time.Time) {
 		s.PostHogClient.Identify(userID, map[string]any{
 			"email": email,
 		})
-		s.trackEvent(userID, "user_signup", map[string]any{
+		s.trackEvent(userID, analytics.EventUserSignup, map[string]any{
 			"email": email,
 		})
 	} else {
-		s.trackEvent(userID, "user_login", map[string]any{
+		s.trackEvent(userID, analytics.EventUserLogin, map[string]any{
 			"email": email,
 		})
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
@@ -23,6 +24,10 @@ type ConnectorService struct {
 	mu sync.Mutex
 	// active maps workspaceID -> connectorID -> instance.
 	active map[string]map[string]connector.IntegrationConnector
+
+	// tracker captures connector_published analytics events. Optional; nil
+	// disables capture (see Services.SetEventTracker).
+	tracker EventTracker
 }
 
 // NewConnectorService creates a new ConnectorService.
@@ -178,7 +183,21 @@ func (s *ConnectorService) Publish(ctx context.Context, workspaceID, connectorID
 		Blocks: modelBlocks,
 	}}
 
-	return c.Publish(ctx, items, opts)
+	err = c.Publish(ctx, items, opts)
+
+	// Fire-and-forget analytics after the publish attempt resolves; never
+	// blocks or alters the result (epic 018 workstream D).
+	outcome := "completed"
+	if err != nil {
+		outcome = "failed"
+	}
+	props := analytics.Props(workspaceID, projectID)
+	props["connector_type"] = c.Name()
+	props["outcome"] = outcome
+	props["block_count_bucket"] = analytics.CountBucket(len(modelBlocks))
+	track(s.tracker, workspaceID, analytics.EventConnectorPublished, props)
+
+	return err
 }
 
 // ConnectorStatus returns the sync status for a connector.

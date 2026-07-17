@@ -10,6 +10,8 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neokapi/neokapi/bowrain/analytics"
 )
 
 func TestPlanGuard(t *testing.T) {
@@ -219,7 +221,7 @@ func TestQuotaGuard_OnBlockCallbackFired(t *testing.T) {
 	err := handler(c)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
-	assert.Equal(t, "billing.credits_exhausted", capturedEvent)
+	assert.Equal(t, analytics.EventCreditsExhausted, capturedEvent)
 	assert.Equal(t, "ws-456", capturedWsID)
 	assert.Equal(t, "pro", capturedProps["plan"])
 }
@@ -271,7 +273,7 @@ func TestPlanGuard_OnBlockCallbackFired(t *testing.T) {
 	err := handler(c)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusForbidden, rec.Code)
-	assert.Equal(t, "billing.feature_gate_hit", capturedEvent)
+	assert.Equal(t, analytics.EventFeatureGateHit, capturedEvent)
 	assert.Equal(t, "ws-789", capturedWsID)
 }
 

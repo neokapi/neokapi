@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/analytics"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -118,7 +119,31 @@ func (s *Server) HandleDecideReviewItem(c echo.Context) error {
 	wsSlug, _ := c.Get("workspace_slug").(string)
 	go s.processDecisionSideEffects(context.WithoutCancel(ctx), item, wsSlug)
 
+	s.trackReviewDecision(c, req.Decision, 1, item.Locale)
+
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})
+}
+
+// trackReviewDecision captures a review_approved / review_rejected analytics
+// event after a decision persists (fire-and-forget; batch size and locale
+// only — never review content).
+func (s *Server) trackReviewDecision(c echo.Context, decision string, batchSize int, locale string) {
+	if s.PostHogClient == nil {
+		return
+	}
+	event := analytics.EventReviewApproved
+	if decision == "reject" {
+		event = analytics.EventReviewRejected
+	}
+	userID, _ := c.Get("user_id").(string)
+	props := map[string]any{"batch_size": batchSize}
+	if locale != "" {
+		props["locale"] = locale
+	}
+	if wsID, ok := c.Get("workspace_id").(string); ok && wsID != "" {
+		props[analytics.PropWorkspaceID] = wsID
+	}
+	s.trackEvent(userID, event, props)
 }
 
 // HandleAssignReviewItem assigns a review item to a user.
@@ -235,6 +260,8 @@ func (s *Server) HandleBatchDecideReviewItems(c echo.Context) error {
 			}
 		}
 	}()
+
+	s.trackReviewDecision(c, req.Decision, decided, "")
 
 	return c.JSON(http.StatusOK, map[string]any{"ok": true, "decided": decided})
 }

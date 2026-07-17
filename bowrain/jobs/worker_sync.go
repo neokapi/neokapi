@@ -8,6 +8,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/neokapi/neokapi/bowrain/analytics"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
@@ -191,6 +192,22 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 				"workspace_slug": manifest.WorkspaceSlug,
 			},
 		})
+	}
+
+	// Fire-and-forget analytics after the push succeeded (epic 018 workstream
+	// D). Counts are bucketed; item names and content never leave the server.
+	if deps.Tracker != nil {
+		actor := manifest.ActorID
+		if actor == "" {
+			actor = "server"
+		}
+		props := analytics.Props("", projectID)
+		props["item_count"] = len(allItemNames)
+		props["block_count_bucket"] = analytics.CountBucket(totalStored)
+		if manifest.WorkspaceSlug != "" {
+			props["workspace_slug"] = manifest.WorkspaceSlug
+		}
+		deps.Tracker.CaptureEvent(actor, analytics.EventContentPushed, props)
 	}
 
 	emitLog(deps, job.StepID, "info",
