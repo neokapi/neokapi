@@ -800,4 +800,17 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE convergence_runs ADD COLUMN IF NOT EXISTS last_activity TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	{
+		Version:     8,
+		Description: "source-first convergence: blocked-on-source count on a run",
+		SQL: `
+			-- Source-first convergence (strategy 2026-07-dogfood doc 07 / roadmap
+			-- epic 019). A run row now carries how many source blocks are held
+			-- below the source gate (settle-then-translate): the count the UI
+			-- renders as "N segments need source review before translating" and
+			-- the signal behind a source_not_ready hold. Defaults 0 so existing
+			-- rows read as "nothing blocked on source".
+			ALTER TABLE convergence_runs ADD COLUMN IF NOT EXISTS blocked_on_source INTEGER NOT NULL DEFAULT 0;
+		`,
+	},
 }

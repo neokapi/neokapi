@@ -64,12 +64,13 @@ const (
 // recycle/ai_translate/checks/materialize are what a venue's Produce and finish
 // steps report.
 const (
-	StageSync        = "sync"         // pre-pass source sync / drift re-extract
-	StageDerive      = "derive"       // coverage + bound-check derivation
-	StageRecycle     = "recycle"      // TM-leverage stage of production
-	StageAITranslate = "ai_translate" // AI/MT drafting stage of production
-	StageChecks      = "checks"       // post-production QA checks
-	StageMaterialize = "materialize"  // writing shippable output
+	StageSync         = "sync"          // pre-pass source sync / drift re-extract
+	StageSettleSource = "settle_source" // source-settlement phase before target production (source-first, epic 019)
+	StageDerive       = "derive"        // coverage + bound-check derivation
+	StageRecycle      = "recycle"       // TM-leverage stage of production
+	StageAITranslate  = "ai_translate"  // AI/MT drafting stage of production
+	StageChecks       = "checks"        // post-production QA checks
+	StageMaterialize  = "materialize"   // writing shippable output
 )
 
 // StallReason is the machine-readable cause a run did not converge — the label
@@ -96,6 +97,13 @@ const (
 	// StallChecksFailing: coverage is complete but bound checks demote units
 	// below the gate, so the locale parks on failing terminology/length checks.
 	StallChecksFailing StallReason = "checks_failing"
+	// StallSourceNotReady: the source itself is below the source-first gate
+	// (terminology/brand/source-QA not settled, or human source review pending),
+	// so the fan-out is HELD on source rather than translating an unsettled,
+	// off-brand source into N locales (strategy 2026-07-dogfood doc 07 / roadmap
+	// epic 019). The run creates a source-review task and parks; settling the
+	// source (or lowering `defaults.source_gate`) lets the next run translate.
+	StallSourceNotReady StallReason = "source_not_ready"
 )
 
 // Event is one progress event of a convergence run — the single protocol every
@@ -139,6 +147,16 @@ type Event struct {
 	Produced      int `json:"produced,omitempty"`
 	ProducedDelta int `json:"producedDelta,omitempty"`
 	FailingChecks int `json:"failingChecks,omitempty"`
+
+	// Source-first fields (settle_source stage / pass_done / done). SettledSource
+	// is how many source blocks the settlement phase stamped this pass;
+	// BlockedOnSource is how many remain below the source gate — the count the UI
+	// renders as "N segments need source review before translating" and the
+	// signal that a run held on source (source_not_ready). Both are omitted when
+	// zero, so a project with no source gate (or a fully-settled source) carries
+	// neither (strategy 2026-07-dogfood doc 07 / roadmap epic 019).
+	SettledSource   int `json:"settledSource,omitempty"`
+	BlockedOnSource int `json:"blockedOnSource,omitempty"`
 
 	// State on done is the run outcome (converged|parked|failed|canceled) and
 	// is always set. On locale_done State is OPTIONAL: a per-locale

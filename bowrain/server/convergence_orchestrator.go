@@ -241,6 +241,35 @@ func (o *convergenceOrchestrator) drive(ctx context.Context, run *bstore.Converg
 	})
 }
 
+// runSettleSource is the server run's source-first phase (epic 019): it settles
+// the source once at the start of a run — before any target locale is produced —
+// stamps each source block's SourceStatus, and reports how many blocks remain
+// below the gate. It emits a settle_source stage event so a surface can show the
+// run "settling your source" and records the blocked-on-source count on the run
+// row so the UI can render "N segments need source review" without a second
+// round-trip. A settlement error is non-fatal: the run degrades to the previous
+// (gate-off) behavior rather than failing on a source-check hiccup.
+func (o *convergenceOrchestrator) runSettleSource(ctx context.Context, run *bstore.ConvergenceRun, emit *convergence.Emitter) settleResult {
+	res, err := o.settleSource(ctx, run.ProjectID)
+	if err != nil {
+		slog.Warn("convergence: source settlement failed; proceeding without gate", "run", run.ID, "error", err)
+		return settleResult{Gate: model.SourceGateNone}
+	}
+	if res.Gate == model.SourceGateNone {
+		return res // opt-out: no settle event, no hold
+	}
+	run.BlockedOnSource = res.BlockedOnSource
+	emit.Emit(convergence.Event{
+		Type:            convergence.EventLog,
+		Stage:           convergence.StageSettleSource,
+		SettledSource:   res.Settled,
+		BlockedOnSource: res.BlockedOnSource,
+		Message: fmt.Sprintf("Settled source: %d block(s) checked, %d below the %q gate.",
+			res.Total, res.BlockedOnSource, res.Gate),
+	})
+	return res
+}
+
 // driveWith runs the venue-neutral loop for one run to completion with the
 // given IO, persisting and broadcasting every event, then records the terminal
 // state. The LoopFuncs are a parameter so the orchestrator's run lifecycle
@@ -292,6 +321,15 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 			_ = store.UpdateRun(context.WithoutCancel(ctx), run)
 		}
 	})
+
+	// Source-first phase (epic 019): settle the source ONCE before any target
+	// locale is produced, stamp each block's SourceStatus, and record how many
+	// blocks are held below the gate. The gate itself is enforced per block in
+	// produceFunc (a partially-ready item translates only its ready blocks) and
+	// terminates the run with source_not_ready when a locale has nothing
+	// producible. Settlement is a no-op when the block store is absent (the
+	// in-memory driveWith tests) or the gate is `none`.
+	o.runSettleSource(ctx, run, emit)
 
 	res, loopErr := convergence.Loop(ctx, convergence.LoopOptions{
 		UntilGate: true,
@@ -351,10 +389,23 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 	// the core/convergence.Run* wire values. Emit BEFORE the final row write so
 	// the done event settles the per-locale standing (parked locales) into the
 	// snapshot the run records.
-	emit.Emit(convergence.Event{Type: convergence.EventDone, State: run.State, StallReason: run.StallReason})
+	emit.Emit(convergence.Event{
+		Type: convergence.EventDone, State: run.State, StallReason: run.StallReason,
+		BlockedOnSource: run.BlockedOnSource,
+	})
 
 	run.Standing = standing.Locales()
 	_ = store.UpdateRun(context.WithoutCancel(ctx), run)
+
+	// Hold-on-source is a first-class outcome (epic 019): when the run parked
+	// because the source is below the gate, create the source-review task(s) for
+	// the un-ready source — reusing the existing create_source_review automation
+	// — so the user has a clear next action ("settle your source first") instead
+	// of a silent hold. Only for the source-not-ready reason; other parks route
+	// to the translation review queue below.
+	if run.State == bstore.ConvergenceRunParked && run.StallReason == convergence.StallSourceNotReady {
+		o.createSourceReviewTasks(context.WithoutCancel(ctx), run)
+	}
 
 	// On completion (converged OR parked), a workflow-enabled project's content
 	// enters the team's review queue — the single-player→multiplayer seam. This
@@ -362,7 +413,12 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 	// (converged is the common case that previously created tasks after
 	// translation completed), carrying the run/items/locales linkage the old
 	// rule's push_id/items carried. Failed/canceled runs create nothing.
-	if run.State == bstore.ConvergenceRunConverged || run.State == bstore.ConvergenceRunParked {
+	// A source-not-ready hold produced no translations, so it routes to SOURCE
+	// review (below), not the translation review queue — skip the completion
+	// tasks in that case to avoid a "review translations" task for work that was
+	// never done.
+	if (run.State == bstore.ConvergenceRunConverged || run.State == bstore.ConvergenceRunParked) &&
+		run.StallReason != convergence.StallSourceNotReady {
 		o.createCompletionReviewTasks(context.WithoutCancel(ctx), run)
 	}
 
@@ -522,6 +578,26 @@ func (o *convergenceOrchestrator) produceFunc(projectID string) func(context.Con
 		if len(itemNames) == 0 {
 			return 0, 0, 0, nil
 		}
+
+		// Source-first gate (epic 019): before spawning translation jobs, drop
+		// any item whose source blocks are ALL below the gate — those hold on
+		// source rather than translating an unsettled source. A partially-ready
+		// item stays (the worker translates only its ready blocks). When the
+		// whole locale has nothing producible AND some source is held, terminate
+		// with source_not_ready so the run parks on source review instead of
+		// spinning — no AI spend, no discarded work.
+		producible, blockedItems, gErr := o.gateItemsBySource(ctx, projectID, itemNames)
+		if gErr != nil {
+			return 0, 0, 0, gErr
+		}
+		if len(producible) == 0 {
+			if blockedItems > 0 {
+				return 0, 0, 0, errStallSourceNotReady
+			}
+			return 0, 0, 0, nil // nothing to do (already covered) — not a hold
+		}
+		itemNames = producible
+
 		pushID := id.New()
 		// A credit refusal returns errStallNeedsCredits (not a silent empty
 		// list): propagate it so driveWith labels the run's stall_reason
@@ -650,6 +726,40 @@ func (o *convergenceOrchestrator) createCompletionReviewTasks(ctx context.Contex
 	o.server.createReviewTasks(ctx, event.AutomationAction{Config: map[string]string{"mode": "review"}}, ev, "")
 }
 
+// createSourceReviewTasks is the hold-on-source action (epic 019): when a run
+// parks because the source is below the gate, it fans out the "Review source
+// content before translation" task by reusing the existing create_source_review
+// automation (Bowrain AD-014). The synthetic event carries the run/items linkage
+// and the blocked-on-source count so the task — and the source review queue it
+// lands in — points back at the run that held. It also publishes
+// EventSourceReviewCompleted's counterpart trigger so any subscriber wired to
+// source review reacts. A settled source (or a lowered gate) lets the next run
+// translate.
+func (o *convergenceOrchestrator) createSourceReviewTasks(ctx context.Context, run *bstore.ConvergenceRun) {
+	items := ""
+	if o.server.ContentStore != nil {
+		if list, err := o.server.ContentStore.ListItems(ctx, run.ProjectID, "main"); err == nil {
+			names := make([]string, 0, len(list))
+			for _, it := range list {
+				names = append(names, it.Name)
+			}
+			items = strings.Join(names, ",")
+		}
+	}
+	ev := platev.Event{
+		Type:      platev.EventPushCompleted,
+		Source:    "convergence",
+		ProjectID: run.ProjectID,
+		Data: map[string]string{
+			"run_id":            run.ID,
+			"items":             items,
+			"blocked_on_source": strconv.Itoa(run.BlockedOnSource),
+			"stall_reason":      run.StallReason,
+		},
+	}
+	o.server.createSourceReviewTask(ctx, event.AutomationAction{Config: map[string]string{}}, ev, "")
+}
+
 // stallError is a Produce failure that is really a labeled, resumable stall
 // (out of credits, no AI key, rate-limited) rather than a hard error. The loop
 // surfaces it as an error because production could not advance; driveWith
@@ -670,10 +780,30 @@ var errStallNeedsCredits = &stallError{
 	message: "out of platform credits — buy a credit pack, wait for the weekly reset, or configure your own AI provider key",
 }
 
+// errStallSourceNotReady is the typed hold a locale returns when every block it
+// would translate is below the source-first gate: rather than fan an unsettled,
+// off-brand, un-term-checked source out to N locales (only to redo it when the
+// source changes), the run HOLDS on source and routes to source review. This is
+// a first-class outcome — no AI is spent, no work is discarded — distinct from
+// an out-of-credits stall (strategy 2026-07-dogfood doc 07 / roadmap epic 019).
+var errStallSourceNotReady = &stallError{
+	reason:  convergence.StallSourceNotReady,
+	message: "source not ready — settle your source first (terminology, brand, source QA), or set defaults.source_gate: none to translate anyway",
+}
+
 // parkedStallReason labels an ordinary parked outcome (no typed stall error):
 // checks_failing when the bound checks demoted units below the gate, otherwise
 // no_progress (genuine pending work the flow cannot advance unaided). This is
 // the "real pending review" case, distinct from an out-of-credits block.
+//
+// It deliberately does NOT return source_not_ready: a partial run — one that
+// translated the ready items and left only the source-held remainder pending —
+// still produced real translations that must enter the translation review
+// queue. Labeling it source_not_ready would route it to source review and skip
+// the completion tasks (driveWith), stranding the translated work. A PURE hold
+// (no ready items) never reaches here: produceFunc returns the typed
+// errStallSourceNotReady, which driveWith matches before this path. The
+// blocked-on-source count still rides on the run row for the UI either way.
 func parkedStallReason(final convergence.PassState) convergence.StallReason {
 	if final.FailingChecks > 0 {
 		return convergence.StallChecksFailing
@@ -719,6 +849,10 @@ func (o *convergenceOrchestrator) trackRunCompleted(ctx context.Context, run *bs
 	props["via_tm"] = analytics.CountBucket(viaTM)
 	props["via_ai"] = analytics.CountBucket(viaAI)
 	props["duration_bucket"] = analytics.DurationBucket(duration)
+	// Source-first: bucket how many blocks the run held on source, so the
+	// fleet-wide "how often does a run hold on unsettled source" question is
+	// answerable alongside the credit/checks stalls (epic 019). Never content.
+	props["blocked_on_source"] = analytics.CountBucket(run.BlockedOnSource)
 	o.server.trackEvent(convergenceDistinctID(wsID, run.ProjectID), analytics.EventConvergenceRunCompleted, props)
 }
 
