@@ -40,6 +40,8 @@ import {
 } from "./icons";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { useApi } from "../context/ApiContext";
+import { useAnalytics } from "../context/AnalyticsContext";
+import { AnalyticsEvents } from "../analytics-events";
 import type { ConnectorInfo, ConnectorContentItem } from "../types/api";
 
 // ---------------------------------------------------------------------------
@@ -323,6 +325,7 @@ function ConnectorRow({
   onRemove: () => void;
 }) {
   const api = useApi();
+  const { capture } = useAnalytics();
   const queryClient = useQueryClient();
   const [publishConfirm, setPublishConfirm] = useState(false);
   const [browseOpen, setBrowseOpen] = useState(false);
@@ -457,7 +460,12 @@ function ConnectorRow({
         description={`Send this project's current content out to "${displayName}". This writes to the remote system and overwrites matching content there.`}
         confirmLabel="Publish"
         loading={publishMutation.isPending}
-        onConfirm={() => publishMutation.mutate()}
+        onConfirm={() => {
+          capture(AnalyticsEvents.connectorPublishClicked, {
+            connector_category: connector.category,
+          });
+          publishMutation.mutate();
+        }}
       />
 
       <ContentBrowserSheet
@@ -673,6 +681,7 @@ function AddConnectorDialog({
   onAdded: () => void;
 }) {
   const api = useApi();
+  const { capture } = useAnalytics();
   const [type, setType] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -704,6 +713,7 @@ function AddConnectorDialog({
       return api.addConnector(workspaceSlug, type, config);
     },
     onSuccess: () => {
+      capture(AnalyticsEvents.connectorAdded, { connector_type: type });
       reset();
       onAdded();
     },

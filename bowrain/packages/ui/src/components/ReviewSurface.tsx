@@ -15,6 +15,8 @@ import { ErrorNotice } from "../errors";
 import type { ProjectInfo, BlockInfo, FileQAResult, ReviewDemotion } from "../types/api";
 import { useEditorApi } from "../hooks/useEditorApi";
 import { useLocales } from "../hooks/useLocales";
+import { useAnalytics } from "../context/AnalyticsContext";
+import { AnalyticsEvents } from "../analytics-events";
 import { useSetBreadcrumb } from "../context/BreadcrumbContext";
 import { FormattedSourceDisplay } from "./editor/FormattedSourceDisplay";
 import { CollapsedTargetCell } from "./editor/GridTargetRenderer";
@@ -75,6 +77,7 @@ export function ReviewSurface({
 
   const { getDisplayName } = useLocales();
   const api = useEditorApi();
+  const { capture } = useAnalytics();
   const { getFileBlocks } = api;
 
   const breadcrumbNode = useMemo(
@@ -158,6 +161,10 @@ export function ReviewSurface({
       // rollback ever removes (approval is guarded by the button and the
       // server's 422).
       if (!reviewed && !getTargetText(block, targetLocale).trim()) return;
+      capture(AnalyticsEvents.reviewDecisionClicked, {
+        decision: reviewed ? "approve" : demoteTo === "draft" ? "reject" : "clear",
+        locale: targetLocale,
+      });
       let snapshot: TargetStatusSnapshot = { existed: false, status: "" };
       setBlocks((prev) =>
         prev.map((b) => {
@@ -186,7 +193,7 @@ export function ReviewSurface({
         });
       }
     },
-    [api, project.id, fileName, targetLocale],
+    [api, capture, project.id, fileName, targetLocale],
   );
 
   // While a bulk pass runs, single approve/reject clicks and a second bulk
@@ -214,6 +221,13 @@ export function ReviewSurface({
         )
         .map((b) => b.id);
       setSelected(new Set());
+      if (targetIds.length > 0) {
+        capture(AnalyticsEvents.reviewDecisionClicked, {
+          decision: "approve",
+          locale: targetLocale,
+          bulk: true,
+        });
+      }
       let reviewed = 0;
       let failed = 0;
       let lastError: unknown = null;
@@ -247,7 +261,7 @@ export function ReviewSurface({
       bulkInFlight.current = false;
       setBulkBusy(false);
     }
-  }, [selected, blocks, api, project.id, fileName, targetLocale]);
+  }, [selected, blocks, api, capture, project.id, fileName, targetLocale]);
 
   const bulkApplyTM = useCallback(async () => {
     if (selected.size === 0) return;

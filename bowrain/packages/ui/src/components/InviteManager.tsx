@@ -18,6 +18,8 @@ import {
 import { useState, useEffect, useCallback } from "react";
 import type { Invite, Workspace } from "../types/api";
 import { useApi } from "../context/ApiContext";
+import { useAnalytics } from "../context/AnalyticsContext";
+import { AnalyticsEvents } from "../analytics-events";
 import { ErrorNotice } from "../errors";
 import { UserPlus, Trash2, Copy, Clock } from "./icons";
 
@@ -27,6 +29,7 @@ interface InviteManagerProps {
 
 export function InviteManager({ workspace }: InviteManagerProps) {
   const api = useApi();
+  const { capture } = useAnalytics();
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
@@ -57,6 +60,7 @@ export function InviteManager({ workspace }: InviteManagerProps) {
     setError(null);
     try {
       const invite = await api.createInvite(workspace.slug, email.trim(), role, 1);
+      capture(AnalyticsEvents.memberInviteSent, { role });
       setInvites((prev) => [invite, ...prev]);
       setEmail("");
       setRole("member");

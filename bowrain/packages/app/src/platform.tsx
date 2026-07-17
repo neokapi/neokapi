@@ -20,10 +20,19 @@ export interface PlatformAdapter {
   kind: "web" | "desktop";
   /** Open a URL outside the app (a new browser tab, or the OS browser). */
   openExternal(url: string): void;
-  /** Product analytics. Backed by PostHog on the web; absent on desktop. */
+  /**
+   * Product analytics. Backed by PostHog on the web; absent on desktop, so
+   * every call site must optional-chain (`platform.analytics?.capture(...)`).
+   * Event names live in the shared `AnalyticsEvents` module (@neokapi/ui) —
+   * never inline literals — and props carry ids/enum-ish values only.
+   */
   analytics?: {
     identify(user: { id: string; email?: string; name?: string }): void;
     reset(): void;
+    /** Fire-and-forget product event ($pageview, feature_entered, …). */
+    capture(event: string, props?: Record<string, unknown>): void;
+    /** Associate the session with a PostHog group (e.g. "workspace"). */
+    group(type: string, key: string, props?: Record<string, unknown>): void;
   };
   /** Desktop working-copy connectivity. */
   connectivity?: {

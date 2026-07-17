@@ -346,6 +346,12 @@ export type { Theme } from "./context/ThemeContext";
 export { BreadcrumbProvider, useBreadcrumb, useSetBreadcrumb } from "./context/BreadcrumbContext";
 export { StreamProvider, useStream } from "./context/StreamContext";
 export { StreamActionsProvider, useStreamActions } from "./context/StreamActionsContext";
+export { AnalyticsProvider, useAnalytics } from "./context/AnalyticsContext";
+export type { AnalyticsCaptureFn, AnalyticsContextValue } from "./context/AnalyticsContext";
+
+// Product analytics event taxonomy (epic 018, workstream B)
+export { AnalyticsEvents } from "./analytics-events";
+export type { AnalyticsEventName } from "./analytics-events";
 
 // API
 export type { ApiAdapter } from "./api/adapter";

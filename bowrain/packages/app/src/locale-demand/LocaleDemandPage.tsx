@@ -1,5 +1,12 @@
 import { useCallback, useMemo, useState } from "react";
-import { Button, Dialog, DialogContent, DialogTitle } from "@neokapi/ui";
+import {
+  AnalyticsEvents,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  useAnalytics,
+} from "@neokapi/ui";
 import type { ApiAdapter, PostHogConnectorConfig } from "@neokapi/ui";
 import { LocaleDemandView } from "./LocaleDemandView";
 import { PostHogConnectCard } from "./PostHogConnectCard";
@@ -49,6 +56,7 @@ export function LocaleDemandPage({
   );
   const [connectOpen, setConnectOpen] = useState(false);
   const [existingConfig, setExistingConfig] = useState<PostHogConnectorConfig | null>(null);
+  const { capture } = useAnalytics();
 
   const handleSnapshotError = useCallback((err: unknown) => {
     const parsed = parsePostHogApiError(err);
@@ -59,6 +67,10 @@ export function LocaleDemandPage({
   }, []);
 
   const openConnect = useCallback(async () => {
+    // AD-018 demand path: connecting our own analytics is the meta-dogfood CTA.
+    capture(AnalyticsEvents.localeDemandConnectClicked, {
+      reconnect: mode.kind === "sample" && !!mode.degraded,
+    });
     setConnectOpen(true);
     if (!projectId) return;
     try {
@@ -68,7 +80,7 @@ export function LocaleDemandPage({
     } catch {
       setExistingConfig(null);
     }
-  }, [api, workspaceSlug, projectId]);
+  }, [api, capture, mode, workspaceSlug, projectId]);
 
   const handleSaved = useCallback(() => {
     setConnectOpen(false);

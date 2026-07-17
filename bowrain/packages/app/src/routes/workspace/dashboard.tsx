@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
 import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
-import { ProjectDashboard, ConfirmDialog, useApi, type ProjectInfo } from "@neokapi/ui";
+import {
+  ProjectDashboard,
+  ConfirmDialog,
+  useApi,
+  useAnalytics,
+  AnalyticsEvents,
+  type ProjectInfo,
+} from "@neokapi/ui";
 import { projectsQueryOptions } from "../../queries";
 import type { WorkspaceRouteContext } from "..";
 
@@ -9,6 +16,7 @@ export function ProjectDashboardRoute() {
   const navigate = useNavigate();
   const { workspace } = useParams({ strict: false });
   const adapter = useApi();
+  const { capture } = useAnalytics();
   const queryClient = useQueryClient();
   const { activeWorkspace, brandScanAvailable } = useRouteContext({
     strict: false,
@@ -28,13 +36,18 @@ export function ProjectDashboardRoute() {
   const handleCreateProject = useCallback(
     async (name: string, sourceLang: string, targetLangs: string[]) => {
       const info = await adapter.createProject(ws, name, sourceLang, targetLangs);
+      // Client-side complement of the server's project_created; no name here.
+      capture(AnalyticsEvents.projectCreateSubmitted, {
+        source_language: sourceLang,
+        target_count: targetLangs.length,
+      });
       invalidateProjects();
       void navigate({
         to: "/$workspace/p/$projectId/s/$stream",
         params: { workspace: workspace ?? ws, projectId: info.id, stream: "main" },
       });
     },
-    [ws, workspace, adapter, navigate, invalidateProjects],
+    [ws, workspace, adapter, capture, navigate, invalidateProjects],
   );
 
   const handleOpenProject = useCallback(
@@ -49,12 +62,17 @@ export function ProjectDashboardRoute() {
 
   const handleCreateSampleProject = useCallback(async () => {
     const info = await adapter.createProject(ws, "Sample Project", "en", ["fr", "de", "ja"]);
+    capture(AnalyticsEvents.projectCreateSubmitted, {
+      source_language: "en",
+      target_count: 3,
+      sample: true,
+    });
     invalidateProjects();
     void navigate({
       to: "/$workspace/p/$projectId/s/$stream",
       params: { workspace: workspace ?? ws, projectId: info.id, stream: "main" },
     });
-  }, [ws, workspace, adapter, navigate, invalidateProjects]);
+  }, [ws, workspace, adapter, capture, navigate, invalidateProjects]);
 
   const handleEditProject = useCallback(
     async (projectId: string, data: { name?: string; target_languages?: string[] }) => {
