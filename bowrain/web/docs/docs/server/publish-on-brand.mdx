@@ -1,0 +1,155 @@
+---
+title: Publish on brand
+sidebar_position: 4
+description: Connect the CMS or design tool your content lives in, let the kapi loop translate and check it against your workspace's brand voice and terminology, review what needs a person, and publish back — no codebase required.
+keywords: [publish, brand voice, terminology, connectors, wordpress, hubspot, figma, review, bowrain]
+---
+
+import { PhaseFlow } from "@neokapi/docs-shared";
+
+# Publish on brand
+
+This guide is for people who write and publish content — site pages, posts,
+marketing copy — and want it to leave the building on-brand, and optionally in
+more than one language. It assumes no codebase and no command line: everything
+below happens in the Bowrain web app, against the systems your content already
+lives in.
+
+By the end you will have a workspace that knows your brand's voice and
+vocabulary, a project connected to your CMS or design tool, [the kapi
+loop](/the-loop) translating and checking that content on the server, a review
+queue for what a machine cannot decide, and an explicit publish step that
+writes the result back where it came from.
+
+<PhaseFlow
+  nodes={[
+    { label: "Establish the brand", sub: "voice profile + terminology", role: "annotate" },
+    { label: "Connect", sub: "WordPress · HubSpot · Figma", role: "io", edge: "fetch" },
+    { label: "Translate and check", sub: "the loop runs on the server", role: "translate", edge: "run" },
+    { label: "Review", sub: "parked work, approvals", role: "qa", edge: "parked units" },
+    { label: "Publish back", sub: "explicit, per connector", role: "io", edge: "approved" },
+  ]}
+  caption="Brand context first, then connect, run the loop, review, and publish back."
+/>
+
+You need access to a Bowrain workspace — see
+[First login](/server/getting-started) for signing in and creating one. Adding
+connectors requires the **manage connectors** permission; adopting brand
+material requires **manage brand**.
+
+## 1. Establish the brand context
+
+The loop can only enforce what the workspace has written down. Two surfaces
+carry that knowledge, and both are shared across every project in the
+workspace:
+
+- **A [brand voice profile](/server/brand-voice)** — a machine-readable
+  description of how your content should read: tone, style rules, preferred and
+  forbidden vocabulary, before/after examples. Once saved, it runs as checks
+  over everything the loop produces, and it keeps improving: corrections your
+  reviewers make aggregate into candidate rules that a reviewer promotes into
+  the profile.
+- **[Terminology](/server/terminology)** — the concepts and terms your team has
+  decided on, per language, with lifecycle statuses (preferred, deprecated,
+  forbidden). Term suggestions appear in the editor, and term use is validated
+  on generated translations.
+
+Starting from nothing, use [brand scan](/server/brand-scan): point it at
+material you already have — pasted copy, public web pages, uploaded documents —
+and it drafts a voice profile and glossary candidates for you to edit and
+adopt. Nothing a scan produces is enforced until you adopt it. Alternatively,
+curate directly: add concepts in the Terminology Explorer or import an existing
+glossary from CSV or JSON.
+
+You do not need a finished profile to continue. A thin profile plus the
+correction loop is a workable starting point — the rules you actually need
+surface as reviewers fix real output.
+
+## 2. Connect where your content lives
+
+Create a project with your source language and the target languages you want
+(see [First login](/server/getting-started)), then open the project's
+**Connectors** view from the project sidebar. Connectors are shared across the
+workspace; fetching and publishing act on the project you are in.
+
+Click **Add connector**, pick the system, and fill in its credentials — they
+are write-only: the server uses them to sync, and the interface never displays
+them again. Each connector syncs a specific slice of its system, and the
+honest limits matter when you plan what to route through Bowrain:
+
+| System | What syncs | Publish back | Notable limits |
+| --- | --- | --- | --- |
+| [WordPress](/server/connectors/wordpress) | Posts: title, body, excerpt | Yes — updates fetched posts in place | First 100 posts; posts only (no pages, custom types, or media); never creates posts or changes their status |
+| [HubSpot](/server/connectors/hubspot) | CMS site pages: HTML title and meta description | Yes — patches the page object | Body content and modules are out of scope; a separate publish inside HubSpot may be needed to go live |
+| [Figma](/server/connectors/figma) | Every text layer of one design file | No — pull-only | Translations are exported and applied outside Figma |
+
+Once a connector is added, **Browse content** shows what it can see, and
+**Fetch now** pulls that content into the project as source text. Sync is
+explicit — connectors do not poll on a schedule — and fetching stores source
+content; it does not itself start translation. The same operations are
+available through the [workspace connectors API](/server/connectors) if you
+prefer to script them.
+
+For a one-off document with no connector — a press release, a slide deck, a
+contract — upload the file directly into the project and
+[export](/server/translation-editor#file-export) the finished file from the
+editor in its original format.
+
+## 3. Translate and check
+
+Content fetched from a connector is ordinary project content, and [the kapi
+loop](/the-loop) is how it catches up: each run reuses what the workspace has
+translated before, drafts the rest with AI steered by the voice profile and
+terminology you established in step 1, checks everything it produced, and
+**parks** what a machine cannot decide for a person. Parked work is pending
+review, not an error.
+
+From the web app, start a run from the project's **Runs** view with **Run
+now**; the run's progress, pass count, and per-locale summary appear in the
+same view. A connector fetch does not yet raise a server event, so content
+fetched from a CMS is caught up by starting a run — [automation
+rules](/server/automation) react to content being *pushed* (from a repository
+or the CLI), not to a fetch.
+
+For finer control — say, translate then run a specific QA step — author a
+[server-side flow](/server/flows) on the project's **Automations > Flows** tab
+and run it over the project. Flows are connector-agnostic: the same flow
+applies to content from any connector.
+
+## 4. Review
+
+What the loop parks lands in the project's [Review surface](/server/review),
+which steps through content block by block — source, target, status — with
+approve and reject actions recorded per target language. Filter by status to
+work through one stage at a time, run QA on demand, and apply exact
+translation-memory matches in bulk.
+
+To fix a draft rather than judge it, switch to the [translation
+editor](/server/translation-editor): side-by-side source and target, TM matches
+and term suggestions per block, and validation for inline tags. Every fix a
+reviewer makes here is also a signal — recurring corrections surface as
+candidate voice rules with a measured blast radius, and promoting one makes it
+an enforced check on every future generation
+(see [Brand voice & corrections](/server/brand-voice)).
+
+## 5. Publish back
+
+Publishing is a deliberate, explicit step — nothing leaves Bowrain on its own.
+In the project's **Connectors** view, click **Publish** on the connector and
+confirm; the connector writes the project's stored text back to the matching
+items in the remote system, overwriting what is there.
+
+What arrives depends on the system: WordPress posts are updated in place
+(title, body, excerpt — publication status untouched), HubSpot pages receive
+their new title and meta description but may still need a publish step inside
+HubSpot to go live, and Figma has no publish path — export the translations and
+apply them through your design workflow. Each connector page states exactly
+what its publish writes.
+
+## What's next
+
+- [The kapi loop on Bowrain](/the-loop) — what a run does, who starts it, and where parked work goes
+- [Brand scan](/server/brand-scan) — draft a voice profile and glossary from material you already have
+- [Brand voice & corrections](/server/brand-voice) — how corrections become enforced rules
+- [Connectors](/server/connectors) — every connector, including repositories and local files
+- [Review](/server/review) — approvals, QA findings, and bulk actions

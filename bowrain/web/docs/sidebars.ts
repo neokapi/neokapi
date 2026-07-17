@@ -21,6 +21,7 @@ const sidebars: SidebarsConfig = {
       items: [
         "getting-started/introduction",
         "getting-started/kapi-vs-bowrain",
+        "getting-started/the-loop",
         "getting-started/installation",
         "getting-started/quickstart",
       ],
@@ -99,6 +100,7 @@ const sidebars: SidebarsConfig = {
       className: "sidebar-section-heading",
       items: [
         "server/connectors",
+        "server/publish-on-brand",
         "server/connectors/wordpress",
         "server/connectors/figma",
         "server/connectors/hubspot",
@@ -172,14 +174,25 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: "category",
+      label: "Continuous integration",
+      collapsible: false,
+      className: "sidebar-section-heading",
+      items: [
+        "cli/ci/overview",
+        "cli/use-cases/github-actions",
+        "cli/ci/gitlab",
+        "cli/ci/github-app",
+        "cli/use-cases/brand-terminology-ci",
+      ],
+    },
+    {
+      type: "category",
       label: "Guides",
       collapsible: false,
       className: "sidebar-section-heading",
       items: [
         "cli/use-cases/website-translation",
-        "cli/use-cases/github-actions",
         "cli/use-cases/source-prep",
-        "cli/use-cases/brand-terminology-ci",
       ],
     },
     {
