@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -28,12 +29,14 @@ import (
 	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/bowrain/platformconfig"
 	"github.com/neokapi/neokapi/bowrain/service"
+	sqltm "github.com/neokapi/neokapi/bowrain/sievepen"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	blobazure "github.com/neokapi/neokapi/bowrain/storage/azureblob"
 	"github.com/neokapi/neokapi/bowrain/storage/blobcfg"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	corestorage "github.com/neokapi/neokapi/core/storage"
+	fwsievepen "github.com/neokapi/neokapi/sievepen"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
 
@@ -235,6 +238,11 @@ func runWorker(dbURL string) error {
 		ProviderStore: providerStore,
 		Queue:         translationQueue,
 		QuotaStore:    pgQS,
+		// TM-first convergence: give the worker per-workspace TM access so a
+		// convergence translation job recycles exact/near-exact matches before
+		// paying for AI, and ingest seeds pushed targets into the TM. Mirrors the
+		// server's per-workspace, PostgreSQL-backed TM (NewPostgresTMFromDB).
+		TMResolver: newWorkerTMResolver(pgdb),
 	}
 
 	// Product analytics (epic 018): the worker emits content_pushed after sync
@@ -701,6 +709,26 @@ func buildWorkerBillingHooks(pgdb *storage.PgDB) *billing.UsageHooks {
 	}
 	slog.Info("worker billing credit deduction + Stripe meter reporting enabled")
 	return hooks
+}
+
+// newWorkerTMResolver returns a per-workspace TM resolver backed by the same
+// PostgreSQL TM the server uses (NewPostgresTMFromDB). It caches one TMStore per
+// workspace slug so a convergence pass does not rebuild the store per job. A
+// resolution failure yields a nil store so the job degrades to AI-only rather
+// than failing.
+func newWorkerTMResolver(pgdb *storage.PgDB) jobs.TMResolver {
+	var cache sync.Map // workspaceSlug -> fwsievepen.TMStore
+	return jobs.TMResolverFunc(func(workspaceSlug string) (fwsievepen.TMStore, error) {
+		if v, ok := cache.Load(workspaceSlug); ok {
+			return v.(fwsievepen.TMStore), nil
+		}
+		tm, err := sqltm.NewPostgresTMFromDB(pgdb, workspaceSlug)
+		if err != nil {
+			return nil, err
+		}
+		actual, _ := cache.LoadOrStore(workspaceSlug, fwsievepen.TMStore(tm))
+		return actual.(fwsievepen.TMStore), nil
+	})
 }
 
 // buildTrialSweeper constructs the trial-expiry sweeper. Unlike the billing

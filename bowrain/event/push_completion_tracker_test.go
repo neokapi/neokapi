@@ -28,6 +28,9 @@ func (s *stubJobStore) ListJobs(ctx context.Context, workspaceSlug string, limit
 func (s *stubJobStore) UpdateJobProgress(ctx context.Context, id string, epoch int64, doneBlocks, totalBlocks int) error {
 	return nil
 }
+func (s *stubJobStore) UpdateJobTMSplit(ctx context.Context, id string, epoch int64, viaTM, viaAI int) error {
+	return nil
+}
 func (s *stubJobStore) UpdateJobStatus(ctx context.Context, id string, status jobs.JobStatus, errMsg string) error {
 	return nil
 }

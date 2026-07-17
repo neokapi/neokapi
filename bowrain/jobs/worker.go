@@ -65,6 +65,12 @@ type WorkerDeps struct {
 	// MaxJobAttempts bounds transient-failure retries before a job is failed.
 	// Zero uses defaultMaxJobAttempts.
 	MaxJobAttempts int
+	// TMResolver returns the project's server TM for a workspace, so a
+	// convergence translation job can recycle exact/near-exact matches before
+	// paying for AI (TM-first convergence). Optional; when nil the job falls
+	// back to the previous AI-only behavior. Mirrors the server's per-workspace
+	// workspaceStores.getTM.
+	TMResolver TMResolver
 }
 
 // EventTracker captures product analytics events (implemented by
@@ -313,6 +319,59 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		return fmt.Errorf("set total blocks: %w", err)
 	}
 
+	srcLocale := proj.DefaultSourceLanguage
+	tgtLocale := model.LocaleID(job.TargetLocale)
+
+	// TM-first convergence (theme A). Before paying for AI, recycle exact/
+	// near-exact matches from the project's server TM — mirroring the built-in
+	// `translate` flow's recycle→translate ordering. Only the blocks with no
+	// usable TM match go to the AI translator below; the TM-filled ones are
+	// persisted straight away. tmFilled feeds the truthful ViaTM report.
+	tmFilled := 0
+	tm := resolveJobTM(deps, job)
+	if tm != nil {
+		res, rerr := recycleBlocks(ctx, tm, storedBlocks, srcLocale, tgtLocale, projectTMMinScore(proj))
+		if rerr != nil {
+			// A TM failure must never block the paid translation path — fall
+			// back to translating everything, exactly as before.
+			slog.WarnContext(ctx, "TM recycle failed; falling back to AI-only", "job_id", job.ID, "error", rerr)
+		} else {
+			tmFilled = res.tmCount
+			if len(res.filled) > 0 {
+				if err := deps.ContentStore.StoreBlocks(ctx, job.ProjectID, "main", res.filled); err != nil {
+					return fmt.Errorf("store recycled blocks: %w", err)
+				}
+				emitLog(deps, job.StepID, "info",
+					fmt.Sprintf("Recycled %d block(s) from TM (skipping AI)", tmFilled),
+					map[string]string{"via_tm": strconv.Itoa(tmFilled)})
+			}
+			// Rebuild the stored-block slice for the AI loop as the remainder —
+			// only genuinely-new segments cost credits. StoredBlock carries more
+			// than the Block, so re-query the remainder by ID to keep the slice
+			// shape (StoredBlock) the chunk loop expects.
+			storedBlocks = filterStoredByRemainder(storedBlocks, res.remainder)
+			totalBlocks = len(storedBlocks)
+		}
+	}
+
+	// Record the TM/AI split truthfully on the job so the convergence produce
+	// emitter can report "TM N · AI M" (theme A2). aiFilled is the remainder
+	// the AI loop below translates.
+	if err := deps.JobStore.UpdateJobTMSplit(ctx, job.ID, epoch, tmFilled, totalBlocks); err != nil {
+		slog.WarnContext(ctx, "record TM/AI split failed", "job_id", job.ID, "error", err)
+	}
+
+	// Nothing left for AI (everything recycled or already translated): done.
+	if totalBlocks == 0 {
+		return nil
+	}
+
+	// Reset the progress denominator to the AI remainder so a run that recycled
+	// most of its blocks doesn't look stuck at N/original.
+	if err := deps.JobStore.UpdateJobProgress(ctx, job.ID, epoch, 0, totalBlocks); err != nil {
+		return fmt.Errorf("reset total blocks: %w", err)
+	}
+
 	// Resolve AI provider. resolved.Source (platform vs byo) is the hybrid-AI
 	// billing gate consumed at the credit-deduction site below.
 	resolved, err := resolveProvider(ctx, deps, job)
@@ -452,6 +511,14 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	if len(blocks) > 0 {
 		if err := deps.ContentStore.StoreBlocks(ctx, job.ProjectID, "main", blocks); err != nil {
 			return fmt.Errorf("store blocks: %w", err)
+		}
+		// Write the AI drafts back to the project TM (theme A2) so sibling
+		// locales, re-runs, and future pushes recycle instead of re-paying.
+		// Draft origin lets a later review approval upgrade the same entry.
+		if tm != nil {
+			if n := seedTMFromBlocks(ctx, tm, blocks, job.ProjectID, srcLocale, tgtLocale, "ai-draft", job.ID); n > 0 {
+				slog.InfoContext(ctx, "seeded TM from AI drafts", "job_id", job.ID, "entries", n)
+			}
 		}
 	}
 

@@ -537,7 +537,11 @@ func (o *convergenceOrchestrator) produceFunc(projectID string) func(context.Con
 		// Job completion is the "this pass is done producing" signal; the
 		// translated-BLOCK count is the reported progress. Each poll refreshes
 		// the run's last_activity from the newest job updated_at so a "slow but
-		// alive" run is distinguishable from a stalled one (theme D).
+		// alive" run is distinguishable from a stalled one (theme D). TM-first
+		// convergence (theme A2): each translation job records how many blocks it
+		// filled from the project TM (recycled) vs. sent to the AI translator; we
+		// sum those splits across the locale's jobs so the run reports a truthful
+		// "TM N · AI M" instead of attributing everything to AI.
 		translated := 0
 		for {
 			if err := ctx.Err(); err != nil {
@@ -548,27 +552,51 @@ func (o *convergenceOrchestrator) produceFunc(projectID string) func(context.Con
 				return translated, 0, translated, fmt.Errorf("poll jobs: %w", err)
 			}
 			inProgress := 0
+			viaTM := 0
 			for _, j := range jobList {
+				viaTM += j.ViaTM
 				if j.Status != jobs.StatusCompleted && j.Status != jobs.StatusFailed {
 					inProgress++
 				}
 			}
 			translated = o.localeTranslatedBlocks(ctx, proj, locale)
+			// Split the reported Done across TM/AI. The recorded viaTM is
+			// authoritative; the remainder is attributed to AI so the counters
+			// stay consistent with Done even while a pass is still in flight.
+			doneTM, doneAI := reconcileSplit(translated, viaTM)
 			emit.Emit(convergence.Event{
 				Type: convergence.EventUnitProgress, Stage: convergence.StageAITranslate,
-				Pass: pass, Locale: locale, Done: translated, ViaAI: translated,
+				Pass: pass, Locale: locale, Done: translated, ViaTM: doneTM, ViaAI: doneAI,
 			})
 			if inProgress == 0 {
-				// viaTM is unknown server-side; attribute produced units to AI.
-				return translated, 0, translated, nil
+				return translated, doneTM, doneAI, nil
 			}
 			select {
 			case <-ctx.Done():
-				return translated, 0, translated, ctx.Err()
+				return translated, doneTM, doneAI, ctx.Err()
 			case <-time.After(convergePollInterval):
 			}
 		}
 	}
+}
+
+// reconcileSplit distributes a total translated-block count across TM and AI
+// using the jobs' recorded split. The recorded viaTM is trusted (capped at the
+// total so a lagging dashboard stat can't push it negative); the AI share is
+// whatever remains, so ViaTM + ViaAI always equals Done. This keeps the "TM N ·
+// AI M" report internally consistent even while a pass is still in flight and
+// some jobs have not yet recorded their split.
+func reconcileSplit(total, viaTM int) (tm, ai int) {
+	if total <= 0 {
+		return 0, 0
+	}
+	if viaTM > total {
+		viaTM = total
+	}
+	if viaTM < 0 {
+		viaTM = 0
+	}
+	return viaTM, total - viaTM
 }
 
 // localeTranslatedBlocks returns the current translated-block count for a
