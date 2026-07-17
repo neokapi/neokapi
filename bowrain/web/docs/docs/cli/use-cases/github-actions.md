@@ -11,6 +11,10 @@ This guide shows how to use kapi (with the bowrain plugin) in GitHub Actions wor
 
 The [`setup-kapi`](https://github.com/neokapi/setup-kapi) GitHub Action installs kapi on any runner, with the bowrain plugin included by default. It handles platform detection, checksum verification, binary caching, and optional server authentication — so your workflow steps can focus on localization tasks.
 
+This page is the deep GitHub Actions guide. For the map of every CI and
+delivery surface — GitLab CI, container runners, and the no-pipeline Bowrain
+GitHub App — start at [The loop in CI](/cli/ci/overview).
+
 ## Setup
 
 Add `neokapi/setup-kapi@v1` to your workflow:
@@ -99,16 +103,77 @@ With `command: up` (the default), the action runs `kapi up` — the kapi loop on
 | `command`        | `up`                                    | The `kapi` command to run                |
 | `args`           | `""`                                    | Additional arguments                     |
 | `project`        | `""`                                    | Path to the `.kapi` recipe (`-p` flag)   |
+| `plan`           | `false`                                 | With `command: up`, dry-run instead (`kapi up --plan`): report pending work, TM leverage, and a token estimate — no writes, no provider calls. Pairs with `pr-comment` to post the cost of a change on its PR |
 | `fail-on-parked` | `false`                                 | With `command: up`, fail the workflow when the run parks instead of committing partial progress |
 | `commit`         | `true`                                  | Whether to commit changes                |
 | `commit-message` | `chore: update translations via kapi`   | Commit message                           |
+| `create-pull-request` | `false`                            | Deliver the changes as a branch and pull request instead of committing to the current branch |
+| `pr-comment`     | `false`                                 | On pull-request events, post one sticky comment with the report — plan, `kapi up` outcome, or gate result — that re-runs update in place |
 | `git-user-name`  | `Kapi Bot`                              | Git committer name                       |
 | `git-user-email` | `bot@kapi.dev`                          | Git committer email                      |
 | `paths`          | `""` (all changes)                      | Space-separated paths to stage for commit |
 
 :::note
-The workflow needs `permissions: contents: write` for the action to push commits.
+The workflow needs `permissions: contents: write` for the action to push
+commits — plus `pull-requests: write` when `create-pull-request` or
+`pr-comment` is used.
 :::
+
+## Reusable workflows
+
+For one-line adoption, [`neokapi/kapi-workflows`](https://github.com/neokapi/kapi-workflows)
+packages the checkout → `setup-kapi` → `kapi-action` sequence as reusable
+workflows. `up.yml@v1` catches the project up and delivers a pull request:
+
+```yaml
+name: Translations
+
+on:
+  schedule:
+    - cron: "0 6 * * 1-5"
+  workflow_dispatch:
+
+jobs:
+  up:
+    uses: neokapi/kapi-workflows/.github/workflows/up.yml@v1
+    permissions:
+      contents: write
+      pull-requests: write
+    with:
+      server: https://dev.bowrain.cloud
+    secrets:
+      bowrain-auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
+```
+
+On a server-connected project the `bowrain-auth-token` secret and `server`
+input are all the job needs — the loop runs on the Bowrain server. A
+local-venue run passes the `anthropic-api-key` secret instead. The workflow
+exposes `outcome`, `passes`, `parked-locales`, and `pull-request-url` as job
+outputs.
+
+`gate.yml@v1` is the merge gate — it runs `kapi check --ship`, fails the job
+on exit `3`, and posts one sticky report comment on the pull request:
+
+```yaml
+name: Ship gate
+
+on:
+  pull_request:
+    paths:
+      - "src/locales/**"
+      - "*.kapi"
+      - ".kapi/**"
+
+jobs:
+  ship-gate:
+    uses: neokapi/kapi-workflows/.github/workflows/gate.yml@v1
+    permissions:
+      contents: read
+      pull-requests: write
+```
+
+Use the actions directly (as in the examples below) when the job needs a
+custom shape.
 
 ## Example: Ship Gate on Pull Request
 
@@ -171,7 +236,7 @@ jobs:
           server: https://dev.bowrain.cloud
 
       - name: Push to Bowrain Cloud
-        run: kapi push -m "Sync from CI (${GITHUB_SHA::7})"
+        run: kapi push
 ```
 
 The `auth-token` and `server` inputs export `BOWRAIN_AUTH_TOKEN` and `BOWRAIN_SERVER_URL` as environment variables, which the CLI picks up automatically.
@@ -310,6 +375,7 @@ Use `latest` (the default) for workflows where you always want the newest releas
 
 ## Related
 
+- [The loop in CI](/cli/ci/overview) — every CI and delivery surface, the exit-code contract, CI authentication
 - [CLI Overview](/cli/overview)
 - [Flow Hooks](/cli/flows/hooks)
 - [kapi up](/cli/commands/up) — run the kapi loop on the server (push → catch up → pull)
