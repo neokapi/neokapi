@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/neokapi/neokapi/bowrain/crypto"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -169,6 +170,36 @@ func TestConnectorConfigListAllAndDelete(t *testing.T) {
 	require.NoError(t, store.Delete(ctx, "ws-1", "wp-1"))
 	_, err = store.Get(ctx, "ws-1", "wp-1")
 	assert.ErrorIs(t, err, bstore.ErrConnectorConfigNotFound)
+}
+
+func TestConnectorConfigTouchLastSync(t *testing.T) {
+	store, _ := newTestConnectorStore(t, nil)
+	ctx := context.Background()
+	const wsID = "ws-acme"
+
+	_, err := store.Upsert(ctx, &bstore.ConnectorConfig{
+		ID: "wp-1", WorkspaceID: wsID, Type: "wordpress", Name: "Blog",
+		Config: map[string]string{"url": "https://blog.example.com"},
+	})
+	require.NoError(t, err)
+
+	// Never synced → zero last-sync (the status path renders this as "never synced").
+	got, err := store.Get(ctx, wsID, "wp-1")
+	require.NoError(t, err)
+	assert.True(t, got.LastSyncAt.IsZero(), "a fresh connector has no last-sync")
+
+	// Stamp a sync; the stored value round-trips to the second (RFC3339).
+	ts := time.Date(2026, 7, 18, 9, 30, 0, 0, time.UTC)
+	require.NoError(t, store.TouchLastSync(ctx, wsID, "wp-1", ts))
+	got, err = store.Get(ctx, wsID, "wp-1")
+	require.NoError(t, err)
+	assert.True(t, ts.Equal(got.LastSyncAt), "last-sync must persist the stamped time, got %s", got.LastSyncAt)
+
+	// Cross-workspace touch matches nothing and must not stamp the row.
+	require.NoError(t, store.TouchLastSync(ctx, "ws-other", "wp-1", ts.Add(time.Hour)))
+	got, err = store.Get(ctx, wsID, "wp-1")
+	require.NoError(t, err)
+	assert.True(t, ts.Equal(got.LastSyncAt), "a cross-workspace touch must not change the row")
 }
 
 func TestConnectorConfigCrossWorkspaceIsolation(t *testing.T) {

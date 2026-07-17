@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/version"
+	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
 // HealthResponse is the response for the health check endpoint.
@@ -37,12 +38,23 @@ type InfoResponse struct {
 	Tools          []registry.ToolInfo `json:"tools"`
 	Locales        []locale.LocaleInfo `json:"locales"`
 	ConnectorTypes []ConnectorTypeInfo `json:"connector_types,omitempty"`
+	// ProviderTypes lists the AI providers a workspace admin can configure with
+	// credentials, sourced from the framework provider registry so the settings
+	// UI never hardcodes (and drifts from) the Go provider constants.
+	ProviderTypes []ProviderTypeInfo `json:"provider_types,omitempty"`
 }
 
 // ConnectorTypeInfo describes an available connector type.
 type ConnectorTypeInfo struct {
 	Name     string `json:"name"`
 	Category string `json:"category"`
+}
+
+// ProviderTypeInfo describes a configurable AI provider.
+type ProviderTypeInfo struct {
+	Name     string `json:"name"`      // registry id, e.g. "anthropic"
+	Label    string `json:"label"`     // human-readable, e.g. "Anthropic"
+	NeedsKey bool   `json:"needs_key"` // false for local/keyless providers (Ollama)
 }
 
 // FormatInfo describes a registered format.
@@ -294,6 +306,26 @@ func (s *Server) HandleInfo(c echo.Context) error {
 		}
 	}
 
+	// AI provider types. Sourced from the framework provider registry so the
+	// settings UI never re-declares the Go provider constants. We omit the two
+	// providers that aren't configurable as a hosted workspace credential:
+	// "demo" (illustrative playground backend) and "claude-code" (a keyless
+	// local-CLI subscription that can't run server-side).
+	var providerTypes []ProviderTypeInfo
+	for _, p := range aiprovider.Providers() {
+		if p.Name == aiprovider.Demo || p.Name == aiprovider.ClaudeCode {
+			continue
+		}
+		providerTypes = append(providerTypes, ProviderTypeInfo{
+			Name:     string(p.Name),
+			Label:    p.Label,
+			NeedsKey: p.NeedsKey(),
+		})
+	}
+	slices.SortFunc(providerTypes, func(a, b ProviderTypeInfo) int {
+		return cmp.Compare(a.Label, b.Label)
+	})
+
 	return c.JSON(http.StatusOK, InfoResponse{
 		Mode:      mode,
 		Version:   version.Version,
@@ -306,5 +338,6 @@ func (s *Server) HandleInfo(c echo.Context) error {
 		Tools:          tools,
 		Locales:        locales,
 		ConnectorTypes: connectorTypes,
+		ProviderTypes:  providerTypes,
 	})
 }

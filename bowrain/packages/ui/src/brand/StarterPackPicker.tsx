@@ -8,6 +8,8 @@ interface StarterPackPickerProps {
   onOpenChange: (open: boolean) => void;
   onSelect: (pack: StarterPackMeta) => void;
   onScratch: () => void;
+  /** Disables selection while the chosen pack is being created server-side. */
+  busy?: boolean;
 }
 
 export function StarterPackPicker({
@@ -15,6 +17,7 @@ export function StarterPackPicker({
   onOpenChange,
   onSelect,
   onScratch,
+  busy = false,
 }: StarterPackPickerProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -26,7 +29,12 @@ export function StarterPackPicker({
           </p>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+        <div
+          className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4 ${
+            busy ? "pointer-events-none opacity-60" : ""
+          }`}
+          aria-busy={busy}
+        >
           {starterPacks.map((pack) => (
             <StarterPackCard key={pack.name} pack={pack} onClick={onSelect} />
           ))}

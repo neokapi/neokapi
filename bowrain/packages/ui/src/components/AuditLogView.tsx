@@ -174,6 +174,8 @@ export interface AuditLogViewProps {
   verification?: AuditChainVerification | null;
   onVerify?: () => void;
   verifying?: boolean;
+  /** Error message from a failed verification request (network/permission). */
+  verifyError?: string | null;
 }
 
 export function AuditLogView({
@@ -189,6 +191,7 @@ export function AuditLogView({
   verification,
   onVerify,
   verifying,
+  verifyError,
 }: AuditLogViewProps) {
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
@@ -303,6 +306,11 @@ export function AuditLogView({
           </div>
           {onVerify && (
             <div className="flex items-center gap-2 shrink-0">
+              {verifyError && !verifying && (
+                <Badge variant="destructive" className="gap-1 text-[11px]" title={verifyError}>
+                  <AlertTriangle className="w-3 h-3" /> Verification failed
+                </Badge>
+              )}
               {verification &&
                 (verification.valid ? (
                   <Badge

@@ -7,7 +7,14 @@ export interface RecycleBinViewProps {
   loading?: boolean;
   onRestoreProject: (id: string) => void;
   onPermanentlyDelete: (id: string) => void;
-  retentionDays?: number;
+  /**
+   * Auto-purge window, in days. Omit (or pass 0/null) when the server enforces
+   * no automatic deletion — the view then says archived projects are kept until
+   * manually removed, instead of showing a countdown to a deletion that never
+   * happens. Pass a positive value only when a retention policy is actually
+   * enforced server-side.
+   */
+  retentionDays?: number | null;
 }
 
 function relativeTime(dateStr?: string): string {
@@ -34,16 +41,18 @@ export function RecycleBinView({
   loading,
   onRestoreProject,
   onPermanentlyDelete,
-  retentionDays = 30,
+  retentionDays,
 }: RecycleBinViewProps) {
+  const autoPurge = typeof retentionDays === "number" && retentionDays > 0;
   return (
     <div className="flex-1 min-h-0 overflow-auto">
       <Card className="p-6 mb-4">
         <div className="mb-2">
           <h2 className="text-xl font-semibold">Recycle Bin</h2>
           <p className="text-[13px] text-muted-foreground mt-1">
-            Archived projects are kept for {retentionDays} days before permanent deletion. You can
-            restore them at any time during this period.
+            {autoPurge
+              ? `Archived projects are kept for ${retentionDays} days before permanent deletion. You can restore them at any time during this period.`
+              : "Archived projects are kept until you permanently delete them. Restore or remove them at any time."}
           </p>
         </div>
       </Card>
@@ -62,7 +71,9 @@ export function RecycleBinView({
         {projects.length > 0 && (
           <div className="divide-y divide-border/20">
             {projects.map((project) => {
-              const remaining = daysRemaining(project.archived_at, retentionDays);
+              const remaining = autoPurge
+                ? daysRemaining(project.archived_at, retentionDays as number)
+                : null;
               return (
                 <div
                   key={project.id}
@@ -77,10 +88,14 @@ export function RecycleBinView({
                     </div>
                     <div className="flex items-center gap-2 mt-1 text-[12px] text-muted-foreground/60">
                       <span>Archived {relativeTime(project.archived_at)}</span>
-                      <span>·</span>
-                      <span className={remaining <= 7 ? "text-destructive" : ""}>
-                        {remaining} {remaining === 1 ? "day" : "days"} remaining
-                      </span>
+                      {remaining !== null && (
+                        <>
+                          <span>·</span>
+                          <span className={remaining <= 7 ? "text-destructive" : ""}>
+                            {remaining} {remaining === 1 ? "day" : "days"} remaining
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
 

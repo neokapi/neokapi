@@ -813,4 +813,15 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE convergence_runs ADD COLUMN IF NOT EXISTS blocked_on_source INTEGER NOT NULL DEFAULT 0;
 		`,
 	},
+	{
+		Version:     9,
+		Description: "connector last-sync timestamp (real status, not fabricated now)",
+		SQL: `
+			-- Records the last successful fetch/publish per remote connector so the
+			-- status endpoint reports a real timestamp instead of the connector's
+			-- own fabricated wall-clock time. Empty until the first sync (read as
+			-- "never synced").
+			ALTER TABLE connector_configs ADD COLUMN IF NOT EXISTS last_sync_at TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }

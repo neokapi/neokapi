@@ -51,6 +51,23 @@ func TestInfoEndpoint(t *testing.T) {
 	// The default (SQLite/standalone) server has no brand-scan job system, so
 	// the web app must be told to hide the hosted-scan entry points.
 	assert.False(t, resp.Features["brand_scan"])
+
+	// Provider types are served from the framework registry so the settings UI
+	// never hardcodes them. The configurable set is present; the two special
+	// providers (demo, claude-code) are excluded.
+	provByName := make(map[string]ProviderTypeInfo)
+	for _, p := range resp.ProviderTypes {
+		provByName[p.Name] = p
+	}
+	for _, name := range []string{"anthropic", "openai", "gemini", "azureopenai", "ollama"} {
+		_, ok := provByName[name]
+		assert.True(t, ok, "expected provider %q in /info response", name)
+	}
+	assert.NotContains(t, provByName, "demo", "the illustrative demo provider is not configurable")
+	assert.NotContains(t, provByName, "claude-code", "the local-CLI provider is not a server credential")
+	// Cloud providers need a key; Ollama (local) does not.
+	assert.True(t, provByName["anthropic"].NeedsKey, "anthropic needs an API key")
+	assert.False(t, provByName["ollama"].NeedsKey, "ollama is local/keyless")
 }
 
 func TestInfoEndpointServerMode(t *testing.T) {

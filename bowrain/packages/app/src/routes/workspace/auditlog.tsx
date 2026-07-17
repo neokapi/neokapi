@@ -72,11 +72,16 @@ export function AuditLogRoute() {
 
   const [verification, setVerification] = useState<AuditChainVerification | null>(null);
   const [verifying, setVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
   const handleVerify = useCallback(async () => {
     if (!ws) return;
     setVerifying(true);
+    setVerifyError(null);
     try {
       setVerification(await adapter.verifyWorkspaceAuditChain(ws));
+    } catch (err) {
+      setVerification(null);
+      setVerifyError(err instanceof Error ? err.message : "Could not verify the audit chain.");
     } finally {
       setVerifying(false);
     }
@@ -105,6 +110,7 @@ export function AuditLogRoute() {
         verification={verification}
         onVerify={handleVerify}
         verifying={verifying}
+        verifyError={verifyError}
       />
     </div>
   );

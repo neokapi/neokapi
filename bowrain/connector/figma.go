@@ -103,9 +103,14 @@ func (c *FigmaConnector) Fetch(ctx context.Context, opts platconn.FetchOptions) 
 }
 
 func (c *FigmaConnector) Publish(ctx context.Context, items []*platconn.ContentItem, opts platconn.PublishOptions) error {
-	// Figma API doesn't support direct text updates in the general API.
-	// This would require the Figma Plugin API or Variables API.
-	return errors.New("figma publish not yet supported via REST API")
+	// Figma is fetch-only: the public REST API can read a file's text but has no
+	// endpoint to write text back into design nodes — that is only possible from
+	// inside Figma via the Plugin/Variables API, which cannot be driven from a
+	// server. This is a platform limitation, not an unfinished feature, so we
+	// return a clear, stable error rather than silently no-op'ing a publish.
+	return errors.New(
+		"figma is a read-only source: the Figma REST API cannot write translations back into a design — " +
+			"apply them inside Figma (e.g. a Figma plugin using the Variables API)")
 }
 
 func (c *FigmaConnector) List(ctx context.Context) ([]*platconn.ContentItem, error) {
