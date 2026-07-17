@@ -143,6 +143,17 @@ func modelFamily(provider, mdl string) string {
 	return ""
 }
 
+// judgeableTarget reports whether the judged voice criteria mean anything for
+// this target. On a same-language target (en → en-GB) the register and tone of
+// a candidate are dominated by the source's own register passing through —
+// production settles source voice in the authoring-side checks before anything
+// is translated — so a judged verdict there would grade the source, not the
+// adaptation. en-GB stays in the eval where it genuinely measures adaptation
+// obedience: the deterministic spelling/contraction/terminology checks.
+func judgeableTarget(target string) bool {
+	return baseLang(target) != baseLang(string(model.LocaleEnglish))
+}
+
 // judgePass scores every answered fixture of one variant pass against the
 // rubric, accumulating per-criterion verdicts. The answered-fixture rule is
 // corpus.answerStateOf — the same one the deterministic scorer applies — so
@@ -270,9 +281,15 @@ func runJudgeValidation(ctx context.Context, judge *judgeTarget, labelsPath, his
 		return errors.New("labels file has no items")
 	}
 
-	var judgeYes, humanYes, agree, total int
+	var judgeYes, humanYes, agree, total, skippedSameLang int
 	targets := map[string]bool{}
 	for _, item := range labels.Items {
+		// Same-language items are not judged in sweeps, so agreement measured
+		// on them would validate the judge on a distribution it never scores.
+		if !judgeableTarget(item.Target) {
+			skippedSameLang++
+			continue
+		}
 		verdicts, err := judge.judgeOne(ctx, item.Target, item.Source, item.Translation)
 		if err != nil {
 			return fmt.Errorf("item %s: %w", item.ID, err)
@@ -299,8 +316,11 @@ func runJudgeValidation(ctx context.Context, judge *judgeTarget, labelsPath, his
 			}
 		}
 	}
+	if skippedSameLang > 0 {
+		fmt.Printf("skipped %d same-language item(s) — en → en-GB register grades the source, not the adaptation, and the judge never scores it\n", skippedSameLang)
+	}
 	if total == 0 {
-		return errors.New("labels file labels none of the rubric's criteria")
+		return errors.New("labels file labels none of the rubric's criteria on a judgeable (different-language) target")
 	}
 
 	agreement := float64(agree) / float64(total)

@@ -44,3 +44,13 @@ func TestSameFamilyJudgingIsRefusedNotWarned(t *testing.T) {
 func TestRubricDigestShape(t *testing.T) {
 	assert.Len(t, rubricDigest(), 12)
 }
+
+func TestSameLanguageTargetsAreNotJudgeable(t *testing.T) {
+	// en → en-GB: the candidate's register is the source's register passing
+	// through — a judged verdict would grade the authoring, which production
+	// settles in the source-side checks before translation.
+	assert.False(t, judgeableTarget("en-GB"))
+	assert.True(t, judgeableTarget("nb"))
+	assert.True(t, judgeableTarget("de"))
+	assert.True(t, judgeableTarget("fr"))
+}

@@ -45,6 +45,9 @@ interface JudgeRecord {
   bare: Counts;
   steered: Counts;
   skipped_same_family?: boolean;
+  /** en → en-GB is never judged: a same-language register verdict grades the
+   *  source, not the adaptation. */
+  skipped_same_language?: boolean;
   error?: string;
 }
 interface Price {
@@ -442,7 +445,12 @@ function judgePublishable(v: JudgeValidation | undefined): boolean {
 function ExperimentSection({ e }: { e: Experiment }): ReactElement {
   const plotted = e.runs.filter(scored);
   const judged = plotted.filter(
-    (r) => r.judge && !r.judge.skipped_same_family && !r.judge.error && r.judge.steered.scored > 0,
+    (r) =>
+      r.judge &&
+      !r.judge.skipped_same_family &&
+      !r.judge.skipped_same_language &&
+      !r.judge.error &&
+      r.judge.steered.scored > 0,
   );
   return (
     <section>

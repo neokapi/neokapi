@@ -142,8 +142,12 @@ type JudgeRecord struct {
 	// SkippedSameFamily records that no judging happened because the judge and
 	// the model under test share a model family — self-preference bias is real,
 	// so a same-family verdict is not evidence.
-	SkippedSameFamily bool   `json:"skipped_same_family,omitempty"`
-	Error             string `json:"error,omitempty"`
+	SkippedSameFamily bool `json:"skipped_same_family,omitempty"`
+	// SkippedSameLanguage records that this target is not judgeable: on a
+	// same-language target (en → en-GB) a register/tone verdict grades the
+	// source, not the adaptation.
+	SkippedSameLanguage bool   `json:"skipped_same_language,omitempty"`
+	Error               string `json:"error,omitempty"`
 }
 
 // JudgeValidation is measured judge–human agreement over a labeled seed set.

@@ -238,6 +238,7 @@ func measure(ctx context.Context, provider aiprovider.LLMProvider, mt modelTarge
 	var judgeRec *JudgeRecord
 	if opts.judge != nil && !out.Simulated {
 		judgeRec = opts.judge.record(mt)
+		judgeRec.SkippedSameLanguage = !judgeableTarget(corpus.Target)
 	}
 
 	for r := range opts.repeat {
@@ -269,7 +270,7 @@ func measure(ctx context.Context, provider aiprovider.LLMProvider, mt modelTarge
 			} else {
 				mergeScore(&steeredScore, score, steeredRec, rec)
 			}
-			if judgeRec != nil && !judgeRec.SkippedSameFamily {
+			if judgeRec != nil && !judgeRec.SkippedSameFamily && !judgeRec.SkippedSameLanguage {
 				counts := &judgeRec.Bare
 				if variant == "steered" {
 					counts = &judgeRec.Steered
@@ -644,6 +645,8 @@ func printTable(r Run) {
 		switch {
 		case j.SkippedSameFamily:
 			fmt.Printf("  judge: skipped — %s:%s is the same model family as the model under test\n", j.Provider, j.Model)
+		case j.SkippedSameLanguage:
+			fmt.Printf("  judge: skipped — a same-language target's register grades the source, not the adaptation\n")
 		case j.Error != "":
 			fmt.Printf("  judge: error — %s\n", j.Error)
 		case j.Bare.Scored == 0 && j.Steered.Scored == 0:
