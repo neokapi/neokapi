@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Play, ChevronRight, Shield, BarChart3, Globe } from "lucide-react";
+import { t } from "@neokapi/kapi-react/runtime";
 
 const PSEUDO_MAP: Record<string, string> = {
   a: "ä",
@@ -152,10 +153,20 @@ export function PseudoChallenge() {
       <div className="mt-10 flex flex-wrap justify-center gap-2">
         {(
           [
-            { l: 1 as Level, label: "Go pseudo", icon: Play, desc: "basic pseudo-localization" },
-            { l: 2 as Level, label: "Protect terms", icon: Shield, desc: "glossary-aware" },
-            { l: 3 as Level, label: "Expand & score", icon: BarChart3, desc: "i18n readiness" },
-            { l: 4 as Level, label: "Go real", icon: Globe, desc: "real translation" },
+            {
+              l: 1 as Level,
+              label: t("Go pseudo"),
+              icon: Play,
+              desc: t("basic pseudo-localization"),
+            },
+            { l: 2 as Level, label: t("Protect terms"), icon: Shield, desc: t("glossary-aware") },
+            {
+              l: 3 as Level,
+              label: t("Expand & score"),
+              icon: BarChart3,
+              desc: t("i18n readiness"),
+            },
+            { l: 4 as Level, label: t("Go real"), icon: Globe, desc: t("real translation") },
           ] as const
         ).map(({ l, label, icon: Icon, desc }) => (
           <button
@@ -188,7 +199,7 @@ export function PseudoChallenge() {
         </div>
 
         <div className="p-6 font-mono text-sm">
-          <div className="flex items-center gap-2 text-neutral-400">
+          <div translate="no" className="flex items-center gap-2 text-neutral-400">
             <span className="text-emerald-400">$</span>
             <span>
               {level === 1 && "kapi run pseudo"}
@@ -284,12 +295,14 @@ export function PseudoChallenge() {
 
       <div className="mt-6 text-center text-sm text-muted-foreground">
         {level === 1 &&
-          "Level 1: Basic pseudo-localization. Proves your pipeline handles non-ASCII."}
+          t("Level 1: Basic pseudo-localization. Proves your pipeline handles non-ASCII.")}
         {level === 2 &&
-          "Level 2: kapi reads brand terms from your glossary and protects them. On Bowrain, that glossary follows you across every project — and every teammate."}
-        {level === 3 && "Level 3: Expansion testing reveals UI truncation and layout breaks."}
+          t(
+            "Level 2: kapi reads brand terms from your glossary and protects them. On Bowrain, that glossary follows you across every project — and every teammate.",
+          )}
+        {level === 3 && t("Level 3: Expansion testing reveals UI truncation and layout breaks.")}
         {level === 4 &&
-          "Level 4: Same pipeline, real language. Glossary and voice rules carry through."}
+          t("Level 4: Same pipeline, real language. Glossary and voice rules carry through.")}
       </div>
     </section>
   );

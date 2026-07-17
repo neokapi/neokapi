@@ -158,7 +158,7 @@ func (s *Server) HandleDeviceAuthPoll(c echo.Context) error {
 	}
 
 	// User authorized — create or retrieve user and generate token.
-	user, err := s.Services.Auth.GetOrCreateUser(ctx, entry.UserEmail, entry.UserName, "", entry.OIDCSub)
+	user, err := s.Services.Auth.GetOrCreateUser(ctx, entry.UserEmail, entry.UserName, "", entry.OIDCSub, requestLocale(c))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "create user: " + err.Error()})
 	}
@@ -480,7 +480,7 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "extract claims: " + err.Error()})
 	}
 
-	user, err := s.Services.Auth.GetOrCreateUser(ctx, claims.Email, claims.Name, "", idToken.Subject)
+	user, err := s.Services.Auth.GetOrCreateUser(ctx, claims.Email, claims.Name, "", idToken.Subject, requestLocale(c))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "create user: " + err.Error()})
 	}
@@ -868,7 +868,7 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "extract claims: " + err.Error()})
 	}
 
-	user, err := s.Services.Auth.GetOrCreateUser(ctx, claims.Email, claims.Name, "", idToken.Subject)
+	user, err := s.Services.Auth.GetOrCreateUser(ctx, claims.Email, claims.Name, "", idToken.Subject, requestLocale(c))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "create user: " + err.Error()})
 	}
@@ -1250,4 +1250,33 @@ func sanitizeReturnPath(raw string) string {
 		return "/"
 	}
 	return decoded
+}
+
+// requestLocale extracts the preferred locale from the request's
+// Accept-Language header as a lowercase BCP-47 primary subtag (e.g.
+// "nb-NO;q=0.9, en;q=0.8" → "nb"). Returns "" when the header is absent or
+// unparsable. Used to capture a user's locale at sign-in; consumers (e.g.
+// the transactional-email send path) always fall back to English.
+func requestLocale(c echo.Context) string {
+	header := c.Request().Header.Get("Accept-Language")
+	if header == "" {
+		return ""
+	}
+	first, _, _ := strings.Cut(header, ",")
+	tag, _, _ := strings.Cut(strings.TrimSpace(first), ";")
+	base, _, _ := strings.Cut(strings.TrimSpace(tag), "-")
+	base = strings.ToLower(base)
+	if base == "" || base == "*" {
+		return ""
+	}
+	// Primary subtags are 2–8 alphabetic characters (BCP 47).
+	if len(base) < 2 || len(base) > 8 {
+		return ""
+	}
+	for _, r := range base {
+		if r < 'a' || r > 'z' {
+			return ""
+		}
+	}
+	return base
 }

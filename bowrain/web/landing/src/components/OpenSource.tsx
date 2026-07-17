@@ -7,6 +7,17 @@ import { useReveal } from "../useReveal";
 export function OpenSource() {
   const ref = useReveal();
 
+  // Hoisted so kapi-react extracts the sentence as one block with a named
+  // {kapiLink} placeholder (see Hero.tsx).
+  const kapiLink = (
+    <a
+      href={KAPI_SITE_URL}
+      className="underline underline-offset-2 transition hover:text-foreground"
+    >
+      kapi
+    </a>
+  );
+
   return (
     <section id="open-source" className="mx-auto max-w-6xl px-6 py-24">
       <div ref={ref} className="reveal">
@@ -15,16 +26,10 @@ export function OpenSource() {
             Built in the open.
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Bowrain is built on{" "}
-            <a
-              href={KAPI_SITE_URL}
-              className="underline underline-offset-2 transition hover:text-foreground"
-            >
-              kapi
-            </a>
-            , the Apache-2.0 toolchain for format-aware content processing — the same engine that
-            reads and writes your formats, runs the checks, and keeps the memory. Your content,
-            terminology, and translation memory stay in open formats you can take anywhere.
+            Bowrain is built on {kapiLink}, the Apache-2.0 toolchain for format-aware content
+            processing — the same engine that reads and writes your formats, runs the checks, and
+            keeps the memory. Your content, terminology, and translation memory stay in open formats
+            you can take anywhere.
           </p>
         </div>
 

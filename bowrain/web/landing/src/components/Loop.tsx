@@ -1,26 +1,35 @@
 import { Bot, Users, Lightbulb, ShieldCheck, ArrowRight } from "lucide-react";
+import { t } from "@neokapi/kapi-react/runtime";
 import { useReveal } from "../useReveal";
 
 const STEPS = [
   {
     icon: Bot,
-    title: "Draft",
-    body: "AI translates and drafts with your terminology, translation memory, and brand voice in the prompt — not generic model output.",
+    title: t("Draft"),
+    body: t(
+      "AI translates and drafts with your terminology, translation memory, and brand voice in the prompt — not generic model output.",
+    ),
   },
   {
     icon: Users,
-    title: "Review",
-    body: "Review in a shared editor: suggestions, term highlights, notes, history. Solo, it is your quality gate; with a team, live presence shows who's working where.",
+    title: t("Review"),
+    body: t(
+      "Review in a shared editor: suggestions, term highlights, notes, history. Solo, it is your quality gate; with a team, live presence shows who's working where.",
+    ),
   },
   {
     icon: Lightbulb,
-    title: "Learn",
-    body: "Accepted corrections update the shared memory. Recurring ones surface as candidate rules you can promote into the brand profile — or reject.",
+    title: t("Learn"),
+    body: t(
+      "Accepted corrections update the shared memory. Recurring ones surface as candidate rules you can promote into the brand profile — or reject.",
+    ),
   },
   {
     icon: ShieldCheck,
-    title: "Enforce",
-    body: "The next run drafts against the updated rules, in every locale and on every surface. Checks score drafts and flag violations before anything ships.",
+    title: t("Enforce"),
+    body: t(
+      "The next run drafts against the updated rules, in every locale and on every surface. Checks score drafts and flag violations before anything ships.",
+    ),
   },
 ];
 
@@ -54,9 +63,13 @@ export function Loop() {
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                     <s.icon className="h-5 w-5 text-primary" />
                   </div>
-                  <div className="font-mono text-xs text-muted-foreground">0{i + 1}</div>
+                  <div translate="no" className="font-mono text-xs text-muted-foreground">
+                    0{i + 1}
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold">{s.title}</h3>
+                <h3 translate="no" className="text-lg font-semibold">
+                  {s.title}
+                </h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.body}</p>
                 {i < STEPS.length - 1 && (
                   <ArrowRight className="absolute -right-4 top-[44px] hidden h-4 w-4 text-muted-foreground/50 lg:block" />

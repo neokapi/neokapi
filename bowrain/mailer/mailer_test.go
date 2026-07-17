@@ -53,7 +53,7 @@ func TestSendInvite(t *testing.T) {
 		JoinURL:       "https://app.bowrain.cloud/join/abc123",
 	}
 
-	err = m.SendInvite(t.Context(), "user@example.com", data)
+	err = m.SendInvite(t.Context(), "user@example.com", "en", data)
 	require.NoError(t, err)
 
 	msg := sender.last()
@@ -78,7 +78,7 @@ func TestRenderInviteHTMLEscaping(t *testing.T) {
 		JoinURL:       "https://example.com/join/x?a=1&b=2",
 	}
 
-	html, err := m.RenderInvite(data)
+	html, err := m.RenderInvite("en", data)
 	require.NoError(t, err)
 
 	// HTML special characters should be escaped in the output.
@@ -95,7 +95,7 @@ func TestRenderInviteContainsExpectedElements(t *testing.T) {
 	m, err := mailer.New(sender)
 	require.NoError(t, err)
 
-	html, err := m.RenderInvite(mailer.InviteData{
+	html, err := m.RenderInvite("en", mailer.InviteData{
 		WorkspaceName: "TestWS",
 		Role:          "viewer",
 		JoinURL:       "https://example.com/join/xyz",
@@ -128,7 +128,7 @@ func TestSendCreditsWarning(t *testing.T) {
 		UpgradeURL:    "https://app.bowrain.cloud/billing/upgrade?ws=abc123",
 	}
 
-	err = m.SendCreditsWarning(t.Context(), "admin@example.com", data)
+	err = m.SendCreditsWarning(t.Context(), "admin@example.com", "en", data)
 	require.NoError(t, err)
 
 	msg := sender.last()
@@ -157,7 +157,7 @@ func TestRenderCreditsWarningHTMLEscaping(t *testing.T) {
 		UpgradeURL:    "https://example.com/upgrade?a=1&b=2",
 	}
 
-	html, err := m.RenderCreditsWarning(data)
+	html, err := m.RenderCreditsWarning("en", data)
 	require.NoError(t, err)
 
 	assert.Contains(t, html, "Acme &amp; &#34;Co&#34; &lt;Ltd&gt;")
@@ -172,7 +172,7 @@ func TestRenderCreditsWarningContainsExpectedElements(t *testing.T) {
 	m, err := mailer.New(sender)
 	require.NoError(t, err)
 
-	html, err := m.RenderCreditsWarning(mailer.CreditsWarningData{
+	html, err := m.RenderCreditsWarning("en", mailer.CreditsWarningData{
 		WorkspaceName: "TestWS",
 		UsedCredits:   "750",
 		TotalCredits:  "1,000",
@@ -209,7 +209,7 @@ func TestSendCreditsExhausted(t *testing.T) {
 		BuyCreditsURL: "https://app.bowrain.cloud/billing/credits?ws=abc123",
 	}
 
-	err = m.SendCreditsExhausted(t.Context(), "admin@example.com", data)
+	err = m.SendCreditsExhausted(t.Context(), "admin@example.com", "en", data)
 	require.NoError(t, err)
 
 	msg := sender.last()
@@ -234,7 +234,7 @@ func TestRenderCreditsExhaustedHTMLEscaping(t *testing.T) {
 		BuyCreditsURL: "https://example.com/credits?x=1&y=2",
 	}
 
-	html, err := m.RenderCreditsExhausted(data)
+	html, err := m.RenderCreditsExhausted("en", data)
 	require.NoError(t, err)
 
 	assert.Contains(t, html, "Acme &amp; &#34;Co&#34; &lt;Ltd&gt;")
@@ -253,7 +253,7 @@ func TestRenderCreditsExhaustedContainsExpectedElements(t *testing.T) {
 	m, err := mailer.New(sender)
 	require.NoError(t, err)
 
-	html, err := m.RenderCreditsExhausted(mailer.CreditsExhaustedData{
+	html, err := m.RenderCreditsExhausted("en", mailer.CreditsExhaustedData{
 		WorkspaceName: "TestWS",
 		ResetDate:     "May 1, 2026",
 		UpgradeURL:    "https://example.com/upgrade",
@@ -287,7 +287,7 @@ func TestSendPaymentFailed(t *testing.T) {
 		UpdatePaymentURL: "https://app.bowrain.cloud/billing/payment?ws=abc123",
 	}
 
-	err = m.SendPaymentFailed(t.Context(), "admin@example.com", data)
+	err = m.SendPaymentFailed(t.Context(), "admin@example.com", "en", data)
 	require.NoError(t, err)
 
 	msg := sender.last()
@@ -312,7 +312,7 @@ func TestRenderPaymentFailedHTMLEscaping(t *testing.T) {
 		UpdatePaymentURL: "https://example.com/payment?a=1&b=2",
 	}
 
-	html, err := m.RenderPaymentFailed(data)
+	html, err := m.RenderPaymentFailed("en", data)
 	require.NoError(t, err)
 
 	assert.Contains(t, html, "Acme &amp; &#34;Co&#34; &lt;Ltd&gt;")
@@ -327,7 +327,7 @@ func TestRenderPaymentFailedContainsExpectedElements(t *testing.T) {
 	m, err := mailer.New(sender)
 	require.NoError(t, err)
 
-	html, err := m.RenderPaymentFailed(mailer.PaymentFailedData{
+	html, err := m.RenderPaymentFailed("en", mailer.PaymentFailedData{
 		WorkspaceName:    "TestWS",
 		InvoiceAmount:    "99.00",
 		Currency:         "EUR",
@@ -360,7 +360,7 @@ func TestSendSubscriptionChanged(t *testing.T) {
 		BillingURL:    "https://app.bowrain.cloud/billing?ws=abc123",
 	}
 
-	err = m.SendSubscriptionChanged(t.Context(), "admin@example.com", data)
+	err = m.SendSubscriptionChanged(t.Context(), "admin@example.com", "en", data)
 	require.NoError(t, err)
 
 	msg := sender.last()
@@ -385,7 +385,7 @@ func TestRenderSubscriptionChangedHTMLEscaping(t *testing.T) {
 		BillingURL:    "https://example.com/billing?a=1&b=2",
 	}
 
-	html, err := m.RenderSubscriptionChanged(data)
+	html, err := m.RenderSubscriptionChanged("en", data)
 	require.NoError(t, err)
 
 	assert.Contains(t, html, "Acme &amp; &#34;Co&#34; &lt;Ltd&gt;")
@@ -400,7 +400,7 @@ func TestRenderSubscriptionChangedContainsExpectedElements(t *testing.T) {
 	m, err := mailer.New(sender)
 	require.NoError(t, err)
 
-	html, err := m.RenderSubscriptionChanged(mailer.SubscriptionChangedData{
+	html, err := m.RenderSubscriptionChanged("en", mailer.SubscriptionChangedData{
 		WorkspaceName: "TestWS",
 		PlanName:      "Team",
 		Status:        "Trialing",
@@ -456,7 +456,7 @@ func TestSendNotification(t *testing.T) {
 
 	// SendNotification uses the notification.html template. If the template
 	// hasn't been built (vp run build), we expect a template error. Skip in that case.
-	err = m.SendNotification(t.Context(), "user@example.com", data)
+	err = m.SendNotification(t.Context(), "user@example.com", "en", data)
 	if err != nil {
 		t.Skipf("notification template not built: %v", err)
 	}
@@ -465,4 +465,86 @@ func TestSendNotification(t *testing.T) {
 	assert.Equal(t, "user@example.com", msg.To)
 	assert.Contains(t, msg.Subject, "Quality gate failed")
 	assert.Contains(t, msg.Body, "3 terminology violations found in fr-FR")
+}
+
+// ---------------------------------------------------------------------------
+// Per-locale render coverage (dogfood l10n)
+// ---------------------------------------------------------------------------
+
+// TestRenderAllTemplatesAllLocales renders every template in every embedded
+// locale (en + the localized variant sets produced by `make l10n-emails`)
+// and asserts the render succeeds with no unexecuted template tokens left
+// in the body or subject. It deliberately does not assert any particular
+// translation text: a source change whose seed hasn't caught up regenerates
+// the variant with English fallback, which must never fail the build.
+func TestRenderAllTemplatesAllLocales(t *testing.T) {
+	sender := &recordingSender{}
+	m, err := mailer.New(sender)
+	require.NoError(t, err)
+
+	// The dogfood pipeline ships pseudo (qps) and Norwegian Bokmål (nb)
+	// variant sets alongside English.
+	assert.ElementsMatch(t, []string{"en", "qps", "nb"}, m.Locales())
+
+	sends := map[string]func(locale string) error{
+		"invite": func(l string) error {
+			return m.SendInvite(t.Context(), "to@example.com", l, mailer.InviteData{
+				WorkspaceName: "Acme", Role: "member", JoinURL: "https://example.com/join/x",
+			})
+		},
+		"credits-warning": func(l string) error {
+			return m.SendCreditsWarning(t.Context(), "to@example.com", l, mailer.CreditsWarningData{
+				WorkspaceName: "Acme", UsedCredits: "800", TotalCredits: "1,000",
+				UsagePercent: "80", ResetDate: "May 1, 2026", UpgradeURL: "https://example.com/up",
+			})
+		},
+		"credits-exhausted": func(l string) error {
+			return m.SendCreditsExhausted(t.Context(), "to@example.com", l, mailer.CreditsExhaustedData{
+				WorkspaceName: "Acme", ResetDate: "May 1, 2026",
+				UpgradeURL: "https://example.com/up", BuyCreditsURL: "https://example.com/buy",
+			})
+		},
+		"payment-failed": func(l string) error {
+			return m.SendPaymentFailed(t.Context(), "to@example.com", l, mailer.PaymentFailedData{
+				WorkspaceName: "Acme", InvoiceAmount: "49.00", Currency: "USD",
+				UpdatePaymentURL: "https://example.com/pay",
+			})
+		},
+		"subscription-changed": func(l string) error {
+			return m.SendSubscriptionChanged(t.Context(), "to@example.com", l, mailer.SubscriptionChangedData{
+				WorkspaceName: "Acme", PlanName: "Pro", Status: "Active",
+				BillingURL: "https://example.com/billing",
+			})
+		},
+		"notification": func(l string) error {
+			return m.SendNotification(t.Context(), "to@example.com", l, mailer.NotificationData{
+				Title: "Check failed", Body: "Details", Category: "Quality",
+				Priority: "high", ActionURL: "https://example.com/q", ActionLabel: "Review",
+			})
+		},
+		"email-change-verify": func(l string) error {
+			return m.SendEmailChangeVerify(t.Context(), "to@example.com", l, mailer.EmailChangeVerifyData{
+				NewEmail: "new@example.com", ConfirmURL: "https://example.com/confirm",
+				ExpiresIn: "24 hours",
+			})
+		},
+	}
+
+	// "" exercises the empty-locale (unknown-user) fallback; "nb-NO"
+	// exercises BCP-47 normalization to the nb variant set.
+	for _, locale := range []string{"en", "qps", "nb", "", "nb-NO", "de"} {
+		for name, send := range sends {
+			t.Run(name+"/"+locale, func(t *testing.T) {
+				require.NoError(t, send(locale))
+				msg := sender.last()
+				assert.NotEmpty(t, msg.Subject)
+				assert.NotEmpty(t, msg.Body)
+				// Every Go template token must have been executed.
+				assert.NotContains(t, msg.Subject, "{{")
+				assert.NotContains(t, msg.Body, "{{.")
+				// No KLF inline-markup tokens may leak from a stale catalog.
+				assert.NotContains(t, msg.Body, "{=m")
+			})
+		}
+	}
 }

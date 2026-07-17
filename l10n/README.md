@@ -33,6 +33,16 @@ gitignored).
   `make l10n-bowrain-app`), `bowrain-ctrl-nb.klftm` and
   `bowrain-pulse-nb.klftm` (`make l10n-bowrain-{ctrl,pulse}`) — compiled
   into each shell's committed `public/translations/nb.json`.
+  `libraries-nb.klftm` covers the shared frontend libraries
+  (`packages/ui`, `packages/flow-editor`) whose strings reach the desktop
+  app through the `kapi-desktop-ui` extraction — it has no Make target of
+  its own; `l10n-desktop` leverages it. The transactional emails
+  (surfaces `emails` + `email-subjects`: `bowrain/emails/src` templates
+  and `bowrain/mailer/subjects/en.json` → per-locale renders under
+  `bowrain/mailer/`, `make l10n-emails`) use `emails-nb.klftm`; the
+  bowrain landing page (surface `landing`: `bowrain/web/landing/src` →
+  committed `bowrain/web/landing/translations/<lang>.json`,
+  `make l10n-landing`) uses `landing-nb.klftm`.
 
 Workflow for a new or changed surface string:
 
@@ -100,13 +110,21 @@ intermediates, `l10n/review/`).
    Corrections land here.
 2. **Committed-generated — machine-owned, drift-gated.** The embedded MO
    catalogs, `commands.json`/`metadata.json` inventories, the frontend
-   runtime catalogs (`public/translations/<locale>.json`), and the demo
+   runtime catalogs (`public/translations/<locale>.json`), the demo
    narration sidecars (`harness/demos/*/demo.<lang>.yaml`, from
-   `make l10n-demos`). Committed because `go:embed` needs them at build
-   time (regenerating needs a built kapi — a bootstrap cycle) and the
-   apps ship them as static assets. `make l10n-verify` (CI: the
-   l10n-drift job) fails on any byte drift from the seeds. Never
-   hand-edit.
+   `make l10n-demos`), the rendered email templates + subject catalogs
+   (`bowrain/mailer/templates/<lang>/*.html`,
+   `bowrain/mailer/subjects/<lang>.json`, from `make l10n-emails` —
+   `go:embed`ed into the server), and the landing runtime catalogs
+   (`bowrain/web/landing/translations/<lang>.json`, from
+   `make l10n-landing` — the web-landing workflow builds the nb variant
+   from them without a kapi toolchain). Committed because `go:embed`
+   needs them at build time (regenerating needs a built kapi — a
+   bootstrap cycle) and the apps ship them as static assets.
+   `make l10n-verify` (CI: the l10n-drift job) fails on any byte drift
+   from the seeds; the node-dependent email/landing surfaces are gated
+   by `make emails-l10n-verify` / `make landing-l10n-verify` (CI: the
+   emails-landing-l10n job). Never hand-edit.
 3. **Materialized targets — generated, never committed.** The translated
    docs pages under `web/i18n/<locale>/.../current/` (kapi docs site,
    `make l10n-docs`) and `bowrain/web/docs/i18n/<locale>/.../current/`

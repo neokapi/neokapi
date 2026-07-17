@@ -96,7 +96,7 @@ export const NotificationEmail = ({
             <Hr style={hr} />
 
             <Text style={fallback}>
-              {"Button not working? Copy and paste this link into your browser:"}
+              Button not working? Copy and paste this link into your browser:
             </Text>
             <Link href={actionURL} style={link}>
               {actionURL}
@@ -105,9 +105,9 @@ export const NotificationEmail = ({
 
           {/* ── Footer ─────────────────────────────────── */}
           <Section style={footer}>
-            <Text style={footerText}>{"© Bowrain. All rights reserved."}</Text>
+            <Text style={footerText}>© Bowrain. All rights reserved.</Text>
             <Text style={footerText}>
-              {"You received this because you have email notifications enabled for this category."}
+              You received this because you have email notifications enabled for this category.
             </Text>
           </Section>
         </Container>

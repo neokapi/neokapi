@@ -1,4 +1,5 @@
 import { GitCompareArrows, Megaphone, SearchCheck } from "lucide-react";
+import { t } from "@neokapi/kapi-react/runtime";
 import { useReveal } from "../useReveal";
 
 const CARDS = [
@@ -6,22 +7,28 @@ const CARDS = [
     icon: GitCompareArrows,
     color: "text-prism-4",
     bg: "bg-prism-4/10",
-    title: "Languages drift",
-    body: "The source changes daily; translations lag, fall back to English, or quietly go stale. Nobody can say which locale is actually current.",
+    title: t("Languages drift"),
+    body: t(
+      "The source changes daily; translations lag, fall back to English, or quietly go stale. Nobody can say which locale is actually current.",
+    ),
   },
   {
     icon: Megaphone,
     color: "text-prism-2",
     bg: "bg-prism-2/10",
-    title: "Voice erodes",
-    body: "The app, the site, the blog, the release notes — each surface drifts its own way. Forbidden terms creep back in; tone flattens into generic AI prose.",
+    title: t("Voice erodes"),
+    body: t(
+      "The app, the site, the blog, the release notes — each surface drifts its own way. Forbidden terms creep back in; tone flattens into generic AI prose.",
+    ),
   },
   {
     icon: SearchCheck,
     color: "text-prism-3",
     bg: "bg-prism-3/10",
-    title: "Review doesn't scale",
-    body: "Spot checks and pasted diffs catch some of it. But the same correction gets made twenty times, because nothing remembers it was ever made.",
+    title: t("Review doesn't scale"),
+    body: t(
+      "Spot checks and pasted diffs catch some of it. But the same correction gets made twenty times, because nothing remembers it was ever made.",
+    ),
   },
 ];
 
@@ -47,7 +54,9 @@ export function Problem() {
               <div className={`mb-4 flex h-10 w-10 items-center justify-center rounded-lg ${c.bg}`}>
                 <c.icon className={`h-5 w-5 ${c.color}`} />
               </div>
-              <h3 className="text-lg font-semibold">{c.title}</h3>
+              <h3 translate="no" className="text-lg font-semibold">
+                {c.title}
+              </h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{c.body}</p>
             </div>
           ))}

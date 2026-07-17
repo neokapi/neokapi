@@ -5,6 +5,17 @@
 // build time (make email-build) and embedded into the binary via embed.FS.
 // At send time, Go's text/template fills in the dynamic values.
 //
+// Localization: templates/*.html is the English (source-locale) set;
+// templates/<locale>/*.html holds a localized variant set produced by the
+// dogfood l10n pipeline (make l10n-emails — kapi-react extraction over
+// bowrain/emails/src, TM-driven recycle, per-locale re-render). Subjects
+// live in subjects/<locale>.json (subjects/en.json is the source; the
+// others are generated the same way). Every Send*/Render* method takes the
+// recipient's locale; unknown locales, missing variant sets, and missing
+// per-template files all fall back to English — a missing translation must
+// never block a send (see CLAUDE.md "Target-language drift must never
+// block the build").
+//
 // Usage:
 //
 //	sender := mailer.NewSMTPSender(mailer.SMTPConfig{
@@ -16,7 +27,7 @@
 //	})
 //	m, err := mailer.New(sender)
 //	if err != nil { ... }
-//	err = m.SendInvite(ctx, "translator@example.com", mailer.InviteData{
+//	err = m.SendInvite(ctx, "translator@example.com", "nb", mailer.InviteData{
 //	    WorkspaceName: "Acme Inc.",
 //	    Role:          "member",
 //	    JoinURL:       "https://app.bowrain.cloud/join/abc123",
@@ -27,13 +38,19 @@ import (
 	"bytes"
 	"context"
 	"embed"
+	"encoding/json"
+	"fmt"
 	"html"
+	"io/fs"
 	"strings"
 	"text/template"
 )
 
-//go:embed templates/*.html
+//go:embed templates
 var templateFS embed.FS
+
+//go:embed subjects/*.json
+var subjectFS embed.FS
 
 // EmailSenderI dispatches a single email message. Implementations include
 // SMTPSender (go-mail) and ResendSender (Resend REST API).
@@ -43,18 +60,140 @@ type EmailSenderI interface {
 
 // Mailer renders email templates and sends them via a configured sender.
 type Mailer struct {
-	Sender    EmailSenderI
-	templates *template.Template
+	Sender EmailSenderI
+	// templates maps locale → parsed HTML template set. The "en" set is
+	// templates/*.html; other locales come from templates/<locale>/.
+	templates map[string]*template.Template
+	// subjects maps locale → template name → parsed subject template.
+	subjects map[string]map[string]*template.Template
 }
 
+// sourceLocale is the authoring locale of the templates; every lookup
+// falls back to it.
+const sourceLocale = "en"
+
 // New creates a Mailer backed by the given sender. It parses all embedded
-// HTML templates; returns an error only if the embedded files are malformed.
+// HTML template sets (English plus every templates/<locale>/ variant) and
+// the per-locale subject catalogs; returns an error only if the embedded
+// files are malformed.
 func New(sender EmailSenderI) (*Mailer, error) {
-	t, err := template.ParseFS(templateFS, "templates/*.html")
+	sets := map[string]*template.Template{}
+	base, err := template.ParseFS(templateFS, "templates/*.html")
 	if err != nil {
 		return nil, err
 	}
-	return &Mailer{Sender: sender, templates: t}, nil
+	sets[sourceLocale] = base
+
+	entries, err := templateFS.ReadDir("templates")
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		t, err := template.ParseFS(templateFS, "templates/"+e.Name()+"/*.html")
+		if err != nil {
+			return nil, fmt.Errorf("parse %s templates: %w", e.Name(), err)
+		}
+		sets[e.Name()] = t
+	}
+
+	subjects, err := loadSubjects(subjectFS)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Mailer{Sender: sender, templates: sets, subjects: subjects}, nil
+}
+
+// loadSubjects parses every subjects/<locale>.json into per-string
+// text/template values (subjects carry Go tokens like {{.WorkspaceName}}).
+func loadSubjects(fsys fs.FS) (map[string]map[string]*template.Template, error) {
+	out := map[string]map[string]*template.Template{}
+	files, err := fs.Glob(fsys, "subjects/*.json")
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range files {
+		locale := strings.TrimSuffix(strings.TrimPrefix(f, "subjects/"), ".json")
+		raw, err := fs.ReadFile(fsys, f)
+		if err != nil {
+			return nil, err
+		}
+		var m map[string]string
+		if err := json.Unmarshal(raw, &m); err != nil {
+			return nil, fmt.Errorf("parse %s: %w", f, err)
+		}
+		set := map[string]*template.Template{}
+		for name, text := range m {
+			t, err := template.New(name).Parse(text)
+			if err != nil {
+				return nil, fmt.Errorf("parse subject %s (%s): %w", name, locale, err)
+			}
+			set[name] = t
+		}
+		out[locale] = set
+	}
+	if out[sourceLocale] == nil {
+		return nil, fmt.Errorf("subjects/%s.json missing", sourceLocale)
+	}
+	return out, nil
+}
+
+// Locales lists the locales with an embedded template set (always
+// includes "en").
+func (m *Mailer) Locales() []string {
+	out := make([]string, 0, len(m.templates))
+	for l := range m.templates {
+		out = append(out, l)
+	}
+	return out
+}
+
+// normalizeLocale lowercases a BCP-47 tag and reduces it to its primary
+// subtag ("nb-NO" → "nb"); empty input maps to the source locale.
+func normalizeLocale(locale string) string {
+	base, _, _ := strings.Cut(strings.ToLower(strings.TrimSpace(locale)), "-")
+	if base == "" {
+		return sourceLocale
+	}
+	return base
+}
+
+// execute renders the named body template in the given locale, falling
+// back to English when the locale has no variant set or the set lacks
+// this template.
+func (m *Mailer) execute(locale, name string, data any) (string, error) {
+	locale = normalizeLocale(locale)
+	set := m.templates[locale]
+	if set == nil || set.Lookup(name) == nil {
+		set = m.templates[sourceLocale]
+	}
+	var buf bytes.Buffer
+	if err := set.ExecuteTemplate(&buf, name, data); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
+// subject renders the named subject line in the given locale (English
+// fallback). data is the raw (unescaped) per-email data struct — subjects
+// are plain text, not HTML.
+func (m *Mailer) subject(locale, name string, data any) (string, error) {
+	locale = normalizeLocale(locale)
+	t := m.subjects[locale][name]
+	if t == nil {
+		t = m.subjects[sourceLocale][name]
+	}
+	if t == nil {
+		return "", fmt.Errorf("no subject %q", name)
+	}
+	var buf bytes.Buffer
+	if err := t.Execute(&buf, data); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 // InviteData holds the dynamic values for the invite email.
@@ -67,23 +206,27 @@ type InviteData struct {
 	JoinURL string
 }
 
-// SendInvite renders and sends an invitation email to the given address.
-func (m *Mailer) SendInvite(ctx context.Context, to string, data InviteData) error {
-	body, err := m.renderInvite(data)
+// SendInvite renders and sends an invitation email to the given address in
+// the given locale (empty or unknown locale → English).
+func (m *Mailer) SendInvite(ctx context.Context, to, locale string, data InviteData) error {
+	body, err := m.renderInvite(locale, data)
 	if err != nil {
 		return err
 	}
-	subject := "You've been invited to join " + data.WorkspaceName + " on Bowrain"
+	subject, err := m.subject(locale, "invite", data)
+	if err != nil {
+		return err
+	}
 	return m.Sender.Send(ctx, to, subject, body)
 }
 
 // RenderInvite renders the invite email template to an HTML string.
 // Exposed so callers can inspect the output in tests.
-func (m *Mailer) RenderInvite(data InviteData) (string, error) {
-	return m.renderInvite(data)
+func (m *Mailer) RenderInvite(locale string, data InviteData) (string, error) {
+	return m.renderInvite(locale, data)
 }
 
-func (m *Mailer) renderInvite(data InviteData) (string, error) {
+func (m *Mailer) renderInvite(locale string, data InviteData) (string, error) {
 	// All dynamic values are HTML-escaped before injection so that the
 	// text/template engine outputs them verbatim and safely. This is
 	// necessary because text/template (unlike html/template) performs no
@@ -93,15 +236,7 @@ func (m *Mailer) renderInvite(data InviteData) (string, error) {
 		"Role":          html.EscapeString(data.Role),
 		"JoinURL":       escapeURL(data.JoinURL),
 	}
-	return m.execute("invite.html", td)
-}
-
-func (m *Mailer) execute(name string, data any) (string, error) {
-	var buf bytes.Buffer
-	if err := m.templates.ExecuteTemplate(&buf, name, data); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
+	return m.execute(locale, "invite.html", td)
 }
 
 // CreditsWarningData holds the dynamic values for the credits-warning email.
@@ -121,22 +256,25 @@ type CreditsWarningData struct {
 }
 
 // SendCreditsWarning renders and sends a credits-warning email to the given address.
-func (m *Mailer) SendCreditsWarning(ctx context.Context, to string, data CreditsWarningData) error {
-	body, err := m.renderCreditsWarning(data)
+func (m *Mailer) SendCreditsWarning(ctx context.Context, to, locale string, data CreditsWarningData) error {
+	body, err := m.renderCreditsWarning(locale, data)
 	if err != nil {
 		return err
 	}
-	subject := "Your AI credits are running low — " + data.WorkspaceName
+	subject, err := m.subject(locale, "credits-warning", data)
+	if err != nil {
+		return err
+	}
 	return m.Sender.Send(ctx, to, subject, body)
 }
 
 // RenderCreditsWarning renders the credits-warning email template to an HTML string.
 // Exposed so callers can inspect the output in tests.
-func (m *Mailer) RenderCreditsWarning(data CreditsWarningData) (string, error) {
-	return m.renderCreditsWarning(data)
+func (m *Mailer) RenderCreditsWarning(locale string, data CreditsWarningData) (string, error) {
+	return m.renderCreditsWarning(locale, data)
 }
 
-func (m *Mailer) renderCreditsWarning(data CreditsWarningData) (string, error) {
+func (m *Mailer) renderCreditsWarning(locale string, data CreditsWarningData) (string, error) {
 	td := map[string]string{
 		"WorkspaceName": html.EscapeString(data.WorkspaceName),
 		"UsedCredits":   html.EscapeString(data.UsedCredits),
@@ -145,7 +283,7 @@ func (m *Mailer) renderCreditsWarning(data CreditsWarningData) (string, error) {
 		"ResetDate":     html.EscapeString(data.ResetDate),
 		"UpgradeURL":    escapeURL(data.UpgradeURL),
 	}
-	return m.execute("credits-warning.html", td)
+	return m.execute(locale, "credits-warning.html", td)
 }
 
 // CreditsExhaustedData holds the dynamic values for the credits-exhausted email.
@@ -161,29 +299,32 @@ type CreditsExhaustedData struct {
 }
 
 // SendCreditsExhausted renders and sends a credits-exhausted email to the given address.
-func (m *Mailer) SendCreditsExhausted(ctx context.Context, to string, data CreditsExhaustedData) error {
-	body, err := m.renderCreditsExhausted(data)
+func (m *Mailer) SendCreditsExhausted(ctx context.Context, to, locale string, data CreditsExhaustedData) error {
+	body, err := m.renderCreditsExhausted(locale, data)
 	if err != nil {
 		return err
 	}
-	subject := "Your AI credits are exhausted — " + data.WorkspaceName
+	subject, err := m.subject(locale, "credits-exhausted", data)
+	if err != nil {
+		return err
+	}
 	return m.Sender.Send(ctx, to, subject, body)
 }
 
 // RenderCreditsExhausted renders the credits-exhausted email template to an HTML string.
 // Exposed so callers can inspect the output in tests.
-func (m *Mailer) RenderCreditsExhausted(data CreditsExhaustedData) (string, error) {
-	return m.renderCreditsExhausted(data)
+func (m *Mailer) RenderCreditsExhausted(locale string, data CreditsExhaustedData) (string, error) {
+	return m.renderCreditsExhausted(locale, data)
 }
 
-func (m *Mailer) renderCreditsExhausted(data CreditsExhaustedData) (string, error) {
+func (m *Mailer) renderCreditsExhausted(locale string, data CreditsExhaustedData) (string, error) {
 	td := map[string]string{
 		"WorkspaceName": html.EscapeString(data.WorkspaceName),
 		"ResetDate":     html.EscapeString(data.ResetDate),
 		"UpgradeURL":    escapeURL(data.UpgradeURL),
 		"BuyCreditsURL": escapeURL(data.BuyCreditsURL),
 	}
-	return m.execute("credits-exhausted.html", td)
+	return m.execute(locale, "credits-exhausted.html", td)
 }
 
 // PaymentFailedData holds the dynamic values for the payment-failed email.
@@ -199,29 +340,32 @@ type PaymentFailedData struct {
 }
 
 // SendPaymentFailed renders and sends a payment-failed email to the given address.
-func (m *Mailer) SendPaymentFailed(ctx context.Context, to string, data PaymentFailedData) error {
-	body, err := m.renderPaymentFailed(data)
+func (m *Mailer) SendPaymentFailed(ctx context.Context, to, locale string, data PaymentFailedData) error {
+	body, err := m.renderPaymentFailed(locale, data)
 	if err != nil {
 		return err
 	}
-	subject := "Payment failed for your subscription — " + data.WorkspaceName
+	subject, err := m.subject(locale, "payment-failed", data)
+	if err != nil {
+		return err
+	}
 	return m.Sender.Send(ctx, to, subject, body)
 }
 
 // RenderPaymentFailed renders the payment-failed email template to an HTML string.
 // Exposed so callers can inspect the output in tests.
-func (m *Mailer) RenderPaymentFailed(data PaymentFailedData) (string, error) {
-	return m.renderPaymentFailed(data)
+func (m *Mailer) RenderPaymentFailed(locale string, data PaymentFailedData) (string, error) {
+	return m.renderPaymentFailed(locale, data)
 }
 
-func (m *Mailer) renderPaymentFailed(data PaymentFailedData) (string, error) {
+func (m *Mailer) renderPaymentFailed(locale string, data PaymentFailedData) (string, error) {
 	td := map[string]string{
 		"WorkspaceName":    html.EscapeString(data.WorkspaceName),
 		"InvoiceAmount":    html.EscapeString(data.InvoiceAmount),
 		"Currency":         html.EscapeString(data.Currency),
 		"UpdatePaymentURL": escapeURL(data.UpdatePaymentURL),
 	}
-	return m.execute("payment-failed.html", td)
+	return m.execute(locale, "payment-failed.html", td)
 }
 
 // SubscriptionChangedData holds the dynamic values for the subscription-changed email.
@@ -237,29 +381,32 @@ type SubscriptionChangedData struct {
 }
 
 // SendSubscriptionChanged renders and sends a subscription-changed email to the given address.
-func (m *Mailer) SendSubscriptionChanged(ctx context.Context, to string, data SubscriptionChangedData) error {
-	body, err := m.renderSubscriptionChanged(data)
+func (m *Mailer) SendSubscriptionChanged(ctx context.Context, to, locale string, data SubscriptionChangedData) error {
+	body, err := m.renderSubscriptionChanged(locale, data)
 	if err != nil {
 		return err
 	}
-	subject := "Your subscription has been updated — " + data.WorkspaceName
+	subject, err := m.subject(locale, "subscription-changed", data)
+	if err != nil {
+		return err
+	}
 	return m.Sender.Send(ctx, to, subject, body)
 }
 
 // RenderSubscriptionChanged renders the subscription-changed email template to an HTML string.
 // Exposed so callers can inspect the output in tests.
-func (m *Mailer) RenderSubscriptionChanged(data SubscriptionChangedData) (string, error) {
-	return m.renderSubscriptionChanged(data)
+func (m *Mailer) RenderSubscriptionChanged(locale string, data SubscriptionChangedData) (string, error) {
+	return m.renderSubscriptionChanged(locale, data)
 }
 
-func (m *Mailer) renderSubscriptionChanged(data SubscriptionChangedData) (string, error) {
+func (m *Mailer) renderSubscriptionChanged(locale string, data SubscriptionChangedData) (string, error) {
 	td := map[string]string{
 		"WorkspaceName": html.EscapeString(data.WorkspaceName),
 		"PlanName":      html.EscapeString(data.PlanName),
 		"Status":        html.EscapeString(data.Status),
 		"BillingURL":    escapeURL(data.BillingURL),
 	}
-	return m.execute("subscription-changed.html", td)
+	return m.execute(locale, "subscription-changed.html", td)
 }
 
 // NotificationData holds the dynamic values for an immediate notification email.
@@ -279,16 +426,25 @@ type NotificationData struct {
 }
 
 // SendNotification renders and sends an immediate notification email.
-func (m *Mailer) SendNotification(ctx context.Context, to string, data NotificationData) error {
-	body, err := m.renderNotification(data)
+func (m *Mailer) SendNotification(ctx context.Context, to, locale string, data NotificationData) error {
+	body, err := m.renderNotification(locale, data)
 	if err != nil {
 		return err
 	}
-	subject := data.Title + " — Bowrain"
+	subject, err := m.subject(locale, "notification", data)
+	if err != nil {
+		return err
+	}
 	return m.Sender.Send(ctx, to, subject, body)
 }
 
-func (m *Mailer) renderNotification(data NotificationData) (string, error) {
+// RenderNotification renders the notification email template to an HTML
+// string (exposed for tests).
+func (m *Mailer) RenderNotification(locale string, data NotificationData) (string, error) {
+	return m.renderNotification(locale, data)
+}
+
+func (m *Mailer) renderNotification(locale string, data NotificationData) (string, error) {
 	td := map[string]string{
 		"Title":       html.EscapeString(data.Title),
 		"Body":        html.EscapeString(data.Body),
@@ -297,10 +453,12 @@ func (m *Mailer) renderNotification(data NotificationData) (string, error) {
 		"ActionURL":   escapeURL(data.ActionURL),
 		"ActionLabel": html.EscapeString(data.ActionLabel),
 	}
-	return m.execute("notification.html", td)
+	return m.execute(locale, "notification.html", td)
 }
 
-// SendDigest sends a pre-rendered digest email (HTML body built by DigestWorker).
+// SendDigest sends a pre-rendered digest email (HTML body built by
+// DigestWorker). The digest body is assembled Go-side from range blocks,
+// so it has no localized template variant yet; it ships in English.
 func (m *Mailer) SendDigest(ctx context.Context, to, subject, htmlBody string) error {
 	return m.Sender.Send(ctx, to, subject, htmlBody)
 }
@@ -318,27 +476,31 @@ type EmailChangeVerifyData struct {
 // SendEmailChangeVerify sends the verification email used to confirm an
 // email-change request. The email is delivered to the *new* address, so a
 // successful click proves ownership.
-func (m *Mailer) SendEmailChangeVerify(ctx context.Context, to string, data EmailChangeVerifyData) error {
-	body, err := m.renderEmailChangeVerify(data)
+func (m *Mailer) SendEmailChangeVerify(ctx context.Context, to, locale string, data EmailChangeVerifyData) error {
+	body, err := m.renderEmailChangeVerify(locale, data)
 	if err != nil {
 		return err
 	}
-	return m.Sender.Send(ctx, to, "Confirm your new Bowrain email", body)
+	subject, err := m.subject(locale, "email-change-verify", data)
+	if err != nil {
+		return err
+	}
+	return m.Sender.Send(ctx, to, subject, body)
 }
 
 // RenderEmailChangeVerify renders the email-change-verify template to an HTML
 // string (exposed for tests).
-func (m *Mailer) RenderEmailChangeVerify(data EmailChangeVerifyData) (string, error) {
-	return m.renderEmailChangeVerify(data)
+func (m *Mailer) RenderEmailChangeVerify(locale string, data EmailChangeVerifyData) (string, error) {
+	return m.renderEmailChangeVerify(locale, data)
 }
 
-func (m *Mailer) renderEmailChangeVerify(data EmailChangeVerifyData) (string, error) {
+func (m *Mailer) renderEmailChangeVerify(locale string, data EmailChangeVerifyData) (string, error) {
 	td := map[string]string{
 		"NewEmail":   html.EscapeString(data.NewEmail),
 		"ConfirmURL": escapeURL(data.ConfirmURL),
 		"ExpiresIn":  html.EscapeString(data.ExpiresIn),
 	}
-	return m.execute("email-change-verify.html", td)
+	return m.execute(locale, "email-change-verify.html", td)
 }
 
 // escapeURL encodes a URL for safe use inside an HTML attribute value.

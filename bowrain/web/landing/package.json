@@ -6,6 +6,10 @@
   "scripts": {
     "dev": "vp dev",
     "build": "vp build",
+    "build:nb": "LOCALE=nb vp build",
+    "compile": "vpx kapi-react compile i18n-qps/ --out translations",
+    "compile:nb": "vpx kapi-react compile i18n-nb/ --out translations --locale nb",
+    "extract": "vpx kapi-react extract --out i18n/ --target-locale qps --src \"src/**/*.{tsx,jsx}\"",
     "preview": "vp preview",
     "lint": "vp lint",
     "check": "vp check",
@@ -13,6 +17,7 @@
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.2.8",
+    "@neokapi/kapi-react": "*",
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "lucide-react": "^1.24.0",

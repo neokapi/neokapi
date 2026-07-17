@@ -286,4 +286,16 @@ var authMigrationsPg = []storage.Migration{
 				ADD COLUMN IF NOT EXISTS brand_voice_profile_id TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	// User locale preference: BCP-47 primary subtag captured from
+	// Accept-Language at first OIDC sign-in (empty = unknown → English).
+	// Drives the locale-aware transactional-email send path; a web-app
+	// locale switcher can persist here too (epic 017 C/D).
+	{
+		Version:     7,
+		Description: "user locale preference (locale-aware transactional emails)",
+		SQL: `
+			ALTER TABLE users
+				ADD COLUMN IF NOT EXISTS locale TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }

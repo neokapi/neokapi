@@ -1,0 +1,2012 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-tm-format",
+  "entries": [
+    {
+      "id": "emails-nb:012ad67d6c",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Your AI credits are exhausted"
+          }
+        ],
+        "nb": [
+          {
+            "text": "AI-kredittene dine er brukt opp"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:1368cf8502",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Someone — hopefully you — asked to change a Bowrain account's email to "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{newEmail}",
+              "equiv": "newEmail"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": ". Click the button below to confirm and finish the switch."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Noen — forhåpentligvis du — har bedt om å endre e-postadressen til en Bowrain-konto til "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{newEmail}",
+              "equiv": "newEmail"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": ". Klikk på knappen nedenfor for å bekrefte og fullføre byttet."
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:17683c5b00",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Buy credits:"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kjøp kreditter:"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:17787ab718",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Upgrade Plan"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Oppgrader abonnementet"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:1812240ae6",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Bowrain"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Bowrain"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:1b015904cc",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Urgent"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Haster"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:1ef67b10c4",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{title}",
+              "equiv": "title"
+            }
+          },
+          {
+            "text": " — "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{totalUpdates}",
+              "equiv": "totalUpdates"
+            }
+          },
+          {
+            "text": " updates"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{title}",
+              "equiv": "title"
+            }
+          },
+          {
+            "text": " — "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{totalUpdates}",
+              "equiv": "totalUpdates"
+            }
+          },
+          {
+            "text": " oppdateringer"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:21fdacc26a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "If you didn't request this change, you can safely ignore this email — your account stays as-is."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Hvis du ikke ba om denne endringen, kan du trygt se bort fra denne e-posten — kontoen din forblir som den er."
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:2393660053",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Your subscription has been updated"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Abonnementet ditt er oppdatert"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:23bb7897c4",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Payment failed for "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{workspaceName}",
+              "equiv": "workspaceName"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "text": "Betalingen mislyktes for "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{workspaceName}",
+              "equiv": "workspaceName"
+            }
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:25c91b9523",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "You received this email because you are an admin of this workspace."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Du mottar denne e-posten fordi du er administrator for dette arbeidsområdet."
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:27c5cdf876",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "You've been invited to join {{.WorkspaceName}} on Bowrain"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Du er invitert til {{.WorkspaceName}} på Bowrain"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:2e37c7a374",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Localization platform"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Lokaliseringsplattform"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:354adcf1dd",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Click the button below to accept the invitation and get started."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Klikk på knappen nedenfor for å godta invitasjonen og komme i gang."
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:37c3c8ee07",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Your AI credits are exhausted — {{.WorkspaceName}}"
+          }
+        ],
+        "nb": [
+          {
+            "text": "AI-kredittene dine er brukt opp — {{.WorkspaceName}}"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:3c1728b22b",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Your AI credits are running low"
+          }
+        ],
+        "nb": [
+          {
+            "text": "AI-kredittene dine er i ferd med å ta slutt"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:3f95072878",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Confirm your new Bowrain email"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Bekreft den nye Bowrain-e-posten din"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:450953f5bd",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Payment failed for your subscription"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Betalingen for abonnementet ditt mislyktes"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:4b09d2e9c6",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "This link expires in "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{expiresIn}",
+              "equiv": "expiresIn"
+            }
+          },
+          {
+            "text": ". After confirmation, you'll need to sign in again with your new email."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Denne lenken utløper om "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{expiresIn}",
+              "equiv": "expiresIn"
+            }
+          },
+          {
+            "text": ". Etter bekreftelsen må du logge på igjen med den nye e-postadressen din."
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:53d20c60c0",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "If you didn't request this invitation, you can safely ignore this email."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Hvis du ikke ba om denne invitasjonen, kan du trygt se bort fra denne e-posten."
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:56051a4035",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Payment failed for your subscription — {{.WorkspaceName}}"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Betalingen for abonnementet ditt mislyktes — {{.WorkspaceName}}"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:5957155ecb",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "{{.Title}} — Bowrain"
+          }
+        ],
+        "nb": [
+          {
+            "text": "{{.Title}} — Bowrain"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:65adf8ff3d",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Your credits will reset on "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{resetDate}",
+              "equiv": "resetDate"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": ". To avoid interruption, consider upgrading your plan for a higher credit allowance."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kredittene dine tilbakestilles "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{resetDate}",
+              "equiv": "resetDate"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": ". For å unngå avbrudd kan du vurdere å oppgradere abonnementet for en høyere kredittkvote."
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:6e4a226527",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "The subscription for "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{workspaceName}",
+              "equiv": "workspaceName"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " has been updated. Here are the details:"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Abonnementet for "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{workspaceName}",
+              "equiv": "workspaceName"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " er oppdatert. Her er detaljene:"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:6fb7e5a602",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Your subscription has been updated — {{.WorkspaceName}}"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Abonnementet ditt er oppdatert — {{.WorkspaceName}}"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:76794350ca",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Your subscription has been updated for "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{workspaceName}",
+              "equiv": "workspaceName"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "text": "Abonnementet ditt er oppdatert for "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{workspaceName}",
+              "equiv": "workspaceName"
+            }
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:7af8b60e85",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "The workspace "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{workspaceName}",
+              "equiv": "workspaceName"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " has used all of its AI credits. AI-powered features such as machine translation and quality checks are paused until your credits reset."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Arbeidsområdet "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{workspaceName}",
+              "equiv": "workspaceName"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " har brukt opp alle AI-kredittene sine. AI-drevne funksjoner som maskinoversettelse og kvalitetskontroller er satt på pause til kredittene tilbakestilles."
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:7e473c25df",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Your AI credits are exhausted in "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{workspaceName}",
+              "equiv": "workspaceName"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "text": "AI-kredittene dine er brukt opp i "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{workspaceName}",
+              "equiv": "workspaceName"
+            }
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:8563ae7e54",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "The workspace "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{workspaceName}",
+              "equiv": "workspaceName"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " has used "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{usedCredits}",
+              "equiv": "usedCredits"
+            }
+          },
+          {
+            "text": " of "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:var",
+              "data": "{totalCredits}",
+              "equiv": "totalCredits"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " AI credits ("
+          },
+          {
+            "ph": {
+              "id": "6",
+              "type": "jsx:var",
+              "data": "{usagePercent}",
+              "equiv": "usagePercent"
+            }
+          },
+          {
+            "text": "%)."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Arbeidsområdet "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{workspaceName}",
+              "equiv": "workspaceName"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " har brukt "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{usedCredits}",
+              "equiv": "usedCredits"
+            }
+          },
+          {
+            "text": " av "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:var",
+              "data": "{totalCredits}",
+              "equiv": "totalCredits"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": " AI-kreditter ("
+          },
+          {
+            "ph": {
+              "id": "6",
+              "type": "jsx:var",
+              "data": "{usagePercent}",
+              "equiv": "usagePercent"
+            }
+          },
+          {
+            "text": " %)."
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:8ce1daf291",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Your AI credits are running low — {{.WorkspaceName}}"
+          }
+        ],
+        "nb": [
+          {
+            "text": "AI-kredittene dine er i ferd med å ta slutt — {{.WorkspaceName}}"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:8d4b2f81d6",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{group.label}",
+              "equiv": "group.label"
+            }
+          },
+          {
+            "text": " ("
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{group.items.length}",
+              "equiv": "group.items.length"
+            }
+          },
+          {
+            "text": ")"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{group.label}",
+              "equiv": "group.label"
+            }
+          },
+          {
+            "text": " ("
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{group.items.length}",
+              "equiv": "group.items.length"
+            }
+          },
+          {
+            "text": ")"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:8f457b2717",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Your subscription is still active, but you have a "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "7-day grace period"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " to update your payment method. If the payment is not resolved within this period, your subscription will be downgraded to the free plan."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Abonnementet ditt er fortsatt aktivt, men du har en "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "frist på 7 dager"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " til å oppdatere betalingsmetoden. Hvis betalingen ikke er løst innen fristen, nedgraderes abonnementet til gratisplanen."
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:8fad09123a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "You can view your full billing details and manage your subscription from the billing page."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Du kan se alle faktureringsdetaljene og administrere abonnementet på faktureringssiden."
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:920e413c7d",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Status"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Status"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:926406b147",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Update Payment Method"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Oppdater betalingsmetode"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:92f4b42590",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Confirm your new Bowrain email "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{newEmail}",
+              "equiv": "newEmail"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "text": "Bekreft den nye Bowrain-e-posten din "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{newEmail}",
+              "equiv": "newEmail"
+            }
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:9a766a833d",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "View Billing"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Vis fakturering"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:a661ce141b",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Buy Additional Credits"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kjøp flere kreditter"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:a6d886f3d4",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "© Bowrain. All rights reserved."
+          }
+        ],
+        "nb": [
+          {
+            "text": "© Bowrain. Med enerett."
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:b2ae19b47b",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "You've been invited to join "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{workspaceName}",
+              "equiv": "workspaceName"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " on Bowrain as "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{role}",
+              "equiv": "role"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": "."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Du er invitert til "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{workspaceName}",
+              "equiv": "workspaceName"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " på Bowrain som "
+          },
+          {
+            "pcOpen": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{role}",
+              "equiv": "role"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "2",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m2}",
+              "equiv": "=m2"
+            }
+          },
+          {
+            "text": "."
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:b2f23831b3",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Upgrade:"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Oppgrader:"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:b9c77a5bec",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "You're Invited 🎉"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Du er invitert 🎉"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:c5660ab13a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Confirm your new email"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Bekreft den nye e-postadressen din"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:c8e7e20d99",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Your credits will automatically reset on "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{resetDate}",
+              "equiv": "resetDate"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": ". If you need credits sooner, you can upgrade your plan or purchase additional credits."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Kredittene dine tilbakestilles automatisk "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{resetDate}",
+              "equiv": "resetDate"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": ". Trenger du kreditter før det, kan du oppgradere abonnementet eller kjøpe flere kreditter."
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:ca48ab4b7c",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "You've been invited to join "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{workspaceName}",
+              "equiv": "workspaceName"
+            }
+          },
+          {
+            "text": " on Bowrain"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Du er invitert til "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{workspaceName}",
+              "equiv": "workspaceName"
+            }
+          },
+          {
+            "text": " på Bowrain"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:ce7cfeaf6c",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Accept Invitation"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Godta invitasjonen"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:cf18ff5b77",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "We were unable to process the payment of "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{invoiceAmount}",
+              "equiv": "invoiceAmount"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{currency}",
+              "equiv": "currency"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " for the workspace "
+          },
+          {
+            "pcOpen": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:var",
+              "data": "{workspaceName}",
+              "equiv": "workspaceName"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "text": "."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Vi kunne ikke behandle betalingen på "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{invoiceAmount}",
+              "equiv": "invoiceAmount"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{currency}",
+              "equiv": "currency"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": " for arbeidsområdet "
+          },
+          {
+            "pcOpen": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:var",
+              "data": "{workspaceName}",
+              "equiv": "workspaceName"
+            }
+          },
+          {
+            "pcClose": {
+              "id": "3",
+              "type": "jsx:element",
+              "subType": "strong",
+              "data": "{/=m3}",
+              "equiv": "=m3"
+            }
+          },
+          {
+            "text": "."
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:d0adfaf9c8",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Confirm email change"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Bekreft e-postendringen"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:d49d144e6a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{totalUpdates}",
+              "equiv": "totalUpdates"
+            }
+          },
+          {
+            "text": " new updates"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{totalUpdates}",
+              "equiv": "totalUpdates"
+            }
+          },
+          {
+            "text": " nye oppdateringer"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:da193e008f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "You received this because you have email notifications enabled for this category."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Du mottar dette fordi du har slått på e-postvarsler for denne kategorien."
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:e97b835a17",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "You can change your digest frequency in "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "a",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "notification settings"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "a",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Du kan endre hvor ofte du får sammendrag i "
+          },
+          {
+            "pcOpen": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "a",
+              "data": "{=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "varslingsinnstillingene"
+          },
+          {
+            "pcClose": {
+              "id": "0",
+              "type": "jsx:element",
+              "subType": "a",
+              "data": "{/=m0}",
+              "equiv": "=m0"
+            }
+          },
+          {
+            "text": "."
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:f159acd3a7",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Button not working? Copy and paste this link into your browser:"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Virker ikke knappen? Kopier og lim inn denne lenken i nettleseren din:"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:f5e74d6dff",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Your AI credits are running low in "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{workspaceName}",
+              "equiv": "workspaceName"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "text": "AI-kredittene dine er i ferd med å ta slutt i "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{workspaceName}",
+              "equiv": "workspaceName"
+            }
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:f6a3dab2fa",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Open Dashboard"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Åpne dashbordet"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "emails-nb:fa8ed0bdab",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Plan"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Plan"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    }
+  ]
+}

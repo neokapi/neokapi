@@ -1,0 +1,9 @@
+{
+  "credits-exhausted": "AI-kredittene dine er brukt opp — {{.WorkspaceName}}",
+  "credits-warning": "AI-kredittene dine er i ferd med å ta slutt — {{.WorkspaceName}}",
+  "email-change-verify": "Bekreft den nye Bowrain-e-posten din",
+  "invite": "Du er invitert til {{.WorkspaceName}} på Bowrain",
+  "notification": "{{.Title}} — Bowrain",
+  "payment-failed": "Betalingen for abonnementet ditt mislyktes — {{.WorkspaceName}}",
+  "subscription-changed": "Abonnementet ditt er oppdatert — {{.WorkspaceName}}"
+}

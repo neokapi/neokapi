@@ -16,7 +16,13 @@ type User struct {
 	AvatarURL   string     `json:"avatar_url"`
 	OIDCSub     string     `json:"oidc_sub,omitempty"`
 	OnboardedAt *time.Time `json:"onboarded_at,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
+	// Locale is the user's preferred UI/communication locale (BCP-47 primary
+	// subtag, e.g. "en", "nb"). Captured from Accept-Language at first
+	// sign-in; empty means unknown and callers fall back to English.
+	// Transactional emails are rendered in this locale when a localized
+	// template set exists.
+	Locale    string    `json:"locale,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // EmailChangeRequest is a pending email-change request.

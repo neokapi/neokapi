@@ -52,10 +52,7 @@ export const PaymentFailedEmail = ({
 }: PaymentFailedEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>
-      {"Payment failed for "}
-      {workspaceName}
-    </Preview>
+    <Preview>Payment failed for {workspaceName}</Preview>
     <Body style={main}>
       <Container style={container}>
         {/* ── Header ─────────────────────────────────── */}
@@ -67,24 +64,21 @@ export const PaymentFailedEmail = ({
         {/* ── Body ───────────────────────────────────── */}
         <Section style={card}>
           <Heading as="h1" style={h1}>
-            {"Payment failed for your subscription"}
+            Payment failed for your subscription
           </Heading>
 
           <Text style={paragraph}>
-            {"We were unable to process the payment of "}
+            We were unable to process the payment of{" "}
             <strong>
               {invoiceAmount} {currency}
-            </strong>
-            {" for the workspace "}
-            <strong>{workspaceName}</strong>.
+            </strong>{" "}
+            for the workspace <strong>{workspaceName}</strong>.
           </Text>
 
           <Text style={paragraph}>
-            {"Your subscription is still active, but you have a "}
-            <strong>{"7-day grace period"}</strong>
-            {
-              " to update your payment method. If the payment is not resolved within this period, your subscription will be downgraded to the free plan."
-            }
+            Your subscription is still active, but you have a <strong>7-day grace period</strong> to
+            update your payment method. If the payment is not resolved within this period, your
+            subscription will be downgraded to the free plan.
           </Text>
 
           <Section style={btnWrapper}>
@@ -96,7 +90,7 @@ export const PaymentFailedEmail = ({
           <Hr style={hr} />
 
           <Text style={fallback}>
-            {"Button not working? Copy and paste this link into your browser:"}
+            Button not working? Copy and paste this link into your browser:
           </Text>
           <Link href={updatePaymentURL} style={link}>
             {updatePaymentURL}
@@ -105,9 +99,9 @@ export const PaymentFailedEmail = ({
 
         {/* ── Footer ─────────────────────────────────── */}
         <Section style={footer}>
-          <Text style={footerText}>{"© Bowrain. All rights reserved."}</Text>
+          <Text style={footerText}>© Bowrain. All rights reserved.</Text>
           <Text style={footerText}>
-            {"You received this email because you are an admin of this workspace."}
+            You received this email because you are an admin of this workspace.
           </Text>
         </Section>
       </Container>

@@ -44,7 +44,7 @@ func (a *MailerAdapter) SendImmediate(ctx context.Context, userID string, notifi
 		actionLabel = label
 	}
 
-	return a.mailer.SendNotification(ctx, u.Email, mailer.NotificationData{
+	return a.mailer.SendNotification(ctx, u.Email, u.Locale, mailer.NotificationData{
 		Title:       notification.Title,
 		Body:        notification.Body,
 		Category:    notification.Category,
