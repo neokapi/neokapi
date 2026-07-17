@@ -5151,5 +5151,33 @@
         }
       ]
     }
+  ],
+  "judge_validations": [
+    {
+      "date": "2026-07-17",
+      "provider": "claude-code",
+      "model": "sonnet",
+      "rubric_digest": "cd684bff0b5d",
+      "items": 78,
+      "agreement": 0.8717948717948718,
+      "kappa": 0.3085106382978726,
+      "labels_digest": "09e01c0c0577",
+      "targets": [
+        "nb"
+      ]
+    },
+    {
+      "date": "2026-07-17",
+      "provider": "gemini",
+      "model": "gemini-3.5-flash",
+      "rubric_digest": "cd684bff0b5d",
+      "items": 78,
+      "agreement": 0.8717948717948718,
+      "kappa": 0.3085106382978726,
+      "labels_digest": "09e01c0c0577",
+      "targets": [
+        "nb"
+      ]
+    }
   ]
 }

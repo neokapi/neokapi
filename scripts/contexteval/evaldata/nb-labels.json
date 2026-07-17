@@ -1,0 +1,290 @@
+{
+  "items": [
+    {
+      "id": "docs.getting_started.body|gemini:gemini-3.5-flash|bare",
+      "target": "nb",
+      "source": "Getting started takes about five minutes. Sign in, open the dashboard, and Compass will chart every vessel it can see. If anything looks off, you can reach us at any time — just don't wait for the next tide!",
+      "translation": "Å komme i gang tar omtrent fem minutter. Logg inn, åpne dashbordet, og Compass vil kartlegge hvert fartøy det kan se. Hvis noe virker feil, kan du kontakte oss når som helst — bare ikke vent på neste tidevann!",
+      "criteria": {
+        "register": true,
+        "naturalness": true,
+        "restraint": true
+      }
+    },
+    {
+      "id": "safety.notice.shallow|gemini:gemini-3.5-flash|bare",
+      "target": "nb",
+      "source": "Give the shallow bank a wide berth.",
+      "translation": "Hold god avstand til den grunne banken.",
+      "criteria": {
+        "register": true,
+        "naturalness": false,
+        "restraint": true
+      }
+    },
+    {
+      "id": "welcome.aboard.title|gemini:gemini-3.5-flash|steered",
+      "target": "nb",
+      "source": "Welcome aboard! Your account is ready to go!",
+      "translation": "Velkommen om bord. Kontoen er klar til bruk.",
+      "criteria": {
+        "register": true,
+        "naturalness": true,
+        "restraint": true
+      }
+    },
+    {
+      "id": "reports.menu.label|gemini:gemini-3.5-flash|steered",
+      "target": "nb",
+      "source": "Generate a report for the selected period.",
+      "translation": "Opprett en driftsrapport for den valgte perioden.",
+      "criteria": {
+        "register": true,
+        "naturalness": true,
+        "restraint": true
+      }
+    },
+    {
+      "id": "docs.getting_started.body|gemini:gemini-3.1-flash-lite|steered",
+      "target": "nb",
+      "source": "Getting started takes about five minutes. Sign in, open the dashboard, and Compass will chart every vessel it can see. If anything looks off, you can reach us at any time — just don't wait for the next tide!",
+      "translation": "Oppstart tar cirka 5 minutter. Logg inn, åpne styringspanelet, og Compass vil kartlegge hver farkost det kan se. Hvis noe ser feil ut, kan du kontakte oss når som helst.",
+      "criteria": {
+        "register": true,
+        "naturalness": false,
+        "restraint": false
+      }
+    },
+    {
+      "id": "compass.overview.tagline|claude-code:haiku|bare",
+      "target": "nb",
+      "source": "Compass shows every vessel in a single view.",
+      "translation": "Compass viser hver båt i en enkelt visning.",
+      "criteria": {
+        "register": true,
+        "naturalness": false,
+        "restraint": true
+      }
+    },
+    {
+      "id": "cli.report.hint|gemini:gemini-3.5-flash|bare",
+      "target": "nb",
+      "source": "Run `tidectl report --daily` before you export.",
+      "translation": "Kjør `tidectl report --daily` før du eksporterer.",
+      "criteria": {
+        "register": true,
+        "naturalness": true,
+        "restraint": true
+      }
+    },
+    {
+      "id": "cli.sync.hint|gemini:gemini-3.5-flash|bare",
+      "target": "nb",
+      "source": "Run `tidectl sync` to fetch the latest data.",
+      "translation": "Kjør `tidectl sync` for å hente de nyeste dataene.",
+      "criteria": {
+        "register": true,
+        "naturalness": true,
+        "restraint": true
+      }
+    },
+    {
+      "id": "harbor.traffic.title|gemini:gemini-3.5-flash|bare",
+      "target": "nb",
+      "source": "Track every boat in the harbor.",
+      "translation": "Spor hver eneste båt i havnen.",
+      "criteria": {
+        "register": true,
+        "naturalness": false,
+        "restraint": true
+      }
+    },
+    {
+      "id": "alerts.count.new|gemini:gemini-3.1-flash-lite|steered",
+      "target": "nb",
+      "source": "You have three new alerts in your inbox.",
+      "translation": "Du har 3 nye alarmmeldinger i innboksen.",
+      "criteria": {
+        "register": true,
+        "naturalness": true,
+        "restraint": true
+      }
+    },
+    {
+      "id": "marketing.api.blurb|gemini:gemini-3.5-flash|bare",
+      "target": "nb",
+      "source": "Leverage our API for a seamless view of your fleet.",
+      "translation": "Utnytt API-et vårt for en sømløs oversikt over flåten din.",
+      "criteria": {
+        "register": true,
+        "naturalness": true,
+        "restraint": true
+      }
+    },
+    {
+      "id": "tidewatch.intro.body|gemini:gemini-3.1-pro-preview|steered",
+      "target": "nb",
+      "source": "Tidewatch alerts you before conditions change.",
+      "translation": "Tidewatch sender deg en alarmmelding før forholdene endrer seg.",
+      "criteria": {
+        "register": true,
+        "naturalness": false,
+        "restraint": true
+      }
+    },
+    {
+      "id": "sync.status.failed|gemini:gemini-3.1-flash-lite|steered",
+      "target": "nb",
+      "source": "The last sync failed. Check your connection and try again.",
+      "translation": "Den siste samstillingen feilet. Kontroller tilkoblingen og prøv på nytt.",
+      "criteria": {
+        "register": true,
+        "naturalness": true,
+        "restraint": true
+      }
+    },
+    {
+      "id": "berths.assign.action|claude-code:haiku|bare",
+      "target": "nb",
+      "source": "Assign each vessel a berth before it arrives.",
+      "translation": "Tildel hver båt en ligeplass før den ankommer.",
+      "criteria": {
+        "register": true,
+        "naturalness": false,
+        "restraint": true
+      }
+    },
+    {
+      "id": "harbor.traffic.title|bedrock:eu.anthropic.claude-sonnet-4-6|bare",
+      "target": "nb",
+      "source": "Track every boat in the harbor.",
+      "translation": "Spor alle båter i havnen.",
+      "criteria": {
+        "register": true,
+        "naturalness": true,
+        "restraint": true
+      }
+    },
+    {
+      "id": "map.marker.add|gemini:gemini-3.1-flash-lite|steered",
+      "target": "nb",
+      "source": "Just click the map to add your first marker!",
+      "translation": "Klikk på kartet for å legge til din første markør.",
+      "criteria": {
+        "register": true,
+        "naturalness": true,
+        "restraint": true
+      }
+    },
+    {
+      "id": "nav.instrument.calibrate|gemini:gemini-3.1-flash-lite|steered",
+      "target": "nb",
+      "source": "Calibrate the ship's compass before departure.",
+      "translation": "Kalibrer skipets Compass før avreise.",
+      "criteria": {
+        "register": true,
+        "naturalness": true,
+        "restraint": true
+      }
+    },
+    {
+      "id": "nav.instrument.calibrate|gemini:gemini-3.1-flash-lite|bare",
+      "target": "nb",
+      "source": "Calibrate the ship's compass before departure.",
+      "translation": "Kalibrer skipets kompass før avgang.",
+      "criteria": {
+        "register": true,
+        "naturalness": true,
+        "restraint": true
+      }
+    },
+    {
+      "id": "sync.status.failed|bedrock:eu.anthropic.claude-sonnet-4-6|steered",
+      "target": "nb",
+      "source": "The last sync failed. Check your connection and try again.",
+      "translation": "Den siste samstillingen mislyktes. Kontroller tilkoblingen og prøv på nytt.",
+      "criteria": {
+        "register": true,
+        "naturalness": true,
+        "restraint": true
+      }
+    },
+    {
+      "id": "map.marker.add|gemini:gemini-3.1-pro-preview|steered",
+      "target": "nb",
+      "source": "Just click the map to add your first marker!",
+      "translation": "Klikk på kartet for å legge til din 1. markør.",
+      "criteria": {
+        "register": true,
+        "naturalness": false,
+        "restraint": true
+      }
+    },
+    {
+      "id": "sync.status.failed|claude-code:sonnet|bare",
+      "target": "nb",
+      "source": "The last sync failed. Check your connection and try again.",
+      "translation": "Siste synkronisering mislyktes. Sjekk tilkoblingen og prøv igjen.",
+      "criteria": {
+        "register": true,
+        "naturalness": true,
+        "restraint": true
+      }
+    },
+    {
+      "id": "nav.instrument.calibrate|gemini:gemini-3.5-flash|bare",
+      "target": "nb",
+      "source": "Calibrate the ship's compass before departure.",
+      "translation": "Kalibrer skipets kompass før avreise.",
+      "criteria": {
+        "register": true,
+        "naturalness": true,
+        "restraint": true
+      }
+    },
+    {
+      "id": "sync.status.failed|gemini:gemini-3.1-flash-lite|bare",
+      "target": "nb",
+      "source": "The last sync failed. Check your connection and try again.",
+      "translation": "Den siste synkroniseringen mislyktes. Sjekk tilkoblingen din og prøv igjen.",
+      "criteria": {
+        "register": true,
+        "naturalness": true,
+        "restraint": true
+      }
+    },
+    {
+      "id": "map.marker.add|gemini:gemini-3.5-flash|bare",
+      "target": "nb",
+      "source": "Just click the map to add your first marker!",
+      "translation": "Bare klikk på kartet for å legge til ditt første merke!",
+      "criteria": {
+        "register": true,
+        "naturalness": false,
+        "restraint": true
+      }
+    },
+    {
+      "id": "nav.overview.title|gemini:gemini-3.5-flash|bare",
+      "target": "nb",
+      "source": "Open the dashboard to review today's traffic.",
+      "translation": "Åpne dashbordet for å se gjennom dagens trafikk.",
+      "criteria": {
+        "register": true,
+        "naturalness": false,
+        "restraint": true
+      }
+    },
+    {
+      "id": "nav.overview.title|gemini:gemini-3.1-flash-lite|bare",
+      "target": "nb",
+      "source": "Open the dashboard to review today's traffic.",
+      "translation": "Åpne dashbordet for å se dagens trafikk.",
+      "criteria": {
+        "register": true,
+        "naturalness": true,
+        "restraint": true
+      }
+    }
+  ]
+}
