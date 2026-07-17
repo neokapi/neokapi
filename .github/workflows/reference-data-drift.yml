@@ -38,7 +38,9 @@ on:
       - "scripts/format-ops/**"
       - "web/scripts/gen-reference-pages.ts"
       - "web/src/components/reference/slugs.ts"
-      - "web/docs/reference/**"
+      - "web/docs/**"
+      - "bowrain/web/docs/docs/**"
+      - "neokapi.kapi"
       - ".github/workflows/reference-data-drift.yml"
   pull_request:
     paths:
@@ -63,7 +65,9 @@ on:
       - "scripts/format-ops/**"
       - "web/scripts/gen-reference-pages.ts"
       - "web/src/components/reference/slugs.ts"
-      - "web/docs/reference/**"
+      - "web/docs/**"
+      - "bowrain/web/docs/docs/**"
+      - "neokapi.kapi"
       - ".github/workflows/reference-data-drift.yml"
 
 # Cancel superseded PR runs; never cancel a push to main.
@@ -136,3 +140,77 @@ jobs:
       # identity-preserving), so this is byte-stable.
       - name: Check l10n catalogs for drift
         run: make l10n-verify
+
+  # Docs surfaces gate (the l10n/README.md follow-up): the translated docs
+  # trees (web/i18n/nb/, bowrain/web/docs/i18n/nb/) are gitignored build
+  # artefacts, so there is no committed target to diff against — instead the
+  # gate re-materializes both docs surfaces from the seeds TWICE and asserts
+  # the two runs are byte-identical (regen proves regen: TM-only recycle is a
+  # deterministic function of source + seeds). A corrupted seed fails the
+  # import or the diff; a source-doc change without seed updates still passes
+  # (drift = pending target-language work, never a build break — CLAUDE.md).
+  # Coverage is reported to the job summary but NEVER gates.
+  docs-l10n-drift:
+    name: docs surfaces regenerate deterministically
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup-go-modules
+
+      - name: Install libicu (kapi fts5 build dependency)
+        run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
+
+      # A clean seed import is itself a gate: `kapi tm import` fails on a
+      # malformed .klftm, so a corrupted seed stops here. (The l10n-* targets
+      # depend on l10n-seed anyway; running it explicitly keeps the failure
+      # attributable to the seeds rather than to a docs surface.)
+      - name: Seed the dogfood TM/termbase from l10n/
+        run: make l10n-seed
+
+      - name: Materialize both docs surfaces (run 1)
+        run: |
+          make l10n-docs l10n-bowrain-docs
+          cp -R web/i18n/nb /tmp/docs-nb-run1
+          cp -R bowrain/web/docs/i18n/nb /tmp/bowrain-docs-nb-run1
+
+      - name: Re-materialize both docs surfaces (run 2)
+        run: make l10n-docs l10n-bowrain-docs
+
+      - name: Regen determinism — the two runs must be byte-identical
+        run: |
+          diff -r /tmp/docs-nb-run1 web/i18n/nb
+          diff -r /tmp/bowrain-docs-nb-run1 bowrain/web/docs/i18n/nb
+
+      # Informational only: per-surface nb coverage. `kapi status` never fails
+      # by design (drift is pending work, not an error), and low numbers must
+      # not fail this job either — only nondeterminism or hard errors above do.
+      - name: Coverage summary (informational — never gates)
+        run: |
+          {
+            echo "## nb translation coverage (informational — drift never blocks)"
+            echo ""
+            echo '```'
+            ./bin/kapi status
+            echo '```'
+            echo ""
+            echo "Crude materialization measure (files that differ from their"
+            echo "English source after TM recycle; formatting normalization"
+            echo "inflates this, so treat it as an upper bound):"
+            echo ""
+            echo "| surface | files with nb content |"
+            echo "|---|---|"
+            for spec in \
+              "docs web/docs web/i18n/nb/docusaurus-plugin-content-docs/current" \
+              "docs-bowrain bowrain/web/docs/docs bowrain/web/docs/i18n/nb/docusaurus-plugin-content-docs/current"; do
+              read -r name src gen <<< "$spec"
+              total=0; translated=0
+              while IFS= read -r f; do
+                rel=${f#"$gen"/}
+                total=$((total + 1))
+                cmp -s "$f" "$src/$rel" || translated=$((translated + 1))
+              done < <(find "$gen" -type f \( -name '*.md' -o -name '*.mdx' \))
+              echo "| $name | $translated / $total |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+        shell: bash

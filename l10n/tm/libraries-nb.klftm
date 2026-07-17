@@ -85,7 +85,7 @@
         ],
         "nb": [
           {
-            "text": "Ikke et tall: {join}"
+            "text": "Ikke et tall: "
           }
         ]
       },
@@ -253,7 +253,7 @@
         ],
         "nb": [
           {
-            "text": "lag:{overlay.layer}"
+            "text": "lag:"
           }
         ]
       },
@@ -379,7 +379,7 @@
         ],
         "nb": [
           {
-            "text": "standard: {toolInfo.default_locale}"
+            "text": "standard: "
           }
         ]
       },
@@ -649,7 +649,16 @@
         ],
         "nb": [
           {
-            "text": "Konverter tekstmønstre til navngitte entiteter i {selectedCount} valgte{value} {value_2}."
+            "text": "Konverter tekstmønstre til navngitte entiteter i "
+          },
+          {
+            "text": " valgte"
+          },
+          {
+            "text": " "
+          },
+          {
+            "text": "."
           }
         ]
       },
@@ -901,7 +910,7 @@
         ],
         "nb": [
           {
-            "text": "Totalt: {formatDuration}"
+            "text": "Totalt: "
           }
         ]
       },
@@ -1027,7 +1036,7 @@
         ],
         "nb": [
           {
-            "text": "Blokker{value}"
+            "text": "Blokker"
           }
         ]
       },
@@ -1063,7 +1072,7 @@
         ],
         "nb": [
           {
-            "text": "Legg til egne filer slipp her, eller klikk for å bla gjennom {hidden}"
+            "text": "Legg til egne filer slipp her, eller klikk for å bla gjennom "
           }
         ]
       },
@@ -1099,7 +1108,10 @@
         ],
         "nb": [
           {
-            "text": "plural({pivot})"
+            "text": "plural("
+          },
+          {
+            "text": ")"
           }
         ]
       },
@@ -1255,7 +1267,7 @@
         ],
         "nb": [
           {
-            "text": "{join} kan kjøre parallelt — {suggestion.reason}"
+            "text": " kan kjøre parallelt — "
           }
         ]
       },
@@ -1417,7 +1429,7 @@
         ],
         "nb": [
           {
-            "text": "trenger {join}"
+            "text": "trenger "
           }
         ]
       },
@@ -1611,7 +1623,15 @@
             }
           },
           {
-            "text": " {hidden}"
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{hidden}",
+              "equiv": "hidden"
+            }
           }
         ]
       },
@@ -1656,7 +1676,26 @@
         ],
         "nb": [
           {
-            "text": "{k}: {value} "
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{k}",
+              "equiv": "k"
+            }
+          },
+          {
+            "text": ": "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " "
           },
           {
             "ph": {
@@ -1849,7 +1888,29 @@
             }
           },
           {
-            "text": " {s.start}–{s.end} "
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{s.start}",
+              "equiv": "s.start"
+            }
+          },
+          {
+            "text": "–"
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{s.end}",
+              "equiv": "s.end"
+            }
+          },
+          {
+            "text": " "
           },
           {
             "pcClose": {
@@ -1873,7 +1934,18 @@
             }
           },
           {
-            "text": " {value} "
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " "
           },
           {
             "pcClose": {
@@ -2073,7 +2145,10 @@
         ],
         "nb": [
           {
-            "text": "({term.note})"
+            "text": "("
+          },
+          {
+            "text": ")"
           }
         ]
       },
@@ -2145,7 +2220,10 @@
         ],
         "nb": [
           {
-            "text": "{nodeName} — {relevantParts.length} blokk{value}"
+            "text": " — "
+          },
+          {
+            "text": " blokk"
           }
         ]
       },
@@ -2253,7 +2331,7 @@
         ],
         "nb": [
           {
-            "text": "#{slice}"
+            "text": "#"
           }
         ]
       },
@@ -2433,7 +2511,13 @@
         ],
         "nb": [
           {
-            "text": "{overlay.type} {overlay.side} {length} span{value}"
+            "text": " "
+          },
+          {
+            "text": " "
+          },
+          {
+            "text": " span"
           }
         ]
       },
@@ -2469,7 +2553,7 @@
         ],
         "nb": [
           {
-            "text": "{k}={v}"
+            "text": "="
           }
         ]
       },
@@ -2667,7 +2751,7 @@
         ],
         "nb": [
           {
-            "text": "{format}-leser"
+            "text": "-leser"
           }
         ]
       },
@@ -2830,7 +2914,18 @@
         ],
         "nb": [
           {
-            "text": "Blokker{value} "
+            "text": "Blokker"
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " "
           },
           {
             "ph": {
@@ -2874,7 +2969,16 @@
         ],
         "nb": [
           {
-            "text": "blokk {node.id} {value} runs · {wordCount} ord"
+            "text": "blokk "
+          },
+          {
+            "text": " "
+          },
+          {
+            "text": " runs · "
+          },
+          {
+            "text": " ord"
           }
         ]
       },
@@ -3128,7 +3232,12 @@
             }
           },
           {
-            "text": "{pivot}"
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{pivot}",
+              "equiv": "pivot"
+            }
           },
           {
             "pcClose": {
@@ -3209,7 +3318,10 @@
         ],
         "nb": [
           {
-            "text": "{cursor}/{total} · {tsLabel}"
+            "text": "/"
+          },
+          {
+            "text": " · "
           }
         ]
       },
@@ -3263,7 +3375,13 @@
         ],
         "nb": [
           {
-            "text": "via {kind} {value} {value_2}"
+            "text": "via "
+          },
+          {
+            "text": " "
+          },
+          {
+            "text": " "
           }
         ]
       },
@@ -3551,7 +3669,7 @@
         ],
         "nb": [
           {
-            "text": "Legg til egne filer {hidden}"
+            "text": "Legg til egne filer "
           }
         ]
       },
@@ -3623,7 +3741,10 @@
         ],
         "nb": [
           {
-            "text": "select({pivot})"
+            "text": "select("
+          },
+          {
+            "text": ")"
           }
         ]
       },
@@ -3941,7 +4062,22 @@
         ],
         "nb": [
           {
-            "text": "Oppdaterte {result.entries_updated} {value},{value_2} la til {result.entities_added} {value_3}."
+            "text": "Oppdaterte "
+          },
+          {
+            "text": " "
+          },
+          {
+            "text": ","
+          },
+          {
+            "text": " la til "
+          },
+          {
+            "text": " "
+          },
+          {
+            "text": "."
           }
         ]
       },
@@ -3959,7 +4095,10 @@
         ],
         "nb": [
           {
-            "text": "{from}–{to} av {totalCount}"
+            "text": "–"
+          },
+          {
+            "text": " av "
           }
         ]
       },
@@ -3995,7 +4134,10 @@
         ],
         "nb": [
           {
-            "text": "Binær {ft.label} — bruk Forhåndsvisning, eller last ned for å inspisere råbytene."
+            "text": "Binær "
+          },
+          {
+            "text": " — bruk Forhåndsvisning, eller last ned for å inspisere råbytene."
           }
         ]
       },
@@ -4085,7 +4227,13 @@
         ],
         "nb": [
           {
-            "text": "[{startRun}:{endRun}]"
+            "text": "["
+          },
+          {
+            "text": ":"
+          },
+          {
+            "text": "]"
           }
         ]
       },
@@ -4505,7 +4653,29 @@
             }
           },
           {
-            "text": " {matches.length} {value} funnet "
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{matches.length}",
+              "equiv": "matches.length"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " funnet "
           },
           {
             "ph": {
@@ -4609,7 +4779,10 @@
         ],
         "nb": [
           {
-            "text": "«{s.text}»"
+            "text": "«"
+          },
+          {
+            "text": "»"
           }
         ]
       },
@@ -4875,7 +5048,29 @@
             }
           },
           {
-            "text": " [{startRun}:{endRun}] "
+            "text": " ["
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{startRun}",
+              "equiv": "startRun"
+            }
+          },
+          {
+            "text": ":"
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{endRun}",
+              "equiv": "endRun"
+            }
+          },
+          {
+            "text": "] "
           },
           {
             "pcClose": {
@@ -5244,7 +5439,12 @@
             }
           },
           {
-            "text": "{join}"
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{join}",
+              "equiv": "join"
+            }
           },
           {
             "pcClose": {
@@ -5256,7 +5456,29 @@
             }
           },
           {
-            "text": ", men ingenting tidligere i flyten produserer {value}. Legg til et verktøy som produserer {value_2} før dette steget."
+            "text": ", men ingenting tidligere i flyten produserer "
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": ". Legg til et verktøy som produserer "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:var",
+              "data": "{value_2}",
+              "equiv": "value_2"
+            }
+          },
+          {
+            "text": " før dette steget."
           }
         ]
       },
@@ -5489,7 +5711,12 @@
             }
           },
           {
-            "text": "{join}"
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{join}",
+              "equiv": "join"
+            }
           },
           {
             "pcClose": {
@@ -5501,7 +5728,18 @@
             }
           },
           {
-            "text": " kan kjøre parallelt — {suggestion.reason} "
+            "text": " kan kjøre parallelt — "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:var",
+              "data": "{suggestion.reason}",
+              "equiv": "suggestion.reason"
+            }
+          },
+          {
+            "text": " "
           },
           {
             "pcClose": {
@@ -6152,7 +6390,7 @@
         ],
         "nb": [
           {
-            "text": "{value} / {totalPages}"
+            "text": " / "
           }
         ]
       },
@@ -6562,7 +6800,15 @@
             }
           },
           {
-            "text": " Legg til egne filer {hidden}"
+            "text": " Legg til egne filer "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{hidden}",
+              "equiv": "hidden"
+            }
           }
         ]
       },
@@ -6580,7 +6826,7 @@
         ],
         "nb": [
           {
-            "text": "{importedCount} oppføringer importert"
+            "text": " oppføringer importert"
           }
         ]
       },
@@ -6809,7 +7055,18 @@
             }
           },
           {
-            "text": " Marker «{selectionRange.text}» som: "
+            "text": " Marker «"
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{selectionRange.text}",
+              "equiv": "selectionRange.text"
+            }
+          },
+          {
+            "text": "» som: "
           },
           {
             "pcClose": {
@@ -6973,7 +7230,10 @@
         ],
         "nb": [
           {
-            "text": "Beste: {round}%"
+            "text": "Beste: "
+          },
+          {
+            "text": "%"
           }
         ]
       },
@@ -7135,7 +7395,7 @@
         ],
         "nb": [
           {
-            "text": "+{k}"
+            "text": "+"
           }
         ]
       },
@@ -7207,7 +7467,7 @@
         ],
         "nb": [
           {
-            "text": "score {toFixed}"
+            "text": "score "
           }
         ]
       },
@@ -7421,7 +7681,18 @@
             }
           },
           {
-            "text": " {overlay.type} "
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{overlay.type}",
+              "equiv": "overlay.type"
+            }
+          },
+          {
+            "text": " "
           },
           {
             "pcClose": {
@@ -7445,7 +7716,12 @@
             }
           },
           {
-            "text": "{overlay.side}"
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{overlay.side}",
+              "equiv": "overlay.side"
+            }
           },
           {
             "pcClose": {
@@ -7480,7 +7756,29 @@
             }
           },
           {
-            "text": " {length} span{value} "
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "7",
+              "type": "jsx:var",
+              "data": "{length}",
+              "equiv": "length"
+            }
+          },
+          {
+            "text": " span"
+          },
+          {
+            "ph": {
+              "id": "8",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " "
           },
           {
             "pcClose": {
@@ -7507,7 +7805,7 @@
         ],
         "nb": [
           {
-            "text": "av {o.added_by}"
+            "text": "av "
           }
         ]
       },
@@ -7707,7 +8005,18 @@
             }
           },
           {
-            "text": " {branches.length} grener "
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{branches.length}",
+              "equiv": "branches.length"
+            }
+          },
+          {
+            "text": " grener "
           },
           {
             "pcClose": {
@@ -7900,7 +8209,10 @@
         ],
         "nb": [
           {
-            "text": "({hiddenSelected} valgt)"
+            "text": "("
+          },
+          {
+            "text": " valgt)"
           }
         ]
       },
@@ -7990,7 +8302,7 @@
         ],
         "nb": [
           {
-            "text": "⚡ {se}"
+            "text": "⚡ "
           }
         ]
       },
@@ -8026,7 +8338,7 @@
         ],
         "nb": [
           {
-            "text": "−{k}"
+            "text": "−"
           }
         ]
       },
@@ -8278,7 +8590,12 @@
             }
           },
           {
-            "text": "{node.id}"
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{node.id}",
+              "equiv": "node.id"
+            }
           },
           {
             "pcClose": {
@@ -8358,7 +8675,29 @@
             }
           },
           {
-            "text": " {value} runs · {wordCount} ord "
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "11",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " runs · "
+          },
+          {
+            "ph": {
+              "id": "12",
+              "type": "jsx:var",
+              "data": "{wordCount}",
+              "equiv": "wordCount"
+            }
+          },
+          {
+            "text": " ord "
           },
           {
             "pcClose": {
@@ -8793,7 +9132,7 @@
         ],
         "nb": [
           {
-            "text": "{o.type} på {o.side}"
+            "text": " på "
           }
         ]
       },
@@ -8893,7 +9232,18 @@
             }
           },
           {
-            "text": " {o.type} "
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{o.type}",
+              "equiv": "o.type"
+            }
+          },
+          {
+            "text": " "
           },
           {
             "pcClose": {
@@ -8917,7 +9267,15 @@
             }
           },
           {
-            "text": "på {o.side}"
+            "text": "på "
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{o.side}",
+              "equiv": "o.side"
+            }
           },
           {
             "pcClose": {
@@ -9082,7 +9440,7 @@
         ],
         "nb": [
           {
-            "text": "{pct}%"
+            "text": "%"
           }
         ]
       },
@@ -9118,7 +9476,10 @@
         ],
         "nb": [
           {
-            "text": "{matches.length} {value} funnet"
+            "text": " "
+          },
+          {
+            "text": " funnet"
           }
         ]
       },
@@ -9136,7 +9497,10 @@
         ],
         "nb": [
           {
-            "text": "Marker «{selectionRange.text}» som:"
+            "text": "Marker «"
+          },
+          {
+            "text": "» som:"
           }
         ]
       },
@@ -9704,7 +10068,10 @@
         ],
         "nb": [
           {
-            "text": "Parallell {branches.length} grener"
+            "text": "Parallell "
+          },
+          {
+            "text": " grener"
           }
         ]
       },
@@ -9913,7 +10280,15 @@
             }
           },
           {
-            "text": "trenger {join}"
+            "text": "trenger "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{join}",
+              "equiv": "join"
+            }
           },
           {
             "pcClose": {
@@ -10156,7 +10531,10 @@
         ],
         "nb": [
           {
-            "text": "{s.start}–{s.end} {value}"
+            "text": "–"
+          },
+          {
+            "text": " "
           }
         ]
       },
@@ -10318,7 +10696,7 @@
         ],
         "nb": [
           {
-            "text": "{selectedCount} valgt"
+            "text": " valgt"
           }
         ]
       },
@@ -10354,7 +10732,7 @@
         ],
         "nb": [
           {
-            "text": "{s.partsProcessed} parts"
+            "text": " parts"
           }
         ]
       },
@@ -10408,7 +10786,7 @@
         ],
         "nb": [
           {
-            "text": "Bekreft sletting {selectedCount}"
+            "text": "Bekreft sletting "
           }
         ]
       },
@@ -10904,7 +11282,7 @@
         ],
         "nb": [
           {
-            "text": "{k}: {value}"
+            "text": ": "
           }
         ]
       },
@@ -10940,7 +11318,10 @@
         ],
         "nb": [
           {
-            "text": "{def.source} · {length} verktøy"
+            "text": " · "
+          },
+          {
+            "text": " verktøy"
           }
         ]
       },
@@ -11185,7 +11566,18 @@
             }
           },
           {
-            "text": " Binær {ft.label} — bruk Forhåndsvisning, eller last ned for å inspisere råbytene."
+            "text": " Binær "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{ft.label}",
+              "equiv": "ft.label"
+            }
+          },
+          {
+            "text": " — bruk Forhåndsvisning, eller last ned for å inspisere råbytene."
           }
         ]
       },
@@ -11735,7 +12127,12 @@
             }
           },
           {
-            "text": "{label}"
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{label}",
+              "equiv": "label"
+            }
           },
           {
             "pcClose": {
@@ -11759,7 +12156,15 @@
             }
           },
           {
-            "text": "{keys.length} felter"
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{keys.length}",
+              "equiv": "keys.length"
+            }
+          },
+          {
+            "text": " felter"
           },
           {
             "pcClose": {

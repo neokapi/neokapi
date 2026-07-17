@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-tm-format",
+  "entries": [
+    {
+      "id": "bowrain-docs-nb:d4b1ea5708",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Overview"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Oversikt"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-docs-nb:c3fc54aa53",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Installation"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Installering"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    },
+    {
+      "id": "bowrain-docs-nb:328908a832",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Quick Start"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Hurtigstart"
+          }
+        ]
+      },
+      "created": "2026-07-17T00:00:00Z",
+      "updated": "2026-07-17T00:00:00Z"
+    }
+  ]
+}

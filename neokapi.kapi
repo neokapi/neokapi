@@ -10,7 +10,9 @@
 #                      embedded in the kapi binary (core/i18n)
 #   kapi-desktop-ui  — KLF catalogs extracted from the React frontend by
 #                      @neokapi/kapi-react → public/translations/<locale>.json
-#   docs             — the Docusaurus site → web/i18n/<locale>/ tree
+#   docs             — the kapi Docusaurus site → web/i18n/<locale>/ tree
+#   docs-bowrain     — the bowrain Docusaurus site (bowrain/web/docs) →
+#                      bowrain/web/docs/i18n/<locale>/ tree
 #   demo-narration   — harness demo scripts → generated demo.<lang>.yaml
 #                      sidecars (harness/demos/<id>/, overlaid at load time)
 #
@@ -43,11 +45,25 @@ defaults:
           - subtitle
           - narration.*.text
           - narration.*.caption
+    # Docs frontmatter: same reason as yaml above — the flow-run path behind
+    # l10n-docs / l10n-bowrain-docs binds reader config from defaults.formats
+    # only, so the frontmatter keys must live here too (the per-item config
+    # below covers extract/up/merge, which overlay these defaults per item).
+    markdown:
+      config:
+        translateFrontMatter: true
+        frontMatterKeys: [title, description, sidebar_label]
+    mdx:
+      config:
+        translateFrontMatter: true
+        frontMatterKeys: [title, description, sidebar_label]
   exclude:
     - "**/node_modules/**"
     - "**/.git/**"
     - "web/build/**"
     - "web/i18n/**"
+    - "bowrain/web/docs/build/**"
+    - "bowrain/web/docs/i18n/**"
     - "harness/public/**"
     - "**/testdata/**"
 content:
@@ -83,6 +99,22 @@ content:
             translateFrontMatter: true
             frontMatterKeys: [title, description, sidebar_label]
         target: web/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
+  - name: docs-bowrain
+    items:
+      - path: bowrain/web/docs/docs/**/*.md
+        format:
+          name: markdown
+          config:
+            translateFrontMatter: true
+            frontMatterKeys: [title, description, sidebar_label]
+        target: bowrain/web/docs/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.md
+      - path: bowrain/web/docs/docs/**/*.mdx
+        format:
+          name: mdx
+          config:
+            translateFrontMatter: true
+            frontMatterKeys: [title, description, sidebar_label]
+        target: bowrain/web/docs/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
   - name: demo-narration
     items:
       # Narrated demo-video scripts. The English demo.yaml is the master;
