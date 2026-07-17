@@ -1,3 +1,3972 @@
 {
-  "runs": []
+  "runs": [
+    {
+      "date": "2026-07-17",
+      "provider": "bedrock",
+      "model": "eu.anthropic.claude-sonnet-4-6",
+      "target": "de",
+      "repeat": 1,
+      "concurrency": 2,
+      "price": {
+        "key": "bedrock:eu.anthropic.claude-sonnet-4-6",
+        "resolves_to": "Claude Sonnet 4.6 (Amazon Bedrock Edition), eu-north-1 cross-region profile",
+        "input_per_mtok": 3.3,
+        "output_per_mtok": 16.5,
+        "route": "bedrock",
+        "metered": true,
+        "source": "aws pricing get-products --service-code AmazonBedrockFoundationModels (see scripts/prompts/update-model-prices.md)",
+        "note": "Bought through AWS Marketplace (usagetype EUN1-MP:*). The `eu.` cross-region inference profile is a GEO profile and carries AWS's 10% regional premium over the `global.` profile ($3.00/$15.00) — geo is exactly global x 1.1. Switching the platform to global.anthropic.claude-sonnet-4-6 would cut the rate by 10%.",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "20 fixtures, 32 checks (17 terminology, 7 voice, 8 instruction)",
+      "corpus_fixtures": 20,
+      "corpus_checks": 32,
+      "corpus_words": 193,
+      "corpus_digest": "041e6a648e6c",
+      "context_tokens": 213,
+      "bare": {
+        "input_tokens": 1813,
+        "output_tokens": 837,
+        "elapsed_seconds": 10.33221375,
+        "cost_usd": 0.0197934
+      },
+      "steered": {
+        "input_tokens": 2026,
+        "output_tokens": 870,
+        "elapsed_seconds": 8.974007,
+        "cost_usd": 0.0210408
+      },
+      "dimensions": [
+        {
+          "dimension": "terminology",
+          "bare": {
+            "scored": 17,
+            "passed": 9
+          },
+          "steered": {
+            "scored": 17,
+            "passed": 17
+          }
+        },
+        {
+          "dimension": "voice",
+          "bare": {
+            "scored": 7,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 7,
+            "passed": 7
+          }
+        },
+        {
+          "dimension": "instruction",
+          "bare": {
+            "scored": 8,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 8
+          }
+        }
+      ],
+      "kinds": [
+        {
+          "dimension": "instruction",
+          "kind": "digits",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "exclamation",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "verbatim",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt",
+          "bare": {
+            "scored": 6,
+            "passed": 6
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt-distractor",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term",
+          "bare": {
+            "scored": 8,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 8
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-conflict",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-distractor",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "formality",
+          "bare": {
+            "scored": 3,
+            "passed": 3
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab",
+          "bare": {
+            "scored": 3,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab-conflict",
+          "bare": {
+            "scored": 1,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-07-17",
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "de",
+      "repeat": 1,
+      "concurrency": 3,
+      "price": {
+        "key": "claude-code:haiku",
+        "resolves_to": "Claude Haiku 4.5",
+        "input_per_mtok": 1,
+        "output_per_mtok": 5,
+        "route": "subscription",
+        "metered": false,
+        "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "20 fixtures, 32 checks (17 terminology, 7 voice, 8 instruction)",
+      "corpus_fixtures": 20,
+      "corpus_checks": 32,
+      "corpus_words": 193,
+      "corpus_digest": "041e6a648e6c",
+      "bare": {
+        "input_tokens": 10,
+        "output_tokens": 1993,
+        "cache_creation_tokens": 14623,
+        "elapsed_seconds": 18.082028459
+      },
+      "steered": {
+        "input_tokens": 10,
+        "output_tokens": 11413,
+        "cache_creation_tokens": 14836,
+        "elapsed_seconds": 113.122940459
+      },
+      "dimensions": [
+        {
+          "dimension": "terminology",
+          "bare": {
+            "scored": 17,
+            "passed": 9
+          },
+          "steered": {
+            "scored": 17,
+            "passed": 17
+          }
+        },
+        {
+          "dimension": "voice",
+          "bare": {
+            "scored": 7,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 7,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "bare": {
+            "scored": 8,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 7
+          }
+        }
+      ],
+      "kinds": [
+        {
+          "dimension": "instruction",
+          "kind": "digits",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "exclamation",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "verbatim",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt",
+          "bare": {
+            "scored": 6,
+            "passed": 6
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt-distractor",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term",
+          "bare": {
+            "scored": 8,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 8
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-conflict",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-distractor",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "formality",
+          "bare": {
+            "scored": 3,
+            "passed": 3
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab",
+          "bare": {
+            "scored": 3,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab-conflict",
+          "bare": {
+            "scored": 1,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-07-17",
+      "provider": "claude-code",
+      "model": "opus",
+      "target": "de",
+      "repeat": 1,
+      "concurrency": 3,
+      "price": {
+        "key": "claude-code:opus",
+        "resolves_to": "Claude Opus 4.8",
+        "input_per_mtok": 5,
+        "output_per_mtok": 25,
+        "route": "subscription",
+        "metered": false,
+        "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+        "note": "Rates are the Claude API list price for the model the alias resolves to. The run itself is not billed per token — it goes through the local Claude subscription.",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "20 fixtures, 32 checks (17 terminology, 7 voice, 8 instruction)",
+      "corpus_fixtures": 20,
+      "corpus_checks": 32,
+      "corpus_words": 193,
+      "corpus_digest": "041e6a648e6c",
+      "bare": {
+        "input_tokens": 2,
+        "output_tokens": 2754,
+        "cache_creation_tokens": 14860,
+        "elapsed_seconds": 31.070593708
+      },
+      "steered": {
+        "input_tokens": 2,
+        "output_tokens": 3025,
+        "cache_creation_tokens": 13118,
+        "elapsed_seconds": 32.45513675
+      },
+      "dimensions": [
+        {
+          "dimension": "terminology",
+          "bare": {
+            "scored": 17,
+            "passed": 10
+          },
+          "steered": {
+            "scored": 17,
+            "passed": 17
+          }
+        },
+        {
+          "dimension": "voice",
+          "bare": {
+            "scored": 7,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 7,
+            "passed": 7
+          }
+        },
+        {
+          "dimension": "instruction",
+          "bare": {
+            "scored": 8,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 8
+          }
+        }
+      ],
+      "kinds": [
+        {
+          "dimension": "instruction",
+          "kind": "digits",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "exclamation",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "verbatim",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt",
+          "bare": {
+            "scored": 6,
+            "passed": 6
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt-distractor",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term",
+          "bare": {
+            "scored": 8,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 8
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-conflict",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-distractor",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "formality",
+          "bare": {
+            "scored": 3,
+            "passed": 3
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab",
+          "bare": {
+            "scored": 3,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab-conflict",
+          "bare": {
+            "scored": 1,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-07-17",
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "de",
+      "repeat": 1,
+      "concurrency": 3,
+      "price": {
+        "key": "claude-code:sonnet",
+        "resolves_to": "Claude Sonnet 5",
+        "input_per_mtok": 2,
+        "output_per_mtok": 10,
+        "route": "subscription",
+        "metered": false,
+        "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+        "note": "Introductory pricing through 2026-08-31; rises to $3/$15 on 2026-09-01.",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "20 fixtures, 32 checks (17 terminology, 7 voice, 8 instruction)",
+      "corpus_fixtures": 20,
+      "corpus_checks": 32,
+      "corpus_words": 193,
+      "corpus_digest": "041e6a648e6c",
+      "bare": {
+        "input_tokens": 4,
+        "output_tokens": 3992,
+        "cache_creation_tokens": 49975,
+        "elapsed_seconds": 34.220078708
+      },
+      "steered": {
+        "input_tokens": 4,
+        "output_tokens": 5862,
+        "cache_creation_tokens": 36393,
+        "cache_read_tokens": 16001,
+        "elapsed_seconds": 54.085324666
+      },
+      "dimensions": [
+        {
+          "dimension": "terminology",
+          "bare": {
+            "scored": 17,
+            "passed": 9
+          },
+          "steered": {
+            "scored": 17,
+            "passed": 17
+          }
+        },
+        {
+          "dimension": "voice",
+          "bare": {
+            "scored": 7,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 7,
+            "passed": 7
+          }
+        },
+        {
+          "dimension": "instruction",
+          "bare": {
+            "scored": 8,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 7
+          }
+        }
+      ],
+      "kinds": [
+        {
+          "dimension": "instruction",
+          "kind": "digits",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "exclamation",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "verbatim",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt",
+          "bare": {
+            "scored": 6,
+            "passed": 6
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt-distractor",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term",
+          "bare": {
+            "scored": 8,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 8
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-conflict",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-distractor",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "formality",
+          "bare": {
+            "scored": 3,
+            "passed": 3
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab",
+          "bare": {
+            "scored": 3,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab-conflict",
+          "bare": {
+            "scored": 1,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-07-17",
+      "provider": "gemini",
+      "model": "gemini-3.1-flash-lite",
+      "target": "de",
+      "repeat": 2,
+      "concurrency": 4,
+      "price": {
+        "key": "gemini:gemini-3.1-flash-lite",
+        "input_per_mtok": 0.25,
+        "output_per_mtok": 1.5,
+        "route": "api",
+        "metered": true,
+        "source": "https://ai.google.dev/gemini-api/docs/pricing",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "20 fixtures, 32 checks (17 terminology, 7 voice, 8 instruction)",
+      "corpus_fixtures": 20,
+      "corpus_checks": 32,
+      "corpus_words": 193,
+      "corpus_digest": "041e6a648e6c",
+      "context_tokens": 178,
+      "bare": {
+        "input_tokens": 2196,
+        "output_tokens": 1591,
+        "elapsed_seconds": 4.8828601670000005,
+        "cost_usd": 0.0029355
+      },
+      "steered": {
+        "input_tokens": 2552,
+        "output_tokens": 1592,
+        "elapsed_seconds": 4.786789167,
+        "cost_usd": 0.003026
+      },
+      "dimensions": [
+        {
+          "dimension": "terminology",
+          "bare": {
+            "scored": 34,
+            "passed": 20
+          },
+          "steered": {
+            "scored": 34,
+            "passed": 32
+          }
+        },
+        {
+          "dimension": "voice",
+          "bare": {
+            "scored": 14,
+            "passed": 8
+          },
+          "steered": {
+            "scored": 14,
+            "passed": 14
+          }
+        },
+        {
+          "dimension": "instruction",
+          "bare": {
+            "scored": 16,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 16,
+            "passed": 16
+          }
+        }
+      ],
+      "kinds": [
+        {
+          "dimension": "instruction",
+          "kind": "digits",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "exclamation",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "verbatim",
+          "bare": {
+            "scored": 4,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 4,
+            "passed": 4
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt",
+          "bare": {
+            "scored": 12,
+            "passed": 12
+          },
+          "steered": {
+            "scored": 12,
+            "passed": 12
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt-distractor",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 0
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term",
+          "bare": {
+            "scored": 16,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 16,
+            "passed": 16
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-conflict",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-distractor",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "formality",
+          "bare": {
+            "scored": 6,
+            "passed": 6
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab",
+          "bare": {
+            "scored": 6,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab-conflict",
+          "bare": {
+            "scored": 2,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-07-17",
+      "provider": "gemini",
+      "model": "gemini-3.1-pro-preview",
+      "target": "de",
+      "repeat": 2,
+      "concurrency": 4,
+      "price": {
+        "key": "gemini:gemini-3.1-pro",
+        "input_per_mtok": 2,
+        "output_per_mtok": 12,
+        "route": "api",
+        "metered": true,
+        "source": "https://ai.google.dev/gemini-api/docs/pricing",
+        "note": "Prompts over 200k tokens are billed at $4/$18.",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "20 fixtures, 32 checks (17 terminology, 7 voice, 8 instruction)",
+      "corpus_fixtures": 20,
+      "corpus_checks": 32,
+      "corpus_words": 193,
+      "corpus_digest": "041e6a648e6c",
+      "context_tokens": 178,
+      "bare": {
+        "input_tokens": 2196,
+        "output_tokens": 1028,
+        "elapsed_seconds": 60.412903958,
+        "cost_usd": 0.016728
+      },
+      "steered": {
+        "input_tokens": 2552,
+        "output_tokens": 1351,
+        "elapsed_seconds": 157.415087374,
+        "cost_usd": 0.021316
+      },
+      "dimensions": [
+        {
+          "dimension": "terminology",
+          "bare": {
+            "scored": 34,
+            "passed": 18
+          },
+          "steered": {
+            "scored": 34,
+            "passed": 33
+          }
+        },
+        {
+          "dimension": "voice",
+          "bare": {
+            "scored": 14,
+            "passed": 8
+          },
+          "steered": {
+            "scored": 14,
+            "passed": 14
+          }
+        },
+        {
+          "dimension": "instruction",
+          "bare": {
+            "scored": 16,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 16,
+            "passed": 16
+          }
+        }
+      ],
+      "kinds": [
+        {
+          "dimension": "instruction",
+          "kind": "digits",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "exclamation",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "verbatim",
+          "bare": {
+            "scored": 4,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 4,
+            "passed": 4
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt",
+          "bare": {
+            "scored": 12,
+            "passed": 12
+          },
+          "steered": {
+            "scored": 12,
+            "passed": 12
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt-distractor",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term",
+          "bare": {
+            "scored": 16,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 16,
+            "passed": 16
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-conflict",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-distractor",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "formality",
+          "bare": {
+            "scored": 6,
+            "passed": 6
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab",
+          "bare": {
+            "scored": 6,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab-conflict",
+          "bare": {
+            "scored": 2,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-07-17",
+      "provider": "gemini",
+      "model": "gemini-3.5-flash",
+      "target": "de",
+      "repeat": 2,
+      "concurrency": 4,
+      "price": {
+        "key": "gemini:gemini-3.5-flash",
+        "input_per_mtok": 1.5,
+        "output_per_mtok": 9,
+        "route": "api",
+        "metered": true,
+        "source": "https://ai.google.dev/gemini-api/docs/pricing",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "20 fixtures, 32 checks (17 terminology, 7 voice, 8 instruction)",
+      "corpus_fixtures": 20,
+      "corpus_checks": 32,
+      "corpus_words": 193,
+      "corpus_digest": "041e6a648e6c",
+      "context_tokens": 178,
+      "bare": {
+        "input_tokens": 2196,
+        "output_tokens": 1291,
+        "elapsed_seconds": 7.465427957999999,
+        "cost_usd": 0.014913000000000001
+      },
+      "steered": {
+        "input_tokens": 2552,
+        "output_tokens": 1333,
+        "elapsed_seconds": 6.390834333999999,
+        "cost_usd": 0.015825
+      },
+      "dimensions": [
+        {
+          "dimension": "terminology",
+          "bare": {
+            "scored": 34,
+            "passed": 20
+          },
+          "steered": {
+            "scored": 34,
+            "passed": 34
+          }
+        },
+        {
+          "dimension": "voice",
+          "bare": {
+            "scored": 14,
+            "passed": 8
+          },
+          "steered": {
+            "scored": 14,
+            "passed": 14
+          }
+        },
+        {
+          "dimension": "instruction",
+          "bare": {
+            "scored": 16,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 16,
+            "passed": 16
+          }
+        }
+      ],
+      "kinds": [
+        {
+          "dimension": "instruction",
+          "kind": "digits",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "exclamation",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "verbatim",
+          "bare": {
+            "scored": 4,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 4,
+            "passed": 4
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt",
+          "bare": {
+            "scored": 12,
+            "passed": 12
+          },
+          "steered": {
+            "scored": 12,
+            "passed": 12
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt-distractor",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term",
+          "bare": {
+            "scored": 16,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 16,
+            "passed": 16
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-conflict",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-distractor",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "formality",
+          "bare": {
+            "scored": 6,
+            "passed": 6
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab",
+          "bare": {
+            "scored": 6,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab-conflict",
+          "bare": {
+            "scored": 2,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-07-17",
+      "provider": "bedrock",
+      "model": "eu.anthropic.claude-sonnet-4-6",
+      "target": "en-GB",
+      "repeat": 1,
+      "concurrency": 2,
+      "price": {
+        "key": "bedrock:eu.anthropic.claude-sonnet-4-6",
+        "resolves_to": "Claude Sonnet 4.6 (Amazon Bedrock Edition), eu-north-1 cross-region profile",
+        "input_per_mtok": 3.3,
+        "output_per_mtok": 16.5,
+        "route": "bedrock",
+        "metered": true,
+        "source": "aws pricing get-products --service-code AmazonBedrockFoundationModels (see scripts/prompts/update-model-prices.md)",
+        "note": "Bought through AWS Marketplace (usagetype EUN1-MP:*). The `eu.` cross-region inference profile is a GEO profile and carries AWS's 10% regional premium over the `global.` profile ($3.00/$15.00) — geo is exactly global x 1.1. Switching the platform to global.anthropic.claude-sonnet-4-6 would cut the rate by 10%.",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "16 fixtures, 20 checks (3 terminology, 5 voice, 12 instruction)",
+      "corpus_fixtures": 16,
+      "corpus_checks": 20,
+      "corpus_words": 171,
+      "corpus_digest": "600fac47f9dc",
+      "context_tokens": 150,
+      "bare": {
+        "input_tokens": 1646,
+        "output_tokens": 475,
+        "elapsed_seconds": 3.782777833,
+        "cost_usd": 0.013269300000000001
+      },
+      "steered": {
+        "input_tokens": 1796,
+        "output_tokens": 475,
+        "elapsed_seconds": 4.217588667,
+        "cost_usd": 0.0137643
+      },
+      "dimensions": [
+        {
+          "dimension": "terminology",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "voice",
+          "bare": {
+            "scored": 5,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 5,
+            "passed": 5
+          }
+        },
+        {
+          "dimension": "instruction",
+          "bare": {
+            "scored": 12,
+            "passed": 6
+          },
+          "steered": {
+            "scored": 12,
+            "passed": 12
+          }
+        }
+      ],
+      "kinds": [
+        {
+          "dimension": "instruction",
+          "kind": "digits",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "exclamation",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "spelling",
+          "bare": {
+            "scored": 4,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 4,
+            "passed": 4
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "verbatim",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "contractions",
+          "bare": {
+            "scored": 4,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 4,
+            "passed": 4
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab",
+          "bare": {
+            "scored": 1,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-07-17",
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "en-GB",
+      "repeat": 1,
+      "concurrency": 3,
+      "price": {
+        "key": "claude-code:haiku",
+        "resolves_to": "Claude Haiku 4.5",
+        "input_per_mtok": 1,
+        "output_per_mtok": 5,
+        "route": "subscription",
+        "metered": false,
+        "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "16 fixtures, 20 checks (3 terminology, 5 voice, 12 instruction)",
+      "corpus_fixtures": 16,
+      "corpus_checks": 20,
+      "corpus_words": 171,
+      "corpus_digest": "600fac47f9dc",
+      "bare": {
+        "input_tokens": 10,
+        "output_tokens": 1610,
+        "cache_creation_tokens": 14456,
+        "elapsed_seconds": 15.517331458
+      },
+      "steered": {
+        "input_tokens": 10,
+        "output_tokens": 4394,
+        "cache_creation_tokens": 14606,
+        "elapsed_seconds": 43.391319334
+      },
+      "dimensions": [
+        {
+          "dimension": "terminology",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "voice",
+          "bare": {
+            "scored": 5,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 5,
+            "passed": 5
+          }
+        },
+        {
+          "dimension": "instruction",
+          "bare": {
+            "scored": 12,
+            "passed": 6
+          },
+          "steered": {
+            "scored": 12,
+            "passed": 11
+          }
+        }
+      ],
+      "kinds": [
+        {
+          "dimension": "instruction",
+          "kind": "digits",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "exclamation",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "spelling",
+          "bare": {
+            "scored": 4,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 4,
+            "passed": 4
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "verbatim",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "contractions",
+          "bare": {
+            "scored": 4,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 4,
+            "passed": 4
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab",
+          "bare": {
+            "scored": 1,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-07-17",
+      "provider": "claude-code",
+      "model": "opus",
+      "target": "en-GB",
+      "repeat": 1,
+      "concurrency": 3,
+      "price": {
+        "key": "claude-code:opus",
+        "resolves_to": "Claude Opus 4.8",
+        "input_per_mtok": 5,
+        "output_per_mtok": 25,
+        "route": "subscription",
+        "metered": false,
+        "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+        "note": "Rates are the Claude API list price for the model the alias resolves to. The run itself is not billed per token — it goes through the local Claude subscription.",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "16 fixtures, 20 checks (3 terminology, 5 voice, 12 instruction)",
+      "corpus_fixtures": 16,
+      "corpus_checks": 20,
+      "corpus_words": 171,
+      "corpus_digest": "600fac47f9dc",
+      "bare": {
+        "input_tokens": 2,
+        "output_tokens": 1106,
+        "cache_creation_tokens": 12626,
+        "elapsed_seconds": 17.420660542
+      },
+      "steered": {
+        "input_tokens": 2,
+        "output_tokens": 1931,
+        "cache_creation_tokens": 12838,
+        "elapsed_seconds": 22.4531225
+      },
+      "dimensions": [
+        {
+          "dimension": "terminology",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "voice",
+          "bare": {
+            "scored": 5,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 5,
+            "passed": 5
+          }
+        },
+        {
+          "dimension": "instruction",
+          "bare": {
+            "scored": 12,
+            "passed": 6
+          },
+          "steered": {
+            "scored": 12,
+            "passed": 12
+          }
+        }
+      ],
+      "kinds": [
+        {
+          "dimension": "instruction",
+          "kind": "digits",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "exclamation",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "spelling",
+          "bare": {
+            "scored": 4,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 4,
+            "passed": 4
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "verbatim",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "contractions",
+          "bare": {
+            "scored": 4,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 4,
+            "passed": 4
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab",
+          "bare": {
+            "scored": 1,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-07-17",
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "en-GB",
+      "repeat": 1,
+      "concurrency": 3,
+      "price": {
+        "key": "claude-code:sonnet",
+        "resolves_to": "Claude Sonnet 5",
+        "input_per_mtok": 2,
+        "output_per_mtok": 10,
+        "route": "subscription",
+        "metered": false,
+        "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+        "note": "Introductory pricing through 2026-08-31; rises to $3/$15 on 2026-09-01.",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "16 fixtures, 20 checks (3 terminology, 5 voice, 12 instruction)",
+      "corpus_fixtures": 16,
+      "corpus_checks": 20,
+      "corpus_words": 171,
+      "corpus_digest": "600fac47f9dc",
+      "bare": {
+        "input_tokens": 4,
+        "output_tokens": 1765,
+        "cache_creation_tokens": 31775,
+        "cache_read_tokens": 16001,
+        "elapsed_seconds": 16.167585584
+      },
+      "steered": {
+        "input_tokens": 4,
+        "output_tokens": 3152,
+        "cache_creation_tokens": 33582,
+        "cache_read_tokens": 16001,
+        "elapsed_seconds": 28.410588
+      },
+      "dimensions": [
+        {
+          "dimension": "terminology",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "voice",
+          "bare": {
+            "scored": 5,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 5,
+            "passed": 5
+          }
+        },
+        {
+          "dimension": "instruction",
+          "bare": {
+            "scored": 12,
+            "passed": 6
+          },
+          "steered": {
+            "scored": 12,
+            "passed": 12
+          }
+        }
+      ],
+      "kinds": [
+        {
+          "dimension": "instruction",
+          "kind": "digits",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "exclamation",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "spelling",
+          "bare": {
+            "scored": 4,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 4,
+            "passed": 4
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "verbatim",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "contractions",
+          "bare": {
+            "scored": 4,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 4,
+            "passed": 4
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab",
+          "bare": {
+            "scored": 1,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-07-17",
+      "provider": "gemini",
+      "model": "gemini-3.1-flash-lite",
+      "target": "en-GB",
+      "repeat": 2,
+      "concurrency": 4,
+      "price": {
+        "key": "gemini:gemini-3.1-flash-lite",
+        "input_per_mtok": 0.25,
+        "output_per_mtok": 1.5,
+        "route": "api",
+        "metered": true,
+        "source": "https://ai.google.dev/gemini-api/docs/pricing",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "16 fixtures, 20 checks (3 terminology, 5 voice, 12 instruction)",
+      "corpus_fixtures": 16,
+      "corpus_checks": 20,
+      "corpus_words": 171,
+      "corpus_digest": "600fac47f9dc",
+      "context_tokens": 137,
+      "bare": {
+        "input_tokens": 1874,
+        "output_tokens": 1146,
+        "elapsed_seconds": 3.646358583,
+        "cost_usd": 0.0021875
+      },
+      "steered": {
+        "input_tokens": 2148,
+        "output_tokens": 1126,
+        "elapsed_seconds": 3.8275665830000003,
+        "cost_usd": 0.002226
+      },
+      "dimensions": [
+        {
+          "dimension": "terminology",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "voice",
+          "bare": {
+            "scored": 10,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 10,
+            "passed": 10
+          }
+        },
+        {
+          "dimension": "instruction",
+          "bare": {
+            "scored": 24,
+            "passed": 12
+          },
+          "steered": {
+            "scored": 24,
+            "passed": 24
+          }
+        }
+      ],
+      "kinds": [
+        {
+          "dimension": "instruction",
+          "kind": "digits",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "exclamation",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "spelling",
+          "bare": {
+            "scored": 8,
+            "passed": 8
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 8
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "verbatim",
+          "bare": {
+            "scored": 4,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 4,
+            "passed": 4
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "contractions",
+          "bare": {
+            "scored": 8,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 8
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab",
+          "bare": {
+            "scored": 2,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-07-17",
+      "provider": "gemini",
+      "model": "gemini-3.1-pro-preview",
+      "target": "en-GB",
+      "repeat": 2,
+      "concurrency": 4,
+      "price": {
+        "key": "gemini:gemini-3.1-pro",
+        "input_per_mtok": 2,
+        "output_per_mtok": 12,
+        "route": "api",
+        "metered": true,
+        "source": "https://ai.google.dev/gemini-api/docs/pricing",
+        "note": "Prompts over 200k tokens are billed at $4/$18.",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "16 fixtures, 20 checks (3 terminology, 5 voice, 12 instruction)",
+      "corpus_fixtures": 16,
+      "corpus_checks": 20,
+      "corpus_words": 171,
+      "corpus_digest": "600fac47f9dc",
+      "context_tokens": 137,
+      "bare": {
+        "input_tokens": 1874,
+        "output_tokens": 712,
+        "elapsed_seconds": 33.332902125000004,
+        "cost_usd": 0.012291999999999999
+      },
+      "steered": {
+        "input_tokens": 2148,
+        "output_tokens": 914,
+        "elapsed_seconds": 52.575697374,
+        "cost_usd": 0.015264
+      },
+      "dimensions": [
+        {
+          "dimension": "terminology",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "voice",
+          "bare": {
+            "scored": 10,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 10,
+            "passed": 10
+          }
+        },
+        {
+          "dimension": "instruction",
+          "bare": {
+            "scored": 24,
+            "passed": 12
+          },
+          "steered": {
+            "scored": 24,
+            "passed": 24
+          }
+        }
+      ],
+      "kinds": [
+        {
+          "dimension": "instruction",
+          "kind": "digits",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "exclamation",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "spelling",
+          "bare": {
+            "scored": 8,
+            "passed": 8
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 8
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "verbatim",
+          "bare": {
+            "scored": 4,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 4,
+            "passed": 4
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "contractions",
+          "bare": {
+            "scored": 8,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 8
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab",
+          "bare": {
+            "scored": 2,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-07-17",
+      "provider": "gemini",
+      "model": "gemini-3.5-flash",
+      "target": "en-GB",
+      "repeat": 2,
+      "concurrency": 4,
+      "price": {
+        "key": "gemini:gemini-3.5-flash",
+        "input_per_mtok": 1.5,
+        "output_per_mtok": 9,
+        "route": "api",
+        "metered": true,
+        "source": "https://ai.google.dev/gemini-api/docs/pricing",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "16 fixtures, 20 checks (3 terminology, 5 voice, 12 instruction)",
+      "corpus_fixtures": 16,
+      "corpus_checks": 20,
+      "corpus_words": 171,
+      "corpus_digest": "600fac47f9dc",
+      "context_tokens": 137,
+      "bare": {
+        "input_tokens": 1874,
+        "output_tokens": 712,
+        "elapsed_seconds": 4.393376958999999,
+        "cost_usd": 0.009219
+      },
+      "steered": {
+        "input_tokens": 2148,
+        "output_tokens": 695,
+        "elapsed_seconds": 4.460587875,
+        "cost_usd": 0.009477
+      },
+      "dimensions": [
+        {
+          "dimension": "terminology",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "voice",
+          "bare": {
+            "scored": 10,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 10,
+            "passed": 10
+          }
+        },
+        {
+          "dimension": "instruction",
+          "bare": {
+            "scored": 24,
+            "passed": 12
+          },
+          "steered": {
+            "scored": 24,
+            "passed": 24
+          }
+        }
+      ],
+      "kinds": [
+        {
+          "dimension": "instruction",
+          "kind": "digits",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "exclamation",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "spelling",
+          "bare": {
+            "scored": 8,
+            "passed": 8
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 8
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "verbatim",
+          "bare": {
+            "scored": 4,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 4,
+            "passed": 4
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "contractions",
+          "bare": {
+            "scored": 8,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 8
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab",
+          "bare": {
+            "scored": 2,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-07-17",
+      "provider": "bedrock",
+      "model": "eu.anthropic.claude-sonnet-4-6",
+      "target": "fr",
+      "repeat": 1,
+      "concurrency": 2,
+      "price": {
+        "key": "bedrock:eu.anthropic.claude-sonnet-4-6",
+        "resolves_to": "Claude Sonnet 4.6 (Amazon Bedrock Edition), eu-north-1 cross-region profile",
+        "input_per_mtok": 3.3,
+        "output_per_mtok": 16.5,
+        "route": "bedrock",
+        "metered": true,
+        "source": "aws pricing get-products --service-code AmazonBedrockFoundationModels (see scripts/prompts/update-model-prices.md)",
+        "note": "Bought through AWS Marketplace (usagetype EUN1-MP:*). The `eu.` cross-region inference profile is a GEO profile and carries AWS's 10% regional premium over the `global.` profile ($3.00/$15.00) — geo is exactly global x 1.1. Switching the platform to global.anthropic.claude-sonnet-4-6 would cut the rate by 10%.",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "19 fixtures, 31 checks (17 terminology, 6 voice, 8 instruction)",
+      "corpus_fixtures": 19,
+      "corpus_checks": 31,
+      "corpus_words": 182,
+      "corpus_digest": "03d3f363988b",
+      "context_tokens": 197,
+      "bare": {
+        "input_tokens": 1767,
+        "output_tokens": 710,
+        "elapsed_seconds": 7.401478625,
+        "cost_usd": 0.0175461
+      },
+      "steered": {
+        "input_tokens": 1964,
+        "output_tokens": 738,
+        "elapsed_seconds": 7.765687458,
+        "cost_usd": 0.0186582
+      },
+      "dimensions": [
+        {
+          "dimension": "terminology",
+          "bare": {
+            "scored": 17,
+            "passed": 8
+          },
+          "steered": {
+            "scored": 17,
+            "passed": 17
+          }
+        },
+        {
+          "dimension": "voice",
+          "bare": {
+            "scored": 6,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "bare": {
+            "scored": 8,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 8
+          }
+        }
+      ],
+      "kinds": [
+        {
+          "dimension": "instruction",
+          "kind": "digits",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "exclamation",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "verbatim",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt",
+          "bare": {
+            "scored": 6,
+            "passed": 6
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt-distractor",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term",
+          "bare": {
+            "scored": 8,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 8
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-conflict",
+          "bare": {
+            "scored": 1,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-distractor",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "formality",
+          "bare": {
+            "scored": 3,
+            "passed": 3
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab",
+          "bare": {
+            "scored": 2,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab-conflict",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-07-17",
+      "provider": "claude-code",
+      "model": "haiku",
+      "target": "fr",
+      "repeat": 1,
+      "concurrency": 3,
+      "price": {
+        "key": "claude-code:haiku",
+        "resolves_to": "Claude Haiku 4.5",
+        "input_per_mtok": 1,
+        "output_per_mtok": 5,
+        "route": "subscription",
+        "metered": false,
+        "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "19 fixtures, 31 checks (17 terminology, 6 voice, 8 instruction)",
+      "corpus_fixtures": 19,
+      "corpus_checks": 31,
+      "corpus_words": 182,
+      "corpus_digest": "03d3f363988b",
+      "bare": {
+        "input_tokens": 10,
+        "output_tokens": 3399,
+        "cache_creation_tokens": 14577,
+        "elapsed_seconds": 31.577365334
+      },
+      "steered": {
+        "input_tokens": 10,
+        "output_tokens": 5209,
+        "cache_creation_tokens": 14774,
+        "elapsed_seconds": 49.745271875
+      },
+      "dimensions": [
+        {
+          "dimension": "terminology",
+          "bare": {
+            "scored": 17,
+            "passed": 8
+          },
+          "steered": {
+            "scored": 17,
+            "passed": 17
+          }
+        },
+        {
+          "dimension": "voice",
+          "bare": {
+            "scored": 6,
+            "passed": 5
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 5
+          }
+        },
+        {
+          "dimension": "instruction",
+          "bare": {
+            "scored": 8,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 8
+          }
+        }
+      ],
+      "kinds": [
+        {
+          "dimension": "instruction",
+          "kind": "digits",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "exclamation",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "verbatim",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt",
+          "bare": {
+            "scored": 6,
+            "passed": 6
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt-distractor",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term",
+          "bare": {
+            "scored": 8,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 8
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-conflict",
+          "bare": {
+            "scored": 1,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-distractor",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "formality",
+          "bare": {
+            "scored": 3,
+            "passed": 3
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab",
+          "bare": {
+            "scored": 2,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab-conflict",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-07-17",
+      "provider": "claude-code",
+      "model": "opus",
+      "target": "fr",
+      "repeat": 1,
+      "concurrency": 3,
+      "price": {
+        "key": "claude-code:opus",
+        "resolves_to": "Claude Opus 4.8",
+        "input_per_mtok": 5,
+        "output_per_mtok": 25,
+        "route": "subscription",
+        "metered": false,
+        "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+        "note": "Rates are the Claude API list price for the model the alias resolves to. The run itself is not billed per token — it goes through the local Claude subscription.",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "19 fixtures, 31 checks (17 terminology, 6 voice, 8 instruction)",
+      "corpus_fixtures": 19,
+      "corpus_checks": 31,
+      "corpus_words": 182,
+      "corpus_digest": "03d3f363988b",
+      "bare": {
+        "input_tokens": 2,
+        "output_tokens": 1731,
+        "cache_creation_tokens": 12774,
+        "elapsed_seconds": 23.06164875
+      },
+      "steered": {
+        "input_tokens": 2,
+        "output_tokens": 3037,
+        "cache_creation_tokens": 13040,
+        "elapsed_seconds": 36.861338959
+      },
+      "dimensions": [
+        {
+          "dimension": "terminology",
+          "bare": {
+            "scored": 17,
+            "passed": 8
+          },
+          "steered": {
+            "scored": 17,
+            "passed": 17
+          }
+        },
+        {
+          "dimension": "voice",
+          "bare": {
+            "scored": 6,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "bare": {
+            "scored": 8,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 8
+          }
+        }
+      ],
+      "kinds": [
+        {
+          "dimension": "instruction",
+          "kind": "digits",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "exclamation",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "verbatim",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt",
+          "bare": {
+            "scored": 6,
+            "passed": 6
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt-distractor",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term",
+          "bare": {
+            "scored": 8,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 8
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-conflict",
+          "bare": {
+            "scored": 1,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-distractor",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "formality",
+          "bare": {
+            "scored": 3,
+            "passed": 3
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab",
+          "bare": {
+            "scored": 2,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab-conflict",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-07-17",
+      "provider": "claude-code",
+      "model": "sonnet",
+      "target": "fr",
+      "repeat": 1,
+      "concurrency": 3,
+      "price": {
+        "key": "claude-code:sonnet",
+        "resolves_to": "Claude Sonnet 5",
+        "input_per_mtok": 2,
+        "output_per_mtok": 10,
+        "route": "subscription",
+        "metered": false,
+        "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+        "note": "Introductory pricing through 2026-08-31; rises to $3/$15 on 2026-09-01.",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "19 fixtures, 31 checks (17 terminology, 6 voice, 8 instruction)",
+      "corpus_fixtures": 19,
+      "corpus_checks": 31,
+      "corpus_words": 182,
+      "corpus_digest": "03d3f363988b",
+      "bare": {
+        "input_tokens": 4,
+        "output_tokens": 2871,
+        "cache_creation_tokens": 33109,
+        "cache_read_tokens": 16001,
+        "elapsed_seconds": 24.587998333
+      },
+      "steered": {
+        "input_tokens": 2,
+        "output_tokens": 4513,
+        "cache_creation_tokens": 15679,
+        "cache_read_tokens": 12235,
+        "elapsed_seconds": 47.426656542
+      },
+      "dimensions": [
+        {
+          "dimension": "terminology",
+          "bare": {
+            "scored": 17,
+            "passed": 8
+          },
+          "steered": {
+            "scored": 17,
+            "passed": 17
+          }
+        },
+        {
+          "dimension": "voice",
+          "bare": {
+            "scored": 6,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "bare": {
+            "scored": 8,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 8
+          }
+        }
+      ],
+      "kinds": [
+        {
+          "dimension": "instruction",
+          "kind": "digits",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "exclamation",
+          "bare": {
+            "scored": 3,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "verbatim",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt",
+          "bare": {
+            "scored": 6,
+            "passed": 6
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt-distractor",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term",
+          "bare": {
+            "scored": 8,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 8,
+            "passed": 8
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-conflict",
+          "bare": {
+            "scored": 1,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-distractor",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "formality",
+          "bare": {
+            "scored": 3,
+            "passed": 3
+          },
+          "steered": {
+            "scored": 3,
+            "passed": 3
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab",
+          "bare": {
+            "scored": 2,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab-conflict",
+          "bare": {
+            "scored": 1,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 1,
+            "passed": 1
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-07-17",
+      "provider": "gemini",
+      "model": "gemini-3.1-flash-lite",
+      "target": "fr",
+      "repeat": 2,
+      "concurrency": 4,
+      "price": {
+        "key": "gemini:gemini-3.1-flash-lite",
+        "input_per_mtok": 0.25,
+        "output_per_mtok": 1.5,
+        "route": "api",
+        "metered": true,
+        "source": "https://ai.google.dev/gemini-api/docs/pricing",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "19 fixtures, 31 checks (17 terminology, 6 voice, 8 instruction)",
+      "corpus_fixtures": 19,
+      "corpus_checks": 31,
+      "corpus_words": 182,
+      "corpus_digest": "03d3f363988b",
+      "context_tokens": 172,
+      "bare": {
+        "input_tokens": 2110,
+        "output_tokens": 1471,
+        "elapsed_seconds": 4.328107624,
+        "cost_usd": 0.0027340000000000003
+      },
+      "steered": {
+        "input_tokens": 2454,
+        "output_tokens": 1462,
+        "elapsed_seconds": 4.5853649999999995,
+        "cost_usd": 0.0028065
+      },
+      "dimensions": [
+        {
+          "dimension": "terminology",
+          "bare": {
+            "scored": 34,
+            "passed": 16
+          },
+          "steered": {
+            "scored": 34,
+            "passed": 32
+          }
+        },
+        {
+          "dimension": "voice",
+          "bare": {
+            "scored": 12,
+            "passed": 8
+          },
+          "steered": {
+            "scored": 12,
+            "passed": 12
+          }
+        },
+        {
+          "dimension": "instruction",
+          "bare": {
+            "scored": 16,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 16,
+            "passed": 16
+          }
+        }
+      ],
+      "kinds": [
+        {
+          "dimension": "instruction",
+          "kind": "digits",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "exclamation",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "verbatim",
+          "bare": {
+            "scored": 4,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 4,
+            "passed": 4
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt",
+          "bare": {
+            "scored": 12,
+            "passed": 12
+          },
+          "steered": {
+            "scored": 12,
+            "passed": 12
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt-distractor",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term",
+          "bare": {
+            "scored": 16,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 16,
+            "passed": 16
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-conflict",
+          "bare": {
+            "scored": 2,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 0
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-distractor",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "formality",
+          "bare": {
+            "scored": 6,
+            "passed": 6
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab",
+          "bare": {
+            "scored": 4,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 4,
+            "passed": 4
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab-conflict",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-07-17",
+      "provider": "gemini",
+      "model": "gemini-3.1-pro-preview",
+      "target": "fr",
+      "repeat": 2,
+      "concurrency": 4,
+      "price": {
+        "key": "gemini:gemini-3.1-pro",
+        "input_per_mtok": 2,
+        "output_per_mtok": 12,
+        "route": "api",
+        "metered": true,
+        "source": "https://ai.google.dev/gemini-api/docs/pricing",
+        "note": "Prompts over 200k tokens are billed at $4/$18.",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "19 fixtures, 31 checks (17 terminology, 6 voice, 8 instruction)",
+      "corpus_fixtures": 19,
+      "corpus_checks": 31,
+      "corpus_words": 182,
+      "corpus_digest": "03d3f363988b",
+      "context_tokens": 172,
+      "bare": {
+        "input_tokens": 2110,
+        "output_tokens": 959,
+        "elapsed_seconds": 45.44264858299999,
+        "cost_usd": 0.015728
+      },
+      "steered": {
+        "input_tokens": 2454,
+        "output_tokens": 970,
+        "elapsed_seconds": 88.52618458399999,
+        "cost_usd": 0.016548
+      },
+      "dimensions": [
+        {
+          "dimension": "terminology",
+          "bare": {
+            "scored": 34,
+            "passed": 17
+          },
+          "steered": {
+            "scored": 34,
+            "passed": 34
+          }
+        },
+        {
+          "dimension": "voice",
+          "bare": {
+            "scored": 12,
+            "passed": 8
+          },
+          "steered": {
+            "scored": 12,
+            "passed": 12
+          }
+        },
+        {
+          "dimension": "instruction",
+          "bare": {
+            "scored": 16,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 16,
+            "passed": 16
+          }
+        }
+      ],
+      "kinds": [
+        {
+          "dimension": "instruction",
+          "kind": "digits",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "exclamation",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "verbatim",
+          "bare": {
+            "scored": 4,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 4,
+            "passed": 4
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt",
+          "bare": {
+            "scored": 12,
+            "passed": 12
+          },
+          "steered": {
+            "scored": 12,
+            "passed": 12
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt-distractor",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term",
+          "bare": {
+            "scored": 16,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 16,
+            "passed": 16
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-conflict",
+          "bare": {
+            "scored": 2,
+            "passed": 1
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-distractor",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "formality",
+          "bare": {
+            "scored": 6,
+            "passed": 6
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab",
+          "bare": {
+            "scored": 4,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 4,
+            "passed": 4
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab-conflict",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-07-17",
+      "provider": "gemini",
+      "model": "gemini-3.5-flash",
+      "target": "fr",
+      "repeat": 2,
+      "concurrency": 4,
+      "price": {
+        "key": "gemini:gemini-3.5-flash",
+        "input_per_mtok": 1.5,
+        "output_per_mtok": 9,
+        "route": "api",
+        "metered": true,
+        "source": "https://ai.google.dev/gemini-api/docs/pricing",
+        "as_of": "2026-07-14"
+      },
+      "corpus": "19 fixtures, 31 checks (17 terminology, 6 voice, 8 instruction)",
+      "corpus_fixtures": 19,
+      "corpus_checks": 31,
+      "corpus_words": 182,
+      "corpus_digest": "03d3f363988b",
+      "context_tokens": 172,
+      "bare": {
+        "input_tokens": 2110,
+        "output_tokens": 1011,
+        "elapsed_seconds": 5.363379791,
+        "cost_usd": 0.012263999999999999
+      },
+      "steered": {
+        "input_tokens": 2454,
+        "output_tokens": 951,
+        "elapsed_seconds": 5.9183273750000005,
+        "cost_usd": 0.012240000000000001
+      },
+      "dimensions": [
+        {
+          "dimension": "terminology",
+          "bare": {
+            "scored": 34,
+            "passed": 16
+          },
+          "steered": {
+            "scored": 34,
+            "passed": 34
+          }
+        },
+        {
+          "dimension": "voice",
+          "bare": {
+            "scored": 12,
+            "passed": 8
+          },
+          "steered": {
+            "scored": 12,
+            "passed": 12
+          }
+        },
+        {
+          "dimension": "instruction",
+          "bare": {
+            "scored": 16,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 16,
+            "passed": 16
+          }
+        }
+      ],
+      "kinds": [
+        {
+          "dimension": "instruction",
+          "kind": "digits",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "exclamation",
+          "bare": {
+            "scored": 6,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "instruction",
+          "kind": "verbatim",
+          "bare": {
+            "scored": 4,
+            "passed": 4
+          },
+          "steered": {
+            "scored": 4,
+            "passed": 4
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt",
+          "bare": {
+            "scored": 12,
+            "passed": 12
+          },
+          "steered": {
+            "scored": 12,
+            "passed": 12
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "dnt-distractor",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term",
+          "bare": {
+            "scored": 16,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 16,
+            "passed": 16
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-conflict",
+          "bare": {
+            "scored": 2,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "terminology",
+          "kind": "term-distractor",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "formality",
+          "bare": {
+            "scored": 6,
+            "passed": 6
+          },
+          "steered": {
+            "scored": 6,
+            "passed": 6
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab",
+          "bare": {
+            "scored": 4,
+            "passed": 0
+          },
+          "steered": {
+            "scored": 4,
+            "passed": 4
+          }
+        },
+        {
+          "dimension": "voice",
+          "kind": "vocab-conflict",
+          "bare": {
+            "scored": 2,
+            "passed": 2
+          },
+          "steered": {
+            "scored": 2,
+            "passed": 2
+          }
+        }
+      ]
+    }
+  ]
 }
