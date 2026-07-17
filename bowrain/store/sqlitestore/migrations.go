@@ -606,4 +606,18 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE streams ADD COLUMN properties TEXT NOT NULL DEFAULT '{}';
 		`,
 	},
+	{
+		Version:     6,
+		Description: "convergence run loop-observability columns (stall_reason, stage, activity)",
+		SQL: `
+			-- Mirrors convergence_runs observability columns in
+			-- bowrain/store/migrations.go (Version 7): labeled stalls +
+			-- loop-position context (strategy 2026-07-dogfood doc 06, themes C/D).
+			-- SQLite ALTER TABLE ADD COLUMN adds one column per statement.
+			ALTER TABLE convergence_runs ADD COLUMN stall_reason   TEXT NOT NULL DEFAULT '';
+			ALTER TABLE convergence_runs ADD COLUMN current_stage  TEXT NOT NULL DEFAULT '';
+			ALTER TABLE convergence_runs ADD COLUMN current_locale TEXT NOT NULL DEFAULT '';
+			ALTER TABLE convergence_runs ADD COLUMN last_activity  TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }

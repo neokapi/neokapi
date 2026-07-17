@@ -782,4 +782,22 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE streams ADD COLUMN IF NOT EXISTS properties TEXT NOT NULL DEFAULT '{}';
 		`,
 	},
+	{
+		Version:     7,
+		Description: "convergence run loop-observability columns (stall_reason, stage, activity)",
+		SQL: `
+			-- Loop observability + labeled stalls (strategy 2026-07-dogfood doc 06,
+			-- themes C/D). A run row now carries the machine-readable stall_reason
+			-- (needs_credits | needs_ai_key | rate_limited | no_progress |
+			-- checks_failing), the current loop stage/locale, and a heartbeat
+			-- (last_activity) refreshed from the job queue's updated_at so a run
+			-- that is "slow but alive" is distinguishable from one that has
+			-- stalled. All default empty so existing rows read as an unlabeled
+			-- run with no reason.
+			ALTER TABLE convergence_runs ADD COLUMN IF NOT EXISTS stall_reason  TEXT NOT NULL DEFAULT '';
+			ALTER TABLE convergence_runs ADD COLUMN IF NOT EXISTS current_stage TEXT NOT NULL DEFAULT '';
+			ALTER TABLE convergence_runs ADD COLUMN IF NOT EXISTS current_locale TEXT NOT NULL DEFAULT '';
+			ALTER TABLE convergence_runs ADD COLUMN IF NOT EXISTS last_activity TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }

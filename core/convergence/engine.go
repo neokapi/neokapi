@@ -138,7 +138,7 @@ func Loop(ctx context.Context, opts LoopOptions, f LoopFuncs, emit *Emitter) (Lo
 			}
 			synced = s
 			if synced != nil {
-				emit.Emit(Event{Type: EventLog, Message: fmt.Sprintf(
+				emit.Emit(Event{Type: EventLog, Stage: StageSync, Message: fmt.Sprintf(
 					"Extracted %d block(s) from %d file(s) into the project store (%s).",
 					synced.Blocks, synced.Files, synced.Reason)})
 			}
@@ -210,6 +210,7 @@ func Loop(ctx context.Context, opts LoopOptions, f LoopFuncs, emit *Emitter) (Lo
 		}
 		emit.Emit(Event{
 			Type:          EventPassDone,
+			Stage:         StageChecks,
 			Pass:          passes,
 			MaxPasses:     opts.MaxPasses,
 			Produced:      after.Produced,

@@ -38,7 +38,26 @@ type ConvergenceRun struct {
 	FailingChecks int                         `json:"failing_checks"`
 	// Error carries a terminal failure reason (state=failed/canceled), e.g.
 	// "interrupted by server restart" or the loop's error. Empty otherwise.
-	Error      string     `json:"error,omitempty"`
+	Error string `json:"error,omitempty"`
+
+	// StallReason is the machine-readable cause a run did not converge —
+	// needs_credits | needs_ai_key | rate_limited | no_progress |
+	// checks_failing (core/convergence.Stall*). It labels a parked/failed run
+	// so the UI and analytics distinguish "out of credits" from "pending
+	// review" instead of reading a silent parked spinner (theme C). Empty on a
+	// converged run.
+	StallReason convergence.StallReason `json:"stall_reason,omitempty"`
+	// CurrentStage/CurrentLocale are the run's live loop position
+	// (sync|derive|recycle|ai_translate|checks|materialize + the locale being
+	// produced), updated as the run progresses (theme D).
+	CurrentStage  string `json:"current_stage,omitempty"`
+	CurrentLocale string `json:"current_locale,omitempty"`
+	// LastActivity is a heartbeat: the most recent time the run made observable
+	// progress (an emitted event, or a polled job's updated_at). A frozen
+	// LastActivity while jobs are still awaited is the signal that separates
+	// "slow but alive" from "stalled" (theme D).
+	LastActivity *time.Time `json:"last_activity,omitempty"`
+
 	CreatedAt  time.Time  `json:"created_at"`
 	FinishedAt *time.Time `json:"finished_at,omitempty"`
 }
@@ -78,10 +97,13 @@ func (s *ConvergenceRunStore) CreateRun(ctx context.Context, run *ConvergenceRun
 	standing, _ := json.Marshal(run.Standing)
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO convergence_runs
-			(id, project_id, trigger, state, passes, standing, failing_checks, error, created_at, finished_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+			(id, project_id, trigger, state, passes, standing, failing_checks, error,
+			 stall_reason, current_stage, current_locale, last_activity, created_at, finished_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
 		run.ID, run.ProjectID, run.Trigger, run.State, run.Passes,
-		string(standing), run.FailingChecks, run.Error, run.CreatedAt.UTC().Format(rfc3339Nano), finishedText(run.FinishedAt))
+		string(standing), run.FailingChecks, run.Error,
+		run.StallReason, run.CurrentStage, run.CurrentLocale, finishedText(run.LastActivity),
+		run.CreatedAt.UTC().Format(rfc3339Nano), finishedText(run.FinishedAt))
 	if err != nil {
 		return fmt.Errorf("create convergence run: %w", err)
 	}
@@ -114,9 +136,12 @@ func (s *ConvergenceRunStore) UpdateRun(ctx context.Context, run *ConvergenceRun
 	standing, _ := json.Marshal(run.Standing)
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE convergence_runs
-			SET state=$1, passes=$2, standing=$3, failing_checks=$4, error=$5, finished_at=$6
-			WHERE id=$7`,
-		run.State, run.Passes, string(standing), run.FailingChecks, run.Error, finishedText(run.FinishedAt), run.ID)
+			SET state=$1, passes=$2, standing=$3, failing_checks=$4, error=$5,
+			    stall_reason=$6, current_stage=$7, current_locale=$8, last_activity=$9, finished_at=$10
+			WHERE id=$11`,
+		run.State, run.Passes, string(standing), run.FailingChecks, run.Error,
+		run.StallReason, run.CurrentStage, run.CurrentLocale, finishedText(run.LastActivity),
+		finishedText(run.FinishedAt), run.ID)
 	if err != nil {
 		return fmt.Errorf("update convergence run: %w", err)
 	}
@@ -142,7 +167,7 @@ func (s *ConvergenceRunStore) FailInterruptedRuns(ctx context.Context, reason st
 // GetRun retrieves a run by ID.
 func (s *ConvergenceRunStore) GetRun(ctx context.Context, runID string) (*ConvergenceRun, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, trigger, state, passes, standing, failing_checks, error, created_at, finished_at
+		`SELECT id, project_id, trigger, state, passes, standing, failing_checks, error, stall_reason, current_stage, current_locale, last_activity, created_at, finished_at
 		 FROM convergence_runs WHERE id = $1`, runID)
 	return scanConvergenceRun(row)
 }
@@ -153,7 +178,7 @@ func (s *ConvergenceRunStore) ListRuns(ctx context.Context, projectID string, li
 		limit = 20
 	}
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, project_id, trigger, state, passes, standing, failing_checks, error, created_at, finished_at
+		`SELECT id, project_id, trigger, state, passes, standing, failing_checks, error, stall_reason, current_stage, current_locale, last_activity, created_at, finished_at
 		 FROM convergence_runs WHERE project_id = $1 ORDER BY created_at DESC LIMIT $2`, projectID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list convergence runs: %w", err)
@@ -174,7 +199,7 @@ func (s *ConvergenceRunStore) ListRuns(ctx context.Context, projectID string, li
 // none is in flight — the guard a start uses to avoid a second concurrent run.
 func (s *ConvergenceRunStore) ActiveRun(ctx context.Context, projectID string) (*ConvergenceRun, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, trigger, state, passes, standing, failing_checks, error, created_at, finished_at
+		`SELECT id, project_id, trigger, state, passes, standing, failing_checks, error, stall_reason, current_stage, current_locale, last_activity, created_at, finished_at
 		 FROM convergence_runs WHERE project_id = $1 AND state = $2 ORDER BY created_at DESC LIMIT 1`,
 		projectID, ConvergenceRunRunning)
 	run, err := scanConvergenceRun(row)
@@ -252,9 +277,11 @@ func finishedText(t *time.Time) string {
 func scanConvergenceRun(row scannable) (*ConvergenceRun, error) {
 	var r ConvergenceRun
 	var standing, createdStr string
-	var finishedStr sql.NullString
+	var finishedStr, activityStr sql.NullString
 	if err := row.Scan(&r.ID, &r.ProjectID, &r.Trigger, &r.State, &r.Passes,
-		&standing, &r.FailingChecks, &r.Error, &createdStr, &finishedStr); err != nil {
+		&standing, &r.FailingChecks, &r.Error,
+		&r.StallReason, &r.CurrentStage, &r.CurrentLocale, &activityStr,
+		&createdStr, &finishedStr); err != nil {
 		return nil, err
 	}
 	if standing != "" && standing != "{}" {
@@ -265,11 +292,22 @@ func scanConvergenceRun(row scannable) (*ConvergenceRun, error) {
 	if createdStr != "" {
 		r.CreatedAt, _ = time.Parse(rfc3339Nano, createdStr)
 	}
-	if finishedStr.Valid && finishedStr.String != "" {
-		if t, err := time.Parse(rfc3339Nano, finishedStr.String); err == nil {
-			tu := t.UTC()
-			r.FinishedAt = &tu
-		}
-	}
+	r.FinishedAt = parseOptionalTime(finishedStr)
+	r.LastActivity = parseOptionalTime(activityStr)
 	return &r, nil
+}
+
+// parseOptionalTime parses a nullable/empty RFC3339Nano timestamp column into
+// an optional *time.Time (nil when absent), the store's shared representation
+// for finished_at / last_activity.
+func parseOptionalTime(s sql.NullString) *time.Time {
+	if !s.Valid || s.String == "" {
+		return nil
+	}
+	t, err := time.Parse(rfc3339Nano, s.String)
+	if err != nil {
+		return nil
+	}
+	tu := t.UTC()
+	return &tu
 }

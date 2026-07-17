@@ -32,6 +32,13 @@ const (
 	EventReviewRejected     = "review_rejected"
 	EventConnectorPublished = "connector_published"
 
+	// Convergence runs (strategy 2026-07-dogfood doc 06, theme D3). A run is
+	// correlatable end-to-end by run_id; completed carries the outcome and the
+	// machine-readable stall_reason so fleet-wide "where do runs stall" is
+	// answerable.
+	EventConvergenceRunStarted   = "convergence_run_started"
+	EventConvergenceRunCompleted = "convergence_run_completed"
+
 	// MCP surface.
 	EventMCPSessionStart = "mcp_session_start"
 	EventMCPToolCall     = "mcp_tool_call"

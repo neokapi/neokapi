@@ -27,9 +27,20 @@ type convergenceRunView struct {
 	FailingChecks int                                `json:"failing_checks,omitempty"`
 	// Error is the terminal cause for a failed/canceled run — the message the
 	// CLI prints so `kapi up` explains why it didn't converge. Empty otherwise.
-	Error      string `json:"error,omitempty"`
-	CreatedAt  string `json:"created_at,omitempty"`
-	FinishedAt string `json:"finished_at,omitempty"`
+	Error string `json:"error,omitempty"`
+	// StallReason is the machine-readable cause a run did not converge
+	// (needs_credits | needs_ai_key | rate_limited | no_progress |
+	// checks_failing), so a client distinguishes "out of credits" from "pending
+	// review" and offers the right next action (theme C). Empty on converge.
+	StallReason string `json:"stall_reason,omitempty"`
+	// CurrentStage/CurrentLocale/LastActivity surface the run's live loop
+	// position + heartbeat (theme D): a frozen LastActivity while awaiting jobs
+	// reads as stalled, not merely slow.
+	CurrentStage  string `json:"current_stage,omitempty"`
+	CurrentLocale string `json:"current_locale,omitempty"`
+	LastActivity  string `json:"last_activity,omitempty"`
+	CreatedAt     string `json:"created_at,omitempty"`
+	FinishedAt    string `json:"finished_at,omitempty"`
 }
 
 func toConvergenceRunView(r *bstore.ConvergenceRun) convergenceRunView {
@@ -42,12 +53,18 @@ func toConvergenceRunView(r *bstore.ConvergenceRun) convergenceRunView {
 		Locales:       r.Standing,
 		FailingChecks: r.FailingChecks,
 		Error:         r.Error,
+		StallReason:   r.StallReason,
+		CurrentStage:  r.CurrentStage,
+		CurrentLocale: r.CurrentLocale,
 	}
 	if !r.CreatedAt.IsZero() {
 		v.CreatedAt = r.CreatedAt.UTC().Format(time.RFC3339)
 	}
 	if r.FinishedAt != nil && !r.FinishedAt.IsZero() {
 		v.FinishedAt = r.FinishedAt.UTC().Format(time.RFC3339)
+	}
+	if r.LastActivity != nil && !r.LastActivity.IsZero() {
+		v.LastActivity = r.LastActivity.UTC().Format(time.RFC3339)
 	}
 	return v
 }

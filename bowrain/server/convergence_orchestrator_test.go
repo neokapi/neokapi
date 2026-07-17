@@ -115,6 +115,129 @@ func TestOrchestrator_DriveConverges(t *testing.T) {
 	assert.Contains(t, types, string(convergence.EventDone))
 }
 
+// TestOrchestrator_DriveStallsOnCredits asserts a credit refusal produces a
+// PARKED run carrying stall_reason=needs_credits + a human message — NOT a
+// silent, reasonless park (strategy 2026-07-dogfood doc 06, theme C). The
+// terminal done frame must carry the same stall_reason so the UI/SSE can label
+// it, and the reason surfaces through the run view.
+func TestOrchestrator_DriveStallsOnCredits(t *testing.T) {
+	s, runStore := newOrchestratorHarness(t)
+	ctx := context.Background()
+	run := &bstore.ConvergenceRun{ProjectID: "proj-1", Trigger: "push", State: bstore.ConvergenceRunRunning}
+	require.NoError(t, runStore.CreateRun(ctx, run))
+
+	// Produce refuses with the typed credit sentinel — exactly what the server
+	// produceFunc propagates when createTranslationJobs hits a zero-credit
+	// workspace.
+	funcs := convergence.LoopFuncs{
+		Derive: func(context.Context) (convergence.PassState, error) {
+			return convergence.PassState{
+				Pending:    []string{"fr-FR"},
+				UnitTotals: map[string]int{"fr-FR": 10},
+			}, nil
+		},
+		Produce: func(context.Context, string, int, *convergence.Emitter) (int, int, int, error) {
+			return 0, 0, 0, errStallNeedsCredits
+		},
+	}
+	s.convergence.driveWith(ctx, run, funcs)
+
+	got, err := runStore.GetRun(ctx, run.ID)
+	require.NoError(t, err)
+	// Parked (work saved), NOT failed — and labeled.
+	assert.Equal(t, bstore.ConvergenceRunParked, got.State)
+	assert.Equal(t, convergence.StallNeedsCredits, got.StallReason)
+	assert.NotEmpty(t, got.Error, "a labeled stall carries a human message")
+	// The reason surfaces through the REST view.
+	view := toConvergenceRunView(got)
+	assert.Equal(t, "needs_credits", view.StallReason)
+
+	// The terminal done frame carries the stall_reason so the SSE/UI can label
+	// the stall without a second round-trip.
+	_, payloads, err := runStore.ListEvents(ctx, run.ID, 0)
+	require.NoError(t, err)
+	require.NotEmpty(t, payloads)
+	var probe struct {
+		Type        string `json:"type"`
+		State       string `json:"state"`
+		StallReason string `json:"stallReason"`
+	}
+	require.NoError(t, json.Unmarshal(payloads[len(payloads)-1], &probe))
+	assert.Equal(t, "done", probe.Type)
+	assert.Equal(t, "parked", probe.State)
+	assert.Equal(t, "needs_credits", probe.StallReason)
+}
+
+// TestOrchestrator_RunContextColumns asserts the loop-observability columns
+// populate as a run progresses and surface through the run view (theme D): the
+// heartbeat (last_activity) advances, and a terminal run freezes its live
+// position (current_stage/current_locale) so the row does not read as still
+// producing.
+func TestOrchestrator_RunContextColumns(t *testing.T) {
+	s, runStore := newOrchestratorHarness(t)
+	ctx := context.Background()
+	run := &bstore.ConvergenceRun{ProjectID: "proj-1", Trigger: "cli", State: bstore.ConvergenceRunRunning}
+	require.NoError(t, runStore.CreateRun(ctx, run))
+
+	var mu sync.Mutex
+	produced := map[string]int{}
+	funcs := convergence.LoopFuncs{
+		Derive: func(context.Context) (convergence.PassState, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			st := convergence.PassState{UnitTotals: map[string]int{"fr-FR": 5}, Produced: produced["fr-FR"]}
+			if produced["fr-FR"] < 5 {
+				st.Pending = []string{"fr-FR"}
+			}
+			return st, nil
+		},
+		Produce: func(ctx context.Context, locale string, pass int, emit *convergence.Emitter) (int, int, int, error) {
+			// An ai_translate-staged progress event: the emitter records the
+			// stage/locale/heartbeat on the row.
+			emit.Emit(convergence.Event{
+				Type: convergence.EventUnitProgress, Stage: convergence.StageAITranslate,
+				Pass: pass, Locale: locale, Done: 5, ViaAI: 5,
+			})
+			mu.Lock()
+			produced[locale] = 5
+			mu.Unlock()
+			return 5, 0, 5, nil
+		},
+	}
+	s.convergence.driveWith(ctx, run, funcs)
+
+	got, err := runStore.GetRun(ctx, run.ID)
+	require.NoError(t, err)
+	assert.Equal(t, bstore.ConvergenceRunConverged, got.State)
+	// last_activity populated from the run's progress and surfaces via the view.
+	require.NotNil(t, got.LastActivity)
+	assert.False(t, got.LastActivity.IsZero())
+	assert.NotEmpty(t, toConvergenceRunView(got).LastActivity)
+	// A terminal run has stopped moving: the live position is frozen.
+	assert.Empty(t, got.CurrentStage)
+	assert.Empty(t, got.CurrentLocale)
+}
+
+// TestOrchestrator_ParkLabelsReason asserts an ordinary park (no typed stall
+// error) still gets a machine-readable reason: checks_failing when bound checks
+// demoted units, else no_progress. This distinguishes "real pending review"
+// from an out-of-credits block on the same parked state (theme C).
+func TestOrchestrator_ParkLabelsReason(t *testing.T) {
+	s, runStore := newOrchestratorHarness(t)
+	ctx := context.Background()
+	run := &bstore.ConvergenceRun{ProjectID: "proj-1", Trigger: "push", State: bstore.ConvergenceRunRunning}
+	require.NoError(t, runStore.CreateRun(ctx, run))
+
+	// stallingFuncs reports FailingChecks each pass, so the park is labeled
+	// checks_failing.
+	s.convergence.driveWith(ctx, run, stallingFuncs([]string{"fr-FR"}, 10))
+
+	got, err := runStore.GetRun(ctx, run.ID)
+	require.NoError(t, err)
+	assert.Equal(t, bstore.ConvergenceRunParked, got.State)
+	assert.Equal(t, convergence.StallChecksFailing, got.StallReason)
+}
+
 func TestOrchestrator_DriveParks(t *testing.T) {
 	s, runStore := newOrchestratorHarness(t)
 	ctx := context.Background()

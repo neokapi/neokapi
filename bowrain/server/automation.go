@@ -316,7 +316,10 @@ func (s *Server) triggerAutoTranslate(ctx context.Context, projectID string, ite
 		wsSlug = "_anon"
 	}
 
-	jobIDs := s.createTranslationJobs(ctx, proj, itemNames, locales, pushID, wsSlug, stepID)
+	// The automation path treats a credit refusal as a silent no-op (it has no
+	// run row to label); the convergence orchestrator inspects the returned
+	// error instead. See createTranslationJobs.
+	jobIDs, _ := s.createTranslationJobs(ctx, proj, itemNames, locales, pushID, wsSlug, stepID)
 
 	// Register spawned jobs on the automation step for visibility tracking.
 	if stepID != "" && s.AutomationRunStore != nil && len(jobIDs) > 0 {
@@ -332,9 +335,15 @@ func (s *Server) triggerAutoTranslate(ctx context.Context, projectID string, ite
 // primitive behind both the auto-extract/translate automation path and the
 // convergence orchestrator's Produce step; the model resolution and provider
 // binding ("platform" + BOWRAIN_PLATFORM_PROVIDER) are identical for both.
-func (s *Server) createTranslationJobs(ctx context.Context, proj *store.Project, itemNames, locales []string, pushID, wsSlug, stepID string) []string {
+//
+// On a zero-credit workspace it refuses to spawn jobs and returns a typed
+// errStallNeedsCredits sentinel (NOT an empty list silently) so the convergence
+// orchestrator can label the run's stall_reason instead of parking with no
+// reason (strategy 2026-07-dogfood doc 06, theme C). The automation caller
+// discards the error — a refusal there is a legitimate no-op.
+func (s *Server) createTranslationJobs(ctx context.Context, proj *store.Project, itemNames, locales []string, pushID, wsSlug, stepID string) ([]string, error) {
 	if s.JobStore == nil || s.JobQueue == nil {
-		return nil
+		return nil, nil
 	}
 	// Credit pre-check (Epic 004): these are platform-key jobs. Refuse to spawn
 	// them for a zero-credit workspace so automation (and the convergence
@@ -343,7 +352,7 @@ func (s *Server) createTranslationJobs(ctx context.Context, proj *store.Project,
 	if s.insufficientPlatformCredits(ctx, proj.WorkspaceID, "platform") {
 		slog.Warn("translation jobs: skipped — workspace out of credits",
 			"workspace_id", proj.WorkspaceID, "project", proj.ID)
-		return nil
+		return nil, errStallNeedsCredits
 	}
 	model := "gpt-4o-mini"
 	if proj.Properties != nil && proj.Properties["ai_model"] != "" {
@@ -380,7 +389,7 @@ func (s *Server) createTranslationJobs(ctx context.Context, proj *store.Project,
 			jobIDs = append(jobIDs, job.ID)
 		}
 	}
-	return jobIDs
+	return jobIDs, nil
 }
 
 // executeNotifyAction sends a notification to specified users.
