@@ -53,9 +53,16 @@ type FormatInfo struct {
 }
 
 // ErrorResponse is a standard error response.
+//
+// Reference is the per-request correlation ID (the same value echoed in the
+// X-Request-ID response header and stamped on every server log line for this
+// request). Clients surface it to the user as an error "reference" so a single
+// ID drills all the way down to logs and the Sentry issue.
 type ErrorResponse struct {
-	Error   string `json:"error"`
-	Details string `json:"details,omitempty"`
+	Error     string `json:"error"`
+	Details   string `json:"details,omitempty"`
+	Code      string `json:"code,omitempty"`
+	Reference string `json:"reference,omitempty"`
 }
 
 // HandleHealth returns a simple health check.

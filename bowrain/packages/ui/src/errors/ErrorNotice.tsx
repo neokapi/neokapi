@@ -1,8 +1,46 @@
 import { useMemo, useState } from "react";
 import { cn } from "@neokapi/ui-primitives";
-import { AlertTriangle, ChevronDown, ChevronRight } from "../components/icons";
+import { AlertTriangle, ChevronDown, ChevronRight, Copy, Check } from "../components/icons";
 import { parseAppError, hasStructuredRaw } from "./parseAppError";
 import { JsonHighlight } from "./JsonHighlight";
+
+/**
+ * ReferenceChip renders the per-request correlation ID with a copy button.
+ * This is the value a user quotes to support so a single ID resolves to the
+ * exact server logs and Sentry issue.
+ */
+function ReferenceChip({ reference, testId }: { reference: string; testId: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    void navigator.clipboard?.writeText(reference).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      },
+      () => {},
+    );
+  };
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      data-testid={`${testId}-reference`}
+      title="Copy reference — quote this to support"
+      className={cn(
+        "inline-flex items-center gap-1 rounded border border-border/60 bg-muted/40 px-1.5 py-0.5",
+        "font-mono text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer",
+      )}
+    >
+      <span className="opacity-70">ref</span>
+      <span className="break-all">{reference}</span>
+      {copied ? (
+        <Check className="w-3 h-3 shrink-0 text-emerald-500" />
+      ) : (
+        <Copy className="w-3 h-3 shrink-0" />
+      )}
+    </button>
+  );
+}
 
 export interface ErrorNoticeProps {
   /** The raw error value (anything thrown/rejected — Error, envelope, string). */
@@ -50,6 +88,9 @@ export function ErrorNotice({
   const detail = [secondary, parsed.detail].filter((t): t is string => Boolean(t)).join(" — ");
   const recovery = hint ?? parsed.hint;
   const showDetails = hasStructuredRaw(parsed);
+  const referenceChip = parsed.reference && (
+    <ReferenceChip reference={parsed.reference} testId={testId} />
+  );
 
   const disclosure = showDetails && (
     <button
@@ -110,6 +151,7 @@ export function ErrorNotice({
             {disclosure}
           </span>
         </div>
+        {referenceChip && <div className="mt-1.5">{referenceChip}</div>}
         {rawJson}
       </div>
     );
@@ -130,10 +172,11 @@ export function ErrorNotice({
           <p className="font-medium text-destructive break-words">{headline}</p>
           {detail && <p className="mt-0.5 text-destructive/80 break-words">{detail}</p>}
           {recovery && <p className="mt-0.5 text-xs text-muted-foreground">{recovery}</p>}
-          {(retry || disclosure) && (
-            <div className="mt-1.5 flex items-center gap-3">
+          {(retry || disclosure || referenceChip) && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-3">
               {retry}
               {disclosure}
+              {referenceChip}
             </div>
           )}
           {rawJson}

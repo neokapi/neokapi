@@ -166,6 +166,33 @@ describe("parseAppError", () => {
     expect(parseAppError(true).title).toBe("Something went wrong");
   });
 
+  describe("reference (correlation ID)", () => {
+    it("extracts reference from the REST envelope body", () => {
+      const parsed = parseAppError({ error: "internal server error", reference: "req-abc-123" });
+      expect(parsed.reference).toBe("req-abc-123");
+    });
+
+    it("extracts reference from a stringified '<status>: <json>' body", () => {
+      const parsed = parseAppError(
+        new Error(`500: ${JSON.stringify({ error: "internal server error", reference: "req-xyz" })}`),
+      );
+      expect(parsed.status).toBe(500);
+      expect(parsed.reference).toBe("req-xyz");
+    });
+
+    it("picks up a reference attached to an Error instance (header-derived)", () => {
+      const err = Object.assign(new Error("502: <html>bad gateway</html>"), {
+        reference: "req-from-header",
+      });
+      const parsed = parseAppError(err);
+      expect(parsed.reference).toBe("req-from-header");
+    });
+
+    it("leaves reference undefined when absent", () => {
+      expect(parseAppError({ error: "nope" }).reference).toBeUndefined();
+    });
+  });
+
   it("does not double-parse nested JSON (single parse attempt only)", () => {
     // The inner message is itself a JSON string; after one parse we must not
     // keep unwrapping.

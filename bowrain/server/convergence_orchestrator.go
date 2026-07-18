@@ -16,6 +16,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/event"
 	"github.com/neokapi/neokapi/bowrain/jobs"
+	"github.com/neokapi/neokapi/bowrain/observe"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/id"
@@ -276,6 +277,12 @@ func (o *convergenceOrchestrator) runSettleSource(ctx context.Context, run *bsto
 // (event persistence, SSE fan-out, state transitions, park→review) is testable
 // against an in-memory model without the full block store + job queue.
 func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.ConvergenceRun, funcs convergence.LoopFuncs) {
+	// A convergence run has no HTTP request ID, but the run ID is the handle the
+	// user sees (it is in the run URL). Seed it as the correlation ID so every
+	// *Context log line during this run — and any Sentry event — carries
+	// request_id=<run.ID>, unifying the background-run and per-request ID spaces.
+	ctx = observe.WithRequestID(ctx, run.ID)
+
 	s := o.server
 	store := s.ConvergenceRunStore
 	defer func() {
@@ -363,11 +370,11 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 		run.State = bstore.ConvergenceRunParked
 		run.StallReason = stall.reason
 		run.Error = stall.message
-		slog.Info("convergence: run parked on stall", "run", run.ID, "stall_reason", stall.reason)
+		slog.InfoContext(ctx, "convergence: run parked on stall", "run", run.ID, "stall_reason", stall.reason)
 	case loopErr != nil:
 		run.State = bstore.ConvergenceRunFailed
 		run.Error = loopErr.Error()
-		slog.Warn("convergence: run failed", "run", run.ID, "error", loopErr)
+		slog.WarnContext(ctx, "convergence: run failed", "run", run.ID, "error", loopErr)
 	case len(res.Final.Pending) > 0:
 		run.State = bstore.ConvergenceRunParked
 		run.StallReason = parkedStallReason(res.Final)

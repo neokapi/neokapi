@@ -1076,6 +1076,11 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	// hop), which the client cannot forge.
 	configureIPExtractor(e)
 
+	// Single, consistent error handler: unified ErrorResponse envelope, a
+	// "reference" (request ID) on every error, no internal-detail leakage on
+	// 5xx, and the Sentry capture seam. Replaces Echo's default handler.
+	e.HTTPErrorHandler = s.httpErrorHandler
+
 	// Middleware — order matters:
 	// 1. Request ID (propagate/generate correlation ID)
 	// 2. Structured request logging (slog-echo, includes request_id)
@@ -2053,6 +2058,9 @@ func (s *Server) corsConfig() middleware.CORSConfig {
 	cfg := middleware.CORSConfig{
 		AllowMethods: []string{http.MethodGet, http.MethodHead, http.MethodPut, http.MethodPatch, http.MethodPost, http.MethodDelete, http.MethodOptions},
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization, "X-Requested-With"},
+		// Expose the correlation ID so cross-origin clients (desktop app, CLI)
+		// can read it off any response and attach it as the error "reference".
+		ExposeHeaders: []string{observe.RequestIDHeader},
 	}
 
 	if s.Config.OIDCPublicURL != "" {

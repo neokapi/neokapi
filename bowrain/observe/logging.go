@@ -42,6 +42,10 @@ func SetupLogger(format, level string) *slog.Logger {
 		sink = slog.NewJSONHandler(os.Stdout, opts)
 	}
 
+	// Wrap the sink so context-borne correlation IDs (request_id, trace_id)
+	// are stamped onto every record emitted with a *Context variant. This is
+	// the log half of the drill-down story: the client's error "reference" is
+	// this same request_id.
 	handler := slogmulti.
 		Pipe(slogformatter.NewFormatterMiddleware(
 			slogformatter.PIIFormatter("email"),
@@ -52,7 +56,7 @@ func SetupLogger(format, level string) *slog.Logger {
 			maskURLFormatter("redis_url"),
 			maskURLFormatter("database_url"),
 		)).
-		Handler(sink)
+		Handler(NewContextHandler(sink))
 
 	logger := slog.New(handler)
 	slog.SetDefault(logger)

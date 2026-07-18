@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -438,10 +439,61 @@ func runWorker(dbURL string) error {
 	healthPort := envOrDefault("BOWRAIN_HEALTH_PORT", "8081")
 	g.Go(func() error {
 		mux := http.NewServeMux()
+		// Liveness: the process is up. Cheap, dependency-free — used by the
+		// container/orchestrator to decide whether to restart the task.
 		mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"status":"ok"}`))
+		})
+		// Readiness: the worker's dependencies are reachable. Mirrors the
+		// server's /api/v1/ready so the ctrl Health page can show a real
+		// per-component status for the worker, not just "process alive".
+		mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+			type comp struct {
+				Status string `json:"status"`
+				Error  string `json:"error,omitempty"`
+			}
+			components := map[string]comp{}
+			overall := "ready"
+
+			// Database.
+			dbCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+			defer cancel()
+			if err := pgdb.DB.PingContext(dbCtx); err != nil {
+				components["database"] = comp{Status: "down", Error: err.Error()}
+				overall = "unhealthy"
+			} else {
+				components["database"] = comp{Status: "up"}
+			}
+
+			// Job queue.
+			if translationQueue.Healthy() {
+				components["queue"] = comp{Status: "up"}
+			} else {
+				components["queue"] = comp{Status: "down"}
+				if overall == "ready" {
+					overall = "degraded"
+				}
+			}
+
+			// Blob store (presence — the worker cannot run extraction without it).
+			if blobStore != nil {
+				components["blob"] = comp{Status: "up"}
+			} else {
+				components["blob"] = comp{Status: "unconfigured"}
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			code := http.StatusOK
+			if overall == "unhealthy" {
+				code = http.StatusServiceUnavailable
+			}
+			w.WriteHeader(code)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"status":     overall,
+				"components": components,
+			})
 		})
 		srv := &http.Server{Addr: ":" + healthPort, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 		go func() {
