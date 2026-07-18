@@ -1117,6 +1117,12 @@ func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
+	// Derive per-locale + per-collection ship states (bounded QA pass) so the
+	// cached result carries them for every paged slice.
+	if err := applyShipStates(ctx, s.ContentStore, proj.ID, stream, stats); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
 	// Cache the full result; each request slices its own page from it.
 	s.dashboardCache.Store(cacheKey, &dashboardCacheEntry{
 		stats:     stats,

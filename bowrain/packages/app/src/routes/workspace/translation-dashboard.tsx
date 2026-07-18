@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
-import { useParams, useRouteContext } from "@tanstack/react-router";
-import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
+import { keepPreviousData, useQueries, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import {
+  DeliveryPanel,
   TranslationDashboard,
   TranslationDashboardSkeleton,
   useApi,
   useStream,
   type DashboardItemSort,
+  type DeliveryConnectorStatus,
   type FileProgressPaging,
+  type ItemTranslationStats,
 } from "@neokapi/ui";
 import {
   DASHBOARD_ITEM_PAGE_SIZE,
@@ -16,8 +19,20 @@ import {
 } from "../../queries";
 import type { WorkspaceRouteContext } from "..";
 
+/**
+ * itemAwaitingReview picks the first item with translations that carry no
+ * review decision yet — the target for the delivery panel's review deep link.
+ */
+function itemAwaitingReview(items: ItemTranslationStats[]): ItemTranslationStats | undefined {
+  return (
+    items.find((it) => it.locales.some((l) => l.translated_blocks > (l.approved_blocks ?? 0))) ??
+    items[0]
+  );
+}
+
 export function TranslationDashboardRoute() {
-  const { projectId } = useParams({ strict: false });
+  const navigate = useNavigate();
+  const { workspace, projectId } = useParams({ strict: false });
   const adapter = useApi();
   const { activeWorkspace } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
   const ws = activeWorkspace.slug;
@@ -49,6 +64,22 @@ export function TranslationDashboardRoute() {
     placeholderData: keepPreviousData,
   });
 
+  // Delivery panel data: the workspace's connectors and each one's last
+  // delivery (same query keys as the connectors panel, so the caches align).
+  const { data: connectors } = useQuery({
+    queryKey: ["connectors", ws],
+    queryFn: () => adapter.listConnectors(ws),
+    staleTime: 15_000,
+  });
+  const statusQueries = useQueries({
+    queries: (connectors ?? []).map((c) => ({
+      queryKey: ["connector-status", ws, c.id],
+      queryFn: () => adapter.getConnectorStatus(ws, c.id),
+      staleTime: 30_000,
+      retry: false,
+    })),
+  });
+
   useEffect(() => {
     document.title = `Dashboard — ${project.name} — ${activeWorkspace.name} — Bowrain`;
   }, [project.name, activeWorkspace.name]);
@@ -71,9 +102,53 @@ export function TranslationDashboardRoute() {
     isLoading: isFetching,
   };
 
+  const deliveryConnectors: DeliveryConnectorStatus[] | undefined = connectors?.map((c, i) => {
+    const status = statusQueries[i]?.data;
+    // The status endpoint appends the connector's stored last sync failure as
+    // the final entry of `errors` (cleared on the next successful sync).
+    const errors = status?.errors ?? [];
+    return {
+      id: c.id,
+      name: c.name || c.id,
+      lastSync: status?.lastSync,
+      lastError: errors.length > 0 ? errors[errors.length - 1] : undefined,
+    };
+  });
+
+  const reviewItem = itemAwaitingReview(stats.item_stats);
+  const routeParams = {
+    workspace: workspace ?? ws,
+    projectId: project.id,
+    stream: activeStream,
+  };
+
+  const delivery = (
+    <DeliveryPanel
+      localeStats={stats.locale_stats}
+      connectors={deliveryConnectors}
+      onOpenConnectors={() =>
+        navigate({ to: "/$workspace/p/$projectId/s/$stream/connectors", params: routeParams })
+      }
+      onOpenReview={
+        reviewItem
+          ? () =>
+              navigate({
+                to: "/$workspace/p/$projectId/s/$stream/$itemId/review",
+                params: { ...routeParams, itemId: reviewItem.item_id },
+              })
+          : undefined
+      }
+    />
+  );
+
   return (
     <div className="mx-auto max-w-6xl p-6">
-      <TranslationDashboard stats={stats} projectName={project.name} itemsPaging={itemsPaging} />
+      <TranslationDashboard
+        stats={stats}
+        projectName={project.name}
+        itemsPaging={itemsPaging}
+        delivery={delivery}
+      />
     </div>
   );
 }

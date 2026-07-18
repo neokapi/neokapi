@@ -781,17 +781,19 @@ func (s *SQLiteStore) GetBlockStats(ctx context.Context, projectID, stream strin
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	locales, err := bstore.LoadBlockTargetLocales(ctx, s.db.DB, "sqlite", projectID, stream, blockIDs)
+	states, err := bstore.LoadBlockTargetStates(ctx, s.db.DB, "sqlite", projectID, stream, blockIDs)
 	if err != nil {
 		return nil, err
 	}
 	var result []platstore.BlockStatRow
 	for _, p := range ordered {
+		locales, approved := bstore.SplitTargetStates(states[p.blockID])
 		result = append(result, platstore.BlockStatRow{
-			ItemName:      p.itemName,
-			Translatable:  p.translatable,
-			SourceWords:   p.sourceWords,
-			TargetLocales: locales[p.blockID],
+			ItemName:        p.itemName,
+			Translatable:    p.translatable,
+			SourceWords:     p.sourceWords,
+			TargetLocales:   locales,
+			ApprovedLocales: approved,
 		})
 	}
 	return result, nil

@@ -676,6 +676,14 @@ export interface WordCountResult {
 // Translation Dashboard types
 // ---------------------------------------------------------------------------
 
+/**
+ * Ship state for one locale scope (project-wide or one collection), derived
+ * server-side: `governed` = fully translated, checks pass, every translation
+ * carries a human review decision; `ai_shippable` = fully translated and
+ * checks pass, machine-reviewed only; `pending` = anything less.
+ */
+export type ShipState = "governed" | "ai_shippable" | "pending";
+
 /** Per-locale translation progress */
 export interface LocaleTranslationStats {
   locale: string;
@@ -685,6 +693,12 @@ export interface LocaleTranslationStats {
   translated_words: number;
   total_words: number;
   percentage: number;
+  /** Blocks whose translation carries a review decision (reviewed/signed-off). */
+  approved_blocks?: number;
+  /** Translated blocks failing QA checks with error severity (computed at full coverage). */
+  failing_checks?: number;
+  /** Derived ship state; absent from producers that do not derive it (e.g. pulse). */
+  ship_state?: ShipState;
 }
 
 /** Per-file translation progress */

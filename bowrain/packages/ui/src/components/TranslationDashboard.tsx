@@ -1,7 +1,9 @@
-import { Card, CardContent, cn } from "@neokapi/ui-primitives";
-import type { TranslationDashboardStats } from "../types/api";
+import { Card, CardContent, CardHeader, CardTitle, cn } from "@neokapi/ui-primitives";
+import type { LocaleTranslationStats, TranslationDashboardStats } from "../types/api";
 import { Globe, FileText, Languages, BarChart3 } from "./icons";
+import { LanguageLabel } from "./LanguageLabel";
 import { LocaleCompletionChart } from "./LocaleCompletionChart";
+import { ShipStateBadge } from "./ShipStateBadge";
 import { WordCountChart } from "./WordCountChart";
 import { CollectionHeatmap } from "./CollectionHeatmap";
 import { FileProgressTable, type FileProgressPaging } from "./FileProgressTable";
@@ -31,6 +33,48 @@ export interface TranslationDashboardProps {
    * rest; when absent the table sorts the full list client-side.
    */
   itemsPaging?: FileProgressPaging;
+  /**
+   * Optional delivery panel (DeliveryPanel), rendered next to the per-locale
+   * ship-readiness list. The route composes it so this component stays free of
+   * data fetching.
+   */
+  delivery?: React.ReactNode;
+}
+
+// ---------------------------------------------------------------------------
+// Ship readiness (per-locale ship states)
+// ---------------------------------------------------------------------------
+
+function ShipReadinessCard({ localeStats }: { localeStats: LocaleTranslationStats[] }) {
+  return (
+    <Card data-testid="ship-readiness" className="gap-3">
+      <CardHeader className="pb-0">
+        <CardTitle className="text-sm">Ship readiness</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ul className="space-y-1.5">
+          {localeStats.map((l) => (
+            <li key={l.locale} className="flex items-center justify-between gap-2 text-sm">
+              <span className="flex min-w-0 items-center gap-2">
+                <LanguageLabel code={l.locale} displayName={l.display_name} hideCode />
+                <span className="text-muted-foreground text-xs tabular-nums">
+                  {l.translated_blocks}/{l.total_blocks} blocks
+                </span>
+              </span>
+              {l.ship_state && (
+                <ShipStateBadge
+                  state={l.ship_state}
+                  approvedBlocks={l.approved_blocks}
+                  totalBlocks={l.total_blocks}
+                  failingChecks={l.failing_checks}
+                />
+              )}
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -68,6 +112,7 @@ export function TranslationDashboard({
   projectName,
   className,
   itemsPaging,
+  delivery,
 }: TranslationDashboardProps) {
   if (!stats) {
     return (
@@ -90,6 +135,10 @@ export function TranslationDashboard({
   );
   const overallPct =
     totalWordsByLocale > 0 ? Math.round((translatedWordsByLocale / totalWordsByLocale) * 100) : 0;
+
+  // The ship-readiness band renders once the server derives ship states
+  // (older servers omit the field, keeping the legacy layout unchanged).
+  const hasShipStates = stats.locale_stats.some((l) => l.ship_state);
 
   return (
     <div data-testid="translation-dashboard" className={cn("space-y-6", className)}>
@@ -115,6 +164,16 @@ export function TranslationDashboard({
         <StatCard label="Target Languages" value={String(stats.locale_stats.length)} icon={Globe} />
         <StatCard label="Overall Completion" value={`${overallPct}%`} icon={Languages} />
       </div>
+
+      {/* Ship readiness + delivery */}
+      {(hasShipStates || delivery) && (
+        <div
+          className={cn("grid grid-cols-1 gap-4", delivery && hasShipStates && "lg:grid-cols-2")}
+        >
+          {hasShipStates && <ShipReadinessCard localeStats={stats.locale_stats} />}
+          {delivery}
+        </div>
+      )}
 
       {/* Charts Row */}
       {stats.locale_stats.length > 0 && (

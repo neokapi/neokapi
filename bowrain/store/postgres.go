@@ -827,17 +827,19 @@ func (s *PostgresStore) GetBlockStats(ctx context.Context, projectID, stream str
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	locales, err := LoadBlockTargetLocales(ctx, s.db.DB, "pg", projectID, stream, blockIDs)
+	states, err := LoadBlockTargetStates(ctx, s.db.DB, "pg", projectID, stream, blockIDs)
 	if err != nil {
 		return nil, err
 	}
 	var result []platstore.BlockStatRow
 	for _, p := range ordered {
+		locales, approved := SplitTargetStates(states[p.blockID])
 		result = append(result, platstore.BlockStatRow{
-			ItemName:      p.itemName,
-			Translatable:  p.translatable,
-			SourceWords:   p.sourceWords,
-			TargetLocales: locales[p.blockID],
+			ItemName:        p.itemName,
+			Translatable:    p.translatable,
+			SourceWords:     p.sourceWords,
+			TargetLocales:   locales,
+			ApprovedLocales: approved,
 		})
 	}
 	return result, rows.Err()

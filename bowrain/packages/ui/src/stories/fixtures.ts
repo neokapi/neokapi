@@ -19,6 +19,7 @@ import type {
   AutomationEvent,
   AutomationHistoryEntry,
   TranslationDashboardStats,
+  LocaleTranslationStats,
   RoleTemplate,
 } from "../types/api";
 
@@ -1633,6 +1634,48 @@ export const largeDashboardStats: TranslationDashboardStats = {
   translatable_blocks: 500,
   total_source_words: 38000,
 };
+
+// ---------------------------------------------------------------------------
+// Ship-state dashboard fixture
+// ---------------------------------------------------------------------------
+
+/**
+ * sampleDashboardStats with server-derived ship states stamped onto every
+ * locale slice, mirroring the server rule (governed = 100% coverage + every
+ * block approved + no failing checks; ai_shippable = 100% coverage + checks
+ * pass; pending otherwise). fr-FR is promoted to full coverage (governed) and
+ * de-DE to full coverage without full approval (ai_shippable) so all three
+ * states appear.
+ */
+export const shipStateDashboardStats: TranslationDashboardStats = (() => {
+  const promoteToFull = new Set(["fr-FR", "de-DE"]);
+  const approvedFraction: Record<string, number> = { "fr-FR": 1, "de-DE": 0.4, "ja-JP": 0.25 };
+
+  const stamp = (l: LocaleTranslationStats): LocaleTranslationStats => {
+    const full = promoteToFull.has(l.locale);
+    const translated = full ? l.total_blocks : l.translated_blocks;
+    const approved = Math.round(l.total_blocks * (approvedFraction[l.locale] ?? 0));
+    const covered = l.total_blocks > 0 && translated >= l.total_blocks;
+    return {
+      ...l,
+      translated_blocks: translated,
+      translated_words: full ? l.total_words : l.translated_words,
+      percentage: full ? 100 : l.percentage,
+      approved_blocks: approved,
+      failing_checks: 0,
+      ship_state: !covered ? "pending" : approved >= l.total_blocks ? "governed" : "ai_shippable",
+    };
+  };
+
+  return {
+    ...sampleDashboardStats,
+    locale_stats: sampleDashboardStats.locale_stats.map(stamp),
+    collection_stats: sampleDashboardStats.collection_stats.map((c) => ({
+      ...c,
+      locales: c.locales.map(stamp),
+    })),
+  };
+})();
 
 // ---------------------------------------------------------------------------
 // Role Templates

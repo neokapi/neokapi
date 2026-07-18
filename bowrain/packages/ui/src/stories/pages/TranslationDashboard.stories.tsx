@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { TranslationDashboard } from "../../components/TranslationDashboard";
+import { DeliveryPanel } from "../../components/DeliveryPanel";
 import { withProviders } from "../decorators";
-import { sampleDashboardStats, largeDashboardStats } from "../fixtures";
+import { sampleDashboardStats, largeDashboardStats, shipStateDashboardStats } from "../fixtures";
 
 const meta: Meta<typeof TranslationDashboard> = {
   title: "Pages/Translation/TranslationDashboard",
@@ -41,6 +42,42 @@ export const LargeProject: Story = {
   args: {
     stats: largeDashboardStats,
     projectName: "Marketing Platform",
+  },
+};
+
+/**
+ * Server-derived ship states: the ship-readiness band lists each locale's
+ * state (governed / AI-shippable / pending) and the collection heatmap carries
+ * the compact rollup indicators.
+ */
+export const WithShipStates: Story = {
+  args: {
+    stats: shipStateDashboardStats,
+    projectName: "Demo App",
+  },
+};
+
+/** Ship readiness beside the read-only delivery panel, as the route composes it. */
+export const WithDelivery: Story = {
+  args: {
+    stats: shipStateDashboardStats,
+    projectName: "Demo App",
+    delivery: (
+      <DeliveryPanel
+        localeStats={shipStateDashboardStats.locale_stats}
+        connectors={[
+          { id: "conn-wp", name: "Marketing WordPress", lastSync: "2026-07-17T09:12:00Z" },
+          {
+            id: "conn-git",
+            name: "docs-repo",
+            lastSync: "2026-07-16T18:40:00Z",
+            lastError: "push failed: remote rejected ref (protected branch)",
+          },
+        ]}
+        onOpenConnectors={() => {}}
+        onOpenReview={() => {}}
+      />
+    ),
   },
 };
 

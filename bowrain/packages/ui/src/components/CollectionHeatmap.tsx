@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, cn } from "@neokapi/ui-primitives";
 import type { CollectionTranslationStats } from "../types/api";
+import { ShipStateBadge } from "./ShipStateBadge";
 
 interface CollectionHeatmapProps {
   collectionStats: CollectionTranslationStats[];
@@ -56,13 +57,24 @@ export function CollectionHeatmap({ collectionStats, locales }: CollectionHeatma
                       const pct = ls ? Math.round(ls.percentage) : 0;
                       return (
                         <td key={locale} className="px-1 py-2 text-center">
-                          <span
-                            className={cn(
-                              "inline-block min-w-[48px] rounded px-1.5 py-0.5 text-[10px] font-medium tabular-nums",
-                              completionColor(pct),
+                          <span className="inline-flex items-center gap-1">
+                            <span
+                              className={cn(
+                                "inline-block min-w-[48px] rounded px-1.5 py-0.5 text-[10px] font-medium tabular-nums",
+                                completionColor(pct),
+                              )}
+                            >
+                              {pct}%
+                            </span>
+                            {ls?.ship_state && (
+                              <ShipStateBadge
+                                compact
+                                state={ls.ship_state}
+                                approvedBlocks={ls.approved_blocks}
+                                totalBlocks={ls.total_blocks}
+                                failingChecks={ls.failing_checks}
+                              />
                             )}
-                          >
-                            {pct}%
                           </span>
                         </td>
                       );

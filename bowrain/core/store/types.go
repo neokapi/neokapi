@@ -454,6 +454,10 @@ type BlockStatRow struct {
 	Translatable  bool     // whether the block is translatable
 	SourceWords   int      // word count from source text
 	TargetLocales []string // locales that have non-empty target translations
+	// ApprovedLocales is the subset of TargetLocales whose stored target carries
+	// a review decision (Target.Status at reviewed or above on the lifecycle
+	// ladder). Used to derive per-locale ship states without deserializing runs.
+	ApprovedLocales []string
 }
 
 // ---------------------------------------------------------------------------
@@ -478,6 +482,11 @@ type TranslationDashboardStats struct {
 }
 
 // LocaleTranslationStats holds translation progress for a single target locale.
+//
+// ApprovedBlocks, FailingChecks, and ShipState are additive extensions: older
+// consumers ignore them, and producers that do not compute checks (pulse, the
+// convergence derive path) leave FailingChecks at 0 and ShipState empty (the
+// field is then omitted from JSON).
 type LocaleTranslationStats struct {
 	Locale           string  `json:"locale"`
 	DisplayName      string  `json:"display_name,omitempty"`
@@ -486,6 +495,17 @@ type LocaleTranslationStats struct {
 	TranslatedWords  int     `json:"translated_words"`
 	TotalWords       int     `json:"total_words"`
 	Percentage       float64 `json:"percentage"`
+	// ApprovedBlocks counts translatable blocks whose target for this locale
+	// carries a review decision (Target.Status reviewed or signed-off).
+	ApprovedBlocks int `json:"approved_blocks"`
+	// FailingChecks counts translated blocks whose target for this locale fails
+	// the project's QA checks with error severity. Only computed for locales at
+	// full coverage in some scope (checks cannot promote an under-covered
+	// locale, so the expensive pass is skipped below the coverage gate).
+	FailingChecks int `json:"failing_checks"`
+	// ShipState is the derived per-locale ship state (see DeriveShipState).
+	// Empty when the producer did not derive it.
+	ShipState ShipState `json:"ship_state,omitempty"`
 }
 
 // ItemTranslationStats holds per-file translation progress.
