@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
@@ -55,6 +56,53 @@ func (a *App) computeSourceReadiness(ctx context.Context, proj *project.KapiProj
 		sc.Shippable = true
 	}
 	return sc, nil
+}
+
+// convergeSourceGate resolves the project's source-first convergence gate level
+// (defaults.source_gate) — the level-based gate that governs the CONVERGENCE
+// fan-out (`kapi up`), distinct from the coverage-bar SourceGate that `kapi
+// check --ship` evaluates. An unset/unknown value resolves to the default
+// (checked), so the local venue holds identically to the Bowrain server
+// (bowrain/core/store.SourceGateFor). The second result reports whether the raw
+// value named a recognized level (false = a typo fell back to the default).
+func convergeSourceGate(proj *project.KapiProject) (model.SourceGateLevel, bool) {
+	return model.ResolveSourceGate(proj.Defaults.SourceGate)
+}
+
+// settleAndCountHeldSource settles the project's source-locale blocks (stamping
+// SourceStatus over the distinct source files, deduped by path) and counts how
+// many translatable source blocks rank below the given source gate — the
+// blocked-on-source count `kapi up` surfaces. It is the local, file-scan
+// counterpart of the server's settleSource + gate rollup, sharing the same
+// core.check settle derivation. A disabled gate (SourceGateNone) settles nothing
+// and holds nothing (the opt-out never pays the settlement cost). total is how
+// many translatable source blocks were considered.
+func (a *App) settleAndCountHeldSource(ctx context.Context, gateLevel model.SourceGateLevel, units []VerifyUnit) (held, total int, err error) {
+	if gateLevel == model.SourceGateNone {
+		return 0, 0, nil
+	}
+	seen := map[string]bool{}
+	for _, u := range units {
+		if seen[u.SourcePath] {
+			continue
+		}
+		seen[u.SourcePath] = true
+		blocks, berr := a.readBlocks(ctx, u.SourcePath, a.SourceLang)
+		if berr != nil {
+			return 0, 0, berr
+		}
+		for _, b := range blocks {
+			if !b.Translatable {
+				continue
+			}
+			total++
+			check.SettleSourceStatus(ctx, b)
+			if !gateLevel.Admits(b.SourceStatus) {
+				held++
+			}
+		}
+	}
+	return held, total, nil
 }
 
 // reviewedIndex maps each unit (block identity + locale) to its committed review

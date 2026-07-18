@@ -125,6 +125,17 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	}, toolSchema(&CaseTransformConfig{Mode: CaseLower, ApplySource: true}, toolMeta("case-transform", "Case Transform", schema.CategoryTextProcessing,
 		withTags("text-processing"), withWritesOutput(), withCardinality(schema.Monolingual))))
 
+	// source-gate is the leading source-transform stage of source-first
+	// convergence (epic 019): it settles the source authoring status and holds
+	// blocks below the configured source gate so downstream producers skip an
+	// un-settled source. Monolingual (it reasons about the source only) and a
+	// source-content transformer, so it sits at the head of a flow's leading
+	// source-transform stage.
+	reg.RegisterWithSchema("source-gate", func() tool.Tool {
+		return NewSourceGateTool(model.DefaultSourceGate)
+	}, toolSchema(&SourceGateConfig{Gate: string(model.DefaultSourceGate)}, toolMeta("source-gate", "Source Gate", schema.CategoryTranslation,
+		withTags(schema.TagL10n), withCardinality(schema.Monolingual))))
+
 	RegisterSegmentation(reg)
 
 	reg.RegisterWithSchema("create-target", func() tool.Tool {
@@ -252,6 +263,7 @@ func registerConfigFactories(reg *registry.ToolRegistry) {
 	reg.SetConfigFactory("search-replace", NewSearchReplaceFromConfig)
 	reg.SetConfigFactory("case-transform", NewCaseTransformFromConfig)
 	// segmentation's ConfigFactory is set by RegisterGroup (it's a ToolGroup).
+	reg.SetConfigFactory("source-gate", NewSourceGateFromConfig)
 	reg.SetConfigFactory("recycle", NewTMLeverageFromConfig)
 	reg.SetConfigFactory("diff-leverage", NewDiffLeverageFromConfig)
 	reg.SetConfigFactory("script", NewScriptFromConfig)

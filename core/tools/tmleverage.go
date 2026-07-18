@@ -193,6 +193,14 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 			return nil
 		}
 
+		// Source-gate hold (epic 019): skip a block whose source ranks below the
+		// active source gate — the leading source-gate stage marked it, and an
+		// un-settled source must not be recycled into a target either. No-op when
+		// the gate is off or the source cleared (marker absent).
+		if v.Property(model.PropSourceHeld) == "1" {
+			return nil
+		}
+
 		conf := t.Cfg.(*TMLeverageConfig)
 		if conf.Provider == nil {
 			return nil

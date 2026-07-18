@@ -814,6 +814,30 @@
         }
       }
     },
+    "source-gate": {
+      "displayName": "Source Gate",
+      "category": "translation",
+      "properties": {
+        "gate": {
+          "title": "Source Gate",
+          "description": "Minimum source-authoring status a block must reach before its translations are produced",
+          "options": {
+            "approved": {
+              "label": "approved"
+            },
+            "authored": {
+              "label": "authored"
+            },
+            "checked": {
+              "label": "checked"
+            },
+            "none": {
+              "label": "none"
+            }
+          }
+        }
+      }
+    },
     "term-check": {
       "displayName": "Terminology Check",
       "category": "quality",

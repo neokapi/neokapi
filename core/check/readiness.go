@@ -1,12 +1,47 @@
 package check
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 )
+
+// SettleSourceStatus runs the provider-free source checks over one block and
+// stamps its SourceStatus with the terminal readiness stamp — the single
+// authored→checked derivation both venues share (the Bowrain server's
+// settleBlockStatus and the local converge's source-gate leading stage), so the
+// server and CLI promote/demote a block from identical findings. Content-lint
+// supplies the source-QA hygiene findings; the readiness tool promotes a clean
+// block to `checked` and demotes a block with a major+ finding to `authored`,
+// leaving an already-`approved` clean source untouched.
+//
+// It is deliberately provider-free: the automated `checked` gate is satisfied by
+// deterministic checks, so settling an un-ready corpus never itself burns AI
+// credits. Deeper LLM-backed source brand-checking layers on top later, not in
+// front of the gate.
+func SettleSourceStatus(ctx context.Context, b *model.Block) {
+	if b == nil || !b.Translatable {
+		return
+	}
+	part := &model.Part{Type: model.PartBlock, Resource: b}
+
+	// Source-QA hygiene (empty/whitespace, doubled words, stray control chars…).
+	lint := NewContentLintTool()
+	_, _ = lint.ApplyContext(ctx, part)
+
+	// Terminal readiness stamp: reads the findings the checks left and
+	// promotes/demotes SourceStatus. A clean, already-approved source keeps its
+	// approval. A misconfigured blockSeverity is impossible here ("major" is a
+	// valid constant), so the error is unreachable and ignored.
+	readiness, err := NewSourceReadinessTool("major")
+	if err != nil {
+		return
+	}
+	_, _ = readiness.ApplyContext(ctx, part)
+}
 
 // SeverityLister lets annotations outside the unified quality.findings shape
 // (e.g. the brand-voice annotation) expose their finding severities to the

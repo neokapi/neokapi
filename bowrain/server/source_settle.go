@@ -184,23 +184,12 @@ func (o *convergenceOrchestrator) gateItemsBySource(ctx context.Context, project
 
 // settleBlockStatus runs the provider-free source checks over one block and
 // stamps its SourceStatus with the framework's SourceReadinessTool — the same
-// terminal readiness stamp `kapi check` uses, so the server and CLI derive the
-// same authored→checked promotion from the same findings. Content-lint supplies
-// the source-QA hygiene findings today; the readiness tool promotes a clean
-// block to `checked` and demotes a block with a major+ finding to `authored`.
+// terminal readiness stamp `kapi check` and the local converge's source-gate
+// stage use, so the server and CLI derive the same authored→checked promotion
+// from the same findings. It is a thin alias for the shared core helper so the
+// two venues cannot drift.
 func settleBlockStatus(ctx context.Context, b *model.Block) {
-	// Source-QA hygiene (empty/whitespace, doubled words, stray control chars…).
-	lint := check.NewContentLintTool()
-	part := &model.Part{Type: model.PartBlock, Resource: b}
-	_, _ = lint.ApplyContext(ctx, part)
-
-	// Terminal readiness stamp: reads the findings the checks left and promotes/
-	// demotes SourceStatus. A clean, already-approved source keeps its approval.
-	readiness, err := check.NewSourceReadinessTool("major")
-	if err != nil {
-		return
-	}
-	_, _ = readiness.ApplyContext(ctx, part)
+	check.SettleSourceStatus(ctx, b)
 }
 
 // sourceChangedSinceSettle reports whether a block's current source content hash
