@@ -1,11 +1,11 @@
 name: Prune PR Preview
 
 # When a PR closes (merged or not), its preview under /web/prs/<N>/ and
-# /storybook/prs/<N>/ is dead weight. Previews now live in Cloudflare R2 (under
-# the previews/ prefix, served by the neokapi-pr-previews Worker), not in the
-# neokapi.github.io git repo, so teardown is an R2 delete — instant, and it
-# actually reclaims the storage (the old git prune only removed files from the
-# tip; every binary stayed in history forever and bloated the repo to GB).
+# /storybook/prs/<N>/ is dead weight. Previews live in an AWS S3 bucket (served
+# by the preview.<domain> CloudFront distribution), not in the neokapi.github.io
+# git repo, so teardown is an S3 delete — instant, and it actually reclaims the
+# storage (the old git prune only removed files from the tip; every binary stayed
+# in history forever and bloated the repo to GB).
 #
 # This also reclaims the per-PR Actions caches the closed PR's CI runs created.
 
@@ -27,13 +27,17 @@ concurrency:
 
 jobs:
   prune-preview:
-    name: Prune R2 preview
+    name: Prune S3 preview
     runs-on: ubuntu-latest
-    # Fork PRs never got a preview (the deploy needs the R2 secret); only run
-    # for same-repo PRs and manual dispatch.
+    # Fork PRs never got a preview (the deploy needs the OIDC preview role, which
+    # only same-repo workflows can assume); only run for same-repo PRs and manual
+    # dispatch.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: read
+      id-token: write # assume the AWS OIDC preview role to delete from S3
     env:
       PR: ${{ github.event.pull_request.number || github.event.inputs.pr }}
     steps:
@@ -46,12 +50,15 @@ jobs:
           case "$PR" in
             ''|*[!0-9]*) echo "::error::PR must be a number, got: '$PR'"; exit 1 ;;
           esac
-      - name: Remove preview from R2
+      - name: Configure AWS credentials (preview role)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.PREVIEW_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Remove preview from S3
         env:
-          R2_BUCKET: ${{ vars.R2_BUCKET }}
-          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          PREVIEW_BUCKET: ${{ vars.PREVIEW_BUCKET }}
+          PREVIEW_DISTRIBUTION_ID: ${{ vars.PREVIEW_DISTRIBUTION_ID }}
         run: bash scripts/prune-pr-preview.sh "$PR"
 
   # Reclaim the Actions caches a closed PR's CI runs created. PR runs are scoped

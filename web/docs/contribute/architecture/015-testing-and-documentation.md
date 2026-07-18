@@ -134,7 +134,7 @@ web/
 ├── scenes/                  # per-walkthrough WASM-embed fixtures: {id}/ (seeded in-browser)
 └── static/
     ├── img/                 # local images (logos, favicons); screenshots → CDN
-    └── video/               # explainer videos served from the R2 CDN (not git)
+    └── video/               # explainer videos served from the CDN (not git)
 ```
 
 A single `@docusaurus/plugin-content-docs` instance serves all content
@@ -153,11 +153,12 @@ notes live in `contribute/notes-internal/` for tactical details (schemas,
 algorithms, API routes) that would otherwise bloat the decision documents.
 
 Production is hosted on GitHub Pages, deployed via GitHub Actions on push to
-`main`. Large assets (videos, screenshots, ONNX models, the wasm engine) and
-per-PR previews are served from a Cloudflare R2 CDN rather than committed to the
-Pages repo — a delivery/operational detail intentionally left out of this
-decision and documented in
-[cdn-assets.md](../notes-internal/cdn-assets.md).
+`main`. Large assets (videos, screenshots, ONNX models, the wasm engine) are
+served from an S3 + CloudFront CDN, and per-PR previews from a sibling S3 +
+CloudFront host, rather than committed to the Pages repo — a delivery/operational
+detail intentionally left out of this decision and documented in
+[cdn-assets.md](../notes-internal/cdn-assets.md) (previews specifically in
+[deploy/preview-site/README.md](https://github.com/neokapi/neokapi/blob/main/deploy/preview-site/README.md)).
 
 ### Walkthrough/embed engine
 
@@ -244,15 +245,15 @@ change that breaks a documented command fails the contract.
 ### Asset generation and staging
 
 Videos, screenshots, and ONNX vision models are produced on the desktop (not in
-CI) and published to the Cloudflare R2 CDN (`$DOCS_CDN_URL`); the sites reference
-them by URL. The Makefile exposes only the targets that exist:
+CI) and published to the S3 + CloudFront CDN (`$DOCS_CDN_URL`); the sites
+reference them by URL. The Makefile exposes only the targets that exist:
 
 ```bash
 make harness-videos       # render the narrated explainer videos (light + dark)
                           #   → web/static/video/kapi/
 make harness-videos-staged # full pass: stack up → seed → record → narrate → package
-make publish-cdn-all      # publish videos + images + models (kapi & bowrain) → R2
-make publish-cdn-videos   # just the kapi videos → R2 (kapi/video/)
+make publish-cdn-all      # publish videos + images + models (kapi & bowrain) → CDN
+make publish-cdn-videos   # just the kapi videos → CDN (kapi/video/)
 make web-wasm-cli         # build the in-browser kapi CLI → static/wasm/kapi-cli.wasm.gz
 ```
 
@@ -260,8 +261,8 @@ The interactive embeds need no recording step: their generated
 `embeds/*.embed.ts` are committed, and they render live against the WASM CLI.
 Videos/models/screenshots are not stored in git or in GitHub releases. CI **does
 not record, render, or stage**: the sites build with `DOCS_CDN_URL` set (for push
-and same-repo PRs) and reference the assets on R2 (the wasm playground is built
-in CI and published to R2 by sha). A developer editing only documentation text
+and same-repo PRs) and reference the assets on the CDN (the wasm playground is
+built in CI and published to the CDN by sha). A developer editing only documentation text
 relies on the live CDN assets; to preview assets locally without the CDN, stage
 them same-origin on demand (e.g. `make fetch-vision-models`).
 

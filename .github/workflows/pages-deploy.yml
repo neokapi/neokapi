@@ -2,8 +2,8 @@ name: Pages Deploy
 
 # Combines artifacts from multiple build sources into deployments under a
 # path-based layout. PRODUCTION goes to the neokapi.github.io org Pages repo;
-# PR PREVIEWS go to Cloudflare R2 (served by the neokapi-pr-previews Worker),
-# NOT into git:
+# PR PREVIEWS go to an AWS S3 bucket served by the preview.<domain> CloudFront
+# distribution, NOT into git:
 #
 #   PRODUCTION (committed to neokapi.github.io)
 #     /                        kapi/framework Docusaurus site (SITE ROOT)
@@ -16,17 +16,20 @@ name: Pages Deploy
 #   production run of this workflow no longer receives their artifacts (the
 #   discover step simply finds none). PR previews below are unchanged.
 #
-#   PR PREVIEWS (synced to R2 previews/ prefix, served at $DOCS_PREVIEW_URL)
+#   PR PREVIEWS (synced to the S3 preview bucket, served at $DOCS_PREVIEW_URL)
 #     /web/prs/{N}/...         site/app previews
 #     /storybook/prs/{N}/...   storybook previews
 #
 # Why previews moved off git: every preview deploy committed the full wasm
 # (~73 MB) + vision model (~132 MB) + video payload into the Pages repo, which
 # grew to multiple GB of history that prune-on-close could not reclaim (it only
-# removed files from the tip). R2 has no per-file size limit, an `rm` actually
+# removed files from the tip). S3 has no per-file size limit, an `rm` actually
 # frees the storage, and the baked absolute base URLs (/web/prs/<N>/…) resolve
-# unchanged from the preview host root — so no build changes are needed.
-# See deploy/preview-worker/README.md and scripts/publish-pr-preview.sh.
+# unchanged from the preview host root — so no build changes are needed. A
+# CloudFront Function does the clean-URL resolution (index.html / trailingSlash
+# .html) the origin bucket can't. See deploy/preview-site/README.md and
+# scripts/publish-pr-preview.sh. (Previews briefly lived on Cloudflare R2 + a
+# Worker; that host broke when the bowrain.cloud zone moved to Route53.)
 #
 # Artifact names this workflow looks for:
 #   kapi-site, bowrain-site           — Docusaurus build outputs
@@ -47,6 +50,7 @@ permissions:
   contents: read
   pull-requests: write
   actions: read # required by actions/download-artifact for cross-workflow runs
+  id-token: write # assume the AWS OIDC preview role to publish PR previews to S3
 
 concurrency:
   # Group per source workflow + branch. A single shared group is wrong here:
@@ -56,7 +60,7 @@ concurrency:
   # cancel each other; same-source builds still serialize. cancel-in-progress is
   # false so an in-flight publish always finishes. Cross-source production
   # deploys may run concurrently and race on the shared branch — the push step
-  # rebase-retries. PR previews write disjoint R2 prefixes and never race.
+  # rebase-retries. PR previews write disjoint S3 prefixes and never race.
   group: pages-deploy-${{ github.event.workflow_run.name || github.event_name }}-${{ github.event.workflow_run.head_branch || github.ref_name }}
   cancel-in-progress: false
 
@@ -361,15 +365,24 @@ jobs:
             sleep $((attempt * 3))
           done
 
-      # ---- PR PREVIEW publish: sync the PR's own subtree to the R2 previews
-      # prefix. No git, no per-file size limit, served by neokapi-pr-previews.
-      - name: Publish PR preview to R2
+      # ---- PR PREVIEW publish: sync the PR's own subtree to the S3 preview
+      # bucket. No git, no per-file size limit, served by the preview.<domain>
+      # CloudFront distribution. This job runs on `workflow_run` — always in the
+      # default-branch context — so its OIDC subject is ref:refs/heads/main,
+      # which the dedicated (low-privilege) preview role trusts; the role can
+      # only touch the preview bucket + its CloudFront invalidation.
+      - name: Configure AWS credentials (preview role)
+        if: ${{ steps.target.outputs.is_pr == 'true' && steps.target.outputs.skip != 'true' }}
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.PREVIEW_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Publish PR preview to S3
         if: ${{ steps.target.outputs.is_pr == 'true' && steps.target.outputs.skip != 'true' }}
         env:
-          R2_BUCKET: ${{ vars.R2_BUCKET }}
-          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          PREVIEW_BUCKET: ${{ vars.PREVIEW_BUCKET }}
+          PREVIEW_DISTRIBUTION_ID: ${{ vars.PREVIEW_DISTRIBUTION_ID }}
           PR_NUMBER: ${{ steps.target.outputs.pr_number }}
         run: bash scripts/publish-pr-preview.sh "${PR_NUMBER}" pages
 
@@ -378,14 +391,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.target.outputs.pr_number }}
-          # The neokapi-pr-previews Worker origin (repo variable), e.g.
-          # https://preview.bowrain.cloud — see deploy/preview-worker/README.md.
+          # The preview.<domain> CloudFront origin (repo variable), e.g.
+          # https://preview.bowrain.cloud — see deploy/preview-site/README.md.
           PREVIEW_URL: ${{ vars.DOCS_PREVIEW_URL }}
         run: |
           BASE="${PREVIEW_URL:-https://preview.bowrain.cloud}"
           MARKER="<!-- pr-preview-links -->"
           BODY="${MARKER}
-          📚 Preview deployed (served from Cloudflare R2, not committed to git):
+          📚 Preview deployed (served from AWS S3 + CloudFront, not committed to git):
           - neokapi site: ${BASE}/web/prs/${PR_NUMBER}/neokapi/docs/
           - bowrain landing: ${BASE}/web/prs/${PR_NUMBER}/bowrain/
           - bowrain docs: ${BASE}/web/prs/${PR_NUMBER}/bowrain/docs/
