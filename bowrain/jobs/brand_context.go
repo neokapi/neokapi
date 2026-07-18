@@ -64,13 +64,8 @@ func resolveJobBrandProfile(ctx context.Context, deps *WorkerDeps, job *Translat
 }
 
 // resolveJobGlossary builds the source→target glossary for a translation job
-// from the workspace termbase, mirroring the CLI's ResolveProjectGlossary: for
-// each concept, the source-locale term paired with the preferred (or first
-// approved) target-locale term becomes a glossary mandate in the prompt.
-// Workspace-scoped concepts (empty ProjectID) and concepts scoped to this
-// project both apply; concepts scoped to other projects are excluded, and a
-// project-scoped rendering wins over a workspace-scoped one for the same
-// source term.
+// from the workspace termbase, mirroring the CLI's ResolveProjectGlossary via
+// the shared GlossaryFromTermbase derivation.
 //
 // Returns nil (and logs) when no termbase resolves, it has no terms for the
 // locale pair, or any read fails: terminology must never fail a translation
@@ -94,18 +89,41 @@ func resolveJobGlossary(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		}
 		return nil
 	}
-	concepts, err := tb.Concepts(ctx)
+	glossary, err := GlossaryFromTermbase(ctx, tb, job.ProjectID, sourceLocale, targetLocale)
 	if err != nil {
 		slog.WarnContext(ctx, "termbase read failed; translating without glossary",
 			"job_id", job.ID, "workspace", slug, "error", err)
 		return nil
+	}
+	return glossary
+}
+
+// GlossaryFromTermbase derives the source→target glossary a translation
+// prompt carries from a workspace termbase: for each concept, the
+// source-locale term paired with the preferred (or first approved)
+// target-locale term becomes a glossary mandate. Workspace-scoped concepts
+// (empty ProjectID) and concepts scoped to this project both apply; concepts
+// scoped to other projects are excluded, and a project-scoped rendering wins
+// over a workspace-scoped one for the same source term. Returns nil (not an
+// empty map) when the termbase has no terms for the locale pair.
+//
+// It is the single derivation shared by every server-side translation
+// surface — the worker's jobs (resolveJobGlossary) and the synchronous editor
+// translate in bowrain/server — so both mandate identical renderings.
+func GlossaryFromTermbase(ctx context.Context, tb termbase.TermBase, projectID string, sourceLocale, targetLocale model.LocaleID) (map[string]string, error) {
+	if tb == nil || sourceLocale == "" || targetLocale == "" {
+		return nil, nil
+	}
+	concepts, err := tb.Concepts(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	glossary := make(map[string]string)
 	projectScoped := make(map[string]bool)
 	for i := range concepts {
 		concept := &concepts[i]
-		if concept.ProjectID != "" && concept.ProjectID != job.ProjectID {
+		if concept.ProjectID != "" && concept.ProjectID != projectID {
 			continue // another project's terminology
 		}
 		src := concept.SourceTerm(sourceLocale)
@@ -116,7 +134,7 @@ func resolveJobGlossary(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		if tgt == nil || tgt.Text == "" {
 			continue
 		}
-		scoped := concept.ProjectID == job.ProjectID && concept.ProjectID != ""
+		scoped := concept.ProjectID == projectID && concept.ProjectID != ""
 		if _, exists := glossary[src.Text]; exists && (projectScoped[src.Text] || !scoped) {
 			// Keep the existing entry unless this one is more specific: a
 			// project-scoped rendering replaces a workspace-scoped one; equal
@@ -128,7 +146,7 @@ func resolveJobGlossary(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		projectScoped[src.Text] = scoped
 	}
 	if len(glossary) == 0 {
-		return nil
+		return nil, nil
 	}
-	return glossary
+	return glossary, nil
 }

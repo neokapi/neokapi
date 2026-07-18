@@ -515,9 +515,18 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 		return err
 	}
 
+	// Bind the project's standing brand context from the server's own stores —
+	// the same instances the brand and terminology surfaces use. Everything in
+	// it is optional: missing stores mean a bare translation, never an error.
+	brandCtx := editorBrandContext{Brand: s.BrandStore, Stores: s.wsStores}
+	if s.AuthStore != nil {
+		brandCtx.WorkspaceDefault = &mcpWorkspaceDefaultAdapter{auth: s.AuthStore}
+	}
+
 	wsID, _ := c.Get("workspace_id").(string)
 	stats, err := editorAITranslate(c.Request().Context(), s.ContentStore, s.ProviderStore, s.QuotaStore,
-		pid, streamParam(c), fname, req, s.BillingHooks, wsID, c.Param("ws"), s.platformProviderConfigForWorkspace(c.Request().Context(), wsID))
+		pid, streamParam(c), fname, req, s.BillingHooks, wsID, c.Param("ws"),
+		s.platformProviderConfigForWorkspace(c.Request().Context(), wsID), brandCtx)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
