@@ -65,9 +65,10 @@ export interface WorldDemandMapProps {
 const DEMAND_COLOR = "var(--chart-1, oklch(0.646 0.222 41.116))";
 
 /** Demand intensity 0..1 → themed choropleth fill. */
-function demandFill(intensity: number): string {
-  // sqrt spreads the low end so mid-size markets stay distinguishable.
-  const pct = Math.round((0.12 + 0.8 * Math.sqrt(intensity)) * 100);
+export function demandFill(intensity: number): string {
+  // sqrt spreads the low end so mid-size markets stay distinguishable; the
+  // 25% floor keeps the lowest demand tier visible against the card surface.
+  const pct = Math.round((0.25 + 0.6 * Math.sqrt(intensity)) * 100);
   return `color-mix(in oklab, ${DEMAND_COLOR} ${pct}%, var(--card))`;
 }
 
@@ -118,7 +119,7 @@ export function WorldDemandMap({
               data-country={demand?.code}
               fill={demand ? demandFill(demand.share / maxShare) : "var(--muted)"}
               fillOpacity={demand ? 1 : 0.35}
-              stroke={isSelected ? "var(--ring)" : "var(--background)"}
+              stroke={isSelected ? "var(--ring)" : "var(--border)"}
               strokeWidth={isSelected ? 1.75 : 0.5}
               className={cn(demand && "cursor-pointer", isHovered && "brightness-110")}
               onMouseEnter={() => setHovered(f.id)}

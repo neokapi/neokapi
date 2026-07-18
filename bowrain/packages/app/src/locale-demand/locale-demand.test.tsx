@@ -3,6 +3,7 @@ import { render, screen, fireEvent, within } from "@testing-library/react";
 import { describeCoverage } from "./CoverageBadge";
 import { LanguageDemandTable, sortLanguages } from "./LanguageDemandTable";
 import { DemandDrillDownPanel } from "./DemandDrillDownPanel";
+import { WorldDemandMap, demandFill } from "./WorldDemandMap";
 import { sampleDemandDataSource, languageByCode, countryByCode } from "./locale-demand-fixtures";
 
 const snapshot = sampleDemandDataSource.getSnapshot("30d");
@@ -131,5 +132,33 @@ describe("DemandDrillDownPanel", () => {
     expect(
       screen.getByText(/sample dataset \(web beacon \+ app telemetry ingest\)/i),
     ).toBeVisible();
+  });
+});
+
+describe("demandFill", () => {
+  it("keeps the lowest intensity well above the card background", () => {
+    expect(demandFill(0)).toContain(" 25%");
+  });
+
+  it("yields distinguishable steps across the intensity range", () => {
+    expect(demandFill(0.25)).toContain(" 55%");
+    expect(demandFill(0.5)).toContain(" 67%");
+    expect(demandFill(1)).toContain(" 85%");
+  });
+});
+
+describe("WorldDemandMap", () => {
+  it("outlines territories with the border token and the selection with the ring", () => {
+    render(<WorldDemandMap countries={snapshot.countries} selectedCountry="BR" />);
+    const map = screen.getByTestId("world-demand-map");
+    const paths = [...map.querySelectorAll("path")];
+    expect(paths.length).toBeGreaterThan(0);
+    const selected = paths.filter((p) => p.getAttribute("data-country") === "BR");
+    expect(selected).toHaveLength(1);
+    expect(selected[0].getAttribute("stroke")).toBe("var(--ring)");
+    for (const p of paths) {
+      if (p === selected[0]) continue;
+      expect(p.getAttribute("stroke")).toBe("var(--border)");
+    }
   });
 });
