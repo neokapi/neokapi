@@ -44,6 +44,8 @@ describe("posthog integration", () => {
         maskAllInputs: true,
         maskTextSelector: "[data-sensitive]",
       },
+      // Core Web Vitals ($web_vitals).
+      capture_performance: { web_vitals: true },
     });
   });
 
