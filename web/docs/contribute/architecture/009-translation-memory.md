@@ -209,21 +209,39 @@ A PostgreSQL backend with workspace-scoped isolation and project scoping can
 be supplied by a platform layer, reusing the same matching algorithm behind
 the same `TranslationMemory` interface.
 
-### Working store and committed serialization
+### The TM is derived state, not committed source
 
-The TM relates its store and serialization exactly as the termbase does
-([AD-010](010-terminology.md)): the committed `.klftm` (bound by
-`defaults.tm_source`) is the durable, shared, reviewable form, and the SQLite
-store is the working form over it, with explicit `import`/`export` (pack/unpack)
-between them — the KLF-parcel idiom ([AD-025](025-klf-package.md)), not a live
-sync. The file is what a clone restores from and what travels; the binary store
-is gitignored (committing it would be git-hostile and defeat interchange). So
-there is no "which is authoritative" ambiguity and no persistent dirty state:
-unpack before the work, pack after. In bowrain (server mode) the platform
-database is the working store and the API is the boundary — git is not in the
-loop. Unlike the project *state* store ([AD-033](033-project-state-model.md)),
-whose interactive review decisions warrant a deferred `Pending()`/`Export`
-discipline, the TM is load-transform-save shaped, so plain pack/unpack suffices.
+The translation memory is **accumulated machine memory** — every translated
+segment becomes leverage for the next — not authored, reviewed content. So unlike
+the termbase ([AD-010](010-terminology.md)), which is *source*, the TM is
+**state, kept out of git scope** — the same posture as Terraform state:
+
+- its home is a store **outside git**: `.kapi/cache/` locally, the CI job cache
+  (the `actions/cache` idiom — restore at job start, save at job end) in CI, and
+  the bowrain platform database for a team (the shared, authoritative "remote
+  backend"). One continuum, larger backend.
+- it is **rebuildable**, which makes it softer than Terraform state: the leverage
+  reconstructs from the committed translations (`i18n-<lang>/` source+target
+  pairs) plus an optional human-curated, **read-only** committed `.klftm` *seed*
+  bound by `defaults.tm_source`. A cold or clobbered cache is a performance hit,
+  not data loss.
+- because it is additive and rebuildable it needs **no locking**: it tolerates
+  last-write-wins or per-branch cache keys, unlike Terraform state, which must be
+  locked because it is irreplaceable.
+
+Consequently **CI never commits the TM**: it restores the store from the cache,
+leverages and accumulates during the run, and saves it back to the cache — the
+translation *output* (`i18n-<lang>/`) is what gets committed to git. This is why
+"a new `.klftb` arrives while a TM is in play" is not a reconciliation problem:
+no store lives in git to conflict. Committing the binary SQLite would be
+git-hostile and defeat interchange in any case; the `.klftm` interchange form
+remains for explicit human snapshot / seed / transfer (deterministic, lossless),
+not as an auto-grown git artifact.
+
+> **State, not source.** Contrast the termbase ([AD-010](010-terminology.md)),
+> which is *authored source* committed to git and reviewed. The TM is *state* —
+> derived, out of git, rebuildable — and where an accumulating store must be
+> shared and authoritative across a team, that is the server's job, not git's.
 
 ### Fuzzy candidate retrieval
 

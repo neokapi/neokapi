@@ -1610,12 +1610,11 @@ func (a *App) ResolveProjectGlossary(cmd Command, targetLang string) ([]coretool
 }
 
 // projectConcepts loads the project's termbase concepts for the read-only check
-// gates. Per the termbase model (AD-010), the committed .klftb is the durable
-// serialization and the SQLite .db is only a working store unpacked from it — so
-// a ship gate validates the *committed* serialization: when the recipe binds a
-// termbase_source we decode it directly, no store required. That is also why the
-// terminology gate works on a fresh CI checkout, where the gitignored .db is
-// absent.
+// gates. Per the termbase model (AD-010), the committed .klftb is the authored
+// source and the SQLite .db is only a rebuildable read-cache over it — so a ship
+// gate validates the *committed* source: when the recipe binds a termbase_source
+// we decode it directly, no cache required. That is also why the terminology
+// gate works on a fresh CI checkout, where the gitignored .db is absent.
 //
 // Precedence: an explicit --termbase selects a specific store (honour it); else
 // the committed serialization wins; else the working index the recipe binds
