@@ -92,6 +92,16 @@ type WorkerDeps struct {
 	// the project's terminology as a prompt glossary — parity with the CLI
 	// flow's termbase binding. Optional; nil translates without a glossary.
 	TBResolver TBResolver
+	// ConnectorFetcher performs the fetch+store for durable forge-ingest jobs
+	// (webhook/bind-triggered source ingests enqueued by the server). The
+	// worker wires a store-backed fetcher that instantiates connectors on
+	// demand from their persisted config. Nil fails ingest jobs permanently —
+	// a worker without connector wiring must not silently eat them.
+	ConnectorFetcher ConnectorFetcher
+	// ConnectorConfigs reads persisted (decrypted) connector configs and
+	// records ingest outcomes (last-sync / last-error) on the row. Required
+	// alongside ConnectorFetcher for forge-ingest jobs.
+	ConnectorConfigs ConnectorConfigSource
 }
 
 // EventTracker captures product analytics events (implemented by
@@ -243,6 +253,13 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 	// Route sync-push jobs to the dedicated handler.
 	if job.ItemName == "__sync_push__" {
 		return processSyncPushJob(ctx, deps, job)
+	}
+
+	// Route durable forge-ingest jobs (webhook/bind-triggered source ingests)
+	// to the dedicated handler. They carry no AI work, so the quota check and
+	// translation pipeline below do not apply.
+	if job.IsForgeIngest() {
+		return processForgeIngestJob(ctx, deps, job, epoch)
 	}
 
 	// Check the monthly token quota before starting. This is the internal abuse

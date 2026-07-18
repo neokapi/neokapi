@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -401,13 +402,24 @@ func (s *Server) HandlePublish(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 }
 
+// HandleConnectorStatus reports a connector's sync state.
+//
+// The DEFAULT read is cheap: the persisted row's last-sync time and recorded
+// last ingest error, no connector I/O. That is all the polling surfaces (the
+// setup wizard's 2s import poll, the dashboard delivery panel) consume — the
+// old default ran the connector's live Status() probe, which for git/forge
+// re-runs a clone, so every 2s poll paid a full clone (#1362).
+//
+// `?probe=1` opts into the deep probe (live Status(): item counts, pending
+// pull/push, remote reachability) for the explicit "Test"/manual paths such as
+// the connectors panel. Deployments without a config store (desktop/in-memory)
+// always probe — there is no stored row to read.
 func (s *Server) HandleConnectorStatus(c echo.Context) error {
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 	wsID, _ := c.Get("workspace_id").(string)
 	connID := connectorIDParam(c)
-	status, statusErr := s.Services.Connector.ConnectorStatus(c.Request().Context(), wsID, connID)
 
 	var cfg *bstore.ConnectorConfig
 	if s.ConnectorConfigStore != nil {
@@ -415,6 +427,17 @@ func (s *Server) HandleConnectorStatus(c echo.Context) error {
 			cfg = &got
 		}
 	}
+
+	if probe, _ := strconv.ParseBool(c.QueryParam("probe")); !probe && cfg != nil {
+		// Cheap default: stored row + last ingest state only.
+		cheap := &connector.SyncStatus{ConnectorID: connID, LastSync: cfg.LastSyncAt}
+		if cfg.LastError != "" {
+			cheap.Errors = append(cheap.Errors, cfg.LastError)
+		}
+		return c.JSON(http.StatusOK, cheap)
+	}
+
+	status, statusErr := s.Services.Connector.ConnectorStatus(c.Request().Context(), wsID, connID)
 
 	if statusErr != nil {
 		// The live probe failed. For a connector the config store knows this

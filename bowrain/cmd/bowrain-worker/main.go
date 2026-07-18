@@ -211,6 +211,12 @@ func runWorker(dbURL string) error {
 	// translation providers.
 	providerStore := bstore.NewProviderConfigStore(pgdb.DB, secretsCipher)
 
+	// Connector configs for durable forge-ingest jobs: reads the persisted
+	// (decrypted) connector config to instantiate the connector, and records
+	// the ingest outcome (last-sync / last-error) on the row for the status
+	// path. Same table + cipher as the server's store.
+	connectorConfigs := bstore.NewConnectorConfigStore(pgdb.DB, secretsCipher)
+
 	// Expose the DB pool's saturation as Prometheus gauges.
 	observe.RegisterDBStats(pgdb.DB, "worker")
 
@@ -228,6 +234,12 @@ func runWorker(dbURL string) error {
 		// paying for AI, and ingest seeds pushed targets into the TM. Mirrors the
 		// server's per-workspace, PostgreSQL-backed TM (NewPostgresTMFromDB).
 		TMResolver: newWorkerTMResolver(pgdb),
+		// Durable forge ingest (webhook/bind-triggered source ingests, enqueued
+		// by the server): the worker performs the clone+fetch+store the server
+		// used to fire-and-forget in-process, so a mid-deploy task death can no
+		// longer lose an acked webhook.
+		ConnectorFetcher: newIngestFetcher(cs, connectorConfigs),
+		ConnectorConfigs: connectorConfigs,
 	}
 
 	// Auth store: consulted for the workspace-level default brand-voice profile

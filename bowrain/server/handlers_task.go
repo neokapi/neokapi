@@ -20,10 +20,25 @@ func (s *Server) HandleListTasks(c echo.Context) error {
 	ws := c.Param("ws")
 	ctx := c.Request().Context()
 
+	// "me" resolves to the authenticated user (mirroring the review queue's
+	// assigned_to=me): /:ws/tasks?assignee_id=me is the "my tasks" surface —
+	// the former dedicated /my/tasks route was folded into this filter
+	// (Bowrain AD-011), so the literal "me" must never reach the store, where
+	// it would match nothing.
+	assignee := c.QueryParam("assignee_id")
+	if assignee == "me" {
+		assignee, _ = c.Get("user_id").(string)
+		if assignee == "" {
+			// No authenticated user to resolve "me" against: "my tasks" is
+			// empty, never the whole workspace list.
+			return c.JSON(http.StatusOK, bstore.TaskResult{Tasks: []bstore.Task{}})
+		}
+	}
+
 	q := bstore.TaskQuery{
 		WorkspaceID: ws,
 		ProjectID:   c.QueryParam("project_id"),
-		AssigneeID:  c.QueryParam("assignee_id"),
+		AssigneeID:  assignee,
 		Status:      c.QueryParam("status"),
 		Type:        c.QueryParam("type"),
 		Priority:    c.QueryParam("priority"),

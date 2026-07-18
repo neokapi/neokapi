@@ -268,3 +268,57 @@ func TestHandleNotificationPreferences_RoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec2.Code)
 }
+
+// TestHandleListTasks_AssigneeMe pins the "my tasks" surface: /:ws/tasks?
+// assignee_id=me resolves to the authenticated user (the dedicated /my/tasks
+// route was folded into this filter, Bowrain AD-011). Before the fix the
+// literal "me" reached the store and matched nothing — and the web client
+// still calling the retired /my/tasks path got the catch-all 404 on fresh
+// workspaces (production drill follow-up).
+func TestHandleListTasks_AssigneeMe(t *testing.T) {
+	srv := setupTestServerWithStores(t)
+	ctx := t.Context()
+
+	mine := &bstore.Task{
+		WorkspaceID: "demo", ProjectID: "proj-1", Type: bstore.TaskReview,
+		Title: "Mine", CreatedBy: "user-2", AssigneeID: "user-1",
+	}
+	theirs := &bstore.Task{
+		WorkspaceID: "demo", ProjectID: "proj-1", Type: bstore.TaskReview,
+		Title: "Theirs", CreatedBy: "user-2", AssigneeID: "user-2",
+	}
+	require.NoError(t, srv.TaskStore.Create(ctx, mine))
+	require.NoError(t, srv.TaskStore.Create(ctx, theirs))
+
+	e := srv.GetEcho()
+	list := func(query string, userID string) bstore.TaskResult {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/tasks"+query, nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetParamNames("ws")
+		c.SetParamValues("demo")
+		if userID != "" {
+			c.Set("user_id", userID)
+		}
+		require.NoError(t, srv.HandleListTasks(c))
+		require.Equal(t, http.StatusOK, rec.Code)
+		var resp bstore.TaskResult
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+		return resp
+	}
+
+	// assignee_id=me → only the caller's tasks.
+	resp := list("?assignee_id=me", "user-1")
+	require.Len(t, resp.Tasks, 1)
+	assert.Equal(t, "Mine", resp.Tasks[0].Title)
+
+	// A literal user id keeps working.
+	resp = list("?assignee_id=user-2", "user-1")
+	require.Len(t, resp.Tasks, 1)
+	assert.Equal(t, "Theirs", resp.Tasks[0].Title)
+
+	// "me" with no authenticated user resolves to an empty list — never the
+	// whole workspace.
+	resp = list("?assignee_id=me", "")
+	assert.Empty(t, resp.Tasks)
+}

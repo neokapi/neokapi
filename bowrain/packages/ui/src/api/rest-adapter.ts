@@ -295,6 +295,22 @@ export class RestApiAdapter implements ApiAdapter {
     return h;
   }
 
+  /**
+   * Attempt a session refresh through the same deduplicated path the 401
+   * handling in fetchJSON uses, without carrying a request. Exposed for
+   * consumers that cannot observe HTTP status codes — the workspace SSE
+   * EventSource reconnect path — so they can restore the cookie/token session
+   * before reconnecting instead of 401-looping forever.
+   */
+  async refreshSession(): Promise<boolean> {
+    if (!this.refreshPromise) {
+      this.refreshPromise = this.tryRefresh().finally(() => {
+        this.refreshPromise = null;
+      });
+    }
+    return this.refreshPromise;
+  }
+
   /** Attempt to refresh the access token using the stored refresh token or cookie. */
   private async tryRefresh(): Promise<boolean> {
     try {
@@ -1158,9 +1174,14 @@ export class RestApiAdapter implements ApiAdapter {
   async getConnectorStatus(
     workspaceSlug: string,
     connectorId: string,
+    opts?: { probe?: boolean },
   ): Promise<ConnectorSyncStatus> {
+    // Default = the server's cheap stored read; probe=1 opts into the deep
+    // live probe (a clone for git/forge) for explicit "Test"/manual paths.
     const dto = await this.fetchJSON<ConnectorSyncStatusDTO>(
-      `/api/v1/${workspaceSlug}/connectors/${encodeURIComponent(connectorId)}/status`,
+      `/api/v1/${workspaceSlug}/connectors/${encodeURIComponent(connectorId)}/status${
+        opts?.probe ? "?probe=1" : ""
+      }`,
     );
     return {
       connectorId: dto.ConnectorID,
@@ -2579,12 +2600,11 @@ export class RestApiAdapter implements ApiAdapter {
     workspaceSlug: string,
     query?: { status?: string; cursor?: string; limit?: number },
   ): Promise<{ tasks: TaskInfo[]; next_cursor: string }> {
-    const params = new URLSearchParams();
-    if (query?.status) params.set("status", query.status);
-    if (query?.cursor) params.set("cursor", query.cursor);
-    if (query?.limit) params.set("limit", String(query.limit));
-    const qs = params.toString();
-    return this.fetchJSON(`/api/v1/${workspaceSlug}/my/tasks${qs ? `?${qs}` : ""}`);
+    // "My tasks" is the tasks route filtered to the caller: the server folded
+    // the former dedicated /my/tasks route into /tasks?assignee_id=me
+    // (Bowrain AD-011). The old path fell through to the catch-all and 404'd
+    // on fresh workspaces.
+    return this.listTasks(workspaceSlug, { ...query, assignee_id: "me" });
   }
 
   // ── Notification Preferences (Bowrain AD-014) ─────────────────────────────────

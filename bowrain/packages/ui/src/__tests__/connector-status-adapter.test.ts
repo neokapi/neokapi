@@ -59,6 +59,23 @@ describe("getConnectorStatus", () => {
     expect(status.errors[0]).toContain("exit status 128");
   });
 
+  it("requests the deep probe only when asked", async () => {
+    const fetchMock = mockFetch({ ConnectorID: "conn-1", LastSync: "", Errors: null });
+    const a = adapter();
+
+    // Default: the cheap stored read — what the wizard's 2s import poll and
+    // the dashboard hit; must never carry the probe flag (a probe re-runs a
+    // clone for git/forge connectors, #1362).
+    await a.getConnectorStatus("acme", "conn-1");
+    expect(fetchMock.mock.calls[0][0]).toBe("http://server/api/v1/acme/connectors/conn-1/status");
+
+    // Explicit manual/"Test" surfaces opt into the deep probe.
+    await a.getConnectorStatus("acme", "conn-1", { probe: true });
+    expect(fetchMock.mock.calls[1][0]).toBe(
+      "http://server/api/v1/acme/connectors/conn-1/status?probe=1",
+    );
+  });
+
   it("maps a healthy synced payload with null Errors", async () => {
     mockFetch({
       ConnectorID: "conn-1",

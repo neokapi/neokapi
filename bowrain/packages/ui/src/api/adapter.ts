@@ -166,6 +166,16 @@ export interface ApiAdapter {
 
   // Auth
   getCurrentUser(): Promise<User | null>;
+  /**
+   * Attempt a session refresh through the normal auth-refresh path, without
+   * carrying a request. Resolves true when the session is (again) valid.
+   * Consumers that cannot see HTTP status codes — the SSE EventSource, which
+   * silently reconnect-loops on 401 after session expiry — call this before
+   * reconnecting. Optional: only cookie/token adapters (web REST) implement
+   * it; the desktop's keychain-Bearer transport has no cookie session to
+   * refresh, and callers must treat an absent member as "nothing to refresh".
+   */
+  refreshSession?(): Promise<boolean>;
 
   // Account management — onboarding (handle pick), email change, slug check.
   getOnboardingStatus(): Promise<OnboardingStatus>;
@@ -429,7 +439,18 @@ export interface ApiAdapter {
     installationId: string,
     req: BindInstallationRepoRequest,
   ): Promise<BindInstallationRepoResult>;
-  getConnectorStatus(workspaceSlug: string, connectorId: string): Promise<ConnectorSyncStatus>;
+  /**
+   * Read a connector's sync state. The default is the cheap stored read
+   * (last sync + last recorded ingest error) — safe to poll. Pass
+   * `{ probe: true }` for the deep live probe (item counts, pending
+   * pull/push, remote reachability); for git/forge connectors that re-runs a
+   * clone, so reserve it for explicit "Test"/manual surfaces, never polls.
+   */
+  getConnectorStatus(
+    workspaceSlug: string,
+    connectorId: string,
+    opts?: { probe?: boolean },
+  ): Promise<ConnectorSyncStatus>;
   /** Pull content from the connector into the given project (synchronous). */
   fetchConnector(
     workspaceSlug: string,
