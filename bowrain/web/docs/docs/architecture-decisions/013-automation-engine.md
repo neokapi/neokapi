@@ -71,14 +71,20 @@ Every project is created with a set of built-in rules:
 | Rule                          | Trigger                       | Action                                           |
 | ----------------------------- | ----------------------------- | ------------------------------------------------ |
 | `auto-extract-on-push`        | `push.completed`              | Run entity/term extraction on changed blocks     |
-| `fan-out-after-source-review` | `source.review.completed`     | Fan out per-locale review tasks after source review (see AD-014) |
+| `fan-out-after-source-review` | `source.review.completed`     | Resume a run that held on source — release the per-locale fan-out once the source is approved (see AD-014) |
 
 Translation on push is not an automation rule: it is the convergence
 engine (AD-022). A push to a project whose converge policy is `on-push`
-starts a convergence run — the same loop `kapi up` drives — which
-translates, checks, parks, and creates the per-locale review tasks its
-parked units need. Projects opt out per push by setting the policy to
-`manual` (`server.converge` in the recipe, mirrored to the server).
+starts a convergence run — the same loop `kapi up` drives — which is
+**source-first**: it settles the source, holds the fan-out behind the
+source ship-gate (`stall_reason = source_not_ready`, opening a
+source-review task) when the source is below the project's `source_gate`,
+and otherwise translates, checks, parks, and creates the per-locale review
+tasks its parked units need. `source.review.completed` is what releases a
+held run — hence the `fan-out-after-source-review` rule. Projects opt out
+per push by setting the policy to `manual` (`server.converge` in the
+recipe, mirrored to the server); they opt out of the source gate itself
+with `source_gate: none`.
 
 ### Actions
 

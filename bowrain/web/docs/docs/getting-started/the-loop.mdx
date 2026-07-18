@@ -6,7 +6,7 @@ description: How a connected project stays caught up — kapi up (or a push, or 
 keywords: [kapi loop, kapi up, convergence, bowrain, server, converge on push, ship gate, review, runs, parked]
 ---
 
-import { PhaseFlow, LanesDiagram, ThemedVideo, KapiLink } from "@neokapi/docs-shared";
+import { PhaseFlow, LanesDiagram, GatedLoopDiagram, ThemedVideo, KapiLink } from "@neokapi/docs-shared";
 
 # The kapi loop on Bowrain
 
@@ -77,6 +77,75 @@ service* ([AD-022](/architecture-decisions/022-convergence-as-a-service)). The
 REST API, the run event stream, and `--json` output keep that vocabulary; these
 pages say *the loop*.
 :::
+
+## Source first: kapi drafts, Bowrain governs
+
+The loop does not translate on push and hope. It **settles the source first**,
+holds at a source ship-gate until the source is ready, and only then translates
+the *approved* source per locale — because source content is shared across every
+language, so a term left unresolved or a sentence left off-brand would be paid
+for once per language, then paid for again when the source is fixed and
+everything retranslates. Settling once, in front of the fan-out, is the concrete
+meaning of **"kapi drafts, Bowrain governs"**: the source-readiness gate *is* the
+governance seam.
+
+<GatedLoopDiagram
+  nodes={[
+    {
+      kind: "phase",
+      role: "source",
+      label: "settle source",
+      steps: ["source checks", "protect DNT", "source QA"],
+    },
+    {
+      kind: "gate",
+      label: "source ship-gate",
+      sub: "source_gate",
+      hold: "hold — source review",
+    },
+    {
+      kind: "phase",
+      role: "translate",
+      label: "translate approved source",
+      steps: ["recycle (TM-first)", "AI remainder", "target QA"],
+    },
+    {
+      kind: "gate",
+      label: "target ship-gate",
+      sub: "ship_gate",
+      hold: "park — review queue",
+    },
+    { kind: "done", label: "converged" },
+  ]}
+  caption="A server run settles the source, holds at the source ship-gate until it clears, then translates the approved source per locale — each gate routes work it can't ship to a person rather than shipping it."
+/>
+
+- **Settle the source.** A server run's first pass runs the source stage over the
+  source locale only — source checks, do-not-translate terms marked and
+  **protected** so translation can never touch them, source QA — and stamps each
+  unit's source status up the authoring ladder (*authored → checked → approved*).
+- **Hold at the source ship-gate.** The project's `source_gate`
+  ([`defaults.source_gate`](/architecture-decisions/022-convergence-as-a-service),
+  default `checked`) is the source-side counterpart of the ship gate. Source that
+  has not cleared its bar **holds**: the run parks with the reason
+  `source_not_ready`, opens a **source-review task** in the team's queue (see
+  [Review](/server/review)), and reports how many blocks are blocked on source —
+  it never burns AI translating content you are about to change. A project that
+  genuinely wants raw fan-out sets `source_gate: none` to opt out.
+- **Translate only the approved source.** Settled source fans out per locale,
+  TM-first — recycle what the shared memory already has, AI-translate the
+  remainder, check what was produced. Protected terms stay protected through the
+  model.
+- **Hold at the target ship-gate.** A locale that clears its `ship_gate` is
+  shippable; whatever a machine cannot decide **parks** for review rather than
+  shipping under-reviewed.
+
+This is the venue's differentiator: everyone else does source → machine
+translation → N locales; Bowrain gates on source readiness *before* the fan-out.
+Editing a source unit re-opens the source gate for only the changed segments, so
+a fix re-settles and re-translates just those, never the whole corpus. The model
+itself — the ladders and gate thresholds — is documented once on the kapi site:
+<KapiLink to="/kapi/convergence#source-first">Source first</KapiLink>.
 
 ## Who starts the loop
 

@@ -41,6 +41,14 @@ target is at least *translated*. The **higher** rungs are not derivable — whet
 a person reviewed *this exact translation* is a decision someone made, and it has
 to be stored somewhere.
 
+The source ladder is **not** merely reported: it gates the loop symmetrically
+with the target ladder. Just as a target below its `ship_gate` cannot ship,
+source below the project's `source_gate` (default `checked`) is not translated —
+server-side convergence settles and gates the source *before* the fan-out and
+holds under-ready source rather than translating it
+([Convergence — source first](/kapi/convergence#source-first)). So the source
+rungs a decision writes here are load-bearing, not informational.
+
 The model already expresses these facts (`model.TargetStatus`,
 `model.SourceStatus`, `model.Origin`). What was missing was a *persistence* for
 them that is independent of the deliverable format. The danger is to overload an

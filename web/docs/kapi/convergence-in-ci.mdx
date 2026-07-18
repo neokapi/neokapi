@@ -59,6 +59,20 @@ the explicit, opt-in enforcement point — wire it into merge-request pipelines
 and a quality regression cannot merge, while day-to-day drift flows through
 review instead of breaking builds.
 
+## Source first: settle before you fan out
+
+The loop is [source-first](/kapi/convergence#source-first): it settles the source
+and holds at the source gate before translating any language, because a term left
+unresolved or a sentence left off-brand in the source is paid for once per
+language and again on the fix. In CI this shows up two ways. `kapi check --ship`
+runs the project's `source_gate` alongside the target ship gates, so a merge whose
+**source** is off-brand or below its terminology bar fails the gate the same way a
+target-coverage regression does. And under source-first convergence, source that
+has not cleared its `source_gate` **holds** — reported as `source_not_ready`,
+routed to a source review — rather than spending on a machine translation of
+content that is about to change. Settling the source first is the cheap, honest
+outcome; see [Source first](/kapi/convergence#source-first) for the model.
+
 ## The surfaces
 
 | CI | Install | Run |
