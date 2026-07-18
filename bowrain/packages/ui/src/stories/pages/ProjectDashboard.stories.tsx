@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { ProjectDashboard } from "../../components/ProjectDashboard";
+import type { LoopStatusData } from "../../components/LoopStatusRow";
 import { withProviders } from "../decorators";
 import { sampleProject } from "../fixtures";
 import type { ProjectInfo } from "../../types/api";
@@ -11,8 +12,10 @@ const meta: Meta<typeof ProjectDashboard> = {
   tags: ["autodocs"],
   decorators: [
     withProviders,
+    // The dashboard brings its own max-w-6xl container; give it a full-width
+    // stage so the first-run hero and loop-status row lay out as in the app.
     (Story) => (
-      <div style={{ maxWidth: 960, padding: 24 }}>
+      <div style={{ padding: 24 }}>
         <Story />
       </div>
     ),
@@ -178,21 +181,47 @@ const wpProject: ProjectInfo = {
 };
 
 // ---------------------------------------------------------------------------
+// Loop-status fixtures
+// ---------------------------------------------------------------------------
+
+const loopStatus: LoopStatusData = {
+  latestActivity: {
+    summary: "Translate flow completed for Marketing Website (fr-FR)",
+    created_at: new Date(Date.now() - 42 * 60 * 1000).toISOString(),
+  },
+  openReviewTasks: 7,
+  brand: { averageScore: 86, scoredProjects: 3, driftingProjects: 1 },
+};
+
+const loopStatusAllClear: LoopStatusData = {
+  latestActivity: undefined,
+  openReviewTasks: 0,
+  brand: { averageScore: null, scoredProjects: 0, driftingProjects: 0 },
+};
+
+// ---------------------------------------------------------------------------
 // Stories
 // ---------------------------------------------------------------------------
 
-/** Empty workspace — shows the onboarding experience with getting-started pathways. */
+/**
+ * First run (0 projects): the assistant-driven starter-pack hero with the
+ * copyable prompt, the create/import card with its drop affordance, and the
+ * invite-team card. Hosted brand scan is offered as the no-agent fallback.
+ */
 export const Empty: Story = {
   args: {
     projects: [],
     onCreateProject: fn(),
     onOpenProject: fn(),
     onCreateSampleProject: fn(),
+    onScanBrand: fn(),
+    onInviteTeam: fn(),
     workspaceName: "My Workspace",
+    serverUrl: "https://app.bowrain.cloud",
   },
 };
 
-/** Empty workspace without sample project option. */
+/** First run without sample project, brand scan, or invite wiring (minimal shell). */
 export const EmptyNoSample: Story = {
   args: {
     projects: [],
@@ -212,19 +241,41 @@ export const SingleProject: Story = {
   },
 };
 
-/** Multiple projects with varied sizes and language counts. */
+/** Multiple projects with the loop-status layer above the grid. */
 export const WithProjects: Story = {
   args: {
     projects: [sampleProject, marketingProject, mobileProject, docsProject, wpProject],
     onCreateProject: fn(),
     onOpenProject: fn(),
     workspaceName: "Acme Corp",
+    loopStatus,
+    onOpenActivities: fn(),
+    onOpenTasks: fn(),
+    onOpenBrandDashboard: fn(),
   },
 };
 
-/** Many projects to demonstrate grid scaling. */
+/** Populated workspace whose loop is idle: no activity, no reviews, no scores. */
+export const LoopAllClear: Story = {
+  args: {
+    projects: [sampleProject, mobileProject],
+    onCreateProject: fn(),
+    onOpenProject: fn(),
+    workspaceName: "Acme Corp",
+    loopStatus: loopStatusAllClear,
+    onOpenActivities: fn(),
+    onOpenTasks: fn(),
+    onOpenBrandDashboard: fn(),
+  },
+};
+
+/** Many projects to demonstrate grid scaling under the loop-status layer. */
 export const ManyProjects: Story = {
   args: {
+    loopStatus,
+    onOpenActivities: fn(),
+    onOpenTasks: fn(),
+    onOpenBrandDashboard: fn(),
     projects: [
       sampleProject,
       marketingProject,
