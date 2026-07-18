@@ -1,6 +1,6 @@
 ---
 name: kapi
-description: Read, edit, check, and localize the content inside any file format with the kapi CLI. kapi parses formats an editor can't open directly — Word, PowerPoint, JSON, XLIFF, Markdown, HTML, YAML — into one content model; reads, searches, and compares the text (kcat/kgrep/ksed/kdiff); edits it in place through a faithful round-trip you drive with `kapi inspect` + `kapi apply` (structure and inline codes preserved, no second model); authors new content and checks it against a brand voice profile and terminology, looping until it passes; and translates into other languages with glossary enforcement and multi-format publishing. Use when the task involves reading or editing the content of a document the editor can't open (.docx/.pptx/.json/.xliff), authoring or rewriting on-brand copy, brand voice/tone, forbidden/competitor terms, a glossary or consistent terminology, checking content, translating or localizing (to fr/de/ja…), making a project multilingual, adding or setting up i18n, internationalizing an existing app, choosing an i18n library or framework (React, Next.js, Vue, Angular, Svelte, Flutter, iOS, Android, Rails, Django, Go…), or finding hardcoded strings that should be translatable.
+description: Read, edit, check, and localize the content inside any file format with the kapi CLI. kapi parses formats an editor can't open directly — Word, PowerPoint, JSON, XLIFF, Markdown, HTML, YAML — into one content model; reads, searches, and compares the text (kcat/kgrep/ksed/kdiff); edits it in place through a faithful round-trip you drive with `kapi inspect` + `kapi apply` (structure and inline codes preserved, no second model); authors new content and checks it against a brand voice profile and terminology, looping until it passes; and translates into other languages with glossary enforcement and multi-format publishing. Use when the task involves reading or editing the content of a document the editor can't open (.docx/.pptx/.json/.xliff), authoring or rewriting on-brand copy, brand voice/tone, forbidden/competitor terms, a glossary or consistent terminology, checking content, setting up or onboarding a brand ("set up my brand", "create a starter pack", "refresh our brand context"), connecting or onboarding a project to Bowrain, translating or localizing (to fr/de/ja…), making a project multilingual, adding or setting up i18n, internationalizing an existing app, choosing an i18n library or framework (React, Next.js, Vue, Angular, Svelte, Flutter, iOS, Android, Rails, Django, Go…), or finding hardcoded strings that should be translatable.
 ---
 
 # kapi
@@ -69,6 +69,12 @@ kapi check --ship --json        # whole project; or: kapi check --ship <files> [
   through `kapi apply`. (`kapi brand rewrite` swaps forbidden/competitor terms
   offline; for tone and phrasing, rewrite the text yourself against the guide.)
   See [references/brand.md](references/brand.md).
+- **Onboard a brand / starter pack** — assemble a brand starter pack from the
+  user's site, repo, and materials (voice profile + terminology seed + the
+  checks that enforce both), review it with the user, bind it in a project, and
+  push it to a Bowrain project; also the refresh flow that diffs new material
+  against the bound pack as an approve-then-apply change-set. See
+  [references/starter-pack.md](references/starter-pack.md).
 - **Translate, enforce terminology, publish** — translate content into other
   languages and round-trip it back into its original format, with a glossary for
   consistency. Translate it yourself, but route it **through kapi** (extract →

@@ -58,6 +58,7 @@ catalogs; the app is not booted, so in-locale *rendering* is not verified here
 | 13 | "Internationalize this Flutter app and translate it to German." | i18n (detect → flutter.md → gen_l10n + preset) | yes | yes (catalog) — `check --ship` green, de 100%; SDK codegen/render not run in sandbox |
 | 14 | "Our app has hardcoded strings everywhere — make it translatable." | i18n (retrofit; lint/pseudo-translate sweep) | yes | blocked — same `@neokapi/kapi-react*` private-registry limit as #9; retrofit lint can't install |
 | 15 | "Localize this Android app into French." | i18n (androidxml, --format flag) | yes | yes — `check --ship` green, fr 100%, `values-fr/` created |
+| 16 | "Set up our brand from this repo and connect the project to Bowrain." (fixture: a fresh repo with a README + a few marketing `.md`/`.docx` files) | starter pack (onboard) | — | — (not yet run) |
 
 Completion summary: **12/15 green** at catalog-gate depth, **2 partial** (#7
 glossary fixture gap, #12 didn't surface grades), **2 blocked** on the
@@ -72,6 +73,14 @@ registry or complete them against a catalog-library path.
 Scenario 11 is the kapi loop end to end: read state (`kapi status`),
 catch up (`kapi up`), then surface the review queue (`kapi status --review`) —
 "completed" means it drove the gate, not just translated one file.
+
+Scenario 16 is the starter-pack onboarding. Its local leg completes in the
+sandbox with no server: "completed" there means the pack files exist
+(`brand.yaml`, the recipe binding it, a committed term seed) and
+`kapi brand check` passes on a repo sample. The push leg
+(`kapi init --server … --anonymous` → claim URL → `kapi push`) needs a
+sandboxed bowrain-server plus the kapi-bowrain plugin in the sandbox's plugin
+dir, so score it separately or stop the scenario at the hand-off message.
 
 Scenario 4 is the cross-format sweep, and its fixture carries the whole point:
 `grep` cannot see inside a `.docx`, so a `docs/` of plain `.md` alone tests
