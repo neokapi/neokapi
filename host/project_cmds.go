@@ -194,8 +194,9 @@ func ScaffoldContentRecipe(name, sourceLocale string) []byte {
 #   - path: "src/**/*.md"
 #     format: markdown
 #
-# Swap the starter pack for your own profile: 'kapi brand new --name "<brand>"',
-# then set defaults.brand_voice.profile instead of pack.
+# Swap the starter pack for your own profile: 'kapi brand new -o brand.yaml',
+# fill it in, 'kapi brand import brand.yaml', then set
+# defaults.brand_voice.profile instead of pack.
 content: []
 
 # The check flow scores content against brand vocabulary (deterministic,
