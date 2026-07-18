@@ -200,7 +200,11 @@ export function GithubSetupRoute() {
           <span className="text-sm text-muted-foreground">Workspace</span>
           <Select value={activeSlug} onValueChange={setWorkspaceSlug}>
             <SelectTrigger className="w-56" data-testid="workspace-select">
-              <SelectValue />
+              {/* Explicit children: SelectValue renders nothing until the
+                  portal's items mount, leaving an invisible control. */}
+              <SelectValue>
+                {workspaces.data?.find((ws) => ws.slug === activeSlug)?.name ?? activeSlug}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {workspaces.data?.map((ws) => (
@@ -433,7 +437,11 @@ function RepoRow({
         <div className="flex shrink-0 items-center gap-2">
           <Select value={projectId} onValueChange={setProjectId}>
             <SelectTrigger className="w-44" data-testid={`project-select-${repo.full_name}`}>
-              <SelectValue placeholder="Choose a project" />
+              <SelectValue placeholder="Choose a project">
+                {projectId === "__new__"
+                  ? "+ New project…"
+                  : (projects.find((p) => p.id === projectId)?.name ?? "Choose a project")}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {projects.map((p) => (
