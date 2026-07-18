@@ -64,7 +64,7 @@ type EstimateTotals struct {
 
 // estimateNote is the estimation-method disclosure carried in the estimate. It
 // mirrors the CLI plan note so both surfaces describe the same basis.
-const estimateNote = "Source readiness is evaluated against defaults.source_gate; only the ready source is estimated for translation. TM leverage uses the project's recycle threshold (exact by default); the token estimate is source chars / 4 for the AI remainder. No AI provider is called and no run is started."
+const estimateNote = "Source readiness is evaluated against defaults.source_gate; only the ready source is estimated for translation. TM leverage uses the project's recycle threshold (fuzzy at 0.7 by default; tm_fuzzy_threshold overrides); the token estimate is source chars / 4 for the AI remainder. No AI provider is called and no run is started."
 
 // EstimateConvergence computes the side-effect-free pre-flight estimate for a
 // project's convergence run. It loads the project's source blocks once, gates

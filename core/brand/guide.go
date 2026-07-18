@@ -112,10 +112,16 @@ func RenderVoiceGuide(p *VoiceProfile) string {
 	return b.String()
 }
 
-// RenderVoiceGuideCompact renders a condensed single-paragraph form of the most
-// actionable rules (personality, formality, forbidden/competitor term swaps).
-// It is intended for inlining into a translation system prompt where the full
-// guide would be too verbose. Output is deterministic.
+// RenderVoiceGuideCompact renders a condensed single-paragraph form of the
+// profile's actionable rules, intended for inlining into a translation system
+// prompt where the full guide would be too verbose. Every constraint the full
+// guide renders is represented — tone (personality, formality, emotion, humor,
+// guidelines), style (active voice, sentence length, point of view,
+// contractions, prohibited patterns), and vocabulary bans (forbidden and
+// competitor terms, with or without a replacement) — so no populated profile
+// field is silently dead context at generation time. Only the illustrative
+// material (preferred terms, examples) is left to the full guide; preferred
+// term renderings travel via the glossary instead. Output is deterministic.
 func RenderVoiceGuideCompact(p *VoiceProfile) string {
 	if p == nil {
 		return ""
@@ -130,8 +136,17 @@ func RenderVoiceGuideCompact(p *VoiceProfile) string {
 	if p.Tone.Emotion != "" {
 		parts = append(parts, "emotion: "+p.Tone.Emotion)
 	}
+	if p.Tone.Humor != "" {
+		parts = append(parts, "humor: "+p.Tone.Humor)
+	}
 	if p.Style.ActiveVoice {
 		parts = append(parts, "use active voice")
+	}
+	if p.Style.SentenceLength != "" {
+		parts = append(parts, "sentence length: "+p.Style.SentenceLength)
+	}
+	if p.Style.PersonPOV != "" {
+		parts = append(parts, "point of view: "+p.Style.PersonPOV)
 	}
 	if p.Style.Contractions != "" {
 		parts = append(parts, "contractions: "+p.Style.Contractions)
@@ -142,13 +157,49 @@ func RenderVoiceGuideCompact(p *VoiceProfile) string {
 		fmt.Fprintf(&b, "Brand voice — %s.", strings.Join(parts, "; "))
 	}
 
+	if g := strings.TrimSpace(p.Tone.Guidelines); g != "" {
+		fmt.Fprintf(&b, " Tone guidance: %s", g)
+		if !strings.HasSuffix(g, ".") {
+			b.WriteString(".")
+		}
+	}
+
+	if hints := patternHints(p.Style.ProhibitedPatterns); len(hints) > 0 {
+		b.WriteString(" Avoid these patterns: ")
+		b.WriteString(strings.Join(hints, "; "))
+		b.WriteString(".")
+	}
+
 	swaps := termSwaps(p)
 	if len(swaps) > 0 {
 		b.WriteString(" Never use these terms (use the replacement): ")
 		b.WriteString(strings.Join(swaps, "; "))
 		b.WriteString(".")
 	}
+
+	if bans := termBans(p); len(bans) > 0 {
+		b.WriteString(" Never use these terms (rephrase to avoid them): ")
+		b.WriteString(strings.Join(bans, "; "))
+		b.WriteString(".")
+	}
 	return strings.TrimSpace(b.String())
+}
+
+// patternHints returns the prohibited patterns' prompt-facing hints in their
+// declared order: the human description where present, else the raw regex — a
+// pattern must not vanish from the prompt just because nobody described it.
+func patternHints(pats []Pattern) []string {
+	var hints []string
+	for _, pat := range pats {
+		hint := strings.TrimSpace(pat.Description)
+		if hint == "" {
+			hint = pat.Regex
+		}
+		if hint != "" {
+			hints = append(hints, hint)
+		}
+	}
+	return hints
 }
 
 // termSwaps returns deterministic "term → replacement" hints derived from
@@ -169,4 +220,25 @@ func termSwaps(p *VoiceProfile) []string {
 	add(p.Vocabulary.CompetitorTerms)
 	sort.Strings(swaps)
 	return swaps
+}
+
+// termBans returns deterministic quoted bans derived from forbidden and
+// competitor terms that declare NO replacement — the counterpart of termSwaps,
+// so a bare ban still reaches the model instead of being dead context.
+func termBans(p *VoiceProfile) []string {
+	if p == nil {
+		return nil
+	}
+	var bans []string
+	add := func(rules []TermRule) {
+		for _, t := range rules {
+			if t.Term != "" && t.Replacement == "" {
+				bans = append(bans, fmt.Sprintf("%q", t.Term))
+			}
+		}
+	}
+	add(p.Vocabulary.ForbiddenTerms)
+	add(p.Vocabulary.CompetitorTerms)
+	sort.Strings(bans)
+	return bans
 }

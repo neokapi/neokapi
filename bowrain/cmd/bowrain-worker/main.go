@@ -20,6 +20,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
+	brandpg "github.com/neokapi/neokapi/bowrain/brand"
 	"github.com/neokapi/neokapi/bowrain/cmd/internal/boot"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -36,10 +37,12 @@ import (
 	"github.com/neokapi/neokapi/bowrain/storage/blobcfg"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	sqltb "github.com/neokapi/neokapi/bowrain/termbase"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/version"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	fwsievepen "github.com/neokapi/neokapi/sievepen"
+	fwtermbase "github.com/neokapi/neokapi/termbase"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
 
@@ -258,6 +261,33 @@ func runWorker(dbURL string) error {
 		TMResolver: newWorkerTMResolver(pgdb),
 	}
 
+	// Auth store: consulted for the workspace-level default brand-voice profile
+	// (brand context, below) and per-workspace platform model choice (platform
+	// resolver, below). Opening it is non-fatal: on failure those refinements
+	// are skipped. The auth schema migration is idempotent + advisory-locked,
+	// so the worker constructing the store alongside the server is safe.
+	var authStore *auth.PostgresAuthStore
+	if as, err := auth.NewAuthStoreFromDB(pgdb); err != nil {
+		slog.Warn("auth store unavailable; worker skips per-workspace model choice and workspace-default brand voice", "error", err)
+	} else {
+		authStore = as
+	}
+
+	// Brand context (parity with the CLI flow's project bindings): the brand
+	// store + workspace-default resolver bind the project's brand voice into
+	// every AI translation the worker runs, and the termbase resolver supplies
+	// the per-locale terminology glossary. All optional — a failure here (or an
+	// unbound project) degrades translations to bare, never blocks them.
+	if bs, err := brandpg.NewPostgresBrandStore(pgdb); err != nil {
+		slog.Warn("brand store unavailable; translation jobs run without brand voice", "error", err)
+	} else {
+		translationDeps.BrandStore = bs
+	}
+	if authStore != nil {
+		translationDeps.WorkspaceDefault = &workerWorkspaceDefault{auth: authStore}
+	}
+	translationDeps.TBResolver = newWorkerTBResolver(pgdb)
+
 	// Product analytics (epic 018): the worker emits content_pushed after sync
 	// push processing. Keyless deployments stay silent (nil tracker). Mirrors
 	// the server's POSTHOG_API_KEY / POSTHOG_HOST configuration.
@@ -407,18 +437,11 @@ func runWorker(dbURL string) error {
 		if err := pcSvc.Refresh(ctx); err != nil {
 			slog.Warn("platform_config: initial worker load failed (serving env defaults)", "error", err)
 		}
-		// An auth-store handle lets the resolver apply a workspace's chosen
-		// platform model (customer model choice) at job time, so batch/auto
-		// translation resolves the same model as the interactive editor. Opening
-		// it is non-fatal: on failure the resolver just serves the platform
-		// default. The auth schema migration is idempotent + advisory-locked, so
-		// the worker constructing the store alongside the server is safe.
-		var wsGetter *auth.PostgresAuthStore
-		if as, err := auth.NewAuthStoreFromDB(pgdb); err != nil {
-			slog.Warn("auth store unavailable; worker cannot apply per-workspace model choice", "error", err)
-		} else {
-			wsGetter = as
-		}
+		// The shared auth-store handle (opened above) lets the resolver apply a
+		// workspace's chosen platform model (customer model choice) at job time,
+		// so batch/auto translation resolves the same model as the interactive
+		// editor. A nil store just serves the platform default.
+		wsGetter := authStore
 		platformResolver = func(ctx context.Context, wsID string) *jobs.PlatformProviderConfig {
 			cfg := platformConfigFromService(pcSvc, azureClientID, openaiEndpoint)
 			// Skip the workspace lookup unless model choice is on and we have a
@@ -798,6 +821,43 @@ func newWorkerTMResolver(pgdb *storage.PgDB) jobs.TMResolver {
 		}
 		actual, _ := cache.LoadOrStore(workspaceSlug, fwsievepen.TMStore(tm))
 		return actual.(fwsievepen.TMStore), nil
+	})
+}
+
+// workerWorkspaceDefault resolves the workspace-level default brand-voice
+// profile from the workspace record — the base rung of the brandscope ladder.
+// Mirrors the server's mcpWorkspaceDefaultAdapter.
+type workerWorkspaceDefault struct{ auth auth.AuthStore }
+
+func (a *workerWorkspaceDefault) WorkspaceBrandProfileID(ctx context.Context, workspaceID string) (string, error) {
+	if a.auth == nil || workspaceID == "" {
+		return "", nil
+	}
+	ws, err := a.auth.GetWorkspace(ctx, workspaceID)
+	if err != nil || ws == nil {
+		return "", err
+	}
+	return ws.BrandVoiceProfileID, nil
+}
+
+// newWorkerTBResolver returns a per-workspace termbase resolver backed by the
+// same PostgreSQL termbase the server uses (NewPostgresTermBaseFromDB), so a
+// translation job's prompt glossary reads the very terminology the editor and
+// term-check enforce. It caches one store per workspace slug (mirrors
+// newWorkerTMResolver); a resolution failure yields nil so the job degrades to
+// a glossary-less translation rather than failing.
+func newWorkerTBResolver(pgdb *storage.PgDB) jobs.TBResolver {
+	var cache sync.Map // workspaceSlug -> fwtermbase.TermBase
+	return jobs.TBResolverFunc(func(workspaceSlug string) (fwtermbase.TermBase, error) {
+		if v, ok := cache.Load(workspaceSlug); ok {
+			return v.(fwtermbase.TermBase), nil
+		}
+		tb, err := sqltb.NewPostgresTermBaseFromDB(pgdb, workspaceSlug)
+		if err != nil {
+			return nil, err
+		}
+		actual, _ := cache.LoadOrStore(workspaceSlug, fwtermbase.TermBase(tb))
+		return actual.(fwtermbase.TermBase), nil
 	})
 }
 

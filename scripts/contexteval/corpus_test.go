@@ -71,10 +71,10 @@ func TestMandatesReachTheSteeredPass(t *testing.T) {
 	}
 }
 
-// TestForbiddenTermsCarryReplacements pins the other injection contract:
-// production (brand.RenderVoiceGuideCompact) only renders forbidden-term swaps
-// that declare a replacement. A ban without one never reaches the model, so a
-// fixture tempting it would measure our injection gap, not the model.
+// TestForbiddenTermsCarryReplacements pins the eval's scoring contract: the
+// voice fixtures score swap adherence, which needs a declared replacement to
+// check against. (The compact guide renders bare bans too, but a ban with no
+// replacement has no single correct rendering to assert.)
 func TestForbiddenTermsCarryReplacements(t *testing.T) {
 	for _, target := range Targets() {
 		p := contextFor(target).Profile
