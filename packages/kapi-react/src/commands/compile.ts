@@ -19,14 +19,17 @@ import { dirname, extname, join } from "node:path";
 import type { Block, File } from "@neokapi/kapi-format";
 import { flattenRuns } from "@neokapi/kapi-format";
 
+import { buildReviewManifest } from "../review/manifest.ts";
+
 interface BlockRecord {
   block: Block;
 }
 
 export async function runCompile(args: string[]) {
-  let input: string | null = null;
+  const inputs: string[] = [];
   const locales: string[] = [];
   let outDir = "public/translations";
+  let review = false;
 
   for (let i = 0; i < args.length; i++) {
     const flag = args[i];
@@ -37,16 +40,26 @@ export async function runCompile(args: string[]) {
     }
     if (flag === "--out" && value) outDir = args[++i];
     else if (flag === "--locale" && value) locales.push(args[++i]);
-    else if (!flag.startsWith("--")) input = flag;
+    else if (flag === "--review") review = true;
+    else if (!flag.startsWith("--")) inputs.push(flag);
   }
 
-  if (!input) {
+  if (inputs.length === 0) {
     console.error("error: missing input (.klf file, .klf directory, or - for stdin)\n");
     console.log(usage);
     process.exit(1);
   }
 
-  const { blocks, declaredTargets } = await loadBlocks(input);
+  // Accumulate blocks across every input so one invocation can span the source
+  // catalog and each i18n-<locale> tree (needed for a complete review manifest).
+  const blocks: BlockRecord[] = [];
+  const declaredSet = new Set<string>();
+  for (const input of inputs) {
+    const res = await loadBlocks(input);
+    blocks.push(...res.blocks);
+    for (const l of res.declaredTargets) declaredSet.add(l);
+  }
+  const declaredTargets = Array.from(declaredSet);
 
   // Infer the set of target locales when --locale wasn't passed.
   const targetLocales = new Set<string>(locales);
@@ -81,6 +94,16 @@ export async function runCompile(args: string[]) {
 
   if (totalCompiled === 0) {
     console.warn("warning: no translated blocks found for any target locale");
+  }
+
+  // Read-only in-context review manifest (source + all targets + annotations),
+  // consumed by @neokapi/kapi-react/review/hosted on the deployed site.
+  if (review) {
+    const manifest = buildReviewManifest(inputs);
+    const reviewPath = join(outDir, "review.json");
+    mkdirSync(dirname(reviewPath), { recursive: true });
+    writeFileSync(reviewPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    console.log(`Review manifest: ${Object.keys(manifest).length} block(s) → ${reviewPath}`);
   }
 }
 
@@ -156,9 +179,9 @@ const usage = `
 kapi-react compile — flatten translated blocks into runtime dictionaries.
 
 Usage:
-  kapi-react compile <input> [--locale <lang>]... [--out <dir>]
+  kapi-react compile <input>... [--locale <lang>]... [--out <dir>] [--review]
 
-<input> can be:
+<input> can be (one or more):
   <dir/>               a directory of .klf files (recursive)
   <file.klf>           a single .klf file
   -                    NDJSON block records on stdin
@@ -168,4 +191,10 @@ Options:
                     If omitted, every locale present in block.targets is
                     emitted.
   --out <dir>       Output directory (default: public/translations)
+  --review          Also emit review.json — a read-only in-context review
+                    manifest (source + all targets + annotations, merged by
+                    hash) for @neokapi/kapi-react/review/hosted. Pass the source
+                    catalog and every i18n-<locale> tree so it carries source
+                    text and all locales, e.g.
+                    kapi-react compile i18n i18n-* --out public/translations --review
 `;

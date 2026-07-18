@@ -813,6 +813,45 @@ The middleware serves the KLF tree at `reviewKlfDir` (default:
 production builds ignore the review flag unless you set it
 explicitly — don't.
 
+### Hosted read-only review (on a deployed site)
+
+The overlay above is for local development (it needs the Vite middleware
+and writes to your `.klf` files). To let someone review translations
+**in context on the deployed site** — click a unit in your TMS or review
+tool and land on the live page with that string highlighted — use the
+read-only hosted variant. It needs no server: it reads a static
+`review.json` and never writes.
+
+Three steps:
+
+```ts
+// 1. Stamp elements in the production build (the transform stamps
+//    data-kapi-* in prod too; only the dev middleware is dev-gated).
+neokapi({ mode: "runtime", review: true });
+```
+
+```bash
+# 2. Emit review.json next to the runtime dictionaries — pass the source
+#    catalog and every i18n-<locale> tree so it carries source + all locales.
+kapi-react compile i18n i18n-* --out public/translations --review
+```
+
+```ts
+// 3. Boot the read-only overlay in the app entry.
+import { initKapiReviewHosted } from "@neokapi/kapi-react/review/hosted";
+initKapiReviewHosted(); // fetches <base>translations/review.json
+```
+
+- **Deep link** `?kapi-focus=<hash>` scrolls to the element with that
+  block's `data-kapi-id`, outlines it, and opens a read-only panel:
+  source, target for the active locale, note, other locales, and term/QA
+  annotations. Point a "view in context" link at
+  `https://your-site/?kapi-focus=<hash>`.
+- **⌥/Alt+click** opens the same panel for any translated element; its
+  "copy context link" button yields the shareable deep link.
+
+Fully static and read-only — safe to ship on GitHub/GitLab Pages.
+
 ## Storybook Integration
 
 Preview your components in each locale via a toolbar dropdown. Wire up
