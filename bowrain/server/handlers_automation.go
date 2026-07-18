@@ -149,6 +149,11 @@ func (s *Server) HandleToggleAutomationRule(c echo.Context) error {
 }
 
 // HandleListAutomationEvents returns available event types for automation triggers.
+//
+// Only event types that are actually emitted somewhere are offered:
+// EventFlowCompleted / EventFlowFailed are defined on the bus but not yet
+// emitted by any flow-execution path, so they are intentionally absent here
+// until an emitter exists (see AD-013, "Trigger events").
 func (s *Server) HandleListAutomationEvents(c echo.Context) error {
 	events := []struct {
 		Type        string `json:"type"`
@@ -157,8 +162,6 @@ func (s *Server) HandleListAutomationEvents(c echo.Context) error {
 		{string(platev.EventPushCompleted), "When content is pushed"},
 		{string(platev.EventPullCompleted), "When content is pulled"},
 		{string(platev.EventProjectUpdated), "When project settings change"},
-		{string(platev.EventFlowCompleted), "When a flow finishes"},
-		{string(platev.EventFlowFailed), "When a flow fails"},
 		{string(platev.EventQualityGateFail), "When a quality gate fails"},
 		{string(platev.EventPushAutomationsCompleted), "When all automations for a push complete"},
 		{string(platev.EventSourceReviewCompleted), "When a source review task is completed"},

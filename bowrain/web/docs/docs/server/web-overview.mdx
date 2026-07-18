@@ -108,7 +108,7 @@ The dashboard shows all projects in the active workspace. Each card displays the
 
 ### Project View
 
-The project view shows files in the selected project with format detection, word counts, and block counts. Upload new files by dragging them onto the drop zone, or click "Add Files" to browse. Access Translation Memory and Terminology from the header buttons.
+The project view shows files in the selected project with format detection, word counts, and block counts. Upload new files by dragging them onto the drop zone, or click "Add Files" to browse. Access the content memory and terminology from the header buttons.
 
 <ThemedImage
   alt="Project view with file list and upload zone"
@@ -118,12 +118,12 @@ The project view shows files in the selected project with format detection, word
   }}
 />
 
-### Translation Memory Explorer
+### Content memory
 
-The TM Explorer provides full access to the workspace translation memory. Browse, search, add, edit, and delete entries. Filter by source or target locale.
+The [content memory](/server/translation-memory) browser provides full access to the workspace translation memory (TM). Browse, search, add, edit, and delete entries. Filter by source or target locale.
 
 <ThemedImage
-  alt="TM Explorer with search and filtering"
+  alt="Content memory browser with search and filtering"
   sources={{
     light: "/img/web-app/light/tm-explorer.png",
     dark: "/img/web-app/dark/tm-explorer.png",
@@ -159,7 +159,7 @@ View workspace information including name, slug, description, and your role.
 - **Translation editor** with Visual and Table views, inline tag support, block status tracking, and keyboard navigation
 - **Context panel** with per-block TM matches and terminology suggestions, one-click apply
 - **Terminology management** with concept-oriented termbases, multi-locale terms, lifecycle statuses, CSV/JSON import/export
-- **Translation Memory** with content-aware tiered matching (generalized, structural, plain), fuzzy matching, and TM explorer
+- **Content memory** (TM) with content-aware tiered matching (generalized, structural, plain), fuzzy matching, and a browsable explorer
 - **AI translation** using configurable providers (Anthropic, OpenAI, Ollama)
 - **Machine translation** via DeepL, Google, Microsoft, ModernMT, or MyMemory
 - **Pseudo-translation** for layout testing and QA
@@ -175,4 +175,4 @@ The platform is served by `bowrain-server`. Users authenticate through your iden
 
 ## Browser and desktop clients
 
-The browser and the [desktop app](/server/desktop-app) share the same core surfaces (translation editor, TM explorer, terminology explorer) through the `@neokapi/ui` shared package, and connect to the same server and workspaces — so multi-user presence, SSO, terminology, and translation memory are shared across them. The differences are about where and how you run, not what you can do: the desktop client adds offline editing and runs as a native app. See [The desktop app](/server/desktop-app) for the full comparison.
+The browser and the [desktop app](/server/desktop-app) share the same core surfaces (translation editor, content memory, terminology explorer) through the `@neokapi/ui` shared package, and connect to the same server and workspaces — so multi-user presence, SSO, terminology, and the content memory are shared across them. The differences are about where and how you run, not what you can do: the desktop client adds offline editing and runs as a native app. See [The desktop app](/server/desktop-app) for the full comparison.
