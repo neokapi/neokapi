@@ -46,6 +46,8 @@ describe("posthog integration", () => {
       },
       // Core Web Vitals ($web_vitals).
       capture_performance: { web_vitals: true },
+      // Real PostHog UI host (api_host may be the first-party proxy).
+      ui_host: "https://eu.posthog.com",
     });
   });
 
