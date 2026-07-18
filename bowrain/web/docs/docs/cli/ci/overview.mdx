@@ -84,7 +84,7 @@ of breaking builds.
 |---|---|---|
 | GitHub Actions | [`setup-kapi`](https://github.com/neokapi/setup-kapi) installs the CLI (the bowrain plugin included by default); [`kapi-action`](https://github.com/neokapi/kapi-action) runs `kapi up` and commits or opens a pull request. The reusable [`kapi-workflows`](https://github.com/neokapi/kapi-workflows) (`up.yml@v1`, `gate.yml@v1`) compose both into one-line jobs | [GitHub Actions](/cli/use-cases/github-actions) |
 | GitLab CI | [`kapi-components`](https://gitlab.com/neokapi/kapi-components) from the CI/CD Catalog: `up` delivers a merge request, `check` gates merge-request pipelines | [GitLab CI](/cli/ci/gitlab) |
-| Any container runner | `ghcr.io/neokapi/kapi` (cosign-signed; the `:1-bowrain` variant ships the server-sync plugin preinstalled) and the CLI directly — the exit codes above are the contract | this page |
+| Any container runner | `ghcr.io/neokapi/kapi` (cosign-signed; the server-sync plugin is preinstalled, so `kapi up` / `push` / `pull` work out of the box) and the CLI directly — the exit codes above are the contract | this page |
 | No pipeline | The forge connector / Bowrain GitHub App: the server converges on every push to the tracked branch and delivers the results back as one PR/MR | [The Bowrain GitHub App](/cli/ci/github-app) |
 
 ## Which to use when

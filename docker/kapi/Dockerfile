@@ -5,6 +5,15 @@
 # runners, so the base must carry glibc >= 24.04's; anything older (e.g.
 # debian:bookworm) fails at dynamic link time.
 #
+# The kapi-bowrain plugin is baked into the default image (there is no separate
+# -bowrain variant): a single image serves both standalone kapi runs and
+# server-connected projects, so `kapi up` / `kapi push` / `kapi pull` and the
+# CI/CD Catalog components work out of the box with no install step. The plugin
+# is a separate subprocess dispatched only when a bowrain command runs, so its
+# presence costs pure-kapi usage nothing. Note the plugin is AGPL-3.0 while the
+# kapi binary is Apache-2.0 — the image bundles both (see the licenses label in
+# release.yml).
+#
 # Build context layout (staged by the publish-cli-image job in
 # .github/workflows/release.yml):
 #   bins/<arch>/kapi                                  amd64 + arm64
@@ -21,17 +30,13 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 ARG TARGETARCH
 COPY bins/${TARGETARCH}/kapi /usr/local/bin/kapi
+# The kapi-bowrain plugin, preinstalled in the system plugin root
+# (host/pluginhost/discover.go scans /usr/share/kapi/plugins), so
+# server-connected projects need zero install steps.
+COPY plugins/${TARGETARCH}/bowrain/ /usr/share/kapi/plugins/bowrain/
 # No ENTRYPOINT, by design: CI executors (GitLab docker executor, GitHub
 # job containers) run job scripts through a shell, and an ENTRYPOINT ["kapi"]
 # turns that into `kapi sh -c …` → "unknown command sh". This is a CI-first
 # image; invoke the binary by name (`docker run … kapi version`), like the
 # golang/node tool images.
 CMD ["kapi", "--help"]
-
-# Variant with the kapi-bowrain plugin preinstalled in the system plugin root
-# (host/pluginhost/discover.go scans /usr/share/kapi/plugins), so
-# server-connected projects need zero install steps: the container runs
-# `kapi up` / `kapi push` / `kapi pull` out of the box.
-FROM kapi AS kapi-bowrain
-ARG TARGETARCH
-COPY plugins/${TARGETARCH}/bowrain/ /usr/share/kapi/plugins/bowrain/
