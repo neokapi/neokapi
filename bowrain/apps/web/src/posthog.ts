@@ -26,6 +26,9 @@ export function initPostHog() {
       maskAllInputs: true,
       maskTextSelector: "[data-sensitive]",
     },
+    // Core Web Vitals (LCP / INP / CLS) as $web_vitals events — real-user
+    // performance, and the metrics Google ranks on.
+    capture_performance: { web_vitals: true },
   });
   // Mandatory taxonomy super-properties (epic 018): every event from this
   // surface — captures, pageviews, autocapture — is discriminated in the
