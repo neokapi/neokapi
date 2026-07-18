@@ -38,6 +38,7 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/version"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	fwsievepen "github.com/neokapi/neokapi/sievepen"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
@@ -238,8 +239,12 @@ func runWorker(dbURL string) error {
 	// translation providers.
 	providerStore := bstore.NewProviderConfigStore(pgdb.DB, secretsCipher)
 
+	// Expose the DB pool's saturation as Prometheus gauges.
+	observe.RegisterDBStats(pgdb.DB, "worker")
+
 	// Build translation worker dependencies.
 	translationDeps := &jobs.WorkerDeps{
+		QueueName:     "translation",
 		JobStore:      pgJS,
 		ContentStore:  cs,
 		CredStore:     credStore,
@@ -446,6 +451,12 @@ func runWorker(dbURL string) error {
 	healthPort := envOrDefault("BOWRAIN_HEALTH_PORT", "8081")
 	g.Go(func() error {
 		mux := http.NewServeMux()
+		// Prometheus metrics (job outcomes, durations, in-flight, DB pool, Go
+		// runtime). The worker previously exported none. Gated the same way as
+		// the server's /metrics: a bearer token when BOWRAIN_METRICS_TOKEN is
+		// set, else loopback/private source IPs only.
+		mux.Handle("/metrics", observe.MetricsAccessMiddlewareStd(
+			os.Getenv("BOWRAIN_METRICS_TOKEN"), promhttp.Handler()))
 		// Liveness: the process is up. Cheap, dependency-free — used by the
 		// container/orchestrator to decide whether to restart the task.
 		mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {

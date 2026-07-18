@@ -382,6 +382,10 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 		run.State = bstore.ConvergenceRunConverged
 	}
 
+	// Record the terminal outcome for the core product loop. run.State is a
+	// bounded wire value (converged|parked|failed|canceled), safe as a label.
+	observe.ConvergenceRunsTotal.WithLabelValues(string(run.State)).Inc()
+
 	// A terminal run has stopped moving; freeze the loop position so the row does
 	// not read as "producing ai_translate" after it finished.
 	run.CurrentStage = ""

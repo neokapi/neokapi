@@ -31,7 +31,11 @@ type WorkerConfig struct {
 }
 
 // WorkerDeps holds all dependencies for the translation worker.
+//
+// QueueName is a bounded metric label for this worker's queue
+// (translation|extraction|brand-scan). Empty defaults to "translation".
 type WorkerDeps struct {
+	QueueName    string
 	JobStore     JobStore
 	ContentStore store.ContentStore
 	CredStore    *credentials.Store
@@ -150,10 +154,18 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 		// sees for the job/run — and any Sentry capture is tagged with it.
 		jobCtx := observe.WithRequestID(ctx, jobID)
 
+		queueLabel := deps.QueueName
+		if queueLabel == "" {
+			queueLabel = "translation"
+		}
+		jobStart := time.Now()
+		observe.JobsInFlight.WithLabelValues(queueLabel).Inc()
 		processErr := processJobWithDeps(jobCtx, deps, jobID)
+		observe.JobsInFlight.WithLabelValues(queueLabel).Dec()
 		if processErr != nil {
 			var te *transientError
 			if errors.As(processErr, &te) {
+				observe.JobsProcessedTotal.WithLabelValues(queueLabel, "transient").Inc()
 				// Transient upstream failure with retry budget left:
 				// processJobWithDeps has already reset the row to 'queued'.
 				//
@@ -183,6 +195,9 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 			// Permanent failure (or exhausted retries): report to Sentry, tagged
 			// with the job ID so it resolves from the client-visible reference.
 			observe.CaptureError(processErr, jobID, map[string]string{"kind": "job", "job_id": jobID})
+			observe.ObserveJob(queueLabel, "failed", jobStart)
+		} else {
+			observe.ObserveJob(queueLabel, "success", jobStart)
 		}
 		// Success, permanent failure, or exhausted retries: processJobWithDeps
 		// has recorded the terminal status in the DB, so ACK to drop the
