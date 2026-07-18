@@ -126,8 +126,19 @@ jobs:
   l10n-drift:
     name: l10n catalogs are fresh
     runs-on: ubuntu-latest
+    # contents: write (overriding the workflow-level read) lets the l10n
+    # auto-fix push regenerated catalogs back to same-repo PR branches. Only
+    # this job gets it: the reference-dataset gates above are source-side and
+    # stay strict.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Same-repo PRs check out the PR head branch (not the ephemeral
+          # merge ref) so the l10n auto-fix below can commit + push to it.
+          # Fork PRs and pushes keep the default checkout ('' = unset).
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref || '' }}
 
       - uses: ./.github/actions/setup-go-modules
 
@@ -135,11 +146,26 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
 
       # Regenerate the builtin metadata inventory, the CLI command inventory,
-      # and the embedded MO catalogs from the committed l10n/ seeds, and fail
-      # on any drift. Seeds are native .klftm/.klftb (deterministic,
-      # identity-preserving), so this is byte-stable.
-      - name: Check l10n catalogs for drift
-        run: make l10n-verify
+      # the embedded MO catalogs, and the demo-narration sidecars from the
+      # committed l10n/ seeds (the regen prerequisites of l10n-verify). Seeds
+      # are native .klftm/.klftb (deterministic, identity-preserving), so this
+      # is byte-stable — which makes drift pure toil: on same-repo PRs the
+      # script commits the regenerated files back to the PR branch and passes
+      # (a rerun on the bot commit finds no diff, so this cannot loop; the
+      # GITHUB_TOKEN push does not re-trigger workflows, so this run's checks
+      # are authoritative). Fork PRs and pushes to main keep the strict
+      # fail-on-drift gate (`make l10n-verify` stays the local command).
+      - name: Check l10n catalogs for drift (auto-fix on same-repo PRs)
+        env:
+          AUTOFIX_SAME_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+          AUTOFIX_HEAD_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || '' }}
+        run: |
+          bash scripts/l10n-autofix.sh l10n-builtins l10n-cli l10n-demos -- \
+            core/i18n/builtins \
+            core/i18n/catalogs \
+            host/i18n/commands.json \
+            host/i18n/catalogs \
+            ':(glob)harness/demos/*/demo.*.yaml'
 
   # Docs surfaces gate (the l10n/README.md follow-up): the translated docs
   # trees (web/i18n/nb/, bowrain/web/docs/i18n/nb/) are gitignored build
