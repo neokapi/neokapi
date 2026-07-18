@@ -49,6 +49,8 @@ Direct downloads for **Bowrain Desktop 1.2.0-rc13**:
 - **macOS arm64 (.dmg)** — [`bowrain-1.2.0-rc13-macOS-arm64.dmg`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0-rc13/bowrain-1.2.0-rc13-macOS-arm64.dmg)
 
 **Windows** (Authenticode-signed, portable zip)
+- **Windows amd64** — [`bowrain-1.2.0-rc13-windows-amd64.zip`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0-rc13/bowrain-1.2.0-rc13-windows-amd64.zip)
+- **Windows arm64** — [`bowrain-1.2.0-rc13-windows-arm64.zip`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0-rc13/bowrain-1.2.0-rc13-windows-arm64.zip)
 
 **Linux**
 - **Linux amd64 (tar.gz)** — [`bowrain-1.2.0-rc13-linux-amd64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0-rc13/bowrain-1.2.0-rc13-linux-amd64.tar.gz)

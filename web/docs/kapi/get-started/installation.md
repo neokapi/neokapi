@@ -74,6 +74,8 @@ Direct downloads for **kapi 1.2.0-rc13** (CLI):
 - **Linux arm64 (.rpm)** — [`kapi-cli_1.2.0-rc13_arm64.rpm`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-cli_1.2.0-rc13_arm64.rpm)
 
 **Windows** (Authenticode-signed, portable zip)
+- **Windows amd64** — [`kapi-cli_1.2.0-rc13_windows_amd64.zip`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-cli_1.2.0-rc13_windows_amd64.zip)
+- **Windows arm64** — [`kapi-cli_1.2.0-rc13_windows_arm64.zip`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-cli_1.2.0-rc13_windows_arm64.zip)
 
 Verify a download against [`checksums.txt`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/checksums.txt).
 <!-- END:downloads-cli -->
@@ -138,6 +140,10 @@ Direct downloads for **Kapi Desktop 1.2.0-rc13**:
 - **macOS arm64 (.dmg)** — [`kapi-1.2.0-rc13-macOS-arm64.dmg`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-1.2.0-rc13-macOS-arm64.dmg)
 
 **Windows** (signed installer)
+- **Windows amd64 (installer)** — [`kapi-1.2.0-rc13-windows-amd64-setup.exe`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-1.2.0-rc13-windows-amd64-setup.exe)
+- **Windows arm64 (installer)** — [`kapi-1.2.0-rc13-windows-arm64-setup.exe`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-1.2.0-rc13-windows-arm64-setup.exe)
+- **Windows amd64 (portable zip)** — [`kapi-1.2.0-rc13-windows-amd64.zip`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-1.2.0-rc13-windows-amd64.zip)
+- **Windows arm64 (portable zip)** — [`kapi-1.2.0-rc13-windows-arm64.zip`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-1.2.0-rc13-windows-arm64.zip)
 
 **Linux**
 - **Linux amd64 (tar.gz)** — [`kapi-1.2.0-rc13-linux-amd64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/v1.2.0-rc13/kapi-1.2.0-rc13-linux-amd64.tar.gz)
