@@ -457,10 +457,11 @@ make publish-cdn-bowrain-images   # bowrain images/screenshots → R2 (bowrain/i
 ```
 
 Assets are **not stored in git and not in GitHub releases** — they live only on
-the Cloudflare R2 CDN (served at `$DOCS_CDN_URL`) and are referenced by URL via
-`ThemedVideo` / `ThemedImage` / the Vision Lab. The sites build with
-`DOCS_CDN_URL` set for push and same-repo PRs; PR previews are served from R2
-too, so they stay tiny. The Vision Lab model set is versioned by the committed
+the S3 + CloudFront CDN (served at `$DOCS_CDN_URL`, `cdn.bowrain.cloud`) and are
+referenced by URL via `ThemedVideo` / `ThemedImage` / the Vision Lab. The sites
+build with `DOCS_CDN_URL` set for push and same-repo PRs; PR previews are served
+from a sibling S3 + CloudFront host (`preview.bowrain.cloud`), so they stay tiny.
+The Vision Lab model set is versioned by the committed
 `web/models.version` (bump it + `make publish-cdn-vision-models` to ship a new
 set). See `web/docs/contribute/notes-internal/cdn-assets.md`.
 
@@ -468,7 +469,7 @@ See `harness/` (and its Makefile) for the phased seed → record → narrate →
 
 ### In CI
 
-The docs build workflows (`.github/workflows/docs-kapi.yml`, `docs-bowrain.yml`) **reference** the `.webm` videos, screenshots, and ONNX models from the Cloudflare R2 CDN (`$DOCS_CDN_URL`) rather than recording or staging them in CI — recording happens on the desktop and is published to R2 via the `publish-cdn-*` targets. Assets are not stored in git or in GitHub releases. PR previews (served from R2) reference the same CDN assets, so they stay small.
+The docs build workflows (`.github/workflows/docs-kapi.yml`, `docs-bowrain.yml`) **reference** the `.webm` videos, screenshots, and ONNX models from the S3 + CloudFront CDN (`$DOCS_CDN_URL`) rather than recording or staging them in CI — recording happens on the desktop and is published via the `publish-cdn-*` targets. Assets are not stored in git or in GitHub releases. PR previews (served from a sibling S3 + CloudFront host, `preview.bowrain.cloud`) reference the same CDN assets, so they stay small.
 
 ### Real systems, not mocks
 
