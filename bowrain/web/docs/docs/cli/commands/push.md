@@ -19,6 +19,14 @@ duties the [Brand](/server/brand#tiered-governance) hub enforces. Push reports
 what applied directly versus what was proposed, with a link to review the
 change-set.
 
+When the recipe binds a brand voice profile (`defaults.brand_voice`, or a
+`brand.yaml` at the project root), push also carries it into the workspace
+[Brand](/server/brand) hub, matched by profile name: created on first push, a
+no-op when the content is unchanged, and otherwise applied as a **new profile
+version** — the previous server-side state is archived in the version history,
+never overwritten, and vocabulary rules the server promoted from corrections
+are preserved. Use `--no-brand` to skip.
+
 ## Usage
 
 ```bash
@@ -52,6 +60,7 @@ kapi push --force
 | `--force`   | Push all blocks, ignoring sync cache      | `false` |
 | `--dry-run` | Show what would be pushed without sending | `false` |
 | `--concepts` | Sync only local terminology edits to the workspace (direct edits + governed change-set) — no content transport, no hooks | `false` |
+| `--no-brand` | Skip uploading the recipe-bound brand voice profile to the workspace brand hub | `false` |
 
 ## What Happens
 

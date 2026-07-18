@@ -1,8 +1,11 @@
 package server
 
 import (
+	"context"
 	"net/http"
+	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -25,6 +28,14 @@ type BrandProfileRequest struct {
 	Locales     map[model.LocaleID]corebrand.LocaleOverride `json:"locales,omitempty"`
 	Channels    map[string]corebrand.ChannelOverride        `json:"channels,omitempty"`
 	Personas    map[string]corebrand.PersonaOverride        `json:"personas,omitempty"`
+}
+
+// BrandProfileUpsertResponse reports what HandleUpsertBrandProfile did.
+// Action is "created", "updated", or "unchanged"; Profile is the stored
+// workspace profile after the action.
+type BrandProfileUpsertResponse struct {
+	Action  string                  `json:"action"`
+	Profile *corebrand.VoiceProfile `json:"profile"`
 }
 
 // BrandCheckRequest is the request body for checking text against a brand profile.
@@ -107,6 +118,221 @@ func (s *Server) HandleCreateBrandProfile(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 	return c.JSON(http.StatusCreated, profile)
+}
+
+// HandleUpsertBrandProfile creates or updates the workspace brand profile
+// matching the request by name — the idempotent endpoint behind `kapi push`.
+// The linkage key is the profile name within the workspace (the store already
+// enforces UNIQUE(workspace_id, name)), matched case-insensitively:
+//
+//   - no workspace profile with that name → create it (version 1);
+//   - a match whose authored content equals the pushed content → no-op;
+//   - a match that differs → apply the pushed content through the store's
+//     UpdateProfile, which archives the current state as an immutable
+//     ProfileVersion before bumping the version — server-side edits are never
+//     lost, only superseded by a new, revertible version.
+//
+// Vocabulary rules the correction-learning loop promoted server-side (a
+// promoted RuleDecision still present in the live profile) are folded back
+// into the pushed vocabulary when the push does not carry the term, so a push
+// from a stale local profile never reverts a promotion; demoting a rule stays
+// a server-side, governed act.
+func (s *Server) HandleUpsertBrandProfile(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+		return err
+	}
+	if s.BrandStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
+	}
+
+	var req BrandProfileRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	if req.Name == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "name is required"})
+	}
+
+	ctx := c.Request().Context()
+	wsID, _ := c.Get("workspace_id").(string)
+	userID, _ := c.Get("user_id").(string)
+
+	profiles, err := s.BrandStore.ListProfiles(ctx, wsID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	var existing *corebrand.VoiceProfile
+	for _, p := range profiles {
+		if strings.EqualFold(p.Name, req.Name) {
+			existing = p
+			break
+		}
+	}
+
+	if existing == nil {
+		now := time.Now().UTC()
+		profile := &corebrand.VoiceProfile{
+			ID:          id.New(),
+			Name:        req.Name,
+			Description: req.Description,
+			Tone:        req.Tone,
+			Style:       req.Style,
+			Vocabulary:  req.Vocabulary,
+			Examples:    req.Examples,
+			Locales:     req.Locales,
+			Channels:    req.Channels,
+			Personas:    req.Personas,
+			WorkspaceID: wsID,
+			Version:     1,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+			CreatedBy:   userID,
+		}
+		if err := s.BrandStore.CreateProfile(ctx, profile); err != nil {
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		}
+		return c.JSON(http.StatusCreated, BrandProfileUpsertResponse{Action: "created", Profile: profile})
+	}
+
+	// The effective pushed vocabulary keeps the server's promoted rules.
+	vocab := req.Vocabulary
+	s.preservePromotedRules(ctx, existing, &vocab)
+
+	incoming := brandContentOf(req.Name, req.Description, req.Tone, req.Style, vocab,
+		req.Examples, req.Locales, req.Channels, req.Personas)
+	current := brandContentOf(existing.Name, existing.Description, existing.Tone, existing.Style,
+		existing.Vocabulary, existing.Examples, existing.Locales, existing.Channels, existing.Personas)
+	if reflect.DeepEqual(incoming, current) {
+		return c.JSON(http.StatusOK, BrandProfileUpsertResponse{Action: "unchanged", Profile: existing})
+	}
+
+	beforeVersion := strconv.Itoa(existing.Version)
+	existing.Name = req.Name
+	existing.Description = req.Description
+	existing.Tone = req.Tone
+	existing.Style = req.Style
+	existing.Vocabulary = vocab
+	existing.Examples = req.Examples
+	existing.Locales = req.Locales
+	existing.Channels = req.Channels
+	existing.Personas = req.Personas
+	existing.VersionNote = "superseded by kapi push"
+	existing.UpdatedAt = time.Now().UTC()
+
+	// UpdateProfile archives the current state as an immutable ProfileVersion
+	// and bumps existing.Version — the pushed change lands as a new version.
+	if err := s.BrandStore.UpdateProfile(ctx, existing); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	s.emitAudit(c, auditEvent{
+		Type:         platev.EventBrandProfileUpdated,
+		ResourceType: "brand_profile",
+		ResourceID:   existing.ID,
+		Data:         map[string]string{"name": existing.Name, "via": "push"},
+		Before:       map[string]string{"version": beforeVersion},
+		After:        map[string]string{"version": strconv.Itoa(existing.Version)},
+	})
+	return c.JSON(http.StatusOK, BrandProfileUpsertResponse{Action: "updated", Profile: existing})
+}
+
+// brandProfileContent is the authored surface of a voice profile the push
+// upsert compares — exactly the field set BrandProfileRequest carries.
+// Server-managed metadata (ID, workspace, version, autonomy, timestamps) is
+// excluded: a push never touches it.
+type brandProfileContent struct {
+	Name        string
+	Description string
+	Tone        corebrand.ToneProfile
+	Style       corebrand.StyleRules
+	Vocabulary  corebrand.VocabularyRules
+	Examples    []corebrand.VoiceExample
+	Locales     map[model.LocaleID]corebrand.LocaleOverride
+	Channels    map[string]corebrand.ChannelOverride
+	Personas    map[string]corebrand.PersonaOverride
+}
+
+// brandContentOf builds a normalized comparable view: every empty top-level
+// collection maps to nil so a YAML-decoded pushed profile (nil slices/maps)
+// compares equal to a stored one that round-tripped through the database.
+func brandContentOf(name, description string, tone corebrand.ToneProfile, style corebrand.StyleRules,
+	vocab corebrand.VocabularyRules, examples []corebrand.VoiceExample,
+	locales map[model.LocaleID]corebrand.LocaleOverride, channels map[string]corebrand.ChannelOverride,
+	personas map[string]corebrand.PersonaOverride,
+) brandProfileContent {
+	if len(tone.Personality) == 0 {
+		tone.Personality = nil
+	}
+	if len(style.ProhibitedPatterns) == 0 {
+		style.ProhibitedPatterns = nil
+	}
+	if len(style.RequiredPatterns) == 0 {
+		style.RequiredPatterns = nil
+	}
+	if len(vocab.PreferredTerms) == 0 {
+		vocab.PreferredTerms = nil
+	}
+	if len(vocab.ForbiddenTerms) == 0 {
+		vocab.ForbiddenTerms = nil
+	}
+	if len(vocab.CompetitorTerms) == 0 {
+		vocab.CompetitorTerms = nil
+	}
+	if len(vocab.Abbreviations) == 0 {
+		vocab.Abbreviations = nil
+	}
+	if len(examples) == 0 {
+		examples = nil
+	}
+	if len(locales) == 0 {
+		locales = nil
+	}
+	if len(channels) == 0 {
+		channels = nil
+	}
+	if len(personas) == 0 {
+		personas = nil
+	}
+	return brandProfileContent{
+		Name: name, Description: description, Tone: tone, Style: style,
+		Vocabulary: vocab, Examples: examples, Locales: locales, Channels: channels, Personas: personas,
+	}
+}
+
+// preservePromotedRules folds the profile's promoted-rule decisions into the
+// pushed vocabulary so a push from a stale local profile never reverts what
+// the correction-learning loop promoted server-side. A rule is preserved when
+// its decision is promoted AND the live profile still carries it (a demoted
+// rule is gone from the live profile and stays gone) AND the pushed vocabulary
+// does not itself carry the term. Promotions land in ForbiddenTerms
+// (brand.ApplySuggestedRule), so only that list needs folding. Returns the
+// number of preserved rules.
+func (s *Server) preservePromotedRules(ctx context.Context, existing *corebrand.VoiceProfile, vocab *corebrand.VocabularyRules) int {
+	decisions, err := s.BrandStore.ListRuleDecisions(ctx, existing.ID)
+	if err != nil || len(decisions) == 0 {
+		return 0
+	}
+	promoted := map[string]bool{}
+	for _, d := range decisions {
+		if d.Status == corebrand.RuleDecisionPromoted {
+			promoted[strings.ToLower(d.Term)] = true
+		}
+	}
+	if len(promoted) == 0 {
+		return 0
+	}
+	pushed := map[string]bool{}
+	for _, r := range vocab.ForbiddenTerms {
+		pushed[strings.ToLower(r.Term)] = true
+	}
+	n := 0
+	for _, rule := range existing.Vocabulary.ForbiddenTerms {
+		key := strings.ToLower(rule.Term)
+		if promoted[key] && !pushed[key] {
+			vocab.ForbiddenTerms = append(vocab.ForbiddenTerms, rule)
+			n++
+		}
+	}
+	return n
 }
 
 // profileInRequestWorkspace reports whether the brand profile belongs to the

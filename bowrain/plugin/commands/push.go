@@ -18,6 +18,7 @@ var (
 	pushDryRun       bool
 	pushStream       string
 	pushConceptsOnly bool
+	pushNoBrand      bool
 )
 
 var pushCmd = &cobra.Command{
@@ -33,7 +34,13 @@ also reconciles local terminology edits against that baseline. Ordinary edits
 while governed edits (a term set to forbidden/preferred, a REPLACED_BY
 relation, a concept delete) are bundled into a single change-set proposal for
 review — the same separation of duties the web hub enforces. Push reports what
-applied directly versus what was proposed.`,
+applied directly versus what was proposed.
+
+When the recipe binds a brand voice profile (defaults.brand_voice, or a
+brand.yaml at the project root), push also carries it into the workspace brand
+hub: created on first push, unchanged content is a no-op, and a changed profile
+lands as a new version — server-side edits are archived, never overwritten.
+Use --no-brand to skip.`,
 	RunE: runPush,
 }
 
@@ -151,6 +158,20 @@ func runPush(cmd *cobra.Command, args []string) error {
 			out.ChangesetID = cres.ChangesetID
 			out.ChangesetURL = cres.ChangesetURL
 		}
+		// Carry the recipe-bound brand voice profile into the workspace brand
+		// hub (idempotent upsert by name; server-side edits are versioned,
+		// never clobbered). Skipped silently when the project is not
+		// workspace-claimed or binds no profile; --no-brand opts out.
+		if !pushNoBrand {
+			if bres, berr := brandPush(cmd.Context(), proj, pushDryRun); berr != nil {
+				return berr
+			} else if bres != nil {
+				out.BrandProfile = bres.Name
+				out.BrandAction = bres.Action
+				out.BrandVersion = bres.Version
+				out.BrandReason = bres.Reason
+			}
+		}
 		applyLoopStatus(&out, proj, conn.Stream())
 	}
 
@@ -198,5 +219,6 @@ func init() {
 	pushCmd.Flags().BoolVar(&pushDryRun, "dry-run", false, "Show what would be uploaded without sending")
 	pushCmd.Flags().StringVar(&pushStream, "stream", "", "Target stream (default: auto-detect from git/CI)")
 	pushCmd.Flags().BoolVar(&pushConceptsOnly, "concepts", false, "Sync only local terminology edits to the workspace (direct edits + governed change-set); no content transport, no hooks")
+	pushCmd.Flags().BoolVar(&pushNoBrand, "no-brand", false, "Skip uploading the recipe-bound brand voice profile to the workspace brand hub")
 	cli.RegisterCommandFactory(func(parent *cobra.Command, _ *cli.App) { parent.AddCommand(pushCmd) })
 }

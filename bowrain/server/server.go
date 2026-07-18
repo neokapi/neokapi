@@ -1566,6 +1566,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.DELETE("/brand-profiles/:id", s.HandleDeleteBrandProfile)
 	g.POST("/brand-profiles/:id/check", s.HandleCheckBrandVoice, aiLimit)
 	g.POST("/brand-profiles/from-starter", s.HandleCreateFromStarter)
+	g.POST("/brand-profiles/upsert", s.HandleUpsertBrandProfile)
 	g.GET("/brand-profiles/suggested-rules", s.HandleGetSuggestedRules)
 	g.GET("/brand-profiles/:id/candidates", s.HandleListCandidates)
 	g.POST("/brand-profiles/:id/promote-rule", s.HandlePromoteSuggestedRule)

@@ -204,6 +204,14 @@ type PushOutput struct {
 	ChangesetID      string `json:"changeset_id,omitempty"`
 	ChangesetURL     string `json:"changeset_url,omitempty"`
 
+	// Brand voice (the recipe-bound profile upserted into the workspace brand
+	// hub by name). BrandAction is created | updated | unchanged | skipped |
+	// would-push (dry run); BrandVersion is the stored version after the action.
+	BrandProfile string `json:"brand_profile,omitempty"`
+	BrandAction  string `json:"brand_profile_action,omitempty"`
+	BrandVersion int    `json:"brand_profile_version,omitempty"`
+	BrandReason  string `json:"brand_profile_reason,omitempty"`
+
 	// Loop status (the recipe's server policy + web destinations): whether the
 	// server converges on push, and where the pushed content lands.
 	Converge   string `json:"converge,omitempty"` // on-push | manual
@@ -224,8 +232,30 @@ func (o PushOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "Pushed %d blocks, %d words (scanned %d files)\n", o.BlocksPushed, o.WordCount, o.FilesScanned)
 	}
 	o.formatConcepts(w)
+	o.formatBrand(w)
 	o.formatLoopStatus(w)
 	return nil
+}
+
+// formatBrand appends the brand-profile line: what the push did with the
+// recipe-bound voice profile in the workspace brand hub. Silent when no
+// profile travelled.
+func (o PushOutput) formatBrand(w io.Writer) {
+	if o.BrandProfile == "" {
+		return
+	}
+	switch o.BrandAction {
+	case "would-push":
+		fmt.Fprintf(w, "Would push brand profile %q to the workspace brand hub\n", o.BrandProfile)
+	case "created":
+		fmt.Fprintf(w, "Brand profile: %q created in the workspace brand hub (v%d)\n", o.BrandProfile, o.BrandVersion)
+	case "updated":
+		fmt.Fprintf(w, "Brand profile: %q updated → v%d (previous version kept in history)\n", o.BrandProfile, o.BrandVersion)
+	case "unchanged":
+		fmt.Fprintf(w, "Brand profile: %q unchanged\n", o.BrandProfile)
+	case "skipped":
+		fmt.Fprintf(w, "Brand profile: %q not pushed (%s)\n", o.BrandProfile, o.BrandReason)
+	}
 }
 
 // formatLoopStatus closes a real push with the loop hand-off: what the server
