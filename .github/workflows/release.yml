@@ -621,11 +621,13 @@ jobs:
   # container-first CI (GitLab CI, Bitbucket, Jenkins, Dagger). Assembled from
   # the same prebuilt cgo + static-ICU linux binaries the archives ship
   # (GoReleaser can't consume externally-built binaries; see package-cli), so
-  # the image is bit-identical to the tarball install. Two flavors from one
-  # Dockerfile (docker/kapi/Dockerfile):
-  #   ghcr.io/neokapi/kapi:<v>           the CLI
-  #   ghcr.io/neokapi/kapi:<v>-bowrain   + kapi-bowrain plugin in the system
-  #                                        plugin root (zero-install server sync)
+  # the image is bit-identical to the tarball install. One image from
+  # docker/kapi/Dockerfile, with the kapi-bowrain plugin baked into the system
+  # plugin root (no separate -bowrain variant) so both standalone and
+  # server-connected projects work out of the box:
+  #   ghcr.io/neokapi/kapi:<v>   (+ :<major>, :<major.minor>, :latest on stable)
+  # Bundling the plugin means the image REQUIRES the same-version plugin
+  # archives; a CLI-only RC without them skips the image (see the stage step).
   publish-cli-image:
     name: Publish CLI container image
     needs: [setup, package-cli]
@@ -656,26 +658,37 @@ jobs:
             install -m 0755 "${src}/kapi" "docker/kapi/bins/${arch}/kapi"
           done
 
-          # The kapi-bowrain plugin is built by release-bowrain.yml, not this
-          # workflow; on a coordinated release its archives sit on this same
-          # tag at the same version. The -bowrain image variant keeps that
-          # exact-version pairing: build it when the same-version plugin
-          # archives exist, skip it otherwise (e.g. a CLI-only RC).
-          has_plugin=true
-          for arch in amd64 arm64; do
-            kb="kapi-bowrain_${VERSION}_linux_${arch}.tar.gz"
-            if gh release download "v${VERSION}" --repo "${GITHUB_REPOSITORY}" \
-                 --pattern "${kb}" --dir /tmp/kb 2>/dev/null; then
+          # The kapi-bowrain plugin is baked into the default image (there is no
+          # separate -bowrain variant), so the image REQUIRES the same-version
+          # plugin archives. release-bowrain.yml publishes them under its own
+          # `bowrain-v<version>` release, so publishing the image only happens on
+          # a coordinated release that cuts kapi and bowrain at the SAME version.
+          # The two releases build in parallel, so wait (bounded, ~10 min) for
+          # the bowrain archives to appear; a CLI-only release with no matching
+          # bowrain-v<version> release times out and skips the image rather than
+          # publishing a bowrain-less image under the same name.
+          PLUGIN_TAG="bowrain-v${VERSION}"
+          has_plugin=false
+          for attempt in $(seq 1 20); do
+            if gh release download "${PLUGIN_TAG}" --repo "${GITHUB_REPOSITORY}" \
+                 --pattern "kapi-bowrain_${VERSION}_linux_amd64.tar.gz" \
+                 --pattern "kapi-bowrain_${VERSION}_linux_arm64.tar.gz" \
+                 --dir /tmp/kb 2>/dev/null; then
+              has_plugin=true; break
+            fi
+            echo "waiting for ${PLUGIN_TAG} plugin archives (attempt ${attempt}/20)…"
+            sleep 30
+          done
+          if [ "${has_plugin}" = "true" ]; then
+            for arch in amd64 arm64; do
+              kb="kapi-bowrain_${VERSION}_linux_${arch}.tar.gz"
               mkdir -p "docker/kapi/plugins/${arch}"
               tar xzf "/tmp/kb/${kb}" -C "docker/kapi/plugins/${arch}"
               test -f "docker/kapi/plugins/${arch}/bowrain/kapi-bowrain"
               test -f "docker/kapi/plugins/${arch}/bowrain/manifest.json"
-            else
-              has_plugin=false
-            fi
-          done
-          if [ "${has_plugin}" = "false" ]; then
-            echo "::notice::kapi-bowrain ${VERSION} archives not on this release — skipping the -bowrain image variant"
+            done
+          else
+            echo "::notice::kapi-bowrain ${VERSION} archives not found at ${PLUGIN_TAG} — skipping the CLI image (it bundles the bowrain plugin; publish it from a coordinated same-version release)"
           fi
           echo "has_plugin=${has_plugin}" >> "$GITHUB_OUTPUT"
 
@@ -683,10 +696,9 @@ jobs:
         id: tags
         run: |
           set -euo pipefail
-          base=""; bowrain=""
+          base=""
           add() {
             base="${base}${base:+,}${IMAGE}:$1"
-            bowrain="${bowrain}${bowrain:+,}${IMAGE}:$1-bowrain"
           }
           add "${VERSION}"
           # Floating tags only for stable releases; a prerelease publishes its
@@ -696,10 +708,7 @@ jobs:
             add "${VERSION%%.*}"
             add "latest"
           fi
-          {
-            echo "base=${base}"
-            echo "bowrain=${bowrain}"
-          } >> "$GITHUB_OUTPUT"
+          echo "base=${base}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
@@ -711,6 +720,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push kapi image
+        if: steps.stage.outputs.has_plugin == 'true'
         id: push-base
         uses: docker/build-push-action@v6
         with:
@@ -721,53 +731,31 @@ jobs:
           tags: ${{ steps.tags.outputs.base }}
           labels: |
             org.opencontainers.image.title=kapi
-            org.opencontainers.image.description=kapi CLI — format-aware localization engine
+            org.opencontainers.image.description=kapi CLI with the kapi-bowrain plugin preinstalled — format-aware localization engine + zero-install server sync in CI
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.version=${{ needs.setup.outputs.version }}
-            org.opencontainers.image.licenses=Apache-2.0
-
-      - name: Build and push kapi-bowrain image
-        if: steps.stage.outputs.has_plugin == 'true'
-        id: push-bowrain
-        uses: docker/build-push-action@v6
-        with:
-          context: docker/kapi
-          target: kapi-bowrain
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.tags.outputs.bowrain }}
-          labels: |
-            org.opencontainers.image.title=kapi (bowrain plugin preinstalled)
-            org.opencontainers.image.description=kapi CLI with the kapi-bowrain plugin — zero-install server sync in CI
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.version=${{ needs.setup.outputs.version }}
-            org.opencontainers.image.licenses=Apache-2.0
+            org.opencontainers.image.licenses=Apache-2.0 AND AGPL-3.0
 
       - name: Install cosign
+        if: steps.stage.outputs.has_plugin == 'true'
         uses: sigstore/cosign-installer@v3
 
-      - name: Sign images (cosign keyless)
+      - name: Sign image (cosign keyless)
+        if: steps.stage.outputs.has_plugin == 'true'
         env:
           DIGEST_BASE: ${{ steps.push-base.outputs.digest }}
-          DIGEST_BOWRAIN: ${{ steps.push-bowrain.outputs.digest }}
         run: |
           set -euo pipefail
           cosign sign --yes "${IMAGE}@${DIGEST_BASE}"
-          if [ -n "${DIGEST_BOWRAIN}" ]; then
-            cosign sign --yes "${IMAGE}@${DIGEST_BOWRAIN}"
-          fi
 
       - name: Smoke test
-        env:
-          HAS_PLUGIN: ${{ steps.stage.outputs.has_plugin }}
+        if: steps.stage.outputs.has_plugin == 'true'
         run: |
           set -euo pipefail
           docker run --rm "${IMAGE}:${VERSION}" kapi version
-          if [ "${HAS_PLUGIN}" = "true" ]; then
-            # The variant must discover the baked-in plugin from the system
-            # root with no user-level install or config.
-            docker run --rm "${IMAGE}:${VERSION}-bowrain" kapi plugins list
-          fi
+          # The bundled plugin must be discovered from the system root with no
+          # user-level install or config.
+          docker run --rm "${IMAGE}:${VERSION}" kapi plugins list
 
   build-kapi-desktop:
     name: Build Kapi Desktop (${{ matrix.build.platform }})
