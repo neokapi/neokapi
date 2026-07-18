@@ -13,6 +13,7 @@ import (
 	"time"
 
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
+	"github.com/neokapi/neokapi/bowrain/forge"
 	"github.com/neokapi/neokapi/core/registry"
 )
 
@@ -178,7 +179,10 @@ func NewGitConnector(formatReg *registry.FormatRegistry, config map[string]strin
 	}
 	patterns := strings.Split(config["patterns"], ",")
 	if len(patterns) == 1 && patterns[0] == "" {
-		patterns = []string{"**/*.html", "**/*.json", "**/*.yaml", "**/*.yml", "**/*.properties"}
+		// Default content globs, shared with the setup wizard's detection
+		// (forge.DetectRepoContent). Includes Markdown/MDX so a plain
+		// README/docs repository ingests its documents instead of nothing.
+		patterns = forge.DefaultContentPatterns()
 	}
 
 	return &GitConnector{
@@ -362,21 +366,15 @@ func (c *GitConnector) List(ctx context.Context) ([]*platconn.ContentItem, error
 		return nil, err
 	}
 
-	// Filter by glob patterns.
+	// Filter by glob patterns. Doublestar semantics: `**` spans directories
+	// (including none), so `**/*.md` matches both a root README.md and a
+	// deeply nested docs page — filepath.Match's single-segment `*` matched
+	// neither, which made the default patterns miss all root-level and
+	// deeply nested files.
 	var filtered []*platconn.ContentItem
 	for _, item := range allItems {
-		for _, pattern := range c.patterns {
-			matched, _ := filepath.Match(pattern, item.Path)
-			if matched {
-				filtered = append(filtered, item)
-				break
-			}
-			// Try matching just the filename for simple patterns.
-			matched, _ = filepath.Match(pattern, filepath.Base(item.Path))
-			if matched {
-				filtered = append(filtered, item)
-				break
-			}
+		if forge.MatchesContentPatterns(c.patterns, filepath.ToSlash(item.Path)) {
+			filtered = append(filtered, item)
 		}
 	}
 	return filtered, nil

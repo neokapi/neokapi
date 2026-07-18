@@ -11,6 +11,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,9 +25,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// fakeGitHub serves the two app-API surfaces the setup flow touches: token
-// minting and the installation's repository list.
-func fakeGitHub(t *testing.T) *httptest.Server {
+// fakeGitHub serves the app-API surfaces the setup flow touches: token
+// minting, the installation's repository list, and the git trees the detect
+// endpoint reads. treeFiles maps "owner/name" to the blob paths its recursive
+// tree returns.
+func fakeGitHub(t *testing.T, treeFiles map[string][]string) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -39,6 +42,28 @@ func fakeGitHub(t *testing.T) *httptest.Server {
 				{"full_name": "acme/site", "default_branch": "main", "private": true},
 				{"full_name": "acme/docs", "default_branch": "trunk", "private": false}
 			]}`))
+		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/repos/") && strings.Contains(r.URL.Path, "/git/trees/"):
+			assert.Equal(t, "Bearer ghs_x", r.Header.Get("Authorization"))
+			assert.Equal(t, "1", r.URL.Query().Get("recursive"))
+			repo := strings.TrimPrefix(r.URL.Path, "/repos/")
+			repo = repo[:strings.Index(repo, "/git/trees/")]
+			files, ok := treeFiles[repo]
+			if !ok {
+				w.WriteHeader(http.StatusNotFound)
+				_, _ = w.Write([]byte(`{"message": "Not Found"}`))
+				return
+			}
+			type entry struct {
+				Path string `json:"path"`
+				Type string `json:"type"`
+			}
+			tree := make([]entry, 0, len(files))
+			for _, f := range files {
+				tree = append(tree, entry{Path: f, Type: "blob"})
+			}
+			// A tree entry proves non-blob entries are skipped.
+			tree = append(tree, entry{Path: "src", Type: "tree"})
+			_ = json.NewEncoder(w).Encode(map[string]any{"tree": tree, "truncated": false})
 		default:
 			t.Errorf("unexpected request %s %s", r.Method, r.URL)
 		}
@@ -46,6 +71,10 @@ func fakeGitHub(t *testing.T) *httptest.Server {
 }
 
 func setupServerWithApp(t *testing.T) *Server {
+	return setupServerWithAppTrees(t, nil)
+}
+
+func setupServerWithAppTrees(t *testing.T, treeFiles map[string][]string) *Server {
 	t.Helper()
 	s, _ := newForgeTestServer(t, "conn1", "proj1", "s3cret")
 
@@ -54,7 +83,7 @@ func setupServerWithApp(t *testing.T) *Server {
 	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
 	app, err := forge.NewGitHubApp("1", string(pemBytes), "app-secret")
 	require.NoError(t, err)
-	gh := fakeGitHub(t)
+	gh := fakeGitHub(t, treeFiles)
 	t.Cleanup(gh.Close)
 	app.SetAPIBase(gh.URL)
 	s.GitHubApp = app
@@ -78,6 +107,129 @@ func setupCtx(t *testing.T, method, body string) (echo.Context, *httptest.Respon
 	c.SetParamNames("installationID")
 	c.SetParamValues("42")
 	return c, rec
+}
+
+// detectCtx builds a request context for the detect endpoint with its
+// :owner/:name params (and optional query string, e.g. "scope=apps/web").
+func detectCtx(t *testing.T, owner, name, query string) (echo.Context, *httptest.ResponseRecorder) {
+	t.Helper()
+	target := "/github/installations/42/repositories/" + owner + "/" + name + "/detect"
+	if query != "" {
+		target += "?" + query
+	}
+	r := httptest.NewRequest(http.MethodGet, target, nil)
+	rec := httptest.NewRecorder()
+	c := echo.New().NewContext(r, rec)
+	c.Set("workspace_id", "ws1")
+	c.Set("workspace_role", platauth.RoleOwner)
+	c.Set("project_permissions", platauth.PermManageConnectors)
+	c.SetParamNames("installationID", "owner", "name")
+	c.SetParamValues("42", owner, name)
+	return c, rec
+}
+
+// The detect endpoint reads the repository tree through the app API (no
+// clone) and returns the wizard's detection: monorepo + i18next catalogs
+// with a scoped proposal and a match preview.
+func TestDetectInstallationRepo_MonorepoI18next(t *testing.T) {
+	s := setupServerWithAppTrees(t, map[string][]string{
+		"acme/site": {
+			"pnpm-workspace.yaml",
+			"package.json",
+			"apps/web/package.json",
+			"apps/web/public/locales/en/common.json",
+			"apps/web/public/locales/fr/common.json",
+			"packages/ui/package.json",
+		},
+	})
+
+	c, rec := detectCtx(t, "acme", "site", "")
+	require.NoError(t, s.HandleDetectInstallationRepo(c))
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	var det forge.RepoDetection
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &det))
+	assert.Equal(t, []string{"pnpm-workspace.yaml"}, det.MonorepoMarkers)
+	assert.Contains(t, det.Workspaces, "apps/web")
+	require.Len(t, det.Signals, 1)
+	assert.Equal(t, "react-i18next", det.Signals[0].ID)
+	assert.Equal(t, "apps/web/public/locales", det.Signals[0].Dir)
+	assert.Equal(t, "apps/web/public/locales/**/*.json", det.ProposedPatterns)
+	assert.Equal(t, 2, det.MatchCount)
+	assert.Len(t, det.MatchPreview, 2)
+	assert.False(t, det.Truncated)
+}
+
+// A docs repository detects as a Docusaurus site; a scope query narrows a
+// monorepo detection; a patterns override drives the match count.
+func TestDetectInstallationRepo_DocsAndQueries(t *testing.T) {
+	s := setupServerWithAppTrees(t, map[string][]string{
+		"acme/docs": {
+			"docusaurus.config.ts",
+			"docs/intro.md",
+			"docs/guide/setup.mdx",
+			"README.md",
+		},
+		"acme/site": {
+			"pnpm-workspace.yaml",
+			"apps/web/public/locales/en/common.json",
+			"apps/web/package.json",
+			"apps/api/package.json",
+			"apps/api/main.go",
+		},
+	})
+
+	c, rec := detectCtx(t, "acme", "docs", "")
+	require.NoError(t, s.HandleDetectInstallationRepo(c))
+	var det forge.RepoDetection
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &det))
+	require.Len(t, det.Signals, 1)
+	assert.Equal(t, "docusaurus", det.Signals[0].ID)
+	assert.Equal(t, 2, det.MatchCount)
+
+	// Scope: detection confined to one workspace. No catalog signal exists
+	// under apps/api, so the proposal falls back to the defaults scoped to the
+	// prefix — which the preview then honestly shows sweeping up the JSON
+	// manifest (the user edits the patterns from there).
+	c, rec = detectCtx(t, "acme", "site", "scope=apps/api")
+	require.NoError(t, s.HandleDetectInstallationRepo(c))
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &det))
+	assert.Empty(t, det.Signals)
+	assert.True(t, strings.HasPrefix(det.ProposedPatterns, "apps/api/"))
+	assert.Equal(t, []string{"apps/api/package.json"}, det.MatchPreview)
+
+	// Patterns override: the wizard's live match feedback for edited globs.
+	c, rec = detectCtx(t, "acme", "docs", "patterns="+"README.md")
+	require.NoError(t, s.HandleDetectInstallationRepo(c))
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &det))
+	assert.Equal(t, 1, det.MatchCount)
+	assert.Equal(t, []string{"README.md"}, det.MatchPreview)
+}
+
+// An empty repository yields no signals and zero matches — what the wizard
+// turns into its zero-match warning. Unknown repositories surface GitHub's
+// answer through the error envelope, not a fabricated detection.
+func TestDetectInstallationRepo_EmptyAndUnknown(t *testing.T) {
+	s := setupServerWithAppTrees(t, map[string][]string{
+		"acme/empty": {"main.go", "go.sum"},
+	})
+
+	c, rec := detectCtx(t, "acme", "empty", "")
+	require.NoError(t, s.HandleDetectInstallationRepo(c))
+	var det forge.RepoDetection
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &det))
+	assert.Empty(t, det.Signals)
+	assert.Zero(t, det.MatchCount)
+	assert.NotEmpty(t, det.ProposedPatterns, "the defaults stay editable even with nothing to match")
+
+	c, rec = detectCtx(t, "acme", "unknown", "")
+	require.NoError(t, s.HandleDetectInstallationRepo(c))
+	assert.Equal(t, http.StatusBadGateway, rec.Code)
+	var envelope struct {
+		Error string `json:"error"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &envelope))
+	assert.Contains(t, envelope.Error, "404")
 }
 
 func TestListInstallationRepos_AnnotatesBindings(t *testing.T) {
@@ -181,9 +333,13 @@ func TestBindInstallationRepo_TriggersInitialFetch(t *testing.T) {
 func TestBindInstallationRepo_FetchFailureKeepsBinding(t *testing.T) {
 	s := setupServerWithApp(t)
 
-	// The bound repository's first fetch fails (e.g. the clone breaks).
+	// The bound repository's first fetch fails with the production shape from
+	// the founder drill: the clone breaks (exit status 128). Crucially, the
+	// real forge connector's Status() re-runs the same clone, so the status
+	// probe fails with the same error on every poll — the stub mirrors that.
+	cloneErr := errors.New("git clone: fatal: could not read Username for 'https://github.com': terminal prompts disabled\n: exit status 128")
 	s.ConnectorReg.Register("forge", platconn.CategoryCode, func(config map[string]string) (platconn.IntegrationConnector, error) {
-		return &stubForgeConnector{id: "forge-" + config["name"], fetchErr: errors.New("clone failed: boom")}, nil
+		return &stubForgeConnector{id: "forge-" + config["name"], fetchErr: cloneErr, statusErr: cloneErr}, nil
 	})
 	pushed := make(chan platev.Event, 1)
 	s.EventBus.Subscribe(platev.EventPushCompleted, func(ev platev.Event) { pushed <- ev })
@@ -206,7 +362,7 @@ func TestBindInstallationRepo_FetchFailureKeepsBinding(t *testing.T) {
 	// addressable, and no last-sync was fabricated.
 	cfg, err := s.ConnectorConfigStore.Get(context.Background(), "ws1", connID)
 	require.NoError(t, err)
-	assert.Contains(t, cfg.LastError, "clone failed: boom")
+	assert.Contains(t, cfg.LastError, "exit status 128")
 	assert.True(t, cfg.LastSyncAt.IsZero(), "a failed fetch is not a sync")
 	_, err = s.Services.Connector.GetConnector("ws1", connID)
 	require.NoError(t, err, "the live connector stays registered")
@@ -219,7 +375,10 @@ func TestBindInstallationRepo_FetchFailureKeepsBinding(t *testing.T) {
 	}
 
 	// The status endpoint — what the connectors panel and the setup page poll —
-	// surfaces the recorded error.
+	// surfaces the recorded error even though the live Status() probe fails
+	// with the same broken clone. This is the founder-drill regression: this
+	// used to 404, so the wizard's poll never saw a status body and showed
+	// "Importing your repo…" forever.
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	statusRec := httptest.NewRecorder()
 	sc := echo.New().NewContext(req, statusRec)
@@ -229,9 +388,11 @@ func TestBindInstallationRepo_FetchFailureKeepsBinding(t *testing.T) {
 	require.NoError(t, s.HandleConnectorStatus(sc))
 	require.Equal(t, http.StatusOK, statusRec.Code, statusRec.Body.String())
 	var status struct {
-		Errors []string `json:"Errors"`
+		LastSync time.Time `json:"LastSync"`
+		Errors   []string  `json:"Errors"`
 	}
 	require.NoError(t, json.Unmarshal(statusRec.Body.Bytes(), &status))
-	require.Len(t, status.Errors, 1)
-	assert.Contains(t, status.Errors[0], "clone failed: boom")
+	require.NotEmpty(t, status.Errors)
+	assert.Contains(t, status.Errors[0], "exit status 128")
+	assert.True(t, status.LastSync.IsZero(), "no sync is fabricated for a never-synced connector")
 }

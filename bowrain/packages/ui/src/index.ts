@@ -559,6 +559,9 @@ export type {
   InstallationRepo,
   BindInstallationRepoRequest,
   BindInstallationRepoResult,
+  RepoDetection,
+  RepoDetectOptions,
+  RepoContentSignal,
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 

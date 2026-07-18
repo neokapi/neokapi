@@ -92,6 +92,44 @@ func (s *Server) HandleListInstallationRepos(c echo.Context) error {
 	return c.JSON(http.StatusOK, out)
 }
 
+// HandleDetectInstallationRepo inspects one repository of an installation for
+// the setup wizard: GET /:ws/github/installations/:installationID/repositories/:owner/:name/detect.
+// It reads the repository's file listing through the git trees API (no clone),
+// and returns monorepo markers, i18n/content signals, a proposed `patterns`
+// value for the bind request, and the files that proposal matches. Optional
+// query parameters: `scope` confines detection to a subdirectory (monorepo
+// workspace), `patterns` (comma-separated) overrides the proposal for match
+// counting — live feedback while the user edits the patterns input — and
+// `branch` picks the ref (default: the repository's HEAD).
+func (s *Server) HandleDetectInstallationRepo(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
+		return err
+	}
+	if s.GitHubApp == nil {
+		return apiErr(c, http.StatusServiceUnavailable, "the server has no GitHub App configured")
+	}
+	instID, err := strconv.ParseInt(c.Param("installationID"), 10, 64)
+	if err != nil {
+		return apiErr(c, http.StatusBadRequest, "installation id must be numeric")
+	}
+	repoPath := c.Param("owner") + "/" + c.Param("name")
+
+	// The installation token scopes the tree read: a repository outside the
+	// installation comes back as GitHub's own not-found.
+	paths, truncated, err := s.GitHubApp.RepoTreePaths(
+		c.Request().Context(), instID, repoPath, c.QueryParam("branch"), forge.MaxDetectTreeEntries)
+	if err != nil {
+		return apiErr(c, http.StatusBadGateway, err.Error())
+	}
+
+	det := forge.DetectRepoContent(paths, forge.DetectOptions{
+		Scope:            c.QueryParam("scope"),
+		PatternsOverride: c.QueryParam("patterns"),
+	})
+	det.Truncated = det.Truncated || truncated
+	return c.JSON(http.StatusOK, det)
+}
+
 // HandleBindInstallationRepo binds one installed repository to a project:
 // POST /:ws/github/installations/:installationID/repositories. It creates a
 // persisted `auth: app` forge connector and kicks off the initial ingest in

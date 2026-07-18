@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vite-plus/test";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   AnalyticsProvider,
@@ -54,6 +54,21 @@ const repo = {
   private: false,
 };
 
+/** What the detect endpoint reports for the default single-repo fixture. */
+const detection = {
+  monorepo_markers: [] as string[],
+  workspaces: [] as string[],
+  signals: [{ id: "locale-dir", label: "locale catalogs", dir: "src/locales", files: 2 }],
+  proposed_patterns: "src/locales/**/*.json",
+  match_count: 2,
+  match_preview: ["src/locales/en.json", "src/locales/fr.json"],
+  truncated: false,
+};
+
+/** The exact error the founder drill hit: the initial clone failed server-side. */
+const CLONE_FAILURE =
+  "git clone: fatal: could not read Username for 'https://github.com': terminal prompts disabled\n: exit status 128";
+
 function setup({
   workspaces = [ws("ada", "Ada Lovelace")],
   projects = [] as { id: string; name: string }[],
@@ -67,6 +82,7 @@ function setup({
     listWorkspaces: vi.fn().mockImplementation(() => Promise.resolve([...workspaceList])),
     listProjects: vi.fn().mockImplementation(() => Promise.resolve(projects)),
     listInstallationRepos: vi.fn().mockResolvedValue([repo]),
+    detectInstallationRepo: vi.fn().mockResolvedValue(detection),
     createWorkspace: vi.fn().mockImplementation((name: string, slug: string) => {
       const created = ws(slug, name);
       workspaceList.push(created);
@@ -75,6 +91,7 @@ function setup({
     createProject: vi.fn().mockResolvedValue({ id: "p-9", name: "website" }),
     bindInstallationRepo: vi.fn().mockResolvedValue({ connector_id: "c-1", project_id: "p-9" }),
     getConnectorStatus: vi.fn().mockResolvedValue({ lastSync: "", errors: [] }),
+    fetchConnector: vi.fn().mockResolvedValue({ items_fetched: 0 }),
     ...overrides,
   } as unknown as ApiAdapter;
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -159,10 +176,14 @@ describe("GithubSetupRoute setup_action=update", () => {
     fireEvent.change(select, { target: { value: "p-1" } });
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
     await waitFor(() =>
-      expect(api.bindInstallationRepo).toHaveBeenCalledWith("ada", "147350515", {
-        repository: "acme/website",
-        project_id: "p-1",
-      }),
+      expect(api.bindInstallationRepo).toHaveBeenCalledWith(
+        "ada",
+        "147350515",
+        expect.objectContaining({
+          repository: "acme/website",
+          project_id: "p-1",
+        }),
+      ),
     );
   });
 });
@@ -251,10 +272,14 @@ describe("GithubSetupRoute project path", () => {
       expect(api.createProject).toHaveBeenCalledWith("ada", "website", "en", ["fr"]),
     );
     await waitFor(() =>
-      expect(api.bindInstallationRepo).toHaveBeenCalledWith("ada", "147350515", {
-        repository: "acme/website",
-        project_id: "p-9",
-      }),
+      expect(api.bindInstallationRepo).toHaveBeenCalledWith(
+        "ada",
+        "147350515",
+        expect.objectContaining({
+          repository: "acme/website",
+          project_id: "p-9",
+        }),
+      ),
     );
     // The row hands over to the import tracker.
     await screen.findByTestId("importing-acme/website");
@@ -274,10 +299,14 @@ describe("GithubSetupRoute project path", () => {
     fireEvent.click(screen.getByRole("button", { name: "Connect" }));
 
     await waitFor(() =>
-      expect(api.bindInstallationRepo).toHaveBeenCalledWith("ada", "147350515", {
-        repository: "acme/website",
-        project_id: "p-1",
-      }),
+      expect(api.bindInstallationRepo).toHaveBeenCalledWith(
+        "ada",
+        "147350515",
+        expect.objectContaining({
+          repository: "acme/website",
+          project_id: "p-1",
+        }),
+      ),
     );
     expect(api.createProject).not.toHaveBeenCalled();
     await screen.findByTestId("importing-acme/website");
@@ -313,5 +342,274 @@ describe("GithubSetupRoute project path", () => {
     );
     // Never the raw JSON the incident showed.
     expect(notice.textContent).not.toContain('{"current"');
+  });
+});
+
+describe("GithubSetupRoute content detection", () => {
+  it("auto-expands the single repo, shows the conclusion, proposal, and preview", async () => {
+    const { api } = setup();
+
+    const conclusion = await screen.findByTestId("detect-conclusion-acme/website");
+    expect(conclusion).toHaveTextContent(
+      "Detected: locale catalogs in src/locales — 2 files match",
+    );
+    expect(api.detectInstallationRepo).toHaveBeenCalledWith("ada", "147350515", "acme/website", {
+      scope: undefined,
+      patterns: undefined,
+    });
+
+    // The proposal pre-fills the editable patterns input.
+    expect(screen.getByTestId("detect-patterns-acme/website")).toHaveValue("src/locales/**/*.json");
+    const preview = screen.getByTestId("detect-preview-acme/website");
+    expect(preview).toHaveTextContent("src/locales/en.json");
+    expect(preview).toHaveTextContent("src/locales/fr.json");
+    expect(screen.queryByTestId("detect-zero-match-acme/website")).not.toBeInTheDocument();
+  });
+
+  it("sends the detected proposal as the bind's patterns", async () => {
+    const { api } = setup();
+
+    await screen.findByTestId("detect-conclusion-acme/website");
+    fireEvent.click(screen.getByTestId("create-and-connect-acme/website"));
+
+    await waitFor(() =>
+      expect(api.bindInstallationRepo).toHaveBeenCalledWith("ada", "147350515", {
+        repository: "acme/website",
+        project_id: "p-9",
+        patterns: "src/locales/**/*.json",
+      }),
+    );
+  });
+
+  it("lets the user edit the patterns and binds with the edited value", async () => {
+    const { api } = setup();
+
+    await screen.findByTestId("detect-conclusion-acme/website");
+    fireEvent.change(screen.getByTestId("detect-patterns-acme/website"), {
+      target: { value: "docs/**/*.md,docs/**/*.mdx" },
+    });
+    fireEvent.click(screen.getByTestId("create-and-connect-acme/website"));
+
+    await waitFor(() =>
+      expect(api.bindInstallationRepo).toHaveBeenCalledWith("ada", "147350515", {
+        repository: "acme/website",
+        project_id: "p-9",
+        patterns: "docs/**/*.md,docs/**/*.mdx",
+      }),
+    );
+  });
+
+  it("shows a plain warning when nothing matches instead of a silent empty import", async () => {
+    setup({
+      overrides: {
+        detectInstallationRepo: vi.fn().mockResolvedValue({
+          ...detection,
+          signals: [],
+          proposed_patterns: "**/*.json",
+          match_count: 0,
+          match_preview: [],
+        }),
+      },
+    });
+
+    const warning = await screen.findByTestId("detect-zero-match-acme/website");
+    expect(warning).toHaveTextContent(/No translatable files match/);
+    expect(screen.getByTestId("detect-conclusion-acme/website")).toHaveTextContent(
+      "No known catalogs detected — 0 files match",
+    );
+  });
+
+  it("offers a subdirectory scope for a monorepo and re-detects on selection", async () => {
+    const scoped = {
+      ...detection,
+      monorepo_markers: ["pnpm-workspace.yaml"],
+      workspaces: ["apps/api", "apps/web"],
+      signals: [
+        {
+          id: "react-i18next",
+          label: "i18next catalogs",
+          dir: "apps/web/public/locales",
+          files: 3,
+        },
+      ],
+      proposed_patterns: "apps/web/public/locales/**/*.json",
+      match_count: 3,
+      match_preview: ["apps/web/public/locales/en/common.json"],
+    };
+    const { api } = setup({
+      overrides: { detectInstallationRepo: vi.fn().mockResolvedValue(scoped) },
+    });
+
+    const conclusion = await screen.findByTestId("detect-conclusion-acme/website");
+    expect(conclusion).toHaveTextContent(
+      "Detected: pnpm monorepo · i18next catalogs in apps/web/public/locales — 3 files match",
+    );
+
+    fireEvent.change(screen.getByTestId("detect-scope-acme/website"), {
+      target: { value: "apps/web" },
+    });
+    await waitFor(() =>
+      expect(api.detectInstallationRepo).toHaveBeenCalledWith("ada", "147350515", "acme/website", {
+        scope: "apps/web",
+        patterns: undefined,
+      }),
+    );
+  });
+});
+
+describe("GithubSetupRoute import lockout", () => {
+  const docsRepo = { full_name: "acme/docs", default_branch: "main", private: false };
+
+  it("locks the rest of the wizard while an import is in flight", async () => {
+    setup({
+      overrides: {
+        listInstallationRepos: vi.fn().mockResolvedValue([repo, docsRepo]),
+      },
+    });
+
+    fireEvent.click(await screen.findByTestId("create-and-connect-acme/website"));
+    await screen.findByTestId("importing-acme/website");
+
+    // The workspace cards lock…
+    expect(screen.getByTestId("workspace-card-ada")).toBeDisabled();
+    expect(screen.getByTestId("workspace-card-ada")).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByTestId("workspace-card-new")).toBeDisabled();
+    // …and so do the other row's controls.
+    expect(screen.getByTestId("create-and-connect-acme/docs")).toBeDisabled();
+    expect(screen.getByTestId("create-and-connect-acme/docs")).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(screen.getByTestId("new-project-name-acme/docs")).toBeDisabled();
+    expect(screen.getByTestId("detect-toggle-acme/docs")).toBeDisabled();
+  });
+
+  it("keeps the lockout on failure but the importing row's Retry stays active", async () => {
+    setup({
+      overrides: {
+        listInstallationRepos: vi.fn().mockResolvedValue([repo, docsRepo]),
+        getConnectorStatus: vi.fn().mockResolvedValue({
+          lastSync: "0001-01-01T00:00:00Z",
+          errors: [CLONE_FAILURE],
+        }),
+      },
+    });
+
+    fireEvent.click(await screen.findByTestId("create-and-connect-acme/website"));
+
+    const retry = await screen.findByTestId("retry-import-acme/website");
+    expect(retry).toBeEnabled();
+    expect(screen.getByTestId("create-and-connect-acme/docs")).toBeDisabled();
+    expect(screen.getByTestId("workspace-card-ada")).toBeDisabled();
+  });
+
+  it("releases the lock when the connect itself fails", async () => {
+    setup({
+      overrides: {
+        listInstallationRepos: vi.fn().mockResolvedValue([repo, docsRepo]),
+        bindInstallationRepo: vi.fn().mockRejectedValue(new Error("boom")),
+        createProject: vi.fn().mockRejectedValue(new Error("boom")),
+      },
+    });
+
+    fireEvent.click(await screen.findByTestId("create-and-connect-acme/website"));
+
+    await screen.findByTestId("connect-error-acme/website");
+    expect(screen.getByTestId("create-and-connect-acme/docs")).toBeEnabled();
+    expect(screen.getByTestId("workspace-card-ada")).toBeEnabled();
+  });
+});
+
+describe("GithubSetupRoute import failure and progress", () => {
+  it("surfaces the recorded server-side failure (production clone-error shape)", async () => {
+    setup({
+      overrides: {
+        getConnectorStatus: vi.fn().mockResolvedValue({
+          lastSync: "0001-01-01T00:00:00Z",
+          errors: [CLONE_FAILURE],
+        }),
+      },
+    });
+
+    fireEvent.click(await screen.findByTestId("create-and-connect-acme/website"));
+
+    // Never an endless "Importing…": the recorded error shows, with Retry and
+    // the connectors-panel escape hatch.
+    const failed = await screen.findByTestId("import-failed-acme/website");
+    expect(screen.getByTestId("import-error-acme/website")).toHaveTextContent("exit status 128");
+    expect(failed).toHaveTextContent("connectors panel");
+    expect(screen.getByTestId("retry-import-acme/website")).toBeEnabled();
+    expect(screen.queryByTestId("importing-acme/website")).not.toBeInTheDocument();
+  });
+
+  it("retries through the connectors fetch and returns to the pending state", async () => {
+    const status = vi.fn().mockResolvedValue({
+      lastSync: "0001-01-01T00:00:00Z",
+      errors: [CLONE_FAILURE],
+    });
+    const { api } = setup({
+      overrides: {
+        getConnectorStatus: status,
+        fetchConnector: vi.fn(
+          () =>
+            new Promise(() => {
+              // Keeps the retry pending, pinning the row back on "Importing…".
+            }),
+        ),
+      },
+    });
+
+    fireEvent.click(await screen.findByTestId("create-and-connect-acme/website"));
+    fireEvent.click(await screen.findByTestId("retry-import-acme/website"));
+
+    await screen.findByTestId("importing-acme/website");
+    expect(api.fetchConnector).toHaveBeenCalledWith("ada", "c-1", "p-9");
+  });
+
+  it("shows elapsed seconds and admits slowness after 45s (fake timers)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      setup();
+
+      fireEvent.click(await screen.findByTestId("create-and-connect-acme/website"));
+      await screen.findByTestId("importing-acme/website");
+      expect(screen.queryByTestId("import-slow-acme/website")).not.toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(46_000);
+      });
+
+      const elapsed = screen.getByTestId("import-elapsed-acme/website").textContent ?? "";
+      expect(Number.parseInt(elapsed, 10)).toBeGreaterThanOrEqual(45);
+      expect(screen.getByTestId("import-slow-acme/website")).toHaveTextContent(
+        /Taking longer than expected/,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stops pretending when the status poll itself keeps failing", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      setup({
+        overrides: {
+          getConnectorStatus: vi.fn().mockRejectedValue(new Error("connector not found")),
+        },
+      });
+
+      fireEvent.click(await screen.findByTestId("create-and-connect-acme/website"));
+      await screen.findByTestId("importing-acme/website");
+
+      // Three failed polls at the 2s interval flip the row to failed.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+
+      await screen.findByTestId("import-failed-acme/website");
+      expect(screen.getByTestId("retry-import-acme/website")).toBeEnabled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -32,11 +32,15 @@ import (
 )
 
 // stubForgeConnector stands in for the live forge connector: Fetch returns one
-// item (or fetchErr when set), Publish records what it was handed.
+// item (or fetchErr when set), Publish records what it was handed. statusErr
+// mirrors the real connector when the repository is unreachable: Status
+// re-runs the clone/list, so the same failure that broke the ingest also
+// breaks every status probe.
 type stubForgeConnector struct {
 	id        string
 	fetched   int
 	fetchErr  error
+	statusErr error
 	published []*platconn.ContentItem
 	pubOpts   platconn.PublishOptions
 }
@@ -47,6 +51,9 @@ func (f *stubForgeConnector) Category() platconn.Category                 { retu
 func (f *stubForgeConnector) Configure(config map[string]string) error    { return nil }
 func (f *stubForgeConnector) Close() error                                { return nil }
 func (f *stubForgeConnector) Status(ctx context.Context) (*platconn.SyncStatus, error) {
+	if f.statusErr != nil {
+		return nil, f.statusErr
+	}
 	return &platconn.SyncStatus{}, nil
 }
 func (f *stubForgeConnector) Fetch(ctx context.Context, opts platconn.FetchOptions) ([]*platconn.ContentItem, error) {
