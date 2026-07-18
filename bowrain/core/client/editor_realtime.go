@@ -101,7 +101,7 @@ func (c *BowrainClient) StreamProjectEvents(ctx context.Context, ws, projectID s
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("subscribe project events (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return NewStatusError("subscribe project events", resp.StatusCode, respBody)
 	}
 
 	scanner := bufio.NewScanner(resp.Body)

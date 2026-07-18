@@ -7,15 +7,13 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/apierror"
 )
 
 // requestID returns the per-request correlation ID set by
 // observe.RequestIDMiddleware, or "" if absent.
 func requestID(c echo.Context) string {
-	if v, ok := c.Get("request_id").(string); ok {
-		return v
-	}
-	return ""
+	return apierror.RequestID(c)
 }
 
 // httpErrorHandler is a single, consistent error handler for the whole API.
@@ -70,8 +68,18 @@ func (s *Server) httpErrorHandler(err error, c echo.Context) {
 		details = "" // never leak internal detail on 5xx
 	}
 
+	// The additive human sentence: the shared copy table when the error value
+	// is a known code, otherwise the (already client-safe) error text itself.
+	// 5xx responses get a fixed sentence pointing at the reference instead of
+	// internals.
+	human := apierror.MessageFor(message, nil)
+	if status >= http.StatusInternalServerError {
+		human = "The server encountered an unexpected error while handling this request. Quote the reference when reporting it."
+	}
+
 	resp := ErrorResponse{
 		Error:     message,
+		Message:   human,
 		Details:   details,
 		Code:      code,
 		Reference: ref,

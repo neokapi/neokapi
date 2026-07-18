@@ -124,17 +124,16 @@ func (s *Server) clearElevatedToken(ctx context.Context, userID string) {
 // failure it writes the response and returns ok=false; the caller returns nil.
 func (s *Server) passkeyGuard(c echo.Context) (userID string, ok bool) {
 	if s.CredentialManager == nil {
-		_ = c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "passkey management is not configured"})
+		_ = apiErr(c, http.StatusServiceUnavailable, "passkey management is not configured")
 		return "", false
 	}
 	userID, isStr := c.Get("user_id").(string)
 	if !isStr || userID == "" {
-		_ = c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "not authenticated"})
+		_ = apiErr(c, http.StatusUnauthorized, "not authenticated")
 		return "", false
 	}
 	if !s.CredentialManager.InApp() {
-		_ = c.JSON(http.StatusConflict, map[string]any{
-			"error":       "account_console_required",
+		_ = apiErr(c, http.StatusConflict, "account_console_required", map[string]any{
 			"account_url": s.CredentialManager.AccountURL(""),
 		})
 		return "", false
@@ -144,8 +143,7 @@ func (s *Server) passkeyGuard(c echo.Context) (userID string, ok bool) {
 
 // elevationRequiredJSON writes the 409 the UI treats as "start a step-up".
 func elevationRequiredJSON(c echo.Context) error {
-	return c.JSON(http.StatusConflict, map[string]any{
-		"error":       "elevation_required",
+	return apiErr(c, http.StatusConflict, "elevation_required", map[string]any{
 		"elevate_url": elevatePath,
 	})
 }
@@ -169,7 +167,7 @@ func (s *Server) passkeyOpError(c echo.Context, userID, prefix string, err error
 		s.clearElevatedToken(c.Request().Context(), userID)
 		return elevationRequiredJSON(c)
 	}
-	return c.JSON(http.StatusBadGateway, ErrorResponse{Error: prefix + ": " + err.Error()})
+	return apiErr(c, http.StatusBadGateway, prefix+": "+err.Error())
 }
 
 // passkeyJSON is the wire shape for a listed credential.
@@ -205,10 +203,10 @@ func passkeysToJSON(pks []auth.Passkey) []passkeyJSON {
 // capability.
 func (s *Server) HandleAccountSecurity(c echo.Context) error {
 	if s.CredentialManager == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "account security is not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "account security is not configured")
 	}
 	if userID, ok := c.Get("user_id").(string); !ok || userID == "" {
-		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "not authenticated"})
+		return apiErr(c, http.StatusUnauthorized, "not authenticated")
 	}
 	inApp := s.CredentialManager.InApp()
 	accountURL := ""
@@ -226,30 +224,29 @@ func (s *Server) HandleAccountSecurity(c echo.Context) error {
 // the SameSite=Lax session cookie and is CSRF-exempt.
 func (s *Server) HandleSecurityElevate(c echo.Context) error {
 	if s.CredentialManager == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "account security is not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "account security is not configured")
 	}
 	userID, ok := c.Get("user_id").(string)
 	if !ok || userID == "" {
-		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "not authenticated"})
+		return apiErr(c, http.StatusUnauthorized, "not authenticated")
 	}
 	if !s.CredentialManager.InApp() {
 		// Keycloak et al. manage credentials in their own console — no step-up.
-		return c.JSON(http.StatusConflict, map[string]any{
-			"error":       "account_console_required",
+		return apiErr(c, http.StatusConflict, "account_console_required", map[string]any{
 			"account_url": s.CredentialManager.AccountURL(""),
 		})
 	}
 	if s.SessionStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "session store is not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "session store is not configured")
 	}
 	if s.Config.OIDCIssuerURL == "" || s.Config.OIDCClientID == "" {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "OIDC not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "OIDC not configured")
 	}
 
 	oidcCtx := s.oidcContext(c.Request().Context())
 	provider, err := oidc.NewProvider(oidcCtx, s.Config.OIDCIssuerURL)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "OIDC discovery failed: " + err.Error()})
+		return apiErr(c, http.StatusInternalServerError, "OIDC discovery failed: "+err.Error())
 	}
 	authURL := provider.Endpoint().AuthURL
 	if s.Config.OIDCPublicURL != "" && s.Config.OIDCPublicURL != s.Config.OIDCIssuerURL {
@@ -258,7 +255,7 @@ func (s *Server) HandleSecurityElevate(c echo.Context) error {
 
 	ap, err := newOIDCAuthParams()
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 
 	ctx := c.Request().Context()
@@ -269,7 +266,7 @@ func (s *Server) HandleSecurityElevate(c echo.Context) error {
 		Return:       sanitizeReturnPath(c.QueryParam("return")),
 	}
 	if err := sessionSet(ctx, s.SessionStore, prefixElevateState, ap.State, entry, authStateTTL); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "store elevate state: " + err.Error()})
+		return apiErr(c, http.StatusInternalServerError, "store elevate state: "+err.Error())
 	}
 
 	redirectURI := requestBaseURL(c) + "/api/v1/account/security/elevate/callback"
@@ -297,7 +294,7 @@ func (s *Server) HandleSecurityElevate(c echo.Context) error {
 func (s *Server) HandleSecurityElevateCallback(c echo.Context) error {
 	userID, ok := c.Get("user_id").(string)
 	if !ok || userID == "" {
-		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "not authenticated"})
+		return apiErr(c, http.StatusUnauthorized, "not authenticated")
 	}
 	ctx := c.Request().Context()
 
@@ -385,7 +382,7 @@ func (s *Server) HandleRegisterStart(c echo.Context) error {
 		return nil
 	}
 	if s.SessionStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "session store is not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "session store is not configured")
 	}
 	ctx := c.Request().Context()
 	accessToken, err := s.elevatedCognitoAccessToken(ctx, userID)
@@ -398,10 +395,10 @@ func (s *Server) HandleRegisterStart(c echo.Context) error {
 	}
 	nonce, err := newPasskeyNonce()
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "generate nonce: " + err.Error()})
+		return apiErr(c, http.StatusInternalServerError, "generate nonce: "+err.Error())
 	}
 	if err := s.SessionStore.Set(ctx, prefixPasskeyNonce+userID, []byte(nonce), passkeyNonceTTL); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "persist nonce: " + err.Error()})
+		return apiErr(c, http.StatusInternalServerError, "persist nonce: "+err.Error())
 	}
 	return c.JSON(http.StatusOK, map[string]any{
 		"options": options,
@@ -423,21 +420,21 @@ func (s *Server) HandleRegisterFinish(c echo.Context) error {
 		return nil
 	}
 	if s.SessionStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "session store is not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "session store is not configured")
 	}
 	var req passkeyFinishRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 	if strings.TrimSpace(req.Nonce) == "" || len(req.Attestation) == 0 {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "nonce and attestation are required"})
+		return apiErr(c, http.StatusBadRequest, "nonce and attestation are required")
 	}
 
 	ctx := c.Request().Context()
 	// Validate + consume the single-use registration nonce (constant-time).
 	stored, err := s.SessionStore.Get(ctx, prefixPasskeyNonce+userID)
 	if err != nil || subtle.ConstantTimeCompare(stored, []byte(req.Nonce)) != 1 {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid or expired registration nonce"})
+		return apiErr(c, http.StatusBadRequest, "invalid or expired registration nonce")
 	}
 	_ = s.SessionStore.Delete(ctx, prefixPasskeyNonce+userID)
 
@@ -459,7 +456,7 @@ func (s *Server) HandleDeletePasskey(c echo.Context) error {
 	}
 	credentialID := c.Param("id")
 	if credentialID == "" {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "credential id is required"})
+		return apiErr(c, http.StatusBadRequest, "credential id is required")
 	}
 	ctx := c.Request().Context()
 	accessToken, err := s.elevatedCognitoAccessToken(ctx, userID)

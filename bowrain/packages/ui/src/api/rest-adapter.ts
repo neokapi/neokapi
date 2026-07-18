@@ -1,4 +1,5 @@
 import { codedToRuns } from "@neokapi/ui-primitives";
+import { apiErrorFromResponse } from "../errors/ApiError";
 import type { ApiAdapter } from "./adapter";
 import type {
   User,
@@ -231,24 +232,16 @@ interface ConnectorSyncStatusDTO {
 export type ApiTransport = (input: string, init?: RequestInit) => Promise<Response>;
 
 /**
- * Build the Error thrown on a non-OK response, preserving the historical
- * `"<status>: <body>"` message (parseAppError depends on it) while attaching
- * the correlation `reference` and `status` as structured fields.
+ * Build the typed ApiError thrown on a non-OK response: the server's error
+ * envelope parsed into `{ code, message, referenceId, status, details }`,
+ * tolerating legacy shapes (no message/reference, plain-text bodies).
  *
- * The reference is read from the `X-Request-ID` response header so it is
+ * The reference falls back to the `X-Request-ID` response header so it is
  * available even when the body is not our JSON envelope (gateway 502s, empty
- * bodies, text/blob endpoints). For JSON error bodies the `reference` field is
- * also present in the body, so parseAppError recovers it either way.
+ * bodies, text/blob endpoints).
  */
 function httpError(resp: Response, body: string): Error {
-  const err = new Error(`${resp.status}: ${body}`) as Error & {
-    status?: number;
-    reference?: string;
-  };
-  err.status = resp.status;
-  const ref = resp.headers.get("X-Request-ID");
-  if (ref) err.reference = ref;
-  return err;
+  return apiErrorFromResponse(resp.status, body, resp.headers.get("X-Request-ID"));
 }
 
 export class RestApiAdapter implements ApiAdapter {

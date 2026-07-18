@@ -35,7 +35,7 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 		RootHash     string            `json:"root_hash"`
 	}
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 	// Always authorize and operate on the path-scoped project. The permission
 	// middleware resolved access against c.Param("id"); a client-supplied
@@ -49,7 +49,7 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 	}
 
 	if s.ContentStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "content store not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "content store not configured")
 	}
 
 	diffEngine := bowsync.NewDiffEngine(s.ContentStore, s.SyncCache)
@@ -68,7 +68,7 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 	// Full diff: compare item hashes.
 	itemDiff, err := diffEngine.CompareItems(c.Request().Context(), req.ProjectID, req.Stream, req.ItemHashes)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 
 	uploadID := id.New()
@@ -96,7 +96,7 @@ func (s *Server) HandleSyncPushDiff(c echo.Context) error {
 		BlockHashes map[string]string `json:"block_hashes"`
 	}
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 
 	projectID := c.Param("id")
@@ -109,7 +109,7 @@ func (s *Server) HandleSyncPushDiff(c echo.Context) error {
 
 	blockDiff, err := diffEngine.CompareBlocks(c.Request().Context(), projectID, stream, req.ItemName, req.BlockHashes)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 
 	// Generate chunk upload URLs if blob store supports it.
@@ -151,7 +151,7 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		ConnectorID   string          `json:"connector_id"`
 	}
 	if err := c.Bind(&manifest); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 	// Force the project and actor to the authorized path/identity. The
 	// permission middleware resolved access against c.Param("id") and the
@@ -184,9 +184,7 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		for _, chunk := range manifest.Chunks {
 			exists, err := s.BlobStore.Exists(c.Request().Context(), chunk.Hash)
 			if err != nil || !exists {
-				return c.JSON(http.StatusBadRequest, ErrorResponse{
-					Error: fmt.Sprintf("chunk %d (hash %s) not found in storage", chunk.Index, chunk.Hash),
-				})
+				return apiErr(c, http.StatusBadRequest, fmt.Sprintf("chunk %d (hash %s) not found in storage", chunk.Index, chunk.Hash))
 			}
 		}
 	}
@@ -201,9 +199,7 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		totalBytes += chunk.ByteSize
 	}
 	if totalBytes > maxPushBytes {
-		return c.JSON(http.StatusRequestEntityTooLarge, ErrorResponse{
-			Error: fmt.Sprintf("upload budget exceeded: %d bytes > %d bytes max", totalBytes, maxPushBytes),
-		})
+		return apiErr(c, http.StatusRequestEntityTooLarge, fmt.Sprintf("upload budget exceeded: %d bytes > %d bytes max", totalBytes, maxPushBytes))
 	}
 
 	pushID := id.New()
@@ -217,7 +213,7 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		Filename:    fmt.Sprintf("manifest-%s.json", pushID),
 	})
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to store manifest"})
+		return apiErr(c, http.StatusInternalServerError, "failed to store manifest")
 	}
 
 	// Enqueue the push job.
@@ -233,11 +229,11 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 			Status:        jobs.StatusQueued,
 		}
 		if err := s.JobStore.CreateJob(c.Request().Context(), job); err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to create push job"})
+			return apiErr(c, http.StatusInternalServerError, "failed to create push job")
 		}
 		if err := s.JobQueue.Enqueue(c.Request().Context(), pushID); err != nil {
 			_ = s.JobStore.DeleteJob(c.Request().Context(), pushID)
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to enqueue push job"})
+			return apiErr(c, http.StatusInternalServerError, "failed to enqueue push job")
 		}
 	}
 
@@ -261,7 +257,7 @@ func (s *Server) HandleSyncProxyChunkUpload(c echo.Context) error {
 
 	data, err := readBody(c, 2*1024*1024) // 2MB max per chunk
 	if err != nil {
-		return c.JSON(http.StatusRequestEntityTooLarge, ErrorResponse{Error: "chunk too large"})
+		return apiErr(c, http.StatusRequestEntityTooLarge, "chunk too large")
 	}
 
 	// Store chunk as a content-addressed blob. The worker later downloads each
@@ -272,7 +268,7 @@ func (s *Server) HandleSyncProxyChunkUpload(c echo.Context) error {
 		ContentType: "application/octet-stream",
 		Filename:    fmt.Sprintf("chunks/%s/%04d", uploadID, chunkIndex),
 	}); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})
@@ -300,7 +296,7 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 		return err
 	}
 	if s.Services == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "store not configured")
 	}
 
 	ctx := c.Request().Context()
@@ -328,7 +324,7 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 	// Get change log entries to determine what changed.
 	cs, err := s.Services.Project.GetChanges(ctx, projectID, cursor, locales, limit)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 
 	resp := apiclient.RichPullResponse{
@@ -361,7 +357,7 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 			}
 			stored, err := s.Services.Project.GetBlocks(ctx, query)
 			if err != nil {
-				return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+				return apiErr(c, http.StatusInternalServerError, err.Error())
 			}
 
 			resp.Blocks = make([]apiclient.SyncBlock, 0, len(stored))
@@ -409,14 +405,14 @@ var syncCompressorPool = compression.NewPool(nil)
 func writePullResponse(c echo.Context, resp apiclient.RichPullResponse) error {
 	data, err := json.Marshal(resp)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "marshal response"})
+		return apiErr(c, http.StatusInternalServerError, "marshal response")
 	}
 
 	// Compress with zstd if the client accepts it.
 	if strings.Contains(c.Request().Header.Get("Accept-Encoding"), "zstd") {
 		compressed, err := syncCompressorPool.Compress(data)
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "compress response"})
+			return apiErr(c, http.StatusInternalServerError, "compress response")
 		}
 		c.Response().Header().Set("Content-Encoding", "zstd")
 		c.Response().Header().Set("Content-Type", "application/json")
@@ -433,7 +429,7 @@ func (s *Server) HandleSyncGetBlocks(c echo.Context) error {
 		return err
 	}
 	if s.Services == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "store not configured")
 	}
 
 	projectID := c.Param("id")
@@ -470,7 +466,7 @@ func (s *Server) HandleSyncGetBlocks(c echo.Context) error {
 
 	blocks, err := s.Services.Project.GetBlocks(c.Request().Context(), query)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 
 	result := make([]apiclient.SyncBlock, len(blocks))
@@ -488,17 +484,17 @@ func (s *Server) HandleSyncPushStatus(c echo.Context) error {
 		return err
 	}
 	if s.JobStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "job system not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "job system not configured")
 	}
 
 	pushID := c.QueryParam("push_id")
 	if pushID == "" {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "push_id is required"})
+		return apiErr(c, http.StatusBadRequest, "push_id is required")
 	}
 
 	jobList, err := s.JobStore.ListJobsByPushID(c.Request().Context(), pushID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 
 	total := len(jobList)

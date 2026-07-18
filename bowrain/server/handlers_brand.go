@@ -65,12 +65,12 @@ type CreateFromStarterRequest struct {
 // HandleListBrandProfiles lists all brand voice profiles in a workspace.
 func (s *Server) HandleListBrandProfiles(c echo.Context) error {
 	if s.BrandStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 	wsID, _ := c.Get("workspace_id").(string)
 	profiles, err := s.BrandStore.ListProfiles(c.Request().Context(), wsID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 	return c.JSON(http.StatusOK, profiles)
 }
@@ -81,15 +81,15 @@ func (s *Server) HandleCreateBrandProfile(c echo.Context) error {
 		return err
 	}
 	if s.BrandStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 
 	var req BrandProfileRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 	if req.Name == "" {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "name is required"})
+		return apiErr(c, http.StatusBadRequest, "name is required")
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
@@ -115,7 +115,7 @@ func (s *Server) HandleCreateBrandProfile(c echo.Context) error {
 	}
 
 	if err := s.BrandStore.CreateProfile(c.Request().Context(), profile); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 	return c.JSON(http.StatusCreated, profile)
 }
@@ -142,15 +142,15 @@ func (s *Server) HandleUpsertBrandProfile(c echo.Context) error {
 		return err
 	}
 	if s.BrandStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 
 	var req BrandProfileRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 	if req.Name == "" {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "name is required"})
+		return apiErr(c, http.StatusBadRequest, "name is required")
 	}
 
 	ctx := c.Request().Context()
@@ -159,7 +159,7 @@ func (s *Server) HandleUpsertBrandProfile(c echo.Context) error {
 
 	profiles, err := s.BrandStore.ListProfiles(ctx, wsID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 	var existing *corebrand.VoiceProfile
 	for _, p := range profiles {
@@ -189,7 +189,7 @@ func (s *Server) HandleUpsertBrandProfile(c echo.Context) error {
 			CreatedBy:   userID,
 		}
 		if err := s.BrandStore.CreateProfile(ctx, profile); err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+			return apiErr(c, http.StatusInternalServerError, err.Error())
 		}
 		return c.JSON(http.StatusCreated, BrandProfileUpsertResponse{Action: "created", Profile: profile})
 	}
@@ -222,7 +222,7 @@ func (s *Server) HandleUpsertBrandProfile(c echo.Context) error {
 	// UpdateProfile archives the current state as an immutable ProfileVersion
 	// and bumps existing.Version — the pushed change lands as a new version.
 	if err := s.BrandStore.UpdateProfile(ctx, existing); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 	s.emitAudit(c, auditEvent{
 		Type:         platev.EventBrandProfileUpdated,
@@ -352,15 +352,15 @@ func profileInRequestWorkspace(c echo.Context, profile *corebrand.VoiceProfile) 
 // HandleGetBrandProfile returns a single brand voice profile by ID.
 func (s *Server) HandleGetBrandProfile(c echo.Context) error {
 	if s.BrandStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 
 	profile, err := s.BrandStore.GetProfile(c.Request().Context(), c.Param("id"))
 	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusNotFound, err.Error())
 	}
 	if !profileInRequestWorkspace(c, profile) {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "brand profile not found"})
+		return apiErr(c, http.StatusNotFound, "brand profile not found")
 	}
 	return c.JSON(http.StatusOK, profile)
 }
@@ -371,21 +371,21 @@ func (s *Server) HandleUpdateBrandProfile(c echo.Context) error {
 		return err
 	}
 	if s.BrandStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 
 	var req BrandProfileRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 
 	ctx := c.Request().Context()
 	profile, err := s.BrandStore.GetProfile(ctx, c.Param("id"))
 	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusNotFound, err.Error())
 	}
 	if !profileInRequestWorkspace(c, profile) {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "brand profile not found"})
+		return apiErr(c, http.StatusNotFound, "brand profile not found")
 	}
 	beforeVersion := strconv.Itoa(profile.Version)
 
@@ -402,7 +402,7 @@ func (s *Server) HandleUpdateBrandProfile(c echo.Context) error {
 	profile.UpdatedAt = time.Now().UTC()
 
 	if err := s.BrandStore.UpdateProfile(ctx, profile); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 	s.emitAudit(c, auditEvent{
 		Type:         platev.EventBrandProfileUpdated,
@@ -421,7 +421,7 @@ func (s *Server) HandleDeleteBrandProfile(c echo.Context) error {
 		return err
 	}
 	if s.BrandStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 
 	// Fetch first to assert workspace ownership: DeleteProfile takes a global id,
@@ -429,13 +429,13 @@ func (s *Server) HandleDeleteBrandProfile(c echo.Context) error {
 	ctx := c.Request().Context()
 	profile, err := s.BrandStore.GetProfile(ctx, c.Param("id"))
 	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusNotFound, err.Error())
 	}
 	if !profileInRequestWorkspace(c, profile) {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "brand profile not found"})
+		return apiErr(c, http.StatusNotFound, "brand profile not found")
 	}
 	if err := s.BrandStore.DeleteProfile(ctx, profile.ID); err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusNotFound, err.Error())
 	}
 	return c.NoContent(http.StatusNoContent)
 }
@@ -443,24 +443,24 @@ func (s *Server) HandleDeleteBrandProfile(c echo.Context) error {
 // HandleCheckBrandVoice checks text against a brand voice profile and returns findings and score.
 func (s *Server) HandleCheckBrandVoice(c echo.Context) error {
 	if s.BrandStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 
 	var req BrandCheckRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 	if req.Text == "" {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "text is required"})
+		return apiErr(c, http.StatusBadRequest, "text is required")
 	}
 
 	ctx := c.Request().Context()
 	profile, err := s.BrandStore.GetProfile(ctx, c.Param("id"))
 	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusNotFound, err.Error())
 	}
 	if !profileInRequestWorkspace(c, profile) {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "brand profile not found"})
+		return apiErr(c, http.StatusNotFound, "brand profile not found")
 	}
 
 	// Run vocabulary-based brand checks against the profile using the shared
@@ -483,7 +483,7 @@ func (s *Server) HandleCheckBrandVoice(c echo.Context) error {
 func (s *Server) HandleListStarterPacks(c echo.Context) error {
 	names, err := packs.List()
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 
 	result := make([]StarterPackResponse, 0, len(names))
@@ -506,20 +506,20 @@ func (s *Server) HandleCreateFromStarter(c echo.Context) error {
 		return err
 	}
 	if s.BrandStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 
 	var req CreateFromStarterRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 	if req.Pack == "" {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "pack name is required"})
+		return apiErr(c, http.StatusBadRequest, "pack name is required")
 	}
 
 	template, err := packs.Load(req.Pack)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "starter pack not found: " + req.Pack})
+		return apiErr(c, http.StatusNotFound, "starter pack not found: "+req.Pack)
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
@@ -538,7 +538,7 @@ func (s *Server) HandleCreateFromStarter(c echo.Context) error {
 	}
 
 	if err := s.BrandStore.CreateProfile(c.Request().Context(), profile); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 	return c.JSON(http.StatusCreated, profile)
 }
@@ -546,13 +546,13 @@ func (s *Server) HandleCreateFromStarter(c echo.Context) error {
 // HandleGetBrandVoiceScores returns brand compliance scores for a project.
 func (s *Server) HandleGetBrandVoiceScores(c echo.Context) error {
 	if s.BrandStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 
 	projectID := c.Param("id")
 	scores, err := s.BrandStore.GetScores(c.Request().Context(), projectID, "")
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 	return c.JSON(http.StatusOK, scores)
 }
@@ -560,14 +560,14 @@ func (s *Server) HandleGetBrandVoiceScores(c echo.Context) error {
 // HandleGetBrandVoiceScoresByLocale returns brand compliance scores filtered by locale.
 func (s *Server) HandleGetBrandVoiceScoresByLocale(c echo.Context) error {
 	if s.BrandStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 
 	projectID := c.Param("id")
 	locale := model.LocaleID(c.Param("locale"))
 	scores, err := s.BrandStore.GetScores(c.Request().Context(), projectID, locale)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 	return c.JSON(http.StatusOK, scores)
 }
@@ -575,7 +575,7 @@ func (s *Server) HandleGetBrandVoiceScoresByLocale(c echo.Context) error {
 // HandleGetBrandVoiceTrends returns brand compliance score trends for a project.
 func (s *Server) HandleGetBrandVoiceTrends(c echo.Context) error {
 	if s.BrandStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "brand voice not configured")
 	}
 
 	projectID := c.Param("id")
@@ -588,7 +588,7 @@ func (s *Server) HandleGetBrandVoiceTrends(c echo.Context) error {
 
 	trends, err := s.BrandStore.GetScoreTrends(c.Request().Context(), projectID, days)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 	return c.JSON(http.StatusOK, trends)
 }

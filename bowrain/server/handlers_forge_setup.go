@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
-	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
+	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/forge"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
@@ -46,16 +46,16 @@ func (s *Server) HandleListInstallationRepos(c echo.Context) error {
 		return err
 	}
 	if s.GitHubApp == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "the server has no GitHub App configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "the server has no GitHub App configured")
 	}
 	instID, err := strconv.ParseInt(c.Param("installationID"), 10, 64)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "installation id must be numeric"})
+		return apiErr(c, http.StatusBadRequest, "installation id must be numeric")
 	}
 
 	repos, err := s.GitHubApp.ListInstallationRepos(c.Request().Context(), instID)
 	if err != nil {
-		return c.JSON(http.StatusBadGateway, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadGateway, err.Error())
 	}
 
 	// Annotate with existing bindings so the setup page shows what is already
@@ -102,10 +102,10 @@ func (s *Server) HandleBindInstallationRepo(c echo.Context) error {
 		return err
 	}
 	if s.GitHubApp == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "the server has no GitHub App configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "the server has no GitHub App configured")
 	}
 	if s.Services == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "store not configured")
 	}
 	// The forge connector is the sold git feature, same as the generic API.
 	if err := billing.RequireFeature(c, billing.FeatureConnectorsGit, s.billingGuardEvent()); err != nil {
@@ -113,15 +113,15 @@ func (s *Server) HandleBindInstallationRepo(c echo.Context) error {
 	}
 	instID, err := strconv.ParseInt(c.Param("installationID"), 10, 64)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "installation id must be numeric"})
+		return apiErr(c, http.StatusBadRequest, "installation id must be numeric")
 	}
 
 	var req BindInstallationRepoRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 	if req.Repository == "" || req.ProjectID == "" {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "repository and project_id are required"})
+		return apiErr(c, http.StatusBadRequest, "repository and project_id are required")
 	}
 
 	// The repository must actually belong to this installation — the binding
@@ -129,7 +129,7 @@ func (s *Server) HandleBindInstallationRepo(c echo.Context) error {
 	// never taken from the request.
 	repos, err := s.GitHubApp.ListInstallationRepos(c.Request().Context(), instID)
 	if err != nil {
-		return c.JSON(http.StatusBadGateway, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadGateway, err.Error())
 	}
 	var match *forge.InstallationRepo
 	for i := range repos {
@@ -139,7 +139,7 @@ func (s *Server) HandleBindInstallationRepo(c echo.Context) error {
 		}
 	}
 	if match == nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "the installation does not cover that repository"})
+		return apiErr(c, http.StatusNotFound, "the installation does not cover that repository")
 	}
 
 	branch := req.Branch
@@ -164,7 +164,7 @@ func (s *Server) HandleBindInstallationRepo(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	conn, err := s.Services.Connector.AddConnector(wsID, "forge", config)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 	if s.ConnectorConfigStore != nil {
 		if _, err := s.ConnectorConfigStore.Upsert(c.Request().Context(), &bstore.ConnectorConfig{
@@ -175,7 +175,7 @@ func (s *Server) HandleBindInstallationRepo(c echo.Context) error {
 			Config:      config,
 		}); err != nil {
 			_ = s.Services.Connector.RemoveConnector(wsID, conn.ID())
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+			return apiErr(c, http.StatusInternalServerError, err.Error())
 		}
 	}
 

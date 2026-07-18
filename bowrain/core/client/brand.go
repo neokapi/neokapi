@@ -103,6 +103,6 @@ func (c *BowrainClient) UpsertBrandProfile(ctx context.Context, req BrandProfile
 		return nil, fmt.Errorf("brand-profiles/upsert: %w", ErrForbidden)
 	default:
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("brand-profiles/upsert failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("brand-profiles/upsert", resp.StatusCode, respBody)
 	}
 }
