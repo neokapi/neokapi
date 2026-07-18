@@ -220,11 +220,11 @@ func (s *Server) HandleBindInstallationRepo(c echo.Context) error {
 	// The freshly bound repository ingests immediately, so the project fills
 	// without waiting for the next push. A fetch clones the repository — far
 	// too slow to block the bind response — so it runs exactly like a webhook
-	// ingest: asynchronously, ending in EventPushCompleted, which starts the
-	// first convergence run. A fetch failure never rolls the bind back; it
-	// lands on the connector's status (last error) for the setup page and the
-	// connectors panel to surface.
-	s.forgeIngest(bstore.ConnectorConfig{
+	// ingest: as a durable job (or the in-process fallback), ending in
+	// EventPushCompleted, which starts the first convergence run. A fetch
+	// failure never rolls the bind back; it lands on the connector's status
+	// (last error) for the setup page and the connectors panel to surface.
+	s.forgeIngest(c.Request().Context(), bstore.ConnectorConfig{
 		ID:          conn.ID(),
 		WorkspaceID: wsID,
 		Type:        "forge",

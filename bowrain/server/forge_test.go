@@ -9,10 +9,12 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,6 +24,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/event"
 	"github.com/neokapi/neokapi/bowrain/forge"
+	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/service"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
@@ -45,11 +48,11 @@ type stubForgeConnector struct {
 	pubOpts   platconn.PublishOptions
 }
 
-func (f *stubForgeConnector) ID() string                                  { return f.id }
-func (f *stubForgeConnector) Name() string                                { return "stub" }
-func (f *stubForgeConnector) Category() platconn.Category                 { return platconn.CategoryCode }
-func (f *stubForgeConnector) Configure(config map[string]string) error    { return nil }
-func (f *stubForgeConnector) Close() error                                { return nil }
+func (f *stubForgeConnector) ID() string                               { return f.id }
+func (f *stubForgeConnector) Name() string                             { return "stub" }
+func (f *stubForgeConnector) Category() platconn.Category              { return platconn.CategoryCode }
+func (f *stubForgeConnector) Configure(config map[string]string) error { return nil }
+func (f *stubForgeConnector) Close() error                             { return nil }
 func (f *stubForgeConnector) Status(ctx context.Context) (*platconn.SyncStatus, error) {
 	if f.statusErr != nil {
 		return nil, f.statusErr
@@ -303,4 +306,127 @@ func TestTargetPathFor(t *testing.T) {
 	for _, tc := range cases {
 		assert.Equal(t, tc.want, targetPathFor(tc.src, tc.sourceLang, tc.lang), "%s (%s→%s)", tc.src, tc.sourceLang, tc.lang)
 	}
+}
+
+// memJobStore is a minimal in-memory jobs.JobStore for the server's durable-
+// ingest enqueue path: only the methods that path touches are implemented; the
+// embedded interface nil-panics on anything else (which a test would surface).
+type memJobStore struct {
+	jobs.JobStore
+	mu   sync.Mutex
+	rows map[string]*jobs.TranslationJob
+}
+
+func newMemJobStore() *memJobStore {
+	return &memJobStore{rows: map[string]*jobs.TranslationJob{}}
+}
+
+func (m *memJobStore) CreateJob(_ context.Context, job *jobs.TranslationJob) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	cp := *job
+	m.rows[job.ID] = &cp
+	return nil
+}
+
+func (m *memJobStore) DeleteJob(_ context.Context, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.rows, id)
+	return nil
+}
+
+func (m *memJobStore) GetJob(_ context.Context, id string) (*jobs.TranslationJob, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	j, ok := m.rows[id]
+	if !ok {
+		return nil, fmt.Errorf("job %s not found", id)
+	}
+	cp := *j
+	return &cp, nil
+}
+
+func (m *memJobStore) count() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return len(m.rows)
+}
+
+// TestForgeWebhook_EnqueuesDurableIngestJob pins the durable path from the
+// production drill: with the job system wired, a verified push webhook is
+// acked 202 only after the ingest is safely enqueued for bowrain-worker —
+// never run as a fire-and-forget goroutine that dies with a draining task.
+func TestForgeWebhook_EnqueuesDurableIngestJob(t *testing.T) {
+	s, stub := newForgeTestServer(t, "conn1", "proj1", "s3cret")
+	store := newMemJobStore()
+	queue := jobs.NewChannelQueue(4)
+	t.Cleanup(func() { _ = queue.Close() })
+	s.JobStore = store
+	s.JobQueue = queue
+
+	pushed := make(chan platev.Event, 1)
+	s.EventBus.Subscribe(platev.EventPushCompleted, func(ev platev.Event) { pushed <- ev })
+
+	body := `{"ref":"refs/heads/main","repository":{"full_name":"acme/site"}}`
+	rec := postForgeWebhook(s, "conn1", body,
+		map[string]string{"X-Hub-Signature-256": githubSign("s3cret", []byte(body))})
+	require.Equal(t, http.StatusAccepted, rec.Code)
+
+	// The ack means "queued", not "done": a broker message + job row exist...
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	jobID, ack, _, err := queue.Dequeue(ctx)
+	require.NoError(t, err)
+	ack()
+
+	job, err := store.GetJob(context.Background(), jobID)
+	require.NoError(t, err)
+	assert.True(t, job.IsForgeIngest())
+	assert.Equal(t, jobs.ForgeIngestItemName, job.ItemName)
+	assert.Equal(t, "conn1", job.IngestConnectorID())
+	assert.Equal(t, "proj1", job.ProjectID)
+	assert.Equal(t, "ws1", job.WorkspaceID)
+	assert.Equal(t, "forge-webhook", job.IngestSource())
+	assert.Equal(t, jobs.StatusQueued, job.Status)
+
+	// ...and nothing ran inline: the fetch and the push event are the
+	// worker's job now.
+	assert.Equal(t, 0, stub.fetched, "the durable path must not fetch inline")
+	select {
+	case <-pushed:
+		t.Fatal("EventPushCompleted must come from the worker, not the enqueue")
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+// TestForgeWebhook_FallsBackInProcessWhenEnqueueFails pins the degradation
+// path: a broken broker must not drop the push — the server falls back to the
+// previous in-process ingest and rolls back the orphaned job row.
+func TestForgeWebhook_FallsBackInProcessWhenEnqueueFails(t *testing.T) {
+	s, stub := newForgeTestServer(t, "conn1", "proj1", "s3cret")
+	store := newMemJobStore()
+	queue := jobs.NewChannelQueue(1)
+	_ = queue.Close() // every Enqueue now fails
+	s.JobStore = store
+	s.JobQueue = queue
+
+	pushed := make(chan platev.Event, 1)
+	s.EventBus.Subscribe(platev.EventPushCompleted, func(ev platev.Event) { pushed <- ev })
+
+	body := `{"ref":"refs/heads/main","repository":{"full_name":"acme/site"}}`
+	rec := postForgeWebhook(s, "conn1", body,
+		map[string]string{"X-Hub-Signature-256": githubSign("s3cret", []byte(body))})
+	require.Equal(t, http.StatusAccepted, rec.Code)
+
+	// The in-process fallback ingests and announces the push, as before.
+	select {
+	case ev := <-pushed:
+		assert.Equal(t, "proj1", ev.ProjectID)
+		assert.Equal(t, "acme/site", ev.Data["repo"])
+	case <-time.After(5 * time.Second):
+		t.Fatal("no EventPushCompleted from the in-process fallback")
+	}
+	assert.Equal(t, 1, stub.fetched)
+	assert.Equal(t, 0, store.count(), "the dead job row is rolled back, nothing strands in 'queued'")
 }

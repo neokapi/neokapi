@@ -15,8 +15,8 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/forge"
+	"github.com/neokapi/neokapi/bowrain/jobs"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
-	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -86,44 +86,67 @@ func (s *Server) HandleForgeWebhook(c echo.Context) error {
 		return c.NoContent(http.StatusAccepted)
 	}
 
-	s.forgeIngest(cfg, ev, "forge-webhook")
+	s.forgeIngest(c.Request().Context(), cfg, ev, "forge-webhook")
 	return c.NoContent(http.StatusAccepted)
 }
 
-// forgeIngest ingests a connector's source and announces the push, off the
-// calling request — a fetch clones/pulls a repository, which is far too slow
-// for a webhook response (forges time webhooks out in seconds) or a bind
-// response. On success the connector's last-sync time is stamped and
-// EventPushCompleted goes out (which starts a convergence run under the
-// project's on-push policy); on failure the error is recorded on the connector
-// row so the status path surfaces it — the connector stays bound either way.
-func (s *Server) forgeIngest(cfg bstore.ConnectorConfig, ev forge.PushEvent, source string) {
+// forgeIngest hands a connector's source ingest off the calling request — a
+// fetch clones/pulls a repository, which is far too slow for a webhook
+// response (forges time webhooks out in seconds) or a bind response.
+//
+// The primary path is a **durable job** on the translation queue, executed by
+// bowrain-worker: the previous fire-and-forget goroutine died with the server
+// process (a DRAINING ECS task mid-deploy acked the webhook 202 and then lost
+// the work until a manual redelivery — the production drill this fixes). The
+// job row + broker message survive the process, and the worker's lease/retry/
+// sweeper machinery delivers at-least-once; re-ingest is idempotent (see
+// jobs.ForgeIngest).
+//
+// Deployments without the job system wired (desktop/in-memory, tests, dev
+// without a broker) fall back to the same in-process goroutine as before,
+// running the identical shared ingest core. Either way: on success the
+// connector's last-sync time is stamped and EventPushCompleted goes out (which
+// starts a convergence run under the project's on-push policy); on failure the
+// error is recorded on the connector row so the status path surfaces it — the
+// connector stays bound either way.
+func (s *Server) forgeIngest(ctx context.Context, cfg bstore.ConnectorConfig, ev forge.PushEvent, source string) {
 	projectID := cfg.Config["project_id"]
 	workspaceID := cfg.WorkspaceID
 	connectorID := cfg.ID
+
+	// Durable path: enqueue and let bowrain-worker fetch+ingest.
+	if s.JobStore != nil && s.JobQueue != nil {
+		job := jobs.NewForgeIngestJob(workspaceID, connectorID, projectID, source)
+		if err := s.JobStore.CreateJob(ctx, job); err != nil {
+			slog.WarnContext(ctx, "forge ingest: durable job create failed; falling back to in-process ingest",
+				"connector", connectorID, "project", projectID, "source", source, "error", err)
+		} else if err := s.JobQueue.Enqueue(ctx, job.ID); err != nil {
+			_ = s.JobStore.DeleteJob(ctx, job.ID)
+			slog.WarnContext(ctx, "forge ingest: durable enqueue failed; falling back to in-process ingest",
+				"connector", connectorID, "project", projectID, "source", source, "error", err)
+		} else {
+			slog.InfoContext(ctx, "forge ingest: enqueued",
+				"job_id", job.ID, "connector", connectorID, "project", projectID,
+				"source", source, "repo", ev.RepoPath, "branch", ev.Branch)
+			return
+		}
+	}
+
+	// In-process fallback: same shared core, fire-and-forget as before.
+	deps := jobs.ForgeIngestDeps{Fetcher: s.Services.Connector, EventBus: s.EventBus}
+	if s.ConnectorConfigStore != nil { // typed-nil guard: only set a live recorder
+		deps.Recorder = s.ConnectorConfigStore
+	}
 	go func() {
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(context.Background()), 10*time.Minute)
 		defer cancel()
-		if _, err := s.Services.Connector.Fetch(ctx, workspaceID, connectorID, projectID, platconn.FetchOptions{}); err != nil {
-			slog.Warn("forge ingest: fetch failed", "source", source, "connector", connectorID, "project", projectID, "error", err)
-			s.setConnectorLastError(ctx, workspaceID, connectorID, err)
-			return
-		}
-		s.touchConnectorLastSync(ctx, workspaceID, connectorID)
-		if s.EventBus == nil {
-			return
-		}
-		s.EventBus.Publish(platev.Event{
-			ID:        id.New(),
-			Type:      platev.EventPushCompleted,
-			Source:    source,
-			ProjectID: projectID,
-			Timestamp: time.Now().UTC(),
-			Data: map[string]string{
-				"connector_id": connectorID,
-				"repo":         ev.RepoPath,
-				"branch":       ev.Branch,
-			},
+		_ = jobs.ForgeIngest(ctx, deps, jobs.ForgeIngestParams{
+			WorkspaceID: workspaceID,
+			ConnectorID: connectorID,
+			ProjectID:   projectID,
+			Repo:        ev.RepoPath,
+			Branch:      ev.Branch,
+			Source:      source,
 		})
 	}()
 }
@@ -155,6 +178,12 @@ func (s *Server) HandleGitHubAppWebhook(c echo.Context) error {
 	}
 	ev, ok := forge.ParsePushEvent(forge.KindGitHub, body)
 	if !ok {
+		// Silent-202 branches are logged (production drill follow-up): an
+		// operator tracing a "GitHub says delivered, nothing happened" report
+		// must be able to see which gate dropped the delivery.
+		slog.InfoContext(c.Request().Context(), "github app webhook: acknowledged without action",
+			"reason", "payload is not a branch push",
+			"delivery", c.Request().Header.Get("X-GitHub-Delivery"))
 		return c.NoContent(http.StatusAccepted)
 	}
 
@@ -162,6 +191,10 @@ func (s *Server) HandleGitHubAppWebhook(c echo.Context) error {
 	if !ok {
 		// The app is installed on repositories that aren't connected projects;
 		// their pushes are simply not ours.
+		slog.InfoContext(c.Request().Context(), "github app webhook: acknowledged without action",
+			"reason", "no forge connector tracks this repository",
+			"repo", ev.RepoPath, "branch", ev.Branch,
+			"delivery", c.Request().Header.Get("X-GitHub-Delivery"))
 		return c.NoContent(http.StatusAccepted)
 	}
 	baseBranch := cfg.Config["branch"]
@@ -169,10 +202,15 @@ func (s *Server) HandleGitHubAppWebhook(c echo.Context) error {
 		baseBranch = "main"
 	}
 	if ev.Branch != baseBranch {
+		slog.InfoContext(c.Request().Context(), "github app webhook: acknowledged without action",
+			"reason", "pushed branch is not the tracked branch",
+			"repo", ev.RepoPath, "branch", ev.Branch, "tracked_branch", baseBranch,
+			"connector", cfg.ID,
+			"delivery", c.Request().Header.Get("X-GitHub-Delivery"))
 		return c.NoContent(http.StatusAccepted)
 	}
 
-	s.forgeIngest(cfg, ev, "forge-webhook")
+	s.forgeIngest(c.Request().Context(), cfg, ev, "forge-webhook")
 	return c.NoContent(http.StatusAccepted)
 }
 

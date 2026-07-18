@@ -375,24 +375,30 @@ func TestBindInstallationRepo_FetchFailureKeepsBinding(t *testing.T) {
 	}
 
 	// The status endpoint — what the connectors panel and the setup page poll —
-	// surfaces the recorded error even though the live Status() probe fails
-	// with the same broken clone. This is the founder-drill regression: this
+	// surfaces the recorded error. This is the founder-drill regression: this
 	// used to 404, so the wizard's poll never saw a status body and showed
-	// "Importing your repo…" forever.
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	statusRec := httptest.NewRecorder()
-	sc := echo.New().NewContext(req, statusRec)
-	sc.Set("workspace_id", "ws1")
-	sc.SetParamNames("id")
-	sc.SetParamValues(connID)
-	require.NoError(t, s.HandleConnectorStatus(sc))
-	require.Equal(t, http.StatusOK, statusRec.Code, statusRec.Body.String())
-	var status struct {
-		LastSync time.Time `json:"LastSync"`
-		Errors   []string  `json:"Errors"`
+	// "Importing your repo…" forever. Both reads must agree:
+	//   - the DEFAULT (cheap) read serves the stored row without touching the
+	//     connector at all — the wizard's 2s poll must never re-clone (#1362);
+	//   - the DEEP read (?probe=1, the panel's manual path) degrades to the
+	//     same stored state when the live Status() probe fails on the broken
+	//     clone.
+	for _, target := range []string{"/", "/?probe=1"} {
+		req := httptest.NewRequest(http.MethodGet, target, nil)
+		statusRec := httptest.NewRecorder()
+		sc := echo.New().NewContext(req, statusRec)
+		sc.Set("workspace_id", "ws1")
+		sc.SetParamNames("id")
+		sc.SetParamValues(connID)
+		require.NoError(t, s.HandleConnectorStatus(sc))
+		require.Equal(t, http.StatusOK, statusRec.Code, statusRec.Body.String())
+		var status struct {
+			LastSync time.Time `json:"LastSync"`
+			Errors   []string  `json:"Errors"`
+		}
+		require.NoError(t, json.Unmarshal(statusRec.Body.Bytes(), &status))
+		require.NotEmpty(t, status.Errors, "read %s must carry the recorded error", target)
+		assert.Contains(t, status.Errors[0], "exit status 128")
+		assert.True(t, status.LastSync.IsZero(), "no sync is fabricated for a never-synced connector")
 	}
-	require.NoError(t, json.Unmarshal(statusRec.Body.Bytes(), &status))
-	require.NotEmpty(t, status.Errors)
-	assert.Contains(t, status.Errors[0], "exit status 128")
-	assert.True(t, status.LastSync.IsZero(), "no sync is fabricated for a never-synced connector")
 }

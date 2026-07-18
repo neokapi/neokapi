@@ -382,8 +382,14 @@ function ConnectorRow({
   const displayName = connector.name || connector.id;
 
   const statusQuery = useQuery({
-    queryKey: ["connector-status", workspaceSlug, connector.id],
-    queryFn: () => api.getConnectorStatus(workspaceSlug, connector.id),
+    // The "probe" leaf keeps the deep result out of the cheap-read cache entry
+    // other surfaces share, while the panel's own ["connector-status", ws, id]
+    // prefix invalidations (fetch/publish below) still reach it.
+    queryKey: ["connector-status", workspaceSlug, connector.id, "probe"],
+    // The panel is the explicit manual surface: the deep probe supplies the
+    // item counts and pending pull/push the status line renders. Polling
+    // surfaces (setup wizard, dashboard) stay on the cheap default read.
+    queryFn: () => api.getConnectorStatus(workspaceSlug, connector.id, { probe: true }),
     staleTime: 30_000,
     retry: false,
   });

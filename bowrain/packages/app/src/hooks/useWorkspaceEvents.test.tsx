@@ -3,11 +3,20 @@ import { renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { createElement } from "react";
+import { ApiProvider, type ApiAdapter } from "@neokapi/ui";
 import {
   planInvalidations,
   createEventInvalidator,
   useWorkspaceEvents,
   LIST_INVALIDATE_DEBOUNCE_MS,
+  SSE_INITIAL_BACKOFF_MS,
+  SSE_MAX_BACKOFF_MS,
+  SSE_MAX_REFRESH_FAILURES,
+  initialSseReconnectState,
+  sseClosed,
+  sseRefreshResult,
+  sseShouldStop,
+  sseOpened,
 } from "./useWorkspaceEvents";
 
 describe("planInvalidations → query-key mapping", () => {
@@ -199,9 +208,21 @@ describe("useWorkspaceEvents (fake EventSource)", () => {
     vi.unstubAllGlobals();
   });
 
-  function wrapper(qc: QueryClient) {
+  // The hook reads the api adapter (for the pre-reconnect session refresh)
+  // from ApiContext; tests supply only the members they exercise.
+  function wrapper(qc: QueryClient, api: Partial<ApiAdapter> = {}) {
     return ({ children }: { children: ReactNode }) =>
-      createElement(QueryClientProvider, { client: qc }, children);
+      createElement(
+        QueryClientProvider,
+        { client: qc },
+        createElement(ApiProvider, { adapter: api as ApiAdapter }, children),
+      );
+  }
+
+  /** Simulate the browser hard-closing the stream (server 401/restart). */
+  function hardClose(inst: FakeEventSource) {
+    inst.readyState = FakeEventSource.CLOSED;
+    inst.onerror?.();
   }
 
   it("opens a workspace-scoped stream and invalidates on a change frame", () => {
@@ -239,5 +260,133 @@ describe("useWorkspaceEvents (fake EventSource)", () => {
     const qc = new QueryClient();
     renderHook(() => useWorkspaceEvents(undefined), { wrapper: wrapper(qc) });
     expect(instances).toHaveLength(0);
+  });
+
+  describe("reconnect + session refresh", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("refreshes the session before a manual reconnect", async () => {
+      const refreshSession = vi.fn().mockResolvedValue(true);
+      const qc = new QueryClient();
+      renderHook(() => useWorkspaceEvents("acme"), {
+        wrapper: wrapper(qc, { refreshSession }),
+      });
+
+      hardClose(instances[0]);
+      // The reconnect waits out the backoff; nothing fires early.
+      expect(instances).toHaveLength(1);
+      expect(refreshSession).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(SSE_INITIAL_BACKOFF_MS);
+      expect(refreshSession).toHaveBeenCalledTimes(1);
+      expect(instances).toHaveLength(2);
+    });
+
+    it("stops reconnecting after bounded consecutive refresh failures", async () => {
+      const refreshSession = vi.fn().mockResolvedValue(false);
+      const qc = new QueryClient();
+      renderHook(() => useWorkspaceEvents("acme"), {
+        wrapper: wrapper(qc, { refreshSession }),
+      });
+
+      // Drive close→backoff→refresh cycles; every refresh fails (dead session).
+      for (let i = 0; i < SSE_MAX_REFRESH_FAILURES + 2; i++) {
+        const current = instances[instances.length - 1];
+        if (current.readyState !== FakeEventSource.CLOSED) hardClose(current);
+        await vi.advanceTimersByTimeAsync(SSE_MAX_BACKOFF_MS);
+      }
+
+      // Exactly the bounded number of refresh attempts, then silence: the
+      // final failed refresh does not open another doomed connection.
+      expect(refreshSession).toHaveBeenCalledTimes(SSE_MAX_REFRESH_FAILURES);
+      expect(instances).toHaveLength(SSE_MAX_REFRESH_FAILURES);
+    });
+
+    it("keeps reconnecting when the adapter has no refresh capability", async () => {
+      const qc = new QueryClient();
+      renderHook(() => useWorkspaceEvents("acme"), { wrapper: wrapper(qc) });
+
+      for (let i = 0; i < SSE_MAX_REFRESH_FAILURES + 2; i++) {
+        hardClose(instances[instances.length - 1]);
+        await vi.advanceTimersByTimeAsync(SSE_MAX_BACKOFF_MS);
+      }
+      // No refresh seam → nothing to give up on: the pre-existing endless
+      // backoff loop (desktop Bearer transport, older adapters) is preserved.
+      expect(instances.length).toBe(SSE_MAX_REFRESH_FAILURES + 3);
+    });
+
+    it("a successful refresh resets the failure budget", async () => {
+      const refreshSession = vi
+        .fn()
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(true) // outage ends: session still valid
+        .mockResolvedValue(false);
+      const qc = new QueryClient();
+      renderHook(() => useWorkspaceEvents("acme"), {
+        wrapper: wrapper(qc, { refreshSession }),
+      });
+
+      // Two failures, then a success — the streak resets, so the loop
+      // survives well past SSE_MAX_REFRESH_FAILURES total failures.
+      for (let i = 0; i < 5; i++) {
+        const current = instances[instances.length - 1];
+        if (current.readyState !== FakeEventSource.CLOSED) hardClose(current);
+        await vi.advanceTimersByTimeAsync(SSE_MAX_BACKOFF_MS);
+      }
+      // fail, fail, success, fail, fail → 5 attempts, still alive after 3
+      // TOTAL failures because they were not consecutive.
+      expect(refreshSession).toHaveBeenCalledTimes(5);
+      expect(instances.length).toBeGreaterThan(SSE_MAX_REFRESH_FAILURES);
+    });
+  });
+});
+
+describe("SSE reconnect policy (pure)", () => {
+  it("waits the exponential backoff, capped", () => {
+    let s = initialSseReconnectState();
+    const delays: number[] = [];
+    for (let i = 0; i < 8; i++) {
+      const plan = sseClosed(s);
+      if (plan.action !== "retry") throw new Error("unexpected stop");
+      delays.push(plan.delayMs);
+      s = plan.next;
+    }
+    expect(delays[0]).toBe(SSE_INITIAL_BACKOFF_MS);
+    expect(delays[1]).toBe(SSE_INITIAL_BACKOFF_MS * 2);
+    expect(Math.max(...delays)).toBe(SSE_MAX_BACKOFF_MS);
+    expect(delays.at(-1)).toBe(SSE_MAX_BACKOFF_MS);
+  });
+
+  it("stops once the refresh budget is exhausted", () => {
+    let s = initialSseReconnectState();
+    for (let i = 0; i < SSE_MAX_REFRESH_FAILURES; i++) {
+      expect(sseShouldStop(s)).toBe(false);
+      s = sseRefreshResult(s, false);
+    }
+    expect(sseShouldStop(s)).toBe(true);
+    expect(sseClosed(s)).toEqual({ action: "stop" });
+  });
+
+  it("a refresh success clears the failure streak", () => {
+    let s = sseRefreshResult(sseRefreshResult(initialSseReconnectState(), false), false);
+    expect(s.refreshFailures).toBe(2);
+    s = sseRefreshResult(s, true);
+    expect(s.refreshFailures).toBe(0);
+    expect(sseShouldStop(s)).toBe(false);
+  });
+
+  it("an open connection resets backoff and budget", () => {
+    const plan = sseClosed(initialSseReconnectState());
+    if (plan.action !== "retry") throw new Error("unexpected stop");
+    const degraded = sseRefreshResult(plan.next, false);
+    expect(degraded.backoffMs).toBeGreaterThan(SSE_INITIAL_BACKOFF_MS);
+    expect(degraded.refreshFailures).toBe(1);
+    expect(sseOpened()).toEqual(initialSseReconnectState());
   });
 });

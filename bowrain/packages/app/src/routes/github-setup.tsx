@@ -692,11 +692,11 @@ function RepoRow({
     },
   });
 
-  // While the background ingest runs, poll the connector's status — the same
-  // surface the connectors panel reads. A successful first fetch stamps
-  // lastSync; a recorded failure lands in errors (the server degrades to the
-  // stored state even when the live probe fails, so a broken import is never
-  // an endless "Importing…").
+  // While the background ingest runs, poll the connector's status. This is
+  // deliberately the CHEAP default read (stored row: last sync + recorded
+  // ingest error — no probe flag), so a 2s poll never re-clones the repo
+  // (#1362). A successful first fetch stamps lastSync; a recorded failure
+  // lands in errors — so a broken import is never an endless "Importing…".
   const importStatus = useQuery({
     queryKey: ["github-setup-import", workspaceSlug, importing?.connectorId],
     queryFn: () => api.getConnectorStatus(workspaceSlug, importing?.connectorId ?? ""),

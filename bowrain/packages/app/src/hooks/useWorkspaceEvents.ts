@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
+import { useApi } from "@neokapi/ui";
 
 /**
  * The change-event shape relayed by the server's SSE endpoint
@@ -192,6 +193,77 @@ export function createEventInvalidator(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Reconnect / session-refresh policy (pure — exported for unit testing)
+// ---------------------------------------------------------------------------
+
+/** Backoff bounds for manual reconnects after a hard-closed stream. */
+export const SSE_INITIAL_BACKOFF_MS = 1000;
+export const SSE_MAX_BACKOFF_MS = 30_000;
+
+/**
+ * How many CONSECUTIVE failed session refreshes stop the reconnect loop.
+ *
+ * An EventSource cannot see HTTP status codes, so after session expiry the
+ * stream just hard-closes on every reconnect (the server 401s) and the old
+ * loop churned forever at the backoff cap while live updates were silently
+ * dead. The refresh attempt before each reconnect disambiguates: a refresh
+ * that keeps failing means the session is gone and re-login is required —
+ * nothing a further reconnect can fix — so the loop stops instead of churning.
+ * (The web app has no persistent "disconnected" chrome to surface; the next
+ * user-driven fetch hits the normal 401 → refresh → login redirect path.)
+ * A transient outage (server restart, network blip) refreshes fine, keeps the
+ * counter at zero, and retries forever, exactly as before.
+ */
+export const SSE_MAX_REFRESH_FAILURES = 3;
+
+export interface SseReconnectState {
+  /** Delay before the next reconnect attempt (exponential, capped). */
+  backoffMs: number;
+  /** Consecutive refreshSession() failures since the last success/open. */
+  refreshFailures: number;
+}
+
+export function initialSseReconnectState(): SseReconnectState {
+  return { backoffMs: SSE_INITIAL_BACKOFF_MS, refreshFailures: 0 };
+}
+
+export type SseReconnectPlan =
+  | { action: "retry"; delayMs: number; next: SseReconnectState }
+  | { action: "stop" };
+
+/**
+ * Decide what to do after the stream hard-closed: wait the current backoff and
+ * try again (refresh first), or stop once the refresh budget is exhausted.
+ */
+export function sseClosed(s: SseReconnectState): SseReconnectPlan {
+  if (s.refreshFailures >= SSE_MAX_REFRESH_FAILURES) return { action: "stop" };
+  return {
+    action: "retry",
+    delayMs: s.backoffMs,
+    next: { ...s, backoffMs: Math.min(s.backoffMs * 2, SSE_MAX_BACKOFF_MS) },
+  };
+}
+
+/**
+ * Fold the result of the pre-reconnect session refresh into the state: success
+ * clears the failure streak (whatever closed the stream, it was not a dead
+ * session), failure consumes one refresh attempt.
+ */
+export function sseRefreshResult(s: SseReconnectState, ok: boolean): SseReconnectState {
+  return ok ? { ...s, refreshFailures: 0 } : { ...s, refreshFailures: s.refreshFailures + 1 };
+}
+
+/** True once the refresh budget is spent — do not reconnect again. */
+export function sseShouldStop(s: SseReconnectState): boolean {
+  return s.refreshFailures >= SSE_MAX_REFRESH_FAILURES;
+}
+
+/** A successful connection resets both the backoff and the refresh budget. */
+export function sseOpened(): SseReconnectState {
+  return initialSseReconnectState();
+}
+
 /**
  * Subscribe to the workspace's unified change-event stream and invalidate the
  * relevant React Query caches so no view shows stale state when content changes
@@ -200,12 +272,16 @@ export function createEventInvalidator(
  *
  * Opens an EventSource to /api/v1/:ws/events (optionally scoped to one project),
  * reconnects with backoff on drop, and tears down on unmount or workspace
- * change. Same-origin cookies authenticate the stream. The Yjs collab WebSocket
- * keeps handling per-cursor presence — this layer is purely about data
- * freshness.
+ * change. Same-origin cookies authenticate the stream. Because an EventSource
+ * can neither send headers nor observe a 401, every manual reconnect is
+ * preceded by a session refresh through the adapter's normal auth path
+ * (ApiAdapter.refreshSession); bounded consecutive refresh failures stop the
+ * loop (see SSE_MAX_REFRESH_FAILURES). The Yjs collab WebSocket keeps handling
+ * per-cursor presence — this layer is purely about data freshness.
  */
 export function useWorkspaceEvents(workspaceSlug: string | undefined, projectId?: string): void {
   const queryClient = useQueryClient();
+  const api = useApi();
 
   useEffect(() => {
     if (!workspaceSlug) return;
@@ -214,13 +290,25 @@ export function useWorkspaceEvents(workspaceSlug: string | undefined, projectId?
     let es: EventSource | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let closed = false;
-    let backoff = 1000;
-    const maxBackoff = 30_000;
+    let state = initialSseReconnectState();
     const invalidator = createEventInvalidator(queryClient, workspaceSlug);
 
     const url = projectId
       ? `/api/v1/${encodeURIComponent(workspaceSlug)}/events?project=${encodeURIComponent(projectId)}`
       : `/api/v1/${encodeURIComponent(workspaceSlug)}/events`;
+
+    // Refresh the cookie/token session through the adapter's normal auth path.
+    // An adapter without the capability (desktop Bearer transport) has nothing
+    // to refresh — treat as fine so reconnect behavior is unchanged there.
+    const refreshSession = async (): Promise<boolean> => {
+      const attempt = api.refreshSession?.();
+      if (!attempt) return true;
+      try {
+        return await attempt;
+      } catch {
+        return false;
+      }
+    };
 
     const connect = () => {
       if (closed) return;
@@ -236,19 +324,30 @@ export function useWorkspaceEvents(workspaceSlug: string | undefined, projectId?
       });
 
       es.onopen = () => {
-        backoff = 1000; // reset backoff on a successful connection.
+        state = sseOpened(); // reset backoff + refresh budget.
       };
 
       es.onerror = () => {
         // EventSource auto-reconnects on transient errors, but if the
-        // connection is closed (e.g. server restart) we reconnect manually
-        // with backoff to avoid a tight loop.
+        // connection is closed (server restart, auth rejection) we reconnect
+        // manually with backoff to avoid a tight loop.
         if (es && es.readyState === EventSource.CLOSED) {
           es.close();
           es = null;
           if (closed) return;
-          reconnectTimer = setTimeout(connect, backoff);
-          backoff = Math.min(backoff * 2, maxBackoff);
+          const plan = sseClosed(state);
+          if (plan.action === "stop") return; // dead session: stop churning.
+          state = plan.next;
+          reconnectTimer = setTimeout(() => {
+            void (async () => {
+              // Session refresh BEFORE reconnecting: the EventSource itself
+              // cannot recover from an expired session (it can't see the 401,
+              // let alone fix it), but the normal fetch-path refresh can.
+              state = sseRefreshResult(state, await refreshSession());
+              if (closed || sseShouldStop(state)) return;
+              connect();
+            })();
+          }, plan.delayMs);
         }
       };
     };
@@ -261,5 +360,5 @@ export function useWorkspaceEvents(workspaceSlug: string | undefined, projectId?
       invalidator.dispose();
       es?.close();
     };
-  }, [workspaceSlug, projectId, queryClient]);
+  }, [workspaceSlug, projectId, queryClient, api]);
 }
