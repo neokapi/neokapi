@@ -658,27 +658,37 @@ jobs:
             install -m 0755 "${src}/kapi" "docker/kapi/bins/${arch}/kapi"
           done
 
-          # The kapi-bowrain plugin (built by release-bowrain.yml, not this
-          # workflow) is baked into the default image — there is no separate
-          # -bowrain variant — so the image REQUIRES the same-version plugin
-          # archives. On a coordinated release they sit on this same tag; on a
-          # CLI-only RC they don't, and the whole image is skipped rather than
+          # The kapi-bowrain plugin is baked into the default image (there is no
+          # separate -bowrain variant), so the image REQUIRES the same-version
+          # plugin archives. release-bowrain.yml publishes them under its own
+          # `bowrain-v<version>` release, so publishing the image only happens on
+          # a coordinated release that cuts kapi and bowrain at the SAME version.
+          # The two releases build in parallel, so wait (bounded, ~10 min) for
+          # the bowrain archives to appear; a CLI-only release with no matching
+          # bowrain-v<version> release times out and skips the image rather than
           # publishing a bowrain-less image under the same name.
-          has_plugin=true
-          for arch in amd64 arm64; do
-            kb="kapi-bowrain_${VERSION}_linux_${arch}.tar.gz"
-            if gh release download "v${VERSION}" --repo "${GITHUB_REPOSITORY}" \
-                 --pattern "${kb}" --dir /tmp/kb 2>/dev/null; then
+          PLUGIN_TAG="bowrain-v${VERSION}"
+          has_plugin=false
+          for attempt in $(seq 1 20); do
+            if gh release download "${PLUGIN_TAG}" --repo "${GITHUB_REPOSITORY}" \
+                 --pattern "kapi-bowrain_${VERSION}_linux_amd64.tar.gz" \
+                 --pattern "kapi-bowrain_${VERSION}_linux_arm64.tar.gz" \
+                 --dir /tmp/kb 2>/dev/null; then
+              has_plugin=true; break
+            fi
+            echo "waiting for ${PLUGIN_TAG} plugin archives (attempt ${attempt}/20)…"
+            sleep 30
+          done
+          if [ "${has_plugin}" = "true" ]; then
+            for arch in amd64 arm64; do
+              kb="kapi-bowrain_${VERSION}_linux_${arch}.tar.gz"
               mkdir -p "docker/kapi/plugins/${arch}"
               tar xzf "/tmp/kb/${kb}" -C "docker/kapi/plugins/${arch}"
               test -f "docker/kapi/plugins/${arch}/bowrain/kapi-bowrain"
               test -f "docker/kapi/plugins/${arch}/bowrain/manifest.json"
-            else
-              has_plugin=false
-            fi
-          done
-          if [ "${has_plugin}" = "false" ]; then
-            echo "::notice::kapi-bowrain ${VERSION} archives not on this release — skipping the CLI image (it bundles the bowrain plugin)"
+            done
+          else
+            echo "::notice::kapi-bowrain ${VERSION} archives not found at ${PLUGIN_TAG} — skipping the CLI image (it bundles the bowrain plugin; publish it from a coordinated same-version release)"
           fi
           echo "has_plugin=${has_plugin}" >> "$GITHUB_OUTPUT"
 
