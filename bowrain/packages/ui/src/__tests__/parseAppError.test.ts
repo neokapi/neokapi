@@ -174,7 +174,9 @@ describe("parseAppError", () => {
 
     it("extracts reference from a stringified '<status>: <json>' body", () => {
       const parsed = parseAppError(
-        new Error(`500: ${JSON.stringify({ error: "internal server error", reference: "req-xyz" })}`),
+        new Error(
+          `500: ${JSON.stringify({ error: "internal server error", reference: "req-xyz" })}`,
+        ),
       );
       expect(parsed.status).toBe(500);
       expect(parsed.reference).toBe("req-xyz");
