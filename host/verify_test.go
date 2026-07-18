@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/termbase/klftb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -261,4 +262,108 @@ func TestVerify_GateSelection(t *testing.T) {
 
 	require.Len(t, parsed.Gates, 1, "only the terminology gate should run")
 	assert.Equal(t, gateTerms, parsed.Gates[0].Gate)
+}
+
+// writeTermbaseSourceProject creates a project that binds a committed
+// termbase_source (a .klftb) but NO compiled .kapi/termbase.db, so the check
+// path must resolve the glossary straight from the source. The termbase carries
+// two concepts: a do-not-translate brand term (KapiMart, identical in en/fr) and
+// a translated term (Save -> Enregistrer). The fr target keeps the brand term
+// identical (correct) and mistranslates "Save" as "Sauvegarder" (a terms fail).
+func writeTermbaseSourceProject(t *testing.T) string {
+	t.Helper()
+	t.Setenv("KAPI_NO_PROJECT", "")
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "l10n"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "en"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "fr"), 0o755))
+
+	recipe := `version: v1
+name: verifysrc
+defaults:
+  source_language: en
+  target_languages: [fr]
+  termbase_source: l10n/termbase.klftb
+content:
+  - path: "locales/en/*.json"
+    target: "locales/{lang}/*.json"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(root, "proj.kapi"), []byte(recipe), 0o644))
+
+	src := `{
+  "brand": "KapiMart",
+  "save": "Save"
+}
+`
+	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "en", "app.json"), []byte(src), 0o644))
+
+	target := `{
+  "brand": "KapiMart",
+  "save": "Sauvegarder"
+}
+`
+	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "fr", "app.json"), []byte(target), 0o644))
+
+	file := klftb.FromConcepts([]termbase.Concept{
+		{
+			ID: "brand",
+			Terms: []termbase.Term{
+				{Text: "KapiMart", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+				{Text: "KapiMart", Locale: model.LocaleFrench, Status: model.TermPreferred},
+			},
+		},
+		{
+			ID: "save",
+			Terms: []termbase.Term{
+				{Text: "Save", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+				{Text: "Enregistrer", Locale: model.LocaleFrench, Status: model.TermPreferred},
+			},
+		},
+	})
+	data, err := klftb.Marshal(file)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(root, "l10n", "termbase.klftb"), data, 0o644))
+
+	// Assert the fallback path is the one under test: no compiled db exists.
+	_, statErr := os.Stat(filepath.Join(root, ".kapi", "termbase.db"))
+	require.True(t, os.IsNotExist(statErr), "test must exercise the termbase_source fallback, not a compiled db")
+
+	return root
+}
+
+// TestVerify_GlossaryFromTermbaseSource asserts the terminology gate resolves
+// the project glossary directly from the committed termbase_source (.klftb) when
+// the compiled .kapi/termbase.db is absent — the common case at check time in
+// CI. The gate must run and fail on the mistranslated "Save".
+func TestVerify_GlossaryFromTermbaseSource(t *testing.T) {
+	root := writeTermbaseSourceProject(t)
+	t.Chdir(root)
+
+	out, runErr := runVerifyJSON(t)
+
+	require.ErrorIs(t, runErr, ErrQualityGate, "the mistranslated term must fail the gate")
+
+	terms, ok := gateByName(out, gateTerms)
+	require.True(t, ok, "terminology gate must run when termbase_source is bound")
+	assert.False(t, terms.Pass, "terminology gate must fail on Save -> Sauvegarder")
+	require.NotEmpty(t, terms.Findings)
+	assert.Contains(t, terms.Findings[0].Message, "Enregistrer",
+		"the finding must name the preferred term resolved from the .klftb source")
+}
+
+// TestVerify_DoNotTranslateNotFlagged asserts that a do-not-translate glossary
+// term whose target legitimately equals the source (e.g. the brand "KapiMart")
+// is not reported as untranslated by the QA gate.
+func TestVerify_DoNotTranslateNotFlagged(t *testing.T) {
+	root := writeTermbaseSourceProject(t)
+	t.Chdir(root)
+
+	out, _ := runVerifyJSON(t)
+
+	qa, ok := gateByName(out, gateQA)
+	require.True(t, ok, "qa gate must be present")
+	for _, f := range qa.Findings {
+		assert.NotContains(t, f.Message, "identical to source",
+			"the do-not-translate brand term must not be flagged as untranslated")
+	}
 }

@@ -34,6 +34,7 @@ import (
 	"github.com/neokapi/neokapi/host/output"
 	sqltm "github.com/neokapi/neokapi/sievepen"
 	sqltb "github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/termbase/klftb"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -1570,29 +1571,18 @@ func (a *App) resolveProjectTermbasePath(cmd Command) (string, error) {
 }
 
 // ResolveProjectGlossary builds a source→target glossary from the project's
-// bound termbase (see resolveProjectTermbasePath), for the active source and
-// target locales. Returns nil when no termbase is in scope or it has no terms
-// for the locale pair. The result is suitable for injection into a
+// termbase, for the active source and target locales. It reads the committed
+// .klftb serialization — the termbase's durable form (AD-010) — directly, so the
+// terminology gate validates the committed state and works at check time in CI,
+// where the gitignored working-store .db doesn't exist (see projectConcepts for
+// the full precedence). Returns nil when no termbase is in scope or it has
+// no terms for the locale pair. The result is suitable for injection into a
 // term-check tool config under the "glossary" key.
 func (a *App) ResolveProjectGlossary(cmd Command, targetLang string) ([]coretools.GlossaryEntry, error) {
-	tbPath, err := a.resolveProjectTermbasePath(cmd)
-	if err != nil {
+	concepts, err := a.projectConcepts(cmd)
+	if err != nil || len(concepts) == 0 {
 		return nil, err
 	}
-	if tbPath == "" {
-		return nil, nil
-	}
-	if _, statErr := os.Stat(tbPath); statErr != nil {
-		// A bound path that doesn't exist yet is not an error here — the
-		// project simply has no glossary to enforce.
-		return nil, nil
-	}
-
-	tb, err := sqltb.NewSQLiteTermBase(tbPath)
-	if err != nil {
-		return nil, fmt.Errorf("open termbase %q: %w", tbPath, err)
-	}
-	defer tb.Close()
 
 	source := model.LocaleID(a.SourceLang)
 	target := model.LocaleID(targetLang)
@@ -1600,10 +1590,6 @@ func (a *App) ResolveProjectGlossary(cmd Command, targetLang string) ([]coretool
 		target = model.LocaleID(a.TargetLang)
 	}
 
-	concepts, err := tb.Concepts(CmdContext(cmd))
-	if err != nil {
-		return nil, fmt.Errorf("list termbase concepts: %w", err)
-	}
 	var glossary []coretools.GlossaryEntry
 	for _, c := range concepts {
 		concept := c
@@ -1621,6 +1607,108 @@ func (a *App) ResolveProjectGlossary(cmd Command, targetLang string) ([]coretool
 		})
 	}
 	return glossary, nil
+}
+
+// projectConcepts loads the project's termbase concepts for the read-only check
+// gates. Per the termbase model (AD-010), the committed .klftb is the authored
+// source and the SQLite .db is only a rebuildable read-cache over it — so a ship
+// gate validates the *committed* source: when the recipe binds a termbase_source
+// we decode it directly, no cache required. That is also why the terminology
+// gate works on a fresh CI checkout, where the gitignored .db is absent.
+//
+// Precedence: an explicit --termbase selects a specific store (honour it); else
+// the committed serialization wins; else the working index the recipe binds
+// directly (the legacy defaults.termbase-only case, with no serialization).
+func (a *App) projectConcepts(cmd Command) ([]sqltb.Concept, error) {
+	explicitStore := false
+	if cmd != nil {
+		if v, _ := cmd.Flags().GetString("termbase"); v != "" {
+			explicitStore = true
+		}
+	}
+
+	// Source of truth: the committed .klftb serialization.
+	if !explicitStore {
+		srcPath, err := a.resolveProjectTermbaseSourcePath(cmd)
+		if err != nil {
+			return nil, err
+		}
+		if srcPath != "" {
+			return conceptsFromKLFTB(srcPath)
+		}
+	}
+
+	// Working index: an explicit --termbase, a defaults.termbase binding, or the
+	// .kapi/termbase.db convention. Read directly only when no serialization is
+	// bound (or the user explicitly selected a store).
+	tbPath, err := a.resolveProjectTermbasePath(cmd)
+	if err != nil {
+		return nil, err
+	}
+	if tbPath != "" {
+		if _, statErr := os.Stat(tbPath); statErr == nil {
+			tb, err := sqltb.NewSQLiteTermBase(tbPath)
+			if err != nil {
+				return nil, fmt.Errorf("open termbase %q: %w", tbPath, err)
+			}
+			defer tb.Close()
+			concepts, err := tb.Concepts(CmdContext(cmd))
+			if err != nil {
+				return nil, fmt.Errorf("list termbase concepts: %w", err)
+			}
+			return concepts, nil
+		}
+	}
+	return nil, nil
+}
+
+// conceptsFromKLFTB decodes the committed .klftb termbase serialization into
+// concepts — the read-only fast path a check gate uses to validate the
+// committed source of truth without materializing the SQLite working index.
+func conceptsFromKLFTB(path string) ([]sqltb.Concept, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("open termbase source %q: %w", path, err)
+	}
+	defer f.Close()
+	file, err := klftb.Decode(f)
+	if err != nil {
+		return nil, fmt.Errorf("decode termbase source %q: %w", path, err)
+	}
+	return file.Concepts, nil
+}
+
+// resolveProjectTermbaseSourcePath returns the absolute path of the project's
+// committed termbase_source (a .klftb document), or "" when none is bound or the
+// bound file is missing.
+func (a *App) resolveProjectTermbaseSourcePath(cmd Command) (string, error) {
+	projectPath, err := ResolveProjectPath(cmd)
+	if err != nil || projectPath == "" {
+		return "", err
+	}
+	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
+	if lerr != nil {
+		return "", fmt.Errorf("load project for termbase source: %w", lerr)
+	}
+	src := proj.Defaults.TermbaseSource
+	if src == "" {
+		return "", nil
+	}
+	// Only the canonical .klftb termbase document is resolved live at check
+	// time. Lossy interchange sources (CSV, TBX) are import formats: they're
+	// compiled into .kapi/termbase.db by up/apply and read from there, so we
+	// don't try to decode them here.
+	if !strings.EqualFold(filepath.Ext(src), ".klftb") {
+		return "", nil
+	}
+	if !filepath.IsAbs(src) {
+		src = filepath.Join(filepath.Dir(projectPath), src)
+	}
+	if _, statErr := os.Stat(src); statErr != nil {
+		// Bound but missing — no glossary to enforce, not an error.
+		return "", nil
+	}
+	return src, nil
 }
 
 // runProjectStepsOver runs a project flow's steps over an explicit input set.
