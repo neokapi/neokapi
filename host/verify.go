@@ -297,7 +297,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 			gates = append(gates, termGate)
 		}
 		if sel.qa {
-			qaGate, err := a.verifyQA(CmdContext(cmd), units)
+			qaGate, err := a.verifyQA(cmd, units)
 			if err != nil {
 				return verifyOutput{}, err
 			}
@@ -439,15 +439,24 @@ func unboundGate(gate, binding, flag string) verifyGateResult {
 }
 
 // projectTermbaseBound reports whether the terminology gate has a termbase to
-// enforce against: a --termbase flag, a defaults.termbase binding, or the
-// convention .kapi/termbase.db. It mirrors the resolution the gate itself uses
-// (resolveProjectTermbasePath), so "bound" means the same thing here and there.
+// enforce against: a --termbase flag, a defaults.termbase binding, the
+// convention .kapi/termbase.db, or a committed defaults.termbase_source
+// (.klftb) resolved directly at check time. It mirrors the resolution the gate
+// itself uses (resolveProjectTermbasePath / resolveProjectTermbaseSourcePath),
+// so "bound" means the same thing here and there.
 func (a *App) projectTermbaseBound(cmd Command) (bool, error) {
 	tbPath, err := a.resolveProjectTermbasePath(cmd)
 	if err != nil {
 		return false, err
 	}
-	return tbPath != "", nil
+	if tbPath != "" {
+		return true, nil
+	}
+	srcPath, err := a.resolveProjectTermbaseSourcePath(cmd)
+	if err != nil {
+		return false, err
+	}
+	return srcPath != "", nil
 }
 
 // --- brand gate -------------------------------------------------------------
@@ -812,10 +821,23 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResu
 // verifyQA checks placeholder/tag integrity against the source and flags
 // untranslated/empty targets for each target file, reusing
 // core/tools.NewQACheckTool.
-func (a *App) verifyQA(ctx context.Context, units []VerifyUnit) (verifyGateResult, error) {
+func (a *App) verifyQA(cmd Command, units []VerifyUnit) (verifyGateResult, error) {
+	ctx := CmdContext(cmd)
 	gate := verifyGateResult{Gate: gateQA, Pass: true, Findings: []verifyFinding{}}
 
+	// Per-locale set of source texts the glossary marks do-not-translate (its
+	// target equals the source). For those, an identical-to-source target is
+	// correct, not untranslated — so we suppress the "target same as source" QA
+	// finding for them below. Resolved lazily and cached per locale.
+	dntByLocale := map[string]map[string]bool{}
+
 	for _, u := range units {
+		dnt, ok := dntByLocale[u.Locale]
+		if !ok {
+			dnt = a.doNotTranslateTerms(cmd, u.Locale)
+			dntByLocale[u.Locale] = dnt
+		}
+
 		blocks, missing, err := a.bilingualBlocks(ctx, u)
 		if err != nil {
 			if errors.Is(err, errTargetUnreadable) {
@@ -847,6 +869,11 @@ func (a *App) verifyQA(ctx context.Context, units []VerifyUnit) (verifyGateResul
 		for _, b := range blocks {
 			RunCheckTool(ctx, qa, b)
 			for _, f := range check.Findings(tool.NewBlockViewWithContext(ctx, b)) {
+				// A do-not-translate term legitimately stays identical to the
+				// source, so don't flag it as untranslated.
+				if f.Category == "target-same-as-source" && dnt[b.SourceText()] {
+					continue
+				}
 				failing := qaFindingFails(f)
 				sev := verifySeverity(f.Severity)
 				if failing {
@@ -867,6 +894,26 @@ func (a *App) verifyQA(ctx context.Context, units []VerifyUnit) (verifyGateResul
 		}
 	}
 	return gate, nil
+}
+
+// doNotTranslateTerms returns the set of source texts the project glossary says
+// to keep unchanged for a locale — glossary entries whose target equals the
+// source (e.g. a brand name or product term). Used to suppress the QA
+// "target same as source" finding for those terms, whose identical target is
+// correct rather than untranslated. Returns nil on any resolution error, which
+// simply leaves QA in its default (no terms suppressed) behaviour.
+func (a *App) doNotTranslateTerms(cmd Command, locale string) map[string]bool {
+	glossary, err := a.ResolveProjectGlossary(cmd, locale)
+	if err != nil || len(glossary) == 0 {
+		return nil
+	}
+	dnt := make(map[string]bool, len(glossary))
+	for _, e := range glossary {
+		if e.Source == e.Target {
+			dnt[e.Source] = true
+		}
+	}
+	return dnt
 }
 
 // verifySeverity maps a check.Severity to the "error"/"warning" severity the
