@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/bowrain/analytics"
@@ -201,6 +202,11 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 
 	// Publish EventPushCompleted.
 	if totalStored > 0 && deps.EventBus != nil {
+		// The full item list still rides on "items" because downstream
+		// consumers (per-locale automations in server/automation.go) fan out by
+		// item name. The human-facing activity summary, however, is built from
+		// the structured counts below — never from the joined item string,
+		// which for a large push is an unreadable wall of paths.
 		deps.EventBus.Publish(platev.Event{
 			Type:      platev.EventPushCompleted,
 			Source:    "sync-worker",
@@ -208,6 +214,9 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 			Actor:     manifest.ActorID,
 			Data: map[string]string{
 				"items":          strings.Join(allItemNames, ","),
+				"items_sample":   strings.Join(sampleItemNames(allItemNames, 3), ","),
+				"files_count":    strconv.Itoa(len(allItemNames)),
+				"blocks_count":   strconv.Itoa(totalStored),
 				"push_id":        pushID,
 				"workspace_slug": manifest.WorkspaceSlug,
 			},
@@ -235,6 +244,16 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		nil)
 
 	return nil
+}
+
+// sampleItemNames returns at most n item names, for a compact preview stored
+// on the push activity (e.g. the first few files) without carrying the whole
+// list into the human-facing summary.
+func sampleItemNames(names []string, n int) []string {
+	if len(names) <= n {
+		return names
+	}
+	return names[:n]
 }
 
 // processBlockChunk converts SyncBlocks to model.Blocks and stores them.
