@@ -200,7 +200,7 @@ Requires authentication (run 'kapi auth login' first).`,
 
 		if resp.StatusCode != http.StatusOK {
 			respBody, _ := io.ReadAll(resp.Body)
-			return fmt.Errorf("claim failed (HTTP %d): %s", resp.StatusCode, respBody)
+			return apiclient.NewStatusError("claim", resp.StatusCode, respBody)
 		}
 
 		var result struct {

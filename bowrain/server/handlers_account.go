@@ -33,20 +33,20 @@ type onboardingResponse struct {
 // a suggested slug derived from their email.
 func (s *Server) HandleGetOnboarding(c echo.Context) error {
 	if s.AuthStore == nil || s.Services == nil || s.Services.Auth == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
 	userID, ok := c.Get("user_id").(string)
 	if !ok || userID == "" {
-		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "not authenticated"})
+		return apiErr(c, http.StatusUnauthorized, "not authenticated")
 	}
 	ctx := c.Request().Context()
 	u, err := s.AuthStore.GetUser(ctx, userID)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "user not found"})
+		return apiErr(c, http.StatusNotFound, "user not found")
 	}
 	needs, err := s.Services.Auth.NeedsOnboarding(ctx, userID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 	resp := onboardingResponse{
 		NeedsOnboarding: needs,
@@ -77,11 +77,11 @@ type onboardingRequest struct {
 // workspace with the chosen slug and marks the user onboarded.
 func (s *Server) HandleCompleteOnboarding(c echo.Context) error {
 	if s.AuthStore == nil || s.Services == nil || s.Services.Auth == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
 	userID, ok := c.Get("user_id").(string)
 	if !ok || userID == "" {
-		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "not authenticated"})
+		return apiErr(c, http.StatusUnauthorized, "not authenticated")
 	}
 	// Signups gate (ctrl-managed): closing signups blocks new users from
 	// finalizing onboarding. Users who are already onboarded pass through
@@ -89,21 +89,21 @@ func (s *Server) HandleCompleteOnboarding(c echo.Context) error {
 	// accounts.
 	if !s.PlatformConfig.SignupsOpen() {
 		if needs, err := s.Services.Auth.NeedsOnboarding(c.Request().Context(), userID); err != nil || needs {
-			return c.JSON(http.StatusForbidden, ErrorResponse{Error: "signups are currently closed"})
+			return apiErr(c, http.StatusForbidden, "signups are currently closed")
 		}
 	}
 
 	var req onboardingRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 	req.Slug = strings.TrimSpace(strings.ToLower(req.Slug))
 	if req.Slug == "" {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "slug is required"})
+		return apiErr(c, http.StatusBadRequest, "slug is required")
 	}
 	w, err := s.Services.Auth.CompleteOnboarding(c.Request().Context(), userID, req.Slug, strings.TrimSpace(req.DisplayName))
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 	w.Role = platauth.RoleOwner
 	return c.JSON(http.StatusOK, w)
@@ -120,15 +120,15 @@ type slugCheckResponse struct {
 // enforced server-side; the client also runs format checks.
 func (s *Server) HandleCheckSlug(c echo.Context) error {
 	if s.AuthStore == nil || s.Services == nil || s.Services.Auth == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
 	slug := strings.TrimSpace(strings.ToLower(c.QueryParam("slug")))
 	if slug == "" {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "slug is required"})
+		return apiErr(c, http.StatusBadRequest, "slug is required")
 	}
 	avail, reason, err := s.Services.Auth.IsSlugAvailable(c.Request().Context(), slug)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 	return c.JSON(http.StatusOK, slugCheckResponse{Available: avail, Reason: reason})
 }
@@ -145,48 +145,48 @@ type emailChangeRequest struct {
 // and clicking that link is what proves the user controls the new mailbox.
 func (s *Server) HandleRequestEmailChange(c echo.Context) error {
 	if s.AuthStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
 	if s.Mailer == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "email is not configured on this server"})
+		return apiErr(c, http.StatusServiceUnavailable, "email is not configured on this server")
 	}
 	if s.IdentityAdmin == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "email change is unavailable (identity admin not configured)"})
+		return apiErr(c, http.StatusServiceUnavailable, "email change is unavailable (identity admin not configured)")
 	}
 	userID, ok := c.Get("user_id").(string)
 	if !ok || userID == "" {
-		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "not authenticated"})
+		return apiErr(c, http.StatusUnauthorized, "not authenticated")
 	}
 
 	var req emailChangeRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 	newEmail := strings.TrimSpace(strings.ToLower(req.NewEmail))
 	if !looksLikeEmail(newEmail) {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "new_email is not a valid email address"})
+		return apiErr(c, http.StatusBadRequest, "new_email is not a valid email address")
 	}
 
 	ctx := c.Request().Context()
 
 	// Block if the address is already in use by another account.
 	if existing, err := s.AuthStore.GetUserByEmail(ctx, newEmail); err == nil && existing.ID != userID {
-		return c.JSON(http.StatusConflict, ErrorResponse{Error: "that email is already in use"})
+		return apiErr(c, http.StatusConflict, "that email is already in use")
 	}
 
 	// Same address? Nothing to do.
 	current, err := s.AuthStore.GetUser(ctx, userID)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "user not found"})
+		return apiErr(c, http.StatusNotFound, "user not found")
 	}
 	if strings.EqualFold(strings.TrimSpace(current.Email), newEmail) {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "new email matches the current email"})
+		return apiErr(c, http.StatusBadRequest, "new email matches the current email")
 	}
 
 	// Generate token and persist hash.
 	tokenBytes := make([]byte, 32)
 	if _, err := rand.Read(tokenBytes); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "generate token: " + err.Error()})
+		return apiErr(c, http.StatusInternalServerError, "generate token: "+err.Error())
 	}
 	plaintext := "ec_" + hex.EncodeToString(tokenBytes)
 	hash := sha256.Sum256([]byte(plaintext))
@@ -194,7 +194,7 @@ func (s *Server) HandleRequestEmailChange(c echo.Context) error {
 
 	chReq := &platauth.EmailChangeRequest{UserID: userID, NewEmail: newEmail}
 	if err := s.AuthStore.CreateEmailChangeRequest(ctx, chReq, tokenHash); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "persist request: " + err.Error()})
+		return apiErr(c, http.StatusInternalServerError, "persist request: "+err.Error())
 	}
 
 	confirmURL := s.confirmEmailURL(c, plaintext)
@@ -213,7 +213,7 @@ func (s *Server) HandleRequestEmailChange(c echo.Context) error {
 	}); err != nil {
 		// Roll back persisted request so the user can retry without colliding.
 		_ = s.AuthStore.DeleteEmailChangeRequestsForUser(ctx, userID)
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "send verification email: " + err.Error()})
+		return apiErr(c, http.StatusInternalServerError, "send verification email: "+err.Error())
 	}
 
 	return c.JSON(http.StatusAccepted, map[string]any{
@@ -236,18 +236,18 @@ type emailConfirmRequest struct {
 // This endpoint is unauthenticated: the token alone authorizes the change.
 func (s *Server) HandleConfirmEmailChange(c echo.Context) error {
 	if s.AuthStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
 	if s.IdentityAdmin == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "email change is unavailable (identity admin not configured)"})
+		return apiErr(c, http.StatusServiceUnavailable, "email change is unavailable (identity admin not configured)")
 	}
 
 	var req emailConfirmRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 	if strings.TrimSpace(req.Token) == "" {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "token is required"})
+		return apiErr(c, http.StatusBadRequest, "token is required")
 	}
 
 	hash := sha256.Sum256([]byte(req.Token))
@@ -256,23 +256,23 @@ func (s *Server) HandleConfirmEmailChange(c echo.Context) error {
 	ctx := c.Request().Context()
 	pending, err := s.AuthStore.GetEmailChangeRequestByToken(ctx, tokenHash)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid or expired token"})
+		return apiErr(c, http.StatusBadRequest, "invalid or expired token")
 	}
 	if time.Now().After(pending.ExpiresAt) {
 		_ = s.AuthStore.DeleteEmailChangeRequestsForUser(ctx, pending.UserID)
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "token has expired"})
+		return apiErr(c, http.StatusBadRequest, "token has expired")
 	}
 
 	user, err := s.AuthStore.GetUser(ctx, pending.UserID)
 	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "user not found"})
+		return apiErr(c, http.StatusNotFound, "user not found")
 	}
 
 	// Recheck conflicts at confirmation time — a competing change may have
 	// landed during the verification window.
 	if existing, err := s.AuthStore.GetUserByEmail(ctx, pending.NewEmail); err == nil && existing.ID != user.ID {
 		_ = s.AuthStore.DeleteEmailChangeRequestsForUser(ctx, user.ID)
-		return c.JSON(http.StatusConflict, ErrorResponse{Error: "that email is already in use"})
+		return apiErr(c, http.StatusConflict, "that email is already in use")
 	}
 
 	// Write through to the upstream IdP first; if that fails the local DB stays
@@ -280,11 +280,11 @@ func (s *Server) HandleConfirmEmailChange(c echo.Context) error {
 	// says one thing and Bowrain says another.
 	if user.OIDCSub == "" {
 		_ = s.AuthStore.DeleteEmailChangeRequestsForUser(ctx, user.ID)
-		return c.JSON(http.StatusConflict, ErrorResponse{Error: "user has no identity-provider subject; cannot update upstream"})
+		return apiErr(c, http.StatusConflict, "user has no identity-provider subject; cannot update upstream")
 	}
 	if err := s.IdentityAdmin.UpdateUserEmail(ctx, user.OIDCSub, pending.NewEmail); err != nil {
 		slog.ErrorContext(ctx, "upstream identity email update failed", "user_id", user.ID, "error", err)
-		return c.JSON(http.StatusBadGateway, ErrorResponse{Error: "update upstream identity: " + err.Error()})
+		return apiErr(c, http.StatusBadGateway, "update upstream identity: "+err.Error())
 	}
 
 	user.Email = pending.NewEmail
@@ -292,7 +292,7 @@ func (s *Server) HandleConfirmEmailChange(c echo.Context) error {
 		// The IdP already changed; surface this as a server error so the
 		// operator can reconcile. The next OIDC login will re-sync.
 		slog.ErrorContext(ctx, "local email update failed after upstream identity update", "user_id", user.ID, "error", err)
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "local update failed; sign in again to refresh: " + err.Error()})
+		return apiErr(c, http.StatusInternalServerError, "local update failed; sign in again to refresh: "+err.Error())
 	}
 
 	_ = s.AuthStore.DeleteEmailChangeRequestsForUser(ctx, user.ID)

@@ -9,6 +9,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/neokapi/neokapi/bowrain/analytics"
+	"github.com/neokapi/neokapi/bowrain/apierror"
 )
 
 // contextKeyWorkspacePlan is the echo context key for the workspace plan.
@@ -59,8 +60,7 @@ func PlanGuard(feature Feature, onBlock ...GuardEventFunc) echo.MiddlewareFunc {
 				})
 			}
 
-			return c.JSON(http.StatusForbidden, map[string]any{
-				"error":        "upgrade_required",
+			return apierror.Write(c, http.StatusForbidden, "upgrade_required", map[string]any{
 				"feature":      feature,
 				"minimum_plan": MinimumPlanFor(feature),
 			})
@@ -99,8 +99,7 @@ func RequireFeature(c echo.Context, feature Feature, onBlock ...GuardEventFunc) 
 		})
 	}
 
-	return c.JSON(http.StatusForbidden, map[string]any{
-		"error":        "upgrade_required",
+	return apierror.Write(c, http.StatusForbidden, "upgrade_required", map[string]any{
 		"feature":      feature,
 		"minimum_plan": MinimumPlanFor(feature),
 	})
@@ -162,8 +161,7 @@ func creditsExhaustedResponse(c echo.Context, plan Plan, onBlock ...GuardEventFu
 			"path": c.Path(),
 		})
 	}
-	return c.JSON(http.StatusTooManyRequests, map[string]any{
-		"error":       "credits_exhausted",
+	return apierror.Write(c, http.StatusTooManyRequests, "credits_exhausted", map[string]any{
 		"resets_at":   retryAfter.Format(time.RFC3339),
 		"retry_after": int(time.Until(retryAfter).Seconds()),
 	})

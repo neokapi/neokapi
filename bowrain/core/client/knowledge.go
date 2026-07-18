@@ -574,7 +574,7 @@ func (c *BowrainClient) knowledgeWrite(ctx context.Context, method, path string,
 		return nil
 	default:
 		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("%s failed (HTTP %d): %s", strings.TrimPrefix(path, "/"), resp.StatusCode, string(respBody))
+		return NewStatusError(strings.TrimPrefix(path, "/"), resp.StatusCode, respBody)
 	}
 }
 
@@ -613,7 +613,7 @@ func (c *BowrainClient) getKnowledgeJSON(ctx context.Context, path string, query
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("%s failed (HTTP %d): %s", strings.TrimPrefix(path, "/"), resp.StatusCode, string(body))
+		return NewStatusError(strings.TrimPrefix(path, "/"), resp.StatusCode, body)
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {

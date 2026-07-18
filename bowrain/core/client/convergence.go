@@ -134,7 +134,7 @@ func (c *BowrainClient) EstimateConvergence(ctx context.Context) (*ConvergenceEs
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("estimate convergence (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("estimate convergence", resp.StatusCode, respBody)
 	}
 	var est ConvergenceEstimate
 	if err := json.NewDecoder(resp.Body).Decode(&est); err != nil {
@@ -173,7 +173,7 @@ func (c *BowrainClient) StartConvergenceRun(ctx context.Context, req StartConver
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("start convergence run (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("start convergence run", resp.StatusCode, respBody)
 	}
 	var run ConvergenceRun
 	if err := json.NewDecoder(resp.Body).Decode(&run); err != nil {
@@ -200,7 +200,7 @@ func (c *BowrainClient) ListConvergenceRuns(ctx context.Context, limit int) ([]C
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("list convergence runs (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("list convergence runs", resp.StatusCode, respBody)
 	}
 	var runs []ConvergenceRun
 	if err := json.NewDecoder(resp.Body).Decode(&runs); err != nil {
@@ -222,7 +222,7 @@ func (c *BowrainClient) GetConvergenceRun(ctx context.Context, runID string) (*C
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("get convergence run (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("get convergence run", resp.StatusCode, respBody)
 	}
 	var run ConvergenceRun
 	if err := json.NewDecoder(resp.Body).Decode(&run); err != nil {
@@ -244,7 +244,7 @@ func (c *BowrainClient) CancelConvergenceRun(ctx context.Context, runID string) 
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("cancel convergence run (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return NewStatusError("cancel convergence run", resp.StatusCode, respBody)
 	}
 	return nil
 }
@@ -325,7 +325,7 @@ func (c *BowrainClient) streamOnce(ctx context.Context, runID, lastID string, on
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return false, lastID, fmt.Errorf("subscribe convergence run events (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return false, lastID, NewStatusError("subscribe convergence run events", resp.StatusCode, respBody)
 	}
 
 	scanner := bufio.NewScanner(resp.Body)
@@ -387,7 +387,7 @@ func (c *BowrainClient) SetConvergePolicy(ctx context.Context, policy string) er
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("set converge policy (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return NewStatusError("set converge policy", resp.StatusCode, respBody)
 	}
 	return nil
 }

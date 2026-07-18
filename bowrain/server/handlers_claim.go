@@ -33,22 +33,22 @@ type AnonymousProjectResponse struct {
 // If email is provided, the server sends a claim email to that address.
 func (s *Server) HandleCreateAnonymousProject(c echo.Context) error {
 	if s.Services == nil || s.Services.Auth == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
 
 	var req AnonymousProjectRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 
 	if req.Name == "" || req.DefaultSourceLanguage == "" {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "name and default_source_language are required"})
+		return apiErr(c, http.StatusBadRequest, "name and default_source_language are required")
 	}
 
 	ctx := c.Request().Context()
 	projectID, claimToken, err := s.Services.Auth.CreateAnonymousProject(ctx, req.Name, req.DefaultSourceLanguage, req.TargetLanguages)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 
 	// Also create the project in the content store so blocks can reference it.
@@ -64,7 +64,7 @@ func (s *Server) HandleCreateAnonymousProject(c echo.Context) error {
 			TargetLanguages:       targetLocales,
 		}
 		if err := s.Services.Project.CreateProject(ctx, p); err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "create content project: " + err.Error()})
+			return apiErr(c, http.StatusInternalServerError, "create content project: "+err.Error())
 		}
 	}
 
@@ -105,27 +105,27 @@ type ClaimResponse struct {
 // Requires JWT authentication.
 func (s *Server) HandleClaimProject(c echo.Context) error {
 	if s.Services == nil || s.Services.Auth == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
 
 	var req ClaimRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 
 	if req.ClaimToken == "" {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "claim_token is required"})
+		return apiErr(c, http.StatusBadRequest, "claim_token is required")
 	}
 
 	userID, _ := c.Get("user_id").(string)
 	if userID == "" {
-		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "not authenticated"})
+		return apiErr(c, http.StatusUnauthorized, "not authenticated")
 	}
 
 	ctx := c.Request().Context()
 	projectID, wsSlug, err := s.Services.Auth.ClaimProject(ctx, userID, req.ClaimToken)
 	if err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 
 	// Associate the project with the workspace in the content store.

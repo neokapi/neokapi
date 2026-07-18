@@ -213,31 +213,6 @@ type EditorSaveProviderRequest struct {
 // editor never selected a stream, so the REST calls target the default "main".
 const editorRef = "main"
 
-// StatusError is a non-2xx HTTP response from the server. Callers that need to
-// distinguish a permanent client error (4xx — the request itself was rejected
-// and retrying the same request can never succeed) from a transient failure
-// unwrap it with errors.As; the desktop offline-queue replay uses it to retire
-// permanently failing queued operations instead of retrying them forever.
-type StatusError struct {
-	StatusCode int
-	Path       string
-	Body       string
-}
-
-func (e *StatusError) Error() string {
-	return fmt.Sprintf("%s failed (HTTP %d): %s", e.Path, e.StatusCode, e.Body)
-}
-
-// Permanent reports whether retrying the identical request can never succeed:
-// any 4xx except 408 (request timeout) and 429 (rate limited), which are
-// transient by definition.
-func (e *StatusError) Permanent() bool {
-	if e.StatusCode == http.StatusRequestTimeout || e.StatusCode == http.StatusTooManyRequests {
-		return false
-	}
-	return e.StatusCode >= 400 && e.StatusCode < 500
-}
-
 // editorDo issues an editor request against an absolute path under the server
 // base URL, optionally sending a JSON body and decoding a JSON response. It
 // accepts any 2xx status. A nil out skips decoding (for 204 responses).
@@ -272,7 +247,7 @@ func (c *BowrainClient) editorDo(ctx context.Context, method, path string, query
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
-		return &StatusError{StatusCode: resp.StatusCode, Path: strings.TrimPrefix(path, "/"), Body: string(respBody)}
+		return NewStatusError(strings.TrimPrefix(path, "/"), resp.StatusCode, respBody)
 	}
 	if out != nil && resp.StatusCode != http.StatusNoContent {
 		if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
@@ -424,7 +399,7 @@ func (c *BowrainClient) UploadItems(ctx context.Context, ws, projectID string, f
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("items upload failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("items upload", resp.StatusCode, respBody)
 	}
 	var out EditorProject
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
@@ -658,7 +633,7 @@ func (c *BowrainClient) ExportTermsJSON(ctx context.Context, ws, name string) (s
 	defer resp.Body.Close()
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("concepts/export/json failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return "", NewStatusError("concepts/export/json", resp.StatusCode, respBody)
 	}
 	return string(respBody), nil
 }

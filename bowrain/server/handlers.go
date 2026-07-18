@@ -70,8 +70,13 @@ type FormatInfo struct {
 // X-Request-ID response header and stamped on every server log line for this
 // request). Clients surface it to the user as an error "reference" so a single
 // ID drills all the way down to logs and the Sentry issue.
+//
+// Message is the additive human-readable sentence for the error; Error keeps
+// its exact historical value (stable code or legacy string) since clients and
+// tests parse it. The full envelope contract lives in bowrain/apierror.
 type ErrorResponse struct {
 	Error     string `json:"error"`
+	Message   string `json:"message,omitempty"`
 	Details   string `json:"details,omitempty"`
 	Code      string `json:"code,omitempty"`
 	Reference string `json:"reference,omitempty"`

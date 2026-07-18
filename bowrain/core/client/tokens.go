@@ -62,7 +62,7 @@ func CreateToken(ctx context.Context, serverURL, token, workspace, name string, 
 
 	if resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("create token failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("create token", resp.StatusCode, respBody)
 	}
 
 	var result CreateTokenResponse
@@ -89,7 +89,7 @@ func ListTokens(ctx context.Context, serverURL, token, workspace string) ([]Toke
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("list tokens failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("list tokens", resp.StatusCode, respBody)
 	}
 
 	var result []TokenInfo
@@ -116,7 +116,7 @@ func DeleteToken(ctx context.Context, serverURL, token, workspace, tokenID strin
 
 	if resp.StatusCode != http.StatusNoContent {
 		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("delete token failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return NewStatusError("delete token", resp.StatusCode, respBody)
 	}
 	return nil
 }

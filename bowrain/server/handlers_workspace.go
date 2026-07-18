@@ -52,23 +52,23 @@ type RoleUpdateRequest struct {
 
 func (s *Server) HandleCreateWorkspace(c echo.Context) error {
 	if s.AuthStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
 	// Signups gate (ctrl-managed): when an admin closes signups, block the
 	// self-serve workspace-creation entry point.
 	if !s.PlatformConfig.SignupsOpen() {
-		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "signups are currently closed"})
+		return apiErr(c, http.StatusForbidden, "signups are currently closed")
 	}
 
 	var req WorkspaceRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 	if req.Name == "" {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "name is required"})
+		return apiErr(c, http.StatusBadRequest, "name is required")
 	}
 	if req.Slug == "" {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "slug is required"})
+		return apiErr(c, http.StatusBadRequest, "slug is required")
 	}
 
 	description := ""
@@ -87,12 +87,12 @@ func (s *Server) HandleCreateWorkspace(c echo.Context) error {
 	ctx := c.Request().Context()
 	if s.Services != nil && s.Services.Auth != nil && userID != "" {
 		if err := s.Services.Auth.CreateWorkspaceWithOwner(ctx, w, userID); err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+			return apiErr(c, http.StatusInternalServerError, err.Error())
 		}
 		w.Role = platauth.RoleOwner
 	} else {
 		if err := s.AuthStore.CreateWorkspace(ctx, w); err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+			return apiErr(c, http.StatusInternalServerError, err.Error())
 		}
 	}
 
@@ -126,26 +126,26 @@ func (s *Server) HandleCreateWorkspace(c echo.Context) error {
 
 func (s *Server) HandleListWorkspaces(c echo.Context) error {
 	if s.AuthStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
 	userID := c.Get("user_id")
 	if userID == nil {
-		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "not authenticated"})
+		return apiErr(c, http.StatusUnauthorized, "not authenticated")
 	}
 	workspaces, err := s.AuthStore.ListWorkspaces(c.Request().Context(), userID.(string))
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 	return c.JSON(http.StatusOK, workspaces)
 }
 
 func (s *Server) HandleGetWorkspace(c echo.Context) error {
 	if s.AuthStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
 	w, err := s.AuthStore.GetWorkspaceBySlug(c.Request().Context(), c.Param("ws"))
 	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusNotFound, err.Error())
 	}
 	// Enrich with the current user's role if available.
 	if userID, ok := c.Get("user_id").(string); ok && userID != "" {
@@ -185,7 +185,7 @@ func (s *Server) resolveWorkspaceFeatures(c echo.Context, plan string) map[strin
 
 func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 	if s.AuthStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
 
 	// Verify the calling user has admin or owner role.
@@ -195,13 +195,13 @@ func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 
 	var req WorkspaceRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 
 	// Look up workspace by slug.
 	w, err := s.AuthStore.GetWorkspaceBySlug(c.Request().Context(), c.Param("ws"))
 	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusNotFound, err.Error())
 	}
 
 	if req.Name != "" {
@@ -212,15 +212,15 @@ func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 	if slugChanged {
 		ctx := c.Request().Context()
 		if err := platauth.ValidateWorkspaceSlug(req.Slug); err != nil {
-			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+			return apiErr(c, http.StatusBadRequest, err.Error())
 		}
 		if existing, err := s.AuthStore.GetWorkspaceBySlug(ctx, req.Slug); err == nil && existing.ID != w.ID {
-			return c.JSON(http.StatusConflict, ErrorResponse{Error: "slug is already in use"})
+			return apiErr(c, http.StatusConflict, "slug is already in use")
 		}
 		if _, _, reserved, err := s.AuthStore.IsSlugReserved(ctx, req.Slug); err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "check reserved slug: " + err.Error()})
+			return apiErr(c, http.StatusInternalServerError, "check reserved slug: "+err.Error())
 		} else if reserved {
-			return c.JSON(http.StatusConflict, ErrorResponse{Error: "slug is reserved from a recent rename"})
+			return apiErr(c, http.StatusConflict, "slug is reserved from a recent rename")
 		}
 		w.Slug = req.Slug
 	}
@@ -234,14 +234,14 @@ func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 		if platauth.ValidDashboardVisibility[platauth.DashboardVisibility(req.DashboardVisibility)] {
 			newVis := platauth.DashboardVisibility(req.DashboardVisibility)
 			if w.Type == platauth.WorkspaceTypePersonal && newVis != platauth.DashboardPrivate {
-				return c.JSON(http.StatusForbidden, ErrorResponse{Error: "personal workspaces cannot be exposed publicly"})
+				return apiErr(c, http.StatusForbidden, "personal workspaces cannot be exposed publicly")
 			}
 			w.DashboardVisibility = newVis
 			// Auto-generate an access key when switching to unlisted (if none exists).
 			if newVis == platauth.DashboardUnlisted && w.PulseAccessKey == "" {
 				b := make([]byte, 16)
 				if _, err := rand.Read(b); err != nil {
-					return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "generate access key: " + err.Error()})
+					return apiErr(c, http.StatusInternalServerError, "generate access key: "+err.Error())
 				}
 				w.PulseAccessKey = hex.EncodeToString(b)
 			}
@@ -256,10 +256,10 @@ func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 			// Only accept a preferred model when the admin has opened model
 			// choice to customers and the chosen model is in the enabled set.
 			if !s.PlatformConfig.AICustomerChoice() {
-				return c.JSON(http.StatusForbidden, ErrorResponse{Error: "model choice is not enabled for this platform"})
+				return apiErr(c, http.StatusForbidden, "model choice is not enabled for this platform")
 			}
 			if !s.PlatformConfig.IsModelEnabled(pref) {
-				return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "model is not available"})
+				return apiErr(c, http.StatusBadRequest, "model is not available")
 			}
 		}
 		w.PreferredModel = pref
@@ -268,7 +268,7 @@ func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 		w.BrandVoiceProfileID = *req.BrandVoiceProfileID
 	}
 	if err := s.AuthStore.UpdateWorkspace(c.Request().Context(), w); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "update workspace: " + err.Error()})
+		return apiErr(c, http.StatusInternalServerError, "update workspace: "+err.Error())
 	}
 	// Reserve the old slug for the configured grace period so it cannot be
 	// reused for impersonation. Reservation failure does not undo the rename
@@ -290,7 +290,7 @@ func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 
 func (s *Server) HandleDeleteWorkspace(c echo.Context) error {
 	if s.AuthStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
 
 	// Verify the calling user has owner role.
@@ -300,28 +300,28 @@ func (s *Server) HandleDeleteWorkspace(c echo.Context) error {
 
 	w, err := s.AuthStore.GetWorkspaceBySlug(c.Request().Context(), c.Param("ws"))
 	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusNotFound, err.Error())
 	}
 	if w.Type == platauth.WorkspaceTypePersonal {
-		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "cannot delete personal workspace"})
+		return apiErr(c, http.StatusForbidden, "cannot delete personal workspace")
 	}
 	if err := s.AuthStore.DeleteWorkspace(c.Request().Context(), w.ID); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 	return c.NoContent(http.StatusNoContent)
 }
 
 func (s *Server) HandleListMembers(c echo.Context) error {
 	if s.AuthStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
 	w, err := s.AuthStore.GetWorkspaceBySlug(c.Request().Context(), c.Param("ws"))
 	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusNotFound, err.Error())
 	}
 	members, err := s.AuthStore.ListMembers(c.Request().Context(), w.ID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 	return c.JSON(http.StatusOK, members)
 }
@@ -331,18 +331,18 @@ func (s *Server) HandleAddMember(c echo.Context) error {
 		return err
 	}
 	if s.AuthStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
 
 	var req MemberRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 
 	ctx := c.Request().Context()
 	w, err := s.AuthStore.GetWorkspaceBySlug(ctx, c.Param("ws"))
 	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusNotFound, err.Error())
 	}
 
 	// Enforce seat limit based on workspace plan.
@@ -351,8 +351,7 @@ func (s *Server) HandleAddMember(c echo.Context) error {
 		if limit > 0 {
 			members, err := s.AuthStore.ListMembers(ctx, w.ID)
 			if err == nil && len(members) >= limit {
-				return c.JSON(http.StatusForbidden, map[string]any{
-					"error":   "seat_limit_reached",
+				return apiErr(c, http.StatusForbidden, "seat_limit_reached", map[string]any{
 					"current": len(members),
 					"limit":   limit,
 				})
@@ -362,7 +361,7 @@ func (s *Server) HandleAddMember(c echo.Context) error {
 
 	role := platauth.Role(req.Role)
 	if err := s.AuthStore.AddMember(ctx, w.ID, req.UserID, role); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 	s.emitAudit(c, auditEvent{
 		Type:         platev.EventMemberAdded,
@@ -379,22 +378,22 @@ func (s *Server) HandleUpdateMemberRole(c echo.Context) error {
 		return err
 	}
 	if s.AuthStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
 
 	var req RoleUpdateRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 
 	w, err := s.AuthStore.GetWorkspaceBySlug(c.Request().Context(), c.Param("ws"))
 	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusNotFound, err.Error())
 	}
 
 	role := platauth.Role(req.Role)
 	if err := s.AuthStore.UpdateRole(c.Request().Context(), w.ID, c.Param("uid"), role); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 	s.emitAudit(c, auditEvent{
 		Type:         platev.EventMemberRoleChanged,
@@ -411,14 +410,14 @@ func (s *Server) HandleRemoveMember(c echo.Context) error {
 		return err
 	}
 	if s.AuthStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "auth not configured")
 	}
 	w, err := s.AuthStore.GetWorkspaceBySlug(c.Request().Context(), c.Param("ws"))
 	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusNotFound, err.Error())
 	}
 	if err := s.AuthStore.RemoveMember(c.Request().Context(), w.ID, c.Param("uid")); err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusNotFound, err.Error())
 	}
 	s.emitAudit(c, auditEvent{
 		Type:         platev.EventMemberRemoved,
@@ -439,14 +438,14 @@ func (s *Server) HandleRemoveMember(c echo.Context) error {
 // (block/word counts per file) for callers that need it.
 func (s *Server) HandleListWorkspaceProjects(c echo.Context) error {
 	if s.Services == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "store not configured")
 	}
 	workspaceID, _ := c.Get("workspace_id").(string)
 	fullView := c.QueryParam("view") == "full"
 	ctx := c.Request().Context()
 	allProjects, err := s.Services.Project.ListProjects(ctx)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 	result := make([]*ProjectInfoResponse, 0)
 	for _, p := range allProjects {
@@ -481,12 +480,12 @@ func (s *Server) HandleListWorkspaceProjects(c echo.Context) error {
 // HandleCreateWorkspaceProject creates a project in a workspace.
 func (s *Server) HandleCreateWorkspaceProject(c echo.Context) error {
 	if s.Services == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+		return apiErr(c, http.StatusServiceUnavailable, "store not configured")
 	}
 
 	var req ProjectRequest
 	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
 
 	locales := make([]model.LocaleID, len(req.TargetLanguages))
@@ -511,8 +510,7 @@ func (s *Server) HandleCreateWorkspaceProject(c echo.Context) error {
 					}
 				}
 				if count >= limit {
-					return c.JSON(http.StatusForbidden, map[string]any{
-						"error":   "project_limit_reached",
+					return apiErr(c, http.StatusForbidden, "project_limit_reached", map[string]any{
 						"current": count,
 						"limit":   limit,
 					})
@@ -528,7 +526,7 @@ func (s *Server) HandleCreateWorkspaceProject(c echo.Context) error {
 		WorkspaceID:           workspaceID,
 	}
 	if err := s.Services.Project.CreateProject(ctx, p); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
 	if s.ContentStore != nil {
 		_ = EnsureDefaultCollection(ctx, s.ContentStore, p.ID)

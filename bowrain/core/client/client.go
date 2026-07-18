@@ -330,7 +330,7 @@ func (c *BowrainClient) Pull(ctx context.Context, cursor int64, locales []string
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("pull failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("pull", resp.StatusCode, respBody)
 	}
 
 	body, err := io.ReadAll(resp.Body)
@@ -378,7 +378,7 @@ func (c *BowrainClient) PushStatus(ctx context.Context, pushID string) (*PushSta
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("push status failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("push status", resp.StatusCode, respBody)
 	}
 
 	var result PushStatusResponse
@@ -414,7 +414,7 @@ func (c *BowrainClient) GetBlocks(ctx context.Context, itemName string) ([]SyncB
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("get blocks failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("get blocks", resp.StatusCode, respBody)
 	}
 
 	var blocks []SyncBlock
@@ -449,7 +449,7 @@ func (c *BowrainClient) GetProjectMetadata(ctx context.Context) (*ProjectMetadat
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("get project metadata failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("get project metadata", resp.StatusCode, respBody)
 	}
 
 	var meta ProjectMetadata
@@ -494,7 +494,7 @@ func CreateAnonymousProject(ctx context.Context, serverURL, name, sourceLocale s
 
 	if resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
-		return "", "", fmt.Errorf("create anonymous project failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return "", "", NewStatusError("create anonymous project", resp.StatusCode, respBody)
 	}
 
 	var result struct {
@@ -556,7 +556,7 @@ func CreateAuthenticatedProject(ctx context.Context, serverURL, token, name, sou
 
 	if resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
-		return "", "", fmt.Errorf("create project failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return "", "", NewStatusError("create project", resp.StatusCode, respBody)
 	}
 
 	var result struct {
@@ -601,7 +601,7 @@ func ListWorkspaces(ctx context.Context, serverURL, token string) ([]WorkspaceIn
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("list workspaces failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("list workspaces", resp.StatusCode, respBody)
 	}
 
 	var result []WorkspaceInfo
@@ -638,7 +638,7 @@ func GetProject(ctx context.Context, serverURL, token, projectID string) (*Proje
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("get project failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("get project", resp.StatusCode, respBody)
 	}
 
 	var result ProjectInfo
@@ -665,7 +665,7 @@ func DeleteProject(ctx context.Context, serverURL, token, projectID string) erro
 
 	if resp.StatusCode != http.StatusNoContent {
 		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("delete project failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return NewStatusError("delete project", resp.StatusCode, respBody)
 	}
 	return nil
 }
@@ -700,7 +700,7 @@ func ClaimProject(ctx context.Context, serverURL, token, claimToken string) (*Cl
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("claim project failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("claim project", resp.StatusCode, respBody)
 	}
 
 	var result ClaimProjectResponse
@@ -727,7 +727,7 @@ func JoinWorkspace(ctx context.Context, serverURL, token, inviteCode string) err
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("join workspace failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return NewStatusError("join workspace", resp.StatusCode, respBody)
 	}
 	return nil
 }
@@ -759,7 +759,7 @@ func CreateWorkspace(ctx context.Context, serverURL, token, name, slug string) (
 
 	if resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("create workspace failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("create workspace", resp.StatusCode, respBody)
 	}
 
 	var result WorkspaceInfo
@@ -838,7 +838,7 @@ func (c *BowrainClient) ListStreams(ctx context.Context, includeArchived bool) (
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("list streams (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("list streams", resp.StatusCode, respBody)
 	}
 
 	var streams []StreamInfo
@@ -870,7 +870,7 @@ func (c *BowrainClient) CreateStream(ctx context.Context, csReq CreateStreamRequ
 
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("create stream (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("create stream", resp.StatusCode, respBody)
 	}
 
 	var stream StreamInfo
@@ -900,7 +900,7 @@ func (c *BowrainClient) MergeStream(ctx context.Context, streamName string, dryR
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("merge stream (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("merge stream", resp.StatusCode, respBody)
 	}
 
 	var mergeResult MergeStreamResponse
@@ -927,7 +927,7 @@ func (c *BowrainClient) DiffStream(ctx context.Context, streamName string) (*Dif
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("diff stream (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("diff stream", resp.StatusCode, respBody)
 	}
 
 	var diffResult DiffStreamResponse
@@ -954,7 +954,7 @@ func (c *BowrainClient) ArchiveStream(ctx context.Context, streamName string) er
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("archive stream (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return NewStatusError("archive stream", resp.StatusCode, respBody)
 	}
 	return nil
 }
@@ -1032,7 +1032,7 @@ func (c *BowrainClient) GetAssetUploadURL(ctx context.Context, blobKey, contentT
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("upload-url failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("upload-url", resp.StatusCode, respBody)
 	}
 
 	var result AssetUploadURLResponse
@@ -1064,7 +1064,7 @@ func (c *BowrainClient) PushAsset(ctx context.Context, asset AssetInput) (*Asset
 
 	if resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("push asset failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("push asset", resp.StatusCode, respBody)
 	}
 
 	var result AssetResponse
@@ -1099,7 +1099,7 @@ func (c *BowrainClient) ListAssets(ctx context.Context, itemName string) ([]Asse
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("list assets failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("list assets", resp.StatusCode, respBody)
 	}
 
 	var result AssetListResponse
@@ -1141,7 +1141,7 @@ func (c *BowrainClient) ListAssetVariants(ctx context.Context, assetID string) (
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("list variants failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("list variants", resp.StatusCode, respBody)
 	}
 
 	var result AssetVariantListResponse
@@ -1164,7 +1164,7 @@ func (c *BowrainClient) DownloadBlob(ctx context.Context, downloadURL string) ([
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return nil, fmt.Errorf("download failed: HTTP %d: %s", resp.StatusCode, string(body))
+		return nil, NewStatusError("download", resp.StatusCode, body)
 	}
 	return io.ReadAll(resp.Body)
 }

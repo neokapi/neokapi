@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   ChevronDown,
+  ErrorNotice,
   GitPullRequest,
   Input,
   Label,
@@ -135,7 +136,7 @@ function WorkspaceSection({
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
 
   const slugInvalid = slug.length > 0 && (!SLUG_PATTERN.test(slug) || slug.length < 2);
 
@@ -160,7 +161,7 @@ function WorkspaceSection({
       setCreatingOpen(false);
       resetForm();
     },
-    onError: (e) => setError((e as Error).message),
+    onError: (e) => setError(e),
   });
 
   const submitDisabled =
@@ -256,7 +257,14 @@ function WorkspaceSection({
               Use 2–64 lowercase letters, numbers, and hyphens.
             </p>
           )}
-          {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+          {error != null && (
+            <ErrorNotice
+              error={error}
+              variant="inline"
+              className="mt-2"
+              data-testid="new-workspace-error"
+            />
+          )}
           <div className="mt-3 flex items-center gap-2">
             <Button
               size="sm"
@@ -457,9 +465,11 @@ export function GithubSetupRoute() {
 
       {repos.isLoading && <Spinner />}
       {repos.isError && (
-        <p className="text-sm text-destructive">
-          Could not list the installation&apos;s repositories: {(repos.error as Error).message}
-        </p>
+        <ErrorNotice
+          error={repos.error}
+          title="Could not list the installation's repositories"
+          variant="inline"
+        />
       )}
 
       <div className="flex flex-col gap-3">
@@ -509,7 +519,7 @@ function RepoRow({
   // Default to creating a project named after the repo — the first-time path
   // must be one obvious click; picking an existing project stays available.
   const [projectId, setProjectId] = useState("__new__");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
   // Set once this session's Connect succeeded: the row then tracks the
   // server's background ingest instead of showing a bare "connected" badge.
   const [importing, setImporting] = useState<{ connectorId: string; projectId: string } | null>(
@@ -529,7 +539,7 @@ function RepoRow({
       setImporting({ connectorId: res.connector_id, projectId: res.project_id });
       onChanged();
     },
-    onError: (e) => setError((e as Error).message),
+    onError: (e) => setError(e),
   });
 
   // Create a project from the repo, then bind it in one step.
@@ -550,7 +560,7 @@ function RepoRow({
       setImporting({ connectorId: res.connector_id, projectId: res.project_id });
       onChanged();
     },
-    onError: (e) => setError((e as Error).message),
+    onError: (e) => setError(e),
   });
 
   // While the background ingest runs, poll the connector's status — the same
@@ -605,7 +615,14 @@ function RepoRow({
           {repo.private && <Badge variant="secondary">private</Badge>}
         </div>
         <div className="text-xs text-muted-foreground">tracked branch: {repo.default_branch}</div>
-        {error && <div className="mt-1 text-xs text-destructive">{error}</div>}
+        {error != null && (
+          <ErrorNotice
+            error={error}
+            variant="inline"
+            className="mt-1"
+            data-testid={`connect-error-${repo.full_name}`}
+          />
+        )}
         {importPhase === "failed" && (
           <div className="mt-1 text-xs text-destructive">
             {importStatus.data?.errors[0] ?? "The import did not complete."} The repository stays

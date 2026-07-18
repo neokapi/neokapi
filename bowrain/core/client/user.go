@@ -36,7 +36,7 @@ func FetchUser(ctx context.Context, serverURL, token string) (*UserInfo, error) 
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("fetch user failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return nil, NewStatusError("fetch user", resp.StatusCode, respBody)
 	}
 
 	var result UserInfo

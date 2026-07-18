@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/labstack/echo/v4"
@@ -42,6 +43,12 @@ func TestHTTPErrorHandler_ServerErrorIsRedacted(t *testing.T) {
 	if body.Reference != "req-test-1" {
 		t.Fatalf("reference = %q, want req-test-1", body.Reference)
 	}
+	if body.Message == "" {
+		t.Fatalf("message missing: every error envelope carries a human sentence")
+	}
+	if strings.Contains(body.Message, "pq:") {
+		t.Fatalf("message = %q leaks internals on 5xx", body.Message)
+	}
 	if got := rec.Header().Get("Content-Type"); got == "" {
 		t.Fatalf("missing content-type")
 	}
@@ -65,6 +72,9 @@ func TestHTTPErrorHandler_ClientErrorEchoesMessage(t *testing.T) {
 	}
 	if body.Reference != "req-test-1" {
 		t.Fatalf("reference = %q, want req-test-1", body.Reference)
+	}
+	if body.Message == "" {
+		t.Fatalf("message missing on 4xx envelope")
 	}
 }
 

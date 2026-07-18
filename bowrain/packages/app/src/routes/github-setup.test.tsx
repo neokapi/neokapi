@@ -5,6 +5,7 @@ import {
   AnalyticsProvider,
   ApiProvider,
   AuthProvider,
+  apiErrorFromResponse,
   type ApiAdapter,
   type User,
   type Workspace,
@@ -230,7 +231,8 @@ describe("GithubSetupRoute workspace chooser", () => {
     });
     fireEvent.click(screen.getByTestId("new-workspace-create"));
 
-    await screen.findByText("slug already taken");
+    const notice = await screen.findByTestId("new-workspace-error");
+    expect(notice).toHaveTextContent(/slug already taken/i);
     expect(api.createWorkspace).toHaveBeenCalled();
     expect(screen.getByTestId("new-workspace-name")).toBeInTheDocument();
   });
@@ -279,5 +281,37 @@ describe("GithubSetupRoute project path", () => {
     );
     expect(api.createProject).not.toHaveBeenCalled();
     await screen.findByTestId("importing-acme/website");
+  });
+
+  it("shows the project-limit copy and reference when Create & connect hits the plan limit", async () => {
+    setup({
+      overrides: {
+        createProject: vi.fn().mockRejectedValue(
+          apiErrorFromResponse(
+            403,
+            JSON.stringify({
+              current: 1,
+              error: "project_limit_reached",
+              limit: 1,
+              message: "This workspace's plan allows 1 project(s) and it already has 1.",
+              reference: "req-limit-1",
+            }),
+          ),
+        ),
+      },
+    });
+
+    fireEvent.click(await screen.findByTestId("create-and-connect-acme/website"));
+
+    const notice = await screen.findByTestId("connect-error-acme/website");
+    expect(notice).toHaveTextContent("This workspace's plan allows 1 project and already has 1");
+    expect(notice).toHaveTextContent(
+      "Create a new workspace, choose another, or upgrade the plan.",
+    );
+    expect(screen.getByTestId("connect-error-acme/website-reference")).toHaveTextContent(
+      "req-limit-1",
+    );
+    // Never the raw JSON the incident showed.
+    expect(notice.textContent).not.toContain('{"current"');
   });
 });

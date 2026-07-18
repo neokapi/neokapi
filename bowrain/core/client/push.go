@@ -288,7 +288,7 @@ func (c *BowrainClient) pushInit(ctx context.Context, req PushInitRequest) (*Pus
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return nil, fmt.Errorf("push init HTTP %d: %s", resp.StatusCode, string(b))
+		return nil, NewStatusError("push init", resp.StatusCode, b)
 	}
 	var result PushInitResponse
 	return &result, json.NewDecoder(resp.Body).Decode(&result)
@@ -312,7 +312,7 @@ func (c *BowrainClient) pushDiff(ctx context.Context, req PushDiffRequest) (*Pus
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return nil, fmt.Errorf("push diff HTTP %d: %s", resp.StatusCode, string(b))
+		return nil, NewStatusError("push diff", resp.StatusCode, b)
 	}
 	var result PushDiffResponse
 	return &result, json.NewDecoder(resp.Body).Decode(&result)
@@ -388,7 +388,7 @@ func (c *BowrainClient) pushCommit(ctx context.Context, req PushCommitRequest) (
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return nil, fmt.Errorf("push commit HTTP %d: %s", resp.StatusCode, string(b))
+		return nil, NewStatusError("push commit", resp.StatusCode, b)
 	}
 	var result SyncPushResponse
 	return &result, json.NewDecoder(resp.Body).Decode(&result)
