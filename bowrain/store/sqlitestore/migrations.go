@@ -641,4 +641,16 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE connector_configs ADD COLUMN last_sync_at TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	{
+		Version:     9,
+		Description: "connector last-error (observable background ingest failures)",
+		SQL: `
+			-- Mirrors connector_configs.last_error in
+			-- bowrain/store/migrations.go (Version 10): the most recent sync
+			-- failure per connector, so a failed background ingest surfaces on
+			-- status instead of leaving a silently empty project. Cleared on the
+			-- next successful sync.
+			ALTER TABLE connector_configs ADD COLUMN last_error TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }

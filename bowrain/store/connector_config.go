@@ -70,6 +70,12 @@ type ConnectorConfig struct {
 	// connector has never synced — the status path reports it as "never synced"
 	// instead of the connector's own fabricated wall-clock time.
 	LastSyncAt time.Time
+	// LastError is the most recent sync failure for this connector, recorded
+	// server-side (SetLastError) and cleared by the next successful sync
+	// (TouchLastSync). It is what makes a background ingest failure — e.g. the
+	// initial fetch after a GitHub App bind — observable on the status path
+	// instead of leaving a silently empty project.
+	LastError string
 }
 
 // ConnectorConfigStore persists connector configurations, sealing secret fields
@@ -194,7 +200,7 @@ func (s *ConnectorConfigStore) Get(ctx context.Context, workspaceID, configID st
 		fn(&o)
 	}
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, workspace_id, type, name, config, created_at, updated_at, last_sync_at
+		`SELECT id, workspace_id, type, name, config, created_at, updated_at, last_sync_at, last_error
 		 FROM connector_configs WHERE workspace_id=$1 AND id=$2`, workspaceID, configID)
 	return s.scan(row, o.redact)
 }
@@ -203,7 +209,7 @@ func (s *ConnectorConfigStore) Get(ctx context.Context, workspaceID, configID st
 // REDACTED — the read that backs the connectors listing. Never returns secrets.
 func (s *ConnectorConfigStore) List(ctx context.Context, workspaceID string) ([]ConnectorConfig, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, workspace_id, type, name, config, created_at, updated_at, last_sync_at
+		`SELECT id, workspace_id, type, name, config, created_at, updated_at, last_sync_at, last_error
 		 FROM connector_configs WHERE workspace_id=$1 ORDER BY name, id`, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("list connector configs: %w", err)
@@ -216,7 +222,7 @@ func (s *ConnectorConfigStore) List(ctx context.Context, workspaceID string) ([]
 // server re-instantiates each connector; it is never exposed to a client.
 func (s *ConnectorConfigStore) ListAll(ctx context.Context) ([]ConnectorConfig, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, workspace_id, type, name, config, created_at, updated_at, last_sync_at
+		`SELECT id, workspace_id, type, name, config, created_at, updated_at, last_sync_at, last_error
 		 FROM connector_configs ORDER BY workspace_id, id`)
 	if err != nil {
 		return nil, fmt.Errorf("list all connector configs: %w", err)
@@ -225,15 +231,33 @@ func (s *ConnectorConfigStore) ListAll(ctx context.Context) ([]ConnectorConfig, 
 }
 
 // TouchLastSync stamps a connector's last successful sync time, scoped to the
-// workspace. Called after a successful fetch/publish so the status path can
-// report a real timestamp instead of the connector's fabricated wall-clock time.
-// A no-op (nil) when nothing matched — a missing row is not worth failing a sync.
+// workspace, and clears any recorded last error — a successful sync supersedes
+// an earlier failure. Called after a successful fetch/publish so the status
+// path can report a real timestamp instead of the connector's fabricated
+// wall-clock time. A no-op (nil) when nothing matched — a missing row is not
+// worth failing a sync.
 func (s *ConnectorConfigStore) TouchLastSync(ctx context.Context, workspaceID, configID string, t time.Time) error {
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE connector_configs SET last_sync_at=$1 WHERE workspace_id=$2 AND id=$3`,
+		`UPDATE connector_configs SET last_sync_at=$1, last_error='' WHERE workspace_id=$2 AND id=$3`,
 		t.UTC().Format(time.RFC3339), workspaceID, configID)
 	if err != nil {
 		return fmt.Errorf("touch connector last_sync_at: %w", err)
+	}
+	return nil
+}
+
+// SetLastError records a sync failure on a connector, scoped to the workspace.
+// The status endpoint appends it to the connector's reported errors, so a
+// background ingest that fails (a webhook re-ingest, the first fetch after a
+// GitHub App bind) is observable rather than leaving a silently empty project.
+// Cleared by the next successful sync (TouchLastSync). Like TouchLastSync, a
+// no-op (nil) when nothing matched.
+func (s *ConnectorConfigStore) SetLastError(ctx context.Context, workspaceID, configID, msg string) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE connector_configs SET last_error=$1 WHERE workspace_id=$2 AND id=$3`,
+		msg, workspaceID, configID)
+	if err != nil {
+		return fmt.Errorf("set connector last_error: %w", err)
 	}
 	return nil
 }
@@ -292,7 +316,7 @@ func (s *ConnectorConfigStore) scanRows(rows *sql.Rows, redact bool) ([]Connecto
 func (s *ConnectorConfigStore) scan(sc storage.Scanner, redact bool) (ConnectorConfig, error) {
 	var cfg ConnectorConfig
 	var configJSON, createdStr, updatedStr, lastSyncStr string
-	err := sc.Scan(&cfg.ID, &cfg.WorkspaceID, &cfg.Type, &cfg.Name, &configJSON, &createdStr, &updatedStr, &lastSyncStr)
+	err := sc.Scan(&cfg.ID, &cfg.WorkspaceID, &cfg.Type, &cfg.Name, &configJSON, &createdStr, &updatedStr, &lastSyncStr, &cfg.LastError)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ConnectorConfig{}, ErrConnectorConfigNotFound
 	}

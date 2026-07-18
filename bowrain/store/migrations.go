@@ -824,4 +824,16 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE connector_configs ADD COLUMN IF NOT EXISTS last_sync_at TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	{
+		Version:     10,
+		Description: "connector last-error (observable background ingest failures)",
+		SQL: `
+			-- Records the most recent sync failure per remote connector so an
+			-- asynchronous ingest that fails (a webhook re-ingest, the first fetch
+			-- after a GitHub App bind) surfaces on the connector's status instead
+			-- of leaving a silently empty project. Cleared by the next successful
+			-- sync (written together with last_sync_at).
+			ALTER TABLE connector_configs ADD COLUMN IF NOT EXISTS last_error TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }

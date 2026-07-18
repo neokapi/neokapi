@@ -94,8 +94,9 @@ func (s *Server) HandleListInstallationRepos(c echo.Context) error {
 
 // HandleBindInstallationRepo binds one installed repository to a project:
 // POST /:ws/github/installations/:installationID/repositories. It creates a
-// persisted `auth: app` forge connector — the delivery loop takes over from
-// the next push.
+// persisted `auth: app` forge connector and kicks off the initial ingest in
+// the background, so the project fills immediately — the delivery loop takes
+// over from the next push.
 func (s *Server) HandleBindInstallationRepo(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageConnectors); err != nil {
 		return err
@@ -178,10 +179,26 @@ func (s *Server) HandleBindInstallationRepo(c echo.Context) error {
 		}
 	}
 
+	// The freshly bound repository ingests immediately, so the project fills
+	// without waiting for the next push. A fetch clones the repository — far
+	// too slow to block the bind response — so it runs exactly like a webhook
+	// ingest: asynchronously, ending in EventPushCompleted, which starts the
+	// first convergence run. A fetch failure never rolls the bind back; it
+	// lands on the connector's status (last error) for the setup page and the
+	// connectors panel to surface.
+	s.forgeIngest(bstore.ConnectorConfig{
+		ID:          conn.ID(),
+		WorkspaceID: wsID,
+		Type:        "forge",
+		Name:        conn.Name(),
+		Config:      config,
+	}, forge.PushEvent{Branch: branch, RepoPath: match.FullName}, "github-setup")
+
 	return c.JSON(http.StatusCreated, map[string]string{
-		"connector_id": conn.ID(),
-		"repository":   match.FullName,
-		"project_id":   req.ProjectID,
-		"branch":       branch,
+		"connector_id":  conn.ID(),
+		"repository":    match.FullName,
+		"project_id":    req.ProjectID,
+		"branch":        branch,
+		"initial_fetch": "started",
 	})
 }

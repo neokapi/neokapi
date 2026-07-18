@@ -86,14 +86,18 @@ func (s *Server) HandleForgeWebhook(c echo.Context) error {
 		return c.NoContent(http.StatusAccepted)
 	}
 
-	s.forgeIngest(cfg, ev)
+	s.forgeIngest(cfg, ev, "forge-webhook")
 	return c.NoContent(http.StatusAccepted)
 }
 
-// forgeIngest re-ingests a connector's source and announces the push, off the
-// webhook request — forges time webhooks out in seconds, while a fetch
-// clones/pulls a repository.
-func (s *Server) forgeIngest(cfg bstore.ConnectorConfig, ev forge.PushEvent) {
+// forgeIngest ingests a connector's source and announces the push, off the
+// calling request — a fetch clones/pulls a repository, which is far too slow
+// for a webhook response (forges time webhooks out in seconds) or a bind
+// response. On success the connector's last-sync time is stamped and
+// EventPushCompleted goes out (which starts a convergence run under the
+// project's on-push policy); on failure the error is recorded on the connector
+// row so the status path surfaces it — the connector stays bound either way.
+func (s *Server) forgeIngest(cfg bstore.ConnectorConfig, ev forge.PushEvent, source string) {
 	projectID := cfg.Config["project_id"]
 	workspaceID := cfg.WorkspaceID
 	connectorID := cfg.ID
@@ -101,13 +105,18 @@ func (s *Server) forgeIngest(cfg bstore.ConnectorConfig, ev forge.PushEvent) {
 		ctx, cancel := context.WithTimeout(context.WithoutCancel(context.Background()), 10*time.Minute)
 		defer cancel()
 		if _, err := s.Services.Connector.Fetch(ctx, workspaceID, connectorID, projectID, platconn.FetchOptions{}); err != nil {
-			slog.Warn("forge webhook: fetch failed", "connector", connectorID, "project", projectID, "error", err)
+			slog.Warn("forge ingest: fetch failed", "source", source, "connector", connectorID, "project", projectID, "error", err)
+			s.setConnectorLastError(ctx, workspaceID, connectorID, err)
+			return
+		}
+		s.touchConnectorLastSync(ctx, workspaceID, connectorID)
+		if s.EventBus == nil {
 			return
 		}
 		s.EventBus.Publish(platev.Event{
 			ID:        id.New(),
 			Type:      platev.EventPushCompleted,
-			Source:    "forge-webhook",
+			Source:    source,
 			ProjectID: projectID,
 			Timestamp: time.Now().UTC(),
 			Data: map[string]string{
@@ -163,7 +172,7 @@ func (s *Server) HandleGitHubAppWebhook(c echo.Context) error {
 		return c.NoContent(http.StatusAccepted)
 	}
 
-	s.forgeIngest(cfg, ev)
+	s.forgeIngest(cfg, ev, "forge-webhook")
 	return c.NoContent(http.StatusAccepted)
 }
 
