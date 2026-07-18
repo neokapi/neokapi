@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -144,9 +146,17 @@ func (s *Server) HandleClaimProject(c echo.Context) error {
 	})
 }
 
+// claimURL builds the web claim link for a claim token. The web app serves the
+// claim page at the path-form route /claim/<token> (bowrain/packages/app,
+// route "claim/$token"), and the CLI prints the same path form on `kapi init`
+// — the emailed link must match or the button lands on an unmatched route.
+func claimURL(baseURL, claimToken string) string {
+	return strings.TrimRight(baseURL, "/") + "/claim/" + url.PathEscape(claimToken)
+}
+
 // sendClaimEmail sends an HTML email with the claim token so the user can claim their project.
 func (s *Server) sendClaimEmail(ctx context.Context, email, projectID, claimToken, baseURL string) {
-	claimURL := fmt.Sprintf("%s/claim?token=%s", baseURL, claimToken)
+	link := claimURL(baseURL, claimToken)
 
 	subject := "Your Bowrain Project Claim Token"
 	body := fmt.Sprintf(`<!DOCTYPE html>
@@ -164,7 +174,7 @@ func (s *Server) sendClaimEmail(ctx context.Context, email, projectID, claimToke
   Or copy this link: <a href="%s">%s</a>
 </p>
 </body>
-</html>`, projectID, claimURL, claimURL, claimURL)
+</html>`, projectID, link, link, link)
 
 	if err := s.EmailSender.Send(ctx, email, subject, body); err != nil {
 		slog.Info("failed to send claim email to", "id", email, "error", err)
