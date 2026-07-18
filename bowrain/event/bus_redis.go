@@ -25,7 +25,8 @@ import (
 //   - SubscribeGroup → a Redis Streams consumer group (XREADGROUP): competing
 //     consumers, so exactly one instance in the group handles each event, and
 //     the group's position survives restarts. This is what the durable
-//     domain-event consumers (audit, notifications, automations, …) need.
+//     domain-event consumers (audit, notifications, automations,
+//     convergence-onpush, forge-delivery, …) need.
 //   - Subscribe / SubscribeAll → an independent tail read (XREAD from the current
 //     stream head): every such subscriber sees every event — correct fan-out for
 //     the SSE/gRPC relays, even across instances.

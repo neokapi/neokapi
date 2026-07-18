@@ -257,15 +257,33 @@ func (s *Server) forgeConfigByID(ctx context.Context, configID string) (bstore.C
 	return bstore.ConnectorConfig{}, false
 }
 
+// forgeDeliveryGroup is the durable consumer-group name for run-completion →
+// forge delivery. Stable by design (see convergeOnPushGroup): the group's
+// resume position on the Redis bus is keyed by this name.
+const forgeDeliveryGroup = "forge-delivery"
+
 // subscribeForgeDelivery wires the delivery tier: when a convergence run ends
 // converged or parked, every forge connector bound to the project publishes
 // the produced translations as a pull/merge request. Failed and canceled runs
 // deliver nothing.
+//
+// Durability: delivery is state-advancing — a run-completed event missed
+// during a deploy rollover means the converged translations silently never
+// reach the forge as a PR — so it joins a consumer group (resume position
+// survives restarts) rather than tailing with Subscribe. The group also gives
+// exactly-one-instance handling, so multiple replicas do not each publish the
+// same delivery. Replay-safe: ForgeConnector.Publish recreates the single
+// delivery branch from the tracked tip on every call and touches nothing when
+// the produced files already match the tracked branch, so redelivering an old
+// completion event re-publishes the project's current content at worst.
 func (s *Server) subscribeForgeDelivery() {
 	if s.EventBus == nil || s.Services == nil || s.Services.Connector == nil || s.ConnectorConfigStore == nil {
 		return
 	}
-	s.EventBus.Subscribe(platev.EventConvergenceRunCompleted, func(ev platev.Event) {
+	s.EventBus.SubscribeGroup(forgeDeliveryGroup, func(ev platev.Event) {
+		if ev.Type != platev.EventConvergenceRunCompleted {
+			return // group handlers see every event; only run completions matter here
+		}
 		state := ev.Data["state"]
 		if state != bstore.ConvergenceRunConverged && state != bstore.ConvergenceRunParked {
 			return

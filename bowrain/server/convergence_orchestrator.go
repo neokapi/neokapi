@@ -103,28 +103,58 @@ func newConvergenceOrchestrator(s *Server) *convergenceOrchestrator {
 // locale's translation-job completion.
 const convergePollInterval = 750 * time.Millisecond
 
+// convergeOnPushGroup is the durable consumer-group name for the on-push
+// convergence triggers. Stable by design: on the Redis bus the group's resume
+// position is keyed by this name, so renaming it discards the acknowledged
+// position and re-creates the group at the current stream head.
+const convergeOnPushGroup = "convergence-onpush"
+
 // subscribeConvergeOnPush wires the continuous-convergence policy: a completed
 // push starts a convergence run for on-push projects (the default), replacing
 // the retired auto-translate-on-push automation. Manual projects converge only
 // on demand. Transport (push) stays pure; this is the project's own clock.
+//
+// Durability: this trigger is state-advancing — a lost EventPushCompleted means
+// convergence-on-push silently never happens — so it joins a consumer group
+// (SubscribeGroup → XREADGROUP) instead of tailing with Subscribe. A plain
+// Subscribe reads from the CURRENT stream position with no resume, so an event
+// published while the server was mid-deploy-rollover simply vanished. The
+// group's acknowledged position survives restarts (the resubscribing instance
+// drains everything published during its downtime) and exactly one instance in
+// the group handles each event.
+//
+// Idempotency (same argument as durable ingest, #1364): replaying an old push
+// event — the startup drain, or a redelivered un-acked entry — starts at worst
+// one extra convergence run over already-converged state, which derives
+// coverage, finds nothing pending, and terminates. StartRun's active-run guard
+// (DB partial unique index) additionally collapses a replay racing a live run
+// into joining that run.
 func (s *Server) subscribeConvergeOnPush() {
 	if s.EventBus == nil || s.convergence == nil {
 		return
 	}
-	// A completed push starts a run for on-push projects.
-	s.EventBus.Subscribe(platev.EventPushCompleted, func(ev platev.Event) {
-		s.startOnPushRun(ev, "push")
-	})
-	// Adding a target locale is also new work the on-push policy should absorb:
-	// the old auto-translate-new-locale automation was removed, so without this
-	// a new locale would translate nothing (F10). handlers_project publishes
-	// EventProjectUpdated with new_locales set; a run re-derives coverage and
-	// produces the new locale like any other pending one.
-	s.EventBus.Subscribe(platev.EventProjectUpdated, func(ev platev.Event) {
-		if ev.Data["new_locales"] == "" {
-			return // only a locale addition warrants a run
+	// One group subscription dispatching on event type: a group handler
+	// receives every event (no bus-side type filter — the same shape as the
+	// audit/notifications/automations group consumers). Two SubscribeGroup
+	// calls with the same name would be competing consumers splitting the
+	// stream between them, not two filtered feeds.
+	s.EventBus.SubscribeGroup(convergeOnPushGroup, func(ev platev.Event) {
+		switch ev.Type {
+		case platev.EventPushCompleted:
+			// A completed push starts a run for on-push projects.
+			s.startOnPushRun(ev, "push")
+		case platev.EventProjectUpdated:
+			// Adding a target locale is also new work the on-push policy should
+			// absorb: the old auto-translate-new-locale automation was removed,
+			// so without this a new locale would translate nothing (F10).
+			// handlers_project publishes EventProjectUpdated with new_locales
+			// set; a run re-derives coverage and produces the new locale like
+			// any other pending one.
+			if ev.Data["new_locales"] == "" {
+				return // only a locale addition warrants a run
+			}
+			s.startOnPushRun(ev, "push")
 		}
-		s.startOnPushRun(ev, "push")
 	})
 }
 

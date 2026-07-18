@@ -405,6 +405,8 @@ func runWorker(dbURL string) error {
 		}
 
 		// Fan-out reload: every worker reacts to a config change from ctrl.
+		// Fine-to-miss: this only refreshes a cache loaded fresh at startup and
+		// re-read on the next change event — no state advances here.
 		if bus := translationDeps.EventBus; bus != nil {
 			bus.Subscribe(platev.EventPlatformConfigChanged, func(platev.Event) {
 				if err := pcSvc.Refresh(ctx); err != nil {

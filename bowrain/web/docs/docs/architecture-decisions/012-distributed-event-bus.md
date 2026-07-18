@@ -123,14 +123,25 @@ One Redis Streams consumer group per subscriber component:
 
 ```
 Stream: bowrain:events
-  ├── Group: automations        → AutomationEngine
-  ├── Group: activity-recorder  → ActivityRecorder
-  ├── Group: notifications      → NotificationDispatcher
-  ├── Group: push-tracker       → PushCompletionTracker
-  ├── Group: progress-tracker   → ProgressTracker
-  ├── Group: audit-logger       → AuditLogger
-  └── Group: graph-syncer       → GraphSyncer
+  ├── Group: automations         → AutomationEngine
+  ├── Group: activity-recorder   → ActivityRecorder
+  ├── Group: notifications       → NotificationDispatcher
+  ├── Group: push-tracker        → PushCompletionTracker
+  ├── Group: progress-tracker    → ProgressTracker
+  ├── Group: audit-logger        → AuditLogger
+  ├── Group: siem-exporter       → SIEMExporter
+  ├── Group: graph-syncer        → GraphSyncer
+  ├── Group: convergence-onpush  → on-push convergence trigger (push / new locale → run)
+  └── Group: forge-delivery      → forge delivery tier (run completed → pull request)
 ```
+
+Consumer groups are for **state-advancing** subscribers: a missed event
+would silently strand work (a push that never converges, a converged run
+that never reaches the forge), so the group's persisted position must
+survive replica restarts and deploy rollovers. Pure freshness
+subscribers — the SSE/gRPC change relays and the platform-config cache
+refresh — stay on fan-out `Subscribe`/`SubscribeAll`: every instance must
+react, and a missed event is healed by the next read or reconnect.
 
 ### No leader election
 
