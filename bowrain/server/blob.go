@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/neokapi/neokapi/bowrain/storage/azureblob"
 	"github.com/neokapi/neokapi/bowrain/storage/blobcfg"
 	"github.com/neokapi/neokapi/bowrain/storage/localblob"
 )
@@ -24,8 +23,6 @@ func (s *Server) initBlobStore(cfg Config) {
 	switch backend {
 	case "s3":
 		s.initS3BlobStore()
-	case "azure":
-		s.initAzureBlobStore(cfg)
 	case "local":
 		s.initLocalBlobStore(cfg)
 	default:
@@ -45,51 +42,6 @@ func (s *Server) initS3BlobStore() {
 	}
 	s.BlobStore = bs
 	slog.Info("using S3 blob storage", "bucket", os.Getenv("S3_BLOB_BUCKET"), "endpoint", os.Getenv("S3_ENDPOINT"))
-}
-
-func (s *Server) initAzureBlobStore(cfg Config) {
-	accountURL := cfg.AzureStorageAccountURL
-	if accountURL == "" {
-		accountURL = os.Getenv("AZURE_STORAGE_ACCOUNT_URL")
-	}
-
-	container := cfg.AzureStorageContainer
-	if container == "" {
-		container = os.Getenv("AZURE_STORAGE_CONTAINER")
-	}
-	if container == "" {
-		container = "bowrain-assets"
-	}
-
-	connStr := cfg.AzureStorageConnStr
-	if connStr == "" {
-		connStr = os.Getenv("AZURE_STORAGE_CONNECTION_STRING")
-	}
-
-	// Prefer connection string (local dev / Azurite), fall back to Managed Identity.
-	if connStr != "" {
-		bs, err := azureblob.NewWithConnectionString(connStr, container)
-		if err != nil {
-			slog.Warn("failed to create Azure Blob Store from connection string", "error", err)
-			return
-		}
-		s.BlobStore = bs
-		slog.Info("using Azure Blob Storage (connection string)", "container", container)
-		return
-	}
-
-	if accountURL != "" {
-		bs, err := azureblob.New(accountURL, container)
-		if err != nil {
-			slog.Warn("failed to create Azure Blob Store", "error", err)
-			return
-		}
-		s.BlobStore = bs
-		slog.Info("using Azure Blob Storage (managed identity)", "account_url", accountURL, "container", container)
-		return
-	}
-
-	slog.Warn("azure blob storage configured but no account URL or connection string provided")
 }
 
 func (s *Server) initLocalBlobStore(cfg Config) {

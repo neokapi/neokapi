@@ -15,8 +15,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/neokapi/neokapi/bowrain/agent"
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
@@ -30,10 +28,8 @@ import (
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/bowrain/platformconfig"
-	"github.com/neokapi/neokapi/bowrain/service"
 	sqltm "github.com/neokapi/neokapi/bowrain/sievepen"
 	"github.com/neokapi/neokapi/bowrain/storage"
-	blobazure "github.com/neokapi/neokapi/bowrain/storage/azureblob"
 	"github.com/neokapi/neokapi/bowrain/storage/blobcfg"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -43,7 +39,6 @@ import (
 	fwsievepen "github.com/neokapi/neokapi/sievepen"
 	fwtermbase "github.com/neokapi/neokapi/termbase"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
 
 	// Register the AWS Bedrock AI provider ("bedrock") in the aiprovider registry,
@@ -110,12 +105,7 @@ func runWorker(dbURL string) error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	dbAuth := os.Getenv("BOWRAIN_DATABASE_AUTH")
-	azureClientID := os.Getenv("AZURE_CLIENT_ID")
-
-	serviceBusConn := os.Getenv("BOWRAIN_SERVICE_BUS_CONNECTION")
 	natsURL := os.Getenv("BOWRAIN_NATS_URL")
-	openaiEndpoint := os.Getenv("BOWRAIN_OPENAI_ENDPOINT")
 	platformProvider := os.Getenv("BOWRAIN_PLATFORM_PROVIDER")
 	credentialsPath := os.Getenv("BOWRAIN_CREDENTIALS_PATH")
 	if credentialsPath == "" {
@@ -123,13 +113,7 @@ func runWorker(dbURL string) error {
 	}
 
 	// Open PostgreSQL stores.
-	var pgdb *storage.PgDB
-	var err error
-	if dbAuth == "azure" {
-		pgdb, err = storage.OpenPostgresAzure(dbURL, azureClientID)
-	} else {
-		pgdb, err = storage.OpenPostgres(dbURL)
-	}
+	pgdb, err := storage.OpenPostgres(dbURL)
 	if err != nil {
 		return fmt.Errorf("open PostgreSQL: %w", err)
 	}
@@ -168,11 +152,6 @@ func runWorker(dbURL string) error {
 		if err != nil {
 			return fmt.Errorf("connect to SQS (translation): %w", err)
 		}
-	case serviceBusConn != "":
-		translationQueue, err = jobs.NewServiceBusQueue(ctx, serviceBusConn, "translation-jobs")
-		if err != nil {
-			return fmt.Errorf("connect to Service Bus (translation): %w", err)
-		}
 	case natsURL != "":
 		translationQueue, err = jobs.NewNATSQueue(natsURL)
 		if err != nil {
@@ -193,11 +172,6 @@ func runWorker(dbURL string) error {
 		if err != nil {
 			return fmt.Errorf("connect to SQS (extraction): %w", err)
 		}
-	case serviceBusConn != "":
-		extractionQueue, err = jobs.NewServiceBusQueue(ctx, serviceBusConn, "extraction-jobs")
-		if err != nil {
-			return fmt.Errorf("connect to Service Bus (extraction): %w", err)
-		}
 	case natsURL != "":
 		extractionQueue, err = jobs.NewNATSExtractionQueue(natsURL)
 		if err != nil {
@@ -217,11 +191,6 @@ func runWorker(dbURL string) error {
 		brandScanQueue, err = jobs.NewSQSQueue(ctx, sqsOpts, jobs.SQSBrandScanQueue)
 		if err != nil {
 			return fmt.Errorf("connect to SQS (brand scan): %w", err)
-		}
-	case serviceBusConn != "":
-		brandScanQueue, err = jobs.NewServiceBusQueue(ctx, serviceBusConn, "brand-scan-jobs")
-		if err != nil {
-			return fmt.Errorf("connect to Service Bus (brand scan): %w", err)
 		}
 	case natsURL != "":
 		brandScanQueue, err = jobs.NewNATSBrandScanQueue(natsURL)
@@ -326,22 +295,6 @@ func runWorker(dbURL string) error {
 		}
 	}
 	if blobStore == nil {
-		if azureStorageURL := os.Getenv("AZURE_STORAGE_ACCOUNT_URL"); azureStorageURL != "" {
-			container := envOrDefault("AZURE_STORAGE_CONTAINER", "bowrain-assets")
-			if connStr := os.Getenv("AZURE_STORAGE_CONNECTION_STRING"); connStr != "" {
-				if bs, err := blobazure.NewWithConnectionString(connStr, container); err == nil {
-					blobStore = bs
-					slog.Info("using Azure Blob Storage for push processing")
-				}
-			} else {
-				if bs, err := blobazure.New(azureStorageURL, container); err == nil {
-					blobStore = bs
-					slog.Info("using Azure Blob Storage (managed identity) for push processing")
-				}
-			}
-		}
-	}
-	if blobStore == nil {
 		// Accept the server's BLOB_STORAGE_LOCAL_DIR too, so a shared-volume
 		// deployment can't point the two at different directories.
 		localDir := envOrDefault("BLOB_STORAGE_LOCAL_DIR", envOrDefault("LOCAL_BLOB_DIR", "/tmp/bowrain-blobs"))
@@ -362,14 +315,6 @@ func runWorker(dbURL string) error {
 		} else {
 			translationDeps.EventBus = bus
 			slog.Info("worker event bus configured", "backend", "redis_streams")
-		}
-	} else if serviceBusConn != "" {
-		bus, err := bowevent.NewServiceBusEventBus(serviceBusConn)
-		if err != nil {
-			slog.Warn("failed to create Service Bus event bus for worker", "error", err)
-		} else {
-			translationDeps.EventBus = bus
-			slog.Info("worker event bus configured", "backend", "azure_service_bus")
 		}
 	} else if natsURL != "" {
 		bus, err := bowevent.NewNATSEventBus(natsURL)
@@ -405,15 +350,9 @@ func runWorker(dbURL string) error {
 		}
 		slog.Info("platform translation provider configured",
 			"provider", platformProvider, "model", os.Getenv("BOWRAIN_PLATFORM_MODEL"))
-	case openaiEndpoint != "":
-		translationDeps.Platform = &jobs.PlatformProviderConfig{
-			Endpoint: openaiEndpoint,
-			ClientID: azureClientID,
-		}
-		slog.Info("platform translation provider configured", "provider", "azure-openai")
 	default:
 		slog.Warn("no platform translation provider configured; " +
-			"auto-translate jobs will fail (set BOWRAIN_PLATFORM_PROVIDER + key, or BOWRAIN_OPENAI_ENDPOINT)")
+			"auto-translate jobs will fail (set BOWRAIN_PLATFORM_PROVIDER + key)")
 	}
 
 	// Instance-wide platform config (ctrl-managed). The worker reads the AI
@@ -443,7 +382,7 @@ func runWorker(dbURL string) error {
 		// editor. A nil store just serves the platform default.
 		wsGetter := authStore
 		platformResolver = func(ctx context.Context, wsID string) *jobs.PlatformProviderConfig {
-			cfg := platformConfigFromService(pcSvc, azureClientID, openaiEndpoint)
+			cfg := platformConfigFromService(pcSvc)
 			// Skip the workspace lookup unless model choice is on and we have a
 			// workspace to look up — the common path stays a pure in-memory read.
 			if cfg == nil || wsID == "" || wsGetter == nil || !pcSvc.AICustomerChoice() {
@@ -648,128 +587,11 @@ func runWorker(dbURL string) error {
 		})
 	}
 
-	// Agent worker (optional — runs when BOWRAIN_AGENT_RUNTIME=aca is set).
-	if agentRuntime := os.Getenv("BOWRAIN_AGENT_RUNTIME"); agentRuntime == "aca" {
-		agentDeps, cleanup, err := buildAgentWorkerDeps(ctx, pgdb, serviceBusConn, azureClientID)
-		if err != nil {
-			return fmt.Errorf("init agent worker: %w", err)
-		}
-		defer cleanup()
-
-		// Wire billing credit deduction + Stripe meter reporting into the agent
-		// worker (Epic 004). In queue mode the API server delegates @bravo
-		// processing to this worker via sendQueuedStream, which never touches
-		// billingHooks — so this worker's processAgentJob is the ONLY place bravo
-		// message tokens and container time get billed. Without this, every @bravo
-		// message in a queue-mode deployment burns zero credits and fires zero
-		// Stripe meters. Mirrors translationDeps above; nil in self-hosted/unbilled
-		// deployments (no STRIPE_SECRET_KEY).
-		if hooks := buildWorkerBillingHooks(pgdb); hooks != nil {
-			agentDeps.BillingHooks = hooks
-		}
-
-		g.Go(func() error {
-			return jobs.RunAgentWorker(ctx, agentDeps)
-		})
-
-		// Cleanup idle agent containers periodically.
-		g.Go(func() error {
-			agentDeps.Pool.RunCleanupLoop(ctx)
-			return nil
-		})
-	}
-
 	slog.Info("starting bowrain worker")
 	if err := g.Wait(); err != nil && ctx.Err() == nil {
 		return err
 	}
 	return nil
-}
-
-// buildAgentWorkerDeps sets up the agent worker dependencies.
-func buildAgentWorkerDeps(ctx context.Context, pgdb *storage.PgDB, serviceBusConn, azureClientID string) (*jobs.AgentWorkerDeps, func(), error) {
-	// Agent store (conversations + messages).
-	agentStore, err := agent.NewStore(pgdb)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Agent job queue (separate Service Bus queue).
-	var agentQueue jobs.Queue
-	if serviceBusConn != "" {
-		agentQueue, err = jobs.NewServiceBusQueue(ctx, serviceBusConn, "bravo-jobs")
-		if err != nil {
-			return nil, nil, err
-		}
-	} else {
-		agentQueue = jobs.NewChannelQueue(64)
-	}
-
-	// Redis pub/sub for SSE relay.
-	redisURL := os.Getenv("BOWRAIN_REDIS_URL")
-	redisPassword := os.Getenv("BOWRAIN_REDIS_PASSWORD")
-	if redisURL == "" {
-		return nil, nil, errors.New("BOWRAIN_REDIS_URL is required for agent worker")
-	}
-	redisOpts, err := redis.ParseURL(redisURL)
-	if err != nil {
-		return nil, nil, fmt.Errorf("parse redis URL: %w", err)
-	}
-	if redisPassword != "" {
-		redisOpts.Password = redisPassword
-	}
-	redisClient := redis.NewClient(redisOpts)
-	pubsub := service.NewAgentPubSub(redisClient)
-
-	// ACA container runtime.
-	cred, err := azidentity.NewDefaultAzureCredential(nil)
-	if err != nil {
-		return nil, nil, fmt.Errorf("azure credential: %w", err)
-	}
-
-	runtime := service.NewACARuntime(service.ACAConfig{
-		Credential:     cred,
-		SubscriptionID: os.Getenv("BOWRAIN_AGENT_ACA_SUBSCRIPTION"),
-		ResourceGroup:  os.Getenv("BOWRAIN_AGENT_ACA_RESOURCE_GROUP"),
-		EnvironmentID:  os.Getenv("BOWRAIN_AGENT_ACA_ENVIRONMENT_ID"),
-		Location:       os.Getenv("BOWRAIN_AGENT_ACA_LOCATION"),
-	})
-
-	pool := service.NewAgentPool(service.AgentPoolConfig{
-		Runtime:          runtime,
-		MCPEndpoint:      os.Getenv("BOWRAIN_AGENT_MCP_ENDPOINT"),
-		BravoImage:       envOrDefault("BOWRAIN_AGENT_IMAGE", "ghcr.io/neokapi/bravo-agent:latest"),
-		ModelProvider:    os.Getenv("BOWRAIN_AGENT_MODEL_PROVIDER"),
-		ModelName:        os.Getenv("BOWRAIN_AGENT_MODEL_NAME"),
-		ModelAPIBase:     os.Getenv("BOWRAIN_AGENT_MODEL_API_BASE"),
-		ModelAPIKey:      os.Getenv("BOWRAIN_AGENT_MODEL_API_KEY"),
-		RegistryServer:   os.Getenv("BOWRAIN_AGENT_REGISTRY_SERVER"),
-		RegistryUsername: os.Getenv("BOWRAIN_AGENT_REGISTRY_USERNAME"),
-		RegistryPassword: os.Getenv("BOWRAIN_AGENT_REGISTRY_PASSWORD"),
-	})
-
-	slog.Info("agent pool initialized", "runtime", "aca")
-
-	cleanup := func() {
-		agentQueue.Close()
-		redisClient.Close()
-		// Shutdown must run even if the worker's ctx is already cancelled;
-		// WithoutCancel detaches cancellation while keeping trace/values.
-		pool.StopAll(context.WithoutCancel(ctx))
-	}
-
-	jwtSecret := os.Getenv("BOWRAIN_JWT_SECRET")
-	if jwtSecret == "" {
-		return nil, nil, errors.New("BOWRAIN_JWT_SECRET is required for agent worker MCP auth")
-	}
-
-	return &jobs.AgentWorkerDeps{
-		Queue:      agentQueue,
-		AgentStore: agentStore,
-		Pool:       pool,
-		PubSub:     pubsub,
-		JWTSecret:  jwtSecret,
-	}, cleanup, nil
 }
 
 // buildWorkerBillingHooks constructs the worker's billing usage hooks: the
@@ -910,12 +732,11 @@ func envOrDefault(key, fallback string) string {
 
 // platformConfigFromService builds the current platform provider config from the
 // ctrl-managed settings service, mirroring the startup BOWRAIN_PLATFORM_* switch:
-// a configured provider (e.g. "bedrock") takes the generic path with its env key,
-// otherwise an Azure OpenAI endpoint takes the managed-identity path. Provider,
-// model and base URL come from the service (so a ctrl change is picked up live);
-// the API key and Azure endpoint/client-id remain env-sourced secrets. Returns
-// nil when no provider is configured.
-func platformConfigFromService(svc *platformconfig.Service, azureClientID, openaiEndpoint string) *jobs.PlatformProviderConfig {
+// a configured provider (e.g. "bedrock") takes the generic path with its env key.
+// Provider, model and base URL come from the service (so a ctrl change is picked
+// up live); the API key remains an env-sourced secret. Returns nil when no
+// provider is configured.
+func platformConfigFromService(svc *platformconfig.Service) *jobs.PlatformProviderConfig {
 	if provider := svc.AIProvider(); provider != "" {
 		apiKey := os.Getenv("BOWRAIN_PLATFORM_API_KEY")
 		if apiKey == "" {
@@ -927,9 +748,6 @@ func platformConfigFromService(svc *platformconfig.Service, azureClientID, opena
 			Model:    svc.AIDefaultModel(),
 			BaseURL:  svc.AIBaseURL(),
 		}
-	}
-	if openaiEndpoint != "" {
-		return &jobs.PlatformProviderConfig{Endpoint: openaiEndpoint, ClientID: azureClientID}
 	}
 	return nil
 }

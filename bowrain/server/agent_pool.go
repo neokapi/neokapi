@@ -1,19 +1,13 @@
 package server
 
 import (
-	"context"
-	"errors"
 	"fmt"
-	"log/slog"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/service"
-	"github.com/redis/go-redis/v9"
 )
 
 // buildAgentPool creates an AgentPool with the configured container runtime.
-// Used for direct mode (docker, aca). Returns nil if not applicable.
+// Used for direct mode (docker). Returns nil if not applicable.
 func (s *Server) buildAgentPool() *service.AgentPool {
 	cfg := s.Config
 
@@ -24,20 +18,6 @@ func (s *Server) buildAgentPool() *service.AgentPool {
 		runtime = service.NewDockerRuntime(service.DockerRuntimeConfig{
 			Host:    cfg.AgentDockerHost,
 			Network: cfg.AgentDockerNetwork,
-		})
-
-	case "aca":
-		cred, err := azidentity.NewDefaultAzureCredential(nil)
-		if err != nil {
-			slog.Warn("failed to create Azure credential for agent runtime", "error", err)
-			return nil
-		}
-		runtime = service.NewACARuntime(service.ACAConfig{
-			Credential:     cred,
-			SubscriptionID: cfg.AgentACASubscription,
-			ResourceGroup:  cfg.AgentACAResourceGroup,
-			EnvironmentID:  cfg.AgentACAEnvironmentID,
-			Location:       cfg.AgentACALocation,
 		})
 
 	default:
@@ -56,38 +36,6 @@ func (s *Server) buildAgentPool() *service.AgentPool {
 		ModelAPIBase:    cfg.AgentModelAPIBase,
 		ModelAPIKey:     cfg.AgentModelAPIKey,
 	})
-}
-
-// setupAgentQueue configures queue-based agent orchestration.
-// The API server enqueues jobs to Service Bus and subscribes to Redis pub/sub
-// for SSE relay. The worker handles container lifecycle.
-func (s *Server) setupAgentQueue(cfg Config) error {
-	if cfg.ServiceBusConnection == "" {
-		return errors.New("BOWRAIN_SERVICE_BUS_CONNECTION is required for queue mode")
-	}
-	if cfg.RedisURL == "" {
-		return errors.New("BOWRAIN_REDIS_URL is required for queue mode")
-	}
-
-	// Service Bus sender for bravo-jobs queue.
-	queue, err := jobs.NewServiceBusQueue(context.Background(), cfg.ServiceBusConnection, "bravo-jobs")
-	if err != nil {
-		return fmt.Errorf("connect to Service Bus (bravo-jobs): %w", err)
-	}
-
-	// Redis pub/sub client.
-	redisOpts, err := redis.ParseURL(cfg.RedisURL)
-	if err != nil {
-		return fmt.Errorf("parse Redis URL: %w", err)
-	}
-	if cfg.RedisPassword != "" {
-		redisOpts.Password = cfg.RedisPassword
-	}
-	redisClient := redis.NewClient(redisOpts)
-	pubsub := service.NewAgentPubSub(redisClient)
-
-	s.AgentService.SetQueue(queue, pubsub)
-	return nil
 }
 
 // mcpEndpointForAgent returns the MCP endpoint URL that agent containers

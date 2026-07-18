@@ -128,12 +128,6 @@ func run() error {
 	if envDBURL := os.Getenv("BOWRAIN_DATABASE_URL"); envDBURL != "" {
 		cfg.DatabaseURL = envDBURL
 	}
-	if envDBAuth := os.Getenv("BOWRAIN_DATABASE_AUTH"); envDBAuth != "" {
-		cfg.DatabaseAuth = envDBAuth
-	}
-	if envClientID := os.Getenv("AZURE_CLIENT_ID"); envClientID != "" {
-		cfg.AzureClientID = envClientID
-	}
 	if envSecretsKey := os.Getenv("BOWRAIN_SECRETS_KEY"); envSecretsKey != "" {
 		cfg.SecretsKey = envSecretsKey
 	}
@@ -214,9 +208,6 @@ func run() error {
 	if envResend := os.Getenv("BOWRAIN_RESEND_API_KEY"); envResend != "" {
 		cfg.ResendAPIKey = envResend
 	}
-	if envSB := os.Getenv("BOWRAIN_SERVICE_BUS_CONNECTION"); envSB != "" {
-		cfg.ServiceBusConnection = envSB
-	}
 	if envNATS := os.Getenv("BOWRAIN_NATS_URL"); envNATS != "" {
 		cfg.NATSURL = envNATS
 	}
@@ -265,18 +256,6 @@ func run() error {
 	}
 	if v := os.Getenv("BOWRAIN_AGENT_DOCKER_NETWORK"); v != "" {
 		cfg.AgentDockerNetwork = v
-	}
-	if v := os.Getenv("BOWRAIN_AGENT_ACA_SUBSCRIPTION"); v != "" {
-		cfg.AgentACASubscription = v
-	}
-	if v := os.Getenv("BOWRAIN_AGENT_ACA_RESOURCE_GROUP"); v != "" {
-		cfg.AgentACAResourceGroup = v
-	}
-	if v := os.Getenv("BOWRAIN_AGENT_ACA_ENVIRONMENT_ID"); v != "" {
-		cfg.AgentACAEnvironmentID = v
-	}
-	if v := os.Getenv("BOWRAIN_AGENT_ACA_LOCATION"); v != "" {
-		cfg.AgentACALocation = v
 	}
 	if v := os.Getenv("BOWRAIN_AGENT_MODEL_PROVIDER"); v != "" {
 		cfg.AgentModelProvider = v
