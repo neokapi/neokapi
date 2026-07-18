@@ -1,6 +1,8 @@
 package connector
 
 import (
+	"context"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/registry"
@@ -167,4 +169,38 @@ func TestNewGitConnectorDefaultsBranchToMain(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, c)
 	assert.Equal(t, "main", c.branch)
+}
+
+func TestGitRemoteCommandCarriesAuthEnv(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	c, err := NewGitConnector(reg, map[string]string{
+		"repo":     "https://github.com/example/repo.git",
+		"patterns": "**/*.json",
+	})
+	if err != nil {
+		t.Fatalf("NewGitConnector: %v", err)
+	}
+
+	cmd := c.remoteGitCommand(context.Background(), "fetch")
+	for _, e := range cmd.Env {
+		if strings.HasPrefix(e, "GIT_CONFIG_KEY_0=") {
+			t.Fatalf("auth env present before SetAuthEnv: %s", e)
+		}
+	}
+
+	c.SetAuthEnv([]string{
+		"GIT_CONFIG_COUNT=1",
+		"GIT_CONFIG_KEY_0=http.extraHeader",
+		"GIT_CONFIG_VALUE_0=Authorization: Basic abc",
+	})
+	cmd = c.remoteGitCommand(context.Background(), "fetch")
+	var found bool
+	for _, e := range cmd.Env {
+		if e == "GIT_CONFIG_VALUE_0=Authorization: Basic abc" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("auth env not appended to remote git command")
+	}
 }
