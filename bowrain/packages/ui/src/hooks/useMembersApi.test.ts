@@ -54,6 +54,15 @@ describe("buildNameResolver", () => {
     expect(buildNameResolver([])("u-1")).toBe("u-1");
   });
 
+  it("degrades to the raw id when a membership has no user (former member / system actor)", () => {
+    // Regression: reading .name off an absent user threw during the resolver's
+    // useMemo and blanked the whole Experiments view.
+    const orphan: Membership = { user_id: "u-9", workspace_id: "ws-1", role: "member" };
+    const nameOf = buildNameResolver([orphan, member("u-1", { name: "Ada" })]);
+    expect(nameOf("u-9")).toBe("u-9");
+    expect(nameOf("u-1")).toBe("Ada");
+  });
+
   it("trims surrounding whitespace from the resolved name", () => {
     const nameOf = buildNameResolver([member("u-1", { name: "  Ada Lovelace  " })]);
     expect(nameOf("u-1")).toBe("Ada Lovelace");
