@@ -8,11 +8,14 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  cn,
 } from "@neokapi/ui-primitives";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import type { DragEvent } from "react";
 import type { ProjectInfo } from "../types/api";
 import { useLocales } from "../hooks/useLocales";
 import { ListCapRow } from "./ListCapRow";
+import { LoopStatusRow, type LoopStatusData } from "./LoopStatusRow";
 import { ProjectFormDialog } from "./ProjectFormDialog";
 import type { ProjectFormData } from "./ProjectFormDialog";
 import {
@@ -27,6 +30,9 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
+  Copy,
+  Check,
+  UserPlus,
 } from "./icons";
 
 // ---------------------------------------------------------------------------
@@ -84,13 +90,26 @@ function compactNumber(n: number): string {
   return `${(n / 1_000_000).toFixed(1)}M`;
 }
 
+/** Docs entry point for the assistant-driven starter-pack flow. */
+const STARTER_PACK_DOCS_URL = "https://bowrain.cloud/docs/quickstart";
+
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
 export interface ProjectDashboardProps {
   projects: ProjectInfo[];
-  onCreateProject: (name: string, sourceLang: string, targetLangs: string[]) => void;
+  /**
+   * Create a project. `files`, when present, are files the user dropped on the
+   * first-run create card — the caller uploads them into the new project
+   * before navigating (the existing upload-after-create flow).
+   */
+  onCreateProject: (
+    name: string,
+    sourceLang: string,
+    targetLangs: string[],
+    files?: File[],
+  ) => void;
   onOpenProject: (project: ProjectInfo) => void;
   /** Optional callback to create a sample project for first-time users. */
   onCreateSampleProject?: () => void;
@@ -104,39 +123,48 @@ export interface ProjectDashboardProps {
   workspaceLanguages?: string[];
   /** Opens the AI brand scan (epic 016) from the first-run empty state. */
   onScanBrand?: () => void;
+  /** Opens the members settings surface from the first-run invite card. */
+  onInviteTeam?: () => void;
+  /** Server origin shown in the copyable starter-pack prompt (web shells). */
+  serverUrl?: string;
+  /**
+   * Loop-status layer for the populated state: latest loop activity, the
+   * caller's open review tasks, and the brand rollup summary. Absent hides
+   * the layer (first paint, desktop shells without the data).
+   */
+  loopStatus?: LoopStatusData;
+  /** Opens the workspace activity feed (loop-status card). */
+  onOpenActivities?: () => void;
+  /** Opens the workspace task queue (loop-status card). */
+  onOpenTasks?: () => void;
+  /** Opens the brand dashboard (loop-status card). */
+  onOpenBrandDashboard?: () => void;
 }
 
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
 
-/** Summary statistics bar shown above the project grid. */
+/** Summary statistics strip shown between the loop-status layer and the grid. */
 function DashboardStats({ projects }: { projects: ProjectInfo[] }) {
   const totalWords = projects.reduce((acc, p) => acc + projectWordCount(p), 0);
   const uniqueLocales = new Set(projects.flatMap((p) => p.target_languages));
   const totalFiles = projects.reduce((acc, p) => acc + projectFileCount(p), 0);
 
   const stats = [
-    { label: "Projects", value: String(projects.length), icon: FolderOpen },
-    { label: "Words", value: compactNumber(totalWords), icon: FileText },
-    { label: "Languages", value: String(uniqueLocales.size), icon: Globe },
-    { label: "Files", value: String(totalFiles), icon: Upload },
+    { label: "Projects", value: String(projects.length) },
+    { label: "Words", value: compactNumber(totalWords) },
+    { label: "Languages", value: String(uniqueLocales.size) },
+    { label: "Files", value: String(totalFiles) },
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+    <div className="mb-8 flex flex-wrap items-center gap-x-10 gap-y-3 rounded-lg border border-border/60 bg-muted/20 px-6 py-4">
       {stats.map((s) => (
-        <Card key={s.label}>
-          <div className="flex items-center gap-3 px-4 py-3">
-            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary/10">
-              <s.icon className="w-4 h-4 text-primary" />
-            </div>
-            <div>
-              <div className="text-lg font-semibold leading-tight">{s.value}</div>
-              <div className="text-xs text-muted-foreground">{s.label}</div>
-            </div>
-          </div>
-        </Card>
+        <div key={s.label} className="flex items-baseline gap-2">
+          <span className="text-xl font-semibold tabular-nums leading-none">{s.value}</span>
+          <span className="text-xs uppercase tracking-wider text-muted-foreground">{s.label}</span>
+        </div>
       ))}
     </div>
   );
@@ -166,7 +194,7 @@ function ProjectCard({
       className="cursor-pointer transition-all group"
       data-testid={`project-card-${project.id}`}
     >
-      <CardContent className="pt-4 pb-4">
+      <CardContent className="pt-5 pb-5">
         {/* Header: name + language count */}
         <div className="flex items-start justify-between mb-3">
           <h3 className="font-semibold text-base leading-snug pr-2">{project.name}</h3>
@@ -218,7 +246,7 @@ function ProjectCard({
         </div>
 
         {/* Locale mapping */}
-        <div className="text-[13px] text-muted-foreground mb-3 flex items-center gap-1.5 flex-wrap">
+        <div className="text-[13px] text-muted-foreground mb-4 flex items-center gap-1.5 flex-wrap">
           <span className="font-medium text-foreground/80">
             {getDisplayName(project.default_source_language)}
           </span>
@@ -259,112 +287,244 @@ function ProjectCard({
 }
 
 // ---------------------------------------------------------------------------
-// Onboarding: Getting started pathways
+// First run: one screen, three distinct ways in
 // ---------------------------------------------------------------------------
 
-interface PathwayCardProps {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  action: string;
-  onClick: () => void;
-  glow?: "blue" | "violet" | "cyan";
-}
+/** Copyable prompt for the user's AI assistant (starter-pack onboarding). */
+function StarterPrompt({
+  workspaceName,
+  serverUrl,
+}: {
+  workspaceName?: string;
+  serverUrl?: string;
+}) {
+  const [copied, setCopied] = useState(false);
 
-function PathwayCard({ icon, title, description, action, onClick, glow: _glow }: PathwayCardProps) {
+  const target = workspaceName ? `the ${workspaceName} workspace` : "this workspace";
+  const prompt = `Install the kapi skill, then: set up a brand starter pack for ${target} and connect this project to Bowrain${serverUrl ? ` at ${serverUrl}` : ""}.`;
+
+  const handleCopy = useCallback(() => {
+    void navigator.clipboard?.writeText(prompt).then(
+      () => {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 2000);
+      },
+      () => {},
+    );
+  }, [prompt]);
+
   return (
-    <Card className="cursor-pointer transition-all group flex flex-col" onClick={onClick}>
-      <CardContent className="pt-5 pb-5 flex flex-col flex-1">
-        <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-primary/10 mb-4">
-          {icon}
-        </div>
-        <h3 className="font-semibold text-sm mb-1.5">{title}</h3>
-        <p className="text-xs text-muted-foreground leading-relaxed mb-4 flex-1">{description}</p>
-        <span className="text-xs font-medium text-primary flex items-center gap-1 group-hover:gap-2 transition-all">
-          {action}
-          <ArrowRight className="w-3 h-3" />
-        </span>
-      </CardContent>
-    </Card>
+    <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium text-muted-foreground">Prompt for your assistant</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 gap-1 text-xs"
+          onClick={handleCopy}
+          data-testid="copy-starter-prompt"
+        >
+          {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+          {copied ? "Copied" : "Copy"}
+        </Button>
+      </div>
+      <pre
+        data-testid="starter-prompt"
+        className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-foreground/90"
+      >
+        {prompt}
+      </pre>
+    </div>
   );
 }
 
 function OnboardingView({
+  workspaceName,
+  serverUrl,
+  pendingFileCount,
   onStartCreate,
+  onDropFiles,
   onCreateSampleProject,
   onScanBrand,
+  onInviteTeam,
 }: {
+  workspaceName?: string;
+  serverUrl?: string;
+  pendingFileCount: number;
   onStartCreate: () => void;
+  onDropFiles: (files: File[]) => void;
   onCreateSampleProject?: () => void;
   onScanBrand?: () => void;
+  onInviteTeam?: () => void;
 }) {
+  const [dragActive, setDragActive] = useState(false);
+
+  const handleDrop = useCallback(
+    (e: DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      setDragActive(false);
+      const files = Array.from(e.dataTransfer?.files ?? []);
+      if (files.length > 0) onDropFiles(files);
+    },
+    [onDropFiles],
+  );
+
   return (
-    <div className="flex flex-col items-center" data-testid="empty-projects">
-      {/* Hero */}
-      <div className="text-center mb-8 max-w-lg">
-        <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mx-auto mb-5">
-          <Sparkles className="w-8 h-8 text-primary" />
-        </div>
-        <h2 className="text-2xl font-bold mb-2 tracking-tight">
-          Get started with your first project
+    <div data-testid="empty-projects">
+      {/* Page hero */}
+      <div className="mx-auto mb-10 max-w-2xl text-center">
+        {workspaceName && (
+          <div className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+            {workspaceName}
+          </div>
+        )}
+        <h2 className="mb-3 text-3xl font-semibold tracking-tight md:text-4xl">
+          Set up your workspace
         </h2>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Bowrain helps you localize content into any language. Choose how you want to bring your
-          content in.
+        <p className="text-base leading-relaxed text-muted-foreground">
+          Bowrain keeps translated content converging on your brand. Start with your AI assistant,
+          with your files, or with your team.
         </p>
       </div>
 
-      {/* Pathway cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-2xl mb-8">
-        <PathwayCard
-          icon={<FolderOpen className="w-5 h-5 text-primary" />}
-          title="From your repo"
-          description="Track translation files in your codebase with kapi init. Sync changes automatically."
-          action="Create project"
-          onClick={onStartCreate}
-          glow="violet"
+      {/* Hero card: assistant-driven starter pack */}
+      <Card className="relative mb-5 overflow-hidden border-primary/20 md:min-h-[300px]">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/[0.06] to-transparent"
         />
-        <PathwayCard
-          icon={<Upload className="w-5 h-5 text-primary" />}
-          title="Upload files"
-          description="Drop in JSON, XLIFF, PO, HTML, or any supported format. Start translating immediately."
-          action="Create project"
-          onClick={onStartCreate}
-          glow="blue"
-        />
-        <PathwayCard
-          icon={<Globe className="w-5 h-5 text-primary" />}
-          title="Connect a CMS"
-          description="Pull content from WordPress, Contentful, or other platforms via connectors."
-          action="Create project"
-          onClick={onStartCreate}
-          glow="cyan"
-        />
+        <CardContent className="relative grid items-start gap-8 px-6 py-6 md:grid-cols-[1.15fr_1fr] md:px-8 md:py-8">
+          <div>
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                <Sparkles className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="text-base font-semibold">
+                Build your brand starter pack with your AI
+              </h3>
+            </div>
+            <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
+              Point Claude — or any AI assistant with the kapi skill — at your website or
+              repository. It reads your material, drafts a voice profile and terminology, and pushes
+              both to this workspace, so every translation starts on brand.
+            </p>
+            <a
+              href={STARTER_PACK_DOCS_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+            >
+              How the starter pack works
+              <ArrowRight className="h-3.5 w-3.5" />
+            </a>
+            {onScanBrand && (
+              <p className="mt-4 text-sm text-muted-foreground">
+                No assistant at hand?{" "}
+                <button
+                  type="button"
+                  onClick={onScanBrand}
+                  data-testid="onboarding-scan-brand"
+                  className="cursor-pointer border-none bg-transparent p-0 font-medium text-foreground underline underline-offset-2 hover:text-primary"
+                >
+                  Run the hosted brand scan
+                </button>{" "}
+                instead.
+              </p>
+            )}
+          </div>
+          <StarterPrompt workspaceName={workspaceName} serverUrl={serverUrl} />
+        </CardContent>
+      </Card>
+
+      {/* Second row: project + team */}
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Card className="flex min-h-[300px] flex-col">
+          <CardContent className="flex flex-1 flex-col px-6 py-6">
+            <div className="mb-3 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                <FolderOpen className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="text-base font-semibold">Create or import a project</h3>
+            </div>
+            <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
+              A project holds your files, languages, and translation state. Create one, then add
+              JSON, XLIFF, PO, Office documents, or any other supported format.
+            </p>
+            <div
+              data-testid="onboarding-dropzone"
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragActive(true);
+              }}
+              onDragLeave={() => setDragActive(false)}
+              onDrop={handleDrop}
+              className={cn(
+                "mb-5 rounded-lg border border-dashed px-4 py-5 text-center text-xs transition-colors",
+                dragActive
+                  ? "border-primary bg-primary/5 text-foreground"
+                  : "border-border text-muted-foreground",
+              )}
+            >
+              <Upload className="mx-auto mb-1.5 h-4 w-4" />
+              {pendingFileCount > 0 ? (
+                <span>
+                  {pendingFileCount} file{pendingFileCount !== 1 ? "s" : ""} ready to import — added
+                  right after the project is created
+                </span>
+              ) : (
+                <span>Drop files here — they are imported right after the project is created</span>
+              )}
+            </div>
+            <div className="mt-auto">
+              <Button onClick={onStartCreate} data-testid="onboarding-create-btn">
+                <Plus className="mr-1.5 h-4 w-4" />
+                Create project
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="flex min-h-[300px] flex-col">
+          <CardContent className="flex flex-1 flex-col px-6 py-6">
+            <div className="mb-3 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                <UserPlus className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="text-base font-semibold">Invite your team</h3>
+            </div>
+            <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
+              Reviewers and translators join the same workspace: shared projects, one task queue,
+              and the same brand context. Invites go out by email from the members page.
+            </p>
+            {onInviteTeam && (
+              <div className="mt-auto">
+                <Button
+                  variant="outline"
+                  onClick={onInviteTeam}
+                  data-testid="onboarding-invite-btn"
+                >
+                  <UserPlus className="mr-1.5 h-4 w-4" />
+                  Invite members
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Secondary CTAs */}
-      <div className="flex flex-col items-center gap-2">
-        {onScanBrand && (
-          <button
-            type="button"
-            onClick={onScanBrand}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
-          >
-            <Sparkles className="w-3 h-3" />
-            Or scan your brand first — draft a voice profile and glossary from your material
-          </button>
-        )}
-        {onCreateSampleProject && (
+      {/* Low-emphasis exit: sample project */}
+      {onCreateSampleProject && (
+        <div className="mt-8 flex justify-center">
           <button
             type="button"
             onClick={onCreateSampleProject}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
+            className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             <Sparkles className="w-3 h-3" />
             Or try a sample project to explore Bowrain
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -383,30 +543,49 @@ export function ProjectDashboard({
   onArchiveProject,
   workspaceLanguages,
   onScanBrand,
+  onInviteTeam,
+  serverUrl,
+  loopStatus,
+  onOpenActivities,
+  onOpenTasks,
+  onOpenBrandDashboard,
 }: ProjectDashboardProps) {
   const { getDisplayName } = useLocales();
   const [showCreate, setShowCreate] = useState(false);
   const [editingProject, setEditingProject] = useState<ProjectInfo | null>(null);
+  // Files dropped on the first-run create card, handed to onCreateProject so
+  // the caller can run the existing upload-after-create flow.
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+
+  const handleDropFiles = useCallback((files: File[]) => {
+    setPendingFiles(files);
+    setShowCreate(true);
+  }, []);
 
   const isEmpty = projects.length === 0;
 
   return (
-    <>
+    <div className="mx-auto w-full max-w-6xl px-2 py-8 md:py-10">
       {isEmpty ? (
         <OnboardingView
+          workspaceName={workspaceName}
+          serverUrl={serverUrl}
+          pendingFileCount={pendingFiles.length}
           onStartCreate={() => setShowCreate(true)}
+          onDropFiles={handleDropFiles}
           onCreateSampleProject={onCreateSampleProject}
           onScanBrand={onScanBrand}
+          onInviteTeam={onInviteTeam}
         />
       ) : (
         <div>
           {/* Header */}
-          <div className="flex justify-between items-center mb-5">
+          <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight">
+              <h2 className="text-2xl font-semibold tracking-tight">
                 {workspaceName ? `${workspaceName}` : "Projects"}
               </h2>
-              <p className="text-[13px] text-muted-foreground mt-0.5">
+              <p className="mt-1 text-sm text-muted-foreground">
                 {projects.length} project{projects.length !== 1 ? "s" : ""} in this workspace
               </p>
             </div>
@@ -416,11 +595,23 @@ export function ProjectDashboard({
             </Button>
           </div>
 
+          {/* Loop status: where the loop stands, above the inventory */}
+          {loopStatus && (
+            <section aria-label="Loop status" className="mb-8">
+              <LoopStatusRow
+                status={loopStatus}
+                onOpenActivities={onOpenActivities}
+                onOpenTasks={onOpenTasks}
+                onOpenBrandDashboard={onOpenBrandDashboard}
+              />
+            </section>
+          )}
+
           {/* Stats */}
           <DashboardStats projects={projects} />
 
           {/* Project grid (hard-capped so huge workspaces never flood the DOM) */}
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(300px,100%),1fr))] gap-4">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(320px,100%),1fr))] gap-5">
             {projects.slice(0, MAX_PROJECT_CARDS).map((p) => (
               <ProjectCard
                 key={p.id}
@@ -445,10 +636,19 @@ export function ProjectDashboard({
       {/* Create project dialog */}
       <ProjectFormDialog
         open={showCreate}
-        onOpenChange={setShowCreate}
+        onOpenChange={(v) => {
+          setShowCreate(v);
+          if (!v) setPendingFiles([]);
+        }}
         workspaceLanguages={workspaceLanguages}
         onSubmit={(data: ProjectFormData) => {
-          onCreateProject(data.name, data.default_source_language, data.target_languages);
+          onCreateProject(
+            data.name,
+            data.default_source_language,
+            data.target_languages,
+            pendingFiles.length > 0 ? pendingFiles : undefined,
+          );
+          setPendingFiles([]);
           setShowCreate(false);
         }}
       />
@@ -473,6 +673,6 @@ export function ProjectDashboard({
           }}
         />
       )}
-    </>
+    </div>
   );
 }
