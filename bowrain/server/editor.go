@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"maps"
 	"path/filepath"
 	"reflect"
@@ -18,6 +19,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/neokapi/neokapi/bowrain/billing"
+	"github.com/neokapi/neokapi/bowrain/core/brandscope"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/bowrain/jobs"
@@ -26,6 +28,7 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	sqltb "github.com/neokapi/neokapi/bowrain/termbase"
 	"github.com/neokapi/neokapi/core/ai/tools"
+	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/locale"
@@ -724,6 +727,115 @@ func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID
 	return editorComputeStats(outParts, targetLocale), nil
 }
 
+// editorBrandContext bundles the optional stores the synchronous editor
+// translate path uses to bind the project's standing brand context — the brand
+// voice profile and the terminology glossary — mirroring the worker's
+// WorkerDeps brand fields (jobs/brand_context.go). Every field is optional: a
+// zero value translates bare, exactly as before.
+type editorBrandContext struct {
+	// Brand reads brand voice profiles. Nil translates without brand voice.
+	Brand corebrand.BrandStore
+	// WorkspaceDefault resolves the workspace-level default brand-voice
+	// profile — the base rung of the brandscope resolution ladder. Nil skips
+	// the workspace rung.
+	WorkspaceDefault brandscope.WorkspaceDefault
+	// Stores yields the per-workspace termbase the glossary derives from. Nil
+	// translates without a glossary.
+	Stores *workspaceStores
+}
+
+// editorTranslateConfig builds the AI translate tool config for the
+// interactive editor path, binding the same standing brand context the worker
+// binds via jobTranslateConfig (jobs/worker.go): the brand voice profile
+// resolved through the brandscope ladder and the per-locale terminology
+// glossary from the workspace termbase. Both bindings are best-effort —
+// absence or a resolution failure leaves the field unset and the translation
+// runs bare, never fails.
+func editorTranslateConfig(
+	ctx context.Context,
+	cs store.ContentStore,
+	brandCtx editorBrandContext,
+	proj *store.Project,
+	projectID, stream, workspaceID, workspaceSlug string,
+	req TranslateRequest,
+) tools.AITranslateConfig {
+	cfg := tools.AITranslateConfig{
+		SourceLocale:     proj.DefaultSourceLanguage,
+		TargetLocale:     model.LocaleID(req.TargetLocale),
+		BatchSize:        req.BatchSize,
+		BatchConcurrency: req.Concurrency,
+	}
+	// Brand voice → prompt guidance, resolved through the platform's binding
+	// ladder (collection → stream → project → workspace default).
+	cfg.Profile = editorBrandProfile(ctx, cs, brandCtx, workspaceID, projectID, stream, cfg.TargetLocale)
+	// Terminology → the advisory glossary section of the prompt, so the model
+	// is told the mandated renderings at generation time instead of
+	// term-enforce only flagging them afterwards.
+	cfg.Glossary = editorGlossary(ctx, brandCtx, workspaceSlug, projectID, cfg.SourceLocale, cfg.TargetLocale)
+	return cfg
+}
+
+// editorBrandProfile resolves the brand voice profile an editor translation
+// should carry via the platform's hierarchical binding ladder — the same
+// resolution the worker runs in resolveJobBrandProfile, scoped to the
+// request's actual stream rather than the job model's fixed "main". Returns
+// nil (and logs) on any resolution failure: brand voice must never fail an
+// interactive translation.
+func editorBrandProfile(
+	ctx context.Context,
+	cs store.ContentStore,
+	brandCtx editorBrandContext,
+	workspaceID, projectID, stream string,
+	targetLocale model.LocaleID,
+) *corebrand.VoiceProfile {
+	if brandCtx.Brand == nil {
+		return nil
+	}
+	profile, err := brandscope.Resolve(ctx, cs, brandCtx.WorkspaceDefault, brandCtx.Brand, brandscope.Scope{
+		WorkspaceID: workspaceID,
+		ProjectID:   projectID,
+		Stream:      stream,
+		Locale:      targetLocale,
+	})
+	if err != nil {
+		slog.WarnContext(ctx, "brand profile resolution failed; translating without brand voice",
+			"project_id", projectID, "error", err)
+		return nil
+	}
+	return profile
+}
+
+// editorGlossary builds the source→target glossary for an editor translation
+// from the workspace termbase, sharing the derivation with the worker
+// (jobs.GlossaryFromTermbase) so both surfaces mandate identical renderings.
+// Returns nil (and logs) when no termbase resolves or a read fails:
+// terminology must never fail an interactive translation.
+func editorGlossary(
+	ctx context.Context,
+	brandCtx editorBrandContext,
+	workspaceSlug, projectID string,
+	sourceLocale, targetLocale model.LocaleID,
+) map[string]string {
+	if brandCtx.Stores == nil || workspaceSlug == "" || sourceLocale == "" || targetLocale == "" {
+		return nil
+	}
+	tb, err := brandCtx.Stores.getTB(workspaceSlug)
+	if err != nil || tb == nil {
+		if err != nil {
+			slog.WarnContext(ctx, "termbase resolution failed; translating without glossary",
+				"workspace", workspaceSlug, "error", err)
+		}
+		return nil
+	}
+	glossary, err := jobs.GlossaryFromTermbase(ctx, tb, projectID, sourceLocale, targetLocale)
+	if err != nil {
+		slog.WarnContext(ctx, "termbase read failed; translating without glossary",
+			"workspace", workspaceSlug, "error", err)
+		return nil
+	}
+	return glossary
+}
+
 // editorAITranslate translates blocks using an AI provider.
 //
 // Provider resolution mirrors the worker (Epic 004): a saved provider_config_id
@@ -732,6 +844,10 @@ func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID
 // container); an inline api_key/provider builds a one-off provider. Both the
 // platform path and any bring-your-own path RECORD ai_usage (the monthly abuse
 // cap must see all traffic), while only the platform path DEDUCTS credits.
+//
+// The translate config carries the project's standing brand context (voice
+// profile + terminology glossary) via editorTranslateConfig, so an interactive
+// per-block translation gets the same guidance an async worker job does.
 func editorAITranslate(
 	ctx context.Context,
 	cs store.ContentStore,
@@ -742,6 +858,7 @@ func editorAITranslate(
 	billingHooks *billing.UsageHooks,
 	workspaceID, workspaceSlug string,
 	platform jobs.PlatformProviderConfig,
+	brandCtx editorBrandContext,
 ) (*TranslationStatsResponse, error) {
 	proj, err := cs.GetProject(ctx, projectID)
 	if err != nil {
@@ -804,12 +921,8 @@ func editorAITranslate(
 		prov = editorCreateProvider(req.Provider, req.APIKey, req.Model)
 	}
 
-	translateTool := tools.NewAITranslateTool(prov, tools.AITranslateConfig{
-		SourceLocale:     proj.DefaultSourceLanguage,
-		TargetLocale:     model.LocaleID(req.TargetLocale),
-		BatchSize:        req.BatchSize,
-		BatchConcurrency: req.Concurrency,
-	})
+	translateTool := tools.NewAITranslateTool(prov,
+		editorTranslateConfig(ctx, cs, brandCtx, proj, projectID, stream, workspaceID, workspaceSlug, req))
 
 	outParts, err := runToolOnParts(ctx, translateTool, parts)
 	if err != nil {
