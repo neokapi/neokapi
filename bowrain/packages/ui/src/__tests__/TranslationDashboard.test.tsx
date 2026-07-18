@@ -2,7 +2,7 @@ import { describe, it, expect } from "vite-plus/test";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TranslationDashboard } from "../components/TranslationDashboard";
-import { sampleDashboardStats } from "../stories/fixtures";
+import { sampleDashboardStats, shipStateDashboardStats } from "../stories/fixtures";
 import type { TranslationDashboardStats } from "../types/api";
 
 describe("TranslationDashboard", () => {
@@ -87,6 +87,40 @@ describe("TranslationDashboard", () => {
     };
     render(<TranslationDashboard stats={noItems} />);
     expect(screen.queryByText("File Progress")).toBeNull();
+  });
+
+  it("renders the ship-readiness band when the server derives ship states", () => {
+    render(<TranslationDashboard stats={shipStateDashboardStats} />);
+    const card = screen.getByTestId("ship-readiness");
+    expect(within(card).getByText("Ship readiness")).toBeInTheDocument();
+    expect(within(card).getByTestId("ship-state-governed")).toBeInTheDocument();
+    expect(within(card).getByTestId("ship-state-ai_shippable")).toBeInTheDocument();
+    expect(within(card).getByTestId("ship-state-pending")).toBeInTheDocument();
+  });
+
+  it("hides the ship-readiness band for legacy stats without ship states", () => {
+    render(<TranslationDashboard stats={sampleDashboardStats} />);
+    expect(screen.queryByTestId("ship-readiness")).toBeNull();
+  });
+
+  it("shows compact rollup indicators in the collection heatmap", () => {
+    render(<TranslationDashboard stats={shipStateDashboardStats} />);
+    const heatmap = screen.getByText("Collection Progress").closest("[data-slot=card]")!;
+    // Both collections carry a pending ja-JP rollup.
+    expect(
+      within(heatmap as HTMLElement).getAllByTestId("ship-state-pending").length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("renders the delivery slot next to ship readiness", () => {
+    render(
+      <TranslationDashboard
+        stats={shipStateDashboardStats}
+        delivery={<div data-testid="delivery-slot" />}
+      />,
+    );
+    expect(screen.getByTestId("delivery-slot")).toBeInTheDocument();
+    expect(screen.getByTestId("ship-readiness")).toBeInTheDocument();
   });
 
   it("sorts file table by name descending when clicking File header", async () => {

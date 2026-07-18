@@ -110,3 +110,44 @@ func TestStoreBlocks_MultipleBlocksMixedClassification(t *testing.T) {
 	assert.Contains(t, byBlock, "b1:source_modified")
 	assert.Contains(t, byBlock, "b2:source_added")
 }
+
+// TestGetBlockStats_ApprovedLocales exercises the SQLite status-extraction
+// path (json_extract on target_json): only targets whose status carries a
+// review decision (reviewed / signed-off) land in ApprovedLocales.
+func TestGetBlockStats_ApprovedLocales(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	require.NoError(t, s.StoreItem(ctx, p.ID, "", &platstore.Item{
+		Name: "messages.json", Format: "json", ItemType: "file",
+	}))
+
+	// b1: fr reviewed (approved), de merely translated.
+	b1 := model.NewBlock("b1", "Hello")
+	b1.SetTargetText(model.LocaleFrench, "Bonjour")
+	b1.StampTargetProvenance(model.LocaleFrench, model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
+	b1.SetTargetText(model.LocaleGerman, "Hallo")
+
+	// b2: fr draft — below the review rungs, never approved.
+	b2 := model.NewBlock("b2", "World")
+	b2.SetTargetText(model.LocaleFrench, "Monde")
+	b2.StampTargetProvenance(model.LocaleFrench, model.TargetStatusDraft, model.Origin{Kind: model.OriginAI})
+
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "", "messages.json", []*model.Block{b1, b2}))
+
+	stats, err := s.GetBlockStats(ctx, p.ID, "")
+	require.NoError(t, err)
+	require.Len(t, stats, 2)
+
+	for _, bs := range stats {
+		switch len(bs.TargetLocales) {
+		case 2: // b1
+			assert.Equal(t, []string{string(model.LocaleFrench)}, bs.ApprovedLocales)
+		case 1: // b2
+			assert.Empty(t, bs.ApprovedLocales, "draft status is not a review decision")
+		default:
+			t.Fatalf("unexpected block stat row: %+v", bs)
+		}
+	}
+}

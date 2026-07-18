@@ -169,6 +169,12 @@ export type { TranslateView } from "./components/TranslationEditor";
 export { ReviewSurface } from "./components/ReviewSurface";
 export { PreProcessSurface } from "./components/PreProcessSurface";
 export { TranslationDashboard } from "./components/TranslationDashboard";
+export { ShipStateBadge, type ShipStateBadgeProps } from "./components/ShipStateBadge";
+export {
+  DeliveryPanel,
+  type DeliveryPanelProps,
+  type DeliveryConnectorStatus,
+} from "./components/DeliveryPanel";
 export { UnifiedTargetEditor } from "./components/UnifiedTargetEditor";
 export type {
   UnifiedTargetEditorProps,
@@ -476,6 +482,7 @@ export type {
   TranslationDashboardStats,
   TranslationDashboardItemOpts,
   DashboardItemSort,
+  ShipState,
   LocaleTranslationStats,
   ItemTranslationStats,
   CollectionTranslationStats,

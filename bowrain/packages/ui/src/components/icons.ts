@@ -70,6 +70,7 @@ export {
   Languages,
   CreditCard,
   Shield,
+  ShieldCheck,
   Tag,
   Flag,
   Unlock,

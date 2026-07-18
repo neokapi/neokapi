@@ -1848,6 +1848,7 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 		totalBlocks      int
 		translatedWords  int
 		totalWords       int
+		approvedBlocks   int
 	}
 	newLocaleAggs := func() map[string]*localeAgg {
 		m := make(map[string]*localeAgg, len(targetLocales))
@@ -1893,10 +1894,14 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 		ia.blockCount++
 		ia.wordCount += wc
 
-		// Build set of translated locales for this block
+		// Build sets of translated / review-approved locales for this block
 		translatedSet := make(map[string]bool, len(bs.TargetLocales))
 		for _, l := range bs.TargetLocales {
 			translatedSet[l] = true
+		}
+		approvedSet := make(map[string]bool, len(bs.ApprovedLocales))
+		for _, l := range bs.ApprovedLocales {
+			approvedSet[l] = true
 		}
 
 		for _, locale := range targetLocales {
@@ -1912,6 +1917,10 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 				gla.translatedWords += wc
 				ila.translatedBlocks++
 				ila.translatedWords += wc
+			}
+			if approvedSet[locale] {
+				gla.approvedBlocks++
+				ila.approvedBlocks++
 			}
 		}
 
@@ -1936,6 +1945,9 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 			if translatedSet[locale] {
 				cla.translatedBlocks++
 				cla.translatedWords += wc
+			}
+			if approvedSet[locale] {
+				cla.approvedBlocks++
 			}
 		}
 	}
@@ -1965,6 +1977,7 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 				TranslatedWords:  ila.translatedWords,
 				TotalWords:       ila.totalWords,
 				Percentage:       pct,
+				ApprovedBlocks:   ila.approvedBlocks,
 			})
 		}
 		bc, wc := 0, 0
@@ -1998,6 +2011,7 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 			TranslatedWords:  la.translatedWords,
 			TotalWords:       la.totalWords,
 			Percentage:       pct,
+			ApprovedBlocks:   la.approvedBlocks,
 		})
 	}
 
@@ -2019,6 +2033,7 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 				TranslatedWords:  cla.translatedWords,
 				TotalWords:       cla.totalWords,
 				Percentage:       pct,
+				ApprovedBlocks:   cla.approvedBlocks,
 			})
 		}
 		collStats = append(collStats, store.CollectionTranslationStats{

@@ -179,6 +179,60 @@ func LoadBlockTargetLocales(
 	return out, rows.Err()
 }
 
+// TargetLocaleState is one (locale, status) pair for a block's stored target,
+// as read from the translations overlay table. Locale is the raw VariantKey
+// text form ("fr-FR" or "fr-FR;tone=…"); Status is the stored
+// model.TargetStatus text ("" when the target has no committed status).
+type TargetLocaleState struct {
+	Locale string
+	Status model.TargetStatus
+}
+
+// LoadBlockTargetStates returns, per block, the (locale, status) pairs of its
+// stored targets. The status is extracted from target_json in SQL so the run
+// payloads never leave the database — the same lightweight-projection contract
+// GetBlockStats holds for source_json.
+func LoadBlockTargetStates(
+	ctx context.Context,
+	db Querier,
+	dialect string,
+	projectID, stream string,
+	blockIDs []string,
+) (map[string][]TargetLocaleState, error) {
+	if len(blockIDs) == 0 {
+		return nil, nil
+	}
+	out := map[string][]TargetLocaleState{}
+	rows, err := db.QueryContext(ctx, sqlListTranslationStatesByBlocks(dialect, len(blockIDs)),
+		append([]any{projectID, stream}, anyStrings(blockIDs)...)...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("load target states: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var bid, locale, status string
+		if err := rows.Scan(&bid, &locale, &status); err != nil {
+			return nil, fmt.Errorf("scan target state: %w", err)
+		}
+		out[bid] = append(out[bid], TargetLocaleState{Locale: locale, Status: model.TargetStatus(status)})
+	}
+	return out, rows.Err()
+}
+
+// SplitTargetStates projects a block's target states onto the two BlockStatRow
+// slices: every target locale, and the subset whose status carries a review
+// decision (reviewed or above on the model.TargetStatus ladder).
+func SplitTargetStates(states []TargetLocaleState) (locales, approved []string) {
+	for _, st := range states {
+		locales = append(locales, st.Locale)
+		if st.Status.Rank() >= model.TargetStatusReviewed.Rank() {
+			approved = append(approved, st.Locale)
+		}
+	}
+	return locales, approved
+}
+
 // Querier abstracts *sql.DB and *sql.Tx so the overlay-sync helpers
 // work against both transaction-scoped and pooled connections.
 type Querier interface {
@@ -255,6 +309,19 @@ func sqlListAnnotationsByBlocks(dialect string, nblocks int) string {
 
 func sqlListTranslationLocalesByBlocks(dialect string, nblocks int) string {
 	return `SELECT block_id, locale FROM translations
+		WHERE project_id = ` + placeholder(dialect, 1) + ` AND stream = ` + placeholder(dialect, 2) + `
+		AND block_id IN (` + placeholderList(dialect, 3, nblocks) + `)`
+}
+
+// sqlListTranslationStatesByBlocks pulls (block_id, locale, status) with the
+// status extracted from the target_json payload in SQL: jsonb ->> on Postgres,
+// json_extract on SQLite. COALESCE keeps a missing status as the empty string.
+func sqlListTranslationStatesByBlocks(dialect string, nblocks int) string {
+	statusExpr := `COALESCE(target_json->>'status', '')`
+	if dialect == "sqlite" {
+		statusExpr = `COALESCE(json_extract(target_json, '$.status'), '')`
+	}
+	return `SELECT block_id, locale, ` + statusExpr + ` FROM translations
 		WHERE project_id = ` + placeholder(dialect, 1) + ` AND stream = ` + placeholder(dialect, 2) + `
 		AND block_id IN (` + placeholderList(dialect, 3, nblocks) + `)`
 }

@@ -527,18 +527,22 @@ func TestGetBlockStats(t *testing.T) {
 	require.NoError(t, s.StoreItem(ctx, p.ID, "", item1))
 	require.NoError(t, s.StoreItem(ctx, p.ID, "", item2))
 
-	// Store blocks for item 1: 2 translatable (one with French target), 1 non-translatable.
+	// Store blocks for item 1: 2 translatable (one with a reviewed French
+	// target), 1 non-translatable.
 	b1 := model.NewBlock("b1", "Hello world")
 	b1.SetTargetText(model.LocaleFrench, "Bonjour le monde")
+	b1.StampTargetProvenance(model.LocaleFrench, model.TargetStatusReviewed, model.Origin{Kind: model.OriginHuman})
 	b2 := model.NewBlock("b2", "Click here to continue")
 	b3 := model.NewBlock("b3", "")
 	b3.Translatable = false
 	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "", "messages.json", []*model.Block{b1, b2, b3}))
 
-	// Store blocks for item 2: 1 translatable with both French and German targets.
+	// Store blocks for item 2: 1 translatable with both French and German
+	// targets; only German carries a review decision (signed-off).
 	b4 := model.NewBlock("b4", "Settings")
 	b4.SetTargetText(model.LocaleFrench, "Paramètres")
 	b4.SetTargetText(model.LocaleGerman, "Einstellungen")
+	b4.StampTargetProvenance(model.LocaleGerman, model.TargetStatusSignedOff, model.Origin{Kind: model.OriginHuman})
 	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "", "strings.xml", []*model.Block{b4}))
 
 	t.Run("returns all blocks", func(t *testing.T) {
@@ -602,6 +606,24 @@ func TestGetBlockStats(t *testing.T) {
 			}
 		}
 		assert.True(t, found, "should find a translatable block with no target locales")
+	})
+
+	t.Run("approved locales carry review decisions only", func(t *testing.T) {
+		stats, err := s.GetBlockStats(ctx, p.ID, "")
+		require.NoError(t, err)
+
+		for _, bs := range stats {
+			switch {
+			case bs.ItemName == "messages.json" && len(bs.TargetLocales) > 0:
+				// b1: reviewed fr target → approved.
+				assert.Equal(t, []string{string(model.LocaleFrench)}, bs.ApprovedLocales)
+			case bs.ItemName == "strings.xml":
+				// b4: fr merely translated, de signed-off → only de approved.
+				assert.Equal(t, []string{string(model.LocaleGerman)}, bs.ApprovedLocales)
+			default:
+				assert.Empty(t, bs.ApprovedLocales)
+			}
+		}
 	})
 
 	t.Run("empty project returns nil", func(t *testing.T) {
