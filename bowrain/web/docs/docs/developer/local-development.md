@@ -8,8 +8,8 @@ sidebar_position: 10
 A full bowrain instance is a few cooperating processes: the **server** (REST +
 gRPC API; also drives the kapi loop's runs), an **async worker** (processes the
 translation jobs those runs enqueue, and push ingestion), and backing
-services — PostgreSQL, NATS (job queue + event bus), Redis, Keycloak (OIDC),
-and Mailpit (SMTP). The server and
+services — PostgreSQL, ElasticMQ (SQS-compatible job queue), Redis (event
+bus), Keycloak (OIDC), and Mailpit (SMTP). The server and
 worker share the job queue and a blob volume; push processing is asynchronous
 ([AD-009](../architecture-decisions/009-sync-protocol.md)).
 

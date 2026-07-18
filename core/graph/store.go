@@ -39,7 +39,9 @@ type GraphStore interface {
 	BulkCreateNodes(ctx context.Context, nodes []*Node) error
 	BulkCreateEdges(ctx context.Context, edges []*Edge) error
 
-	// Cypher escape hatch (AGE backend only; SQLite returns ErrCypherNotSupported)
+	// Cypher escape hatch. No built-in backend supports it — the SQLite and
+	// SQL implementations return ErrCypherNotSupported; a native graph engine
+	// backend could implement it.
 	CypherQuery(ctx context.Context, query string, params map[string]any) ([]*Node, error)
 	CypherExec(ctx context.Context, query string, params map[string]any) error
 
@@ -47,7 +49,7 @@ type GraphStore interface {
 	Close() error
 }
 
-// ErrCypherNotSupported is returned by SQLite backends when Cypher operations are attempted.
+// ErrCypherNotSupported is returned by backends without native Cypher support when Cypher operations are attempted.
 var ErrCypherNotSupported = errors.New("cypher queries require a graph database backend with native Cypher support")
 
 // ErrNodeNotFound is returned when a node lookup fails.

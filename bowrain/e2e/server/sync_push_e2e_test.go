@@ -25,7 +25,7 @@ import (
 //
 // Prerequisites (all provided by bowrain/e2e/server/compose.yaml):
 //   - docker compose -f e2e/server/compose.yaml up -d --wait
-//     (postgres, nats, redis, bowrain-server, bowrain-worker)
+//     (postgres, redis, bowrain-server, bowrain-worker)
 //
 // Re-enabled for #867: the E2E compose now runs the async bowrain-worker
 // (+ redis), so the committed push is ingested and completes.

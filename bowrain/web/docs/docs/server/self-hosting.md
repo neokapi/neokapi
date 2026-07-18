@@ -13,8 +13,10 @@ services:
   automation and upstream machine translation.
 - **PostgreSQL** — the authoritative store (projects, blocks, workspaces, users,
   jobs). The server requires PostgreSQL; there is no SQLite/file backend.
-- **NATS** — the job queue and event bus shared by the server and worker. Push
-  processing is asynchronous: the server enqueues, the worker ingests and translates.
+- A **job queue** (Amazon SQS, or an SQS-compatible broker such as ElasticMQ)
+  and a **Redis** instance for the event bus (Redis Streams), shared by the
+  server and worker. Push processing is asynchronous: the server enqueues, the
+  worker ingests and translates.
 - **bowrain-web** — the static web UI, served as its own container.
 - An **OIDC identity provider** (e.g. Keycloak) and an **SMTP** sender.
 
@@ -24,9 +26,9 @@ A reverse proxy routes `/api` + gRPC to the server and everything else to the we
 
 The repository ships a complete reference stack at
 [`bowrain/deploy/docker/compose.yaml`](https://github.com/neokapi/neokapi/blob/main/bowrain/deploy/docker/compose.yaml)
-— Traefik, PostgreSQL, NATS, the server, the worker, and the web UI, all from
-published images. Copy it together with its sibling `traefik.yml`, set the
-required values, then start it:
+— Traefik, PostgreSQL, ElasticMQ (SQS-compatible job queue), Redis, the server,
+the worker, and the web UI, all from published images. Copy it together with
+its sibling `traefik.yml`, set the required values, then start it:
 
 ```bash
 docker compose -f deploy/docker/compose.yaml up -d
@@ -66,7 +68,10 @@ OIDC setup and an offline translation provider by default — see the
 | `BOWRAIN_OIDC_PUBLIC_URL`    |           | OIDC public URL (browser-facing; defaults to the issuer URL)     |
 | `BOWRAIN_OIDC_CLIENT_ID`     | `bowrain` | OIDC client ID                                                   |
 | `BOWRAIN_OIDC_CLIENT_SECRET` |           | OIDC client secret                                               |
-| `BOWRAIN_NATS_URL`           |           | NATS URL for the job queue + event bus (e.g. `nats://nats:4222`) |
+| `BOWRAIN_QUEUE_BACKEND`      |           | `sqs` selects the SQS job-queue backend                          |
+| `SQS_ENDPOINT`               |           | SQS endpoint override for ElasticMQ/LocalStack; empty on AWS     |
+| `BOWRAIN_EVENT_BACKEND`      |           | `redis` runs the event bus on Redis Streams                      |
+| `BOWRAIN_REDIS_URL`          |           | Redis URL (event bus, caching, session state)                    |
 | `BLOB_STORAGE_LOCAL_DIR`     |           | Directory for sync push payloads (shared with the worker)        |
 | `BOWRAIN_SMTP_HOST`          |           | SMTP server `host:port` for transactional emails                 |
 | `BOWRAIN_SMTP_FROM`          |           | Sender email address for transactional emails                    |
@@ -78,7 +83,8 @@ OIDC setup and an offline translation provider by default — see the
 | Variable                    | Description                                                                                          |
 | --------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `BOWRAIN_DATABASE_URL`      | Same PostgreSQL connection string as the server                                                      |
-| `BOWRAIN_NATS_URL`          | Same NATS URL as the server                                                                          |
+| `BOWRAIN_QUEUE_BACKEND` / `SQS_ENDPOINT` | Same job-queue selection as the server (the two must agree on the broker)               |
+| `BOWRAIN_EVENT_BACKEND` / `BOWRAIN_REDIS_URL` | Same event-bus selection as the server                                             |
 | `LOCAL_BLOB_DIR`            | Sync push payload dir — must point at the same shared volume as the server's `BLOB_STORAGE_LOCAL_DIR` |
 | `BOWRAIN_PLATFORM_PROVIDER` | Translation provider: `gemini`, `openai`, `anthropic`, `ollama` (or `demo` for offline output)       |
 | `BOWRAIN_PLATFORM_API_KEY`  | Provider API key (or a provider-specific variable such as `GEMINI_API_KEY`)                          |

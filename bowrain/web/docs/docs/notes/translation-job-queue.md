@@ -50,13 +50,12 @@ Identity.
 
 ## Queue Implementations
 
-Three implementations of the `Queue` interface:
+Two implementations of the `Queue` interface:
 
-| Implementation    | Backend                 | Use Case                 |
-| ----------------- | ----------------------- | ------------------------ |
-| `ChannelQueue`    | Go channels (in-memory) | Local development        |
-| `ServiceBusQueue` | Azure Service Bus       | Production Azure         |
-| `NATSQueue`       | NATS streaming          | Cloud-native deployments |
+| Implementation | Backend                        | Use Case                              |
+| -------------- | ------------------------------ | ------------------------------------- |
+| `ChannelQueue` | Go channels (in-memory)        | Single-process local development      |
+| `SQSQueue`     | Amazon SQS (or SQS-compatible) | Production; ElasticMQ for local stacks |
 
 Interface:
 
@@ -176,11 +175,12 @@ large jobs.
 | `BOWRAIN_DATABASE_AUTH`          | No       | `"azure"` for Entra ID auth                       |
 | `BOWRAIN_OPENAI_ENDPOINT`        | No       | Azure OpenAI endpoint (enables platform provider) |
 | `AZURE_CLIENT_ID`                | No       | User-assigned managed identity client ID          |
-| `BOWRAIN_SERVICE_BUS_CONNECTION` | No       | Azure Service Bus connection string               |
-| `BOWRAIN_NATS_URL`               | No       | NATS streaming URL                                |
+| `BOWRAIN_QUEUE_BACKEND`          | No       | `sqs` selects the SQS backend                     |
+| `SQS_ENDPOINT`                   | No       | Endpoint override for ElasticMQ/LocalStack        |
+| `BOWRAIN_SQS_QUEUE_PREFIX`       | No       | Optional queue-name prefix                        |
 
-If neither Service Bus nor NATS is configured, the server uses an
-in-memory channel queue (suitable only for single-instance development).
+If SQS is not configured, the server uses an in-memory channel queue
+(suitable only for single-instance development).
 
 ## The kapi loop
 

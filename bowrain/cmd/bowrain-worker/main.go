@@ -105,7 +105,6 @@ func runWorker(dbURL string) error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	natsURL := os.Getenv("BOWRAIN_NATS_URL")
 	platformProvider := os.Getenv("BOWRAIN_PLATFORM_PROVIDER")
 	credentialsPath := os.Getenv("BOWRAIN_CREDENTIALS_PATH")
 	if credentialsPath == "" {
@@ -140,8 +139,8 @@ func runWorker(dbURL string) error {
 		return fmt.Errorf("open PostgreSQL quota store: %w", err)
 	}
 
-	// The queue backend is selected the same way as the server (SQS first, then
-	// Service Bus, then NATS, then in-process) so both agree on the broker.
+	// The queue backend is selected the same way as the server (SQS when
+	// configured, in-process otherwise) so both agree on the broker.
 	sqsOpts := jobs.SQSOptionsFromEnv()
 
 	// Set up translation job queue.
@@ -151,11 +150,6 @@ func runWorker(dbURL string) error {
 		translationQueue, err = jobs.NewSQSQueue(ctx, sqsOpts, jobs.SQSTranslationQueue)
 		if err != nil {
 			return fmt.Errorf("connect to SQS (translation): %w", err)
-		}
-	case natsURL != "":
-		translationQueue, err = jobs.NewNATSQueue(natsURL)
-		if err != nil {
-			return fmt.Errorf("connect to NATS: %w", err)
 		}
 	default:
 		translationQueue = jobs.NewChannelQueue(64)
@@ -172,11 +166,6 @@ func runWorker(dbURL string) error {
 		if err != nil {
 			return fmt.Errorf("connect to SQS (extraction): %w", err)
 		}
-	case natsURL != "":
-		extractionQueue, err = jobs.NewNATSExtractionQueue(natsURL)
-		if err != nil {
-			return fmt.Errorf("connect to NATS (extraction): %w", err)
-		}
 	default:
 		extractionQueue = jobs.NewChannelQueue(64)
 	}
@@ -191,11 +180,6 @@ func runWorker(dbURL string) error {
 		brandScanQueue, err = jobs.NewSQSQueue(ctx, sqsOpts, jobs.SQSBrandScanQueue)
 		if err != nil {
 			return fmt.Errorf("connect to SQS (brand scan): %w", err)
-		}
-	case natsURL != "":
-		brandScanQueue, err = jobs.NewNATSBrandScanQueue(natsURL)
-		if err != nil {
-			return fmt.Errorf("connect to NATS (brand scan): %w", err)
 		}
 	default:
 		brandScanQueue = jobs.NewChannelQueue(64)
@@ -318,7 +302,7 @@ func runWorker(dbURL string) error {
 	translationDeps.BlobStore = blobStore
 
 	// Configure event bus for publishing EventPushCompleted after sync push (Bowrain AD-009).
-	// Selection mirrors the server (createEventBus): Redis first when opted in.
+	// Selection mirrors the server (createEventBus): Redis Streams when opted in.
 	redisURL := os.Getenv("BOWRAIN_REDIS_URL")
 	if os.Getenv("BOWRAIN_EVENT_BACKEND") == "redis" && redisURL != "" {
 		bus, err := bowevent.NewRedisEventBus(redisURL, os.Getenv("BOWRAIN_REDIS_PASSWORD"))
@@ -327,14 +311,6 @@ func runWorker(dbURL string) error {
 		} else {
 			translationDeps.EventBus = bus
 			slog.Info("worker event bus configured", "backend", "redis_streams")
-		}
-	} else if natsURL != "" {
-		bus, err := bowevent.NewNATSEventBus(natsURL)
-		if err != nil {
-			slog.Warn("failed to create NATS event bus for worker", "error", err)
-		} else {
-			translationDeps.EventBus = bus
-			slog.Info("worker event bus configured", "backend", "nats_jetstream")
 		}
 	}
 

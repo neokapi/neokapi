@@ -85,6 +85,9 @@ export function LocaleDemandView({
         <div>
           <h1 className="flex items-center gap-2 text-xl font-semibold">
             Locale demand
+            <Badge variant="secondary" className="font-normal" data-testid="labs-preview-badge">
+              Labs preview
+            </Badge>
             {snapshot?.provenance.kind === "sample" && (
               <Badge variant="outline" className="font-normal" data-testid="sample-data-badge">
                 Sample data

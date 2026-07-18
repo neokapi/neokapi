@@ -11,7 +11,8 @@ title: "AD-017: Bowrain Apps"
 The bowrain platform ships four first-party applications: a Wails v3
 **Desktop app** for translators and project managers; a
 **Collaborative Editor** gRPC surface that powers real-time editing;
-**Pulse**, a public activity dashboard; and the **Admin Control
+**Pulse**, a public activity dashboard (unmounted by default — gated by
+`BOWRAIN_PULSE_ENABLED`); and the **Admin Control
 Plane** (`ctrl.bowrain.cloud`) for platform operators. All four reuse
 the shared `@neokapi/ui-primitives` component library and communicate
 with bowrain-server through the same REST and gRPC APIs.
@@ -168,11 +169,18 @@ Secret Service), metadata in `<UserConfigDir>/bowrain-desktop/auth.json`.
 Desktop auth uses OAuth 2.0 Authorization Code + PKCE with a
 `bowrain://auth/callback` URL handler.
 
-### 3. Pulse (`bowrain/apps/pulse/`)
+### 3. Pulse (`bowrain/apps/pulse/`) — unmounted by default
 
-A public activity dashboard deployed at `pulse.bowrain.cloud`.
-Standalone Vite SPA, served by bowrain-server when the `Host` header
-matches `pulse.*`.
+A public activity dashboard. Standalone Vite SPA, served by
+bowrain-server when the `Host` header matches `pulse.*`.
+
+**The surface ships dark.** The platform repositions on on-brand
+authoring, not l10n gamification, so the Pulse routes (and the SPA
+serving path) mount only when `BOWRAIN_PULSE_ENABLED=true`; the SPA
+deploy workflow is likewise gated on a repo variable
+(`PULSE_DEPLOY_ENABLED`). The code stays in the tree so the open-source
+program can revive the surface. The description below is the behavior of
+the surface when mounted.
 
 **Dashboard visibility.**
 
@@ -315,8 +323,10 @@ Door; the API base URL derives from the hostname
   clients of the same REST and gRPC endpoints.
 - Offline-first desktop editing keeps translators productive on
   flights, in tunnels, and during server maintenance.
-- Pulse gives the open-source community the visibility they expect
-  from localization platforms without compromising private workspaces.
+- Pulse (when a deployment opts in) gives the open-source community the
+  visibility they expect from localization platforms without
+  compromising private workspaces; by default the platform presents only
+  its authoring surfaces.
 - Admin realm isolation keeps operator credentials out of the customer
   identity plane and vice versa.
 

@@ -208,9 +208,6 @@ func run() error {
 	if envResend := os.Getenv("BOWRAIN_RESEND_API_KEY"); envResend != "" {
 		cfg.ResendAPIKey = envResend
 	}
-	if envNATS := os.Getenv("BOWRAIN_NATS_URL"); envNATS != "" {
-		cfg.NATSURL = envNATS
-	}
 	if envRedis := os.Getenv("BOWRAIN_REDIS_URL"); envRedis != "" {
 		cfg.RedisURL = envRedis
 	}
@@ -232,6 +229,10 @@ func run() error {
 	}
 	if envWebUI := os.Getenv("BOWRAIN_WEB_UI_DIR"); envWebUI != "" {
 		cfg.WebUIDir = envWebUI
+	}
+	// Public Pulse dashboard surface (default: unmounted). See Config docs.
+	if v := os.Getenv("BOWRAIN_PULSE_ENABLED"); v != "" {
+		cfg.PulseEnabled, _ = strconv.ParseBool(v)
 	}
 	if v := os.Getenv("BOWRAIN_MAX_PUSH_BYTES"); v != "" {
 		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {

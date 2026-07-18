@@ -82,10 +82,10 @@ func (*timeoutError) Temporary() bool { return true }
 var _ net.Error = (*timeoutError)(nil)
 
 func TestDefaultMaxJobAttemptsAlignsWithBroker(t *testing.T) {
-	// The DB attempt budget and the NATS redelivery cap must agree so an
+	// The DB attempt budget and the SQS redrive cap must agree so an
 	// exhausted retry ACK+fails rather than looping.
-	assert.Equal(t, natsMaxDeliver, defaultMaxJobAttempts)
-	// Sanity: the stale threshold sits above the broker ack-wait so the sweeper
-	// does not race in-flight redelivery.
-	assert.Greater(t, defaultStaleJobThreshold, natsAckWait)
+	assert.Equal(t, sqsMaxReceiveCount, defaultMaxJobAttempts)
+	// Sanity: the stale threshold sits above the broker visibility timeout so
+	// the sweeper does not race in-flight redelivery.
+	assert.Greater(t, defaultStaleJobThreshold, sqsVisibilityTimeout)
 }

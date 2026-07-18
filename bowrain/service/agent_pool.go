@@ -41,7 +41,7 @@ type AgentContainer struct {
 }
 
 // ContainerRuntime abstracts the container orchestration backend
-// (Docker, containerd, Azure Container Apps, etc.).
+// (Docker in dev; any orchestrator can implement it).
 type ContainerRuntime interface {
 	Spawn(ctx context.Context, cfg ContainerConfig) (*AgentContainer, error)
 	Stop(ctx context.Context, containerID string) error

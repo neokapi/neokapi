@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -14,13 +15,24 @@ import (
 // Job queue names. These are the base names; Terraform (prod) and the compose
 // bootstrap (local, via LocalStack/ElasticMQ) provision queues with these names
 // plus the optional BOWRAIN_SQS_QUEUE_PREFIX, each with a dead-letter queue and a
-// redrive policy of maxReceiveCount=3 — matching the NATS MaxDeliver=3 the
-// JetStream backend uses.
+// redrive policy of maxReceiveCount=3 (sqsMaxReceiveCount).
 const (
 	SQSTranslationQueue = "translation-jobs"
 	SQSExtractionQueue  = "extraction-jobs"
 	SQSBrandScanQueue   = "brand-scan-jobs"
 )
+
+// sqsMaxReceiveCount mirrors the redrive policy's maxReceiveCount provisioned
+// by Terraform (prod) and the compose bootstrap (local): after this many
+// receives a message moves to the dead-letter queue. The DB attempt budget
+// (defaultMaxJobAttempts) is aligned with it so both ceilings agree.
+const sqsMaxReceiveCount = 3
+
+// sqsVisibilityTimeout mirrors the provisioned queue visibility timeout: a
+// received-but-unacked message reappears after this long if its worker dies
+// mid-flight. The stale-job sweeper threshold sits comfortably above it so the
+// sweeper never races the broker's own redelivery.
+const sqsVisibilityTimeout = 5 * time.Minute
 
 // sqsLongPollSeconds is the ReceiveMessage wait time. 20s is the SQS maximum and
 // keeps empty-receive request volume (and cost) low.

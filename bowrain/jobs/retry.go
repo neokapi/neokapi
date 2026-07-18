@@ -8,10 +8,10 @@ import (
 )
 
 // defaultMaxJobAttempts bounds how many times a translation job is retried on
-// transient failures before it is marked failed. It is aligned with the NATS
-// JetStream redelivery cap (natsMaxDeliver) so the in-flight NAK retry and the
-// DB attempt budget agree on the same ceiling.
-const defaultMaxJobAttempts = natsMaxDeliver
+// transient failures before it is marked failed. It is aligned with the queue
+// redelivery cap (the SQS redrive policy's sqsMaxReceiveCount) so the in-flight
+// NAK retry and the DB attempt budget agree on the same ceiling.
+const defaultMaxJobAttempts = sqsMaxReceiveCount
 
 // transientError marks a job failure the worker should NAK so the message
 // broker redelivers it. The job row has been reset to 'queued' (see

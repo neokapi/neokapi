@@ -1,31 +1,22 @@
 package graph
 
-// Epic 014 — GraphStore backend parity harness.
+// Epic 014 — GraphStore behavioral contract suite.
 //
-// A single behavioral contract suite (graphContractSuite) is run against BOTH
-// graph backends to prove they behave identically for the operations bowrain
+// graphContractSuite pins the behavioral contract for the operations bowrain
 // actually uses (node/edge CRUD, neighbours, scoped traversal, bounded shortest
-// path, bulk create, find):
+// path, bulk create, find). It runs against the plain-SQL backend — the only
+// graph backend — on standard PostgreSQL (postgres:16-alpine) via the pgtest
+// testcontainer. (The suite originally also ran against an opt-in Apache AGE
+// backend; that backend was removed — see NOTES.md — and the suite kept as the
+// backend's contract.)
 //
-//   - TestSQLGraphStoreContract — the DEFAULT backend. Runs against standard
-//     PostgreSQL (postgres:16-alpine) via the pgtest testcontainer. This is the
-//     arm exercised by ordinary CI/local runs.
-//   - TestAGEGraphStoreContract — the opt-in Apache AGE backend. Gated on an
-//     AGE_TEST_DSN pointing at an AGE-enabled PostgreSQL; skipped otherwise so
-//     the default run does not require the apache/age image.
-//
-// The suite deliberately omits the two operations that legitimately diverge
-// between backends (documented in NOTES.md): CypherQuery/CypherExec (an
-// AGE-only escape hatch — the SQL backend returns ErrCypherNotSupported, which
-// is asserted separately in TestSQLGraphStoreCypherUnsupported) and
-// FindNodesScoped (a no-op filter on the AGE backend today).
+// The Cypher escape hatch is intentionally unsupported: the SQL backend
+// returns ErrCypherNotSupported, asserted in TestSQLGraphStoreCypherUnsupported.
 
 import (
-	"os"
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -35,11 +26,11 @@ import (
 
 // storeFactory returns a fresh, empty GraphStore scoped to the subtest t. The
 // factory is called once per subtest so every case starts from a pristine graph
-// (isolated schema for SQL, a freshly (re)created graph for AGE).
+// (an isolated schema per subtest).
 type storeFactory func(t *testing.T) coreg.GraphStore
 
 // TestSQLGraphStoreContract runs the shared contract against the plain-SQL
-// backend on standard PostgreSQL — the default backend for dev and RDS.
+// backend on standard PostgreSQL — the backend for dev and RDS.
 func TestSQLGraphStoreContract(t *testing.T) {
 	graphContractSuite(t, func(t *testing.T) coreg.GraphStore {
 		db := pgtest.NewTestDB(t) // skips when Docker/-short and no BOWRAIN_TEST_POSTGRES_URL
@@ -47,30 +38,6 @@ func TestSQLGraphStoreContract(t *testing.T) {
 		require.NotNil(t, pool, "pgtest must expose a pgxpool for the SQL graph store")
 		store := NewSQLGraphStore(pool)
 		require.NoError(t, store.EnsureGraph(t.Context()))
-		return store
-	})
-}
-
-// TestAGEGraphStoreContract runs the same shared contract against the Apache
-// AGE backend when an AGE-capable PostgreSQL is supplied via AGE_TEST_DSN. This
-// arm proves SQL and AGE are interchangeable; it is skipped by default.
-func TestAGEGraphStoreContract(t *testing.T) {
-	dsn := os.Getenv("AGE_TEST_DSN")
-	if dsn == "" {
-		t.Skip("AGE_TEST_DSN not set; skipping AGE parity arm (SQL is the default backend)")
-	}
-	graphContractSuite(t, func(t *testing.T) coreg.GraphStore {
-		ctx := t.Context()
-		config, err := pgxpool.ParseConfig(dsn)
-		require.NoError(t, err)
-		config.AfterConnect = AfterConnect
-		pool, err := pgxpool.NewWithConfig(ctx, config)
-		require.NoError(t, err)
-		t.Cleanup(pool.Close)
-		// Fresh graph per subtest for isolation (ignore "does not exist" on first run).
-		_, _ = pool.Exec(ctx, `SELECT ag_catalog.drop_graph('bowrain_graph', true)`)
-		store := NewAGEGraphStore(pool)
-		require.NoError(t, store.EnsureGraph(ctx))
 		return store
 	})
 }
@@ -89,8 +56,7 @@ func TestSQLGraphStoreCypherUnsupported(t *testing.T) {
 	require.ErrorIs(t, store.CypherExec(t.Context(), "CREATE (n)", nil), coreg.ErrCypherNotSupported)
 }
 
-// graphContractSuite is the shared behavioral contract. It mirrors the AGE
-// integration cases (age_test.go) so both backends are held to one spec.
+// graphContractSuite is the shared behavioral contract for the graph store.
 func graphContractSuite(t *testing.T, newStore storeFactory) {
 	t.Run("NodeCRUD", func(t *testing.T) {
 		ctx := t.Context()

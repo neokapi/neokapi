@@ -22,10 +22,10 @@ import (
 // Validity.Matches for byte-for-byte parity with the reference), directional
 // neighbours, and a bounded, cycle-safe recursive-CTE shortest path.
 //
-// SQL becomes the default backend so both local dev and managed RDS/Aurora —
-// which do not ship the AGE extension — run on stock PostgreSQL. AGE remains
-// available as an opt-in backend (AGEGraphStore) and is the upgrade path if the
-// workload ever needs native graph traversal.
+// SQL is the only backend, so both local dev and managed RDS/Aurora run on
+// stock PostgreSQL. (An opt-in Apache AGE backend existed historically; it was
+// removed in favour of SQL-only — see NOTES.md. A native graph engine remains
+// the upgrade path if the workload ever needs native traversal.)
 //
 // The store is backed by the *same* *pgxpool.Pool the rest of the relational
 // stores use — each call acquires its own connection from that pool, so graph
@@ -60,8 +60,8 @@ const graphSchemaLockKey int64 = 0x6272676170687364
 // serialise rather than race on the shared catalog.
 //
 // graph_edges' source/target reference graph_nodes with ON DELETE CASCADE, so a
-// DeleteNode removes the node's incident edges in one step — matching the AGE
-// backend's DETACH DELETE and restoring the referential integrity the SQLite
+// DeleteNode removes the node's incident edges in one step (Cypher's DETACH
+// DELETE semantics), restoring the referential integrity the SQLite
 // reference enforces via its foreign keys. Without it, a deleted node would
 // leave orphan edges that surface as ErrNodeNotFound during ShortestPath
 // reconstruction.

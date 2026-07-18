@@ -98,7 +98,7 @@ categories. Each item below is a category, not an exhaustive list.
 
 | Category          | Scope            | Examples                                                      |
 | ----------------- | ---------------- | ------------------------------------------------------------- |
-| Health / info     | public           | `/health`, `/ready`, `/info`, `/badges/:proj`                |
+| Health / info     | public           | `/health`, `/ready`, `/info`                                 |
 | Auth              | mixed            | `/auth/device/*`, `/auth/callback`, `/auth/desktop/*`        |
 | Workspace         | `/:ws/…`         | `/workspaces`, `/:ws/members`, `/:ws/roles`, `/:ws/tokens`   |
 | Project           | `/:ws/:proj`     | CRUD, settings, members, audit log                            |
@@ -125,7 +125,7 @@ categories. Each item below is a category, not an exhaustive list.
 | Jobs / AI usage   | `/:ws`           | `jobs`, `jobs/translate`, `ai-usage`                         |
 | Bravo             | `/:ws`           | `bravo/{config,conversations,tools,usage}`                   |
 | Graph             | `/:ws`           | `graph/{concepts,nodes,shortest-path}`                       |
-| Pulse             | public           | `/pulse/:ws/{projects,activity,leaderboard,terms}`           |
+| Pulse             | public (opt-in)  | `/pulse/:ws/{projects,activity,leaderboard,terms}` — unmounted unless `BOWRAIN_PULSE_ENABLED=true` |
 | Admin             | `/api/admin/…`   | `workspaces`, `users`, `metrics`, `events`, `overrides`, `upsells` |
 | Webhooks          | `/api/webhooks/…`| `/api/webhooks/stripe`                                        |
 
@@ -234,9 +234,9 @@ synthetic-user injection; the `_` slug is merely on the reserved-slug
 list so it can never become a real workspace.
 
 What a standalone server does expose: the public endpoints (`/health`,
-`/ready`, `/info`, `/badges/:proj`, `/pulse`) and — when an auth store is
-present — the flat, anonymous-project sync routes under
-`/api/v1/projects/:id/sync/:ref/…`, which authenticate with a claim
+`/ready`, `/info`, plus `/pulse` when `BOWRAIN_PULSE_ENABLED=true`) and —
+when an auth store is present — the flat, anonymous-project sync routes
+under `/api/v1/projects/:id/sync/:ref/…`, which authenticate with a claim
 token instead of a JWT.
 
 ### Item path encoding

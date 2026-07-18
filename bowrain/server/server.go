@@ -341,15 +341,6 @@ func createEventBus(cfg Config) platev.EventBus {
 		slog.Info("event bus configured", "backend", "redis-streams")
 		return bus
 	}
-	if cfg.NATSURL != "" {
-		bus, err := event.NewNATSEventBus(cfg.NATSURL)
-		if err != nil {
-			slog.Warn("failed to create NATS event bus, falling back to in-memory", "error", err)
-			return event.NewChannelEventBus()
-		}
-		slog.Info("event bus configured", "backend", "nats-jetstream")
-		return bus
-	}
 	slog.Info("event bus configured", "backend", "in-memory")
 	return event.NewChannelEventBus()
 }
@@ -580,10 +571,9 @@ func NewServer(cfg Config) *Server {
 		slog.Warn("platform_config: initial load failed (serving env defaults)", "error", err)
 	}
 
-	// Initialize job queues if Service Bus or NATS is configured. The
-	// extraction queue feeds the auto-extract automation (AD-013/AD-015):
-	// triggerAutoExtract enqueues here and bowrain-worker's extraction
-	// worker consumes.
+	// Initialize job queues if SQS is configured. The extraction queue feeds
+	// the auto-extract automation (AD-013/AD-015): triggerAutoExtract enqueues
+	// here and bowrain-worker's extraction worker consumes.
 	switch {
 	case jobs.SQSConfigured():
 		sqsOpts := jobs.SQSOptionsFromEnv()
@@ -599,25 +589,6 @@ func NewServer(cfg Config) *Server {
 		}
 		if bq, err := jobs.NewSQSQueue(context.Background(), sqsOpts, jobs.SQSBrandScanQueue); err != nil {
 			slog.Warn("failed to connect to SQS brand-scan queue", "error", err)
-		} else {
-			s.BrandScanQueue = bq
-		}
-	case cfg.NATSURL != "":
-		q, err := jobs.NewNATSQueue(cfg.NATSURL)
-		if err != nil {
-			slog.Warn("failed to connect to NATS queue", "error", err)
-		} else {
-			s.JobQueue = q
-		}
-		eq, err := jobs.NewNATSExtractionQueue(cfg.NATSURL)
-		if err != nil {
-			slog.Warn("failed to connect to NATS extraction queue", "error", err)
-		} else {
-			s.ExtractionQueue = eq
-		}
-		bq, err := jobs.NewNATSBrandScanQueue(cfg.NATSURL)
-		if err != nil {
-			slog.Warn("failed to connect to NATS brand-scan queue", "error", err)
 		} else {
 			s.BrandScanQueue = bq
 		}
@@ -1088,28 +1059,17 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	v1.GET("/ready", s.HandleReady)
 	v1.GET("/info", s.HandleInfo)
 	v1.GET("/config", s.HandleGetPublicConfig)
-	v1.GET("/badges/:proj", s.HandleProjectBadge)
 
-	// Pulse public activity dashboard (Bowrain AD-017).
-	// No auth required — access gated by workspace/project dashboard_visibility.
-	v1.GET("/pulse", s.HandlePulseFrontPage)
-	if s.AuthStore != nil {
-		pulseGroup := v1.Group("/pulse/:workspace")
-		pulseGroup.Use(PulseAccessMiddleware(s.Config.JWTSecret, s.AuthStore))
-		pulseGroup.GET("", s.HandlePulseOverview)
-		pulseGroup.GET("/projects", s.HandlePulseProjects)
-		pulseGroup.GET("/activity/heatmap", s.HandlePulseActivityHeatmap)
-		pulseGroup.GET("/activity", s.HandlePulseActivity)
-		pulseGroup.GET("/leaderboard", s.HandlePulseLeaderboard)
-		pulseGroup.GET("/terms", s.HandlePulseTerms)
-		pulseGroup.GET("/terms/:cid", s.HandlePulseTermDetail)
-
-		// Project-scoped routes also enforce project-level visibility.
-		pulseProjectGroup := pulseGroup.Group("", PulseProjectAccessMiddleware(s.ContentStore))
-		pulseProjectGroup.GET("/projects/:id", s.HandlePulseProjectDetail)
-		pulseProjectGroup.GET("/projects/:id/lang/:locale", s.HandlePulseLocaleDetail)
+	// Pulse public activity dashboard (Bowrain AD-017). Unmounted by default —
+	// the platform's public surface is on-brand authoring, not l10n
+	// gamification. BOWRAIN_PULSE_ENABLED=true re-mounts the routes (and their
+	// access middleware); the handlers and cache stay in the tree so the OSS
+	// program can revive the surface.
+	// No auth required when mounted — access gated by workspace/project
+	// dashboard_visibility.
+	if s.Config.PulseEnabled {
+		s.registerPulseRoutes(v1)
 	}
-
 	// Authenticated mode: auth routes, protected endpoints, workspace management.
 	if s.Config.JWTSecret != "" {
 		// Anonymous project creation (no auth required) — IP-throttled: it
@@ -1413,12 +1373,17 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	// A single handler serves static files first and falls back to index.html
 	// for SPA client-side routing. Using two separate handlers (e.Static + e.GET)
 	// would conflict because Echo overwrites the first GET /* with the second.
-	if s.Config.WebUIDir != "" || s.Config.PulseUIDir != "" {
+	pulseUIDir := ""
+	if s.Config.PulseEnabled {
+		pulseUIDir = s.Config.PulseUIDir
+	}
+	if s.Config.WebUIDir != "" || pulseUIDir != "" {
 		e.GET("/*", func(c echo.Context) error {
-			// Host-based routing: serve Pulse SPA for pulse.* subdomain.
+			// Host-based routing: serve Pulse SPA for pulse.* subdomain
+			// (only when the Pulse surface is enabled).
 			host := c.Request().Host
-			if s.Config.PulseUIDir != "" && strings.HasPrefix(host, "pulse.") {
-				return serveSPAFile(c, s.Config.PulseUIDir)
+			if pulseUIDir != "" && strings.HasPrefix(host, "pulse.") {
+				return serveSPAFile(c, pulseUIDir)
 			}
 			// Default: serve main web UI.
 			if s.Config.WebUIDir != "" {
