@@ -723,16 +723,20 @@ func jobTranslateConfig(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		// masks each protected span before the model and restores it verbatim
 		// after, so a product name / trademark / code identifier cannot be
 		// translated (epic 019, item 4). Sourced from project settings.
-		DNT: projectDNTTerms(proj),
+		DNT: ProjectDNTTerms(proj),
 	}
 }
 
-// projectDNTTerms reads the project's do-not-translate terms from settings
+// ProjectDNTTerms reads the project's do-not-translate terms from settings
 // (comma-separated in Properties["dnt_terms"]) — product names, trademarks, and
 // code identifiers that must survive verbatim into every target. The AI
 // translate tool masks and restores these spans so they cannot be translated.
 // Empty when unset.
-func projectDNTTerms(proj *store.Project) []string {
+//
+// It is the single derivation shared by every server-side translation
+// surface — the worker's jobs (jobTranslateConfig) and the synchronous editor
+// translate in bowrain/server — so both protect identical terms.
+func ProjectDNTTerms(proj *store.Project) []string {
 	if proj == nil || proj.Properties == nil {
 		return nil
 	}

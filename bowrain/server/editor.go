@@ -756,10 +756,10 @@ type editorBrandContext struct {
 // editorTranslateConfig builds the AI translate tool config for the
 // interactive editor path, binding the same standing brand context the worker
 // binds via jobTranslateConfig (jobs/worker.go): the brand voice profile
-// resolved through the brandscope ladder and the per-locale terminology
-// glossary from the workspace termbase. Both bindings are best-effort —
-// absence or a resolution failure leaves the field unset and the translation
-// runs bare, never fails.
+// resolved through the brandscope ladder, the per-locale terminology glossary
+// from the workspace termbase, and the project's do-not-translate terms from
+// settings. All bindings are best-effort — absence or a resolution failure
+// leaves the field unset and the translation runs bare, never fails.
 func editorTranslateConfig(
 	ctx context.Context,
 	cs store.ContentStore,
@@ -781,6 +781,13 @@ func editorTranslateConfig(
 	// is told the mandated renderings at generation time instead of
 	// term-enforce only flagging them afterwards.
 	cfg.Glossary = editorGlossary(ctx, brandCtx, workspaceSlug, projectID, cfg.SourceLocale, cfg.TargetLocale)
+	// Do-not-translate terms are ENFORCED, not merely prompted: the tool masks
+	// each protected span before the model and restores it verbatim after, so a
+	// product name / trademark / code identifier cannot be translated. Sourced
+	// from project settings via the same derivation the worker uses
+	// (jobs.ProjectDNTTerms), so an interactive translation protects exactly
+	// the terms a batch job does. Empty settings simply leave the field unset.
+	cfg.DNT = jobs.ProjectDNTTerms(proj)
 	return cfg
 }
 
