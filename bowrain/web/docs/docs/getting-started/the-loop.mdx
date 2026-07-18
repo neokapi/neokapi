@@ -78,16 +78,16 @@ REST API, the run event stream, and `--json` output keep that vocabulary; these
 pages say *the loop*.
 :::
 
-## Source first: kapi drafts, Bowrain governs
+## Source first: settle before the fan-out
 
 The loop does not translate on push and hope. It **settles the source first**,
 holds at a source ship-gate until the source is ready, and only then translates
 the *approved* source per locale — because source content is shared across every
 language, so a term left unresolved or a sentence left off-brand would be paid
 for once per language, then paid for again when the source is fixed and
-everything retranslates. Settling once, in front of the fan-out, is the concrete
-meaning of **"kapi drafts, Bowrain governs"**: the source-readiness gate *is* the
-governance seam.
+everything retranslates. Settling once, in front of the fan-out, is the seam
+between the loop's automatic pass and governed review: the source-readiness
+gate is where a person signs off before the loop pays the per-language cost.
 
 <GatedLoopDiagram
   nodes={[

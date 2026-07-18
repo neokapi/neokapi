@@ -126,6 +126,10 @@ kapi exec term-check messages_fr.json --source-lang en --target-lang fr \
 | Named store | `--name <n>` | `~/.config/kapi/tm/<n>.db` / `~/.config/kapi/termbases/<n>.db` | a glossary or memory reused across directories |
 | Project TM/termbase | no flag, inside a `.kapi` project | `<root>/.kapi/tm.db` / project termbase | a repository you localize repeatedly |
 
+:::note[Works with Bowrain]
+All three models are local to a machine or a repository. A fourth arrangement is hosted: a Bowrain server holds one workspace-level memory and termbase shared across projects, people, and agents, and `kapi push` / `kapi pull` connect a `.kapi` project to it. See the [Bowrain documentation](https://bowrain.cloud/docs/).
+:::
+
 ## The TM is not the review state
 
 The project TM is a **recycle** corpus — source→target pairs reused to pre-fill

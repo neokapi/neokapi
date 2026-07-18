@@ -107,7 +107,7 @@ export function PreProcessSurface({
       const stats = await api.tmTranslateFile(project.id, fileName, targetLocale);
       setResults((prev) => ({ ...prev, tm: stats }));
     } catch (e) {
-      setError({ title: "Couldn't apply the TM leverage", cause: e });
+      setError({ title: "Couldn't recycle from the content memory", cause: e });
     } finally {
       setRunning(null);
     }
@@ -140,11 +140,11 @@ export function PreProcessSurface({
     },
     {
       key: "tm",
-      title: "Bulk TM leverage",
-      desc: "Pre-fill targets from the translation memory across the whole file — exact and high-confidence fuzzy matches land as drafts you can review.",
+      title: "Bulk recycle",
+      desc: "Pre-fill targets from the content memory across the whole file — exact and high-confidence fuzzy matches land as drafts you can review.",
       icon: <Languages className="w-4 h-4" />,
       run: runTM,
-      cta: "Leverage TM",
+      cta: "Recycle from memory",
     },
     {
       key: "ai",

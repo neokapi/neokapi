@@ -117,7 +117,7 @@ Registered event types include:
 | `translation.updated`           | Block target updates                                       |
 | `translation.reviewed`          | Review decisions                                           |
 | `connector.synced`              | Connector completion                                       |
-| `flow.completed` / `flow.failed`| Flow executor                                              |
+| `flow.completed` / `flow.failed`| Flow executor (type defined; not yet emitted)              |
 | `quality.gate.failed`           | Quality gate evaluation                                    |
 | `terminology.changed`           | Termbase mutations                                         |
 | `push.completed`                | Sync push commit                                           |

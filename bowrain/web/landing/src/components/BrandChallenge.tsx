@@ -244,7 +244,7 @@ export function BrandChallenge() {
         <p className="mt-3 text-muted-foreground">
           Pick a style profile. Write or paste content. See it scored against the profile live, and
           fix the violations to reach 100. The check runs in kapi; Bowrain is where the profile is
-          shared and governed across your projects — and your team when you have one.
+          shared and governed across your projects, your team, and your agents.
         </p>
       </div>
 

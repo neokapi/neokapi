@@ -41,7 +41,7 @@ const TIERS: Tier[] = [
       t("{credits} one-time AI trial credits", { credits: CREDITS.trial }),
       t("1 project, 1 seat"),
       t("All formats and workflow tools"),
-      t("Translation memory & terminology"),
+      t("Content memory & terminology"),
       t("Shared editor with review"),
       t("Bring your own AI key — uses no credits"),
       t("Community support"),

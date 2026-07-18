@@ -106,14 +106,49 @@ parse-accuracy benchmark or enter a parsing leaderboard (PDF is an off-core plug
 
 Every destination is an open-source page on the project site. There is **no** sales funnel.
 
-## Bowrain is out of scope for the project site
+## Bowrain on the project site: four named seams, nothing else (R9)
 
-Bowrain is a separate, commercial team-governance platform with **its own site and its own
-positioning**. **Do not sell or mention Bowrain on the neokapi project site** — not the
-homepage, not the docs, not the README, not CLI help. neokapi is an open-source project;
-keep the project site about the engine, the CLI, and what builders can do with it. (The
-kapi/Bowrain architectural boundary still holds in the code; it is simply not project-site
-messaging.)
+Bowrain is a separate, commercial platform with **its own site and its own positioning**.
+On the neokapi project site it appears only as **neutral, admonition-style
+"Works with Bowrain" notes — at most four, at exactly these named seams**:
+
+1. **Plugins** — the desktop tour's plugin section (`kapi/desktop/tour.mdx`), where the
+   `kapi-bowrain` plugin is documented like any other plugin.
+2. **Review** — the review & approve recipe (`kapi/recipes/review-and-approve.mdx`), where
+   local review's single-reviewer limits are described.
+3. **Memory** — the TM/termbase storage recipe (`kapi/recipes/tm-termbase-storage.mdx`),
+   where the storage models are enumerated.
+4. **CI / the loop** — the kapi-loop-in-CI page (`kapi/convergence-in-ci.mdx`).
+
+Callout rules: factual register, a plain link to
+[https://bowrain.cloud/docs/](https://bowrain.cloud/docs/) and nothing
+else, no pricing or selling copy, no nav entries. **Everywhere else the project site stays
+Bowrain-free** — homepage, README, CLI help, every other docs page. (The kapi/Bowrain
+architectural boundary still holds in the code; these four seams are the only messaging
+exceptions.)
+
+## The decided venue lines (R10 — canon, verbatim)
+
+Where a headline or pitch is needed on a Bowrain-facing surface, use these verbatim:
+
+> **Kapi converges your content on your machine. Bowrain keeps every project converging —
+> the shared brand memory for your team and your agents.**
+
+The frame behind it: kapi does the heavy lifting (parsing, drafting, checking, converging);
+Bowrain is the **brand memory** — cross-project, org-level (voice, terminology, approved
+translations, corrections) that every project, person, and agent draws from and improves.
+
+**Retired — never reintroduce:** "Kapi drafts, Bowrain governs"; "converges it for your
+whole team, all the time" and any "whole team" venue phrasing.
+
+**Naming:** customer-facing surfaces say **content memory** (with *recycling* as the verb),
+never "translation memory" — TM/sievepen stay engine/internal terms (framework docs and
+code keep them).
+
+**Headline register:** brand, voice, on-brand, agents, governed review, delivery, the kapi
+loop. l10n vocabulary ("Lokalise alternative", "translate XLIFF") belongs only on
+bowrain.cloud SEO surfaces — never in headlines, nav, or docs titles. Never disparage
+competitors.
 
 ## Vocabulary (write the left as the right)
 
@@ -143,7 +178,7 @@ classifier, not an editability flag).
 
 - Don't make the homepage legible to five audiences at once — lead with the one wedge,
   then offer use-case pages.
-- Don't sell or mention Bowrain on the project site (see above).
+- Don't sell or mention Bowrain on the project site outside the four R9 seams (see above).
 - Don't make "Languages"/"Localize" a nav header or a ceremonious "add a language" step;
   weave multilingualism into the journey as a natural outcome.
 - Don't court the traditional localization engineer with their own jargon — serve the

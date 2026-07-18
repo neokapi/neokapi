@@ -7,7 +7,7 @@ const STEPS = [
     icon: Bot,
     title: t("Draft"),
     body: t(
-      "AI translates and drafts with your terminology, translation memory, and brand voice in the prompt — not generic model output.",
+      "AI translates and drafts with your terminology, content memory, and brand voice in the prompt — not generic model output.",
     ),
   },
   {

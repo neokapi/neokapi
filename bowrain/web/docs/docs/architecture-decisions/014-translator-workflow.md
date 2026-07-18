@@ -67,7 +67,8 @@ CREATE TABLE activities (
 Activity types cover content lifecycle (`item.pushed`,
 `block.translated`, `block.reviewed`), project management
 (`project.updated`, `member.added`), streams (`stream.created`,
-`stream.merged`), automation and AI (`flow.completed`, `job.completed`,
+`stream.merged`), automation and AI (`flow.completed` — recorded once the
+flow lifecycle events are emitted, which they are not yet — `job.completed`,
 `extraction.completed`), quality (`gate.passed`, `gate.failed`,
 `brand.drift`), review queue (`review.assigned`, `review.decided`),
 connectors, tasks, and versions.

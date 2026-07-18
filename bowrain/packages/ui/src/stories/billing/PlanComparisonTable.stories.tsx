@@ -45,8 +45,8 @@ const features: ComparisonFeature[] = [
     values: { free: false, pro: true, team: true, enterprise: true },
   },
   {
-    label: "Custom MT Providers",
-    values: { free: false, pro: true, team: true, enterprise: true },
+    label: "Bring Your Own AI Key",
+    values: { free: true, pro: true, team: true, enterprise: true },
   },
   {
     label: "SSO/SAML",

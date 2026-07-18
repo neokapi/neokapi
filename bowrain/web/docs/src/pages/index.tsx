@@ -63,12 +63,11 @@ function HomepageHeader() {
             {siteConfig.title}
           </Heading>
           <p className={styles.heroSubtitle}>
-            The platform for keeping content <strong>on brand and in every language</strong>:
-            versioned governance of brand voice, terminology, and translation memory &mdash; that
-            learns from every correction &mdash; plus collaborative editing, connectors to the
-            systems your content already lives in, and automation. It governs the content{" "}
-            <strong>kapi</strong> parses and edits &mdash; the persistent layer for one builder
-            with many surfaces, or a whole team.
+            Kapi converges your content on your machine. Bowrain keeps every project converging
+            &mdash; <strong>the shared brand memory for your team and your agents</strong>: brand
+            voice, terminology, approved translations, and corrections, versioned and learning
+            from every review. Plus collaborative editing, connectors to the systems your content
+            already lives in, and automation.
           </p>
           <div className={styles.buttons}>
             <Link className={clsx("button button--lg", styles.tryButton)} to="/quickstart">
@@ -96,16 +95,16 @@ type ProductItem = {
 
 const BowrainFeatures: ProductItem[] = [
   {
-    title: "Shared, versioned governance",
+    title: "The shared brand memory",
     description:
-      "One brand-voice profile, terminology base, and translation memory, held on the server and shared across writers, translators, and AI tools — versioned and auditable, and learning from every correction.",
+      "One brand-voice profile, terminology base, and content memory, held on the server and drawn on by every project, person, and agent — versioned and auditable, and learning from every correction.",
     link: "/server/brand-voice",
     linkText: "Brand voice",
   },
   {
     title: "Real-time collaboration",
     description:
-      "A web editor and a native desktop app connect to the same server: Visual and Table views with translation memory and terminology, while edits and presence propagate live to every client.",
+      "A web editor and a native desktop app connect to the same server: Visual and Table views with content memory and terminology, while edits and presence propagate live to every client.",
     link: "/server/collaboration",
     linkText: "Collaboration",
   },
@@ -156,7 +155,7 @@ export default function Home() {
   return (
     <Layout
       title={siteConfig.title}
-      description="Bowrain — the platform for governed brand voice, terminology, and translation, built on the kapi toolchain — solo or as a team"
+      description="Bowrain — the shared brand memory for your team and your agents, built on the kapi toolchain"
     >
       <HomepageHeader />
       <main>

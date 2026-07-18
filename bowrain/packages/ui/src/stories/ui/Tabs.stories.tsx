@@ -42,7 +42,7 @@ export const Glass: Story = {
   render: () => (
     <Tabs defaultValue="tm">
       <TabsList>
-        <TabsTrigger value="tm">Translation Memory</TabsTrigger>
+        <TabsTrigger value="tm">Content memory</TabsTrigger>
         <TabsTrigger value="terms">Terminology</TabsTrigger>
       </TabsList>
       <TabsContent value="tm">

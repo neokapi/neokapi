@@ -31,7 +31,7 @@ function originLabel(origin: string): string {
     case "ai":
       return "AI";
     case "tm":
-      return "translation memory";
+      return "content memory";
     case "human":
       return "human";
     default:

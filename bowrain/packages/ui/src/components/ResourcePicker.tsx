@@ -50,7 +50,7 @@ export interface ResourcePickerProps {
 }
 
 const kindLabels: Record<ResourceKind, string> = {
-  tm: "Named TM",
+  tm: "Named memory",
   termbase: "Named Termbase",
   srx: "Named SRX",
 };
