@@ -232,15 +232,16 @@ func (o PushOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "Pushed %d blocks, %d words (scanned %d files)\n", o.BlocksPushed, o.WordCount, o.FilesScanned)
 	}
 	o.formatConcepts(w)
-	o.formatBrand(w)
+	o.FormatBrand(w)
 	o.formatLoopStatus(w)
 	return nil
 }
 
-// formatBrand appends the brand-profile line: what the push did with the
+// FormatBrand appends the brand-profile line: what the push did with the
 // recipe-bound voice profile in the workspace brand hub. Silent when no
-// profile travelled.
-func (o PushOutput) formatBrand(w io.Writer) {
+// profile travelled. Exported so `kapi up`'s push phase renders the exact
+// same footer line for the brand upsert it performs.
+func (o PushOutput) FormatBrand(w io.Writer) {
 	if o.BrandProfile == "" {
 		return
 	}
