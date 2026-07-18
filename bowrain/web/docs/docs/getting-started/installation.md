@@ -43,20 +43,18 @@ The links below always point at the release named in them; they are regenerated
 on every release from the assets actually attached to it.
 
 <!-- BEGIN:downloads-bowrain-desktop -->
-Direct downloads for **Bowrain Desktop 1.2.0-rc8**:
+Direct downloads for **Bowrain Desktop 1.2.0-rc13**:
 
 **macOS** (Apple Silicon)
-- **macOS arm64 (.dmg)** — [`bowrain-1.2.0-rc8-macOS-arm64.dmg`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0-rc8/bowrain-1.2.0-rc8-macOS-arm64.dmg)
+- **macOS arm64 (.dmg)** — [`bowrain-1.2.0-rc13-macOS-arm64.dmg`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0-rc13/bowrain-1.2.0-rc13-macOS-arm64.dmg)
 
 **Windows** (Authenticode-signed, portable zip)
-- **Windows amd64** — [`bowrain-1.2.0-rc8-windows-amd64.zip`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0-rc8/bowrain-1.2.0-rc8-windows-amd64.zip)
-- **Windows arm64** — [`bowrain-1.2.0-rc8-windows-arm64.zip`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0-rc8/bowrain-1.2.0-rc8-windows-arm64.zip)
 
 **Linux**
-- **Linux amd64 (tar.gz)** — [`bowrain-1.2.0-rc8-linux-amd64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0-rc8/bowrain-1.2.0-rc8-linux-amd64.tar.gz)
-- **Linux arm64 (tar.gz)** — [`bowrain-1.2.0-rc8-linux-arm64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0-rc8/bowrain-1.2.0-rc8-linux-arm64.tar.gz)
+- **Linux amd64 (tar.gz)** — [`bowrain-1.2.0-rc13-linux-amd64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0-rc13/bowrain-1.2.0-rc13-linux-amd64.tar.gz)
+- **Linux arm64 (tar.gz)** — [`bowrain-1.2.0-rc13-linux-arm64.tar.gz`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0-rc13/bowrain-1.2.0-rc13-linux-arm64.tar.gz)
 
-Verify a download against [`checksums.txt`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0-rc8/checksums.txt).
+Verify a download against [`checksums.txt`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0-rc13/checksums.txt).
 <!-- END:downloads-bowrain-desktop -->
 
 ## Connect with kapi (the CLI plugin)
