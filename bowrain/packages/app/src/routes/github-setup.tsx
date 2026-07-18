@@ -5,18 +5,17 @@ import {
   Badge,
   Button,
   Card,
+  ChevronDown,
   GitPullRequest,
+  Input,
+  Label,
   Loader2,
-  ProjectFormDialog,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Plus,
   useApi,
   useAuth,
   type InstallationRepo,
   type ProjectFormData,
+  type Workspace,
 } from "@neokapi/ui";
 import { projectsQueryOptions, workspacesQueryOptions } from "../queries";
 import { importPhaseFromStatus } from "./import-phase";
@@ -33,11 +32,44 @@ import { coerceInstallationId } from "./installation-id";
  * It owns its own auth (like the invite/claim pages): a logged-out visitor is
  * welcomed rather than silently bounced, and the installation id round-trips
  * through login via the return-path cookie.
+ *
+ * This page renders under the standalone auth layout, where Radix portal
+ * components (Select, Dialog) fail to render — so every control here is a
+ * plain element: workspace cards, a native <select>, and inline forms.
  */
 
 /** Short-lived cookie so the server redirects back here after OIDC. */
 function setReturnPathCookie(path: string) {
   document.cookie = `bowrain_return_path=${encodeURIComponent(path)}; path=/; max-age=600; SameSite=Lax`;
+}
+
+/** Same handle rules the server enforces (see WelcomePage). */
+const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
+
+/** Client-side suggestion: lowercase, strip accents, hyphenate the rest. */
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+}
+
+/**
+ * What ProjectFormDialog submits when its fields are left untouched and the
+ * workspace has no configured languages: English source, one French target,
+ * defined-list mode. The server requires only name + default_source_language;
+ * the languages stay editable from the project's settings afterwards.
+ */
+function newProjectData(name: string): ProjectFormData {
+  return {
+    name,
+    default_source_language: "en",
+    target_languages: ["fr"],
+    target_language_mode: "defined",
+  };
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -66,6 +98,174 @@ function Spinner() {
   return (
     <div className="flex justify-center py-8">
       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
+
+/**
+ * Workspace chooser: one selectable card per workspace plus a "New workspace"
+ * card that expands an inline create form. Rendered even with a single
+ * workspace so the user sees where the project will land.
+ */
+function WorkspaceSection({
+  workspaces,
+  activeSlug,
+  onSelect,
+}: {
+  workspaces: Workspace[];
+  activeSlug: string;
+  onSelect: (slug: string) => void;
+}) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const [creatingOpen, setCreatingOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [slugTouched, setSlugTouched] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const slugInvalid = slug.length > 0 && (!SLUG_PATTERN.test(slug) || slug.length < 2);
+
+  const resetForm = () => {
+    setName("");
+    setSlug("");
+    setSlugTouched(false);
+    setError(null);
+  };
+
+  const createWorkspace = useMutation({
+    mutationFn: () => api.createWorkspace(name.trim(), slug),
+    onSuccess: (ws) => {
+      // Seed the cache so the new card shows immediately, then refetch for
+      // the server's authoritative list.
+      queryClient.setQueryData<Workspace[]>(["workspaces"], (prev) => [
+        ...(prev ?? []).filter((w) => w.id !== ws.id),
+        ws,
+      ]);
+      void queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+      onSelect(ws.slug);
+      setCreatingOpen(false);
+      resetForm();
+    },
+    onError: (e) => setError((e as Error).message),
+  });
+
+  const submitDisabled =
+    createWorkspace.isPending || !name.trim() || slug.length < 2 || !SLUG_PATTERN.test(slug);
+
+  return (
+    <div className="mb-5">
+      <div className="text-sm text-muted-foreground">Workspace</div>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        Connected repositories create their projects in this workspace.
+      </p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {workspaces.map((ws) => {
+          const selected = ws.slug === activeSlug;
+          return (
+            <button
+              key={ws.slug}
+              type="button"
+              aria-pressed={selected}
+              data-testid={`workspace-card-${ws.slug}`}
+              onClick={() => onSelect(ws.slug)}
+              className={`flex flex-col items-start rounded-lg border px-3 py-2 text-left transition-colors cursor-pointer bg-transparent ${
+                selected
+                  ? "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
+                  : "border-border/50 hover:border-border"
+              }`}
+            >
+              <span className="text-sm font-medium">{ws.name}</span>
+              <span className="text-xs text-muted-foreground">{ws.slug}</span>
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          aria-pressed={creatingOpen}
+          data-testid="workspace-card-new"
+          onClick={() => {
+            setCreatingOpen((v) => !v);
+            setError(null);
+          }}
+          className={`flex items-center gap-1.5 rounded-lg border border-dashed px-3 py-2 text-sm transition-colors cursor-pointer bg-transparent ${
+            creatingOpen
+              ? "border-primary/50 bg-primary/5 text-foreground ring-1 ring-primary/20"
+              : "border-border/50 text-muted-foreground hover:border-border hover:text-foreground"
+          }`}
+        >
+          <Plus className="h-4 w-4" />
+          New workspace…
+        </button>
+      </div>
+
+      {creatingOpen && (
+        <div className="mt-3 rounded-lg border border-border/50 p-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="flex-1">
+              <Label htmlFor="new-workspace-name" className="text-muted-foreground">
+                Workspace name
+              </Label>
+              <Input
+                id="new-workspace-name"
+                data-testid="new-workspace-name"
+                className="mt-1"
+                value={name}
+                autoFocus
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  setName(e.target.value);
+                  if (!slugTouched) setSlug(slugify(e.target.value));
+                }}
+                placeholder="My Team"
+              />
+            </div>
+            <div className="flex-1">
+              <Label htmlFor="new-workspace-slug" className="text-muted-foreground">
+                Handle
+              </Label>
+              <Input
+                id="new-workspace-slug"
+                data-testid="new-workspace-slug"
+                className="mt-1"
+                value={slug}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  setSlug(e.target.value.toLowerCase());
+                  setSlugTouched(true);
+                }}
+                placeholder="my-team"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </div>
+          </div>
+          {slugInvalid && (
+            <p className="mt-2 text-xs text-destructive">
+              Use 2–64 lowercase letters, numbers, and hyphens.
+            </p>
+          )}
+          {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+          <div className="mt-3 flex items-center gap-2">
+            <Button
+              size="sm"
+              data-testid="new-workspace-create"
+              disabled={submitDisabled}
+              onClick={() => createWorkspace.mutate()}
+            >
+              {createWorkspace.isPending ? "Creating…" : "Create workspace"}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setCreatingOpen(false);
+                resetForm();
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -195,27 +395,11 @@ export function GithubSetupRoute() {
 
   return (
     <Shell>
-      {(workspaces.data?.length ?? 0) > 1 && (
-        <div className="mb-4 flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Workspace</span>
-          <Select value={activeSlug} onValueChange={setWorkspaceSlug}>
-            <SelectTrigger className="w-56" data-testid="workspace-select">
-              {/* Explicit children: SelectValue renders nothing until the
-                  portal's items mount, leaving an invisible control. */}
-              <SelectValue>
-                {workspaces.data?.find((ws) => ws.slug === activeSlug)?.name ?? activeSlug}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {workspaces.data?.map((ws) => (
-                <SelectItem key={ws.slug} value={ws.slug}>
-                  {ws.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
+      <WorkspaceSection
+        workspaces={workspaces.data ?? []}
+        activeSlug={activeSlug}
+        onSelect={setWorkspaceSlug}
+      />
 
       {repos.isLoading && <Spinner />}
       {repos.isError && (
@@ -271,7 +455,6 @@ function RepoRow({
   // Default to creating a project named after the repo — the first-time path
   // must be one obvious click; picking an existing project stays available.
   const [projectId, setProjectId] = useState("__new__");
-  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Set once this session's Connect succeeded: the row then tracks the
   // server's background ingest instead of showing a bare "connected" badge.
@@ -280,6 +463,7 @@ function RepoRow({
   );
 
   const repoShortName = repo.full_name.slice(repo.full_name.lastIndexOf("/") + 1);
+  const [newName, setNewName] = useState(repoShortName);
 
   const bind = useMutation({
     mutationFn: (pid: string) =>
@@ -309,7 +493,6 @@ function RepoRow({
       });
     },
     onSuccess: (res) => {
-      setCreating(false);
       setImporting({ connectorId: res.connector_id, projectId: res.project_id });
       onChanged();
     },
@@ -424,38 +607,45 @@ function RepoRow({
             </Link>
           )}
         </div>
-      ) : projects.length === 0 ? (
-        <Button
-          size="sm"
-          className="shrink-0"
-          disabled={bind.isPending || createAndBind.isPending}
-          onClick={() => setCreating(true)}
-        >
-          Create a project
-        </Button>
       ) : (
         <div className="flex shrink-0 items-center gap-2">
-          <Select value={projectId} onValueChange={setProjectId}>
-            <SelectTrigger className="w-44" data-testid={`project-select-${repo.full_name}`}>
-              <SelectValue placeholder="Choose a project">
-                {projectId === "__new__"
-                  ? "+ New project…"
-                  : (projects.find((p) => p.id === projectId)?.name ?? "Choose a project")}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {projects.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-              <SelectItem value="__new__">+ New project…</SelectItem>
-            </SelectContent>
-          </Select>
+          {projects.length > 0 && (
+            <div className="relative">
+              <select
+                value={projectId}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setProjectId(e.target.value)}
+                aria-label="Project"
+                data-testid={`project-select-${repo.full_name}`}
+                className="h-8 w-44 cursor-pointer appearance-none rounded-lg border border-input bg-transparent pl-2.5 pr-8 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 dark:hover:bg-input/50"
+              >
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+                <option value="__new__">+ New project…</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            </div>
+          )}
           {projectId === "__new__" ? (
-            <Button size="sm" onClick={() => setCreating(true)}>
-              Create project &amp; connect
-            </Button>
+            <>
+              <Input
+                value={newName}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewName(e.target.value)}
+                aria-label="Project name"
+                data-testid={`new-project-name-${repo.full_name}`}
+                className="h-8 w-40"
+              />
+              <Button
+                size="sm"
+                disabled={!newName.trim() || createAndBind.isPending || bind.isPending}
+                onClick={() => createAndBind.mutate(newProjectData(newName.trim()))}
+                data-testid={`create-and-connect-${repo.full_name}`}
+              >
+                {createAndBind.isPending ? "Creating…" : "Create & connect"}
+              </Button>
+            </>
           ) : (
             <Button
               size="sm"
@@ -467,13 +657,6 @@ function RepoRow({
           )}
         </div>
       )}
-
-      <ProjectFormDialog
-        open={creating}
-        onOpenChange={setCreating}
-        initialName={repoShortName}
-        onSubmit={(data) => createAndBind.mutate(data)}
-      />
     </div>
   );
 }
