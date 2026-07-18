@@ -14,6 +14,11 @@
  *     (source, target for the active locale, translator note, term/QA
  *     annotations). A Bowrain reviewer opens a translation unit in context in
  *     one click.
+ *   - Whole-page review: `?kapi-review` on load (or clicking the toolbar pill)
+ *     highlights *every* translated element at once and opens a browsable index
+ *     of all strings on the page, grouped by source file — so a reviewer can
+ *     scan a whole file/collection in context without first navigating to a
+ *     specific block. Each row scrolls to and opens its block.
  *   - Hold ⌥/Alt and hover to outline any translated element; ⌥/Alt+click opens
  *     the same panel. A "copy context link" button yields the shareable
  *     `?kapi-focus=<hash>` URL.
@@ -36,6 +41,11 @@ export interface HostedReviewOptions {
   manifestUrl?: string;
   /** Query-string parameter carrying the block hash to focus. Default "kapi-focus". */
   focusParam?: string;
+  /**
+   * Query-string parameter (presence, no value needed) that opens whole-page
+   * review mode on load. Default "kapi-review".
+   */
+  reviewParam?: string;
   /** Open the panel (not just outline) when focusing via the deep link. Default true. */
   openOnFocus?: boolean;
 }
@@ -48,14 +58,17 @@ export function initKapiReviewHosted(options: HostedReviewOptions = {}): void {
   installed = true;
 
   const focusParam = options.focusParam ?? "kapi-focus";
+  const reviewParam = options.reviewParam ?? "kapi-review";
   const manifestUrl = options.manifestUrl ?? defaultManifestUrl();
   const openOnFocus = options.openOnFocus ?? true;
 
+  let manifest: ReviewManifest = {};
+  const getManifest = () => manifest;
+
   injectStyles();
-  installToolbar();
+  installToolbar(getManifest);
   installHoverHighlight();
 
-  let manifest: ReviewManifest = {};
   const ready = fetch(manifestUrl)
     .then((r) => (r.ok ? (r.json() as Promise<ReviewManifest>) : {}))
     .then((m) => {
@@ -65,13 +78,20 @@ export function initKapiReviewHosted(options: HostedReviewOptions = {}): void {
       /* no manifest → outline-only, panel shows "run compile --review" */
     });
 
-  installClickHandler(() => manifest);
+  installClickHandler(getManifest);
+
+  const params = new URLSearchParams(location.search);
 
   // Deep-link focus: wait for the manifest and the target element (the SPA may
   // render it a tick after load), then scroll + outline + open.
-  const focusHash = new URLSearchParams(location.search).get(focusParam);
+  const focusHash = params.get(focusParam);
   if (focusHash) {
-    void ready.then(() => focusBlock(focusHash, () => manifest, openOnFocus));
+    void ready.then(() => focusBlock(focusHash, getManifest, openOnFocus));
+  }
+
+  // Whole-page review: highlight every translated element and open the index.
+  if (params.has(reviewParam)) {
+    void ready.then(() => enterReviewMode(getManifest));
   }
 }
 
@@ -142,6 +162,153 @@ async function focusBlock(
   el.setAttribute("data-kapi-review-focus", "");
   setTimeout(() => el.removeAttribute("data-kapi-review-focus"), 2400);
   if (open) openPanel(hash, el, getManifest());
+}
+
+// ─── Whole-page review mode ──────────────────────────────────
+
+interface OnPageBlock {
+  hash: string;
+  el: Element;
+  entry?: ReviewManifestEntry;
+}
+
+let reviewModeOn = false;
+
+function toggleReviewMode(getManifest: () => ReviewManifest): void {
+  if (reviewModeOn) exitReviewMode();
+  else enterReviewMode(getManifest);
+}
+
+/** Highlight every stamped element on the page and open the browsable index. */
+function enterReviewMode(getManifest: () => ReviewManifest): void {
+  reviewModeOn = true;
+  document.documentElement.setAttribute("data-kapi-review-mode", "");
+  document.getElementById("kapi-review-toolbar")?.setAttribute("data-active", "");
+  markUntranslated(getManifest());
+  buildIndexPanel(getManifest);
+}
+
+function exitReviewMode(): void {
+  reviewModeOn = false;
+  document.documentElement.removeAttribute("data-kapi-review-mode");
+  document.getElementById("kapi-review-toolbar")?.removeAttribute("data-active");
+  document.getElementById("kapi-review-index")?.remove();
+  for (const el of document.querySelectorAll("[data-kapi-review-untranslated]")) {
+    el.removeAttribute("data-kapi-review-untranslated");
+  }
+  clearHover();
+}
+
+/** Distinct stamped elements on the page, in document order (first per hash). */
+function collectOnPageBlocks(manifest: ReviewManifest): OnPageBlock[] {
+  const seen = new Set<string>();
+  const out: OnPageBlock[] = [];
+  for (const el of document.querySelectorAll(MARKED)) {
+    const hash = hashOf(el);
+    if (!hash || seen.has(hash)) continue;
+    seen.add(hash);
+    out.push({ hash, el, entry: manifest[hash] });
+  }
+  return out;
+}
+
+/** Flag elements whose active-locale target is missing (falls back to source). */
+function markUntranslated(manifest: ReviewManifest): void {
+  const locale = activeLocale();
+  for (const b of collectOnPageBlocks(manifest)) {
+    if (b.entry && !b.entry.targets[locale]) {
+      b.el.setAttribute("data-kapi-review-untranslated", "");
+    }
+  }
+}
+
+function buildIndexPanel(getManifest: () => ReviewManifest): void {
+  document.getElementById("kapi-review-index")?.remove();
+  const manifest = getManifest();
+  const blocks = collectOnPageBlocks(manifest);
+  const locale = activeLocale();
+
+  // Group by source file, preserving document order within each group.
+  const groups = new Map<string, OnPageBlock[]>();
+  for (const b of blocks) {
+    const file = b.entry?.properties.file ?? "(unmapped)";
+    let bucket = groups.get(file);
+    if (!bucket) groups.set(file, (bucket = []));
+    bucket.push(b);
+  }
+  const translated = blocks.filter((b) => b.entry && b.entry.targets[locale]).length;
+
+  let body = "";
+  for (const [file, items] of groups) {
+    body += `<div class="kapi-idx-file">${escapeHTML(file)}<span class="kapi-idx-count">${items.length}</span></div>`;
+    for (const b of items) {
+      const t = b.entry?.targets[locale];
+      const status = !b.entry ? "unknown" : t ? "ok" : "untr";
+      const text = b.entry?.source ?? b.hash;
+      body +=
+        `<button type="button" class="kapi-idx-row" data-hash="${escapeHTML(b.hash)}">` +
+        `<span class="kapi-idx-dot kapi-${status}"></span>` +
+        `<span class="kapi-idx-text">${escapeHTML(truncate(text, 90))}</span></button>`;
+    }
+  }
+
+  const panel = document.createElement("div");
+  panel.id = "kapi-review-index";
+  panel.innerHTML = `
+    <div class="kapi-idx-head">
+      <div class="kapi-idx-title">kapi review <span class="kapi-idx-loc">${escapeHTML(locale || "—")}</span></div>
+      <button type="button" class="kapi-idx-close" title="Exit review">✕</button>
+    </div>
+    <div class="kapi-idx-sub">${blocks.length} string${blocks.length === 1 ? "" : "s"} · ${translated} translated</div>
+    <input class="kapi-idx-search" type="search" placeholder="Filter strings…" aria-label="Filter strings" />
+    <div class="kapi-idx-list">${body || '<div class="kapi-idx-empty">No stamped strings on this page. Build with <code>review: true</code>.</div>'}</div>
+  `;
+  document.body.appendChild(panel);
+
+  panel.querySelector(".kapi-idx-close")?.addEventListener("click", exitReviewMode);
+
+  for (const row of panel.querySelectorAll<HTMLElement>(".kapi-idx-row")) {
+    const hash = row.getAttribute("data-hash");
+    if (!hash) continue;
+    row.addEventListener("click", () => {
+      for (const r of panel.querySelectorAll(".kapi-idx-row[data-active]")) {
+        r.removeAttribute("data-active");
+      }
+      row.setAttribute("data-active", "");
+      void focusBlock(hash, getManifest, true);
+    });
+    row.addEventListener("mouseenter", () => {
+      const el = findElement(hash);
+      if (el) {
+        clearHover();
+        el.setAttribute("data-kapi-review-hover", "");
+        hovered = el;
+      }
+    });
+    row.addEventListener("mouseleave", clearHover);
+  }
+
+  const search = panel.querySelector<HTMLInputElement>(".kapi-idx-search");
+  search?.addEventListener("input", () => {
+    const q = search.value.toLowerCase();
+    for (const row of panel.querySelectorAll<HTMLElement>(".kapi-idx-row")) {
+      row.style.display = row.textContent?.toLowerCase().includes(q) ? "" : "none";
+    }
+    for (const file of panel.querySelectorAll<HTMLElement>(".kapi-idx-file")) {
+      // Hide a file header when all its rows are filtered out.
+      let sib = file.nextElementSibling;
+      let anyVisible = false;
+      while (sib && sib.classList.contains("kapi-idx-row")) {
+        if ((sib as HTMLElement).style.display !== "none") anyVisible = true;
+        sib = sib.nextElementSibling;
+      }
+      file.style.display = anyVisible ? "" : "none";
+    }
+  });
+}
+
+function truncate(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
 // ─── Hover / click ───────────────────────────────────────────
@@ -272,10 +439,13 @@ function closePanel(): void {
 
 // ─── Toolbar / toast ─────────────────────────────────────────
 
-function installToolbar(): void {
-  const bar = document.createElement("div");
+function installToolbar(getManifest: () => ReviewManifest): void {
+  const bar = document.createElement("button");
   bar.id = "kapi-review-toolbar";
-  bar.innerHTML = `<span>⌥ kapi review</span><span class="kapi-ro">read-only</span>`;
+  bar.type = "button";
+  bar.title = "Review every string on this page in context";
+  bar.innerHTML = `<span class="kapi-tb-dot"></span><span>kapi review</span><span class="kapi-ro">read-only</span>`;
+  bar.addEventListener("click", () => toggleReviewMode(getManifest));
   document.body.appendChild(bar);
 }
 
@@ -328,11 +498,60 @@ const STYLES = `
 #kapi-review-panel .kapi-close { position: absolute; top: 8px; right: 10px; border: none; background: none; font-size: 15px; padding: 2px 6px; }
 #kapi-review-toolbar {
   position: fixed; right: 16px; bottom: 16px; z-index: 2147483645;
-  background: #18181b; color: #fafafa; border-radius: 999px; padding: 6px 12px;
-  font: 12px ui-sans-serif, system-ui, sans-serif; display: flex; gap: 8px; align-items: center;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+  background: #18181b; color: #fafafa; border: none; border-radius: 999px; padding: 6px 12px;
+  font: 12px ui-sans-serif, system-ui, sans-serif; display: flex; gap: 7px; align-items: center;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.25); cursor: pointer;
 }
+#kapi-review-toolbar:hover { background: #27272a; }
+#kapi-review-toolbar[data-active] { background: #4f46e5; }
+#kapi-review-toolbar .kapi-tb-dot { width: 7px; height: 7px; border-radius: 50%; background: #a5b4fc; }
+#kapi-review-toolbar[data-active] .kapi-tb-dot { background: #fff; }
 #kapi-review-toolbar .kapi-ro { color: #a5b4fc; }
+#kapi-review-toolbar[data-active] .kapi-ro { color: #c7d2fe; }
+
+/* Whole-page review mode: outline every stamped element; amber = untranslated. */
+html[data-kapi-review-mode] [data-kapi-id],
+html[data-kapi-review-mode] [data-kapi-attr] {
+  outline: 1px dashed rgb(99 102 241 / .75); outline-offset: 1px;
+}
+html[data-kapi-review-mode] [data-kapi-review-untranslated] {
+  outline: 1.5px solid #f59e0b !important; outline-offset: 1px;
+}
+#kapi-review-index {
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 2147483646;
+  width: 320px; max-width: 82vw; display: flex; flex-direction: column;
+  background: #fff; color: #111; border-right: 1px solid #d4d4d8;
+  box-shadow: 4px 0 24px rgb(0 0 0 / .12);
+  font: 13px/1.45 ui-sans-serif, system-ui, sans-serif;
+}
+#kapi-review-index .kapi-idx-head { display: flex; align-items: center; padding: 12px 14px 4px; }
+#kapi-review-index .kapi-idx-title { font-weight: 600; }
+#kapi-review-index .kapi-idx-loc { color: #6366f1; font-variant: small-caps; margin-left: 4px; }
+#kapi-review-index .kapi-idx-close { margin-left: auto; border: none; background: none; font-size: 15px; cursor: pointer; color: inherit; padding: 2px 4px; }
+#kapi-review-index .kapi-idx-sub { padding: 0 14px 8px; color: #71717a; font-size: 11px; }
+#kapi-review-index .kapi-idx-search {
+  margin: 0 14px 8px; padding: 6px 9px; border: 1px solid #d4d4d8; border-radius: 7px;
+  font: inherit; color: inherit; background: #fafafa;
+}
+#kapi-review-index .kapi-idx-list { overflow: auto; padding: 0 8px 12px; }
+#kapi-review-index .kapi-idx-file {
+  display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600;
+  color: #52525b; padding: 10px 6px 4px; position: sticky; top: 0; background: #fff;
+}
+#kapi-review-index .kapi-idx-count { margin-left: auto; color: #a1a1aa; font-weight: 400; }
+#kapi-review-index .kapi-idx-row {
+  display: flex; align-items: flex-start; gap: 8px; width: 100%; text-align: left;
+  border: none; background: none; color: inherit; font: inherit; cursor: pointer;
+  padding: 6px; border-radius: 7px;
+}
+#kapi-review-index .kapi-idx-row:hover { background: #f4f4f5; }
+#kapi-review-index .kapi-idx-row[data-active] { background: #eef2ff; }
+#kapi-review-index .kapi-idx-dot { flex: none; width: 8px; height: 8px; margin-top: 5px; border-radius: 50%; }
+#kapi-review-index .kapi-idx-dot.kapi-ok { background: #22c55e; }
+#kapi-review-index .kapi-idx-dot.kapi-untr { background: #f59e0b; }
+#kapi-review-index .kapi-idx-dot.kapi-unknown { background: #d4d4d8; }
+#kapi-review-index .kapi-idx-text { overflow: hidden; }
+#kapi-review-index .kapi-idx-empty { padding: 16px 8px; color: #a1a1aa; }
 #kapi-review-toast {
   position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 2147483647;
   background: #18181b; color: #fafafa; border-radius: 8px; padding: 8px 14px;
@@ -347,6 +566,12 @@ const STYLES = `
   #kapi-review-panel .kapi-ann { background: #172554; }
   #kapi-review-panel .kapi-ann.kapi-qa { background: #450a0a; }
   #kapi-review-panel button { background: #27272a; border-color: #3f3f46; }
+  #kapi-review-index { background: #18181b; color: #fafafa; border-right-color: #3f3f46; }
+  #kapi-review-index .kapi-idx-file { color: #a1a1aa; background: #18181b; }
+  #kapi-review-index .kapi-idx-search { background: #27272a; border-color: #3f3f46; }
+  #kapi-review-index .kapi-idx-row:hover { background: #27272a; }
+  #kapi-review-index .kapi-idx-row[data-active] { background: #1e1b4b; }
+  #kapi-review-index .kapi-idx-dot.kapi-unknown { background: #3f3f46; }
 }
 `;
 

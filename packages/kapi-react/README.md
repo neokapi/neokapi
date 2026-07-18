@@ -842,6 +842,12 @@ import { initKapiReviewHosted } from "@neokapi/kapi-react/review/hosted";
 initKapiReviewHosted(); // fetches <base>translations/review.json
 ```
 
+- **Whole-page review** — `?kapi-review` (or clicking the toolbar pill)
+  highlights every translated element and opens a browsable index of all
+  strings on the page, grouped by source file, with a per-locale translated
+  count and an untranslated (amber) marker. Each row scrolls to and opens its
+  block. This is the "view a whole file/collection in context" entry point —
+  no specific block hash required. A filter box narrows the list.
 - **Deep link** `?kapi-focus=<hash>` scrolls to the element with that
   block's `data-kapi-id`, outlines it, and opens a read-only panel:
   source, target for the active locale, note, other locales, and term/QA
