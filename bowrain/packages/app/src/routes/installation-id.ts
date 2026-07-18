@@ -10,3 +10,15 @@ export function coerceInstallationId(value: unknown): string | undefined {
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
   return undefined;
 }
+
+/**
+ * Search-param validator: keeps a valid id in its ORIGINAL type so the router
+ * re-serializes the URL unchanged (a coerced string would round-trip as a
+ * JSON-quoted `?installation_id="123"`). Consumers coerce with
+ * {@link coerceInstallationId} at the point of use.
+ */
+export function searchInstallationId(value: unknown): string | number | undefined {
+  if (typeof value === "string" && value !== "") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  return undefined;
+}

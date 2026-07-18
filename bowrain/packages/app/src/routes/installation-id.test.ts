@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { coerceInstallationId } from "./installation-id";
+import { coerceInstallationId, searchInstallationId } from "./installation-id";
+
+describe("searchInstallationId", () => {
+  it("keeps the original type so the URL round-trips unquoted", () => {
+    expect(searchInstallationId(147350515)).toBe(147350515);
+    expect(searchInstallationId("147350515")).toBe("147350515");
+  });
+
+  it("rejects empties and non-ids", () => {
+    expect(searchInstallationId("")).toBeUndefined();
+    expect(searchInstallationId(Number.NaN)).toBeUndefined();
+    expect(searchInstallationId(undefined)).toBeUndefined();
+  });
+});
 
 describe("coerceInstallationId", () => {
   it("passes a string id through", () => {

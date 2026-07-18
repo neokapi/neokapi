@@ -20,6 +20,7 @@ import {
 } from "@neokapi/ui";
 import { projectsQueryOptions, workspacesQueryOptions } from "../queries";
 import { importPhaseFromStatus } from "./import-phase";
+import { coerceInstallationId } from "./installation-id";
 
 /**
  * GitHub App post-install landing: GitHub redirects here (the app's Setup URL)
@@ -70,9 +71,10 @@ function Spinner() {
 }
 
 export function GithubSetupRoute() {
-  const { installation_id: installationId } = useSearch({ strict: false }) as {
-    installation_id?: string;
+  const { installation_id: rawInstallationId } = useSearch({ strict: false }) as {
+    installation_id?: string | number;
   };
+  const installationId = coerceInstallationId(rawInstallationId);
   const api = useApi();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -262,7 +264,9 @@ function RepoRow({
 }) {
   const api = useApi();
   const navigate = useNavigate();
-  const [projectId, setProjectId] = useState("");
+  // Default to creating a project named after the repo — the first-time path
+  // must be one obvious click; picking an existing project stays available.
+  const [projectId, setProjectId] = useState("__new__");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Set once this session's Connect succeeded: the row then tracks the
@@ -442,7 +446,7 @@ function RepoRow({
           </Select>
           {projectId === "__new__" ? (
             <Button size="sm" onClick={() => setCreating(true)}>
-              Create
+              Create project &amp; connect
             </Button>
           ) : (
             <Button

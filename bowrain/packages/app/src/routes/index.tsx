@@ -27,7 +27,7 @@ import {
   ActivityFeedSkeleton,
   TaskBoardSkeleton,
 } from "@neokapi/ui";
-import { coerceInstallationId } from "./installation-id";
+import { searchInstallationId } from "./installation-id";
 import { RootLayout } from "./root-layout";
 import { AuthLayout } from "./auth-layout";
 import { WorkspaceLayout } from "./workspace-layout";
@@ -181,7 +181,7 @@ const githubSetupRoute = createRoute({
   getParentRoute: () => authLayout,
   path: "github/setup",
   validateSearch: (search: Record<string, unknown>) => ({
-    installation_id: coerceInstallationId(search.installation_id),
+    installation_id: searchInstallationId(search.installation_id),
   }),
   component: lazyRouteComponent(() => import("./github-setup"), "GithubSetupRoute"),
 });
