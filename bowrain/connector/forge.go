@@ -199,13 +199,35 @@ func (c *ForgeConnector) Status(ctx context.Context) (*platconn.SyncStatus, erro
 func (c *ForgeConnector) Configure(config map[string]string) error { return c.git.Configure(config) }
 func (c *ForgeConnector) Close() error                             { return c.git.Close() }
 
+// authGit resolves the delivery credential and injects it into the git
+// connector's remote commands. Without this, app-mode fetches of private
+// repositories fail — the App has no static token, so the clone must carry a
+// freshly minted installation token.
+func (c *ForgeConnector) authGit(ctx context.Context) error {
+	token, err := c.tokenFor(ctx)
+	if err != nil {
+		return fmt.Errorf("resolve forge credential: %w", err)
+	}
+	if token == "" {
+		return nil
+	}
+	c.git.SetAuthEnv(c.tokenAuthEnv(token))
+	return nil
+}
+
 // Fetch reads source content from the tracked branch.
 func (c *ForgeConnector) Fetch(ctx context.Context, opts platconn.FetchOptions) ([]*platconn.ContentItem, error) {
+	if err := c.authGit(ctx); err != nil {
+		return nil, err
+	}
 	return c.git.Fetch(ctx, opts)
 }
 
 // List lists content on the tracked branch.
 func (c *ForgeConnector) List(ctx context.Context) ([]*platconn.ContentItem, error) {
+	if err := c.authGit(ctx); err != nil {
+		return nil, err
+	}
 	return c.git.List(ctx)
 }
 

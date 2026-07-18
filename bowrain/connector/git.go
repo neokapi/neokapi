@@ -138,6 +138,7 @@ type GitConnector struct {
 	patterns       []string // glob patterns to discover resource files
 	shallow        bool     // clone with --depth 1 --no-tags
 	noRedirects    bool     // pin http.followRedirects=false on remote commands
+	authEnv        []string // extra env for remote commands (forge token auth)
 	formatRegistry *registry.FormatRegistry
 	fileConnector  *FileConnector
 	config         map[string]string
@@ -214,6 +215,20 @@ func (c *GitConnector) Configure(config map[string]string) error {
 
 func (c *GitConnector) Close() error { return nil }
 
+// SetAuthEnv sets extra environment variables injected into remote git
+// commands (clone/pull/push) — the forge connector uses it to carry a
+// per-fetch credential as an http.extraHeader, keeping the token out of the
+// repo URL and argv.
+func (c *GitConnector) SetAuthEnv(env []string) { c.authEnv = env }
+
+// remoteGitCommand builds a git command for an operation that contacts the
+// remote, with the connector's auth env (if any) appended.
+func (c *GitConnector) remoteGitCommand(ctx context.Context, args ...string) *exec.Cmd {
+	cmd := gitCommand(ctx, args...)
+	cmd.Env = append(cmd.Env, c.authEnv...)
+	return cmd
+}
+
 // ensureRepo clones or pulls the repository.
 func (c *GitConnector) ensureRepo(ctx context.Context) error {
 	if err := c.validate(); err != nil {
@@ -224,7 +239,7 @@ func (c *GitConnector) ensureRepo(ctx context.Context) error {
 		// Repo exists, pull latest. The "--" separator ensures the remote and
 		// branch are treated as positional arguments, never options.
 		args := append(c.globalArgs(), "-C", c.localPath, "pull", "origin", "--", c.branch)
-		cmd := gitCommand(ctx, args...)
+		cmd := c.remoteGitCommand(ctx, args...)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("git pull: %s: %w", string(out), err)
 		}
@@ -238,7 +253,7 @@ func (c *GitConnector) ensureRepo(ctx context.Context) error {
 		args = append(args, "--depth", "1", "--no-tags")
 	}
 	args = append(args, "--branch", c.branch, "--single-branch", "--", c.repoURL, c.localPath)
-	cmd := gitCommand(ctx, args...)
+	cmd := c.remoteGitCommand(ctx, args...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("git clone: %s: %w", string(out), err)
 	}
@@ -322,7 +337,7 @@ func (c *GitConnector) Publish(ctx context.Context, items []*platconn.ContentIte
 	// in a dirty state with unpushed changes. The "--" separator ensures the
 	// branch is treated as a positional refspec, never an option.
 	pushArgs := append(c.globalArgs(), "-C", c.localPath, "push", "origin", "--", c.branch)
-	pushCmd := gitCommand(ctx, pushArgs...)
+	pushCmd := c.remoteGitCommand(ctx, pushArgs...)
 	if out, err := pushCmd.CombinedOutput(); err != nil {
 		// Attempt to undo the commit while keeping the working tree intact.
 		resetCmd := gitCommand(ctx, "-C", c.localPath, "reset", "--soft", "HEAD~1")
