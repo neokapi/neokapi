@@ -187,10 +187,43 @@ func TestCreateReviewTasks_TranslateMode(t *testing.T) {
 	assert.Empty(t, deTasks[0].AssigneeID, "de-DE should be unassigned")
 }
 
-func TestCreateReviewTasks_SkipsWhenWorkflowDisabled(t *testing.T) {
+// TestCreateReviewTasks_DefaultOnWhenPropertyMissing locks the governed-review
+// default: a project that never touched workflow_enabled still fans out review
+// tasks. Only an explicit "false" opts out.
+func TestCreateReviewTasks_DefaultOnWhenPropertyMissing(t *testing.T) {
 	srv, _, wsID := newWorkflowTestServer(t)
 
-	projID := createWorkflowProject(t, srv, wsID, nil) // no workflow_enabled
+	projID := createWorkflowProject(t, srv, wsID, nil) // no workflow_enabled property
+	frUser := addProjectMember(t, srv, wsID, projID, "reviewer", []string{"fr-FR"})
+
+	action := event.AutomationAction{Type: "create_review_tasks"}
+	ev := platev.Event{
+		ProjectID: projID,
+		Data:      map[string]string{"push_id": "p1", "items": "en.json"},
+	}
+	srv.createReviewTasks(t.Context(), action, ev, "")
+
+	res, err := srv.TaskStore.List(t.Context(), bstore.TaskQuery{
+		WorkspaceID: wsID,
+		ProjectID:   projID,
+	})
+	require.NoError(t, err)
+	require.Len(t, res.Tasks, 2, "missing property means review is enabled (one task per locale)")
+
+	localeAssignees := map[string]string{}
+	for _, task := range res.Tasks {
+		localeAssignees[task.Data["locale"]] = task.AssigneeID
+	}
+	assert.Equal(t, frUser, localeAssignees["fr-FR"])
+	assert.Empty(t, localeAssignees["de-DE"], "de-DE has no member and gets an unassigned task")
+}
+
+func TestCreateReviewTasks_SkipsWhenExplicitlyDisabled(t *testing.T) {
+	srv, _, wsID := newWorkflowTestServer(t)
+
+	projID := createWorkflowProject(t, srv, wsID, map[string]string{
+		"workflow_enabled": "false",
+	})
 	addProjectMember(t, srv, wsID, projID, "reviewer", []string{"fr-FR"})
 
 	action := event.AutomationAction{Type: "create_review_tasks"}
@@ -205,7 +238,7 @@ func TestCreateReviewTasks_SkipsWhenWorkflowDisabled(t *testing.T) {
 		ProjectID:   projID,
 	})
 	require.NoError(t, err)
-	assert.Empty(t, res.Tasks, "no tasks should be created when workflow is disabled")
+	assert.Empty(t, res.Tasks, "no tasks when the project explicitly opted out")
 }
 
 func TestCreateSourceReviewTask(t *testing.T) {
@@ -241,6 +274,77 @@ func TestCreateSourceReviewTask(t *testing.T) {
 	assert.Equal(t, bstore.TaskSourceReview, task.Type)
 	assert.Equal(t, reviewerID, task.AssigneeID)
 	assert.Equal(t, "push-src", task.Data["push_id"])
+}
+
+// TestCompletionReviewTasks_ReviewGateSemantics exercises the convergence-run
+// counterpart of the review gate: a completed run fans out per-locale review
+// tasks unless the project explicitly opted out via workflow_enabled=false
+// (missing/empty and "true" both mean enabled).
+func TestCompletionReviewTasks_ReviewGateSemantics(t *testing.T) {
+	tests := []struct {
+		name      string
+		props     map[string]string
+		wantTasks int
+	}{
+		{name: "missing property creates tasks", props: nil, wantTasks: 2},
+		{name: "explicit true creates tasks", props: map[string]string{"workflow_enabled": "true"}, wantTasks: 2},
+		{name: "explicit false creates none", props: map[string]string{"workflow_enabled": "false"}, wantTasks: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv, _, wsID := newWorkflowTestServer(t)
+			projID := createWorkflowProject(t, srv, wsID, tt.props)
+			addProjectMember(t, srv, wsID, projID, "reviewer", []string{"fr-FR"})
+
+			o := newConvergenceOrchestrator(srv)
+			run := &bstore.ConvergenceRun{ID: "run-1", ProjectID: projID, State: bstore.ConvergenceRunConverged}
+			o.createCompletionReviewTasks(t.Context(), run)
+
+			res, err := srv.TaskStore.List(t.Context(), bstore.TaskQuery{
+				WorkspaceID: wsID,
+				ProjectID:   projID,
+			})
+			require.NoError(t, err)
+			require.Len(t, res.Tasks, tt.wantTasks)
+			for _, task := range res.Tasks {
+				assert.Equal(t, bstore.TaskReview, task.Type)
+				assert.Equal(t, "run-1", task.Data["run_id"], "completion tasks point back at their run")
+			}
+		})
+	}
+}
+
+// TestCreateSourceReviewTask_GateSemantics covers the source-review gate under
+// the same opt-out semantics: only an explicit workflow_enabled=false skips it.
+func TestCreateSourceReviewTask_GateSemantics(t *testing.T) {
+	tests := []struct {
+		name      string
+		props     map[string]string
+		wantTasks int
+	}{
+		{name: "missing property creates task", props: nil, wantTasks: 1},
+		{name: "explicit false creates none", props: map[string]string{"workflow_enabled": "false"}, wantTasks: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv, _, wsID := newWorkflowTestServer(t)
+			projID := createWorkflowProject(t, srv, wsID, tt.props)
+
+			action := event.AutomationAction{Type: "create_source_review"}
+			ev := platev.Event{
+				ProjectID: projID,
+				Data:      map[string]string{"push_id": "push-src", "items": "en.json"},
+			}
+			srv.createSourceReviewTask(t.Context(), action, ev, "")
+
+			res, err := srv.TaskStore.List(t.Context(), bstore.TaskQuery{
+				WorkspaceID: wsID,
+				ProjectID:   projID,
+			})
+			require.NoError(t, err)
+			assert.Len(t, res.Tasks, tt.wantTasks)
+		})
+	}
 }
 
 func TestSourceReviewCompletionEmitsEvent(t *testing.T) {

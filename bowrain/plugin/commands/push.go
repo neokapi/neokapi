@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/core/project"
@@ -150,6 +151,7 @@ func runPush(cmd *cobra.Command, args []string) error {
 			out.ChangesetID = cres.ChangesetID
 			out.ChangesetURL = cres.ChangesetURL
 		}
+		applyLoopStatus(&out, proj, conn.Stream())
 	}
 
 	if err := output.Print(cmd, out); err != nil {
@@ -164,6 +166,31 @@ func runPush(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// applyLoopStatus fills the push output's loop footer from the recipe's server
+// block: the effective convergence policy (server.converge; on-push when unset)
+// and the project's web destinations. URLs derive from the compound project URL
+// the way changesetURL does; they need a workspace slug, since the web surfaces
+// live under /<workspace>/. Review work lands on the workspace tasks queue.
+func applyLoopStatus(out *output.PushOutput, proj *project.Project, stream string) {
+	if proj.Recipe == nil || proj.Recipe.Server == nil || proj.Recipe.Server.URL == "" {
+		return
+	}
+	server := proj.Recipe.Server
+	out.Converge = string(server.ResolvedConverge())
+
+	base := strings.TrimRight(server.ServerURL(), "/")
+	ws := server.Workspace()
+	pid := server.ProjectID()
+	if base == "" || ws == "" || pid == "" {
+		return
+	}
+	if stream == "" {
+		stream = "main"
+	}
+	out.ProjectURL = fmt.Sprintf("%s/%s/p/%s/s/%s", base, ws, pid, stream)
+	out.ReviewURL = fmt.Sprintf("%s/%s/tasks", base, ws)
 }
 
 func init() {

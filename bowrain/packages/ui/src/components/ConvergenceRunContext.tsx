@@ -14,18 +14,33 @@ import type { ConvergenceRun } from "../types/api";
  *  - parked (checks)  → "Parked — open review"
  *  - running w/ frozen last_activity → "waiting…"
  *
+ * A completed run with newly produced translations also renders the awaiting-
+ * review element ("N blocks awaiting review" + per-locale breakdown, from the
+ * run's locale standing): governed review is on by default, so the closing
+ * frame of a run is the review hand-off, not a silent dashboard update.
+ *
  * Presentational: the caller wires the next-action navigation via callbacks.
  */
 export interface ConvergenceRunContextProps {
   run: ConvergenceRun;
   /** True while the run's SSE stream is live (drives the "waiting…" idle hint). */
   live?: boolean;
+  /**
+   * Whether the project's review workflow is enabled (default true — governed
+   * review is opt-out). When false, the awaiting-review element is suppressed.
+   */
+  reviewEnabled?: boolean;
   /** Open the source-review worklist/tasks (source_not_ready next action). */
   onSettleSource?: () => void;
   /** Open the buy-credits / upgrade path (needs_credits next action). */
   onBuyCredits?: () => void;
   /** Open the review queue (parked-on-checks next action). */
   onOpenReview?: () => void;
+  /**
+   * Open the review surface for this project/stream (awaiting-review next
+   * action after a completed run). Falls back to onOpenReview when unset.
+   */
+  onOpenReviewSurface?: () => void;
 }
 
 /** Human labels for the loop stage the run reports. */
@@ -78,9 +93,11 @@ function tmAiSummary(run: ConvergenceRun): string | null {
 export function ConvergenceRunContext({
   run,
   live,
+  reviewEnabled,
   onSettleSource,
   onBuyCredits,
   onOpenReview,
+  onOpenReviewSurface,
 }: ConvergenceRunContextProps) {
   const position = positionLine(run, !!live);
   const tmAi = tmAiSummary(run);
@@ -89,7 +106,14 @@ export function ConvergenceRunContext({
   // states carry a stall_reason; a running run without one just shows position.
   const banner = stallBanner(run, { onSettleSource, onBuyCredits, onOpenReview });
 
-  if (!position && !tmAi && !banner) return null;
+  // The review hand-off: a converged run whose new translations await human
+  // sign-off. Parked runs carry the count inside the parked banner instead.
+  const review =
+    reviewEnabled !== false && run.state === "converged"
+      ? awaitingReviewBanner(run, onOpenReviewSurface ?? onOpenReview)
+      : null;
+
+  if (!position && !tmAi && !banner && !review) return null;
 
   return (
     <div className="space-y-3">
@@ -100,7 +124,44 @@ export function ConvergenceRunContext({
         </div>
       )}
       {banner}
+      {review}
     </div>
+  );
+}
+
+/** Blocks this run produced (TM + AI) per locale — the translations that now
+ * sit in the review queue under the default-on governed-review workflow. */
+function awaitingReview(run: ConvergenceRun): { total: number; breakdown: string } {
+  const locales = run.locales ?? [];
+  let total = 0;
+  const parts: string[] = [];
+  for (const l of locales) {
+    const produced = l.produced ?? 0;
+    if (produced > 0) {
+      total += produced;
+      parts.push(`${l.locale} ${produced}`);
+    }
+  }
+  return { total, breakdown: parts.join(" · ") };
+}
+
+/** The completion element for a converged run: "N blocks awaiting review" with
+ * the per-locale breakdown and a deep link into the review surface. Null when
+ * the run produced nothing (nothing new to review). */
+function awaitingReviewBanner(run: ConvergenceRun, onOpenReview?: () => void): ReactNode {
+  const { total, breakdown } = awaitingReview(run);
+  if (total === 0) return null;
+  return (
+    <BannerAlert
+      variant="info"
+      title={`${total} block${total === 1 ? "" : "s"} awaiting review`}
+      body={
+        breakdown
+          ? `The run converged and queued the new translations for review (${breakdown}).`
+          : "The run converged and queued the new translations for review."
+      }
+      action={onOpenReview && { label: "Open review", onClick: onOpenReview }}
+    />
   );
 }
 
@@ -159,13 +220,20 @@ function stallBanner(
     );
   }
 
-  // A parked run with no more specific reason: pending human review.
+  // A parked run with no more specific reason: pending human review. The body
+  // carries the produced count so the parked frame also says how much new work
+  // sits in the review queue.
   if (run.state === "parked") {
+    const { total, breakdown } = awaitingReview(run);
+    let body = "The run advanced everything it could and parked the remainder for review.";
+    if (total > 0) {
+      body += ` ${total} block${total === 1 ? "" : "s"} awaiting review${breakdown ? ` (${breakdown})` : ""}.`;
+    }
     return (
       <BannerAlert
         variant="warning"
         title="Parked — pending review"
-        body="The run advanced everything it could and parked the remainder for review."
+        body={body}
         action={actions.onOpenReview && { label: "Open review", onClick: actions.onOpenReview }}
       />
     );
@@ -190,9 +258,10 @@ function aiRemaining(run: ConvergenceRun): number {
   return remaining;
 }
 
-type BannerVariant = "warning" | "destructive";
+type BannerVariant = "info" | "warning" | "destructive";
 
 const bannerClass: Record<BannerVariant, string> = {
+  info: "border-primary/30 bg-primary/5",
   warning: "border-warning/40 bg-warning/5 text-warning-foreground",
   destructive: "border-destructive/40 bg-destructive/5",
 };

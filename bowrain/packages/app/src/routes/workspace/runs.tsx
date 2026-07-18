@@ -13,7 +13,11 @@ import {
   useWorkspace,
 } from "@neokapi/ui";
 import type { ConvergenceRunScope } from "@neokapi/ui";
-import { convergenceEstimateQueryOptions, convergenceRunsQueryOptions } from "../../queries";
+import {
+  convergenceEstimateQueryOptions,
+  convergenceRunsQueryOptions,
+  projectQueryOptions,
+} from "../../queries";
 import { useConvergenceRunEvents } from "../../hooks/useConvergenceRunEvents";
 import { usePlatform } from "../../platform";
 
@@ -25,7 +29,7 @@ import { usePlatform } from "../../platform";
  * a labeled stall/hold banner with a next action — never a silent spinner.
  */
 export function RunsRoute() {
-  const { projectId } = useParams({ strict: false });
+  const { projectId, stream } = useParams({ strict: false });
   const { activeWorkspace } = useWorkspace();
   const api = useApi();
   const platform = usePlatform();
@@ -48,6 +52,15 @@ export function RunsRoute() {
     enabled: !!ws && !!projectId,
   });
   const runs = runsQuery.data ?? [];
+
+  // The project's review-workflow setting gates the awaiting-review element on
+  // completed runs. Governed review is opt-out: only an explicit "false" hides
+  // it (including while the project is still loading).
+  const projectQuery = useQuery({
+    ...projectQueryOptions(api, ws, projectId ?? "", stream),
+    enabled: !!ws && !!projectId,
+  });
+  const reviewEnabled = projectQuery.data?.properties?.workflow_enabled !== "false";
 
   // The pre-flight estimate — fetched only while the consent dialog is open.
   const estimateQuery = useQuery({
@@ -127,6 +140,13 @@ export function RunsRoute() {
   const goToTasks = () => void navigate({ to: "/$workspace/tasks", params: { workspace: ws } });
   const goToBilling = () =>
     void navigate({ to: "/$workspace/settings/billing", params: { workspace: ws } });
+  // The awaiting-review element deep-links into this project/stream's surface,
+  // where each item's review view opens (block-level sign-off).
+  const goToReviewSurface = () =>
+    void navigate({
+      to: "/$workspace/p/$projectId/s/$stream",
+      params: { workspace: ws, projectId: projectId ?? "", stream: stream ?? "main" },
+    });
 
   return (
     <div className="mx-auto w-full max-w-5xl p-4 md:p-6 space-y-6">
@@ -146,9 +166,11 @@ export function RunsRoute() {
           <ConvergenceRunContext
             run={selectedRun}
             live={platform.kind === "web" && !model.done}
+            reviewEnabled={reviewEnabled}
             onSettleSource={goToTasks}
             onBuyCredits={goToBilling}
             onOpenReview={goToTasks}
+            onOpenReviewSurface={goToReviewSurface}
           />
           <ConvergenceRunView
             model={model}
