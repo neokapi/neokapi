@@ -1,15 +1,20 @@
 ---
 sidebar_position: 4
-title: Translation Memory
+title: Content memory
 ---
 
 import { ThemedVideo } from "@neokapi/docs-shared";
 
-# Translation Memory
+# Content memory
 
-The Translation Memory (TM) Explorer provides full access to the workspace translation memory. TM entries are pairs of source and target text segments that can be reused across projects to maintain consistency and speed up translation.
+The content memory holds pairs of source and target text segments that Bowrain
+reuses across projects to keep translations consistent and avoid re-translating
+what the workspace has already settled. In the engine this store is the
+translation memory (TM) — this page uses TM when referring to the mechanism
+(entries, matches, scores).
 
-Translation memory and terminology live on the server, shared across every project and translator — searchable and versioned.
+The content memory and terminology live on the server, shared across every
+project and translator — searchable and versioned.
 
 <ThemedVideo
   sources={{
@@ -18,16 +23,19 @@ Translation memory and terminology live on the server, shared across every proje
   }}
 />
 
-## Accessing the TM Explorer
+## Opening the content memory
 
-There are two ways to open the TM Explorer:
+There are two ways to open the content memory browser:
 
-1. **From a project** — click the **Translation Memory** button in the project view header. This opens the TM Explorer with the project's source and target locales pre-selected.
-2. **From the sidebar** — click **Memory** in the main sidebar to access the workspace-scoped TM Explorer without locale pre-filtering.
+1. **From a project** — click the **Content memory** button in the project view
+   header. This opens the browser with the project's source and target locales
+   pre-selected.
+2. **From the sidebar** — click **Content memory** in the main sidebar to browse
+   the workspace-scoped content memory without locale pre-filtering.
 
 ## Browsing Entries
 
-The TM Explorer displays entries in a paginated table with these columns:
+The browser displays entries in a paginated table with these columns:
 
 | Column            | Description                      |
 | ----------------- | -------------------------------- |
@@ -83,15 +91,17 @@ When there are more than 50 entries, pagination controls appear below the table:
 - **Previous** / **Next** buttons to navigate pages
 - **Page X of Y** indicator showing current position
 
-## TM in the Translation Editor
+## Content memory in editing and review
 
-The TM is also used within the translation editor:
+The content memory also assists translation work outside the browser:
 
-- **TM Lookup** toolbar button — matches all source blocks against the TM and applies matches above the threshold
-- **Context panel** — shows per-block TM matches with scores, match types, and one-click apply
-- **TM Translate** — bulk-applies TM matches across the entire file
-
-See [Translation Editor](./translation-editor.mdx) for details on context panel TM matching.
+- **Context panel** — the [translation editor](./translation-editor.mdx) shows
+  per-block TM matches with scores and match types, with one-click apply.
+- **Bulk recycle** — [Pre-process](./pre-process.md) pre-fills targets from the
+  content memory across the whole file; exact and high-confidence fuzzy matches
+  land as drafts you can review.
+- **Apply exact TM** — [Review](./review.mdx) fills selected blocks from exact
+  (100%) matches.
 
 ## Match scores
 
@@ -101,4 +111,4 @@ Each TM match receives a score from 0 to 100% representing how closely the sourc
 - **Yellow** (70–99%) — fuzzy match
 - Lower scores appear with reduced emphasis
 
-Bowrain's matching accounts for inline formatting differences, so a source segment and a stored entry can match even if their tag structure differs slightly. For more on how translation memory works across projects, see the [Neokapi TM documentation](https://neokapi.github.io/web/neokapi/).
+Bowrain's matching accounts for inline formatting differences, so a source segment and a stored entry can match even if their tag structure differs slightly. For more on how the underlying TM engine matches across projects, see the [Neokapi TM documentation](https://neokapi.github.io/web/neokapi/).
