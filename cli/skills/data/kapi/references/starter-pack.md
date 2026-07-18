@@ -159,8 +159,8 @@ default `converge: on-push` — the server picks up translation, checks, and
 review queueing from there. An anonymous project pushes too (the machine that
 ran init holds the claim token), but prints no workspace URLs until claimed.
 
-**Terminology reaches the server after the claim.** Concept sync needs a
-claimed workspace and a pulled baseline, so the first push carries content
+**Terminology and the voice profile reach the server after the claim.** Both
+are workspace-scoped, so an anonymous project's first push carries content
 only. Once the user has claimed — they open the claim URL, or you run
 `kapi auth login` then `kapi auth claim` (which also rebinds the recipe to the
 workspace URL):
@@ -170,9 +170,14 @@ kapi pull               # establish the concept baseline
 kapi push --concepts    # reconcile the local termbase into the server's terminology hub
 ```
 
-The voice profile itself is not uploaded: `brand.yaml` travels in git, and
-`kapi check --ship` enforces it wherever the repo is checked out (dev machines,
-CI).
+**The bound voice profile travels with the push.** On a workspace project,
+`kapi push` upserts it into the workspace brand hub, matched by profile name:
+created on first push, a no-op when unchanged, a new server-side version when
+it changed — server-side edits are archived in the version history, never
+overwritten, and rules the server promoted from corrections are kept.
+`--no-brand` skips it. `brand.yaml` still travels in git, and
+`kapi check --ship` enforces it wherever the repo is checked out (dev
+machines, CI).
 
 ## 6. Hand back a loop
 
