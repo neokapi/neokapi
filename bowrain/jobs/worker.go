@@ -13,6 +13,7 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
+	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
 	corestorage "github.com/neokapi/neokapi/core/storage"
@@ -144,7 +145,12 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 			continue
 		}
 
-		processErr := processJobWithDeps(ctx, deps, jobID)
+		// Seed the job ID as the correlation ID so every log line emitted while
+		// processing this job carries request_id=<jobID> — the same ID a user
+		// sees for the job/run — and any Sentry capture is tagged with it.
+		jobCtx := observe.WithRequestID(ctx, jobID)
+
+		processErr := processJobWithDeps(jobCtx, deps, jobID)
 		if processErr != nil {
 			var te *transientError
 			if errors.As(processErr, &te) {
@@ -163,17 +169,20 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 				// fresh enqueue fails, so the broker can still redeliver if it
 				// happens to hold the message.
 				if eqErr := deps.Queue.Enqueue(ctx, jobID); eqErr != nil {
-					slog.WarnContext(ctx, "job transient failure; re-enqueue failed, nacking instead",
+					slog.WarnContext(jobCtx, "job transient failure; re-enqueue failed, nacking instead",
 						"job_id", jobID, "error", processErr, "enqueue_error", eqErr)
 					nack()
 				} else {
-					slog.WarnContext(ctx, "job transient failure; re-enqueued fresh message for retry",
+					slog.WarnContext(jobCtx, "job transient failure; re-enqueued fresh message for retry",
 						"job_id", jobID, "error", processErr)
 					ack()
 				}
 				continue
 			}
-			slog.ErrorContext(ctx, "job failed", "job_id", jobID, "error", processErr)
+			slog.ErrorContext(jobCtx, "job failed", "job_id", jobID, "error", processErr)
+			// Permanent failure (or exhausted retries): report to Sentry, tagged
+			// with the job ID so it resolves from the client-visible reference.
+			observe.CaptureError(processErr, jobID, map[string]string{"kind": "job", "job_id": jobID})
 		}
 		// Success, permanent failure, or exhausted retries: processJobWithDeps
 		// has recorded the terminal status in the DB, so ACK to drop the

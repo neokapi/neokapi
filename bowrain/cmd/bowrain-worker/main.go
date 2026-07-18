@@ -37,6 +37,7 @@ import (
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	corestorage "github.com/neokapi/neokapi/core/storage"
+	"github.com/neokapi/neokapi/core/version"
 	fwsievepen "github.com/neokapi/neokapi/sievepen"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
@@ -53,13 +54,19 @@ func main() {
 		os.Getenv("BOWRAIN_LOG_LEVEL"),
 	)
 
+	// Error tracking (no-op without SENTRY_DSN). Flushed at the end of run().
+	observe.InitSentryFromEnv("worker", version.Version+"+"+version.Commit)
+
 	if err := run(); err != nil {
 		slog.Error("worker failed", "error", err)
+		observe.FlushSentry(2 * time.Second)
 		os.Exit(1)
 	}
 }
 
 func run() error {
+	defer observe.FlushSentry(2 * time.Second)
+
 	allowInsecureDev := flag.Bool("allow-insecure-dev", false,
 		"Allow starting without BOWRAIN_DATABASE_URL (local development only; also BOWRAIN_ALLOW_INSECURE_DEV=1)")
 	flag.Parse()
