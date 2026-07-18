@@ -96,9 +96,15 @@ func (s *Server) HandleCreateWorkspace(c echo.Context) error {
 		}
 	}
 
+	// Every new workspace receives its one-time trial credit grant (idempotent,
+	// once per workspace, ever) — the AI credits it lives on until it converts
+	// to a paid plan with a monthly allowance.
+	billing.EnsureTrialGrant(ctx, s.BillingStore, w.ID)
+
 	// Set up the trial for new workspaces using the ctrl-managed new-workspace
 	// defaults (plan + trial length), so an admin can change them without a
 	// redeploy. Falls back to the product defaults (Pro, 14 days) when unset.
+	// The trial grants plan FEATURES only; its credits are the grant above.
 	var planSyncer billing.WorkspacePlanSyncer
 	if s.AuthStore != nil {
 		planSyncer = s.planSyncer()

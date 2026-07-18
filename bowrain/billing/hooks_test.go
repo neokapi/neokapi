@@ -166,7 +166,7 @@ func TestUsageHooks_CheckCreditThresholds_NoNotifier(t *testing.T) {
 }
 
 // thresholdFakeStore decouples the plan-only allocation from the full spendable
-// balance so the MINOR-7 case can be expressed: a depleted weekly plan bucket
+// balance so the MINOR-7 case can be expressed: a depleted monthly plan bucket
 // while purchased credits keep CheckCredits positive. It embeds BillingStore so
 // only the two methods checkCreditThresholds calls are provided.
 type thresholdFakeStore struct {
@@ -184,10 +184,10 @@ func (f *thresholdFakeStore) CheckCredits(context.Context, string) (int64, error
 }
 
 // TestUsageHooks_CheckCreditThresholds_PurchasedSuppressesExhaustion is the
-// MINOR-7 regression: when the weekly PLAN bucket is fully consumed but purchased
-// credits keep the spendable balance positive, the workspace must not be told it
-// is out of credits. Exhaustion is judged on CheckCredits (plan + purchased), not
-// the plan-only allocation.
+// MINOR-7 regression: when the monthly PLAN bucket is fully consumed but
+// purchased credits keep the spendable balance positive, the workspace must not
+// be told it is out of credits. Exhaustion is judged on CheckCredits (plan +
+// trial + purchased), not the plan-only allocation.
 func TestUsageHooks_CheckCreditThresholds_PurchasedSuppressesExhaustion(t *testing.T) {
 	sender := &mockEmailSender{}
 	h := &UsageHooks{

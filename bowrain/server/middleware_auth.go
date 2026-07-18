@@ -294,11 +294,15 @@ func WorkspaceAccessMiddleware(authStore auth.AuthStore) echo.MiddlewareFunc {
 	}
 }
 
-// WeeklyAllocationMiddleware lazily ensures a weekly credit allocation exists
-// for the current workspace. It reads the plan from context (set by
-// WorkspaceAccessMiddleware) and calls EnsureWeeklyAllocation once per week.
-// When billing is not configured (store is nil or plan is empty), this is a no-op.
-func WeeklyAllocationMiddleware(store billing.BillingStore) echo.MiddlewareFunc {
+// MonthlyAllocationMiddleware lazily ensures the workspace's credit rows exist.
+// It reads the plan from context (set by WorkspaceAccessMiddleware) and, for
+// PAID plans, ensures the current month's plan allocation (once per month; a
+// still-trialing subscription is skipped inside EnsureMonthlyAllocation). For
+// plans with no recurring allowance (Free) it instead ensures the one-time
+// trial grant — a lazy backfill for workspaces created before the trial-grant
+// model; workspaces created after it get the grant at creation. When billing is
+// not configured (store is nil or plan is empty), this is a no-op.
+func MonthlyAllocationMiddleware(store billing.BillingStore) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			if store == nil {
@@ -309,8 +313,21 @@ func WeeklyAllocationMiddleware(store billing.BillingStore) echo.MiddlewareFunc 
 			if wsID == "" || planStr == "" {
 				return next(c)
 			}
-			// Fire and forget — allocation is idempotent and fast.
-			_, _ = billing.EnsureWeeklyAllocation(c.Request().Context(), store, wsID, billing.Plan(planStr))
+			// Fire and forget — both paths are idempotent and fast.
+			plan := billing.Plan(planStr)
+			if billing.CreditsForPlan(plan) != 0 {
+				alloc, _ := billing.EnsureMonthlyAllocation(c.Request().Context(), store, wsID, plan)
+				if alloc == nil {
+					// A paid plan with no live allocation is a still-trialing
+					// subscription (EnsureMonthlyAllocation's skip): its credits
+					// are the trial grant, so backfill that instead — this also
+					// covers workspaces that were mid-trial when the trial-grant
+					// model shipped.
+					billing.EnsureTrialGrant(c.Request().Context(), store, wsID)
+				}
+			} else {
+				billing.EnsureTrialGrant(c.Request().Context(), store, wsID)
+			}
 			return next(c)
 		}
 	}

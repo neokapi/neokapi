@@ -2893,7 +2893,8 @@ export class RestApiAdapter implements ApiAdapter {
       credits_total: number;
       credits_used: number;
       credits_remaining: number;
-      week_resets_at: string;
+      spendable_credits?: number;
+      month_resets_at: string;
       subscription?: BillingSubscriptionDTO;
     }>(this.billingEp(workspaceSlug));
 
@@ -2914,8 +2915,9 @@ export class RestApiAdapter implements ApiAdapter {
         creditsTotal: raw.credits_total,
         creditsUsed: raw.credits_used,
         creditsRemaining: raw.credits_remaining,
-        weekEnd: raw.week_resets_at,
+        resetsAt: raw.month_resets_at,
       },
+      spendableCredits: raw.spendable_credits ?? raw.credits_remaining,
       stripeCustomerId: raw.subscription?.stripe_customer_id || undefined,
     };
   }

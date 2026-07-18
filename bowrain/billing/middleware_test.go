@@ -92,8 +92,8 @@ func (m *mockBillingStore) GetCurrentAllocation(_ context.Context, _ string) (*C
 	return &CreditAllocation{
 		CreditsTotal: total,
 		CreditsUsed:  used,
-		WeekStart:    WeekStart(now),
-		WeekEnd:      WeekEnd(now),
+		PeriodStart:  MonthStart(now),
+		PeriodEnd:    MonthEnd(now),
 	}, nil
 }
 func (m *mockBillingStore) DeductCredits(context.Context, string, int64, string, string) error {
@@ -104,6 +104,9 @@ func (m *mockBillingStore) CheckCredits(_ context.Context, _ string) (int64, err
 }
 func (m *mockBillingStore) GrantCredits(context.Context, string, int64, string) error { return nil }
 func (m *mockBillingStore) GrantPurchasedCredits(context.Context, string, int64, string) (bool, error) {
+	return true, nil
+}
+func (m *mockBillingStore) GrantTrialCredits(context.Context, string, int64) (bool, error) {
 	return true, nil
 }
 func (m *mockBillingStore) GetLedger(context.Context, string, time.Time, time.Time) ([]LedgerEntry, error) {

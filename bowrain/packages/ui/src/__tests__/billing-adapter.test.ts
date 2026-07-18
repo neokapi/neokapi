@@ -40,15 +40,16 @@ describe("billingGetOverview", () => {
   it("maps the server's snake_case payload into the UI shape", async () => {
     mockFetch({
       plan: "pro",
-      status: "trialing",
-      credits_total: 500_000,
+      status: "active",
+      credits_total: 2_000_000,
       credits_used: 123_000,
-      credits_remaining: 377_000,
-      week_resets_at: "2026-07-20T00:00:00Z",
+      credits_remaining: 1_877_000,
+      spendable_credits: 2_077_000,
+      month_resets_at: "2026-08-01T00:00:00Z",
       subscription: {
         workspace_id: "ws-1",
         plan: "pro",
-        status: "trialing",
+        status: "active",
         seat_count: 3,
         stripe_customer_id: "cus_123",
         trial_ends_at: "2026-07-25T00:00:00Z",
@@ -61,21 +62,26 @@ describe("billingGetOverview", () => {
     expect(overview.subscription.seatCount).toBe(3);
     expect(overview.subscription.trialEndsAt).toBe("2026-07-25T00:00:00Z");
     // The credit card renders only when this is defined — it never was.
-    expect(overview.credits.creditsTotal).toBe(500_000);
+    expect(overview.credits.creditsTotal).toBe(2_000_000);
     expect(overview.credits.creditsUsed).toBe(123_000);
-    expect(overview.credits.weekEnd).toBe("2026-07-20T00:00:00Z");
+    expect(overview.credits.resetsAt).toBe("2026-08-01T00:00:00Z");
+    // The full multi-bucket balance (plan + trial grant + purchased packs).
+    expect(overview.spendableCredits).toBe(2_077_000);
     // The Manage Subscription button renders only when this is defined.
     expect(overview.stripeCustomerId).toBe("cus_123");
   });
 
   it("falls back to the top-level plan when a workspace has no subscription row", async () => {
+    // A Free workspace: no monthly plan bucket (Free has no recurring
+    // allowance); spendable_credits carries the remaining one-time trial grant.
     mockFetch({
       plan: "free",
       status: "active",
-      credits_total: 50_000,
+      credits_total: 0,
       credits_used: 0,
-      credits_remaining: 50_000,
-      week_resets_at: "2026-07-20T00:00:00Z",
+      credits_remaining: 0,
+      spendable_credits: 200_000,
+      month_resets_at: "2026-08-01T00:00:00Z",
       subscription: { workspace_id: "ws-1", plan: "free", status: "active", seat_count: 0 },
     });
 
@@ -83,6 +89,7 @@ describe("billingGetOverview", () => {
 
     expect(overview.subscription.plan).toBe("free");
     expect(overview.subscription.seatCount).toBe(1);
+    expect(overview.spendableCredits).toBe(200_000);
     expect(overview.stripeCustomerId).toBeUndefined();
   });
 });

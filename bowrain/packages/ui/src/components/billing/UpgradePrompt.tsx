@@ -17,10 +17,13 @@ const planLabels: Record<BillingPlan, string> = {
   enterprise: "Enterprise",
 };
 
+// Only capabilities the product actually has and gates (AD-018: a highlight
+// nothing enforces is a promise the code does not keep). Credit numbers mirror
+// billing/plans.go MonthlyCredits.
 const planHighlights: Record<BillingPlan, string[]> = {
   free: [],
-  pro: ["500K weekly credits", "Git connectors", "API access", "Custom MT providers"],
-  team: ["2M weekly credits", "Unlimited seats", "@bravo code execution", "Custom connectors"],
+  pro: ["2M monthly credits", "Git connectors", "API access"],
+  team: ["8M monthly credits", "Unlimited seats", "Priority support"],
   enterprise: ["Custom credits", "SSO/SAML", "Dedicated support", "Custom agreements"],
 };
 

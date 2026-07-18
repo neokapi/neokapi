@@ -74,35 +74,16 @@ func TestUpsellOpportunity_SuggestedPlanUpgrade(t *testing.T) {
 	}
 }
 
-func TestDetectCreditExhaustion_QueryShape(t *testing.T) {
-	// Verify WeekStart calculation used in detectCreditExhaustion.
+func TestDetectUsageWindow_QueryShape(t *testing.T) {
+	// Verify the month-window calculation used by detectHighUsage and
+	// detectDormantPaid: the current and two prior monthly allocations.
 	now := time.Date(2026, 3, 20, 12, 0, 0, 0, time.UTC)
-	twoWeeksAgo := WeekStart(now.AddDate(0, 0, -14))
+	windowStart := MonthStart(now.AddDate(0, -2, 0))
 
-	assert.Equal(t, time.Monday, twoWeeksAgo.Weekday())
-	assert.True(t, twoWeeksAgo.Before(now))
+	assert.Equal(t, 1, windowStart.Day())
+	assert.True(t, windowStart.Before(now))
 
-	// Two weeks back from March 20 (Friday) should be March 2 (Monday).
-	expected := time.Date(2026, 3, 2, 0, 0, 0, 0, time.UTC)
-	assert.Equal(t, expected, twoWeeksAgo)
-}
-
-func TestDetectHighUsage_QueryShape(t *testing.T) {
-	now := time.Date(2026, 3, 20, 12, 0, 0, 0, time.UTC)
-	threeWeeksAgo := WeekStart(now.AddDate(0, 0, -21))
-
-	assert.Equal(t, time.Monday, threeWeeksAgo.Weekday())
-	assert.True(t, threeWeeksAgo.Before(now))
-}
-
-func TestDetectDormantPaid_QueryShape(t *testing.T) {
-	now := time.Date(2026, 3, 20, 12, 0, 0, 0, time.UTC)
-	fourWeeksAgo := WeekStart(now.AddDate(0, 0, -28))
-
-	assert.Equal(t, time.Monday, fourWeeksAgo.Weekday())
-	assert.True(t, fourWeeksAgo.Before(now))
-
-	// Four weeks back from March 20 should be Feb 16 (Monday).
-	expected := time.Date(2026, 2, 16, 0, 0, 0, 0, time.UTC)
-	assert.Equal(t, expected, fourWeeksAgo)
+	// Two months back from March 20 starts the window at January 1.
+	expected := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	assert.Equal(t, expected, windowStart)
 }

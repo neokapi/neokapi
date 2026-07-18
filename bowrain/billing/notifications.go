@@ -25,11 +25,11 @@ func (n *BillingNotifier) NotifyCreditsWarning(ctx context.Context, email, works
 		return
 	}
 
-	resetAt := WeekEnd(time.Now().UTC())
+	resetAt := MonthEnd(time.Now().UTC())
 	pct := float64(used) / float64(total) * 100
 	subject := "Your Bowrain credits are running low"
-	body := fmt.Sprintf(`<p>Your workspace has used %.0f%% of its weekly AI credits (%d of %d).</p>
-<p>Credits will reset on %s.</p>
+	body := fmt.Sprintf(`<p>Your workspace has used %.0f%% of its monthly AI credits (%d of %d).</p>
+<p>Your plan credits will reset on %s.</p>
 <p>Need more credits? <a href="https://app.bowrain.cloud/pricing">Upgrade your plan</a> or purchase a credit pack.</p>`,
 		pct, used, total, resetAt.Format("Monday, January 2"))
 	if err := n.Sender.Send(ctx, email, subject, body); err != nil {
@@ -43,10 +43,10 @@ func (n *BillingNotifier) NotifyCreditsExhausted(ctx context.Context, email, wor
 		return
 	}
 
-	resetAt := WeekEnd(time.Now().UTC())
+	resetAt := MonthEnd(time.Now().UTC())
 	subject := "Your Bowrain AI credits are exhausted"
-	body := fmt.Sprintf(`<p>Your workspace has used all available AI credits for this week.</p>
-<p>AI features are paused until credits reset on %s.</p>
+	body := fmt.Sprintf(`<p>Your workspace has used all of its available AI credits.</p>
+<p>AI features are paused. On a paid plan, monthly credits reset on %s.</p>
 <p><a href="https://app.bowrain.cloud/pricing">Upgrade your plan</a> or <a href="https://app.bowrain.cloud/billing">purchase a credit pack</a> for immediate access.</p>`,
 		resetAt.Format("Monday, January 2"))
 	if err := n.Sender.Send(ctx, email, subject, body); err != nil {

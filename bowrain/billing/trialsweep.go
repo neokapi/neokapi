@@ -24,8 +24,8 @@ type TrialSweepStore interface {
 //
 // Nothing else can end them: the trial is card-free, so there is no Stripe
 // subscription whose lifecycle events would downgrade the workspace. Without
-// this loop every signup keeps Pro limits and Pro weekly credits forever, which
-// is precisely the state the platform was in before epic 005.
+// this loop every signup keeps Pro limits forever, which is precisely the
+// state the platform was in before epic 005.
 //
 // A trial that converts needs no sweeping — the checkout webhook overwrites plan
 // and status, and clears trial_ends_at, so the row no longer matches.

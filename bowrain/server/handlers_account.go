@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/mailer"
 )
@@ -105,6 +106,11 @@ func (s *Server) HandleCompleteOnboarding(c echo.Context) error {
 	if err != nil {
 		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
+	// The personal workspace receives its one-time trial credit grant here —
+	// the onboarding path does not go through HandleCreateWorkspace. Idempotent
+	// (once per workspace, ever), so the idempotent re-onboarding case cannot
+	// double-grant.
+	billing.EnsureTrialGrant(c.Request().Context(), s.BillingStore, w.ID)
 	w.Role = platauth.RoleOwner
 	return c.JSON(http.StatusOK, w)
 }

@@ -169,7 +169,7 @@ func TestExpireTrials_ConvertedTrialIsNotSwept(t *testing.T) {
 }
 
 // The sweep downgrades the workspace's cached plan (so authorization and the
-// weekly-credit grant stop treating it as Pro) and records the audit event.
+// monthly-credit grant stop treating it as Pro) and records the audit event.
 func TestTrialSweeper_SyncsPlanAndRecordsEvent(t *testing.T) {
 	store := newTrialTestStore(t)
 	ctx := t.Context()
@@ -182,8 +182,9 @@ func TestTrialSweeper_SyncsPlanAndRecordsEvent(t *testing.T) {
 
 	NewTrialSweeper(store, time.Hour).sweep(ctx)
 
-	// The plan cache — what the hot path actually reads — must be Free now, or the
-	// workspace keeps drawing 500K Pro credits a week for nothing.
+	// The plan cache — what the hot path actually reads — must be Free now, or
+	// the workspace keeps Pro limits (and, once no longer trialing, would draw
+	// the Pro monthly allowance) for nothing.
 	assert.Equal(t, string(PlanFree), workspacePlan(t, store, "ws-1"))
 
 	events, err := store.ListBillingEvents(ctx, 10, 0, "trial_expired")
@@ -194,7 +195,7 @@ func TestTrialSweeper_SyncsPlanAndRecordsEvent(t *testing.T) {
 
 // The cache downgrade is atomic with the subscription downgrade: ExpireTrials
 // updates both in one statement, so a workspace can never be left on the Pro
-// plan cache (and its weekly Pro credit grant) after its trial has ended.
+// plan cache (and Pro limits) after its trial has ended.
 func TestExpireTrials_UpdatesPlanCacheAtomically(t *testing.T) {
 	store := newTrialTestStore(t)
 	ctx := t.Context()

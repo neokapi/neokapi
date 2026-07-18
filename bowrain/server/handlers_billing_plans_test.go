@@ -174,7 +174,8 @@ func TestListPlans_PurchasableFollowsConfiguredPrices(t *testing.T) {
 	assert.False(t, plans[billing.PlanFree].Purchasable, "free is the downgrade target, not a purchase")
 	assert.False(t, plans[billing.PlanEnterprise].Purchasable, "enterprise is sold by hand")
 
-	assert.Equal(t, int64(500_000), plans[billing.PlanPro].WeeklyCredits)
+	assert.Equal(t, int64(billing.ProMonthlyCredits), plans[billing.PlanPro].MonthlyCredits)
+	assert.Equal(t, int64(0), plans[billing.PlanFree].MonthlyCredits, "free has no recurring allowance")
 	assert.True(t, plans[billing.PlanTeam].PerSeat)
 }
 

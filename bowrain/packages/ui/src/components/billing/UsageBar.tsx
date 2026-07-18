@@ -3,13 +3,14 @@ import { cn } from "@neokapi/ui-primitives";
 export interface UsageBarProps {
   creditsUsed: number;
   creditsTotal: number;
-  weekEnd: Date;
+  /** When the monthly plan allowance resets (first of next month, UTC). */
+  resetsAt: Date;
   className?: string;
 }
 
-function formatCountdown(weekEnd: Date): string {
+function formatCountdown(resetsAt: Date): string {
   const now = new Date();
-  const diff = weekEnd.getTime() - now.getTime();
+  const diff = resetsAt.getTime() - now.getTime();
   if (diff <= 0) return "Resetting now";
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -25,7 +26,7 @@ function formatCredits(n: number): string {
   return String(n);
 }
 
-export function UsageBar({ creditsUsed, creditsTotal, weekEnd, className }: UsageBarProps) {
+export function UsageBar({ creditsUsed, creditsTotal, resetsAt, className }: UsageBarProps) {
   const pct = creditsTotal > 0 ? Math.min((creditsUsed / creditsTotal) * 100, 100) : 0;
 
   const barColor =
@@ -49,7 +50,7 @@ export function UsageBar({ creditsUsed, creditsTotal, weekEnd, className }: Usag
           style={{ width: `${pct}%` }}
         />
       </div>
-      <div className="text-xs text-muted-foreground">{formatCountdown(weekEnd)}</div>
+      <div className="text-xs text-muted-foreground">{formatCountdown(resetsAt)}</div>
     </div>
   );
 }

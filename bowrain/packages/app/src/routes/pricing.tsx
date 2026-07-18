@@ -50,8 +50,9 @@ const enterprisePlanFeatures: PlanFeature[] = [
 
 const comparisonFeatures: ComparisonFeature[] = [
   {
-    label: "Weekly AI Credits",
-    values: { free: "50K", pro: "500K", team: "2M", enterprise: "Custom" },
+    // Numbers mirror billing/plans.go (MonthlyCredits / FreeTrialGrantCredits).
+    label: "Monthly AI Credits",
+    values: { free: "200K one-time", pro: "2M", team: "8M", enterprise: "Custom" },
   },
   {
     label: "Projects",
@@ -81,16 +82,20 @@ const comparisonFeatures: ComparisonFeature[] = [
 
 const faqItems = [
   {
-    q: "How do weekly credits work?",
-    a: "Every Monday at 00:00 UTC, your credit balance resets to your plan's weekly allocation. One credit equals one AI token (input or output). AI translation and quality checks consume 1 credit per token.",
+    q: "How do monthly credits work?",
+    a: "On the 1st of each month at 00:00 UTC, a paid plan's credit balance resets to its monthly allocation. One credit equals one AI token (input or output). AI translation and quality checks consume 1 credit per token.",
+  },
+  {
+    q: "How do credits work on the Free plan?",
+    a: "Every new workspace receives a one-time grant of 200K trial credits. They never expire, but they also don't renew — once spent, you can upgrade to a paid plan with a monthly allowance, buy a credit pack, or bring your own AI key.",
   },
   {
     q: "What happens when I run out of credits?",
-    a: "AI features pause until the next weekly reset. You can also buy a credit pack ($5 for 200K credits) at any time — nothing is ever purchased automatically on your behalf.",
+    a: "AI features pause. On a paid plan they resume at the next monthly reset; you can also buy a credit pack ($5 for 200K credits) at any time — nothing is ever purchased automatically on your behalf.",
   },
   {
     q: "Can I use my own AI provider key?",
-    a: "Yes, on every plan including Free. Work that runs on your own key uses no credits at all — you pay your provider directly, and Bowrain's weekly allowance stays untouched.",
+    a: "Yes, on every plan including Free. Work that runs on your own key uses no credits at all — you pay your provider directly, and Bowrain's credit balance stays untouched.",
   },
   {
     q: "Can I change plans at any time?",
@@ -102,11 +107,11 @@ const faqItems = [
   },
   {
     q: "Do unused credits roll over?",
-    a: "Weekly plan credits do not roll over — they reset each Monday, which keeps costs predictable. Credit packs are different: they never expire, and they are only drawn from after your weekly allowance runs out.",
+    a: "Monthly plan credits do not roll over — they reset on the 1st of each month, which keeps costs predictable. Trial credits and credit packs are different: they never expire, and packs are only drawn from after your plan and trial credits run out.",
   },
   {
     q: "Is there a free trial?",
-    a: "Every new workspace starts with a 14-day Pro trial — no card required. When it ends, the workspace moves to the Free plan, which is free forever and includes 50K weekly credits and full access to the translation editor.",
+    a: "Every new workspace starts with a 14-day Pro trial — no card required — plus the one-time 200K trial credits. When the trial ends, the workspace moves to the Free plan and keeps whatever trial credits remain, along with full access to the translation editor.",
   },
 ];
 
@@ -140,7 +145,7 @@ export function PricingRoute() {
           Simple, transparent pricing
         </h1>
         <p className="mt-3 text-lg text-muted-foreground">
-          Start free. Scale as you grow. Weekly credits keep costs predictable.
+          Start free. Scale as you grow. Monthly credits keep costs predictable.
         </p>
       </div>
 
@@ -151,7 +156,7 @@ export function PricingRoute() {
           name="Free"
           price="$0"
           description="Get started with AI-powered localization"
-          credits="50K credits / week"
+          credits="200K one-time trial credits"
           features={freePlanFeatures}
           ctaLabel="Get Started"
           onSelect={() => (window.location.href = "/api/v1/auth/login")}
@@ -162,7 +167,7 @@ export function PricingRoute() {
           price="$25"
           period="mo"
           description="For professionals and small teams"
-          credits="500K credits / week"
+          credits="2M credits / month"
           recommended
           features={proPlanFeatures}
           ctaLabel="Start with Pro"
@@ -173,7 +178,7 @@ export function PricingRoute() {
           price="$20"
           period="seat/mo"
           description="For growing teams"
-          credits="2M credits / week"
+          credits="8M credits / month"
           features={teamPlanFeatures}
           ctaLabel="Start with Team"
         />

@@ -40,9 +40,10 @@ func (s *Server) insufficientPlatformCredits(ctx context.Context, workspaceID, p
 }
 
 // errInsufficientCredits is the enqueue-refusal payload for a zero-credit
-// platform-key job. It points the caller at the two ways forward.
+// platform-key job. It points the caller at the ways forward (the monthly
+// reset applies only to paid plans; Free has no recurring allowance).
 var errInsufficientCredits = ErrorResponse{
-	Error: "insufficient credits: purchase a credit pack, wait for the weekly reset, or configure your own AI provider key",
+	Error: "insufficient credits: purchase a credit pack, upgrade your plan, wait for your plan's monthly reset, or configure your own AI provider key",
 }
 
 // HandleCreateTranslationJob creates a new async translation job and enqueues it.

@@ -4,13 +4,14 @@ import { CONTACT_EMAIL, SIGNUP_URL } from "../links";
 import { useReveal } from "../useReveal";
 
 // Tiers mirror the real billing model one-for-one:
-// bowrain/billing/plans.go (plan ids, weekly credits, seat/project limits,
-// feature gates) and DECISIONS L4 ($0 / $25 / $20 per seat / custom; $5
-// credit pack = 200K credits, packs don't expire). Never per-word pricing.
+// bowrain/billing/plans.go (plan ids, monthly credits + the one-time trial
+// grant, seat/project limits, feature gates) and DECISIONS L4 ($0 / $25 / $20
+// per seat / custom; $5 credit pack = 200K credits, packs don't expire).
+// Never per-word pricing.
 const CREDITS = {
-  free: "50K",
-  pro: "500K",
-  team: "2M",
+  trial: "200K",
+  pro: "2M",
+  team: "8M",
 } as const;
 
 type Tier = {
@@ -37,7 +38,7 @@ const TIERS: Tier[] = [
     cta: t("Get started"),
     ctaHref: SIGNUP_URL,
     features: [
-      t("{credits} AI credits / week", { credits: CREDITS.free }),
+      t("{credits} one-time AI trial credits", { credits: CREDITS.trial }),
       t("1 project, 1 seat"),
       t("All formats and workflow tools"),
       t("Translation memory & terminology"),
@@ -57,7 +58,7 @@ const TIERS: Tier[] = [
     ctaHref: SIGNUP_URL,
     features: [
       t("Everything in Free, plus:"),
-      t("{credits} AI credits / week", { credits: CREDITS.pro }),
+      t("{credits} AI credits / month", { credits: CREDITS.pro }),
       t("Up to 10 projects, 3 seats"),
       t("Git connector"),
       t("REST API access"),
@@ -75,7 +76,7 @@ const TIERS: Tier[] = [
     featured: true,
     features: [
       t("Everything in Pro, plus:"),
-      t("{credits} AI credits / week", { credits: CREDITS.team }),
+      t("{credits} AI credits / month", { credits: CREDITS.team }),
       t("Unlimited projects & seats"),
       t("Custom connectors"),
       t("Priority support"),
@@ -110,9 +111,10 @@ export function Plans() {
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Plans</h2>
           <p className="mt-3 text-muted-foreground">
-            Every plan includes a weekly allowance of AI credits, refreshed automatically. Top-up
-            packs are $5 for 200K credits and never expire — and if you bring your own AI key, those
-            runs use no credits at all.
+            Paid plans include a monthly allowance of AI credits, refreshed automatically; every new
+            workspace starts with a one-time grant of trial credits. Top-up packs are $5 for 200K
+            credits and never expire — and if you bring your own AI key, those runs use no credits
+            at all.
           </p>
         </div>
 

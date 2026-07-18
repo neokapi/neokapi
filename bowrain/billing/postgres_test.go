@@ -82,8 +82,8 @@ func TestCreditAllocation_Fields(t *testing.T) {
 		WorkspaceID:  "ws-1",
 		CreditsTotal: 500000,
 		CreditsUsed:  123456,
-		WeekStart:    WeekStart(now),
-		WeekEnd:      WeekEnd(now),
+		PeriodStart:  MonthStart(now),
+		PeriodEnd:    MonthEnd(now),
 		Source:       "plan",
 	}
 

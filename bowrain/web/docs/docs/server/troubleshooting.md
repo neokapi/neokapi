@@ -38,20 +38,24 @@ See [Project sync](/cli/overview) for the full command set.
 
 ## AI operations are blocked ("out of credits")
 
-Hosted workspaces have a weekly AI credit allowance. When it is used up, only
-**AI operations** are blocked — AI translation and AI quality checks return an
-error indicating the quota is exhausted. Everything that does not call an AI
-provider keeps working: browsing content, editing translations by hand, running
-translation-memory lookups, pushing, and pulling.
+Hosted workspaces meter AI work in credits: paid plans have a monthly
+allowance, and every workspace receives a one-time grant of trial credits at
+creation. When the spendable balance is used up, only **AI operations** are
+blocked — AI translation and AI quality checks return an error indicating the
+quota is exhausted. Everything that does not call an AI provider keeps working:
+browsing content, editing translations by hand, running translation-memory
+lookups, pushing, and pulling.
 
 You have three ways forward:
 
-- **Wait for the weekly reset.** Allowances reset Monday at 00:00 UTC.
-- **Buy a credit pack.** Purchased credits do not expire at the weekly reset; they
-  persist and are spent after the weekly allowance is used up. There is no
+- **Wait for the monthly reset** (paid plans). Allowances reset on the 1st of
+  each month at 00:00 UTC. The Free plan has no recurring allowance — its
+  one-time trial credits do not renew.
+- **Buy a credit pack.** Purchased credits never expire; they persist and are
+  spent after the plan allowance and trial credits are used up. There is no
   automatic purchase — a workspace is only ever charged because a person chose to
   buy.
-- **Upgrade the plan** for a larger weekly allowance.
+- **Upgrade the plan** for a monthly allowance (or a larger one).
 
 Two things are never metered against credits: a **bring-your-own AI key** (those
 runs go to your own provider account), and a **self-hosted deployment** (which

@@ -1513,18 +1513,29 @@ export interface BillingSubscription {
   trialEndsAt?: string;
 }
 
-/** Weekly credit allocation and tracking */
+/**
+ * Monthly plan-credit allocation and tracking. Totals describe the monthly
+ * PLAN bucket only — zero for Free workspaces, whose credits are the one-time
+ * trial grant surfaced via BillingOverview.spendableCredits.
+ */
 export interface CreditAllocation {
   creditsTotal: number;
   creditsUsed: number;
   creditsRemaining: number;
-  weekEnd: string;
+  /** When the monthly plan allowance resets (first of next month, UTC). */
+  resetsAt: string;
 }
 
 /** Combined billing overview for a workspace */
 export interface BillingOverview {
   subscription: BillingSubscription;
   credits: CreditAllocation;
+  /**
+   * Full spendable balance across every bucket: monthly plan allowance +
+   * one-time trial grant + purchased packs. This is what the server's quota
+   * guard actually enforces.
+   */
+  spendableCredits: number;
   stripeCustomerId?: string;
 }
 
@@ -1539,8 +1550,8 @@ export interface BillingOverview {
 export interface BillingPlanInfo {
   id: BillingPlan;
   name: string;
-  /** -1 means unlimited. */
-  weekly_credits: number;
+  /** -1 means unlimited; 0 means no recurring allowance (Free). */
+  monthly_credits: number;
   max_projects: number;
   max_seats: number;
   per_seat: boolean;

@@ -13,21 +13,23 @@ func detectUpsells(ctx context.Context, db *sql.DB) ([]UpsellOpportunity, error)
 
 	now := time.Now().UTC()
 
-	// 1. Credit exhaustion: free workspaces hitting 100% two or more weeks.
+	// 1. Credit exhaustion: free workspaces that have fully spent their
+	// one-time trial grant.
 	creditExhaustion, err := detectCreditExhaustion(ctx, db, now)
 	if err != nil {
 		return nil, fmt.Errorf("credit exhaustion: %w", err)
 	}
 	opportunities = append(opportunities, creditExhaustion...)
 
-	// 2. High usage, low plan: workspaces consistently using >80% of credits.
+	// 2. High usage, low plan: paid workspaces consistently using >80% of
+	// their monthly credits.
 	highUsage, err := detectHighUsage(ctx, db, now)
 	if err != nil {
 		return nil, fmt.Errorf("high usage: %w", err)
 	}
 	opportunities = append(opportunities, highUsage...)
 
-	// 3. Dormant paid: paid workspaces with <10% usage for 4+ weeks.
+	// 3. Dormant paid: paid workspaces with <10% usage across recent months.
 	dormant, err := detectDormantPaid(ctx, db, now)
 	if err != nil {
 		return nil, fmt.Errorf("dormant paid: %w", err)
@@ -45,19 +47,16 @@ func detectUpsells(ctx context.Context, db *sql.DB) ([]UpsellOpportunity, error)
 }
 
 func detectCreditExhaustion(ctx context.Context, db *sql.DB, now time.Time) ([]UpsellOpportunity, error) {
-	// Find free workspaces that exhausted credits in 2+ of the last 4 weeks.
-	twoWeeksAgo := WeekStart(now.AddDate(0, 0, -14))
-
+	// Free workspaces whose one-time trial grant is fully spent. With no
+	// recurring Free allowance, a spent grant is the hard stop — the strongest
+	// upgrade signal there is.
 	rows, err := db.QueryContext(ctx,
-		`SELECT ca.workspace_id, s.plan, COUNT(*) as exhausted_weeks
+		`SELECT ca.workspace_id, s.plan
 		 FROM credit_allocations ca
 		 JOIN subscriptions s ON s.workspace_id = ca.workspace_id
-		 WHERE ca.source = 'plan'
-		   AND ca.week_start >= $1
+		 WHERE ca.source = 'trial'
 		   AND ca.credits_used >= ca.credits_total
-		   AND s.plan = 'free'
-		 GROUP BY ca.workspace_id, s.plan
-		 HAVING COUNT(*) >= 2`, twoWeeksAgo)
+		   AND s.plan = 'free'`)
 	if err != nil {
 		return nil, err
 	}
@@ -66,8 +65,7 @@ func detectCreditExhaustion(ctx context.Context, db *sql.DB, now time.Time) ([]U
 	var result []UpsellOpportunity
 	for rows.Next() {
 		var wsID, plan string
-		var weeks int
-		if err := rows.Scan(&wsID, &plan, &weeks); err != nil {
+		if err := rows.Scan(&wsID, &plan); err != nil {
 			return nil, err
 		}
 		result = append(result, UpsellOpportunity{
@@ -75,7 +73,7 @@ func detectCreditExhaustion(ctx context.Context, db *sql.DB, now time.Time) ([]U
 			CurrentPlan:   Plan(plan),
 			Signal:        "credit_exhaustion",
 			Score:         90,
-			Detail:        fmt.Sprintf("Exhausted credits %d weeks in a row", weeks),
+			Detail:        "One-time trial credit grant fully spent",
 			SuggestedPlan: PlanPro,
 			DetectedAt:    now,
 		})
@@ -84,7 +82,9 @@ func detectCreditExhaustion(ctx context.Context, db *sql.DB, now time.Time) ([]U
 }
 
 func detectHighUsage(ctx context.Context, db *sql.DB, now time.Time) ([]UpsellOpportunity, error) {
-	threeWeeksAgo := WeekStart(now.AddDate(0, 0, -21))
+	// Monthly plan allocations for the current and two prior months. Only paid
+	// plans have plan allocations now; Free is covered by trial exhaustion.
+	windowStart := MonthStart(now.AddDate(0, -2, 0))
 
 	rows, err := db.QueryContext(ctx,
 		`SELECT ca.workspace_id, s.plan,
@@ -93,9 +93,9 @@ func detectHighUsage(ctx context.Context, db *sql.DB, now time.Time) ([]UpsellOp
 		 JOIN subscriptions s ON s.workspace_id = ca.workspace_id
 		 WHERE ca.source = 'plan'
 		   AND ca.week_start >= $1
-		   AND s.plan IN ('free', 'pro')
+		   AND s.plan = 'pro'
 		 GROUP BY ca.workspace_id, s.plan
-		 HAVING AVG(CASE WHEN ca.credits_total > 0 THEN (ca.credits_used::float / ca.credits_total) * 100 ELSE 0 END) > 80`, threeWeeksAgo)
+		 HAVING AVG(CASE WHEN ca.credits_total > 0 THEN (ca.credits_used::float / ca.credits_total) * 100 ELSE 0 END) > 80`, windowStart)
 	if err != nil {
 		return nil, err
 	}
@@ -108,17 +108,13 @@ func detectHighUsage(ctx context.Context, db *sql.DB, now time.Time) ([]UpsellOp
 		if err := rows.Scan(&wsID, &plan, &avgPct); err != nil {
 			return nil, err
 		}
-		suggested := PlanPro
-		if Plan(plan) == PlanPro {
-			suggested = PlanTeam
-		}
 		result = append(result, UpsellOpportunity{
 			WorkspaceID:   wsID,
 			CurrentPlan:   Plan(plan),
 			Signal:        "high_usage",
 			Score:         70,
-			Detail:        fmt.Sprintf("Average credit usage %.0f%% over 3 weeks", avgPct),
-			SuggestedPlan: suggested,
+			Detail:        fmt.Sprintf("Average monthly credit usage %.0f%% over recent months", avgPct),
+			SuggestedPlan: PlanTeam,
 			DetectedAt:    now,
 		})
 	}
@@ -126,7 +122,8 @@ func detectHighUsage(ctx context.Context, db *sql.DB, now time.Time) ([]UpsellOp
 }
 
 func detectDormantPaid(ctx context.Context, db *sql.DB, now time.Time) ([]UpsellOpportunity, error) {
-	fourWeeksAgo := WeekStart(now.AddDate(0, 0, -28))
+	// Current and two prior monthly allocations.
+	windowStart := MonthStart(now.AddDate(0, -2, 0))
 
 	rows, err := db.QueryContext(ctx,
 		`SELECT ca.workspace_id, s.plan,
@@ -137,7 +134,7 @@ func detectDormantPaid(ctx context.Context, db *sql.DB, now time.Time) ([]Upsell
 		   AND ca.week_start >= $1
 		   AND s.plan IN ('pro', 'team')
 		 GROUP BY ca.workspace_id, s.plan
-		 HAVING AVG(CASE WHEN ca.credits_total > 0 THEN (ca.credits_used::float / ca.credits_total) * 100 ELSE 0 END) < 10`, fourWeeksAgo)
+		 HAVING AVG(CASE WHEN ca.credits_total > 0 THEN (ca.credits_used::float / ca.credits_total) * 100 ELSE 0 END) < 10`, windowStart)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +152,7 @@ func detectDormantPaid(ctx context.Context, db *sql.DB, now time.Time) ([]Upsell
 			CurrentPlan:   Plan(plan),
 			Signal:        "dormant_paid",
 			Score:         50,
-			Detail:        fmt.Sprintf("Average credit usage %.0f%% over 4 weeks", avgPct),
+			Detail:        fmt.Sprintf("Average monthly credit usage %.0f%% over recent months", avgPct),
 			SuggestedPlan: Plan(plan), // suggest keeping current plan (churn prevention)
 			DetectedAt:    now,
 		})

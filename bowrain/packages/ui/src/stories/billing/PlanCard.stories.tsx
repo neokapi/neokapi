@@ -18,7 +18,7 @@ export const Free: Story = {
     name: "Free",
     price: "$0",
     description: "Get started with AI-powered localization",
-    credits: "50K credits / week",
+    credits: "200K one-time trial credits",
     features: [
       { label: "@bravo chat (5 messages/day)", included: true },
       { label: "1 project", included: true },
@@ -36,7 +36,7 @@ export const ProRecommended: Story = {
     price: "$25",
     period: "mo",
     description: "For professionals and small teams",
-    credits: "500K credits / week",
+    credits: "2M credits / month",
     recommended: true,
     features: [
       { label: "@bravo unlimited messages", included: true },
@@ -57,7 +57,7 @@ export const Team: Story = {
     price: "$20",
     period: "seat/mo",
     description: "For growing teams",
-    credits: "2M credits / week",
+    credits: "8M credits / month",
     features: [
       { label: "Everything in Pro", included: true },
       { label: "Unlimited projects", included: true },
@@ -93,7 +93,7 @@ export const CurrentPlan: Story = {
     name: "Pro",
     price: "$25",
     period: "mo",
-    credits: "500K credits / week",
+    credits: "2M credits / month",
     current: true,
     features: [
       { label: "@bravo unlimited messages", included: true },
@@ -112,7 +112,7 @@ export const AllPlans: Story = {
         plan="free"
         name="Free"
         price="$0"
-        credits="50K credits / week"
+        credits="200K one-time trial credits"
         features={[
           { label: "@bravo chat", included: true },
           { label: "1 project", included: true },
@@ -124,7 +124,7 @@ export const AllPlans: Story = {
         name="Pro"
         price="$25"
         period="mo"
-        credits="500K credits / week"
+        credits="2M credits / month"
         recommended
         features={[
           { label: "Unlimited @bravo", included: true },
@@ -138,7 +138,7 @@ export const AllPlans: Story = {
         name="Team"
         price="$20"
         period="seat/mo"
-        credits="2M credits / week"
+        credits="8M credits / month"
         features={[
           { label: "Everything in Pro", included: true },
           { label: "Unlimited seats", included: true },

@@ -1,6 +1,6 @@
 ---
 title: Billing and credits
-description: Bowrain's plans, per-seat pricing, weekly AI credits, top-up packs, trials, and how to manage a subscription — what each plan includes and what happens when credits run out or a payment fails.
+description: Bowrain's plans, per-seat pricing, monthly AI credits, the one-time trial grant, top-up packs, trials, and how to manage a subscription — what each plan includes and what happens when credits run out or a payment fails.
 sidebar_position: 13
 ---
 
@@ -8,7 +8,7 @@ sidebar_position: 13
 
 Bowrain bills a workspace on one of four plans. A plan sets three things: the
 features the workspace can use, its numeric limits (projects and seats), and its
-weekly allowance of AI credits. Billing is managed by the workspace owner from
+monthly allowance of AI credits. Billing is managed by the workspace owner from
 **Workspace Settings > Billing**.
 
 ## Plans
@@ -16,7 +16,7 @@ weekly allowance of AI credits. Billing is managed by the workspace owner from
 | | **Free** | **Pro** | **Team** | **Enterprise** |
 | --- | --- | --- | --- | --- |
 | Price | $0 | $25 / month | $20 / seat / month | Custom |
-| Weekly AI credits | 50K | 500K | 2M | Custom (unlimited) |
+| Monthly AI credits | — (one-time 200K trial credits) | 2M | 8M | Custom (unlimited) |
 | Projects | 1 | 10 | Unlimited | Unlimited |
 | Seats | 1 | 3 | Unlimited | Unlimited |
 | Git connectors | — | Yes | Yes | Yes |
@@ -37,10 +37,16 @@ Free.
 AI work in Bowrain is metered in credits. One credit equals one AI token,
 counting both the tokens sent to the model and the tokens it returns.
 
-Each plan comes with a weekly credit allowance. The balance resets every Monday
-at 00:00 UTC to the plan's full allowance — 50K on Free, 500K on Pro, 2M on
-Team. Enterprise credits are unlimited. Unused weekly credits do not roll over;
-they reset each Monday, which keeps costs predictable.
+Paid plans come with a monthly credit allowance. The balance resets on the 1st
+of each month at 00:00 UTC to the plan's full allowance — 2M on Pro, 8M on
+Team. Enterprise credits are unlimited. Unused monthly credits do not roll
+over; they reset each month, which keeps costs predictable.
+
+The Free plan has no recurring allowance. Instead, every new workspace receives
+a **one-time grant of 200K trial credits** when it is created. Trial credits
+never expire, but they also never renew — once they are spent, a free workspace
+restores AI access by upgrading to a paid plan, buying a top-up pack, or
+bringing its own AI key.
 
 ### What consumes credits
 
@@ -58,36 +64,36 @@ draw down the balance.
 
 On any plan, you can configure Bowrain to run against your own AI provider key.
 Work that runs on your own key uses no Bowrain credits at all — you pay your
-provider directly, and the workspace's weekly allowance is left untouched.
+provider directly, and the workspace's credit balance is left untouched.
 
 ### Top-up packs
 
-If a workspace needs more than its weekly allowance, the owner can buy a credit
-pack: 200K credits for $5. Packs are one-time purchases, never charged
-automatically on your behalf. They do not expire, and they are only drawn from
-after the weekly plan allowance runs out — so a pack you buy now stays available
-across weekly resets until it is spent.
+If a workspace needs more credits, the owner can buy a credit pack: 200K
+credits for $5. Packs are one-time purchases, never charged automatically on
+your behalf. They do not expire, and they are drawn from last — after the
+monthly plan allowance and any remaining trial credits — so a pack you buy now
+stays available across monthly resets until it is spent.
 
 ### When credits run out
 
-When the spendable balance (weekly allowance plus any purchased packs) reaches
-zero, AI operations pause until the next weekly reset. A paused request is
-rejected rather than run, and the workspace owner is emailed. Everything that
-does not call an AI model — editing, review, and browsing content — keeps
+When the spendable balance (monthly allowance, plus remaining trial credits,
+plus any purchased packs) reaches zero, AI operations pause. A paused request
+is rejected rather than run, and the workspace owner is emailed. Everything
+that does not call an AI model — editing, review, and browsing content — keeps
 working normally.
 
-To restore AI access before the Monday reset, the owner can buy a credit pack or
-upgrade the plan. Enterprise workspaces have unlimited credits and are never
-paused.
+On a paid plan, AI access returns at the next monthly reset; at any time the
+owner can also buy a credit pack or upgrade the plan. Enterprise workspaces
+have unlimited credits and are never paused.
 
-The owner also receives an email warning when the weekly allowance reaches 80%
-usage, before it is exhausted.
+The owner of a paid workspace also receives an email warning when the monthly
+allowance reaches 80% usage, before it is exhausted.
 
 ## Per-seat pricing on Team
 
 The Team plan is priced per seat per month: the subscription quantity is the
-number of seats, so you pay only for the seats you use. Weekly credits are shared
-across all workspace members rather than allocated per seat.
+number of seats, so you pay only for the seats you use. Monthly credits are
+shared across all workspace members rather than allocated per seat.
 
 At checkout the seat count defaults to the workspace's current member count and
 cannot be set below it. Self-serve checkout covers up to 50 seats; larger teams
@@ -96,13 +102,15 @@ are handled as an Enterprise conversation.
 ## Trials
 
 Every new workspace starts on a 14-day Pro trial. No card is required to start
-it. During the trial the workspace has Pro limits and Pro weekly credits.
+it. During the trial the workspace has Pro limits and features, and its AI work
+draws on the one-time 200K trial credits every workspace receives at creation.
+The Pro monthly allowance starts with a paid subscription.
 
 The trial is card-free and has no Stripe subscription behind it, so nothing
-charges you when it ends — the workspace simply moves to the Free plan, which is
-free forever and keeps 50K weekly credits and full access to the translation
-editor. To stay on Pro (or move to Team), subscribe before or after the trial
-ends.
+charges you when it ends — the workspace simply moves to the Free plan, which
+is free forever, keeps whatever trial credits remain, and retains full access
+to the translation editor. To stay on Pro (or move to Team), subscribe before
+or after the trial ends.
 
 ## Managing your subscription
 
