@@ -90,6 +90,19 @@ type KLFAnnotation struct {
 // AnnotationType satisfies any.
 func (a *KLFAnnotation) TypeName() string { return AnnotationType }
 
+func init() {
+	// Register KLFAnnotation so the wire and store layers can rehydrate it from
+	// its type name — most importantly the streaming document cache (host
+	// docCache), which serializes each block's annotations and drops any whose
+	// type is unregistered on replay. Unregistered, a block served from cache
+	// silently loses its KLFAnnotation, and with it the block's content hash,
+	// placeholders, and preview — so a reconstructed .klf target comes out with
+	// empty hashes (breaking downstream identity, e.g. kapi-react compile). This
+	// surfaced non-deterministically under `kapi up`, whose concurrent per-locale
+	// converge workers share the cache and race on the same cached source.
+	model.RegisterPayload(AnnotationType, func() model.Payload { return &KLFAnnotation{} })
+}
+
 // Runs returns the source runs. Convenience for tools that want to
 // walk a block's structured content without repeating the map
 // lookup.
