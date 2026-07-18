@@ -223,20 +223,26 @@ func demoBaseLang(loc model.LocaleID) string {
 }
 
 // wordSplit splits text into tokens: whole tags (<...>), whole placeholders
-// ({0}, {{name}}, %s), runs of letters/digits (words), and everything else
-// (punctuation/whitespace). Only words are transformed; every other token is
-// emitted verbatim, so inline markup and placeholders survive intact.
+// ({0}, {{name}}, %s, [[DNT_0]]-style double-bracket sentinels), runs of
+// letters/digits (words), and everything else (punctuation/whitespace). Only
+// words are transformed; every other token is emitted verbatim, so inline
+// markup and placeholders survive intact.
 //
 // Placeholders must be matched as single tokens, not left to the word class:
 // `%d` would otherwise split into `%` and the word `d`, and `{0}` into braces
 // around the word `0`, and the demo would cheerfully accent the inside of a
-// placeholder — producing output that fails kapi's own placeholder check.
-// Alternation is leftmost-first, so the tag and placeholder forms are tried
-// before the word and catch-all classes; the trailing single-character
-// alternative guarantees every rune is emitted, since `{` and `%` are excluded
-// from the catch-all class and would otherwise be dropped when they appear
-// outside a placeholder.
-var wordSplit = regexp.MustCompile(`<[^>]*>|\{\{[^{}]*\}\}|\{[^{}]*\}|%[a-zA-Z]|[\p{L}\p{N}]+|[^<{}%\p{L}\p{N}]+|[^\p{L}\p{N}]`)
+// placeholder — producing output that fails kapi's own placeholder check. The
+// same holds for the double-bracketed `[[…]]` sentinels the AI translate tool
+// masks do-not-translate spans with: accenting the inside of a sentinel would
+// break the tool's verbatim restore, so the demo must pass them through like
+// any real model does. Alternation is leftmost-first, so the tag, placeholder,
+// and sentinel forms are tried before the word and catch-all classes; the
+// trailing single-character alternative guarantees every rune is emitted,
+// since `{`, `%`, `[`, and `]` are excluded from the catch-all class (a greedy
+// catch-all would otherwise swallow the `[[` opener from the preceding
+// whitespace and split the sentinel) and would otherwise be dropped when they
+// appear outside a placeholder.
+var wordSplit = regexp.MustCompile(`<[^>]*>|\{\{[^{}]*\}\}|\{[^{}]*\}|\[\[[^\[\]]*\]\]|%[a-zA-Z]|[\p{L}\p{N}]+|[^<{}%\[\]\p{L}\p{N}]+|[^\p{L}\p{N}]`)
 
 // isWord reports whether tok is a run of letters/digits (vs punctuation/space).
 var wordRe = regexp.MustCompile(`^[\p{L}\p{N}]+$`)

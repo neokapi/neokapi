@@ -94,6 +94,18 @@ type WorkerDeps struct {
 	// records ingest outcomes (last-sync / last-error) on the row. Required
 	// alongside ConnectorFetcher for forge-ingest jobs.
 	ConnectorConfigs ConnectorConfigSource
+	// SweepStore persists model recommendation sweep measurements (measured
+	// steerability). Required for model-sweep jobs; nil fails them permanently.
+	SweepStore ModelSweepStore
+	// SweepSettings exposes the model_sweeps.enabled gate and the candidate
+	// model list from platform config. Required for model-sweep jobs.
+	SweepSettings ModelSweepSettings
+	// ModelRecommender, when set, lets platform model resolution prefer a
+	// fresh measured recommendation for the job's project+locale — but only
+	// when the workspace has not pinned a model (PlatformProviderConfig.
+	// ModelPinned) and the recommender's own gates pass (flag on, fresh, model
+	// still enabled). Optional; nil keeps the previous resolution exactly.
+	ModelRecommender ModelRecommender
 }
 
 // EventTracker captures product analytics events (implemented by
@@ -252,6 +264,14 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 	// translation pipeline below do not apply.
 	if job.IsForgeIngest() {
 		return processForgeIngestJob(ctx, deps, job, epoch)
+	}
+
+	// Route model recommendation sweeps (measured steerability) to the
+	// dedicated handler. Sweeps are platform QC on the platform key: their
+	// usage is recorded (operation "model_sweep") but they bypass the
+	// customer-facing quota gate below and never deduct credits.
+	if job.IsModelSweep() {
+		return processModelSweepJob(ctx, deps, job, epoch)
 	}
 
 	// Check the monthly token quota before starting. This is the internal abuse
@@ -659,6 +679,22 @@ func resolveProvider(ctx context.Context, deps *WorkerDeps, job *TranslationJob)
 			return nil, errors.New("platform provider not configured " +
 				"(set BOWRAIN_PLATFORM_PROVIDER + key for self-hosted/local, " +
 				"or BOWRAIN_OPENAI_ENDPOINT for Azure OpenAI)")
+		}
+		// Measured steerability (EV-4): when the workspace has NOT pinned a
+		// model (customer model choice), prefer a fresh, qualifying measured
+		// recommendation for this job's project+locale over the platform
+		// default. The recommender itself enforces the model_sweeps.enabled
+		// flag, the freshness bound, the adherence floor, and that the model is
+		// still ctrl-enabled — all disabled paths fall through to the previous
+		// resolution unchanged.
+		if deps.ModelRecommender != nil && !platform.ModelPinned {
+			if rec, ok := deps.ModelRecommender.RecommendedModel(ctx, job.ProjectID, job.TargetLocale); ok && rec != "" {
+				p := *platform
+				p.Model = rec
+				platform = &p
+				slog.DebugContext(ctx, "platform model resolved from measured recommendation",
+					"job_id", job.ID, "project", job.ProjectID, "locale", job.TargetLocale, "model", rec)
+			}
 		}
 		prov, ptype, err := platform.Build(job.Model)
 		if err != nil {

@@ -25,6 +25,7 @@ import type {
   BrandScanCheckResult,
   BrandScanDraft,
   BrandScanJob,
+  ModelRecommendationsResponse,
 } from "../types/api";
 import type { VoiceProfile } from "../brand/types";
 import type {
@@ -195,6 +196,44 @@ export interface MockAdapter extends ApiAdapter {
    */
   brandScanJobStates: BrandScanJob[];
 }
+
+// ---------------------------------------------------------------------------
+// Measured-steerability fixtures (deterministic — stories and tests assert on
+// these): two candidate models on fr, the lift winner marked recommended.
+// ---------------------------------------------------------------------------
+
+/** Deterministic model recommendation results for stories and tests. */
+export const sampleModelRecommendations: ModelRecommendationsResponse = {
+  enabled: true,
+  locales: [
+    {
+      locale: "fr",
+      recommended_model: "claude-sonnet",
+      models: [
+        {
+          model: "claude-sonnet",
+          adherence: 0.92,
+          adherence_bare: 0.54,
+          lift: 0.38,
+          fixture_count: 14,
+          tokens_used: 2140,
+          measured_at: "2026-07-15T08:00:00Z",
+          recommended: true,
+        },
+        {
+          model: "claude-haiku",
+          adherence: 0.79,
+          adherence_bare: 0.57,
+          lift: 0.22,
+          fixture_count: 14,
+          tokens_used: 1660,
+          measured_at: "2026-07-15T08:00:00Z",
+          recommended: false,
+        },
+      ],
+    },
+  ],
+};
 
 // ---------------------------------------------------------------------------
 // Brand-scan fixtures (deterministic — stories and tests assert on these)
@@ -1048,6 +1087,10 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       translatable_blocks: 0,
       total_source_words: 0,
     }),
+
+    // --- Measured steerability (model recommendation sweeps) ---------------------
+    getModelRecommendations: async () => sampleModelRecommendations,
+    refreshModelRecommendations: async () => ({ enqueued: 1, locales: ["fr"] }),
 
     // --- Activities (Bowrain AD-014) ------------------------------------------------
     listActivities: async () => ({

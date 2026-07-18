@@ -15,6 +15,12 @@ const (
 	KeyDefaultPlan      = "workspace.default_plan" // string: plan for new workspaces
 	KeyTrialDays        = "workspace.trial_days"   // int: trial length for new workspaces
 	KeyFeatures         = "features"               // map[string]bool: instance-wide feature default toggles
+	// KeyModelSweeps gates measured steerability (model recommendation sweeps):
+	// both the sweep endpoints (refresh) and the worker's consumption of a
+	// measured recommendation respect it. Default OFF — the founder flips it in
+	// ctrl when ready. Platform QC: sweeps run on the platform provider and
+	// never deduct customer credits.
+	KeyModelSweeps = "model_sweeps.enabled" // bool: enable model recommendation sweeps
 )
 
 // Defaults are the bootstrap values used when a key is not set in the DB. They
@@ -55,17 +61,23 @@ type WorkspaceDefaults struct {
 // settings plus the model catalog for the current provider (so the UI can render
 // onboard/offboard without a separate call).
 type Snapshot struct {
-	AI                AISettings        `json:"ai"`
-	Signups           SignupSettings    `json:"signups"`
-	Maintenance       Maintenance       `json:"maintenance"`
-	WorkspaceDefaults WorkspaceDefaults `json:"workspace_defaults"`
-	Features          map[string]bool   `json:"features"`
-	ModelCatalog      []Model           `json:"model_catalog"`
+	AI                AISettings         `json:"ai"`
+	Signups           SignupSettings     `json:"signups"`
+	Maintenance       Maintenance        `json:"maintenance"`
+	WorkspaceDefaults WorkspaceDefaults  `json:"workspace_defaults"`
+	Features          map[string]bool    `json:"features"`
+	ModelSweeps       ModelSweepSettings `json:"model_sweeps"`
+	ModelCatalog      []Model            `json:"model_catalog"`
 }
 
 // SignupSettings is the resolved signup gate.
 type SignupSettings struct {
 	Open bool `json:"open"`
+}
+
+// ModelSweepSettings is the resolved measured-steerability gate.
+type ModelSweepSettings struct {
+	Enabled bool `json:"enabled"`
 }
 
 // PublicSnapshot is the unauthenticated, public-safe subset (served from the web

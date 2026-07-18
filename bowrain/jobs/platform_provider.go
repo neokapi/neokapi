@@ -23,6 +23,11 @@ type PlatformProviderConfig struct {
 	APIKey   string // API key for the provider (empty for keyless providers like bedrock/ollama/demo)
 	Model    string // default model for the provider; wins over the job's model when set
 	BaseURL  string // optional base URL override (self-hosted endpoint / proxy)
+	// ModelPinned marks Model as an explicit per-workspace choice (customer
+	// model choice applied a valid workspace preference), as opposed to the
+	// platform default. A pinned model is never overridden by a measured model
+	// recommendation (EV-4): the workspace's own pick always wins.
+	ModelPinned bool
 }
 
 // PlatformResolver returns the current platform provider configuration for a

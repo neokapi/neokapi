@@ -378,10 +378,31 @@ func runWorker(dbURL string) error {
 			}
 			if w, err := wsGetter.GetWorkspace(ctx, wsID); err == nil && w != nil {
 				cfg.Model = pcSvc.ResolveWorkspaceModel(w.PreferredModel)
+				// Mark an applied workspace preference as pinned: a workspace's
+				// own model choice is never overridden by a measured model
+				// recommendation (EV-4).
+				cfg.ModelPinned = w.PreferredModel != "" && cfg.Model == w.PreferredModel
 			}
 			return cfg
 		}
 		translationDeps.PlatformResolver = platformResolver
+
+		// Measured steerability (model recommendation sweeps): the sweep store
+		// persists per-(project, locale, model) measurements, the settings
+		// expose the ctrl-managed model_sweeps.enabled gate + candidate model
+		// list, and the recommender lets platform model resolution prefer a
+		// fresh measured winner when the workspace has not pinned a model. All
+		// paths are gated on model_sweeps.enabled (default OFF).
+		if sweepStore, err := jobs.NewModelSweepStore(pgdb); err != nil {
+			slog.Warn("model-sweep store unavailable; sweeps disabled on this worker", "error", err)
+		} else {
+			translationDeps.SweepStore = sweepStore
+			translationDeps.SweepSettings = pcSvc
+			translationDeps.ModelRecommender = &jobs.SweepModelRecommender{
+				Store:    sweepStore,
+				Settings: pcSvc,
+			}
+		}
 
 		// Fan-out reload: every worker reacts to a config change from ctrl.
 		if bus := translationDeps.EventBus; bus != nil {

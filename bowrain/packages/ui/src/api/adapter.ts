@@ -115,6 +115,7 @@ import type {
   BindInstallationRepoResult,
   RepoDetection,
   RepoDetectOptions,
+  ModelRecommendationsResponse,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -377,6 +378,19 @@ export interface ApiAdapter {
     fileName: string,
     stream?: string,
   ): Promise<ProjectInfo>;
+
+  // Measured steerability (model recommendation sweeps, project-scoped).
+  // The GET carries the instance-wide model_sweeps.enabled gate so the
+  // settings panel can disable Refresh with a reason; the refresh POST
+  // enqueues one sweep per target locale (manage-brand permission, flag on).
+  getModelRecommendations(
+    workspaceSlug: string,
+    projectId: string,
+  ): Promise<ModelRecommendationsResponse>;
+  refreshModelRecommendations(
+    workspaceSlug: string,
+    projectId: string,
+  ): Promise<{ enqueued: number; locales: string[] }>;
 
   // Collections (project-scoped)
   listCollections(

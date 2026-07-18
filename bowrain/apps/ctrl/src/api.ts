@@ -289,6 +289,7 @@ export interface PlatformSnapshot {
   maintenance: MaintenanceSettings;
   workspace_defaults: WorkspaceDefaults;
   features: Record<string, boolean>;
+  model_sweeps: { enabled: boolean };
   model_catalog: CatalogModel[];
 }
 
@@ -321,6 +322,7 @@ export interface PlatformConfigUpdate {
   maintenance?: { enabled?: boolean; message?: string };
   workspace_defaults?: { plan?: string; trial_days?: number };
   features?: Record<string, boolean>;
+  model_sweeps?: { enabled?: boolean };
 }
 
 export function getPlatformConfig(): Promise<PlatformConfigResponse> {

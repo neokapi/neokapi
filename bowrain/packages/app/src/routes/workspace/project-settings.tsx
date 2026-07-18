@@ -14,6 +14,7 @@ import {
 } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 import { projectQueryOptions, brandProfilesQueryOptions } from "../../queries";
+import { ModelQualityCard } from "./model-quality-card";
 
 export function ProjectSettingsRoute() {
   const navigate = useNavigate();
@@ -170,6 +171,8 @@ export function ProjectSettingsRoute() {
           </div>
         </CardContent>
       </Card>
+
+      <ModelQualityCard ws={ws} projectId={project.id} />
     </div>
   );
 }
