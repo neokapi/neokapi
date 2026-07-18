@@ -51,6 +51,13 @@ export const AnalyticsEvents = {
    * — the user chose a scope (all | ready-only | none) and confirmed (epic 019).
    */
   convergenceRunStarted: "convergence_run_started",
+  /**
+   * The GitHub App setup page loaded from a GitHub redirect
+   * (`setup_action` present) but WITHOUT an installation id
+   * ({setup_action}) — the post-install/update handoff lost the id, so
+   * the user landed on the recovery card instead of the repo list.
+   */
+  githubSetupInstallationMissing: "github_setup_installation_missing",
 } as const;
 
 export type AnalyticsEventName = (typeof AnalyticsEvents)[keyof typeof AnalyticsEvents];

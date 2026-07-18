@@ -22,6 +22,19 @@
  * `value` for Select) is extracted from the opening attributes and
  * becomes the placeholder's equiv — drives CLDR plural selection
  * (or Select case matching) at runtime.
+ *
+ * Recognition is SHAPE-based, not name-based: an element only counts
+ * as an ICU authoring component when it carries the pivot prop AND at
+ * least one recognized form child. Matching on the bare identifier
+ * (`tag === "Select"`) hijacked every shadcn/Radix `<Select
+ * value={...}>` in the tree: `parseSelect` succeeded (controlled
+ * selects have a `value` prop, zero `Case`/`Other` children), the
+ * surrounding container was promoted to a translation block, and the
+ * whole widget subtree was serialized to the empty ICU template
+ * `{value, select, }` — which the runtime resolves to `""`. The UI
+ * control silently vanished from the compiled output. A genuine ICU
+ * `<Select>`/`<Plural>` with no forms is meaningless anyway (it would
+ * render an empty string), so requiring a form child loses nothing.
  */
 
 import type { Expression, JSXElement } from "@swc/core";
@@ -40,12 +53,41 @@ const PLURAL_FORMS: Record<string, PluralFormKey> = {
   Other: "other",
 };
 
-export function isPluralTag(tag: string): boolean {
-  return tag === "Plural";
+/**
+ * True when `el` is an ICU `<Plural>` authoring component: the tag
+ * name, a `count` pivot, and at least one plural form child
+ * (`<Zero>` … `<Other>`). Shared by translatability gating
+ * (translatable.ts) and run building (runs.ts) so extract and
+ * transform agree — and so unrelated components that happen to be
+ * named `Plural` pass through untouched.
+ */
+export function isPluralElement(el: JSXElement): boolean {
+  if (getTagName(el) !== "Plural") return false;
+  if (readExpressionAttr(el, "count") === null) return false;
+  for (const child of el.children ?? []) {
+    if (child.type !== "JSXElement") continue;
+    const tag = getTagName(child);
+    if (tag && PLURAL_FORMS[tag]) return true;
+  }
+  return false;
 }
 
-export function isSelectTag(tag: string): boolean {
-  return tag === "Select";
+/**
+ * True when `el` is an ICU `<Select>` authoring component: the tag
+ * name, a `value` pivot, and at least one `<Case>`/`<Other>` form
+ * child. A shadcn/Radix `<Select value={...}>` (children:
+ * `SelectTrigger`, `SelectContent`) never matches and is treated as
+ * an ordinary opaque component.
+ */
+export function isSelectElement(el: JSXElement): boolean {
+  if (getTagName(el) !== "Select") return false;
+  if (readExpressionAttr(el, "value") === null) return false;
+  for (const child of el.children ?? []) {
+    if (child.type !== "JSXElement") continue;
+    const tag = getTagName(child);
+    if (tag === "Case" || tag === "Other") return true;
+  }
+  return false;
 }
 
 /** Resolved info about a `<Plural>` opening. */

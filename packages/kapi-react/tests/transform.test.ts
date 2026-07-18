@@ -518,6 +518,78 @@ describe("neokapi-react SWC transform", () => {
     });
   });
 
+  describe("ICU component recognition is shape-based (regression: shadcn Select swallowed)", () => {
+    // Production incident (app.bowrain.cloud github/setup, #1348/#1353):
+    // the bare-identifier check `tag === "Select"` matched the
+    // shadcn/Radix `<Select value={...}>` widget. parseSelect succeeded
+    // (controlled selects carry a `value` prop; SelectTrigger/
+    // SelectContent are not Case/Other, so zero forms), the labeled
+    // container was promoted to a block, and the whole widget was
+    // serialized to `{value, select, }` — resolved to "" at runtime.
+    // Recognition now requires the pivot prop AND >= 1 ICU form child.
+
+    const shadcnSelect =
+      '<div className="flex items-center gap-2">' +
+      "<span>Workspace</span>" +
+      "<Select value={activeSlug} onValueChange={setWorkspaceSlug}>" +
+      '<SelectTrigger className="w-56"><SelectValue /></SelectTrigger>' +
+      "<SelectContent>" +
+      '<SelectItem value="a">A</SelectItem>' +
+      "</SelectContent>" +
+      "</Select>" +
+      "</div>";
+
+    it("leaves a controlled shadcn/Radix <Select> widget in the output", () => {
+      const result = t(shadcnSelect);
+      // The label is still extracted on its own…
+      expect(result).toContain('"Workspace"');
+      // …but the widget subtree survives verbatim: no ICU select, no
+      // capture of the trigger into a __tx element param.
+      expect(result).not.toContain(", select, ");
+      expect(result).toContain("<SelectTrigger");
+      expect(result).toContain("<SelectContent");
+      expect(result).not.toContain('"=m');
+    });
+
+    it("does not treat a widget <Select> as translatable content (no container promotion)", () => {
+      // A row holding only the widget plus an action: nothing here is
+      // translator-editable, so no block may be emitted for the row.
+      const result = t(
+        '<div className="row">' +
+          "<Select value={projectId} onValueChange={setProjectId}>" +
+          "<SelectTrigger><SelectValue /></SelectTrigger>" +
+          "</Select>" +
+          "{ready ? <Button>Go</Button> : null}" +
+          "</div>",
+      );
+      // Only the Button label gets a call — never a row-level __tx.
+      expect(result).not.toContain("__tx(");
+      expect(result).not.toContain(", select, ");
+    });
+
+    it("still emits the ICU template for a genuine <Select> with Case/Other forms", () => {
+      const result = t(
+        "<p><Select value={role}>" +
+          '<Case when="admin">Admin console</Case>' +
+          "<Other>User console</Other>" +
+          "</Select></p>",
+      );
+      expect(result).toContain("{role, select,");
+      expect(result).toContain("admin {Admin console}");
+      expect(result).toContain("other {User console}");
+    });
+
+    it("ignores a third-party <Plural> without ICU form children", () => {
+      const result = t("<div><span>Total</span><Plural count={n}><Row>first</Row></Plural></div>");
+      expect(result === null || !result.includes(", plural,")).toBe(true);
+    });
+
+    it("still emits the ICU template for a genuine <Plural> with form children", () => {
+      const result = t("<p><Plural count={n}><One>1 item</One><Other># items</Other></Plural></p>");
+      expect(result).toContain("{n, plural,");
+    });
+  });
+
   describe("no fbt references anywhere", () => {
     it("output contains zero fbt references", () => {
       const result = t(`

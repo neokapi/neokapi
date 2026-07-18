@@ -44,8 +44,8 @@ import type {
 
 import { containsJSX, dedupName, exprToName, getTagName, resolveHTMLElement } from "./ast.ts";
 import {
-  isPluralTag,
-  isSelectTag,
+  isPluralElement,
+  isSelectElement,
   parsePlural,
   parseSelect,
   type PluralFormKey,
@@ -255,13 +255,13 @@ function appendJsxElement(state: BuilderState, el: JSXElement): void {
   // the children carry form contents that must become typed Run[]
   // inside a PluralRun / SelectRun. Everything else falls through
   // to the default `jsx:element` placeholder.
-  if (isPluralTag(tag)) {
+  if (isPluralElement(el)) {
     const info = parsePlural(el);
     if (info) {
       appendPluralRun(state, el, info);
       return;
     }
-  } else if (isSelectTag(tag)) {
+  } else if (isSelectElement(el)) {
     const info = parseSelect(el);
     if (info) {
       appendSelectRun(state, el, info);

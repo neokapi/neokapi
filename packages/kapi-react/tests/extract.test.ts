@@ -421,6 +421,41 @@ describe("extractDocument — <Select>", () => {
     expect(pivot?.kind).toBe("icu-pivot");
     expect(pivot?.jsType).toBe("string");
   });
+
+  it("does NOT treat a shadcn/Radix widget <Select value={...}> as an ICU component", () => {
+    // Regression (github/setup, #1348/#1353): a controlled UI Select
+    // has a `value` prop but SelectTrigger/SelectContent children —
+    // no Case/Other. Name-based recognition serialized the widget to
+    // the empty ICU template `{value, select, }` and its subtree was
+    // deleted from the transformed output. Shape-based recognition
+    // leaves it alone: the label extracts as its own block and no
+    // block contains a select run.
+    const doc = extract(
+      `<div className="flex items-center gap-2">
+        <span>Workspace</span>
+        <Select value={activeSlug} onValueChange={setWorkspaceSlug}>
+          <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+          <SelectContent><SelectItem value="a">A</SelectItem></SelectContent>
+        </Select>
+      </div>`,
+    );
+    for (const block of doc.blocks) {
+      expect(block.source.some((run) => typeof run === "object" && "select" in run)).toBe(false);
+    }
+    const texts = doc.blocks.map((b) => (b.source[0] as TextRun).text);
+    expect(texts).toContain("Workspace");
+  });
+
+  it("treats a <Select> with a value prop but no Case/Other forms as opaque", () => {
+    // Zero forms would resolve to "" at runtime — meaningless as ICU,
+    // so it must not produce a SelectRun even inside translatable text.
+    const doc = extractDocument(`<p>Role: <Select value={x}><Option>a</Option></Select></p>`, {
+      filename: "T.tsx",
+    });
+    for (const block of doc?.blocks ?? []) {
+      expect(block.source.some((run) => typeof run === "object" && "select" in run)).toBe(false);
+    }
+  });
 });
 
 describe("extractDocument — ternary attribute values", () => {

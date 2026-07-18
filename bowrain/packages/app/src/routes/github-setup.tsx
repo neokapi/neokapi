@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch, Link } from "@tanstack/react-router";
 import {
+  AnalyticsEvents,
   Badge,
   Button,
   Card,
@@ -11,6 +12,7 @@ import {
   Label,
   Loader2,
   Plus,
+  useAnalytics,
   useApi,
   useAuth,
   type InstallationRepo,
@@ -33,9 +35,20 @@ import { coerceInstallationId } from "./installation-id";
  * welcomed rather than silently bounced, and the installation id round-trips
  * through login via the return-path cookie.
  *
- * This page renders under the standalone auth layout, where Radix portal
- * components (Select, Dialog) fail to render — so every control here is a
- * plain element: workspace cards, a native <select>, and inline forms.
+ * GitHub calls this page with `setup_action=install` (first install) or
+ * `setup_action=update` (repository access changed, via Redirect on update).
+ * Both are handled identically — the repo list is re-read either way; the
+ * value only feeds diagnostics when the installation id is missing.
+ *
+ * History: the original page used shadcn Selects and ProjectFormDialog, which
+ * rendered nothing in production (#1348). The cause was NOT this route's
+ * layout — the @neokapi/kapi-react build transform recognised ICU authoring
+ * components by bare identifier, so the controlled `<Select value={...}>`
+ * widgets were serialised to empty ICU `{value, select, }` templates and
+ * deleted from the compiled chunk. That transform bug is fixed (shape-based
+ * recognition + regression guard in radix-select-transform.test.tsx); the
+ * portal-free wizard below (#1353) is kept because cards and inline forms are
+ * the better fit for this first-run surface.
  */
 
 /** Short-lived cookie so the server redirects back here after OIDC. */
@@ -271,14 +284,28 @@ function WorkspaceSection({
 }
 
 export function GithubSetupRoute() {
-  const { installation_id: rawInstallationId } = useSearch({ strict: false }) as {
+  const { installation_id: rawInstallationId, setup_action: setupAction } = useSearch({
+    strict: false,
+  }) as {
     installation_id?: string | number;
+    setup_action?: "install" | "update";
   };
   const installationId = coerceInstallationId(rawInstallationId);
   const api = useApi();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, setUser } = useAuth();
+  const { capture } = useAnalytics();
+
+  // A GitHub redirect always carries setup_action; landing with it but
+  // without an installation id means the handoff lost the id — count it so
+  // a broken redirect shows up in analytics rather than as silent churn.
+  useEffect(() => {
+    if (setupAction && !installationId) {
+      capture(AnalyticsEvents.githubSetupInstallationMissing, { setup_action: setupAction });
+    }
+    // Mount-only: the search params are fixed for the lifetime of the visit.
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Own the auth check: this page is reachable logged-out (GitHub sends the
   // user straight here), so resolve the session before deciding what to show.
@@ -316,19 +343,46 @@ export function GithubSetupRoute() {
     enabled: !!user && !!activeSlug && !!installationId,
   });
 
-  // --- No installation id: opened out of context. -------------------------
+  // --- No installation id: opened out of context or the redirect lost it. --
   if (!installationId) {
     return (
       <Shell>
         <p className="text-sm text-muted-foreground">
-          This page is where GitHub sends you after installing the app. Install{" "}
+          {setupAction
+            ? "GitHub sent you here without the installation id, so the repositories cannot be listed yet. It comes back with one round-trip through the installation's settings:"
+            : "This page is where GitHub sends you after installing the app. If the app is already installed, reopen this page from the installation's settings:"}
+        </p>
+        <ol
+          className="mt-3 list-decimal space-y-1.5 pl-5 text-sm text-muted-foreground"
+          data-testid="installation-id-recovery"
+        >
+          <li>
+            Open{" "}
+            <a
+              className="underline underline-offset-2"
+              href="https://github.com/settings/installations"
+            >
+              github.com/settings/installations
+            </a>{" "}
+            (for an organization install: the organization&apos;s Settings → GitHub Apps).
+          </li>
+          <li>
+            Choose <span className="font-medium text-foreground">Configure</span> next to Bowrain.
+          </li>
+          <li>
+            Press <span className="font-medium text-foreground">Save</span> — GitHub redirects back
+            here with the installation id filled in.
+          </li>
+        </ol>
+        <p className="mt-4 text-sm text-muted-foreground">
+          Not installed yet? Install{" "}
           <a
             className="underline underline-offset-2"
             href="https://github.com/apps/bowrain-cloud/installations/new"
           >
             the Bowrain app
           </a>{" "}
-          on a repository, or open this page from the installation&apos;s settings.
+          on a repository and GitHub brings you back here automatically.
         </p>
       </Shell>
     );
