@@ -634,7 +634,7 @@ func (a *App) UnitsFromProject(proj *project.KapiProject, root string, localeFil
 			if localeFilter != "" && string(loc) != localeFilter {
 				continue
 			}
-			targetPath := expandTargetTemplate(rf.Item.Target, rf.Relative, string(loc), root)
+			targetPath := expandTargetTemplate(rf.Item.Path, rf.Item.Base, rf.Item.Target, rf.Relative, string(loc), root)
 			rel, relErr := filepath.Rel(root, targetPath)
 			if relErr != nil {
 				rel = targetPath
@@ -706,7 +706,7 @@ func matchTargetToSource(proj *project.KapiProject, root, targetAbs string) (sou
 			continue
 		}
 		for _, loc := range rf.Item.ResolvedTargetLanguages(nil, proj.Defaults) {
-			candidate := expandTargetTemplate(rf.Item.Target, rf.Relative, string(loc), root)
+			candidate := expandTargetTemplate(rf.Item.Path, rf.Item.Base, rf.Item.Target, rf.Relative, string(loc), root)
 			candAbs, _ := filepath.Abs(candidate)
 			if candAbs == targetAbs {
 				return rf.Path, string(loc), true
@@ -716,14 +716,16 @@ func matchTargetToSource(proj *project.KapiProject, root, targetAbs string) (sou
 	return "", "", false
 }
 
-// expandTargetTemplate expands a content item's target template against a
-// source file (relative to the project root) and a locale. {lang} → locale and
-// "*" → the source basename without extension; the result is rooted at the
-// project directory. Mirrors resolveMergeOutputPath's expansion.
-func expandTargetTemplate(tmpl, sourceRel, locale, root string) string {
-	out := strings.ReplaceAll(tmpl, "{lang}", locale)
-	base := strings.TrimSuffix(filepath.Base(sourceRel), filepath.Ext(sourceRel))
-	out = strings.ReplaceAll(out, "*", base)
+// expandTargetTemplate resolves a content item's target template for one source
+// file (relative to the project root) and locale, returning an absolute path
+// rooted at the project directory. It delegates to project.ResolveTargetPath —
+// the SAME resolver the write path (kapi up / run) uses — so the check and
+// coverage gates look for target files exactly where up writes them, honoring
+// the full token set ({lang}, {path}, {relpath}, {dir}, {name}, {ext}, "*", and
+// directory-mirror targets). Resolving only {lang} here (the old behavior) made
+// every {path}-templated target look "missing", falsely reporting untranslated.
+func expandTargetTemplate(itemPath, base, tmpl, sourceRel, locale, root string) string {
+	out := project.ResolveTargetPath(itemPath, base, tmpl, sourceRel, locale)
 	if !filepath.IsAbs(out) {
 		out = filepath.Join(root, out)
 	}

@@ -16,6 +16,43 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestUnitsFromProject_ExpandsPathToken guards that verify/coverage resolve a
+// content item's target template with the SAME token set as the write path
+// (project.ResolveTargetPath), not just {lang}. A recipe like
+// `target: i18n-{lang}/{path}.klf` over a `**` glob writes i18n-fr/sub/a.klf via
+// `kapi up`; when verify only expanded {lang} it looked for the literal
+// i18n-fr/{path}.klf and reported every target "missing" — the bug behind
+// check --ship / coverage failing on any glob-source + templated-target project.
+func TestUnitsFromProject_ExpandsPathToken(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "i18n", "sub"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "i18n", "sub", "a.klf"),
+		[]byte(`{"kind":"kapi-localization-format"}`), 0o644))
+
+	proj := &project.KapiProject{
+		Version: project.CurrentVersion,
+		Defaults: project.Defaults{
+			SourceLanguage:  "en",
+			TargetLanguages: []model.LocaleID{"fr"},
+		},
+		Content: []project.ContentCollection{
+			{Name: "c", Path: "i18n/**/*.klf", Target: "i18n-{lang}/{path}.klf"},
+		},
+	}
+
+	app := &App{}
+	app.InitRegistries()
+	app.SourceLang = "en"
+
+	units, err := app.UnitsFromProject(proj, root, "")
+	require.NoError(t, err)
+	require.Len(t, units, 1)
+	// {path} = source relative to the glob's fixed prefix (i18n/), without ext.
+	want := filepath.Join(root, "i18n-fr", "sub", "a.klf")
+	assert.Equal(t, want, units[0].TargetPath,
+		"{path} must expand like the write path (ResolveTargetPath), not stay literal")
+}
+
 // TestCoverageParity_FileScanVsBlockStore asserts the two block sources of
 // the shared coverage engine agree: the CLI's file-scan derivation
 // (ComputeShipCoverage over working-tree reads) and the desktop status

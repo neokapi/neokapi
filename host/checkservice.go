@@ -50,9 +50,18 @@ func OverlayTargets(sourceBlocks, targetBlocks []*model.Block, locale model.Loca
 		if !ok {
 			continue // no target → empty; QA flags as untranslated.
 		}
-		// Carry the target text and runs onto the source block as the target
-		// locale so checkers can compare inline codes structurally.
-		if runs := tb.SourceRuns(); len(runs) > 0 {
+		// Carry the translation onto the source block as the target locale so
+		// checkers can compare inline codes structurally. A bilingual target
+		// file (kapi's own .klf interchange, which keeps the source in place and
+		// the translation under targets.<locale>) carries the translation as the
+		// block's target runs; prefer those. A monolingual target file (e.g.
+		// fr-FR.json, whose content IS the translation) has none, so fall back to
+		// the block's own source runs/text.
+		if tr := tb.TargetRuns(locale); len(tr) > 0 {
+			sb.SetTargetRuns(locale, tr)
+		} else if tt := tb.TargetText(locale); tt != "" {
+			sb.SetTargetText(locale, tt)
+		} else if runs := tb.SourceRuns(); len(runs) > 0 {
 			sb.SetTargetRuns(locale, runs)
 		} else {
 			sb.SetTargetText(locale, tb.SourceText())
