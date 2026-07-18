@@ -216,7 +216,7 @@ export function ProjectView({
             )}
             {onOpenTM && (
               <Button variant="ghost" size="sm" onClick={onOpenTM} data-testid="open-tm-btn">
-                Translation Memory
+                Content memory
               </Button>
             )}
             {(onEditProject || onArchiveProject || onManageMembers || onOpenSettings) && (

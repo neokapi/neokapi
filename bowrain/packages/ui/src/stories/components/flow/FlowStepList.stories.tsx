@@ -35,7 +35,7 @@ const leveragingSchema: ComponentSchema = {
   properties: {
     tmxPath: {
       type: "string",
-      title: "Translation Memory",
+      title: "Content memory",
       "x-path": { type: "file", role: "input", resourceKind: "tm", accepts: ["tmx"] },
     },
     threshold: {

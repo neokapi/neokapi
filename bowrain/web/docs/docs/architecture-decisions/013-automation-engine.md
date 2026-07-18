@@ -162,7 +162,7 @@ External notifications sign the payload with HMAC-SHA256:
 ```yaml
 webhooks:
   - url: https://hooks.slack.com/services/...
-    events: [quality.gate.failed, flow.completed]
+    events: [quality.gate.fail, convergence.run.completed]
     secret: ${WEBHOOK_SECRET}
 ```
 

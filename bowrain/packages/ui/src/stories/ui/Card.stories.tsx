@@ -48,7 +48,7 @@ export const Glass: Story = {
   render: () => (
     <Card>
       <CardHeader>
-        <CardTitle>Translation Memory</CardTitle>
+        <CardTitle>Content memory</CardTitle>
         <CardDescription>1,234 entries across 3 locale pairs</CardDescription>
       </CardHeader>
       <CardContent>

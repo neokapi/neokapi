@@ -21,7 +21,7 @@ export const Horizontal: Story = {
   render: () => (
     <div>
       <div className="space-y-1">
-        <h4 className="text-sm font-medium leading-none">Translation Memory</h4>
+        <h4 className="text-sm font-medium leading-none">Content memory</h4>
         <p className="text-sm text-muted-foreground">Reuse past translations across projects.</p>
       </div>
       <Separator className="my-4" />

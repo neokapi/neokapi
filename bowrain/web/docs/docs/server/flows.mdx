@@ -211,10 +211,12 @@ Project flow definitions can also be pushed as part of a project's
 ## Composing multi-step work
 
 Multi-step work composes *inside* a single flow definition — the node graph
-above chains translate and QA in one run. Automations react to content
-events such as `connector.push.completed`; chaining flows on a
-`flow.completed` event is intended but that event is not yet emitted (see
-the lifecycle diagram above). See
+above chains translate and QA in one run. There is no flow-to-flow chaining:
+automations react to content events such as `connector.push.completed` with a
+fixed set of actions (translate, extract, notify, review tasks, overlay
+writes — see [Automation](/server/automation)), and the `flow.completed`
+event is defined but not yet emitted, so no automation can react to a flow
+finishing. See
 [Automation > Loop Prevention](/server/automation#loop-prevention) for how
 the automation engine bounds event-driven work.
 

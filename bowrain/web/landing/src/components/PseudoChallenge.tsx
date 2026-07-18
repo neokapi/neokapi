@@ -145,7 +145,7 @@ export function PseudoChallenge() {
         <p className="mt-3 text-muted-foreground">
           This is kapi, the open engine under Bowrain, running in your browser. Go from zero to a
           multilingual-ready pipeline in seconds. Bowrain is what makes the glossary and voice rules
-          below shared across a team.
+          below shared across your projects, your team, and your agents.
         </p>
       </div>
 
@@ -298,7 +298,7 @@ export function PseudoChallenge() {
           t("Level 1: Basic pseudo-localization. Proves your pipeline handles non-ASCII.")}
         {level === 2 &&
           t(
-            "Level 2: kapi reads brand terms from your glossary and protects them. On Bowrain, that glossary follows you across every project — and every teammate.",
+            "Level 2: kapi reads brand terms from your glossary and protects them. On Bowrain, that glossary follows you across every project, teammate, and agent.",
           )}
         {level === 3 && t("Level 3: Expansion testing reveals UI truncation and layout breaks.")}
         {level === 4 &&
