@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -13,6 +14,8 @@ import {
   CircleCheck,
   useApi,
   type SlugCheckResponse,
+  type User,
+  type Workspace,
 } from "@neokapi/ui";
 
 const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
@@ -51,6 +54,7 @@ interface WelcomePageProps {
  */
 export function WelcomePage({ onComplete }: WelcomePageProps) {
   const api = useApi();
+  const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [slug, setSlug] = useState("");
@@ -127,8 +131,15 @@ export function WelcomePage({ onComplete }: WelcomePageProps) {
     setError(null);
     setSubmitting(true);
     try {
-      await api.completeOnboarding(slug, displayName);
-      onComplete(slug);
+      const workspace = await api.completeOnboarding(slug, displayName);
+      queryClient.setQueryData<Workspace[]>(["workspaces"], (prev) => [
+        ...(prev ?? []).filter((w) => w.id !== workspace.id),
+        workspace,
+      ]);
+      queryClient.setQueryData<User>(["currentUser"], (prev) =>
+        prev && !prev.onboarded_at ? { ...prev, onboarded_at: new Date().toISOString() } : prev,
+      );
+      onComplete(workspace.slug);
     } catch (err: unknown) {
       setError({ title: "Couldn't complete onboarding", cause: err });
     } finally {
