@@ -34,6 +34,10 @@ describe("planInvalidations → query-key mapping", () => {
     { type: "brand.voice.drift", expectIncludes: ["brand-drift"] },
     { type: "connector.sync.completed", expectIncludes: ["connectors", "project"] },
     { type: "flow.completed", expectIncludes: ["flows", "automation-runs"] },
+    {
+      type: "convergence.run.completed",
+      expectIncludes: ["activities", "convergenceRuns", "loopRollup", "translationDashboard"],
+    },
     { type: "push.automations.completed", expectIncludes: ["flows", "automation-runs"] },
     { type: "version.created", expectIncludes: ["projects", "project"] },
     { type: "something.unknown", expectIncludes: ["activities", "auditlog"] },
@@ -72,6 +76,17 @@ describe("planInvalidations → query-key mapping", () => {
     const plan = planInvalidations("acme", { type: "block.updated" });
     expect(plan.immediate).toContainEqual(["project", "acme"]);
     expect(plan.debounced).toContainEqual(["translationDashboard", "acme"]);
+  });
+
+  it("routes convergence run events to the run + rollup keys, debounced", () => {
+    const plan = planInvalidations("acme", {
+      type: "convergence.run.completed",
+      projectId: "p1",
+    });
+    expect(plan.immediate).toContainEqual(["activities", "acme"]);
+    expect(plan.debounced).toContainEqual(["convergenceRuns", "acme", "p1"]);
+    expect(plan.debounced).toContainEqual(["loopRollup", "acme"]);
+    expect(plan.debounced).toContainEqual(["translationDashboard", "acme", "p1"]);
   });
 
   it("routes the projects list through the debounced bucket", () => {

@@ -1153,6 +1153,63 @@ export interface ConvergenceRun {
   finished_at?: string;
 }
 
+/**
+ * The workspace's most recent convergence run within the loop rollup —
+ * matches `loopRollupRunView` in bowrain/server/handlers_loop_rollup.go.
+ */
+export interface LoopRollupRun {
+  id: string;
+  project_id: string;
+  project_name?: string;
+  /** The project's default stream — the segment its deep links live under. */
+  stream?: string;
+  /** running | converged | parked | failed | canceled */
+  state: string;
+  /** Why a parked/failed run did not converge (needs_credits | …). */
+  stall_reason?: string;
+  trigger?: string;
+  created_at?: string;
+  finished_at?: string;
+  /** The run's last observable progress. */
+  updated_at?: string;
+}
+
+/** One counted project's slice of the workspace ship rollup. */
+export interface LoopRollupShipProject {
+  project_id: string;
+  project_name?: string;
+  stream?: string;
+  governed: number;
+  ai_shippable: number;
+  pending: number;
+}
+
+/**
+ * Workspace ship-state rollup: counts of project-locales per derived ship
+ * state over the projects with a cached dashboard rollup (basis "cached").
+ * counted_projects < total_projects means partial coverage — present it as
+ * such, never as the whole workspace.
+ */
+export interface LoopRollupShip {
+  basis: string;
+  governed: number;
+  ai_shippable: number;
+  pending: number;
+  counted_projects: number;
+  total_projects: number;
+  /** Counted projects, most pending first (the deep-link target leads). */
+  projects?: LoopRollupShipProject[];
+}
+
+/**
+ * GET /:ws/loop-rollup — the workspace home's cheap loop aggregate. Both
+ * fields are optional; an absent field hides its card (no data ≠ zero).
+ */
+export interface LoopRollup {
+  latest_run?: LoopRollupRun;
+  ship?: LoopRollupShip;
+}
+
 /** The source-first readiness split of a convergence estimate. */
 export interface ConvergenceSourceReadiness {
   /** Resolved gate level: none | authored | checked | approved. */
