@@ -84,6 +84,11 @@ func ValidateProfile(p *VoiceProfile) []ProfileProblem {
 		add("name", "name is required")
 	}
 
+	// MinScore is an optional 0–100 bar; 0 means "use the default".
+	if p.MinScore < 0 || p.MinScore > 100 {
+		add("min_score", fmt.Sprintf("min_score must be between 0 and 100 (got %d)", p.MinScore))
+	}
+
 	// Tone enums (each optional; a non-empty value must be in range).
 	checkEnum(add, "tone.formality", p.Tone.Formality, validFormality)
 	checkEnum(add, "tone.emotion", p.Tone.Emotion, validEmotion)

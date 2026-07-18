@@ -386,6 +386,19 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	srcLocale := proj.DefaultSourceLanguage
 	tgtLocale := model.LocaleID(job.TargetLocale)
 
+	// Lazily resolve the standing brand voice profile once for draft scoring
+	// (persistDraftVoiceScores) — resolved only when a draft actually persists,
+	// so a job with nothing to score costs no extra store reads.
+	var voiceProfile *brand.VoiceProfile
+	voiceProfileResolved := false
+	draftProfile := func() *brand.VoiceProfile {
+		if !voiceProfileResolved {
+			voiceProfile = resolveJobBrandProfile(ctx, deps, job)
+			voiceProfileResolved = true
+		}
+		return voiceProfile
+	}
+
 	// TM-first convergence (theme A). Before paying for AI, recycle exact/
 	// near-exact matches from the project's server TM — mirroring the built-in
 	// `translate` flow's recycle→translate ordering. Only the blocks with no
@@ -408,6 +421,10 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 				emitLog(deps, job.StepID, "info",
 					fmt.Sprintf("Recycled %d block(s) from TM (skipping AI)", tmFilled),
 					map[string]string{"via_tm": strconv.Itoa(tmFilled)})
+				// Score the recycled drafts against the standing voice profile
+				// (deterministic vocabulary check, zero AI) so the on-brand
+				// rate covers TM output too.
+				persistDraftVoiceScores(ctx, deps, job, draftProfile(), res.filled, tgtLocale)
 			}
 			// Rebuild the stored-block slice for the AI loop as the remainder —
 			// only genuinely-new segments cost credits. StoredBlock carries more
@@ -571,6 +588,10 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		if err := deps.ContentStore.StoreBlocks(ctx, job.ProjectID, "main", blocks); err != nil {
 			return fmt.Errorf("store blocks: %w", err)
 		}
+		// Score the AI drafts against the standing voice profile (deterministic
+		// vocabulary check, zero AI) so the dashboard's on-brand rate is
+		// voice-informed for every drafted block.
+		persistDraftVoiceScores(ctx, deps, job, draftProfile(), blocks, tgtLocale)
 		// Write the AI drafts back to the project TM (theme A2) so sibling
 		// locales, re-runs, and future pushes recycle instead of re-paying.
 		// Draft origin lets a later review approval upgrade the same entry.

@@ -3,6 +3,7 @@ import type { LocaleTranslationStats, TranslationDashboardStats } from "../types
 import { Globe, FileText, Languages, BarChart3 } from "./icons";
 import { LanguageLabel } from "./LanguageLabel";
 import { LocaleCompletionChart } from "./LocaleCompletionChart";
+import { OnBrandRateChip } from "./OnBrandRateChip";
 import { ShipStateBadge } from "./ShipStateBadge";
 import { WordCountChart } from "./WordCountChart";
 import { CollectionHeatmap } from "./CollectionHeatmap";
@@ -61,14 +62,24 @@ function ShipReadinessCard({ localeStats }: { localeStats: LocaleTranslationStat
                   {l.translated_blocks}/{l.total_blocks} blocks
                 </span>
               </span>
-              {l.ship_state && (
-                <ShipStateBadge
-                  state={l.ship_state}
-                  approvedBlocks={l.approved_blocks}
-                  totalBlocks={l.total_blocks}
-                  failingChecks={l.failing_checks}
-                />
-              )}
+              <span className="flex shrink-0 items-center gap-1.5">
+                {l.on_brand_rate !== undefined && l.on_brand_basis && (
+                  <OnBrandRateChip
+                    rate={l.on_brand_rate}
+                    basis={l.on_brand_basis}
+                    onBrandBlocks={l.on_brand_blocks}
+                    translatedBlocks={l.translated_blocks}
+                  />
+                )}
+                {l.ship_state && (
+                  <ShipStateBadge
+                    state={l.ship_state}
+                    approvedBlocks={l.approved_blocks}
+                    totalBlocks={l.total_blocks}
+                    failingChecks={l.failing_checks}
+                  />
+                )}
+              </span>
             </li>
           ))}
         </ul>

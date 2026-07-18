@@ -151,3 +151,12 @@ tone:
 	assert.Equal(t, "Good", p.Name)
 	assert.Equal(t, "neutral", p.Tone.Formality)
 }
+
+func TestValidateProfile_MinScoreRange(t *testing.T) {
+	probs := ValidateProfile(&VoiceProfile{Name: "P", MinScore: 101})
+	require.NotEmpty(t, probs)
+	assert.Contains(t, problemFields(probs)["min_score"], "between 0 and 100")
+
+	assert.Empty(t, ValidateProfile(&VoiceProfile{Name: "P", MinScore: 100}))
+	assert.Empty(t, ValidateProfile(&VoiceProfile{Name: "P"}), "unset min_score is valid")
+}

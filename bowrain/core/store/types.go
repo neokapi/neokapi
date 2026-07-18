@@ -506,7 +506,34 @@ type LocaleTranslationStats struct {
 	// ShipState is the derived per-locale ship state (see DeriveShipState).
 	// Empty when the producer did not derive it.
 	ShipState ShipState `json:"ship_state,omitempty"`
+	// OnBrandBlocks counts translated blocks that pass the project's QA checks
+	// with no error-severity finding AND — where a persisted brand voice score
+	// exists for the block+locale — carry a score at or above the scoring
+	// profile's minimum bar. Additive: producers that do not derive the
+	// on-brand rate leave it 0 (omitted from JSON).
+	OnBrandBlocks int `json:"on_brand_blocks,omitempty"`
+	// OnBrandRate is OnBrandBlocks / TranslatedBlocks, in [0,1]. Nil when the
+	// producer did not derive it or the scope has no translated blocks.
+	OnBrandRate *float64 `json:"on_brand_rate,omitempty"`
+	// OnBrandBasis states what informed OnBrandRate: OnBrandBasisChecks when no
+	// voice scores existed for the scope (QA checks only), OnBrandBasisVoice
+	// when at least one block's persisted voice score also informed it. Empty
+	// when the rate was not derived — consumers hide the metric then.
+	OnBrandBasis OnBrandBasis `json:"on_brand_basis,omitempty"`
 }
+
+// OnBrandBasis names the evidence behind a derived on-brand rate, so consumers
+// can present the number honestly: a checks-only rate says nothing about voice.
+type OnBrandBasis string
+
+const (
+	// OnBrandBasisChecks — the rate reflects QA check results only; no brand
+	// voice scores existed for the scope.
+	OnBrandBasisChecks OnBrandBasis = "checks"
+	// OnBrandBasisVoice — the rate reflects QA checks plus persisted brand
+	// voice scores measured against the scoring profile's minimum bar.
+	OnBrandBasisVoice OnBrandBasis = "voice+checks"
+)
 
 // ItemTranslationStats holds per-file translation progress.
 type ItemTranslationStats struct {

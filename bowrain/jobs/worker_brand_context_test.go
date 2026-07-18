@@ -120,6 +120,16 @@ func TestWorkerBrandContext_EndToEnd(t *testing.T) {
 	require.Len(t, stored, 1)
 	assert.NotEmpty(t, stored[0].Block.TargetText("fr"), "the job must still produce a translation")
 
+	// The drafted target leaves a deterministic voice score behind it (the
+	// dashboard's on-brand rate feeds on these): scored against the bound
+	// profile at draft time, zero AI.
+	scores, err := bs.GetScores(ctx, projectID, "fr")
+	require.NoError(t, err)
+	require.NotEmpty(t, scores, "a drafted block must persist a voice score")
+	assert.Equal(t, stored[0].Block.ID, scores[0].BlockID,
+		"the score references the STORED block id — the id the dashboard joins on")
+	assert.Equal(t, profile.ID, scores[0].ProfileID)
+
 	// Control: a project with no binding and no terminology runs bare through
 	// the same config path.
 	const bareID = "proj-barectx"

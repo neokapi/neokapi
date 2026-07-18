@@ -165,6 +165,12 @@ func TestScoreStorage(t *testing.T) {
 	scores, err = store.GetScores(ctx, "proj1", "fr-FR")
 	require.NoError(t, err)
 	assert.Empty(t, scores)
+
+	// Empty locale means ALL locales (the project-wide read the score
+	// endpoints and the brand rollup use), not "rows with an empty locale".
+	scores, err = store.GetScores(ctx, "proj1", "")
+	require.NoError(t, err)
+	assert.Len(t, scores, 1)
 }
 
 // TestScoreLocaleNormalization verifies scores are stored and queried under the

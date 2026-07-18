@@ -1,0 +1,199 @@
+# Evals on cron — the founder ritual, retired.
+#
+# Three self-serve loops, previously run by hand from a desktop:
+#
+#   1. model-drift  — `make check-models` against the providers' live model
+#      lists, plus a claude-CLI refresh of the batch/context eval price tables.
+#      Any drift becomes a rolling auto-PR (bot branch + gh pr create), never a
+#      direct push to main.
+#   2. harness-smoke — the free demo-stub harness runs (`make context-eval` /
+#      `make batch-eval`), keyless, proving the harnesses still assemble.
+#   3. eval-publish — the PAID model sweeps behind the /context-eval and
+#      /batch-eval dashboards. Spend-guarded three ways: the job only runs when
+#      the repo variable EVALS_PAID_ENABLED is "true" (kill switch), only when
+#      the API credentials exist (skip-with-notice otherwise), and under a hard
+#      timeout. The Bedrock legs need AWS SSO credentials CI does not hold, so
+#      EVALS_SKIP_BEDROCK=1 leaves them a desktop responsibility.
+#
+# Refreshed datasets are committed via auto-PR (scripts/evals-auto-pr.sh, the
+# bot-identity conventions of scripts/l10n-autofix.sh) — dashboards stay
+# reviewable, and a bad sweep never lands on main unseen.
+
+name: Evals Refresh
+
+on:
+  schedule:
+    # Weekly, Monday 05:17 UTC — off the whole-hour thundering herd.
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      skip_paid:
+        description: "Skip the paid model sweeps (drift check + demo stubs only)"
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths:
+      - "providers/ai/models.json"
+
+permissions:
+  contents: read
+
+# One refresh at a time, and never cancelled mid-run: a killed sweep has
+# already paid for the calls it made but publishes nothing.
+concurrency:
+  group: evals-refresh
+  cancel-in-progress: false
+
+jobs:
+  # Free, keyless: the demo stubs prove the harnesses still assemble and run.
+  harness-smoke:
+    name: Harness smoke (demo stubs)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.0"
+
+      - name: Install libicu (framework cgo dependency)
+        run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
+
+      - name: Run the demo-stub harnesses
+        run: |
+          make context-eval
+          make batch-eval
+
+  # Catalog + price drift. check-models needs provider API keys to list live
+  # models (providers without a key are skipped — absence of a key must never
+  # read as "its models are gone"); the price refresh drives the claude CLI
+  # over the vendors' pricing pages and is skipped without its credential.
+  model-drift:
+    name: Model catalog + price drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.0"
+
+      - name: Install libicu (framework cgo dependency)
+        run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
+
+      - name: Check the catalog against the providers' live model lists
+        id: modelcheck
+        run: |
+          # -check exits non-zero on drift (a catalogued model no longer
+          # served, or a price outliving its model). Drift is not a job
+          # failure — it is the input to the auto-PR below. No pipe here: the
+          # step shell has no pipefail, and `if make | tee` would test tee.
+          if make check-models MODELCHECK_ARGS=-check; then
+            echo "drift=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "drift=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::check-models reports catalog drift — the catalog itself is curated (scripts/prompts/update-model-catalog.md); see the job log."
+          fi
+
+      - name: Refresh model prices from the vendors' pricing pages
+        if: env.CLAUDE_CODE_OAUTH_TOKEN != ''
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          make update-model-prices
+
+      - name: Note the skipped price refresh
+        if: env.CLAUDE_CODE_OAUTH_TOKEN == ''
+        run: echo "::notice::CLAUDE_CODE_OAUTH_TOKEN is not set — skipping the price refresh (it drives the claude CLI)."
+
+      - name: Open the price-drift auto-PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVALS_PR_NOTE: >-
+            check-models drift: ${{ steps.modelcheck.outputs.drift }}. When
+            true, the model catalog (providers/ai/models.json) also needs a
+            curation pass — run scripts/prompts/update-model-catalog.md; this
+            PR only refreshes the price tables.
+        run: |
+          bash scripts/evals-auto-pr.sh bot/evals-model-prices \
+            "chore(evals): refresh model price tables" -- \
+            scripts/batcheval/prices.json \
+            scripts/contexteval/prices.json
+
+  # The paid sweeps behind /context-eval and /batch-eval. Every guard is
+  # deliberate: kill-switch variable, per-credential skip, bedrock leg off,
+  # hard timeout, and the refreshed datasets land as a reviewable PR.
+  eval-publish:
+    name: Refresh eval dashboards (paid sweeps)
+    needs: harness-smoke
+    if: vars.EVALS_PAID_ENABLED == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.skip_paid)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      EVALS_SKIP_BEDROCK: "1"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Gate on the paid credentials
+        id: gate
+        run: |
+          if [ -z "$GEMINI_API_KEY" ] || [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Paid eval sweep skipped: both GEMINI_API_KEY and CLAUDE_CODE_OAUTH_TOKEN must be set (the sweeps and their cross-family judges need both providers)."
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Go
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.0"
+
+      - name: Install libicu (framework cgo dependency)
+        if: steps.gate.outputs.run == 'true'
+        run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
+
+      - name: Install the claude CLI (claude-code provider + judge)
+        if: steps.gate.outputs.run == 'true'
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Context-adherence sweep
+        if: steps.gate.outputs.run == 'true'
+        run: make context-eval-publish
+
+      - name: Batch-size sweep
+        if: steps.gate.outputs.run == 'true'
+        run: make batch-eval-publish
+
+      - name: Open the dashboard-refresh auto-PR
+        if: steps.gate.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVALS_PR_NOTE: >-
+            Weekly sweep of the gemini and claude-code legs
+            (EVALS_SKIP_BEDROCK=1 — the Bedrock leg needs AWS SSO credentials
+            and stays a desktop run). Same-day re-runs correct their history
+            entry rather than appending a second point.
+        run: |
+          bash scripts/evals-auto-pr.sh bot/evals-dashboards \
+            "chore(evals): refresh context-eval and batch-eval dashboards" -- \
+            web/src/pages/context-eval/_contexteval.json \
+            web/src/pages/batch-eval/_batcheval.json

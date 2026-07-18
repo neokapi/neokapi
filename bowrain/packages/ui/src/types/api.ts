@@ -687,6 +687,14 @@ export interface WordCountResult {
  */
 export type ShipState = "governed" | "ai_shippable" | "pending";
 
+/**
+ * Evidence behind a derived on-brand rate: `checks` = QA check results only
+ * (no brand voice scores existed for the scope); `voice+checks` = QA checks
+ * plus persisted brand voice scores measured against the profile's minimum
+ * bar.
+ */
+export type OnBrandBasis = "checks" | "voice+checks";
+
 /** Per-locale translation progress */
 export interface LocaleTranslationStats {
   locale: string;
@@ -702,6 +710,12 @@ export interface LocaleTranslationStats {
   failing_checks?: number;
   /** Derived ship state; absent from producers that do not derive it (e.g. pulse). */
   ship_state?: ShipState;
+  /** Translated blocks counting as on-brand (checks pass + voice bar where scored). */
+  on_brand_blocks?: number;
+  /** on_brand_blocks / translated_blocks in [0,1]; absent when not derived. */
+  on_brand_rate?: number;
+  /** What informed on_brand_rate; absent when the server did not derive it. */
+  on_brand_basis?: OnBrandBasis;
 }
 
 /** Per-file translation progress */
