@@ -62,6 +62,8 @@ type TranslationJob struct {
     BatchSize        int      // blocks per LLM call (default 20)
     Concurrency      int      // parallel batch calls (default 5)
     TokensUsed       int
+    ViaTM            int      // blocks recycled from the project TM (TM-first split)
+    ViaAI            int      // blocks sent to the AI translator
     Error            string
     StepID           string   // links to parent automation step (AD-013)
     CreatedAt, UpdatedAt time.Time
@@ -77,14 +79,25 @@ type TranslationJob struct {
 4. Mark status = "processing"
 5. Load project and blocks from ContentStore
 6. Resolve provider (see below)
-7. Create AITranslateTool with batch/concurrency config
-8. Process blocks in chunks of 50:
+7. Recycle from the project TM first: fill blocks that match the TM
+   (exact by default) and record ViaTM; the remainder goes to AI
+8. Create AITranslateTool with batch/concurrency config
+9. Process the AI remainder in chunks of 50:
    a. Run tool on chunk
    b. Record token usage in QuotaStore
    c. Update progress in JobStore and emit log lines
-9. Store translated blocks in ContentStore
-10. Mark status = "completed" with total token count
+10. Store translated blocks in ContentStore
+11. Record the TM-first split (ViaTM/ViaAI) via UpdateJobTMSplit
+12. Mark status = "completed" with total token count
 ```
+
+**TM-first split.** Each job recycles TM matches before calling paid AI
+and records how many blocks were filled from the TM (`ViaTM`) versus
+sent to the translator (`ViaAI`). A server convergence run
+([AD-022](022-convergence-as-a-service.md)) sums these across its jobs
+and `reconcileSplit` derives the AI share as the remainder, so the run
+reports a truthful `TM N · AI M` split server-side — the same split the
+CLI reports locally — rather than attributing everything to AI.
 
 **Provider resolution.**
 
