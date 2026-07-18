@@ -141,6 +141,7 @@ workspace group.
 | `locale_demand_connect_clicked` | the "Connect PostHog" / "Fix connection" affordance is clicked on the locale-demand page (AD-018 demand path) | `reconnect` |
 | `convergence_estimate_viewed` | the run-now consent dialog opens and the source-readiness-first pre-flight estimate is shown, before any run starts (epic 019) | `source_held` (bool — any source blocks held on the gate), `covers_all_ai` (bool — balance covers the AI remainder) |
 | `convergence_run_started` | a convergence run is started from the run-now consent dialog after the user picks a scope and confirms (epic 019) — the web/client complement of the server's same-named event, distinguished by `surface` | `scope` (`all` / `ready-only` / `none`), `source_held` (bool) |
+| `github_setup_installation_missing` | the GitHub App setup page (`/github/setup`) loads from a GitHub redirect (`setup_action` present) but without an `installation_id` — the post-install/update handoff lost the id and the user sees the recovery card instead of the repo list | `setup_action` (`install` / `update`) |
 
 ## Client surfaces
 

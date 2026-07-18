@@ -12,7 +12,7 @@ import type { JSXElement } from "@swc/core";
 import { getTranslatability, inlineElements } from "../plugin/defaults.ts";
 import type { PluginOptions } from "../types.ts";
 import { getStringAttr, getTagName, hasAttr, resolveHTMLElement } from "./ast.ts";
-import { isPluralTag, isSelectTag } from "./plural.ts";
+import { isPluralElement, isSelectElement } from "./plural.ts";
 
 export type Rule = NonNullable<PluginOptions["rules"]>[number];
 
@@ -129,7 +129,7 @@ export function isAllInlineContent(el: HasChildren, componentMap: Record<string,
     if (child.type === "JSXElement") {
       const tag = getTagName(child);
       if (!tag) return false;
-      if (isPluralTag(tag) || isSelectTag(tag)) continue;
+      if (isPluralElement(child) || isSelectElement(child)) continue;
       const html = resolveHTMLElement(tag, componentMap);
       if (html && inlineElements.has(html)) continue;
       // Zero-children unmapped component → treat as opaque inline.
@@ -171,7 +171,7 @@ export function hasTranslatableText(el: HasChildren): boolean {
     if (child.type === "JSXElement") {
       const tag = getTagName(child);
       if (!tag) continue;
-      if (isPluralTag(tag) || isSelectTag(tag)) return true;
+      if (isPluralElement(child) || isSelectElement(child)) return true;
       if (inlineElements.has(tag) && hasTranslatableText(child)) return true;
     }
   }

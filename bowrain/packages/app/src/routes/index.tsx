@@ -27,7 +27,7 @@ import {
   ActivityFeedSkeleton,
   TaskBoardSkeleton,
 } from "@neokapi/ui";
-import { searchInstallationId } from "./installation-id";
+import { searchInstallationId, searchSetupAction } from "./installation-id";
 import { RootLayout } from "./root-layout";
 import { AuthLayout } from "./auth-layout";
 import { WorkspaceLayout } from "./workspace-layout";
@@ -182,6 +182,10 @@ const githubSetupRoute = createRoute({
   path: "github/setup",
   validateSearch: (search: Record<string, unknown>) => ({
     installation_id: searchInstallationId(search.installation_id),
+    // GitHub appends setup_action=install|update; the page treats both the
+    // same, keeping it only to tell "arrived from GitHub" apart from a
+    // hand-typed URL when the installation id is missing.
+    setup_action: searchSetupAction(search.setup_action),
   }),
   component: lazyRouteComponent(() => import("./github-setup"), "GithubSetupRoute"),
 });

@@ -22,3 +22,16 @@ export function searchInstallationId(value: unknown): string | number | undefine
   if (typeof value === "number" && Number.isFinite(value)) return value;
   return undefined;
 }
+
+/**
+ * Search-param validator for GitHub's `setup_action`. GitHub appends
+ * `setup_action=install` on first install and `setup_action=update` when the
+ * user changes the installation's repository access (with "Redirect on
+ * update" enabled). The page treats both identically — the repo list is
+ * re-read either way — so the value is kept only as a signal that the visit
+ * came from a GitHub redirect (used by the missing-id diagnostics). Anything
+ * unrecognised is dropped rather than round-tripped.
+ */
+export function searchSetupAction(value: unknown): "install" | "update" | undefined {
+  return value === "install" || value === "update" ? value : undefined;
+}
