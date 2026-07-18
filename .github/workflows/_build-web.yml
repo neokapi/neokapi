@@ -23,7 +23,10 @@ jobs:
         working-directory: bowrain/apps/web
         env:
           VITE_POSTHOG_KEY: phc_9TMOqaMSUH5wE6xPTeTKjYBBJWVRdzOlUMahZAr7twD
-          VITE_POSTHOG_HOST: https://eu.i.posthog.com
+          # First-party reverse proxy (modules/spa-site enable_posthog_proxy) so
+          # analytics + session replay survive ad blockers. ui_host in posthog.ts
+          # still points at eu.posthog.com for SDK-generated links.
+          VITE_POSTHOG_HOST: https://app.bowrain.cloud/ph
           # Sentry DSN is publish-safe (it ships in the browser bundle by
           # design), so it is baked in at build time — the same as the PostHog
           # key above. This is the "inject on deploy to S3" point: the build
