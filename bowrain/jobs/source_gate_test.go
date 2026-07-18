@@ -47,7 +47,7 @@ func TestGateBlocksBySource(t *testing.T) {
 // TestProjectDNTTerms parses the comma-separated do-not-translate list from
 // project settings.
 func TestProjectDNTTerms(t *testing.T) {
-	assert.Nil(t, projectDNTTerms(&store.Project{}))
+	assert.Nil(t, ProjectDNTTerms(&store.Project{}))
 	assert.Equal(t, []string{"Kapi", "Bowrain"},
-		projectDNTTerms(&store.Project{Properties: map[string]string{"dnt_terms": " Kapi , Bowrain , "}}))
+		ProjectDNTTerms(&store.Project{Properties: map[string]string{"dnt_terms": " Kapi , Bowrain , "}}))
 }

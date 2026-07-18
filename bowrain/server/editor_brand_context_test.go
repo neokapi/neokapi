@@ -126,10 +126,33 @@ func TestEditorTranslateConfigBareWithoutBrandContext(t *testing.T) {
 
 	assert.Nil(t, cfg.Profile)
 	assert.Nil(t, cfg.Glossary)
+	assert.Nil(t, cfg.DNT, "no dnt_terms in project settings → no DNT list")
 	assert.Equal(t, model.LocaleID("en"), cfg.SourceLocale)
 	assert.Equal(t, model.LocaleID("fr"), cfg.TargetLocale)
 	assert.Equal(t, 7, cfg.BatchSize)
 	assert.Equal(t, 2, cfg.BatchConcurrency)
+}
+
+// TestEditorTranslateConfigCarriesDNTTerms proves the interactive editor
+// translate config carries the project's do-not-translate terms exactly as a
+// worker job does (jobs.ProjectDNTTerms over Properties["dnt_terms"]), so a
+// per-block editor translation cannot mangle a term a batch job protects.
+func TestEditorTranslateConfigCarriesDNTTerms(t *testing.T) {
+	cs, err := bstore.NewSQLiteStore(":memory:")
+	require.NoError(t, err)
+	proj := &platstore.Project{
+		ID:                    "p1",
+		DefaultSourceLanguage: "en",
+		Properties:            map[string]string{"dnt_terms": " Kapi , Bowrain , "},
+	}
+	require.NoError(t, cs.CreateProject(t.Context(), proj))
+
+	cfg := editorTranslateConfig(t.Context(), cs, editorBrandContext{}, proj,
+		"p1", "main", "ws-1", "acme", TranslateRequest{TargetLocale: "fr"})
+
+	assert.Equal(t, []string{"Kapi", "Bowrain"}, cfg.DNT)
+	assert.Equal(t, jobs.ProjectDNTTerms(proj), cfg.DNT,
+		"editor and worker must derive the DNT list identically")
 }
 
 // TestEditorTranslateConfigDegradesGracefully pins the never-fail contract on
