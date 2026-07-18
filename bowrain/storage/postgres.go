@@ -44,7 +44,7 @@ func OpenPostgres(connStr string) (*PgDB, error) {
 }
 
 // OpenPostgresWithPool opens a PostgreSQL database via pgxpool, optionally
-// wiring an AfterConnect hook (e.g., graph.AfterConnect for AGE). The pool
+// wiring an AfterConnect hook for per-connection session setup. The pool
 // is exposed via PgDB.Pool() for subsystems that need native pgx access.
 func OpenPostgresWithPool(connStr string, afterConnect AfterConnectFunc) (*PgDB, error) {
 	poolConfig, err := pgxpool.ParseConfig(connStr)

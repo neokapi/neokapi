@@ -5,8 +5,9 @@
 # secrets to fill in), use bowrain/compose.full.yaml instead.
 #
 # The server requires PostgreSQL (there is no SQLite/file backend) and an async
-# worker that shares the job queue (NATS) and the blob volume. Auto-translate on
-# push runs in the worker; configure its upstream provider via the env below.
+# worker that shares the job queue (SQS-compatible, ElasticMQ here) and the blob
+# volume. Auto-translate on push runs in the worker; configure its upstream
+# provider via the env below.
 #
 # Before `up`, set the placeholders marked REQUIRED (OIDC + JWT secret + a real
 # translation provider). Traefik routes:
@@ -31,11 +32,9 @@ services:
       - "--providers.file.watch=true"
     restart: unless-stopped
 
-  # Standard PostgreSQL — the brand knowledge graph runs on the default
-  # plain-SQL graph backend (no Apache AGE extension required), so this works
-  # unchanged on managed PostgreSQL such as RDS/Aurora. Apache AGE is an opt-in
-  # backend (BOWRAIN_GRAPH_BACKEND=age + an AGE-enabled image); see
-  # bowrain/graph/NOTES.md.
+  # Standard PostgreSQL — the brand knowledge graph runs on the plain-SQL
+  # graph backend (no extension required), so this works unchanged on managed
+  # PostgreSQL such as RDS/Aurora. See bowrain/graph/NOTES.md.
   postgres:
     image: postgres:16-alpine
     environment:
@@ -51,11 +50,45 @@ services:
       retries: 20
     restart: unless-stopped
 
-  nats:
-    image: nats:2-alpine
-    command: ["--jetstream", "--store_dir", "/data"]
-    volumes:
-      - nats-data:/data
+  # Job queue (SQS-compatible; the same sqsqueue code path as Amazon SQS). On
+  # AWS, drop this service and point SQS_ENDPOINT-less server/worker at real
+  # SQS queues via the task role.
+  elasticmq:
+    image: softwaremill/elasticmq-native:latest
+    restart: unless-stopped
+
+  # One-shot: create the job queues the server enqueues to and the worker
+  # consumes (visibility timeout mirrors prod).
+  sqs-init:
+    image: amazon/aws-cli:latest
+    depends_on:
+      elasticmq:
+        condition: service_started
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        until aws --endpoint-url http://elasticmq:9324 sqs list-queues >/dev/null 2>&1; do
+          echo 'waiting for elasticmq...'; sleep 1;
+        done
+        for name in translation-jobs extraction-jobs brand-scan-jobs; do
+          aws --endpoint-url http://elasticmq:9324 sqs create-queue \
+            --queue-name "$$name" --attributes VisibilityTimeout=300 >/dev/null
+        done
+        echo 'sqs queues ready'
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     restart: unless-stopped
 
   bowrain-server:
@@ -66,7 +99,14 @@ services:
       BOWRAIN_OIDC_ISSUER_URL: ${BOWRAIN_OIDC_ISSUER_URL:?REQUIRED: OIDC issuer URL}
       BOWRAIN_OIDC_CLIENT_ID: ${BOWRAIN_OIDC_CLIENT_ID:-bowrain}
       BOWRAIN_OIDC_CLIENT_SECRET: ${BOWRAIN_OIDC_CLIENT_SECRET:?REQUIRED: OIDC client secret}
-      BOWRAIN_NATS_URL: nats://nats:4222
+      # Jobs on SQS (ElasticMQ), events on Redis Streams.
+      BOWRAIN_QUEUE_BACKEND: sqs
+      SQS_ENDPOINT: http://elasticmq:9324
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      BOWRAIN_EVENT_BACKEND: redis
+      BOWRAIN_REDIS_URL: redis://redis:6379
       BLOB_STORAGE_LOCAL_DIR: /data/blobs
     volumes:
       - blob-data:/data
@@ -75,15 +115,24 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      nats:
-        condition: service_started
+      sqs-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     restart: unless-stopped
 
   bowrain-worker:
     image: ghcr.io/neokapi/bowrain-worker:latest
     environment:
       BOWRAIN_DATABASE_URL: postgres://bowrain:${POSTGRES_PASSWORD:-bowrain}@postgres:5432/bowrain?sslmode=disable
-      BOWRAIN_NATS_URL: nats://nats:4222
+      # Same queue/event backends as the server.
+      BOWRAIN_QUEUE_BACKEND: sqs
+      SQS_ENDPOINT: http://elasticmq:9324
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      BOWRAIN_EVENT_BACKEND: redis
+      BOWRAIN_REDIS_URL: redis://redis:6379
       LOCAL_BLOB_DIR: /data/blobs
       # REQUIRED for auto-translate: set a real provider + key (gemini/openai/...).
       BOWRAIN_PLATFORM_PROVIDER: ${BOWRAIN_PLATFORM_PROVIDER:-}
@@ -94,8 +143,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      nats:
-        condition: service_started
+      sqs-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     restart: unless-stopped
 
   bowrain-web:
@@ -106,5 +157,4 @@ services:
 
 volumes:
   postgres-data:
-  nats-data:
   blob-data:

@@ -1,9 +1,9 @@
 package jobs
 
-// AgentJobMessage is the payload sent via Service Bus for @bravo agent processing.
-// The worker receives this, loads the user message from the agent store,
-// spawns/reuses a Container App, streams the response, and publishes SSE
-// events to Redis pub/sub.
+// AgentJobMessage is the payload sent via the job queue for @bravo agent
+// processing. The worker receives this, loads the user message from the agent
+// store, spawns/reuses an agent container, streams the response, and publishes
+// SSE events to Redis pub/sub.
 type AgentJobMessage struct {
 	ConversationID string `json:"conversation_id"`
 	MessageID      string `json:"message_id"`

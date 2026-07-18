@@ -7,10 +7,10 @@ title: "Graph Store Schema"
 
 This note provides implementation details for [AD-006](/architecture-decisions/006-graph-concept-storage).
 
-The server runs the plain-SQL backend on standard PostgreSQL by default
-(`SQLGraphStore`); Apache AGE is an opt-in backend selected with
-`BOWRAIN_GRAPH_BACKEND=age`. Both are ports of the framework's SQLite
-adjacency-table reference.
+The server runs the plain-SQL backend on standard PostgreSQL
+(`SQLGraphStore`), a port of the framework's SQLite adjacency-table
+reference. (An opt-in Apache AGE backend existed historically and was
+removed — see the history note in AD-006 and `bowrain/graph/NOTES.md`.)
 
 ## Framework: SQLite Adjacency Table DDL
 
@@ -51,132 +51,24 @@ CREATE INDEX IF NOT EXISTS idx_graph_nodes_label ON graph_nodes(label);
 - Foreign keys enforce referential integrity on edges
 - Indexes on source, target, label enable efficient traversal queries
 
-## Server (default): SQL Adjacency Tables on PostgreSQL
+## Server: SQL Adjacency Tables on PostgreSQL
 
-The default backend, `SQLGraphStore` (`bowrain/graph/sql.go`), ports the
+The server backend, `SQLGraphStore` (`bowrain/graph/sql.go`), ports the
 SQLite reference above to standard PostgreSQL: `graph_nodes` / `graph_edges`
 with `jsonb` properties (queried via containment), nullable RFC3339 validity
 bounds, Go-side tag filtering, and a recursive-CTE `ShortestPath`. It needs
 no extension, so it runs on stock PostgreSQL and managed RDS/Aurora.
 `EnsureGraph` creates the schema at wiring time under an advisory lock, and
 `graph_edges` foreign keys use `ON DELETE CASCADE`. Raw Cypher is not
-supported on this backend (`CypherQuery`/`CypherExec` return
+supported (`CypherQuery`/`CypherExec` return
 `core/graph.ErrCypherNotSupported`).
 
-## Server (opt-in): Apache AGE Cypher DDL
+## History: Apache AGE Cypher DDL and agtype parsing
 
-AGE (`bowrain/graph/age.go`, selected with `BOWRAIN_GRAPH_BACKEND=age`) uses
-a property graph model accessed through Cypher queries via
-`ag_catalog.cypher()`, and requires an AGE-enabled PostgreSQL:
-
-```sql
--- Graph creation (bowrain/graph/age.go)
-SELECT * FROM ag_catalog.create_graph('bowrain_graph');
-```
-
-**Node creation:**
-
-```sql
-SELECT * FROM ag_catalog.cypher('bowrain_graph', $$
-    CREATE (n:Concept {id: 'c1', name: 'encryption', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z'})
-    RETURN n
-$$) as (v agtype);
-```
-
-**Edge creation with validity:**
-
-```sql
-SELECT * FROM ag_catalog.cypher('bowrain_graph', $$
-    MATCH (a {id: 'c1'}), (b {id: 'c2'})
-    CREATE (a)-[r:BROADER {id: 'e1', source: 'c1', target: 'c2',
-        valid_from: '2024-01-01T00:00:00Z',
-        tags: '{"market":"us"}',
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z'}]->(b)
-    RETURN r
-$$) as (e agtype);
-```
-
-**Traversal with direction:**
-
-```sql
--- Outgoing neighbors
-SELECT * FROM ag_catalog.cypher('bowrain_graph', $$
-    MATCH (n {id: 'c1'})-[r:BROADER]->(m) RETURN m
-$$) as (v agtype);
-
--- Incoming neighbors
-SELECT * FROM ag_catalog.cypher('bowrain_graph', $$
-    MATCH (n {id: 'c1'})<-[r:BROADER]-(m) RETURN m
-$$) as (v agtype);
-
--- Both directions, multiple labels
-SELECT * FROM ag_catalog.cypher('bowrain_graph', $$
-    MATCH (n {id: 'c1'})-[r:BROADER|NARROWER]-(m) RETURN m
-$$) as (v agtype);
-```
-
-**Scoped traversal (temporal + tags):**
-
-```sql
-SELECT * FROM ag_catalog.cypher('bowrain_graph', $$
-    MATCH (n {id: 'c1'})-[r]->(m)
-    WHERE (r.valid_from IS NULL OR r.valid_from <= '2024-06-01T00:00:00Z')
-    AND (r.valid_to IS NULL OR r.valid_to > '2024-06-01T00:00:00Z')
-    AND r.tags CONTAINS '"market":"us"'
-    RETURN m
-$$) as (v agtype);
-```
-
-**Shortest path:**
-
-```sql
-SELECT * FROM ag_catalog.cypher('bowrain_graph', $$
-    MATCH p = shortestPath((a {id: 'c1'})-[*..10]-(b {id: 'c2'}))
-    RETURN p
-$$) as (p agtype);
-```
-
-## Server: agtype Parsing
-
-AGE returns results as `agtype`, a custom PostgreSQL type. The parser in `bowrain/graph/agtype.go` handles three formats:
-
-### Vertex format
-
-```
-{"id": 123, "label": "Concept", "properties": {"id": "c1", "name": "encryption"}}::vertex
-```
-
-- Strip `::vertex` suffix
-- Parse JSON body into `agtypeVertex` struct
-- Extract application-level `id` from properties (fall back to AGE internal `id`)
-- Convert `map[string]any` properties to `map[string]string`
-
-### Edge format
-
-```
-{"id": 456, "label": "BROADER", "start_id": 123, "end_id": 789, "properties": {"id": "e1", "source": "c1", "target": "c2", "valid_from": "2024-01-01T00:00:00Z"}}::edge
-```
-
-- Strip `::edge` suffix
-- Parse JSON body into `agtypeEdge` struct
-- Extract `source`/`target` from properties (fall back to `start_id`/`end_id`)
-- Reconstruct `Validity` from `valid_from`, `valid_to`, `tags` properties
-
-### Path format
-
-```
-[{...}::vertex, {...}::edge, {...}::vertex]::path
-```
-
-- Strip `::path` suffix
-- Split array elements by tracking brace depth (commas inside JSON objects are skipped)
-- Parse alternating vertex (even indices) and edge (odd indices) elements
-- Return assembled `Path` struct
-
-### Scalar values
-
-`ParseScalar` handles: `null`, `true`/`false`, integers, floats, quoted strings.
+The removed opt-in AGE backend accessed a property graph through Cypher via
+`ag_catalog.cypher()` and parsed AGE's custom `agtype` results (vertex, edge,
+path, scalar). Its DDL, query patterns, and parser details live in git history
+(`bowrain/graph/age.go`, `agtype.go`, `cypher.go`, `afterconnect.go`).
 
 ## Framework: SQLite Shortest Path (Recursive CTE)
 
@@ -215,7 +107,7 @@ SELECT path_nodes, path_edges FROM bfs WHERE node = ? LIMIT 1
 | ------------------- | ----------------------------------------------------------- |
 | `EventBlockCreated` | Create Concept node with `project_id` and `name` properties |
 | `EventBlockUpdated` | Update node properties                                      |
-| `EventBlockDeleted` | Delete node (edges cascade: SQL `ON DELETE CASCADE`, AGE `DETACH DELETE`) |
+| `EventBlockDeleted` | Delete node (incident edges cascade via `ON DELETE CASCADE`) |
 
 The syncer is backend-agnostic (it takes a `core/graph.GraphStore`), uses a
 10-second context timeout per event, and logs errors without failing. The
@@ -238,12 +130,7 @@ stores at any time.
 
 | File                             | Purpose                                                  |
 | -------------------------------- | -------------------------------------------------------- |
-| `bowrain/graph/sql.go`          | `SQLGraphStore` — default plain-SQL backend on PostgreSQL |
-| `bowrain/graph/cypher.go`       | CypherStore sub-interface                                |
-| `bowrain/graph/age.go`          | `AGEGraphStore` — opt-in AGE backend (GraphStore + CypherStore) |
-| `bowrain/graph/agtype.go`       | agtype parser (vertex, edge, path, scalar)               |
-| `bowrain/graph/time.go`         | Time formatting helpers for AGE                          |
-| `bowrain/graph/afterconnect.go` | pgx AfterConnect hook for AGE extension (AGE only)       |
-| `bowrain/server/postgres.go`    | Backend selection (`BOWRAIN_GRAPH_BACKEND`)              |
+| `bowrain/graph/sql.go`          | `SQLGraphStore` — plain-SQL backend on PostgreSQL        |
+| `bowrain/server/postgres.go`    | Store wiring (`EnsureGraph` at pool-open time)           |
 | `bowrain/graph/sync.go`         | Event-driven graph sync                                  |
-| `bowrain/graph/NOTES.md`        | Backend selection and parity notes                       |
+| `bowrain/graph/NOTES.md`        | Backend and behavior notes                               |

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/version"
@@ -184,12 +185,8 @@ func (s *Server) checkQueue() ComponentStatus {
 		return ComponentStatus{Status: "unconfigured"}
 	}
 	queueType := "channel"
-	switch s.JobQueue.(type) {
-	case interface{ Healthy() bool }:
-		// Use type name for known types.
-	}
-	if s.Config.NATSURL != "" {
-		queueType = "nats"
+	if jobs.SQSConfigured() {
+		queueType = "sqs"
 	}
 	if !s.JobQueue.Healthy() {
 		return ComponentStatus{Status: "down", Type: queueType}

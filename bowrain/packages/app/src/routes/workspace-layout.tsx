@@ -21,7 +21,6 @@ import {
   CardHeader,
   CardTitle,
   useApi,
-  type NavItem,
   type User,
   type View,
   type Workspace,
@@ -37,7 +36,6 @@ import {
   useBravoAssistantRuntime,
 } from "@neokapi/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Earth } from "lucide-react";
 import { useUIStore } from "../stores/ui-store";
 import { viewFromPath, type WorkspaceView } from "./view-from-path";
 import { activitiesQueryOptions, myTasksQueryOptions } from "../queries";
@@ -45,13 +43,6 @@ import { useWorkspaceEvents } from "../hooks/useWorkspaceEvents";
 import { useDesktopFreshness } from "../hooks/useDesktopFreshness";
 import { useConnectivity } from "../hooks/useConnectivity";
 import type { WorkspaceRouteContext } from ".";
-
-// Web-only workspace nav entries appended after the shared ones (Projects,
-// Brand, Memory). Locale demand shows live data when a PostHog connector is
-// configured, and a sample dataset otherwise.
-const workspaceExtraNavItems: NavItem[] = [
-  { id: "locale-demand", label: "Locale demand", icon: <Earth /> },
-];
 
 // ---------------------------------------------------------------------------
 // Helpers to extract project context from URL
@@ -759,7 +750,6 @@ export function WorkspaceLayout() {
               onCreateWorkspace={serverMode === "server" ? () => setShowCreateWs(true) : undefined}
               activeView={effectiveView}
               onViewChange={handleViewChange}
-              extraNavItems={workspaceExtraNavItems}
               hiddenSubNavIds={bravoEnabled ? undefined : ["bravo"]}
               user={user}
               onSignOut={serverMode === "server" ? handleSignOut : undefined}

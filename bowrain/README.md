@@ -74,9 +74,9 @@ cd apps/bowrain && wails3 build      # native desktop app
 
 ### Running Bowrain locally
 
-Bowrain expects Keycloak (OIDC), Mailpit (email), a PostgreSQL store, NATS (job
-queue + event bus), and an async worker. There are three ways to wire it up,
-depending on what you're working on:
+Bowrain expects Keycloak (OIDC), Mailpit (email), a PostgreSQL store, an
+SQS-compatible job queue (ElasticMQ locally), Redis (event bus), and an async
+worker. There are three ways to wire it up, depending on what you're working on:
 
 | Mode                       | What runs where                                  | Entry point           | Command                                                           |
 | -------------------------- | ------------------------------------------------ | --------------------- | ----------------------------------------------------------------- |

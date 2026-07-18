@@ -6,8 +6,9 @@ title: Configuration
 # Server configuration
 
 This page is the complete reference for configuring **bowrain-server** and
-**bowrain-worker**. For the overall service topology (PostgreSQL + NATS + worker
-+ blob storage) and a production walkthrough, see [Self-Hosting](/server/self-hosting).
+**bowrain-worker**. For the overall service topology (PostgreSQL + job queue +
+worker + blob storage) and a production walkthrough, see
+[Self-Hosting](/server/self-hosting).
 
 ## Precedence
 
@@ -22,8 +23,7 @@ Bowrain Server requires **PostgreSQL**. There is no SQLite or file backend. The
 connection string must use the `postgres://` or `postgresql://` scheme — the
 server refuses to start otherwise. The schema is created automatically on first
 start, and migrations run on startup. The brand knowledge graph runs on the
-same stock PostgreSQL by default (no extension required); Apache AGE is an
-opt-in upgrade — see [`BOWRAIN_GRAPH_BACKEND`](#core) and
+same stock PostgreSQL (no extension required) — see
 [AD-006](/architecture-decisions/006-graph-concept-storage).
 
 ```bash
@@ -43,15 +43,18 @@ All Bowrain variables use the `BOWRAIN_` prefix; a few external integrations
 | --- | --- | --- |
 | `BOWRAIN_DATABASE_URL` | _(empty)_ | PostgreSQL connection string (`postgres://…`) — **required** |
 | `BOWRAIN_DATABASE_AUTH` | _(empty)_ | `azure` to use Entra ID managed-identity tokens; otherwise password auth from the URL |
-| `BOWRAIN_GRAPH_BACKEND` | `sql` | Brand knowledge graph backend: unset/`sql` runs on stock PostgreSQL; `age` opts into Apache AGE (requires an AGE-enabled PostgreSQL) |
 | `BOWRAIN_PORT` | `8080` | HTTP port to listen on (gRPC is multiplexed onto the same port) |
 | `BOWRAIN_HOST` | `0.0.0.0` | Address to bind to |
 | `BOWRAIN_DATA_DIR` | _(empty)_ | Directory for temporary files during processing |
-| `BOWRAIN_NATS_URL` | _(empty)_ | NATS URL for the job queue + event bus (e.g. `nats://nats:4222`) |
-| `BOWRAIN_REDIS_URL` | _(empty)_ | Redis URL for caching and session state |
+| `BOWRAIN_QUEUE_BACKEND` | _(empty)_ | `sqs` selects the SQS job-queue backend; unset uses an in-process queue (single-instance development only) |
+| `SQS_ENDPOINT` | _(empty)_ | SQS endpoint override for SQS-compatible emulators (ElasticMQ, LocalStack); empty on AWS |
+| `BOWRAIN_SQS_QUEUE_PREFIX` | _(empty)_ | Optional name prefix applied to every job queue |
+| `BOWRAIN_EVENT_BACKEND` | _(empty)_ | `redis` runs the event bus on Redis Streams (requires `BOWRAIN_REDIS_URL`); unset uses the in-memory bus |
+| `BOWRAIN_REDIS_URL` | _(empty)_ | Redis URL for caching, session state, and the Redis Streams event bus |
 | `BOWRAIN_REDIS_PASSWORD` | _(empty)_ | Redis password (overrides any password in `BOWRAIN_REDIS_URL`) |
 | `BOWRAIN_MAX_PUSH_BYTES` | `256MB` | Max total upload size per push |
 | `BOWRAIN_WEB_UI_DIR` | _(empty)_ | Path to built web UI static files (dev only; production serves the UI from a separate container) |
+| `BOWRAIN_PULSE_ENABLED` | `false` | Mounts the public Pulse activity dashboard (`/api/v1/pulse` routes + the pulse subdomain SPA). Unmounted by default |
 | `BOWRAIN_LOG_FORMAT` | _(empty)_ | `text` or `json` |
 | `BOWRAIN_LOG_LEVEL` | _(empty)_ | `debug`, `info`, `warn`, `error` |
 
@@ -162,7 +165,6 @@ requests per minute except the claim-email cap, which is per hour.
 | Variable | Description |
 | --- | --- |
 | `AZURE_CLIENT_ID` | Managed-identity client ID (used when `BOWRAIN_DATABASE_AUTH=azure`) |
-| `BOWRAIN_SERVICE_BUS_CONNECTION` | Azure Service Bus connection string (alternative job queue to NATS) |
 
 ## Worker environment variables
 
@@ -172,7 +174,8 @@ and runs the auto-translate-on-push automation.
 | Variable | Description |
 | --- | --- |
 | `BOWRAIN_DATABASE_URL` | Same PostgreSQL connection string as the server |
-| `BOWRAIN_NATS_URL` | Same NATS URL as the server |
+| `BOWRAIN_QUEUE_BACKEND` / `SQS_ENDPOINT` | Same job-queue selection as the server (the two must agree on the broker) |
+| `BOWRAIN_EVENT_BACKEND` / `BOWRAIN_REDIS_URL` | Same event-bus selection as the server |
 | `LOCAL_BLOB_DIR` | Sync push payload dir — must point at the same shared volume as the server's `BLOB_STORAGE_LOCAL_DIR` |
 | `BOWRAIN_PLATFORM_PROVIDER` | Translation provider: `gemini`, `openai`, `anthropic`, `ollama`, or `demo` (offline) |
 | `BOWRAIN_PLATFORM_API_KEY` | Provider API key (or a provider-specific variable such as `GEMINI_API_KEY`) |

@@ -10,7 +10,7 @@ A Bowrain deployment is several cooperating services, not a single binary:
 - **bowrain-server** — the REST + gRPC API (one process; gRPC is multiplexed onto the HTTP port).
 - **bowrain-worker** — the async worker that ingests pushes and runs the auto-translate-on-push automation against an upstream translation provider.
 - **PostgreSQL** — the authoritative store (projects, blocks, workspaces, users, jobs). The server requires PostgreSQL; **there is no SQLite or file backend.**
-- **NATS** — the job queue and event bus shared by the server and worker.
+- A **job queue** (Amazon SQS, or an SQS-compatible broker such as ElasticMQ) and **Redis** for the event bus (Redis Streams), shared by the server and worker.
 - **bowrain-web** — the static web UI, served as its own container.
 - An **OIDC identity provider** (e.g. Keycloak) and an **SMTP** sender.
 
@@ -18,7 +18,7 @@ This page covers local evaluation. For a production stack with TLS, backups, and
 
 ## One-command local stack
 
-The repository ships a self-contained local stack at [`bowrain/compose.full.yaml`](https://github.com/neokapi/neokapi/blob/main/bowrain/compose.full.yaml) — server, worker, PostgreSQL, NATS, Redis, Keycloak (with a pre-imported realm), and Mailpit. It defaults to the offline `demo` translation provider, so the full push → translate → pull cycle works with no API keys and no OIDC setup:
+The repository ships a self-contained local stack at [`bowrain/compose.full.yaml`](https://github.com/neokapi/neokapi/blob/main/bowrain/compose.full.yaml) — server, worker, PostgreSQL, ElasticMQ (SQS-compatible job queue), Redis, MinIO, Keycloak (with a pre-imported realm), and Mailpit. It defaults to the offline `demo` translation provider, so the full push → translate → pull cycle works with no API keys and no OIDC setup:
 
 ```bash
 docker compose -f bowrain/compose.full.yaml up -d --build --wait
@@ -45,7 +45,7 @@ Tear down with `docker compose -f bowrain/compose.full.yaml down -v`.
 
 ## Self-hosting from published images
 
-To run from the published `ghcr.io/neokapi/` images against your own OIDC provider, use the reference stack at [`bowrain/deploy/docker/compose.yaml`](https://github.com/neokapi/neokapi/blob/main/bowrain/deploy/docker/compose.yaml) — Traefik, PostgreSQL, NATS, the server, the worker, and the web UI.
+To run from the published `ghcr.io/neokapi/` images against your own OIDC provider, use the reference stack at [`bowrain/deploy/docker/compose.yaml`](https://github.com/neokapi/neokapi/blob/main/bowrain/deploy/docker/compose.yaml) — Traefik, PostgreSQL, ElasticMQ, Redis, the server, the worker, and the web UI.
 
 ```bash
 docker compose -f deploy/docker/compose.yaml up -d
@@ -66,7 +66,7 @@ See [Self-Hosting](/server/self-hosting) for the full production walkthrough, in
 
 ## Native binary
 
-The server and worker also ship as native binaries on [GitHub Releases](https://github.com/neokapi/neokapi/releases). Both still require a reachable PostgreSQL and NATS.
+The server and worker also ship as native binaries on [GitHub Releases](https://github.com/neokapi/neokapi/releases). Both still require a reachable PostgreSQL, plus a shared job queue (SQS or an SQS-compatible broker) and Redis when the server and worker run as separate processes.
 
 ```bash
 # Linux (x86_64)
@@ -103,7 +103,10 @@ Type=simple
 User=bowrain
 Group=bowrain
 Environment=BOWRAIN_DATABASE_URL=postgres://bowrain:password@localhost/bowrain
-Environment=BOWRAIN_NATS_URL=nats://localhost:4222
+Environment=BOWRAIN_QUEUE_BACKEND=sqs
+Environment=SQS_ENDPOINT=http://localhost:9324
+Environment=BOWRAIN_EVENT_BACKEND=redis
+Environment=BOWRAIN_REDIS_URL=redis://localhost:6379
 ExecStart=/usr/local/bin/bowrain-server \
   --jwt-secret ${BOWRAIN_JWT_SECRET} \
   --oidc-issuer-url https://keycloak.example.com/realms/bowrain \

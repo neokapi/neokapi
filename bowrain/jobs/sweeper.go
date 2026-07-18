@@ -7,9 +7,9 @@ import (
 )
 
 // Default cadence and threshold for the stale-job sweeper. The threshold is set
-// comfortably above the NATS AckWait (natsAckWait, 5m) so the sweeper does not
-// race the broker's own redelivery of a still-in-flight message; it only acts
-// once a job has clearly been abandoned by a dead worker.
+// comfortably above the SQS visibility timeout (sqsVisibilityTimeout, 5m) so
+// the sweeper does not race the broker's own redelivery of a still-in-flight
+// message; it only acts once a job has clearly been abandoned by a dead worker.
 const (
 	defaultStaleJobThreshold = 15 * time.Minute
 	defaultSweepInterval     = 5 * time.Minute

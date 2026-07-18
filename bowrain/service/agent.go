@@ -25,7 +25,7 @@ type AgentService struct {
 	eventBus     platev.EventBus
 	pool         *AgentPool          // manages ZeroClaw containers (nil when using queue mode)
 	tokenStore   *AgentTokenStore    // scoped agent tokens for MCP delegation
-	queue        AgentEnqueuer       // Service Bus queue for bravo-jobs (nil = direct/mock mode)
+	queue        AgentEnqueuer       // job queue for bravo-jobs (nil = direct/mock mode)
 	pubsub       *AgentPubSub        // Redis pub/sub for SSE relay (nil = direct/mock mode)
 	billingHooks *billing.UsageHooks // billing credit deduction (nil = disabled)
 }
@@ -46,7 +46,7 @@ func (s *AgentService) SetPool(pool *AgentPool) {
 }
 
 // SetQueue configures queue-based agent orchestration.
-// When set (and pool is nil), SendMessageStream enqueues jobs to Service Bus
+// When set (and pool is nil), SendMessageStream enqueues jobs to the job queue
 // and subscribes to Redis pub/sub for SSE relay.
 func (s *AgentService) SetQueue(queue AgentEnqueuer, pubsub *AgentPubSub) {
 	s.queue = queue
@@ -242,7 +242,7 @@ func (s *AgentService) SendMessageStream(ctx context.Context, conversationID, us
 		return fmt.Errorf("add user message: %w", err)
 	}
 
-	// Queue mode: enqueue to Service Bus, subscribe to Redis for SSE relay.
+	// Queue mode: enqueue to the job queue, subscribe to Redis for SSE relay.
 	if s.pool == nil && s.queue != nil && s.pubsub != nil {
 		return s.sendQueuedStream(ctx, conversationID, userID, workspaceID, workspaceRole, content, mode, bravoCtx, userMsg.ID, sse)
 	}
@@ -363,7 +363,7 @@ func (s *AgentService) sendLocalStream(ctx context.Context, conversationID, user
 	return nil
 }
 
-// sendQueuedStream enqueues an agent job to Service Bus and subscribes to
+// sendQueuedStream enqueues an agent job to the job queue and subscribes to
 // Redis pub/sub to relay SSE events back to the client.
 func (s *AgentService) sendQueuedStream(ctx context.Context, conversationID, userID, workspaceID, workspaceRole, content, mode string, bravoCtx map[string]string, messageID string, sse SSEWriter) error {
 	// Encode the job message.

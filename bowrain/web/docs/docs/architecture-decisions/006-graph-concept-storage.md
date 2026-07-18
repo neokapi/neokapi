@@ -9,16 +9,14 @@ title: "AD-006: Graph Concept Storage"
 ## Summary
 
 Bowrain stores concept relationships, brand vocabulary networks, and
-billing metadata links as a graph. The `GraphStore` interface has two
-server backends: plain-SQL adjacency tables on standard PostgreSQL
-(`SQLGraphStore`, the default) and Apache AGE (a PostgreSQL extension, an
-opt-in upgrade). The graph is optional and derived — a `GraphSyncer`
+billing metadata links as a graph. The `GraphStore` interface has one
+server backend: plain-SQL adjacency tables on standard PostgreSQL
+(`SQLGraphStore`). The graph is optional and derived — a `GraphSyncer`
 rebuilds it from relational events — and no consumer issues raw Cypher, so
-the default backend runs on stock PostgreSQL. Edges carry temporal validity
-and tag-based scoping. The AGE backend additionally extends `GraphStore`
-with a `CypherStore` sub-interface for native Cypher queries. The backend is
-selected with `BOWRAIN_GRAPH_BACKEND` (unset or `sql` → SQL; `age` → AGE);
-see [Backend selection](#backend-selection).
+the backend runs on stock PostgreSQL with no extension. Edges carry
+temporal validity and tag-based scoping. (An opt-in Apache AGE backend
+existed historically and was removed; see
+[History](#history-the-apache-age-backend).)
 
 ## Context
 
@@ -167,100 +165,43 @@ terminology interoperability:
 (BROADER/NARROWER, PART_OF/HAS_PART) so callers can navigate in either
 direction.
 
-### SQL Backend (Default)
+### SQL Backend
 
-The default server backend, `SQLGraphStore` in `bowrain/graph/sql.go`,
-implements `GraphStore` on standard PostgreSQL using plain relational
-adjacency tables (`graph_nodes`, `graph_edges`) — no Apache AGE and no
-Cypher. It is a dialect port of the framework's SQLite reference
-(`host/storage/graph/sqlite.go`): the same node/edge CRUD, jsonb property
-containment, temporal `Scope`/`Validity` filtering (evaluated in Go via
-`Validity.Matches`), directional neighbours, and a bounded, cycle-safe
-recursive-CTE `ShortestPath`.
+The server backend, `SQLGraphStore` in `bowrain/graph/sql.go`, implements
+`GraphStore` on standard PostgreSQL using plain relational adjacency tables
+(`graph_nodes`, `graph_edges`) — no extension and no Cypher. It is a dialect
+port of the framework's SQLite reference (`host/storage/graph/sqlite.go`):
+the same node/edge CRUD, jsonb property containment, temporal
+`Scope`/`Validity` filtering (evaluated in Go via `Validity.Matches`),
+directional neighbours, and a bounded, cycle-safe recursive-CTE
+`ShortestPath`.
 
-Because the graph is optional and derived and needs no native traversal, SQL
-is the default so both local development and managed RDS/Aurora — which do
-not ship the AGE extension — run on the same stock `postgres:16` image.
-`CypherQuery` / `CypherExec` return `core/graph.ErrCypherNotSupported` on
-this backend. `EnsureGraph` creates the schema at wiring time, under a
-transaction-scoped advisory lock so replicas cold-starting against one fresh
-database serialise their DDL rather than race.
+Because the graph is optional and derived and needs no native traversal,
+plain SQL means both local development and managed RDS/Aurora run on the
+same stock `postgres:16` image. `CypherQuery` / `CypherExec` return
+`core/graph.ErrCypherNotSupported`. `EnsureGraph` creates the schema at
+wiring time (`bowrain/server/postgres.go`), under a transaction-scoped
+advisory lock so replicas cold-starting against one fresh database serialise
+their DDL rather than race. A schema-setup failure degrades to a nil
+`GraphStore` (brand-graph features disabled) rather than failing server
+startup.
 
-### Apache AGE Backend (Opt-In)
+A contract suite (`bowrain/graph/parity_test.go`) pins the operations
+bowrain uses against a real PostgreSQL testcontainer. See
+`bowrain/graph/NOTES.md` for behavior notes.
 
-The opt-in backend, `AGEGraphStore` in `bowrain/graph/age.go`, implements
-`GraphStore` using PostgreSQL's Apache AGE extension, and is the upgrade path
-for workloads that eventually need native graph traversal (deep multi-hop
-Cypher, path algorithms). It requires an AGE-enabled PostgreSQL (for example
-the `apache/age` image); managed RDS/Aurora do not support it today. The AGE
-backend also implements a `CypherStore` sub-interface that adds native Cypher
-query support:
+### History: the Apache AGE backend
 
-```go
-type CypherStore interface {
-    graph.GraphStore
-    CypherQuery(ctx context.Context, query string, params map[string]any) ([]*graph.Node, error)
-    CypherExec(ctx context.Context, query string, params map[string]any) error
-}
-```
-
-Cypher methods are not part of the core `GraphStore` interface — they
-are a backend-specific extension. Callers type-assert to `CypherStore`
-when they need Cypher access. This keeps `GraphStore` fully
-implementable by the SQLite backend while letting power users on AGE
-write complex graph queries directly.
-
-AGE graphs are created once per deployment:
-
-```sql
-SELECT * FROM ag_catalog.create_graph('bowrain_graph');
-```
-
-Queries route through `ag_catalog.cypher()`:
-
-```sql
-SELECT * FROM ag_catalog.cypher('bowrain_graph', $$
-    MATCH (n {id: 'c1'})-[r:BROADER]->(m) RETURN m
-$$) as (v agtype);
-```
-
-A `pgx` `AfterConnect` hook loads the AGE extension and sets the search
-path when pooled connections are first established. This hook is installed
-**only** when the AGE backend is selected, so a stock (or RDS) PostgreSQL
-running the SQL backend works out of the box.
-
-### agtype Parsing
-
-AGE returns results as `agtype`, a custom PostgreSQL type. The parser in
-`bowrain/graph/agtype.go` handles three formats:
-
-- **Vertex.** `{"id": 123, "label": "Concept", "properties": {...}}::vertex`
-- **Edge.** `{"id": 456, "label": "BROADER", "start_id": 123, "end_id": 789, "properties": {...}}::edge`
-- **Path.** `[<vertex>::vertex, <edge>::edge, <vertex>::vertex]::path`
-
-Vertex and edge IDs prefer application-level `id` in properties, falling
-back to AGE's internal `id`. Properties convert from `map[string]any` to
-`map[string]string`. Paths are parsed by tracking brace depth so commas
-inside JSON objects don't split elements prematurely.
-
-### Backend selection
-
-Server-side selection is by environment variable, read in
-`bowrain/server/postgres.go`:
-
-- `BOWRAIN_GRAPH_BACKEND` unset or `sql` → `SQLGraphStore` (default). Standard
-  PostgreSQL; the AGE `AfterConnect` hook is **not** installed, and
-  `EnsureGraph` creates the schema at wiring time.
-- `BOWRAIN_GRAPH_BACKEND=age` → `AGEGraphStore`. Requires an AGE-enabled
-  PostgreSQL; the `ag_catalog` `AfterConnect` hook is installed and the graph
-  is created via `ag_catalog.create_graph`.
-
-The graph is optional and derived, so a schema-setup failure degrades to a
-nil `GraphStore` (brand-graph features disabled) rather than failing server
-startup. A `parity_test.go` contract suite runs the operations bowrain uses
-against both backends to prove they behave identically. The two operations
-that legitimately differ — raw Cypher and unbounded-scope `FindNodesScoped` —
-are asserted separately. See `bowrain/graph/NOTES.md`.
+An opt-in backend on PostgreSQL's Apache AGE extension (`AGEGraphStore`,
+selected with `BOWRAIN_GRAPH_BACKEND=age`) existed alongside the SQL store,
+with a `CypherStore` sub-interface for native Cypher, an `agtype` result
+parser, and a `pgx` `AfterConnect` search-path hook. It was removed: AGE is
+unavailable on managed RDS/Aurora, no consumer ever issued raw Cypher, and
+carrying a second backend cost contract-suite and image maintenance with no
+production user. If a workload ever needs native graph traversal (deep
+multi-hop Cypher, path algorithms), a native graph engine is the upgrade
+path — implemented behind the same `core/graph.GraphStore` interface, whose
+`CypherQuery`/`CypherExec` escape hatch remains for such a backend to fill.
 
 ### SQLite reference (framework)
 
@@ -270,22 +211,21 @@ tooling use with no external database. Both implement the same `GraphStore`
 with adjacency tables (`graph_nodes`, `graph_edges`), JSON/jsonb-encoded
 properties, nullable RFC3339 validity bounds, Go-side tag filtering for scoped
 queries, and a recursive-CTE cycle-safe `ShortestPath`. The one behavioural
-difference: the SQL/Postgres backend and AGE cascade edge deletes
-(`ON DELETE CASCADE` / `DETACH DELETE`), whereas the SQLite reference errors
-on deleting a node that still has incident edges.
+difference: the SQL/Postgres backend cascades edge deletes
+(`ON DELETE CASCADE`), whereas the SQLite reference errors on deleting a
+node that still has incident edges.
 
 ### Event-Driven Graph Sync
 
 The server-side `GraphSyncer` in `bowrain/graph/sync.go` subscribes to
 the event bus and keeps the graph in sync with relational content
-changes. It is backend-agnostic — it takes a `core/graph.GraphStore` and
-works with either backend:
+changes. It is backend-agnostic — it takes a `core/graph.GraphStore`:
 
 | Event               | Action                                                      |
 | ------------------- | ----------------------------------------------------------- |
 | `EventBlockCreated` | Create Concept node with `project_id` and `name` properties |
 | `EventBlockUpdated` | Update node properties                                      |
-| `EventBlockDeleted` | Delete node (edges cascade: SQL `ON DELETE CASCADE`, AGE `DETACH DELETE`) |
+| `EventBlockDeleted` | Delete node (incident edges cascade via `ON DELETE CASCADE`) |
 
 The syncer uses a 10-second context timeout per event and logs errors
 without failing — graph inconsistency is recoverable; blocking event
@@ -335,36 +275,29 @@ plan transitions without destructive updates.
 | `core/graph/validity.go`       | `Validity`, `Scope`, matching logic                      |
 | `core/graph/labels.go`         | SKOS-aligned edge label constants                        |
 | `host/storage/graph/sqlite.go` | SQLite adjacency-table reference (framework / CLI)       |
-| `bowrain/graph/sql.go`         | `SQLGraphStore` — default plain-SQL backend on PostgreSQL |
-| `bowrain/graph/cypher.go`      | `CypherStore` sub-interface                              |
-| `bowrain/graph/age.go`         | `AGEGraphStore` — opt-in Apache AGE backend              |
-| `bowrain/graph/agtype.go`      | agtype parser                                            |
-| `bowrain/graph/afterconnect.go` | pgx `AfterConnect` hook for AGE extension loading       |
-| `bowrain/server/postgres.go`   | Backend selection (`BOWRAIN_GRAPH_BACKEND`)              |
+| `bowrain/graph/sql.go`         | `SQLGraphStore` — plain-SQL backend on PostgreSQL        |
+| `bowrain/server/postgres.go`   | Store wiring (`EnsureGraph` at pool-open time)           |
 | `bowrain/graph/sync.go`        | Event-driven graph sync                                  |
-| `bowrain/graph/NOTES.md`       | Backend selection and parity notes                       |
+| `bowrain/graph/NOTES.md`       | Backend and behavior notes                               |
 
 ## Consequences
 
 - Concept relationships are first-class graph edges; navigation,
   broader/narrower traversal, and shortest-path queries are natural.
-- The default SQL backend runs on stock PostgreSQL (including managed
-  RDS/Aurora), so development and production share one image with no
-  extension dependency. AGE remains an opt-in upgrade for workloads that
-  need native Cypher queries and path algorithms.
+- The SQL backend runs on stock PostgreSQL (including managed RDS/Aurora),
+  so development and production share one image with no extension
+  dependency.
 - Temporal validity models relationships that change over time (term
   supersession, seasonal terminology, product lifecycle).
 - SKOS-aligned labels ensure interoperability with standard terminology
   interchange formats.
-- The `CypherStore` sub-interface on the AGE backend enables power users
-  to write arbitrary graph queries; core `GraphStore` operations remain
-  portable.
 - Event-driven sync keeps the graph consistent with relational data
   without manual intervention.
-- Backend substitution: a deployment runs on the SQL backend by default and
-  can move to AGE (`BOWRAIN_GRAPH_BACKEND=age`) when scaling demands native
-  traversal, without changing callers; a `parity_test.go` contract suite
-  proves both backends behave identically for the operations bowrain uses.
+- Backend substitution stays open: callers depend only on
+  `core/graph.GraphStore`, so a native graph engine can be introduced behind
+  the same interface if scaling ever demands native traversal; the
+  `parity_test.go` contract suite is the behavioral spec a new backend must
+  pass.
 
 ## Related
 

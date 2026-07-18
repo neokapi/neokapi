@@ -15,7 +15,6 @@
 #                                                    └────────────────┘
 #   Jobs run on SQS (ElasticMQ), events on Redis Streams, and push payloads/blobs
 #   in S3 (MinIO) — the same managed-service code paths the AWS deployment uses.
-#   (NATS is gone: SQS + Redis replace it, so the box holds no queue broker.)
 #
 # Usage:
 #   cp .env.example .env            # optional: set GEMINI_API_KEY etc.
@@ -39,12 +38,9 @@ name: bowrain-local
 services:
   # ── Backing services ───────────────────────────────────────────────────────
   postgres:
-    # Standard PostgreSQL 16. The brand knowledge graph runs on the default
-    # plain-SQL graph backend (BOWRAIN_GRAPH_BACKEND unset → "sql"), so dev and
-    # managed RDS/Aurora share the same stock image. To opt into Apache AGE
-    # instead, switch this image to `apache/age:release_PG16_1.6.0`, re-add the
-    # `./migrations/init-age.sql:/docker-entrypoint-initdb.d/01-init-age.sql:ro`
-    # volume, and set `BOWRAIN_GRAPH_BACKEND: age` on bowrain-server.
+    # Standard PostgreSQL 16. The brand knowledge graph runs on the plain-SQL
+    # graph backend, so dev and managed RDS/Aurora share the same stock image
+    # (no extension required). See bowrain/graph/NOTES.md.
     image: postgres:16
     environment:
       POSTGRES_USER: bowrain
@@ -160,8 +156,8 @@ services:
   # ── Job queue (SQS-compatible; mirrors Amazon SQS in production) ─────────────
   # The server enqueues and the worker consumes through the same sqsqueue code
   # path as against real SQS. ElasticMQ is the standard fully-open SQS emulator
-  # (no license). The event bus runs on Redis Streams (separate concern), so with
-  # jobs on SQS there is no NATS in the stack at all.
+  # (no license). The event bus runs on Redis Streams (separate concern), so the
+  # box holds no dedicated queue broker.
   elasticmq:
     image: softwaremill/elasticmq-native:latest
     ports:
@@ -169,8 +165,8 @@ services:
       - "9325:9325"
 
   # One-shot: create the three job queues, mirroring the Terraform queues in prod
-  # (a visibility timeout matched to the NATS AckWait; DLQ/redrive is a prod
-  # durability concern provisioned by Terraform, not needed for local dev).
+  # (a 5m visibility timeout matching the stale-sweeper contract; DLQ/redrive is
+  # a prod durability concern provisioned by Terraform, not needed for local dev).
   sqs-init:
     image: amazon/aws-cli:latest
     depends_on:

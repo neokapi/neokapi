@@ -319,7 +319,12 @@ dev-server: ## Run bowrain-server locally (no UI build; use dev-web for HMR)
 	BOWRAIN_SMTP_FROM=noreply@bowrain.cloud \
 	BOWRAIN_DATABASE_URL=postgres://bowrain:bowrain@localhost:5432/bowrain_test?sslmode=disable \
 	BOWRAIN_REDIS_URL=redis://localhost:6379 \
-	BOWRAIN_NATS_URL=nats://localhost:4222 \
+	BOWRAIN_EVENT_BACKEND=redis \
+	BOWRAIN_QUEUE_BACKEND=sqs \
+	SQS_ENDPOINT=http://localhost:9324 \
+	AWS_REGION=us-east-1 \
+	AWS_ACCESS_KEY_ID=test \
+	AWS_SECRET_ACCESS_KEY=test \
 	BLOB_STORAGE_LOCAL_DIR=/tmp/bowrain-blobs \
 	BOWRAIN_ADMIN_OIDC_ISSUER_URL=https://auth.bowrain.mymac/realms/bowrain-admin \
 	BOWRAIN_ADMIN_OIDC_CLIENT_ID=bowrain-admin \
@@ -330,8 +335,13 @@ dev-worker: ## Run bowrain-worker locally (processes sync push + translation job
 	@mkdir -p $(BIN_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/bowrain-worker ./cmd/bowrain-worker
 	BOWRAIN_DATABASE_URL=postgres://bowrain:bowrain@localhost:5432/bowrain_test?sslmode=disable \
-	BOWRAIN_NATS_URL=nats://localhost:4222 \
 	BOWRAIN_REDIS_URL=redis://localhost:6379 \
+	BOWRAIN_EVENT_BACKEND=redis \
+	BOWRAIN_QUEUE_BACKEND=sqs \
+	SQS_ENDPOINT=http://localhost:9324 \
+	AWS_REGION=us-east-1 \
+	AWS_ACCESS_KEY_ID=test \
+	AWS_SECRET_ACCESS_KEY=test \
 	LOCAL_BLOB_DIR=/tmp/bowrain-blobs \
 	$(BIN_DIR)/bowrain-worker
 

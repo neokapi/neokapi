@@ -24,14 +24,6 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// WorkerConfig holds configuration for the translation worker.
-type WorkerConfig struct {
-	DatabaseURL         string
-	ServiceBusConn      string
-	QueueName           string
-	CredentialStorePath string
-}
-
 // WorkerDeps holds all dependencies for the translation worker.
 //
 // QueueName is a bounded metric label for this worker's queue

@@ -16,6 +16,31 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
+// registerPulseRoutes mounts the public Pulse dashboard routes on the given
+// group. Called only when Config.PulseEnabled is set (BOWRAIN_PULSE_ENABLED) —
+// the surface is unmounted by default.
+func (s *Server) registerPulseRoutes(v1 *echo.Group) {
+	v1.GET("/pulse", s.HandlePulseFrontPage)
+	if s.AuthStore == nil {
+		return
+	}
+
+	pulseGroup := v1.Group("/pulse/:workspace")
+	pulseGroup.Use(PulseAccessMiddleware(s.Config.JWTSecret, s.AuthStore))
+	pulseGroup.GET("", s.HandlePulseOverview)
+	pulseGroup.GET("/projects", s.HandlePulseProjects)
+	pulseGroup.GET("/activity/heatmap", s.HandlePulseActivityHeatmap)
+	pulseGroup.GET("/activity", s.HandlePulseActivity)
+	pulseGroup.GET("/leaderboard", s.HandlePulseLeaderboard)
+	pulseGroup.GET("/terms", s.HandlePulseTerms)
+	pulseGroup.GET("/terms/:cid", s.HandlePulseTermDetail)
+
+	// Project-scoped routes also enforce project-level visibility.
+	pulseProjectGroup := pulseGroup.Group("", PulseProjectAccessMiddleware(s.ContentStore))
+	pulseProjectGroup.GET("/projects/:id", s.HandlePulseProjectDetail)
+	pulseProjectGroup.GET("/projects/:id/lang/:locale", s.HandlePulseLocaleDetail)
+}
+
 // ---------------------------------------------------------------------------
 // Front Page (no workspace)
 // ---------------------------------------------------------------------------

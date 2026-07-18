@@ -39,7 +39,7 @@ automation-triggered.
 | Component     | Responsibility                                                                             |
 | ------------- | ------------------------------------------------------------------------------------------ |
 | `JobStore`    | Persists jobs with status, progress, and token usage (SQLite or PostgreSQL)                |
-| `JobQueue`    | Abstract dispatch; implementations: Amazon SQS (AWS production), NATS JetStream, Azure Service Bus, in-memory channels (dev). Selected in order SQS → Service Bus → NATS → channel; the SQS backend (`BOWRAIN_QUEUE_BACKEND=sqs`) uses one queue + DLQ per job type with `maxReceiveCount=3`, mirrored locally by ElasticMQ in docker-compose |
+| `JobQueue`    | Abstract dispatch; implementations: Amazon SQS (production) and in-memory channels (single-process dev). The SQS backend (`BOWRAIN_QUEUE_BACKEND=sqs`) uses one queue + DLQ per job type with `maxReceiveCount=3`, mirrored locally by ElasticMQ in docker-compose |
 | `Worker`      | Dequeues jobs, resolves providers, processes blocks in chunks of 50, records usage         |
 | `QuotaStore`  | Tracks token usage per workspace with a monthly limit (default 10M tokens)                 |
 
