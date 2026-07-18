@@ -121,38 +121,51 @@ Import and export are standalone functions rather than interface methods:
 A PostgreSQL backend with workspace isolation and terminology streams can be
 supplied by a platform layer behind the same `TermBase` interface.
 
-### Source of truth: the committed serialization, not the store
+### Working store and committed serialization
 
-The termbase follows the project state model ([AD-033](033-project-state-model.md)):
-the **committed `.klftb` serialization is the source of truth**, and the SQLite
-store is a **transient working index** over it — never the authoritative home in
-git mode.
+The termbase has two representations with an explicit transform between them, not
+a live two-way sync:
 
-- `defaults.termbase_source` binds the committed `.klftb` — a diff-friendly,
-  reviewable, mergeable text document. This is what a clone or a fresh CI
-  checkout restores from, and what a ship gate validates against.
-- The `.kapi/termbase.db` SQLite store is a working index: it is rebuilt from
-  the serialization on open, and edits are materialized back by an explicit
-  export. `kapi termbase add` writes the `.klftb` source first, then re-imports
-  it into the store — one write path — so the store never owns a term the
-  committed serialization lacks. Discard the `.db`, re-open from the `.klftb`,
-  lose nothing.
+- **the committed `.klftb` serialization** — a diff-friendly, reviewable,
+  mergeable text document, bound by `defaults.termbase_source`. This is the
+  durable, shared form: what a clone restores from, what a PR diffs, and what a
+  read-only ship gate validates.
+- **the SQLite `.kapi/termbase.db`** — the working store you operate on;
+  gitignored and per-machine.
 
-Committing a binary SQLite as the authoritative store would be git-hostile
-(opaque, conflict-prone) and would defeat interchange, so the durable home is the
-text serialization and the database is only an index over it. Consequently
-**read-only consumers read the serialization directly**: the terminology check
-gate decodes the committed `.klftb` without materializing the store, which is why
-it holds on a fresh checkout where the gitignored `.db` is absent. The store
-earns its keep only for the heavy indexed lookups (fuzzy, FTS) during
+`import` unpacks the serialization into the store; `export` packs the store back
+— the same pack/unpack idiom as the KLF parcel ([AD-025](025-klf-package.md)),
+applied to a store. Because the file is purely the store's serialization, there
+is no "which one is authoritative" question and no persistent dirty state to
+track: CI (or a dedicated termbase sync verb) unpacks before the terminology
+work and packs after, and a one-shot `kapi termbase add` auto-packs, since there
+is nothing to batch. Committing the binary SQLite would be git-hostile (opaque,
+conflict-prone) and would defeat interchange, so the serialization is the durable
+home and the db is the working form over it — discard the `.db`, unpack the
+`.klftb`, lose nothing.
+
+Export is canonical and deterministic (`canonicalConcepts`), so a pack with no
+changes is byte-identical: round-tripping through the store never produces a
+spurious diff, and CI's pack-after-work commits only real changes.
+
+**Read-only consumers read the committed serialization directly** — the
+terminology check gate decodes the `.klftb` without unpacking a store, which is
+why it holds on a fresh CI checkout where the gitignored `.db` is absent. The
+store earns its keep only for the heavy indexed lookups (fuzzy, FTS) during
 translation.
 
-> **Server variant.** In bowrain (server mode) the platform database *is* the
-> authoritative store — git is not in the loop. Same model, different backend
-> ([AD-033](033-project-state-model.md)): file mode → committed `.klftb` is
-> truth; server mode → the server DB is truth. The translation memory
-> ([AD-009](009-translation-memory.md)) binds `tm_source` (`.klftm`) under the
-> identical model.
+> **Server variant.** In bowrain the platform database is the working store and
+> the API is the boundary — git is not in the loop; same pack/unpack shape,
+> different remote. The translation memory ([AD-009](009-translation-memory.md))
+> relates `tm_source` (`.klftm`) to its store identically.
+
+> **Not the state store's model.** The project *state* store
+> ([AD-033](033-project-state-model.md)) adds a deferred discipline — edits
+> accumulate as un-exported ("dirty") changes surfaced by `Pending()`,
+> materialized by an explicit `Export` — because review decisions pile up
+> interactively mid-session. Termbase and TM are load-transform-save shaped, so
+> the simpler pack/unpack suffices; "unsaved edits in an open editor" is ordinary
+> session state, not a tracked dirty concept.
 
 ### Tiered lookup
 

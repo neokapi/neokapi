@@ -209,16 +209,21 @@ A PostgreSQL backend with workspace-scoped isolation and project scoping can
 be supplied by a platform layer, reusing the same matching algorithm behind
 the same `TranslationMemory` interface.
 
-### Source of truth: the committed serialization, not the store
+### Working store and committed serialization
 
-The TM follows the project state model ([AD-033](033-project-state-model.md)),
-identically to the termbase ([AD-010](010-terminology.md)): the **committed
-`.klftm` serialization bound by `defaults.tm_source` is the source of truth**,
-and the SQLite store is a **transient working index** over it — rebuilt from the
-serialization on open, materialized back by an explicit export, never the
-authoritative home in git mode. Committing a binary SQLite as the authoritative
-store would be git-hostile and would defeat interchange. In bowrain (server
-mode) the platform database *is* authoritative — git is not in the loop.
+The TM relates its store and serialization exactly as the termbase does
+([AD-010](010-terminology.md)): the committed `.klftm` (bound by
+`defaults.tm_source`) is the durable, shared, reviewable form, and the SQLite
+store is the working form over it, with explicit `import`/`export` (pack/unpack)
+between them — the KLF-parcel idiom ([AD-025](025-klf-package.md)), not a live
+sync. The file is what a clone restores from and what travels; the binary store
+is gitignored (committing it would be git-hostile and defeat interchange). So
+there is no "which is authoritative" ambiguity and no persistent dirty state:
+unpack before the work, pack after. In bowrain (server mode) the platform
+database is the working store and the API is the boundary — git is not in the
+loop. Unlike the project *state* store ([AD-033](033-project-state-model.md)),
+whose interactive review decisions warrant a deferred `Pending()`/`Export`
+discipline, the TM is load-transform-save shaped, so plain pack/unpack suffices.
 
 ### Fuzzy candidate retrieval
 

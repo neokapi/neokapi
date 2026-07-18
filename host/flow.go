@@ -1572,10 +1572,10 @@ func (a *App) resolveProjectTermbasePath(cmd Command) (string, error) {
 
 // ResolveProjectGlossary builds a source→target glossary from the project's
 // termbase, for the active source and target locales. It reads the committed
-// .klftb serialization — the termbase's source of truth (AD-033) — directly, so
-// the terminology gate validates the committed state and works at check time in
-// CI, where the gitignored working-index .db doesn't exist (see projectConcepts
-// for the full precedence). Returns nil when no termbase is in scope or it has
+// .klftb serialization — the termbase's durable form (AD-010) — directly, so the
+// terminology gate validates the committed state and works at check time in CI,
+// where the gitignored working-store .db doesn't exist (see projectConcepts for
+// the full precedence). Returns nil when no termbase is in scope or it has
 // no terms for the locale pair. The result is suitable for injection into a
 // term-check tool config under the "glossary" key.
 func (a *App) ResolveProjectGlossary(cmd Command, targetLang string) ([]coretools.GlossaryEntry, error) {
@@ -1610,12 +1610,12 @@ func (a *App) ResolveProjectGlossary(cmd Command, targetLang string) ([]coretool
 }
 
 // projectConcepts loads the project's termbase concepts for the read-only check
-// gates. Per the project state model (AD-033), the committed .klftb
-// serialization is the termbase's source of truth and the SQLite .db is only a
-// transient working index over it — so a ship gate validates the *committed*
-// serialization: when the recipe binds a termbase_source we decode it directly,
-// no engine store required. That is also why the terminology gate works on a
-// fresh CI checkout, where the gitignored .db is absent.
+// gates. Per the termbase model (AD-010), the committed .klftb is the durable
+// serialization and the SQLite .db is only a working store unpacked from it — so
+// a ship gate validates the *committed* serialization: when the recipe binds a
+// termbase_source we decode it directly, no store required. That is also why the
+// terminology gate works on a fresh CI checkout, where the gitignored .db is
+// absent.
 //
 // Precedence: an explicit --termbase selects a specific store (honour it); else
 // the committed serialization wins; else the working index the recipe binds
