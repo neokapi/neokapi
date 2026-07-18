@@ -98,22 +98,34 @@ func (s *Server) HandleQACheckFile(c echo.Context) error {
 	return c.JSON(http.StatusOK, results)
 }
 
-// runQAOnBlock runs the QA check tool on a single block and returns issues.
+// runQAOnBlock runs the QA check tool on a single block and returns the issues
+// for exactly this block+locale.
+//
+// The tool runs against a scratch copy with a private annotation surface:
+// findings ACCUMULATE on the block's unified FindingsAnnotation by design
+// (check.Annotate), so running the checks for several locales over the same
+// in-memory block — the dashboard ship-state/on-brand pass and convergence's
+// countFailingBlocks both do — would otherwise leak one locale's findings into
+// every later locale's read (findings carry no locale), and mutate a shared
+// block as a side effect of a read.
 func runQAOnBlock(ctx context.Context, block *model.Block, locale model.LocaleID) []QAIssueResponse {
 	cfg := tools.NewQACheckConfig(locale)
 	qaTool := tools.NewQACheckTool(cfg)
 
+	scratch := *block
+	scratch.Annotations = nil // fresh findings surface; SetAnno re-creates lazily
 	part := &model.Part{
 		Type:     model.PartBlock,
-		Resource: block,
+		Resource: &scratch,
 	}
 
 	// Process through the tool (ignoring error since the tool is deterministic).
 	_, _ = qaTool.ApplyContext(ctx, part)
 
-	// Read the unified findings the tool recorded and map them onto the stable
-	// wire shape ({type, severity, message}) the editor's Problems panel expects.
-	findings := check.Findings(tool.NewBlockViewWithContext(ctx, block))
+	// Read the findings the tool recorded on the scratch copy and map them onto
+	// the stable wire shape ({type, severity, message}) the editor's Problems
+	// panel expects.
+	findings := check.Findings(tool.NewBlockViewWithContext(ctx, &scratch))
 	if len(findings) == 0 {
 		return []QAIssueResponse{}
 	}

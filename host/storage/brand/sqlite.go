@@ -321,10 +321,19 @@ func (s *SQLiteBrandStore) StoreScore(ctx context.Context, score *corebrand.Stor
 	return nil
 }
 
+// GetScores returns the persisted scores for a project, newest first. An empty
+// locale means ALL locales — the project-wide read the score endpoints and the
+// brand rollup use — not "rows stored with an empty locale".
 func (s *SQLiteBrandStore) GetScores(ctx context.Context, projectID string, loc model.LocaleID) ([]*corebrand.StoredScore, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, project_id, stream, block_id, profile_id, locale, score, dimensions, findings, checked_at
-		 FROM brand_voice_scores WHERE project_id = ? AND locale = ? ORDER BY checked_at DESC`, projectID, string(locale.Normalize(loc)))
+	query := `SELECT id, project_id, stream, block_id, profile_id, locale, score, dimensions, findings, checked_at
+		 FROM brand_voice_scores WHERE project_id = ? AND locale = ? ORDER BY checked_at DESC`
+	args := []any{projectID, string(locale.Normalize(loc))}
+	if loc == "" {
+		query = `SELECT id, project_id, stream, block_id, profile_id, locale, score, dimensions, findings, checked_at
+		 FROM brand_voice_scores WHERE project_id = ? ORDER BY checked_at DESC`
+		args = []any{projectID}
+	}
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query scores: %w", err)
 	}

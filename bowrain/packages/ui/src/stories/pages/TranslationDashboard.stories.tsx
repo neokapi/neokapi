@@ -2,7 +2,12 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { TranslationDashboard } from "../../components/TranslationDashboard";
 import { DeliveryPanel } from "../../components/DeliveryPanel";
 import { withProviders } from "../decorators";
-import { sampleDashboardStats, largeDashboardStats, shipStateDashboardStats } from "../fixtures";
+import {
+  sampleDashboardStats,
+  largeDashboardStats,
+  shipStateDashboardStats,
+  onBrandDashboardStats,
+} from "../fixtures";
 
 const meta: Meta<typeof TranslationDashboard> = {
   title: "Pages/Translation/TranslationDashboard",
@@ -53,6 +58,18 @@ export const LargeProject: Story = {
 export const WithShipStates: Story = {
   args: {
     stats: shipStateDashboardStats,
+    projectName: "Demo App",
+  },
+};
+
+/**
+ * Server-derived on-brand rates beside each ship-state badge: fr-FR is
+ * voice-informed (worker draft scoring has run), the others are checks-only —
+ * the tooltip states the basis so the number is never over-read.
+ */
+export const WithOnBrandRates: Story = {
+  args: {
+    stats: onBrandDashboardStats,
     projectName: "Demo App",
   },
 };

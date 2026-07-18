@@ -1520,8 +1520,15 @@ batch-eval-publish: ## Sweep the real models → /batch-eval dashboard data (cos
 # Bedrock rate-limits on *requests*, so the small batch sizes — which issue the most
 # calls — are the ones that get throttled. Low concurrency, and a throttled N is
 # recorded as unmeasured rather than as a failure the model did not have.
+# The Bedrock leg needs AWS credentials (`aws sso login --profile bowrain-prod`),
+# which CI does not hold — the evals-refresh workflow sets EVALS_SKIP_BEDROCK=1
+# and the leg stays a desktop responsibility.
+ifeq ($(strip $(EVALS_SKIP_BEDROCK)),)
 	$(GO) run ./scripts/batcheval -models $(BATCHEVAL_BEDROCK) -blocks $(BATCHEVAL_BLOCKS) \
 		-n $(BATCHEVAL_N) -repeat 1 -concurrency 2 -append $(BATCHEVAL_DATA)
+else
+	@echo "EVALS_SKIP_BEDROCK set — skipping the Bedrock batch-eval leg (no AWS credentials)"
+endif
 	@echo "Published batch-eval history → $(BATCHEVAL_DATA)"
 
 # ── Context-adherence eval ───────────────────────────────────────────────────
@@ -1559,9 +1566,14 @@ context-eval-publish: ## Sweep real models for context adherence → /context-ev
 	$(GO) run ./scripts/contexteval -models $(CONTEXTEVAL_CLAUDE) -targets $(CONTEXTEVAL_TARGETS) \
 		-repeat 1 -concurrency 3 -judge $(CONTEXTEVAL_JUDGE_FOR_CLAUDE) -append $(CONTEXTEVAL_DATA)
 # Bedrock rate-limits on requests; low concurrency, and a throttled run is
-# recorded as unmeasured rather than as 0% adherence.
+# recorded as unmeasured rather than as 0% adherence. The leg needs AWS
+# credentials CI does not hold — evals-refresh sets EVALS_SKIP_BEDROCK=1.
+ifeq ($(strip $(EVALS_SKIP_BEDROCK)),)
 	$(GO) run ./scripts/contexteval -models $(CONTEXTEVAL_BEDROCK) -targets $(CONTEXTEVAL_TARGETS) \
 		-repeat 1 -concurrency 2 -judge $(CONTEXTEVAL_JUDGE_FOR_CLAUDE) -append $(CONTEXTEVAL_DATA)
+else
+	@echo "EVALS_SKIP_BEDROCK set — skipping the Bedrock context-eval leg (no AWS credentials)"
+endif
 	@echo "Published context-eval history → $(CONTEXTEVAL_DATA)"
 
 # Measure judge–human agreement on the committed Norwegian seed set and record

@@ -5,10 +5,13 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
+	brandpg "github.com/neokapi/neokapi/bowrain/brand"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
+	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -116,7 +119,7 @@ func TestApplyShipStates(t *testing.T) {
 	require.NoError(t, err)
 	stats, err := editorGetDashboardStats(ctx, cs, proj, "main")
 	require.NoError(t, err)
-	require.NoError(t, applyShipStates(ctx, cs, pid, "main", stats))
+	require.NoError(t, applyShipStates(ctx, cs, nil, pid, "main", stats))
 
 	// Global per-locale states.
 	fr := localeByCode(t, stats.LocaleStats, "fr")
@@ -155,6 +158,97 @@ func TestApplyShipStates(t *testing.T) {
 	itB := localeByCode(t, colB.Locales, "it")
 	assert.Equal(t, platstore.ShipStatePending, itB.ShipState)
 	assert.Equal(t, 1, itB.FailingChecks, "the failing block is attributed to its collection")
+
+	// On-brand rates (no brand store → checks-only basis everywhere derived).
+	assertOnBrand(t, fr, 2, 1.0, platstore.OnBrandBasisChecks)
+	assertOnBrand(t, de, 2, 1.0, platstore.OnBrandBasisChecks)
+	assertOnBrand(t, es, 1, 1.0, platstore.OnBrandBasisChecks)
+	itStats := localeByCode(t, stats.LocaleStats, "it")
+	assertOnBrand(t, itStats, 1, 0.5, platstore.OnBrandBasisChecks)
+	assertOnBrand(t, itB, 0, 0.0, platstore.OnBrandBasisChecks)
+	esB := localeByCode(t, colB.Locales, "es")
+	assert.Nil(t, esB.OnBrandRate, "nothing translated in col-b/es → no rate")
+	assert.Empty(t, esB.OnBrandBasis)
+}
+
+// assertOnBrand checks the derived on-brand triple on one locale scope.
+func assertOnBrand(t *testing.T, ls platstore.LocaleTranslationStats, blocks int, rate float64, basis platstore.OnBrandBasis) {
+	t.Helper()
+	assert.Equal(t, blocks, ls.OnBrandBlocks, "%s: on-brand blocks", ls.Locale)
+	require.NotNil(t, ls.OnBrandRate, "%s: rate must be derived", ls.Locale)
+	assert.InDelta(t, rate, *ls.OnBrandRate, 0.0001, "%s: on-brand rate", ls.Locale)
+	assert.Equal(t, basis, ls.OnBrandBasis, "%s: basis", ls.Locale)
+}
+
+// TestApplyShipStates_OnBrandVoiceScores covers the voice-informed half of the
+// on-brand rate: a persisted voice score below the profile's min bar demotes a
+// checks-passing block, the latest score per block+locale wins, and the basis
+// flips to voice+checks only in the scopes a score actually informed.
+func TestApplyShipStates_OnBrandVoiceScores(t *testing.T) {
+	db := pgtest.NewTestDB(t)
+	cs, err := bstore.NewPostgresStoreFromDB(db)
+	require.NoError(t, err)
+	pid := seedShipStateProject(t, cs)
+
+	brandDB := pgtest.NewTestDB(t)
+	bs, err := brandpg.NewPostgresBrandStore(brandDB)
+	require.NoError(t, err)
+
+	ctx := t.Context()
+	profile := &corebrand.VoiceProfile{ID: "p-ship", WorkspaceID: "ws-1", Name: "Ship Voice", MinScore: 80}
+	require.NoError(t, bs.CreateProfile(ctx, profile))
+
+	// The content store assigns block IDs on store; scores must reference the
+	// STORED ids (exactly as the worker does — it scores blocks read back from
+	// the store).
+	storedID := func(item string) string {
+		blocks, err := cs.GetBlocks(ctx, platstore.BlockQuery{ProjectID: pid, Stream: "main", ItemName: item})
+		require.NoError(t, err)
+		require.Len(t, blocks, 1)
+		return blocks[0].Block.ID
+	}
+	b1 := storedID("a.json")
+	b2 := storedID("b.json")
+
+	now := time.Now().UTC()
+	score := func(block, loc string, val int, at time.Time) {
+		require.NoError(t, bs.StoreScore(ctx, &corebrand.StoredScore{
+			ProjectID: pid, Stream: "main", BlockID: block, ProfileID: profile.ID,
+			Locale: model.LocaleID(loc), Score: val, CheckedAt: at,
+		}))
+	}
+	// de: b1 scores below the bar (checks pass, voice fails); b2 unscored.
+	score(b1, "de", 60, now)
+	// fr: an old failing score superseded by a fresh passing one — latest wins.
+	score(b1, "fr", 40, now.Add(-time.Hour))
+	score(b1, "fr", 95, now)
+	score(b2, "fr", 100, now)
+
+	proj, err := cs.GetProject(ctx, pid)
+	require.NoError(t, err)
+	stats, err := editorGetDashboardStats(ctx, cs, proj, "main")
+	require.NoError(t, err)
+	require.NoError(t, applyShipStates(ctx, cs, bs, pid, "main", stats))
+
+	fr := localeByCode(t, stats.LocaleStats, "fr")
+	assertOnBrand(t, fr, 2, 1.0, platstore.OnBrandBasisVoice)
+	assert.Equal(t, platstore.ShipStateGoverned, fr.ShipState, "voice scores do not disturb ship states")
+
+	de := localeByCode(t, stats.LocaleStats, "de")
+	assertOnBrand(t, de, 1, 0.5, platstore.OnBrandBasisVoice)
+	assert.Equal(t, platstore.ShipStateAIShippable, de.ShipState, "a sub-bar voice score does not demote the ship state")
+	assert.Equal(t, 0, de.FailingChecks)
+
+	// Unscored locales keep the checks-only basis.
+	es := localeByCode(t, stats.LocaleStats, "es")
+	assertOnBrand(t, es, 1, 1.0, platstore.OnBrandBasisChecks)
+
+	// Per-collection basis: the de score lives on b1 (col-a); col-b/de has no
+	// scored block and stays checks-only.
+	colA := collByID(t, stats.CollectionStats, "col-a")
+	assertOnBrand(t, localeByCode(t, colA.Locales, "de"), 0, 0.0, platstore.OnBrandBasisVoice)
+	colB := collByID(t, stats.CollectionStats, "col-b")
+	assertOnBrand(t, localeByCode(t, colB.Locales, "de"), 1, 1.0, platstore.OnBrandBasisChecks)
 }
 
 // TestTranslationDashboardShipStateWire asserts the dashboard endpoint carries
@@ -185,9 +279,11 @@ func TestTranslationDashboardShipStateWire(t *testing.T) {
 	assert.True(t, strings.Contains(body, `"ship_state":"pending"`), "wire carries ship_state: %s", body)
 	assert.True(t, strings.Contains(body, `"approved_blocks":1`), "wire carries approved_blocks: %s", body)
 	assert.True(t, strings.Contains(body, `"failing_checks":0`), "wire carries failing_checks: %s", body)
+	assert.True(t, strings.Contains(body, `"on_brand_basis":"checks"`), "wire carries on_brand_basis: %s", body)
 
 	stats := getDashboard(t, srv, token, pid, "")
 	fr := localeByCode(t, stats.LocaleStats, "fr")
 	assert.Equal(t, platstore.ShipStatePending, fr.ShipState, "1 of 3 blocks translated → pending")
 	assert.Equal(t, 1, fr.ApprovedBlocks)
+	assertOnBrand(t, fr, 1, 1.0, platstore.OnBrandBasisChecks)
 }

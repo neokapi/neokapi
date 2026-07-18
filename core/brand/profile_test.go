@@ -110,3 +110,12 @@ func firstKey(m map[string]string) string {
 	}
 	return ""
 }
+
+func TestVoiceProfile_OnBrandBar(t *testing.T) {
+	var nilProfile *VoiceProfile
+	assert.Equal(t, DefaultMinScore, nilProfile.OnBrandBar(), "nil profile answers the default bar")
+	assert.Equal(t, DefaultMinScore, (&VoiceProfile{}).OnBrandBar(), "unset MinScore answers the default bar")
+	assert.Equal(t, 90, (&VoiceProfile{MinScore: 90}).OnBrandBar())
+	assert.Equal(t, 100, (&VoiceProfile{MinScore: 150}).OnBrandBar(), "the bar is capped at 100")
+	assert.Equal(t, DefaultMinScore, (&VoiceProfile{MinScore: -5}).OnBrandBar(), "a negative bar falls back to the default")
+}

@@ -3,56 +3,85 @@ package server
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	corebrand "github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// applyShipStates enriches dashboard stats in place with failing-check counts
-// and the derived per-locale ship state (store.DeriveShipState), on both the
-// project-wide locale stats and each collection rollup.
+// applyShipStates enriches dashboard stats in place with failing-check counts,
+// the derived per-locale ship state (store.DeriveShipState), and the on-brand
+// rate, on both the project-wide locale stats and each collection rollup.
 //
 // The QA pass is bounded the same way the convergence derive path bounds it
-// (deriveFunc): checks run only for locales that reach full coverage in at
-// least one scope (project-wide or a collection). Below full coverage a locale
-// is pending regardless of check results, so the expensive full-block read and
-// check run are skipped entirely. When checks do run, only blocks that carry a
-// target for the locale are evaluated — a fully covered scope contains no
-// target-less blocks, and under-covered scopes stay pending on coverage alone.
-func applyShipStates(ctx context.Context, cs store.ContentStore, projectID, stream string, stats *store.TranslationDashboardStats) error {
+// (deriveFunc): the expensive full-block read happens only when some locale has
+// at least one translated block, and each translated block+locale pair is
+// checked exactly once. Ship-state semantics are unchanged: FailingChecks is
+// attributed only to locales at full coverage in at least one scope (checks
+// cannot promote an under-covered locale). The on-brand rate, by contrast, is
+// meaningful below full coverage — it rates the blocks that ARE translated — so
+// it is derived for every locale with translated blocks.
+//
+// On-brand definition: a translated block is on-brand when the project's QA
+// checks report no error-severity finding AND — where a persisted brand voice
+// score exists for the block+locale (written by the worker's draft scoring,
+// zero AI) — the score meets the scoring profile's minimum bar
+// (VoiceProfile.OnBrandBar). Scopes with no voice scores fall back to
+// checks-only, and OnBrandBasis says which basis produced the number so
+// consumers can present it honestly. Voice scores are read best-effort: a brand
+// store hiccup degrades the rate to checks-only, never fails the dashboard.
+func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore corebrand.BrandStore, projectID, stream string, stats *store.TranslationDashboardStats) error {
 	fullyCovered := func(ls store.LocaleTranslationStats) bool {
 		return ls.TotalBlocks > 0 && ls.TranslatedBlocks >= ls.TotalBlocks
 	}
-	candidates := map[string]bool{}
-	for _, ls := range stats.LocaleStats {
+	// shipCandidates: locales whose FailingChecks/ShipState need the check pass
+	// (full coverage in some scope). rateCandidates: locales with anything
+	// translated anywhere — the on-brand denominator. Ship candidates are a
+	// subset of rate candidates (full coverage implies translated blocks).
+	shipCandidates := map[string]bool{}
+	rateCandidates := map[string]bool{}
+	noteLocale := func(ls store.LocaleTranslationStats) {
 		if fullyCovered(ls) {
-			candidates[ls.Locale] = true
+			shipCandidates[ls.Locale] = true
 		}
+		if ls.TranslatedBlocks > 0 {
+			rateCandidates[ls.Locale] = true
+		}
+	}
+	for _, ls := range stats.LocaleStats {
+		noteLocale(ls)
 	}
 	for _, coll := range stats.CollectionStats {
 		for _, ls := range coll.Locales {
-			if fullyCovered(ls) {
-				candidates[ls.Locale] = true
-			}
+			noteLocale(ls)
 		}
 	}
 
-	// Error-severity failing block counts among the locale's translated blocks,
-	// project-wide and attributed per collection.
+	// Error-severity failing block counts among the locale's translated blocks
+	// (ship-candidate locales only), and on-brand block counts (all rate
+	// candidates), project-wide and attributed per collection.
 	failing := map[string]int{}
 	failingByColl := map[string]map[string]int{}
+	onBrand := map[string]int{}
+	onBrandByColl := map[string]map[string]int{}
+	voiceUsed := map[string]bool{}
+	voiceUsedByColl := map[string]map[string]bool{}
 
-	if len(candidates) > 0 {
+	if len(rateCandidates) > 0 {
 		blocks, err := cs.GetBlocks(ctx, store.BlockQuery{ProjectID: projectID, Stream: stream})
 		if err != nil {
 			return fmt.Errorf("load blocks for ship-state checks: %w", err)
 		}
+		scores := latestVoiceScores(ctx, brandStore, projectID, stream)
 		collByItem := make(map[string]string, len(stats.ItemStats))
 		for _, it := range stats.ItemStats {
 			collByItem[it.ItemName] = it.CollectionID
 		}
-		for localeStr := range candidates {
+		for localeStr := range rateCandidates {
 			loc := model.LocaleID(localeStr)
+			scored := scores[string(locale.Normalize(loc))]
 			for _, sb := range blocks {
 				if sb.Block == nil || !sb.Block.Translatable || sb.Block.Target(loc) == nil {
 					continue
@@ -64,15 +93,33 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, projectID, stre
 						break
 					}
 				}
-				if !blockFails {
-					continue
-				}
-				failing[localeStr]++
 				cid := collByItem[sb.ItemName]
-				if failingByColl[cid] == nil {
-					failingByColl[cid] = map[string]int{}
+				if blockFails && shipCandidates[localeStr] {
+					failing[localeStr]++
+					if failingByColl[cid] == nil {
+						failingByColl[cid] = map[string]int{}
+					}
+					failingByColl[cid][localeStr]++
 				}
-				failingByColl[cid][localeStr]++
+
+				blockOnBrand := !blockFails
+				if vs, ok := scored[sb.Block.ID]; ok {
+					voiceUsed[localeStr] = true
+					if voiceUsedByColl[cid] == nil {
+						voiceUsedByColl[cid] = map[string]bool{}
+					}
+					voiceUsedByColl[cid][localeStr] = true
+					if vs.score < vs.bar {
+						blockOnBrand = false
+					}
+				}
+				if blockOnBrand {
+					onBrand[localeStr]++
+					if onBrandByColl[cid] == nil {
+						onBrandByColl[cid] = map[string]int{}
+					}
+					onBrandByColl[cid][localeStr]++
+				}
 			}
 		}
 	}
@@ -81,6 +128,7 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, projectID, stre
 		ls := &stats.LocaleStats[i]
 		ls.FailingChecks = failing[ls.Locale]
 		ls.ShipState = store.DeriveShipState(ls.TranslatedBlocks, ls.TotalBlocks, ls.ApprovedBlocks, ls.FailingChecks)
+		applyOnBrand(ls, onBrand[ls.Locale], voiceUsed[ls.Locale])
 	}
 	for i := range stats.CollectionStats {
 		coll := &stats.CollectionStats[i]
@@ -88,7 +136,81 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, projectID, stre
 			ls := &coll.Locales[j]
 			ls.FailingChecks = failingByColl[coll.CollectionID][ls.Locale]
 			ls.ShipState = store.DeriveShipState(ls.TranslatedBlocks, ls.TotalBlocks, ls.ApprovedBlocks, ls.FailingChecks)
+			applyOnBrand(ls, onBrandByColl[coll.CollectionID][ls.Locale], voiceUsedByColl[coll.CollectionID][ls.Locale])
 		}
 	}
 	return nil
+}
+
+// applyOnBrand stamps the derived on-brand fields onto one locale scope. A
+// scope with nothing translated gets no rate (nothing to rate — the additive
+// fields stay omitted). The count is clamped to the translated denominator so
+// a stats/block-read skew can never report a rate above 1.
+func applyOnBrand(ls *store.LocaleTranslationStats, onBrandCount int, voice bool) {
+	if ls.TranslatedBlocks <= 0 {
+		return
+	}
+	ls.OnBrandBlocks = min(onBrandCount, ls.TranslatedBlocks)
+	rate := float64(ls.OnBrandBlocks) / float64(ls.TranslatedBlocks)
+	ls.OnBrandRate = &rate
+	if voice {
+		ls.OnBrandBasis = store.OnBrandBasisVoice
+	} else {
+		ls.OnBrandBasis = store.OnBrandBasisChecks
+	}
+}
+
+// scoredBlock is the latest persisted voice score for one block+locale, paired
+// with the minimum bar of the profile that produced it.
+type scoredBlock struct {
+	score int
+	bar   int
+}
+
+// latestVoiceScores reads the project's persisted brand voice scores and keeps
+// the newest per (locale, block), each paired with its scoring profile's
+// on-brand bar. Locale keys are normalized (scores are stored normalized).
+// Best-effort by design: a nil brand store or a read failure yields an empty
+// map, degrading the on-brand rate to checks-only rather than failing the
+// dashboard.
+func latestVoiceScores(ctx context.Context, brandStore corebrand.BrandStore, projectID, stream string) map[string]map[string]scoredBlock {
+	out := map[string]map[string]scoredBlock{}
+	if brandStore == nil {
+		return out
+	}
+	scores, err := brandStore.GetScoresByStream(ctx, projectID, stream)
+	if err != nil {
+		slog.WarnContext(ctx, "voice scores unavailable; on-brand rate falls back to checks-only",
+			"project_id", projectID, "error", err)
+		return out
+	}
+	bars := map[string]int{}
+	barFor := func(profileID string) int {
+		if b, ok := bars[profileID]; ok {
+			return b
+		}
+		profile, err := brandStore.GetProfile(ctx, profileID)
+		if err != nil {
+			profile = nil // deleted profile: apply the default bar to its scores
+		}
+		b := profile.OnBrandBar()
+		bars[profileID] = b
+		return b
+	}
+	// GetScoresByStream orders by checked_at DESC, so the first row seen per
+	// (locale, block) is the latest measurement.
+	for _, sc := range scores {
+		if sc == nil || sc.BlockID == "" {
+			continue
+		}
+		key := string(locale.Normalize(sc.Locale))
+		if out[key] == nil {
+			out[key] = map[string]scoredBlock{}
+		}
+		if _, seen := out[key][sc.BlockID]; seen {
+			continue
+		}
+		out[key][sc.BlockID] = scoredBlock{score: sc.Score, bar: barFor(sc.ProfileID)}
+	}
+	return out
 }

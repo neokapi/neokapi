@@ -170,6 +170,7 @@ export { ReviewSurface } from "./components/ReviewSurface";
 export { PreProcessSurface } from "./components/PreProcessSurface";
 export { TranslationDashboard } from "./components/TranslationDashboard";
 export { ShipStateBadge, type ShipStateBadgeProps } from "./components/ShipStateBadge";
+export { OnBrandRateChip, type OnBrandRateChipProps } from "./components/OnBrandRateChip";
 export {
   DeliveryPanel,
   type DeliveryPanelProps,
@@ -483,6 +484,7 @@ export type {
   TranslationDashboardItemOpts,
   DashboardItemSort,
   ShipState,
+  OnBrandBasis,
   LocaleTranslationStats,
   ItemTranslationStats,
   CollectionTranslationStats,

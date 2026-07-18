@@ -1117,9 +1117,10 @@ func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	// Derive per-locale + per-collection ship states (bounded QA pass) so the
-	// cached result carries them for every paged slice.
-	if err := applyShipStates(ctx, s.ContentStore, proj.ID, stream, stats); err != nil {
+	// Derive per-locale + per-collection ship states and on-brand rates
+	// (bounded QA pass + persisted voice scores) so the cached result carries
+	// them for every paged slice.
+	if err := applyShipStates(ctx, s.ContentStore, s.BrandStore, proj.ID, stream, stats); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
