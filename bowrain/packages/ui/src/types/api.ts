@@ -127,7 +127,10 @@ export interface Membership {
   user_id: string;
   workspace_id: string;
   role: "owner" | "admin" | "member" | "viewer";
-  user: User;
+  // Optional: a membership can reference a user record that is missing or not
+  // populated (a former member, a system actor). Consumers resolve via user_id
+  // when absent (see buildNameResolver).
+  user?: User;
 }
 
 /** API token (stored; no plaintext) */
