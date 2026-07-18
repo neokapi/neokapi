@@ -32,10 +32,11 @@ import (
 )
 
 // stubForgeConnector stands in for the live forge connector: Fetch returns one
-// item, Publish records what it was handed.
+// item (or fetchErr when set), Publish records what it was handed.
 type stubForgeConnector struct {
 	id        string
 	fetched   int
+	fetchErr  error
 	published []*platconn.ContentItem
 	pubOpts   platconn.PublishOptions
 }
@@ -50,6 +51,9 @@ func (f *stubForgeConnector) Status(ctx context.Context) (*platconn.SyncStatus, 
 }
 func (f *stubForgeConnector) Fetch(ctx context.Context, opts platconn.FetchOptions) ([]*platconn.ContentItem, error) {
 	f.fetched++
+	if f.fetchErr != nil {
+		return nil, f.fetchErr
+	}
 	return []*platconn.ContentItem{{ID: "en.txt", Name: "en.txt", Path: "en.txt", Format: "plaintext",
 		Blocks: []*model.Block{model.NewBlock("greeting", "Hello")}}}, nil
 }

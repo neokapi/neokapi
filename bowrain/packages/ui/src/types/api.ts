@@ -1891,4 +1891,6 @@ export interface BindInstallationRepoResult {
   repository: string;
   project_id: string;
   branch: string;
+  /** "started" when the server kicked off the initial background ingest. */
+  initial_fetch?: string;
 }

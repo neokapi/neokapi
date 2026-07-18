@@ -8,12 +8,17 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
+	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/forge"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -97,6 +102,8 @@ func TestListInstallationRepos_AnnotatesBindings(t *testing.T) {
 
 func TestBindInstallationRepo_CreatesPersistedConnector(t *testing.T) {
 	s := setupServerWithApp(t)
+	ingested := make(chan platev.Event, 1)
+	s.EventBus.Subscribe(platev.EventPushCompleted, func(ev platev.Event) { ingested <- ev })
 
 	c, rec := setupCtx(t, http.MethodPost, `{"repository": "acme/docs", "project_id": "proj1", "patterns": "docs/**/*.md"}`)
 	require.NoError(t, s.HandleBindInstallationRepo(c))
@@ -121,4 +128,110 @@ func TestBindInstallationRepo_CreatesPersistedConnector(t *testing.T) {
 	c, rec = setupCtx(t, http.MethodPost, `{"repository": "acme/other", "project_id": "proj1"}`)
 	require.NoError(t, s.HandleBindInstallationRepo(c))
 	assert.Equal(t, http.StatusNotFound, rec.Code)
+
+	// Drain the background initial ingest the successful bind started, so the
+	// test's stores outlive it.
+	select {
+	case <-ingested:
+	case <-time.After(5 * time.Second):
+		t.Fatal("no EventPushCompleted after a successful bind")
+	}
+}
+
+func TestBindInstallationRepo_TriggersInitialFetch(t *testing.T) {
+	s := setupServerWithApp(t)
+
+	ingested := make(chan platev.Event, 1)
+	s.EventBus.Subscribe(platev.EventPushCompleted, func(ev platev.Event) { ingested <- ev })
+
+	c, rec := setupCtx(t, http.MethodPost, `{"repository": "acme/docs", "project_id": "proj1"}`)
+	require.NoError(t, s.HandleBindInstallationRepo(c))
+	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+
+	var out map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &out))
+	assert.Equal(t, "started", out["initial_fetch"], "the bind response announces the initial fetch")
+
+	// The bind kicks the same ingest a push webhook does: fetch, then
+	// EventPushCompleted — which is what starts the first convergence run.
+	select {
+	case ev := <-ingested:
+		assert.Equal(t, "proj1", ev.ProjectID)
+		assert.Equal(t, "github-setup", ev.Source)
+		assert.Equal(t, "acme/docs", ev.Data["repo"])
+		assert.Equal(t, "trunk", ev.Data["branch"])
+		assert.Equal(t, out["connector_id"], ev.Data["connector_id"])
+	case <-time.After(5 * time.Second):
+		t.Fatal("no EventPushCompleted after a successful bind")
+	}
+
+	// The fetched content landed in the project, and the connector reports a
+	// real first sync with no error.
+	blocks, err := s.ContentStore.GetBlocks(context.Background(), platstore.BlockQuery{
+		ProjectID: "proj1", Stream: "main",
+	})
+	require.NoError(t, err)
+	assert.NotEmpty(t, blocks, "the initial fetch must ingest the repository's content")
+	cfg, err := s.ConnectorConfigStore.Get(context.Background(), "ws1", out["connector_id"])
+	require.NoError(t, err)
+	assert.False(t, cfg.LastSyncAt.IsZero(), "the initial fetch stamps the first sync")
+	assert.Empty(t, cfg.LastError)
+}
+
+func TestBindInstallationRepo_FetchFailureKeepsBinding(t *testing.T) {
+	s := setupServerWithApp(t)
+
+	// The bound repository's first fetch fails (e.g. the clone breaks).
+	s.ConnectorReg.Register("forge", platconn.CategoryCode, func(config map[string]string) (platconn.IntegrationConnector, error) {
+		return &stubForgeConnector{id: "forge-" + config["name"], fetchErr: errors.New("clone failed: boom")}, nil
+	})
+	pushed := make(chan platev.Event, 1)
+	s.EventBus.Subscribe(platev.EventPushCompleted, func(ev platev.Event) { pushed <- ev })
+
+	c, rec := setupCtx(t, http.MethodPost, `{"repository": "acme/docs", "project_id": "proj1"}`)
+	require.NoError(t, s.HandleBindInstallationRepo(c))
+	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String(), "a fetch failure must not fail the bind")
+
+	var out map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &out))
+	connID := out["connector_id"]
+
+	// The failure is recorded on the connector row — never silent.
+	require.Eventually(t, func() bool {
+		cfg, err := s.ConnectorConfigStore.Get(context.Background(), "ws1", connID)
+		return err == nil && cfg.LastError != ""
+	}, 5*time.Second, 10*time.Millisecond, "the failed initial fetch must record a last error")
+
+	// The binding survives: the row is still there, the live instance is still
+	// addressable, and no last-sync was fabricated.
+	cfg, err := s.ConnectorConfigStore.Get(context.Background(), "ws1", connID)
+	require.NoError(t, err)
+	assert.Contains(t, cfg.LastError, "clone failed: boom")
+	assert.True(t, cfg.LastSyncAt.IsZero(), "a failed fetch is not a sync")
+	_, err = s.Services.Connector.GetConnector("ws1", connID)
+	require.NoError(t, err, "the live connector stays registered")
+
+	// No push event: a failed ingest must not start a convergence run.
+	select {
+	case <-pushed:
+		t.Fatal("a failed initial fetch must not publish EventPushCompleted")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	// The status endpoint — what the connectors panel and the setup page poll —
+	// surfaces the recorded error.
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	statusRec := httptest.NewRecorder()
+	sc := echo.New().NewContext(req, statusRec)
+	sc.Set("workspace_id", "ws1")
+	sc.SetParamNames("id")
+	sc.SetParamValues(connID)
+	require.NoError(t, s.HandleConnectorStatus(sc))
+	require.Equal(t, http.StatusOK, statusRec.Code, statusRec.Body.String())
+	var status struct {
+		Errors []string `json:"Errors"`
+	}
+	require.NoError(t, json.Unmarshal(statusRec.Body.Bytes(), &status))
+	require.Len(t, status.Errors, 1)
+	assert.Contains(t, status.Errors[0], "clone failed: boom")
 }

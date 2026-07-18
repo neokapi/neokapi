@@ -19,6 +19,7 @@ import {
   type ProjectFormData,
 } from "@neokapi/ui";
 import { projectsQueryOptions, workspacesQueryOptions } from "../queries";
+import { importPhaseFromStatus } from "./import-phase";
 
 /**
  * GitHub App post-install landing: GitHub redirects here (the app's Setup URL)
@@ -121,7 +122,7 @@ export function GithubSetupRoute() {
           This page is where GitHub sends you after installing the app. Install{" "}
           <a
             className="underline underline-offset-2"
-            href="https://github.com/apps/bowraincloud/installations/new"
+            href="https://github.com/apps/bowrain-cloud/installations/new"
           >
             the Bowrain app
           </a>{" "}
@@ -260,9 +261,15 @@ function RepoRow({
   onChanged: () => void;
 }) {
   const api = useApi();
+  const navigate = useNavigate();
   const [projectId, setProjectId] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Set once this session's Connect succeeded: the row then tracks the
+  // server's background ingest instead of showing a bare "connected" badge.
+  const [importing, setImporting] = useState<{ connectorId: string; projectId: string } | null>(
+    null,
+  );
 
   const repoShortName = repo.full_name.slice(repo.full_name.lastIndexOf("/") + 1);
 
@@ -272,7 +279,10 @@ function RepoRow({
         repository: repo.full_name,
         project_id: pid,
       }),
-    onSuccess: onChanged,
+    onSuccess: (res) => {
+      setImporting({ connectorId: res.connector_id, projectId: res.project_id });
+      onChanged();
+    },
     onError: (e) => setError((e as Error).message),
   });
 
@@ -290,12 +300,49 @@ function RepoRow({
         project_id: project.id,
       });
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
       setCreating(false);
+      setImporting({ connectorId: res.connector_id, projectId: res.project_id });
       onChanged();
     },
     onError: (e) => setError((e as Error).message),
   });
+
+  // While the background ingest runs, poll the connector's status — the same
+  // surface the connectors panel reads. A successful first fetch stamps
+  // lastSync; a failure lands in errors.
+  const importStatus = useQuery({
+    queryKey: ["github-setup-import", workspaceSlug, importing?.connectorId],
+    queryFn: () => api.getConnectorStatus(workspaceSlug, importing?.connectorId ?? ""),
+    enabled: !!importing,
+    refetchInterval: 2000,
+  });
+
+  // Retry a failed import through the same fetch the connectors panel's
+  // "Fetch now" uses; success stamps lastSync and the poll takes it from there.
+  const retryFetch = useMutation({
+    mutationFn: () =>
+      api.fetchConnector(workspaceSlug, importing?.connectorId ?? "", importing?.projectId ?? ""),
+    onSettled: () => {
+      void importStatus.refetch();
+    },
+  });
+
+  const importPhase = !importing
+    ? null
+    : retryFetch.isPending
+      ? "pending"
+      : importPhaseFromStatus(importStatus.data);
+
+  // The repository's content is in: hand over to the project page, where the
+  // dashboard and live run progress pick the story up.
+  useEffect(() => {
+    if (!importing || importPhase !== "ready") return;
+    void navigate({
+      to: "/$workspace/p/$projectId/s/$stream",
+      params: { workspace: workspaceSlug, projectId: importing.projectId, stream: "main" },
+    });
+  }, [importing, importPhase, navigate, workspaceSlug]);
 
   const boundProject = useMemo(
     () => projects.find((p) => p.id === repo.project_id),
@@ -314,9 +361,49 @@ function RepoRow({
         </div>
         <div className="text-xs text-muted-foreground">tracked branch: {repo.default_branch}</div>
         {error && <div className="mt-1 text-xs text-destructive">{error}</div>}
+        {importPhase === "failed" && (
+          <div className="mt-1 text-xs text-destructive">
+            {importStatus.data?.errors[0] ?? "The import did not complete."} The repository stays
+            connected — retry here or from the{" "}
+            <Link
+              to="/$workspace/p/$projectId/s/$stream/connectors"
+              params={{
+                workspace: workspaceSlug,
+                projectId: importing?.projectId ?? "",
+                stream: "main",
+              }}
+              className="underline underline-offset-2"
+            >
+              connectors panel
+            </Link>
+            .
+          </div>
+        )}
       </div>
 
-      {repo.connector_id ? (
+      {importing ? (
+        importPhase === "failed" ? (
+          <div className="flex shrink-0 items-center gap-2">
+            <Badge variant="destructive">import failed</Badge>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => retryFetch.mutate()}
+              data-testid={`retry-import-${repo.full_name}`}
+            >
+              Retry import
+            </Button>
+          </div>
+        ) : (
+          <div
+            className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground"
+            data-testid={`importing-${repo.full_name}`}
+          >
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Importing your repo…
+          </div>
+        )
+      ) : repo.connector_id ? (
         <div className="flex shrink-0 items-center gap-2">
           <Badge>connected</Badge>
           {boundProject && (

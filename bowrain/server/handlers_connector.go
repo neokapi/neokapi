@@ -367,6 +367,7 @@ func (s *Server) HandleFetch(c echo.Context) error {
 		Paths: req.Paths,
 	})
 	if err != nil {
+		s.setConnectorLastError(c.Request().Context(), wsID, connID, err)
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 	s.touchConnectorLastSync(c.Request().Context(), wsID, connID)
@@ -412,24 +413,43 @@ func (s *Server) HandleConnectorStatus(c echo.Context) error {
 	}
 	// Replace the connector's own (fabricated) LastSync with the authoritative
 	// stored timestamp: the real time of the last successful fetch/publish, or a
-	// zero value the client renders as "never synced" until the first sync.
+	// zero value the client renders as "never synced" until the first sync. A
+	// recorded sync failure (e.g. a background ingest that failed) joins the
+	// reported errors so the panel and setup page can surface it.
 	if s.ConnectorConfigStore != nil {
 		if cfg, cfgErr := s.ConnectorConfigStore.Get(c.Request().Context(), wsID, connID); cfgErr == nil {
 			status.LastSync = cfg.LastSyncAt
+			if cfg.LastError != "" {
+				status.Errors = append(status.Errors, cfg.LastError)
+			}
 		}
 	}
 	return c.JSON(http.StatusOK, status)
 }
 
-// touchConnectorLastSync records a successful sync time for a connector, best
-// effort: a nil store (standalone) or a missing row must never fail the sync
-// that just succeeded, so errors are logged and swallowed.
+// touchConnectorLastSync records a successful sync time for a connector (and
+// clears any recorded last error), best effort: a nil store (standalone) or a
+// missing row must never fail the sync that just succeeded, so errors are
+// logged and swallowed.
 func (s *Server) touchConnectorLastSync(ctx context.Context, wsID, connID string) {
 	if s.ConnectorConfigStore == nil {
 		return
 	}
 	if err := s.ConnectorConfigStore.TouchLastSync(ctx, wsID, connID, time.Now().UTC()); err != nil {
 		slog.WarnContext(ctx, "record connector last-sync", "connector", connID, "error", err)
+	}
+}
+
+// setConnectorLastError records a failed sync on the connector row, best
+// effort: a nil store or a missing row must never mask the original failure,
+// so errors are logged and swallowed. The next successful sync clears it
+// (TouchLastSync).
+func (s *Server) setConnectorLastError(ctx context.Context, wsID, connID string, syncErr error) {
+	if s.ConnectorConfigStore == nil {
+		return
+	}
+	if err := s.ConnectorConfigStore.SetLastError(ctx, wsID, connID, syncErr.Error()); err != nil {
+		slog.WarnContext(ctx, "record connector last-error", "connector", connID, "error", err)
 	}
 }
 

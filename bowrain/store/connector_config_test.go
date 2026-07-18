@@ -202,6 +202,42 @@ func TestConnectorConfigTouchLastSync(t *testing.T) {
 	assert.True(t, ts.Equal(got.LastSyncAt), "a cross-workspace touch must not change the row")
 }
 
+func TestConnectorConfigLastError(t *testing.T) {
+	store, _ := newTestConnectorStore(t, nil)
+	ctx := context.Background()
+	const wsID = "ws-acme"
+
+	_, err := store.Upsert(ctx, &bstore.ConnectorConfig{
+		ID: "forge-1", WorkspaceID: wsID, Type: "forge", Name: "site",
+		Config: map[string]string{"repo": "https://github.com/acme/site.git"},
+	})
+	require.NoError(t, err)
+
+	// A fresh connector carries no error.
+	got, err := store.Get(ctx, wsID, "forge-1")
+	require.NoError(t, err)
+	assert.Empty(t, got.LastError)
+
+	// A failed sync records its error; the row reads it back.
+	require.NoError(t, store.SetLastError(ctx, wsID, "forge-1", "fetch from forge-1: clone failed"))
+	got, err = store.Get(ctx, wsID, "forge-1")
+	require.NoError(t, err)
+	assert.Equal(t, "fetch from forge-1: clone failed", got.LastError)
+
+	// Cross-workspace writes match nothing.
+	require.NoError(t, store.SetLastError(ctx, "ws-other", "forge-1", "not yours"))
+	got, err = store.Get(ctx, wsID, "forge-1")
+	require.NoError(t, err)
+	assert.Equal(t, "fetch from forge-1: clone failed", got.LastError)
+
+	// The next successful sync clears the error along with stamping the time.
+	require.NoError(t, store.TouchLastSync(ctx, wsID, "forge-1", time.Date(2026, 7, 18, 9, 30, 0, 0, time.UTC)))
+	got, err = store.Get(ctx, wsID, "forge-1")
+	require.NoError(t, err)
+	assert.Empty(t, got.LastError, "a successful sync supersedes the recorded failure")
+	assert.False(t, got.LastSyncAt.IsZero())
+}
+
 func TestConnectorConfigCrossWorkspaceIsolation(t *testing.T) {
 	store, _ := newTestConnectorStore(t, testCipher(t))
 	ctx := context.Background()
