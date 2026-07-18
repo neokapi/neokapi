@@ -341,15 +341,6 @@ func createEventBus(cfg Config) platev.EventBus {
 		slog.Info("event bus configured", "backend", "redis-streams")
 		return bus
 	}
-	if cfg.ServiceBusConnection != "" {
-		bus, err := event.NewServiceBusEventBus(cfg.ServiceBusConnection)
-		if err != nil {
-			slog.Warn("failed to create Service Bus event bus, falling back to in-memory", "error", err)
-			return event.NewChannelEventBus()
-		}
-		slog.Info("event bus configured", "backend", "azure-service-bus")
-		return bus
-	}
 	if cfg.NATSURL != "" {
 		bus, err := event.NewNATSEventBus(cfg.NATSURL)
 		if err != nil {
@@ -524,13 +515,7 @@ func NewServer(cfg Config) *Server {
 
 	// Initialize stores from PostgreSQL DatabaseURL.
 	if cfg.DatabaseURL != "" {
-		var pg *pgStores
-		var err error
-		if cfg.DatabaseAuth == "azure" {
-			pg, err = openPostgresStoresAzure(cfg.DatabaseURL, cfg.AzureClientID)
-		} else {
-			pg, err = openPostgresStores(cfg.DatabaseURL)
-		}
+		pg, err := openPostgresStores(cfg.DatabaseURL)
 		if err != nil {
 			slog.Warn("failed to open PostgreSQL stores", "error", err)
 		} else {
@@ -614,25 +599,6 @@ func NewServer(cfg Config) *Server {
 		}
 		if bq, err := jobs.NewSQSQueue(context.Background(), sqsOpts, jobs.SQSBrandScanQueue); err != nil {
 			slog.Warn("failed to connect to SQS brand-scan queue", "error", err)
-		} else {
-			s.BrandScanQueue = bq
-		}
-	case cfg.ServiceBusConnection != "":
-		q, err := jobs.NewServiceBusQueue(context.Background(), cfg.ServiceBusConnection, "translation-jobs")
-		if err != nil {
-			slog.Warn("failed to connect to Service Bus queue", "error", err)
-		} else {
-			s.JobQueue = q
-		}
-		eq, err := jobs.NewServiceBusQueue(context.Background(), cfg.ServiceBusConnection, "extraction-jobs")
-		if err != nil {
-			slog.Warn("failed to connect to Service Bus extraction queue", "error", err)
-		} else {
-			s.ExtractionQueue = eq
-		}
-		bq, err := jobs.NewServiceBusQueue(context.Background(), cfg.ServiceBusConnection, "brand-scan-jobs")
-		if err != nil {
-			slog.Warn("failed to connect to Service Bus brand-scan queue", "error", err)
 		} else {
 			s.BrandScanQueue = bq
 		}
@@ -885,15 +851,7 @@ func NewServer(cfg Config) *Server {
 		s.AgentService = service.NewAgentService(s.AgentStore, s.EventBus)
 
 		switch cfg.AgentRuntime {
-		case "queue":
-			// Queue mode: agent processing is handled by the worker.
-			// API server enqueues jobs to Service Bus and subscribes to Redis pub/sub.
-			if err := s.setupAgentQueue(cfg); err != nil {
-				slog.Warn("failed to initialize agent queue mode", "error", err)
-			} else {
-				slog.Info("agent mode configured", "mode", "queue")
-			}
-		case "docker", "aca":
+		case "docker":
 			// Direct mode: API server manages containers directly.
 			if pool := s.buildAgentPool(); pool != nil {
 				s.AgentService.SetPool(pool)

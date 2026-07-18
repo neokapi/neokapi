@@ -29,13 +29,6 @@ func TestPlatformProviderConfig_build(t *testing.T) {
 		assert.Equal(t, aiprovider.Gemini, prov.Name())
 	})
 
-	t.Run("generic provider wins over azure endpoint", func(t *testing.T) {
-		cfg := PlatformProviderConfig{Provider: "demo", Endpoint: "https://example.openai.azure.com"}
-		_, ptype, err := cfg.Build("")
-		require.NoError(t, err)
-		assert.Equal(t, "demo", ptype, "Provider must take precedence over the Azure endpoint path")
-	})
-
 	t.Run("unknown generic provider errors", func(t *testing.T) {
 		cfg := PlatformProviderConfig{Provider: "not-a-provider"}
 		_, _, err := cfg.Build("")
@@ -46,15 +39,5 @@ func TestPlatformProviderConfig_build(t *testing.T) {
 		var cfg PlatformProviderConfig
 		_, _, err := cfg.Build("gpt-4o")
 		assert.Error(t, err)
-	})
-
-	t.Run("azure endpoint path reports azureopenai type", func(t *testing.T) {
-		// NewPlatformProvider builds an Azure managed-identity credential lazily;
-		// construction succeeds without contacting Azure (token is fetched per request).
-		cfg := PlatformProviderConfig{Endpoint: "https://example.openai.azure.com"}
-		prov, ptype, err := cfg.Build("gpt-4o")
-		require.NoError(t, err)
-		require.NotNil(t, prov)
-		assert.Equal(t, "azureopenai", ptype)
 	})
 }

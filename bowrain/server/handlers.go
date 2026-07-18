@@ -185,8 +185,6 @@ func (s *Server) checkQueue() ComponentStatus {
 	}
 	if s.Config.NATSURL != "" {
 		queueType = "nats"
-	} else if s.Config.ServiceBusConnection != "" {
-		queueType = "servicebus"
 	}
 	if !s.JobQueue.Healthy() {
 		return ComponentStatus{Status: "down", Type: queueType}

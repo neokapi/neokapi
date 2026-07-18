@@ -138,8 +138,6 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 	if p := activePlatform(ctx, "", deps.Platform, deps.PlatformResolver); p != nil {
 		if p.Provider != "" {
 			slog.InfoContext(ctx, "platform AI provider enabled", "provider", p.Provider, "model", p.Model)
-		} else if p.Endpoint != "" {
-			slog.InfoContext(ctx, "platform AI provider enabled", "provider", "azure-openai", "endpoint", p.Endpoint)
 		}
 	}
 	if deps.QuotaStore != nil {

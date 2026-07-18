@@ -16,6 +16,10 @@ import (
 // It communicates with the Docker daemon over its REST API via the Unix
 // socket (or TCP endpoint). No external SDK dependency — just net/http
 // against the Docker Engine API v1.43+.
+
+// DockerRuntime is the container runtime for @bravo agents.
+var _ ContainerRuntime = (*DockerRuntime)(nil)
+
 type DockerRuntime struct {
 	client  *http.Client
 	baseURL string // e.g. "http://localhost"

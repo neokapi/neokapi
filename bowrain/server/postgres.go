@@ -25,15 +25,15 @@ import (
 
 // pgStores holds all PostgreSQL-backed stores opened from a shared connection pool.
 type pgStores struct {
-	Content    store.ContentStore
-	Auth       auth.AuthStore
-	Job        jobs.JobStore
-	Extraction jobs.ExtractionJobStore
-	BrandScan  jobs.BrandScanJobStore
-	Quota      jobs.QuotaStore
-	Brand      corebrand.BrandStore
-	Knowledge  knowledge.Store
-	GraphStore coreg.GraphStore
+	Content        store.ContentStore
+	Auth           auth.AuthStore
+	Job            jobs.JobStore
+	Extraction     jobs.ExtractionJobStore
+	BrandScan      jobs.BrandScanJobStore
+	Quota          jobs.QuotaStore
+	Brand          corebrand.BrandStore
+	Knowledge      knowledge.Store
+	GraphStore     coreg.GraphStore
 	Agent          platagent.AgentStore
 	Billing        billing.BillingStore
 	PlatformConfig *platformconfig.Store
@@ -44,16 +44,6 @@ func openPostgresStores(databaseURL string) (*pgStores, error) {
 	db, err := storage.OpenPostgresWithPool(databaseURL, graphAfterConnect())
 	if err != nil {
 		return nil, fmt.Errorf("open PostgreSQL: %w", err)
-	}
-	return initPostgresStores(db)
-}
-
-// openPostgresStoresAzure opens PostgreSQL-backed stores using Azure
-// Managed Identity for authentication (passwordless).
-func openPostgresStoresAzure(databaseURL, clientID string) (*pgStores, error) {
-	db, err := storage.OpenPostgresAzureWithHook(databaseURL, clientID, graphAfterConnect())
-	if err != nil {
-		return nil, fmt.Errorf("open PostgreSQL (Azure): %w", err)
 	}
 	return initPostgresStores(db)
 }

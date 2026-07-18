@@ -22,16 +22,6 @@ type Config struct {
 	// Required for production deployments.
 	DatabaseURL string
 
-	// DatabaseAuth selects the PostgreSQL authentication method.
-	// "azure" uses Entra ID managed identity tokens (passwordless).
-	// Empty or any other value uses password from the DatabaseURL.
-	DatabaseAuth string
-
-	// AzureClientID is the client ID of the user-assigned managed identity
-	// for Azure Entra ID database authentication. Only used when
-	// DatabaseAuth is "azure".
-	AzureClientID string
-
 	// SecretsKey is a base64-encoded 32-byte key for AES-256-GCM encryption of
 	// secret columns at rest (connector credentials). Empty disables encryption
 	// (plaintext); existing plaintext is read transparently and re-sealed on the
@@ -125,20 +115,16 @@ type Config struct {
 	PulseUIDir string
 
 	// Blob storage (Bowrain AD-007)
-	BlobBackend            string // "azure", "local" (default: "local")
-	AzureStorageAccountURL string // Azure Blob Storage account URL
-	AzureStorageContainer  string // Azure Blob Storage container name (default: "bowrain-assets")
-	AzureStorageConnStr    string // Azure connection string (dev/Azurite fallback)
-	BlobStorageLocalDir    string // Local blob storage root directory
+	BlobBackend         string // "s3", "local" (default: "local")
+	BlobStorageLocalDir string // Local blob storage root directory
 
 	// Sync protocol (Bowrain AD-009)
 	MaxPushBytes int64 // Max total upload size per push (default: 256MB)
 
 	// External services
-	ServiceBusConnection string // Azure Service Bus connection string for job queue
-	NATSURL              string // NATS server URL for job queue (e.g. nats://localhost:4222)
-	RedisURL             string // Redis connection string for caching and session state
-	RedisPassword        string // Redis password (overrides any password in RedisURL)
+	NATSURL       string // NATS server URL for job queue (e.g. nats://localhost:4222)
+	RedisURL      string // Redis connection string for caching and session state
+	RedisPassword string // Redis password (overrides any password in RedisURL)
 
 	// Platform AI provider — the server-chosen backend used for synchronous
 	// editor translations on the platform (credit-metered) path, when the caller
@@ -152,7 +138,7 @@ type Config struct {
 	PlatformBaseURL  string // optional endpoint override for the platform provider
 
 	// Agent (@bravo) — container runtime for ZeroClaw.
-	// AgentRuntime selects the container backend: "docker" or "aca" (Azure Container Apps).
+	// AgentRuntime selects the container backend: "docker".
 	// When empty, the agent falls back to local mock responses.
 	AgentRuntime string
 
@@ -165,12 +151,6 @@ type Config struct {
 	// Docker runtime settings (when AgentRuntime == "docker").
 	AgentDockerHost    string // default: "unix:///var/run/docker.sock"
 	AgentDockerNetwork string // Docker network for agent containers (optional)
-
-	// Azure Container Apps settings (when AgentRuntime == "aca").
-	AgentACASubscription  string // Azure subscription ID
-	AgentACAResourceGroup string // Azure resource group
-	AgentACAEnvironmentID string // Container App Environment resource ID
-	AgentACALocation      string // Azure region (e.g. "westus2")
 
 	// Agent model configuration — injected into ZeroClaw containers.
 	AgentModelProvider string // e.g. "azure-openai", "anthropic"
