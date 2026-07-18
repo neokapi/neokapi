@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/bowrain/forge"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -158,6 +159,31 @@ func TestNewGitConnectorHardeningConfig(t *testing.T) {
 	assert.False(t, plain.shallow)
 	assert.False(t, plain.noRedirects)
 	assert.Nil(t, plain.globalArgs())
+}
+
+// TestNewGitConnectorDefaultPatterns: the default content globs include
+// Markdown/MDX (drill finding: a README/docs repository ingested zero
+// content), and they match at any depth — including the repository root —
+// under the shared doublestar semantics.
+func TestNewGitConnectorDefaultPatterns(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	c, err := NewGitConnector(reg, map[string]string{
+		"repo": "https://github.com/org/repo.git",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, forge.DefaultContentPatterns(), c.patterns)
+
+	for _, path := range []string{
+		"README.md",                // root file — filepath.Match missed this
+		"docs/guide/intro.mdx",     // deep file — filepath.Match missed this too
+		"src/locales/en.json",      // nested catalog
+		"index.html",               // root html
+		"i18n/messages.properties", // properties bundle
+		"config/locales/nb.yml",    // yaml catalog
+	} {
+		assert.True(t, forge.MatchesContentPatterns(c.patterns, path), "default patterns must match %s", path)
+	}
+	assert.False(t, forge.MatchesContentPatterns(c.patterns, "main.go"))
 }
 
 func TestNewGitConnectorDefaultsBranchToMain(t *testing.T) {

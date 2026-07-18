@@ -123,6 +123,8 @@ import type {
   InstallationRepo,
   BindInstallationRepoRequest,
   BindInstallationRepoResult,
+  RepoDetection,
+  RepoDetectOptions,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -1115,6 +1117,24 @@ export class RestApiAdapter implements ApiAdapter {
       (await this.fetchJSON<InstallationRepo[]>(
         `/api/v1/${workspaceSlug}/github/installations/${encodeURIComponent(installationId)}/repositories`,
       )) ?? []
+    );
+  }
+
+  async detectInstallationRepo(
+    workspaceSlug: string,
+    installationId: string,
+    repository: string,
+    opts?: RepoDetectOptions,
+  ): Promise<RepoDetection> {
+    const slash = repository.indexOf("/");
+    const owner = slash >= 0 ? repository.slice(0, slash) : repository;
+    const name = slash >= 0 ? repository.slice(slash + 1) : "";
+    const params = new URLSearchParams();
+    if (opts?.scope) params.set("scope", opts.scope);
+    if (opts?.patterns) params.set("patterns", opts.patterns);
+    const query = params.size > 0 ? `?${params.toString()}` : "";
+    return this.fetchJSON(
+      `/api/v1/${workspaceSlug}/github/installations/${encodeURIComponent(installationId)}/repositories/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/detect${query}`,
     );
   }
 

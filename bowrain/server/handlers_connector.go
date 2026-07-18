@@ -407,21 +407,45 @@ func (s *Server) HandleConnectorStatus(c echo.Context) error {
 	}
 	wsID, _ := c.Get("workspace_id").(string)
 	connID := connectorIDParam(c)
-	status, err := s.Services.Connector.ConnectorStatus(c.Request().Context(), wsID, connID)
-	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	status, statusErr := s.Services.Connector.ConnectorStatus(c.Request().Context(), wsID, connID)
+
+	var cfg *bstore.ConnectorConfig
+	if s.ConnectorConfigStore != nil {
+		if got, cfgErr := s.ConnectorConfigStore.Get(c.Request().Context(), wsID, connID); cfgErr == nil {
+			cfg = &got
+		}
 	}
+
+	if statusErr != nil {
+		// The live probe failed. For a connector the config store knows this
+		// is a *status*, not a missing resource: a git/forge connector's probe
+		// re-runs the same clone the ingest does, so a broken import used to
+		// 404 every status poll here — and the recorded last_error (with the
+		// failed import behind it) never reached the client, which kept
+		// showing "importing" forever. Degrade to the stored state (real
+		// last-sync, recorded error) plus the probe error instead.
+		if cfg == nil {
+			return apiErr(c, http.StatusNotFound, statusErr.Error())
+		}
+		degraded := &connector.SyncStatus{ConnectorID: connID, LastSync: cfg.LastSyncAt}
+		if cfg.LastError != "" {
+			degraded.Errors = append(degraded.Errors, cfg.LastError)
+		}
+		if msg := statusErr.Error(); cfg.LastError != msg {
+			degraded.Errors = append(degraded.Errors, msg)
+		}
+		return c.JSON(http.StatusOK, degraded)
+	}
+
 	// Replace the connector's own (fabricated) LastSync with the authoritative
 	// stored timestamp: the real time of the last successful fetch/publish, or a
 	// zero value the client renders as "never synced" until the first sync. A
 	// recorded sync failure (e.g. a background ingest that failed) joins the
 	// reported errors so the panel and setup page can surface it.
-	if s.ConnectorConfigStore != nil {
-		if cfg, cfgErr := s.ConnectorConfigStore.Get(c.Request().Context(), wsID, connID); cfgErr == nil {
-			status.LastSync = cfg.LastSyncAt
-			if cfg.LastError != "" {
-				status.Errors = append(status.Errors, cfg.LastError)
-			}
+	if cfg != nil {
+		status.LastSync = cfg.LastSyncAt
+		if cfg.LastError != "" {
+			status.Errors = append(status.Errors, cfg.LastError)
 		}
 	}
 	return c.JSON(http.StatusOK, status)

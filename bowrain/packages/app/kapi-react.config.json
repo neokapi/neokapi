@@ -14,6 +14,7 @@
     "DialogTitle": "h2",
     "InputGroupText": "span",
     "Label": "label",
+    "Link": "a",
     "SelectItem": "div",
     "SidebarFooter": "div",
     "SidebarHeader": "div",

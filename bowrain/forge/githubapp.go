@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -233,6 +234,61 @@ func (a *GitHubApp) ListInstallationRepos(ctx context.Context, installationID in
 		}
 	}
 	return repos, nil
+}
+
+// RepoTreePaths reads a repository's file listing (blob paths) at a ref via
+// the git trees API — one recursive call, no clone. maxEntries caps how many
+// blob paths are returned; the second result reports whether the listing was
+// truncated (by GitHub's own recursive-tree limit or by the cap). The ref may
+// be a branch name or "HEAD" for the default branch.
+func (a *GitHubApp) RepoTreePaths(ctx context.Context, installationID int64, repoPath, ref string, maxEntries int) ([]string, bool, error) {
+	token, err := a.InstallationToken(ctx, installationID)
+	if err != nil {
+		return nil, false, err
+	}
+	if ref == "" {
+		ref = "HEAD"
+	}
+	u := fmt.Sprintf("%s/repos/%s/git/trees/%s?recursive=1", a.api(), repoPath, url.PathEscape(ref))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, false, err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	resp, err := a.http.Do(req)
+	if err != nil {
+		return nil, false, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return nil, false, fmt.Errorf("github repository tree %s@%s: %s: %s", repoPath, ref, resp.Status, strings.TrimSpace(string(msg)))
+	}
+	var out struct {
+		Tree []struct {
+			Path string `json:"path"`
+			Type string `json:"type"`
+		} `json:"tree"`
+		Truncated bool `json:"truncated"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, false, err
+	}
+	truncated := out.Truncated
+	paths := make([]string, 0, len(out.Tree))
+	for _, e := range out.Tree {
+		if e.Type != "blob" {
+			continue
+		}
+		if maxEntries > 0 && len(paths) >= maxEntries {
+			truncated = true
+			break
+		}
+		paths = append(paths, e.Path)
+	}
+	return paths, truncated, nil
 }
 
 // TokenForRepo resolves the repository's installation and returns an access

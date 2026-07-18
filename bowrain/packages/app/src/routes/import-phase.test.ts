@@ -32,4 +32,21 @@ describe("importPhaseFromStatus", () => {
       importPhaseFromStatus({ lastSync: "2026-07-18T09:30:00Z", errors: ["fetch failed"] }),
     ).toBe("failed");
   });
+
+  it("flips to failed on the production clone-failure shape (founder drill)", () => {
+    // What the server returns for a never-synced connector whose initial
+    // ingest failed: zero-time lastSync from the stored row, the recorded
+    // last_error in errors. The server degrades to this shape even when its
+    // live status probe re-fails on the same broken clone — previously that
+    // probe failure became a 404 and this function never saw a status at all,
+    // which is why "Importing…" never ended.
+    expect(
+      importPhaseFromStatus({
+        lastSync: "0001-01-01T00:00:00Z",
+        errors: [
+          "git clone: fatal: could not read Username for 'https://github.com': terminal prompts disabled\n: exit status 128",
+        ],
+      }),
+    ).toBe("failed");
+  });
 });

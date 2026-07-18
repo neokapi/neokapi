@@ -194,6 +194,12 @@ func (c *ForgeConnector) ID() string                  { return c.git.ID() }
 func (c *ForgeConnector) Name() string                { return c.git.Name() }
 func (c *ForgeConnector) Category() platconn.Category { return platconn.CategoryCode }
 func (c *ForgeConnector) Status(ctx context.Context) (*platconn.SyncStatus, error) {
+	// Status probes the remote (clone/pull + list), so it needs the same
+	// per-call credential as Fetch/List — without it, app-mode status of a
+	// private repository fails on every poll.
+	if err := c.authGit(ctx); err != nil {
+		return nil, err
+	}
 	return c.git.Status(ctx)
 }
 func (c *ForgeConnector) Configure(config map[string]string) error { return c.git.Configure(config) }

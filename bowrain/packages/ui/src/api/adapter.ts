@@ -112,6 +112,8 @@ import type {
   InstallationRepo,
   BindInstallationRepoRequest,
   BindInstallationRepoResult,
+  RepoDetection,
+  RepoDetectOptions,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -411,6 +413,17 @@ export interface ApiAdapter {
   // (annotated with existing bindings), and binding one to a project — which
   // creates an app-auth forge connector server-side.
   listInstallationRepos(workspaceSlug: string, installationId: string): Promise<InstallationRepo[]>;
+  /**
+   * Inspect one repository of an installation before binding: reads the repo
+   * tree server-side (no clone) and reports monorepo markers, i18n/content
+   * signals, a proposed `patterns` value, and the files it matches.
+   */
+  detectInstallationRepo(
+    workspaceSlug: string,
+    installationId: string,
+    repository: string,
+    opts?: RepoDetectOptions,
+  ): Promise<RepoDetection>;
   bindInstallationRepo(
     workspaceSlug: string,
     installationId: string,

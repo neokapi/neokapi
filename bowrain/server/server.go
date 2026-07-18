@@ -1508,6 +1508,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// bind one to a project (creates an auth:app forge connector).
 	g.GET("/github/installations/:installationID/repositories", s.HandleListInstallationRepos)
 	g.POST("/github/installations/:installationID/repositories", s.HandleBindInstallationRepo)
+	g.GET("/github/installations/:installationID/repositories/:owner/:name/detect", s.HandleDetectInstallationRepo)
 	g.POST("/connectors", s.HandleAddConnector)
 	g.PUT("/connectors/:id", s.HandleUpdateConnector)
 	g.DELETE("/connectors/:id", s.HandleRemoveConnector)

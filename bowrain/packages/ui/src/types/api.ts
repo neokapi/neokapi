@@ -1945,3 +1945,38 @@ export interface BindInstallationRepoResult {
   /** "started" when the server kicked off the initial background ingest. */
   initial_fetch?: string;
 }
+
+/** One detected i18n/content signal in a repository's tree. */
+export interface RepoContentSignal {
+  /** Signal id — an i18n framework registry id (react-i18next, flutter, …) or a generic kind. */
+  id: string;
+  /** Human fragment for the conclusion line, e.g. "i18next catalogs". */
+  label: string;
+  /** Catalog root seen in the tree (absent when repo-wide). */
+  dir?: string;
+  /** How many tree files back this signal. */
+  files: number;
+}
+
+/**
+ * What the detect endpoint reports for a repository before binding: monorepo
+ * shape, content signals, a proposed connector `patterns` value, and the
+ * files that proposal (or a caller-supplied override) matches.
+ */
+export interface RepoDetection {
+  monorepo_markers: string[] | null;
+  workspaces?: string[] | null;
+  signals: RepoContentSignal[];
+  proposed_patterns: string;
+  match_count: number;
+  match_preview: string[];
+  truncated: boolean;
+}
+
+/** Optional query knobs for the detect endpoint. */
+export interface RepoDetectOptions {
+  /** Confine detection to a subdirectory (monorepo workspace). */
+  scope?: string;
+  /** Comma-separated globs to match instead of the proposal (live feedback while editing). */
+  patterns?: string;
+}
