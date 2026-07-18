@@ -9,6 +9,7 @@ import { fetchAdminSession, ADMIN_SESSION_QUERY_KEY } from "../auth";
 import { RootLayout } from "./root-layout";
 import { AuthCallbackRoute } from "./auth-callback";
 import { DashboardRoute } from "./dashboard";
+import { HealthRoute } from "./health";
 import { WorkspacesRoute } from "./workspaces";
 import { WorkspaceDetailRoute } from "./workspace-detail";
 import { UsersRoute } from "./users";
@@ -99,6 +100,13 @@ const dashboardRoute = createRoute({
   component: DashboardRoute,
 });
 
+const healthRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "health",
+  beforeLoad: requireAuth,
+  component: HealthRoute,
+});
+
 const workspacesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "workspaces",
@@ -183,6 +191,7 @@ const platformRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   authCallbackRoute,
   dashboardRoute,
+  healthRoute,
   workspacesRoute,
   workspaceDetailRoute,
   usersRoute,

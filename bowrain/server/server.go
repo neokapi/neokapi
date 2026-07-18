@@ -1427,6 +1427,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		adminGroup.GET("/users", s.HandleAdminListUsers)
 		adminGroup.GET("/users/:id", s.HandleAdminGetUser)
 		adminGroup.GET("/metrics", s.HandleAdminGetMetrics)
+		adminGroup.GET("/health", s.HandleAdminHealth)
 		adminGroup.GET("/events", s.HandleAdminListEvents)
 		adminGroup.GET("/upsells", s.HandleAdminGetUpsells)
 		adminGroup.GET("/overrides", s.HandleAdminListOverrides)
