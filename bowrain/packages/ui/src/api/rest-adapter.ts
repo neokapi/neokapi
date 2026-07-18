@@ -79,6 +79,7 @@ import type {
   ActivityInfo,
   ConvergenceRun,
   ConvergenceEstimate,
+  LoopRollup,
   ConvergenceRunScope,
   TaskInfo,
   CreateTaskRequest,
@@ -2517,6 +2518,10 @@ export class RestApiAdapter implements ApiAdapter {
     projectId: string,
   ): Promise<ConvergenceEstimate> {
     return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/convergence/estimate`);
+  }
+
+  async getLoopRollup(workspaceSlug: string): Promise<LoopRollup> {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/loop-rollup`);
   }
 
   // ── Tasks (Bowrain AD-014) ────────────────────────────────────────────────────

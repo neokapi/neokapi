@@ -129,14 +129,19 @@ export interface ProjectDashboardProps {
   serverUrl?: string;
   /**
    * Loop-status layer for the populated state: latest loop activity, the
-   * caller's open review tasks, and the brand rollup summary. Absent hides
-   * the layer (first paint, desktop shells without the data).
+   * latest convergence run, the caller's open review tasks, the ship-state
+   * rollup, and the brand rollup summary. Absent hides the layer (first
+   * paint, desktop shells without the data).
    */
   loopStatus?: LoopStatusData;
   /** Opens the workspace activity feed (loop-status card). */
   onOpenActivities?: () => void;
+  /** Opens the latest run's runs page (loop-status card). */
+  onOpenRuns?: () => void;
   /** Opens the workspace task queue (loop-status card). */
   onOpenTasks?: () => void;
+  /** Opens the delivery/translation dashboard surface (loop-status card). */
+  onOpenDelivery?: () => void;
   /** Opens the brand dashboard (loop-status card). */
   onOpenBrandDashboard?: () => void;
 }
@@ -547,7 +552,9 @@ export function ProjectDashboard({
   serverUrl,
   loopStatus,
   onOpenActivities,
+  onOpenRuns,
   onOpenTasks,
+  onOpenDelivery,
   onOpenBrandDashboard,
 }: ProjectDashboardProps) {
   const { getDisplayName } = useLocales();
@@ -601,7 +608,9 @@ export function ProjectDashboard({
               <LoopStatusRow
                 status={loopStatus}
                 onOpenActivities={onOpenActivities}
+                onOpenRuns={onOpenRuns}
                 onOpenTasks={onOpenTasks}
+                onOpenDelivery={onOpenDelivery}
                 onOpenBrandDashboard={onOpenBrandDashboard}
               />
             </section>

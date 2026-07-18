@@ -1568,6 +1568,10 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.GET("/activities", s.HandleListActivities)
 	g.POST("/activities/seen", s.HandleMarkActivitiesSeen)
 
+	// Loop rollup — workspace-home aggregate (latest convergence run +
+	// ship-state rollup): /:ws/loop-rollup
+	g.GET("/loop-rollup", s.HandleWorkspaceLoopRollup)
+
 	// Tasks — Bowrain AD-011: /:ws/tasks (no more /my/tasks, use ?assignee_id=me)
 	g.GET("/tasks", s.HandleListTasks)
 	g.POST("/tasks", s.HandleCreateTask)

@@ -1,6 +1,15 @@
 import { Badge, Card, CardContent, cn } from "@neokapi/ui-primitives";
 import type { ReactNode } from "react";
-import { Activity, AlertTriangle, ArrowRight, CircleCheck, Eye, Palette } from "./icons";
+import {
+  Activity,
+  AlertTriangle,
+  ArrowRight,
+  CircleCheck,
+  Eye,
+  Palette,
+  RefreshCw,
+  Rocket,
+} from "./icons";
 
 // ---------------------------------------------------------------------------
 // Data shapes
@@ -29,12 +38,45 @@ export interface LoopBrandHealth {
   driftingProjects: number;
 }
 
+/**
+ * The workspace's most recent convergence run, folded from the loop rollup
+ * (GET /:ws/loop-rollup).
+ */
+export interface LoopRunStatus {
+  /** running | converged | parked | failed | canceled */
+  state: string;
+  /** Why a parked/failed run did not converge (needs_credits | …). */
+  stallReason?: string;
+  /** The run's project, for attribution under the state. */
+  projectName?: string;
+  /** ISO timestamp of the run's last observable progress. */
+  updatedAt?: string;
+}
+
+/**
+ * Workspace ship-state rollup of project-locales, folded from the loop
+ * rollup. Derived from cached per-project dashboard rollups: when
+ * countedProjects < totalProjects the card says so — the counts never claim
+ * the whole workspace.
+ */
+export interface LoopShipStatus {
+  governed: number;
+  aiShippable: number;
+  pending: number;
+  countedProjects: number;
+  totalProjects: number;
+}
+
 /** The loop-status layer's data, one optional slot per card. */
 export interface LoopStatusData {
   /** Latest loop activity (runs, pushes, checks, reviews); absent = none yet. */
   latestActivity?: LoopActivitySummary;
+  /** Most recent convergence run; absent hides the run card entirely. */
+  latestRun?: LoopRunStatus;
   /** Open review-type tasks for the current user; absent while loading. */
   openReviewTasks?: number;
+  /** Ship-state rollup; absent hides the ship card entirely. */
+  ship?: LoopShipStatus;
   /** Brand rollup summary; absent hides the brand card entirely. */
   brand?: LoopBrandHealth;
 }
@@ -43,8 +85,12 @@ export interface LoopStatusRowProps {
   status: LoopStatusData;
   /** Opens the workspace activity feed. */
   onOpenActivities?: () => void;
+  /** Opens the latest run's runs page. */
+  onOpenRuns?: () => void;
   /** Opens the workspace task queue. */
   onOpenTasks?: () => void;
+  /** Opens the delivery (translation dashboard) surface. */
+  onOpenDelivery?: () => void;
   /** Opens the brand dashboard. */
   onOpenBrandDashboard?: () => void;
 }
@@ -64,6 +110,25 @@ function relativeTime(iso: string): string {
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
 }
+
+/** Human labels for the run lifecycle states. */
+const RUN_STATE_LABELS: Record<string, string> = {
+  running: "Running",
+  converged: "Converged",
+  parked: "Parked",
+  failed: "Failed",
+  canceled: "Canceled",
+};
+
+/** Human labels for the machine-readable stall reasons (epic 019 theme C). */
+const STALL_REASON_LABELS: Record<string, string> = {
+  needs_credits: "needs credits",
+  needs_ai_key: "needs an AI key",
+  rate_limited: "rate limited",
+  no_progress: "no progress",
+  checks_failing: "checks failing",
+  source_not_ready: "source not ready",
+};
 
 // ---------------------------------------------------------------------------
 // Card scaffold
@@ -115,24 +180,41 @@ function StatusCard({
 // Row
 // ---------------------------------------------------------------------------
 
+/** Grid column classes per visible-card count (2–5). */
+const GRID_COLS: Record<number, string> = {
+  2: "lg:grid-cols-2",
+  3: "lg:grid-cols-3",
+  4: "lg:grid-cols-2 xl:grid-cols-4",
+  5: "lg:grid-cols-3 xl:grid-cols-5",
+};
+
 /**
  * The workspace dashboard's loop-status layer: where the loop stands right
- * now — latest loop activity, what awaits the caller's review, and brand
- * standing — each card deep-linking to its surface.
+ * now — latest loop activity, the latest convergence run, what awaits the
+ * caller's review, ship readiness, and brand standing — each card
+ * deep-linking to its surface.
  */
 export function LoopStatusRow({
   status,
   onOpenActivities,
+  onOpenRuns,
   onOpenTasks,
+  onOpenDelivery,
   onOpenBrandDashboard,
 }: LoopStatusRowProps) {
-  const { latestActivity, openReviewTasks, brand } = status;
+  const { latestActivity, latestRun, openReviewTasks, ship, brand } = status;
+  const showRun = latestRun !== undefined;
+  const showShip = ship !== undefined;
   const showBrand = brand !== undefined;
+  const visibleCards = 2 + (showRun ? 1 : 0) + (showShip ? 1 : 0) + (showBrand ? 1 : 0);
+
+  const shippableLocales = ship ? ship.governed + ship.aiShippable : 0;
+  const totalLocales = ship ? shippableLocales + ship.pending : 0;
 
   return (
     <div
       data-testid="loop-status"
-      className={cn("grid gap-4 sm:grid-cols-2", showBrand ? "lg:grid-cols-3" : "lg:grid-cols-2")}
+      className={cn("grid gap-4 sm:grid-cols-2", GRID_COLS[visibleCards] ?? "lg:grid-cols-3")}
     >
       <StatusCard
         label="Loop activity"
@@ -154,6 +236,35 @@ export function LoopStatusRow({
           </p>
         )}
       </StatusCard>
+
+      {showRun && (
+        <StatusCard
+          label="Latest run"
+          icon={<RefreshCw />}
+          footer="View runs"
+          onOpen={onOpenRuns}
+          testId="loop-card-run"
+        >
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-lg font-semibold leading-none">
+                {RUN_STATE_LABELS[latestRun.state] ?? latestRun.state}
+              </span>
+              {latestRun.stallReason && (
+                <Badge variant="outline" className="gap-1 text-[11px] font-normal">
+                  <AlertTriangle className="h-3 w-3" />
+                  {STALL_REASON_LABELS[latestRun.stallReason] ?? latestRun.stallReason}
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {latestRun.projectName}
+              {latestRun.projectName && latestRun.updatedAt ? " · " : ""}
+              {latestRun.updatedAt ? relativeTime(latestRun.updatedAt) : ""}
+            </p>
+          </div>
+        </StatusCard>
+      )}
 
       <StatusCard
         label="Awaiting review"
@@ -182,6 +293,33 @@ export function LoopStatusRow({
           </div>
         )}
       </StatusCard>
+
+      {showShip && (
+        <StatusCard
+          label="Ship readiness"
+          icon={<Rocket />}
+          footer="Delivery dashboard"
+          onOpen={onOpenDelivery}
+          testId="loop-card-ship"
+        >
+          <div className="space-y-1.5">
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-semibold tabular-nums leading-none">
+                {shippableLocales}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                of {totalLocales} locale{totalLocales !== 1 ? "s" : ""} shippable
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {ship.governed} governed · {ship.aiShippable} AI-shippable · {ship.pending} pending
+              {ship.countedProjects < ship.totalProjects
+                ? ` · across ${ship.countedProjects} of ${ship.totalProjects} projects`
+                : ""}
+            </p>
+          </div>
+        </StatusCard>
+      )}
 
       {showBrand && (
         <StatusCard

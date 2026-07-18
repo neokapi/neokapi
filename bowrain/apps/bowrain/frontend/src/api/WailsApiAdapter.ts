@@ -4,6 +4,7 @@ import type {
   ConvergenceRun,
   ConvergenceEstimate,
   ConvergenceRunScope,
+  LoopRollup,
   User,
   Workspace,
   Membership,
@@ -1390,6 +1391,11 @@ export class WailsApiAdapter implements ApiAdapter {
   }
   async estimateConvergence(_ws: string, _projectId: string): Promise<ConvergenceEstimate> {
     throw new Error("Convergence runs are not yet surfaced in the desktop app");
+  }
+  async getLoopRollup(_ws: string): Promise<LoopRollup> {
+    // No convergence-run surface in the desktop app yet: an empty rollup
+    // hides the workspace home's run/ship cards.
+    return {};
   }
 
   // --- Tasks (Bowrain AD-014, not yet supported in desktop) ---

@@ -948,6 +948,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     getBrandScores: async () => [],
     getBrandTrends: async () => [],
     getBrandRollup: async () => ({ projects: [], total: 0, limit: 50, offset: 0 }),
+    getLoopRollup: async () => ({}),
     listBrandCandidates: async () => [],
     promoteBrandRule: async () => ({ promoted: true }),
     rejectBrandRule: noop,

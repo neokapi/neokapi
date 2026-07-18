@@ -166,6 +166,8 @@ export { LoopStatusRow } from "./components/LoopStatusRow";
 export type {
   LoopActivitySummary,
   LoopBrandHealth,
+  LoopRunStatus,
+  LoopShipStatus,
   LoopStatusData,
   LoopStatusRowProps,
 } from "./components/LoopStatusRow";
@@ -508,6 +510,10 @@ export type {
   ConvergenceRunScope,
   ConvergenceEvent,
   ConvergenceEventType,
+  LoopRollup,
+  LoopRollupRun,
+  LoopRollupShip,
+  LoopRollupShipProject,
   TaskInfo,
   TaskType,
   TaskStatus,

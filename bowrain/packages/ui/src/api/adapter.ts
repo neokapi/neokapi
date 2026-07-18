@@ -75,6 +75,7 @@ import type {
   ActivityInfo,
   ConvergenceRun,
   ConvergenceEstimate,
+  LoopRollup,
   ConvergenceRunScope,
   TaskInfo,
   CreateTaskRequest,
@@ -957,6 +958,14 @@ export interface ApiAdapter {
    * ready source, then the workspace balance. Starts no run.
    */
   estimateConvergence(workspaceSlug: string, projectId: string): Promise<ConvergenceEstimate>;
+
+  /**
+   * The workspace home's loop rollup: the most recent convergence run across
+   * the workspace's projects plus a cached-basis ship-state rollup — one
+   * request in place of a per-project fan-out. Absent fields mean "no data";
+   * the corresponding card hides.
+   */
+  getLoopRollup(workspaceSlug: string): Promise<LoopRollup>;
 
   // Tasks (Bowrain AD-014)
   listTasks(
