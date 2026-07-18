@@ -51,9 +51,26 @@ function relativeTime(iso: string): string {
   return `${Math.floor(months / 12)}y ago`;
 }
 
-/** Sum a numeric field across project items. */
-function sumItems(project: ProjectInfo, field: "word_count" | "block_count"): number {
-  return project.items?.reduce((acc, item) => acc + (item[field] ?? 0), 0) ?? 0;
+/**
+ * Word count for a project card: prefer the server-computed aggregate (the
+ * projects list is a summary without items[]), fall back to summing embedded
+ * items for adapters that still return the full shape (desktop offline path,
+ * stories).
+ */
+function projectWordCount(project: ProjectInfo): number {
+  return (
+    project.word_count ?? project.items?.reduce((acc, item) => acc + (item.word_count ?? 0), 0) ?? 0
+  );
+}
+
+/** File count: server aggregate first, embedded items as fallback. */
+function projectFileCount(project: ProjectInfo): number {
+  return project.item_count ?? project.items?.length ?? 0;
+}
+
+/** Stream count: server aggregate first, embedded streams as fallback. */
+function projectStreamCount(project: ProjectInfo): number {
+  return project.stream_count ?? project.streams?.length ?? 0;
 }
 
 /** Hard render cap for the project grid — the page scrolls, the DOM stays bounded. */
@@ -95,9 +112,9 @@ export interface ProjectDashboardProps {
 
 /** Summary statistics bar shown above the project grid. */
 function DashboardStats({ projects }: { projects: ProjectInfo[] }) {
-  const totalWords = projects.reduce((acc, p) => acc + sumItems(p, "word_count"), 0);
+  const totalWords = projects.reduce((acc, p) => acc + projectWordCount(p), 0);
   const uniqueLocales = new Set(projects.flatMap((p) => p.target_languages));
-  const totalFiles = projects.reduce((acc, p) => acc + (p.items?.length ?? 0), 0);
+  const totalFiles = projects.reduce((acc, p) => acc + projectFileCount(p), 0);
 
   const stats = [
     { label: "Projects", value: String(projects.length), icon: FolderOpen },
@@ -139,9 +156,9 @@ function ProjectCard({
   onArchive?: () => void;
   getDisplayName: (code: string) => string;
 }) {
-  const wordCount = sumItems(project, "word_count");
-  const fileCount = project.items?.length ?? 0;
-  const streamCount = project.streams?.length ?? 0;
+  const wordCount = projectWordCount(project);
+  const fileCount = projectFileCount(project);
+  const streamCount = projectStreamCount(project);
 
   return (
     <Card

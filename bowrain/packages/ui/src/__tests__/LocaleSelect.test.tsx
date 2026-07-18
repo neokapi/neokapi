@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vite-plus/test";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiProvider } from "../context/ApiContext";
 import { LocaleSelect, MultiLocaleSelect } from "../components/LocaleSelect";
 import type { ApiAdapter } from "../api/adapter";
@@ -105,7 +107,12 @@ function createMockAdapter(locales: LocaleInfo[] = mockLocales): ApiAdapter {
 }
 
 function Wrapper({ children }: { children: React.ReactNode }) {
-  return <ApiProvider adapter={createMockAdapter()}>{children}</ApiProvider>;
+  const [qc] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: false } } }));
+  return (
+    <QueryClientProvider client={qc}>
+      <ApiProvider adapter={createMockAdapter()}>{children}</ApiProvider>
+    </QueryClientProvider>
+  );
 }
 
 /* ── LocaleSelect (backed by Combobox input) ── */
@@ -236,6 +243,10 @@ describe("MultiLocaleSelect", () => {
     await waitFor(() => {
       expect(screen.getByTestId("tgt-remove-fr")).toBeInTheDocument();
     });
+    // The add-picker mounts once the cached locale list resolves.
+    await waitFor(() => {
+      expect(screen.getByTestId("tgt-search")).toBeInTheDocument();
+    });
 
     await user.click(screen.getByTestId("tgt-search"));
     // "fr" already selected, so "en", "de", "es", "ja" should appear
@@ -255,6 +266,10 @@ describe("MultiLocaleSelect", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("tgt-remove-fr")).toBeInTheDocument();
+    });
+    // The add-picker mounts once the cached locale list resolves.
+    await waitFor(() => {
+      expect(screen.getByTestId("tgt-search")).toBeInTheDocument();
     });
 
     await user.click(screen.getByTestId("tgt-search"));
@@ -296,6 +311,10 @@ describe("MultiLocaleSelect", () => {
     await waitFor(() => {
       expect(screen.getByTestId("tgt-remove-fr")).toBeInTheDocument();
     });
+    // The add-picker mounts once the cached locale list resolves.
+    await waitFor(() => {
+      expect(screen.getByTestId("tgt-search")).toBeInTheDocument();
+    });
 
     await user.click(screen.getByTestId("tgt-search"));
     await user.click(screen.getByTestId("tgt-option-de"));
@@ -316,6 +335,10 @@ describe("MultiLocaleSelect", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("tgt-remove-fr")).toBeInTheDocument();
+    });
+    // The add-picker mounts once the cached locale list resolves.
+    await waitFor(() => {
+      expect(screen.getByTestId("tgt-search")).toBeInTheDocument();
     });
 
     const searchInput = screen.getByTestId("tgt-search");

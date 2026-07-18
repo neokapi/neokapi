@@ -1,18 +1,42 @@
-import { Card, CardContent, CardHeader, CardTitle, cn } from "@neokapi/ui-primitives";
+import { Button, Card, CardContent, CardHeader, CardTitle, cn } from "@neokapi/ui-primitives";
 import { useState, useMemo } from "react";
-import type { ItemTranslationStats } from "../types/api";
+import type { DashboardItemSort, ItemTranslationStats } from "../types/api";
 import { LanguageLabel } from "./LanguageLabel";
 import { FormattedFileName } from "./FormattedFileName";
 import { ListCapRow } from "./ListCapRow";
+
+type SortField = DashboardItemSort;
+type SortDir = "asc" | "desc";
+
+/**
+ * Server-side paging/sorting seam. When present the table is controlled: rows
+ * arrive pre-sorted and pre-paged from the dashboard endpoint, header clicks
+ * request a new server sort, and "Load more" grows the page — the full
+ * O(files × locales) list never reaches the client. When absent the table
+ * sorts its full `itemStats` client-side (stories, adapters without paging).
+ */
+export interface FileProgressPaging {
+  /** Full item count across all pages (item_total). */
+  total: number;
+  sortField: SortField;
+  sortDir: SortDir;
+  /** Request a different server-side sort (resets to the first page). */
+  onSortChange: (field: SortField, dir: SortDir) => void;
+  /** More rows exist beyond the loaded page. */
+  hasMore: boolean;
+  /** Load the next page of rows. */
+  onLoadMore: () => void;
+  /** A sort/page fetch is in flight. */
+  isLoading?: boolean;
+}
 
 interface FileProgressTableProps {
   itemStats: ItemTranslationStats[];
   locales: string[];
   localeDisplayNames?: Record<string, string>;
+  /** Server-side paging/sort; omit for client-side sorting of the full list. */
+  paging?: FileProgressPaging;
 }
-
-type SortField = "name" | "words" | "completion";
-type SortDir = "asc" | "desc";
 
 /** Hard render cap — large projects can hold thousands of files. */
 const MAX_ROWS = 500;
@@ -28,20 +52,27 @@ export function FileProgressTable({
   itemStats,
   locales,
   localeDisplayNames,
+  paging,
 }: FileProgressTableProps) {
-  const [sortField, setSortField] = useState<SortField>("name");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [localSortField, setLocalSortField] = useState<SortField>("name");
+  const [localSortDir, setLocalSortDir] = useState<SortDir>("asc");
+
+  const sortField = paging ? paging.sortField : localSortField;
+  const sortDir = paging ? paging.sortDir : localSortDir;
 
   const toggleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortField(field);
-      setSortDir("asc");
+    const nextDir: SortDir = sortField === field ? (sortDir === "asc" ? "desc" : "asc") : "asc";
+    if (paging) {
+      paging.onSortChange(field, nextDir);
+      return;
     }
+    setLocalSortField(field);
+    setLocalSortDir(nextDir);
   };
 
   const sorted = useMemo(() => {
+    // Controlled mode: rows are already server-sorted and paged.
+    if (paging) return itemStats;
     const items = [...itemStats];
     items.sort((a, b) => {
       let cmp = 0;
@@ -68,16 +99,17 @@ export function FileProgressTable({
       return sortDir === "desc" ? -cmp : cmp;
     });
     return items;
-  }, [itemStats, sortField, sortDir]);
+  }, [itemStats, sortField, sortDir, paging]);
 
   const sortIndicator = (field: SortField) => {
     if (sortField !== field) return null;
-    return sortDir === "asc" ? " \u2191" : " \u2193";
+    return sortDir === "asc" ? " ↑" : " ↓";
   };
 
   // Hard cap so a project with thousands of files never floods the DOM; the
-  // ListCapRow below makes the cut honest.
+  // ListCapRow below makes the cut honest. Server paging already bounds rows.
   const visibleRows = sorted.length > MAX_ROWS ? sorted.slice(0, MAX_ROWS) : sorted;
+  const totalRows = paging ? paging.total : sorted.length;
 
   return (
     <Card>
@@ -124,7 +156,7 @@ export function FileProgressTable({
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className={cn(paging?.isLoading && "opacity-60 transition-opacity")}>
               {visibleRows.map((item) => {
                 const localeMap = new Map(item.locales.map((l) => [l.locale, l]));
                 const avgPct =
@@ -178,12 +210,31 @@ export function FileProgressTable({
               })}
             </tbody>
           </table>
-          <ListCapRow
-            shown={visibleRows.length}
-            total={sorted.length}
-            noun="files"
-            hint="Sort or narrow the project to see the rest."
-          />
+          {paging ? (
+            <div className="flex items-center justify-between gap-3 py-2 text-[11px] text-muted-foreground">
+              <span data-testid="file-progress-count">
+                Showing {visibleRows.length} of {totalRows} file{totalRows !== 1 ? "s" : ""}
+              </span>
+              {paging.hasMore && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={paging.onLoadMore}
+                  disabled={paging.isLoading}
+                  data-testid="file-progress-load-more"
+                >
+                  {paging.isLoading ? "Loading…" : "Load more"}
+                </Button>
+              )}
+            </div>
+          ) : (
+            <ListCapRow
+              shown={visibleRows.length}
+              total={sorted.length}
+              noun="files"
+              hint="Sort or narrow the project to see the rest."
+            />
+          )}
         </div>
       </CardContent>
     </Card>

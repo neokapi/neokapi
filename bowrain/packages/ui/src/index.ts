@@ -180,7 +180,7 @@ export { LanguageLabel, localeDisplayName } from "./components/LanguageLabel";
 export { LocaleCompletionChart } from "./components/LocaleCompletionChart";
 export { WordCountChart } from "./components/WordCountChart";
 export { CollectionHeatmap } from "./components/CollectionHeatmap";
-export { FileProgressTable } from "./components/FileProgressTable";
+export { FileProgressTable, type FileProgressPaging } from "./components/FileProgressTable";
 // Chart components re-exported from @neokapi/ui-primitives above
 // TM + termbase browsers are the shared Apache-licensed suites from
 // @neokapi/ui-primitives, fed by bowrain's REST adapter via the
@@ -474,6 +474,8 @@ export type {
   RestorePointOptions,
   ArchivedProject,
   TranslationDashboardStats,
+  TranslationDashboardItemOpts,
+  DashboardItemSort,
   LocaleTranslationStats,
   ItemTranslationStats,
   CollectionTranslationStats,

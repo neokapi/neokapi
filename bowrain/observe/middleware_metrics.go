@@ -12,7 +12,16 @@ import (
 //
 // Labels use the registered route pattern (c.Path()) — e.g. "/api/v1/projects/:id"
 // — NOT the actual URL, to keep label cardinality bounded.
-func MetricsMiddleware() echo.MiddlewareFunc {
+//
+// sizeRoutes opts specific route patterns into the response-size histogram
+// (HTTPResponseSizeBytes). Only listed routes are observed so the extra
+// histogram stays cheap; pass the payload-hot endpoints (e.g. the workspace
+// project list and the translation dashboard).
+func MetricsMiddleware(sizeRoutes ...string) echo.MiddlewareFunc {
+	sized := make(map[string]bool, len(sizeRoutes))
+	for _, r := range sizeRoutes {
+		sized[r] = true
+	}
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			HTTPRequestsInFlight.Inc()
@@ -31,6 +40,10 @@ func MetricsMiddleware() echo.MiddlewareFunc {
 
 			HTTPRequestsTotal.WithLabelValues(method, route, status).Inc()
 			HTTPRequestDuration.WithLabelValues(method, route, status).Observe(duration)
+			if sized[route] {
+				HTTPResponseSizeBytes.WithLabelValues(method, route, status).
+					Observe(float64(c.Response().Size))
+			}
 
 			return err
 		}

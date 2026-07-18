@@ -40,4 +40,20 @@ var (
 		Name:      "requests_in_flight",
 		Help:      "Current number of HTTP requests being processed.",
 	})
+
+	// HTTPResponseSizeBytes measures response payload size for a small set of
+	// payload-hot routes (opted in via MetricsMiddleware's sizeRoutes) so
+	// payload-shape regressions on those endpoints are visible without paying
+	// a second full-cardinality histogram across every route.
+	// PromQL: histogram_quantile(0.99, rate(bowrain_http_response_size_bytes_bucket[5m]))
+	HTTPResponseSizeBytes = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: "bowrain",
+			Subsystem: "http",
+			Name:      "response_size_bytes",
+			Help:      "HTTP response body size in bytes for selected payload-hot routes.",
+			Buckets:   prometheus.ExponentialBuckets(256, 4, 10), // 256B … ~64MB
+		},
+		[]string{"method", "route", "status"},
+	)
 )

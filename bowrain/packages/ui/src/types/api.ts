@@ -312,10 +312,23 @@ export interface ProjectInfo {
   properties?: Record<string, string>;
   workspace_id?: string;
   path?: string;
+  /**
+   * Embedded per-item rows. The workspace projects LIST returns a summary
+   * shape with this empty — cards and stats must read the aggregate fields
+   * below. The single-project (detail) response still embeds the full array.
+   */
   items?: ProjectItem[];
   collections?: CollectionInfo[];
   streams?: StreamInfo[];
   active_stream?: string;
+  /** Server-computed aggregates (summary + detail): total files in the project. */
+  item_count?: number;
+  /** Server-computed aggregates: total blocks (incl. non-translatable). */
+  block_count?: number;
+  /** Server-computed aggregates: translatable source words. */
+  word_count?: number;
+  /** Server-computed aggregates: number of streams. */
+  stream_count?: number;
   created_at: string;
   modified_at: string;
 }
@@ -698,11 +711,32 @@ export interface CollectionTranslationStats {
 /** Aggregated translation dashboard statistics for a project */
 export interface TranslationDashboardStats {
   locale_stats: LocaleTranslationStats[];
+  /**
+   * Per-file rows. A page (server-sorted, limit/offset) when item paging
+   * options were passed to getTranslationDashboard; the full list otherwise.
+   */
   item_stats: ItemTranslationStats[];
+  /** Full item count regardless of paging (absent from pre-paging servers). */
+  item_total?: number;
   collection_stats: CollectionTranslationStats[];
   total_blocks: number;
   translatable_blocks: number;
   total_source_words: number;
+}
+
+/** Server-side sort column for the dashboard's per-file rows. */
+export type DashboardItemSort = "name" | "words" | "completion";
+
+/** Item paging/sorting options for getTranslationDashboard. */
+export interface TranslationDashboardItemOpts {
+  /** Max item_stats rows to return (omit for the full list). */
+  itemLimit?: number;
+  /** Offset into the sorted list (default 0). */
+  itemOffset?: number;
+  /** Server-side sort column (default "name" when paging). */
+  itemSort?: DashboardItemSort;
+  /** Sort direction (default "asc"). */
+  itemDir?: "asc" | "desc";
 }
 
 // ---------------------------------------------------------------------------

@@ -1096,7 +1096,13 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			slogecho.IgnorePath("/api/v1/health", "/metrics"),
 		},
 	}))
-	e.Use(observe.MetricsMiddleware())
+	// Response-size histograms are opted in for the two payload-hot endpoints
+	// (workspace project list, translation dashboard) so payload-shape
+	// regressions there show up in Prometheus alongside the duration series.
+	e.Use(observe.MetricsMiddleware(
+		"/api/v1/:ws/projects",
+		"/api/v1/:ws/:id/dashboard/:ref",
+	))
 	e.Use(middleware.Recover())
 	e.Use(middleware.BodyLimit("50M"))
 	e.Use(middleware.CORSWithConfig(s.corsConfig()))

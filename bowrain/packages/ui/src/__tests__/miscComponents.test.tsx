@@ -202,7 +202,7 @@ describe("NotificationCenter", () => {
 // 3. FileProgressTable
 // ---------------------------------------------------------------------------
 
-import { FileProgressTable } from "../components/FileProgressTable";
+import { FileProgressTable, type FileProgressPaging } from "../components/FileProgressTable";
 import type { ItemTranslationStats } from "../types/api";
 
 function makeItemStat(overrides: Partial<ItemTranslationStats> = {}): ItemTranslationStats {
@@ -281,6 +281,74 @@ describe("FileProgressTable", () => {
   it("shows no cap row when under the limit", () => {
     render(<FileProgressTable itemStats={[makeItemStat()]} locales={[]} />);
     expect(screen.queryByTestId("list-cap-row")).not.toBeInTheDocument();
+  });
+});
+
+describe("FileProgressTable (server paging)", () => {
+  function makePaging(overrides: Partial<FileProgressPaging> = {}): FileProgressPaging {
+    return {
+      total: 3,
+      sortField: "name",
+      sortDir: "asc",
+      onSortChange: () => {},
+      hasMore: true,
+      onLoadMore: () => {},
+      ...overrides,
+    };
+  }
+
+  it("renders the page as-is (server-sorted) with an honest N-of-M count", () => {
+    // Deliberately not name-sorted: controlled mode must not re-sort locally.
+    const items = [
+      makeItemStat({ item_name: "zulu.json", item_id: "i1" }),
+      makeItemStat({ item_name: "alpha.json", item_id: "i2" }),
+    ];
+    render(<FileProgressTable itemStats={items} locales={[]} paging={makePaging()} />);
+    const rows = screen.getAllByRole("row");
+    expect(within(rows[1]).getByText("zulu")).toBeInTheDocument();
+    expect(within(rows[2]).getByText("alpha")).toBeInTheDocument();
+    expect(screen.getByTestId("file-progress-count")).toHaveTextContent("Showing 2 of 3 files");
+  });
+
+  it("delegates header clicks to onSortChange instead of sorting locally", async () => {
+    const onSortChange = vi.fn();
+    const items = [makeItemStat()];
+    render(
+      <FileProgressTable itemStats={items} locales={[]} paging={makePaging({ onSortChange })} />,
+    );
+
+    // Same column: toggles direction.
+    await userEvent.click(screen.getByRole("columnheader", { name: /^File/ }));
+    expect(onSortChange).toHaveBeenCalledWith("name", "desc");
+
+    // Different column: starts ascending.
+    await userEvent.click(screen.getByRole("columnheader", { name: /^Words/ }));
+    expect(onSortChange).toHaveBeenCalledWith("words", "asc");
+  });
+
+  it("loads the next page via onLoadMore while more rows exist", async () => {
+    const onLoadMore = vi.fn();
+    render(
+      <FileProgressTable
+        itemStats={[makeItemStat()]}
+        locales={[]}
+        paging={makePaging({ onLoadMore })}
+      />,
+    );
+    await userEvent.click(screen.getByTestId("file-progress-load-more"));
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the load-more button when every row is loaded", () => {
+    render(
+      <FileProgressTable
+        itemStats={[makeItemStat()]}
+        locales={[]}
+        paging={makePaging({ total: 1, hasMore: false })}
+      />,
+    );
+    expect(screen.queryByTestId("file-progress-load-more")).not.toBeInTheDocument();
+    expect(screen.getByTestId("file-progress-count")).toHaveTextContent("Showing 1 of 1 file");
   });
 });
 

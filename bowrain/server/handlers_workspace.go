@@ -431,14 +431,18 @@ func (s *Server) HandleRemoveMember(c echo.Context) error {
 }
 
 // HandleListWorkspaceProjects lists projects in a workspace, filtered by
-// workspace_id, enriched with per-item block/word counts so the dashboard
-// cards can show real file and word totals (they compute them client-side
-// from items[] — a bare store.Project rendered as "0 files / 0 words").
+// workspace_id. The default response is a summary view: each project carries
+// precomputed aggregates (item_count, block_count, word_count, stream_count)
+// and an empty items[] — the dashboard cards and stats bar render from the
+// aggregates, so the list never ships every file row of every project.
+// `?view=full` restores the legacy shape with the embedded per-item array
+// (block/word counts per file) for callers that need it.
 func (s *Server) HandleListWorkspaceProjects(c echo.Context) error {
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 	workspaceID, _ := c.Get("workspace_id").(string)
+	fullView := c.QueryParam("view") == "full"
 	ctx := c.Request().Context()
 	allProjects, err := s.Services.Project.ListProjects(ctx)
 	if err != nil {
@@ -451,9 +455,22 @@ func (s *Server) HandleListWorkspaceProjects(c echo.Context) error {
 		}
 		info := projectToInfoResponse(p)
 		if s.ContentStore != nil {
+			stream := streamParamWithProject(c, p)
 			// Fail-soft: a broken item must not blank the whole dashboard.
-			if items, _, err := editorBuildProjectItems(ctx, s.ContentStore, p.ID, streamParamWithProject(c, p)); err == nil {
-				info.Items = items
+			if fullView {
+				if items, _, err := editorBuildProjectItems(ctx, s.ContentStore, p.ID, stream); err == nil {
+					info.Items = items
+					info.ItemCount = len(items)
+					for _, it := range items {
+						info.BlockCount += it.BlockCount
+						info.WordCount += it.WordCount
+					}
+				}
+			} else if ic, bc, wc, err := editorBuildProjectSummary(ctx, s.ContentStore, p.ID, stream); err == nil {
+				info.ItemCount, info.BlockCount, info.WordCount = ic, bc, wc
+			}
+			if streams, err := s.ContentStore.ListStreams(ctx, p.ID, false); err == nil {
+				info.StreamCount = len(streams)
 			}
 		}
 		result = append(result, info)

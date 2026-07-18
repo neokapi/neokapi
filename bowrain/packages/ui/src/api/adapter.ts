@@ -71,6 +71,7 @@ import type {
   RestorePointOptions,
   ArchivedProject,
   TranslationDashboardStats,
+  TranslationDashboardItemOpts,
   ActivityInfo,
   ConvergenceRun,
   ConvergenceEstimate,
@@ -497,6 +498,7 @@ export interface ApiAdapter {
     workspaceSlug: string,
     projectId: string,
     stream?: string,
+    opts?: TranslationDashboardItemOpts,
   ): Promise<TranslationDashboardStats>;
   lookupTMForBlock(
     workspaceSlug: string,
