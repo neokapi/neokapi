@@ -203,6 +203,12 @@ type PushOutput struct {
 	ConceptsProposed int    `json:"concepts_proposed,omitempty"`
 	ChangesetID      string `json:"changeset_id,omitempty"`
 	ChangesetURL     string `json:"changeset_url,omitempty"`
+
+	// Loop status (the recipe's server policy + web destinations): whether the
+	// server converges on push, and where the pushed content lands.
+	Converge   string `json:"converge,omitempty"` // on-push | manual
+	ProjectURL string `json:"project_url,omitempty"`
+	ReviewURL  string `json:"review_url,omitempty"`
 }
 
 func (o PushOutput) FormatText(w io.Writer) error {
@@ -218,7 +224,33 @@ func (o PushOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "Pushed %d blocks, %d words (scanned %d files)\n", o.BlocksPushed, o.WordCount, o.FilesScanned)
 	}
 	o.formatConcepts(w)
+	o.formatLoopStatus(w)
 	return nil
+}
+
+// formatLoopStatus closes a real push with the loop hand-off: what the server
+// does next under the project's convergence policy, and where to follow the
+// work. Silent on dry runs and no-op pushes — nothing new entered the loop.
+func (o PushOutput) formatLoopStatus(w io.Writer) {
+	if o.DryRun || o.UpToDate {
+		return
+	}
+	if o.Converge == "" && o.ProjectURL == "" {
+		return
+	}
+	fmt.Fprintln(w)
+	switch o.Converge {
+	case "on-push":
+		fmt.Fprintln(w, "Convergence: on-push — the server now translates, checks, and queues review for this push")
+	case "manual":
+		fmt.Fprintln(w, "Convergence: manual — run 'kapi up' (or start a run from the web) to converge")
+	}
+	if o.ProjectURL != "" {
+		fmt.Fprintf(w, "Project: %s\n", o.ProjectURL)
+	}
+	if o.ReviewURL != "" {
+		fmt.Fprintf(w, "Review:  %s\n", o.ReviewURL)
+	}
 }
 
 // formatConcepts appends the concept-sync summary: ordinary edits applied

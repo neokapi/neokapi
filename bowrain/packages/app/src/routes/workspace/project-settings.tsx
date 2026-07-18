@@ -91,11 +91,12 @@ export function ProjectSettingsRoute() {
             <div>
               <p className="text-sm font-medium">Enable workflow</p>
               <p className="text-xs text-muted-foreground">
-                Create review tasks after AI translation completes
+                Create review tasks after AI translation completes. On by default; turn off to skip
+                human review.
               </p>
             </div>
             <Switch
-              checked={project.properties?.workflow_enabled === "true"}
+              checked={project.properties?.workflow_enabled !== "false"}
               onCheckedChange={async (checked) => {
                 await adapter.updateProject(ws, project.id, {
                   properties: { workflow_enabled: checked ? "true" : "false" },
@@ -105,7 +106,7 @@ export function ProjectSettingsRoute() {
               aria-label="Enable translator workflow"
             />
           </div>
-          {project.properties?.workflow_enabled === "true" && (
+          {project.properties?.workflow_enabled !== "false" && (
             <div className="space-y-3 pt-2 border-t border-border/50">
               <div className="flex items-center justify-between">
                 <div>

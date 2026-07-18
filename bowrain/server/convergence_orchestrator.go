@@ -418,9 +418,11 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 		o.createSourceReviewTasks(context.WithoutCancel(ctx), run)
 	}
 
-	// On completion (converged OR parked), a workflow-enabled project's content
-	// enters the team's review queue — the single-player→multiplayer seam. This
-	// replaces the retired create-review-tasks automation, for BOTH outcomes
+	// On completion (converged OR parked), the project's content enters the
+	// team's review queue — the single-player→multiplayer seam. Governed review
+	// is the default: only a project that explicitly set workflow_enabled=false
+	// skips the fan-out (the delegate checks). This replaces the retired
+	// create-review-tasks automation, for BOTH outcomes
 	// (converged is the common case that previously created tasks after
 	// translation completed), carrying the run/items/locales linkage the old
 	// rule's push_id/items carried. Failed/canceled runs create nothing.
@@ -714,7 +716,8 @@ func (o *convergenceOrchestrator) workspaceSlug(ctx context.Context, proj *plats
 
 // createCompletionReviewTasks creates the per-locale review tasks a completed
 // run should fan out, reusing the retired create-review-tasks automation's
-// logic (workflow_enabled projects only; deduped per locale). The synthetic
+// logic (on by default; a project opting out via workflow_enabled=false
+// creates none; deduped per locale). The synthetic
 // event carries the linkage the old rule carried — run_id plus the run's items
 // — so each task points back at the work that produced it (F11).
 func (o *convergenceOrchestrator) createCompletionReviewTasks(ctx context.Context, run *bstore.ConvergenceRun) {

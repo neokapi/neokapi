@@ -514,6 +514,13 @@ func (s *Server) triggerAutoTranslateNewLocales(ctx context.Context, projectID s
 	s.triggerAutoTranslate(ctx, projectID, itemNames, locales, pushID, wsSlug, "")
 }
 
+// workflowReviewEnabled reports whether human review fan-out is enabled for a
+// project. Governed review is the default: a missing or empty workflow_enabled
+// property means enabled; only an explicit "false" opts a project out.
+func workflowReviewEnabled(proj *store.Project) bool {
+	return proj.Properties["workflow_enabled"] != "false"
+}
+
 // createReviewTasks creates per-locale review or translate tasks for project members (Bowrain AD-014).
 func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationAction, ev platev.Event, stepID string) {
 	if s.ContentStore == nil || s.TaskStore == nil || s.AuthStore == nil {
@@ -526,8 +533,7 @@ func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationA
 		return
 	}
 
-	// Check opt-in: only create tasks if the project has workflow_enabled=true.
-	if proj.Properties == nil || proj.Properties["workflow_enabled"] != "true" {
+	if !workflowReviewEnabled(proj) {
 		return
 	}
 
@@ -643,7 +649,7 @@ func (s *Server) createSourceReviewTask(ctx context.Context, action event.Automa
 		return
 	}
 
-	if proj.Properties == nil || proj.Properties["workflow_enabled"] != "true" {
+	if !workflowReviewEnabled(proj) {
 		return
 	}
 

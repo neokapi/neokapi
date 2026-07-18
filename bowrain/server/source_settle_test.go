@@ -245,10 +245,11 @@ func editStoredBlockSource(t *testing.T, cs *sqlitestore.SQLiteStore, projectID,
 // before any job is spawned). Exercises the real settle + gate + produce path.
 func TestDrive_HoldsOnSource(t *testing.T) {
 	s, cs, runStore := sourceFirstHarness(t)
-	// Gate at `approved` (human sign-off) with workflow_enabled so the reused
-	// create_source_review automation fires. A clean, non-empty source settles to
-	// `checked` — which is below `approved`, so the whole locale is held on source.
-	mkProject(t, cs, "p", map[string]string{"workflow_enabled": "true", "source_gate": "approved"})
+	// Gate at `approved` (human sign-off); review fan-out is on by default, so
+	// the reused create_source_review automation fires. A clean, non-empty source
+	// settles to `checked` — which is below `approved`, so the whole locale is
+	// held on source.
+	mkProject(t, cs, "p", map[string]string{"source_gate": "approved"})
 	storeSourceBlock(t, cs, "p", "a.json", "b1", "A well-formed sentence.", model.SourceStatusNew)
 
 	run := &bstore.ConvergenceRun{ProjectID: "p", Trigger: "push", State: bstore.ConvergenceRunRunning}
