@@ -144,6 +144,10 @@ type Server struct {
 	// QuotaStore tracks AI token usage per workspace. Nil when quota tracking is not configured.
 	QuotaStore jobs.QuotaStore
 
+	// SweepStore persists model recommendation sweep measurements (measured
+	// steerability). Nil when the job system is not configured.
+	SweepStore jobs.ModelSweepStore
+
 	// GRPCServer is an optional gRPC server multiplexed on the same port.
 	// When set, gRPC requests (HTTP/2 with Content-Type: application/grpc)
 	// are routed to this server. When nil, gRPC is not available.
@@ -523,6 +527,7 @@ func NewServer(cfg Config) *Server {
 			s.ExtractionJobStore = pg.Extraction
 			s.BrandScanStore = pg.BrandScan
 			s.QuotaStore = pg.Quota
+			s.SweepStore = pg.Sweep
 			s.wsStores.pgDB = pg.DB
 			pgSQL := pg.DB.DB // embedded *sql.DB
 			// Workspace-scoped AI provider configs (Epic 004), sealed at rest with
@@ -1588,6 +1593,10 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// Project settings — Bowrain AD-011: /:ws/:id/settings
 	g.GET("/:id/settings/extraction", s.HandleGetExtractionSettings)
 	g.PUT("/:id/settings/extraction", s.HandleUpdateExtractionSettings)
+
+	// Measured steerability — model recommendation sweeps: /:ws/:id/model-recommendations
+	g.GET("/:id/model-recommendations", s.HandleGetModelRecommendations)
+	g.POST("/:id/model-recommendations/refresh", s.HandleRefreshModelRecommendations)
 
 	// Project audit log — Bowrain AD-011: /:ws/:id/audit-log
 	g.GET("/:id/audit-log", s.HandleListAuditLog)

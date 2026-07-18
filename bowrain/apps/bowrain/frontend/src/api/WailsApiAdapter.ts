@@ -12,6 +12,7 @@ import type {
   UploadFilesResult,
   ConfigResponse,
   PublicPlatformConfig,
+  ModelRecommendationsResponse,
   BlockInfo,
   UpdateBlockRequest,
   UpdateBlockTargetCodedRequest,
@@ -168,6 +169,18 @@ export class WailsApiAdapter implements ApiAdapter {
       // methods throw), so the hosted-scan entry points stay hidden.
       features: { brand_scan: false },
     };
+  }
+
+  // --- Measured steerability (model recommendation sweeps) ---
+  // Sweeps are a multi-tenant platform QC surface (platform provider, ctrl
+  // gate); the desktop runs against a local runtime with no sweep worker, so
+  // the panel renders its disabled state.
+  async getModelRecommendations(): Promise<ModelRecommendationsResponse> {
+    return { enabled: false, locales: [] };
+  }
+
+  async refreshModelRecommendations(): Promise<never> {
+    throw new Error("model sweeps are not available in the desktop app");
   }
 
   async getPublicPlatformConfig(): Promise<PublicPlatformConfig> {

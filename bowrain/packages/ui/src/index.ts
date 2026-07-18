@@ -578,6 +578,9 @@ export type {
   RepoDetection,
   RepoDetectOptions,
   RepoContentSignal,
+  ModelSweepMeasurement,
+  ModelSweepLocaleGroup,
+  ModelRecommendationsResponse,
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 

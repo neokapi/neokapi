@@ -126,6 +126,7 @@ import type {
   BindInstallationRepoResult,
   RepoDetection,
   RepoDetectOptions,
+  ModelRecommendationsResponse,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -978,6 +979,24 @@ export class RestApiAdapter implements ApiAdapter {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
+  }
+
+  // Measured steerability (model recommendation sweeps).
+  async getModelRecommendations(
+    workspaceSlug: string,
+    projectId: string,
+  ): Promise<ModelRecommendationsResponse> {
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/model-recommendations`);
+  }
+
+  async refreshModelRecommendations(
+    workspaceSlug: string,
+    projectId: string,
+  ): Promise<{ enqueued: number; locales: string[] }> {
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/model-recommendations/refresh`,
+      { method: "POST" },
+    );
   }
 
   async deleteProject(workspaceSlug: string, projectId: string): Promise<void> {

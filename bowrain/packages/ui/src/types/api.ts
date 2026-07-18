@@ -2062,3 +2062,44 @@ export interface RepoDetectOptions {
   /** Comma-separated globs to match instead of the proposal (live feedback while editing). */
   patterns?: string;
 }
+
+// ---------------------------------------------------------------------------
+// Measured steerability (model recommendation sweeps)
+// ---------------------------------------------------------------------------
+
+/**
+ * One persisted sweep measurement: how a candidate model scored on the
+ * project's own trap fixtures for a locale, with the project's full brand
+ * context (adherence) and bare (adherence_bare); lift is the difference.
+ */
+export interface ModelSweepMeasurement {
+  model: string;
+  /** 0..1 — fixture adherence with the project's full brand context. */
+  adherence: number;
+  /** 0..1 — fixture adherence with no context at all. */
+  adherence_bare: number;
+  /** adherence − adherence_bare. */
+  lift: number;
+  fixture_count: number;
+  tokens_used: number;
+  measured_at: string;
+  /** True on the row the recommendation policy picked for this locale. */
+  recommended: boolean;
+}
+
+/** A locale's measurements plus the recommended model (absent when none qualifies). */
+export interface ModelSweepLocaleGroup {
+  locale: string;
+  recommended_model?: string;
+  models: ModelSweepMeasurement[];
+}
+
+/**
+ * GET /:ws/:id/model-recommendations — `enabled` mirrors the instance-wide
+ * model_sweeps.enabled gate so the settings panel can disable Refresh with a
+ * reason.
+ */
+export interface ModelRecommendationsResponse {
+  enabled: boolean;
+  locales: ModelSweepLocaleGroup[];
+}

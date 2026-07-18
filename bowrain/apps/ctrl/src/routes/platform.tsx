@@ -126,6 +126,7 @@ function PlatformSettings({
       )}
 
       <AICard snapshot={snapshot} readOnly={readOnly} onSaved={onSaved} />
+      <ModelSweepsCard snapshot={snapshot} readOnly={readOnly} onSaved={onSaved} />
       <SignupsCard snapshot={snapshot} readOnly={readOnly} onSaved={onSaved} />
       <MaintenanceCard snapshot={snapshot} readOnly={readOnly} onSaved={onSaved} />
       <WorkspaceDefaultsCard snapshot={snapshot} readOnly={readOnly} onSaved={onSaved} />
@@ -376,6 +377,65 @@ function AICard({
       <CardFooter className="justify-end">
         <Button onClick={onSave} disabled={!canSave}>
           Save AI settings
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Model sweeps (measured steerability)
+// ---------------------------------------------------------------------------
+
+function ModelSweepsCard({
+  snapshot,
+  readOnly,
+  onSaved,
+}: {
+  snapshot: PlatformConfigResponse["snapshot"];
+  readOnly: boolean;
+  onSaved: () => void;
+}) {
+  const save = useSave(onSaved);
+  const [enabled, setEnabled] = useSectionState(
+    snapshot.model_sweeps.enabled,
+    () => snapshot.model_sweeps.enabled,
+  );
+  const dirty = enabled !== snapshot.model_sweeps.enabled;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Model sweeps</CardTitle>
+        <CardDescription>
+          Measured steerability: periodically translate a small fixture set from each project's own
+          content — with and without its brand context — on every enabled model, and recommend the
+          model with the highest measured lift. Sweeps run on the platform provider and never deduct
+          customer credits; the recommendation also steers platform model resolution for workspaces
+          without a pinned model.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">Sweeps enabled</span>
+            <Badge variant={enabled ? "default" : "secondary"}>{enabled ? "On" : "Off"}</Badge>
+          </div>
+          <Switch
+            checked={enabled}
+            onCheckedChange={setEnabled}
+            disabled={readOnly}
+            aria-label="Model sweeps enabled"
+          />
+        </div>
+        <SaveError error={save.error} />
+      </CardContent>
+      <CardFooter className="justify-end">
+        <Button
+          onClick={() => save.mutate({ model_sweeps: { enabled } })}
+          disabled={readOnly || save.isPending || !dirty}
+        >
+          Save
         </Button>
       </CardFooter>
     </Card>

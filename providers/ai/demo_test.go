@@ -101,6 +101,20 @@ func TestDemoProvider_PreservesPlaceholders(t *testing.T) {
 	}
 }
 
+// The AI translate tool masks do-not-translate spans with double-bracketed
+// sentinels ([[DNT_0]]) and restores them verbatim after generation. A real
+// model passes the opaque token through; the demo stub must do the same, or
+// kapi's own DNT machinery breaks under `--provider demo`.
+func TestDemoProvider_PreservesDNTSentinels(t *testing.T) {
+	p := newTestDemo()
+
+	src := "Open [[DNT_0]] and save [[DNT_12]] now"
+	resp, err := p.Translate(context.Background(), TranslateRequest{Source: src, TargetLocale: "fr"})
+	require.NoError(t, err)
+	assert.Contains(t, resp.Translation, "[[DNT_0]]", "sentinel mangled: %q", resp.Translation)
+	assert.Contains(t, resp.Translation, "[[DNT_12]]", "sentinel mangled: %q", resp.Translation)
+}
+
 // Excluding `{` and `%` from the tokenizer's catch-all class is how placeholders
 // stay whole; a stray one that matches no placeholder form must still be emitted,
 // not silently dropped on the floor.

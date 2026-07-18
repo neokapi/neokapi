@@ -71,6 +71,10 @@ type platformConfigUpdate struct {
 	// Features fully replaces the instance-wide feature flag map when provided
 	// (an admin edits the whole set at once). Nil leaves it unchanged.
 	Features *map[string]bool `json:"features,omitempty"`
+	// ModelSweeps gates measured steerability (model recommendation sweeps).
+	ModelSweeps *struct {
+		Enabled *bool `json:"enabled,omitempty"`
+	} `json:"model_sweeps,omitempty"`
 }
 
 // HandleAdminUpdatePlatformConfig applies a partial platform-config update,
@@ -194,6 +198,12 @@ func (s *Server) HandleAdminUpdatePlatformConfig(c echo.Context) error {
 
 	if req.Features != nil {
 		if err := set(platformconfig.KeyFeatures, *req.Features); err != nil {
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		}
+	}
+
+	if req.ModelSweeps != nil && req.ModelSweeps.Enabled != nil {
+		if err := set(platformconfig.KeyModelSweeps, *req.ModelSweeps.Enabled); err != nil {
 			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		}
 	}
