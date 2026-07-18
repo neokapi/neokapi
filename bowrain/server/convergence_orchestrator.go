@@ -469,9 +469,11 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 	// A source-not-ready hold produced no translations, so it routes to SOURCE
 	// review (below), not the translation review queue — skip the completion
 	// tasks in that case to avoid a "review translations" task for work that was
-	// never done.
+	// never done. A no-target-locales hold likewise produced nothing to review:
+	// the next action is configuration (add a target language), not review.
 	if (run.State == bstore.ConvergenceRunConverged || run.State == bstore.ConvergenceRunParked) &&
-		run.StallReason != convergence.StallSourceNotReady {
+		run.StallReason != convergence.StallSourceNotReady &&
+		run.StallReason != convergence.StallNoTargetLocales {
 		o.createCompletionReviewTasks(context.WithoutCancel(ctx), run)
 	}
 
@@ -516,6 +518,15 @@ func (o *convergenceOrchestrator) deriveFunc(projectID string, localeFilter []st
 		if err != nil {
 			return convergence.PassState{}, fmt.Errorf("load project: %w", err)
 		}
+		// No configured target languages is a configuration hold, never "up to
+		// date": with zero locales the loop below would derive zero pending and
+		// the run would read converged over any amount of untranslated source.
+		// The typed stall parks the run with a machine-readable reason + the
+		// same message the local venue refuses with, so the UI can say "add a
+		// target language" instead of a false green (mirrors host/converge.go).
+		if len(proj.TargetLanguages) == 0 {
+			return convergence.PassState{}, errStallNoTargetLocales
+		}
 		stats, err := editorGetDashboardStats(ctx, s.ContentStore, proj, "main")
 		if err != nil {
 			return convergence.PassState{}, fmt.Errorf("derive coverage: %w", err)
@@ -554,6 +565,21 @@ func (o *convergenceOrchestrator) deriveFunc(projectID string, localeFilter []st
 			if total == 0 {
 				total = stats.TranslatableBlocks
 			}
+			if total == 0 {
+				// The dashboard stats are ITEM-scoped (GetBlockStats scopes its
+				// block query to the stream's item rows), so blocks ingested
+				// without item bookkeeping — the historical connector-fetch path
+				// stored blocks item-less — are invisible to them and the locale
+				// would false-read as at-gate ("Up to date") over real pending
+				// work. The block store is the truth for pending-work derivation:
+				// a translatable block lacking a target for a CONFIGURED locale
+				// is pending, item rows or not.
+				bl, berr := loadBlocks()
+				if berr != nil {
+					return convergence.PassState{}, fmt.Errorf("load blocks for coverage: %w", berr)
+				}
+				total, ls.TranslatedBlocks = blockCoverage(bl, loc)
+			}
 			unitTotals[l] = total
 			if ls.TranslatedBlocks < total {
 				// Under-covered: pending on coverage alone, no need to check.
@@ -582,6 +608,25 @@ func (o *convergenceOrchestrator) deriveFunc(projectID string, localeFilter []st
 			UnitTotals:    unitTotals,
 		}, nil
 	}
+}
+
+// blockCoverage derives one locale's coverage directly from the stored blocks:
+// how many are translatable (the unit total) and how many of those carry a
+// non-empty target for the locale. It is the item-bookkeeping-free fallback the
+// derive uses when the dashboard stats see zero units — the pending-work
+// question ("does a translatable block lack a target for a configured locale?")
+// must never depend on item rows existing.
+func blockCoverage(blocks []*platstore.StoredBlock, locale model.LocaleID) (total, translated int) {
+	for _, sb := range blocks {
+		if sb == nil || sb.Block == nil || !sb.Block.Translatable {
+			continue
+		}
+		total++
+		if convergence.TargetState(sb.Block, string(locale)) != "" {
+			translated++
+		}
+	}
+	return total, translated
 }
 
 // countFailingBlocks runs the project's QA checks over the locale's translated
@@ -832,6 +877,16 @@ func (e *stallError) Error() string { return e.message }
 var errStallNeedsCredits = &stallError{
 	reason:  convergence.StallNeedsCredits,
 	message: "out of platform credits — buy a credit pack, wait for the weekly reset, or configure your own AI provider key",
+}
+
+// errStallNoTargetLocales is the typed hold a derive returns when the project
+// has no configured target languages: there is no locale to converge toward, so
+// the run PARKS on configuration ("no target languages configured") instead of
+// false-reading "Up to date" over untranslated source. Same message the local
+// venue (`kapi up`) refuses with.
+var errStallNoTargetLocales = &stallError{
+	reason:  convergence.StallNoTargetLocales,
+	message: "no target languages configured — add target languages to the project, then run again",
 }
 
 // errStallSourceNotReady is the typed hold a locale returns when every block it
