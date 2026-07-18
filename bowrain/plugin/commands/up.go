@@ -15,6 +15,7 @@ import (
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/core/project"
+	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/spf13/cobra"
@@ -22,6 +23,7 @@ import (
 
 var (
 	upLocal   bool
+	upNoBrand bool
 	upTimeout time.Duration
 )
 
@@ -47,6 +49,10 @@ the Bowrain server by default — on the org's keys, against the org's TM and
 terminology — and this command pushes local changes, streams the server run's
 live progress, and pulls the produced targets when the run finishes. Parked
 units land in the team's review queue on the server.
+
+The push phase carries the same payload as kapi push: content blocks, governed
+terminology edits, and the recipe-bound brand voice profile (upserted into the
+workspace brand hub by name; --no-brand skips the profile).
 
   --local   run the loop on this machine instead, then push the results so the
             server stays up to date.
@@ -108,9 +114,20 @@ func pushAfterLocalConverge(cmd *cobra.Command, server *project.ServerSpec) erro
 		return fmt.Errorf("push after local run: %w", err)
 	}
 	defer conn.Close()
+	var bres *PushBrandResult
 	if proj, perr := project.FindProject(""); perr == nil {
 		if _, cerr := conceptPush(cmd.Context(), proj, false); cerr != nil {
 			return cerr
+		}
+		// Carry the recipe-bound brand voice profile into the workspace brand
+		// hub, exactly as `kapi push` does (idempotent upsert by name; silent
+		// skip when unauthenticated or unclaimed; a 403 degrades to a skipped
+		// note). --no-brand opts out.
+		if !upNoBrand {
+			var berr error
+			if bres, berr = brandPush(cmd.Context(), proj, false); berr != nil {
+				return berr
+			}
 		}
 	}
 	syncConvergePolicy(cmd.Context(), conn.Client(), server)
@@ -121,6 +138,7 @@ func pushAfterLocalConverge(cmd *cobra.Command, server *project.ServerSpec) erro
 			fmt.Fprintf(cmd.ErrOrStderr(), "Pushed %d block(s) to the server.\n", pr.BlocksPushed)
 		}
 	}
+	reportBrandPush(cmd, bres, flagBool(cmd, "json"))
 	return nil
 }
 
@@ -152,9 +170,20 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 		return fmt.Errorf("push: %w", err)
 	}
 	defer conn.Close()
+	var bres *PushBrandResult
 	if proj, perr := project.FindProject(""); perr == nil {
 		if _, cerr := conceptPush(ctx, proj, false); cerr != nil {
 			return cerr
+		}
+		// Carry the recipe-bound brand voice profile into the workspace brand
+		// hub, exactly as `kapi push` does (idempotent upsert by name; silent
+		// skip when unauthenticated or unclaimed; a 403 degrades to a skipped
+		// note). --no-brand opts out.
+		if !upNoBrand {
+			var berr error
+			if bres, berr = brandPush(ctx, proj, false); berr != nil {
+				return berr
+			}
 		}
 	}
 	client := conn.Client()
@@ -171,6 +200,7 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 			fmt.Fprintf(stderr, "Pushed %d block(s).\n", pr.BlocksPushed)
 		}
 	}
+	reportBrandPush(cmd, bres, jsonOut)
 
 	// Phase 2: pre-flight — show the estimate (source readiness FIRST, then the
 	// credit/scope estimate) and gate a large run behind confirmation. --yes and
@@ -270,6 +300,38 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 	return acc.terminalError(final)
 }
 
+// reportBrandPush surfaces the brand-profile result of up's push phase the way
+// `kapi push` reports it: the same footer line (via output.PushOutput) next to
+// the push messages on stderr, or — under --json — one discriminated NDJSON
+// line on stdout carrying the same field names as push's JSON output. Silent
+// when no profile travelled (nil result) or, for text, under --quiet.
+func reportBrandPush(cmd *cobra.Command, res *PushBrandResult, jsonOut bool) {
+	if res == nil {
+		return
+	}
+	if jsonOut {
+		enc := json.NewEncoder(cmd.OutOrStdout())
+		_ = enc.Encode(struct {
+			Type    string `json:"type"`
+			Profile string `json:"brand_profile"`
+			Action  string `json:"brand_profile_action"`
+			Version int    `json:"brand_profile_version,omitempty"`
+			Reason  string `json:"brand_profile_reason,omitempty"`
+		}{Type: "brand_profile", Profile: res.Name, Action: res.Action, Version: res.Version, Reason: res.Reason})
+		return
+	}
+	if app != nil && app.Quiet {
+		return
+	}
+	out := output.PushOutput{
+		BrandProfile: res.Name,
+		BrandAction:  res.Action,
+		BrandVersion: res.Version,
+		BrandReason:  res.Reason,
+	}
+	out.FormatBrand(cmd.ErrOrStderr())
+}
+
 // syncConvergePolicy pushes the recipe's server.converge value to the server so
 // its continuous-convergence clock matches the project's declared policy. Any
 // failure degrades to a one-line stderr note — the run itself is unaffected.
@@ -290,6 +352,7 @@ func init() {
 	cli.AddProjectFlag(upCmd)
 	cli.AddUpFlags(upCmd)
 	upCmd.Flags().BoolVar(&upLocal, "local", false, "run the loop on this machine instead of the server, then push the results")
+	upCmd.Flags().BoolVar(&upNoBrand, "no-brand", false, "Skip uploading the recipe-bound brand voice profile to the workspace brand hub")
 	upCmd.Flags().DurationVar(&upTimeout, "timeout", 15*time.Minute, "maximum time to wait for a server run to finish before pulling available results")
 	cli.RegisterCommandFactory(func(parent *cobra.Command, a *cli.App) {
 		// Match the built-in `kapi up` flag surface exactly (NewUpCmd adds the
