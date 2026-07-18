@@ -24,6 +24,13 @@ translation job queue as its produce step, and the server's checks and gates.
 There is no second, parallel translation pipeline: the reactive
 translate-on-push automations collapse into the one goal-seeking loop.
 
+A server run is **source-first**: before it translates a single locale it
+settles the source and holds at a source ship-gate. It never AI-translates a
+block whose source is below the project's `source_gate` — under-ready source
+**holds** the fan-out (`stall_reason = source_not_ready`) and opens a
+source-review task, rather than paying to translate an unsettled source into
+every language.
+
 ## Context
 
 Two things were true before this decision, and they conflicted:
@@ -63,10 +70,44 @@ convergence*. The per-item translation jobs that the server already runs become
 the engine's produce step; the engine adds the derive → check → demote → park
 bracket around them that the reactive automation never had.
 
+### 1a. Settle the source, then translate — the source ship-gate
+
+A run has two phases with a gate between them, not one fan-out. The **first
+pass settles the source** over the source locale only — source checks, source
+QA, and marking do-not-translate/protected terms so translation can never alter
+them — and stamps each unit's source status up the authoring ladder (*authored →
+checked → approved*, [AD-framework-033](https://neokapi.github.io/web/neokapi/contribute/architecture/033-project-state-model)).
+Only then does the produce step translate, and it translates only the *approved*
+source, TM-first (recycle before paid AI), so the run's `TM N · AI M` split is
+truthful.
+
+The gate between the phases is the project's **`source_gate`**
+(`defaults.source_gate`; default `checked` — the automated bar — with `approved`
+for human sign-off and `none` to opt out). A block whose source is below the gate
+is **not** translated: the run **holds** rather than fanning it out.
+
+Holding is a first-class outcome, symmetric with parking:
+
+- the run parks with `stall_reason = source_not_ready` and records a
+  `blocked_on_source` count on the run entity, so a surface renders *"N blocks
+  need source review"* without a round-trip;
+- it opens a **source-review task** (`source_review`,
+  [AD-014](014-translator-workflow.md)) in the team's queue instead of enqueuing
+  translation jobs. Clearing that task (`source.review.completed`) lifts the
+  source to the gate and lets the held fan-out proceed on the next pass
+  ([AD-013](013-automation-engine.md)).
+
+This is the venue's differentiator made mechanical: source content is shared
+across every locale, so a defect left in the source would be paid for once per
+language and again on the fix; the gate settles it once, before the fan-out.
+A source edit re-opens the gate for only the changed segments, so a fix
+re-settles and re-translates just those.
+
 ### 2. Runs are first-class
 
 A server convergence run is a `convergence_runs` entity (id, project, stream,
-trigger, pass count, per-locale standing, cost, state), persisted in both SQLite
+trigger, pass count, per-locale standing, cost, state, and — for a source hold —
+a `stall_reason` and a `blocked_on_source` count), persisted in both SQLite
 and PostgreSQL like the rest of the store. It exposes:
 
 - an **SSE endpoint** that streams the convergence event protocol — the same
@@ -74,7 +115,11 @@ and PostgreSQL like the rest of the store. It exposes:
   progress, checks, parked/converged), so nothing about a run's rendering knows
   which venue produced it;
 - **REST** list and cancel, and a **Runs page** in the Bowrain web app — the org
-  dashboard of past and in-flight runs.
+  dashboard of past and in-flight runs;
+- a provider-free **estimate** (`GET /projects/:id/convergence/estimate`) that a
+  *Run now* consent flow reads before spending anything: it reports source
+  readiness first (ready vs. held blocks against the gate), then the per-locale
+  `TM N · AI M` split and the credit/cost estimate for the ready source only.
 
 One event protocol runs end to end: engine → in-process CLI renderer (local
 venue), and engine → SSE → the `kapi-bowrain` plugin → the same CLI renderer
@@ -88,10 +133,12 @@ When the server converges is an explicit per-project policy, `server.converge`
 ([AD-010](010-bowrain-cli-and-project-model.md)):
 
 - `on-push` (default for connected projects) — every push starts a run. This is
-  the old translate-on-push behavior, but running the full engine (checks, gates,
-  parking) and recorded as a run anyone can watch. `kapi push` from CI just
-  pushes; the server converges on its own clock; `kapi up` is push + *watch the
-  run* + pull. The analogy is `git push` → CI → `gh pr checks --watch`.
+  the old translate-on-push behavior, but running the full engine (settle source,
+  gate, checks, target gates, parking) and recorded as a run anyone can watch —
+  and, being source-first, a push over an unsettled corpus holds on source rather
+  than fanning out. `kapi push` from CI just pushes; the server converges on its
+  own clock; `kapi up` is push + *watch the run* + pull. The analogy is
+  `git push` → CI → `gh pr checks --watch`.
 - `manual` — the server converges only when `kapi up` is invoked (or a run is
   started from the Runs surface).
 

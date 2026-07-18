@@ -32,6 +32,40 @@ the status you see is for the locale you are reviewing.
   }}
 />
 
+## Source review: the phase-1 worklist
+
+Target review is the *second* gate. The loop settles the source **before** it
+translates ([the loop is source-first](/the-loop)), so a run has a first, upstream
+worklist: **source review**. When a convergence run finds source that has not
+cleared the project's `source_gate`, it does not fan out — it **holds** the
+fan-out for that content and routes it to a person instead of paying to translate
+an unsettled source into every language.
+
+Concretely, when a run holds on source:
+
+- The run parks with the reason **`source_not_ready`** and records how many
+  blocks are blocked on source. In the **Runs** view this reads as *parked —
+  N blocks need source review*; the run still exits without error.
+- The loop opens a **source-review task** (`source_review`,
+  [AD-014](/architecture-decisions/014-translator-workflow)) for a member with
+  source-edit permission. It is the same task queue as `translate`, `review`, and
+  the fix-up tasks — no new surface, just a new task type — and appears on the
+  Task Board and in *My Tasks*.
+
+A source reviewer works the same content as this Review surface, but on the
+**source** rather than a target: they check terminology consistency,
+do-not-translate identification, placeholder correctness, and context before the
+language fan-out. Settling the source once here prevents fixing the same source
+issue once per locale downstream.
+
+Clearing the task lifts the affected source units to the gate and lets the loop
+proceed: completing it emits `source.review.completed`, which fans out the
+per-locale translate/review tasks the run was holding
+([AD-013](/architecture-decisions/013-automation-engine)). A reviewer can also
+lower the bar — a project may set `source_gate: none` to opt out of the gate
+entirely — but the governed default is to settle first. The next run reads the
+cleared source and translates the now-approved content, TM-first.
+
 ## Block list
 
 Review lists every translatable block with its source, target, and current

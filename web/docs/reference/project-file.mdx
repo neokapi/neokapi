@@ -181,8 +181,42 @@ content:
 | `termbase_source`  | string              | Committed, git-tracked native source artifact (a `.klftb`) the project termbase is compiled from; `kapi apply` edits it and re-imports into the gitignored termbase cache, so `git diff` is the review surface |
 | `tm_source`        | string              | Committed, git-tracked native source artifact (a `.klftm`) the project translation memory is compiled from — the TM analogue of `termbase_source` |
 | `state`            | string              | Committed, git-tracked [project state store](/kapi/project-store) (a kapi-project-state JSON document) — the authoritative carrier of per-unit workflow decisions (review ladder, approvals, parking) a plain target file can't hold. Empty defaults to `.kapi-state.json`; a server-backed project pushes state to a remote instead |
+| `flow`             | string              | The project's default flow — the composed flow `kapi up` runs to catch up every locale. A built-in name (e.g. `translate`) or a key in `flows:`. Empty runs the built-in default (recycle → translate) |
+| `jobs`             | int                 | How many target languages one `kapi up` pass runs concurrently. `0` (default) leaves it to the runner (4); `--jobs` overrides per run |
+| `source_gate`      | string              | Source-first convergence level: the source status a block must reach before it is translated (see [source_gate](#defaults-source-gate)) |
 
 Individual content items can override `redaction` per entry (`ContentItem.redaction`).
+
+#### source_gate {#defaults-source-gate}
+
+`defaults.source_gate` is the **source-first convergence** gate: the source
+status a block must reach before the loop translates it. It gates the fan-out —
+distinct from the top-level [`source_gate`](#source_gate) coverage bar that
+`kapi check --ship` evaluates. Source-first convergence settles the source
+(terminology, brand, source QA) and holds the fan-out on it, so an unsettled,
+off-brand, un-term-checked source is never translated into every locale only to
+be redone when it changes. See
+[Convergence — source first](/kapi/convergence#source-first).
+
+```yaml
+defaults:
+  source_gate: checked   # the default: source cleared its automated terminology,
+                         # brand, and source-QA checks (no human bottleneck)
+  # source_gate: approved  # require a human/agent source sign-off first
+  # source_gate: none      # opt out — raw fan-out, no source gate
+```
+
+| Value      | Meaning                                                                 |
+| ---------- | ----------------------------------------------------------------------- |
+| _(unset)_  | Runner applies the default (`checked`)                                   |
+| `authored` | Presence baseline — any non-empty source qualifies                      |
+| `checked`  | **Default** — source passed its automated terminology, brand, source-QA checks |
+| `approved` | A human or agent signed off the source (brand-critical / regulated)     |
+| `none`     | Deliberate opt-out — translate without settling the source first        |
+
+On a connected project, a below-gate source **holds** the convergence run
+(`source_not_ready`) and opens a source-review task rather than translating; the
+source-side coverage bar and this convergence level are independent controls.
 
 #### formats
 
@@ -389,7 +423,7 @@ A tiered per-market strategy built from these pieces is worked through in
 
 ### source_gate
 
-The source-side counterpart: a single gate over the authoring ladder
+The source-side coverage gate: a threshold map over the authoring ladder
 (`authored` → `checked` → `approved`), gating the author's own content rather
 than the translations.
 
@@ -398,7 +432,15 @@ source_gate: { checked: 100 }
 ```
 
 Every source unit clears its bound brand and terminology checks before
-`kapi check --ship` passes.
+`kapi check --ship` passes. Like `ship_gate`, the top-level `source_gate` is a
+**coverage bar** evaluated by `kapi check --ship`; source drift never blocks an
+ordinary build.
+
+This is distinct from [`defaults.source_gate`](#defaults-source-gate), the
+**source-first convergence** level (`checked` / `approved` / `none`) that decides
+whether the loop translates a block at all. The coverage bar answers *is the
+source shippable?*; the convergence level answers *may this source be translated
+yet?*.
 
 ## Key Properties
 

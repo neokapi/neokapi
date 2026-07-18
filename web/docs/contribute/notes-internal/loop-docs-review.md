@@ -43,9 +43,44 @@ The claims below were checked against source. Confirmed unless noted.
   `defaults.locales.<lang>.tools`, `ship_gate`/`ship_gates`/`gates`,
   `source_gate`, `server:` — all present (`core/project/project.go`).
 
-Gaps that matter for the docs (these are the epic-019 *to build* items — the
-model is documented ahead of the wiring, which is fine for a concepts page but
-must not be stated as *shipped behaviour*):
+**Update (2026-07-18): epic 019 build phases are all merged to main
+(#1311/#1312/#1317/#1319).** The items below were the "to build" gaps at review
+time; they now describe **shipped** behaviour and are retained for history. What
+actually shipped, verified against code:
+
+- **The source gate now gates the server fan-out.** `defaults.source_gate`
+  (`core/project` `Defaults.SourceGate`, a level string `checked` default /
+  `approved` / `none` opt-out / `authored`) is enforced by server convergence:
+  `bowrain/server/source_settle.go` settles the source (source-QA + readiness
+  stamp; terminology/brand extensible) and `convergence_orchestrator.go` holds
+  any below-gate block. **Nuance for the docs:** enforcement is **server-side**.
+  The *local* CLI `kapi up` (`host/converge.go`) is still `recycle → translate`
+  with no source-settle stage, and `computeSourceReadiness` (`host/coverage.go`)
+  remains report-only there (feeds `kapi status` and `kapi check --ship`'s
+  `verifySourceGate`, not the local fan-out). So kapi-OSS pages describe the
+  source-hold conceptually + via `check --ship`; the *hold on push* is a Bowrain
+  (server) behaviour.
+- **Server convergence is TM-first with a truthful split.** `recycleBlocks`
+  recycles before AI and `reconcileSplit` (`convergence_orchestrator.go`) makes
+  `ViaTM + ViaAI = Done`, so the `TM N · AI M` report is truthful server-side.
+- **Stall reasons** now include `source_not_ready` (`core/convergence/events.go`
+  `StallSourceNotReady`); the run row carries a `blocked_on_source` count
+  (`bowrain/store/convergence_run.go`). (`needs_source_review` was never added as
+  a constant — the hold reason is `source_not_ready`; the automation it triggers
+  is `create_source_review` → `TaskSourceReview`.)
+- **Protected/DNT terms are enforced (mask-then-restore).**
+  `core/ai/tools/translate.go` masks each DNT span with a sentinel before the
+  model and restores it verbatim after (`dntMask`/`dntRestore`, "epic 019 item
+  4"); the server worker wires it via `projectDNTTerms`
+  (`bowrain/jobs/worker.go`, `Properties["dnt_terms"]`).
+- **Estimate endpoint** `GET /projects/:id/convergence/estimate`
+  (`bowrain/server/server.go`, `handlers_convergence_estimate.go`) returns source
+  readiness first, then per-locale TM/AI split + credit estimate; the
+  `ConvergenceRunNowDialog` (`bowrain/packages/ui`) is the source-readiness-first
+  consent flow.
+
+<details>
+<summary>Original review-time gaps (pre-#1317, now closed)</summary>
 
 - **The source gate does not gate the fan-out yet.** `SourceStatus` is
   **report-only**; `defaults.source_gate` is evaluated by
@@ -69,6 +104,8 @@ must not be stated as *shipped behaviour*):
   annotation tool (`core/tools/termcheck.go`); DNT spans are not enforced in the
   AI path.
 
+</details>
+
 ## Per-page review — kapi docs (`web/docs/**`)
 
 The kapi site must not sell or mention Bowrain (standing decision). The loop is
@@ -78,10 +115,10 @@ Bowrain funnel.
 | Page | Status | Issue | Recommended action |
 |---|---|---|---|
 | `kapi/convergence.mdx` (The kapi loop) | Updated | Had both ladders and named `source_gate`, but framed the source as merely "the first half" — it did **not** show the source gate *holding* the fan-out, i.e. the source-first shape. | **Done in this PR:** added the [Source first](/kapi/convergence#source-first) section with `GatedLoopDiagram` (visual ship-gates + held branches). Kept at model level; no Bowrain funnel. |
-| `kapi/convergence-in-ci.mdx` (The kapi loop in CI) | Mostly correct | States the ship gate "includes the source gates (brand, terminology)". True as a *model* claim, but `--ship` source-gate enforcement rides `computeSourceReadiness`; fine today. No source-first *hold* framing. | When phase E lands: add a short note that a pre-merge `kapi up` holds on an unsettled source (`source_not_ready`). Link to the new section. |
+| `kapi/convergence-in-ci.mdx` (The kapi loop in CI) | **Done** | Stated the ship gate "includes the source gates" but had no source-first *hold* framing. | **Done in the follow-up PR:** added a "Source first: settle before you fan out" note — `kapi check --ship` enforces `source_gate`, and the loop holds under it (`source_not_ready`). Bowrain-free; links to the model. |
 | `kapi/recipes/gate-localization-in-ci.mdx` (Ship gates & CI) | Correct | `kapi check --ship`, exit-non-zero, `ship_gates:` all verified. Source gate mentioned in passing. | Cross-link the source-first section for the "why settle first" rationale. Low priority. |
 | `kapi/recipes/keep-source-on-brand.mdx` (Keep source on brand) | Correct | The source-settle recipe (brand check/rewrite, source QA) — the phase-1 tools. Does not connect to the gate/hold. | Add a closing cross-link: settling source is *phase 1* of the loop → the source ship-gate. Low priority. |
-| `kapi/recipes/translate-content.mdx` (Translate with your AI) | Correct | `kapi up` catches locales up to the ship gate; TM-first. No mention that the source must be settled first. | Add one line + link to source-first once the gate holds the fan-out. |
+| `kapi/recipes/translate-content.mdx` (Translate with your AI) | **Done** | No mention that the source must be settled first. | **Done in the follow-up PR:** added one line + link to source-first (source below `source_gate` holds `source_not_ready`, fixed once not once per locale). |
 | `kapi/recipes/review-and-approve.mdx` (Review & approve) | Correct | Target-language review only (`kapi status --review`, `kapi apply kind:review`). | When source review lands CLI-side, add the source-review worklist as a sibling. Follow-up. |
 | `kapi/recipes/pre-translate-with-tm.mdx` (Reuse translations) | Correct | TM recycle = phase-2 engine. Accurate. | No change. Optionally note recycle only ever runs on approved source. |
 | `kapi/recipes/machine-ship-strategy.mdx` (Tier gates per market) | Correct | Per-market target tiers, approver classes. Verified against `gates:` registry. | No change. |
@@ -90,8 +127,8 @@ Bowrain funnel.
 | `kapi/projects.mdx` (Projects) | Correct | Uses `PipelineDiagram`; loop mechanics accurate. | No change. |
 | `kapi/direct-execution-layer.mdx` (CLI layers) | Correct | Direct / flow / convergence layers; `kapi up` vs `kapi run` vs `kapi exec`. Accurate. | No change. |
 | `kapi/overview.mdx` (Overview) | Correct | "Keep your source right" then "every language caught up" — already source-first in spirit. | No change. |
-| `reference/project-file.mdx` (Project file) | Correct | `ship_gate(s)`, `gates`, `source_gate`, `defaults.*` documented. Verified against `core/project/project.go`. | Confirm `source_gate` schema text once enforcement lands. |
-| `contribute/architecture/033-project-state-model.md` (AD-033) | Correct | Names the symmetric source ladder. Report-only source status matches code. | Update when `SourceStatus` becomes gating (no longer report-only). |
+| `reference/project-file.mdx` (Project file) | **Done** | Documented only the top-level `source_gate` coverage bar; `defaults.source_gate` (the convergence level) was missing. | **Done in the follow-up PR:** documented `defaults.source_gate` (`checked`/`approved`/`none`) as the source-first convergence gate, distinct from the coverage bar; added `defaults.flow`/`defaults.jobs` rows. |
+| `contribute/architecture/033-project-state-model.md` (AD-033) | **Done** | Named the symmetric source ladder as (implicitly) report-only. | **Done in the follow-up PR:** flipped it — the source ladder gates the loop symmetrically with the target ladder (server convergence settles + gates before the fan-out); source rungs are load-bearing. |
 
 **ASCII diagrams:** none found on the kapi docs. All flow/relationship visuals
 already use the `@neokapi/docs-shared` diagram kit. No conversions needed.
@@ -104,13 +141,13 @@ loop pages.
 
 | Page | Status | Issue | Recommended action |
 |---|---|---|---|
-| `getting-started/the-loop.mdx` (The loop on Bowrain) | Stale-ish | Produce → promote → release is right, but there is **no source-first phase**: the loop is shown fanning out on push with no source ship-gate. | When phase E lands: add the source ship-gate as the first governance seam (the venue framing that the kapi site can't carry). Reuse `GatedLoopDiagram`. |
+| `getting-started/the-loop.mdx` (The loop on Bowrain) | **Done** | Produce → promote → release was right, but there was **no source-first phase**. | **Done in the follow-up PR:** added "Source first: kapi drafts, Bowrain governs" with `GatedLoopDiagram` — settle → source gate (hold → source review) → translate approved source → target gate. |
 | `cli/commands/up.mdx` (`kapi up`) | Mostly correct | Flags and venue accurate. `--timeout` (15m server default) documented — verify default in code. Shows push → catch up → stream → pull; no source hold. | Add the source-hold outcome and `source_not_ready` once wired. Verify `--timeout` default. |
-| `server/review.mdx` (Review) | Correct but incomplete | Target review (draft → translated → reviewed). No **source review** surface, though `TaskSourceReview` / `create_source_review` exist in code. | Add the source-review queue (phase-1 gate) as a sibling to target review. Follow-up (needs the surface). |
+| `server/review.mdx` (Review) | **Done** | Target review only (draft → translated → reviewed); no **source review** surface. | **Done in the follow-up PR:** added the source-review worklist (phase-1 gate) as a sibling to target review, tied to the `source_review` task queue and the `source_not_ready` hold. |
 | `server/automation.md` (Automation) | Correct | `server.converge` (on-push default / manual / schedule); quality gates. Accurate. | Note the `fan-out-after-source-review` default rule once source-first is on by default. |
-| `architecture-decisions/022-convergence-as-a-service.md` (AD-022) | Stale on source-first | Describes convergence-as-service and `convergence_runs` but predates source-first: no source-settle phase, no `source_not_ready` stall. | Update to add the source phase + source ship-gate as the first pass, and the new stall reasons, when phase E merges. |
-| `architecture-decisions/014-translator-workflow.md` (AD-014) | Accurate (ahead of wiring) | Documents the source-review gate (`create_source_review`, `EventSourceReviewCompleted`, `fan-out-after-source-review`). Matches code that exists but is **bypassed** by convergence-on-push. | Reconcile with AD-022 so the source gate is one story, not two, when it becomes gating. |
-| `architecture-decisions/013-automation-engine.md` (AD-013) | Accurate | `fan-out-after-source-review` default rule; defers to AD-014. | No change; keep in sync with AD-022/014. |
+| `architecture-decisions/022-convergence-as-a-service.md` (AD-022) | **Done** | Predated source-first: no source-settle phase, no `source_not_ready` stall. | **Done in the follow-up PR:** added decision *1a* (settle → gate → translate approved source), `source_not_ready` + `blocked_on_source` on the run entity, and the estimate endpoint. |
+| `architecture-decisions/014-translator-workflow.md` (AD-014) | **Done** | Documented the source-review gate as an *optional*/bypassed automation option. | **Done in the follow-up PR:** reconciled with AD-022 — the source gate is convergence-enforced (one story); `TaskSourceReview` is the human half of the `source_not_ready` hold. |
+| `architecture-decisions/013-automation-engine.md` (AD-013) | **Done** | `fan-out-after-source-review` default rule; defers to AD-014. | **Done in the follow-up PR:** reframed the rule as "resume a held run"; the on-push note now describes the source-first hold. |
 | `architecture-decisions/015-server-ai-operations.md` (AD-015) | Correct | Translation jobs, extraction, brand voice. TM split not yet truthful server-side (see baseline). | Update the "produce" description once `ViaTM` is real server-side. |
 | `notes/translator-workflow.md` | Accurate | Implementation detail for AD-014 (events, tasks, tracker). | No change; update alongside AD-022 reconciliation. |
 | `notes/translation-job-queue.md` | Correct | Job model, quotas, worker algorithm. | Update the TM-split note once server `ViaTM` is real. |
@@ -120,6 +157,13 @@ diagram kit (`PhaseFlow`, `LanesDiagram`, `PipelineDiagram`, `SwimlaneDiagram`).
 No conversions needed.
 
 ## Biggest inaccuracies / gaps (prioritised)
+
+> **Resolved (2026-07-18, follow-up PR):** items 1 and 3 are done — the bowrain
+> venue framing (the-loop.mdx) and the source-review worklist (review.mdx) now
+> exist, and the AD/reference source-gate story is reconciled. Item 2 (server
+> TM-split) is now truthful in code (`reconcileSplit`) — the remaining doc caveat
+> is a deferred AD-015 / job-queue note. Item 4 is closed: `source_not_ready`
+> exists in `core/convergence/events.go`. Retained below for history.
 
 1. **The source-first shape was invisible.** Both sites had the source *ladder*
    and the `source_gate` *key*, but neither showed the source ship-gate
@@ -137,26 +181,50 @@ No conversions needed.
 
 ## Follow-ups {#follow-ups}
 
-Fuller rewrites, to do when epic 019 phase E (source-first) lands and the source
-gate actually holds the fan-out:
+Epic 019 phase E (source-first) landed (#1317), so the source gate now holds the
+server fan-out. The documentation follow-ups below are **done** except the
+walkthrough-video re-records, which remain open.
 
-- **`bowrain/getting-started/the-loop.mdx`** — add the source ship-gate as the
-  first governance seam; this is where the "kapi drafts, Bowrain governs" venue
-  framing belongs (the kapi site can only describe it conceptually). Reuse
-  `GatedLoopDiagram`.
-- **`bowrain/.../022-convergence-as-a-service.md`** — add the source-settle pass
-  + the `source_not_ready` stall; reconcile with AD-014/AD-013 so the source
-  gate is one story.
-- **`bowrain/server/review.mdx`** — document the source-review worklist as the
-  phase-1 counterpart to target review (needs the surface).
-- **`kapi/convergence-in-ci.mdx` + `kapi/recipes/translate-content.mdx`** — add
-  the source-hold outcome and cross-link the source-first section.
+**Done (docs: source-first loop follow-ups PR):**
+
+- ✅ **`bowrain/getting-started/the-loop.mdx`** — added the "Source first: kapi
+  drafts, Bowrain governs" section (the venue/governance framing the kapi site
+  omits), reusing `GatedLoopDiagram`: settle source → source gate (hold → source
+  review) → translate approved source TM-first → target ship-gate.
+- ✅ **`bowrain/.../022-convergence-as-a-service.md`** — added decision *1a.
+  Settle the source, then translate*: the source-settle pass, the
+  `source_not_ready` hold, `blocked_on_source`, and the estimate endpoint;
+  reconciled with **AD-014** (the source gate is convergence-enforced, not a
+  bypassable automation option) and **AD-013** (`fan-out-after-source-review`
+  resumes a held run). One source-gate story across AD-022/014/013.
+- ✅ **`bowrain/server/review.mdx`** — documented the source-review worklist as
+  the phase-1 counterpart to target review, tied to the existing `source_review`
+  task queue (no new UI invented).
+- ✅ **`kapi/convergence-in-ci.mdx` + `kapi/recipes/translate-content.mdx`** —
+  added the source-hold outcome, Bowrain-free, cross-linking the source-first
+  section. (kapi-OSS framing keeps the *hold on push* conceptual; the local CLI
+  `kapi up` does not yet source-hold — that is a Bowrain/server behaviour.)
+- ✅ **AD-033 + `reference/project-file.mdx`** — flipped the "source status is
+  report-only" framing: AD-033 now states the source ladder gates the loop
+  symmetrically with the target ladder; the reference documents
+  `defaults.source_gate` (the convergence level `checked`/`approved`/`none`) as
+  distinct from the top-level `source_gate` coverage bar.
+
+**Deferred back to this note (further follow-ups, not in that PR):**
+
 - **`kapi/recipes/review-and-approve.mdx`** — add source review as a sibling
-  worklist once it exists CLI-side.
-- **AD-033 + `reference/project-file.mdx`** — flip the "source status is
-  report-only" language when `SourceStatus` becomes gating.
-- **Walkthrough videos to re-record** (per CLAUDE.md — CLI/UI surface changes):
-  the `kapi up` demo (once it prints the source-readiness summary and can hold
-  on source), the review-and-approve demo (if a source-review worklist is
-  added), and any bowrain Runs-view demo that would newly show a `settle-source`
-  loop position or a `source_not_ready` stall.
+  worklist **once it exists CLI-side**. The source-review worklist is a
+  server/Bowrain surface today; the local CLI `kapi up` has no source-hold or
+  source-review queue yet, so there is nothing kapi-OSS-native to document.
+- **AD-015 / `notes/translation-job-queue.md`** — the server `ViaTM` split is now
+  truthful (`reconcileSplit`), so the "TM split not yet truthful server-side"
+  caveats in those pages can be dropped in a later pass.
+
+**Open — walkthrough videos to re-record** (out of scope for the docs PR; per
+CLAUDE.md, CLI/UI surface changes):
+
+- the `kapi up` demo (once it prints the source-readiness summary and can hold on
+  source);
+- the review-and-approve demo (if a source-review worklist is added CLI-side);
+- any bowrain Runs-view demo that would newly show a `settle-source` loop
+  position or a `source_not_ready` stall / *Run now* consent dialog.

@@ -14,6 +14,8 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 **Goal:** the same content in other languages — only the text changes; keys, tags, and structure round-trip back intact. In a project the verb is **`kapi up`**: it catches every target language up to its ship gate and parks what needs a person. For a loose file, `kapi translate` does one file, one language. The trade-offs behind the model choice live in [Choose a translation model](/kapi/recipes/choose-a-translation-provider); how translation works as a tool in [Translation](/framework/translation).
 
+The loop settles the **source** before it fans out: content below the project's `source_gate` holds (`source_not_ready`) for a source review rather than being translated into every language, so a defect in the source is fixed once, not once per locale — see [Source first](/kapi/convergence#source-first).
+
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 

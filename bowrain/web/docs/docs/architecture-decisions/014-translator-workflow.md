@@ -13,9 +13,13 @@ automation and humans. An immutable **activity feed** records what
 happened; **tasks** assign work; **notifications** reach the right
 people on the right channel. A `PushCompletionTracker` emits
 `push.automations.completed` when prep-work automations finish, gating
-task fan-out so translators engage only on content that is ready. An
-optional source-review gate prevents fixing the same source issue once
-per locale.
+task fan-out so translators engage only on content that is ready. The
+**source-review task** is where a convergence run that holds on an
+under-ready source lands: the source ship-gate — enforced by the
+convergence engine ([AD-022](022-convergence-as-a-service.md)), not a
+bypassable option — routes source that has not cleared the project's
+`source_gate` here, so the same source issue is fixed once rather than
+once per locale.
 
 ## Context
 
@@ -135,34 +139,32 @@ brand voice drift, extraction completion).
 
 ### Source review gate
 
-Fixing a source-language issue once per locale is expensive. An
-optional `TaskSourceReview` task sits between automation completion and
-language fan-out:
+Fixing a source-language issue once per locale is expensive, so the
+convergence engine is **source-first**: it settles the source and holds
+at a source ship-gate before it translates any locale
+([AD-022](022-convergence-as-a-service.md)). A `TaskSourceReview` is the
+human half of that gate — the task a run opens when it holds on source
+rather than fanning out:
 
 ```
-push.completed
-  → ai_translate, auto_extract run
-  → PushCompletionTracker waits for all jobs
-    → push.automations.completed emitted
-
-Option A — direct fan-out:
-  push.automations.completed
-    → create_review_tasks
-      → one TaskReview per locale, assigned to members with matching scope
-
-Option B — source review gate:
-  push.automations.completed
-    → create_source_review
-      → single TaskSourceReview for a source reviewer
-      → reviewer completes task
-        → source.review.completed
-          → create_review_tasks (same fan-out)
+convergence run (on push, kapi up, or Run now)
+  → settle source · evaluate source_gate
+    → source below the gate → run holds (stall_reason = source_not_ready)
+      → create_source_review
+        → single TaskSourceReview for a source reviewer
+        → reviewer completes task
+          → source.review.completed
+            → the held run fans out per-locale on its next pass
 ```
 
 The source reviewer inspects placeholder correctness, terminology
 consistency, DNT identification, and context notes before language
 fan-out. `HandleCompleteTask` emits `source.review.completed` when the
-task closes, re-entering the automation engine.
+task closes; the run that was holding lifts the now-approved source to
+the gate and produces the per-locale translations (and their review
+tasks) it was waiting on. A project that wants raw fan-out sets
+`source_gate: none` to opt out of the gate entirely; the governed
+default (`checked`) is to settle first.
 
 ### PushCompletionTracker
 
