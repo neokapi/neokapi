@@ -34,6 +34,12 @@ type mockBillingStore struct {
 	addedNote     *billing.WorkspaceNote
 	setOverride   *billing.FeatureOverride
 	recordedEvts  []*billing.BillingEvent
+
+	// spendable is what CheckCredits reports (the full multi-bucket balance).
+	spendable int64
+	// grantSetsAlloc makes a plan GrantCredits publish the allocation, like
+	// the real store does.
+	grantSetsAlloc bool
 }
 
 func (m *mockBillingStore) GetSubscription(_ context.Context, _ string) (*billing.Subscription, error) {
@@ -64,15 +70,32 @@ func (m *mockBillingStore) GetCurrentAllocation(_ context.Context, _ string) (*b
 func (m *mockBillingStore) DeductCredits(context.Context, string, int64, string, string) error {
 	return nil
 }
-func (m *mockBillingStore) CheckCredits(context.Context, string) (int64, error) { return 0, nil }
+func (m *mockBillingStore) CheckCredits(context.Context, string) (int64, error) {
+	return m.spendable, nil
+}
 func (m *mockBillingStore) GrantCredits(_ context.Context, _ string, amount int64, source string) error {
 	m.grantedAmount = amount
 	m.grantedSource = source
+	if m.grantSetsAlloc {
+		// Mirror the real store: after a plan grant, the current allocation
+		// exists (so EnsureMonthlyAllocation's re-read finds it).
+		m.alloc = &billing.CreditAllocation{
+			CreditsTotal: amount,
+			PeriodStart:  billing.MonthStart(time.Now().UTC()),
+			PeriodEnd:    billing.MonthEnd(time.Now().UTC()),
+			Source:       billing.SourcePlan,
+		}
+	}
 	return nil
 }
 func (m *mockBillingStore) GrantPurchasedCredits(_ context.Context, _ string, amount int64, _ string) (bool, error) {
 	m.grantedAmount = amount
 	m.grantedSource = billing.SourcePurchased
+	return true, nil
+}
+func (m *mockBillingStore) GrantTrialCredits(_ context.Context, _ string, amount int64) (bool, error) {
+	m.grantedAmount = amount
+	m.grantedSource = billing.SourceTrial
 	return true, nil
 }
 func (m *mockBillingStore) GetLedger(_ context.Context, _ string, _, _ time.Time) ([]billing.LedgerEntry, error) {
@@ -121,6 +144,65 @@ func newBillingTestServer(store billing.BillingStore) *Server {
 	}
 }
 
+// MonthlyAllocationMiddleware routes each workspace to the right credit
+// machinery: paid plans get the month's plan allocation; Free and
+// still-trialing workspaces get the one-time trial-grant backfill instead
+// (bounding per-signup exposure to the grant).
+func TestMonthlyAllocationMiddleware_Dispatch(t *testing.T) {
+	run := func(store *mockBillingStore, plan string) {
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.Set("workspace_id", "ws-1")
+		c.Set("workspace_plan", plan)
+		handler := MonthlyAllocationMiddleware(store)(func(c echo.Context) error {
+			return c.String(http.StatusOK, "ok")
+		})
+		require.NoError(t, handler(c))
+	}
+
+	t.Run("free plan ensures the trial grant, never a plan allocation", func(t *testing.T) {
+		store := &mockBillingStore{}
+		run(store, "free")
+		assert.Equal(t, billing.SourceTrial, store.grantedSource)
+		assert.Equal(t, int64(billing.FreeTrialGrantCredits), store.grantedAmount)
+	})
+
+	t.Run("active paid plan gets the monthly plan allocation", func(t *testing.T) {
+		store := &mockBillingStore{
+			sub:            &billing.Subscription{WorkspaceID: "ws-1", Plan: billing.PlanPro, Status: "active"},
+			grantSetsAlloc: true,
+		}
+		run(store, "pro")
+		assert.Equal(t, billing.SourcePlan, store.grantedSource)
+		assert.Equal(t, int64(billing.ProMonthlyCredits), store.grantedAmount)
+	})
+
+	t.Run("trialing paid plan gets the trial grant, not the paid allowance", func(t *testing.T) {
+		store := &mockBillingStore{
+			sub: &billing.Subscription{WorkspaceID: "ws-1", Plan: billing.PlanPro, Status: "trialing"},
+		}
+		run(store, "pro")
+		assert.Equal(t, billing.SourceTrial, store.grantedSource,
+			"a trialing subscription must not mint the paid monthly allocation")
+	})
+
+	t.Run("existing allocation grants nothing", func(t *testing.T) {
+		now := time.Now().UTC()
+		store := &mockBillingStore{
+			alloc: &billing.CreditAllocation{
+				CreditsTotal: billing.ProMonthlyCredits,
+				PeriodStart:  billing.MonthStart(now),
+				PeriodEnd:    billing.MonthEnd(now),
+				Source:       billing.SourcePlan,
+			},
+		}
+		run(store, "pro")
+		assert.Empty(t, store.grantedSource, "an existing month allocation must not re-grant")
+	})
+}
+
 func TestHandleGetBilling_NilStore(t *testing.T) {
 	s := &Server{}
 	e := echo.New()
@@ -164,8 +246,8 @@ func TestHandleGetBilling_WithSubscription(t *testing.T) {
 		alloc: &billing.CreditAllocation{
 			CreditsTotal: 500000,
 			CreditsUsed:  123000,
-			WeekStart:    billing.WeekStart(now),
-			WeekEnd:      billing.WeekEnd(now),
+			PeriodStart:  billing.MonthStart(now),
+			PeriodEnd:    billing.MonthEnd(now),
 		},
 	}
 	s := newBillingTestServer(store)
@@ -186,6 +268,36 @@ func TestHandleGetBilling_WithSubscription(t *testing.T) {
 	assert.Equal(t, float64(500000), resp["credits_total"])
 	assert.Equal(t, float64(123000), resp["credits_used"])
 	assert.Equal(t, float64(377000), resp["credits_remaining"])
+	// The payload names the monthly reset, not the weekly one.
+	require.Contains(t, resp, "month_resets_at")
+	assert.NotContains(t, resp, "week_resets_at")
+	resetsAt, err := time.Parse(time.RFC3339, resp["month_resets_at"].(string))
+	require.NoError(t, err)
+	assert.Equal(t, billing.MonthEnd(now), resetsAt.UTC())
+}
+
+// A free workspace has no plan allocation (Free's recurring allowance is 0),
+// but the payload must still expose the full spendable balance — the remaining
+// one-time trial grant — so the billing page has a real number to show.
+func TestHandleGetBilling_FreeShowsSpendableTrialBalance(t *testing.T) {
+	store := &mockBillingStore{spendable: 200_000}
+	s := newBillingTestServer(store)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/billing", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("workspace_id", "ws-1")
+
+	err := s.HandleGetBilling(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Equal(t, "free", resp["plan"])
+	assert.Equal(t, float64(0), resp["credits_total"], "no recurring plan bucket on Free")
+	assert.Equal(t, float64(200_000), resp["spendable_credits"], "the trial grant is the spendable balance")
 }
 
 func TestHandleGetBillingUsage_NilStore(t *testing.T) {

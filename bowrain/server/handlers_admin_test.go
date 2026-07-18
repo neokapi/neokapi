@@ -395,7 +395,10 @@ func TestHandleAdminGrantCredits_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, int64(100000), store.grantedAmount)
-	assert.Equal(t, "grant", store.grantedSource)
+	// Bonus credits land in the non-expiring purchased bucket — the only
+	// non-plan source the balance and the deduction cascade actually read, so
+	// any other source would grant credits the workspace could never spend.
+	assert.Equal(t, billing.SourcePurchased, store.grantedSource)
 }
 
 func TestHandleAdminGetFeatureOverrides(t *testing.T) {

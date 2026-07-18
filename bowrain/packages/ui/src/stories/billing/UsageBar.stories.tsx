@@ -14,41 +14,33 @@ const futureDate = (days: number) => new Date(Date.now() + days * 24 * 60 * 60 *
 
 export const LowUsage: Story = {
   args: {
-    creditsUsed: 120_000,
-    creditsTotal: 500_000,
-    weekEnd: futureDate(3),
+    creditsUsed: 490_000,
+    creditsTotal: 2_000_000,
+    resetsAt: futureDate(12),
   },
 };
 
 export const MediumUsage: Story = {
   args: {
-    creditsUsed: 350_000,
-    creditsTotal: 500_000,
-    weekEnd: futureDate(2),
+    creditsUsed: 1_400_000,
+    creditsTotal: 2_000_000,
+    resetsAt: futureDate(8),
   },
 };
 
 export const HighUsage: Story = {
   args: {
-    creditsUsed: 450_000,
-    creditsTotal: 500_000,
-    weekEnd: futureDate(1),
+    creditsUsed: 1_800_000,
+    creditsTotal: 2_000_000,
+    resetsAt: futureDate(3),
   },
 };
 
 export const Exhausted: Story = {
   args: {
-    creditsUsed: 500_000,
-    creditsTotal: 500_000,
-    weekEnd: futureDate(4),
-  },
-};
-
-export const FreeplanSmall: Story = {
-  args: {
-    creditsUsed: 30_000,
-    creditsTotal: 50_000,
-    weekEnd: futureDate(5),
+    creditsUsed: 2_000_000,
+    creditsTotal: 2_000_000,
+    resetsAt: futureDate(14),
   },
 };
 
@@ -57,19 +49,19 @@ export const AllLevels: Story = {
     <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 400 }}>
       <div>
         <div style={{ fontSize: 12, marginBottom: 4, color: "#888" }}>Low (24%)</div>
-        <UsageBar creditsUsed={120_000} creditsTotal={500_000} weekEnd={futureDate(3)} />
+        <UsageBar creditsUsed={490_000} creditsTotal={2_000_000} resetsAt={futureDate(12)} />
       </div>
       <div>
         <div style={{ fontSize: 12, marginBottom: 4, color: "#888" }}>Medium (70%)</div>
-        <UsageBar creditsUsed={350_000} creditsTotal={500_000} weekEnd={futureDate(2)} />
+        <UsageBar creditsUsed={1_400_000} creditsTotal={2_000_000} resetsAt={futureDate(8)} />
       </div>
       <div>
         <div style={{ fontSize: 12, marginBottom: 4, color: "#888" }}>High (90%)</div>
-        <UsageBar creditsUsed={450_000} creditsTotal={500_000} weekEnd={futureDate(1)} />
+        <UsageBar creditsUsed={1_800_000} creditsTotal={2_000_000} resetsAt={futureDate(3)} />
       </div>
       <div>
         <div style={{ fontSize: 12, marginBottom: 4, color: "#888" }}>Exhausted (100%)</div>
-        <UsageBar creditsUsed={500_000} creditsTotal={500_000} weekEnd={futureDate(4)} />
+        <UsageBar creditsUsed={2_000_000} creditsTotal={2_000_000} resetsAt={futureDate(14)} />
       </div>
     </div>
   ),

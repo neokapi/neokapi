@@ -111,9 +111,11 @@ func TestCreditsForPlan(t *testing.T) {
 		plan Plan
 		want int64
 	}{
-		{PlanFree, 50_000},
-		{PlanPro, 500_000},
-		{PlanTeam, 2_000_000},
+		// Free has NO recurring allowance — its credits are the one-time
+		// FreeTrialGrantCredits grant, not a monthly allocation.
+		{PlanFree, 0},
+		{PlanPro, ProMonthlyCredits},
+		{PlanTeam, TeamMonthlyCredits},
 		{PlanEnterprise, -1},
 	}
 
@@ -129,7 +131,18 @@ func TestCreditsForPlan(t *testing.T) {
 func TestCreditsForPlan_Unknown(t *testing.T) {
 	t.Parallel()
 	got := CreditsForPlan(Plan("unknown"))
-	assert.Equal(t, int64(50_000), got, "unknown plan should default to free credits")
+	assert.Equal(t, int64(0), got, "unknown plan should default to free (no recurring allowance) — the safe default is to grant nothing")
+}
+
+// The provisional monthly numbers: Pro/Team are the former weekly allowances
+// ×4, and the Free trial grant matches the credit pack. These pins exist so a
+// retune is a conscious edit here plus the pricing surfaces, never an
+// accident.
+func TestMonthlyCreditConstants(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, int64(2_000_000), int64(ProMonthlyCredits))
+	assert.Equal(t, int64(8_000_000), int64(TeamMonthlyCredits))
+	assert.Equal(t, int64(200_000), int64(FreeTrialGrantCredits))
 }
 
 func TestValidPlans(t *testing.T) {

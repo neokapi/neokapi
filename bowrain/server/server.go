@@ -1235,7 +1235,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		wsSpecific.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
 		if s.AuthStore != nil {
 			wsSpecific.Use(WorkspaceAccessMiddleware(s.AuthStore))
-			wsSpecific.Use(WeeklyAllocationMiddleware(s.BillingStore))
+			wsSpecific.Use(MonthlyAllocationMiddleware(s.BillingStore))
 			// Resolve effective feature overrides (instance-wide global flags
 			// under per-workspace admin grants) so PlanGuard and client-surfaced
 			// entitlements honor both.
@@ -1708,7 +1708,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 
 	// Actions — Bowrain AD-011: /:ws/:id/actions/:ref/<verb>
 	g.POST("/:id/actions/:ref/pseudo-translate", s.HandlePseudoTranslate)
-	// ai-translate enforces the weekly-credit gate INSIDE the handler via
+	// ai-translate enforces the credit gate INSIDE the handler via
 	// billing.GuardSyncCredits (not QuotaGuard middleware) so it can exempt
 	// bring-your-own-key requests, which the middleware cannot see in the body.
 	// A per-IP AI throttle (003) still fronts it so a client cannot burst spend.

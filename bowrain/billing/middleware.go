@@ -105,8 +105,10 @@ func RequireFeature(c echo.Context, feature Feature, onBlock ...GuardEventFunc) 
 	})
 }
 
-// QuotaGuard returns Echo middleware that rejects requests when weekly credits
-// are exhausted. Returns 429 with Retry-After header set to next Monday 00:00 UTC.
+// QuotaGuard returns Echo middleware that rejects requests when the workspace's
+// spendable credits (monthly plan allowance + trial grant + purchased packs)
+// are exhausted. Returns 429 with Retry-After set to the next month start
+// (00:00 UTC on the 1st) — when a paid plan's allowance refreshes.
 // When billing is not configured (store is nil or plan is empty), all requests pass.
 func QuotaGuard(store BillingStore, onBlock ...GuardEventFunc) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -149,10 +151,12 @@ func QuotaGuard(store BillingStore, onBlock ...GuardEventFunc) echo.MiddlewareFu
 }
 
 // creditsExhaustedResponse writes the standard 429 credits-exhausted payload
-// (with a Retry-After of the next weekly reset) and fires the optional analytics
-// callback. Shared by QuotaGuard (middleware) and GuardSyncCredits (handler).
+// (with a Retry-After of the next monthly reset — meaningful for paid plans;
+// a Free workspace's way forward is an upgrade or a credit pack, which the
+// client copy explains) and fires the optional analytics callback. Shared by
+// QuotaGuard (middleware) and GuardSyncCredits (handler).
 func creditsExhaustedResponse(c echo.Context, plan Plan, onBlock ...GuardEventFunc) error {
-	retryAfter := WeekEnd(time.Now().UTC())
+	retryAfter := MonthEnd(time.Now().UTC())
 	c.Response().Header().Set("Retry-After", retryAfter.Format(time.RFC1123))
 	if len(onBlock) > 0 && onBlock[0] != nil {
 		workspaceID, _ := c.Get("workspace_id").(string)
@@ -167,7 +171,7 @@ func creditsExhaustedResponse(c echo.Context, plan Plan, onBlock ...GuardEventFu
 	})
 }
 
-// GuardSyncCredits enforces the weekly-credit gate from inside a handler, where
+// GuardSyncCredits enforces the credit gate from inside a handler, where
 // BYO is known from the parsed request body. It returns a non-nil echo 429 error
 // when the workspace is out of platform credits and the request is NOT BYO; nil
 // (allow) otherwise. It is the body-aware counterpart to the QuotaGuard

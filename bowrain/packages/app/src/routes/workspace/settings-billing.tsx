@@ -174,7 +174,10 @@ export function SettingsBillingRoute() {
 
   const subscription = overview.subscription;
   const credits = overview.credits;
-  const weekEnd = credits?.weekEnd ? new Date(credits.weekEnd) : undefined;
+  const resetsAt = credits?.resetsAt ? new Date(credits.resetsAt) : undefined;
+  // Paid plans have a monthly allowance; a Free (or still-trialing) workspace
+  // draws on its one-time trial credits, surfaced via spendableCredits.
+  const hasPlanAllowance = (credits?.creditsTotal ?? 0) > 0;
   const isOwner = activeWorkspace.role === "owner";
 
   // Only plans this deployment can actually sell, and only ones above the current
@@ -251,18 +254,33 @@ export function SettingsBillingRoute() {
       </Card>
 
       {/* Credit Usage */}
-      {credits && weekEnd && (
+      {credits && (
         <Card>
           <CardHeader>
-            <CardTitle>Weekly Credit Usage</CardTitle>
-            <CardDescription>AI credits reset every Monday at 00:00 UTC</CardDescription>
+            <CardTitle>{hasPlanAllowance ? "Monthly Credit Usage" : "AI Credits"}</CardTitle>
+            <CardDescription>
+              {hasPlanAllowance
+                ? "Plan credits reset on the 1st of each month at 00:00 UTC"
+                : "Your workspace draws on its one-time trial credits — upgrade for a monthly allowance"}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <UsageBar
-              creditsUsed={credits.creditsUsed}
-              creditsTotal={credits.creditsTotal}
-              weekEnd={weekEnd}
-            />
+            {hasPlanAllowance && resetsAt ? (
+              <UsageBar
+                creditsUsed={credits.creditsUsed}
+                creditsTotal={credits.creditsTotal}
+                resetsAt={resetsAt}
+              />
+            ) : (
+              <p className="text-sm">
+                <span className="font-mono text-foreground">
+                  {formatCredits(overview.spendableCredits)}
+                </span>{" "}
+                <span className="text-muted-foreground">
+                  credits remaining. Trial credits are granted once and do not renew.
+                </span>
+              </p>
+            )}
             {/* The credit pack has existed server-side since AD-018 with no way to
                 buy it: there was no button anywhere in the product. */}
             {isOwner && creditPack?.purchasable && (
@@ -272,8 +290,8 @@ export function SettingsBillingRoute() {
                     Out of credits? Add {formatCredits(creditPack.credits)} more.
                   </p>
                   <p className="text-muted-foreground">
-                    Top-up credits don&apos;t expire, and are used only after your weekly allowance
-                    runs out.
+                    Top-up credits don&apos;t expire, and are drawn on only after your plan and
+                    trial credits run out.
                   </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => void handleBuyCredits()}>
@@ -290,7 +308,7 @@ export function SettingsBillingRoute() {
         <Card>
           <CardHeader>
             <CardTitle>Usage Breakdown</CardTitle>
-            <CardDescription>Credits consumed by operation type this week</CardDescription>
+            <CardDescription>Credits consumed by operation type this month</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid">
@@ -316,7 +334,7 @@ export function SettingsBillingRoute() {
         <Card>
           <CardHeader>
             <CardTitle>Usage by Model</CardTitle>
-            <CardDescription>Token consumption per AI model this week</CardDescription>
+            <CardDescription>Token consumption per AI model this month</CardDescription>
           </CardHeader>
           <CardContent>
             <ModelUsageTable entries={modelUsage} runnerEntries={runnerUsage} />

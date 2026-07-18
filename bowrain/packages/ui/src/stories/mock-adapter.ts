@@ -1191,11 +1191,12 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
         currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       },
       credits: {
-        creditsTotal: 500_000,
-        creditsUsed: 123_000,
-        creditsRemaining: 377_000,
-        weekEnd: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString(),
+        creditsTotal: 2_000_000,
+        creditsUsed: 490_000,
+        creditsRemaining: 1_510_000,
+        resetsAt: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString(),
       },
+      spendableCredits: 1_510_000,
       stripeCustomerId: "cus_mock",
     }),
     billingGetPlans: async () => ({
@@ -1203,7 +1204,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
         {
           id: "free" as const,
           name: "Free",
-          weekly_credits: 50_000,
+          monthly_credits: 0, // no recurring allowance — one-time trial grant instead
           max_projects: 1,
           max_seats: 1,
           per_seat: false,
@@ -1213,7 +1214,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
         {
           id: "pro" as const,
           name: "Pro",
-          weekly_credits: 500_000,
+          monthly_credits: 2_000_000,
           max_projects: 10,
           max_seats: 3,
           per_seat: false,
@@ -1223,7 +1224,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
         {
           id: "team" as const,
           name: "Team",
-          weekly_credits: 2_000_000,
+          monthly_credits: 8_000_000,
           max_projects: -1,
           max_seats: -1,
           per_seat: true,
@@ -1233,7 +1234,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
         {
           id: "enterprise" as const,
           name: "Enterprise",
-          weekly_credits: -1,
+          monthly_credits: -1,
           max_projects: -1,
           max_seats: -1,
           per_seat: false,

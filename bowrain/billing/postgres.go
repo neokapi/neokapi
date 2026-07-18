@@ -11,6 +11,11 @@ import (
 	"github.com/neokapi/neokapi/core/id"
 )
 
+// Migration ledger — versions 1..6 are live in production; the list is
+// append-only. NEVER reuse a version number, even for a migration that was
+// later found unnecessary: deployed databases record applied versions and
+// silently skip a reused number (see the repo-wide migration-squash
+// postmortem). No versions have been retired from this list.
 var billingMigrations = []storage.Migration{
 	{
 		Version:     1,
@@ -140,6 +145,28 @@ var billingMigrations = []storage.Migration{
 				WHERE operation = 'purchase' AND reference_id <> '';
 		`,
 	},
+	{
+		Version:     6,
+		Description: "document the monthly-credits period model on the allocation columns",
+		SQL: `
+			-- Monthly credits (this migration's epic): plan allocations are now keyed
+			-- on the CALENDAR MONTH (UTC) instead of the calendar week, the Free plan
+			-- has no recurring allowance (replaced by a one-time source='trial' grant
+			-- in the non-expiring sentinel period, like purchased packs), and spend
+			-- cascades plan -> trial -> purchased.
+			--
+			-- Deliberately no data rewrite: renaming week_start/week_end or rewriting
+			-- rows is not a zero-downtime change, and none is needed — current-week
+			-- plan rows from the weekly era stop matching the month-keyed queries
+			-- immediately and simply age out; the workspace receives its month
+			-- allocation on next touch, deduped on the month key by
+			-- UNIQUE(workspace_id, week_start, source).
+			COMMENT ON COLUMN credit_allocations.week_start IS
+				'Allocation period start (UTC). plan: calendar-month start (calendar-week Monday before the monthly-credits change); trial/purchased: non-expiring sentinel 1970-01-01. Column name is historical.';
+			COMMENT ON COLUMN credit_allocations.week_end IS
+				'Allocation period end, exclusive (UTC). plan: next month start; trial/purchased: non-expiring sentinel 9999-01-01. Column name is historical.';
+		`,
+	},
 }
 
 // PgBillingStore implements BillingStore using PostgreSQL.
@@ -226,11 +253,12 @@ type ExpiredTrial struct {
 // returns the workspaces it downgraded.
 //
 // Both writes must be atomic. The workspaces.plan cache is what the hot path
-// reads (WorkspaceAccessMiddleware → PlanGuard, and the weekly-credit grant): if
-// the subscription were downgraded but the cache write failed as a separate step,
-// the row would leave `trialing` and never be re-swept, leaving the workspace on
-// Pro limits and re-granted 500K Pro credits every week for nothing. Doing both
-// in one statement means a failure rolls back both and the next tick retries.
+// reads (WorkspaceAccessMiddleware → PlanGuard, and the monthly-credit grant):
+// if the subscription were downgraded but the cache write failed as a separate
+// step, the row would leave `trialing` and never be re-swept, leaving the
+// workspace on Pro limits (and, once its subscription is no longer `trialing`,
+// eligible for the Pro monthly credit grant) for nothing. Doing both in one
+// statement means a failure rolls back both and the next tick retries.
 //
 // This is the one place the billing store writes the auth-owned workspaces table
 // directly. The alternative — a separate cache-sync call after the downgrade —
@@ -242,10 +270,9 @@ type ExpiredTrial struct {
 // The row is claimed with FOR UPDATE SKIP LOCKED and the subscription UPDATE
 // re-asserts `status = 'trialing'`, so two sweepers can never both downgrade the
 // same workspace, and a checkout converting the trial mid-sweep serializes on the
-// same row lock (the re-check then excludes it, so the paid plan wins). Credits
-// already granted for the current week are left alone — clawing them back
-// mid-week would fail running jobs; the workspace drops to Free allowances at the
-// next weekly rollover.
+// same row lock (the re-check then excludes it, so the paid plan wins). The
+// workspace's one-time trial credit grant is left alone — it is the workspace's
+// grant regardless of plan, and clawing credits back would fail running jobs.
 func (s *PgBillingStore) ExpireTrials(ctx context.Context, now time.Time, limit int) ([]ExpiredTrial, error) {
 	if limit <= 0 {
 		limit = 100
@@ -327,24 +354,25 @@ func (s *PgBillingStore) ListSubscriptions(ctx context.Context, limit, offset in
 // Credits
 // ---------------------------------------------------------------------------
 
-// GetCurrentAllocation returns the current week's PLAN allocation only. It is
-// the weekly-allowance bucket that drives EnsureWeeklyAllocation (has this week
-// been granted yet?) and the low-credit threshold notifications. It deliberately
-// excludes purchased packs — spendable balance (plan + purchased) is
-// CheckCredits, and spending cascades across both in DeductCredits (Epic 004).
+// GetCurrentAllocation returns the current month's PLAN allocation only. It is
+// the monthly-allowance bucket that drives EnsureMonthlyAllocation (has this
+// month been granted yet?) and the low-credit threshold notifications. It
+// deliberately excludes the non-expiring buckets — spendable balance
+// (plan + trial + purchased) is CheckCredits, and spending cascades across all
+// three in DeductCredits (Epic 004).
 func (s *PgBillingStore) GetCurrentAllocation(ctx context.Context, workspaceID string) (*CreditAllocation, error) {
 	now := time.Now().UTC()
-	ws := WeekStart(now)
-	we := WeekEnd(now)
+	ms := MonthStart(now)
+	me := MonthEnd(now)
 
 	var alloc CreditAllocation
 	err := s.db.QueryRowContext(ctx,
 		`SELECT id, workspace_id, credits_total, credits_used, week_start, week_end, source, created_at
 		 FROM credit_allocations
 		 WHERE workspace_id = $1 AND week_start = $2 AND week_end = $3 AND source = 'plan'`,
-		workspaceID, ws, we).
+		workspaceID, ms, me).
 		Scan(&alloc.ID, &alloc.WorkspaceID, &alloc.CreditsTotal, &alloc.CreditsUsed,
-			&alloc.WeekStart, &alloc.WeekEnd, &alloc.Source, &alloc.CreatedAt)
+			&alloc.PeriodStart, &alloc.PeriodEnd, &alloc.Source, &alloc.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get current allocation: %w", err)
 	}
@@ -366,18 +394,22 @@ func (a allocationRow) avail() int64 {
 }
 
 // DeductCredits charges amount against a workspace's credits, cascading across
-// sources: draw from the weekly plan allowance first, then non-expiring
-// purchased packs (Epic 004). Any overage once both are exhausted is recorded
-// against the plan bucket (or purchased when no plan bucket exists) so the debt
-// is never lost. One immutable ledger entry is written per bucket touched.
+// sources: draw from the monthly plan allowance first, then the one-time trial
+// grant, then non-expiring purchased packs (Epic 004). The order is deliberate:
+// the expiring bucket goes first (unspent plan credits evaporate at month
+// rollover anyway), the promotional trial grant next, and credits the customer
+// paid real money for are preserved the longest. Any overage once every bucket
+// is exhausted is recorded against the plan bucket (or the first non-expiring
+// bucket that exists) so the debt is never lost. One immutable ledger entry is
+// written per bucket touched.
 func (s *PgBillingStore) DeductCredits(ctx context.Context, workspaceID string, amount int64, op string, refID string) error {
 	if amount <= 0 {
 		return nil
 	}
 
 	now := time.Now().UTC()
-	ws := WeekStart(now)
-	we := WeekEnd(now)
+	ms := MonthStart(now)
+	me := MonthEnd(now)
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -385,14 +417,21 @@ func (s *PgBillingStore) DeductCredits(ctx context.Context, workspaceID string, 
 	}
 	defer tx.Rollback() //nolint:errcheck // rollback is a no-op after commit
 
-	// Lock both buckets FOR UPDATE in a fixed order (plan, then purchased) so
+	// Lock the buckets FOR UPDATE in a fixed order (plan, trial, purchased) so
 	// concurrent deductions on the same workspace serialize deterministically.
 	plan, err := lockAllocation(ctx, tx,
 		`SELECT id, credits_total, credits_used FROM credit_allocations
 		 WHERE workspace_id = $1 AND week_start = $2 AND week_end = $3 AND source = 'plan' FOR UPDATE`,
-		workspaceID, ws, we)
+		workspaceID, ms, me)
 	if err != nil {
 		return fmt.Errorf("lock plan allocation: %w", err)
+	}
+	trial, err := lockAllocation(ctx, tx,
+		`SELECT id, credits_total, credits_used FROM credit_allocations
+		 WHERE workspace_id = $1 AND source = 'trial' FOR UPDATE`,
+		workspaceID)
+	if err != nil {
+		return fmt.Errorf("lock trial allocation: %w", err)
 	}
 	purchased, err := lockAllocation(ctx, tx,
 		`SELECT id, credits_total, credits_used FROM credit_allocations
@@ -401,40 +440,37 @@ func (s *PgBillingStore) DeductCredits(ctx context.Context, workspaceID string, 
 	if err != nil {
 		return fmt.Errorf("lock purchased allocation: %w", err)
 	}
-	if !plan.found && !purchased.found {
+	if !plan.found && !trial.found && !purchased.found {
 		return fmt.Errorf("deduct credits: no allocation for workspace %s", workspaceID)
 	}
 
-	// Cascade the charge: plan first, then purchased.
+	// Cascade the charge across the buckets in spend order, then record any
+	// overage on the first bucket that exists so the debt is never lost (plan
+	// preferred — it refills monthly, so the debt nets against the refill).
+	buckets := []*allocationRow{&plan, &trial, &purchased}
+	deltas := make([]int64, len(buckets))
 	remaining := amount
-	var planDelta, purchasedDelta int64
-	if plan.found {
-		d := min(remaining, plan.avail())
-		planDelta += d
-		remaining -= d
-	}
-	if purchased.found && remaining > 0 {
-		d := min(remaining, purchased.avail())
-		purchasedDelta += d
-		remaining -= d
+	for i, b := range buckets {
+		if b.found && remaining > 0 {
+			d := min(remaining, b.avail())
+			deltas[i] += d
+			remaining -= d
+		}
 	}
 	if remaining > 0 {
-		// Both buckets exhausted; record the overage so it isn't lost. Prefer
-		// the plan bucket (it refills weekly); fall back to purchased.
-		if plan.found {
-			planDelta += remaining
-		} else {
-			purchasedDelta += remaining
+		for i, b := range buckets {
+			if b.found {
+				deltas[i] += remaining
+				break
+			}
 		}
 	}
 
-	if planDelta != 0 {
-		if err := s.applyDeduction(ctx, tx, workspaceID, plan, planDelta, op, refID); err != nil {
-			return err
+	for i, b := range buckets {
+		if deltas[i] == 0 {
+			continue
 		}
-	}
-	if purchasedDelta != 0 {
-		if err := s.applyDeduction(ctx, tx, workspaceID, purchased, purchasedDelta, op, refID); err != nil {
+		if err := s.applyDeduction(ctx, tx, workspaceID, *b, deltas[i], op, refID); err != nil {
 			return err
 		}
 	}
@@ -476,42 +512,46 @@ func (s *PgBillingStore) applyDeduction(ctx context.Context, tx *sql.Tx, workspa
 	return nil
 }
 
-// CheckCredits returns the workspace's total spendable balance: this week's
-// remaining plan allowance plus all non-expiring purchased credits (Epic 004).
-// When the workspace has neither a plan allocation for the week nor any
-// purchased credits, it returns the "no allocation" error so callers (the
-// enqueue pre-check, QuotaGuard) degrade to allowing the request.
+// CheckCredits returns the workspace's total spendable balance: this month's
+// remaining plan allowance plus all non-expiring credits (the one-time trial
+// grant and purchased packs, Epic 004).
+//
+// Only a workspace with NO credit rows at all yields the "no allocation" error
+// (callers — the enqueue pre-check, QuotaGuard — degrade to allowing the
+// request). A workspace whose buckets exist but are spent returns the real,
+// possibly zero-or-negative balance and IS blocked: with the Free plan's
+// recurring allowance gone, "trial grant fully spent" is the steady state of a
+// free workspace and must read as out-of-credits, not as unmetered.
 func (s *PgBillingStore) CheckCredits(ctx context.Context, workspaceID string) (int64, error) {
 	now := time.Now().UTC()
-	ws := WeekStart(now)
-	we := WeekEnd(now)
+	ms := MonthStart(now)
+	me := MonthEnd(now)
 
 	var planRemaining int64
 	planErr := s.db.QueryRowContext(ctx,
 		`SELECT credits_total - credits_used FROM credit_allocations
 		 WHERE workspace_id = $1 AND week_start = $2 AND week_end = $3 AND source = 'plan'`,
-		workspaceID, ws, we).Scan(&planRemaining)
+		workspaceID, ms, me).Scan(&planRemaining)
 	if planErr != nil && !errors.Is(planErr, sql.ErrNoRows) {
 		return 0, fmt.Errorf("get plan credits: %w", planErr)
 	}
 
-	var purchasedRemaining int64
+	var nonExpiringRows int
+	var nonExpiringRemaining int64
 	if err := s.db.QueryRowContext(ctx,
-		`SELECT COALESCE(SUM(credits_total - credits_used), 0) FROM credit_allocations
-		 WHERE workspace_id = $1 AND source = 'purchased'`,
-		workspaceID).Scan(&purchasedRemaining); err != nil {
-		return 0, fmt.Errorf("sum purchased credits: %w", err)
+		`SELECT COUNT(*), COALESCE(SUM(credits_total - credits_used), 0) FROM credit_allocations
+		 WHERE workspace_id = $1 AND source IN ('trial', 'purchased')`,
+		workspaceID).Scan(&nonExpiringRows, &nonExpiringRemaining); err != nil {
+		return 0, fmt.Errorf("sum non-expiring credits: %w", err)
 	}
 
 	if errors.Is(planErr, sql.ErrNoRows) {
-		if purchasedRemaining != 0 {
-			return purchasedRemaining, nil
+		if nonExpiringRows == 0 {
+			return 0, errNoAllocation
 		}
-		// No plan allocation and no purchased credits: preserve the historical
-		// "no allocation" signal so callers degrade gracefully.
-		return 0, fmt.Errorf("check credits: %w", planErr)
+		return nonExpiringRemaining, nil
 	}
-	return planRemaining + purchasedRemaining, nil
+	return planRemaining + nonExpiringRemaining, nil
 }
 
 // GrantPurchasedCredits grants one purchased credit pack, exactly once per Stripe
@@ -549,7 +589,7 @@ func (s *PgBillingStore) GrantPurchasedCredits(ctx context.Context, workspaceID 
 		return false, tx.Commit()
 	}
 
-	// Add to the non-expiring purchased bucket (sentinel week).
+	// Add to the non-expiring purchased bucket (sentinel period).
 	allocID := id.New()
 	var total, used int64
 	if err := tx.QueryRowContext(ctx,
@@ -558,7 +598,7 @@ func (s *PgBillingStore) GrantPurchasedCredits(ctx context.Context, workspaceID 
 		 ON CONFLICT (workspace_id, week_start, source) DO UPDATE SET
 			credits_total = credit_allocations.credits_total + EXCLUDED.credits_total
 		 RETURNING id, credits_total, credits_used`,
-		allocID, workspaceID, amount, purchasedWeekStart, purchasedWeekEnd, SourcePurchased).
+		allocID, workspaceID, amount, nonExpiringPeriodStart, nonExpiringPeriodEnd, SourcePurchased).
 		Scan(&allocID, &total, &used); err != nil {
 		return false, fmt.Errorf("grant purchased credits: %w", err)
 	}
@@ -586,9 +626,10 @@ func (s *PgBillingStore) GrantPurchasedCredits(ctx context.Context, workspaceID 
 }
 
 func (s *PgBillingStore) GrantCredits(ctx context.Context, workspaceID string, amount int64, source string) error {
-	// Plan grants land in the current week; purchased packs land in the
-	// non-expiring sentinel week so they survive weekly rollovers (Epic 004).
-	ws, we := allocationWeek(source, time.Now().UTC())
+	// Plan grants land in the current calendar month; trial grants and
+	// purchased packs land in the non-expiring sentinel period so they survive
+	// monthly rollovers (Epic 004).
+	ps, pe := allocationPeriod(source, time.Now().UTC())
 	allocID := id.New()
 
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -597,26 +638,115 @@ func (s *PgBillingStore) GrantCredits(ctx context.Context, workspaceID string, a
 	}
 	defer tx.Rollback() //nolint:errcheck // rollback is a no-op after commit
 
-	_, err = tx.ExecContext(ctx,
-		`INSERT INTO credit_allocations (id, workspace_id, credits_total, credits_used, week_start, week_end, source)
-		 VALUES ($1, $2, $3, 0, $4, $5, $6)
-		 ON CONFLICT (workspace_id, week_start, source) DO UPDATE SET
-			credits_total = credit_allocations.credits_total + EXCLUDED.credits_total`,
-		allocID, workspaceID, amount, ws, we, source)
-	if err != nil {
-		return fmt.Errorf("grant credits: %w", err)
+	// Conflict semantics differ by bucket. A PLAN allowance is granted at most
+	// once per period: two racing EnsureMonthlyAllocation calls (or a re-grant
+	// within the weekly→monthly transition month) must dedupe on the month key,
+	// not stack — DO NOTHING. Non-expiring buckets share one sentinel-keyed row
+	// per source, so repeated grants there ACCUMULATE.
+	var inserted bool
+	if source == SourcePlan {
+		res, err := tx.ExecContext(ctx,
+			`INSERT INTO credit_allocations (id, workspace_id, credits_total, credits_used, week_start, week_end, source)
+			 VALUES ($1, $2, $3, 0, $4, $5, $6)
+			 ON CONFLICT (workspace_id, week_start, source) DO NOTHING`,
+			allocID, workspaceID, amount, ps, pe, source)
+		if err != nil {
+			return fmt.Errorf("grant credits: %w", err)
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("grant credits rows affected: %w", err)
+		}
+		inserted = n > 0
+	} else {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO credit_allocations (id, workspace_id, credits_total, credits_used, week_start, week_end, source)
+			 VALUES ($1, $2, $3, 0, $4, $5, $6)
+			 ON CONFLICT (workspace_id, week_start, source) DO UPDATE SET
+				credits_total = credit_allocations.credits_total + EXCLUDED.credits_total`,
+			allocID, workspaceID, amount, ps, pe, source); err != nil {
+			return fmt.Errorf("grant credits: %w", err)
+		}
+		inserted = true
 	}
 
-	// Insert ledger entry.
-	_, err = tx.ExecContext(ctx,
-		`INSERT INTO credit_ledger (workspace_id, allocation_id, amount, balance_after, operation, reference_id)
-		 VALUES ($1, $2, $3, $4, $5, '')`,
-		workspaceID, allocID, amount, amount, "grant")
-	if err != nil {
-		return fmt.Errorf("insert ledger entry: %w", err)
+	if inserted {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO credit_ledger (workspace_id, allocation_id, amount, balance_after, operation, reference_id)
+			 VALUES ($1, $2, $3, $4, $5, '')`,
+			workspaceID, allocID, amount, amount, "grant"); err != nil {
+			return fmt.Errorf("insert ledger entry: %w", err)
+		}
 	}
 
 	return tx.Commit()
+}
+
+// GrantTrialCredits grants the workspace's one-time trial credits: a
+// non-expiring source='trial' allocation created at most once per workspace,
+// EVER, keyed on the UNIQUE(workspace_id, week_start, source) constraint with
+// the sentinel period. The grant, its ledger row, and its billing event are one
+// transaction, so the audit trail cannot drift from the money.
+//
+// The duplicate fast path is a single read (no transaction): the allocation
+// middleware calls this on every touch of a workspace with no recurring
+// allowance, so the already-granted case must stay hot-path cheap. Two
+// concurrent first grants race to the insert; DO NOTHING makes the loser a
+// no-op (granted=false) rather than a double grant.
+func (s *PgBillingStore) GrantTrialCredits(ctx context.Context, workspaceID string, amount int64) (bool, error) {
+	var already bool
+	if err := s.db.QueryRowContext(ctx,
+		`SELECT EXISTS(SELECT 1 FROM credit_allocations
+		 WHERE workspace_id = $1 AND source = 'trial')`,
+		workspaceID).Scan(&already); err != nil {
+		return false, fmt.Errorf("check trial grant: %w", err)
+	}
+	if already {
+		return false, nil
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck // rollback is a no-op after commit
+
+	allocID := id.New()
+	res, err := tx.ExecContext(ctx,
+		`INSERT INTO credit_allocations (id, workspace_id, credits_total, credits_used, week_start, week_end, source)
+		 VALUES ($1, $2, $3, 0, $4, $5, $6)
+		 ON CONFLICT (workspace_id, week_start, source) DO NOTHING`,
+		allocID, workspaceID, amount, nonExpiringPeriodStart, nonExpiringPeriodEnd, SourceTrial)
+	if err != nil {
+		return false, fmt.Errorf("grant trial credits: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("grant trial credits rows affected: %w", err)
+	}
+	if n == 0 {
+		// A concurrent grant won the race; this call is a no-op success.
+		return false, tx.Commit()
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO credit_ledger (workspace_id, allocation_id, amount, balance_after, operation, reference_id)
+		 VALUES ($1, $2, $3, $4, 'trial_grant', '')`,
+		workspaceID, allocID, amount, amount); err != nil {
+		return false, fmt.Errorf("record trial grant ledger entry: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`INSERT INTO billing_events (workspace_id, event_type, detail)
+		 VALUES ($1, 'trial_credits_granted', $2)`,
+		workspaceID, fmt.Sprintf("One-time trial grant, +%d credits", amount)); err != nil {
+		return false, fmt.Errorf("record trial grant event: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return false, fmt.Errorf("commit trial grant: %w", err)
+	}
+	return true, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -802,12 +932,15 @@ func (s *PgBillingStore) GetUpsellOpportunities(ctx context.Context) ([]UpsellOp
 func (s *PgBillingStore) GetPlatformMetrics(ctx context.Context) (*PlatformMetrics, error) {
 	var m PlatformMetrics
 
-	// Active workspaces: those with a current weekly plan allocation. Restricted
-	// to source='plan' so non-expiring purchased packs (which carry a sentinel
-	// week spanning "now") don't inflate the count (Epic 004).
+	// Active workspaces: those that actually consumed credits this month (a
+	// debit ledger entry). Allocation presence no longer works as an activity
+	// proxy: with the Free tier's recurring allowance gone, only paid plans
+	// have current-period plan allocations, and the non-expiring trial /
+	// purchased rows carry a sentinel period spanning "now" that would count
+	// every workspace ever created (Epic 004).
 	err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(DISTINCT workspace_id) FROM credit_allocations
-		 WHERE week_start <= NOW() AND week_end > NOW() AND source = 'plan'`).Scan(&m.ActiveWorkspaces)
+		`SELECT COUNT(DISTINCT workspace_id) FROM credit_ledger
+		 WHERE created_at >= $1 AND amount < 0`, MonthStart(time.Now().UTC())).Scan(&m.ActiveWorkspaces)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, fmt.Errorf("active workspaces: %w", err)
 	}
@@ -825,16 +958,17 @@ func (s *PgBillingStore) GetPlatformMetrics(ctx context.Context) (*PlatformMetri
 		return nil, fmt.Errorf("mrr: %w", err)
 	}
 
-	// Credit utilization.
+	// Credit utilization across this month's plan allocations (paid plans —
+	// Free has no recurring allocation to utilize).
 	now := time.Now().UTC()
-	ws := WeekStart(now)
-	we := WeekEnd(now)
+	ms := MonthStart(now)
+	me := MonthEnd(now)
 	err = s.db.QueryRowContext(ctx,
 		`SELECT COALESCE(
 			AVG(CASE WHEN credits_total > 0 THEN (credits_used::float / credits_total) * 100 ELSE 0 END),
 			0)
 		 FROM credit_allocations
-		 WHERE week_start = $1 AND week_end = $2 AND source = 'plan'`, ws, we).Scan(&m.CreditUtilizationPct)
+		 WHERE week_start = $1 AND week_end = $2 AND source = 'plan'`, ms, me).Scan(&m.CreditUtilizationPct)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, fmt.Errorf("credit utilization: %w", err)
 	}

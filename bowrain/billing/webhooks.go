@@ -163,8 +163,9 @@ func (h *WebhookHandler) handleCheckoutCompleted(ctx context.Context, event stri
 	}
 
 	// Handle one-time credit pack purchase. Purchased packs are non-expiring
-	// (SourcePurchased) — they persist across weekly rollovers until spent, and
-	// spend draws from them only after the weekly plan allowance (Epic 004).
+	// (SourcePurchased) — they persist across monthly rollovers until spent, and
+	// spend draws from them only after the monthly plan allowance and the trial
+	// grant (Epic 004).
 	//
 	// Granted idempotently on the checkout session id: Stripe delivers webhooks
 	// at-least-once and this handler's marker is rolled back on any error, so a

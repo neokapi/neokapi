@@ -68,7 +68,7 @@ protocols specific to bowrain) live in [Implementation Notes](/notes/index).
 | AD                                    | Title         | Scope                                                              |
 | ------------------------------------- | ------------- | ------------------------------------------------------------------ |
 | [017](017-bowrain-apps.md)            | Bowrain Apps  | Desktop, collaborative editor, Pulse, Admin Control Plane          |
-| [018](018-billing-and-plans.md)       | Billing       | Stripe plans, weekly credits, feature matrix, middleware guards    |
+| [018](018-billing-and-plans.md)       | Billing       | Stripe plans, monthly credits + trial grant, feature matrix, middleware guards |
 
 ## Governance
 

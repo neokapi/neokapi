@@ -36,7 +36,8 @@ func (s *trialRecordingStore) RecordBillingEvent(_ context.Context, evt *Billing
 }
 
 func (s *trialRecordingStore) GetCurrentAllocation(_ context.Context, _ string) (*CreditAllocation, error) {
-	// Return an error to simulate no existing allocation, triggering GrantCredits.
+	// Simulate no existing allocation, so a credit grant would be observable
+	// in grantedCredits if SetupTrial (wrongly) tried to make one.
 	return nil, errors.New("no allocation")
 }
 
@@ -68,19 +69,17 @@ func TestSetupTrial(t *testing.T) {
 	assert.Nil(t, sub.CancelAt)
 }
 
-func TestSetupTrial_CreditsAllocated(t *testing.T) {
+// SetupTrial grants plan FEATURES only. It must NOT grant any plan credit
+// allocation: the trialing workspace's AI credits are its one-time trial grant
+// (EnsureTrialGrant at workspace creation), which is what bounds per-signup
+// cost exposure to FreeTrialGrantCredits instead of a paid-size allowance.
+func TestSetupTrial_GrantsNoPlanCredits(t *testing.T) {
 	store := &trialRecordingStore{}
 	ctx := t.Context()
 
 	SetupTrial(ctx, store, "ws-credits")
 
-	// EnsureWeeklyAllocation should call GrantCredits because
-	// GetCurrentAllocation returns an error (no existing allocation).
-	require.Len(t, store.grantedCredits, 1)
-	grant := store.grantedCredits[0]
-	assert.Equal(t, "ws-credits", grant.workspaceID)
-	assert.Equal(t, CreditsForPlan(PlanPro), grant.amount)
-	assert.Equal(t, "plan", grant.source)
+	assert.Empty(t, store.grantedCredits, "a trial must not mint a plan credit allocation")
 }
 
 func TestSetupTrial_EventRecorded(t *testing.T) {

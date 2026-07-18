@@ -84,12 +84,33 @@ var PlanLimits = map[Plan]map[string]int{
 	PlanEnterprise: {"max-projects": -1, "max-seats": -1},
 }
 
-// WeeklyCredits defines the weekly AI credit allocation per plan.
-// A value of -1 means unlimited (Enterprise).
-var WeeklyCredits = map[Plan]int64{
-	PlanFree:       50_000,
-	PlanPro:        500_000,
-	PlanTeam:       2_000_000,
+// Credit allowance tuning knobs. These are the ONLY places the numbers live —
+// every surface (allocation grants, /billing/plans payload, pricing copy)
+// derives from them. The current values are provisional: Pro/Team are the
+// former weekly allowances ×4, and the final numbers come from the cold-start
+// estimator data. Tune here, nowhere else.
+const (
+	// ProMonthlyCredits is Pro's monthly plan allowance (4× the former 500K
+	// weekly allowance).
+	ProMonthlyCredits = 2_000_000
+	// TeamMonthlyCredits is Team's monthly plan allowance (4× the former 2M
+	// weekly allowance).
+	TeamMonthlyCredits = 8_000_000
+	// FreeTrialGrantCredits is the one-time, non-expiring credit grant every
+	// new workspace receives at creation (source='trial'). It replaces the
+	// Free tier's recurring allowance — Free's MonthlyCredits is 0 — so the
+	// platform's free-tier cost exposure is bounded to exactly one grant per
+	// workspace instead of an open-ended weekly drip.
+	FreeTrialGrantCredits = 200_000
+)
+
+// MonthlyCredits defines the monthly AI credit allocation per plan.
+// A value of -1 means unlimited (Enterprise); 0 means no recurring allowance
+// (Free — its credits are the one-time FreeTrialGrantCredits grant).
+var MonthlyCredits = map[Plan]int64{
+	PlanFree:       0,
+	PlanPro:        ProMonthlyCredits,
+	PlanTeam:       TeamMonthlyCredits,
 	PlanEnterprise: -1,
 }
 
@@ -97,7 +118,8 @@ var WeeklyCredits = map[Plan]int64{
 // is $5 (the dollar amount lives in Stripe, DECISIONS L4); this is the credit
 // side of that same SKU, so it must stay in step with the price the provisioning
 // tool creates and with what the pricing page advertises. Packs do not expire —
-// they are drawn from only after the weekly plan allowance (Epic 004).
+// they are drawn from only after the monthly plan allowance and the trial
+// grant (Epic 004; cascade order in credits.go).
 const CreditPackCredits = 200_000
 
 // PerSeatPlans are the plans priced per seat: the Stripe subscription quantity
@@ -123,14 +145,14 @@ var PlanDisplayNames = map[Plan]string{
 // amounts: prices live in Stripe (DECISIONS L4), and the client's only job is to
 // know which plans it may ask to check out.
 type PlanInfo struct {
-	ID            Plan   `json:"id"`
-	Name          string `json:"name"`
-	WeeklyCredits int64  `json:"weekly_credits"` // -1 = unlimited
-	MaxProjects   int    `json:"max_projects"`   // -1 = unlimited
-	MaxSeats      int    `json:"max_seats"`      // -1 = unlimited
-	PerSeat       bool   `json:"per_seat"`
-	Purchasable   bool   `json:"purchasable"`
-	Current       bool   `json:"current"`
+	ID             Plan   `json:"id"`
+	Name           string `json:"name"`
+	MonthlyCredits int64  `json:"monthly_credits"` // -1 = unlimited, 0 = no recurring allowance
+	MaxProjects    int    `json:"max_projects"`    // -1 = unlimited
+	MaxSeats       int    `json:"max_seats"`       // -1 = unlimited
+	PerSeat        bool   `json:"per_seat"`
+	Purchasable    bool   `json:"purchasable"`
+	Current        bool   `json:"current"`
 }
 
 // DescribePlan builds the client-facing description of a plan. purchasable is
@@ -138,14 +160,14 @@ type PlanInfo struct {
 // configured in this deployment.
 func DescribePlan(plan Plan, purchasable, current bool) PlanInfo {
 	return PlanInfo{
-		ID:            plan,
-		Name:          PlanDisplayNames[plan],
-		WeeklyCredits: CreditsForPlan(plan),
-		MaxProjects:   GetLimit(plan, "max-projects"),
-		MaxSeats:      GetLimit(plan, "max-seats"),
-		PerSeat:       PerSeatPlans[plan],
-		Purchasable:   purchasable,
-		Current:       current,
+		ID:             plan,
+		Name:           PlanDisplayNames[plan],
+		MonthlyCredits: CreditsForPlan(plan),
+		MaxProjects:    GetLimit(plan, "max-projects"),
+		MaxSeats:       GetLimit(plan, "max-seats"),
+		PerSeat:        PerSeatPlans[plan],
+		Purchasable:    purchasable,
+		Current:        current,
 	}
 }
 
@@ -182,13 +204,14 @@ func MinimumPlanFor(feature Feature) Plan {
 	return ""
 }
 
-// CreditsForPlan returns the weekly credit allocation for a plan.
-// Returns -1 for unlimited (Enterprise).
+// CreditsForPlan returns the monthly credit allocation for a plan.
+// Returns -1 for unlimited (Enterprise) and 0 for no recurring allowance
+// (Free and any unknown plan — the safe default is to grant nothing).
 func CreditsForPlan(plan Plan) int64 {
-	if c, ok := WeeklyCredits[plan]; ok {
+	if c, ok := MonthlyCredits[plan]; ok {
 		return c
 	}
-	return WeeklyCredits[PlanFree]
+	return MonthlyCredits[PlanFree]
 }
 
 // GetLimit returns a numeric limit for a plan. Returns -1 if the limit

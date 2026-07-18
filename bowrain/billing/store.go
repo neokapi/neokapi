@@ -25,6 +25,13 @@ type BillingStore interface {
 	// implementation for why the webhook's marker-rollback makes this necessary.
 	GrantPurchasedCredits(ctx context.Context, workspaceID string, amount int64, referenceID string) (granted bool, err error)
 
+	// GrantTrialCredits grants the workspace's one-time trial credits
+	// (source='trial', non-expiring). At most one grant per workspace, EVER —
+	// keyed on the allocation table's unique constraint — so it is safe to call
+	// on every touch (the allocation middleware uses it as a lazy backfill).
+	// Returns granted=false when the workspace already has its grant.
+	GrantTrialCredits(ctx context.Context, workspaceID string, amount int64) (granted bool, err error)
+
 	// Ledger
 	GetLedger(ctx context.Context, workspaceID string, from, to time.Time) ([]LedgerEntry, error)
 

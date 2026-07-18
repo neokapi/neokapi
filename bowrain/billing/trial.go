@@ -30,6 +30,12 @@ func SetupTrial(ctx context.Context, store BillingStore, workspaceID string, syn
 // CheckoutOptions.TrialDays would mean collecting a card at signup, which is the
 // wrong trade for a self-serve launch — see AD-018.)
 //
+// The trial grants the plan's FEATURES, not its monthly credit allowance: the
+// `trialing` status makes EnsureMonthlyAllocation skip the paid plan grant, and
+// the workspace's AI credits during (and after) the trial are its one-time
+// trial grant (EnsureTrialGrant, made at workspace creation). This is what
+// bounds per-signup cost exposure to FreeTrialGrantCredits.
+//
 // If a WorkspacePlanSyncer is provided, the workspace's cached plan field
 // is updated to match the trial plan.
 func SetupTrialWith(ctx context.Context, store BillingStore, workspaceID string, plan Plan, trialDays int, syncer ...WorkspacePlanSyncer) {
@@ -61,11 +67,6 @@ func SetupTrialWith(ctx context.Context, store BillingStore, workspaceID string,
 		if err := syncer[0].SyncWorkspacePlan(ctx, workspaceID, string(plan), ""); err != nil {
 			slog.Info("billing: failed to sync trial plan for workspace", "id", workspaceID, "error", err)
 		}
-	}
-
-	// Grant plan-level weekly credits for the trial.
-	if _, err := EnsureWeeklyAllocation(ctx, store, workspaceID, plan); err != nil {
-		slog.Info("billing: failed to allocate trial credits for workspace", "id", workspaceID, "error", err)
 	}
 
 	_ = store.RecordBillingEvent(ctx, &BillingEvent{

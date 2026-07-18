@@ -42,8 +42,10 @@ func TestNotifyCreditsWarning(t *testing.T) {
 	// Body should contain used/total counts
 	assert.Contains(t, call.Body, "800")
 	assert.Contains(t, call.Body, "1000")
-	// Body should contain the reset date
-	resetAt := WeekEnd(time.Now().UTC())
+	// The warning tracks the monthly plan allowance.
+	assert.Contains(t, call.Body, "monthly")
+	// Body should contain the reset date (next month start).
+	resetAt := MonthEnd(time.Now().UTC())
 	assert.Contains(t, call.Body, resetAt.Format("Monday, January 2"))
 	// Body should contain upgrade link
 	assert.Contains(t, call.Body, "https://app.bowrain.cloud/pricing")
@@ -76,8 +78,8 @@ func TestNotifyCreditsExhausted(t *testing.T) {
 	assert.Equal(t, "admin@example.com", call.To)
 	assert.Contains(t, call.Subject, "exhausted")
 
-	// Body should contain the reset date
-	resetAt := WeekEnd(time.Now().UTC())
+	// Body should contain the reset date (next month start; paid plans only).
+	resetAt := MonthEnd(time.Now().UTC())
 	assert.Contains(t, call.Body, resetAt.Format("Monday, January 2"))
 	// Body should contain upgrade link
 	assert.Contains(t, call.Body, "https://app.bowrain.cloud/pricing")

@@ -8,12 +8,15 @@ title: "AD-018: Billing and Plans"
 
 ## Summary
 
-Bowrain uses a four-tier plan model (Free, Pro, Team, Enterprise) with
-weekly AI usage credits. Stripe Subscriptions and the Meters API are
-the source of truth; webhooks sync plan state and credit allocations
-into bowrain-server. `PlanGuard` and `QuotaGuard` Echo middleware
-enforce feature gates and quota limits on the hot path. Per-workspace
-feature overrides — set from the Admin Control Plane
+Bowrain uses a four-tier plan model (Free, Pro, Team, Enterprise). AI usage
+credits are part of the paid offering: paid plans include a **monthly** credit
+allowance, and the Free tier has no recurring allowance — every new workspace
+instead receives a **one-time trial grant** of credits at creation, which
+bounds free-tier cost exposure to one grant per workspace. Stripe
+Subscriptions and the Meters API are the source of truth; webhooks sync plan
+state and credit allocations into bowrain-server. `PlanGuard` and `QuotaGuard`
+Echo middleware enforce feature gates and quota limits on the hot path.
+Per-workspace feature overrides — set from the Admin Control Plane
 ([AD-017](017-bowrain-apps.md)) — sit above the plan matrix for betas,
 partner deals, and support remediation. Self-hosted deployments run in
 a graceful billing-disabled mode.
@@ -30,12 +33,12 @@ model — and they can mix free and paid tiers across the same user.
 
 ### Four-tier plan model
 
-| Plan           | Price         | AI credits / week   | @bravo                      | Seats     | Billing cycle |
-| -------------- | ------------- | ------------------- | --------------------------- | --------- | ------------- |
-| **Free**       | $0            | 50 K tokens         | 5 messages/day              | 1         | —             |
-| **Pro**        | $25 / mo      | 500 K tokens (10×)  | Unlimited messages          | 3         | Monthly       |
-| **Team**       | $20 / seat/mo | 2 M tokens (40×)    | Unlimited + code exec       | Unlimited | Monthly       |
-| **Enterprise** | Custom        | Custom              | Custom                      | Unlimited | Annual        |
+| Plan           | Price         | AI credits / month           | @bravo                      | Seats     | Billing cycle |
+| -------------- | ------------- | ---------------------------- | --------------------------- | --------- | ------------- |
+| **Free**       | $0            | — (one-time 200 K trial grant) | 5 messages/day            | 1         | —             |
+| **Pro**        | $25 / mo      | 2 M tokens                   | Unlimited messages          | 3         | Monthly       |
+| **Team**       | $20 / seat/mo | 8 M tokens                   | Unlimited + code exec       | Unlimited | Monthly       |
+| **Enterprise** | Custom        | Custom                       | Custom                      | Unlimited | Annual        |
 
 The @bravo column records the intended per-plan design; @bravo is currently
 dark on every plan (see the [feature matrix](#feature-matrix)) and is not
@@ -50,20 +53,26 @@ One credit equals one AI token (input or output). Operations cost:
 | @bravo message (per token)   | 1                |
 | @bravo container time        | 10 credits / sec |
 
-Weekly allocations reset Monday 00:00 UTC. Weekly (rather than monthly)
-smooths spending, aligns with AI provider billing cycles, matches the
-short-horizon feedback users expect from AI products (Claude's 5-hour
-window is the nearest precedent), and avoids the month-one/month-four
-binge-drought pattern.
+Monthly plan allocations reset on the 1st of each calendar month, 00:00 UTC —
+the same cadence as the subscription itself, so the credits a paid plan
+includes are a predictable part of what the customer buys each month. The Free
+tier deliberately has **no recurring allowance**: its credits are the one-time
+trial grant every workspace receives at creation. This is what bounds the
+platform's free-tier AI cost exposure — one grant per workspace, ever, instead
+of an open-ended recurring drip. All allowance numbers are named constants in
+`billing/plans.go` (`MonthlyCredits`, `ProMonthlyCredits`,
+`TeamMonthlyCredits`, `FreeTrialGrantCredits`); the current values are
+provisional pending cold-start estimator data, and tuning them is an edit to
+those constants plus the pricing surfaces, nowhere else.
 
-**Overage handling.** Every paid plan behaves the same way: when the weekly
-allowance runs out, AI operations are blocked (`QuotaGuard`, HTTP 429) until
-either the Monday reset or the workspace buys a credit pack. There is no
+**Overage handling.** Every paid plan behaves the same way: when the spendable
+balance runs out, AI operations are blocked (`QuotaGuard`, HTTP 429) until
+either the monthly reset or the workspace buys a credit pack. There is no
 auto-purchase: a workspace can only be charged by a human choosing to be.
 
 | Plan       | Overage behavior                                                      |
 | ---------- | --------------------------------------------------------------------- |
-| Free       | Blocked until the Monday reset                                        |
+| Free       | Blocked; the trial grant does not renew — upgrade or buy a pack        |
 | Pro        | Blocked; may buy a credit pack ($5 = 200 K credits, does not expire)  |
 | Team       | Blocked; may buy a credit pack (same pack)                            |
 | Enterprise | No limits (custom agreement)                                          |
@@ -94,20 +103,29 @@ down the allocation. The same distinction gates the synchronous editor path,
 which treats a request carrying a BYO provider config or an inline API key as
 BYO and skips the credit guard.
 
-Credits come from two buckets, both recorded in `credit_allocations` with a
+Credits come from three buckets, all recorded in `credit_allocations` with a
 `source` column:
 
-- **Plan** (`source = 'plan'`) — the weekly allocation for the workspace's
-  tier (the *AI credits / week* column above). Unspent plan credits expire at
-  the weekly reset.
+- **Plan** (`source = 'plan'`) — the monthly allocation for a PAID tier (the
+  *AI credits / month* column above), keyed on the calendar month. Unspent
+  plan credits expire at the monthly reset. Free has no plan bucket.
+- **Trial** (`source = 'trial'`) — the one-time grant every workspace receives
+  at creation (`FreeTrialGrantCredits`). Non-expiring, granted at most once
+  per workspace, ever (enforced by the allocation table's unique key). It is
+  granted at the workspace-creation sites (onboarding and explicit creation)
+  and lazily backfilled by the allocation middleware for workspaces that
+  predate it.
 - **Purchased** (`source = 'purchased'`) — one-time credit packs bought through
-  Stripe. Purchased credits do not expire at the weekly reset; they persist and
-  accumulate.
+  Stripe. Non-expiring; repeated purchases accumulate in one row.
 
-When credits are spent, the plan bucket is drawn down first and purchased
-credits cover the remainder, so the expiring balance is used before the
-durable one. A workspace's spendable balance is this week's remaining plan
-credits plus all remaining purchased credits.
+When credits are spent, the cascade order is **plan → trial → purchased**:
+the expiring bucket is drained first (it evaporates at month end anyway), the
+promotional trial grant next, and pack credits the customer paid real money
+for are preserved the longest. A workspace's spendable balance — the number
+`QuotaGuard` and the job-enqueue pre-check enforce — is this month's remaining
+plan credits plus all remaining trial and purchased credits. Admin-granted
+bonus credits land in the purchased bucket, so they are spendable through the
+same cascade.
 
 ### Feature matrix
 
@@ -208,9 +226,16 @@ the request needs a paid feature, and every connector type posts to one route.
 It returns the identical `403 upgrade_required` payload, so the client's upgrade
 prompt does not care which one blocked it.
 
-**`QuotaGuard()`** rejects requests when weekly credits are exhausted.
-Returns `429 Too Many Requests` with `Retry-After` set to the next
-Monday 00:00 UTC. Applied to every AI-touching route.
+**`QuotaGuard()`** rejects requests when the spendable balance (monthly plan
+allowance + trial grant + purchased packs) is exhausted. Returns
+`429 Too Many Requests` with `Retry-After` set to the next month start
+(00:00 UTC on the 1st — when a paid allowance refreshes; a Free workspace's
+way forward is an upgrade or a pack, which the client copy explains). Applied
+to every AI-touching route. A workspace with **no credit rows at all** is
+allowed through (the billing-disabled degrade path); a workspace whose buckets
+exist but are spent is blocked — with no recurring Free allowance, "trial
+grant fully spent" is the steady state of a free workspace and must read as
+out-of-credits, not as unmetered.
 
 Seat and project limits are enforced at mutation time (add member,
 create project) — no middleware needed because the check depends on
@@ -218,11 +243,23 @@ the target of the operation.
 
 ### Trials
 
-A new workspace gets a **14-day Pro trial with no card** (`billing.SetupTrial`,
-called on workspace creation): plan `pro`, status `trialing`, Pro weekly credits,
-and a `trial_ends_at` deadline. When the deadline passes, the **trial sweeper** in
-`bowrain-worker` (`billing.TrialSweeper`, hourly) moves the workspace to Free and
-records a `trial_expired` event.
+A new workspace gets two distinct trial artifacts at creation:
+
+- The **one-time trial credit grant** (`billing.EnsureTrialGrant`, called at
+  both creation sites — onboarding's personal workspace and explicit workspace
+  creation). This is the workspace's AI budget until it converts to a paid
+  plan; it never renews and never expires.
+- A **14-day Pro features trial with no card** (`billing.SetupTrial`): plan
+  `pro`, status `trialing`, and a `trial_ends_at` deadline. The trial grants
+  Pro *features and limits* — **not** the Pro monthly credit allowance.
+  `EnsureMonthlyAllocation` skips a `trialing` subscription precisely so a
+  signup cannot mint a paid-size allocation; the paid allowance starts with
+  the first touch after conversion. This is what keeps per-signup cost
+  exposure bounded to `FreeTrialGrantCredits`.
+
+When the deadline passes, the **trial sweeper** in `bowrain-worker`
+(`billing.TrialSweeper`, hourly) moves the workspace to Free and records a
+`trial_expired` event.
 
 The sweeper is the *only* thing that can end this trial, which is why it is not
 optional and not gated on Stripe: no Stripe subscription exists for a card-free
@@ -232,19 +269,19 @@ what happened before epic 005.
 
 The downgrade updates the subscription *and* the denormalized `workspaces.plan`
 cache in one statement (`ExpireTrials`). This is deliberate: the cache is what
-the hot path reads, including the weekly-credit grant, so a downgrade that
-updated the subscription but failed to update the cache as a separate step would
-leave the workspace off `trialing` (never re-swept) yet still cached as Pro —
-re-granted 500K Pro credits every week for nothing. One statement means a failure
-rolls back both and the next tick retries; a checkout converting the trial
-mid-sweep serializes on the same row lock and the paid plan wins.
+the hot path reads — `PlanGuard` and the monthly-credit grant — so a downgrade
+that updated the subscription but failed to update the cache as a separate step
+would leave the workspace off `trialing` (never re-swept) yet still cached as
+Pro, keeping Pro limits and, once no longer `trialing`, drawing the Pro monthly
+allowance for nothing. One statement means a failure rolls back both and the
+next tick retries; a checkout converting the trial mid-sweep serializes on the
+same row lock and the paid plan wins.
 
 The rejected alternative is a Stripe-side trial (`CheckoutOptions.TrialDays`):
 it would end itself, but it requires collecting a card at signup, which is the
-wrong trade for self-serve. The trial's credits for the current week are not
-clawed back on downgrade — the weekly allowance was granted up front, and
-revoking it mid-week would fail jobs already running; the workspace drops to Free
-allowances at the next weekly reset.
+wrong trade for self-serve. The trial credit grant is untouched by the
+downgrade — it is the workspace's one-time grant regardless of plan, and the
+workspace keeps whatever remains of it on Free.
 
 ### Stripe integration
 
@@ -375,9 +412,14 @@ CREATE TABLE credit_allocations (
     workspace_id  TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     credits_total BIGINT NOT NULL,
     credits_used  BIGINT NOT NULL DEFAULT 0,
+    -- Allocation period bounds. plan rows: the calendar month (UTC);
+    -- trial/purchased rows: a fixed non-expiring sentinel (1970..9999), which
+    -- collapses each non-expiring source into one row per workspace via the
+    -- UNIQUE constraint. The column names are historical (the allowance was
+    -- once weekly); renaming them is not a zero-downtime change.
     week_start    TIMESTAMPTZ NOT NULL,
     week_end      TIMESTAMPTZ NOT NULL,
-    source        TEXT NOT NULL DEFAULT 'plan',    -- 'plan' | 'purchased'
+    source        TEXT NOT NULL DEFAULT 'plan',    -- 'plan' | 'trial' | 'purchased'
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(workspace_id, week_start, source)
 );
@@ -408,10 +450,18 @@ type BillingStore interface {
     GetSubscription(ctx context.Context, workspaceID string) (*Subscription, error)
     UpsertSubscription(ctx context.Context, sub *Subscription) error
 
+    // The current month's plan allocation (nil semantics for Free/trialing).
     GetCurrentAllocation(ctx context.Context, workspaceID string) (*CreditAllocation, error)
+    // Cascades plan → trial → purchased; one ledger entry per bucket touched.
     DeductCredits(ctx context.Context, workspaceID string, amount int64, op string, refID string) error
+    // The spendable balance across all three buckets.
     CheckCredits(ctx context.Context, workspaceID string) (remaining int64, err error)
+    // Plan grants dedupe on the month key; non-expiring sources accumulate.
     GrantCredits(ctx context.Context, workspaceID string, amount int64, source string) error
+    // Idempotent on the Stripe checkout session id.
+    GrantPurchasedCredits(ctx context.Context, workspaceID string, amount int64, referenceID string) (granted bool, err error)
+    // At most one trial grant per workspace, ever.
+    GrantTrialCredits(ctx context.Context, workspaceID string, amount int64) (granted bool, err error)
 
     GetLedger(ctx context.Context, workspaceID string, from, to time.Time) ([]LedgerEntry, error)
 }
@@ -490,7 +540,7 @@ When a request hits a plan gate, the `403` body includes
 prompt instead of a generic error:
 
 - **Feature gate** — "Git connectors require a Pro plan. [Upgrade →]"
-- **Credit exhaustion** — "Weekly credits used. Resets Monday. [Buy credits →] or [Upgrade →]"
+- **Credit exhaustion** — "Credits used. Paid plans reset on the 1st. [Buy credits →] or [Upgrade →]"
 - **Seat limit** — "Your plan includes 3 seats. [Upgrade to Team →]"
 - **Project limit** — "Free plan allows 1 project. [Upgrade to Pro →]"
 
@@ -503,9 +553,8 @@ Triggered by billing lifecycle events:
 
 | Trigger             | Email                                                                 |
 | ------------------- | --------------------------------------------------------------------- |
-| 80% credits used    | Warning with usage breakdown and reset date                           |
-| Credits exhausted   | Blocked notice with upgrade CTA (Pro/Team) or reset countdown (Free)  |
-| Weekly credit reset | Summary of last week's usage                                          |
+| 80% credits used    | Warning with usage against the monthly plan allowance and reset date (paid plans — Free has no plan allocation to warn on) |
+| Credits exhausted   | Blocked notice with upgrade / credit-pack CTA; the monthly reset date applies to paid plans |
 | Payment failed      | Notice that Stripe will retry, and that cancellation drops to Free     |
 | Subscription change | Confirmation of upgrade/downgrade with new limits                     |
 
@@ -538,8 +587,10 @@ self-hosted install until the real values are written.
 
 - Stripe owns money; bowrain owns enforcement. The hot path reads a
   cached `plan` field — no external call on every request.
-- Weekly credit windows give users frequent fresh starts and align
-  spend with the AI provider's billing surface.
+- Monthly credit windows make the included credits a predictable part of the
+  paid subscription, on the same cadence the customer is billed.
+- Free-tier AI cost exposure is bounded: one trial grant per workspace, ever,
+  instead of an open-ended recurring allowance.
 - Feature overrides provide the escape hatch needed for real customer
   situations (betas, outages, partner deals) without polluting the
   plan matrix.

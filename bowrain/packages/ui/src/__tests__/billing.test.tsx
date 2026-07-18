@@ -56,30 +56,30 @@ describe("UsageBar", () => {
   const futureDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000 + 5 * 60 * 60 * 1000);
 
   it("shows usage text with credits and percentage", () => {
-    render(<UsageBar creditsUsed={300} creditsTotal={1000} weekEnd={futureDate} />);
+    render(<UsageBar creditsUsed={300} creditsTotal={1000} resetsAt={futureDate} />);
     expect(screen.getByText("300 / 1K credits")).toBeInTheDocument();
     expect(screen.getByText("30%")).toBeInTheDocument();
   });
 
   it("shows countdown text", () => {
-    render(<UsageBar creditsUsed={0} creditsTotal={1000} weekEnd={futureDate} />);
+    render(<UsageBar creditsUsed={0} creditsTotal={1000} resetsAt={futureDate} />);
     expect(screen.getByText(/Resets in 3d/)).toBeInTheDocument();
   });
 
-  it("shows 'Resetting now' when weekEnd is in the past", () => {
+  it("shows 'Resetting now' when resetsAt is in the past", () => {
     const pastDate = new Date(Date.now() - 1000);
-    render(<UsageBar creditsUsed={0} creditsTotal={1000} weekEnd={pastDate} />);
+    render(<UsageBar creditsUsed={0} creditsTotal={1000} resetsAt={pastDate} />);
     expect(screen.getByText("Resetting now")).toBeInTheDocument();
   });
 
   it("handles zero total gracefully", () => {
-    render(<UsageBar creditsUsed={0} creditsTotal={0} weekEnd={futureDate} />);
+    render(<UsageBar creditsUsed={0} creditsTotal={0} resetsAt={futureDate} />);
     expect(screen.getByText("0 / 0 credits")).toBeInTheDocument();
     expect(screen.getByText("0%")).toBeInTheDocument();
   });
 
   it("clamps percentage to 100 when used exceeds total", () => {
-    render(<UsageBar creditsUsed={1500} creditsTotal={1000} weekEnd={futureDate} />);
+    render(<UsageBar creditsUsed={1500} creditsTotal={1000} resetsAt={futureDate} />);
     expect(screen.getByText("100%")).toBeInTheDocument();
   });
 });
@@ -130,10 +130,9 @@ describe("UpgradePrompt", () => {
 
   it("lists plan highlights", () => {
     render(<UpgradePrompt feature="SSO" minimumPlan="team" currentPlan="free" />);
-    expect(screen.getByText("2M weekly credits")).toBeInTheDocument();
+    expect(screen.getByText("8M monthly credits")).toBeInTheDocument();
     expect(screen.getByText("Unlimited seats")).toBeInTheDocument();
-    expect(screen.getByText("@bravo code execution")).toBeInTheDocument();
-    expect(screen.getByText("Custom connectors")).toBeInTheDocument();
+    expect(screen.getByText("Priority support")).toBeInTheDocument();
   });
 
   it("calls onUpgrade when button clicked", async () => {
@@ -314,14 +313,14 @@ describe("PlanCard", () => {
         name="Pro"
         price="$49"
         period="month"
-        credits="500K weekly credits"
+        credits="2M monthly credits"
         features={defaultFeatures}
       />,
     );
     expect(screen.getByText("Pro")).toBeInTheDocument();
     expect(screen.getByText("$49")).toBeInTheDocument();
     expect(screen.getByText("/month")).toBeInTheDocument();
-    expect(screen.getByText("500K weekly credits")).toBeInTheDocument();
+    expect(screen.getByText("2M monthly credits")).toBeInTheDocument();
   });
 
   it("renders feature list", () => {

@@ -271,7 +271,7 @@ func (s *Server) HandleAdminGetModelUsage(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	now := time.Now().UTC()
-	from := billing.WeekStart(now)
+	from := billing.MonthStart(now)
 	to := now
 
 	if v := c.QueryParam("from"); v != "" {
@@ -380,7 +380,12 @@ func (s *Server) HandleAdminGrantCredits(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	if err := s.BillingStore.GrantCredits(ctx, wsID, req.Amount, "grant"); err != nil {
+	// Bonus credits land in the non-expiring purchased bucket so they are
+	// actually spendable: CheckCredits/DeductCredits only see the plan, trial,
+	// and purchased sources, so a bespoke source here would grant credits the
+	// cascade never draws from. The ledger operation is still "grant" and the
+	// billing event below records who granted them and why.
+	if err := s.BillingStore.GrantCredits(ctx, wsID, req.Amount, billing.SourcePurchased); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 

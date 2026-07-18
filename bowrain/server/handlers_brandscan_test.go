@@ -100,13 +100,18 @@ func TestBrandScanCreate_RequiresSource(t *testing.T) {
 
 // zeroCreditBillingStore stubs the billing store with an exhausted balance.
 // The enqueue pre-check reads CheckCredits; the workspace middlewares touch
-// GetCurrentAllocation and GetFeatureOverrides on every request.
+// GetCurrentAllocation, GrantTrialCredits (the free-plan lazy trial backfill),
+// and GetFeatureOverrides on every request.
 type zeroCreditBillingStore struct{ billing.BillingStore }
 
 func (zeroCreditBillingStore) CheckCredits(context.Context, string) (int64, error) { return 0, nil }
 
 func (zeroCreditBillingStore) GetCurrentAllocation(context.Context, string) (*billing.CreditAllocation, error) {
 	return &billing.CreditAllocation{CreditsTotal: 100, CreditsUsed: 100}, nil
+}
+
+func (zeroCreditBillingStore) GrantTrialCredits(context.Context, string, int64) (bool, error) {
+	return false, nil // already granted (and spent) — this store is the exhausted state
 }
 
 func (zeroCreditBillingStore) GetFeatureOverrides(context.Context, string) ([]billing.FeatureOverride, error) {

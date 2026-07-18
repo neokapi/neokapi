@@ -149,7 +149,7 @@ func TestDescribePlan(t *testing.T) {
 	team := DescribePlan(PlanTeam, true, false)
 	assert.Equal(t, PlanTeam, team.ID)
 	assert.Equal(t, "Team", team.Name)
-	assert.Equal(t, int64(2_000_000), team.WeeklyCredits)
+	assert.Equal(t, int64(TeamMonthlyCredits), team.MonthlyCredits)
 	assert.True(t, team.PerSeat)
 	assert.True(t, team.Purchasable)
 
@@ -158,6 +158,9 @@ func TestDescribePlan(t *testing.T) {
 	assert.False(t, pro.Purchasable, "an unconfigured price means not purchasable")
 	assert.True(t, pro.Current)
 
+	free := DescribePlan(PlanFree, false, false)
+	assert.Equal(t, int64(0), free.MonthlyCredits, "Free has no recurring allowance — its credits are the one-time trial grant")
+
 	ent := DescribePlan(PlanEnterprise, false, false)
-	assert.Equal(t, int64(-1), ent.WeeklyCredits, "Enterprise credits are unlimited")
+	assert.Equal(t, int64(-1), ent.MonthlyCredits, "Enterprise credits are unlimited")
 }

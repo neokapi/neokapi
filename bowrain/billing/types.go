@@ -24,15 +24,19 @@ type Subscription struct {
 	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
-// CreditAllocation tracks weekly credit usage for a workspace.
+// CreditAllocation tracks credit usage for a workspace within one allocation
+// period: the current calendar month for plan allowances, the non-expiring
+// sentinel period for trial grants and purchased packs. (The backing DB
+// columns are still named week_start/week_end — historical, see billing
+// migration 6.)
 type CreditAllocation struct {
 	ID           string    `json:"id"`
 	WorkspaceID  string    `json:"workspace_id"`
 	CreditsTotal int64     `json:"credits_total"`
 	CreditsUsed  int64     `json:"credits_used"`
-	WeekStart    time.Time `json:"week_start"`
-	WeekEnd      time.Time `json:"week_end"`
-	Source       string    `json:"source"` // "plan" or "purchased"
+	PeriodStart  time.Time `json:"period_start"`
+	PeriodEnd    time.Time `json:"period_end"`
+	Source       string    `json:"source"` // "plan", "trial", or "purchased"
 	CreatedAt    time.Time `json:"created_at"`
 }
 
@@ -43,7 +47,7 @@ type LedgerEntry struct {
 	AllocationID string    `json:"allocation_id,omitempty"`
 	Amount       int64     `json:"amount"` // negative = debit, positive = credit
 	BalanceAfter int64     `json:"balance_after"`
-	Operation    string    `json:"operation"` // ai_translation, bravo_message, bravo_container, purchase, grant, expire
+	Operation    string    `json:"operation"` // ai_translation, bravo_message, bravo_container, purchase, grant, trial_grant, expire
 	ReferenceID  string    `json:"reference_id,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 }

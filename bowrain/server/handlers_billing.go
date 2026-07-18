@@ -17,7 +17,14 @@ import (
 )
 
 // HandleGetBilling returns the current plan, subscription status, credit balance,
-// and weekly reset countdown for a workspace.
+// and monthly reset countdown for a workspace.
+//
+// credits_total/used/remaining describe the MONTHLY PLAN bucket (what resets
+// and what an upgrade changes); they are zero for workspaces without a plan
+// allocation (Free, or a still-trialing subscription). spendable_credits is the
+// full balance across every bucket (plan + trial grant + purchased packs) —
+// the number QuotaGuard actually enforces — so the client can show a Free
+// workspace its remaining trial credits.
 // GET /api/v1/:ws/billing
 func (s *Server) HandleGetBilling(c echo.Context) error {
 	if s.BillingStore == nil {
@@ -37,18 +44,23 @@ func (s *Server) HandleGetBilling(c echo.Context) error {
 		}
 	}
 
-	// Ensure weekly credit allocation exists for the current week.
-	alloc, _ := billing.EnsureWeeklyAllocation(ctx, s.BillingStore, wsID, sub.Plan)
+	// Ensure this month's plan allocation exists (paid plans only; nil for
+	// Free and still-trialing workspaces).
+	alloc, _ := billing.EnsureMonthlyAllocation(ctx, s.BillingStore, wsID, sub.Plan)
 	var creditsTotal, creditsUsed, creditsRemaining int64
-	var weekEnd time.Time
+	monthEnd := billing.MonthEnd(time.Now().UTC())
 	if alloc != nil {
 		creditsTotal = alloc.CreditsTotal
 		creditsUsed = alloc.CreditsUsed
 		creditsRemaining = max(creditsTotal-creditsUsed, 0)
-		weekEnd = alloc.WeekEnd
-	} else {
-		creditsTotal = billing.CreditsForPlan(sub.Plan)
-		creditsRemaining = creditsTotal
+		monthEnd = alloc.PeriodEnd
+	}
+
+	// Full spendable balance across all buckets. Degrades to the plan remainder
+	// when unreadable (e.g. a workspace with no credit rows yet).
+	spendable := creditsRemaining
+	if bal, err := s.BillingStore.CheckCredits(ctx, wsID); err == nil {
+		spendable = max(bal, 0)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{
@@ -57,7 +69,8 @@ func (s *Server) HandleGetBilling(c echo.Context) error {
 		"credits_total":     creditsTotal,
 		"credits_used":      creditsUsed,
 		"credits_remaining": creditsRemaining,
-		"week_resets_at":    weekEnd,
+		"spendable_credits": spendable,
+		"month_resets_at":   monthEnd,
 		"subscription":      sub,
 	})
 }
@@ -71,9 +84,9 @@ func (s *Server) HandleGetBillingUsage(c echo.Context) error {
 
 	wsID, _ := c.Get("workspace_id").(string)
 
-	// Default to current week.
+	// Default to the current month (the allocation period).
 	now := time.Now().UTC()
-	from := billing.WeekStart(now)
+	from := billing.MonthStart(now)
 	to := now
 
 	if v := c.QueryParam("from"); v != "" {
@@ -117,7 +130,7 @@ func (s *Server) HandleGetBillingModelUsage(c echo.Context) error {
 
 	ws := c.Param("ws")
 	now := time.Now().UTC()
-	from := billing.WeekStart(now)
+	from := billing.MonthStart(now)
 	to := now
 
 	if v := c.QueryParam("from"); v != "" {

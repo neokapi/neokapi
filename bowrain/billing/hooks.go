@@ -52,12 +52,13 @@ func (h *UsageHooks) DeductContainerTime(ctx context.Context, workspaceID string
 }
 
 // checkCreditThresholds sends notifications when credits cross warning/exhaustion
-// thresholds. Exhaustion is judged on the FULL spendable balance (plan +
-// purchased) via CheckCredits — not the plan-only allocation — so a workspace
+// thresholds. Exhaustion is judged on the FULL spendable balance (plan + trial
+// + purchased) via CheckCredits — not the plan-only allocation — so a workspace
 // that just bought a top-up pack is not wrongly told it is out of credits when
-// only the weekly plan bucket is depleted (Epic 004). The 80%-used warning still
-// tracks the weekly plan allowance, which is what resets and what an upgrade
-// affects.
+// only the monthly plan bucket is depleted (Epic 004). The 80%-used warning
+// still tracks the monthly plan allowance, which is what resets and what an
+// upgrade affects (Free workspaces have no plan allocation, so they get no
+// 80% warning — only the exhaustion notice).
 func (h *UsageHooks) checkCreditThresholds(ctx context.Context, workspaceID string) {
 	if h.Notifier == nil || h.GetOwnerEmail == nil {
 		return

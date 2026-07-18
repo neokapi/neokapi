@@ -13,8 +13,8 @@ type Story = StoryObj<typeof PlanComparisonTable>;
 
 const features: ComparisonFeature[] = [
   {
-    label: "Weekly AI Credits",
-    values: { free: "50K", pro: "500K", team: "2M", enterprise: "Custom" },
+    label: "Monthly AI Credits",
+    values: { free: "200K one-time", pro: "2M", team: "8M", enterprise: "Custom" },
   },
   {
     label: "@bravo Messages",
