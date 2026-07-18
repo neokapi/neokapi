@@ -76,6 +76,73 @@ func TestRenderVoiceGuideCompact(t *testing.T) {
 	}
 }
 
+// TestRenderVoiceGuideCompactAllFields pins the no-dead-context contract: every
+// populated constraint of a VoiceProfile that the full guide renders must
+// materially appear in the compact form too — tone guidelines, humor,
+// sentence-length ceilings, point of view, prohibited patterns, and forbidden/
+// competitor terms even when they carry no replacement.
+func TestRenderVoiceGuideCompactAllFields(t *testing.T) {
+	p := &VoiceProfile{
+		Name:        "Full Voice",
+		Description: "Everything populated.",
+		Tone: ToneProfile{
+			Personality: []string{"calm", "expert"},
+			Formality:   "formal",
+			Emotion:     "authoritative",
+			Humor:       "none",
+			Guidelines:  "Address the reader as a peer",
+		},
+		Style: StyleRules{
+			ActiveVoice:    true,
+			SentenceLength: "short",
+			PersonPOV:      "second",
+			Contractions:   "never",
+			ProhibitedPatterns: []Pattern{
+				{Regex: `!{2,}`, Description: "no stacked exclamation marks", Severity: "major"},
+				{Regex: `\bvery\b`, Severity: "minor"}, // description-less: the regex must surface
+			},
+		},
+		Vocabulary: VocabularyRules{
+			ForbiddenTerms: []TermRule{
+				{Term: "synergy", Replacement: "teamwork"},
+				{Term: "world-class"}, // no replacement: must still render as a ban
+			},
+			CompetitorTerms: []TermRule{
+				{Term: "Globex"}, // no replacement: must still render as a ban
+			},
+		},
+	}
+
+	got := RenderVoiceGuideCompact(p)
+	for _, want := range []string{
+		"personality: calm, expert",
+		"formality: formal",
+		"emotion: authoritative",
+		"humor: none",
+		"use active voice",
+		"sentence length: short",
+		"point of view: second",
+		"contractions: never",
+		"Address the reader as a peer",
+		"no stacked exclamation marks",
+		`\bvery\b`,
+		`"synergy" → "teamwork"`,
+		`"world-class"`,
+		`"Globex"`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("compact guide missing %q\n---\n%s", want, got)
+		}
+	}
+
+	// Deterministic across renders.
+	for i := range 3 {
+		if again := RenderVoiceGuideCompact(p); again != got {
+			t.Fatalf("RenderVoiceGuideCompact not deterministic on run %d", i)
+		}
+	}
+}
+
 func TestLoadProfileYAML(t *testing.T) {
 	const doc = `
 name: Test Voice

@@ -45,6 +45,15 @@ type recycleResult struct {
 	tmCount int
 }
 
+// defaultTMMinScore is the recycle lookup threshold used when a project does
+// not set one — the framework's canonical fuzzy threshold, matching the CLI
+// recycle flow's defaults (sievepen.TMLeverageConfig defaults MinScore to 0.7;
+// core/tools.TMLeverageConfig defaults FuzzyThreshold to 70). Fill safety is
+// unchanged: sievepen's tool sets a target only for exact-tier match types, so
+// a fuzzy match below near-exact surfaces as an alt-translation candidate, not
+// a silent fill.
+const defaultTMMinScore = 0.7
+
 // recycleBlocks runs the framework's content-aware TM leverage tool over the
 // stored blocks and partitions them into TM-filled vs. remainder. It mirrors
 // the built-in `translate` flow's recycle→translate ordering: exact (and, at
@@ -54,10 +63,10 @@ type recycleResult struct {
 // The tool sets a target only for exact-tier matches (see sievepen.TMLeverageTool);
 // a block is counted as TM-filled when it carries a fresh target for the locale
 // after the pass. minScore comes from the project's recipe TM threshold when
-// present (default exact-only, i.e. 1.0).
+// present (default fuzzy at defaultTMMinScore, matching the CLI recycle flow).
 func recycleBlocks(ctx context.Context, tm sievepen.TMStore, storedBlocks []*store.StoredBlock, sourceLocale, targetLocale model.LocaleID, minScore float64) (recycleResult, error) {
 	if minScore <= 0 {
-		minScore = 1.0 // exact-only by default
+		minScore = defaultTMMinScore
 	}
 
 	// Blocks that already carry a target for this locale are neither recycled
@@ -233,22 +242,27 @@ func resolveJobTM(deps *WorkerDeps, job *TranslationJob) sievepen.TMStore {
 	return tm
 }
 
-// projectTMMinScore reads the recycle fill threshold from the project's recipe
-// config. Default is exact-only (1.0): a fresh project recycles verbatim
-// repeats for free without risking a wrong fuzzy fill. A project that opts into
-// fuzzy leverage sets the `tm_fuzzy_threshold` property (0-100); a value of 85
-// maps to a 0.85 minimum score.
+// projectTMMinScore reads the recycle lookup threshold from the project's
+// recipe config. Default is fuzzy at defaultTMMinScore (0.7) — the same
+// threshold the CLI recycle flow uses — so near-exact matches (tag-mismatch and
+// ambiguous-exact demotions at 0.99) pre-fill and fuzzy matches surface as
+// alt-translation candidates. Only exact-tier match types ever fill a target
+// (sievepen.TMLeverageTool), so the default cannot silently fill from a low
+// fuzzy match. An explicit `tm_fuzzy_threshold` property (0-100) overrides in
+// either direction: 85 maps to a 0.85 minimum score, and 100 restores strict
+// exact-only leverage. An unparsable or non-positive value falls back to the
+// default.
 func projectTMMinScore(proj *store.Project) float64 {
 	if proj == nil || proj.Properties == nil {
-		return 1.0
+		return defaultTMMinScore
 	}
 	raw := proj.Properties["tm_fuzzy_threshold"]
 	if raw == "" {
-		return 1.0
+		return defaultTMMinScore
 	}
 	pct, err := strconv.Atoi(raw)
 	if err != nil || pct <= 0 {
-		return 1.0
+		return defaultTMMinScore
 	}
 	if pct > 100 {
 		pct = 100

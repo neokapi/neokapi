@@ -45,9 +45,10 @@ const (
 	// DimTerminology is carried by the glossary (term mandates and the identity
 	// pins that keep do-not-translate names verbatim).
 	DimTerminology = "terminology"
-	// DimVoice is carried by the brand voice profile — the slice of it that
-	// production actually injects (brand.RenderVoiceGuideCompact): formality,
-	// contractions, and forbidden-term swaps.
+	// DimVoice is carried by the brand voice profile, injected in production
+	// via brand.RenderVoiceGuideCompact: tone (personality, formality, humor,
+	// guidelines), style (contractions, sentence length, prohibited patterns),
+	// and forbidden-term rules.
 	DimVoice = "voice"
 	// DimInstruction is carried by the free-form instruction string.
 	DimInstruction = "instruction"
@@ -109,10 +110,10 @@ type Context struct {
 	Glossary map[string]string
 	// DNT lists the names that must survive verbatim — what dnt-check enforces.
 	DNT []string
-	// Profile is the synthetic brand voice. Only what
-	// brand.RenderVoiceGuideCompact renders reaches the model — formality,
-	// personality, contractions, and forbidden-term swaps that carry a
-	// replacement — so every voice fixture tests exactly that slice.
+	// Profile is the synthetic brand voice. What
+	// brand.RenderVoiceGuideCompact renders reaches the model — every populated
+	// tone/style constraint plus forbidden-term rules — so every voice fixture
+	// tests exactly that surface.
 	Profile *brand.VoiceProfile
 	// Instruction is the free-form steering string.
 	Instruction string
@@ -321,10 +322,10 @@ func contextFor(target string) Context {
 			"Compass":   "Compass",
 			"tidectl":   "tidectl",
 		}
-		// Every forbidden term carries a replacement, deliberately: production
-		// injection (RenderVoiceGuideCompact) only renders swaps that have one,
-		// so a ban without a replacement never reaches the model and would
-		// measure our injection gap, not the model's steerability.
+		// Every forbidden term carries a replacement, deliberately: the eval
+		// scores swap adherence ("was the mandated replacement used"), which
+		// needs a declared replacement to check against. (The compact guide now
+		// renders bare bans too; scoring them would need a different check.)
 		profile.Vocabulary.ForbiddenTerms = []brand.TermRule{
 			{Term: "einfach", Replacement: "direkt", Note: "filler minimizer"},
 			{Term: "Nutzer", Replacement: "Benutzer"},

@@ -10,11 +10,13 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/billing"
+	"github.com/neokapi/neokapi/bowrain/core/brandscope"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/core/ai/tools"
+	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/tool"
@@ -77,6 +79,19 @@ type WorkerDeps struct {
 	// back to the previous AI-only behavior. Mirrors the server's per-workspace
 	// workspaceStores.getTM.
 	TMResolver TMResolver
+	// BrandStore reads brand voice profiles so a translation job carries the
+	// project's brand voice into the AI prompt — parity with the CLI flow's
+	// brand binding. Optional; nil translates without brand voice.
+	BrandStore brand.BrandStore
+	// WorkspaceDefault resolves the workspace-level default brand-voice
+	// profile — the base rung of the brandscope resolution ladder that a
+	// project/stream/collection binding overrides. Optional; nil skips the
+	// workspace rung.
+	WorkspaceDefault brandscope.WorkspaceDefault
+	// TBResolver returns the workspace termbase so a translation job carries
+	// the project's terminology as a prompt glossary — parity with the CLI
+	// flow's termbase binding. Optional; nil translates without a glossary.
+	TBResolver TBResolver
 }
 
 // EventTracker captures product analytics events (implemented by
@@ -415,27 +430,17 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	prov := resolved.LLM
 	limiter := resolved.Limiter
 
-	// Default batch/concurrency for automation jobs if not explicitly set.
-	batchSz := 20
-	if job.BatchSize > 0 {
-		batchSz = job.BatchSize
+	cfg := jobTranslateConfig(ctx, deps, job, proj)
+	if cfg.Profile != nil || len(cfg.Glossary) > 0 {
+		profileName := ""
+		if cfg.Profile != nil {
+			profileName = cfg.Profile.Name
+		}
+		emitLog(deps, job.StepID, "info",
+			fmt.Sprintf("Applying brand context: voice=%q, glossary terms=%d", profileName, len(cfg.Glossary)),
+			map[string]string{"brand_voice": profileName, "glossary_terms": strconv.Itoa(len(cfg.Glossary))})
 	}
-	concurrency := 5
-	if job.Concurrency > 0 {
-		concurrency = job.Concurrency
-	}
-
-	translateTool := tools.NewAITranslateTool(prov, tools.AITranslateConfig{
-		SourceLocale:     proj.DefaultSourceLanguage,
-		TargetLocale:     model.LocaleID(job.TargetLocale),
-		BatchSize:        batchSz,
-		BatchConcurrency: concurrency,
-		// Do-not-translate terms are ENFORCED, not merely prompted: the tool
-		// masks each protected span before the model and restores it verbatim
-		// after, so a product name / trademark / code identifier cannot be
-		// translated (epic 019, item 4). Sourced from project settings.
-		DNT: projectDNTTerms(proj),
-	})
+	translateTool := tools.NewAITranslateTool(prov, cfg)
 
 	// Process blocks in progress-reporting chunks. The tool handles
 	// internal batching + concurrency; we chunk for progress updates.
@@ -680,6 +685,46 @@ func estimateTokens(blocks []*store.StoredBlock) int {
 		}
 	}
 	return totalChars / 4
+}
+
+// jobTranslateConfig builds the AI translate tool config for a translation
+// job. Beyond the locale/batching plumbing, it binds the project's standing
+// brand context — the resolved brand voice profile and the per-locale
+// terminology glossary — so every server-side AI translation carries the same
+// guidance the CLI flow injects via ApplyProjectBindings. Both bindings are
+// best-effort: absence or a resolution failure leaves the corresponding field
+// unset and the job runs bare.
+func jobTranslateConfig(ctx context.Context, deps *WorkerDeps, job *TranslationJob, proj *store.Project) tools.AITranslateConfig {
+	// Default batch/concurrency for automation jobs if not explicitly set.
+	batchSz := 20
+	if job.BatchSize > 0 {
+		batchSz = job.BatchSize
+	}
+	concurrency := 5
+	if job.Concurrency > 0 {
+		concurrency = job.Concurrency
+	}
+
+	srcLocale := proj.DefaultSourceLanguage
+	tgtLocale := model.LocaleID(job.TargetLocale)
+	return tools.AITranslateConfig{
+		SourceLocale:     srcLocale,
+		TargetLocale:     tgtLocale,
+		BatchSize:        batchSz,
+		BatchConcurrency: concurrency,
+		// Brand voice → prompt guidance, resolved through the platform's
+		// binding ladder (collection → stream → project → workspace default).
+		Profile: resolveJobBrandProfile(ctx, deps, job),
+		// Terminology → the advisory glossary section of the prompt, so the
+		// model is told the mandated renderings at generation time instead of
+		// term-check only flagging them afterwards.
+		Glossary: resolveJobGlossary(ctx, deps, job, srcLocale, tgtLocale),
+		// Do-not-translate terms are ENFORCED, not merely prompted: the tool
+		// masks each protected span before the model and restores it verbatim
+		// after, so a product name / trademark / code identifier cannot be
+		// translated (epic 019, item 4). Sourced from project settings.
+		DNT: projectDNTTerms(proj),
+	}
 }
 
 // projectDNTTerms reads the project's do-not-translate terms from settings
