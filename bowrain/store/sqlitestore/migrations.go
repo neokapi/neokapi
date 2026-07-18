@@ -631,4 +631,14 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE convergence_runs ADD COLUMN blocked_on_source INTEGER NOT NULL DEFAULT 0;
 		`,
 	},
+	{
+		Version:     8,
+		Description: "connector last-sync timestamp (real status, not fabricated now)",
+		SQL: `
+			-- Mirrors connector_configs.last_sync_at in
+			-- bowrain/store/migrations.go (Version 9): the last successful
+			-- fetch/publish time per connector, so status reports a real value.
+			ALTER TABLE connector_configs ADD COLUMN last_sync_at TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }

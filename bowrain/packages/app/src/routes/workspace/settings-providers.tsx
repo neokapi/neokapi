@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   useWorkspace,
+  useApi,
   useProviderConfigs,
   useProviderApi,
   Badge,
@@ -30,19 +32,18 @@ import {
   type ProviderConfig,
   type ProviderConfigWithKey,
 } from "@neokapi/ui";
+import { configQueryOptions } from "../../queries";
 
-// Provider types supported by the credential store (cli/credentials/store.go).
-const PROVIDER_TYPES: { value: string; label: string }[] = [
+// Fallback provider list for older servers that don't advertise provider_types
+// on GET /api/v1/info. The live list is sourced from that endpoint (the
+// framework provider registry) so this UI never drifts from the Go constants.
+const FALLBACK_PROVIDER_TYPES: { value: string; label: string }[] = [
   { value: "anthropic", label: "Anthropic" },
   { value: "openai", label: "OpenAI" },
   { value: "azureopenai", label: "Azure OpenAI" },
   { value: "gemini", label: "Gemini" },
   { value: "ollama", label: "Ollama" },
 ];
-
-function providerLabel(type: string): string {
-  return PROVIDER_TYPES.find((p) => p.value === type)?.label ?? type;
-}
 
 interface FormState {
   id: string;
@@ -70,8 +71,22 @@ type TestState = {
 
 export function SettingsProvidersRoute() {
   const { activeWorkspace } = useWorkspace();
+  const api = useApi();
   const { configs, loading, error, refresh } = useProviderConfigs();
   const { saveProviderConfig, deleteProviderConfig, testProviderConfig } = useProviderApi();
+
+  // Live provider types from GET /api/v1/info (framework provider registry).
+  // Fall back to the static list if the server predates provider_types.
+  const { data: config } = useQuery(configQueryOptions(api));
+  const providerTypes = useMemo(
+    () =>
+      config?.provider_types?.length
+        ? config.provider_types.map((p) => ({ value: p.name, label: p.label }))
+        : FALLBACK_PROVIDER_TYPES,
+    [config],
+  );
+  const providerLabel = (type: string): string =>
+    providerTypes.find((p) => p.value === type)?.label ?? type;
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -262,7 +277,7 @@ export function SettingsProvidersRoute() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {PROVIDER_TYPES.map((p) => (
+                  {providerTypes.map((p) => (
                     <SelectItem key={p.value} value={p.value}>
                       {p.label}
                     </SelectItem>

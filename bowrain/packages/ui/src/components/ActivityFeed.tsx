@@ -8,6 +8,13 @@ export interface ActivityFeedProps {
   hasMore?: boolean;
   onLoadMore?: () => void;
   onActivityClick?: (activity: ActivityInfo) => void;
+  /**
+   * Per-row navigability. Rows for which this returns false render as plain
+   * (non-clickable) entries even when onActivityClick is set — so the pointer
+   * cursor only appears where a click actually goes somewhere. Defaults to all
+   * rows navigable when onActivityClick is provided.
+   */
+  canNavigate?: (activity: ActivityInfo) => boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -96,6 +103,7 @@ export function ActivityFeed({
   hasMore,
   onLoadMore,
   onActivityClick,
+  canNavigate,
 }: ActivityFeedProps) {
   if (loading && activities.length === 0) {
     // Skeleton rows match the rendered row layout so the list doesn't jump
@@ -117,17 +125,21 @@ export function ActivityFeed({
         const isAgent = isAgentActivity(activity.type);
         const summary = isAgent ? agentSummary(activity) : activity.summary;
         const actor = actorName(activity);
+        const navigable = !!onActivityClick && (canNavigate ? canNavigate(activity) : true);
 
         return (
           <button
             key={activity.id}
             type="button"
+            aria-disabled={!navigable}
             className={cn(
               "w-full text-left px-3 py-2 rounded-md transition-colors",
               "hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-              onActivityClick ? "cursor-pointer" : "cursor-default",
+              navigable ? "cursor-pointer" : "cursor-default",
             )}
-            onClick={() => onActivityClick?.(activity)}
+            onClick={() => {
+              if (navigable) onActivityClick?.(activity);
+            }}
           >
             <div className="flex items-start gap-3">
               <div

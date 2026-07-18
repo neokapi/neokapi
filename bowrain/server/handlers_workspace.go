@@ -19,9 +19,11 @@ import (
 
 // WorkspaceRequest is the request body for creating/updating a workspace.
 type WorkspaceRequest struct {
-	Name                string                     `json:"name"`
-	Slug                string                     `json:"slug"`
-	Description         string                     `json:"description,omitempty"`
+	Name string `json:"name"`
+	Slug string `json:"slug"`
+	// Description is a pointer so an omitted field leaves the value untouched,
+	// while an explicit "" clears the description (rename form can blank it).
+	Description         *string                    `json:"description,omitempty"`
 	LogoURL             string                     `json:"logo_url,omitempty"`
 	DashboardVisibility string                     `json:"dashboard_visibility,omitempty"`
 	PulseTermSources    *platauth.PulseTermSources `json:"pulse_term_sources,omitempty"`
@@ -69,10 +71,14 @@ func (s *Server) HandleCreateWorkspace(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "slug is required"})
 	}
 
+	description := ""
+	if req.Description != nil {
+		description = *req.Description
+	}
 	w := &platauth.Workspace{
 		Name:        req.Name,
 		Slug:        req.Slug,
-		Description: req.Description,
+		Description: description,
 		LogoURL:     req.LogoURL,
 	}
 
@@ -218,8 +224,8 @@ func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 		}
 		w.Slug = req.Slug
 	}
-	if req.Description != "" {
-		w.Description = req.Description
+	if req.Description != nil {
+		w.Description = *req.Description
 	}
 	if req.LogoURL != "" {
 		w.LogoURL = req.LogoURL

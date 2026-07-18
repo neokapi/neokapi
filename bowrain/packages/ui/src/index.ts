@@ -391,6 +391,7 @@ export type {
   SkippedFile,
   UploadFilesResult,
   ConfigResponse,
+  ProviderTypeInfo,
   PublicPlatformConfig,
   PlatformModel,
   PlatformMaintenance,

@@ -65,6 +65,11 @@ type ConnectorConfig struct {
 	Config      map[string]string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	// LastSyncAt is the timestamp of the last successful fetch/publish through
+	// this connector, recorded server-side (TouchLastSync). Zero when the
+	// connector has never synced — the status path reports it as "never synced"
+	// instead of the connector's own fabricated wall-clock time.
+	LastSyncAt time.Time
 }
 
 // ConnectorConfigStore persists connector configurations, sealing secret fields
@@ -189,7 +194,7 @@ func (s *ConnectorConfigStore) Get(ctx context.Context, workspaceID, configID st
 		fn(&o)
 	}
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, workspace_id, type, name, config, created_at, updated_at
+		`SELECT id, workspace_id, type, name, config, created_at, updated_at, last_sync_at
 		 FROM connector_configs WHERE workspace_id=$1 AND id=$2`, workspaceID, configID)
 	return s.scan(row, o.redact)
 }
@@ -198,7 +203,7 @@ func (s *ConnectorConfigStore) Get(ctx context.Context, workspaceID, configID st
 // REDACTED — the read that backs the connectors listing. Never returns secrets.
 func (s *ConnectorConfigStore) List(ctx context.Context, workspaceID string) ([]ConnectorConfig, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, workspace_id, type, name, config, created_at, updated_at
+		`SELECT id, workspace_id, type, name, config, created_at, updated_at, last_sync_at
 		 FROM connector_configs WHERE workspace_id=$1 ORDER BY name, id`, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("list connector configs: %w", err)
@@ -211,12 +216,26 @@ func (s *ConnectorConfigStore) List(ctx context.Context, workspaceID string) ([]
 // server re-instantiates each connector; it is never exposed to a client.
 func (s *ConnectorConfigStore) ListAll(ctx context.Context) ([]ConnectorConfig, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, workspace_id, type, name, config, created_at, updated_at
+		`SELECT id, workspace_id, type, name, config, created_at, updated_at, last_sync_at
 		 FROM connector_configs ORDER BY workspace_id, id`)
 	if err != nil {
 		return nil, fmt.Errorf("list all connector configs: %w", err)
 	}
 	return s.scanRows(rows, false)
+}
+
+// TouchLastSync stamps a connector's last successful sync time, scoped to the
+// workspace. Called after a successful fetch/publish so the status path can
+// report a real timestamp instead of the connector's fabricated wall-clock time.
+// A no-op (nil) when nothing matched — a missing row is not worth failing a sync.
+func (s *ConnectorConfigStore) TouchLastSync(ctx context.Context, workspaceID, configID string, t time.Time) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE connector_configs SET last_sync_at=$1 WHERE workspace_id=$2 AND id=$3`,
+		t.UTC().Format(time.RFC3339), workspaceID, configID)
+	if err != nil {
+		return fmt.Errorf("touch connector last_sync_at: %w", err)
+	}
+	return nil
 }
 
 // Delete removes a connector config scoped to the workspace. Returns
@@ -272,8 +291,8 @@ func (s *ConnectorConfigStore) scanRows(rows *sql.Rows, redact bool) ([]Connecto
 // or decrypted (secrets in plaintext), per redact.
 func (s *ConnectorConfigStore) scan(sc storage.Scanner, redact bool) (ConnectorConfig, error) {
 	var cfg ConnectorConfig
-	var configJSON, createdStr, updatedStr string
-	err := sc.Scan(&cfg.ID, &cfg.WorkspaceID, &cfg.Type, &cfg.Name, &configJSON, &createdStr, &updatedStr)
+	var configJSON, createdStr, updatedStr, lastSyncStr string
+	err := sc.Scan(&cfg.ID, &cfg.WorkspaceID, &cfg.Type, &cfg.Name, &configJSON, &createdStr, &updatedStr, &lastSyncStr)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ConnectorConfig{}, ErrConnectorConfigNotFound
 	}
@@ -282,6 +301,10 @@ func (s *ConnectorConfigStore) scan(sc storage.Scanner, redact bool) (ConnectorC
 	}
 	cfg.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
 	cfg.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+	// last_sync_at is "" until the first successful sync; leave the zero value.
+	if lastSyncStr != "" {
+		cfg.LastSyncAt, _ = time.Parse(time.RFC3339, lastSyncStr)
+	}
 
 	stored := map[string]string{}
 	if err := json.Unmarshal([]byte(configJSON), &stored); err != nil {

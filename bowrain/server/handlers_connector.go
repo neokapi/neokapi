@@ -2,11 +2,12 @@ package server
 
 import (
 	"context"
-	"net/url"
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/billing"
@@ -106,7 +107,6 @@ func (s *Server) rehydrateConnectors(ctx context.Context) {
 		slog.Info("connector rehydration complete", "count", rehydrated)
 	}
 }
-
 
 // connectorIDParam returns the :id path parameter percent-decoded. Echo hands
 // back the raw matched segment, and connector ids can carry characters the
@@ -369,6 +369,7 @@ func (s *Server) HandleFetch(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
+	s.touchConnectorLastSync(c.Request().Context(), wsID, connID)
 
 	return c.JSON(http.StatusOK, map[string]int{"items_fetched": len(items)})
 }
@@ -394,6 +395,7 @@ func (s *Server) HandlePublish(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
+	s.touchConnectorLastSync(c.Request().Context(), wsID, connID)
 
 	return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 }
@@ -403,11 +405,32 @@ func (s *Server) HandleConnectorStatus(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 	wsID, _ := c.Get("workspace_id").(string)
-	status, err := s.Services.Connector.ConnectorStatus(c.Request().Context(), wsID, connectorIDParam(c))
+	connID := connectorIDParam(c)
+	status, err := s.Services.Connector.ConnectorStatus(c.Request().Context(), wsID, connID)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
+	// Replace the connector's own (fabricated) LastSync with the authoritative
+	// stored timestamp: the real time of the last successful fetch/publish, or a
+	// zero value the client renders as "never synced" until the first sync.
+	if s.ConnectorConfigStore != nil {
+		if cfg, cfgErr := s.ConnectorConfigStore.Get(c.Request().Context(), wsID, connID); cfgErr == nil {
+			status.LastSync = cfg.LastSyncAt
+		}
+	}
 	return c.JSON(http.StatusOK, status)
+}
+
+// touchConnectorLastSync records a successful sync time for a connector, best
+// effort: a nil store (standalone) or a missing row must never fail the sync
+// that just succeeded, so errors are logged and swallowed.
+func (s *Server) touchConnectorLastSync(ctx context.Context, wsID, connID string) {
+	if s.ConnectorConfigStore == nil {
+		return
+	}
+	if err := s.ConnectorConfigStore.TouchLastSync(ctx, wsID, connID, time.Now().UTC()); err != nil {
+		slog.WarnContext(ctx, "record connector last-sync", "connector", connID, "error", err)
+	}
 }
 
 // contentListResponse wraps the content items so the payload has a stable

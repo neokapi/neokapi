@@ -48,12 +48,14 @@ export function BinRoute() {
 
   return (
     <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
+      {/* No server-side auto-purge of archived projects exists today, so we don't
+          claim a retention window: projects are kept until manually deleted.
+          Pass a positive retentionDays here once a purge policy is enforced. */}
       <RecycleBinView
         projects={projects ?? []}
         loading={isFetching}
         onRestoreProject={handleRestore}
         onPermanentlyDelete={setDeleteProjectId}
-        retentionDays={30}
       />
 
       <ConfirmDialog

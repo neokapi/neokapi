@@ -460,6 +460,20 @@ export interface ConfigResponse {
    * queue); without it the hosted-scan entry points are hidden.
    */
   features?: { brand_scan?: boolean };
+  /**
+   * AI providers a workspace admin can configure with credentials, sourced from
+   * the framework provider registry (GET /api/v1/info) so the settings UI never
+   * re-declares the Go provider constants.
+   */
+  provider_types?: ProviderTypeInfo[];
+}
+
+/** A configurable AI provider (from the framework provider registry). */
+export interface ProviderTypeInfo {
+  name: string;
+  label: string;
+  /** false for local/keyless providers (e.g. Ollama) — hides the API-key field. */
+  needs_key: boolean;
 }
 
 /** A platform AI model the admin has onboarded (public-safe subset). */
