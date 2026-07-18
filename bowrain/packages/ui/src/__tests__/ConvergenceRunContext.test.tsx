@@ -102,3 +102,24 @@ describe("ConvergenceRunContext awaiting review", () => {
     expect(screen.queryByText("20 blocks awaiting review")).not.toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// No-target-locales configuration hold (never a silent "Up to date")
+// ---------------------------------------------------------------------------
+
+describe("ConvergenceRunContext no target languages", () => {
+  it("labels a no_target_locales park with the configuration banner", () => {
+    const run = makeRun({
+      state: "parked",
+      stall_reason: "no_target_locales",
+      passes: 0,
+      locales: [],
+    });
+    render(<ConvergenceRunContext run={run} />);
+
+    expect(screen.getByText("No target languages configured")).toBeInTheDocument();
+    expect(screen.getByText(/nothing to converge toward/)).toBeInTheDocument();
+    // Not the generic pending-review park: the next action is configuration.
+    expect(screen.queryByText("Parked — pending review")).not.toBeInTheDocument();
+  });
+});

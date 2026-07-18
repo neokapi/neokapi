@@ -126,7 +126,23 @@ func (s *ConnectorService) ListContent(ctx context.Context, workspaceID, connect
 	return c.List(ctx)
 }
 
-// Fetch retrieves content from a connector and stores it in the project.
+// Fetch retrieves content from a connector and stores it in the project —
+// per item, with the item bookkeeping every other ingest venue writes.
+//
+// Each fetched ContentItem upserts an item row and stores its blocks scoped to
+// that item (StoreBlocksForItem), matching the editor-upload, sync-push, and
+// desktop ingest paths. The item rows are load-bearing, not cosmetic: the
+// dashboard stats (GetBlockStats), the convergence derive/produce steps (jobs
+// are enqueued per item), and forge delivery (per-item materialization) all
+// resolve a project's content through its items — blocks stored item-less were
+// invisible to them, so a freshly bound GitHub repository read "Up to date"
+// with zero targets and delivered nothing. Per-item storage also keeps
+// format-reader block IDs (per-file scope) from colliding across files: the
+// store maps each item's source IDs to project-unique internal IDs.
+//
+// Each item stores in its own transaction; re-fetching is idempotent (items
+// upsert by name, blocks by their per-item source IDs), so a partial failure
+// heals on the next ingest.
 func (s *ConnectorService) Fetch(ctx context.Context, workspaceID, connectorID, projectID string, opts connector.FetchOptions) ([]*connector.ContentItem, error) {
 	if projectID == "" {
 		return nil, ErrProjectIDRequired
@@ -141,19 +157,42 @@ func (s *ConnectorService) Fetch(ctx context.Context, workspaceID, connectorID, 
 		return nil, fmt.Errorf("fetch from %s: %w", connectorID, err)
 	}
 
-	// Collect all blocks and store them in a single call so the underlying
-	// transaction is atomic — either all blocks are persisted or none are.
-	var allBlocks []*model.Block
 	for _, item := range items {
-		allBlocks = append(allBlocks, item.Blocks...)
-	}
-	if len(allBlocks) > 0 {
-		if err := s.store.StoreBlocks(ctx, projectID, "main", allBlocks); err != nil {
-			return nil, fmt.Errorf("store fetched blocks: %w", err)
+		name := connectorItemName(item)
+		if name == "" || len(item.Blocks) == 0 {
+			continue // nothing addressable or nothing translatable to store
+		}
+		if err := s.store.StoreItem(ctx, projectID, "main", &store.Item{
+			Name:       name,
+			Format:     item.Format,
+			ItemType:   "file",
+			Properties: map[string]string{},
+		}); err != nil {
+			return nil, fmt.Errorf("store fetched item %q: %w", name, err)
+		}
+		if err := s.store.StoreBlocksForItem(ctx, projectID, "main", name, item.Blocks); err != nil {
+			return nil, fmt.Errorf("store fetched blocks for %q: %w", name, err)
 		}
 	}
 
 	return items, nil
+}
+
+// connectorItemName resolves the store item name for a fetched ContentItem:
+// the source-relative Path when the connector reports one (file/git/forge —
+// unique, and what delivery derives target paths from), else the item's Name,
+// else its ID (CMS connectors address content by ID).
+func connectorItemName(item *connector.ContentItem) string {
+	if item == nil {
+		return ""
+	}
+	if item.Path != "" {
+		return item.Path
+	}
+	if item.Name != "" {
+		return item.Name
+	}
+	return item.ID
 }
 
 // Publish sends content from the store to a connector.

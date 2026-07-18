@@ -104,6 +104,13 @@ const (
 	// epic 019). The run creates a source-review task and parks; settling the
 	// source (or lowering `defaults.source_gate`) lets the next run translate.
 	StallSourceNotReady StallReason = "source_not_ready"
+	// StallNoTargetLocales: the project has no configured target languages, so
+	// there is no locale to converge toward. This is a configuration hold, not
+	// an up-to-date state — a run over N source blocks with zero target locales
+	// must never read "converged". Adding a target language (and pushing/running
+	// again) lets the next run derive real pending work. The local venue refuses
+	// to start with the same message ("no target languages configured").
+	StallNoTargetLocales StallReason = "no_target_locales"
 )
 
 // Event is one progress event of a convergence run — the single protocol every

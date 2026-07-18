@@ -11,6 +11,7 @@ import type { ConvergenceRun } from "../types/api";
  *
  *  - source_not_ready → "Source not ready — settle N blocks" + Review source
  *  - needs_credits    → "Out of credits — N AI units remaining" + Buy credits
+ *  - no_target_locales → "No target languages configured" (add one in settings)
  *  - parked (checks)  → "Parked — open review"
  *  - running w/ frozen last_activity → "waiting…"
  *
@@ -216,6 +217,16 @@ function stallBanner(
         variant="destructive"
         title="AI provider unavailable"
         body="The run could not reach an AI provider. This is a workspace configuration issue."
+      />
+    );
+  }
+
+  if (reason === "no_target_locales") {
+    return (
+      <BannerAlert
+        variant="warning"
+        title="No target languages configured"
+        body="This project has no target languages, so there is nothing to converge toward. Add a target language in the project settings; the next run will translate into it."
       />
     );
   }

@@ -478,6 +478,33 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 		if err := rows.Err(); err != nil {
 			return fmt.Errorf("source_id mapping rows: %w", err)
 		}
+
+		// Adopt legacy item-less rows: the historical connector-ingest path
+		// stored fetched blocks with item_name='' under their raw format-reader
+		// IDs. When this item stores a reader ID it does not already map, claim
+		// the orphaned row for the item (stamping item_name + source_id) instead
+		// of minting a duplicate internal ID — the row, its targets, and its
+		// history heal in place, and the adopted row is picked up by the hash
+		// query below like any other item-scoped block.
+		adopt, err := tx.PrepareContext(ctx,
+			`UPDATE blocks SET item_name=?, source_id=? WHERE project_id=? AND id=? AND item_name=''`)
+		if err != nil {
+			return fmt.Errorf("prepare legacy adoption: %w", err)
+		}
+		for _, b := range blocks {
+			if _, mapped := existingSourceIDs[b.ID]; mapped {
+				continue
+			}
+			res, err := adopt.ExecContext(ctx, itemName, b.ID, projectID, b.ID)
+			if err != nil {
+				adopt.Close()
+				return fmt.Errorf("adopt legacy block %s: %w", b.ID, err)
+			}
+			if n, _ := res.RowsAffected(); n > 0 {
+				existingSourceIDs[b.ID] = b.ID
+			}
+		}
+		adopt.Close()
 	}
 
 	stmt, err := tx.PrepareContext(ctx,

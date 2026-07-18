@@ -111,6 +111,48 @@ func TestStoreBlocks_MultipleBlocksMixedClassification(t *testing.T) {
 	assert.Contains(t, byBlock, "b2:source_added")
 }
 
+// TestStoreBlocksForItem_AdoptsLegacyItemlessRows: the historical
+// connector-ingest path stored fetched blocks with an empty item_name under
+// their raw format-reader IDs, invisible to the item-scoped
+// stats/jobs/delivery paths.
+// When the (fixed) ingest re-stores the same content per item, the store must
+// ADOPT the orphaned row — same internal ID, item_name + source_id stamped,
+// targets preserved — never mint a duplicate that would double the block count
+// and park convergence on phantom failing checks.
+func TestStoreBlocksForItem_AdoptsLegacyItemlessRows(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	// Legacy ingest: item-less block under its reader ID, already translated.
+	legacy := model.NewBlock("greeting", "Hello")
+	legacy.SetTargetText(model.LocaleFrench, "Bonjour")
+	require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{legacy}))
+
+	// The fixed ingest re-stores the same reader block scoped to its item.
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "", "locales/en/app.json",
+		[]*model.Block{model.NewBlock("greeting", "Hello")}))
+
+	blocks, err := s.GetBlocks(ctx, platstore.BlockQuery{ProjectID: p.ID})
+	require.NoError(t, err)
+	require.Len(t, blocks, 1, "the legacy row is adopted, not duplicated")
+	sb := blocks[0]
+	assert.Equal(t, "greeting", sb.Block.ID, "internal ID stays stable")
+	assert.Equal(t, "locales/en/app.json", sb.ItemName)
+	assert.Equal(t, "greeting", sb.SourceID)
+	assert.Equal(t, "Bonjour", sb.Block.TargetText(model.LocaleFrench),
+		"the adopted row keeps its targets")
+
+	// The adopted row is now visible to the item-scoped stats path.
+	require.NoError(t, s.StoreItem(ctx, p.ID, "", &platstore.Item{
+		Name: "locales/en/app.json", Format: "json", ItemType: "file",
+	}))
+	stats, err := s.GetBlockStats(ctx, p.ID, "")
+	require.NoError(t, err)
+	require.Len(t, stats, 1)
+	assert.Equal(t, []string{string(model.LocaleFrench)}, stats[0].TargetLocales)
+}
+
 // TestGetBlockStats_ApprovedLocales exercises the SQLite status-extraction
 // path (json_extract on target_json): only targets whose status carries a
 // review decision (reviewed / signed-off) land in ApprovedLocales.
