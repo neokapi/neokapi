@@ -85,6 +85,18 @@ function activityColor(type: string): string {
   return "text-muted-foreground";
 }
 
+/**
+ * Defensive truncation for activity summaries. Current push activities carry a
+ * compact "pushed N files · M blocks" summary, but historical rows recorded
+ * before that fix stored the full comma-joined path list — hundreds of paths in
+ * one string. Cap the rendered length so no single row becomes a wall of text.
+ */
+const SUMMARY_MAX = 200;
+function truncateSummary(summary: string): string {
+  if (summary.length <= SUMMARY_MAX) return summary;
+  return summary.slice(0, SUMMARY_MAX).trimEnd() + "…";
+}
+
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
@@ -123,7 +135,7 @@ export function ActivityFeed({
     <div className="space-y-1">
       {activities.map((activity) => {
         const isAgent = isAgentActivity(activity.type);
-        const summary = isAgent ? agentSummary(activity) : activity.summary;
+        const summary = truncateSummary(isAgent ? agentSummary(activity) : activity.summary);
         const actor = actorName(activity);
         const navigable = !!onActivityClick && (canNavigate ? canNavigate(activity) : true);
 

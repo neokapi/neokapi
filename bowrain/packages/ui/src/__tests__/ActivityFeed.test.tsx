@@ -79,4 +79,29 @@ describe("ActivityFeed", () => {
     render(<ActivityFeed activities={[activity]} />);
     expect(screen.getByText("System")).toBeInTheDocument();
   });
+
+  it("renders the compact push summary verbatim", () => {
+    const activity = makeActivity({
+      type: "item.pushed",
+      summary: "pushed 474 files · 20,345 blocks",
+    });
+    render(<ActivityFeed activities={[activity]} />);
+    expect(screen.getByText("pushed 474 files · 20,345 blocks")).toBeInTheDocument();
+  });
+
+  it("truncates a legacy wall-of-paths summary so no row is a wall of text", () => {
+    // A historical row that enumerated every pushed path in one string.
+    const paths = Array.from({ length: 300 }, (_, i) => `web/docs/section-${i}/page.md`);
+    const legacy = "pushed " + paths.join(", ");
+    const activity = makeActivity({ id: "legacy", type: "item.pushed", summary: legacy });
+    const { container } = render(<ActivityFeed activities={[activity]} />);
+
+    const summaryEl = container.querySelector("p.text-sm span.text-muted-foreground");
+    expect(summaryEl).not.toBeNull();
+    const text = summaryEl!.textContent ?? "";
+    expect(text.length).toBeLessThanOrEqual(201); // 200 chars + ellipsis
+    expect(text.endsWith("…")).toBe(true);
+    // The full list is not rendered.
+    expect(text).not.toContain("section-299");
+  });
 });

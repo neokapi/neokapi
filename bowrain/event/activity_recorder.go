@@ -2,7 +2,10 @@ package event
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"strconv"
+	"strings"
 	"time"
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -83,10 +86,7 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 	case platev.EventPushCompleted:
 		a.Type = bstore.ActivityItemPushed
 		a.EntityType = "item"
-		a.Summary = "pushed content"
-		if items := ev.Data["items"]; items != "" {
-			a.Summary = "pushed " + items
-		}
+		a.Summary = pushSummary(ev.Data)
 	case platev.EventPullCompleted:
 		a.Type = bstore.ActivityItemPulled
 		a.EntityType = "item"
@@ -191,4 +191,83 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 	}
 
 	return a
+}
+
+// pushSummary builds a compact, human-readable summary for a completed push.
+//
+// It prefers the structured counts the sync worker now emits
+// ("files_count"/"blocks_count") and renders e.g. "pushed 474 files · 20,345
+// blocks", so the activity feed never enumerates every pushed path. When those
+// fields are absent (an older event shape), it falls back to counting the
+// comma-joined "items" list rather than embedding it verbatim.
+func pushSummary(data map[string]string) string {
+	files := atoiOr(data["files_count"], -1)
+	if files < 0 {
+		// Legacy event: derive the file count from the joined item list.
+		if items := data["items"]; items != "" {
+			files = len(strings.Split(items, ","))
+		} else {
+			files = 0
+		}
+	}
+	blocks := atoiOr(data["blocks_count"], -1)
+
+	if files == 0 {
+		return "pushed content"
+	}
+
+	s := "pushed " + pluralCount(files, "file")
+	if blocks >= 0 {
+		s += " · " + pluralCount(blocks, "block")
+	}
+	return s
+}
+
+// pluralCount renders a count with a thousands-separated number and a
+// naively-pluralized noun, e.g. pluralCount(1, "file") == "1 file" and
+// pluralCount(20345, "block") == "20,345 blocks".
+func pluralCount(n int, noun string) string {
+	unit := noun
+	if n != 1 {
+		unit += "s"
+	}
+	return fmt.Sprintf("%s %s", groupThousands(n), unit)
+}
+
+// groupThousands formats a non-negative integer with comma thousands
+// separators (e.g. 20345 -> "20,345").
+func groupThousands(n int) string {
+	s := strconv.Itoa(n)
+	neg := ""
+	if n < 0 {
+		neg = "-"
+		s = s[1:]
+	}
+	if len(s) <= 3 {
+		return neg + s
+	}
+	var b strings.Builder
+	pre := len(s) % 3
+	if pre > 0 {
+		b.WriteString(s[:pre])
+	}
+	for i := pre; i < len(s); i += 3 {
+		if b.Len() > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(s[i : i+3])
+	}
+	return neg + b.String()
+}
+
+// atoiOr parses s as an int, returning def when s is empty or invalid.
+func atoiOr(s string, def int) int {
+	if s == "" {
+		return def
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return def
+	}
+	return n
 }
