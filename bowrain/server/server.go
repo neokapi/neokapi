@@ -675,7 +675,10 @@ func NewServer(cfg Config) *Server {
 		// Fan-out: when instance-wide platform config changes in ctrl (on any
 		// server/worker), every instance reloads its cached settings so the
 		// change propagates cluster-wide without a redeploy. Subscribe (not
-		// SubscribeGroup) so all instances react.
+		// SubscribeGroup) so all instances react. Fine-to-miss: this only
+		// refreshes a cache that is loaded fresh at startup and re-read on the
+		// next change event — no state advances here, so an event lost during a
+		// rollover cannot strand work.
 		if s.PlatformConfig != nil && s.PlatformConfig.Persistent() {
 			s.EventBus.Subscribe(platev.EventPlatformConfigChanged, func(platev.Event) {
 				if err := s.PlatformConfig.Refresh(context.Background()); err != nil {

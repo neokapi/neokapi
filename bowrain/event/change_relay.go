@@ -90,6 +90,9 @@ func NewChangeRelay(bus platev.EventBus, resolver ProjectWorkspaceResolver) *Cha
 		clients:  make(map[string]*relayClient),
 	}
 	if bus != nil {
+		// Fan-out SubscribeAll (not a group) is correct and fine-to-miss: the
+		// relay only forwards live freshness signals to currently-connected
+		// SSE/gRPC clients; a reconnecting client re-reads state on attach.
 		r.sub = bus.SubscribeAll(r.dispatch)
 	}
 	return r

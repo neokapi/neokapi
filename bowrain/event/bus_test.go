@@ -37,6 +37,37 @@ func TestPublishSubscribe(t *testing.T) {
 	mu.Unlock()
 }
 
+// TestSubscribeGroupReceivesAllTypes pins the in-proc bus's group semantics to
+// the Redis bus's: a group handler receives EVERY event type and filters
+// itself (there is no bus-side type filter on a group subscription). The
+// type-dispatching group consumers (convergence-onpush, forge-delivery, audit,
+// automations, …) rely on this so compose/dev behaves like production.
+func TestSubscribeGroupReceivesAllTypes(t *testing.T) {
+	bus := NewChannelEventBus()
+	defer bus.Close()
+
+	var mu sync.Mutex
+	var types []platev.EventType
+	bus.SubscribeGroup("group-a", func(e platev.Event) {
+		mu.Lock()
+		types = append(types, e.Type)
+		mu.Unlock()
+	})
+
+	bus.Publish(platev.Event{Type: platev.EventBlockCreated})
+	bus.Publish(platev.Event{Type: platev.EventBlockUpdated})
+
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(types) == 2
+	}, 2*time.Second, 10*time.Millisecond)
+
+	mu.Lock()
+	assert.ElementsMatch(t, []platev.EventType{platev.EventBlockCreated, platev.EventBlockUpdated}, types)
+	mu.Unlock()
+}
+
 func TestSubscribeAll(t *testing.T) {
 	bus := NewChannelEventBus()
 	defer bus.Close()
