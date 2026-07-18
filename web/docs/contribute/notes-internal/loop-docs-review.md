@@ -119,7 +119,7 @@ Bowrain funnel.
 | `kapi/recipes/gate-localization-in-ci.mdx` (Ship gates & CI) | Correct | `kapi check --ship`, exit-non-zero, `ship_gates:` all verified. Source gate mentioned in passing. | Cross-link the source-first section for the "why settle first" rationale. Low priority. |
 | `kapi/recipes/keep-source-on-brand.mdx` (Keep source on brand) | Correct | The source-settle recipe (brand check/rewrite, source QA) — the phase-1 tools. Does not connect to the gate/hold. | Add a closing cross-link: settling source is *phase 1* of the loop → the source ship-gate. Low priority. |
 | `kapi/recipes/translate-content.mdx` (Translate with your AI) | **Done** | No mention that the source must be settled first. | **Done in the follow-up PR:** added one line + link to source-first (source below `source_gate` holds `source_not_ready`, fixed once not once per locale). |
-| `kapi/recipes/review-and-approve.mdx` (Review & approve) | Correct | Target-language review only (`kapi status --review`, `kapi apply kind:review`). | When source review lands CLI-side, add the source-review worklist as a sibling. Follow-up. |
+| `kapi/recipes/review-and-approve.mdx` (Review & approve) | Correct | Target-language review only (`kapi status --review`, `kapi apply kind:review`). | **Done (neokapi#1325):** CLI source-gate parity landed; the page documents the local source-settle loop (hold on `source_not_ready` → settle → re-run). |
 | `kapi/recipes/pre-translate-with-tm.mdx` (Reuse translations) | Correct | TM recycle = phase-2 engine. Accurate. | No change. Optionally note recycle only ever runs on approved source. |
 | `kapi/recipes/machine-ship-strategy.mdx` (Tier gates per market) | Correct | Per-market target tiers, approver classes. Verified against `gates:` registry. | No change. |
 | `kapi/recipes/tm-termbase-storage.mdx` (Where translations & terms live) | Correct | `kind:tm` vs `kind:review`, `defaults.tm_source`/`state`. Accurate. | No change. |
@@ -148,9 +148,9 @@ loop pages.
 | `architecture-decisions/022-convergence-as-a-service.md` (AD-022) | **Done** | Predated source-first: no source-settle phase, no `source_not_ready` stall. | **Done in the follow-up PR:** added decision *1a* (settle → gate → translate approved source), `source_not_ready` + `blocked_on_source` on the run entity, and the estimate endpoint. |
 | `architecture-decisions/014-translator-workflow.md` (AD-014) | **Done** | Documented the source-review gate as an *optional*/bypassed automation option. | **Done in the follow-up PR:** reconciled with AD-022 — the source gate is convergence-enforced (one story); `TaskSourceReview` is the human half of the `source_not_ready` hold. |
 | `architecture-decisions/013-automation-engine.md` (AD-013) | **Done** | `fan-out-after-source-review` default rule; defers to AD-014. | **Done in the follow-up PR:** reframed the rule as "resume a held run"; the on-push note now describes the source-first hold. |
-| `architecture-decisions/015-server-ai-operations.md` (AD-015) | Correct | Translation jobs, extraction, brand voice. TM split not yet truthful server-side (see baseline). | Update the "produce" description once `ViaTM` is real server-side. |
+| `architecture-decisions/015-server-ai-operations.md` (AD-015) | Correct | Translation jobs, extraction, brand voice. | **Done (neokapi#1323):** the produce/worker description now includes the TM-first recycle step and truthful `ViaTM`/`ViaAI` split. |
 | `notes/translator-workflow.md` | Accurate | Implementation detail for AD-014 (events, tasks, tracker). | No change; update alongside AD-022 reconciliation. |
-| `notes/translation-job-queue.md` | Correct | Job model, quotas, worker algorithm. | Update the TM-split note once server `ViaTM` is real. |
+| `notes/translation-job-queue.md` | Correct | Job model, quotas, worker algorithm. | **Done (neokapi#1323):** the TM-first split section reflects `recycleBlocks` + `reconcileSplit`. |
 
 **ASCII diagrams:** none found on the bowrain docs either — flow visuals use the
 diagram kit (`PhaseFlow`, `LanesDiagram`, `PipelineDiagram`, `SwimlaneDiagram`).
@@ -210,15 +210,17 @@ walkthrough-video re-records, which remain open.
   `defaults.source_gate` (the convergence level `checked`/`approved`/`none`) as
   distinct from the top-level `source_gate` coverage bar.
 
-**Deferred back to this note (further follow-ups, not in that PR):**
+**Resolved (2026-07-18):**
 
-- **`kapi/recipes/review-and-approve.mdx`** — add source review as a sibling
-  worklist **once it exists CLI-side**. The source-review worklist is a
-  server/Bowrain surface today; the local CLI `kapi up` has no source-hold or
-  source-review queue yet, so there is nothing kapi-OSS-native to document.
-- **AD-015 / `notes/translation-job-queue.md`** — the server `ViaTM` split is now
-  truthful (`reconcileSplit`), so the "TM split not yet truthful server-side"
-  caveats in those pages can be dropped in a later pass.
+- ✅ **`kapi/recipes/review-and-approve.mdx`** — CLI source-gate parity shipped
+  (neokapi#1325): local `kapi up` now settles + holds on un-ready source
+  (`source_not_ready`) via the shared `check.SettleSourceStatus`, default
+  `checked` (owner decision), `none` to draft freely. The page documents the
+  local source-settle loop (hold → `kapi check --ship` / fix terms·brand·source
+  → `kapi apply` → re-run).
+- ✅ **AD-015 / `notes/translation-job-queue.md`** — TM-split caveats dropped
+  (neokapi#1323): both now describe the truthful server `TM N · AI M`
+  (`reconcileSplit` + the job-pipeline recycle step).
 
 **Open — walkthrough videos to re-record** (out of scope for the docs PR; per
 CLAUDE.md, CLI/UI surface changes):
