@@ -131,7 +131,13 @@ func (s *Server) subscribeConvergeOnPush() {
 // startOnPushRun starts a convergence run for the event's project when its
 // policy is on-push. Shared by the push-completed and new-locale triggers.
 func (s *Server) startOnPushRun(ev platev.Event, trigger string) {
+	// Receipt + every exit reason logged: a silently dropped push event is
+	// indistinguishable from a bus delivery failure without these lines.
+	slog.Info("convergence: push event received",
+		"project", ev.ProjectID, "source", ev.Source, "trigger", trigger)
 	if ev.ProjectID == "" || s.ContentStore == nil || s.convergence == nil {
+		slog.Warn("convergence: on-push skipped",
+			"reason", "missing project id or orchestrator wiring", "project", ev.ProjectID)
 		return
 	}
 	// Event-bus callback: a run is the project's own clock and must outlive
@@ -139,9 +145,13 @@ func (s *Server) startOnPushRun(ev platev.Event, trigger string) {
 	ctx := context.Background()
 	proj, err := s.ContentStore.GetProject(ctx, ev.ProjectID)
 	if err != nil {
+		slog.Warn("convergence: on-push skipped",
+			"reason", "project lookup failed", "project", ev.ProjectID, "error", err)
 		return
 	}
 	if platstore.NormalizeConvergePolicy(proj.ConvergePolicy) != platstore.ConvergePolicyOnPush {
+		slog.Info("convergence: on-push skipped",
+			"reason", "policy is manual", "project", ev.ProjectID, "policy", proj.ConvergePolicy)
 		return // manual: no run
 	}
 	if _, _, err := s.convergence.StartRun(ctx, ev.ProjectID, trigger, nil); err != nil {
