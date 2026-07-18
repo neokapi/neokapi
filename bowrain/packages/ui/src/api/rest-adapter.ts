@@ -229,6 +229,27 @@ interface ConnectorSyncStatusDTO {
  */
 export type ApiTransport = (input: string, init?: RequestInit) => Promise<Response>;
 
+/**
+ * Build the Error thrown on a non-OK response, preserving the historical
+ * `"<status>: <body>"` message (parseAppError depends on it) while attaching
+ * the correlation `reference` and `status` as structured fields.
+ *
+ * The reference is read from the `X-Request-ID` response header so it is
+ * available even when the body is not our JSON envelope (gateway 502s, empty
+ * bodies, text/blob endpoints). For JSON error bodies the `reference` field is
+ * also present in the body, so parseAppError recovers it either way.
+ */
+function httpError(resp: Response, body: string): Error {
+  const err = new Error(`${resp.status}: ${body}`) as Error & {
+    status?: number;
+    reference?: string;
+  };
+  err.status = resp.status;
+  const ref = resp.headers.get("X-Request-ID");
+  if (ref) err.reference = ref;
+  return err;
+}
+
 export class RestApiAdapter implements ApiAdapter {
   private baseUrl: string;
   private token: string | null;
@@ -329,7 +350,7 @@ export class RestApiAdapter implements ApiAdapter {
         });
         if (!retry.ok) {
           const body = await retry.text();
-          throw new Error(`${retry.status}: ${body}`);
+          throw httpError(retry, body);
         }
         if (retry.status === 204) return undefined as T;
         return retry.json();
@@ -341,7 +362,7 @@ export class RestApiAdapter implements ApiAdapter {
     }
     if (!resp.ok) {
       const body = await resp.text();
-      throw new Error(`${resp.status}: ${body}`);
+      throw httpError(resp, body);
     }
     if (resp.status === 204) return undefined as T;
     return resp.json();
@@ -358,7 +379,7 @@ export class RestApiAdapter implements ApiAdapter {
     });
     if (!resp.ok) {
       const body = await resp.text();
-      throw new Error(`${resp.status}: ${body}`);
+      throw httpError(resp, body);
     }
     return resp.blob();
   }
@@ -390,7 +411,7 @@ export class RestApiAdapter implements ApiAdapter {
         });
         if (!retry.ok) {
           const body = await retry.text();
-          throw new Error(`${retry.status}: ${body}`);
+          throw httpError(retry, body);
         }
         return retry.text();
       }
@@ -399,7 +420,7 @@ export class RestApiAdapter implements ApiAdapter {
     }
     if (!resp.ok) {
       const body = await resp.text();
-      throw new Error(`${resp.status}: ${body}`);
+      throw httpError(resp, body);
     }
     return resp.text();
   }
@@ -994,7 +1015,7 @@ export class RestApiAdapter implements ApiAdapter {
     });
     if (!resp.ok) {
       const body = await resp.text();
-      throw new Error(`${resp.status}: ${body}`);
+      throw httpError(resp, body);
     }
     return resp.json();
   }
@@ -1246,7 +1267,7 @@ export class RestApiAdapter implements ApiAdapter {
     });
     if (!resp.ok) {
       const body = await resp.text();
-      throw new Error(`${resp.status}: ${body}`);
+      throw httpError(resp, body);
     }
     return resp.json();
   }
@@ -2325,7 +2346,7 @@ export class RestApiAdapter implements ApiAdapter {
     });
     if (!resp.ok) {
       const body = await resp.text();
-      throw new Error(`${resp.status}: ${body}`);
+      throw httpError(resp, body);
     }
     return resp.json();
   }

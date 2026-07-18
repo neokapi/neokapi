@@ -9,6 +9,7 @@ import {
   Shield,
   Tag,
   SlidersHorizontal,
+  HeartPulse,
 } from "lucide-react";
 import {
   Sidebar,
@@ -31,6 +32,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { path: "/", label: "Dashboard", icon: <LayoutDashboard /> },
+  { path: "/health", label: "Health", icon: <HeartPulse /> },
   { path: "/workspaces", label: "Workspaces", icon: <Building2 /> },
   { path: "/users", label: "Users", icon: <Users /> },
   { path: "/events", label: "Events", icon: <Activity /> },

@@ -337,6 +337,53 @@ export function updatePlatformConfig(
 }
 
 // ---------------------------------------------------------------------------
+// Health / observability
+// ---------------------------------------------------------------------------
+
+export interface AIProviderStatus {
+  name: string;
+  model?: string;
+  configured: boolean;
+}
+
+export interface ComponentStatus {
+  status: string; // "up" | "down" | "unconfigured"
+  type?: string;
+  latency_ms?: number;
+  providers?: AIProviderStatus[];
+  error?: string;
+}
+
+export interface Readiness {
+  status: string; // "ready" | "degraded" | "unhealthy"
+  version: string;
+  components: Record<string, ComponentStatus>;
+}
+
+export interface WorkerHealth {
+  reachable: boolean;
+  status?: string;
+  components?: Record<string, { status: string; error?: string }>;
+  error?: string;
+}
+
+export interface ObservabilityLinks {
+  sentry?: string;
+  posthog?: string;
+  cloudwatch?: string;
+}
+
+export interface AdminHealth {
+  server: Readiness;
+  worker?: WorkerHealth;
+  links: ObservabilityLinks;
+}
+
+export function getHealth(): Promise<AdminHealth> {
+  return request("/health");
+}
+
+// ---------------------------------------------------------------------------
 // Workspace slug reservations (rename grace period)
 // ---------------------------------------------------------------------------
 

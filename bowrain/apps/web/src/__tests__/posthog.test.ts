@@ -38,6 +38,12 @@ describe("posthog integration", () => {
       capture_pageview: false,
       capture_pageleave: true,
       autocapture: true,
+      // Session replay, privacy-first (all inputs masked).
+      disable_session_recording: false,
+      session_recording: {
+        maskAllInputs: true,
+        maskTextSelector: "[data-sensitive]",
+      },
     });
   });
 

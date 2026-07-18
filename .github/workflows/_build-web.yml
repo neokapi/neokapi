@@ -24,6 +24,11 @@ jobs:
         env:
           VITE_POSTHOG_KEY: phc_9TMOqaMSUH5wE6xPTeTKjYBBJWVRdzOlUMahZAr7twD
           VITE_POSTHOG_HOST: https://eu.i.posthog.com
+          # Sentry DSN is publish-safe (it ships in the browser bundle by
+          # design), so it is baked in at build time — the same as the PostHog
+          # key above. This is the "inject on deploy to S3" point: the build
+          # runs in the deploy pipeline, then the dist is synced to S3.
+          VITE_SENTRY_DSN: https://5a70f1f43a8bbeb81ccb3b88445909be@o4511753590538240.ingest.de.sentry.io/4511753715318864
         run: vp run build
 
       - name: Upload web artifacts

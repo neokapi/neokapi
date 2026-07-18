@@ -25,6 +25,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/observe"
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
 	"github.com/neokapi/neokapi/bowrain/server"
+	"github.com/neokapi/neokapi/core/version"
 )
 
 func main() {
@@ -33,6 +34,10 @@ func main() {
 		os.Getenv("BOWRAIN_LOG_FORMAT"),
 		os.Getenv("BOWRAIN_LOG_LEVEL"),
 	)
+
+	// Error tracking (no-op without SENTRY_DSN). Flushed at the end of run(),
+	// which returns before main's os.Exit so buffered events are not lost.
+	observe.InitSentryFromEnv("server", version.Version+"+"+version.Commit)
 
 	if err := run(); err != nil {
 		slog.Error("server failed", "error", err)
@@ -89,6 +94,10 @@ func acceptStripeValue(envVar string, valid func(string) bool, want string) stri
 }
 
 func run() error {
+	// Flush buffered Sentry events before the process exits (main calls os.Exit
+	// after run returns, which would skip a main-level defer).
+	defer observe.FlushSentry(2 * time.Second)
+
 	cfg := server.DefaultConfig()
 
 	flag.IntVar(&cfg.Port, "port", cfg.Port, "HTTP port to listen on")

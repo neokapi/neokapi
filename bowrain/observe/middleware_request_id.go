@@ -22,9 +22,12 @@ func RequestIDMiddleware() echo.MiddlewareFunc {
 			c.Response().Header().Set(RequestIDHeader, reqID)
 			c.Set("request_id", reqID)
 
-			// Create a child logger with request_id and store in context.
+			// Store the ID as a plain context value so ContextHandler stamps it
+			// onto every *Context log record, and keep the child logger for
+			// callers that use observe.Logger(ctx) directly.
+			ctx := WithRequestID(c.Request().Context(), reqID)
 			childLogger := slog.Default().With("request_id", reqID)
-			ctx := WithLogger(c.Request().Context(), childLogger)
+			ctx = WithLogger(ctx, childLogger)
 			c.SetRequest(c.Request().WithContext(ctx))
 
 			return next(c)

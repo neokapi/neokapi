@@ -24,6 +24,12 @@ export interface AppError {
   code?: string;
   /** HTTP status, when it could be derived. */
   status?: number;
+  /**
+   * Per-request correlation ID (server `reference` field / `X-Request-ID`
+   * header). The one ID a user can quote so support can drill down to the
+   * exact server logs and Sentry issue. Shown by ErrorNotice.
+   */
+  reference?: string;
 }
 
 const GENERIC_TITLE = "Something went wrong";
@@ -171,6 +177,7 @@ function fromRestEnvelope(obj: Record<string, unknown>, status?: number, depth =
   const message = String(obj.error);
   const code = typeof obj.code === "string" ? obj.code : undefined;
   const details = typeof obj.details === "string" ? obj.details : undefined;
+  const reference = typeof obj.reference === "string" ? obj.reference : undefined;
   // Nested envelopes get exactly one parse attempt overall.
   if (depth === 0) {
     const nested = tryParseJson(message);
@@ -193,6 +200,7 @@ function fromRestEnvelope(obj: Record<string, unknown>, status?: number, depth =
       raw: obj,
       code,
       status,
+      reference,
     };
   }
   return {
@@ -202,6 +210,7 @@ function fromRestEnvelope(obj: Record<string, unknown>, status?: number, depth =
     raw: obj,
     code,
     status,
+    reference,
   };
 }
 
@@ -314,7 +323,15 @@ export function parseAppError(input: unknown, fallbackTitle: string = GENERIC_TI
   if (input instanceof Error) {
     const result = fromString(input.message, fallbackTitle);
     // Pick up structured fields some call sites attach to Error instances.
-    const carrier = input as Error & { status?: unknown; code?: unknown; cause?: unknown };
+    const carrier = input as Error & {
+      status?: unknown;
+      code?: unknown;
+      cause?: unknown;
+      reference?: unknown;
+    };
+    if (result.reference === undefined && typeof carrier.reference === "string") {
+      result.reference = carrier.reference;
+    }
     if (result.status === undefined && typeof carrier.status === "number") {
       result.status = carrier.status;
       const phrase = statusPhrase(carrier.status);

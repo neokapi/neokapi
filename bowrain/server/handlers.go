@@ -65,9 +65,16 @@ type FormatInfo struct {
 }
 
 // ErrorResponse is a standard error response.
+//
+// Reference is the per-request correlation ID (the same value echoed in the
+// X-Request-ID response header and stamped on every server log line for this
+// request). Clients surface it to the user as an error "reference" so a single
+// ID drills all the way down to logs and the Sentry issue.
 type ErrorResponse struct {
-	Error   string `json:"error"`
-	Details string `json:"details,omitempty"`
+	Error     string `json:"error"`
+	Details   string `json:"details,omitempty"`
+	Code      string `json:"code,omitempty"`
+	Reference string `json:"reference,omitempty"`
 }
 
 // HandleHealth returns a simple health check.
@@ -108,32 +115,20 @@ type pingable interface {
 	Ping(ctx context.Context) error
 }
 
-// HandleReady returns a detailed readiness check of all server components.
-func (s *Server) HandleReady(c echo.Context) error {
-	ctx := c.Request().Context()
-	components := make(map[string]ComponentStatus)
+// readiness runs every component check and computes the overall status
+// (ready | degraded | unhealthy). Shared by the public /api/v1/ready probe and
+// the admin health dashboard so both report identically.
+func (s *Server) readiness(ctx context.Context) (map[string]ComponentStatus, string) {
+	components := map[string]ComponentStatus{
+		"database":      s.checkDatabase(ctx),
+		"queue":         s.checkQueue(),
+		"ai":            s.checkAI(),
+		"session_store": s.checkSessionStore(ctx),
+		"email":         s.checkEmail(),
+	}
 
-	// Database check.
-	components["database"] = s.checkDatabase(ctx)
-
-	// Queue check.
-	components["queue"] = s.checkQueue()
-
-	// AI provider check.
-	components["ai"] = s.checkAI()
-
-	// Session store check.
-	components["session_store"] = s.checkSessionStore(ctx)
-
-	// Email check.
-	components["email"] = s.checkEmail()
-
-	// Compute overall status.
 	status := "ready"
-	dbStatus := components["database"].Status
-	aiStatus := components["ai"].Status
-
-	if dbStatus == "down" || aiStatus == "down" {
+	if components["database"].Status == "down" || components["ai"].Status == "down" {
 		status = "unhealthy"
 	} else {
 		for name, comp := range components {
@@ -146,6 +141,12 @@ func (s *Server) HandleReady(c echo.Context) error {
 			}
 		}
 	}
+	return components, status
+}
+
+// HandleReady returns a detailed readiness check of all server components.
+func (s *Server) HandleReady(c echo.Context) error {
+	components, status := s.readiness(c.Request().Context())
 
 	httpStatus := http.StatusOK
 	if status == "unhealthy" {
@@ -160,7 +161,7 @@ func (s *Server) HandleReady(c echo.Context) error {
 }
 
 func (s *Server) checkDatabase(ctx context.Context) ComponentStatus {
-	if s.wsStores.pgDB == nil {
+	if s.wsStores == nil || s.wsStores.pgDB == nil {
 		return ComponentStatus{Status: "unconfigured"}
 	}
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
