@@ -17,6 +17,15 @@ export function initPostHog() {
     capture_pageview: false,
     capture_pageleave: true,
     autocapture: true,
+    // Session replay — the best tool for reproducing a user-reported error:
+    // watch exactly what they did. Privacy-first (GDPR / EU PostHog): every
+    // text input is masked by default; mark extra-sensitive DOM with
+    // [data-sensitive] to blackout, or [data-ph-no-capture] to drop entirely.
+    disable_session_recording: false,
+    session_recording: {
+      maskAllInputs: true,
+      maskTextSelector: "[data-sensitive]",
+    },
   });
   // Mandatory taxonomy super-properties (epic 018): every event from this
   // surface — captures, pageviews, autocapture — is discriminated in the

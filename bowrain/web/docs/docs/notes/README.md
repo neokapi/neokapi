@@ -31,3 +31,4 @@ framework's [Implementation Notes](https://neokapi.github.io/web/neokapi/contrib
 | [Bravo Agent Implementation](bravo-agent-implementation.md) | [AD-016](../architecture-decisions/016-bravo-agent)     | ZeroClaw integration, MCP cloud tools                     |
 | [CLI Commands Reference](cli-commands-reference.md)       | [AD-010](../architecture-decisions/010-bowrain-cli-and-project-model) | Command tree, REST routes                   |
 | [Admin Control Plane](admin-control-plane.md)             | [AD-017](../architecture-decisions/017-bowrain-apps)      | Realm separation, impersonation audit                       |
+| [Observability & Incident Drill-Down](observability.md)   | —                                                         | Reference-ID drill-down, Sentry/PostHog/CloudWatch, env vars |
