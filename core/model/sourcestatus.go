@@ -127,3 +127,34 @@ func (g SourceGateLevel) Admits(s SourceStatus) bool {
 	}
 	return s.EffectiveRank() >= req
 }
+
+// PropSourceHeld is the block property the source-gate leading stage sets on a
+// block whose source ranks below the active source gate: the marker a producer
+// (recycle, translate) reads to skip translating an un-settled source. It is the
+// in-stream, file-read counterpart of the server's per-item gateItemsBySource
+// hold — the local converge re-reads source from files each pass, so the hold
+// rides on the block rather than on a persisted store row. Value "1" means held;
+// absent (or any other value) means producible.
+const PropSourceHeld = "__source_held"
+
+// SetSourceHeld marks (held=true) or clears (held=false) a block's source-gate
+// hold via its Properties. It is idempotent and never allocates a map to clear a
+// marker that was never set.
+func (b *Block) SetSourceHeld(held bool) {
+	if !held {
+		if b.Properties != nil {
+			delete(b.Properties, PropSourceHeld)
+		}
+		return
+	}
+	if b.Properties == nil {
+		b.Properties = map[string]string{}
+	}
+	b.Properties[PropSourceHeld] = "1"
+}
+
+// SourceHeld reports whether a block carries the source-gate hold marker — its
+// source ranks below the active gate, so a producer must not translate it.
+func (b *Block) SourceHeld() bool {
+	return b.Properties[PropSourceHeld] == "1"
+}

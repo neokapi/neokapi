@@ -605,6 +605,15 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 		return nil
 	}
 
+	// Source-gate hold (epic 019): a block whose source ranks below the active
+	// source gate carries the hold marker set by the leading source-gate stage.
+	// Do not translate it — its source is un-settled; it holds until settled or
+	// the gate is lowered. The gate is off (or the source cleared) when the
+	// marker is absent, so this is a no-op for the ungated path.
+	if v.Property(model.PropSourceHeld) == "1" {
+		return nil
+	}
+
 	if t.skipMatched && v.HasTarget(t.targetLocale) {
 		return nil
 	}
@@ -836,6 +845,11 @@ func (t *AITranslateTool) processBatched(ctx context.Context, in <-chan *model.P
 		}
 		block, ok := part.Resource.(*model.Block)
 		if !ok || !block.Translatable {
+			continue
+		}
+		// Source-gate hold (epic 019): a block held on its un-settled source is
+		// not batched — it passes through untranslated (written to output below).
+		if block.SourceHeld() {
 			continue
 		}
 		if t.skipMatched && block.HasTarget(t.targetLocale) {

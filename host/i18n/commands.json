@@ -150,6 +150,9 @@
             "short": "Split source text into sentence or chunk segments (stand-off overlay)"
           },
           "short": "Execute one registry tool on files (the raw layer under the porcelain verbs)",
+          "source-gate": {
+            "short": "Source Gate"
+          },
           "term-check": {
             "example": "  kapi term-check app.xliff --source-lang en --target-lang fr\n  kapi term-check messages.json --source-lang en --target-lang fr",
             "short": "Terminology Check"

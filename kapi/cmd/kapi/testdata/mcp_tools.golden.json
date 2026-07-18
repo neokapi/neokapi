@@ -2412,6 +2412,60 @@
     }
   },
   {
+    "name": "source-gate",
+    "input_schema": {
+      "$id": "source-gate",
+      "properties": {
+        "gate": {
+          "default": "checked",
+          "description": "Minimum source-authoring status a block must reach before its translations are produced",
+          "options": [
+            {
+              "label": "none",
+              "value": "none"
+            },
+            {
+              "label": "authored",
+              "value": "authored"
+            },
+            {
+              "label": "checked",
+              "value": "checked"
+            },
+            {
+              "label": "approved",
+              "value": "approved"
+            }
+          ],
+          "title": "Source Gate",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Source Gate",
+      "toolMeta": {
+        "cardinality": "monolingual",
+        "category": "translation",
+        "displayName": "Source Gate",
+        "id": "source-gate",
+        "tags": [
+          "l10n"
+        ]
+      },
+      "type": "object"
+    }
+  },
+  {
     "name": "stats",
     "input_schema": {
       "additionalProperties": false,

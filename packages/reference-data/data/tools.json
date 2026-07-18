@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-15T04:10:01Z",
+  "generatedAt": "2026-07-18T02:19:16Z",
   "kind": "tool",
   "entries": [
     {
@@ -3839,6 +3839,57 @@
             "hasSchema": true
           }
         ]
+      }
+    },
+    {
+      "id": "source-gate",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Source Gate",
+      "category": "translation",
+      "tags": [
+        "l10n"
+      ],
+      "cardinality": "monolingual",
+      "schema": {
+        "$id": "source-gate",
+        "title": "Source Gate",
+        "type": "object",
+        "toolMeta": {
+          "id": "source-gate",
+          "category": "translation",
+          "displayName": "Source Gate",
+          "tags": [
+            "l10n"
+          ],
+          "cardinality": "monolingual"
+        },
+        "properties": {
+          "gate": {
+            "type": "string",
+            "title": "Source Gate",
+            "description": "Minimum source-authoring status a block must reach before its translations are produced",
+            "default": "checked",
+            "options": [
+              {
+                "value": "none",
+                "label": "none"
+              },
+              {
+                "value": "authored",
+                "label": "authored"
+              },
+              {
+                "value": "checked",
+                "label": "checked"
+              },
+              {
+                "value": "approved",
+                "label": "approved"
+              }
+            ]
+          }
+        }
       }
     },
     {
