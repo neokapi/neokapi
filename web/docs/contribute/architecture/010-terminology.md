@@ -121,6 +121,39 @@ Import and export are standalone functions rather than interface methods:
 A PostgreSQL backend with workspace isolation and terminology streams can be
 supplied by a platform layer behind the same `TermBase` interface.
 
+### Source of truth: the committed serialization, not the store
+
+The termbase follows the project state model ([AD-033](033-project-state-model.md)):
+the **committed `.klftb` serialization is the source of truth**, and the SQLite
+store is a **transient working index** over it — never the authoritative home in
+git mode.
+
+- `defaults.termbase_source` binds the committed `.klftb` — a diff-friendly,
+  reviewable, mergeable text document. This is what a clone or a fresh CI
+  checkout restores from, and what a ship gate validates against.
+- The `.kapi/termbase.db` SQLite store is a working index: it is rebuilt from
+  the serialization on open, and edits are materialized back by an explicit
+  export. `kapi termbase add` writes the `.klftb` source first, then re-imports
+  it into the store — one write path — so the store never owns a term the
+  committed serialization lacks. Discard the `.db`, re-open from the `.klftb`,
+  lose nothing.
+
+Committing a binary SQLite as the authoritative store would be git-hostile
+(opaque, conflict-prone) and would defeat interchange, so the durable home is the
+text serialization and the database is only an index over it. Consequently
+**read-only consumers read the serialization directly**: the terminology check
+gate decodes the committed `.klftb` without materializing the store, which is why
+it holds on a fresh checkout where the gitignored `.db` is absent. The store
+earns its keep only for the heavy indexed lookups (fuzzy, FTS) during
+translation.
+
+> **Server variant.** In bowrain (server mode) the platform database *is* the
+> authoritative store — git is not in the loop. Same model, different backend
+> ([AD-033](033-project-state-model.md)): file mode → committed `.klftb` is
+> truth; server mode → the server DB is truth. The translation memory
+> ([AD-009](009-translation-memory.md)) binds `tm_source` (`.klftm`) under the
+> identical model.
+
 ### Tiered lookup
 
 Term lookup follows a cascading pipeline:

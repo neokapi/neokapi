@@ -209,6 +209,17 @@ A PostgreSQL backend with workspace-scoped isolation and project scoping can
 be supplied by a platform layer, reusing the same matching algorithm behind
 the same `TranslationMemory` interface.
 
+### Source of truth: the committed serialization, not the store
+
+The TM follows the project state model ([AD-033](033-project-state-model.md)),
+identically to the termbase ([AD-010](010-terminology.md)): the **committed
+`.klftm` serialization bound by `defaults.tm_source` is the source of truth**,
+and the SQLite store is a **transient working index** over it — rebuilt from the
+serialization on open, materialized back by an explicit export, never the
+authoritative home in git mode. Committing a binary SQLite as the authoritative
+store would be git-hostile and would defeat interchange. In bowrain (server
+mode) the platform database *is* authoritative — git is not in the loop.
+
 ### Fuzzy candidate retrieval
 
 Fuzzy matching uses trigram-based candidate retrieval to avoid full table
