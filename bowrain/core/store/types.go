@@ -461,9 +461,16 @@ type BlockStatRow struct {
 // ---------------------------------------------------------------------------
 
 // TranslationDashboardStats holds aggregated translation metrics for a project.
+//
+// ItemStats may be a page rather than the full per-file list: the dashboard
+// endpoint accepts limit/offset (+ sort/dir) query parameters and slices the
+// list server-side. ItemTotal always carries the full item count so paged
+// consumers can render an honest "N of M" without fetching everything; without
+// a limit the endpoint returns every item and ItemTotal == len(ItemStats).
 type TranslationDashboardStats struct {
 	LocaleStats        []LocaleTranslationStats     `json:"locale_stats"`
 	ItemStats          []ItemTranslationStats       `json:"item_stats"`
+	ItemTotal          int                          `json:"item_total"`
 	CollectionStats    []CollectionTranslationStats `json:"collection_stats"`
 	TotalBlocks        int                          `json:"total_blocks"`
 	TranslatableBlocks int                          `json:"translatable_blocks"`

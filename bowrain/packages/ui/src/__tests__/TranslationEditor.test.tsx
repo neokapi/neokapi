@@ -8,6 +8,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { TranslationEditor } from "../components/TranslationEditor";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiProvider } from "../context/ApiContext";
 import { WorkspaceProvider } from "../context/WorkspaceContext";
 import { BreadcrumbProvider } from "../context/BreadcrumbContext";
@@ -49,19 +50,22 @@ function renderEditor(opts: { view?: "visual" | "table"; blocks?: BlockInfo[] } 
   adapter: MockAdapter;
 } {
   const adapter = createMockAdapter(opts.blocks ?? testBlocks);
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
-    <ApiProvider adapter={adapter}>
-      <WorkspaceProvider initialWorkspace={mockWorkspace}>
-        <BreadcrumbProvider>
-          <TranslationEditor
-            project={sampleProject}
-            fileName="messages.json"
-            onBack={vi.fn()}
-            defaultView={opts.view}
-          />
-        </BreadcrumbProvider>
-      </WorkspaceProvider>
-    </ApiProvider>,
+    <QueryClientProvider client={qc}>
+      <ApiProvider adapter={adapter}>
+        <WorkspaceProvider initialWorkspace={mockWorkspace}>
+          <BreadcrumbProvider>
+            <TranslationEditor
+              project={sampleProject}
+              fileName="messages.json"
+              onBack={vi.fn()}
+              defaultView={opts.view}
+            />
+          </BreadcrumbProvider>
+        </WorkspaceProvider>
+      </ApiProvider>
+    </QueryClientProvider>,
   );
   return { adapter };
 }

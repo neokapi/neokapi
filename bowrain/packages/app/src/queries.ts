@@ -1,5 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
-import type { ApiAdapter } from "@neokapi/ui";
+import type { ApiAdapter, TranslationDashboardItemOpts } from "@neokapi/ui";
 
 export const configQueryOptions = (api: ApiAdapter) =>
   queryOptions({
@@ -90,15 +90,43 @@ export const myTasksQueryOptions = (api: ApiAdapter, workspaceSlug: string) =>
     refetchInterval: 60_000,
   });
 
+/** Page size for the dashboard's per-file table (server-sorted, lazy-loaded). */
+export const DASHBOARD_ITEM_PAGE_SIZE = 100;
+
+/**
+ * Default item paging for the dashboard query: first page, name ascending.
+ * The route loader primes the cache with exactly these options so the
+ * component's initial render is a cache hit.
+ */
+export const defaultDashboardItemOpts: TranslationDashboardItemOpts = {
+  itemLimit: DASHBOARD_ITEM_PAGE_SIZE,
+  itemSort: "name",
+  itemDir: "asc",
+};
+
 export const translationDashboardQueryOptions = (
   api: ApiAdapter,
   workspaceSlug: string,
   projectId: string,
   stream?: string,
+  itemOpts: TranslationDashboardItemOpts = defaultDashboardItemOpts,
 ) =>
   queryOptions({
-    queryKey: ["translationDashboard", workspaceSlug, projectId, stream ?? "main"],
-    queryFn: () => api.getTranslationDashboard(workspaceSlug, projectId, stream),
+    queryKey: [
+      "translationDashboard",
+      workspaceSlug,
+      projectId,
+      stream ?? "main",
+      itemOpts.itemLimit ?? 0,
+      itemOpts.itemOffset ?? 0,
+      itemOpts.itemSort ?? "name",
+      itemOpts.itemDir ?? "asc",
+    ],
+    queryFn: () => api.getTranslationDashboard(workspaceSlug, projectId, stream, itemOpts),
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    // Freshness is SSE-driven: useWorkspaceEvents invalidates the
+    // ["translationDashboard", ws, id] prefix (debounced) on block/item/
+    // stream/flow/connector change events. The long interval is only a
+    // safety net for missed frames (dropped SSE connection).
+    refetchInterval: 300_000,
   });

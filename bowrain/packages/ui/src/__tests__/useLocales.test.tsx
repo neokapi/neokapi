@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vite-plus/test";
 import { render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiProvider } from "../context/ApiContext";
 import { useLocales } from "../hooks/useLocales";
 import type { ApiAdapter } from "../api/adapter";
@@ -102,6 +103,18 @@ function createMockAdapter(locales: LocaleInfo[] = mockLocales): ApiAdapter {
   } as ApiAdapter;
 }
 
+/** Fresh QueryClient per render: useLocales caches via react-query. */
+function renderWithProviders(adapter: ApiAdapter) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={qc}>
+      <ApiProvider adapter={adapter}>
+        <LocaleDisplay />
+      </ApiProvider>
+    </QueryClientProvider>,
+  );
+}
+
 function LocaleDisplay() {
   const { locales, loading, error, getDisplayName } = useLocales();
   return (
@@ -118,11 +131,7 @@ function LocaleDisplay() {
 describe("useLocales", () => {
   it("fetches and exposes locales", async () => {
     const adapter = createMockAdapter();
-    render(
-      <ApiProvider adapter={adapter}>
-        <LocaleDisplay />
-      </ApiProvider>,
-    );
+    renderWithProviders(adapter);
 
     await waitFor(() => {
       expect(screen.getByTestId("loading").textContent).toBe("no");
@@ -134,11 +143,7 @@ describe("useLocales", () => {
   });
 
   it("getDisplayName returns name for known locale", async () => {
-    render(
-      <ApiProvider adapter={createMockAdapter()}>
-        <LocaleDisplay />
-      </ApiProvider>,
-    );
+    renderWithProviders(createMockAdapter());
 
     await waitFor(() => {
       expect(screen.getByTestId("display-en").textContent).toBe("English");
@@ -146,11 +151,7 @@ describe("useLocales", () => {
   });
 
   it("getDisplayName falls back to code for unknown locale", async () => {
-    render(
-      <ApiProvider adapter={createMockAdapter()}>
-        <LocaleDisplay />
-      </ApiProvider>,
-    );
+    renderWithProviders(createMockAdapter());
 
     await waitFor(() => {
       expect(screen.getByTestId("display-xx").textContent).toBe("xx");
@@ -163,11 +164,7 @@ describe("useLocales", () => {
       new Error("Network error"),
     );
 
-    render(
-      <ApiProvider adapter={adapter}>
-        <LocaleDisplay />
-      </ApiProvider>,
-    );
+    renderWithProviders(adapter);
 
     await waitFor(() => {
       expect(screen.getByTestId("error").textContent).toBe("Network error");

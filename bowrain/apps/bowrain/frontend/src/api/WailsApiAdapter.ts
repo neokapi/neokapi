@@ -76,6 +76,7 @@ import type {
   BrandRollupOptions,
   ModelUsageResponse,
   TranslationDashboardStats,
+  TranslationDashboardItemOpts,
   ActivityInfo,
   TaskInfo,
   CreateTaskRequest,
@@ -684,6 +685,7 @@ export class WailsApiAdapter implements ApiAdapter {
     _ws: string,
     projectId: string,
     stream?: string,
+    _opts?: TranslationDashboardItemOpts,
   ): Promise<TranslationDashboardStats> {
     // The dashboard is a server-side capability (HandleGetTranslationDashboard);
     // it is not bound into the desktop backend and the desktop UI does not call

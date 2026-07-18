@@ -4,7 +4,7 @@ import { Globe, FileText, Languages, BarChart3 } from "./icons";
 import { LocaleCompletionChart } from "./LocaleCompletionChart";
 import { WordCountChart } from "./WordCountChart";
 import { CollectionHeatmap } from "./CollectionHeatmap";
-import { FileProgressTable } from "./FileProgressTable";
+import { FileProgressTable, type FileProgressPaging } from "./FileProgressTable";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -25,6 +25,12 @@ export interface TranslationDashboardProps {
   stats: TranslationDashboardStats | null;
   projectName?: string;
   className?: string;
+  /**
+   * Server-side paging/sort seam for the file-progress table. When present,
+   * stats.item_stats is one server-sorted page and the table lazy-loads the
+   * rest; when absent the table sorts the full list client-side.
+   */
+  itemsPaging?: FileProgressPaging;
 }
 
 // ---------------------------------------------------------------------------
@@ -57,7 +63,12 @@ function StatCard({ label, value, icon: Icon }: StatCardProps) {
 // Main Component
 // ---------------------------------------------------------------------------
 
-export function TranslationDashboard({ stats, projectName, className }: TranslationDashboardProps) {
+export function TranslationDashboard({
+  stats,
+  projectName,
+  className,
+  itemsPaging,
+}: TranslationDashboardProps) {
   if (!stats) {
     return (
       <div data-testid="translation-dashboard" className={cn("space-y-6", className)}>
@@ -122,7 +133,7 @@ export function TranslationDashboard({ stats, projectName, className }: Translat
       )}
 
       {/* File Progress Table */}
-      {stats.item_stats.length > 0 && (
+      {(stats.item_stats.length > 0 || (itemsPaging?.total ?? 0) > 0) && (
         <FileProgressTable
           itemStats={stats.item_stats}
           locales={stats.locale_stats.map((l) => l.locale)}
@@ -131,6 +142,7 @@ export function TranslationDashboard({ stats, projectName, className }: Translat
               .filter((l) => l.display_name)
               .map((l) => [l.locale, l.display_name!]),
           )}
+          paging={itemsPaging}
         />
       )}
     </div>

@@ -84,7 +84,17 @@ const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
   beforeLoad: async ({ context: { queryClient, api } }) => {
-    const config = await queryClient.ensureQueryData(configQueryOptions(api));
+    // Fire all three bootstrap fetches at once — config only decides how the
+    // OTHER two are consumed, so waiting for it before starting them just
+    // serializes the waterfall. In standalone mode the user/workspaces
+    // results are ignored (rejections swallowed below).
+    const configPromise = queryClient.ensureQueryData(configQueryOptions(api));
+    const userPromise = queryClient.ensureQueryData(currentUserQueryOptions(api));
+    const workspacesPromise = queryClient.ensureQueryData(workspacesQueryOptions(api));
+    userPromise.catch(() => {});
+    workspacesPromise.catch(() => {});
+
+    const config = await configPromise;
 
     if (config.mode === "standalone") {
       throw redirect({
@@ -94,11 +104,8 @@ const indexRoute = createRoute({
       });
     }
 
-    // Server mode — fetch user and workspaces in parallel.
-    const [user, workspaces] = await Promise.all([
-      queryClient.ensureQueryData(currentUserQueryOptions(api)),
-      queryClient.ensureQueryData(workspacesQueryOptions(api)),
-    ]);
+    // Server mode — the user/workspaces fetches are already in flight.
+    const [user, workspaces] = await Promise.all([userPromise, workspacesPromise]);
 
     if (!user) {
       window.location.href = "/api/v1/auth/login";
@@ -205,7 +212,24 @@ const workspaceRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "$workspace",
   beforeLoad: async ({ context: { queryClient, api }, params }) => {
-    const config = await queryClient.ensureQueryData(configQueryOptions(api));
+    // Start every bootstrap fetch in parallel — config is only consumed after
+    // the others are needed, so awaiting it first would serialize three
+    // round-trips into a waterfall. Standalone mode ignores the user/workspace
+    // results (rejections swallowed below).
+    const configPromise = queryClient.ensureQueryData(configQueryOptions(api));
+    const userPromise = queryClient.ensureQueryData(currentUserQueryOptions(api));
+    const workspacesPromise = queryClient.ensureQueryData(workspacesQueryOptions(api));
+    userPromise.catch(() => {});
+    workspacesPromise.catch(() => {});
+
+    // Warm the child dashboard loader's projects query with the URL slug —
+    // it does not depend on the fetches above, so it rides along instead of
+    // becoming a third serial hop. prefetchQuery ignores errors (a stale/bad
+    // slug simply leaves the cache cold and the loader refetches correctly
+    // after the redirect below).
+    void queryClient.prefetchQuery(projectsQueryOptions(api, params.workspace));
+
+    const config = await configPromise;
 
     let user: User;
     let workspaces: Workspace[];
@@ -227,10 +251,7 @@ const workspaceRoute = createRoute({
       ];
     } else {
       serverMode = "server";
-      const [fetchedUser, fetchedWorkspaces] = await Promise.all([
-        queryClient.ensureQueryData(currentUserQueryOptions(api)),
-        queryClient.ensureQueryData(workspacesQueryOptions(api)),
-      ]);
+      const [fetchedUser, fetchedWorkspaces] = await Promise.all([userPromise, workspacesPromise]);
 
       if (!fetchedUser) {
         window.location.href = "/api/v1/auth/login";

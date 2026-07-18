@@ -142,6 +142,15 @@ type ProjectInfoResponse struct {
 	Collections           []CollectionResponse  `json:"collections,omitempty"`
 	Streams               []store.Stream        `json:"streams,omitempty"`
 	ActiveStream          string                `json:"active_stream,omitempty"`
+	// Precomputed aggregates so list consumers (dashboard cards, stats bar)
+	// never need the embedded arrays: total items, total blocks, translatable
+	// source words, and stream count. The workspace project list serves these
+	// in its (default) summary view with Items left empty; the single-project
+	// response carries them alongside the full arrays.
+	ItemCount   int `json:"item_count"`
+	BlockCount  int `json:"block_count"`
+	WordCount   int `json:"word_count"`
+	StreamCount int `json:"stream_count"`
 	// Skipped lists uploaded files that were NOT imported and why (unsupported
 	// extension, no reader, parse failure). Only set on the upload responses;
 	// absent/empty means every file imported.
@@ -1236,6 +1245,30 @@ func editorBuildProjectItems(ctx context.Context, cs store.ContentStore, projID,
 	return out, itemCounts, nil
 }
 
+// editorBuildProjectSummary computes the per-project aggregates for the
+// workspace project list without materializing (or shipping) the per-item
+// arrays: item count, total block count, and translatable source words. It
+// uses GetBlockStats — the same lightweight projection the translation
+// dashboard uses — instead of a full GetBlocks per item, so no targets,
+// properties, or overlays are deserialized.
+func editorBuildProjectSummary(ctx context.Context, cs store.ContentStore, projID, stream string) (itemCount, blockCount, wordCount int, err error) {
+	items, err := cs.ListItems(ctx, projID, stream)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("list items: %w", err)
+	}
+	stats, err := cs.GetBlockStats(ctx, projID, stream)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("get block stats: %w", err)
+	}
+	for _, bs := range stats {
+		blockCount++
+		if bs.Translatable {
+			wordCount += bs.SourceWords
+		}
+	}
+	return len(items), blockCount, wordCount, nil
+}
+
 func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *store.Project, stream string) (*ProjectInfoResponse, error) {
 	info := projectToInfoResponse(proj)
 
@@ -1244,6 +1277,11 @@ func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *st
 		return nil, err
 	}
 	info.Items = items
+	info.ItemCount = len(items)
+	for _, it := range items {
+		info.BlockCount += it.BlockCount
+		info.WordCount += it.WordCount
+	}
 
 	// Include collections in the response.
 	colls, _ := cs.ListCollections(ctx, proj.ID, stream)
@@ -1261,6 +1299,7 @@ func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *st
 		}
 		info.Streams = deref
 	}
+	info.StreamCount = len(streams)
 	info.ActiveStream = stream
 
 	return info, nil
@@ -1882,9 +1921,80 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 	return &store.TranslationDashboardStats{
 		LocaleStats:        localeStats,
 		ItemStats:          itemStats,
+		ItemTotal:          len(itemStats),
 		CollectionStats:    collStats,
 		TotalBlocks:        totalBlocks,
 		TranslatableBlocks: translatableBlocks,
 		TotalSourceWords:   totalSourceWords,
 	}, nil
+}
+
+// dashboardItemSortKey returns the sortable value(s) for one item under the
+// given column: name (case-insensitive), words (word_count), or completion
+// (average percentage across the project's target locales — the same average
+// the file-progress table displays).
+func dashboardItemCompletion(it store.ItemTranslationStats) float64 {
+	if len(it.Locales) == 0 {
+		return 0
+	}
+	sum := 0.0
+	for _, l := range it.Locales {
+		sum += l.Percentage
+	}
+	return sum / float64(len(it.Locales))
+}
+
+// sortDashboardItems sorts a copy-safe slice of item stats by the requested
+// column and direction. Ties fall back to the item name so paging is stable.
+func sortDashboardItems(items []store.ItemTranslationStats, field, dir string) {
+	desc := dir == "desc"
+	less := func(a, b store.ItemTranslationStats) bool {
+		switch field {
+		case "words":
+			if a.WordCount != b.WordCount {
+				return a.WordCount < b.WordCount
+			}
+		case "completion":
+			ca, cb := dashboardItemCompletion(a), dashboardItemCompletion(b)
+			if ca != cb {
+				return ca < cb
+			}
+		}
+		return strings.ToLower(a.ItemName) < strings.ToLower(b.ItemName)
+	}
+	sort.SliceStable(items, func(i, j int) bool {
+		if desc {
+			return less(items[j], items[i])
+		}
+		return less(items[i], items[j])
+	})
+}
+
+// pageDashboardStats returns a shallow copy of stats with ItemStats sorted and
+// sliced to the requested window. The input (typically the cached full result)
+// is never mutated. limit <= 0 with an empty sort keeps the legacy full,
+// ListItems-ordered response.
+func pageDashboardStats(stats *store.TranslationDashboardStats, limit, offset int, sortField, dir string) *store.TranslationDashboardStats {
+	if limit <= 0 && sortField == "" {
+		return stats
+	}
+	resp := *stats
+	items := make([]store.ItemTranslationStats, len(stats.ItemStats))
+	copy(items, stats.ItemStats)
+	if sortField == "" {
+		sortField = "name"
+	}
+	sortDashboardItems(items, sortField, dir)
+	if offset < 0 {
+		offset = 0
+	}
+	if offset > len(items) {
+		offset = len(items)
+	}
+	items = items[offset:]
+	if limit > 0 && limit < len(items) {
+		items = items[:limit]
+	}
+	resp.ItemStats = items
+	return &resp
 }

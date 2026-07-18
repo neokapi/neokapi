@@ -74,6 +74,7 @@ import type {
   RestorePointOptions,
   ArchivedProject,
   TranslationDashboardStats,
+  TranslationDashboardItemOpts,
   ActivityInfo,
   ConvergenceRun,
   ConvergenceEstimate,
@@ -1388,9 +1389,16 @@ export class RestApiAdapter implements ApiAdapter {
     workspaceSlug: string,
     projectId: string,
     stream?: string,
+    opts?: TranslationDashboardItemOpts,
   ): Promise<TranslationDashboardStats> {
+    const params = new URLSearchParams();
+    if (opts?.itemLimit !== undefined) params.set("limit", String(opts.itemLimit));
+    if (opts?.itemOffset) params.set("offset", String(opts.itemOffset));
+    if (opts?.itemSort) params.set("sort", opts.itemSort);
+    if (opts?.itemDir) params.set("dir", opts.itemDir);
+    const qs = params.size > 0 ? `?${params.toString()}` : "";
     return this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/dashboard/${this.ref(stream)}`,
+      `${this.projectEp(workspaceSlug, projectId)}/dashboard/${this.ref(stream)}${qs}`,
     );
   }
 

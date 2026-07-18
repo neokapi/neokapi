@@ -1061,6 +1061,13 @@ func (s *Server) HandleGetBlockHistory(c echo.Context) error {
 }
 
 // HandleGetTranslationDashboard returns aggregated translation stats for a project.
+//
+// Locale totals and collection rollups are always complete; the per-file
+// item_stats list is paginated when a `limit` query parameter is given
+// (`offset`, `sort` = name|words|completion, `dir` = asc|desc), with
+// `item_total` carrying the full count. Without a limit the full list is
+// returned unchanged (legacy shape). The full computation is cached per
+// project/stream, so paging/sorting requests slice the cached result.
 func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
@@ -1071,12 +1078,22 @@ func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	ctx := c.Request().Context()
 
+	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+	offset, _ := strconv.Atoi(c.QueryParam("offset"))
+	sortField := c.QueryParam("sort")
+	switch sortField {
+	case "", "name", "words", "completion":
+	default:
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "sort must be name, words, or completion"})
+	}
+	dir := c.QueryParam("dir")
+
 	// Check cache first
 	cacheKey := dashboardCacheKey(wsID, pid, stream)
 	if cached, ok := s.dashboardCache.Load(cacheKey); ok {
 		entry := cached.(*dashboardCacheEntry)
 		if time.Now().Before(entry.expiresAt) {
-			return c.JSON(http.StatusOK, entry.stats)
+			return c.JSON(http.StatusOK, pageDashboardStats(entry.stats, limit, offset, sortField, dir))
 		}
 		s.dashboardCache.Delete(cacheKey)
 	}
@@ -1091,11 +1108,11 @@ func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	// Cache the result
+	// Cache the full result; each request slices its own page from it.
 	s.dashboardCache.Store(cacheKey, &dashboardCacheEntry{
 		stats:     stats,
 		expiresAt: time.Now().Add(dashboardCacheTTL),
 	})
 
-	return c.JSON(http.StatusOK, stats)
+	return c.JSON(http.StatusOK, pageDashboardStats(stats, limit, offset, sortField, dir))
 }

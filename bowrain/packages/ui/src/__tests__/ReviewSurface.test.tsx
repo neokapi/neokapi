@@ -9,6 +9,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ReviewSurface } from "../components/ReviewSurface";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiProvider } from "../context/ApiContext";
 import { WorkspaceProvider } from "../context/WorkspaceContext";
 import { BreadcrumbProvider } from "../context/BreadcrumbContext";
@@ -47,14 +48,17 @@ const testBlocks: BlockInfo[] = [
 
 function renderSurface(blocks: BlockInfo[] = testBlocks): { adapter: MockAdapter } {
   const adapter = createMockAdapter(blocks);
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
-    <ApiProvider adapter={adapter}>
-      <WorkspaceProvider initialWorkspace={mockWorkspace}>
-        <BreadcrumbProvider>
-          <ReviewSurface project={sampleProject} fileName="messages.json" onBack={vi.fn()} />
-        </BreadcrumbProvider>
-      </WorkspaceProvider>
-    </ApiProvider>,
+    <QueryClientProvider client={qc}>
+      <ApiProvider adapter={adapter}>
+        <WorkspaceProvider initialWorkspace={mockWorkspace}>
+          <BreadcrumbProvider>
+            <ReviewSurface project={sampleProject} fileName="messages.json" onBack={vi.fn()} />
+          </BreadcrumbProvider>
+        </WorkspaceProvider>
+      </ApiProvider>
+    </QueryClientProvider>,
   );
   return { adapter };
 }
