@@ -39,6 +39,8 @@ const entryPoints = [
   "src/storybook/index.ts",
   "src/review/index.ts",
   "src/review/store.ts",
+  "src/review/manifest.ts",
+  "src/review/hosted.ts",
 ];
 
 // Rewrites ./foo.ts → ./foo.js in relative imports so the emitted JS
