@@ -15,14 +15,14 @@ func NewExtractCmd(a *App, _ ExtractCmdOptions) *cobra.Command {
 		Short:   "Emit a bilingual file for a translator — native .klz or XLIFF/PO",
 		GroupID: "advanced",
 		Long: `Emit bilingual XLIFF 2.x (default) or PO files for each target locale
-declared in a .kapi project, pre-filled from the project's translation
+declared in a kapi project, pre-filled from the project's translation
 memory.
 
 Each invocation writes one batch of outputs under .kapi/cache/extractions/<batch-id>/
 plus one bilingual file per source → target pair in --out-dir (default "out/").`,
-		Example: `  kapi extract -p app.kapi --no-tm
-  kapi extract -p app.kapi --target-lang fr
-  kapi extract -p app.kapi --target-lang fr,de,es
+		Example: `  kapi extract -p kapi.yaml --no-tm
+  kapi extract -p kapi.yaml --target-lang fr
+  kapi extract -p kapi.yaml --target-lang fr,de,es
   kapi extract src/*.json -o work.klz --target-lang fr,qps   # ad-hoc .klz workspace`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Ad-hoc workspace: `extract <sources> -o work.klz` ingests source

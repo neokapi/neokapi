@@ -32,7 +32,7 @@ cp "$FIXTURE_PDF" "$PROJ/doc.pdf"
 # Recipe: read the PDF with tier3 on (per-item format config, applied at extract).
 # The pdfium plugin renders each page and emits the raster + raw blocks; the host
 # vision decorator runs the layout model and emits structured blocks.
-cat > "$PROJ/proj.kapi" <<'YAML'
+cat > "$PROJ/kapi.yaml" <<'YAML'
 version: v1
 name: vision-pdf-e2e
 defaults:

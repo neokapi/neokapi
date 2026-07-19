@@ -19,7 +19,7 @@ func TestOpenProjectAutoOpensTM(t *testing.T) {
 	require.NoError(t, sample.Scaffold("kapimart", dir))
 
 	// Open the project — should auto-detect .kapi/tm.db and .kapi/termbase.db.
-	tab, err := app.OpenProject(filepath.Join(dir, "project.kapi"))
+	tab, err := app.OpenProject(filepath.Join(dir, "kapi.yaml"))
 	require.NoError(t, err)
 	t.Cleanup(func() { app.CloseProject(tab.ID) })
 
@@ -50,7 +50,7 @@ func TestGetProjectHandles(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, sample.Scaffold("kapimart", dir))
 
-	tab, err := app.OpenProject(filepath.Join(dir, "project.kapi"))
+	tab, err := app.OpenProject(filepath.Join(dir, "kapi.yaml"))
 	require.NoError(t, err)
 	t.Cleanup(func() { app.CloseProject(tab.ID) })
 
@@ -94,7 +94,7 @@ func TestCloseProjectClosesHandles(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, sample.Scaffold("kapimart", dir))
 
-	tab, err := app.OpenProject(filepath.Join(dir, "project.kapi"))
+	tab, err := app.OpenProject(filepath.Join(dir, "kapi.yaml"))
 	require.NoError(t, err)
 
 	app.mu.RLock()
@@ -119,7 +119,7 @@ func TestCreateSampleProjectIdempotent(t *testing.T) {
 	require.NoError(t, sample.Scaffold("kapimart", dir))
 
 	// Opening the same project twice should return the same tab.
-	kapiPath := filepath.Join(dir, "project.kapi")
+	kapiPath := filepath.Join(dir, "kapi.yaml")
 	tab1, err := app.OpenProject(kapiPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { app.CloseProject(tab1.ID) })
@@ -146,7 +146,7 @@ func TestCreateSampleProjectRecoversStaleRecipe(t *testing.T) {
 	// Legacy schema: top-level languages + list-form plugins (the exact shape
 	// that triggered "cannot unmarshal !!seq into map[string]project.PluginSpec").
 	stale := "version: v1\nname: KapiMart\nsource_language: en-US\ntarget_languages:\n  - fr-FR\nplugins:\n  - okapi-bridge\ncontent:\n  - path: \"input/*.json\"\n    format: okf_json\n"
-	kapiPath := filepath.Join(targetDir, "project.kapi")
+	kapiPath := filepath.Join(targetDir, "kapi.yaml")
 	require.NoError(t, os.WriteFile(kapiPath, []byte(stale), 0o644))
 
 	// Plant a stale/corrupt state dir: a tm.db with an incompatible schema would
@@ -176,7 +176,7 @@ func TestSampleProjectFilesExist(t *testing.T) {
 
 	// Verify all expected files.
 	for _, path := range []string{
-		"project.kapi",
+		"kapi.yaml",
 		"src/en-US/store-ui.json",
 		"web/en-US/getting-started.md",
 		".kapi/tm.db",

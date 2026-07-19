@@ -183,7 +183,7 @@ machines, CI).
 
 End by telling the user, concretely:
 
-- **What exists** — `<name>.kapi`, `brand.yaml`, the committed termbase source,
+- **What exists** — `kapi.yaml`, `brand.yaml`, the committed termbase source,
   the content mapping, and (if pushed) the server project.
 - **The URLs** — the claim URL while unclaimed; the project and review URLs
   once claimed.

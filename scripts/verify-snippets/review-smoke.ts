@@ -74,7 +74,7 @@ const REVIEW = JSON.stringify({
   status: "reviewed",
 });
 
-mem.vol.writeFile("/project/demo.kapi", enc.encode(RECIPE));
+mem.vol.writeFile("/project/kapi.yaml", enc.encode(RECIPE));
 mem.vol.writeFile("/project/messages.json", enc.encode(SOURCE));
 mem.vol.writeFile("/project/messages.fr.json", enc.encode(TARGET_FR));
 mem.vol.writeFile("/project/review.jsonl", enc.encode(REVIEW));
@@ -94,7 +94,7 @@ const ok = (label: string, cond: boolean, detail = "") => {
   if (!cond) failures++;
 };
 
-const P = "/project/demo.kapi";
+const P = "/project/kapi.yaml";
 const ANSI = /\x1b\[[0-9;]*m/g;
 const run = async (argv: string[]): Promise<{ code: number; stdout: string }> => {
   out = "";

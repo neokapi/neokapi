@@ -15,7 +15,7 @@ func TestProjectConvergence_Composes(t *testing.T) {
 	root := writeReviewProject(t) // fully-translated nb, reviewed:50 gate, .klftm bound
 
 	a := &App{}
-	report, err := a.ProjectConvergence(context.Background(), filepath.Join(root, "proj.kapi"), "en")
+	report, err := a.ProjectConvergence(context.Background(), filepath.Join(root, "kapi.yaml"), "en")
 	require.NoError(t, err)
 
 	require.Len(t, report.Locales, 1)
@@ -29,7 +29,7 @@ func TestProjectConvergence_Composes(t *testing.T) {
 
 	// Approving one lifts reviewed coverage and shrinks the queue on the next call.
 	writeReviewedCorrection(t, root, "Apple", "Eple")
-	report2, err := a.ProjectConvergence(context.Background(), filepath.Join(root, "proj.kapi"), "en")
+	report2, err := a.ProjectConvergence(context.Background(), filepath.Join(root, "kapi.yaml"), "en")
 	require.NoError(t, err)
 	assert.Equal(t, 50, report2.Locales[0].Pct["reviewed"])
 	assert.True(t, report2.Locales[0].Shippable)
@@ -41,7 +41,7 @@ func TestProjectConvergence_Composes(t *testing.T) {
 // the queue while reviewed coverage climbs.
 func TestApproveReviewUnit_PromotesAndLeavesQueue(t *testing.T) {
 	root := writeReviewProject(t)
-	proj := filepath.Join(root, "proj.kapi")
+	proj := filepath.Join(root, "kapi.yaml")
 	a := &App{}
 
 	before, err := a.ProjectConvergence(context.Background(), proj, "en")
@@ -70,13 +70,13 @@ func TestApproveReviewUnit_PromotesAndLeavesQueue(t *testing.T) {
 func TestApproveReviewUnit_NotFound(t *testing.T) {
 	root := writeReviewProject(t)
 	a := &App{}
-	_, err := a.ApproveReviewUnit(context.Background(), filepath.Join(root, "proj.kapi"), "en", "nb", "nope.json", "missing", "reviewed")
+	_, err := a.ApproveReviewUnit(context.Background(), filepath.Join(root, "kapi.yaml"), "en", "nb", "nope.json", "missing", "reviewed")
 	require.Error(t, err)
 }
 
 func TestApproveReviewUnit_SignOffReachesTopRung(t *testing.T) {
 	root := writeReviewProject(t)
-	proj := filepath.Join(root, "proj.kapi")
+	proj := filepath.Join(root, "kapi.yaml")
 	a := &App{}
 
 	before, err := a.ProjectConvergence(context.Background(), proj, "en")
@@ -96,7 +96,7 @@ func TestApproveReviewUnit_SignOffReachesTopRung(t *testing.T) {
 
 func TestApproveReviewUnit_PromoteReviewedToSignedOff(t *testing.T) {
 	root := writeReviewProject(t)
-	proj := filepath.Join(root, "proj.kapi")
+	proj := filepath.Join(root, "kapi.yaml")
 	a := &App{}
 
 	rep, err := a.ProjectConvergence(context.Background(), proj, "en")

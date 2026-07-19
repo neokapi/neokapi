@@ -27,7 +27,7 @@ content:
     target: "{lang}.json"
 ship_gate: { translated: 100 }
 `
-	require.NoError(t, os.WriteFile(filepath.Join(root, "proj.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
 		[]byte(`{"a":"Apple","b":"Banana"}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "nb.json"),

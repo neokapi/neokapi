@@ -116,7 +116,7 @@ steps:
 
 ### Pre-Push QA Gate
 
-Add source QA to your CI pipeline so content that fails validation never reaches the server. Declare local automation rules at the top level of your `.kapi` recipe:
+Add source QA to your CI pipeline so content that fails validation never reaches the server. Declare local automation rules at the top level of your `kapi.yaml` recipe:
 
 ```yaml
 automations:

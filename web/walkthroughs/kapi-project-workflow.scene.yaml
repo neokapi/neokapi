@@ -26,7 +26,7 @@ scene: project-workflow
 mode: interactive
 
 # messages.json is the kit fixture (greeting / farewell / cart). project.tmx
-# carries the matching French so the TM fills real targets offline. demo.kapi
+# carries the matching French so the TM fills real targets offline. kapi.yaml
 # is the recipe `kapi init` scaffolds — here pre-written with the content
 # already declared (a target template is what makes coverage derivable) and a
 # tm-recycle flow as defaults.flow. Flow names must not shadow the built-in
@@ -58,7 +58,7 @@ files:
           </tu>
         </body>
       </tmx>
-  - path: demo.kapi
+  - path: kapi.yaml
     content: |
       version: v1
       name: demo

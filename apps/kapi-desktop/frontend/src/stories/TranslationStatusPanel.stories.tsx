@@ -18,7 +18,7 @@ export default meta;
 type Story = StoryObj<typeof TranslationStatusPanel>;
 
 const mixedStatus: ProjectStatus = {
-  projectPath: "/Users/dev/app/translation.kapi",
+  projectPath: "/Users/dev/app/kapi.yaml",
   projectName: "My App Localization",
   collections: [
     {
@@ -48,7 +48,7 @@ export const AllComplete: Story = {
   args: {
     tabID: "storybook",
     status: {
-      projectPath: "/Users/dev/app/translation.kapi",
+      projectPath: "/Users/dev/app/kapi.yaml",
       projectName: "Polyglot",
       collections: [
         {
@@ -66,7 +66,7 @@ export const Empty: Story = {
   args: {
     tabID: "storybook",
     status: {
-      projectPath: "/Users/dev/app/translation.kapi",
+      projectPath: "/Users/dev/app/kapi.yaml",
       projectName: "New Project",
       collections: [],
     },

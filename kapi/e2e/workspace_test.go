@@ -37,7 +37,7 @@ func newProject(t *testing.T) (string, string) {
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".kapi"), 0o755))
 	src := filepath.Join(dir, "app.json")
 	require.NoError(t, os.WriteFile(src, []byte(wsSource), 0o644))
-	recipe := filepath.Join(dir, "demo.kapi")
+	recipe := filepath.Join(dir, "kapi.yaml")
 	require.NoError(t, os.WriteFile(recipe, []byte(
 		"version: \"v1\"\nname: demo\ndefaults:\n  source_locale: en\n  target_locales: [fr-FR]\nflows:\n  pseudo:\n    steps:\n      - tool: pseudo-translate\n"), 0o644))
 	return recipe, src

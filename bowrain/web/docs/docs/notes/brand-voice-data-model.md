@@ -251,7 +251,7 @@ Channel resolution (most specific wins):
 Apply: ResolveProfile(profile, locale, channel)
 ```
 
-### CLI Config (top-level on `<dir-name>.kapi`)
+### CLI Config (top-level on `kapi.yaml`)
 
 ```yaml
 brand_voice:

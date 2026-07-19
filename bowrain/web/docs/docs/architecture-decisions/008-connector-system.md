@@ -224,7 +224,7 @@ and the `kapi status` command.
 ### The bowrain plugin as the file connector
 
 The bowrain plugin is the primary `SourceConnector` implementation —
-`BowrainSourceConnector`. It manages `.kapi` projects (a `<dir-name>.kapi`
+`BowrainSourceConnector`. It manages `.kapi` projects (a `kapi.yaml`
 recipe and sibling `.kapi/` state directory) and syncs local files with
 Bowrain Server.
 

@@ -92,7 +92,7 @@ func (a *App) checkProjectSources(cmd Command) ([]string, error) {
 		return nil, err
 	}
 	if projectPath == "" {
-		return nil, errors.New("at least one file is required — or run inside a .kapi project to check its declared content")
+		return nil, errors.New("at least one file is required — or run inside a kapi project to check its declared content")
 	}
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {

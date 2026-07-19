@@ -89,7 +89,7 @@ default UTF-8 passthrough). Readers already normalize BOM/charset/newlines at
 parse time, so these exist only to control *output* style — writer
 configuration, not a pipeline stage. They are set under the reserved `output`
 key of the ordinary per-format config (`defaults.formats[<id>].config` in a
-`.kapi` recipe); `format.SplitOutputConfig` strips the key before per-format
+`kapi.yaml` recipe); `format.SplitOutputConfig` strips the key before per-format
 reader/writer config is applied, and the base writer wraps its output stream
 with the post-encode chain (newline conversion → BOM policy → charset
 encoding), so every writer that embeds the base inherits the behavior with no

@@ -50,7 +50,7 @@ func TestReadBlocksForCheck_UsesDocumentCache(t *testing.T) {
 		Defaults: project.Defaults{SourceLanguage: "en"},
 		Content:  []project.ContentCollection{{Path: "en.json"}},
 	}
-	require.NoError(t, project.Save(filepath.Join(root, "proj.kapi"), proj))
+	require.NoError(t, project.Save(filepath.Join(root, project.RecipeFileName), proj))
 	path := filepath.Join(root, "en.json")
 	require.NoError(t, os.WriteFile(path, []byte(`{"a":"Hello"}`), 0o644))
 

@@ -46,7 +46,7 @@ content:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
 `
-	require.NoError(t, os.WriteFile(filepath.Join(root, "proj.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "brand.yaml"), []byte(verifyBrandYAML), 0o644))
 
 	// Source: contains the competitor term "Globex" (brand fail) and a
@@ -105,7 +105,7 @@ ship_gates:
     gate: { translated: 100, reviewed: 0 }
   - gate: { translated: 100, reviewed: 80 }
 `
-	require.NoError(t, os.WriteFile(filepath.Join(root, "proj.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
 		[]byte(`{"a":"Apple","b":"Banana","c":"Cherry"}`), 0o644))
 	// nb has 2 of 3 keys → 67% translated.
@@ -154,7 +154,7 @@ content:
     target: "{lang}.json"
 ship_gate: { translated: 100, reviewed: 50 }
 `
-	require.NoError(t, os.WriteFile(filepath.Join(root, "proj.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
 		[]byte(`{"a":"Apple","b":"Banana"}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "nb.json"),
@@ -170,7 +170,7 @@ ship_gate: { translated: 100, reviewed: 50 }
 func writeReviewedCorrection(t *testing.T, root, srcText, _ string) {
 	t.Helper()
 	a := &App{}
-	proj := filepath.Join(root, "proj.kapi")
+	proj := filepath.Join(root, "kapi.yaml")
 	rep, err := a.ProjectConvergence(context.Background(), proj, "en")
 	require.NoError(t, err)
 	for _, it := range rep.Review {

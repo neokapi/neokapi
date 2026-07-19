@@ -49,7 +49,7 @@ run on the server.
 
 ### Initialize a project
 
-Create a `.kapi` project — a `<dir-name>.kapi` recipe at the project root with
+Create a `.kapi` project — a `kapi.yaml` recipe at the project root with
 a sibling `.kapi/` state directory (like `.git` for content):
 
 ```bash

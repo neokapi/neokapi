@@ -9,7 +9,7 @@ const config: WalkthroughEmbedConfig = {
   seed: ["messages.json"],
   files: [
     {
-      path: "demo.kapi",
+      path: "kapi.yaml",
       content:
         'version: v1\nname: demo\ndefaults:\n  source_language: en\n  target_languages: [fr]\ncontent:\n  - path: messages.json\n    target: "messages.{lang}.json"\n',
     },

@@ -47,7 +47,7 @@ kapi check README.md --profile-file brand/voice.yaml       # 4. first enforced c
 
 The profile is plain YAML — a tone description, do/don't examples, and vocabulary lists (forbidden terms with replacements, preferred spellings, competitor names). Bind it in the recipe so every surface picks it up without flags:
 
-```yaml title="my-app.kapi"
+```yaml title="kapi.yaml"
 defaults:
   brand_voice:
     profile_file: brand/voice.yaml

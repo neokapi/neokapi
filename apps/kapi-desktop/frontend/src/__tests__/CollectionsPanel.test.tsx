@@ -35,7 +35,7 @@ const project: KapiProject = {
 };
 
 const status: ProjectStatus = {
-  projectPath: "/p/demo.kapi",
+  projectPath: "/p/demo/kapi.yaml",
   projectName: "Demo",
   hasData: true,
   collections: [

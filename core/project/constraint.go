@@ -6,7 +6,7 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-// This file is the single version-constraint grammar for .kapi recipes.
+// This file is the single version-constraint grammar for kapi.yaml recipes.
 // Both the syntactic validator (validVersionConstraint, used by
 // validateRequiresSyntax) and the matcher (MatchVersionConstraint, used by
 // CheckPlugins) parse the same operator prefixes here and lean on

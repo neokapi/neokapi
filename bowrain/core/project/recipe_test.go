@@ -181,7 +181,7 @@ func TestRecipe_SetDefaultCollection_PersistsThroughSave(t *testing.T) {
 func TestFindRecipe_WalksUpward(t *testing.T) {
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "deep", "nested"), 0o755))
-	recipePath := filepath.Join(root, "myapp.kapi")
+	recipePath := filepath.Join(root, coreproj.RecipeFileName)
 	require.NoError(t, os.WriteFile(recipePath, []byte(`version: v1
 name: myapp
 `), 0o644))

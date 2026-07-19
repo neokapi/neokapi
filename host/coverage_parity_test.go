@@ -80,7 +80,7 @@ func TestCoverageParity_FileScanVsBlockStore(t *testing.T) {
 		},
 		ShipGate: gate.Gate{"translated": {Pct: 100}},
 	}
-	projPath := filepath.Join(root, "proj.kapi")
+	projPath := filepath.Join(root, "kapi.yaml")
 	require.NoError(t, project.Save(projPath, proj))
 
 	app := &App{}

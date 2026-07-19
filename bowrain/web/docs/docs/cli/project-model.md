@@ -5,13 +5,13 @@ title: Project Model
 
 # Bowrain Project Model
 
-A bowrain project is a `.kapi` project with a `server:` block on its recipe. There is one project model shared with the `kapi` CLI: a single `<dir-name>.kapi` recipe file at the project root and a sibling `.kapi/` state directory.
+A bowrain project is a `.kapi` project with a `server:` block on its recipe. There is one project model shared with the `kapi` CLI: a single `kapi.yaml` recipe file at the project root and a sibling `.kapi/` state directory.
 
 ## Directory Structure
 
 ```
 my-app/
-├── my-app.kapi             # the recipe (committed) — directory-named
+├── kapi.yaml               # the recipe (committed) — fixed, conventional filename
 ├── .kapi/                  # state (gitignored)
 │   ├── manifest.yaml       # bookkeeping: block counts, fingerprints
 │   ├── tm.db               # authoritative project TM
@@ -33,12 +33,12 @@ my-app/
 
 Three ownership zones at the project root:
 
-- **`<dir-name>.kapi`** — hand-edited, committed to git. The recipe is the single source of truth for project configuration.
+- **`kapi.yaml`** — hand-edited, committed to git. The recipe is the single source of truth for project configuration. Its fixed, conventional filename means every editor and code host (GitHub, GitLab) applies YAML syntax highlighting to diffs and previews with no configuration.
 - **`.kapi/cache/`** — CLI-owned, gitignored. Contains everything that's cheaply regenerable: the block store, the kapi sync cache, extraction intermediates, overlay layers. Safe to delete at any time.
 - **`.kapi/tm.db`, `.kapi/termbase.db`, `.kapi/manifest.yaml`** — kapi-owned, authoritative. Gitignored by default; opt in to commit the TM/termbase when cross-clone reproducibility matters.
 - **`.kapi/flows/*.yaml`** — optional file-per-flow definitions, hand-edited, committed. Bowrain reads these in addition to inline `flows:` declared on the recipe.
 
-The name pair mirrors git: `<name>.kapi` file plus `.kapi/` folder at the same root.
+The pairing keeps the git-like shape of a committed config file beside a tool-managed state directory: `kapi.yaml` alongside `.kapi/` at the same root.
 
 ## Recipe schema
 
@@ -261,20 +261,20 @@ For lightweight pre/post hooks that simply call existing flows, prefer the top-l
 
 ## Project Discovery
 
-kapi searches for a `*.kapi` recipe by walking up the directory tree (like git):
+kapi searches for a `kapi.yaml` recipe by walking up the directory tree (like git):
 
 ```bash
 cd my-app/src/locales/fr/
-kapi status  # finds my-app.kapi at ../../../my-app.kapi
+kapi status  # finds kapi.yaml at ../../../kapi.yaml
 ```
 
-All commands work from any subdirectory within the project. If a directory contains multiple `*.kapi` files, pass `-p <path>` explicitly.
+All commands work from any subdirectory within the project. A directory holds at most one `kapi.yaml`, so discovery is unambiguous; an explicit `-p <path>` still overrides it.
 
 ## Version Control
 
 ### Commit to git
 
-- `<dir-name>.kapi` — the recipe (single source of truth for configuration)
+- `kapi.yaml` — the recipe (single source of truth for configuration)
 - `.kapi/flows/*.yaml` — file-per-flow definitions, if you use them
 
 ### Do NOT commit
@@ -327,7 +327,7 @@ kapi init --server https://app.bowrain.cloud --project abc123
 
 `kapi init` writes:
 
-1. `<dir-name>.kapi` recipe at the project root (with a `server:` block when a server was supplied)
+1. `kapi.yaml` recipe at the project root (with a `server:` block when a server was supplied)
 2. `.kapi/` state directory
 3. `.kapi/flows/pseudo.yaml` — an example flow
 4. `.gitignore` updates to exclude `.kapi/`

@@ -10,7 +10,7 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Your first project
 
-A project is a committed recipe (`<name>.kapi`) plus a store that remembers your work — approvals, translation memory, terminology. Set it up once and every surface works the same project: the desktop app, your AI assistant, and the CLI. A new project starts source-only (checks, brand, terminology); [add languages](/kapi/get-started/add-languages) when you want them.
+A project is a committed recipe (`kapi.yaml`) plus a store that remembers your work — approvals, translation memory, terminology. Set it up once and every surface works the same project: the desktop app, your AI assistant, and the CLI. A new project starts source-only (checks, brand, terminology); [add languages](/kapi/get-started/add-languages) when you want them.
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
@@ -42,7 +42,7 @@ Claude detects the stack, runs `kapi init` (with `--preset <stack>` for a known 
 [Install the CLI](/kapi/get-started/installation), then from your content directory:
 
 ```bash
-kapi init                      # scaffold <dir>.kapi + .kapi/ state (source-only)
+kapi init                      # scaffold kapi.yaml + .kapi/ state (source-only)
 kapi add "docs/**/*.md"        # declare the content; format auto-detected
 kapi stats                     # blocks, words, characters for what's tracked
 kapi check                     # check the project's content; exit 3 on gate fail
@@ -50,7 +50,7 @@ kapi check                     # check the project's content; exit 3 on gate fai
 
 For a known stack, `kapi init --preset react-i18next` (or `nextjs`, `vue-i18n`, …) pre-fills the content mapping — `kapi init --list-presets` lists them. The recipe is plain YAML:
 
-```yaml title="my-app.kapi"
+```yaml title="kapi.yaml"
 version: v1
 name: my-app
 defaults:

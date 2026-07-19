@@ -32,7 +32,7 @@ ship_gates:
     gate: { translated: 100, reviewed: 0 }
   - gate: { translated: 100, reviewed: 80 }
 `
-	require.NoError(t, os.WriteFile(filepath.Join(root, "proj.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
 		[]byte(`{"a":"Apple","b":"Banana","c":"Cherry"}`), 0o644))
 	// nb has 2 of 3 keys → 67% translated.
@@ -70,7 +70,7 @@ ship_gates:
     gate: { translated: 0 }
   - gate: { translated: 100 }
 `
-	require.NoError(t, os.WriteFile(filepath.Join(root, "proj.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "docs", "a.md"), []byte("# Title\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "ui", "b.json"), []byte(`{"k":"Save"}`), 0o644))
 	return root
@@ -113,7 +113,7 @@ content:
   - path: en.json
     target: "{lang}.json"
 ` + sourceGate + "\n"
-	require.NoError(t, os.WriteFile(filepath.Join(root, "proj.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
 		[]byte(`{"a":"Apple","b":"Banana","c":"Cherry"}`), 0o644))
 	return root
@@ -202,7 +202,7 @@ content:
   - path: en.json
     target: "{lang}.mo"
 `
-	require.NoError(t, os.WriteFile(filepath.Join(root, "proj.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
 		[]byte(`{"a":"Apple","b":"Banana"}`), 0o644))
 	// A compiled .mo target exists but is not readable through the pipeline.
@@ -315,7 +315,7 @@ func TestStatus_NeverFails(t *testing.T) {
 // plumbing. A plain local recipe reports no venue at all: nothing ambiguous.
 func TestStatus_VenueLine(t *testing.T) {
 	root := writeStatusProject(t)
-	recipePath := filepath.Join(root, "proj.kapi")
+	recipePath := filepath.Join(root, "kapi.yaml")
 	recipe, err := os.ReadFile(recipePath)
 	require.NoError(t, err)
 	withServer := string(recipe) + "\nserver:\n  url: https://bowrain.example/acme/demo\n  converge: on-push\n"

@@ -147,5 +147,5 @@ are offsets into the same flat text the block already carries.
   hashes, the transform, and the KLF the review tier reads and writes
 - [AD-002: Content Model](002-content-model.md) — stand-off overlays
   and run-anchored ranges, the shape the annotations arrive in
-- [AD-008: Project Model](008-project-model.md) — the `.kapi` recipe and
+- [AD-008: Project Model](008-project-model.md) — the `kapi.yaml` recipe and
   the KLF interchange the review writes into

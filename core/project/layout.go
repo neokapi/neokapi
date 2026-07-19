@@ -9,12 +9,12 @@ import (
 )
 
 // Layout describes the on-disk shape of a kapi project per Framework AD-008:
-// a `{project}.kapi` recipe file plus an adjacent `.kapi/` state
-// folder, co-located at the same directory. Both paths are absolute.
+// a `kapi.yaml` recipe file plus an adjacent `.kapi/` state folder,
+// co-located at the same directory. Both paths are absolute.
 type Layout struct {
 	// Root is the directory that holds both RecipePath and StateDir.
 	Root string
-	// RecipePath is the absolute path to `{project}.kapi`.
+	// RecipePath is the absolute path to `kapi.yaml`.
 	RecipePath string
 	// StateDir is the absolute path to `.kapi/`. The directory is
 	// guaranteed to exist when returned by ResolveLayout; callers
@@ -27,8 +27,12 @@ type Layout struct {
 // state (manifest bookkeeping, TM, termbase, and the cache subdir).
 const StateDirName = ".kapi"
 
-// RecipeExt is the file extension users click to open a project.
-const RecipeExt = ".kapi"
+// RecipeFileName is the fixed filename of a kapi project recipe. A plain
+// YAML file, so every editor and code host (GitHub/GitLab previews and
+// diffs) highlights it with zero configuration. Discovery matches this
+// exact basename; the human project label lives in the recipe's `name:`
+// field, not the filename.
+const RecipeFileName = "kapi.yaml"
 
 // CacheDirName is the subdirectory of StateDir that holds all regenerable
 // caches: block store, extraction intermediates, overlay layers, and any
@@ -92,10 +96,8 @@ func (l Layout) RedactionSidecarPath(batchID string) string {
 }
 
 // ResolveLayout walks up from `start` looking for a kapi project.
-// The recognised shape is exactly one `*.kapi` file at a directory
-// level plus an adjacent `.kapi/` subdirectory. Multiple `.kapi`
-// files at the same level return ErrAmbiguousLayout; the caller must
-// resolve by passing an explicit recipe path.
+// The recognised shape is a `kapi.yaml` recipe file at a directory
+// level plus an adjacent `.kapi/` subdirectory.
 //
 // If only the `.kapi/` state folder is found (no sibling recipe),
 // returns ErrRecipeMissing. This keeps the contract explicit:
@@ -128,21 +130,31 @@ func ResolveLayout(start string) (Layout, error) {
 	}
 }
 
-// LayoutFor returns the Layout for an explicit recipe file. The
-// recipe must already exist; the `.kapi/` folder is auto-created
-// adjacent to it if absent.
+// LayoutFor returns the Layout for an explicit recipe path (as passed via
+// -p / --project). The path may be either the recipe file itself or a
+// project directory containing a `kapi.yaml`; in the directory case the
+// recipe inside it is resolved. The recipe must already exist; the `.kapi/`
+// folder is auto-created adjacent to it if absent.
+//
+// Unlike auto-discovery, an explicit path is trusted: the recipe file need
+// not be named `kapi.yaml` (a caller pointing at `-p variant.yaml` is taken
+// at its word), matching the convention of tools like `docker compose -f`.
 func LayoutFor(recipePath string) (Layout, error) {
 	abs, err := filepath.Abs(recipePath)
 	if err != nil {
 		return Layout{}, fmt.Errorf("project: abs recipe path: %w", err)
 	}
-	if filepath.Ext(abs) != RecipeExt {
-		return Layout{}, fmt.Errorf("project: recipe must end in %s, got %q", RecipeExt, abs)
-	}
-	if info, err := os.Stat(abs); err != nil {
+	info, err := os.Stat(abs)
+	if err != nil {
 		return Layout{}, fmt.Errorf("project: stat recipe: %w", err)
-	} else if info.IsDir() {
-		return Layout{}, fmt.Errorf("project: %q is a directory, not a recipe file", abs)
+	}
+	if info.IsDir() {
+		// Allow pointing -p at a project directory; resolve kapi.yaml inside.
+		recipe := filepath.Join(abs, RecipeFileName)
+		if _, err := os.Stat(recipe); err != nil {
+			return Layout{}, fmt.Errorf("project: no %s in %q: %w", RecipeFileName, abs, err)
+		}
+		abs = recipe
 	}
 	root := filepath.Dir(abs)
 	return Layout{
@@ -171,13 +183,10 @@ var (
 	// ErrNoProject is returned when walking the directory tree finds
 	// no kapi project.
 	ErrNoProject = errors.New("project: no kapi project found")
-	// ErrAmbiguousLayout indicates multiple recipe files at the same
-	// directory level — the caller must pass an explicit -p <path>.
-	ErrAmbiguousLayout = errors.New("project: multiple recipe files in the same directory — pass an explicit recipe path")
 	// ErrRecipeMissing indicates a `.kapi/` state dir with no sibling
 	// recipe file. Means the project's identity was lost; user must
 	// restore the recipe or reinitialize.
-	ErrRecipeMissing = errors.New("project: .kapi/ state dir found but no adjacent *.kapi recipe file")
+	ErrRecipeMissing = errors.New("project: .kapi/ state dir found but no adjacent kapi.yaml recipe file")
 
 	errLayoutNotHere = errors.New("no layout at this directory")
 )
@@ -191,7 +200,7 @@ func layoutAtDir(dir string) (Layout, error) {
 		return Layout{}, fmt.Errorf("project: read dir %s: %w", dir, err)
 	}
 
-	var recipes []string
+	hasRecipe := false
 	hasState := false
 	for _, e := range entries {
 		name := e.Name()
@@ -199,24 +208,22 @@ func layoutAtDir(dir string) (Layout, error) {
 			hasState = true
 			continue
 		}
-		if !e.IsDir() && filepath.Ext(name) == RecipeExt {
-			recipes = append(recipes, name)
+		if !e.IsDir() && name == RecipeFileName {
+			hasRecipe = true
 		}
 	}
 
 	switch {
-	case len(recipes) == 0 && !hasState:
+	case !hasRecipe && !hasState:
 		return Layout{}, errLayoutNotHere
-	case len(recipes) == 0 && hasState:
+	case !hasRecipe && hasState:
 		return Layout{}, ErrRecipeMissing
-	case len(recipes) > 1:
-		return Layout{}, ErrAmbiguousLayout
 	}
 
-	// Exactly one recipe. State dir is optional (may be scaffolded later).
+	// Recipe present. State dir is optional (may be scaffolded later).
 	return Layout{
 		Root:       dir,
-		RecipePath: filepath.Join(dir, recipes[0]),
+		RecipePath: filepath.Join(dir, RecipeFileName),
 		StateDir:   filepath.Join(dir, StateDirName),
 	}, nil
 }

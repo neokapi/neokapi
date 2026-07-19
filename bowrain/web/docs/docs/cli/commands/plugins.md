@@ -54,7 +54,7 @@ kapi formats
 
 ## Version pinning
 
-Pin a plugin version in the project's `.kapi` recipe under the `plugins:` map so
+Pin a plugin version in the project's `kapi.yaml` recipe under the `plugins:` map so
 the whole team resolves the same build:
 
 ```yaml

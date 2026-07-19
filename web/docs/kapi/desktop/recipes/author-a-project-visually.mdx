@@ -10,13 +10,13 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 
 # Author a project visually
 
-**For the concept** of the project model (the `.kapi` recipe, the state dir,
+**For the concept** of the project model (the `kapi.yaml` recipe, the state dir,
 discovery), see [Projects](/kapi/projects) and
 [Your first project](/kapi/get-started/first-project); this recipe walks creating
 and shaping one in Kapi Desktop.
 
 **Goal:** stand up a project — its languages, content patterns, and flows — through
-the app, ending with the same committable `.kapi` recipe you'd get from
+the app, ending with the same committable `kapi.yaml` recipe you'd get from
 `kapi init`.
 
 <ThemedVideo
@@ -38,7 +38,7 @@ Scene scripts:
 
 ## Steps
 
-1. **Create the project.** Choose a folder; the app writes a `<name>.kapi` recipe
+1. **Create the project.** Choose a folder; the app writes a `kapi.yaml` recipe
    and the sibling `.kapi/` state dir — the same layout `kapi init` produces.
 2. **Declare languages.** Pick the source language and the locales you translate
    into. These drive every flow's defaults.
@@ -47,14 +47,14 @@ Scene scripts:
    the real files they match and the format Kapi detected for each.
 4. **Bind flows.** Attach flows from the [flow editor](/kapi/desktop/recipes/build-a-flow-visually)
    so the project runs them with its declared languages and defaults.
-5. **Commit the recipe.** The `.kapi` file is portable YAML — commit it, and the
+5. **Commit the recipe.** The `kapi.yaml` recipe is portable YAML — commit it, and the
    project runs identically from the CLI and for teammates.
 
 ## Why the desktop
 
 Visual authoring keeps the project's shape in view — which globs match which files,
 what format each is, which flows are bound — and validates as you go. The artifact
-is an ordinary `.kapi` recipe: nothing is desktop-only, so the project is fully
+is an ordinary `kapi.yaml` recipe: nothing is desktop-only, so the project is fully
 drivable from `kapi` on the command line and in CI.
 
 ## Next

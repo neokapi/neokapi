@@ -7,7 +7,7 @@ import type { ProjectStatus } from "../components/TranslationStatusPanel";
 import type { ConvergenceReport } from "../types/api";
 
 const STATUS: ProjectStatus = {
-  projectPath: "/p/app.kapi",
+  projectPath: "/p/app/kapi.yaml",
   projectName: "App",
   collections: [
     { name: "ui", blockCount: 100, coverage: { fr: 80 }, targetLanguages: ["fr", "de"] },

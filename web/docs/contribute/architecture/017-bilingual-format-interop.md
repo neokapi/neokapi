@@ -43,7 +43,7 @@ Every data exchange kapi touches falls into one of six categories:
 | 3   | **Bilingual exchange** | Out/In                   | **Bilingual `.klz`** (neokapi-native, lossless — for a kapi-equipped translator/reviewer); **XLIFF 2.x, PO** (industry interop); XLIFF 1.2, Qt TS, XLSX-bilingual, SRT, TTML as format support |
 | 4   | **Translation memory** | In (loop) / Out/In (TMX) | Project TM (`sievepen/`), TMX for interop                                                            |
 | 5   | Terminology            | In (loop) / Out/In       | Project termbase (`termbase/`), TBX/CSV/JSON                                                         |
-| 6   | Project portability    | Out/In                   | `.kapi` folder (YAML recipe + `.kapi/` state)                                                        |
+| 6   | Project portability    | Out/In                   | project folder (`kapi.yaml` recipe + `.kapi/` state)                                                 |
 
 Boundary 3 is the headline gap this AD closes; **boundary 4 is the
 silent one**. The TM exists, TMX ships in and out, but the loop that
@@ -96,20 +96,20 @@ built-in flows dispatched through `kapi run`. Matches AD-013's
 existing command tree and keeps discoverability high.
 
 ```bash
-kapi extract -p myapp.kapi                   # all target locales from recipe
-kapi extract -p myapp.kapi --target-lang fr  # single target
-kapi extract -p myapp.kapi --target-lang fr,de,es
-kapi extract -p myapp.kapi --only mobile
-kapi extract -p myapp.kapi --pattern 'src/**/*.json'
-kapi extract -p myapp.kapi --xliff-version 2.0
-kapi extract -p myapp.kapi --format po
-kapi extract -p myapp.kapi --no-tm
+kapi extract -p kapi.yaml                   # all target locales from recipe
+kapi extract -p kapi.yaml --target-lang fr  # single target
+kapi extract -p kapi.yaml --target-lang fr,de,es
+kapi extract -p kapi.yaml --only mobile
+kapi extract -p kapi.yaml --pattern 'src/**/*.json'
+kapi extract -p kapi.yaml --xliff-version 2.0
+kapi extract -p kapi.yaml --format po
+kapi extract -p kapi.yaml --no-tm
 
-kapi merge   -p myapp.kapi -i out/myapp-en-to-fr.xliff
-kapi merge   -p myapp.kapi -i file1.xliff -i file2.xliff -i file3.po
-kapi merge   -p myapp.kapi -i 'vendor-return/*.xliff'
-kapi merge   -p myapp.kapi -i vendor-return/
-kapi merge   -p myapp.kapi -i ... --no-tm-update
+kapi merge   -p kapi.yaml -i out/myapp-en-to-fr.xliff
+kapi merge   -p kapi.yaml -i file1.xliff -i file2.xliff -i file3.po
+kapi merge   -p kapi.yaml -i 'vendor-return/*.xliff'
+kapi merge   -p kapi.yaml -i vendor-return/
+kapi merge   -p kapi.yaml -i ... --no-tm-update
 ```
 
 ### Multi-target in one pass
@@ -135,12 +135,12 @@ Every project-aware kapi command resolves `-p` in this order:
 1. Explicit `-p <path>` flag
 2. `KAPI_PROJECT` env var
 3. `project.ResolveLayout(cwd)` — git-style upward walk for the
-   `{name}.kapi` recipe + adjacent `.kapi/` state directory
+   `kapi.yaml` recipe + adjacent `.kapi/` state directory
 4. Fallthrough: one-shot mode (commands that support it) or error
    "not a kapi project" (commands that require one, e.g. `merge`)
 
-`ErrAmbiguousLayout` (multiple `*.kapi` files in the same directory)
-surfaces as a CLI error asking for explicit `-p`.
+A directory holds at most one `kapi.yaml`, so discovery is unambiguous — there
+is no ambiguous-layout case that requires an explicit `-p` to resolve.
 
 The helper lives in `cli/` once and is reused by `run`, `extract`,
 `merge`, and any future project-aware command.

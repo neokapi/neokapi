@@ -21,19 +21,19 @@ describe("ProjectPage", () => {
   };
 
   it("displays project name", () => {
-    render(<ProjectPage project={project} projectPath="/test.kapi" tabID="t1" />);
+    render(<ProjectPage project={project} projectPath="/test/kapi.yaml" tabID="t1" />);
     expect(screen.getByText("Test Project")).toBeInTheDocument();
   });
 
   it("derives display name from folder when name is empty", () => {
     const noName = { ...project, name: "" };
-    render(<ProjectPage project={noName} projectPath="/Users/me/MyApp/project.kapi" tabID="t1" />);
+    render(<ProjectPage project={noName} projectPath="/Users/me/MyApp/kapi.yaml" tabID="t1" />);
     expect(screen.getByText("MyApp")).toBeInTheDocument();
   });
 
   it("displays file path", () => {
-    render(<ProjectPage project={project} projectPath="/test.kapi" tabID="t1" />);
-    expect(screen.getByText("/test.kapi")).toBeInTheDocument();
+    render(<ProjectPage project={project} projectPath="/test/kapi.yaml" tabID="t1" />);
+    expect(screen.getByText("/test/kapi.yaml")).toBeInTheDocument();
   });
 
   it("shows unsaved message when no path", () => {

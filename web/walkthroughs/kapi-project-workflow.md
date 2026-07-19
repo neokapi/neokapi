@@ -50,6 +50,6 @@ closing beats run the plumbing by hand: one `kapi run` pass into the store,
 
 ## Closing
 
-Commit the `.kapi` recipe and anyone who clones the repository brings the
+Commit the `kapi.yaml` recipe and anyone who clones the repository brings the
 same project up to date with one command — the recipe is the portable contract,
 and `kapi up` is the verb that reconciles reality to it.

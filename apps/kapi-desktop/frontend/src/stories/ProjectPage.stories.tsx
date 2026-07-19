@@ -46,7 +46,7 @@ export const WithContent: Story = {
         },
       },
     },
-    projectPath: "/Users/dev/acme-app/translation.kapi",
+    projectPath: "/Users/dev/acme-app/kapi.yaml",
   },
 };
 
@@ -81,6 +81,6 @@ export const WithFlowsOnly: Story = {
         },
       },
     },
-    projectPath: "/tmp/qa.kapi",
+    projectPath: "/tmp/qa/kapi.yaml",
   },
 };

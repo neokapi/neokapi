@@ -116,7 +116,6 @@ var (
 	EnsureModel                  = host.EnsureModel
 	EstimateTokens               = host.EstimateTokens
 	ExclusionKey                 = host.ExclusionKey
-	ExistingRecipeName           = host.ExistingRecipeName
 	ExitCode                     = host.ExitCode
 	ExportKLFTB                  = host.ExportKLFTB
 	FilterFormats                = host.FilterFormats
@@ -143,6 +142,7 @@ var (
 	NewEnvCommand                = host.NewEnvCommand
 	RecipeConfigGet              = host.RecipeConfigGet
 	RecipeConfigSet              = host.RecipeConfigSet
+	RecipeExists                 = host.RecipeExists
 	NewMatcher                   = host.NewMatcher
 	NewSedTool                   = host.NewSedTool
 	NormalizeSedInPlaceArgs      = host.NormalizeSedInPlaceArgs

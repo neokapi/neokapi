@@ -21,8 +21,9 @@ func TestNewApp(t *testing.T) {
 
 func newTestProject(t *testing.T, app *App, name string) *TabInfo {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), name, "project.kapi")
-	tab, err := app.NewProject("", "en-US", nil, path)
+	// NewProject takes the project folder; it writes the fixed kapi.yaml inside.
+	dir := filepath.Join(t.TempDir(), name)
+	tab, err := app.NewProject("", "en-US", nil, dir)
 	require.NoError(t, err)
 	t.Cleanup(func() { app.CloseProject(tab.ID) })
 	return tab
@@ -31,8 +32,7 @@ func newTestProject(t *testing.T, app *App, name string) *TabInfo {
 func TestNewProject(t *testing.T) {
 	app := NewApp()
 	dir := filepath.Join(t.TempDir(), "TestProject")
-	path := filepath.Join(dir, "project.kapi")
-	tab, err := app.NewProject("", "en-US", nil, path)
+	tab, err := app.NewProject("", "en-US", nil, dir)
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, tab.ID)
@@ -48,7 +48,7 @@ func TestNewProjectDefaultPath(t *testing.T) {
 	app := NewApp()
 	tab, err := app.NewProject("MyApp", "en", nil, "")
 	require.NoError(t, err)
-	assert.Contains(t, tab.Path, filepath.Join("KapiProjects", "MyApp", "project.kapi"))
+	assert.Contains(t, tab.Path, filepath.Join("KapiProjects", "MyApp", "kapi.yaml"))
 	assert.Equal(t, "MyApp", tab.Name)
 }
 

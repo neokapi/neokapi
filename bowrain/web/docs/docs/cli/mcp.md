@@ -15,7 +15,7 @@ Start the MCP server:
 kapi mcp
 ```
 
-This launches a JSON-RPC server on stdio. You don't run it manually — your AI tool starts it as a subprocess. The server requires a `.kapi` project (it walks upward looking for a `*.kapi` recipe, like git).
+This launches a JSON-RPC server on stdio. You don't run it manually — your AI tool starts it as a subprocess. The server requires a `.kapi` project (it walks upward looking for a `kapi.yaml` recipe, like git).
 
 :::tip
 For ad-hoc file processing without a project, use the [Kapi MCP server](https://neokapi.github.io/web/neokapi/reference/mcp) instead.
@@ -144,7 +144,7 @@ Once connected, your AI assistant can call these tools:
 
 | Tool                | What it does                                                                          |
 | ------------------- | ------------------------------------------------------------------------------------- |
-| `project_config`    | Read project configuration from the `.kapi` recipe                                    |
+| `project_config`    | Read project configuration from the `kapi.yaml` recipe                                    |
 | `project_status`    | Show sync status — pending push/pull counts, server connection                        |
 | `project_ls`        | List tracked files with optional stats (word counts, dirty detection)                 |
 | `project_push`      | Upload local changes to Bowrain Server                                                |
@@ -212,7 +212,7 @@ No parameters.
 
 ### project_config
 
-Read project configuration from the `.kapi` recipe at the project root.
+Read project configuration from the `kapi.yaml` recipe at the project root.
 
 No parameters.
 
@@ -283,7 +283,7 @@ Report brand knowledge-graph change-sets. With a `changeset_id`, returns that ch
 
 ## How It Works
 
-No server process, ports, or additional authentication is needed. Your AI tool starts `kapi mcp` as a subprocess, communicates over stdin/stdout, and shuts it down when the session ends. It discovers your project the same way the CLI does — by walking up the directory tree to find the nearest `*.kapi` recipe.
+No server process, ports, or additional authentication is needed. Your AI tool starts `kapi mcp` as a subprocess, communicates over stdin/stdout, and shuts it down when the session ends. It discovers your project the same way the CLI does — by walking up the directory tree to find the nearest `kapi.yaml` recipe.
 
 ## Related
 

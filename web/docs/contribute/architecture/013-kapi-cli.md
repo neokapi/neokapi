@@ -12,7 +12,7 @@ keywords: [kapi CLI, standalone, file processing, project file, manifest, archit
 
 `kapi` is a standalone file-processing CLI that demonstrates the neokapi
 framework. Most commands are one-shot and require no project; the `-p` flag
-enables project mode with a `.kapi` recipe. Kapi builds on the shared CLI
+enables project mode with a `kapi.yaml` recipe. Kapi builds on the shared CLI
 base (`cli/`), stores config under `~/.config/kapi/`, and uses an
 OS-keychain credential store. A `kapi mcp` subcommand exposes tools over
 stdio JSON-RPC for AI agents.
@@ -24,7 +24,7 @@ The framework needs a first-class CLI for three audiences:
 1. **Engineers running ad-hoc file processing** — "translate this JSON
    bundle to French and write the output." No project, no state, one
    command.
-2. **Teams running reproducible workflows** — a saved `.kapi` recipe with
+2. **Teams running reproducible workflows** — a saved `kapi.yaml` recipe with
    flows, plugin pinning, language targets, and defaults. Shared via git.
 3. **AI agents invoking tools programmatically** — structured discovery
    and typed input/output over MCP.
@@ -126,13 +126,13 @@ kapi stats file.json
 ```
 
 On project-aware commands, the `-p` / `--project` flag switches into
-project mode, loading a `.kapi` recipe
+project mode, loading a `kapi.yaml` recipe
 ([AD-008: Kapi Project Model](008-project-model.md)) for defaults:
 
 ```bash
-kapi run translate -p myproject.kapi
-kapi run translate-qa --project myproject.kapi --target-lang de
-kapi extract --project myproject.kapi
+kapi run translate -p kapi.yaml
+kapi run translate-qa --project kapi.yaml --target-lang de
+kapi extract --project kapi.yaml
 ```
 
 With `--project`:
@@ -151,17 +151,18 @@ commands from inside a project tree:
 
 1. Explicit `-p <path>` flag.
 2. `KAPI_PROJECT` env var (CI escape hatch).
-3. `project.ResolveLayout(cwd)` — walk upward for the `{name}.kapi`
+3. `project.ResolveLayout(cwd)` — walk upward for the `kapi.yaml`
    recipe + adjacent `.kapi/` state directory.
 4. Fall through to one-shot mode (for commands that support it) or
    return a "not a kapi project" error (for commands that require
    one — e.g. `kapi merge`).
 
-`ErrAmbiguousLayout` (multiple `*.kapi` files in the same directory)
-surfaces as a CLI error asking for an explicit `--project`. The resolution
-helper (`AddProjectFlag` / `ResolveProjectPath`) lives in `cli/project.go`
-once and is reused by the project-aware commands — `run`, `extract`,
-`merge`, `brand`, and `check` — plus any future project-aware command.
+Because a directory holds at most one `kapi.yaml`, discovery is unambiguous —
+there is no ambiguous-layout case to resolve with an explicit `--project`. The
+resolution helper (`AddProjectFlag` / `ResolveProjectPath`) lives in
+`cli/project.go` once and is reused by the project-aware commands — `run`,
+`extract`, `merge`, `brand`, and `check` — plus any future project-aware
+command.
 
 :::warning `-p` means `--project` only on project-aware commands
 The `-p` shorthand binds to `--project` **only** on the project-aware
@@ -169,8 +170,8 @@ commands listed above (`run`, `extract`, `merge`, `brand`, `check`),
 where `AddProjectFlag` registers it. On ad-hoc tool commands (such as
 `kapi translate` or `kapi pseudo-translate`), there is no `--project`
 flag — the same `-p` shorthand is already taken by `--progress` (the
-progress-bar flag). So `kapi translate -p my.kapi` is parsed as
-`--progress` with `my.kapi` left as a positional argument, **not** as a
+progress-bar flag). So `kapi translate -p kapi.yaml` is parsed as
+`--progress` with `kapi.yaml` left as a positional argument, **not** as a
 load-project request. Tool commands pick up project context (TM, glossary,
 defaults) through git-style discovery instead — run them from inside the
 project tree, or point `KAPI_PROJECT` at the recipe.
@@ -360,7 +361,7 @@ implementation.
 - [AD-006: Tool System](006-tool-system.md) — Tool pattern exposed as
   top-level commands
 - [AD-007: Plugin System](007-plugin-system.md) — `kapi plugin`
-- [AD-008: Kapi Project Model](008-project-model.md) — `.kapi` recipe
+- [AD-008: Kapi Project Model](008-project-model.md) — `kapi.yaml` recipe
   loaded by `-p`
 - [AD-011: AI Providers](011-ai-providers.md) — provider credentials
 - [AD-014: Kapi Desktop](014-kapi-desktop.md) — GUI companion

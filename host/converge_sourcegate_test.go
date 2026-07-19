@@ -53,7 +53,7 @@ func newSourceGateProjectWith(t *testing.T, gate, sourceJSON string) (*App, *Env
 			}},
 		},
 	}
-	recipe := filepath.Join(dir, "app.kapi")
+	recipe := filepath.Join(dir, project.RecipeFileName)
 	require.NoError(t, project.Save(recipe, proj))
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, project.StateDirName), 0o755))
 	t.Chdir(dir)

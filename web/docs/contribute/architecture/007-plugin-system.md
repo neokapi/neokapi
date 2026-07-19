@@ -216,7 +216,7 @@ kapi plugin rebuild-cache                     # force regenerate the dispatch ca
 
 ### Recipe `requires:` syntax
 
-A `.kapi` recipe declares plugin dependencies as a map of plugin
+A `kapi.yaml` recipe declares plugin dependencies as a map of plugin
 name to semver constraint:
 
 ```yaml

@@ -106,7 +106,7 @@ make up the [content model](/framework/content-model).
   carrying a severity. Findings travel with the content as overlays.
 
 :::note Project vocabulary
-The **project model** (the `.kapi` recipe, ad-hoc vs. project modes, bindings,
+The **project model** (the `kapi.yaml` recipe, ad-hoc vs. project modes, bindings,
 and the `.klz`/`.klf` formats) is part of **Kapi**, not the framework — the
 framework is platform-agnostic and has no notion of a project. Those terms are
 defined under [Projects](/kapi/projects).

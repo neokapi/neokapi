@@ -25,7 +25,7 @@ func (a *App) CreateSampleProject(name string) (*TabInfo, error) {
 	}
 
 	targetDir := filepath.Join(home, "KapiProjects", displayName)
-	kapiPath := filepath.Join(targetDir, "project.kapi")
+	kapiPath := filepath.Join(targetDir, "kapi.yaml")
 
 	// Idempotent: if already scaffolded and the recipe still opens, reuse it.
 	// A sample scaffolded by an older app version may carry a recipe that no

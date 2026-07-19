@@ -22,7 +22,7 @@ import (
 func newApplyAssetProject(t *testing.T) (a *App, cmd *EnvCommand, root, recipe string) {
 	t.Helper()
 	dir := t.TempDir()
-	recipe = filepath.Join(dir, "app.kapi")
+	recipe = filepath.Join(dir, project.RecipeFileName)
 	proj := &project.KapiProject{
 		Version: "v1",
 		Name:    "ApplyAssetTest",
@@ -235,7 +235,7 @@ func TestApplyAssetEntry_noProjectIsError(t *testing.T) {
 		Kind: kindTerm, Op: "upsert", Term: "x",
 	})
 	assert.Equal(t, "error", res.Status)
-	assert.Contains(t, res.Detail, "no .kapi project")
+	assert.Contains(t, res.Detail, "no kapi project")
 }
 
 func lookupTMTarget(t *testing.T, ctx context.Context, tm sievepen.TMStore, text, src, tgt string) string {

@@ -19,7 +19,7 @@ post-process content after it arrives.
 
 ## Intended design
 
-Hooks would be declared at the top level of the `<dir-name>.kapi` recipe, mapping
+Hooks would be declared at the top level of the `kapi.yaml` recipe, mapping
 a lifecycle trigger to a list of flow names:
 
 ```yaml

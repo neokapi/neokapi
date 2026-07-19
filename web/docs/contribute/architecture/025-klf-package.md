@@ -115,7 +115,7 @@ rather than a step-by-step CLI verb family:
   `$XDG_CACHE_HOME/kapi/klz/<key>`, keyed by the `.klz`'s absolute path, so the
   working directory stays a single file. Three pipeline-stage verbs (no project):
   `extract <sources> -o work.klz` ingests the sources and records a recipe (§6 —
-  the same schema as a `.kapi` file; an ad-hoc extract fills only target locales +
+  the same schema as a `kapi.yaml` recipe; an ad-hoc extract fills only target locales +
   output layout, but the slot holds a full recipe); running any tool or `run` flow *on* the `.klz`
   **transforms it in place** against the cache's persistent per-source block stores
   — incrementally, *without rewriting the `.klz`*; and `merge work.klz` emits the
@@ -142,7 +142,7 @@ rather than a step-by-step CLI verb family:
   identity + skeletons, and the **full project recipe** (flows, plugins,
   defaults, content — §6) into a portable `.klz`; `unpack` rehydrates it into
   another machine's `.kapi/` state dir, reconstituting a complete, runnable
-  `<name>.kapi`. A `.klz` is to the state directory what a git *bundle* is to
+  `kapi.yaml`. A `.klz` is to the state directory what a git *bundle* is to
   `.git` — and, because it carries the recipe, a *runnable* one.
 
 **Progress is derived from content, not recorded in an authoritative journal.**
@@ -185,11 +185,11 @@ and nothing environment-specific. One principle decides membership:
 
 **Intent travels as the whole recipe.** A `.klz` embeds the project recipe
 verbatim — `flows`, `plugins` / `requires`, `defaults`, `content`, `preset`, and
-the platform `Extras` — using the same schema as a `.kapi` file, so there is one
+the platform `Extras` — using the same schema as a `kapi.yaml` recipe, so there is one
 source of truth and no parallel intent model. Flows are ordinary framework intent
 (`flow.StepsSpec`), so they travel like any other recipe field: a standalone
 `.klz` is runnable with its own named flows (`kapi run <flow> work.klz`), and
-`unpack` reconstitutes a complete `<name>.kapi`. This is what makes a `.klz` a
+`unpack` reconstitutes a complete `kapi.yaml`. This is what makes a `.klz` a
 **project in a file** ([AD-026](026-flow-io-binding.md) — a flow is portable
 composition, carrying no I/O of its own).
 
@@ -282,7 +282,7 @@ Both profiles are parcels — neither is a workspace.
   block-store cache — with progress derived from content rather than a journal,
   the server-less twin of the platform's stateful project.
 - Because a `.klz` carries the full recipe (§6), it is a **project in a file**: a
-  standalone package runs its own flows and `unpack` rebuilds a complete `.kapi`.
+  standalone package runs its own flows and `unpack` rebuilds a complete `kapi.yaml`.
   Near-full parity with a `.kapi` project follows, the deliberate gaps being
   secrets (never), caches (regenerated), plugin binaries (re-resolved), and raw
   source (opt-in). Side-effecting recipe travels inert, so receiving a `.klz`

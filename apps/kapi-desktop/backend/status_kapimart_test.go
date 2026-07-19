@@ -22,7 +22,7 @@ func TestKapimartExtract_NoCollisionAcrossCollections(t *testing.T) {
 	require.NoError(t, os.CopyFS(dst, os.DirFS(src)))
 
 	app := NewApp()
-	tab, err := app.OpenProject(filepath.Join(dst, "project.kapi"))
+	tab, err := app.OpenProject(filepath.Join(dst, "kapi.yaml"))
 	require.NoError(t, err)
 	t.Cleanup(func() { app.CloseProject(tab.ID) })
 

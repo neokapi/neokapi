@@ -1,7 +1,7 @@
 # Dogfood localization seeds
 
 This directory holds the committed inputs for localizing neokapi's own
-surfaces with kapi (the root `neokapi.kapi` recipe). The `.kapi/` state
+surfaces with kapi (the root `kapi.yaml` recipe). The `.kapi/` state
 directory is gitignored and rebuilt from these seeds with `make l10n-seed`.
 
 Seeds are committed in the **native KLF-family forms** — deterministic,

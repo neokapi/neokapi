@@ -26,11 +26,11 @@ kapi init --name "Website Translation" --source en-US --targets fr-FR,de-DE,ja-J
 # Check content stats for cost estimation
 kapi stats content/**/*.md
 
-# Configure content collections in my-website.kapi
+# Configure content collections in kapi.yaml
 # Edit to map your local files to formats and target paths
 ```
 
-Example `my-website.kapi`:
+Example `kapi.yaml`:
 
 ```yaml
 version: v1
@@ -142,13 +142,13 @@ kapi uses content-addressed blocks for efficient incremental sync — only chang
 
 ## Tips
 
-- **Initialize projects with `kapi init`** to write a `<dir-name>.kapi` recipe and `.kapi/` state directory
+- **Initialize projects with `kapi init`** to write a `kapi.yaml` recipe and `.kapi/` state directory
 - **Define custom flows** in `.kapi/flows/` for your specific translation workflow
 - **Use `kapi exec recycle`** to auto-fill translations from translation memory
 - **Import terminology** into the project termbase and add `term-lookup` to your flow
 - **Run `kapi pseudo-translate`** first to identify potential UI truncation issues
 - **Use pre-push hooks** to enforce quality gates before pushing to server
-- **Commit `<dir-name>.kapi`** to git; the whole `.kapi/` state directory is gitignored by default
+- **Commit `kapi.yaml`** to git; the whole `.kapi/` state directory is gitignored by default
 - **Check `kapi status`** before pushing to see what changed
 
 ## Related

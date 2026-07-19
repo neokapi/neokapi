@@ -5,7 +5,7 @@ sidebar_position: 1
 
 # kapi init
 
-Initialize a new Bowrain project in the current directory. Creates a `<dir-name>.kapi` recipe at the project root and a sibling `.kapi/` state directory for the block store, sync cache, TM, and termbase.
+Initialize a new Bowrain project in the current directory. Creates a `kapi.yaml` recipe at the project root and a sibling `.kapi/` state directory for the block store, sync cache, TM, and termbase.
 
 ## Usage
 
@@ -56,8 +56,8 @@ kapi init --server https://app.bowrain.cloud --project abc123
 
 ## What Happens
 
-1. Checks that no `*.kapi` recipe and no `.kapi/` state directory already exist (fails fast if they do)
-2. Writes `<dir-name>.kapi` recipe at the project root
+1. Checks that no `kapi.yaml` recipe and no `.kapi/` state directory already exist (fails fast if they do)
+2. Writes the `kapi.yaml` recipe at the project root
 3. Creates `.kapi/` state directory with `flows/`, `manifest.yaml`, and an empty `cache/`
 4. Adds the example `pseudo` flow at `.kapi/flows/pseudo.yaml`
 5. Adds a `.gitignore` entry to exclude `.kapi/` from version control
@@ -91,7 +91,7 @@ kapi init --anonymous --name "My App" --source en --json
 ```json
 {
   "root": "/path/to/my-app",
-  "recipe": "/path/to/my-app/my-app.kapi",
+  "recipe": "/path/to/my-app/kapi.yaml",
   "state_dir": "/path/to/my-app/.kapi",
   "project_id": "proj_abc123",
   "server": "https://app.bowrain.cloud",
@@ -102,7 +102,9 @@ kapi init --anonymous --name "My App" --source en --json
 
 ## Recipe File
 
-`kapi init` creates `<dir-name>.kapi` at the project root with this structure:
+`kapi init` creates `kapi.yaml` at the project root with this structure. The
+`name:` field carries the project's human-readable label; it defaults to the
+current directory name and is the only place that name lives:
 
 ```yaml
 version: v1
@@ -151,19 +153,19 @@ kapi bowrain config --global server.url https://app.bowrain.cloud
 
 ## Project Discovery
 
-Once initialized, kapi searches for a `*.kapi` recipe by walking up the directory tree
+Once initialized, kapi searches for a `kapi.yaml` recipe by walking up the directory tree
 (like git). You can run commands from any subdirectory:
 
 ```bash
 cd my-project/src/locales/
-kapi status  # finds my-project.kapi up the tree
+kapi status  # finds kapi.yaml up the tree
 ```
 
 ## Version Control
 
 **Commit to git:**
 
-- `<dir-name>.kapi` — the recipe (single source of truth)
+- `kapi.yaml` — the recipe (single source of truth)
 - `.kapi/flows/*.yaml` — flow definitions you author
 
 **Do NOT commit:**
@@ -180,7 +182,7 @@ Auth tokens are never written to the project. They live in the OS keychain (keys
 
 After initialization:
 
-1. **Edit content collections** in `<dir-name>.kapi` to match your file structure
+1. **Edit content collections** in `kapi.yaml` to match your file structure
 2. **Create flows** in `.kapi/flows/` for your translation workflows
 3. **Run tools and flows**: `kapi tools`, `kapi flows`, `kapi translate`, `kapi run <flow-name>`
 4. **Connect to server**: `kapi pull` and `kapi push` (if `server:` block is set)

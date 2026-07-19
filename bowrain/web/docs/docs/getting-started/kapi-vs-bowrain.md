@@ -26,7 +26,7 @@ builder with many projects and surfaces as much as for a team.
   on it.
 
 The boundary is sharp: **kapi owns the local files and the project
-configuration** — the `.kapi` recipe (content, flows, plugins, languages,
+configuration** — the `kapi.yaml` recipe (content, flows, plugins, languages,
 brand, and the `server:` block) is authored and versioned locally with kapi,
 including the configuration of projects you push to Bowrain via `kapi push` /
 `kapi up`. **Bowrain's local footprint is cache and speed only, never a

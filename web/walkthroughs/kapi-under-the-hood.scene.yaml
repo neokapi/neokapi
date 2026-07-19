@@ -22,7 +22,7 @@ scene: under-the-hood
 mode: interactive
 
 # messages.json is the kit fixture (greeting / farewell / cart). project.tmx
-# carries the matching French so recycle has real leverage. demo.kapi declares
+# carries the matching French so recycle has real leverage. kapi.yaml declares
 # the content (with a target template) and two non-shadowing flows: tm-recycle
 # (the single TM step) and leverage-check (recycle composed with the
 # deterministic qa checks).
@@ -51,7 +51,7 @@ files:
           </tu>
         </body>
       </tmx>
-  - path: demo.kapi
+  - path: kapi.yaml
     content: |
       version: v1
       name: demo

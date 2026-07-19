@@ -102,7 +102,7 @@ With `command: up` (the default), the action runs `kapi up` — the kapi loop on
 | ---------------- | --------------------------------------- | ---------------------------------------- |
 | `command`        | `up`                                    | The `kapi` command to run                |
 | `args`           | `""`                                    | Additional arguments                     |
-| `project`        | `""`                                    | Path to the `.kapi` recipe (`-p` flag)   |
+| `project`        | `""`                                    | Path to the `kapi.yaml` recipe (`-p` flag)   |
 | `plan`           | `false`                                 | With `command: up`, dry-run instead (`kapi up --plan`): report pending work, TM leverage, and a token estimate — no writes, no provider calls. Pairs with `pr-comment` to post the cost of a change on its PR |
 | `fail-on-parked` | `false`                                 | With `command: up`, fail the workflow when the run parks instead of committing partial progress |
 | `commit`         | `true`                                  | Whether to commit changes                |
@@ -161,7 +161,7 @@ on:
   pull_request:
     paths:
       - "src/locales/**"
-      - "*.kapi"
+      - "kapi.yaml"
       - ".kapi/**"
 
 jobs:
@@ -189,7 +189,7 @@ on:
   pull_request:
     paths:
       - "src/locales/**"
-      - "*.kapi"
+      - "kapi.yaml"
       - ".kapi/**"
 
 jobs:

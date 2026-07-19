@@ -10,7 +10,7 @@ import (
 // NewRunCmd creates the "run" command for executing composed flows.
 //
 //	kapi run translate-qa -i file.xliff --target-lang fr
-//	kapi run my-custom-flow -p project.kapi
+//	kapi run my-custom-flow -p kapi.yaml
 func NewRunCmd(a *App, opts RunCmdOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run [flow-name] [flags]",
@@ -25,13 +25,13 @@ lives there; run is the escape hatch for one named pipeline, one pass.
 Built-in flows:
   translate-qa    Translate + quality check using AI/LLM
 
-Custom flows can be defined in .kapi project files or .bowrain/flows/ as YAML files.
+Custom flows can be defined in the kapi.yaml recipe or .kapi/flows/ as YAML files.
 
-Use -p to run a flow from a .kapi project file:
-  kapi run translate -p myproject.kapi`,
+Use -p to run a flow from a kapi.yaml recipe:
+  kapi run translate -p kapi.yaml`,
 		Example: `  kapi run translate-qa -i app.xliff --target-lang fr
   kapi run translate-qa -i messages.json --target-lang de
-  kapi run pseudo -p myproject.kapi         # a project-defined flow`,
+  kapi run pseudo -p kapi.yaml         # a project-defined flow`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectPath, err := ResolveProjectPath(cmd)

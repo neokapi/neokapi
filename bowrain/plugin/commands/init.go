@@ -39,7 +39,7 @@ var initCmd = &cobra.Command{
 	Short: "Set up a new project",
 	Long: `Set up a new bowrain project in the current directory.
 
-Creates a <name>.kapi recipe and a .kapi/ state directory next to it,
+Creates a kapi.yaml recipe and a .kapi/ state directory next to it,
 plus an example flow under .kapi/flows/.
 
 In interactive mode (default when stdin is a terminal), presents a guided setup
@@ -92,17 +92,14 @@ func isTTY() bool {
 	return term.IsTerminal(int(os.Stdin.Fd()))
 }
 
-// existingRecipePath returns the path of any *.kapi recipe already present
+// existingRecipePath returns the path of a kapi.yaml recipe already present
 // in dir, or "" if none. An error is returned only on read failures.
 func existingRecipePath(dir string) (string, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
+	p := filepath.Join(dir, coreproj.RecipeFileName)
+	if _, err := os.Stat(p); err == nil {
+		return p, nil
+	} else if !os.IsNotExist(err) {
 		return "", err
-	}
-	for _, e := range entries {
-		if !e.IsDir() && filepath.Ext(e.Name()) == coreproj.RecipeExt {
-			return filepath.Join(dir, e.Name()), nil
-		}
 	}
 	return "", nil
 }

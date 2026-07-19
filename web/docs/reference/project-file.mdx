@@ -1,17 +1,17 @@
 ---
 sidebar_position: 2
 title: Project file
-description: Reference for the .kapi project file — a portable YAML recipe capturing source and target languages, content file patterns, flows, plugin requirements, and processing defaults, plus how kapi discovers it.
-keywords: [kapi project, .kapi, project file, YAML recipe, flows, defaults, discovery]
+description: Reference for the kapi.yaml project file — a portable YAML recipe capturing source and target languages, content file patterns, flows, plugin requirements, and processing defaults, plus how kapi discovers it.
+keywords: [kapi project, kapi.yaml, project file, YAML recipe, flows, defaults, discovery]
 ---
 
 # Project file
 
-A Kapi project is a portable `.kapi` YAML recipe at a project's root that captures a localization workflow: source and target languages, content file patterns, tool pipelines (flows), plugin requirements, and processing defaults. It carries no credentials or state, so it is always safe to commit. For when to use a project versus an ad-hoc run, see [Projects](/kapi/projects).
+A Kapi project is a portable `kapi.yaml` recipe at a project's root that captures a localization workflow: source and target languages, content file patterns, tool pipelines (flows), plugin requirements, and processing defaults. It carries no credentials or state, so it is always safe to commit. For when to use a project versus an ad-hoc run, see [Projects](/kapi/projects).
 
 ## Discovery
 
-Like git, `kapi` walks up the directory tree from where you run it and uses the nearest `.kapi` recipe — running in **project mode** with that project's languages, defaults, and flows. An explicit `-p <path>` overrides discovery, and `KAPI_NO_PROJECT=1` disables it so the CLI runs ad-hoc.
+Like git, `kapi` walks up the directory tree from where you run it and uses the nearest `kapi.yaml` recipe — running in **project mode** with that project's languages, defaults, and flows. A directory holds at most one `kapi.yaml`, so discovery is unambiguous. An explicit `-p <path>` overrides discovery, and `KAPI_NO_PROJECT=1` disables it so the CLI runs ad-hoc.
 
 ## Format
 
@@ -446,17 +446,17 @@ yet?*.
 
 - **No credentials** — API keys are never stored in Kapi project files. They come from the OS keychain (Kapi Desktop) or environment variables (CLI).
 - **No state** — No sync cursors, caches, or timestamps. Kapi project files are always clean and safe to commit.
-- **Portable** — Save anywhere, have multiple per directory, share via git.
-- **CLI-compatible** — `kapi run flowname -p file.kapi`
+- **Portable** — One `kapi.yaml` per project folder; share via git.
+- **CLI-compatible** — `kapi run flowname -p kapi.yaml`
 
 ## Using with Kapi CLI
 
 ```bash
 # Run a flow from a Kapi project
-kapi run translate -p translation.kapi
+kapi run translate -p kapi.yaml
 
 # Override defaults with CLI flags
-kapi run translate -p translation.kapi --target-lang de --provider openai
+kapi run translate -p kapi.yaml --target-lang de --provider openai
 
 # One-shot mode still works without a project
 kapi translate -i file.json --target-lang fr
@@ -464,14 +464,14 @@ kapi translate -i file.json --target-lang fr
 
 ## Using with Kapi Desktop
 
-- **File > Open** to load a Kapi project
+- **File > Open** to load a project by its folder (the one containing `kapi.yaml`)
 - **File > New** to create one from scratch
 - **File > Save / Save As** for standard document operations
-- Double-click a Kapi project to open it in Kapi Desktop (macOS)
-- Drag and drop Kapi projects onto the app window
+- Open a project by its folder rather than by double-clicking a branded file
+- Drag and drop a project folder onto the app window
 
 ## See also
 
-- [AD-008: Project model](/contribute/architecture/008-project-model) — the architectural decision behind the `.kapi` recipe and its extension mechanism.
-- [.kapi Project File Format](/contribute/notes-internal/kapi-project-file) — the implementation note: the `KapiProject`, `Defaults`, and `ContentCollection` struct layouts, the named-collection content shape, validation rules, and how platform extensions decode unknown keys.
+- [AD-008: Project model](/contribute/architecture/008-project-model) — the architectural decision behind the `kapi.yaml` recipe and its extension mechanism.
+- [kapi.yaml Project File Format](/contribute/notes-internal/kapi-project-file) — the implementation note: the `KapiProject`, `Defaults`, and `ContentCollection` struct layouts, the named-collection content shape, validation rules, and how platform extensions decode unknown keys.
 - [Flow Steps Format](/contribute/notes-internal/flow-steps-format) — the full step specification used by `flows`.

@@ -43,7 +43,7 @@ func writeProjectRecipe(t *testing.T, recipe string) string {
 	t.Helper()
 	dir := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".kapi"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "proj.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "kapi.yaml"), []byte(recipe), 0o644))
 	return dir
 }
 

@@ -276,7 +276,7 @@ GET /api/v1/projects/:id/sync/pull?cursor=X&locales=fr-FR
 ## Config Schema Additions
 
 ```yaml
-# <dir-name>.kapi recipe
+# kapi.yaml recipe
 content:
   - path: docs/**/*.docx
     format: openxml

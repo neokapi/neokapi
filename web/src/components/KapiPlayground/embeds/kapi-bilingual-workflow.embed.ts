@@ -9,7 +9,7 @@ const config: WalkthroughEmbedConfig = {
   seed: [],
   files: [
     {
-      path: "app.kapi",
+      path: "kapi.yaml",
       content:
         "version: v1\nname: Bilingual Demo\ndefaults:\n  source_language: en-US\n  target_languages: [fr-FR, de-DE]\ncontent:\n  - path: src/locales/en/*.json\n    format: json\n    target: src/locales/{lang}/*.json\n",
     },
@@ -21,7 +21,7 @@ const config: WalkthroughEmbedConfig = {
   ],
   steps: [
     {
-      command: "kapi extract -p app.kapi --no-tm",
+      command: "kapi extract -p kapi.yaml --no-tm",
       narration:
         "Extract emits a bilingual XLIFF per target locale. This step runs live in the embed below — inspect the emitted file in the files pane.",
     },

@@ -28,7 +28,7 @@ content:
     target: "{lang}.json"
 ship_gate: { translated: 100, reviewed: 50 }
 `
-	require.NoError(t, os.WriteFile(filepath.Join(root, "proj.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
 		[]byte(`{"a":"Apple","b":"Banana"}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "nb.json"),
@@ -44,7 +44,7 @@ ship_gate: { translated: 100, reviewed: 50 }
 func writeReviewedCorrection(t *testing.T, root, srcText, _ string) {
 	t.Helper()
 	a := &App{}
-	proj := filepath.Join(root, "proj.kapi")
+	proj := filepath.Join(root, "kapi.yaml")
 	rep, err := a.ProjectConvergence(context.Background(), proj, "en")
 	require.NoError(t, err)
 	for _, it := range rep.Review {
@@ -181,7 +181,7 @@ func TestReview_ApplyReviewKindPromotesViaStateStore(t *testing.T) {
 	t.Chdir(root)
 
 	a := &App{}
-	rep, err := a.ProjectConvergence(context.Background(), filepath.Join(root, "proj.kapi"), "en")
+	rep, err := a.ProjectConvergence(context.Background(), filepath.Join(root, "kapi.yaml"), "en")
 	require.NoError(t, err)
 	var item ReviewItem
 	for _, it := range rep.Review {

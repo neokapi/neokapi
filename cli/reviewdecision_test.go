@@ -29,7 +29,7 @@ func itemBySource(t *testing.T, items []ReviewItem, source string) ReviewItem {
 // point records the same reviewed state the ApproveReviewUnit veneer does.
 func TestApplyReviewDecision_ApprovedMatchesApprove(t *testing.T) {
 	root := writeReviewProject(t)
-	proj := filepath.Join(root, "proj.kapi")
+	proj := filepath.Join(root, "kapi.yaml")
 	a := &App{}
 
 	before, err := a.ProjectConvergence(context.Background(), proj, "en")
@@ -59,7 +59,7 @@ func TestApplyReviewDecision_ApprovedMatchesApprove(t *testing.T) {
 // committed state artifact.
 func TestApplyReviewDecision_RejectedReturnsToDraft(t *testing.T) {
 	root := writeReviewProject(t)
-	proj := filepath.Join(root, "proj.kapi")
+	proj := filepath.Join(root, "kapi.yaml")
 	a := &App{}
 
 	before, err := a.ProjectConvergence(context.Background(), proj, "en")
@@ -108,7 +108,7 @@ func TestApplyReviewDecision_RejectedReturnsToDraft(t *testing.T) {
 // translated — the convergence loop closes.
 func TestApplyReviewDecision_RejectionStaleAfterEdit(t *testing.T) {
 	root := writeReviewProject(t)
-	proj := filepath.Join(root, "proj.kapi")
+	proj := filepath.Join(root, "kapi.yaml")
 	a := &App{}
 
 	before, err := a.ProjectConvergence(context.Background(), proj, "en")
@@ -138,7 +138,7 @@ func TestApplyReviewDecision_RejectionStaleAfterEdit(t *testing.T) {
 // generalized entry point.
 func TestApplyReviewDecision_SignedOffTopRung(t *testing.T) {
 	root := writeReviewProject(t)
-	proj := filepath.Join(root, "proj.kapi")
+	proj := filepath.Join(root, "kapi.yaml")
 	a := &App{}
 
 	before, err := a.ProjectConvergence(context.Background(), proj, "en")
@@ -159,7 +159,7 @@ func TestApplyReviewDecision_SignedOffTopRung(t *testing.T) {
 func TestApplyReviewDecision_UnknownDecision(t *testing.T) {
 	root := writeReviewProject(t)
 	a := &App{}
-	_, err := a.ApplyReviewDecision(context.Background(), filepath.Join(root, "proj.kapi"), "en",
+	_, err := a.ApplyReviewDecision(context.Background(), filepath.Join(root, "kapi.yaml"), "en",
 		ReviewUnitRef{File: "nb.json", Key: "a", Locale: "nb"}, "meh", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown review decision")
@@ -168,7 +168,7 @@ func TestApplyReviewDecision_UnknownDecision(t *testing.T) {
 func TestApplyReviewDecision_UnitNotFound(t *testing.T) {
 	root := writeReviewProject(t)
 	a := &App{}
-	_, err := a.ApplyReviewDecision(context.Background(), filepath.Join(root, "proj.kapi"), "en",
+	_, err := a.ApplyReviewDecision(context.Background(), filepath.Join(root, "kapi.yaml"), "en",
 		ReviewUnitRef{File: "nb.json", Key: "missing", Locale: "nb"}, ReviewDecisionApproved, "")
 	require.Error(t, err)
 }
@@ -189,12 +189,12 @@ content:
       - path: en.json
         target: "{lang}.json"
 `
-	require.NoError(t, os.WriteFile(filepath.Join(root, "proj.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"), []byte(`{"a":"Apple"}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "nb.json"), []byte(`{"a":"Eple"}`), 0o644))
 
 	a := &App{}
-	rep, err := a.ProjectConvergence(context.Background(), filepath.Join(root, "proj.kapi"), "en")
+	rep, err := a.ProjectConvergence(context.Background(), filepath.Join(root, "kapi.yaml"), "en")
 	require.NoError(t, err)
 	require.Len(t, rep.Review, 1)
 	assert.Equal(t, "app", rep.Review[0].Collection)

@@ -73,7 +73,7 @@ func TestCheck_BareOutsideProjectStillRequiresAFile(t *testing.T) {
 	_, err := a.ComputeCheck(cmd, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "at least one file is required")
-	assert.Contains(t, err.Error(), ".kapi project")
+	assert.Contains(t, err.Error(), "kapi project")
 }
 
 // TestCheck_BareWithTargetStillRequiresOneSource: --target is bilingual mode —

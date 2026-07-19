@@ -7,7 +7,7 @@ title: "Bowrain Sync Protocol"
 
 This note provides implementation details for [AD-009](/architecture-decisions/009-sync-protocol) and [AD-010](/architecture-decisions/010-bowrain-cli-and-project-model).
 
-## Recipe (`<dir-name>.kapi`) Full Schema
+## Recipe (`kapi.yaml`) Full Schema
 
 ```yaml
 version: v1

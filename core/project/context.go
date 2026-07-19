@@ -19,7 +19,7 @@ import (
 // create a ProjectContext when operating in project mode.
 type ProjectContext struct {
 	Project    *KapiProject
-	ProjectDir string // absolute path to the directory containing the .kapi file
+	ProjectDir string // absolute path to the directory containing kapi.yaml
 
 	// Resolved defaults
 	SourceLocale   model.LocaleID

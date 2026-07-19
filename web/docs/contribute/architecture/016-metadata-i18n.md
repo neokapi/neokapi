@@ -92,7 +92,7 @@ core/i18n/
 ├── gen/
 │   ├── gen.go                # Generator library
 │   └── cmd/main.go           # //go:generate entry point
-└── i18n.kapi                 # Project file documenting the pipeline
+└── kapi.yaml                 # Project file documenting the pipeline
 
 core/formats/mo/              # Writer + stub reader (for DetectByExtension)
 ```

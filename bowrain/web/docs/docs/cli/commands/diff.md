@@ -64,7 +64,7 @@ Output format and color come from the shared global flags:
 
 ## How it works
 
-1. Resolve the project by walking up from the current directory to the `.kapi`
+1. Resolve the project by walking up from the current directory to the `kapi.yaml`
    recipe (run `kapi init` first if none is found).
 2. Read local files via the format registry, respecting the recipe's `content:`
    collections.

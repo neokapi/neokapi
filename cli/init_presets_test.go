@@ -44,7 +44,7 @@ func TestInit_PresetScaffolds(t *testing.T) {
 	cmd.SetArgs([]string{"--dir", dir, "--preset", "react-i18next", "--target-locale", "nb"})
 	require.NoError(t, cmd.Execute())
 
-	recipe, err := os.ReadFile(filepath.Join(dir, filepath.Base(dir)+".kapi"))
+	recipe, err := os.ReadFile(filepath.Join(dir, "kapi.yaml"))
 	require.NoError(t, err)
 	assert.Contains(t, string(recipe), "public/locales", "the preset's content mapping is scaffolded")
 	assert.Contains(t, string(recipe), "- nb")

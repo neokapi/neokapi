@@ -19,8 +19,8 @@ interface ProjectPageProps {
 function displayName(project: KapiProject, projectPath: string): string {
   if (project.name) return project.name;
   if (!projectPath) return "Untitled";
-  // Path is like /Users/.../MyApp/project.kapi — grab "MyApp"
-  const parts = projectPath.replace(/\/project\.kapi$/i, "").split("/");
+  // Path is like /Users/.../MyApp/kapi.yaml — grab "MyApp"
+  const parts = projectPath.replace(/\/kapi\.yaml$/i, "").split("/");
   return parts[parts.length - 1] || "Untitled";
 }
 

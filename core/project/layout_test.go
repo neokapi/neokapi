@@ -12,14 +12,14 @@ import (
 
 func TestResolveLayout_walksUpFromSubdirectory(t *testing.T) {
 	root := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(root, "my-app.kapi"), []byte("id: my-app\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte("name: my-app\n"), 0o644))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, ".kapi"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "src", "deep"), 0o755))
 
 	layout, err := project.ResolveLayout(filepath.Join(root, "src", "deep"))
 	require.NoError(t, err)
 	assert.Equal(t, root, layout.Root)
-	assert.Equal(t, filepath.Join(root, "my-app.kapi"), layout.RecipePath)
+	assert.Equal(t, filepath.Join(root, "kapi.yaml"), layout.RecipePath)
 	assert.Equal(t, filepath.Join(root, ".kapi"), layout.StateDir)
 }
 
@@ -29,13 +29,14 @@ func TestResolveLayout_noProjectFound(t *testing.T) {
 	assert.ErrorIs(t, err, project.ErrNoProject)
 }
 
-func TestResolveLayout_ambiguousMultipleRecipes(t *testing.T) {
+// A YAML file that is not named kapi.yaml is not a recipe: discovery keys on
+// the fixed basename, so an unrelated config.yaml does not make a project.
+func TestResolveLayout_ignoresNonRecipeYAML(t *testing.T) {
 	root := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(root, "one.kapi"), []byte("id: one\n"), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "two.kapi"), []byte("id: two\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "config.yaml"), []byte("id: x\n"), 0o644))
 
 	_, err := project.ResolveLayout(root)
-	assert.ErrorIs(t, err, project.ErrAmbiguousLayout)
+	assert.ErrorIs(t, err, project.ErrNoProject)
 }
 
 func TestResolveLayout_stateWithoutRecipe(t *testing.T) {
@@ -47,8 +48,8 @@ func TestResolveLayout_stateWithoutRecipe(t *testing.T) {
 
 func TestResolveLayout_startIsAFile(t *testing.T) {
 	root := t.TempDir()
-	recipe := filepath.Join(root, "my-app.kapi")
-	require.NoError(t, os.WriteFile(recipe, []byte("id: my-app\n"), 0o644))
+	recipe := filepath.Join(root, "kapi.yaml")
+	require.NoError(t, os.WriteFile(recipe, []byte("name: my-app\n"), 0o644))
 
 	layout, err := project.ResolveLayout(recipe)
 	require.NoError(t, err)
@@ -57,8 +58,8 @@ func TestResolveLayout_startIsAFile(t *testing.T) {
 
 func TestLayoutFor_explicitRecipePath(t *testing.T) {
 	root := t.TempDir()
-	recipe := filepath.Join(root, "my-app.kapi")
-	require.NoError(t, os.WriteFile(recipe, []byte("id: my-app\n"), 0o644))
+	recipe := filepath.Join(root, "kapi.yaml")
+	require.NoError(t, os.WriteFile(recipe, []byte("name: my-app\n"), 0o644))
 
 	layout, err := project.LayoutFor(recipe)
 	require.NoError(t, err)
@@ -66,17 +67,38 @@ func TestLayoutFor_explicitRecipePath(t *testing.T) {
 	assert.Equal(t, filepath.Join(root, ".kapi"), layout.StateDir)
 }
 
-func TestLayoutFor_rejectsNonKapiExtension(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "wrong.yaml")
-	require.NoError(t, os.WriteFile(path, []byte("id: x\n"), 0o644))
-	_, err := project.LayoutFor(path)
+// An explicit -p path is trusted even when the file is not named kapi.yaml —
+// pointing at a variant recipe is taken at its word (cf. `docker compose -f`).
+func TestLayoutFor_acceptsExplicitNonStandardName(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "variant.yaml")
+	require.NoError(t, os.WriteFile(path, []byte("name: x\n"), 0o644))
+
+	layout, err := project.LayoutFor(path)
+	require.NoError(t, err)
+	assert.Equal(t, path, layout.RecipePath)
+	assert.Equal(t, filepath.Join(root, ".kapi"), layout.StateDir)
+}
+
+// Pointing -p at a project directory resolves the kapi.yaml inside it.
+func TestLayoutFor_directoryResolvesRecipe(t *testing.T) {
+	root := t.TempDir()
+	recipe := filepath.Join(root, "kapi.yaml")
+	require.NoError(t, os.WriteFile(recipe, []byte("name: x\n"), 0o644))
+
+	layout, err := project.LayoutFor(root)
+	require.NoError(t, err)
+	assert.Equal(t, recipe, layout.RecipePath)
+
+	// A directory with no kapi.yaml is an error.
+	_, err = project.LayoutFor(t.TempDir())
 	assert.Error(t, err)
 }
 
 func TestEnsureLayout_createsStateDir(t *testing.T) {
 	root := t.TempDir()
-	recipe := filepath.Join(root, "my-app.kapi")
-	require.NoError(t, os.WriteFile(recipe, []byte("id: my-app\n"), 0o644))
+	recipe := filepath.Join(root, "kapi.yaml")
+	require.NoError(t, os.WriteFile(recipe, []byte("name: my-app\n"), 0o644))
 
 	layout, err := project.LayoutFor(recipe)
 	require.NoError(t, err)
@@ -90,14 +112,14 @@ func TestEnsureLayout_createsStateDir(t *testing.T) {
 // State manifest round-trip.
 func TestStateManifest_roundTrip(t *testing.T) {
 	root := t.TempDir()
-	recipe := filepath.Join(root, "my-app.kapi")
-	require.NoError(t, os.WriteFile(recipe, []byte("id: my-app\n"), 0o644))
+	recipe := filepath.Join(root, "kapi.yaml")
+	require.NoError(t, os.WriteFile(recipe, []byte("name: my-app\n"), 0o644))
 	layout, err := project.LayoutFor(recipe)
 	require.NoError(t, err)
 
 	orig := &project.StateManifest{
 		Generator: project.StateGenerator{ID: "kapi", Version: "0.5.0"},
-		Project:   project.StateProjectRef{ID: "my-app", Path: "../my-app.kapi"},
+		Project:   project.StateProjectRef{ID: "my-app", Path: "../kapi.yaml"},
 		Blocks: map[string]project.StateBlockStats{
 			"ui": {Count: 42, SHA256: "abc123"},
 		},
@@ -114,8 +136,8 @@ func TestStateManifest_roundTrip(t *testing.T) {
 
 func TestLoadState_missingFileReturnsNil(t *testing.T) {
 	root := t.TempDir()
-	recipe := filepath.Join(root, "my-app.kapi")
-	require.NoError(t, os.WriteFile(recipe, []byte("id: my-app\n"), 0o644))
+	recipe := filepath.Join(root, "kapi.yaml")
+	require.NoError(t, os.WriteFile(recipe, []byte("name: my-app\n"), 0o644))
 	layout, err := project.LayoutFor(recipe)
 	require.NoError(t, err)
 	require.NoError(t, project.EnsureLayout(layout))

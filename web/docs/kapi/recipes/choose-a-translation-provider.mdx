@@ -62,7 +62,7 @@ kapi translate input.html --target-lang fr --provider anthropic --model claude-s
 
 The default provider is `anthropic`; `openai`, `gemini`, `azureopenai`, and on-device `ollama` are built in — the generated [tool reference](/reference/tools/translate) lists the current parameters and default model for each. The keyless `demo` provider produces deterministic, clearly-marked illustrative output for trying flows and CI smoke tests, never for real translation; classic MT engines (DeepL, Google Translate, and the like) are plugin-hosted, surfaced through the same flag.
 
-**Supply a key safely.** A key is never read from the `.kapi` recipe — the recipe stays safe to commit. Resolution order: inline `--api-key`, then a saved `--credential`, then the provider's environment variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` then `GOOGLE_API_KEY`, `AZURE_OPENAI_API_KEY`):
+**Supply a key safely.** A key is never read from the `kapi.yaml` recipe — the recipe stays safe to commit. Resolution order: inline `--api-key`, then a saved `--credential`, then the provider's environment variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` then `GOOGLE_API_KEY`, `AZURE_OPENAI_API_KEY`):
 
 ```bash
 kapi credentials add my-anthropic --provider anthropic --api-key …   # once, into the OS keychain

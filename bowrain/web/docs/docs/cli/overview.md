@@ -28,7 +28,7 @@ With the plugin installed, kapi is the local end of a **git-to-GitHub** relation
 
 A bowrain project is a kapi project with a `server:` block on its recipe:
 
-- **`<dir-name>.kapi`** — the recipe (committed) — project settings, content collections, flows, server connection
+- **`kapi.yaml`** — the recipe (committed) — project settings, content collections, flows, server connection
 - **`.kapi/flows/`** — optional file-per-flow definitions (committed)
 - **`.kapi/cache/sync-cache.json`** — sync cache (gitignored, local only)
 - **`.kapi/cache/blocks.db`** — block store (gitignored, regenerable)
@@ -78,7 +78,7 @@ kapi bowrain config --global server.url https://app.bowrain.cloud  # Set global 
 
 Use kapi with the bowrain plugin when you:
 
-- **Manage localization projects** with a `.kapi` recipe
+- **Manage localization projects** with a `kapi.yaml` recipe
 - **Sync with a Bowrain server** for team collaboration
 - **Run project-based flows** defined in `.kapi/flows/` or inline on the recipe
 - **Want automation** via CI/CD pipelines

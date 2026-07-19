@@ -27,17 +27,17 @@ export const WithRecentProjects: Story = {
   args: {
     recentFiles: [
       {
-        path: "/Users/dev/projects/acme-app/project.kapi",
+        path: "/Users/dev/projects/acme-app/kapi.yaml",
         name: "Acme App Localization",
         opened_at: "2026-03-29T14:30:00Z",
       },
       {
-        path: "/Users/dev/projects/website-i18n/project.kapi",
+        path: "/Users/dev/projects/website-i18n/kapi.yaml",
         name: "Website i18n",
         opened_at: "2026-03-28T09:15:00Z",
       },
       {
-        path: "/Users/dev/projects/mobile-strings/project.kapi",
+        path: "/Users/dev/projects/mobile-strings/kapi.yaml",
         name: "Mobile Strings",
         opened_at: "2026-03-25T16:45:00Z",
       },

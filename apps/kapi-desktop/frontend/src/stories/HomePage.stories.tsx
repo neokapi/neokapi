@@ -133,7 +133,7 @@ export const WithCoverage: Story = {
       },
     },
     status: {
-      projectPath: "/Users/dev/projects/kapimart/kapimart.kapi",
+      projectPath: "/Users/dev/projects/kapimart/kapi.yaml",
       projectName: "KapiMart",
       hasData: true,
       collections: [
@@ -297,7 +297,7 @@ export const ThreeLanguages: Story = {
       flows: { translate: { steps: [{ tool: "translate" }] } },
     },
     status: {
-      projectPath: "/Users/dev/projects/acme/acme.kapi",
+      projectPath: "/Users/dev/projects/acme/kapi.yaml",
       projectName: "Acme App Localization",
       hasData: true,
       collections: [
@@ -416,7 +416,7 @@ export const NeverExtracted: Story = {
   args: {
     ...Default.args,
     status: {
-      projectPath: "/Users/dev/projects/acme/acme.kapi",
+      projectPath: "/Users/dev/projects/acme/kapi.yaml",
       projectName: "Acme App Localization",
       hasData: false,
       collections: [],

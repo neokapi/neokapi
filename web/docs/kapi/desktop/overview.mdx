@@ -25,7 +25,7 @@ terminology and translation-memory explorer, and the plugin manager. The kapi
 - **Quick tools (ad-hoc)** — For one-offs, run an individual tool or flow on a loose file with dynamic configuration forms generated from tool schemas — no project required.
 - **Plugin manager** — Browse the plugin registry, install, update, and manage plugins from a UI.
 - **Connect your AI** — On first open, a card offers the AI it detects — a Claude Code sign-in ([uses your Claude subscription](/kapi/get-started/use-with-claude#let-kapi-run-claude)), a local Ollama model — one click; API keys go in the credential vault, stored in your OS keychain.
-- **Project files** — The `.kapi` recipe is a portable file you can share via git or open with double-click.
+- **Project files** — The `kapi.yaml` recipe is a portable file you can share via git; the desktop opens a project by its folder.
 
 ## Install
 
@@ -50,12 +50,12 @@ what parked. Provider keys live in **Settings** (stored in your OS keychain,
 never in the project file); flows are composed in the **Toolbox**'s Flows tab;
 plugins install from the **Plugins** registry.
 
-Everything you configure is written to a portable `<name>.kapi` recipe file.
+Everything you configure is written to a portable `kapi.yaml` recipe file.
 Commit it to git to share with your team, reopen it in Kapi Desktop, or run it
 from the command line:
 
 ```bash
-kapi up -p myproject.kapi
+kapi up -p kapi.yaml
 ```
 
 ## Next Steps

@@ -187,11 +187,11 @@ Non-KLF formats (JSON, XLIFF, …) aren't locale-additive, so they write a new f
 
 A single `i18n/` tree with N target locales on each block is the default and recommended layout — simpler to version, all translations stay together. See [AD-008](/contribute/architecture/008-project-model) for the project model.
 
-### Project-driven flow with `.kapi`
+### Project-driven flow with `kapi.yaml`
 
-If you already use a [`.kapi` project file](/contribute/architecture/008-project-model) to define your workflow, declare each archive-backed collection with an `exec` format pointing at neokapi-i18n (or any other extractor):
+If you already use a [`kapi.yaml` project file](/contribute/architecture/008-project-model) to define your workflow, declare each archive-backed collection with an `exec` format pointing at neokapi-i18n (or any other extractor):
 
-```yaml title="translation.kapi"
+```yaml title="kapi.yaml"
 version: v1
 name: MyApp
 defaults:
@@ -211,17 +211,17 @@ content:
 ```bash
 # 1. Extract — kapi runs the declared command for each collection,
 #    streams NDJSON blocks into the collection's block store.
-kapi extract -p translation.kapi
+kapi extract -p kapi.yaml
 
 # 2. Translate — run a composed flow over the project for each target language.
-kapi run translate-qa -p translation.kapi
+kapi run translate-qa -p kapi.yaml
 ```
 
 The `command` string picks the package manager — `vp`, `pnpm`, `npm`, `yarn`, or a direct binary path — so the project declares its preferences explicitly without kapi making assumptions. `kapi run` then executes the named [flow](/framework/flows) against the project's extracted blocks for each target language.
 
-### Standalone pipe (no `.kapi`)
+### Standalone pipe (no `kapi.yaml`)
 
-For ad-hoc projects, skip `.kapi` entirely and compose with Unix pipes:
+For ad-hoc projects, skip `kapi.yaml` entirely and compose with Unix pipes:
 
 ```bash
 vp neokapi-i18n extract --stream > i18n/blocks.ndjson
@@ -229,7 +229,7 @@ kapi pseudo-translate i18n/
 vp neokapi-i18n compile i18n/ --out public/translations
 ```
 
-Same underlying wire format (NDJSON on the extract stage, KLF from there on) — the declarative `.kapi` form just factors the pipe into the project file.
+Same underlying wire format (NDJSON on the extract stage, KLF from there on) — the declarative `kapi.yaml` form just factors the pipe into the project file.
 
 ## Phase 3: compile
 

@@ -2,15 +2,15 @@
 id: 008-project-model
 sidebar_position: 8
 title: "AD-008: Kapi Project Model"
-description: "Architecture decision: a kapi project is a folder with a {name}.kapi YAML recipe at its root and a .kapi/ state directory. The recipe captures workflow defaults; the state directory holds the TM, termbase, and sync caches."
-keywords: [kapi project, .kapi, YAML recipe, project model, state directory, architecture decision]
+description: "Architecture decision: a kapi project is a folder with a kapi.yaml recipe at its root and a .kapi/ state directory. The recipe captures workflow defaults; the state directory holds the TM, termbase, and sync caches."
+keywords: [kapi project, kapi.yaml, .kapi, YAML recipe, project model, state directory, architecture decision]
 ---
 
 # AD-008: Kapi Project Model
 
 ## Summary
 
-A kapi project is a folder containing a `{name}.kapi` YAML recipe at its root
+A kapi project is a folder containing a `kapi.yaml` recipe at its root
 and a sibling `.kapi/` state directory. The recipe captures the user's
 declarative intent — identity, content collections, flows, store selection,
 plus any platform extensions (such as a `server:` block) when a platform layer
@@ -56,7 +56,7 @@ Ownership zones at the project root:
 
 ```
 my-app/
-├── my-app.kapi             ← RECIPE (user edits, click-to-open)
+├── kapi.yaml               ← RECIPE (user edits; a conventional YAML config file)
 ├── .kapi-state.json        ← STATE STORE (review decisions, committed like the recipe)
 ├── .kapi/                  ← WORKING STATE (kapi maintains)
 │   ├── manifest.yaml       ← bookkeeping: block counts, fingerprints, timestamps
@@ -85,8 +85,12 @@ my-app/
 
 Ownership:
 
-- **`{name}.kapi`** — the user's. Hand-edited YAML. The click-to-open handle
-  for kapi-desktop. Committed to git.
+- **`kapi.yaml`** — the user's. Hand-edited YAML, committed to git. A fixed,
+  conventional config filename (in the family of `package.json` or a CI
+  workflow file): because it ends in `.yaml`, every editor — and GitHub and
+  GitLab code previews and diffs — applies YAML syntax highlighting with no
+  custom file-type registration or plugin. Wide, zero-config recognition was
+  chosen over a branded double-click-to-open document type.
 - **`.kapi-state.json`** — the project **state store** (`defaults.state`, the
   default path). The committed, git-tracked record of per-unit review decisions
   (the review ladder: approvals, sign-off, parking) that a plain target file
@@ -106,15 +110,15 @@ into `.kapi/`.
 - **Writer outputs** (e.g. `i18n/{locale}.json`) — produced by format writers
   the recipe declares. The runtime consumes these; kapi does not.
 
-The name pair mirrors git: `.gitignore` file plus `.git/` folder at the same
-root.
+The pairing preserves the git-like shape of a committed config file beside a
+tool-managed state directory: `kapi.yaml` alongside `.kapi/`.
 
 ### Recipe schema
 
 The recipe is a YAML document parsed into `core/project.KapiProject`:
 
 ```yaml
-# my-app.kapi
+# kapi.yaml
 version: v1
 name: My App Localization
 
@@ -178,16 +182,18 @@ inherited values with override indicators in the step's config panel.
 Required fields: `version: v1` (must equal the current schema version) and, for
 each content item, a non-empty `path`. Every flow contains at least one step
 with a non-empty `tool` (unless the step uses `parallel`, in which case the
-parallel branches carry the tools). `name` is recommended as a project label
-but is optional and not validated.
+parallel branches carry the tools). `name` is the project's human label — since
+the recipe filename is fixed, it is the only place the label lives; `kapi init`
+defaults it to the current directory's basename. It is optional and not
+validated.
 
 The recipe holds provider **names** only — API keys live in the OS keychain
 (see [AD-013: Kapi CLI](013-kapi-cli.md)) or environment. Nothing in the
 recipe is secret; it is safe to commit.
 
 Discovery is git-style: kapi tools walk up from the current directory until
-they find a `*.kapi` file. Multiple recipes at the same directory level
-require an explicit `-p <path>` flag.
+they find a file named exactly `kapi.yaml`. A directory holds at most one, so
+discovery is unambiguous; an explicit `-p <path>` still overrides it.
 
 ### Content paths
 
@@ -563,14 +569,14 @@ The kapi CLI ([AD-013: Kapi CLI](013-kapi-cli.md)) uses projects via the `-p`
 flag or through `kapi init`:
 
 ```bash
-kapi init                                     # scaffold {name}.kapi + .kapi/
-kapi run translate -p my-app.kapi             # run a declared flow
-kapi translate -p my-app.kapi                 # tool runs against the project
+kapi init                                     # scaffold kapi.yaml + .kapi/
+kapi run translate -p kapi.yaml               # run a declared flow
+kapi translate -p kapi.yaml                   # tool runs against the project
 kapi pseudo-translate file.json            # tool runs ad-hoc, no project
 ```
 
-kapi-desktop ([AD-014: Kapi Desktop](014-kapi-desktop.md)) opens `.kapi` files
-as documents and operates on the project folder.
+kapi-desktop ([AD-014: Kapi Desktop](014-kapi-desktop.md)) opens a project by
+its folder (which contains `kapi.yaml`) and operates on it.
 
 ## Consequences
 
@@ -583,6 +589,9 @@ as documents and operates on the project folder.
 - Transaction semantics vary per provider: SQLite transaction for `cache`,
   tools calling `GetBlock` per-block are slow against remote stores.
 - The project file is always free of credentials — safe for commit and sharing.
+- Naming: the recipe is a fixed `kapi.yaml`. This is a breaking change
+  introduced in kapi 1.2 — earlier builds named the recipe after the project
+  directory with a `.kapi` extension (`<dir-name>.kapi`).
 
 ## Related
 
@@ -592,4 +601,4 @@ as documents and operates on the project folder.
 - [AD-013: Kapi CLI](013-kapi-cli.md) — CLI use of projects
 - [AD-014: Kapi Desktop](014-kapi-desktop.md) — desktop app use of projects
 - [Flow Steps Format](/contribute/notes-internal/flow-steps-format) — shared flow syntax
-- [.kapi Project File](/contribute/notes-internal/kapi-project-file) — schema reference
+- [kapi.yaml Project File](/contribute/notes-internal/kapi-project-file) — schema reference

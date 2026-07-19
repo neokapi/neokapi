@@ -173,7 +173,7 @@ plugin author ships a fix.
 
 ## Recipe `requires:` syntax
 
-`requires:` in a `.kapi` recipe is **always a map** of plugin name →
+`requires:` in a `kapi.yaml` recipe is **always a map** of plugin name →
 version constraint:
 
 ```yaml
