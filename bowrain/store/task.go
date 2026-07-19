@@ -247,6 +247,20 @@ func (s *TaskStore) List(ctx context.Context, q TaskQuery) (*TaskResult, error) 
 	return result, nil
 }
 
+// CountOpenByType returns how many tasks of the given type are open or
+// in_progress for a project — a cheap COUNT(*) the review-loop gate uses to
+// detect when the last pending review closed (the whole open review queue is
+// empty) so it can hand off to a completing convergence run.
+func (s *TaskStore) CountOpenByType(ctx context.Context, workspaceID, projectID, taskType string) (int, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM tasks
+		 WHERE workspace_id = $1 AND project_id = $2 AND type = $3
+		   AND status IN ('open', 'in_progress')`,
+		workspaceID, projectID, taskType).Scan(&n)
+	return n, err
+}
+
 // Update updates a task's mutable fields.
 func (s *TaskStore) Update(ctx context.Context, t *Task) error {
 	t.UpdatedAt = time.Now().UTC()

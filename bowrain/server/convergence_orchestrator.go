@@ -103,35 +103,71 @@ func newConvergenceOrchestrator(s *Server) *convergenceOrchestrator {
 // locale's translation-job completion.
 const convergePollInterval = 750 * time.Millisecond
 
+// convergeOnPushGroup is the durable consumer-group name for the on-push
+// convergence triggers. Stable by design: on the Redis bus the group's resume
+// position is keyed by this name, so renaming it discards the acknowledged
+// position and re-creates the group at the current stream head.
+const convergeOnPushGroup = "convergence-onpush"
+
 // subscribeConvergeOnPush wires the continuous-convergence policy: a completed
 // push starts a convergence run for on-push projects (the default), replacing
 // the retired auto-translate-on-push automation. Manual projects converge only
 // on demand. Transport (push) stays pure; this is the project's own clock.
+//
+// Durability: this trigger is state-advancing — a lost EventPushCompleted means
+// convergence-on-push silently never happens — so it joins a consumer group
+// (SubscribeGroup → XREADGROUP) instead of tailing with Subscribe. A plain
+// Subscribe reads from the CURRENT stream position with no resume, so an event
+// published while the server was mid-deploy-rollover simply vanished. The
+// group's acknowledged position survives restarts (the resubscribing instance
+// drains everything published during its downtime) and exactly one instance in
+// the group handles each event.
+//
+// Idempotency (same argument as durable ingest, #1364): replaying an old push
+// event — the startup drain, or a redelivered un-acked entry — starts at worst
+// one extra convergence run over already-converged state, which derives
+// coverage, finds nothing pending, and terminates. StartRun's active-run guard
+// (DB partial unique index) additionally collapses a replay racing a live run
+// into joining that run.
 func (s *Server) subscribeConvergeOnPush() {
 	if s.EventBus == nil || s.convergence == nil {
 		return
 	}
-	// A completed push starts a run for on-push projects.
-	s.EventBus.Subscribe(platev.EventPushCompleted, func(ev platev.Event) {
-		s.startOnPushRun(ev, "push")
-	})
-	// Adding a target locale is also new work the on-push policy should absorb:
-	// the old auto-translate-new-locale automation was removed, so without this
-	// a new locale would translate nothing (F10). handlers_project publishes
-	// EventProjectUpdated with new_locales set; a run re-derives coverage and
-	// produces the new locale like any other pending one.
-	s.EventBus.Subscribe(platev.EventProjectUpdated, func(ev platev.Event) {
-		if ev.Data["new_locales"] == "" {
-			return // only a locale addition warrants a run
+	// One group subscription dispatching on event type: a group handler
+	// receives every event (no bus-side type filter — the same shape as the
+	// audit/notifications/automations group consumers). Two SubscribeGroup
+	// calls with the same name would be competing consumers splitting the
+	// stream between them, not two filtered feeds.
+	s.EventBus.SubscribeGroup(convergeOnPushGroup, func(ev platev.Event) {
+		switch ev.Type {
+		case platev.EventPushCompleted:
+			// A completed push starts a run for on-push projects.
+			s.startOnPushRun(ev, "push")
+		case platev.EventProjectUpdated:
+			// Adding a target locale is also new work the on-push policy should
+			// absorb: the old auto-translate-new-locale automation was removed,
+			// so without this a new locale would translate nothing (F10).
+			// handlers_project publishes EventProjectUpdated with new_locales
+			// set; a run re-derives coverage and produces the new locale like
+			// any other pending one.
+			if ev.Data["new_locales"] == "" {
+				return // only a locale addition warrants a run
+			}
+			s.startOnPushRun(ev, "push")
 		}
-		s.startOnPushRun(ev, "push")
 	})
 }
 
 // startOnPushRun starts a convergence run for the event's project when its
 // policy is on-push. Shared by the push-completed and new-locale triggers.
 func (s *Server) startOnPushRun(ev platev.Event, trigger string) {
+	// Receipt + every exit reason logged: a silently dropped push event is
+	// indistinguishable from a bus delivery failure without these lines.
+	slog.Info("convergence: push event received",
+		"project", ev.ProjectID, "source", ev.Source, "trigger", trigger)
 	if ev.ProjectID == "" || s.ContentStore == nil || s.convergence == nil {
+		slog.Warn("convergence: on-push skipped",
+			"reason", "missing project id or orchestrator wiring", "project", ev.ProjectID)
 		return
 	}
 	// Event-bus callback: a run is the project's own clock and must outlive
@@ -139,9 +175,13 @@ func (s *Server) startOnPushRun(ev platev.Event, trigger string) {
 	ctx := context.Background()
 	proj, err := s.ContentStore.GetProject(ctx, ev.ProjectID)
 	if err != nil {
+		slog.Warn("convergence: on-push skipped",
+			"reason", "project lookup failed", "project", ev.ProjectID, "error", err)
 		return
 	}
 	if platstore.NormalizeConvergePolicy(proj.ConvergePolicy) != platstore.ConvergePolicyOnPush {
+		slog.Info("convergence: on-push skipped",
+			"reason", "policy is manual", "project", ev.ProjectID, "policy", proj.ConvergePolicy)
 		return // manual: no run
 	}
 	if _, _, err := s.convergence.StartRun(ctx, ev.ProjectID, trigger, nil); err != nil {
@@ -429,9 +469,22 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 	// A source-not-ready hold produced no translations, so it routes to SOURCE
 	// review (below), not the translation review queue — skip the completion
 	// tasks in that case to avoid a "review translations" task for work that was
-	// never done.
+	// never done. A no-target-locales hold likewise produced nothing to review:
+	// the next action is configuration (add a target language), not review.
+	//
+	// run.Passes > 0 is the anti-loop gate (RV-B): a run that ran zero production
+	// passes derived 0 pending on its first pass — it translated nothing new, so
+	// there is no fresh draft work to review. That is exactly the shape of the
+	// completing run a review.completed triggers: every block is already
+	// approved, the derive finds nothing pending, the loop runs 0 passes and
+	// converges. Fanning review tasks back out for already-reviewed content would
+	// re-open the queue and let review → run → review loop forever. Gating on
+	// "the run actually produced work" breaks that loop while still fanning tasks
+	// out for every genuine translate/park run (which always ran ≥1 pass).
 	if (run.State == bstore.ConvergenceRunConverged || run.State == bstore.ConvergenceRunParked) &&
-		run.StallReason != convergence.StallSourceNotReady {
+		run.StallReason != convergence.StallSourceNotReady &&
+		run.StallReason != convergence.StallNoTargetLocales &&
+		run.Passes > 0 {
 		o.createCompletionReviewTasks(context.WithoutCancel(ctx), run)
 	}
 
@@ -476,6 +529,15 @@ func (o *convergenceOrchestrator) deriveFunc(projectID string, localeFilter []st
 		if err != nil {
 			return convergence.PassState{}, fmt.Errorf("load project: %w", err)
 		}
+		// No configured target languages is a configuration hold, never "up to
+		// date": with zero locales the loop below would derive zero pending and
+		// the run would read converged over any amount of untranslated source.
+		// The typed stall parks the run with a machine-readable reason + the
+		// same message the local venue refuses with, so the UI can say "add a
+		// target language" instead of a false green (mirrors host/converge.go).
+		if len(proj.TargetLanguages) == 0 {
+			return convergence.PassState{}, errStallNoTargetLocales
+		}
 		stats, err := editorGetDashboardStats(ctx, s.ContentStore, proj, "main")
 		if err != nil {
 			return convergence.PassState{}, fmt.Errorf("derive coverage: %w", err)
@@ -514,6 +576,21 @@ func (o *convergenceOrchestrator) deriveFunc(projectID string, localeFilter []st
 			if total == 0 {
 				total = stats.TranslatableBlocks
 			}
+			if total == 0 {
+				// The dashboard stats are ITEM-scoped (GetBlockStats scopes its
+				// block query to the stream's item rows), so blocks ingested
+				// without item bookkeeping — the historical connector-fetch path
+				// stored blocks item-less — are invisible to them and the locale
+				// would false-read as at-gate ("Up to date") over real pending
+				// work. The block store is the truth for pending-work derivation:
+				// a translatable block lacking a target for a CONFIGURED locale
+				// is pending, item rows or not.
+				bl, berr := loadBlocks()
+				if berr != nil {
+					return convergence.PassState{}, fmt.Errorf("load blocks for coverage: %w", berr)
+				}
+				total, ls.TranslatedBlocks = blockCoverage(bl, loc)
+			}
 			unitTotals[l] = total
 			if ls.TranslatedBlocks < total {
 				// Under-covered: pending on coverage alone, no need to check.
@@ -544,6 +621,25 @@ func (o *convergenceOrchestrator) deriveFunc(projectID string, localeFilter []st
 	}
 }
 
+// blockCoverage derives one locale's coverage directly from the stored blocks:
+// how many are translatable (the unit total) and how many of those carry a
+// non-empty target for the locale. It is the item-bookkeeping-free fallback the
+// derive uses when the dashboard stats see zero units — the pending-work
+// question ("does a translatable block lack a target for a configured locale?")
+// must never depend on item rows existing.
+func blockCoverage(blocks []*platstore.StoredBlock, locale model.LocaleID) (total, translated int) {
+	for _, sb := range blocks {
+		if sb == nil || sb.Block == nil || !sb.Block.Translatable {
+			continue
+		}
+		total++
+		if convergence.TargetState(sb.Block, string(locale)) != "" {
+			translated++
+		}
+	}
+	return total, translated
+}
+
 // countFailingBlocks runs the project's QA checks over the locale's translated
 // blocks and returns how many carry an error-severity finding — the units the
 // gate must demote. At full coverage every translatable block has a target for
@@ -554,11 +650,8 @@ func countFailingBlocks(ctx context.Context, blocks []*platstore.StoredBlock, lo
 		if sb.Block == nil || !sb.Block.Translatable {
 			continue
 		}
-		for _, issue := range runQAOnBlock(ctx, sb.Block, locale) {
-			if issue.Severity == "error" {
-				failing++
-				break
-			}
+		if blockFailsChecks(ctx, sb.Block, locale) {
+			failing++
 		}
 	}
 	return failing
@@ -792,6 +885,16 @@ func (e *stallError) Error() string { return e.message }
 var errStallNeedsCredits = &stallError{
 	reason:  convergence.StallNeedsCredits,
 	message: "out of platform credits — buy a credit pack, wait for the weekly reset, or configure your own AI provider key",
+}
+
+// errStallNoTargetLocales is the typed hold a derive returns when the project
+// has no configured target languages: there is no locale to converge toward, so
+// the run PARKS on configuration ("no target languages configured") instead of
+// false-reading "Up to date" over untranslated source. Same message the local
+// venue (`kapi up`) refuses with.
+var errStallNoTargetLocales = &stallError{
+	reason:  convergence.StallNoTargetLocales,
+	message: "no target languages configured — add target languages to the project, then run again",
 }
 
 // errStallSourceNotReady is the typed hold a locale returns when every block it

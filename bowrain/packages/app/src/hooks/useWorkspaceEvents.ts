@@ -128,6 +128,20 @@ export function planInvalidations(ws: string, ev: WorkspaceChangeEvent): Invalid
     return plan;
   }
 
+  // Convergence run lifecycle (the bus announces terminal states) → the run
+  // lists, the workspace loop rollup (the home's latest-run/ship cards), and
+  // the dashboard aggregates a completed run's translations moved. All
+  // debounced: a run burst must not refetch once per frame.
+  if (t.startsWith("convergence.")) {
+    immediate(["activities", ws]);
+    debounced(
+      id ? ["convergenceRuns", ws, id] : ["convergenceRuns", ws],
+      ["loopRollup", ws],
+      dashboardKey,
+    );
+    return plan;
+  }
+
   // Flow / push-automations / source-review → flows + automation runs +
   // project (a flow typically mutates content).
   if (

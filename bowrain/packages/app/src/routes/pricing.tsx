@@ -14,10 +14,10 @@ import { ChevronDown } from "lucide-react";
 // ---------------------------------------------------------------------------
 
 // Only capabilities the product actually has and actually gates. A feature listed
-// here that nothing enforces is a promise the code does not keep — "Custom MT
-// providers" was listed for months after MT providers were removed from the
-// product, and Git connectors were listed as paid while every Free workspace
-// could use them (both fixed in epic 005).
+// here that nothing enforces is a promise the code does not keep — a custom
+// MT-provider feature stayed listed for months after MT providers were removed
+// from the product, and Git connectors were listed as paid while every Free
+// workspace could use them (both fixed in epic 005).
 const freePlanFeatures: PlanFeature[] = [
   { label: "1 project", included: true },
   { label: "Bring your own AI key (no credits used)", included: true },
@@ -155,7 +155,7 @@ export function PricingRoute() {
           plan="free"
           name="Free"
           price="$0"
-          description="Get started with AI-powered localization"
+          description="For an individual evaluating the platform or running a single project"
           credits="200K one-time trial credits"
           features={freePlanFeatures}
           ctaLabel="Get Started"

@@ -4,6 +4,7 @@ import type {
   ConvergenceRun,
   ConvergenceEstimate,
   ConvergenceRunScope,
+  LoopRollup,
   User,
   Workspace,
   Membership,
@@ -11,6 +12,7 @@ import type {
   UploadFilesResult,
   ConfigResponse,
   PublicPlatformConfig,
+  ModelRecommendationsResponse,
   BlockInfo,
   UpdateBlockRequest,
   UpdateBlockTargetCodedRequest,
@@ -126,6 +128,9 @@ import type {
   Pilot,
   StartPilotRequest,
   ReviewDemotion,
+  ApprovePassingResult,
+  BrandCorrectionRequest,
+  BrandCorrectionResult,
   BrandScanRequest,
   BrandScanUploadResult,
   BrandScanJob,
@@ -167,6 +172,18 @@ export class WailsApiAdapter implements ApiAdapter {
       // methods throw), so the hosted-scan entry points stay hidden.
       features: { brand_scan: false },
     };
+  }
+
+  // --- Measured steerability (model recommendation sweeps) ---
+  // Sweeps are a multi-tenant platform QC surface (platform provider, ctrl
+  // gate); the desktop runs against a local runtime with no sweep worker, so
+  // the panel renders its disabled state.
+  async getModelRecommendations(): Promise<ModelRecommendationsResponse> {
+    return { enabled: false, locales: [] };
+  }
+
+  async refreshModelRecommendations(): Promise<never> {
+    throw new Error("model sweeps are not available in the desktop app");
   }
 
   async getPublicPlatformConfig(): Promise<PublicPlatformConfig> {
@@ -909,6 +926,18 @@ export class WailsApiAdapter implements ApiAdapter {
       (!reviewed && demoteTo) || "",
     );
   }
+  async approvePassingReview(): Promise<ApprovePassingResult> {
+    // Bulk approve-passing is a server-side governance operation; the desktop
+    // working copy signs off block-by-block via reviewBlock instead.
+    throw new Error("bulk approve-passing is not available in the desktop app");
+  }
+  async recordBrandCorrection(
+    _ws: string,
+    _projectId: string,
+    _req: BrandCorrectionRequest,
+  ): Promise<BrandCorrectionResult> {
+    throw new Error("recording brand corrections is not available in the desktop app");
+  }
   async listGroups(): Promise<Group[]> {
     return [];
   }
@@ -1390,6 +1419,11 @@ export class WailsApiAdapter implements ApiAdapter {
   }
   async estimateConvergence(_ws: string, _projectId: string): Promise<ConvergenceEstimate> {
     throw new Error("Convergence runs are not yet surfaced in the desktop app");
+  }
+  async getLoopRollup(_ws: string): Promise<LoopRollup> {
+    // No convergence-run surface in the desktop app yet: an empty rollup
+    // hides the workspace home's run/ship cards.
+    return {};
   }
 
   // --- Tasks (Bowrain AD-014, not yet supported in desktop) ---

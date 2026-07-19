@@ -4,7 +4,7 @@
 [![Web Landing](https://github.com/neokapi/neokapi/actions/workflows/web-landing.yml/badge.svg)](https://github.com/neokapi/neokapi/actions/workflows/web-landing.yml)
 [![Pages Deploy](https://github.com/neokapi/neokapi/actions/workflows/pages-deploy.yml/badge.svg)](https://github.com/neokapi/neokapi/actions/workflows/pages-deploy.yml)
 
-Bowrain is the team governance platform for on-brand content and translation, built on the [neokapi framework](../README.md): a sync CLI for developers, a web app for translators, a desktop app for visual workflows, and a server that holds it all together.
+Bowrain keeps every project converging — the shared brand memory (voice, terminology, approved translations, corrections) for your team and your agents, built on the [neokapi framework](../README.md): a sync CLI for developers, a web app for translators, a desktop app for visual workflows, and a server that holds it all together.
 
 This subtree (`bowrain/`) is licensed AGPL-3.0. The neokapi framework at the repository root is Apache-2.0; see the [root README](../README.md) for that side.
 
@@ -74,9 +74,9 @@ cd apps/bowrain && wails3 build      # native desktop app
 
 ### Running Bowrain locally
 
-Bowrain expects Keycloak (OIDC), Mailpit (email), a PostgreSQL store, NATS (job
-queue + event bus), and an async worker. There are three ways to wire it up,
-depending on what you're working on:
+Bowrain expects Keycloak (OIDC), Mailpit (email), a PostgreSQL store, an
+SQS-compatible job queue (ElasticMQ locally), Redis (event bus), and an async
+worker. There are three ways to wire it up, depending on what you're working on:
 
 | Mode                       | What runs where                                  | Entry point           | Command                                                           |
 | -------------------------- | ------------------------------------------------ | --------------------- | ----------------------------------------------------------------- |

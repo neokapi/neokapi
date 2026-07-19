@@ -166,6 +166,8 @@ export { LoopStatusRow } from "./components/LoopStatusRow";
 export type {
   LoopActivitySummary,
   LoopBrandHealth,
+  LoopRunStatus,
+  LoopShipStatus,
   LoopStatusData,
   LoopStatusRowProps,
 } from "./components/LoopStatusRow";
@@ -175,6 +177,40 @@ export { OpenInDesktop } from "./components/OpenInDesktop";
 export { TranslationEditor } from "./components/TranslationEditor";
 export type { TranslateView } from "./components/TranslationEditor";
 export { ReviewSurface } from "./components/ReviewSurface";
+
+// Governed review session (the dedicated project-level review surface).
+export { ReviewSession } from "./components/review/ReviewSession";
+export type { ReviewSessionProps } from "./components/review/ReviewSession";
+export { ReviewQueueList } from "./components/review/ReviewQueueList";
+export type { ReviewQueueListProps } from "./components/review/ReviewQueueList";
+export { FocusedReviewer } from "./components/review/FocusedReviewer";
+export type { FocusedReviewerProps, ReviewerOnBrand } from "./components/review/FocusedReviewer";
+export { ReviewInbox } from "./components/review/ReviewInbox";
+export type { ReviewInboxProps, ReviewInboxProject } from "./components/review/ReviewInbox";
+export { MarkSourceTermDialog } from "./components/review/MarkSourceTermDialog";
+export type { MarkSourceTermDialogProps } from "./components/review/MarkSourceTermDialog";
+export { SuggestBrandRuleDialog } from "./components/review/SuggestBrandRuleDialog";
+export type { SuggestBrandRuleDialogProps } from "./components/review/SuggestBrandRuleDialog";
+export {
+  entryKey,
+  entryCheckStatus,
+  isPendingReview,
+  isEntryPassing,
+  filterEntries,
+  groupEntries,
+  queueCounts,
+  passingCount,
+} from "./components/review/reviewQueue";
+export type {
+  ReviewEntry,
+  ReviewGroup,
+  ReviewGroupBy,
+  ReviewCheckStatus,
+  ReviewQueueFilter,
+  ReviewQueueCounts,
+} from "./components/review/reviewQueue";
+export { normalizeServerBlock, normalizeServerBlocks } from "./components/editor/blockRuns";
+export type { ServerBlockInfo } from "./components/editor/blockRuns";
 export { PreProcessSurface } from "./components/PreProcessSurface";
 export { TranslationDashboard } from "./components/TranslationDashboard";
 export { ShipStateBadge, type ShipStateBadgeProps } from "./components/ShipStateBadge";
@@ -417,6 +453,8 @@ export type {
   TargetInfo,
   TargetStatus,
   ReviewDemotion,
+  ApprovePassingRequest,
+  ApprovePassingResult,
   UpdateBlockRequest,
   UpdateBlockTargetCodedRequest,
   AITranslateFileRequest,
@@ -508,6 +546,10 @@ export type {
   ConvergenceRunScope,
   ConvergenceEvent,
   ConvergenceEventType,
+  LoopRollup,
+  LoopRollupRun,
+  LoopRollupShip,
+  LoopRollupShipProject,
   TaskInfo,
   TaskType,
   TaskStatus,
@@ -572,6 +614,9 @@ export type {
   RepoDetection,
   RepoDetectOptions,
   RepoContentSignal,
+  ModelSweepMeasurement,
+  ModelSweepLocaleGroup,
+  ModelRecommendationsResponse,
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 
@@ -611,6 +656,8 @@ export type {
   LocaleOverride,
   ChannelOverride,
   Dimension,
+  BrandCorrectionRequest,
+  BrandCorrectionResult,
   BrandSeverity,
   BrandVoiceFinding,
   DimensionScore,
@@ -645,6 +692,7 @@ export {
   usePromoteBrandRule,
   useRejectBrandRule,
   useEvaluateBrandRule,
+  useRecordBrandCorrection,
   useBrandDrift,
   useStarterPacks,
   useCreateFromStarter,

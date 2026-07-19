@@ -65,14 +65,14 @@ Accelerate translation by using an AI provider to generate initial translations,
 
 ---
 
-## Leverage Translation Memory
+## Leverage the Content Memory
 
 Reuse previous translations to maintain consistency and reduce effort.
 
 ### Steps
 
-1. Navigate to **Memory** in the sidebar to open the TM Explorer
-2. Click **Add Entry** to add some translation memory entries:
+1. Navigate to **Content memory** in the sidebar to open the content memory browser
+2. Click **Add Entry** to add some TM entries:
    - Source: "Welcome to our website" / Target: "Bienvenue sur notre site" (en → fr)
    - Source: "Contact us" / Target: "Contactez-nous" (en → fr)
 3. Return to the **Translate** view and open your project
@@ -89,7 +89,7 @@ Reuse previous translations to maintain consistency and reduce effort.
 
 ### What You Learned
 
-- Adding entries to the translation memory
+- Adding entries to the content memory
 - Bulk TM lookup across an entire file
 - Understanding match scores and match types
 - Applying TM suggestions from the context panel

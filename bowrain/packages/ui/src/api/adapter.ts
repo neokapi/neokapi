@@ -75,6 +75,7 @@ import type {
   ActivityInfo,
   ConvergenceRun,
   ConvergenceEstimate,
+  LoopRollup,
   ConvergenceRunScope,
   TaskInfo,
   CreateTaskRequest,
@@ -105,6 +106,8 @@ import type {
   SlugReservation,
   UploadFilesResult,
   ReviewDemotion,
+  ApprovePassingRequest,
+  ApprovePassingResult,
   BrandScanRequest,
   BrandScanUploadResult,
   BrandScanJob,
@@ -114,6 +117,7 @@ import type {
   BindInstallationRepoResult,
   RepoDetection,
   RepoDetectOptions,
+  ModelRecommendationsResponse,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -126,6 +130,8 @@ import type {
   DriftResult,
   BrandRollup,
   BrandRollupOptions,
+  BrandCorrectionRequest,
+  BrandCorrectionResult,
 } from "../brand/types";
 import type {
   ListConceptsParams,
@@ -377,6 +383,19 @@ export interface ApiAdapter {
     stream?: string,
   ): Promise<ProjectInfo>;
 
+  // Measured steerability (model recommendation sweeps, project-scoped).
+  // The GET carries the instance-wide model_sweeps.enabled gate so the
+  // settings panel can disable Refresh with a reason; the refresh POST
+  // enqueues one sweep per target locale (manage-brand permission, flag on).
+  getModelRecommendations(
+    workspaceSlug: string,
+    projectId: string,
+  ): Promise<ModelRecommendationsResponse>;
+  refreshModelRecommendations(
+    workspaceSlug: string,
+    projectId: string,
+  ): Promise<{ enqueued: number; locales: string[] }>;
+
   // Collections (project-scoped)
   listCollections(
     workspaceSlug: string,
@@ -617,6 +636,18 @@ export interface ApiAdapter {
     demoteTo?: ReviewDemotion,
   ): Promise<void>;
 
+  /**
+   * Bulk "Approve all passing": promote to reviewed every pending block that
+   * passes checks + the on-brand bar, leaving flagged ones. When this empties
+   * the project's review queue the server starts the completing convergence
+   * run + delivery (`review_completed: true`). The solo-founder fast path.
+   */
+  approvePassingReview(
+    workspaceSlug: string,
+    projectId: string,
+    req?: ApprovePassingRequest,
+  ): Promise<ApprovePassingResult>;
+
   // Governance (#778): groups, deny rules, separation-of-duties, role overrides
   listGroups(workspaceSlug: string): Promise<Group[]>;
   createGroup(workspaceSlug: string, name: string, description?: string): Promise<Group>;
@@ -855,6 +886,18 @@ export interface ApiAdapter {
    */
   getBrandRollup(workspaceSlug: string, opts?: BrandRollupOptions): Promise<BrandRollup>;
   // Correction-learning loop (AD-019)
+  /**
+   * Record a reviewer's in-place correction (original → corrected) against the
+   * bound brand profile. Feeds the correction-learning loop: repeated
+   * corrections surface as candidate rules and auto-promote past the profile's
+   * threshold. `ref` is the stream (defaults server-side).
+   */
+  recordBrandCorrection(
+    workspaceSlug: string,
+    projectId: string,
+    req: BrandCorrectionRequest,
+    stream?: string,
+  ): Promise<BrandCorrectionResult>;
   listBrandCandidates(
     workspaceSlug: string,
     profileId: string,
@@ -957,6 +1000,14 @@ export interface ApiAdapter {
    * ready source, then the workspace balance. Starts no run.
    */
   estimateConvergence(workspaceSlug: string, projectId: string): Promise<ConvergenceEstimate>;
+
+  /**
+   * The workspace home's loop rollup: the most recent convergence run across
+   * the workspace's projects plus a cached-basis ship-state rollup — one
+   * request in place of a per-project fan-out. Absent fields mean "no data";
+   * the corresponding card hides.
+   */
+  getLoopRollup(workspaceSlug: string): Promise<LoopRollup>;
 
   // Tasks (Bowrain AD-014)
   listTasks(

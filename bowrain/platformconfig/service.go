@@ -194,6 +194,12 @@ func (s *Service) ResolveWorkspaceModel(preferred string) string {
 
 func (s *Service) SignupsOpen() bool { return s.getBool(KeySignupsOpen, s.defaults.SignupsOpen) }
 
+// ModelSweepsEnabled reports whether measured steerability (model
+// recommendation sweeps) is on for this instance. Default OFF — no env
+// bootstrap; only an explicit ctrl write enables it. Both the sweep endpoints
+// and the worker's consumption of a measured recommendation gate on it.
+func (s *Service) ModelSweepsEnabled() bool { return s.getBool(KeyModelSweeps, false) }
+
 func (s *Service) Maintenance() Maintenance {
 	return Maintenance{
 		Enabled: s.getBool(KeyMaintenanceOn, false),
@@ -249,6 +255,7 @@ func (s *Service) Snapshot() Snapshot {
 		Maintenance:       s.Maintenance(),
 		WorkspaceDefaults: WorkspaceDefaults{Plan: s.DefaultPlan(), TrialDays: s.TrialDays()},
 		Features:          s.GlobalFeatures(),
+		ModelSweeps:       ModelSweepSettings{Enabled: s.ModelSweepsEnabled()},
 		ModelCatalog:      Catalog(s.AIProvider()),
 	}
 }

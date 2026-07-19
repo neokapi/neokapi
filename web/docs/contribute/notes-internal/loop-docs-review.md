@@ -13,8 +13,8 @@ ship-gate → translate the approved source per locale, TM-first → target
 ship-gate → converged; a gate that is not met *holds*, it does not ship).
 
 The verb is `kapi up`; the model is *Shape → Ship*, and specifically
-source-first convergence. "kapi drafts, Bowrain governs" — the ship-gate is the
-governance seam.
+source-first convergence — the ship-gate is the seam where governed review
+meets the loop.
 
 This note is the review plus one explainer (the source-first section added to
 [The kapi loop](/kapi/convergence#source-first) with the `GatedLoopDiagram`
@@ -141,7 +141,7 @@ loop pages.
 
 | Page | Status | Issue | Recommended action |
 |---|---|---|---|
-| `getting-started/the-loop.mdx` (The loop on Bowrain) | **Done** | Produce → promote → release was right, but there was **no source-first phase**. | **Done in the follow-up PR:** added "Source first: kapi drafts, Bowrain governs" with `GatedLoopDiagram` — settle → source gate (hold → source review) → translate approved source → target gate. |
+| `getting-started/the-loop.mdx` (The loop on Bowrain) | **Done** | Produce → promote → release was right, but there was **no source-first phase**. | **Done in the follow-up PR:** added the "Source first" section with `GatedLoopDiagram` — settle → source gate (hold → source review) → translate approved source → target gate. |
 | `cli/commands/up.mdx` (`kapi up`) | Mostly correct | Flags and venue accurate. `--timeout` (15m server default) documented — verify default in code. Shows push → catch up → stream → pull; no source hold. | Add the source-hold outcome and `source_not_ready` once wired. Verify `--timeout` default. |
 | `server/review.mdx` (Review) | **Done** | Target review only (draft → translated → reviewed); no **source review** surface. | **Done in the follow-up PR:** added the source-review worklist (phase-1 gate) as a sibling to target review, tied to the `source_review` task queue and the `source_not_ready` hold. |
 | `server/automation.md` (Automation) | Correct | `server.converge` (on-push default / manual / schedule); quality gates. Accurate. | Note the `fan-out-after-source-review` default rule once source-first is on by default. |
@@ -187,9 +187,9 @@ walkthrough-video re-records, which remain open.
 
 **Done (docs: source-first loop follow-ups PR):**
 
-- ✅ **`bowrain/getting-started/the-loop.mdx`** — added the "Source first: kapi
-  drafts, Bowrain governs" section (the venue/governance framing the kapi site
-  omits), reusing `GatedLoopDiagram`: settle source → source gate (hold → source
+- ✅ **`bowrain/getting-started/the-loop.mdx`** — added the "Source first"
+  section (the source-gate / governed-review framing the kapi site omits),
+  reusing `GatedLoopDiagram`: settle source → source gate (hold → source
   review) → translate approved source TM-first → target ship-gate.
 - ✅ **`bowrain/.../022-convergence-as-a-service.md`** — added decision *1a.
   Settle the source, then translate*: the source-settle pass, the

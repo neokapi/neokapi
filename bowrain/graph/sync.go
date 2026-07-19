@@ -18,9 +18,17 @@ type GraphSyncer struct {
 
 // NewGraphSyncer creates a GraphSyncer that listens to content events
 // and keeps the graph in sync.
+//
+// Durability: graph sync is state-advancing — a block event missed during a
+// deploy rollover is silent graph drift with no reconcile pass to heal it — so
+// it joins the "graph-syncer" consumer group (the group AD-012 documents):
+// the resume position survives restarts and exactly one instance mirrors each
+// event, instead of every replica racing the same writes. Replay-safe: node
+// create/update/delete keyed by the stable block ID are idempotent (a
+// duplicate create fails and is logged at info).
 func NewGraphSyncer(store coreg.GraphStore, bus platev.EventBus) *GraphSyncer {
 	s := &GraphSyncer{store: store, bus: bus}
-	s.sub = bus.SubscribeAll(s.handleEvent)
+	s.sub = bus.SubscribeGroup("graph-syncer", s.handleEvent)
 	return s
 }
 

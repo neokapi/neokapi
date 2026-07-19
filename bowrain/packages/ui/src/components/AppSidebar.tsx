@@ -121,7 +121,7 @@ export interface AppSidebarProps<V extends string = string> {
 const workspaceNavItems = (): NavItem[] => [
   { id: "translate", label: t("Projects"), icon: <Home /> },
   { id: "brand", label: t("Brand"), icon: <Palette /> },
-  { id: "memory", label: t("Memory"), icon: <Brain /> },
+  { id: "memory", label: t("Content memory"), icon: <Brain /> },
 ];
 
 const workspaceBottomItems = (): NavItem[] => [

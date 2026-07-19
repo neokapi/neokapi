@@ -512,6 +512,33 @@ func TestBlockIDUniqueness(t *testing.T) {
 	})
 }
 
+// TestStoreBlocksForItem_AdoptsLegacyItemlessRows mirrors the SQLite test: a
+// block previously stored item-less under its raw reader ID (the historical
+// connector-ingest path) is ADOPTED — same internal ID, item_name + source_id
+// stamped, targets kept — when the fixed ingest re-stores it per item, instead
+// of minting a duplicate row.
+func TestStoreBlocksForItem_AdoptsLegacyItemlessRows(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	legacy := model.NewBlock("greeting", "Hello")
+	legacy.SetTargetText(model.LocaleFrench, "Bonjour")
+	require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{legacy}))
+
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "", "locales/en/app.json",
+		[]*model.Block{model.NewBlock("greeting", "Hello")}))
+
+	blocks, err := s.GetBlocks(ctx, platstore.BlockQuery{ProjectID: p.ID})
+	require.NoError(t, err)
+	require.Len(t, blocks, 1, "the legacy row is adopted, not duplicated")
+	sb := blocks[0]
+	assert.Equal(t, "greeting", sb.Block.ID)
+	assert.Equal(t, "locales/en/app.json", sb.ItemName)
+	assert.Equal(t, "greeting", sb.SourceID)
+	assert.Equal(t, "Bonjour", sb.Block.TargetText(model.LocaleFrench))
+}
+
 // ---------------------------------------------------------------------------
 // GetBlockStats — lightweight projection for dashboard
 // ---------------------------------------------------------------------------

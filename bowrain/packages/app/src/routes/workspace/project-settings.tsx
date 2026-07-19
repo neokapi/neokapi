@@ -14,6 +14,7 @@ import {
 } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 import { projectQueryOptions, brandProfilesQueryOptions } from "../../queries";
+import { ModelQualityCard } from "./model-quality-card";
 
 export function ProjectSettingsRoute() {
   const navigate = useNavigate();
@@ -37,26 +38,6 @@ export function ProjectSettingsRoute() {
   const invalidateProject = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ["project", ws, project.id] });
   }, [queryClient, ws, project.id]);
-
-  const handleTogglePulseVisibility = useCallback(async () => {
-    const newVis = project.dashboard_visibility === "public" ? "private" : "public";
-    queryClient.setQueryData(
-      ["project", ws, project.id, activeStream],
-      (old: typeof project | undefined) => (old ? { ...old, dashboard_visibility: newVis } : old),
-    );
-    await adapter.updateProject(ws, project.id, {
-      dashboard_visibility: newVis,
-    });
-    invalidateProject();
-  }, [
-    ws,
-    adapter,
-    project.id,
-    project.dashboard_visibility,
-    queryClient,
-    activeStream,
-    invalidateProject,
-  ]);
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 py-4">
@@ -191,39 +172,7 @@ export function ProjectSettingsRoute() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Pulse Dashboard</CardTitle>
-          <CardDescription>
-            Control whether this project appears on the public Pulse dashboard
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {activeWorkspace.type === "personal" && (
-            <div
-              className="rounded-lg border border-border bg-muted/50 p-3 text-xs text-muted-foreground"
-              role="note"
-            >
-              Personal workspaces can't be exposed publicly. Create a team workspace to share this
-              project on Pulse.
-            </div>
-          )}
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Show on Pulse</p>
-              <p className="text-xs text-muted-foreground">
-                Make this project visible on the public dashboard
-              </p>
-            </div>
-            <Switch
-              checked={project.dashboard_visibility === "public"}
-              onCheckedChange={handleTogglePulseVisibility}
-              disabled={activeWorkspace.type === "personal"}
-              aria-label="Toggle Pulse visibility"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <ModelQualityCard ws={ws} projectId={project.id} />
     </div>
   );
 }

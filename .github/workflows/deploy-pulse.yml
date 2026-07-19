@@ -20,9 +20,14 @@ permissions:
   contents: read
   packages: write
 
+# The public Pulse surface is unmounted by default (see BOWRAIN_PULSE_ENABLED
+# on the server). This workflow stays but is dormant: every job gates on the
+# repo var PULSE_DEPLOY_ENABLED, which is currently unset. Set it to "true"
+# to revive Pulse builds and image publishing.
 jobs:
   build:
     name: Build Pulse Assets
+    if: ${{ vars.PULSE_DEPLOY_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -53,6 +58,7 @@ jobs:
 
   docker:
     name: Build Pulse Docker Image
+    if: ${{ vars.PULSE_DEPLOY_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

@@ -86,13 +86,7 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore core
 				if sb.Block == nil || !sb.Block.Translatable || sb.Block.Target(loc) == nil {
 					continue
 				}
-				blockFails := false
-				for _, issue := range runQAOnBlock(ctx, sb.Block, loc) {
-					if issue.Severity == "error" {
-						blockFails = true
-						break
-					}
-				}
+				blockFails := blockFailsChecks(ctx, sb.Block, loc)
 				cid := collByItem[sb.ItemName]
 				if blockFails && shipCandidates[localeStr] {
 					failing[localeStr]++
@@ -158,6 +152,38 @@ func applyOnBrand(ls *store.LocaleTranslationStats, onBrandCount int, voice bool
 	} else {
 		ls.OnBrandBasis = store.OnBrandBasisChecks
 	}
+}
+
+// blockFailsChecks reports whether a block's target for a locale carries an
+// error-severity QA finding — the "fails the ship gate" predicate shared by the
+// dashboard ship-state pass (applyShipStates), the convergence derive
+// (countFailingBlocks), and the bulk approve-passing endpoint.
+func blockFailsChecks(ctx context.Context, block *model.Block, loc model.LocaleID) bool {
+	for _, issue := range runQAOnBlock(ctx, block, loc) {
+		if issue.Severity == "error" {
+			return true
+		}
+	}
+	return false
+}
+
+// blockOnBrandAndPassing reports whether a translated block+locale is clean
+// enough to ship without a person's review: it passes the QA checks with no
+// error-severity finding AND — where a persisted brand voice score exists for
+// the block — the score meets the scoring profile's on-brand bar. This is
+// exactly the per-block on-brand predicate applyShipStates aggregates into the
+// on-brand rate (#1365); the bulk approve-passing endpoint reuses it to pick
+// which pending drafts to auto-approve. `scored` is one locale's score map
+// (latestVoiceScores(...)[normalize(locale)]); an empty map degrades to
+// checks-only, matching the dashboard.
+func blockOnBrandAndPassing(ctx context.Context, block *model.Block, loc model.LocaleID, scored map[string]scoredBlock) bool {
+	if blockFailsChecks(ctx, block, loc) {
+		return false
+	}
+	if vs, ok := scored[block.ID]; ok && vs.score < vs.bar {
+		return false
+	}
+	return true
 }
 
 // scoredBlock is the latest persisted voice score for one block+locale, paired

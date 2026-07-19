@@ -395,6 +395,10 @@ func (g *GRPCServer) Subscribe(req *pb.SubscribeRequest, stream pb.NeokapiServic
 	// backed by a goroutine + buffered channel, and on distributed buses a
 	// consumer/receiver); dropping any handle leaks those resources for the
 	// life of the process. Reconnecting clients would accumulate leaks.
+	// Fan-out Subscribe (not a group) is correct and fine-to-miss here: this
+	// is a live freshness relay to one connected client — an event during
+	// subscriber downtime has no client to reach, and a reconnecting client
+	// re-reads current state anyway.
 	var subs []*platev.Subscription
 	if len(types) == 0 {
 		subs = append(subs, g.srv.EventBus.SubscribeAll(handler))

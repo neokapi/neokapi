@@ -31,10 +31,7 @@ export const Default: Story = {
       >
         Import Complete
       </Button>
-      <Button
-        variant="outline"
-        onClick={() => toast.error("Failed to connect to translation memory")}
-      >
+      <Button variant="outline" onClick={() => toast.error("Failed to connect to content memory")}>
         Show Error
       </Button>
       <Button variant="outline" onClick={() => toast.info("3 files queued for review")}>

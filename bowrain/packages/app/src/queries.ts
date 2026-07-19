@@ -130,3 +130,17 @@ export const translationDashboardQueryOptions = (
     // safety net for missed frames (dropped SSE connection).
     refetchInterval: 300_000,
   });
+
+// Measured steerability: the project's per-locale model sweep measurements
+// plus the instance gate. Refreshed on demand from the settings panel (no
+// polling — a sweep lands on the next visit or explicit refetch).
+export const modelRecommendationsQueryOptions = (
+  api: ApiAdapter,
+  workspaceSlug: string,
+  projectId: string,
+) =>
+  queryOptions({
+    queryKey: ["modelRecommendations", workspaceSlug, projectId],
+    queryFn: () => api.getModelRecommendations(workspaceSlug, projectId),
+    staleTime: 30_000,
+  });

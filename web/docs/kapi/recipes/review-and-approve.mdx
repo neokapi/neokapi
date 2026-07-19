@@ -116,6 +116,10 @@ Piping works at scale: `kapi status --review --json` through your own filter int
 </TabItem>
 </Tabs>
 
+:::note[Works with Bowrain]
+This recipe's worklist lives in your checkout and its decisions in the committed state store — one reviewer, one working copy at a time. When several reviewers (or a reviewer alongside an agent) need one shared queue — assignments, live presence, per-block history — that is what connecting the project to a Bowrain server adds. See the [Bowrain documentation](https://bowrain.cloud/docs/).
+:::
+
 ## Next
 
 - [Ship gates & CI](/kapi/recipes/gate-localization-in-ci) — the `reviewed` thresholds these decisions satisfy.

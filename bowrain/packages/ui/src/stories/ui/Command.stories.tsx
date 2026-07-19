@@ -49,7 +49,7 @@ export const Default: Story = {
         <CommandSeparator />
         <CommandGroup heading="Navigation">
           <CommandItem>
-            <span>Translation Memory</span>
+            <span>Content memory</span>
           </CommandItem>
           <CommandItem>
             <span>Terminology</span>

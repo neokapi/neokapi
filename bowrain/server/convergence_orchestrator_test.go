@@ -9,9 +9,12 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/labstack/echo/v4"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/core/convergence"
@@ -34,6 +37,86 @@ func newOrchestratorHarness(t *testing.T) (*Server, *bstore.ConvergenceRunStore)
 	s := &Server{ConvergenceRunStore: runStore}
 	s.convergence = newConvergenceOrchestrator(s)
 	return s, runStore
+}
+
+// newOnPushHarness builds a Server with the content store, run store, event
+// bus, and orchestrator wired — enough to drive the on-push trigger end-to-end
+// through the bus's group subscription.
+func newOnPushHarness(t *testing.T) (*Server, *bstore.ConvergenceRunStore) {
+	t.Helper()
+	cs, err := sqlitestore.NewSQLiteStore(filepath.Join(t.TempDir(), "runs.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = cs.Close() })
+
+	bus := event.NewChannelEventBus()
+	t.Cleanup(bus.Close)
+
+	runStore := bstore.NewConvergenceRunStore(cs.DB())
+	s := &Server{ConvergenceRunStore: runStore, ContentStore: cs, EventBus: bus}
+	s.convergence = newConvergenceOrchestrator(s)
+	s.subscribeConvergeOnPush()
+	return s, runStore
+}
+
+// TestConvergeOnPush_GroupSubscriptionTriggersRun proves the on-push trigger
+// still fires through its durable group subscription: a group handler receives
+// every event type, so the type dispatch must start a run for a completed push
+// and ignore everything else. Interleaved non-trigger events (a project update
+// without new_locales, an unrelated event type, and a push for a manual-policy
+// project) are published FIRST on the same subscriber, so the final run count
+// of one also proves they were ignored.
+func TestConvergeOnPush_GroupSubscriptionTriggersRun(t *testing.T) {
+	s, runStore := newOnPushHarness(t)
+	ctx := context.Background()
+	require.NoError(t, s.ContentStore.CreateProject(ctx, &platstore.Project{ID: "proj-1", Name: "proj-1"}))
+	require.NoError(t, s.ContentStore.CreateProject(ctx, &platstore.Project{
+		ID: "proj-manual", Name: "proj-manual", ConvergePolicy: platstore.ConvergePolicyManual,
+	}))
+
+	// Non-triggers, in order, on the single group handler:
+	s.EventBus.Publish(platev.Event{Type: platev.EventProjectUpdated, ProjectID: "proj-1"})     // no new_locales
+	s.EventBus.Publish(platev.Event{Type: platev.EventBlockUpdated, ProjectID: "proj-1"})       // unrelated type
+	s.EventBus.Publish(platev.Event{Type: platev.EventPushCompleted, ProjectID: "proj-manual"}) // manual policy
+	// The trigger:
+	s.EventBus.Publish(platev.Event{Type: platev.EventPushCompleted, ProjectID: "proj-1", Source: "push"})
+
+	require.Eventually(t, func() bool {
+		runs, err := runStore.ListRuns(ctx, "proj-1", 10)
+		return err == nil && len(runs) == 1 && runs[0].FinishedAt != nil
+	}, 15*time.Second, 25*time.Millisecond, "a completed push must start (and finish) exactly one run")
+
+	runs, err := runStore.ListRuns(ctx, "proj-1", 10)
+	require.NoError(t, err)
+	require.Len(t, runs, 1)
+	assert.Equal(t, "push", runs[0].Trigger)
+	// A project with no configured target languages is a configuration hold, not
+	// "up to date": the run parks with no_target_locales rather than false-reading
+	// converged over untranslated source (see errStallNoTargetLocales / deriveFunc).
+	assert.Equal(t, bstore.ConvergenceRunParked, runs[0].State, "no target locales: parks on configuration")
+	assert.Equal(t, convergence.StallNoTargetLocales, runs[0].StallReason)
+
+	manualRuns, err := runStore.ListRuns(ctx, "proj-manual", 10)
+	require.NoError(t, err)
+	assert.Empty(t, manualRuns, "a manual-policy project must not converge on push")
+}
+
+// TestConvergeOnPush_NewLocaleTriggersRun proves the second trigger through the
+// same group subscription: EventProjectUpdated carrying new_locales starts a
+// run (the retired auto-translate-new-locale automation's replacement, F10).
+func TestConvergeOnPush_NewLocaleTriggersRun(t *testing.T) {
+	s, runStore := newOnPushHarness(t)
+	ctx := context.Background()
+	require.NoError(t, s.ContentStore.CreateProject(ctx, &platstore.Project{ID: "proj-1", Name: "proj-1"}))
+
+	s.EventBus.Publish(platev.Event{
+		Type: platev.EventProjectUpdated, ProjectID: "proj-1",
+		Data: map[string]string{"new_locales": "de-DE"},
+	})
+
+	require.Eventually(t, func() bool {
+		runs, err := runStore.ListRuns(ctx, "proj-1", 10)
+		return err == nil && len(runs) == 1 && runs[0].FinishedAt != nil
+	}, 15*time.Second, 25*time.Millisecond, "a locale addition must start (and finish) a run")
 }
 
 // convergingFuncs models a project that converges: each pending locale is fully

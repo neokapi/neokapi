@@ -110,8 +110,16 @@ type Config struct {
 	GitHubAppPrivateKey    string // PEM (the downloaded .pem file's contents)
 	GitHubAppWebhookSecret string // the app's webhook secret
 
+	// PulseEnabled mounts the public Pulse activity dashboard surface (the
+	// /api/v1/pulse routes with their access middleware and response cache,
+	// plus PulseUIDir SPA serving). Off by default — the platform's public
+	// surface is on-brand authoring, not l10n gamification. Set
+	// BOWRAIN_PULSE_ENABLED=true to re-mount it.
+	PulseEnabled bool
+
 	// PulseUIDir is the path to built Pulse dashboard static files (development only).
-	// When set, requests to the pulse subdomain are served from this directory.
+	// When set (and PulseEnabled is true), requests to the pulse subdomain are
+	// served from this directory.
 	PulseUIDir string
 
 	// Blob storage (Bowrain AD-007)
@@ -122,7 +130,6 @@ type Config struct {
 	MaxPushBytes int64 // Max total upload size per push (default: 256MB)
 
 	// External services
-	NATSURL       string // NATS server URL for job queue (e.g. nats://localhost:4222)
 	RedisURL      string // Redis connection string for caching and session state
 	RedisPassword string // Redis password (overrides any password in RedisURL)
 

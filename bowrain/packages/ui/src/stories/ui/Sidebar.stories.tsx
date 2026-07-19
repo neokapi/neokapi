@@ -27,7 +27,7 @@ type Story = StoryObj<typeof Sidebar>;
 const items = [
   { title: "Dashboard", url: "#" },
   { title: "Projects", url: "#" },
-  { title: "Translation Memory", url: "#" },
+  { title: "Content memory", url: "#" },
   { title: "Terminology", url: "#" },
   { title: "Settings", url: "#" },
 ];

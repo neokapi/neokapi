@@ -564,6 +564,35 @@ export type TargetStatus = "" | "draft" | "translated" | "reviewed" | "signed-of
 export type ReviewDemotion = "translated" | "draft";
 
 /**
+ * Request body for the bulk "Approve all passing" review action
+ * (`POST /:ws/:id/review/approve-passing`). Both fields are optional: an
+ * omitted `stream` uses the project's default stream, and omitted `locales`
+ * approves across every target locale (each intersected with the caller's
+ * language permission server-side).
+ */
+export interface ApprovePassingRequest {
+  stream?: string;
+  locales?: string[];
+}
+
+/**
+ * Result of a bulk approve-passing call. `review_completed` is the UI's
+ * "all approved · delivering…" signal: true iff the call emptied the project's
+ * open review queue, so the server kicked off the completing convergence run
+ * and delivery.
+ */
+export interface ApprovePassingResult {
+  /** Blocks promoted to reviewed. */
+  approved: number;
+  /** Pending blocks left untouched (failing checks / off-brand). */
+  skipped: number;
+  /** Pending-review targets still awaiting review after the call. */
+  remaining_pending: number;
+  /** True iff this call emptied the review queue → completing run + delivery. */
+  review_completed: boolean;
+}
+
+/**
  * A per-locale committed target in the blocks payload: the plain text plus its
  * lifecycle status (mirrors the server's per-locale `model.Target`). Targets
  * maps are keyed by `VariantKey.MarshalText` — for tone/channel-free variants
@@ -1151,6 +1180,63 @@ export interface ConvergenceRun {
   blocked_on_source?: number;
   created_at?: string;
   finished_at?: string;
+}
+
+/**
+ * The workspace's most recent convergence run within the loop rollup —
+ * matches `loopRollupRunView` in bowrain/server/handlers_loop_rollup.go.
+ */
+export interface LoopRollupRun {
+  id: string;
+  project_id: string;
+  project_name?: string;
+  /** The project's default stream — the segment its deep links live under. */
+  stream?: string;
+  /** running | converged | parked | failed | canceled */
+  state: string;
+  /** Why a parked/failed run did not converge (needs_credits | …). */
+  stall_reason?: string;
+  trigger?: string;
+  created_at?: string;
+  finished_at?: string;
+  /** The run's last observable progress. */
+  updated_at?: string;
+}
+
+/** One counted project's slice of the workspace ship rollup. */
+export interface LoopRollupShipProject {
+  project_id: string;
+  project_name?: string;
+  stream?: string;
+  governed: number;
+  ai_shippable: number;
+  pending: number;
+}
+
+/**
+ * Workspace ship-state rollup: counts of project-locales per derived ship
+ * state over the projects with a cached dashboard rollup (basis "cached").
+ * counted_projects < total_projects means partial coverage — present it as
+ * such, never as the whole workspace.
+ */
+export interface LoopRollupShip {
+  basis: string;
+  governed: number;
+  ai_shippable: number;
+  pending: number;
+  counted_projects: number;
+  total_projects: number;
+  /** Counted projects, most pending first (the deep-link target leads). */
+  projects?: LoopRollupShipProject[];
+}
+
+/**
+ * GET /:ws/loop-rollup — the workspace home's cheap loop aggregate. Both
+ * fields are optional; an absent field hides its card (no data ≠ zero).
+ */
+export interface LoopRollup {
+  latest_run?: LoopRollupRun;
+  ship?: LoopRollupShip;
 }
 
 /** The source-first readiness split of a convergence estimate. */
@@ -2004,4 +2090,45 @@ export interface RepoDetectOptions {
   scope?: string;
   /** Comma-separated globs to match instead of the proposal (live feedback while editing). */
   patterns?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Measured steerability (model recommendation sweeps)
+// ---------------------------------------------------------------------------
+
+/**
+ * One persisted sweep measurement: how a candidate model scored on the
+ * project's own trap fixtures for a locale, with the project's full brand
+ * context (adherence) and bare (adherence_bare); lift is the difference.
+ */
+export interface ModelSweepMeasurement {
+  model: string;
+  /** 0..1 — fixture adherence with the project's full brand context. */
+  adherence: number;
+  /** 0..1 — fixture adherence with no context at all. */
+  adherence_bare: number;
+  /** adherence − adherence_bare. */
+  lift: number;
+  fixture_count: number;
+  tokens_used: number;
+  measured_at: string;
+  /** True on the row the recommendation policy picked for this locale. */
+  recommended: boolean;
+}
+
+/** A locale's measurements plus the recommended model (absent when none qualifies). */
+export interface ModelSweepLocaleGroup {
+  locale: string;
+  recommended_model?: string;
+  models: ModelSweepMeasurement[];
+}
+
+/**
+ * GET /:ws/:id/model-recommendations — `enabled` mirrors the instance-wide
+ * model_sweeps.enabled gate so the settings panel can disable Refresh with a
+ * reason.
+ */
+export interface ModelRecommendationsResponse {
+  enabled: boolean;
+  locales: ModelSweepLocaleGroup[];
 }

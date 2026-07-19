@@ -23,7 +23,7 @@ real translation is done — see also the framework's pseudo-translate tool.
 
 ### Bulk TM leverage
 
-Pre-fill targets from the [translation memory](/server/translation-memory) across
+Pre-fill targets from the [content memory](/server/translation-memory) across
 the whole file. Exact and high-confidence fuzzy matches land as drafts you can
 then check in [Review](/server/review).
 

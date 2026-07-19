@@ -17,12 +17,13 @@ import (
 // clients registered on that instance, filtered by workspace and (optionally)
 // project.
 //
-// It is NATS-aware by construction: it attaches via EventBus.SubscribeAll,
-// which on the distributed NATS bus creates a unique (non-competing) consumer.
-// Every server instance therefore receives a copy of every event and relays it
-// to its own locally-connected clients — exactly the semantics WatchProject
-// already relies on. (Using SubscribeGroup would hand each event to only one
-// instance, starving clients connected elsewhere.)
+// It is distribution-aware by construction: it attaches via
+// EventBus.SubscribeAll, which on a distributed bus (Redis Streams) creates a
+// unique (non-competing) consumer. Every server instance therefore receives a
+// copy of every event and relays it to its own locally-connected clients —
+// exactly the semantics WatchProject already relies on. (Using SubscribeGroup
+// would hand each event to only one instance, starving clients connected
+// elsewhere.)
 //
 // Delivery to clients is asynchronous and strictly non-blocking: a slow or
 // stuck client never blocks the event bus or other clients. When a client's
@@ -89,6 +90,9 @@ func NewChangeRelay(bus platev.EventBus, resolver ProjectWorkspaceResolver) *Cha
 		clients:  make(map[string]*relayClient),
 	}
 	if bus != nil {
+		// Fan-out SubscribeAll (not a group) is correct and fine-to-miss: the
+		// relay only forwards live freshness signals to currently-connected
+		// SSE/gRPC clients; a reconnecting client re-reads state on attach.
 		r.sub = bus.SubscribeAll(r.dispatch)
 	}
 	return r

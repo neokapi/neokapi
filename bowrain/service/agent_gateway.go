@@ -37,8 +37,8 @@ type GatewayResult struct {
 // /webhook endpoint, converts the JSON response to SSE events, persists the
 // assistant message, and writes events to the sink.
 //
-// Freshly spawned containers may not be ready immediately (Azure Container Apps
-// returns 404/502/503 while the container is starting). The function retries
+// Freshly spawned containers may not be ready immediately (the runtime can
+// return 404/502/503 while the container is starting). The function retries
 // transient errors for up to 60 seconds before giving up.
 func StreamFromGateway(
 	ctx context.Context,

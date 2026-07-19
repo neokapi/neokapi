@@ -4,10 +4,10 @@ package graph
 // (via testutil/pgtest → testcontainers-go). Each test runs in an isolated
 // schema, so table-level state does not leak between tests.
 //
-// These cases are ported from age_test.go (the AGE behavioral contract) and
-// extended with the SQL-specific guarantees the task calls out: no-path and
-// cyclic-graph termination for ShortestPath, exact Scope/Validity semantics,
-// and the Cypher-not-supported escape hatch.
+// These cases originate from the historical AGE-backend behavioral contract
+// (the removed age_test.go) and are extended with the SQL-specific guarantees:
+// no-path and cyclic-graph termination for ShortestPath, exact Scope/Validity
+// semantics, and the Cypher-not-supported escape hatch.
 
 import (
 	"testing"

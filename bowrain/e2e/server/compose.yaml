@@ -38,8 +38,8 @@ services:
         condition: service_healthy
       mailpit:
         condition: service_started
-      nats:
-        condition: service_started
+      sqs-init:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     environment:
@@ -53,7 +53,13 @@ services:
       BOWRAIN_SMTP_FROM: noreply@bowrain.cloud
       BOWRAIN_GRPC_PORT: "9080"
       BOWRAIN_WEB_UI_DIR: /web
-      BOWRAIN_NATS_URL: nats://nats:4222
+      # Jobs on SQS (ElasticMQ), events on Redis Streams — mirrors production.
+      BOWRAIN_QUEUE_BACKEND: sqs
+      SQS_ENDPOINT: http://elasticmq:9324
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      BOWRAIN_EVENT_BACKEND: redis
       BOWRAIN_REDIS_URL: redis://redis:6379
       # Shared with the worker — push payloads land here for async ingestion.
       BLOB_STORAGE_LOCAL_DIR: /data/blobs
@@ -77,20 +83,26 @@ services:
       retries: 20
 
   # Async worker: processes sync-push ingestion + platform translation jobs
-  # from NATS. Without it a `kapi push` commits but never completes (#867).
-  # BOWRAIN_PLATFORM_PROVIDER=demo keeps translation offline-deterministic.
+  # from SQS (ElasticMQ). Without it a `kapi push` commits but never completes
+  # (#867). BOWRAIN_PLATFORM_PROVIDER=demo keeps translation offline-deterministic.
   bowrain-worker:
     image: ${BOWRAIN_WORKER_IMAGE:-ghcr.io/neokapi/bowrain-worker:e2e}
     depends_on:
       postgres:
         condition: service_healthy
-      nats:
-        condition: service_started
+      sqs-init:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     environment:
       BOWRAIN_DATABASE_URL: postgres://bowrain:bowrain@postgres:5432/bowrain?sslmode=disable
-      BOWRAIN_NATS_URL: nats://nats:4222
+      # Same queue/event backends as the server.
+      BOWRAIN_QUEUE_BACKEND: sqs
+      SQS_ENDPOINT: http://elasticmq:9324
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      BOWRAIN_EVENT_BACKEND: redis
       BOWRAIN_REDIS_URL: redis://redis:6379
       # Same shared volume as the server (note: worker uses LOCAL_BLOB_DIR).
       LOCAL_BLOB_DIR: /data/blobs
@@ -133,11 +145,36 @@ services:
       - "8025:8025"
       - "1025:1025"
 
-  nats:
-    image: nats:2-alpine
-    command: ["--jetstream", "--store_dir", "/data"]
-    volumes:
-      - nats-data:/data
+  # Job queue (SQS-compatible; mirrors Amazon SQS in production). The server
+  # enqueues and the worker consumes through the same sqsqueue code path as
+  # against real SQS.
+  elasticmq:
+    image: softwaremill/elasticmq-native:latest
+
+  # One-shot: create the job queues (visibility timeout mirrors prod; DLQ /
+  # redrive is a prod durability concern provisioned by Terraform).
+  sqs-init:
+    image: amazon/aws-cli:latest
+    depends_on:
+      elasticmq:
+        condition: service_started
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        until aws --endpoint-url http://elasticmq:9324 sqs list-queues >/dev/null 2>&1; do
+          echo 'waiting for elasticmq...'; sleep 1;
+        done
+        for name in translation-jobs extraction-jobs brand-scan-jobs; do
+          aws --endpoint-url http://elasticmq:9324 sqs create-queue \
+            --queue-name "$$name" --attributes VisibilityTimeout=300 >/dev/null
+        done
+        echo 'sqs queues ready'
 
   redis:
     image: redis:7-alpine
@@ -150,5 +187,4 @@ services:
 volumes:
   web-dist:
   pgdata:
-  nats-data:
   blob-data:

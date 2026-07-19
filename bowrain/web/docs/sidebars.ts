@@ -74,7 +74,7 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: "category",
-      label: "Translation memory & terminology",
+      label: "Content memory & terminology",
       collapsible: false,
       className: "sidebar-section-heading",
       items: [

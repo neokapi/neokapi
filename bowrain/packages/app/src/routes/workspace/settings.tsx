@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useWorkspace,
   useApi,
@@ -13,9 +13,7 @@ import {
   ErrorNotice,
   Input,
   Label,
-  PulseSettings,
   Textarea,
-  type DashboardVisibility,
 } from "@neokapi/ui";
 
 function SettingsField({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
@@ -157,27 +155,13 @@ function GeneralIdentityCard({ editable }: { editable: boolean }) {
 }
 
 export function SettingsIndexRoute() {
-  const { activeWorkspace, setActiveWorkspace } = useWorkspace();
-  const adapter = useApi();
-  const { capture } = useAnalytics();
+  const { activeWorkspace } = useWorkspace();
 
   useEffect(() => {
     if (activeWorkspace) {
       document.title = `Settings — ${activeWorkspace.name} — Bowrain`;
     }
   }, [activeWorkspace]);
-
-  const handleVisibilityChange = useCallback(
-    async (visibility: DashboardVisibility) => {
-      if (!activeWorkspace) return;
-      const updated = await adapter.updateWorkspace(activeWorkspace.slug, {
-        dashboard_visibility: visibility,
-      });
-      capture(AnalyticsEvents.settingsSaved, { section: "general" });
-      setActiveWorkspace(updated);
-    },
-    [activeWorkspace, adapter, capture, setActiveWorkspace],
-  );
 
   if (!activeWorkspace) {
     return (
@@ -192,28 +176,6 @@ export function SettingsIndexRoute() {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 py-4" data-testid="settings-heading">
       <GeneralIdentityCard editable={isAdmin} />
-
-      {isAdmin && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Pulse Dashboard</CardTitle>
-            <CardDescription>Share your localization progress with the community</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <PulseSettings
-              workspaceSlug={activeWorkspace.slug}
-              visibility={activeWorkspace.dashboard_visibility ?? "private"}
-              accessKey={activeWorkspace.pulse_access_key}
-              onVisibilityChange={handleVisibilityChange}
-              disabledReason={
-                activeWorkspace.type === "personal"
-                  ? "Personal workspaces can't be exposed publicly. Create a team workspace to share a Pulse dashboard."
-                  : undefined
-              }
-            />
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

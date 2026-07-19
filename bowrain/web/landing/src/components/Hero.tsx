@@ -64,10 +64,10 @@ export function Hero() {
         </h1>
 
         <p className="animate-fade-in-up-delay-2 mx-auto mt-6 max-w-xl text-lg text-muted-foreground md:text-xl">
-          Bowrain keeps your content caught up and on brand across your app, site, docs, and posts.
-          AI drafts against your brand voice, terminology, and translation memory — you review — and
-          every correction becomes a rule the next draft follows. Built for one person with many
-          surfaces, ready for a team.
+          Kapi converges your content on your machine. Bowrain keeps every project converging — the
+          shared brand memory for your team and your agents. Voice, terminology, approved
+          translations, and corrections live in one place that every project, person, and agent
+          draws from — and improves with every review.
         </p>
 
         <div className="animate-fade-in-up-delay-3 mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
@@ -106,7 +106,7 @@ export function Hero() {
             playsInline
             controls={playing}
             poster={`${base}sizzle.jpg`}
-            aria-label="A montage of the Bowrain platform: the shared editor, real-time collaboration, translation memory and terminology, review and approval, and corrections that become versioned checks."
+            aria-label="A montage of the Bowrain platform: the shared editor, real-time collaboration, content memory and terminology, review and approval, and corrections that become versioned checks."
           >
             <source
               src={`${base}docs/video/bowrain-web/bowrain-sizzle-dark.webm`}

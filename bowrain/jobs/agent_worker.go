@@ -15,7 +15,7 @@ import (
 
 // AgentWorkerDeps holds dependencies for the agent job worker.
 type AgentWorkerDeps struct {
-	Queue        Queue                // Service Bus queue for bravo-jobs
+	Queue        Queue                // job queue for bravo-jobs
 	AgentStore   platagent.AgentStore // conversations + messages
 	Pool         *service.AgentPool   // container lifecycle
 	PubSub       *service.AgentPubSub // Redis pub/sub for SSE relay

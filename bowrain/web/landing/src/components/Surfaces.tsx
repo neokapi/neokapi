@@ -4,7 +4,7 @@ import { Logo } from "./Logo";
 import { useReveal } from "../useReveal";
 
 // One brand, many surfaces: each surface is a project in the workspace; all of
-// them draw on the same brand profiles, terminology, and translation memory.
+// them draw on the same brand profiles, terminology, and content memory.
 const SURFACES = [
   { icon: AppWindow, label: t("App strings"), note: t("JSON, XLIFF, mobile formats") },
   { icon: Globe2, label: t("Website"), note: t("HTML, Markdown, CMS") },
@@ -26,9 +26,9 @@ export function Surfaces() {
           </h2>
           <p className="mt-3 text-muted-foreground">
             Your product speaks from more places than your app. In Bowrain, each surface is a
-            project — and all of them share the workspace's brand voice, terminology, and
-            translation memory. Docs stay precise, marketing stays warm, support stays patient:
-            channel styles tune one profile, they don't fork it.
+            project — and all of them share the workspace's brand voice, terminology, and content
+            memory. Docs stay precise, marketing stays warm, support stays patient: channel styles
+            tune one profile, they don't fork it.
           </p>
         </div>
 
@@ -56,7 +56,7 @@ export function Surfaces() {
             <div className="text-xs text-muted-foreground">
               brand voice · terminology
               <br />
-              translation memory · review rules
+              content memory · review rules
             </div>
           </div>
 

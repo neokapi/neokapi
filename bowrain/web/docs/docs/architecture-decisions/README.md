@@ -51,7 +51,7 @@ protocols specific to bowrain) live in [Implementation Notes](/notes/index).
 
 | AD                                             | Title                    | Scope                                                     |
 | ---------------------------------------------- | ------------------------ | --------------------------------------------------------- |
-| [012](012-distributed-event-bus.md)            | Distributed Event Bus    | Azure Service Bus (prod), NATS JetStream (dev)            |
+| [012](012-distributed-event-bus.md)            | Distributed Event Bus    | Redis Streams (ElastiCache in prod)                       |
 | [013](013-automation-engine.md)                | Automation Engine        | Rules, quality gates, run visibility, SSE                 |
 | [014](014-translator-workflow.md)              | Translator Workflow      | Tasks, activities, notifications, source review           |
 | [022](022-convergence-as-a-service.md)         | Convergence as a Service | Server-side `kapi up` runs, SSE event stream, `server.converge` policy, automation collapse |

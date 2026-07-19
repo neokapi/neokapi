@@ -144,6 +144,10 @@ type Server struct {
 	// QuotaStore tracks AI token usage per workspace. Nil when quota tracking is not configured.
 	QuotaStore jobs.QuotaStore
 
+	// SweepStore persists model recommendation sweep measurements (measured
+	// steerability). Nil when the job system is not configured.
+	SweepStore jobs.ModelSweepStore
+
 	// GRPCServer is an optional gRPC server multiplexed on the same port.
 	// When set, gRPC requests (HTTP/2 with Content-Type: application/grpc)
 	// are routed to this server. When nil, gRPC is not available.
@@ -341,15 +345,6 @@ func createEventBus(cfg Config) platev.EventBus {
 		slog.Info("event bus configured", "backend", "redis-streams")
 		return bus
 	}
-	if cfg.NATSURL != "" {
-		bus, err := event.NewNATSEventBus(cfg.NATSURL)
-		if err != nil {
-			slog.Warn("failed to create NATS event bus, falling back to in-memory", "error", err)
-			return event.NewChannelEventBus()
-		}
-		slog.Info("event bus configured", "backend", "nats-jetstream")
-		return bus
-	}
 	slog.Info("event bus configured", "backend", "in-memory")
 	return event.NewChannelEventBus()
 }
@@ -532,6 +527,7 @@ func NewServer(cfg Config) *Server {
 			s.ExtractionJobStore = pg.Extraction
 			s.BrandScanStore = pg.BrandScan
 			s.QuotaStore = pg.Quota
+			s.SweepStore = pg.Sweep
 			s.wsStores.pgDB = pg.DB
 			pgSQL := pg.DB.DB // embedded *sql.DB
 			// Workspace-scoped AI provider configs (Epic 004), sealed at rest with
@@ -580,10 +576,9 @@ func NewServer(cfg Config) *Server {
 		slog.Warn("platform_config: initial load failed (serving env defaults)", "error", err)
 	}
 
-	// Initialize job queues if Service Bus or NATS is configured. The
-	// extraction queue feeds the auto-extract automation (AD-013/AD-015):
-	// triggerAutoExtract enqueues here and bowrain-worker's extraction
-	// worker consumes.
+	// Initialize job queues if SQS is configured. The extraction queue feeds
+	// the auto-extract automation (AD-013/AD-015): triggerAutoExtract enqueues
+	// here and bowrain-worker's extraction worker consumes.
 	switch {
 	case jobs.SQSConfigured():
 		sqsOpts := jobs.SQSOptionsFromEnv()
@@ -599,25 +594,6 @@ func NewServer(cfg Config) *Server {
 		}
 		if bq, err := jobs.NewSQSQueue(context.Background(), sqsOpts, jobs.SQSBrandScanQueue); err != nil {
 			slog.Warn("failed to connect to SQS brand-scan queue", "error", err)
-		} else {
-			s.BrandScanQueue = bq
-		}
-	case cfg.NATSURL != "":
-		q, err := jobs.NewNATSQueue(cfg.NATSURL)
-		if err != nil {
-			slog.Warn("failed to connect to NATS queue", "error", err)
-		} else {
-			s.JobQueue = q
-		}
-		eq, err := jobs.NewNATSExtractionQueue(cfg.NATSURL)
-		if err != nil {
-			slog.Warn("failed to connect to NATS extraction queue", "error", err)
-		} else {
-			s.ExtractionQueue = eq
-		}
-		bq, err := jobs.NewNATSBrandScanQueue(cfg.NATSURL)
-		if err != nil {
-			slog.Warn("failed to connect to NATS brand-scan queue", "error", err)
 		} else {
 			s.BrandScanQueue = bq
 		}
@@ -662,6 +638,10 @@ func NewServer(cfg Config) *Server {
 		s.convergence.SweepInterruptedRuns(context.Background())
 		s.subscribeConvergeOnPush()
 		s.subscribeForgeDelivery()
+		// Governed review → delivery continuation (RV-B): when a project's review
+		// queue empties, review.completed starts a completing run so approved
+		// content ships with no extra user action. Durable, like the two above.
+		s.subscribeReviewCompletion()
 	}
 
 	// Unclaimed-project purge (epic 003 item 6): periodically remove expired
@@ -699,7 +679,10 @@ func NewServer(cfg Config) *Server {
 		// Fan-out: when instance-wide platform config changes in ctrl (on any
 		// server/worker), every instance reloads its cached settings so the
 		// change propagates cluster-wide without a redeploy. Subscribe (not
-		// SubscribeGroup) so all instances react.
+		// SubscribeGroup) so all instances react. Fine-to-miss: this only
+		// refreshes a cache that is loaded fresh at startup and re-read on the
+		// next change event — no state advances here, so an event lost during a
+		// rollover cannot strand work.
 		if s.PlatformConfig != nil && s.PlatformConfig.Persistent() {
 			s.EventBus.Subscribe(platev.EventPlatformConfigChanged, func(platev.Event) {
 				if err := s.PlatformConfig.Refresh(context.Background()); err != nil {
@@ -1088,28 +1071,17 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	v1.GET("/ready", s.HandleReady)
 	v1.GET("/info", s.HandleInfo)
 	v1.GET("/config", s.HandleGetPublicConfig)
-	v1.GET("/badges/:proj", s.HandleProjectBadge)
 
-	// Pulse public activity dashboard (Bowrain AD-017).
-	// No auth required — access gated by workspace/project dashboard_visibility.
-	v1.GET("/pulse", s.HandlePulseFrontPage)
-	if s.AuthStore != nil {
-		pulseGroup := v1.Group("/pulse/:workspace")
-		pulseGroup.Use(PulseAccessMiddleware(s.Config.JWTSecret, s.AuthStore))
-		pulseGroup.GET("", s.HandlePulseOverview)
-		pulseGroup.GET("/projects", s.HandlePulseProjects)
-		pulseGroup.GET("/activity/heatmap", s.HandlePulseActivityHeatmap)
-		pulseGroup.GET("/activity", s.HandlePulseActivity)
-		pulseGroup.GET("/leaderboard", s.HandlePulseLeaderboard)
-		pulseGroup.GET("/terms", s.HandlePulseTerms)
-		pulseGroup.GET("/terms/:cid", s.HandlePulseTermDetail)
-
-		// Project-scoped routes also enforce project-level visibility.
-		pulseProjectGroup := pulseGroup.Group("", PulseProjectAccessMiddleware(s.ContentStore))
-		pulseProjectGroup.GET("/projects/:id", s.HandlePulseProjectDetail)
-		pulseProjectGroup.GET("/projects/:id/lang/:locale", s.HandlePulseLocaleDetail)
+	// Pulse public activity dashboard (Bowrain AD-017). Unmounted by default —
+	// the platform's public surface is on-brand authoring, not l10n
+	// gamification. BOWRAIN_PULSE_ENABLED=true re-mounts the routes (and their
+	// access middleware); the handlers and cache stay in the tree so the OSS
+	// program can revive the surface.
+	// No auth required when mounted — access gated by workspace/project
+	// dashboard_visibility.
+	if s.Config.PulseEnabled {
+		s.registerPulseRoutes(v1)
 	}
-
 	// Authenticated mode: auth routes, protected endpoints, workspace management.
 	if s.Config.JWTSecret != "" {
 		// Anonymous project creation (no auth required) — IP-throttled: it
@@ -1413,12 +1385,17 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	// A single handler serves static files first and falls back to index.html
 	// for SPA client-side routing. Using two separate handlers (e.Static + e.GET)
 	// would conflict because Echo overwrites the first GET /* with the second.
-	if s.Config.WebUIDir != "" || s.Config.PulseUIDir != "" {
+	pulseUIDir := ""
+	if s.Config.PulseEnabled {
+		pulseUIDir = s.Config.PulseUIDir
+	}
+	if s.Config.WebUIDir != "" || pulseUIDir != "" {
 		e.GET("/*", func(c echo.Context) error {
-			// Host-based routing: serve Pulse SPA for pulse.* subdomain.
+			// Host-based routing: serve Pulse SPA for pulse.* subdomain
+			// (only when the Pulse surface is enabled).
 			host := c.Request().Host
-			if s.Config.PulseUIDir != "" && strings.HasPrefix(host, "pulse.") {
-				return serveSPAFile(c, s.Config.PulseUIDir)
+			if pulseUIDir != "" && strings.HasPrefix(host, "pulse.") {
+				return serveSPAFile(c, pulseUIDir)
 			}
 			// Default: serve main web UI.
 			if s.Config.WebUIDir != "" {
@@ -1568,6 +1545,10 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.GET("/activities", s.HandleListActivities)
 	g.POST("/activities/seen", s.HandleMarkActivitiesSeen)
 
+	// Loop rollup — workspace-home aggregate (latest convergence run +
+	// ship-state rollup): /:ws/loop-rollup
+	g.GET("/loop-rollup", s.HandleWorkspaceLoopRollup)
+
 	// Tasks — Bowrain AD-011: /:ws/tasks (no more /my/tasks, use ?assignee_id=me)
 	g.GET("/tasks", s.HandleListTasks)
 	g.POST("/tasks", s.HandleCreateTask)
@@ -1619,6 +1600,10 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// Project settings — Bowrain AD-011: /:ws/:id/settings
 	g.GET("/:id/settings/extraction", s.HandleGetExtractionSettings)
 	g.PUT("/:id/settings/extraction", s.HandleUpdateExtractionSettings)
+
+	// Measured steerability — model recommendation sweeps: /:ws/:id/model-recommendations
+	g.GET("/:id/model-recommendations", s.HandleGetModelRecommendations)
+	g.POST("/:id/model-recommendations/refresh", s.HandleRefreshModelRecommendations)
 
 	// Project audit log — Bowrain AD-011: /:ws/:id/audit-log
 	g.GET("/:id/audit-log", s.HandleListAuditLog)
@@ -1689,6 +1674,9 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.PUT("/:id/blocks/:ref/:bid/runs", s.HandleUpdateBlockTargetRuns)
 	g.PUT("/:id/blocks/:ref/:bid/status", s.HandleSetBlockStatus)
 	g.PUT("/:id/blocks/:ref/:bid/review", s.HandleReviewBlock)
+	// Bulk approve every passing draft in one action, then continue the loop to
+	// delivery (RV-D). Distinct path segment from /:id/review-queue below.
+	g.POST("/:id/review/approve-passing", s.HandleApprovePassing)
 	g.GET("/:id/blocks/:ref/:bid/history", s.HandleGetBlockHistory)
 	g.POST("/:id/blocks/:ref/:bid/rollback", s.HandleRollbackBlock)
 	g.POST("/:id/revert", s.HandleRevertBatch)

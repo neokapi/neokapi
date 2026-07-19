@@ -16,6 +16,52 @@ import (
 )
 
 // ---------------------------------------------------------------------------
+// Surface gating
+// ---------------------------------------------------------------------------
+
+// TestPulseRoutes_UnmountedByDefault verifies the public Pulse surface is not
+// mounted unless Config.PulseEnabled (BOWRAIN_PULSE_ENABLED) is set. With the
+// dedicated pulse routes gone, the paths fall through to the JWT-guarded
+// workspace tree (`/api/v1/:ws/…` with ws="pulse") and an anonymous request is
+// rejected with 401 — it never reaches a public pulse handler.
+func TestPulseRoutes_UnmountedByDefault(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.JWTSecret = "test-secret"
+	srv := shutdownOnCleanup(t, NewServer(cfg))
+	e := srv.GetEcho()
+
+	for _, path := range []string{
+		"/api/v1/pulse",
+		"/api/v1/pulse/some-workspace",
+		"/api/v1/pulse/some-workspace/leaderboard",
+	} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusUnauthorized, rec.Code,
+			"pulse route %s must not be publicly reachable by default", path)
+	}
+}
+
+// TestPulseRoutes_MountedWhenEnabled verifies the explicit opt-in re-mounts the
+// surface: the front page responds and workspace routes reach the access
+// middleware instead of 404ing.
+func TestPulseRoutes_MountedWhenEnabled(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.JWTSecret = "test-secret"
+	cfg.PulseEnabled = true
+	srv := shutdownOnCleanup(t, NewServer(cfg))
+	initTestStores(t, srv)
+	e := srv.GetEcho()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/pulse", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code,
+		"pulse front page must be mounted when PulseEnabled is set")
+}
+
+// ---------------------------------------------------------------------------
 // Middleware tests
 // ---------------------------------------------------------------------------
 

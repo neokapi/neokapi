@@ -1,6 +1,6 @@
 // Shared outbound links. The app lives at app.bowrain.cloud (DECISIONS L6
 // splittable URLs); contact is on the bowrain.cloud domain we control —
-// never hello@bowrain.com (unverified mailbox, epic 011).
+// never the unverified .com mailbox (epic 011).
 export const APP_URL = "https://app.bowrain.cloud";
 export const SIGNUP_URL = `${APP_URL}/`;
 export const CONTACT_EMAIL = "hello@bowrain.cloud";

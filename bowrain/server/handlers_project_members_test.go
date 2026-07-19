@@ -56,7 +56,7 @@ func newProjectMembersTestServer(t *testing.T) (*Server, string, string, string,
 }
 
 func TestListProjectMembers(t *testing.T) {
-	srv, jwt, wsSlug, _, pid := newProjectMembersTestServer(t)
+	srv, jwt, wsSlug, wsID, pid := newProjectMembersTestServer(t)
 	e := srv.GetEcho()
 
 	req := httptest.NewRequest(http.MethodGet,
@@ -69,7 +69,12 @@ func TestListProjectMembers(t *testing.T) {
 
 	var members []*platauth.ProjectMembership
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &members))
-	assert.Empty(t, members, "project should have no explicit members initially")
+	// The creator is auto-added as a review-capable project member so governed
+	// review has someone to assign to (the onboarding fix).
+	require.Len(t, members, 1, "the project creator is auto-added as a member")
+	rt, err := srv.AuthStore.GetRoleTemplate(t.Context(), wsID, members[0].RoleID)
+	require.NoError(t, err)
+	assert.True(t, rt.Permissions.Has(platauth.PermReview), "creator's role must be review-capable")
 }
 
 func TestAddProjectMember(t *testing.T) {
@@ -120,7 +125,7 @@ func TestAddProjectMember(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 	var members []*platauth.ProjectMembership
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &members))
-	assert.Len(t, members, 1)
+	assert.Len(t, members, 2, "the auto-added creator plus the explicitly added member")
 }
 
 func TestUpdateProjectMember(t *testing.T) {
@@ -222,5 +227,5 @@ func TestRemoveProjectMember(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 	var members []*platauth.ProjectMembership
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &members))
-	assert.Empty(t, members)
+	assert.Len(t, members, 1, "the auto-added creator remains after the added member is removed")
 }

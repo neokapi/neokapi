@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/convergence"
@@ -201,6 +202,33 @@ func (s *ConvergenceRunStore) ListRuns(ctx context.Context, projectID string, li
 		result = append(result, r)
 	}
 	return result, rows.Err()
+}
+
+// LatestRunForProjects returns the single most recent run across the given
+// projects, or (nil, nil) when none of them has ever run — the workspace
+// home's loop-rollup read. One indexed query: the IN probe rides
+// idx_convergence_runs_project (project_id, created_at DESC), so the scan is
+// bounded by the given projects' run rows, never the whole table, and no
+// per-project fan-out is needed.
+func (s *ConvergenceRunStore) LatestRunForProjects(ctx context.Context, projectIDs []string) (*ConvergenceRun, error) {
+	if len(projectIDs) == 0 {
+		return nil, nil
+	}
+	placeholders := make([]string, len(projectIDs))
+	args := make([]any, len(projectIDs))
+	for i, id := range projectIDs {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = id
+	}
+	row := s.db.QueryRowContext(ctx, fmt.Sprintf(
+		`SELECT id, project_id, trigger, state, passes, standing, failing_checks, error, stall_reason, current_stage, current_locale, last_activity, blocked_on_source, created_at, finished_at
+		 FROM convergence_runs WHERE project_id IN (%s) ORDER BY created_at DESC LIMIT 1`,
+		strings.Join(placeholders, ", ")), args...)
+	run, err := scanConvergenceRun(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	return run, err
 }
 
 // ActiveRun returns the project's currently-running run, or (nil, nil) when

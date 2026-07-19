@@ -92,16 +92,21 @@ export function TasksRoute() {
         onCompleteTask={(id) => completeMutation.mutate(id)}
         onCancelTask={(id) => cancelMutation.mutate(id)}
         onTaskClick={(task: TaskInfo) => {
-          if (task.project_id) {
-            void navigate({
-              to: "/$workspace/p/$projectId/s/$stream",
-              params: {
-                workspace: workspace ?? ws,
-                projectId: task.project_id,
-                stream: task.stream || "main",
-              },
-            });
-          }
+          if (!task.project_id) return;
+          // Review-type tasks deep-link into the dedicated review session, not
+          // the project page (or the moded editor).
+          const isReview =
+            task.type === "review" || task.type === "review_terms" || task.type === "source_review";
+          void navigate({
+            to: isReview
+              ? "/$workspace/p/$projectId/s/$stream/review"
+              : "/$workspace/p/$projectId/s/$stream",
+            params: {
+              workspace: workspace ?? ws,
+              projectId: task.project_id,
+              stream: task.stream || "main",
+            },
+          });
         }}
       />
     </div>

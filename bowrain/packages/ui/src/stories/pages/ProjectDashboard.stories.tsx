@@ -189,7 +189,14 @@ const loopStatus: LoopStatusData = {
     summary: "Translate flow completed for Marketing Website (fr-FR)",
     created_at: new Date(Date.now() - 42 * 60 * 1000).toISOString(),
   },
+  latestRun: {
+    state: "parked",
+    stallReason: "needs_credits",
+    projectName: "Marketing Website",
+    updatedAt: new Date(Date.now() - 55 * 60 * 1000).toISOString(),
+  },
   openReviewTasks: 7,
+  ship: { governed: 3, aiShippable: 2, pending: 5, countedProjects: 2, totalProjects: 2 },
   brand: { averageScore: 86, scoredProjects: 3, driftingProjects: 1 },
 };
 
@@ -250,7 +257,9 @@ export const WithProjects: Story = {
     workspaceName: "Acme Corp",
     loopStatus,
     onOpenActivities: fn(),
+    onOpenRuns: fn(),
     onOpenTasks: fn(),
+    onOpenDelivery: fn(),
     onOpenBrandDashboard: fn(),
   },
 };

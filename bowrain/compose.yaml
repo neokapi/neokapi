@@ -71,15 +71,6 @@ services:
       - "8025:8025"
       - "1025:1025"
 
-  nats:
-    image: nats:2-alpine
-    command: ["--jetstream", "--store_dir", "/data"]
-    ports:
-      - "4222:4222"
-      - "8222:8222"
-    volumes:
-      - nats-data:/data
-
   redis:
     image: redis:7-alpine
     ports:
@@ -90,12 +81,41 @@ services:
       timeout: 5s
       retries: 5
 
-  # Standard PostgreSQL 16. The brand knowledge graph runs on the default
-  # plain-SQL graph backend (BOWRAIN_GRAPH_BACKEND unset → "sql"), which needs
-  # no extension — so dev matches managed RDS/Aurora. To exercise the opt-in
-  # Apache AGE backend locally, swap this image to
-  # `apache/age:release_PG16_1.6.0`, re-add the `./migrations/init-age.sql`
-  # init volume, and set `BOWRAIN_GRAPH_BACKEND=age` on the server.
+  # Job queue (SQS-compatible; the same sqsqueue code path as Amazon SQS in
+  # production). dev-server/dev-worker point at it via SQS_ENDPOINT.
+  elasticmq:
+    image: softwaremill/elasticmq-native:latest
+    ports:
+      - "9324:9324"
+      - "9325:9325"
+
+  # One-shot: create the job queues (visibility timeout mirrors prod).
+  sqs-init:
+    image: amazon/aws-cli:latest
+    depends_on:
+      elasticmq:
+        condition: service_started
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        until aws --endpoint-url http://elasticmq:9324 sqs list-queues >/dev/null 2>&1; do
+          echo 'waiting for elasticmq...'; sleep 1;
+        done
+        for name in translation-jobs extraction-jobs brand-scan-jobs; do
+          aws --endpoint-url http://elasticmq:9324 sqs create-queue \
+            --queue-name "$$name" --attributes VisibilityTimeout=300 >/dev/null
+        done
+        echo 'sqs queues ready'
+
+  # Standard PostgreSQL 16. The brand knowledge graph runs on the plain-SQL
+  # graph backend, which needs no extension — so dev matches managed
+  # RDS/Aurora. See bowrain/graph/NOTES.md.
   postgres:
     image: postgres:16-alpine
     environment:
@@ -113,5 +133,4 @@ services:
       - postgres-data:/var/lib/postgresql/data
 
 volumes:
-  nats-data:
   postgres-data:

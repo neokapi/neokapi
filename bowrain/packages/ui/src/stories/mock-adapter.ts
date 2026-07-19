@@ -8,6 +8,8 @@
 
 import type { ApiAdapter } from "../api/adapter";
 import type {
+  ApprovePassingRequest,
+  ApprovePassingResult,
   BlockInfo,
   ReviewDemotion,
   SkippedFile,
@@ -25,8 +27,9 @@ import type {
   BrandScanCheckResult,
   BrandScanDraft,
   BrandScanJob,
+  ModelRecommendationsResponse,
 } from "../types/api";
-import type { VoiceProfile } from "../brand/types";
+import type { VoiceProfile, BrandCorrectionRequest } from "../brand/types";
 import type {
   AutomationRule,
   AutomationEvent,
@@ -182,6 +185,12 @@ export interface MockAdapter extends ApiAdapter {
   reviewBlockCalls: ReviewBlockCall[];
   /** When true, `reviewBlock` rejects instead of applying. */
   failReviewBlock: boolean;
+  /** `approvePassingReview` invocations in call order. */
+  approvePassingReviewCalls: ApprovePassingRequest[];
+  /** Overrides the computed `approvePassingReview` result when set. */
+  approvePassingResult?: ApprovePassingResult;
+  /** `recordBrandCorrection` invocations in call order. */
+  recordBrandCorrectionCalls: BrandCorrectionRequest[];
   /** `startBrandScan` invocations in call order. */
   startBrandScanCalls: BrandScanRequest[];
   /** `uploadBrandScanSources` invocations — filenames per call. */
@@ -195,6 +204,44 @@ export interface MockAdapter extends ApiAdapter {
    */
   brandScanJobStates: BrandScanJob[];
 }
+
+// ---------------------------------------------------------------------------
+// Measured-steerability fixtures (deterministic — stories and tests assert on
+// these): two candidate models on fr, the lift winner marked recommended.
+// ---------------------------------------------------------------------------
+
+/** Deterministic model recommendation results for stories and tests. */
+export const sampleModelRecommendations: ModelRecommendationsResponse = {
+  enabled: true,
+  locales: [
+    {
+      locale: "fr",
+      recommended_model: "claude-sonnet",
+      models: [
+        {
+          model: "claude-sonnet",
+          adherence: 0.92,
+          adherence_bare: 0.54,
+          lift: 0.38,
+          fixture_count: 14,
+          tokens_used: 2140,
+          measured_at: "2026-07-15T08:00:00Z",
+          recommended: true,
+        },
+        {
+          model: "claude-haiku",
+          adherence: 0.79,
+          adherence_bare: 0.57,
+          lift: 0.22,
+          fixture_count: 14,
+          tokens_used: 1660,
+          measured_at: "2026-07-15T08:00:00Z",
+          recommended: false,
+        },
+      ],
+    },
+  ],
+};
 
 // ---------------------------------------------------------------------------
 // Brand-scan fixtures (deterministic — stories and tests assert on these)
@@ -356,6 +403,8 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
   };
 
   const reviewBlockCalls: ReviewBlockCall[] = [];
+  const approvePassingReviewCalls: ApprovePassingRequest[] = [];
+  const recordBrandCorrectionCalls: BrandCorrectionRequest[] = [];
   const startBrandScanCalls: BrandScanRequest[] = [];
   const uploadBrandScanSourcesCalls: string[][] = [];
   const checkBrandDraftCalls: { profileName: string; text: string }[] = [];
@@ -365,6 +414,8 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     // --- Test hooks -------------------------------------------------------
     reviewBlockCalls,
     failReviewBlock: false,
+    approvePassingReviewCalls,
+    recordBrandCorrectionCalls,
     startBrandScanCalls,
     uploadBrandScanSourcesCalls,
     checkBrandDraftCalls,
@@ -648,6 +699,33 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
           status: reviewed ? "reviewed" : demoteTo === "draft" ? "draft" : "translated",
         };
       }
+    },
+
+    approvePassingReview: async (_ws, _projectId, req = {}) => {
+      approvePassingReviewCalls.push(req);
+      if (adapter.approvePassingResult) return adapter.approvePassingResult;
+      // Default: promote every pending block passing checks (mock has no QA),
+      // marking them reviewed so a re-read reflects the emptied queue.
+      const locales = req.locales;
+      let approved = 0;
+      for (const blk of _blocks) {
+        if (!blk.translatable) continue;
+        for (const [loc, entry] of Object.entries(blk.targets)) {
+          if (locales && !locales.includes(loc)) continue;
+          const text = typeof entry === "string" ? entry : (entry?.text ?? "");
+          const status = typeof entry === "string" ? "" : (entry?.status ?? "");
+          if (text.trim() && status !== "reviewed" && status !== "signed-off") {
+            blk.targets[loc] = { text, status: "reviewed" };
+            approved++;
+          }
+        }
+      }
+      return { approved, skipped: 0, remaining_pending: 0, review_completed: true };
+    },
+
+    recordBrandCorrection: async (_ws, _projectId, req) => {
+      recordBrandCorrectionCalls.push(req);
+      return { auto_promoted: false };
     },
 
     // --- Governance (#778) -----------------------------------------------
@@ -948,6 +1026,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     getBrandScores: async () => [],
     getBrandTrends: async () => [],
     getBrandRollup: async () => ({ projects: [], total: 0, limit: 50, offset: 0 }),
+    getLoopRollup: async () => ({}),
     listBrandCandidates: async () => [],
     promoteBrandRule: async () => ({ promoted: true }),
     rejectBrandRule: noop,
@@ -1047,6 +1126,10 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       translatable_blocks: 0,
       total_source_words: 0,
     }),
+
+    // --- Measured steerability (model recommendation sweeps) ---------------------
+    getModelRecommendations: async () => sampleModelRecommendations,
+    refreshModelRecommendations: async () => ({ enqueued: 1, locales: ["fr"] }),
 
     // --- Activities (Bowrain AD-014) ------------------------------------------------
     listActivities: async () => ({

@@ -64,6 +64,19 @@ PostgreSQL) is mutated through the REST API and a visual editor in
 the web app. Rules are project-scoped and can be toggled without
 deletion.
 
+### Trigger events
+
+The trigger picker (`GET /:id/automations/events`) offers only event
+types that some subsystem actually emits on the bus
+([AD-012](012-distributed-event-bus.md) lists the emitters).
+`flow.completed` / `flow.failed` are intended future triggers: the types
+are defined on the bus and several consumers (activity feed,
+notifications, progress tracking) already handle them, but no
+flow-execution path emits them yet — server-side flow runs currently
+execute inline in multiple places (gRPC, MCP) without a shared
+completion point. They return to the picker once the flow executor
+gains a single emission point.
+
 ### Default rules
 
 Every project is created with a set of built-in rules:
@@ -162,7 +175,7 @@ External notifications sign the payload with HMAC-SHA256:
 ```yaml
 webhooks:
   - url: https://hooks.slack.com/services/...
-    events: [quality.gate.failed, flow.completed]
+    events: [quality.gate.fail, convergence.run.completed]
     secret: ${WEBHOOK_SECRET}
 ```
 

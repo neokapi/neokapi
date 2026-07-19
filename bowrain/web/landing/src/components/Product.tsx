@@ -33,11 +33,11 @@ const CAPABILITIES = [
   },
   {
     icon: Database,
-    title: t("Terminology & translation memory"),
+    title: t("Terminology & content memory"),
     body: t(
-      "One termbase and one memory for the whole workspace, applied in every draft and every lookup. Import from CSV or JSON; entity-aware matching reuses past work even when names and numbers change.",
+      "One termbase and one memory for the whole workspace, applied in every draft and every lookup. Import from CSV or JSON; entity-aware matching recycles past work even when names and numbers change.",
     ),
-    detail: [t("Shared termbase & TM"), t("CSV / JSON import"), t("Entity-aware reuse")],
+    detail: [t("Shared termbase & memory"), t("CSV / JSON import"), t("Entity-aware recycling")],
   },
   {
     icon: Zap,

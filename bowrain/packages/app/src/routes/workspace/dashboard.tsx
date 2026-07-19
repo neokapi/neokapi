@@ -78,6 +78,16 @@ export function ProjectDashboardRoute() {
     enabled: hasProjects,
     staleTime: 30_000,
   });
+  // The workspace loop rollup (one server aggregate): latest convergence run
+  // + ship-state rollup — the two cards a per-project fan-out would have cost
+  // up to max-projects requests each. No polling: the SSE invalidation
+  // planner refetches this key on convergence.* events.
+  const { data: loopRollup } = useQuery({
+    queryKey: ["loopRollup", ws],
+    queryFn: () => adapter.getLoopRollup(ws),
+    enabled: hasProjects,
+    staleTime: 30_000,
+  });
 
   const loopStatus = useMemo<LoopStatusData | undefined>(() => {
     if (!hasProjects) return undefined;
@@ -101,14 +111,40 @@ export function ProjectDashboardRoute() {
       };
     }
 
+    // The two rollup-fed slots stay absent (cards hidden) until the server
+    // reports data — no runs yet / no cached dashboard rollups to fold.
+    let latestRun: LoopStatusData["latestRun"];
+    if (loopRollup?.latest_run) {
+      const run = loopRollup.latest_run;
+      latestRun = {
+        state: run.state,
+        stallReason: run.stall_reason,
+        projectName: run.project_name,
+        updatedAt: run.updated_at,
+      };
+    }
+    let ship: LoopStatusData["ship"];
+    if (loopRollup?.ship) {
+      const rollup = loopRollup.ship;
+      ship = {
+        governed: rollup.governed,
+        aiShippable: rollup.ai_shippable,
+        pending: rollup.pending,
+        countedProjects: rollup.counted_projects,
+        totalProjects: rollup.total_projects,
+      };
+    }
+
     return {
       latestActivity: latest
         ? { summary: latest.summary, created_at: latest.created_at }
         : undefined,
+      latestRun,
       openReviewTasks,
+      ship,
       brand,
     };
-  }, [hasProjects, activitiesData, myTasksData, brandRollup]);
+  }, [hasProjects, activitiesData, myTasksData, brandRollup, loopRollup]);
 
   const invalidateProjects = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ["projects", ws] });
@@ -202,6 +238,44 @@ export function ProjectDashboardRoute() {
     });
   }, [navigate, workspace, ws]);
 
+  // The "Awaiting review" card opens the workspace review inbox — pending
+  // review across every project, not just what's assigned to me.
+  const handleOpenReviewInbox = useCallback(() => {
+    void navigate({
+      to: "/$workspace/review-inbox",
+      params: { workspace: workspace ?? ws },
+    });
+  }, [navigate, workspace, ws]);
+
+  // Deep link for the latest-run card: the run's project's runs page.
+  const handleOpenRuns = useCallback(() => {
+    const run = loopRollup?.latest_run;
+    if (!run) return;
+    void navigate({
+      to: "/$workspace/p/$projectId/s/$stream/runs",
+      params: {
+        workspace: workspace ?? ws,
+        projectId: run.project_id,
+        stream: run.stream || "main",
+      },
+    });
+  }, [navigate, workspace, ws, loopRollup]);
+
+  // Deep link for the ship card: the delivery (translation) dashboard of the
+  // counted project with the most pending locales (the server sorts it first).
+  const handleOpenDelivery = useCallback(() => {
+    const target = loopRollup?.ship?.projects?.[0];
+    if (!target) return;
+    void navigate({
+      to: "/$workspace/p/$projectId/s/$stream/dashboard",
+      params: {
+        workspace: workspace ?? ws,
+        projectId: target.project_id,
+        stream: target.stream || "main",
+      },
+    });
+  }, [navigate, workspace, ws, loopRollup]);
+
   const handleOpenBrandDashboard = useCallback(() => {
     void navigate({
       to: "/$workspace/brand/dashboard",
@@ -234,7 +308,10 @@ export function ProjectDashboardRoute() {
         serverUrl={platform.kind === "web" ? window.location.origin : undefined}
         loopStatus={loopStatus}
         onOpenActivities={handleOpenActivities}
+        onOpenRuns={handleOpenRuns}
         onOpenTasks={handleOpenTasks}
+        onOpenReview={handleOpenReviewInbox}
+        onOpenDelivery={handleOpenDelivery}
         onOpenBrandDashboard={handleOpenBrandDashboard}
       />
 

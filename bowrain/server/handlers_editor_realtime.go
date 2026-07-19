@@ -171,6 +171,11 @@ func (s *Server) HandleReviewBlock(c echo.Context) error {
 		}
 		status = demoteTo
 	}
+	// Whether this call actually moves the target UP to reviewed from below — the
+	// signal the governed review continuation keys on, so an idempotent re-approve
+	// of an already-reviewed target advances nothing.
+	approvalTransition := req.Reviewed && status == model.TargetStatusReviewed &&
+		target.Status.Rank() < model.TargetStatusReviewed.Rank()
 	target.Status = status
 
 	if err := s.ContentStore.StoreBlocks(ctx, pid, stream, []*model.Block{sb.Block}); err != nil {
@@ -181,6 +186,21 @@ func (s *Server) HandleReviewBlock(c echo.Context) error {
 
 	wsID, _ := c.Get("workspace_id").(string)
 	s.invalidateDashboardCache(wsID, pid)
+
+	// Governed review continuation (RV-B): when this approval leaves the project
+	// with zero blocks pending review for any configured locale, hand off to a
+	// completing convergence run so the approved content ships without a second
+	// user action. advanceReviewLoop is a no-op for non-governed projects, so the
+	// per-block review response above is unchanged for them. Only a real approval
+	// transition advances the loop; an un-review/rejection re-opens work and an
+	// idempotent re-approve of already-reviewed content advances nothing.
+	if approvalTransition {
+		if proj, perr := s.ContentStore.GetProject(ctx, pid); perr == nil {
+			actor, _ := c.Get("user_id").(string)
+			s.advanceReviewLoop(ctx, proj, stream, []model.LocaleID{loc}, actor)
+		}
+	}
+
 	return c.JSON(http.StatusOK, map[string]any{
 		"ok": true, "block_id": bid, "target_locale": req.TargetLocale,
 		"reviewed": req.Reviewed, "status": string(status),

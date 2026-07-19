@@ -50,7 +50,7 @@ const REPO_URL = "https://github.com/octocat/Spoon-Knife";
 
 /**
  * AI brand onboarding (epic 016): the scan → review → approve flow against
- * the real Docker stack (server + NATS + bowrain-worker with the offline
+ * the real Docker stack (server + SQS/ElasticMQ + bowrain-worker with the offline
  * deterministic demo provider).
  *
  *   uploads endpoint (allowlist + skipped reasons)

@@ -131,6 +131,14 @@ const (
 	EventPushAutomationsCompleted EventType = "push.automations.completed"
 	EventSourceReviewCompleted    EventType = "source.review.completed"
 
+	// EventReviewCompleted fires when a governed project's open review queue
+	// empties — the last pending per-locale review was approved, via the editor
+	// review endpoint or the bulk approve-passing endpoint. The durable
+	// review-completion subscription turns it into a completing convergence run
+	// so the now-approved content flows straight to delivery with no extra user
+	// action. ProjectID is the project; Data carries the stream.
+	EventReviewCompleted EventType = "review.completed"
+
 	// Agent events (Bowrain AD-016)
 	EventAgentConversationCreated EventType = "agent.conversation.created"
 	EventAgentMessageSent         EventType = "agent.message.sent"

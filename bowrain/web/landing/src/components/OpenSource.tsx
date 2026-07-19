@@ -28,8 +28,8 @@ export function OpenSource() {
           <p className="mt-3 text-muted-foreground">
             Bowrain is built on {kapiLink}, the Apache-2.0 toolchain for format-aware content
             processing — the same engine that reads and writes your formats, runs the checks, and
-            keeps the memory. Your content, terminology, and translation memory stay in open formats
-            you can take anywhere.
+            keeps the memory. Your content, terminology, and memory stay in open formats you can
+            take anywhere.
           </p>
         </div>
 

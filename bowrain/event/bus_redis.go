@@ -25,7 +25,11 @@ import (
 //   - SubscribeGroup → a Redis Streams consumer group (XREADGROUP): competing
 //     consumers, so exactly one instance in the group handles each event, and
 //     the group's position survives restarts. This is what the durable
-//     domain-event consumers (audit, notifications, automations, …) need.
+//     domain-event consumers (audit, notifications, automations,
+//     convergence-onpush, forge-delivery, …) need. A companion XAUTOCLAIM
+//     sweep per group consumer reclaims entries stranded in a crashed
+//     consumer's PEL (delivered but never acknowledged), so no event is lost
+//     to a process dying mid-handler.
 //   - Subscribe / SubscribeAll → an independent tail read (XREAD from the current
 //     stream head): every such subscriber sees every event — correct fan-out for
 //     the SSE/gRPC relays, even across instances.
@@ -36,6 +40,10 @@ type RedisEventBus struct {
 	client     *redis.Client
 	stream     string
 	consumerID string
+
+	// PEL reclaim tuning; production values by default, shortened in tests.
+	reclaimInterval time.Duration
+	reclaimMinIdle  time.Duration
 
 	mu     sync.Mutex
 	subs   map[string]*redisEventSub
@@ -51,6 +59,20 @@ const (
 	defaultEventStream = "bowrain:events"
 	eventStreamMaxLen  = 10000
 	eventReadBlock     = 5 * time.Second
+
+	// PEL reclaim: how often each group consumer sweeps for stranded pending
+	// entries, and how long an entry must sit unacknowledged before it is
+	// considered stranded. The min-idle threshold sits comfortably beyond any
+	// synchronous handler duration, so a live consumer mid-dispatch is never
+	// raced; anything older belongs to a consumer that died before acking.
+	defaultReclaimInterval = 30 * time.Second
+	defaultReclaimMinIdle  = time.Minute
+
+	// reclaimBatch bounds one XAUTOCLAIM call; reclaimSweepMax bounds one
+	// sweep (the next tick resumes — the PEL is capped by the stream MAXLEN
+	// anyway, so a sweep can never be unbounded for long).
+	reclaimBatch    = 64
+	reclaimSweepMax = 1024
 )
 
 // NewRedisEventBus connects to Redis and verifies the connection.
@@ -70,10 +92,12 @@ func NewRedisEventBus(redisURL, password string) (*RedisEventBus, error) {
 		return nil, fmt.Errorf("redis event bus: ping: %w", err)
 	}
 	return &RedisEventBus{
-		client:     client,
-		stream:     defaultEventStream,
-		consumerID: id.New(),
-		subs:       make(map[string]*redisEventSub),
+		client:          client,
+		stream:          defaultEventStream,
+		consumerID:      id.New(),
+		reclaimInterval: defaultReclaimInterval,
+		reclaimMinIdle:  defaultReclaimMinIdle,
+		subs:            make(map[string]*redisEventSub),
 	}, nil
 }
 
@@ -203,6 +227,19 @@ func (b *RedisEventBus) SubscribeGroup(group string, handler platev.EventHandler
 
 func (b *RedisEventBus) runGroup(ctx context.Context, rs *redisEventSub, group string, handler platev.EventHandler) {
 	defer close(rs.done)
+
+	// Companion PEL-reclaim sweep: XREADGROUP with ">" only ever sees
+	// never-delivered entries, so an event another consumer read but died
+	// before acking would otherwise sit in that dead consumer's PEL forever.
+	// The sweep shares this subscription's lifetime; done closes only after
+	// both goroutines return, keeping shutdown (and goleak) clean.
+	reclaimDone := make(chan struct{})
+	go func() {
+		defer close(reclaimDone)
+		b.runGroupReclaim(ctx, group, handler)
+	}()
+	defer func() { <-reclaimDone }()
+
 	for {
 		if ctx.Err() != nil {
 			return
@@ -227,13 +264,106 @@ func (b *RedisEventBus) runGroup(ctx context.Context, rs *redisEventSub, group s
 		}
 		for _, st := range res {
 			for _, msg := range st.Messages {
-				if ev, ok := decodeEvent(msg); ok {
-					dispatchEvent(handler, ev)
-				}
-				// Ack unconditionally: a malformed entry must not be redelivered
-				// forever. Detach from ctx so a shutdown mid-batch still acks.
-				b.client.XAck(context.WithoutCancel(ctx), b.stream, group, msg.ID)
+				b.handleGroupMessage(ctx, group, handler, msg)
 			}
+		}
+	}
+}
+
+// handleGroupMessage decodes, dispatches, and acknowledges one group-delivered
+// entry — the shared path for fresh XREADGROUP reads and XAUTOCLAIM reclaims.
+func (b *RedisEventBus) handleGroupMessage(ctx context.Context, group string, handler platev.EventHandler, msg redis.XMessage) {
+	if ev, ok := decodeEvent(msg); ok {
+		dispatchEvent(handler, ev)
+	}
+	// Ack unconditionally: a malformed entry must not be redelivered
+	// forever. Detach from ctx so a shutdown mid-batch still acks.
+	b.client.XAck(context.WithoutCancel(ctx), b.stream, group, msg.ID)
+}
+
+// runGroupReclaim periodically sweeps the group's pending-entries list for
+// entries stranded by a crashed consumer and redispatches them here.
+func (b *RedisEventBus) runGroupReclaim(ctx context.Context, group string, handler platev.EventHandler) {
+	ticker := time.NewTicker(b.reclaimInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+		b.reclaimStranded(ctx, group, handler)
+		b.pruneDeadConsumers(ctx, group)
+	}
+}
+
+// reclaimStranded runs XAUTOCLAIM over the group's PEL, claiming entries idle
+// beyond the min-idle threshold to this consumer and dispatching them through
+// the normal handler + ack path.
+//
+// Idempotency: group consumers are replay-safe by design (the same argument
+// that makes the durable consumer groups safe across deploy rollovers — #28,
+// #1364): audit appends are keyed, notifications/automations/convergence
+// triggers re-derive state. A reclaimed entry whose original consumer did
+// finish the handler but died before XACK is therefore at worst an extra
+// idempotent pass, never corruption.
+func (b *RedisEventBus) reclaimStranded(ctx context.Context, group string, handler platev.EventHandler) {
+	start := "0-0"
+	claimed := 0
+	for claimed < reclaimSweepMax {
+		msgs, next, err := b.client.XAutoClaim(ctx, &redis.XAutoClaimArgs{
+			Stream:   b.stream,
+			Group:    group,
+			Consumer: b.consumerID,
+			MinIdle:  b.reclaimMinIdle,
+			Start:    start,
+			Count:    reclaimBatch,
+		}).Result()
+		if err != nil {
+			if ctx.Err() == nil {
+				slog.Warn("redis-event-bus: reclaim error", "group", group, "error", err)
+			}
+			break
+		}
+		for _, msg := range msgs {
+			b.handleGroupMessage(ctx, group, handler, msg)
+		}
+		claimed += len(msgs)
+		// XAUTOCLAIM is an iterative scan: the returned cursor resumes where
+		// this call stopped, and "0-0" means the whole PEL has been covered.
+		if next == "" || next == "0-0" {
+			break
+		}
+		start = next
+	}
+	if claimed > 0 {
+		// Stranded entries mean a consumer died between delivery and ack —
+		// worth a WARN, not routine operation.
+		slog.Warn("redis-event-bus: reclaimed stranded pending entries from a dead consumer",
+			"group", group, "count", claimed)
+	}
+}
+
+// pruneDeadConsumers deletes group consumers that have nothing pending and
+// have been idle past the reclaim threshold: leftover per-process consumer IDs
+// from dead instances that would otherwise accumulate forever. Deleting a
+// zero-pending consumer is loss-free — even in the pathological case of a live
+// but long-stalled consumer, XREADGROUP transparently recreates it on its next
+// read.
+func (b *RedisEventBus) pruneDeadConsumers(ctx context.Context, group string) {
+	consumers, err := b.client.XInfoConsumers(ctx, b.stream, group).Result()
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.Warn("redis-event-bus: list consumers error", "group", group, "error", err)
+		}
+		return
+	}
+	for _, c := range consumers {
+		if c.Name == b.consumerID || c.Pending != 0 || c.Idle < b.reclaimMinIdle {
+			continue
+		}
+		if err := b.client.XGroupDelConsumer(ctx, b.stream, group, c.Name).Err(); err != nil && ctx.Err() == nil {
+			slog.Warn("redis-event-bus: delete dead consumer error", "group", group, "consumer", c.Name, "error", err)
 		}
 	}
 }

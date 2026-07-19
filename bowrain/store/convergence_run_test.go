@@ -5,11 +5,13 @@ import (
 	"database/sql"
 	"path/filepath"
 	"testing"
+	"time"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -176,6 +178,58 @@ func TestConvergenceRunStore_Events(t *testing.T) {
 			_, tail, err := rs.ListEvents(ctx, run.ID, 2)
 			require.NoError(t, err)
 			require.Len(t, tail, 1)
+		})
+	}
+}
+
+func TestConvergenceRunStore_LatestRunForProjects(t *testing.T) {
+	for _, mk := range []func(*testing.T) convergeBackend{sqliteConvergeBackend, pgConvergeBackend} {
+		be := mk(t)
+		t.Run(be.name, func(t *testing.T) {
+			ctx := context.Background()
+			rs := store.NewConvergenceRunStore(be.db)
+
+			// No projects → nil, nil (the empty-workspace boundary).
+			run, err := rs.LatestRunForProjects(ctx, nil)
+			require.NoError(t, err)
+			assert.Nil(t, run)
+
+			// Projects without any runs → nil, nil.
+			be.newProject(t, "proj-a")
+			be.newProject(t, "proj-b")
+			be.newProject(t, "proj-c") // never runs
+			run, err = rs.LatestRunForProjects(ctx, []string{"proj-a", "proj-b", "proj-c"})
+			require.NoError(t, err)
+			assert.Nil(t, run)
+
+			// Runs across projects → the newest run wins, regardless of project.
+			base := time.Date(2026, 7, 1, 10, 0, 0, 0, time.UTC)
+			older := &store.ConvergenceRun{
+				ProjectID: "proj-a", Trigger: "push",
+				State: store.ConvergenceRunConverged, CreatedAt: base,
+			}
+			require.NoError(t, rs.CreateRun(ctx, older))
+			newest := &store.ConvergenceRun{
+				ProjectID: "proj-b", Trigger: "manual",
+				State: store.ConvergenceRunParked, StallReason: convergence.StallNeedsCredits,
+				CreatedAt: base.Add(time.Hour),
+			}
+			require.NoError(t, rs.CreateRun(ctx, newest))
+
+			got, err := rs.LatestRunForProjects(ctx, []string{"proj-a", "proj-b", "proj-c"})
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			assert.Equal(t, newest.ID, got.ID)
+			assert.Equal(t, "proj-b", got.ProjectID)
+			assert.Equal(t, store.ConvergenceRunParked, got.State)
+			assert.Equal(t, convergence.StallNeedsCredits, got.StallReason)
+
+			// Scoping: a filter that excludes the newest run's project falls
+			// back to the newest run among the included projects.
+			got, err = rs.LatestRunForProjects(ctx, []string{"proj-a", "proj-c"})
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			assert.Equal(t, older.ID, got.ID)
 		})
 	}
 }

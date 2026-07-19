@@ -9,20 +9,20 @@ title: "AD-012: Distributed Event Bus"
 ## Summary
 
 Bowrain-server and bowrain-worker replicas coordinate through a shared
-event broker. The `EventBus` interface has three production backends —
-**Redis Streams** (the AWS default, on ElastiCache), Azure Service Bus,
-and NATS JetStream (self-hosted) — selected at runtime from
-configuration. Every `SubscribeGroup` component becomes a consumer group
-(a Redis Streams group, an ASB subscription, or a JetStream durable
-consumer), so any replica can consume events with no leader election;
-`Subscribe`/`SubscribeAll` are fan-out (every replica sees every event),
-which is what the SSE/gRPC relays need.
+event broker. The `EventBus` interface has one production backend —
+**Redis Streams** (ElastiCache on AWS; a stock `redis` container for
+local and self-hosted stacks) — opted into with
+`BOWRAIN_EVENT_BACKEND=redis`. Every `SubscribeGroup` component becomes a
+Redis Streams consumer group, so any replica can consume events with no
+leader election; `Subscribe`/`SubscribeAll` are fan-out (every replica
+sees every event), which is what the SSE/gRPC relays need.
 
-Redis is the default on AWS because it is already a platform dependency
-(sessions, the sync-hash cache, agent pub/sub) and is managed there as
-ElastiCache — so the event bus needs no separate broker, and removing the
-standalone NATS/JetStream container is what lets the compute node hold no
-queue state.
+Redis carries the bus because it is already a platform dependency
+(sessions, the sync-hash cache, agent pub/sub) and is managed on AWS as
+ElastiCache — the event bus needs no separate broker, so the compute node
+holds no queue state. (Historical backends on Azure Service Bus and NATS
+JetStream were removed with the managed-services redesign and the
+follow-up backend cut; see [History](#history-removed-backends).)
 
 ## Context
 
@@ -49,14 +49,12 @@ type EventBus interface {
 type EventHandler func(ctx context.Context, event Event) error
 ```
 
-Four implementations:
+Two implementations:
 
-| Implementation        | Backend                   | Purpose                          |
-| --------------------- | ------------------------- | -------------------------------- |
-| `ChannelEventBus`     | Go channels (in-process)  | Unit tests only                  |
-| `RedisEventBus`       | Redis Streams             | AWS production (ElastiCache), local dev |
-| `NATSEventBus`        | NATS JetStream            | Self-hosted                      |
-| `ServiceBusEventBus`  | Azure Service Bus         | Legacy Azure deployment          |
+| Implementation    | Backend                  | Purpose                                        |
+| ----------------- | ------------------------ | ---------------------------------------------- |
+| `ChannelEventBus` | Go channels (in-process) | Unit tests and single-process development      |
+| `RedisEventBus`   | Redis Streams            | Production (ElastiCache), local + self-hosted  |
 
 `RedisEventBus` publishes with a single `XADD` (capped by `MAXLEN` so the
 stream stays bounded). `SubscribeGroup` reads via `XREADGROUP` on a Redis
@@ -68,17 +66,12 @@ published immediately afterward is not lost to a `$`-resolution race.
 
 ### Runtime selection
 
-The server picks a backend from configuration, Redis first when opted in:
+The server picks a backend from configuration:
 
 ```go
-switch {
-case os.Getenv("BOWRAIN_EVENT_BACKEND") == "redis" && cfg.RedisURL != "":
+if os.Getenv("BOWRAIN_EVENT_BACKEND") == "redis" && cfg.RedisURL != "" {
     bus = event.NewRedisEventBus(cfg.RedisURL, cfg.RedisPassword)
-case cfg.ServiceBusConnection != "":
-    bus = event.NewServiceBusEventBus(cfg.ServiceBusConnection)
-case cfg.NATSURL != "":
-    bus = event.NewNATSEventBus(cfg.NATSURL)
-default:
+} else {
     bus = event.NewChannelEventBus()
 }
 ```
@@ -104,9 +97,7 @@ type Event struct {
 ```
 
 Events serialize as JSON. Every event has a type drawn from a
-registered schema. The `Type` field maps to the Service Bus message
-`Subject` or the NATS subject suffix (`EVENTS.<type>`), so subscriptions
-can filter at the broker.
+registered schema; subscribers filter on the `Type` field.
 
 Registered event types include:
 
@@ -117,7 +108,7 @@ Registered event types include:
 | `translation.updated`           | Block target updates                                       |
 | `translation.reviewed`          | Review decisions                                           |
 | `connector.synced`              | Connector completion                                       |
-| `flow.completed` / `flow.failed`| Flow executor                                              |
+| `flow.completed` / `flow.failed`| Flow executor (type defined; not yet emitted)              |
 | `quality.gate.failed`           | Quality gate evaluation                                    |
 | `terminology.changed`           | Termbase mutations                                         |
 | `push.completed`                | Sync push commit                                           |
@@ -126,48 +117,31 @@ Registered event types include:
 | `run.started` / `run.completed` | AutomationRunManager (AD-013)                              |
 | `agent.*`                       | Bravo agent (AD-016)                                       |
 
-### Azure Service Bus
+### Consumer groups
 
-A single topic (`bowrain-events`) fans out to one subscription per
-consumer component. Each subscription is a competing-consumer group;
-Service Bus guarantees exactly-once delivery within a subscription and
-redelivers unacked messages on consumer failure.
+One Redis Streams consumer group per subscriber component:
 
 ```
-Topic: bowrain-events
-  ├── Subscription: automations        → AutomationEngine
-  ├── Subscription: activity-recorder  → ActivityRecorder
-  ├── Subscription: notifications      → NotificationDispatcher
-  ├── Subscription: push-tracker       → PushCompletionTracker
-  ├── Subscription: progress-tracker   → ProgressTracker
-  ├── Subscription: audit-logger       → AuditLogger
-  └── Subscription: graph-syncer       → GraphSyncer
+Stream: bowrain:events
+  ├── Group: automations         → AutomationEngine
+  ├── Group: activity-recorder   → ActivityRecorder
+  ├── Group: notifications       → NotificationDispatcher
+  ├── Group: push-tracker        → PushCompletionTracker
+  ├── Group: progress-tracker    → ProgressTracker
+  ├── Group: audit-logger        → AuditLogger
+  ├── Group: siem-exporter       → SIEMExporter
+  ├── Group: graph-syncer        → GraphSyncer
+  ├── Group: convergence-onpush  → on-push convergence trigger (push / new locale → run)
+  └── Group: forge-delivery      → forge delivery tier (run completed → pull request)
 ```
 
-Subscription settings: max delivery 5, lock duration 30s, dead-letter
-after 7 days. `Publish` sets the message `Subject` to the event type so
-subscriptions with filter rules receive only the relevant types.
-
-### NATS JetStream
-
-The self-hosted backend uses a single stream (`EVENTS`) with subjects
-`EVENTS.>` and one durable consumer per subscriber component. Consumers
-use WorkQueue retention (messages delete after ack).
-
-```
-Stream: EVENTS (subjects: EVENTS.>)
-  ├── Consumer: automations
-  ├── Consumer: activity-recorder
-  ├── Consumer: notifications
-  ├── Consumer: push-tracker
-  ├── Consumer: progress-tracker
-  ├── Consumer: audit-logger
-  └── Consumer: graph-syncer
-```
-
-`Publish` writes to `EVENTS.<event_type>`. `Subscribe` creates a
-durable consumer with the matching subject filter; `SubscribeAll`
-filters on `EVENTS.>`.
+Consumer groups are for **state-advancing** subscribers: a missed event
+would silently strand work (a push that never converges, a converged run
+that never reaches the forge), so the group's persisted position must
+survive replica restarts and deploy rollovers. Pure freshness
+subscribers — the SSE/gRPC change relays and the platform-config cache
+refresh — stay on fan-out `Subscribe`/`SubscribeAll`: every instance must
+react, and a missed event is healed by the next read or reconnect.
 
 ### No leader election
 
@@ -180,7 +154,19 @@ lease table, no IsLeader gating, no polling to discover work.
 
 `ChannelEventBus` remains available for unit tests that exercise the
 event flow without external infrastructure. Integration tests against
-real behavior use NATS via Docker Compose.
+real behavior use Redis via Docker Compose.
+
+### History: removed backends
+
+Two further backends existed and were removed. `ServiceBusEventBus`
+(Azure Service Bus, a topic with one subscription per consumer) went with
+the Azure-to-AWS managed-services redesign. `NATSEventBus` (NATS
+JetStream, one durable consumer per component on an `EVENTS.>` stream)
+served self-hosted stacks until the backend cut consolidated self-hosting
+onto the same SQS-compatible queue + Redis Streams pair the cloud uses —
+one broker story everywhere, one fewer container to operate. Both
+implementations live in git history behind the unchanged `EventBus`
+interface.
 
 ## Consequences
 
@@ -192,7 +178,7 @@ real behavior use NATS via Docker Compose.
   crashes or is drained.
 - Zero-delay event flow — no polling intervals, no 5-second sleep in
   trackers.
-- Local development stays fast because NATS is already part of the
+- Local development stays fast because Redis is already part of the
   Docker Compose topology; no extra service is required.
 - Tests remain deterministic with the in-process bus.
 

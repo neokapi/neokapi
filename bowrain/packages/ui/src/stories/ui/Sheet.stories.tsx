@@ -58,7 +58,7 @@ export const LeftSide: Story = {
           <ul className="space-y-2 text-sm">
             <li>Dashboard</li>
             <li>Projects</li>
-            <li>Translation Memory</li>
+            <li>Content memory</li>
             <li>Terminology</li>
           </ul>
         </div>
