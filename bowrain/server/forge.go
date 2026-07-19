@@ -396,6 +396,15 @@ func (s *Server) materializeDelivery(ctx context.Context, proj *platstore.Projec
 				}
 				cp := *sb.Block
 				cp.Source = sb.Block.TargetRuns(locale)
+				// Restore the source-reader block id (the store re-mints an internal
+				// id on ingest and keeps the reader's id in SourceID). Faithful
+				// re-parse delivery re-reads the source and binds each skeleton ref
+				// to the reviewed target by id, so the delivered block must carry the
+				// id the freshly-parsed source assigns — the reader's id — not the
+				// internal one.
+				if sb.SourceID != "" {
+					cp.ID = sb.SourceID
+				}
 				promoted = append(promoted, &cp)
 			}
 			if len(promoted) == 0 {
@@ -408,6 +417,10 @@ func (s *Server) materializeDelivery(ctx context.Context, proj *platstore.Projec
 				Format: item.Format,
 				Locale: locale,
 				Blocks: promoted,
+				// The store item name is the source-relative path; hand it to the
+				// connector so faithful re-parse delivery can find the co-located
+				// source document (the frame it reconstructs the target from).
+				Metadata: map[string]string{"source_path": item.Name},
 			})
 		}
 	}
