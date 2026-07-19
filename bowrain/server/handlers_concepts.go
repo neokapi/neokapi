@@ -589,7 +589,7 @@ func (s *Server) HandleConceptBlastRadius(c echo.Context) error {
 	}
 	opts := knowledge.EvalOptions{}
 	if raw := c.QueryParam("locales"); raw != "" {
-		for _, part := range strings.Split(raw, ",") {
+		for part := range strings.SplitSeq(raw, ",") {
 			if p := strings.TrimSpace(part); p != "" {
 				opts.Locales = append(opts.Locales, model.LocaleID(p))
 			}

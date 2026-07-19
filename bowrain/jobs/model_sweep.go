@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -272,7 +273,7 @@ func SweepFixtureDigest(projectID, locale string, fixtures []SweepFixture, sc *S
 	}
 	write(sweepFixtureDigestVer, projectID, locale)
 	if sc != nil && sc.Profile != nil {
-		write("profile", sc.Profile.ID, fmt.Sprint(sc.Profile.Version))
+		write("profile", sc.Profile.ID, strconv.Itoa(sc.Profile.Version))
 	}
 	if sc != nil {
 		keys := make([]string, 0, len(sc.Glossary))

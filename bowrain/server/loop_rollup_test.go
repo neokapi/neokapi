@@ -90,7 +90,7 @@ func TestLoopRollupLatestRunAcrossProjects(t *testing.T) {
 	assert.Equal(t, "Beta", resp.LatestRun.ProjectName)
 	assert.Equal(t, "main", resp.LatestRun.Stream)
 	assert.Equal(t, bstore.ConvergenceRunParked, resp.LatestRun.State)
-	assert.Equal(t, string(convergence.StallNeedsCredits), resp.LatestRun.StallReason)
+	assert.Equal(t, convergence.StallNeedsCredits, resp.LatestRun.StallReason)
 	assert.Equal(t, newestFinished.Format(time.RFC3339), resp.LatestRun.UpdatedAt)
 
 	// No dashboard has been viewed → no cached rollups → ship stays absent

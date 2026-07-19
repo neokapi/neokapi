@@ -2,6 +2,7 @@ package forge
 
 import (
 	"path"
+	"slices"
 	"sort"
 	"strings"
 
@@ -521,12 +522,7 @@ func detectDocsSignals(paths []string) []ContentSignalHit {
 // hasExt reports whether the path's extension is one of exts.
 func hasExt(p string, exts []string) bool {
 	e := strings.ToLower(path.Ext(p))
-	for _, want := range exts {
-		if e == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(exts, e)
 }
 
 // dirWithSuffix finds the shortest ancestor of dir whose path ends with the

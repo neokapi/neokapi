@@ -209,7 +209,7 @@ func TestPostgresBrandStore_PromotionClosedLoop(t *testing.T) {
 	require.NoError(t, store.CreateProfile(ctx, p))
 
 	// Three corrections of the same utilize→use edit.
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		require.NoError(t, store.StoreCorrection(ctx, &corebrand.Correction{
 			ProfileID:     p.ID,
 			BlockID:       "block-1",
