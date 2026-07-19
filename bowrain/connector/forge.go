@@ -272,6 +272,14 @@ func (c *ForgeConnector) Publish(ctx context.Context, items []*platconn.ContentI
 	if err := c.git.validate(); err != nil {
 		return err
 	}
+	// Authenticate the clone/pull the same way Fetch/List/Status do: in app
+	// mode there is no static token, so the delivery clone in ensureRepo must
+	// carry a freshly minted installation token or it fails with "could not
+	// read Username". (The checkout/push below use deliveryGit's explicit
+	// token; ensureRepo relies on the connector's auth env.)
+	if err := c.authGit(ctx); err != nil {
+		return err
+	}
 	// Refresh the tracked branch first: the delivery branches from its tip.
 	if err := c.git.ensureRepo(ctx); err != nil {
 		return err

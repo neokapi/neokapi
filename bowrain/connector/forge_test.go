@@ -191,6 +191,12 @@ func TestForgeConnectorPublish_BranchAndPR(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	// Regression guard: Publish must authenticate the clone/pull the same way
+	// Fetch/List/Status do — without authGit, an app-mode delivery clone fails
+	// with "could not read Username". authGit sets the git connector's auth env
+	// (here from the static token); an empty env means Publish skipped it.
+	assert.NotEmpty(t, c.git.authEnv, "Publish must call authGit before the delivery clone")
+
 	// The delivery branch on origin carries the file; main does not.
 	assert.Contains(t, gitRun(t, origin, "show", DefaultDeliveryBranch+":fr.txt"), "Bonjour")
 	lsMain := gitRun(t, origin, "ls-tree", "--name-only", "main")
