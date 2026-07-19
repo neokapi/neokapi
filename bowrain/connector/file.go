@@ -294,10 +294,21 @@ func (c *FileConnector) reparseSourceSkeleton(ctx context.Context, item *platcon
 			reviewed[rb.ID] = runs
 		}
 	}
+	matched := 0
 	for _, sb := range sourceBlocks {
 		if runs, ok := reviewed[sb.ID]; ok {
 			sb.SetTargetRuns(item.Locale, runs)
+			matched++
 		}
+	}
+	// If there are reviewed targets but none bound to the re-parsed source (the
+	// source-reader ids are absent or have drifted), fall back to the from-blocks
+	// path: a faithful frame full of untranslated source text is a worse delivery
+	// than the translated-but-lossy output. A genuinely untranslated locale
+	// (reviewed empty) still delivers the faithful frame with source text — correct.
+	if len(reviewed) > 0 && matched == 0 {
+		store.Close()
+		return nil, nil, false
 	}
 	return sourceBlocks, store, true
 }

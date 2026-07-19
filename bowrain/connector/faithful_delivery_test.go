@@ -140,6 +140,60 @@ func TestFaithfulDelivery_AndroidXML(t *testing.T) {
 		"faithful and lossy deliveries must differ — that difference is the fix")
 }
 
+// TestFaithfulDelivery_BindingFailure_FallsBackTranslated proves the safety
+// guard: if the re-parsed source ids do not bind to any reviewed target (the
+// source-reader ids are missing or have drifted), delivery must NOT ship a
+// faithful frame full of untranslated source text — it degrades to the
+// from-blocks path, which is lossy but carries the translations. Shipping a
+// French PR full of English strings is the failure this prevents.
+func TestFaithfulDelivery_BindingFailure_FallsBackTranslated(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+
+	base := t.TempDir()
+	srcRel := filepath.Join("values", "strings.xml")
+	srcAbs := filepath.Join(base, srcRel)
+	require.NoError(t, os.MkdirAll(filepath.Dir(srcAbs), 0o755))
+	require.NoError(t, os.WriteFile(srcAbs, []byte(androidSource), 0o644))
+
+	c, err := NewFileConnector(reg, map[string]string{"path": base})
+	require.NoError(t, err)
+
+	// Reviewed blocks whose ids deliberately do NOT match the re-parse ids
+	// (tu1/tu2/…) — simulating an empty/drifted SourceID. Targets are present.
+	trans := map[string]string{"Hello": "Bonjour", "Goodbye": "Au revoir"}
+	var delivered []*model.Block
+	for _, sb := range readSourceBlocks(t, reg, "androidxml", srcAbs) {
+		cp := *sb
+		cp.ID = "mismatch-" + sb.ID // break the binding
+		if fr, ok := trans[sb.SourceText()]; ok {
+			cp.Source = []model.Run{{Text: &model.TextRun{Text: fr}}}
+			cp.Targets = map[model.VariantKey]*model.Target{
+				model.Variant("fr"): {Runs: []model.Run{{Text: &model.TextRun{Text: fr}}}},
+			}
+		}
+		delivered = append(delivered, &cp)
+	}
+
+	require.NoError(t, c.Publish(context.Background(), []*platconn.ContentItem{{
+		Name: srcRel, Path: filepath.Join("values-fr", "strings.xml"), Format: "androidxml",
+		Locale: "fr", Blocks: delivered, Metadata: map[string]string{"source_path": srcRel},
+	}}, platconn.PublishOptions{}))
+	out, err := os.ReadFile(filepath.Join(base, "values-fr", "strings.xml"))
+	require.NoError(t, err)
+	got := string(out)
+	t.Logf("binding-failure delivery:\n%s", got)
+
+	// The translations are delivered (from-blocks fallback), never the source text.
+	assert.Contains(t, got, "Bonjour", "fallback must still deliver the translation")
+	assert.Contains(t, got, "Au revoir")
+	assert.NotContains(t, got, ">Hello<", "must never ship untranslated source text as the value")
+	assert.NotContains(t, got, ">Goodbye<")
+	// It took the lossy from-blocks path, not the faithful one (no source frame).
+	assert.NotContains(t, got, "<!-- Greetings section -->",
+		"binding failure degrades to from-blocks (lossy), not a faithful-but-untranslated frame")
+}
+
 // TestFaithfulDelivery_JSON_NoRegression proves a pure-structure format is
 // unaffected: its block set fully determines the file, so re-parse delivery and
 // from-blocks delivery produce byte-identical output. json/yaml/arb/po stay on
@@ -171,23 +225,27 @@ func TestFaithfulDelivery_JSON_NoRegression(t *testing.T) {
 		delivered = append(delivered, &cp)
 	}
 
-	// Faithful (re-parse) delivery.
-	require.NoError(t, c.Publish(context.Background(), []*platconn.ContentItem{{
-		Name: srcRel, Path: filepath.Join("locales", "fr.json"), Format: "json", Locale: "fr",
-		Blocks: delivered, Metadata: map[string]string{"source_path": srcRel},
-	}}, platconn.PublishOptions{}))
-	faithful, err := os.ReadFile(filepath.Join(base, "locales", "fr.json"))
-	require.NoError(t, err)
+	// Faithful (re-parse) delivery, run twice: it must be byte-identical to
+	// itself. The re-parse path walks the source skeleton, so key order follows
+	// the source deterministically. (The from-blocks path — used only when no
+	// source is co-located — reconstructs from a map and is order-nondeterministic;
+	// that is precisely why the co-located re-parse path is preferable even for
+	// pure-structure formats: stable output, no spurious delivery churn.)
+	deliver := func(rel string) string {
+		require.NoError(t, c.Publish(context.Background(), []*platconn.ContentItem{{
+			Name: srcRel, Path: rel, Format: "json", Locale: "fr",
+			Blocks: delivered, Metadata: map[string]string{"source_path": srcRel},
+		}}, platconn.PublishOptions{}))
+		out, err := os.ReadFile(filepath.Join(base, rel))
+		require.NoError(t, err)
+		return string(out)
+	}
+	first := deliver(filepath.Join("locales", "fr.json"))
+	second := deliver(filepath.Join("locales", "fr2.json"))
 
-	// From-blocks delivery (no co-located source).
-	require.NoError(t, c.Publish(context.Background(), []*platconn.ContentItem{{
-		Name: "", Path: filepath.Join("locales", "fr-fromblocks.json"), Format: "json", Locale: "fr",
-		Blocks: delivered,
-	}}, platconn.PublishOptions{}))
-	fromBlocks, err := os.ReadFile(filepath.Join(base, "locales", "fr-fromblocks.json"))
-	require.NoError(t, err)
-
-	assert.Contains(t, string(faithful), "Bonjour")
-	assert.Equal(t, string(fromBlocks), string(faithful),
-		"pure-structure delivery must be byte-identical whether re-parsed or from-blocks")
+	assert.Contains(t, first, "Bonjour")
+	assert.Contains(t, first, "Au revoir")
+	assert.Equal(t, first, second, "re-parse delivery must be deterministic across runs")
+	assert.Less(t, strings.Index(first, "greeting"), strings.Index(first, "farewell"),
+		"re-parse delivery must preserve source key order")
 }
