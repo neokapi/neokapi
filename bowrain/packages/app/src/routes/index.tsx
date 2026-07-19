@@ -28,6 +28,14 @@ import {
   TaskBoardSkeleton,
 } from "@neokapi/ui";
 import { searchInstallationId, searchSetupAction } from "./installation-id";
+import {
+  searchPlan,
+  searchSeats,
+  stashIntendedPlan,
+  readIntendedPlan,
+  clearIntendedPlan,
+  type IntendedPlan,
+} from "./intended-plan";
 import { RootLayout } from "./root-layout";
 import { AuthLayout } from "./auth-layout";
 import { WorkspaceLayout } from "./workspace-layout";
@@ -84,7 +92,14 @@ export const rootRoute = createRootRouteWithContext<RouterContext>()({
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  beforeLoad: async ({ context: { queryClient, api } }) => {
+  // A landing CTA appends `?plan=<id>` (Team also `&seats=`) so a self-serve
+  // paid tier can be pre-selected after signup. Validate both against the known
+  // self-serve plans; ignore anything else (the server re-validates on checkout).
+  validateSearch: (search: Record<string, unknown>): { plan?: IntendedPlan; seats?: number } => ({
+    plan: searchPlan(search.plan),
+    seats: searchSeats(search.seats),
+  }),
+  beforeLoad: async ({ context: { queryClient, api }, search }) => {
     // Fire all three bootstrap fetches at once — config only decides how the
     // OTHER two are consumed, so waiting for it before starting them just
     // serializes the waterfall. In standalone mode the user/workspaces
@@ -109,6 +124,9 @@ const indexRoute = createRoute({
     const [user, workspaces] = await Promise.all([userPromise, workspacesPromise]);
 
     if (!user) {
+      // Carry the intended plan across the OIDC round-trip: stash it before we
+      // leave for the identity provider, restore it when the user returns.
+      if (search.plan) stashIntendedPlan({ plan: search.plan, seats: search.seats });
       window.location.href = "/api/v1/auth/login";
       await new Promise(() => {}); // Prevent render while redirecting
       throw new Error("unreachable");
@@ -129,6 +147,21 @@ const indexRoute = createRoute({
     // Prefer the last-used workspace if it still exists.
     const lastSlug = useUIStore.getState().lastWorkspaceSlug;
     const target = (lastSlug && workspaces.find((w) => w.slug === lastSlug)) || workspaces[0];
+
+    // Plan passthrough: a fresh `?plan` (a returning, already-onboarded user who
+    // clicked a landing CTA) or a stashed one (returned from OIDC without the
+    // query string) routes to billing with the plan pre-selected instead of the
+    // dashboard. Clear the stash so a later plain visit isn't hijacked.
+    const intended = search.plan ? { plan: search.plan, seats: search.seats } : readIntendedPlan();
+    if (intended) {
+      clearIntendedPlan();
+      throw redirect({
+        to: "/$workspace/settings/billing",
+        params: { workspace: target.slug },
+        search: { plan: intended.plan, seats: intended.seats },
+        replace: true,
+      });
+    }
 
     throw redirect({
       to: "/$workspace",
@@ -740,6 +773,13 @@ const settingsBravoRoute = createRoute({
 const settingsBillingRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "billing",
+  // `?plan`/`?seats` pre-select a plan when the user arrives from a landing CTA
+  // (via the index route's plan passthrough) so the page can offer a one-click
+  // "complete your upgrade".
+  validateSearch: (search: Record<string, unknown>): { plan?: IntendedPlan; seats?: number } => ({
+    plan: searchPlan(search.plan),
+    seats: searchSeats(search.seats),
+  }),
   pendingComponent: SettingsSkeleton,
   component: lazyRouteComponent(
     () => import("./workspace/settings-billing"),
