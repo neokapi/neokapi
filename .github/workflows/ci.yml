@@ -89,7 +89,11 @@ jobs:
     name: Frontend
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.frontend == 'true'
+    # Always run on PRs (not path-gated): ci-frontend typechecks the shared
+    # frontend surfaces, so a cross-cutting TS break — e.g. a shared @neokapi/ui
+    # api type the desktop WailsApiAdapter must implement — is caught pre-merge
+    # instead of surfacing only on the post-merge full run.
+    if: github.event_name == 'pull_request' || needs.changes.outputs.frontend == 'true'
     # contents: write lets the l10n auto-fix push regenerated catalogs back to
     # same-repo PR branches; packages: read is required by setup-node-ui
     # (@neokapi scoped packages on npm.pkg.github.com).
@@ -734,7 +738,10 @@ jobs:
     name: Lint (framework)
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.kapi == 'true'
+    # Always run on PRs (not path-gated): golangci-lint covers the whole module,
+    # so a lint break anywhere is caught pre-merge rather than only on the
+    # post-merge full run.
+    if: github.event_name == 'pull_request' || needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.kapi == 'true'
     steps:
       - uses: actions/checkout@v7
 
@@ -779,7 +786,10 @@ jobs:
     name: Lint (platform)
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain_plugin == 'true' || needs.changes.outputs.bowrain == 'true'
+    # Always run on PRs (not path-gated): golangci-lint covers the whole bowrain
+    # module, so a lint break anywhere is caught pre-merge rather than only on the
+    # post-merge full run.
+    if: github.event_name == 'pull_request' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain_plugin == 'true' || needs.changes.outputs.bowrain == 'true'
     steps:
       - uses: actions/checkout@v7
 
@@ -814,6 +824,18 @@ jobs:
         uses: ./.github/actions/golangci
         with:
           working-directory: bowrain
+
+  # ── Docs stay bowrain-clean (always-on, cheap) ───────────────────────────
+  docs-guard:
+    name: Docs bowrain-clean
+    runs-on: ubuntu-latest
+    # No path gate and no toolchain: the guard is a ~seconds bash script, so
+    # running it on every PR is cheap belt-and-suspenders — a stray bowrain
+    # reference (or a stale guard) can't merge and surface only post-merge.
+    steps:
+      - uses: actions/checkout@v7
+      - name: Guard — neokapi docs must stay bowrain-clean
+        run: ./scripts/check-docs-bowrain-clean.sh
 
   # ── GitHub Actions Lint ──────────────────────────────────────────────────
   gha-lint:
