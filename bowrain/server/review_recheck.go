@@ -15,17 +15,30 @@ import (
 	"github.com/neokapi/neokapi/termbase"
 )
 
-// This file closes the review loop's fan-out to translations (RV-E). The gap it
-// fills: when a term/concept is marked forbidden or a brand rule is promoted
-// AFTER translations already exist, the governance events fire but nothing
-// re-checks the existing targets — so a reviewed translation that now violates
-// the change silently stays "approved" and its locale never re-enters the review
-// queue. The loop does not learn from a mid-review terminology decision.
+// This file closes the review loop's fan-out to translations (RV-E + RV-F). The
+// gap it fills: when a term/concept is marked forbidden or preferred, or a brand
+// rule is promoted, AFTER translations already exist, the governance events fire
+// but nothing re-checks the existing targets — so a reviewed translation that now
+// violates the change silently stays "approved" and its locale never re-enters
+// the review queue. The loop does not learn from a mid-review terminology
+// decision.
 //
 // The subscriber below reacts to the resulting concept/brand-rule events, finds
-// the approved targets that now contain a forbidden term, DEMOTES them to draft,
-// and RE-QUEUES their locales for review. It publishes nothing back onto the bus
-// and deliberately does not start a convergence run — RV-E only pulls the
+// the approved targets that now VIOLATE the change, DEMOTES them to draft, and
+// RE-QUEUES their locales for review. A target violates a concept change in one
+// of two complementary directions:
+//
+//   - PRESENCE (RV-E): the target now CONTAINS a forbidden/competitor term —
+//     e.g. a term was just marked forbidden and an approved translation uses it.
+//   - ABSENCE (RV-F): the source uses the concept and the concept now MANDATES a
+//     preferred/approved rendering for the target locale, yet the target FAILS to
+//     use it — the term-check / term-enforce direction. This is the more common
+//     case after a glossary term is added or marked preferred.
+//
+// Both directions reuse the canonical terminology matchers (a single-concept
+// in-memory termbase + LookupAll, plus the concept's per-locale target terms) so
+// no check logic is reimplemented. The subscriber publishes nothing back onto the
+// bus and deliberately does not start a convergence run — it only pulls the
 // affected work back into the review queue; the human (or bulk approve-passing)
 // re-drives completion → delivery through the existing review-completion path.
 
@@ -35,6 +48,14 @@ import (
 // event dropped during a deploy rollover is redelivered rather than lost — a
 // forbidden term marked during a rollover must still pull its translations back.
 const reviewRecheckGroup = "review-recheck"
+
+// recheckOracle reports whether a reviewed/signed-off block's target for tgtLoc
+// now VIOLATES a governed change and must be pulled back. It receives the whole
+// stored block (so it can read source AND target text) plus the project's source
+// locale — enough for both the forbidden-PRESENCE direction (RV-E, target text
+// only) and the mandated-ABSENCE direction (RV-F, which needs the source text and
+// its locale to know the concept is used and which rendering is mandated).
+type recheckOracle func(sb *platstore.StoredBlock, srcLoc, tgtLoc model.LocaleID) bool
 
 // subscribeReviewRecheck wires RV-E: a durable consumer group that reacts to
 //
@@ -109,10 +130,12 @@ func (s *Server) handleReviewRecheckEvent(ev platev.Event) {
 }
 
 // recheckConceptViolations re-checks every existing reviewed/signed-off target in
-// the workspace against the changed concept's forbidden (and competitor) terms,
-// demoting and re-queuing the ones that now contain one. It reuses the concept
-// where-used machinery's approach (a single-concept in-memory termbase +
-// LookupAll, exactly as knowledge.Engine.ConceptUsage) as the violation oracle.
+// the workspace against the changed concept, demoting and re-queuing the ones that
+// now violate it in EITHER direction: a forbidden/competitor term now PRESENT in
+// the target (RV-E), or a mandated preferred/approved rendering now ABSENT from a
+// target whose source uses the concept (RV-F). It reuses the concept where-used
+// machinery's approach (a single-concept in-memory termbase + LookupAll, exactly
+// as knowledge.Engine.ConceptUsage) as the violation oracle.
 func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, actor string) {
 	tb, err := s.workspaceTermbaseByID(ctx, wsID)
 	if err != nil || tb == nil {
@@ -123,9 +146,14 @@ func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, 
 	if err != nil || !ok {
 		return
 	}
-	// A concept with no forbidden/competitor term cannot be violated by a target —
-	// nothing to re-check (e.g. a plain definition edit that fired concept.updated).
-	if !conceptHasForbiddenTerm(concept) {
+	// A concept a target can violate carries either a forbidden/competitor term
+	// (violated by PRESENCE) or a preferred/approved term (a mandated rendering,
+	// violated by ABSENCE). A concept with neither — e.g. a plain definition edit
+	// that fired concept.updated — cannot be violated, so there is nothing to
+	// re-check.
+	hasForbidden := conceptHasForbiddenTerm(concept)
+	hasMandated := conceptHasMandatedTerm(concept)
+	if !hasForbidden && !hasMandated {
 		return
 	}
 	// Single-concept termbase so LookupAll matches only this concept's terms — the
@@ -134,8 +162,18 @@ func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, 
 	if err := cTB.AddConcept(ctx, concept); err != nil {
 		return
 	}
-	violates := func(text string, loc model.LocaleID) bool {
-		return targetHasForbiddenConceptTerm(ctx, cTB, text, loc)
+	violates := func(sb *platstore.StoredBlock, srcLoc, tgtLoc model.LocaleID) bool {
+		targetText := sb.Block.TargetText(tgtLoc)
+		// PRESENCE (RV-E): a forbidden/competitor term appears in the target.
+		if hasForbidden && targetHasForbiddenConceptTerm(ctx, cTB, targetText, tgtLoc) {
+			return true
+		}
+		// ABSENCE (RV-F): the source uses the concept but the target omits the
+		// mandated preferred/approved rendering for its locale (term-enforce).
+		if hasMandated && targetMissingMandatedConceptTerm(ctx, cTB, concept, sb.Block.SourceText(), targetText, srcLoc, tgtLoc) {
+			return true
+		}
+		return false
 	}
 	s.recheckWorkspaceTargets(ctx, wsID, "concept:"+conceptID, violates, actor)
 }
@@ -157,8 +195,8 @@ func (s *Server) recheckRuleViolations(ctx context.Context, wsID, profileID, ter
 	if lowerTerm == "" {
 		return
 	}
-	violates := func(text string, _ model.LocaleID) bool {
-		for _, hit := range corebrand.MatchVocabulary(profile, text) {
+	violates := func(sb *platstore.StoredBlock, _, tgtLoc model.LocaleID) bool {
+		for _, hit := range corebrand.MatchVocabulary(profile, sb.Block.TargetText(tgtLoc)) {
 			if strings.ToLower(hit.Term) == lowerTerm {
 				return true
 			}
@@ -173,7 +211,7 @@ func (s *Server) recheckRuleViolations(ctx context.Context, wsID, profileID, ter
 // The scan is bounded to each project's "main" stream (the same bound the
 // dashboard ship-state pass and ConceptUsage's default walk apply); non-governed
 // projects are skipped because they have no review queue to pull work back into.
-func (s *Server) recheckWorkspaceTargets(ctx context.Context, wsID, reason string, violates func(text string, loc model.LocaleID) bool, actor string) {
+func (s *Server) recheckWorkspaceTargets(ctx context.Context, wsID, reason string, violates recheckOracle, actor string) {
 	if s.ContentStore == nil {
 		return
 	}
@@ -197,7 +235,7 @@ func (s *Server) recheckWorkspaceTargets(ctx context.Context, wsID, reason strin
 // demotes the failures to draft, persists them, and re-queues the affected
 // locales for review. A conforming target is never touched (no needless churn),
 // and a project with no failure produces no store write, no task, and no event.
-func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Project, reason string, violates func(text string, loc model.LocaleID) bool, actor string) {
+func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Project, reason string, violates recheckOracle, actor string) {
 	blocks, err := s.ContentStore.GetBlocks(ctx, platstore.BlockQuery{ProjectID: proj.ID, Stream: "main"})
 	if err != nil {
 		slog.WarnContext(ctx, "review recheck: load blocks failed", "project", proj.ID, "error", err)
@@ -222,11 +260,10 @@ func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Proj
 			if t.Status.Rank() < model.TargetStatusReviewed.Rank() {
 				continue
 			}
-			text := sb.Block.TargetText(loc)
-			if strings.TrimSpace(text) == "" {
+			if strings.TrimSpace(sb.Block.TargetText(loc)) == "" {
 				continue
 			}
-			if !violates(text, loc) {
+			if !violates(sb, proj.DefaultSourceLanguage, loc) {
 				continue // still conforms — untouched
 			}
 			// Demote to draft, mirroring HandleReviewBlock's rejection mapping: the
@@ -293,6 +330,70 @@ func conceptHasForbiddenTerm(c termbase.Concept) bool {
 		}
 	}
 	return false
+}
+
+// conceptHasMandatedTerm reports whether a concept carries any preferred or
+// approved term — a mandated rendering a translation is required to use, so the
+// concept can be violated by ABSENCE (a target that fails to use it). This is a
+// cheap pre-filter; the per-locale check (targetMissingMandatedConceptTerm)
+// scopes the mandate to the actual target locale.
+func conceptHasMandatedTerm(c termbase.Concept) bool {
+	for _, term := range c.Terms {
+		if term.Status == model.TermPreferred || term.Status == model.TermApproved {
+			return true
+		}
+	}
+	return false
+}
+
+// targetMissingMandatedConceptTerm reports whether a target VIOLATES the concept
+// by ABSENCE — the term-check / term-enforce direction. It holds when the source
+// uses the concept (a source-locale term of the concept appears in the source
+// text) and the concept mandates a preferred/approved rendering for the target
+// locale, yet none of those mandated renderings appears in the target. It is the
+// complement of targetHasForbiddenConceptTerm: RV-E catches a target that
+// CONTAINS a newly-forbidden term; RV-F catches a target that FAILS to use a
+// newly-mandated one. The glossary is derived from the concept's per-locale terms
+// and the match reuses TermEnforceTool's primitives (LookupAll to detect the
+// source term, a case-insensitive contains for the mandated rendering) without
+// driving the full pipeline tool.
+func targetMissingMandatedConceptTerm(ctx context.Context, cTB *termbase.InMemoryTermBase, concept termbase.Concept, sourceText, targetText string, srcLoc, tgtLoc model.LocaleID) bool {
+	if strings.TrimSpace(sourceText) == "" || strings.TrimSpace(targetText) == "" {
+		return false
+	}
+	// The renderings this locale mandates — preferred/approved only, the statuses
+	// term-enforce checks. No mandated rendering for the locale → nothing to miss.
+	var mandated []termbase.Term
+	for _, tt := range concept.TargetTerms(tgtLoc) {
+		if tt.Status == model.TermPreferred || tt.Status == model.TermApproved {
+			mandated = append(mandated, tt)
+		}
+	}
+	if len(mandated) == 0 {
+		return false
+	}
+	// Does the source actually use the concept? Match its source-locale terms in
+	// the source text — the same LookupAll oracle RV-E runs against the target.
+	srcMatches, err := cTB.LookupAll(ctx, sourceText, termbase.LookupOptions{SourceLocale: srcLoc})
+	if err != nil || len(srcMatches) == 0 {
+		return false
+	}
+	// The target conforms if any mandated rendering appears in it.
+	for _, tt := range mandated {
+		if containsFold(targetText, tt.Text) {
+			return false
+		}
+	}
+	return true
+}
+
+// containsFold reports whether s contains substr, case-insensitively — the
+// default term-enforce uses (containsText with caseSensitive=false).
+func containsFold(s, substr string) bool {
+	if substr == "" {
+		return false
+	}
+	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }
 
 // targetHasForbiddenConceptTerm reports whether text (a target translation in

@@ -836,4 +836,36 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE connector_configs ADD COLUMN IF NOT EXISTS last_error TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	{
+		Version:     11,
+		Description: "proposed source changes (back-to-source review, RV-F)",
+		SQL: `
+			-- A reviewer catching a source-TEXT problem while reviewing a target
+			-- proposes a fix here. A source owner (PermEditSource) approves it,
+			-- which applies the change to the block's source and re-drafts every
+			-- locale; or rejects it. Additive, append-only lifecycle.
+			CREATE TABLE IF NOT EXISTS proposed_source_changes (
+				id              TEXT PRIMARY KEY,
+				workspace_id    TEXT NOT NULL,
+				project_id      TEXT NOT NULL,
+				stream          TEXT NOT NULL DEFAULT 'main',
+				item_name       TEXT NOT NULL DEFAULT '',
+				block_id        TEXT NOT NULL,
+				kind            TEXT NOT NULL DEFAULT 'text-fix',
+				original_source TEXT NOT NULL DEFAULT '',
+				proposed_source TEXT NOT NULL DEFAULT '',
+				rationale       TEXT NOT NULL DEFAULT '',
+				found_in_locale TEXT NOT NULL DEFAULT '',
+				finder_user     TEXT NOT NULL DEFAULT '',
+				status          TEXT NOT NULL DEFAULT 'open',
+				decided_by      TEXT NOT NULL DEFAULT '',
+				decision_reason TEXT NOT NULL DEFAULT '',
+				created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				decided_at      TIMESTAMPTZ
+			);
+			CREATE INDEX IF NOT EXISTS idx_source_proposals_project_status
+				ON proposed_source_changes(project_id, status);
+		`,
+	},
 }

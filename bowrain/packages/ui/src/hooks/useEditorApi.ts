@@ -16,6 +16,7 @@ import type {
   BlockHistoryEntry,
   QAIssue,
   FileQAResult,
+  CreateSourceProposalRequest,
 } from "../types/api";
 
 export function useEditorApi() {
@@ -177,6 +178,35 @@ export function useEditorApi() {
     [api, ws, activeStream],
   );
 
+  // Back-to-source review (RV-F): propose a source-text change, list the open
+  // proposals, decide them, and promote a marked entity to a concept.
+  const createSourceProposal = useCallback(
+    async (projectId: string, req: Omit<CreateSourceProposalRequest, "stream">) =>
+      api.createSourceProposal(ws, projectId, { ...req, stream: activeStream }),
+    [api, ws, activeStream],
+  );
+
+  const listSourceProposals = useCallback(
+    async (projectId: string) => api.listSourceProposals(ws, projectId),
+    [api, ws],
+  );
+
+  const decideSourceProposal = useCallback(
+    async (
+      projectId: string,
+      proposalId: string,
+      decision: "approve" | "reject",
+      reason?: string,
+    ) => api.decideSourceProposal(ws, projectId, proposalId, decision, reason),
+    [api, ws],
+  );
+
+  const promoteEntityToConcept = useCallback(
+    async (projectId: string, itemName: string, blockId: string, entityKey: string) =>
+      api.promoteEntityToConcept(ws, projectId, itemName, blockId, entityKey, activeStream),
+    [api, ws, activeStream],
+  );
+
   return useMemo(
     () => ({
       getFileBlocks,
@@ -199,6 +229,10 @@ export function useEditorApi() {
       runFileQACheck,
       renderDocumentPreview,
       renderBlockHTML,
+      createSourceProposal,
+      listSourceProposals,
+      decideSourceProposal,
+      promoteEntityToConcept,
     }),
     [
       getFileBlocks,
@@ -221,6 +255,10 @@ export function useEditorApi() {
       runFileQACheck,
       renderDocumentPreview,
       renderBlockHTML,
+      createSourceProposal,
+      listSourceProposals,
+      decideSourceProposal,
+      promoteEntityToConcept,
     ],
   );
 }

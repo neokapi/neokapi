@@ -120,6 +120,9 @@ import type {
   ReviewDemotion,
   ApprovePassingRequest,
   ApprovePassingResult,
+  SourceProposal,
+  CreateSourceProposalRequest,
+  DecideSourceProposalResult,
   BrandScanRequest,
   BrandScanUploadResult,
   BrandScanJob,
@@ -1596,6 +1599,56 @@ export class RestApiAdapter implements ApiAdapter {
       method: "POST",
       body: JSON.stringify(req),
     });
+  }
+
+  async createSourceProposal(
+    workspaceSlug: string,
+    projectId: string,
+    req: CreateSourceProposalRequest,
+  ): Promise<SourceProposal> {
+    // The source-proposal route carries no :ref segment, so the block's stream
+    // rides as a query param (the server's streamParam reads ?stream=).
+    const q = req.stream ? `?stream=${encodeURIComponent(req.stream)}` : "";
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/source-proposals${q}`, {
+      method: "POST",
+      body: JSON.stringify(req),
+    });
+  }
+
+  async listSourceProposals(workspaceSlug: string, projectId: string): Promise<SourceProposal[]> {
+    const res = await this.fetchJSON<{ proposals: SourceProposal[] }>(
+      `${this.projectEp(workspaceSlug, projectId)}/source-proposals`,
+    );
+    return res.proposals ?? [];
+  }
+
+  async decideSourceProposal(
+    workspaceSlug: string,
+    projectId: string,
+    proposalId: string,
+    decision: "approve" | "reject",
+    reason?: string,
+  ): Promise<DecideSourceProposalResult> {
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/source-proposals/${encodeURIComponent(proposalId)}/decide`,
+      { method: "POST", body: JSON.stringify({ decision, reason }) },
+    );
+  }
+
+  async promoteEntityToConcept(
+    workspaceSlug: string,
+    projectId: string,
+    itemName: string,
+    blockId: string,
+    entityKey: string,
+    stream?: string,
+  ): Promise<{ ok: boolean; concept: ConceptInfo }> {
+    // The popover passes the overlay key ("entity:N"); the route takes the index.
+    const idx = entityKey.replace(/^entity:/, "");
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}/${encodeURIComponent(blockId)}/entities/${encodeURIComponent(idx)}/promote-to-concept?item=${encodeURIComponent(itemName)}`,
+      { method: "POST" },
+    );
   }
 
   async recordBrandCorrection(

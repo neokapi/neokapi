@@ -59,6 +59,7 @@ func newRecheckHarness(t *testing.T) (*Server, string, string) {
 		EventBus:            bus,
 		TaskStore:           bstore.NewTaskStore(db.DB),
 		ConvergenceRunStore: bstore.NewConvergenceRunStore(db.DB),
+		SourceProposalStore: bstore.NewSourceProposalStore(db.DB),
 		Services:            service.NewServices(cs, reg, formatReg, toolReg),
 		wsStores:            newWorkspaceStores(),
 	}
@@ -206,6 +207,77 @@ func TestReviewRecheck_ConceptForbiddenTermDemotesAndRequeues(t *testing.T) {
 	runs, err = s.ConvergenceRunStore.ListRuns(ctx, projID, 20)
 	require.NoError(t, err)
 	assert.Empty(t, runs, "replay still starts no run (no loop)")
+}
+
+// TestReviewRecheck_ConceptMandatedTermAbsenceDemotesAndRequeues (RV-F) is the
+// complementary end-to-end proof for the glossary-ABSENCE direction: a governed
+// project with two APPROVED (reviewed) fr targets whose sources both use a
+// concept — one target uses the mandated fr rendering, one does not — has that
+// concept given a preferred fr term. The resulting concept event pulls exactly
+// the target that FAILS term-check (missing the mandated rendering) back to
+// draft, leaves the conforming one alone, moves the pending count 0 → 1, creates
+// exactly one review task, starts NO convergence run, and is idempotent on
+// replay. This is the direction RV-E did not cover (it caught only targets that
+// CONTAIN a forbidden term).
+func TestReviewRecheck_ConceptMandatedTermAbsenceDemotesAndRequeues(t *testing.T) {
+	s, wsID, _ := newRecheckHarness(t)
+	ctx := context.Background()
+
+	// Both sources use "app"; b1's fr target omits the mandated "application",
+	// b2's uses it. Both reviewed.
+	b1 := reviewedBlock("b1", "Open the app", "Ouvrir le truc")
+	b2 := reviewedBlock("b2", "Close the app", "Fermer l'application")
+	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{b1, b2})
+	require.Equal(t, 0, frPendingCount(t, s, projID), "both targets start approved")
+
+	// Give the "app" concept a mandated (preferred) fr rendering "application". The
+	// governed outcome; RV-F reacts to the resulting concept event.
+	tb, err := s.wsStores.getTB("rc")
+	require.NoError(t, err)
+	cid := id.New()
+	require.NoError(t, tb.AddConcept(ctx, termbase.Concept{
+		ID:     cid,
+		Source: termbase.TermSourceTerminology,
+		Terms: []termbase.Term{
+			{Text: "app", Locale: "en", Status: model.TermApproved},
+			{Text: "application", Locale: "fr", Status: model.TermPreferred},
+		},
+	}))
+
+	publishConceptEvent := func() {
+		s.EventBus.Publish(platev.Event{
+			ID:          id.New(),
+			Type:        knowledge.EventConceptTermStatusChanged,
+			Source:      "knowledge",
+			WorkspaceID: wsID,
+			Data:        map[string]string{"concept_id": cid},
+			Timestamp:   time.Now().UTC(),
+		})
+	}
+	publishConceptEvent()
+
+	// RV-F demotes exactly the target missing the mandated rendering.
+	require.Eventually(t, func() bool {
+		return frStatus(t, s, projID, ids["Open the app"]) == model.TargetStatusDraft
+	}, 20*time.Second, 50*time.Millisecond, "the approved target missing the mandated term must be demoted to draft")
+
+	assert.Equal(t, model.TargetStatusReviewed, frStatus(t, s, projID, ids["Close the app"]),
+		"the target that already uses the mandated rendering is left untouched")
+	assert.Equal(t, 1, frPendingCount(t, s, projID), "the pending-review count goes 0 → 1")
+	assert.Equal(t, 1, openFrReviewTasks(t, s, wsID, projID), "fr re-enters the review queue with exactly one task")
+
+	runs, err := s.ConvergenceRunStore.ListRuns(ctx, projID, 20)
+	require.NoError(t, err)
+	assert.Empty(t, runs, "RV-F must not trigger a convergence run")
+
+	// Idempotency: the demoted target is now draft (< reviewed), so a replay
+	// re-checks nothing new and creates no duplicate task.
+	publishConceptEvent()
+	time.Sleep(500 * time.Millisecond)
+	assert.Equal(t, model.TargetStatusDraft, frStatus(t, s, projID, ids["Open the app"]))
+	assert.Equal(t, model.TargetStatusReviewed, frStatus(t, s, projID, ids["Close the app"]))
+	assert.Equal(t, 1, frPendingCount(t, s, projID), "replay changes nothing")
+	assert.Equal(t, 1, openFrReviewTasks(t, s, wsID, projID), "no duplicate review task on replay")
 }
 
 // TestReviewRecheck_RulePromotionScopedToPromotedTerm (RV-E) proves the brand

@@ -10,6 +10,8 @@ import type { ApiAdapter } from "../api/adapter";
 import type {
   ApprovePassingRequest,
   ApprovePassingResult,
+  SourceProposal,
+  CreateSourceProposalRequest,
   BlockInfo,
   ReviewDemotion,
   SkippedFile,
@@ -189,6 +191,14 @@ export interface MockAdapter extends ApiAdapter {
   approvePassingReviewCalls: ApprovePassingRequest[];
   /** Overrides the computed `approvePassingReview` result when set. */
   approvePassingResult?: ApprovePassingResult;
+  /** `createSourceProposal` invocations in call order. */
+  createSourceProposalCalls: CreateSourceProposalRequest[];
+  /** `decideSourceProposal` invocations in call order. */
+  decideSourceProposalCalls: { proposalId: string; decision: string; reason?: string }[];
+  /** `promoteEntityToConcept` invocations in call order. */
+  promoteEntityToConceptCalls: { itemName: string; blockId: string; entityKey: string }[];
+  /** Backing store for source proposals (seed to preload the review surface). */
+  sourceProposals: SourceProposal[];
   /** `recordBrandCorrection` invocations in call order. */
   recordBrandCorrectionCalls: BrandCorrectionRequest[];
   /** `startBrandScan` invocations in call order. */
@@ -404,6 +414,10 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
 
   const reviewBlockCalls: ReviewBlockCall[] = [];
   const approvePassingReviewCalls: ApprovePassingRequest[] = [];
+  const createSourceProposalCalls: CreateSourceProposalRequest[] = [];
+  const decideSourceProposalCalls: { proposalId: string; decision: string; reason?: string }[] = [];
+  const promoteEntityToConceptCalls: { itemName: string; blockId: string; entityKey: string }[] =
+    [];
   const recordBrandCorrectionCalls: BrandCorrectionRequest[] = [];
   const startBrandScanCalls: BrandScanRequest[] = [];
   const uploadBrandScanSourcesCalls: string[][] = [];
@@ -415,6 +429,10 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     reviewBlockCalls,
     failReviewBlock: false,
     approvePassingReviewCalls,
+    createSourceProposalCalls,
+    decideSourceProposalCalls,
+    promoteEntityToConceptCalls,
+    sourceProposals: [],
     recordBrandCorrectionCalls,
     startBrandScanCalls,
     uploadBrandScanSourcesCalls,
@@ -726,6 +744,56 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     recordBrandCorrection: async (_ws, _projectId, req) => {
       recordBrandCorrectionCalls.push(req);
       return { auto_promoted: false };
+    },
+
+    createSourceProposal: async (_ws, projectId, req) => {
+      createSourceProposalCalls.push(req);
+      const now = new Date(0).toISOString();
+      const proposal: SourceProposal = {
+        id: `sp-${createSourceProposalCalls.length}`,
+        workspace_id: "ws",
+        project_id: projectId,
+        stream: req.stream,
+        item_name: req.item_name,
+        block_id: req.block_id,
+        kind: req.kind ?? "text-fix",
+        original_source: "",
+        proposed_source: req.proposed_source,
+        rationale: req.rationale,
+        found_in_locale: req.found_in_locale,
+        status: "open",
+        created_at: now,
+        updated_at: now,
+      };
+      adapter.sourceProposals.push(proposal);
+      return proposal;
+    },
+    listSourceProposals: async () => adapter.sourceProposals.filter((p) => p.status === "open"),
+    decideSourceProposal: async (_ws, _projectId, proposalId, decision, reason) => {
+      decideSourceProposalCalls.push({ proposalId, decision, reason });
+      const p = adapter.sourceProposals.find((x) => x.id === proposalId);
+      if (p) p.status = decision === "approve" ? "approved" : "rejected";
+      return {
+        ok: true,
+        status: p?.status ?? decision,
+        applied: decision === "approve",
+        run_started: decision === "approve",
+      };
+    },
+    promoteEntityToConcept: async (_ws, _projectId, itemName, blockId, entityKey) => {
+      promoteEntityToConceptCalls.push({ itemName, blockId, entityKey });
+      const now = new Date(0).toISOString();
+      return {
+        ok: true,
+        concept: {
+          id: `concept-${promoteEntityToConceptCalls.length}`,
+          domain: "",
+          definition: "",
+          terms: [],
+          created_at: now,
+          updated_at: now,
+        },
+      };
     },
 
     // --- Governance (#778) -----------------------------------------------

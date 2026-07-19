@@ -653,4 +653,35 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE connector_configs ADD COLUMN last_error TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	{
+		Version:     10,
+		Description: "proposed source changes (back-to-source review, RV-F)",
+		SQL: `
+			-- Mirrors proposed_source_changes in bowrain/store/migrations.go
+			-- (Version 11): a reviewer's proposed source-text fix, approved by a
+			-- source owner (which re-drafts every locale) or rejected.
+			CREATE TABLE IF NOT EXISTS proposed_source_changes (
+				id              TEXT PRIMARY KEY,
+				workspace_id    TEXT NOT NULL,
+				project_id      TEXT NOT NULL,
+				stream          TEXT NOT NULL DEFAULT 'main',
+				item_name       TEXT NOT NULL DEFAULT '',
+				block_id        TEXT NOT NULL,
+				kind            TEXT NOT NULL DEFAULT 'text-fix',
+				original_source TEXT NOT NULL DEFAULT '',
+				proposed_source TEXT NOT NULL DEFAULT '',
+				rationale       TEXT NOT NULL DEFAULT '',
+				found_in_locale TEXT NOT NULL DEFAULT '',
+				finder_user     TEXT NOT NULL DEFAULT '',
+				status          TEXT NOT NULL DEFAULT 'open',
+				decided_by      TEXT NOT NULL DEFAULT '',
+				decision_reason TEXT NOT NULL DEFAULT '',
+				created_at      TEXT NOT NULL DEFAULT '',
+				updated_at      TEXT NOT NULL DEFAULT '',
+				decided_at      TEXT
+			);
+			CREATE INDEX IF NOT EXISTS idx_source_proposals_project_status
+				ON proposed_source_changes(project_id, status);
+		`,
+	},
 }
