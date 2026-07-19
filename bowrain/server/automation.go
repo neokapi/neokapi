@@ -583,37 +583,25 @@ func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationA
 			continue
 		}
 
-		assignees := s.findMembersForLocale(ctx, members, localeStr, mode)
-
-		for _, m := range assignees {
-			task := &bstore.Task{
-				WorkspaceID: proj.WorkspaceID,
-				ProjectID:   proj.ID,
-				Stream:      "main",
-				Type:        taskType,
-				Status:      bstore.TaskStatusOpen,
-				Priority:    priority,
-				Title:       fmt.Sprintf("Review %s translations", localeStr),
-				AssigneeID:  m.UserID,
-				CreatedBy:   "system",
-				Data:        taskData(localeStr),
-			}
-			if err := s.TaskStore.Create(ctx, task); err != nil {
-				slog.Info("create-review-tasks: failed to create task for", "name", localeStr, "locale", m.UserID, "error", err)
-				continue
-			}
-			taskIDs = append(taskIDs, task.ID)
-			if s.NotificationDispatcher != nil {
-				s.NotificationDispatcher.DispatchTaskNotification(
-					ctx, task, bstore.NotificationTaskAssigned,
-					fmt.Sprintf("New %s task: %s", mode, localeStr),
-					fmt.Sprintf("Content is ready for %s in %s.", mode, localeStr),
-				)
-			}
+		var assigneeIDs []string
+		for _, m := range s.findMembersForLocale(ctx, members, localeStr, mode) {
+			assigneeIDs = append(assigneeIDs, m.UserID)
+		}
+		// No project member covers this locale — the common case for a project
+		// created without explicit members (the onboarding gap that made governed
+		// review invisible: an unassigned task never surfaces on the assignee=me
+		// dashboard). Route the review to the workspace owner / review-capable
+		// workspace members so the work always reaches a person.
+		if len(assigneeIDs) == 0 && taskType == bstore.TaskReview {
+			assigneeIDs = s.fallbackReviewAssignees(ctx, proj, mode)
 		}
 
-		// If no members for this locale, create unassigned task.
-		if len(assignees) == 0 {
+		if len(assigneeIDs) == 0 {
+			// Truly nobody can take it. Record an unassigned task so the work is
+			// not lost, and WARN — a governed run must never silently produce a
+			// review task no one can act on.
+			slog.Warn("create-review-tasks: no eligible assignee; creating unassigned task",
+				"project", proj.ID, "locale", localeStr, "mode", mode)
 			task := &bstore.Task{
 				WorkspaceID: proj.WorkspaceID,
 				ProjectID:   proj.ID,
@@ -627,6 +615,34 @@ func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationA
 			}
 			if err := s.TaskStore.Create(ctx, task); err == nil {
 				taskIDs = append(taskIDs, task.ID)
+			}
+			continue
+		}
+
+		for _, uid := range assigneeIDs {
+			task := &bstore.Task{
+				WorkspaceID: proj.WorkspaceID,
+				ProjectID:   proj.ID,
+				Stream:      "main",
+				Type:        taskType,
+				Status:      bstore.TaskStatusOpen,
+				Priority:    priority,
+				Title:       fmt.Sprintf("Review %s translations", localeStr),
+				AssigneeID:  uid,
+				CreatedBy:   "system",
+				Data:        taskData(localeStr),
+			}
+			if err := s.TaskStore.Create(ctx, task); err != nil {
+				slog.Info("create-review-tasks: failed to create task for", "name", localeStr, "locale", uid, "error", err)
+				continue
+			}
+			taskIDs = append(taskIDs, task.ID)
+			if s.NotificationDispatcher != nil {
+				s.NotificationDispatcher.DispatchTaskNotification(
+					ctx, task, bstore.NotificationTaskAssigned,
+					fmt.Sprintf("New %s task: %s", mode, localeStr),
+					fmt.Sprintf("Content is ready for %s in %s.", mode, localeStr),
+				)
 			}
 		}
 	}
@@ -698,6 +714,46 @@ func (s *Server) createSourceReviewTask(ctx context.Context, action event.Automa
 	if stepID != "" && s.AutomationRunStore != nil {
 		_ = s.AutomationRunStore.RegisterStepTasks(ctx, stepID, []string{task.ID})
 	}
+}
+
+// fallbackReviewAssignees resolves who should receive a locale's review task
+// when no project member covers it (a project created without explicit members).
+// It routes to the workspace owner(s) — owner-first so a solo founder's governed
+// review always reaches them — and, failing an owner, any workspace member whose
+// role carries the mode's required permission (review needs PermReview). This is
+// what makes governed review never invisible: the assignee=me dashboard has
+// someone to surface the task to. Returns user IDs.
+func (s *Server) fallbackReviewAssignees(ctx context.Context, proj *store.Project, mode string) []string {
+	if s.AuthStore == nil || proj.WorkspaceID == "" {
+		return nil
+	}
+	requiredPerm := platauth.PermReview
+	if mode == "translate" {
+		requiredPerm = platauth.PermTranslate
+	}
+	members, err := s.AuthStore.ListMembers(ctx, proj.WorkspaceID)
+	if err != nil {
+		slog.Info("create-review-tasks: workspace member lookup failed", "workspace", proj.WorkspaceID, "error", err)
+		return nil
+	}
+	var owners, others []string
+	for _, m := range members {
+		// Workspace-role default permissions (owner/admin = full, member =
+		// translate-capable) decide review capability when no project membership
+		// narrows it — the same fallback the permission layer resolves with.
+		if !platauth.DefaultPermissionsForRole(m.Role).Permissions.Has(requiredPerm) {
+			continue
+		}
+		if m.Role == platauth.RoleOwner {
+			owners = append(owners, m.UserID)
+		} else {
+			others = append(others, m.UserID)
+		}
+	}
+	if len(owners) > 0 {
+		return owners
+	}
+	return others
 }
 
 // findMembersForLocale returns project members whose language scope includes the locale

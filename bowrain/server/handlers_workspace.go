@@ -534,6 +534,12 @@ func (s *Server) HandleCreateWorkspaceProject(c echo.Context) error {
 	if err := s.Services.Project.CreateProject(ctx, p); err != nil {
 		return apiErr(c, http.StatusInternalServerError, err.Error())
 	}
+	// The creator becomes a review-capable project member so governed review has
+	// someone to assign to (and the creator sees pending review on their
+	// dashboard). Best-effort; never blocks creation.
+	if userID, _ := c.Get("user_id").(string); userID != "" {
+		s.addProjectCreatorMembership(ctx, workspaceID, p.ID, userID)
+	}
 	if s.ContentStore != nil {
 		_ = EnsureDefaultCollection(ctx, s.ContentStore, p.ID)
 		_ = EnsureMainStream(ctx, s.ContentStore, p.ID)

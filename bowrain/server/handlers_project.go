@@ -86,6 +86,11 @@ func (s *Server) HandleCreateProject(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
+	// The creator becomes a review-capable project member so governed review has
+	// someone to assign to (and the creator sees pending review on their
+	// dashboard). Best-effort; never blocks creation.
+	s.addProjectCreatorMembership(ctx, targetWS.ID, p.ID, userID)
+
 	s.trackEvent(userID, analytics.EventProjectCreated, map[string]any{
 		"project_id":      p.ID,
 		"workspace_id":    targetWS.ID,

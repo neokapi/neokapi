@@ -89,7 +89,11 @@ func TestConvergeOnPush_GroupSubscriptionTriggersRun(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, runs, 1)
 	assert.Equal(t, "push", runs[0].Trigger)
-	assert.Equal(t, bstore.ConvergenceRunConverged, runs[0].State, "no target locales: converges immediately")
+	// A project with no configured target languages is a configuration hold, not
+	// "up to date": the run parks with no_target_locales rather than false-reading
+	// converged over untranslated source (see errStallNoTargetLocales / deriveFunc).
+	assert.Equal(t, bstore.ConvergenceRunParked, runs[0].State, "no target locales: parks on configuration")
+	assert.Equal(t, convergence.StallNoTargetLocales, runs[0].StallReason)
 
 	manualRuns, err := runStore.ListRuns(ctx, "proj-manual", 10)
 	require.NoError(t, err)

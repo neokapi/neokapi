@@ -471,9 +471,20 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 	// tasks in that case to avoid a "review translations" task for work that was
 	// never done. A no-target-locales hold likewise produced nothing to review:
 	// the next action is configuration (add a target language), not review.
+	//
+	// run.Passes > 0 is the anti-loop gate (RV-B): a run that ran zero production
+	// passes derived 0 pending on its first pass — it translated nothing new, so
+	// there is no fresh draft work to review. That is exactly the shape of the
+	// completing run a review.completed triggers: every block is already
+	// approved, the derive finds nothing pending, the loop runs 0 passes and
+	// converges. Fanning review tasks back out for already-reviewed content would
+	// re-open the queue and let review → run → review loop forever. Gating on
+	// "the run actually produced work" breaks that loop while still fanning tasks
+	// out for every genuine translate/park run (which always ran ≥1 pass).
 	if (run.State == bstore.ConvergenceRunConverged || run.State == bstore.ConvergenceRunParked) &&
 		run.StallReason != convergence.StallSourceNotReady &&
-		run.StallReason != convergence.StallNoTargetLocales {
+		run.StallReason != convergence.StallNoTargetLocales &&
+		run.Passes > 0 {
 		o.createCompletionReviewTasks(context.WithoutCancel(ctx), run)
 	}
 
@@ -639,11 +650,8 @@ func countFailingBlocks(ctx context.Context, blocks []*platstore.StoredBlock, lo
 		if sb.Block == nil || !sb.Block.Translatable {
 			continue
 		}
-		for _, issue := range runQAOnBlock(ctx, sb.Block, locale) {
-			if issue.Severity == "error" {
-				failing++
-				break
-			}
+		if blockFailsChecks(ctx, sb.Block, locale) {
+			failing++
 		}
 	}
 	return failing

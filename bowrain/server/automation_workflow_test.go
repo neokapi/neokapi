@@ -189,7 +189,9 @@ func TestCreateReviewTasks_TranslateMode(t *testing.T) {
 
 // TestCreateReviewTasks_DefaultOnWhenPropertyMissing locks the governed-review
 // default: a project that never touched workflow_enabled still fans out review
-// tasks. Only an explicit "false" opts out.
+// tasks. Only an explicit "false" opts out. It also pins the owner-fallback: a
+// locale with no covering project member routes to the workspace owner (admin-1)
+// rather than an unassigned task nobody sees.
 func TestCreateReviewTasks_DefaultOnWhenPropertyMissing(t *testing.T) {
 	srv, _, wsID := newWorkflowTestServer(t)
 
@@ -215,7 +217,38 @@ func TestCreateReviewTasks_DefaultOnWhenPropertyMissing(t *testing.T) {
 		localeAssignees[task.Data["locale"]] = task.AssigneeID
 	}
 	assert.Equal(t, frUser, localeAssignees["fr-FR"])
-	assert.Empty(t, localeAssignees["de-DE"], "de-DE has no member and gets an unassigned task")
+	assert.Equal(t, "admin-1", localeAssignees["de-DE"],
+		"de-DE has no covering project member and falls back to the workspace owner")
+}
+
+// TestCreateReviewTasks_NoMembersReachesOwner (founder fix) is the root-cause
+// regression: a governed project with NO project members (the onboarding default)
+// must still route review to a person — the workspace owner — never a stranded
+// unassigned task the assignee=me dashboard can't see. It also asserts the
+// project-scoped open-review count is non-zero (CountOpenByType).
+func TestCreateReviewTasks_NoMembersReachesOwner(t *testing.T) {
+	srv, _, wsID := newWorkflowTestServer(t)
+
+	projID := createWorkflowProject(t, srv, wsID, map[string]string{"workflow_enabled": "true"})
+	// Deliberately add no project members.
+
+	srv.createReviewTasks(t.Context(),
+		event.AutomationAction{Type: "create_review_tasks", Config: map[string]string{"mode": "review"}},
+		platev.Event{ProjectID: projID, Data: map[string]string{"push_id": "p1", "items": "en.json"}}, "")
+
+	res, err := srv.TaskStore.List(t.Context(), bstore.TaskQuery{
+		WorkspaceID: wsID, ProjectID: projID, Type: "review",
+	})
+	require.NoError(t, err)
+	require.Len(t, res.Tasks, 2, "fr-FR and de-DE each get a review task")
+	for _, task := range res.Tasks {
+		assert.Equal(t, "admin-1", task.AssigneeID,
+			"with no project members, review must reach the workspace owner")
+	}
+
+	open, err := srv.TaskStore.CountOpenByType(t.Context(), wsID, projID, "review")
+	require.NoError(t, err)
+	assert.Equal(t, 2, open, "the project-scoped open review count must be non-zero")
 }
 
 func TestCreateReviewTasks_SkipsWhenExplicitlyDisabled(t *testing.T) {

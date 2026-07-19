@@ -1,12 +1,66 @@
 package server
 
 import (
+	"context"
+	"log/slog"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 )
+
+// addProjectCreatorMembership makes the user who created a project a member of
+// it, with a review-capable role. Without this, a wizard/API-created project has
+// zero project members, so governed review has no one to assign to and the
+// creator (typically the workspace owner) never sees pending review — the
+// onboarding gap this closes. Best-effort and idempotent: a lookup/insert error
+// is logged, never fatal to project creation, and an existing membership is left
+// untouched.
+func (s *Server) addProjectCreatorMembership(ctx context.Context, workspaceID, projectID, userID string) {
+	if s.AuthStore == nil || workspaceID == "" || projectID == "" || userID == "" {
+		return
+	}
+	if _, err := s.AuthStore.GetProjectMembership(ctx, projectID, userID); err == nil {
+		return // already a member (e.g. re-entrant create)
+	}
+	roleID := s.reviewCapableRoleTemplate(ctx, workspaceID)
+	if roleID == "" {
+		slog.WarnContext(ctx, "project creator membership: no review-capable role template",
+			"project", projectID, "workspace", workspaceID)
+		return
+	}
+	pm := &platauth.ProjectMembership{
+		ProjectID:   projectID,
+		UserID:      userID,
+		RoleID:      roleID,
+		WorkspaceID: workspaceID,
+	}
+	if err := s.AuthStore.AddProjectMember(ctx, pm); err != nil {
+		slog.WarnContext(ctx, "project creator membership: add member failed",
+			"project", projectID, "user", userID, "error", err)
+	}
+}
+
+// reviewCapableRoleTemplate resolves a workspace role template for a project
+// creator: the built-in "project-admin" (full control) when present, else the
+// first template carrying PermReview. Returns "" when none qualifies.
+func (s *Server) reviewCapableRoleTemplate(ctx context.Context, workspaceID string) string {
+	templates, err := s.AuthStore.ListRoleTemplates(ctx, workspaceID)
+	if err != nil {
+		return ""
+	}
+	reviewRole := ""
+	for _, rt := range templates {
+		if rt.Name == "project-admin" {
+			return rt.ID
+		}
+		if reviewRole == "" && rt.Permissions.Has(platauth.PermReview) {
+			reviewRole = rt.ID
+		}
+	}
+	return reviewRole
+}
 
 // ProjectMemberRequest is the request body for adding or updating a project member.
 type ProjectMemberRequest struct {
