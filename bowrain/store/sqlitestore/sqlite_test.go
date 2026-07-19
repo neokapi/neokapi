@@ -193,3 +193,107 @@ func TestGetBlockStats_ApprovedLocales(t *testing.T) {
 		}
 	}
 }
+
+// overlaysFixture builds a block's worth of stand-off overlays covering every
+// kind that must survive a store round-trip: segmentation (incl. an ignorable
+// span), an entity overlay carrying a typed *EntityAnnotation Value (the
+// entity→concept promote path), a term overlay, a term-candidate overlay, a QA
+// overlay, and a target-side alignment overlay. Anchors use real run ranges.
+func overlaysFixture() []model.Overlay {
+	frVariant := model.VariantKey{Locale: model.LocaleFrench}
+	return []model.Overlay{
+		{
+			Type:  model.OverlaySegmentation,
+			Layer: model.LayerPrimary,
+			Spans: []model.Span{
+				{ID: "s1", Range: model.RunRange{StartRun: 0, StartOffset: 0, EndRun: 0, EndOffset: 4}},
+				{
+					ID:    "s2",
+					Range: model.RunRange{StartRun: 0, StartOffset: 5, EndRun: 0, EndOffset: 11},
+					Props: map[string]string{model.SpanPropIgnorable: "true"},
+				},
+			},
+		},
+		{
+			Type: model.OverlayEntity,
+			Spans: []model.Span{{
+				ID:    "entity:0",
+				Range: model.RunRange{StartRun: 0, StartOffset: 0, EndRun: 0, EndOffset: 4},
+				Value: &model.EntityAnnotation{Text: "Acme", Type: model.EntityOrganization, Locale: model.LocaleEnglish, DNT: true, Source: "ner"},
+			}},
+		},
+		{
+			Type: model.OverlayTerm,
+			Spans: []model.Span{{
+				ID:    "term:0",
+				Range: model.RunRange{StartRun: 0, StartOffset: 5, EndRun: 0, EndOffset: 11},
+				Value: &model.TermAnnotation{SourceTerm: "widget", ConceptID: "c-42", Status: model.TermPreferred, Score: 1, MatchType: model.MatchStrategyExact, TargetTerms: []model.TermRef{{Text: "gadget", Locale: model.LocaleFrench, Status: model.TermPreferred}}},
+			}},
+		},
+		{
+			Type: model.OverlayTermCandidate,
+			Spans: []model.Span{{
+				ID:    "term-candidate:0",
+				Range: model.RunRange{StartRun: 0, StartOffset: 5, EndRun: 0, EndOffset: 11},
+				Value: &model.TermCandidateAnnotation{Text: "widget", Locale: model.LocaleEnglish},
+			}},
+		},
+		{
+			Type: model.OverlayQA,
+			Spans: []model.Span{{
+				ID:    "qa:0",
+				Range: model.RunRange{StartRun: 0, StartOffset: 0, EndRun: 0, EndOffset: 11},
+				Props: map[string]string{"rule": "length", "severity": "warn"},
+			}},
+		},
+		{
+			Type:    model.OverlayAlignment,
+			Variant: &frVariant,
+			Spans: []model.Span{{
+				ID:    "a0",
+				Range: model.RunRange{StartRun: 0, StartOffset: 0, EndRun: 0, EndOffset: 4},
+				Props: map[string]string{"target": "0:0-0:6"},
+			}},
+		},
+	}
+}
+
+// TestStoreBlocks_OverlaysRoundTrip proves a block's stand-off overlays survive
+// a full StoreBlocks → GetBlock round-trip through SQLite with run-index anchors
+// intact — and the entity span's typed Value rehydrates to the concrete
+// *EntityAnnotation the entity→concept promote path depends on. A block with no
+// overlays round-trips as no overlays.
+func TestStoreBlocks_OverlaysRoundTrip(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	b := model.NewBlock("b1", "Acme widget")
+	b.Overlays = overlaysFixture()
+	require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{b}))
+
+	got, err := s.GetBlock(ctx, p.ID, "", "b1")
+	require.NoError(t, err)
+	require.Equal(t, overlaysFixture(), got.Block.Overlays,
+		"every overlay kind must survive the store round-trip with anchors intact")
+
+	ent := got.Block.OverlayOf(model.OverlayEntity)
+	require.NotNil(t, ent)
+	require.Len(t, ent.Spans, 1)
+	ea, ok := ent.Spans[0].Value.(*model.EntityAnnotation)
+	require.True(t, ok, "entity span value must rehydrate to *EntityAnnotation (entity-promote)")
+	assert.Equal(t, "Acme", ea.Text)
+	assert.True(t, ea.DNT)
+
+	// Re-storing keeps overlays intact (ON CONFLICT UPDATE path).
+	require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{b}))
+	got, err = s.GetBlock(ctx, p.ID, "", "b1")
+	require.NoError(t, err)
+	require.Equal(t, overlaysFixture(), got.Block.Overlays)
+
+	// A block with no overlays round-trips as no overlays.
+	require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{model.NewBlock("b2", "plain")}))
+	got2, err := s.GetBlock(ctx, p.ID, "", "b2")
+	require.NoError(t, err)
+	assert.Nil(t, got2.Block.Overlays)
+}

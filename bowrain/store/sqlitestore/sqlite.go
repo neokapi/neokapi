@@ -509,13 +509,13 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO blocks (id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
-			source_json, properties, stored_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			source_json, properties, overlays, stored_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(project_id, id) DO UPDATE SET
 			name=excluded.name, type=excluded.type, mime_type=excluded.mime_type,
 			translatable=excluded.translatable, content_hash=excluded.content_hash,
 			context_hash=excluded.context_hash, source_json=excluded.source_json,
-			properties=excluded.properties, updated_at=excluded.updated_at`)
+			properties=excluded.properties, overlays=excluded.overlays, updated_at=excluded.updated_at`)
 	if err != nil {
 		return fmt.Errorf("prepare stmt: %w", err)
 	}
@@ -612,6 +612,14 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 		if err != nil {
 			return fmt.Errorf("marshal properties for block %s: %w", internalID, err)
 		}
+		// Stand-off overlays (segmentation, term, entity, term-candidate, qa,
+		// alignment) ride alongside source_json so they survive the round-trip —
+		// without this they would be dropped and the entity→concept promote path
+		// would break on the next GetBlocks. Nil/empty overlays encode to "[]".
+		overlaysJSON, err := bstore.MarshalOverlays(b.Overlays)
+		if err != nil {
+			return fmt.Errorf("marshal overlays for block %s: %w", internalID, err)
+		}
 
 		translatable := 0
 		if b.Translatable {
@@ -621,7 +629,7 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 		_, err = stmt.ExecContext(ctx,
 			internalID, projectID, itemName, sourceID, b.Name, b.Type, b.MimeType, translatable,
 			identity.ContentHash, identity.ContextHash,
-			string(sourceJSON), string(propsJSON), now, now)
+			string(sourceJSON), string(propsJSON), string(overlaysJSON), now, now)
 		if err != nil {
 			return fmt.Errorf("store block %s: %w", internalID, err)
 		}
@@ -678,7 +686,7 @@ func (s *SQLiteStore) GetBlock(ctx context.Context, projectID, stream, blockID s
 	stream = storeutil.DefaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
-			source_json, properties, stored_at, updated_at
+			source_json, properties, overlays, stored_at, updated_at
 		 FROM blocks WHERE project_id=? AND id=?`, projectID, blockID)
 	sb, err := scanStoredBlock(row)
 	if err != nil {
@@ -726,7 +734,7 @@ func (s *SQLiteStore) GetBlocks(ctx context.Context, query platstore.BlockQuery)
 
 	var qb strings.Builder
 	qb.WriteString(`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
-			source_json, properties, stored_at, updated_at
+			source_json, properties, overlays, stored_at, updated_at
 		 FROM blocks WHERE `)
 	qb.WriteString(strings.Join(where, " AND "))
 	qb.WriteString(" ORDER BY id")
@@ -1054,12 +1062,12 @@ func scanStoredBlock(row scanner) (*platstore.StoredBlock, error) {
 	var sb platstore.StoredBlock
 	sb.Block = &model.Block{}
 	var translatable int
-	var sourceJSON, propsJSON, storedStr, updatedStr string
+	var sourceJSON, propsJSON, overlaysJSON, storedStr, updatedStr string
 
 	err := row.Scan(
 		&sb.Block.ID, &sb.ProjectID, &sb.ItemName, &sb.SourceID, &sb.Block.Name, &sb.Block.Type,
 		&sb.Block.MimeType, &translatable, &sb.ContentHash, &sb.ContextHash,
-		&sourceJSON, &propsJSON, &storedStr, &updatedStr)
+		&sourceJSON, &propsJSON, &overlaysJSON, &storedStr, &updatedStr)
 	if err != nil {
 		return nil, fmt.Errorf("scan block: %w", err)
 	}
@@ -1073,6 +1081,11 @@ func scanStoredBlock(row scanner) (*platstore.StoredBlock, error) {
 	}
 	if err := json.Unmarshal([]byte(propsJSON), &sb.Block.Properties); err != nil {
 		sb.Block.Properties = make(map[string]string)
+	}
+	// Rehydrate stand-off overlays from the sibling column (symmetric with the
+	// bstore.MarshalOverlays write above).
+	if overlays, err := bstore.UnmarshalOverlays([]byte(overlaysJSON)); err == nil {
+		sb.Block.Overlays = overlays
 	}
 	// Lift the folded source-authoring status back onto the block (source-first
 	// gate). Symmetric with PropsForStore on the write side.

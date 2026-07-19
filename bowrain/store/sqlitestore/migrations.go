@@ -684,4 +684,18 @@ var storeMigrations = []storage.Migration{
 				ON proposed_source_changes(project_id, status);
 		`,
 	},
+	{
+		Version:     11,
+		Description: "block stand-off overlays column (persist term/entity/segmentation/qa overlays across store round-trip)",
+		SQL: `
+			-- Mirrors blocks.overlays in bowrain/store/migrations.go (Version 12):
+			-- the positional, run-anchored stand-off layers (segmentation, term,
+			-- entity, term-candidate, qa, alignment) persist alongside source_json
+			-- so they survive a store round-trip instead of being dropped on the
+			-- next GetBlocks (which broke the entity→concept promote path). Stored
+			-- as a JSON array (TEXT); empty overlays default to '[]', like
+			-- source_json.
+			ALTER TABLE blocks ADD COLUMN overlays TEXT NOT NULL DEFAULT '[]';
+		`,
+	},
 }

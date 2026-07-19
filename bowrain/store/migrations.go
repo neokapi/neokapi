@@ -868,4 +868,20 @@ var storeMigrations = []storage.Migration{
 				ON proposed_source_changes(project_id, status);
 		`,
 	},
+	{
+		Version:     12,
+		Description: "block stand-off overlays column (persist term/entity/segmentation/qa overlays across store round-trip)",
+		SQL: `
+			-- Block.Overlays — the positional, run-anchored stand-off layers
+			-- (segmentation, term, entity, term-candidate, qa, alignment) — persist
+			-- alongside source_json so they survive a store round-trip. Without this
+			-- column GetBlocks dropped every overlay, breaking entity/term handlers
+			-- and the entity→concept promote path (which worked only while the block
+			-- stayed in memory). Serialized as a JSON array (the model's own JSON,
+			-- with each span's typed Value in a {"type","data"} envelope, mirroring
+			-- the annotations payload). Empty overlays default to '[]', like
+			-- source_json.
+			ALTER TABLE blocks ADD COLUMN IF NOT EXISTS overlays JSONB NOT NULL DEFAULT '[]'::jsonb;
+		`,
+	},
 }
