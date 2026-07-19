@@ -185,6 +185,25 @@ message SyncBlock {
 
   // Content hash for diff computation.
   string content_hash = 18;
+
+  // Positional, run-anchored stand-off overlays: segmentation, term, entity,
+  // qa, alignment, term-candidate, and any plugin-defined type. Carried as the
+  // canonical OverlayMessage (core/proto/content/v1) — typed, not an opaque
+  // JSON blob — so every overlay kind, its run-index anchors, props, variant,
+  // and typed span value survive push→store→pull losslessly; an unknown/future
+  // overlay kind round-trips by type name + JSON (its value degrades to a
+  // GenericAnnotation) rather than being dropped. Unlike the content-model
+  // BlockMessage — which reconstructs segmentation from its multi-segment
+  // source/target boundaries and so EXCLUDES it from its overlays field — a
+  // SyncBlock carries source/target as a single wire segment, so segmentation
+  // rides in this list explicitly too.
+  repeated neokapi.content.v1.OverlayMessage overlays = 19;
+
+  // Source authoring locale — the locale of the source runs (Block.SourceLocale).
+  string source_locale = 20;
+
+  // Whether this block is referenced by a skeleton (Block.IsReferent).
+  bool is_referent = 21;
 }
 
 // SyncSegmentList wraps a locale's segments so SyncBlock.targets can map

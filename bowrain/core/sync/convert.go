@@ -34,6 +34,8 @@ func BlockToProto(b *model.Block, itemName string) *pb.SyncBlock {
 		SourceText:         b.SourceText(),
 		PreserveWhitespace: b.PreserveWhitespace,
 		Properties:         b.Properties,
+		SourceLocale:       string(b.SourceLocale),
+		IsReferent:         b.IsReferent,
 	}
 
 	// Source authoring state (authored → checked → approved) rides as a reserved
@@ -80,10 +82,11 @@ func BlockToProto(b *model.Block, itemName string) *pb.SyncBlock {
 		}
 	}
 
-	// Skeleton.
+	// Skeleton (polymorphic parts ride a discriminated codec so they survive).
 	if b.Skeleton != nil {
-		data, _ := json.Marshal(b.Skeleton)
-		sb.SkeletonJson = data
+		if data, err := MarshalSkeleton(b.Skeleton); err == nil {
+			sb.SkeletonJson = data
+		}
 	}
 
 	// Display hint.
@@ -96,6 +99,18 @@ func BlockToProto(b *model.Block, itemName string) *pb.SyncBlock {
 	if b.ContentRef != nil {
 		data, _ := json.Marshal(b.ContentRef)
 		sb.ContentRefJson = data
+	}
+
+	// Overlays — every run-anchored stand-off layer (segmentation, term, entity,
+	// qa, alignment, term-candidate, and any plugin-defined type) rides as a typed
+	// OverlayMessage via the canonical protoconvert overlay codec, so the type,
+	// run-index anchors, props, variant, and typed span value all survive. Unlike
+	// protoconvert.BlockToProto (which reconstructs segmentation from its
+	// multi-segment source/target boundaries and so excludes it), a SyncBlock
+	// carries source/target as a single wire segment — segmentation is not
+	// reconstructable from segment boundaries here, so it rides explicitly too.
+	for i := range b.Overlays {
+		sb.Overlays = append(sb.Overlays, protoconvert.OverlayToProto(b.Overlays[i]))
 	}
 
 	// Content hash for diff computation.
@@ -118,6 +133,8 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 		Translatable:       sb.Translatable,
 		PreserveWhitespace: sb.PreserveWhitespace,
 		Properties:         sb.Properties,
+		SourceLocale:       model.LocaleID(sb.SourceLocale),
+		IsReferent:         sb.IsReferent,
 	}
 
 	// Restore the source authoring state from its reserved property and strip the
@@ -181,12 +198,13 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 		}
 	}
 
-	// Skeleton.
+	// Skeleton (discriminated codec — see MarshalSkeleton).
 	if len(sb.SkeletonJson) > 0 {
-		b.Skeleton = &model.Skeleton{}
-		if err := json.Unmarshal(sb.SkeletonJson, b.Skeleton); err != nil {
+		skel, err := UnmarshalSkeleton(sb.SkeletonJson)
+		if err != nil {
 			return b, fmt.Errorf("decode skeleton: %w", err)
 		}
+		b.Skeleton = skel
 	}
 
 	// Display hint.
@@ -203,6 +221,13 @@ func ProtoToBlock(sb *pb.SyncBlock) (*model.Block, error) {
 		if err := json.Unmarshal(sb.ContentRefJson, b.ContentRef); err != nil {
 			return b, fmt.Errorf("decode content ref: %w", err)
 		}
+	}
+
+	// Overlays — reconstruct every stand-off layer via the canonical protoconvert
+	// overlay codec. An unregistered/future overlay kind degrades to a
+	// GenericAnnotation span value rather than panicking or being dropped.
+	for _, om := range sb.Overlays {
+		b.Overlays = append(b.Overlays, protoconvert.ProtoToOverlay(om))
 	}
 
 	return b, nil
@@ -231,6 +256,7 @@ const (
 	propOriginTool   = "__origin_tool"
 	propOriginRef    = "__origin_reference"
 	propOriginTime   = "__origin_timestamp"
+	propOriginConf   = "__origin_confidence"
 )
 
 // targetToSegment encodes a committed Target as a single wire segment,
@@ -258,6 +284,9 @@ func targetToSegment(t *model.Target) *contentv1.SegmentMessage {
 	}
 	if t.Origin.Timestamp != "" {
 		props[propOriginTime] = t.Origin.Timestamp
+	}
+	if t.Origin.Confidence != 0 {
+		props[propOriginConf] = strconv.FormatFloat(t.Origin.Confidence, 'g', -1, 64)
 	}
 	if len(props) == 0 {
 		props = nil
@@ -291,6 +320,11 @@ func segmentToTarget(runs []model.Run, first *contentv1.SegmentMessage) *model.T
 		Tool:      props[propOriginTool],
 		Reference: props[propOriginRef],
 		Timestamp: props[propOriginTime],
+	}
+	if s := props[propOriginConf]; s != "" {
+		if v, err := strconv.ParseFloat(s, 64); err == nil {
+			t.Origin.Confidence = v
+		}
 	}
 	return t
 }

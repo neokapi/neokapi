@@ -1,0 +1,161 @@
+package sync_test
+
+import (
+	"reflect"
+	"testing"
+
+	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
+	"github.com/neokapi/neokapi/bowrain/core/synctest"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// This file is the durable content-model parity guard for the kapi↔bowrain sync
+// PUSH wire (the typed proto path, bowrain/core/sync). It round-trips the shared
+// kitchen-sink fixture (bowrain/core/synctest) — every Run kind, every Overlay
+// kind, multiple target variants, annotations, provenance, and every
+// scalar/struct field on model.Block — and asserts model → proto → model is
+// deep-equal to the original. A reflect-based completeness guard then fails
+// loudly if model.Block grows a field the kitchen sink doesn't cover, and
+// enumerated kind tables fail if a new Run/Overlay kind is added without wiring
+// it through the converter + fixture.
+//
+// The invariant this protects: a Block kapi has locally survives
+// push (BlockToProto) → wire → decode (ProtoToBlock) losslessly. See
+// web/docs/contribute/notes-internal/content-parity.md.
+
+// TestKitchenSinkRoundTrip is the parity gate: model → proto → model must be
+// deep-equal to the original for a Block with every field, run kind, and overlay
+// kind populated.
+func TestKitchenSinkRoundTrip(t *testing.T) {
+	orig := synctest.KitchenSinkBlock()
+
+	proto := bowsync.BlockToProto(orig, "kitchen.json")
+	require.NotNil(t, proto)
+
+	got, err := bowsync.ProtoToBlock(proto)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+
+	// Identity is derived (not carried); compare against a fresh fixture with it
+	// left nil on both sides.
+	want := synctest.KitchenSinkBlock()
+	want.Identity = nil
+	got.Identity = nil
+
+	require.Equal(t, want, got, "model → proto → model must be lossless for a fully-populated Block")
+}
+
+// TestKitchenSinkCoversEveryRunKind proves the fixture's source really exercises
+// every Run kind — so the round-trip above is a real per-kind guarantee, and a
+// newly-added Run kind trips this until it is added to the fixture.
+func TestKitchenSinkCoversEveryRunKind(t *testing.T) {
+	present := map[model.RunKind]bool{}
+	for _, r := range synctest.KitchenSinkBlock().Source {
+		present[r.Kind()] = true
+	}
+	for _, k := range synctest.AllRunKinds {
+		assert.Truef(t, present[k], "kitchen-sink source must contain a %q run (add it + wire the converter)", k)
+	}
+	// Cross-check the enumerated table itself covers the model's discriminators:
+	// if this count drifts, model.RunKind gained a constant not in AllRunKinds.
+	assert.Len(t, synctest.AllRunKinds, 7, "AllRunKinds must enumerate every model.RunKind (add the new kind + converter arm)")
+}
+
+// TestKitchenSinkCoversEveryOverlayKind proves the fixture carries every overlay
+// kind and that each survives the round-trip with its type, anchors, props,
+// variant, and typed value intact.
+func TestKitchenSinkCoversEveryOverlayKind(t *testing.T) {
+	orig := synctest.KitchenSinkBlock()
+
+	got, err := bowsync.ProtoToBlock(bowsync.BlockToProto(orig, "kitchen.json"))
+	require.NoError(t, err)
+
+	for _, kind := range synctest.AllOverlayKinds {
+		var origOverlay, gotOverlay *model.Overlay
+		for i := range orig.Overlays {
+			if orig.Overlays[i].Type == kind {
+				origOverlay = &orig.Overlays[i]
+			}
+		}
+		for i := range got.Overlays {
+			if got.Overlays[i].Type == kind {
+				gotOverlay = &got.Overlays[i]
+			}
+		}
+		require.NotNilf(t, origOverlay, "kitchen-sink must include a %q overlay (add it + wire the converter)", kind)
+		require.NotNilf(t, gotOverlay, "%q overlay must survive the sync round-trip", kind)
+		assert.Equalf(t, origOverlay, gotOverlay, "%q overlay must round-trip losslessly", kind)
+	}
+
+	// Typed span values must rehydrate to their concrete type (not a generic map),
+	// which downstream consumers (e.g. the entity→concept promote path) depend on.
+	ent := got.OverlayOf(model.OverlayEntity)
+	require.NotNil(t, ent)
+	_, ok := ent.Spans[0].Value.(*model.EntityAnnotation)
+	assert.True(t, ok, "entity span value must rehydrate to *EntityAnnotation")
+
+	term := got.OverlayOf(model.OverlayTerm)
+	require.NotNil(t, term)
+	_, ok = term.Spans[0].Value.(*model.TermAnnotation)
+	assert.True(t, ok, "term span value must rehydrate to *TermAnnotation")
+}
+
+// TestUnknownOverlayKindDegradesGracefully proves a plugin-defined / future
+// overlay kind carrying an unregistered payload round-trips by type name + JSON
+// (as a GenericAnnotation) rather than being dropped or panicking.
+func TestUnknownOverlayKindDegradesGracefully(t *testing.T) {
+	b := model.NewBlock("b1", "John visited Paris")
+	b.AddOverlaySpan(model.OverlayType("x-plugin-marks"), model.Span{
+		ID:    "m0",
+		Range: model.RunRange{StartRun: 0, EndRun: 1},
+		Value: &model.GenericAnnotation{Kind: "vendor:thing", Fields: map[string]any{"weight": "high"}},
+	})
+
+	got, err := bowsync.ProtoToBlock(bowsync.BlockToProto(b, "item.json"))
+	require.NoError(t, err)
+
+	o := got.OverlayOf(model.OverlayType("x-plugin-marks"))
+	require.NotNil(t, o, "plugin-defined overlay must survive")
+	require.Len(t, o.Spans, 1)
+	require.Equal(t, model.RunRange{StartRun: 0, EndRun: 1}, o.Spans[0].Range, "span anchor survives")
+	ga, ok := o.Spans[0].Value.(*model.GenericAnnotation)
+	require.True(t, ok, "unregistered payload round-trips as GenericAnnotation, not dropped")
+	assert.Equal(t, "vendor:thing", ga.Kind, "type name preserved")
+	// On the proto wire the canonical protoconvert codec captures an unregistered
+	// payload's whole JSON into Fields (nested under "fields") rather than
+	// dropping it — graceful degradation, no data loss. The value is recoverable.
+	assert.NotEmpty(t, ga.Fields, "unregistered payload data is preserved, not dropped")
+}
+
+// TestBlockFixtureIsComplete is the reflect-based drift guard: it fails loudly
+// if any exported field of model.Block is left zero in the kitchen-sink fixture.
+// A new field added to model.Block will be zero here (nobody set it) and trip
+// this test, forcing the author to decide whether it must round-trip — and, if
+// so, to wire it through the .proto, the converter (both directions), and the
+// fixture. Fields that are intentionally derived (not carried) are allow-listed
+// in synctest.BlockDerivedFields with a stated reason.
+func TestBlockFixtureIsComplete(t *testing.T) {
+	b := synctest.KitchenSinkBlock()
+	v := reflect.ValueOf(*b)
+	typ := v.Type()
+
+	for i := range typ.NumField() {
+		field := typ.Field(i)
+		if !field.IsExported() {
+			continue
+		}
+		if reason, ok := synctest.BlockDerivedFields[field.Name]; ok {
+			// Allow-listed: assert it is genuinely derived (left zero) so the
+			// list can't silently mask a field that IS being populated.
+			assert.Truef(t, v.Field(i).IsZero(),
+				"model.Block.%s is allow-listed as %q but the fixture sets it — remove it from BlockDerivedFields or stop setting it",
+				field.Name, reason)
+			continue
+		}
+		assert.Falsef(t, v.Field(i).IsZero(),
+			"model.Block.%s is zero in the kitchen-sink fixture — a new Block field must be added to synctest.KitchenSinkBlock() AND carried by the sync converter (or allow-listed in synctest.BlockDerivedFields if derived). See content-parity.md.",
+			field.Name)
+	}
+}
