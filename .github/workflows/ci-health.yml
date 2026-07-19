@@ -1,0 +1,98 @@
+name: CI Health (main)
+
+# Makes a red main impossible to ignore.
+#
+# push-to-main and the nightly ALREADY run the full suite (race detector, every
+# module, all frontends) — the `changes` gate forces every flag true on a push,
+# so nothing is path-skipped there. The gap was purely visibility: a red result
+# on `main` is post-merge, blocks nothing, and no one watches it, so breakage in
+# an area a PR didn't touch (that PR was path-gated, so its check was skipped and
+# it merged green) accumulates silently.
+#
+# This watches the full-suite workflows complete on `main` and keeps a single
+# tracking issue in sync: opened/commented when one goes red, closed when `main`
+# is green across all of them again. It changes nothing about per-PR cost.
+
+on:
+  workflow_run:
+    workflows: ["CI", "Docs — kapi", "Nightly"]
+    types: [completed]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ci-health
+  cancel-in-progress: false
+
+jobs:
+  track:
+    # Only the main branch's own runs (never forks / PR runs).
+    if: github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open, update, or close the main-red tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WF: ${{ github.event.workflow_run.name }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+
+          LABEL="ci-health"
+          TITLE="🔴 main CI is red"
+          WATCHED=("CI" "Docs — kapi" "Nightly")
+
+          # Ensure the label exists (idempotent).
+          gh label create "$LABEL" --repo "$REPO" --color b60205 \
+            --description "main full-suite CI is failing" 2>/dev/null || true
+
+          # The single open tracking issue, if any.
+          num() {
+            gh issue list --repo "$REPO" --state open --label "$LABEL" \
+              --limit 1 --json number --jq '.[0].number // empty'
+          }
+
+          # Is any watched workflow's LATEST main run currently failing?
+          any_red() {
+            local w c
+            for w in "${WATCHED[@]}"; do
+              c=$(gh run list --repo "$REPO" --branch main --workflow "$w" \
+                    --limit 1 --json conclusion --jq '.[0].conclusion // ""' || echo "")
+              if [ "$c" = "failure" ] || [ "$c" = "timed_out" ]; then
+                echo "$w"; return 0
+              fi
+            done
+            return 1
+          }
+
+          short="${SHA:0:9}"
+
+          if [ "${CONCLUSION}" != "success" ]; then
+            body=$(printf 'Workflow "%s" finished with "%s" on main at commit %s.\n\nRun: %s\n\npush-to-main and the nightly run the FULL suite (race detector, every module). A red here means main is broken even though the merging PR was green (its check was path-skipped). Fix forward or revert; this issue closes automatically when main is green across all watched workflows again.' \
+              "$WF" "$CONCLUSION" "$short" "$RUN_URL")
+            existing="$(num)"
+            if [ -n "$existing" ]; then
+              gh issue comment "$existing" --repo "$REPO" --body "$body"
+            else
+              gh issue create --repo "$REPO" --label "$LABEL" --title "$TITLE" --body "$body"
+            fi
+            exit 0
+          fi
+
+          # A success: close the tracking issue only if NOTHING watched is still red.
+          existing="$(num)"
+          if [ -n "$existing" ]; then
+            if red_wf="$(any_red)"; then
+              gh issue comment "$existing" --repo "$REPO" \
+                --body "\`$WF\` passed on \`$short\`, but **$red_wf** is still red on \`main\`. Keeping this open."
+            else
+              gh issue comment "$existing" --repo "$REPO" \
+                --body "✅ \`main\` is green again across all watched workflows (\`$WF\` passed on \`$short\`). Closing."
+              gh issue close "$existing" --repo "$REPO"
+            fi
+          fi
