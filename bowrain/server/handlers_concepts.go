@@ -574,6 +574,11 @@ func (s *Server) HandleDeleteConceptRelation(c echo.Context) error {
 // HandleConceptBlastRadius reports where a concept's terms occur across the
 // workspace's stored content (engine.ConceptUsage) — the "consequences" a
 // steward sees before proposing a change.
+//
+// By default the walk evaluates each block in its source locale (the canonical
+// on-brand text). Passing ?locales=fr,de evaluates the translations instead, so
+// the mark-term UI can preview the RV-E re-check honestly as "re-checks N
+// translations across M locales" before a term is marked forbidden.
 func (s *Server) HandleConceptBlastRadius(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
@@ -582,8 +587,16 @@ func (s *Server) HandleConceptBlastRadius(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
 	}
+	opts := knowledge.EvalOptions{}
+	if raw := c.QueryParam("locales"); raw != "" {
+		for _, part := range strings.Split(raw, ",") {
+			if p := strings.TrimSpace(part); p != "" {
+				opts.Locales = append(opts.Locales, model.LocaleID(p))
+			}
+		}
+	}
 	wsID, _ := c.Get("workspace_id").(string)
-	usage, err := engine.ConceptUsage(c.Request().Context(), wsID, c.Param("cid"), knowledge.EvalOptions{})
+	usage, err := engine.ConceptUsage(c.Request().Context(), wsID, c.Param("cid"), opts)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}

@@ -263,23 +263,32 @@ func (s *Server) HandleUpdatePresence(c echo.Context) error {
 // emitEditorBlockChange publishes an editor.block.<changeType> event so watchers
 // refresh the affected block. Mirrors the event the gRPC editor used to emit.
 func (s *Server) emitEditorBlockChange(c echo.Context, projectID, blockID, itemName, stream, changeType string) {
+	userName, _ := c.Get("name").(string)
+	userID, _ := c.Get("user_id").(string)
+	s.publishEditorBlockChange(projectID, blockID, itemName, stream, changeType, userID, userName)
+}
+
+// publishEditorBlockChange publishes the "editor.block.<changeType>" SSE-fanout
+// event without an echo.Context, so background callers (e.g. the RV-E review
+// re-check, which runs off the event bus with no request) can refresh watchers'
+// views after mutating a block. actorName is the human display name (empty for a
+// system actor).
+func (s *Server) publishEditorBlockChange(projectID, blockID, itemName, stream, changeType, actor, actorName string) {
 	if s.EventBus == nil {
 		return
 	}
-	userName, _ := c.Get("name").(string)
-	userID, _ := c.Get("user_id").(string)
 	s.EventBus.Publish(platev.Event{
 		ID:        id.New(),
 		Type:      platev.EventType("editor.block." + changeType),
 		Source:    "editor-rest",
 		ProjectID: projectID,
-		Actor:     userID,
+		Actor:     actor,
 		Data: map[string]string{
 			"block_id":    blockID,
 			"item_name":   itemName,
 			"stream":      stream,
 			"change_type": changeType,
-			"changed_by":  userName,
+			"changed_by":  actorName,
 		},
 		Timestamp: time.Now(),
 	})
