@@ -44,6 +44,11 @@ type stubForgeConnector struct {
 	fetched   int
 	fetchErr  error
 	statusErr error
+
+	// mu guards published/pubOpts: the forge-delivery subscriber writes them
+	// from its own goroutine (subscribeForgeDelivery fires delivery async), so
+	// tests that observe delivery must read through the accessors below.
+	mu        sync.Mutex
 	published []*platconn.ContentItem
 	pubOpts   platconn.PublishOptions
 }
@@ -71,9 +76,29 @@ func (f *stubForgeConnector) List(ctx context.Context) ([]*platconn.ContentItem,
 	return nil, nil
 }
 func (f *stubForgeConnector) Publish(ctx context.Context, items []*platconn.ContentItem, opts platconn.PublishOptions) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.published = items
 	f.pubOpts = opts
 	return nil
+}
+
+// Published returns the items handed to the most recent Publish. Reads are
+// guarded so a test goroutine can poll delivery while the async forge-delivery
+// subscriber may still be writing; the mutex establishes the happens-before
+// edge that makes the returned items safe to inspect.
+func (f *stubForgeConnector) Published() []*platconn.ContentItem {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.published
+}
+
+// PublishOpts returns the options from the most recent Publish, guarded like
+// Published.
+func (f *stubForgeConnector) PublishOpts() platconn.PublishOptions {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.pubOpts
 }
 
 // newForgeTestServer wires the minimal server the forge surface needs: SQLite
@@ -216,16 +241,18 @@ func TestForgeDelivery_MaterializesPerLocaleAndPublishes(t *testing.T) {
 		Data: map[string]string{"run_id": "run1", "state": bstore.ConvergenceRunConverged, "passes": "2"},
 	})
 
-	require.Len(t, stub.published, 1, "only fr has translations; de must not deliver empty")
-	item := stub.published[0]
+	published := stub.Published()
+	require.Len(t, published, 1, "only fr has translations; de must not deliver empty")
+	item := published[0]
 	assert.Equal(t, "locales/fr/app.txt", item.Path)
 	assert.Equal(t, model.LocaleID("fr"), item.Locale)
 	require.Len(t, item.Blocks, 1)
 	assert.Equal(t, "Bonjour", item.Blocks[0].SourceText(), "the target is promoted to the source position for the writer")
 
-	assert.Contains(t, stub.pubOpts.Metadata["pr_title"], "Update translations")
-	assert.Contains(t, stub.pubOpts.Metadata["pr_body"], "converged")
-	assert.Contains(t, stub.pubOpts.Message, "run1")
+	opts := stub.PublishOpts()
+	assert.Contains(t, opts.Metadata["pr_title"], "Update translations")
+	assert.Contains(t, opts.Metadata["pr_body"], "converged")
+	assert.Contains(t, opts.Message, "run1")
 }
 
 func TestForgeDelivery_IgnoresFailedRuns(t *testing.T) {
@@ -236,7 +263,7 @@ func TestForgeDelivery_IgnoresFailedRuns(t *testing.T) {
 		Data: map[string]string{"state": bstore.ConvergenceRunFailed},
 	})
 	time.Sleep(100 * time.Millisecond)
-	assert.Nil(t, stub.published, "failed runs deliver nothing")
+	assert.Nil(t, stub.Published(), "failed runs deliver nothing")
 }
 
 func TestGitHubAppWebhook_RoutesByRepo(t *testing.T) {
