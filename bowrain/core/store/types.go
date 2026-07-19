@@ -499,41 +499,70 @@ type LocaleTranslationStats struct {
 	// carries a review decision (Target.Status reviewed or signed-off).
 	ApprovedBlocks int `json:"approved_blocks"`
 	// FailingChecks counts translated blocks whose target for this locale fails
-	// the project's QA checks with error severity. Only computed for locales at
-	// full coverage in some scope (checks cannot promote an under-covered
-	// locale, so the expensive pass is skipped below the coverage gate).
+	// the project's ship gate — a QA check with error severity, OR a terminology
+	// violation (a forbidden/competitor term used, or a mandated preferred/
+	// approved rendering missing). Only computed for locales at full coverage in
+	// some scope (checks cannot promote an under-covered locale, so the expensive
+	// pass is skipped below the coverage gate).
 	FailingChecks int `json:"failing_checks"`
 	// ShipState is the derived per-locale ship state (see DeriveShipState).
 	// Empty when the producer did not derive it.
 	ShipState ShipState `json:"ship_state,omitempty"`
 	// OnBrandBlocks counts translated blocks that pass the project's QA checks
-	// with no error-severity finding AND — where a persisted brand voice score
-	// exists for the block+locale — carry a score at or above the scoring
-	// profile's minimum bar. Additive: producers that do not derive the
-	// on-brand rate leave it 0 (omitted from JSON).
+	// with no error-severity finding, are term-compliant for the locale (no
+	// forbidden/competitor term, no missing mandated rendering), AND — where a
+	// persisted brand voice score exists for the block+locale — carry a score at
+	// or above the scoring profile's minimum bar. Additive: producers that do not
+	// derive the on-brand rate leave it 0 (omitted from JSON).
 	OnBrandBlocks int `json:"on_brand_blocks,omitempty"`
 	// OnBrandRate is OnBrandBlocks / TranslatedBlocks, in [0,1]. Nil when the
 	// producer did not derive it or the scope has no translated blocks.
 	OnBrandRate *float64 `json:"on_brand_rate,omitempty"`
-	// OnBrandBasis states what informed OnBrandRate: OnBrandBasisChecks when no
-	// voice scores existed for the scope (QA checks only), OnBrandBasisVoice
-	// when at least one block's persisted voice score also informed it. Empty
-	// when the rate was not derived — consumers hide the metric then.
+	// OnBrandBasis states what informed OnBrandRate (see OnBrandBasisFor): QA
+	// checks always, plus "+terms" when term governance was active for the scope
+	// and plus "voice" when at least one block's persisted voice score also
+	// informed it. Empty when the rate was not derived — consumers hide the
+	// metric then.
 	OnBrandBasis OnBrandBasis `json:"on_brand_basis,omitempty"`
 }
 
 // OnBrandBasis names the evidence behind a derived on-brand rate, so consumers
 // can present the number honestly: a checks-only rate says nothing about voice.
+// QA checks always inform the rate; terms and voice are added when they were
+// actually applied to the scope (term governance active / a persisted voice
+// score present), so the basis never claims evidence that did not contribute.
 type OnBrandBasis string
 
 const (
-	// OnBrandBasisChecks — the rate reflects QA check results only; no brand
-	// voice scores existed for the scope.
+	// OnBrandBasisChecks — the rate reflects QA check results only; no term
+	// governance was active and no brand voice scores existed for the scope.
 	OnBrandBasisChecks OnBrandBasis = "checks"
-	// OnBrandBasisVoice — the rate reflects QA checks plus persisted brand
-	// voice scores measured against the scoring profile's minimum bar.
+	// OnBrandBasisChecksTerms — QA checks plus deterministic terminology
+	// compliance (forbidden/competitor presence, mandated-rendering absence).
+	OnBrandBasisChecksTerms OnBrandBasis = "checks+terms"
+	// OnBrandBasisVoice — QA checks plus persisted brand voice scores measured
+	// against the scoring profile's minimum bar.
 	OnBrandBasisVoice OnBrandBasis = "voice+checks"
+	// OnBrandBasisVoiceTerms — QA checks plus terminology compliance plus
+	// persisted brand voice scores: the fullest basis.
+	OnBrandBasisVoiceTerms OnBrandBasis = "voice+checks+terms"
 )
+
+// OnBrandBasisFor names the evidence behind a derived on-brand rate from whether
+// a persisted voice score and active term governance informed it. QA checks are
+// always part of the basis; terms and voice are added when they contributed.
+func OnBrandBasisFor(voice, terms bool) OnBrandBasis {
+	switch {
+	case voice && terms:
+		return OnBrandBasisVoiceTerms
+	case voice:
+		return OnBrandBasisVoice
+	case terms:
+		return OnBrandBasisChecksTerms
+	default:
+		return OnBrandBasisChecks
+	}
+}
 
 // ItemTranslationStats holds per-file translation progress.
 type ItemTranslationStats struct {

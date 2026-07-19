@@ -94,6 +94,12 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "load blocks: " + err.Error()})
 	}
 	scores := latestVoiceScores(ctx, s.BrandStore, pid, stream)
+	// The same terminology gate the dashboard ship/on-brand pass uses, resolved
+	// once (workspace termbase snapshot + per-locale brand profile): a pending
+	// draft that uses a forbidden term or misses a mandated one is off-brand and
+	// must not be auto-approved. Nil gate (no termbase/brand store) is a no-op.
+	wsID, _ := c.Get("workspace_id").(string)
+	gate := s.resolveTermGate(ctx, proj, stream, wsID)
 
 	approved, skipped := 0, 0
 	touchedSet := map[model.LocaleID]bool{}
@@ -108,7 +114,7 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 				continue // untranslated, or already approved — not a candidate
 			}
 			scored := scores[string(locale.Normalize(loc))]
-			if blockOnBrandAndPassing(ctx, sb.Block, loc, scored) {
+			if blockOnBrandAndPassing(ctx, sb.Block, loc, scored, gate) {
 				sb.Block.Target(loc).Status = model.TargetStatusReviewed
 				approved++
 				touchedSet[loc] = true
@@ -147,7 +153,6 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 	actor, _ := c.Get("user_id").(string)
 	reviewCompleted := s.advanceReviewLoop(ctx, proj, stream, touched, actor)
 
-	wsID, _ := c.Get("workspace_id").(string)
 	s.invalidateDashboardCache(wsID, pid)
 
 	return c.JSON(http.StatusOK, ApprovePassingResponse{
