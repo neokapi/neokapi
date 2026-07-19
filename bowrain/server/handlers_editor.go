@@ -63,6 +63,8 @@ func (s *Server) HandleGetEditorProject(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
+	wsID, _ := c.Get("workspace_id").(string)
+	s.annotateProjectOrigin(ctx, wsID, info)
 	return c.JSON(http.StatusOK, info)
 }
 
@@ -132,6 +134,8 @@ func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
+	wsID, _ := c.Get("workspace_id").(string)
+	s.annotateProjectOrigin(ctx, wsID, info)
 	return c.JSON(http.StatusOK, info)
 }
 
@@ -290,6 +294,17 @@ func (s *Server) HandleUploadFiles(c echo.Context) error {
 	}
 
 	pid := projectParam(c)
+	ctx := c.Request().Context()
+
+	// Refuse the upload when the project's source is connector-sourced (kapi
+	// push / GitHub App / git): the repository owns the source there, and an
+	// upload would be overwritten on the next sync. A source connector makes the
+	// whole project read-only; otherwise a project-level upload lands in the
+	// default collection, so gate on that collection's origin.
+	defColl, _ := s.ContentStore.GetDefaultCollection(ctx, pid)
+	if err := s.guardSourceMutation(c, pid, defColl); err != nil {
+		return err
+	}
 
 	form, err := c.MultipartForm()
 	if err != nil {
@@ -314,13 +329,14 @@ func (s *Server) HandleUploadFiles(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "no files uploaded"})
 	}
 
-	info, err := editorAddFiles(c.Request().Context(), s.ContentStore, s.FormatRegistry, pid, streamParam(c), files)
+	info, err := editorAddFiles(ctx, s.ContentStore, s.FormatRegistry, pid, streamParam(c), files)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
 	s.invalidateDashboardCache(wsID, pid)
+	s.annotateProjectOrigin(ctx, wsID, info)
 	return c.JSON(http.StatusOK, info)
 }
 
@@ -336,14 +352,26 @@ func (s *Server) HandleRemoveFile(c echo.Context) error {
 
 	pid := projectParam(c)
 	fname := fileParam(c)
+	ctx := c.Request().Context()
+	stream := streamParam(c)
 
-	info, err := editorRemoveFile(c.Request().Context(), s.ContentStore, pid, streamParam(c), fname)
+	// Refuse the delete when the item's source is connector-sourced: removing a
+	// synced file here only reappears on the next sync. Gate on the item's own
+	// collection (covers a connector-backed collection) plus the project-level
+	// source-connector signal.
+	itemColl := s.collectionForItem(ctx, pid, stream, fname)
+	if err := s.guardSourceMutation(c, pid, itemColl); err != nil {
+		return err
+	}
+
+	info, err := editorRemoveFile(ctx, s.ContentStore, pid, stream, fname)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
 	s.invalidateDashboardCache(wsID, pid)
+	s.annotateProjectOrigin(ctx, wsID, info)
 	return c.JSON(http.StatusOK, info)
 }
 

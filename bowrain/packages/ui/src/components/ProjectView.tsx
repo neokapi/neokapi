@@ -16,6 +16,7 @@ import { useSetBreadcrumb } from "../context/BreadcrumbContext";
 import { useStream } from "../context/StreamContext";
 import { OpenInDesktop } from "./OpenInDesktop";
 import { CollectionTabs } from "./CollectionTabs";
+import { ProjectTypeBadge } from "./ProjectTypeBadge";
 import { FormattedFileName } from "./FormattedFileName";
 import { ListCapRow } from "./ListCapRow";
 import {
@@ -135,8 +136,15 @@ export function ProjectView({
   const totalBlocks = items.reduce((sum, f) => sum + f.block_count, 0);
   const totalWords = items.reduce((sum, f) => sum + f.word_count, 0);
 
-  // Is upload allowed for the active collection?
-  const canUpload = !activeCollection || activeCollection.kind === "uploaded";
+  // Is source mutation (upload/add/delete) allowed here? The server folds both
+  // signals into `editable`: a Managed collection is editable; a connector-
+  // sourced one (its own connector, or a project bound to a source connector —
+  // kapi push / GitHub App / git) is not, even when its kind is "uploaded". Fall
+  // back to the legacy kind check for older responses that omit `editable`.
+  const projectEditable = project.editable !== false;
+  const canUpload = activeCollection
+    ? (activeCollection.editable ?? activeCollection.kind === "uploaded")
+    : projectEditable;
   const itemLabel = activeCollection?.item_label ?? "file";
   const itemLabelPlural = items.length === 1 ? itemLabel : `${itemLabel}s`;
 
@@ -189,9 +197,12 @@ export function ProjectView({
           }
         >
           <div>
-            <h2 className={isMobile ? "text-lg font-semibold" : "text-xl font-semibold"}>
-              {project.name}
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className={isMobile ? "text-lg font-semibold" : "text-xl font-semibold"}>
+                {project.name}
+              </h2>
+              {project.type && <ProjectTypeBadge type={project.type} />}
+            </div>
             <p className="text-[13px] text-muted-foreground mt-1">
               {getDisplayName(project.default_source_language)}{" "}
               <ArrowRight className="w-3.5 h-3.5 inline-block" />{" "}
