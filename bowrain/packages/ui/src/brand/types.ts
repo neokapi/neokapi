@@ -92,6 +92,29 @@ export interface VoiceProfile {
 
 export type Dimension = "tone" | "style" | "vocabulary" | "clarity" | "brand_compliance";
 
+/**
+ * A reviewer's in-place correction (original → corrected), fed to the
+ * correction-learning loop via `POST /:ws/:id/brand-voice/:ref/corrections`.
+ * Repeated corrections surface as candidate rules and, past the profile's
+ * auto-promote threshold, harden into an enforced check. `profile_id` is the
+ * bound brand profile — resolved from `stream.properties.brand_voice_profile_id`
+ * (falling back to the workspace default).
+ */
+export interface BrandCorrectionRequest {
+  profile_id: string;
+  block_id?: string;
+  dimension: Dimension;
+  original_text: string;
+  corrected_text: string;
+  finding_id?: string;
+}
+
+/** Server acknowledgement of a stored correction. */
+export interface BrandCorrectionResult {
+  /** Whether the correction crossed the threshold and auto-promoted a rule. */
+  auto_promoted?: boolean;
+}
+
 export type BrandSeverity = "neutral" | "minor" | "major" | "critical";
 
 export interface BrandVoiceFinding {

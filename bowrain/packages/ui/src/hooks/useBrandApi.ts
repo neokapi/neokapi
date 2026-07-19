@@ -3,6 +3,7 @@ import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
 import type {
   BrandRollupOptions,
+  BrandCorrectionRequest,
   CreateVoiceProfileRequest,
   UpdateVoiceProfileRequest,
 } from "../brand/types";
@@ -118,6 +119,28 @@ export function useBrandTrends(projectId: string) {
 }
 
 // ── Correction-learning loop (AD-019) ──────────────────────────────────────
+
+/**
+ * Record a reviewer's in-place correction (original → corrected) into the
+ * correction-learning loop for a project's bound brand profile. Repeated
+ * corrections surface as candidate rules and auto-promote past the profile's
+ * threshold, so a reviewer's fix becomes a check on every future generation.
+ */
+export function useRecordBrandCorrection(projectId: string, stream?: string) {
+  const api = useApi();
+  const { activeWorkspace } = useWorkspace();
+  const ws = activeWorkspace?.slug ?? "";
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (req: BrandCorrectionRequest) =>
+      api.recordBrandCorrection(ws, projectId, req, stream),
+    onSuccess: (_result, req) => {
+      void queryClient.invalidateQueries({ queryKey: ["brand-candidates", ws, req.profile_id] });
+      void queryClient.invalidateQueries({ queryKey: ["brand-profile", ws, req.profile_id] });
+    },
+  });
+}
 
 export function useBrandCandidates(profileId: string, opts?: { minCount?: number; all?: boolean }) {
   const api = useApi();

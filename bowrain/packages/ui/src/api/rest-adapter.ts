@@ -1,4 +1,5 @@
 import { codedToRuns } from "@neokapi/ui-primitives";
+import { normalizeServerBlocks, type ServerBlockInfo } from "../components/editor/blockRuns";
 import { apiErrorFromResponse } from "../errors/ApiError";
 import type { ApiAdapter } from "./adapter";
 import type {
@@ -117,6 +118,8 @@ import type {
   PasskeyRegisterFinishRequest,
   SlugReservation,
   ReviewDemotion,
+  ApprovePassingRequest,
+  ApprovePassingResult,
   BrandScanRequest,
   BrandScanUploadResult,
   BrandScanJob,
@@ -139,6 +142,8 @@ import type {
   DriftResult,
   BrandRollup,
   BrandRollupOptions,
+  BrandCorrectionRequest,
+  BrandCorrectionResult,
 } from "../brand/types";
 import type {
   ListConceptsParams,
@@ -1335,9 +1340,14 @@ export class RestApiAdapter implements ApiAdapter {
     fileName: string,
     stream?: string,
   ): Promise<BlockInfo[]> {
-    return this.fetchJSON(
+    // Normalise the server's typed `source_runs`/`targets_runs` into the
+    // coded-text + spans shape the render primitives consume, so inline codes
+    // render faithfully (and identically) across the editor and review
+    // surfaces. See components/editor/blockRuns.ts.
+    const raw = await this.fetchJSON<ServerBlockInfo[]>(
       `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}?item=${encodeURIComponent(fileName)}`,
     );
+    return normalizeServerBlocks(raw);
   }
 
   async updateBlockTarget(workspaceSlug: string, req: UpdateBlockRequest): Promise<void> {
@@ -1574,6 +1584,29 @@ export class RestApiAdapter implements ApiAdapter {
           status: !reviewed && demoteTo ? demoteTo : undefined,
         }),
       },
+    );
+  }
+
+  async approvePassingReview(
+    workspaceSlug: string,
+    projectId: string,
+    req: ApprovePassingRequest = {},
+  ): Promise<ApprovePassingResult> {
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/review/approve-passing`, {
+      method: "POST",
+      body: JSON.stringify(req),
+    });
+  }
+
+  async recordBrandCorrection(
+    workspaceSlug: string,
+    projectId: string,
+    req: BrandCorrectionRequest,
+    stream?: string,
+  ): Promise<BrandCorrectionResult> {
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/brand-voice/${this.ref(stream)}/corrections`,
+      { method: "POST", body: JSON.stringify(req) },
     );
   }
 

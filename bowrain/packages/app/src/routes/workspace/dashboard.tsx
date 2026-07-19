@@ -238,6 +238,15 @@ export function ProjectDashboardRoute() {
     });
   }, [navigate, workspace, ws]);
 
+  // The "Awaiting review" card opens the workspace review inbox — pending
+  // review across every project, not just what's assigned to me.
+  const handleOpenReviewInbox = useCallback(() => {
+    void navigate({
+      to: "/$workspace/review-inbox",
+      params: { workspace: workspace ?? ws },
+    });
+  }, [navigate, workspace, ws]);
+
   // Deep link for the latest-run card: the run's project's runs page.
   const handleOpenRuns = useCallback(() => {
     const run = loopRollup?.latest_run;
@@ -301,6 +310,7 @@ export function ProjectDashboardRoute() {
         onOpenActivities={handleOpenActivities}
         onOpenRuns={handleOpenRuns}
         onOpenTasks={handleOpenTasks}
+        onOpenReview={handleOpenReviewInbox}
         onOpenDelivery={handleOpenDelivery}
         onOpenBrandDashboard={handleOpenBrandDashboard}
       />

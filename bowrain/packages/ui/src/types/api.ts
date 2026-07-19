@@ -564,6 +564,35 @@ export type TargetStatus = "" | "draft" | "translated" | "reviewed" | "signed-of
 export type ReviewDemotion = "translated" | "draft";
 
 /**
+ * Request body for the bulk "Approve all passing" review action
+ * (`POST /:ws/:id/review/approve-passing`). Both fields are optional: an
+ * omitted `stream` uses the project's default stream, and omitted `locales`
+ * approves across every target locale (each intersected with the caller's
+ * language permission server-side).
+ */
+export interface ApprovePassingRequest {
+  stream?: string;
+  locales?: string[];
+}
+
+/**
+ * Result of a bulk approve-passing call. `review_completed` is the UI's
+ * "all approved · delivering…" signal: true iff the call emptied the project's
+ * open review queue, so the server kicked off the completing convergence run
+ * and delivery.
+ */
+export interface ApprovePassingResult {
+  /** Blocks promoted to reviewed. */
+  approved: number;
+  /** Pending blocks left untouched (failing checks / off-brand). */
+  skipped: number;
+  /** Pending-review targets still awaiting review after the call. */
+  remaining_pending: number;
+  /** True iff this call emptied the review queue → completing run + delivery. */
+  review_completed: boolean;
+}
+
+/**
  * A per-locale committed target in the blocks payload: the plain text plus its
  * lifecycle status (mirrors the server's per-locale `model.Target`). Targets
  * maps are keyed by `VariantKey.MarshalText` — for tone/channel-free variants

@@ -140,6 +140,8 @@ export interface ProjectDashboardProps {
   onOpenRuns?: () => void;
   /** Opens the workspace task queue (loop-status card). */
   onOpenTasks?: () => void;
+  /** Opens the workspace review inbox (the "Awaiting review" loop-status card). */
+  onOpenReview?: () => void;
   /** Opens the delivery/translation dashboard surface (loop-status card). */
   onOpenDelivery?: () => void;
   /** Opens the brand dashboard (loop-status card). */
@@ -554,6 +556,7 @@ export function ProjectDashboard({
   onOpenActivities,
   onOpenRuns,
   onOpenTasks,
+  onOpenReview,
   onOpenDelivery,
   onOpenBrandDashboard,
 }: ProjectDashboardProps) {
@@ -610,6 +613,7 @@ export function ProjectDashboard({
                 onOpenActivities={onOpenActivities}
                 onOpenRuns={onOpenRuns}
                 onOpenTasks={onOpenTasks}
+                onOpenReview={onOpenReview}
                 onOpenDelivery={onOpenDelivery}
                 onOpenBrandDashboard={onOpenBrandDashboard}
               />
