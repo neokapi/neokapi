@@ -119,7 +119,7 @@ func TestApplyShipStates(t *testing.T) {
 	require.NoError(t, err)
 	stats, err := editorGetDashboardStats(ctx, cs, proj, "main")
 	require.NoError(t, err)
-	require.NoError(t, applyShipStates(ctx, cs, nil, pid, "main", stats))
+	require.NoError(t, applyShipStates(ctx, cs, nil, pid, "main", nil, stats))
 
 	// Global per-locale states.
 	fr := localeByCode(t, stats.LocaleStats, "fr")
@@ -228,7 +228,7 @@ func TestApplyShipStates_OnBrandVoiceScores(t *testing.T) {
 	require.NoError(t, err)
 	stats, err := editorGetDashboardStats(ctx, cs, proj, "main")
 	require.NoError(t, err)
-	require.NoError(t, applyShipStates(ctx, cs, bs, pid, "main", stats))
+	require.NoError(t, applyShipStates(ctx, cs, bs, pid, "main", nil, stats))
 
 	fr := localeByCode(t, stats.LocaleStats, "fr")
 	assertOnBrand(t, fr, 2, 1.0, platstore.OnBrandBasisVoice)

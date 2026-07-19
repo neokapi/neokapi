@@ -25,14 +25,21 @@ import (
 // it is derived for every locale with translated blocks.
 //
 // On-brand definition: a translated block is on-brand when the project's QA
-// checks report no error-severity finding AND — where a persisted brand voice
-// score exists for the block+locale (written by the worker's draft scoring,
-// zero AI) — the score meets the scoring profile's minimum bar
-// (VoiceProfile.OnBrandBar). Scopes with no voice scores fall back to
-// checks-only, and OnBrandBasis says which basis produced the number so
-// consumers can present it honestly. Voice scores are read best-effort: a brand
-// store hiccup degrades the rate to checks-only, never fails the dashboard.
-func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore corebrand.BrandStore, projectID, stream string, stats *store.TranslationDashboardStats) error {
+// checks report no error-severity finding, AND its target is term-compliant for
+// the locale (deterministic, offline — it uses no forbidden/competitor term and
+// omits no mandated preferred/approved rendering; see termGate/blockTermCompliant),
+// AND — where a persisted brand voice score exists for the block+locale (written
+// by the worker's draft scoring, zero AI) — the score meets the scoring profile's
+// minimum bar (VoiceProfile.OnBrandBar). A term-non-compliant block is treated
+// exactly like a failing check: it counts against the on-brand rate AND, at full
+// coverage, against FailingChecks, so it can never be governed or ai_shippable.
+// Scopes with no voice scores fall back to checks(+terms), and OnBrandBasis says
+// which evidence produced the number so consumers can present it honestly. Voice
+// scores are read best-effort: a brand store hiccup degrades the rate rather than
+// failing the dashboard. The gate is resolved once per (workspace, locale) by the
+// caller and reused across every block; a nil gate (no termbase, no brand store)
+// makes the term half a no-op, keeping the numbers byte-identical to before.
+func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore corebrand.BrandStore, projectID, stream string, gate *termGate, stats *store.TranslationDashboardStats) error {
 	fullyCovered := func(ls store.LocaleTranslationStats) bool {
 		return ls.TotalBlocks > 0 && ls.TranslatedBlocks >= ls.TotalBlocks
 	}
@@ -59,15 +66,21 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore core
 		}
 	}
 
-	// Error-severity failing block counts among the locale's translated blocks
-	// (ship-candidate locales only), and on-brand block counts (all rate
-	// candidates), project-wide and attributed per collection.
+	// Ship-gate failing block counts among the locale's translated blocks
+	// (ship-candidate locales only) — a QA error-severity finding OR a term
+	// violation — and on-brand block counts (all rate candidates), project-wide
+	// and attributed per collection.
 	failing := map[string]int{}
 	failingByColl := map[string]map[string]int{}
 	onBrand := map[string]int{}
 	onBrandByColl := map[string]map[string]int{}
 	voiceUsed := map[string]bool{}
 	voiceUsedByColl := map[string]map[string]bool{}
+	// termActive is per-locale (term governance is workspace/project-wide, not
+	// per collection): true where the gate has a termbase or brand-vocab rule to
+	// enforce for the locale, so the on_brand_basis can honestly note term checks
+	// contributed. Applied to both the project-locale and every collection-locale.
+	termActive := map[string]bool{}
 
 	if len(rateCandidates) > 0 {
 		blocks, err := cs.GetBlocks(ctx, store.BlockQuery{ProjectID: projectID, Stream: stream})
@@ -82,11 +95,18 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore core
 		for localeStr := range rateCandidates {
 			loc := model.LocaleID(localeStr)
 			scored := scores[string(locale.Normalize(loc))]
+			// Resolve the gate's per-locale governance once (never per block): it
+			// drives both the term-compliance predicate below and the basis note.
+			termActive[localeStr] = gate.active(ctx, loc)
 			for _, sb := range blocks {
 				if sb.Block == nil || !sb.Block.Translatable || sb.Block.Target(loc) == nil {
 					continue
 				}
-				blockFails := blockFailsChecks(ctx, sb.Block, loc)
+				// A block fails the ship gate when its QA checks flag an
+				// error-severity finding OR its target is not term-compliant for the
+				// locale — the two are treated identically for both FailingChecks and
+				// the on-brand rate. gate.compliant is offline (in-memory snapshot).
+				blockFails := blockFailsChecks(ctx, sb.Block, loc) || !gate.compliant(ctx, sb.Block, loc)
 				cid := collByItem[sb.ItemName]
 				if blockFails && shipCandidates[localeStr] {
 					failing[localeStr]++
@@ -122,7 +142,7 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore core
 		ls := &stats.LocaleStats[i]
 		ls.FailingChecks = failing[ls.Locale]
 		ls.ShipState = store.DeriveShipState(ls.TranslatedBlocks, ls.TotalBlocks, ls.ApprovedBlocks, ls.FailingChecks)
-		applyOnBrand(ls, onBrand[ls.Locale], voiceUsed[ls.Locale])
+		applyOnBrand(ls, onBrand[ls.Locale], voiceUsed[ls.Locale], termActive[ls.Locale])
 	}
 	for i := range stats.CollectionStats {
 		coll := &stats.CollectionStats[i]
@@ -130,7 +150,7 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore core
 			ls := &coll.Locales[j]
 			ls.FailingChecks = failingByColl[coll.CollectionID][ls.Locale]
 			ls.ShipState = store.DeriveShipState(ls.TranslatedBlocks, ls.TotalBlocks, ls.ApprovedBlocks, ls.FailingChecks)
-			applyOnBrand(ls, onBrandByColl[coll.CollectionID][ls.Locale], voiceUsedByColl[coll.CollectionID][ls.Locale])
+			applyOnBrand(ls, onBrandByColl[coll.CollectionID][ls.Locale], voiceUsedByColl[coll.CollectionID][ls.Locale], termActive[ls.Locale])
 		}
 	}
 	return nil
@@ -139,19 +159,18 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore core
 // applyOnBrand stamps the derived on-brand fields onto one locale scope. A
 // scope with nothing translated gets no rate (nothing to rate — the additive
 // fields stay omitted). The count is clamped to the translated denominator so
-// a stats/block-read skew can never report a rate above 1.
-func applyOnBrand(ls *store.LocaleTranslationStats, onBrandCount int, voice bool) {
+// a stats/block-read skew can never report a rate above 1. The basis names the
+// evidence that informed the rate: QA checks always, plus terms when term
+// governance was active for the locale, plus voice when a persisted score
+// informed at least one block.
+func applyOnBrand(ls *store.LocaleTranslationStats, onBrandCount int, voice, terms bool) {
 	if ls.TranslatedBlocks <= 0 {
 		return
 	}
 	ls.OnBrandBlocks = min(onBrandCount, ls.TranslatedBlocks)
 	rate := float64(ls.OnBrandBlocks) / float64(ls.TranslatedBlocks)
 	ls.OnBrandRate = &rate
-	if voice {
-		ls.OnBrandBasis = store.OnBrandBasisVoice
-	} else {
-		ls.OnBrandBasis = store.OnBrandBasisChecks
-	}
+	ls.OnBrandBasis = store.OnBrandBasisFor(voice, terms)
 }
 
 // blockFailsChecks reports whether a block's target for a locale carries an
@@ -169,15 +188,20 @@ func blockFailsChecks(ctx context.Context, block *model.Block, loc model.LocaleI
 
 // blockOnBrandAndPassing reports whether a translated block+locale is clean
 // enough to ship without a person's review: it passes the QA checks with no
-// error-severity finding AND — where a persisted brand voice score exists for
-// the block — the score meets the scoring profile's on-brand bar. This is
-// exactly the per-block on-brand predicate applyShipStates aggregates into the
-// on-brand rate (#1365); the bulk approve-passing endpoint reuses it to pick
-// which pending drafts to auto-approve. `scored` is one locale's score map
+// error-severity finding, is term-compliant for the locale (via the shared
+// gate), AND — where a persisted brand voice score exists for the block — the
+// score meets the scoring profile's on-brand bar. This is exactly the per-block
+// on-brand predicate applyShipStates aggregates into the on-brand rate (#1365);
+// the bulk approve-passing endpoint reuses it to pick which pending drafts to
+// auto-approve, so a target using a forbidden term or missing a mandated one is
+// excluded and left pending for a person. `scored` is one locale's score map
 // (latestVoiceScores(...)[normalize(locale)]); an empty map degrades to
-// checks-only, matching the dashboard.
-func blockOnBrandAndPassing(ctx context.Context, block *model.Block, loc model.LocaleID, scored map[string]scoredBlock) bool {
+// checks-only. A nil gate makes the term check a no-op, matching the dashboard.
+func blockOnBrandAndPassing(ctx context.Context, block *model.Block, loc model.LocaleID, scored map[string]scoredBlock, gate *termGate) bool {
 	if blockFailsChecks(ctx, block, loc) {
+		return false
+	}
+	if !gate.compliant(ctx, block, loc) {
 		return false
 	}
 	if vs, ok := scored[block.ID]; ok && vs.score < vs.bar {

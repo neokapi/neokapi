@@ -1118,9 +1118,12 @@ func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
 	}
 
 	// Derive per-locale + per-collection ship states and on-brand rates
-	// (bounded QA pass + persisted voice scores) so the cached result carries
-	// them for every paged slice.
-	if err := applyShipStates(ctx, s.ContentStore, s.BrandStore, proj.ID, stream, stats); err != nil {
+	// (bounded QA pass + deterministic term compliance + persisted voice scores)
+	// so the cached result carries them for every paged slice. The term gate
+	// resolves the workspace termbase snapshot + per-locale brand profile once
+	// (never per block) — a nil gate (no termbase, no brand store) is a no-op.
+	gate := s.resolveTermGate(ctx, proj, stream, wsID)
+	if err := applyShipStates(ctx, s.ContentStore, s.BrandStore, proj.ID, stream, gate, stats); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
