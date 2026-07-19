@@ -46,7 +46,10 @@ func fakeGitHub(t *testing.T, treeFiles map[string][]string) *httptest.Server {
 			assert.Equal(t, "Bearer ghs_x", r.Header.Get("Authorization"))
 			assert.Equal(t, "1", r.URL.Query().Get("recursive"))
 			repo := strings.TrimPrefix(r.URL.Path, "/repos/")
-			repo = repo[:strings.Index(repo, "/git/trees/")]
+			// The switch case above already guarantees "/git/trees/" is present
+			// (strings.Contains), but use Cut instead of Index+slice so a
+			// missing separator can never underflow into a bad slice bound.
+			repo, _, _ = strings.Cut(repo, "/git/trees/")
 			files, ok := treeFiles[repo]
 			if !ok {
 				w.WriteHeader(http.StatusNotFound)

@@ -138,9 +138,13 @@ func (s *Server) forgeIngest(ctx context.Context, cfg bstore.ConnectorConfig, ev
 		deps.Recorder = s.ConnectorConfigStore
 	}
 	go func() {
-		ctx, cancel := context.WithTimeout(context.WithoutCancel(context.Background()), 10*time.Minute)
+		// Detach from the request's cancellation (this goroutine outlives the
+		// webhook handler that spawned it) while still carrying forward
+		// whatever the request context held — e.g. trace/log context — rather
+		// than starting a fresh context.Background().
+		gctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Minute)
 		defer cancel()
-		_ = jobs.ForgeIngest(ctx, deps, jobs.ForgeIngestParams{
+		_ = jobs.ForgeIngest(gctx, deps, jobs.ForgeIngestParams{
 			WorkspaceID: workspaceID,
 			ConnectorID: connectorID,
 			ProjectID:   projectID,

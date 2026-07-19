@@ -24,6 +24,7 @@ package apierror
 
 import (
 	"fmt"
+	"maps"
 
 	"github.com/labstack/echo/v4"
 )
@@ -50,9 +51,7 @@ func Write(c echo.Context, status int, code string, details ...map[string]any) e
 		detail = details[0]
 	}
 	body := make(map[string]any, len(detail)+3)
-	for k, v := range detail {
-		body[k] = v
-	}
+	maps.Copy(body, detail)
 	body["error"] = code
 	body["message"] = MessageFor(code, detail)
 	if ref := RequestID(c); ref != "" {

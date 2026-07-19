@@ -92,10 +92,13 @@ func fetchChain(t *testing.T, db *sql.DB, chainKey string) []chainRow {
 	return out
 }
 
-// countChain is safe to call from an Eventually goroutine (no require).
+// countChain is safe to call from an Eventually goroutine (no require). It has
+// no test-scoped context available here (require.Eventually polls it off the
+// main goroutine, away from t.Context()), so it uses context.Background().
 func countChain(db *sql.DB, chainKey string) int {
 	var n int
-	_ = db.QueryRow(`SELECT count(*) FROM audit_log WHERE chain_key = $1`, chainKey).Scan(&n)
+	_ = db.QueryRowContext(context.Background(),
+		`SELECT count(*) FROM audit_log WHERE chain_key = $1`, chainKey).Scan(&n)
 	return n
 }
 
@@ -152,7 +155,7 @@ func TestAuditLoggerPersistsFromBus(t *testing.T) {
 	al, bus, db := newAuditTestLogger(t)
 	const ws = "ws-bus"
 	base := time.Now().UTC()
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		bus.Publish(auditEvent(ws, platev.EventProjectUpdated, "carol", base.Add(time.Duration(i)*time.Millisecond)))
 	}
 
@@ -172,7 +175,7 @@ func TestAuditVerifyChainDetectsTamper(t *testing.T) {
 	al, _, db := newAuditTestLogger(t)
 	const ws = "ws-tamper"
 	base := time.Now().UTC().Truncate(time.Microsecond)
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		appendAudit(t, al, auditEvent(ws, platev.EventProjectUpdated, "mallory", base.Add(time.Duration(i)*time.Second)))
 	}
 
@@ -205,7 +208,7 @@ func TestAuditVerifyChainDetectsMiddleDeletion(t *testing.T) {
 	al, _, db := newAuditTestLogger(t)
 	const ws = "ws-del"
 	base := time.Now().UTC().Truncate(time.Microsecond)
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		appendAudit(t, al, auditEvent(ws, platev.EventProjectUpdated, "eve", base.Add(time.Duration(i)*time.Second)))
 	}
 
@@ -229,7 +232,7 @@ func TestAuditVerifyChainDetectsMiddleDeletion(t *testing.T) {
 func TestAuditVerifyAllChains(t *testing.T) {
 	al, _, db := newAuditTestLogger(t)
 	base := time.Now().UTC().Truncate(time.Microsecond)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		appendAudit(t, al, auditEvent("ws-clean", platev.EventProjectUpdated, "alice", base.Add(time.Duration(i)*time.Second)))
 		appendAudit(t, al, auditEvent("ws-bad", platev.EventBlockUpdated, "bob", base.Add(time.Duration(i)*time.Second)))
 	}

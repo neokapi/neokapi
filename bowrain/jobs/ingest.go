@@ -2,7 +2,7 @@ package jobs
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -118,7 +118,7 @@ type ForgeIngestParams struct {
 // redelivery, the stale-job sweeper) safe for ingest jobs.
 func ForgeIngest(ctx context.Context, deps ForgeIngestDeps, p ForgeIngestParams) error {
 	if deps.Fetcher == nil {
-		return fmt.Errorf("forge ingest: no connector fetcher configured")
+		return errors.New("forge ingest: no connector fetcher configured")
 	}
 	if _, err := deps.Fetcher.Fetch(ctx, p.WorkspaceID, p.ConnectorID, p.ProjectID, platconn.FetchOptions{}); err != nil {
 		slog.WarnContext(ctx, "forge ingest: fetch failed",
