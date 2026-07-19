@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 /**
  * Regression guard for the github/setup Select outage (#1348/#1353).
  *
- * This package's vitest runs the same @neokapi/kapi-react build
+ * This package's vitest runs the same @neokapi/i18n-react build
  * transform the web/desktop shells use (see vite.config.ts), so the
  * JSX below goes through the exact production i18n pipeline. The
  * transform used to recognize ICU authoring components by bare
@@ -76,7 +76,7 @@ function ActionRow() {
   );
 }
 
-describe("Radix Select survives the kapi-react build transform", () => {
+describe("Radix Select survives the neokapi-i18n build transform", () => {
   it("renders the trigger of a labeled workspace chooser row", () => {
     render(<WorkspaceChooserRow />);
     const trigger = screen.getByTestId("regression-workspace-select");

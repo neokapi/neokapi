@@ -32,7 +32,7 @@ jobs:
       frontend: ${{ github.event_name == 'push' || steps.filter.outputs.frontend }}
       kapi_desktop: ${{ github.event_name == 'push' || steps.filter.outputs.kapi_desktop }}
       bowrain_desktop: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain_desktop }}
-      kapi_react: ${{ github.event_name == 'push' || steps.filter.outputs.kapi_react }}
+      i18n_react: ${{ github.event_name == 'push' || steps.filter.outputs.i18n_react }}
       l10n_surfaces: ${{ github.event_name == 'push' || steps.filter.outputs.l10n_surfaces }}
       workflows: ${{ github.event_name == 'push' || steps.filter.outputs.workflows }}
       any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework || steps.filter.outputs.cli || steps.filter.outputs.platform || steps.filter.outputs.kapi || steps.filter.outputs.bowrain_plugin || steps.filter.outputs.bowrain }}
@@ -80,8 +80,8 @@ jobs:
           check_paths frontend  '^bowrain/apps/(web|bowrain/frontend|ctrl|pulse|keycloak-theme)/' '^bowrain/packages/(ui|app)/' '^bowrain/emails/'
           check_paths kapi_desktop '^apps/kapi-desktop/' '^packages/(ui|flow-editor)/'
           check_paths bowrain_desktop '^bowrain/apps/bowrain/' '^bowrain/packages/ui/'
-          check_paths kapi_react '^packages/kapi-(format|react)/'
-          check_paths l10n_surfaces '^bowrain/emails/' '^bowrain/web/landing/' '^bowrain/mailer/' '^l10n/' '^packages/kapi-(format|react)/' '^neokapi\.kapi$'
+          check_paths i18n_react '^packages/(kapi-format|i18n-react)/'
+          check_paths l10n_surfaces '^bowrain/emails/' '^bowrain/web/landing/' '^bowrain/mailer/' '^l10n/' '^packages/(kapi-format|i18n-react)/' '^neokapi\.kapi$'
           check_paths workflows '^\.github/workflows/'
 
   # ── Frontend checks & builds ─────────────────────────────────────────────
@@ -269,18 +269,18 @@ jobs:
         run: make bowrain-desktop-test
 
   # ── Kapi React (TS extractor + schema) ──────────────────────────────────
-  kapi-react:
+  neokapi-i18n:
     name: Kapi React
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.kapi_react == 'true'
+    if: needs.changes.outputs.i18n_react == 'true'
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node-ui
 
-      # Job body lives in `make ci-kapi-react` (single source of truth).
-      - name: Typecheck + validate + test + build kapi-format and kapi-react
-        run: make ci-kapi-react
+      # Job body lives in `make ci-i18n-react` (single source of truth).
+      - name: Typecheck + validate + test + build kapi-format and neokapi-i18n
+        run: make ci-i18n-react
 
   # ── Go tests (parallel per module) ────────────────────────────────────────
   test-framework:

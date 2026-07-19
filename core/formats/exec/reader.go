@@ -7,7 +7,7 @@
 //	format:
 //	  name: exec
 //	  config:
-//	    command: "vp kapi-react extract --stream"
+//	    command: "vp neokapi-i18n extract --stream"
 //
 // A flow runs the declared command once per collection with every
 // matched file path on stdin and streams the emitted blocks through

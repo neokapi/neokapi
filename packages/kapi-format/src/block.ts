@@ -2,7 +2,7 @@
  * @neokapi/kapi-format — canonical extraction/translation-unit schema.
  *
  * Defines the in-memory shape of translatable content shared between
- * @neokapi/kapi-react (TS), neokapi (Go), and CAT-tool adapters. Field
+ * @neokapi/i18n-react (TS), neokapi (Go), and CAT-tool adapters. Field
  * names match what the Go port in neokapi's core/model/ will use
  * so codegen / hand-port is mechanical.
  *
@@ -29,7 +29,7 @@
  *     appears in Blocks that actually contain a plural or select.
  *     Simple blocks have perfectly flat `Run[]` with no recursion.
  *
- * THE RULE: neokapi-react extracts Blocks. kapi / neokapi stores,
+ * THE RULE: neoneokapi-i18n extracts Blocks. kapi / neokapi stores,
  * processes, and renders them. Runs are the wire-level content
  * representation; internal processing is free to materialize a
  * coded-string form with PUA markers on demand for hot-path text

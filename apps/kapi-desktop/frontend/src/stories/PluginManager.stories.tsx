@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState, useCallback } from "react";
 import { Download, RefreshCw, Search, Package, Loader2, CheckCircle2, Trash2 } from "lucide-react";
 import { Button, Badge, Card, Input } from "@neokapi/ui-primitives";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { PluginManager } from "../components/PluginManager";
 
 interface Plugin {

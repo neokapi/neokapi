@@ -12,11 +12,11 @@ jobs:
       - uses: ./.github/actions/setup-node-ui
 
       # The web app bundles @neokapi/ui → @neokapi/ui-primitives and
-      # @neokapi/status-views, which import @neokapi/kapi-react/runtime (a
+      # @neokapi/status-views, which import @neokapi/i18n-react/runtime (a
       # built ./dist subpath export). Build it first so the web vite build
       # resolves the import.
-      - name: Build @neokapi/kapi-react
-        working-directory: packages/kapi-react
+      - name: Build @neokapi/i18n-react
+        working-directory: packages/i18n-react
         run: vp run build
 
       - name: Build web app

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, DragEvent, useMemo, Fragment } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import {
   Plus,
   FileText,
@@ -944,7 +944,7 @@ export function CollectionsPanel({
                   },
                 })
               }
-              placeholder="vp kapi-react extract --stream"
+              placeholder="vp neokapi-i18n extract --stream"
               className="w-full rounded-md border border-input bg-background px-2 py-1 font-mono text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
             <p className="mt-0.5 text-xs text-muted-foreground">

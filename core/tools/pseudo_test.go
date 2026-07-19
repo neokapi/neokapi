@@ -165,7 +165,7 @@ func linkRuns() []model.Run {
 }
 
 // placeholderRuns builds the Run sequence for "{count} items found"
-// with count as an inline placeholder — mirrors what kapi-react's
+// with count as an inline placeholder — mirrors what neokapi-i18n's
 // extractor emits for `<span>{count} items found</span>`.
 func placeholderRuns() []model.Run {
 	return []model.Run{

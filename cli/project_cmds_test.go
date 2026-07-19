@@ -123,17 +123,17 @@ func TestInitCmd_framework(t *testing.T) {
 	assert.Equal(t, "lib/l10n/app_{lang}.arb", items[0].Target)
 }
 
-func TestInitCmd_frameworkKapiReactRejected(t *testing.T) {
+func TestInitCmd_frameworkNeokapiI18nRejected(t *testing.T) {
 	app := newAppForTest(t)
 	dir := t.TempDir()
 
 	cmd := NewInitCmd(app)
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(&bytes.Buffer{})
-	cmd.SetArgs([]string{"--dir", dir, "--framework", "kapi-react"})
+	cmd.SetArgs([]string{"--dir", dir, "--framework", "neokapi-i18n"})
 	err := cmd.Execute()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "kapi-react")
+	assert.Contains(t, err.Error(), "neokapi-i18n")
 	// No recipe should have been written.
 	_, statErr := os.Stat(filepath.Join(dir, filepath.Base(dir)+".kapi"))
 	assert.True(t, os.IsNotExist(statErr))

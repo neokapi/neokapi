@@ -1,8 +1,8 @@
 ---
 sidebar_position: 3
 title: Writing Translatable React Components
-description: How to write React components for kapi-react extraction — what the plugin picks up automatically, which patterns require t(), how inline elements become paired markers, and what to avoid.
-keywords: [React components, JSX extraction, translatable, kapi-react, inline markers, componentMap, i18n patterns]
+description: How to write React components for neokapi-i18n extraction — what the plugin picks up automatically, which patterns require t(), how inline elements become paired markers, and what to avoid.
+keywords: [React components, JSX extraction, translatable, neokapi-i18n, inline markers, componentMap, i18n patterns]
 ---
 
 # Writing translatable components
@@ -84,7 +84,7 @@ Unmapped React components with children are still treated as block-level by defa
 
 Strict W3C semantics would skip `<div>Hello</div>` — divs are classified as containers, not text. In real React codebases that's wrong: `<div>Label</div>`, `<section>Intro copy</section>` are everywhere.
 
-kapi-react **auto-promotes** container elements when they have:
+neokapi-i18n **auto-promotes** container elements when they have:
 
 1. At least one direct non-whitespace JSXText child, AND
 2. Only inline children (no nested block-level elements).
@@ -113,7 +113,7 @@ The fragment has no tag of its own, so its descriptor is the literal `fragment` 
 
 ### Unknown components
 
-Component libraries like shadcn, Radix, MUI, and your own internal components render to HTML but kapi-react can't know which one. By default, an unmapped React component with direct translatable text is extracted anyway, with a warning that suggests how to stabilise the hash:
+Component libraries like shadcn, Radix, MUI, and your own internal components render to HTML but neokapi-i18n can't know which one. By default, an unmapped React component with direct translatable text is extracted anyway, with a warning that suggests how to stabilise the hash:
 
 ```tsx
 <TabsTrigger value="general">General</TabsTrigger>
@@ -194,7 +194,7 @@ These render text-as-text, not natural language, so they're skipped:
 `<code>`, `<pre>`, `<kbd>`, `<var>`, `<samp>`, `<script>`, `<style>`, `<textarea>`.
 
 ```tsx
-<code>npm install @neokapi/kapi-react</code>    // ✗ not extracted
+<code>npm install @neokapi/i18n-react</code>    // ✗ not extracted
 <pre>{licenseText}</pre>                        // ✗ not extracted
 ```
 
@@ -213,7 +213,7 @@ Standard HTML — works on any element and its descendants:
 </section>
 ```
 
-Both the extractor and every lint rule in `@neokapi/kapi-react-lint` walk up the ancestor chain looking for `translate="no"`. A single marker at the top of a subtree silences everything inside — no need to sprinkle it on every element.
+Both the extractor and every lint rule in `@neokapi/i18n-react-lint` walk up the ancestor chain looking for `translate="no"`. A single marker at the top of a subtree silences everything inside — no need to sprinkle it on every element.
 
 `translate="no"` is also the right answer when you're intentionally rendering an already-translated value (see "Module-level `t()` gotcha" below), or when your content is code-like and shouldn't be flagged as missing translation.
 
@@ -279,7 +279,7 @@ Fix by wrapping the _source_ data with `t()` (same as "Strings in JS data struct
 <Button>{saving ? "Saving..." : "Save"}</Button>
 ```
 
-kapi-react treats the whole ternary as a single opaque placeholder — it never looks inside at the branches. Wrap each branch with `t()`:
+neokapi-i18n treats the whole ternary as a single opaque placeholder — it never looks inside at the branches. Wrap each branch with `t()`:
 
 ```tsx
 <Button>{saving ? t("Saving...") : t("Save")}</Button>

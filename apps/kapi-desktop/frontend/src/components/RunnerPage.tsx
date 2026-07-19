@@ -24,7 +24,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@neokapi/ui-primitives";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import type { FlowSpec, KapiProject } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useJobFeed, type RunEvent } from "../context/JobFeedContext";

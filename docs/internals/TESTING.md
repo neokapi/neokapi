@@ -266,17 +266,17 @@ vp run e2e:recordings    # requires Docker backend
 
 **Configuration:** `playwright.config.ts` — connects to the real backend (defaults to `http://localhost:8080`, overridable via `BOWRAIN_URL` env var). Tests authenticate via device auth flow, create workspaces/projects, seed TM entries and terminology, then capture screenshots in both `dark/` and `light/` subdirectories for the documentation site.
 
-#### kapi-react (`packages/kapi-react`)
+#### neokapi-i18n (`packages/i18n-react`)
 
-`@neokapi/kapi-react` is the React component library (the in-browser kapi
+`@neokapi/i18n-react` is the React component library (the in-browser kapi
 engine wrapper). It is tested with Vitest, not Playwright; specs live under
-`packages/kapi-react/tests/` and exercise the engine directly (extract,
+`packages/i18n-react/tests/` and exercise the engine directly (extract,
 transform, ICU plural roundtrip, hash parity, …).
 
 **Running:**
 
 ```bash
-cd packages/kapi-react
+cd packages/i18n-react
 vp test
 ```
 
@@ -302,7 +302,7 @@ The unit tests in `bowrain/packages/ui` are designed to be the **primary fast fe
 ```bash
 # Unit tests (fast, no infrastructure)
 cd packages/ui && vp test
-cd packages/kapi-react && vp test
+cd packages/i18n-react && vp test
 
 # E2E — Bowrain (mock API, no backend)
 cd bowrain/apps/bowrain/frontend && vpx playwright test

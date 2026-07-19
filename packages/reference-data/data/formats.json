@@ -953,7 +953,7 @@
           {
             "title": "Wrap a custom extractor",
             "description": "Declare an external command on a collection. `kapi extract` runs\nit once per collection, passing matched paths on stdin and reading\nNDJSON block records from stdout.\n",
-            "config": "format:\n  name: exec\n  config:\n    command: \"vp kapi-react extract --stream\"\n"
+            "config": "format:\n  name: exec\n  config:\n    command: \"vp neokapi-i18n extract --stream\"\n"
           }
         ]
       }

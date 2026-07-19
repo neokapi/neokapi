@@ -108,7 +108,7 @@ jobs:
       # are generated from the dataset above (plus the slug helper). Regenerate
       # them and fail if a committed page is stale — gen-reference-pages.ts needs
       # only the @neokapi/reference-data package resolvable, so vp install
-      # suffices (no kapi-react/wasm build).
+      # suffices (no i18n-react/wasm build).
       - uses: voidzero-dev/setup-vp@v1
         with:
           node-version: "22"

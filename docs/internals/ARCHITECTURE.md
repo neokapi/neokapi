@@ -144,7 +144,7 @@ neokapi/
 ├── packages/
 │   ├── ui/                          # @neokapi/ui-primitives — shadcn/ui primitives
 │   ├── flow-editor/                 # @neokapi/flow-editor — shared React flow editor
-│   ├── kapi-react/                  # @neokapi/kapi-react — React component library
+│   ├── i18n-react/                  # @neokapi/i18n-react — React component library
 │   └── …                            # docs-shared, kapi-playground, reference-data, …
 │
 │   ── Non-Go Assets ──

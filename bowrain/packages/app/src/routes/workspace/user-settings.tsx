@@ -57,7 +57,7 @@ function TelemetryCard({ optOut }: { optOut: TelemetryOptOut }) {
 
 /**
  * UI-language picker. Persists the choice per browser/app install (see
- * src/i18n.ts) and applies it live — the kapi-react store re-renders the tree
+ * src/i18n.ts) and applies it live — the neokapi-i18n store re-renders the tree
  * from BowrainApp's useNeokapi() subscription. The pseudo locale (qps) is
  * offered only in dev builds for layout/coverage QA.
  */

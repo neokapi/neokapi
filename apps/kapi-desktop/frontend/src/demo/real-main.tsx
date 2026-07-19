@@ -90,7 +90,7 @@ async function mount() {
   const lang = params.get("lang");
   if (lang && lang !== "en") {
     try {
-      const { loadTranslations } = await import("@neokapi/kapi-react/runtime");
+      const { loadTranslations } = await import("@neokapi/i18n-react/runtime");
       await loadTranslations(lang, `/translations/${lang}.json`);
     } catch {
       // Translations missing — record with source text.

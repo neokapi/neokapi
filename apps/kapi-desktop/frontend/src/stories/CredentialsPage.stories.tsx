@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState, useCallback } from "react";
 import { Plus, Trash2, TestTube, KeyRound, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Button, Badge, Card, Label, Input } from "@neokapi/ui-primitives";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { CredentialsPage } from "../components/CredentialsPage";
 
 const PROVIDER_TYPES = [

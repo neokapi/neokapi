@@ -18,7 +18,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@neokapi/ui-primitives";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import type { KapiProject, ProjectFilter } from "../types/api";
 import { useActiveFilter } from "../context/ActiveFilterContext";
 import { isEmptyFilter } from "../lib/filter";

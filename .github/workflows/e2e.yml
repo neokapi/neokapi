@@ -36,10 +36,10 @@ jobs:
       - uses: ./.github/actions/setup-node-ui
 
       # The Playwright dev WebServer bundles @neokapi/ui, which imports
-      # @neokapi/kapi-react/runtime (a built ./dist subpath export). Build it
+      # @neokapi/i18n-react/runtime (a built ./dist subpath export). Build it
       # first so the WebServer's vite build resolves the import.
-      - name: Build @neokapi/kapi-react
-        working-directory: packages/kapi-react
+      - name: Build @neokapi/i18n-react
+        working-directory: packages/i18n-react
         run: vp run build
 
       # Bindings are committed and already patched (sed fix for $0. bug).
@@ -156,10 +156,10 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # The keycloak theme bundles @neokapi/ui → @neokapi/kapi-react/runtime
-      # (dist-only export); build kapi-react first so its vite build resolves it.
-      - name: Build @neokapi/kapi-react
-        working-directory: packages/kapi-react
+      # The keycloak theme bundles @neokapi/ui → @neokapi/i18n-react/runtime
+      # (dist-only export); build neokapi-i18n first so its vite build resolves it.
+      - name: Build @neokapi/i18n-react
+        working-directory: packages/i18n-react
         run: vp run build
 
       - name: Build Keycloak theme

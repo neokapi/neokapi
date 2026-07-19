@@ -1,5 +1,5 @@
 /**
- * Pure Run encoders. No Node-specific deps so the kapi-react runtime
+ * Pure Run encoders. No Node-specific deps so the neokapi-i18n runtime
  * (browser) can pull these in without dragging any Node-only
  * toolchain into the bundle.
  */
@@ -7,7 +7,7 @@
 import type { Run } from "./block.ts";
 
 /**
- * Flatten a Run sequence to the string shape the kapi-react runtime
+ * Flatten a Run sequence to the string shape the neokapi-i18n runtime
  * consumes via `t()` and `tx()`: placeholders become `{equiv}`
  * tokens, paired codes keep their content with `{=<id>...}` markers
  * for `tx()` to re-attach elements, subblocks become `[equiv]`.

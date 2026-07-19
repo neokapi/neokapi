@@ -25,7 +25,7 @@ import {
   TooltipTrigger,
   parseAppError,
 } from "@neokapi/ui-primitives";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import type { ConvergePlan, ConvergenceReport, ProjectServer, UpPlanScope } from "../types/api";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";

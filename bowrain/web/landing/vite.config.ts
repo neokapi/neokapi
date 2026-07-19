@@ -2,7 +2,7 @@ import { defineConfig } from "vite-plus";
 import type { PluginOption } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import neokapi from "@neokapi/kapi-react/vite";
+import neokapi from "@neokapi/i18n-react/vite";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import localeMeta from "./locale-meta.json" with { type: "json" };
@@ -25,7 +25,7 @@ const buildStamp = `${new Date().toISOString().slice(0, 16).replace("T", " ")} U
 // ── Locale (dogfood l10n) ────────────────────────────────────────────────────
 // The landing ships as one static build per locale: English at the base path,
 // each target locale (currently nb) at <base>/<locale>/. LOCALE selects the
-// variant: the @neokapi/kapi-react plugin inlines the compiled catalog
+// variant: the @neokapi/i18n-react plugin inlines the compiled catalog
 // (translations/<locale>.json, committed + drift-gated via `make
 // l10n-landing`) into the JSX at build time — no i18n runtime ships. Missing
 // translations warn and fall back to English (target drift never blocks the

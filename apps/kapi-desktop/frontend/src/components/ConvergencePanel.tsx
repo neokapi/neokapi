@@ -7,7 +7,7 @@ import {
   ListCapRow,
   SimpleTooltip,
 } from "@neokapi/ui-primitives";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { Check, CheckCircle2, ClipboardCheck, Loader2, PlayCircle, RefreshCw } from "lucide-react";
 import { api } from "../hooks/useApi";
 import type {

@@ -24,7 +24,7 @@ import {
   ScrollArea,
   SimpleTooltip,
 } from "@neokapi/ui-primitives";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { VirtualList } from "@neokapi/editor-grid";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";

@@ -43,11 +43,11 @@ jobs:
       - name: Install workspace dependencies
         run: vp install
 
-      # landing/vite.config.ts imports @neokapi/kapi-react's vite plugin (a built
+      # landing/vite.config.ts imports @neokapi/i18n-react's vite plugin (a built
       # ./dist subpath export) — build it first so the config loads (mirrors
       # web-landing.yml / ci-frontend).
-      - name: Build kapi-react (landing vite plugin dependency)
-        run: cd packages/kapi-react && vp run build
+      - name: Build neokapi-i18n (landing vite plugin dependency)
+        run: cd packages/i18n-react && vp run build
 
       # English only for the apex production build. The nb variant (dist/nb/) is
       # a separate per-locale SPA root that the apex CloudFront router does not

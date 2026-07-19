@@ -1,6 +1,6 @@
 import { Menu, Moon, Sun, X } from "lucide-react";
 import { useState } from "react";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { GithubIcon } from "./GithubIcon";
 import { Logo } from "./Logo";
 import { APP_URL, GITHUB_URL, SIGNUP_URL, docsUrl } from "../links";

@@ -25,7 +25,7 @@ import {
   DialogFooter,
   cn,
 } from "@neokapi/ui-primitives";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   ProviderConfig,

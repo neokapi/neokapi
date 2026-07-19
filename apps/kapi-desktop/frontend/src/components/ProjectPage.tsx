@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { Globe, FileText, Workflow, Save, Loader2, Pencil } from "lucide-react";
 import { Button, Badge, Card, CardHeader, CardTitle, CardContent } from "@neokapi/ui-primitives";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import type { KapiProject, TabInfo } from "../types/api";
 import { isBareEntry, effectiveItems } from "../types/api";
 import { api } from "../hooks/useApi";

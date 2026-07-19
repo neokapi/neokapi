@@ -28,10 +28,10 @@ jobs:
       - uses: ./.github/actions/setup-node-ui
 
       # ctrl bundles @neokapi/ui → @neokapi/ui-primitives, which imports
-      # @neokapi/kapi-react/runtime (a built ./dist subpath export). Build it
+      # @neokapi/i18n-react/runtime (a built ./dist subpath export). Build it
       # first so the ctrl vite build resolves the import.
-      - name: Build @neokapi/kapi-react
-        working-directory: packages/kapi-react
+      - name: Build @neokapi/i18n-react
+        working-directory: packages/i18n-react
         run: vp run build
 
       # The ctrl SPA runs the admin OIDC flow in the browser and resolves the

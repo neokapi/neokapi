@@ -17,7 +17,7 @@ export function Hero() {
 
   // Hoisted inline links: keeping these as JSX-expression variables (rather
   // than inline elements split across prettier-wrapped lines with {" "}
-  // spacers) lets kapi-react extract the surrounding sentences as single
+  // spacers) lets neokapi-i18n extract the surrounding sentences as single
   // blocks with named {kapiLink}/{githubLink} placeholders.
   const kapiLink = (
     <a

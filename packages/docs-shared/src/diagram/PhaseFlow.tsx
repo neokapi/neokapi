@@ -5,14 +5,14 @@ import "./diagram.css";
 /*
   PhaseFlow — a vertical node flow whose edges carry a command/transform label,
   with an optional self-loop on a node. The uniform-style replacement for the
-  kapi-react "extract → translate (loop) → compile → split" diagram, where the
+  neokapi-i18n "extract → translate (loop) → compile → split" diagram, where the
   i18n/ stage loops while you accumulate locales in place.
 
       <PhaseFlow nodes={[
         { label: "Your source code" },
-        { label: "i18n/", sub: "KLF archive", edge: "kapi-react extract",
+        { label: "i18n/", sub: "KLF archive", edge: "neokapi-i18n extract",
           loop: ["kapi translate / pseudo / qa", "accumulate locales in place"] },
-        { label: "public/translations/{locale}.json", edge: "kapi-react compile" },
+        { label: "public/translations/{locale}.json", edge: "neokapi-i18n compile" },
       ]} />
 
   Pure SVG + CSS — light/dark with no JS, SSR-safe.

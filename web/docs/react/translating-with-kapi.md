@@ -1,13 +1,13 @@
 ---
 sidebar_position: 9
-title: Translating kapi-react Projects with kapi
-description: How to use the kapi CLI to translate a kapi-react KLF archive — pseudo-translation for QA, AI translation with Claude or GPT-4, and review and QA flows that write results back to the archive in place.
-keywords: [kapi, translate, KLF, pseudo-translate, AI translation, kapi-react, localization workflow]
+title: Translating neokapi-i18n Projects with kapi
+description: How to use the kapi CLI to translate a neokapi-i18n KLF archive — pseudo-translation for QA, AI translation with Claude or GPT-4, and review and QA flows that write results back to the archive in place.
+keywords: [kapi, translate, KLF, pseudo-translate, AI translation, neokapi-i18n, localization workflow]
 ---
 
 # Translating with `kapi`
 
-`kapi-react` produces a KLF directory archive. The `kapi` CLI translates it. This page walks through the three most useful flows.
+`neokapi-i18n` produces a KLF directory archive. The `kapi` CLI translates it. This page walks through the three most useful flows.
 
 ## Pseudo-translation for UI QA
 
@@ -25,10 +25,10 @@ Source `Welcome to Acme` becomes `[Ŵéḷçőḿé tő Âçmé]`:
 - **Brackets** mark start/end, so truncation is obvious (`Welcome to Ac…` never wraps to `[Ŵéḷç…`).
 - **Expansion** (adding 30–50% more characters) mimics German / French / Russian string growth so layout bugs surface before you ship.
 
-Then `kapi-react compile` it + load as any other locale:
+Then `neokapi-i18n compile` it + load as any other locale:
 
 ```bash
-kapi-react compile i18n/ --out public/translations
+neokapi-i18n compile i18n/ --out public/translations
 ```
 
 Your dev server now has a `qps` locale — wire a language picker and ship pseudo-translated screenshots to design review.
@@ -38,9 +38,9 @@ Your dev server now has a `qps` locale — wire a language picker and ship pseud
 Add it to CI as a UI-layout smoke test:
 
 ```yaml title=".github/workflows/ui-qa.yml"
-- run: vp kapi-react extract
+- run: vp neokapi-i18n extract
 - run: kapi pseudo-translate i18n/
-- run: vp kapi-react compile i18n/ --out public/translations
+- run: vp neokapi-i18n compile i18n/ --out public/translations
 - run: npm run test:e2e # runs against ?locale=qps
 ```
 
@@ -74,10 +74,10 @@ Where the element alone isn't enough to disambiguate — two buttons both readin
 
 ### Translate a subset
 
-For incremental translations (only the strings that changed), re-extract into the same archive and translate only the untranslated blocks. `kapi-react extract` is locale-additive, so re-running it adds new source blocks without disturbing existing targets; `translate --skip-matched` then skips any block that already has a target for the locale:
+For incremental translations (only the strings that changed), re-extract into the same archive and translate only the untranslated blocks. `neokapi-i18n extract` is locale-additive, so re-running it adds new source blocks without disturbing existing targets; `translate --skip-matched` then skips any block that already has a target for the locale:
 
 ```bash
-vp kapi-react extract                          # refresh i18n/ with new/changed blocks
+vp neokapi-i18n extract                          # refresh i18n/ with new/changed blocks
 kapi translate i18n/ --target-lang fr --skip-matched
 ```
 
@@ -139,10 +139,10 @@ A complete Makefile / package-scripts setup for a multi-locale app:
 ```json title="package.json"
 {
   "scripts": {
-    "i18n:extract": "vp kapi-react extract",
+    "i18n:extract": "vp neokapi-i18n extract",
     "i18n:pseudo": "kapi pseudo-translate i18n/",
     "i18n:ai": "for lang in fr de ja; do kapi translate i18n/ --target-lang $lang; done",
-    "i18n:compile": "vp kapi-react compile i18n/ --out public/translations"
+    "i18n:compile": "vp neokapi-i18n compile i18n/ --out public/translations"
   }
 }
 ```
@@ -160,9 +160,9 @@ and terminology across releases. Define a `translate` flow in the recipe (for ex
 ```json title="package.json"
 {
   "scripts": {
-    "i18n:extract": "vp kapi-react extract",
+    "i18n:extract": "vp neokapi-i18n extract",
     "i18n:translate": "kapi run translate",
-    "i18n:compile": "vp kapi-react compile i18n/ --out public/translations"
+    "i18n:compile": "vp neokapi-i18n compile i18n/ --out public/translations"
   }
 }
 ```
@@ -180,7 +180,7 @@ anything that breaks, the same author → check → revise loop you'd run by han
 > inline elements intact — then run QA and fix anything that fails."
 
 Claude translates in place (locale-additive), runs `kapi exec qa` / `kapi exec term-check`, and
-loops on the findings until the archive passes; you `kapi-react compile` the result as
+loops on the findings until the archive passes; you `neokapi-i18n compile` the result as
 usual. Nothing about your components changes — only the catalogue.
 
 See [Use with Claude](/kapi/get-started/use-with-claude) for the MCP setup and the

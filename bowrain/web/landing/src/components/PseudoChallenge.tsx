@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Play, ChevronRight, Shield, BarChart3, Globe } from "lucide-react";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 
 const PSEUDO_MAP: Record<string, string> = {
   a: "ä",

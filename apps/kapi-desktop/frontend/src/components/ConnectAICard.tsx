@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, KeyRound, Loader2, Sparkles } from "lucide-react";
 import { Button, ErrorNotice, Input, Label, cn } from "@neokapi/ui-primitives";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import type { AIDetectionResult, DetectedAIProvider } from "../types/api";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";

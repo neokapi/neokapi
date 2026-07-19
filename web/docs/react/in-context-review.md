@@ -2,7 +2,7 @@
 sidebar_position: 10
 title: In-Context Review
 description: Review and fix translations on the running React app — ALT+click any string to see its source and edit its target, with terminology and QA findings marked on the live text.
-keywords: [in-context review, translation review, live editing, QA, terminology, kapi-react]
+keywords: [in-context review, translation review, live editing, QA, terminology, neokapi-i18n]
 ---
 
 # In-context review
@@ -34,7 +34,7 @@ Hold **ALT** — hovering now outlines every translatable element. **ALT+click**
 
 Type a fix, save, and the app repaints immediately. You are not previewing the change; you are looking at it.
 
-The fix is written into the `.klf` file the string came from — so it shows up as a line in `git diff`, travels through review in a pull request like any other change, and is picked up by the next `kapi-react compile` with no extra step. A reviewer's edit takes exactly the same path as a translator's, because it is the same file.
+The fix is written into the `.klf` file the string came from — so it shows up as a line in `git diff`, travels through review in a pull request like any other change, and is picked up by the next `neokapi-i18n compile` with no extra step. A reviewer's edit takes exactly the same path as a translator's, because it is the same file.
 
 ## See terminology and QA on the page
 

@@ -1,5 +1,5 @@
 import { Check, Gift, Zap, Users, Building2 } from "lucide-react";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { CONTACT_EMAIL, SIGNUP_URL } from "../links";
 import { useReveal } from "../useReveal";
 

@@ -1,13 +1,13 @@
 ---
 sidebar_position: 10
-title: kapi-react Linting
-description: kapi-react-lint provides ESLint and oxlint rules that catch unextractable strings, unsafe patterns, and authoring mistakes before they reach the translator — with CI enforcement via --strict.
-keywords: [linting, kapi-react-lint, ESLint, oxlint, i18n lint rules, extraction, CI enforcement]
+title: neokapi-i18n Linting
+description: i18n-react-lint provides ESLint and oxlint rules that catch unextractable strings, unsafe patterns, and authoring mistakes before they reach the translator — with CI enforcement via --strict.
+keywords: [linting, i18n-react-lint, ESLint, oxlint, i18n lint rules, extraction, CI enforcement]
 ---
 
 # Linting
 
-kapi-react's build-time transform catches a lot, but some authoring mistakes only show up _after_ extraction (a `t(variable)` that can't be extracted, a label string hidden in a data array that the extractor never walks, a ternary that smuggles two literals past the JSX walker). `@neokapi/kapi-react-lint` gives you editor squigglies for those cases.
+neokapi-i18n's build-time transform catches a lot, but some authoring mistakes only show up _after_ extraction (a `t(variable)` that can't be extracted, a label string hidden in a data array that the extractor never walks, a ternary that smuggles two literals past the JSX walker). `@neokapi/i18n-react-lint` gives you editor squigglies for those cases.
 
 The same rule objects work under **ESLint** and **oxlint** — oxlint's plugin API is ESLint v9 compatible, so you install one plugin and wire it into whichever linter you already use. Oxlint is recommended for speed (typically 100–200ms on a few hundred files).
 
@@ -24,7 +24,7 @@ Keep the loudest layer (enforcement) off in day-to-day authoring, and turn it on
 ## Install
 
 ```bash
-vp install -D @neokapi/kapi-react-lint
+vp install -D @neokapi/i18n-react-lint
 ```
 
 ## Oxlint
@@ -33,22 +33,22 @@ Add to `.oxlintrc.json`:
 
 ```json
 {
-  "jsPlugins": ["@neokapi/kapi-react-lint/oxlint"],
+  "jsPlugins": ["@neokapi/i18n-react-lint/oxlint"],
   "rules": {
-    "kapi-react/t-literal-first-arg": "error",
-    "kapi-react/t-no-concat": "error",
-    "kapi-react/no-concat-in-translatable-attr": "error",
-    "kapi-react/no-ternary-in-translatable-attr": "error",
-    "kapi-react/no-ternary-literals-in-jsx-child": "error",
-    "kapi-react/no-string-literal-jsx-expr": "warn",
-    "kapi-react/prefer-t-for-label-expr": "warn"
+    "neokapi-i18n/t-literal-first-arg": "error",
+    "neokapi-i18n/t-no-concat": "error",
+    "neokapi-i18n/no-concat-in-translatable-attr": "error",
+    "neokapi-i18n/no-ternary-in-translatable-attr": "error",
+    "neokapi-i18n/no-ternary-literals-in-jsx-child": "error",
+    "neokapi-i18n/no-string-literal-jsx-expr": "warn",
+    "neokapi-i18n/prefer-t-for-label-expr": "warn"
   },
   "overrides": [
     {
       "files": ["src/stories/**"],
       "rules": {
-        "kapi-react/no-ternary-literals-in-jsx-child": "off",
-        "kapi-react/prefer-t-for-label-expr": "off"
+        "neokapi-i18n/no-ternary-literals-in-jsx-child": "off",
+        "neokapi-i18n/prefer-t-for-label-expr": "off"
       }
     }
   ]
@@ -60,7 +60,7 @@ The `overrides` block disables the two higher-FP rules for Storybook fixture fil
 ## ESLint (flat config)
 
 ```js title="eslint.config.js"
-import { recommended } from "@neokapi/kapi-react-lint/eslint";
+import { recommended } from "@neokapi/i18n-react-lint/eslint";
 
 export default [
   {
@@ -79,7 +79,7 @@ The shareable configs are `recommended` (safe defaults — the five core rules a
 
 ## The W3C `translate="no"` escape hatch
 
-All rules in this package respect `translate="no"` on the element itself **or any JSX ancestor**. The kapi-react extractor already honours it; the lint rules match those semantics.
+All rules in this package respect `translate="no"` on the element itself **or any JSX ancestor**. The neokapi-i18n extractor already honours it; the lint rules match those semantics.
 
 ```tsx
 // Rule fires — {meta.label} looks like user-visible copy.
@@ -131,7 +131,7 @@ t("Welcome {name}", { name: user.name });
 
 ### `no-concat-in-translatable-attr`
 
-Any attribute in kapi-react's translatable-attribute set (`alt`, `title`, `placeholder`, `aria-label`, `label`, `description`, `helpText`, …) must be a string literal or a literal with placeholders — not a runtime concat.
+Any attribute in neokapi-i18n's translatable-attribute set (`alt`, `title`, `placeholder`, `aria-label`, `label`, `description`, `helpText`, …) must be a string literal or a literal with placeholders — not a runtime concat.
 
 ```tsx
 // ✗ alt won't extract
@@ -143,7 +143,7 @@ Any attribute in kapi-react's translatable-attribute set (`alt`, `title`, `place
 
 ### `no-ternary-in-translatable-attr`
 
-Sibling of `no-concat-in-translatable-attr`. Flags translatable attributes whose value is a ternary with at least one _non-string-literal_ branch. The all-string-literal case (`title={cond ? "A" : "B"}`) is extracted by the kapi-react walker as two blocks — no warning. The mixed case is unextractable.
+Sibling of `no-concat-in-translatable-attr`. Flags translatable attributes whose value is a ternary with at least one _non-string-literal_ branch. The all-string-literal case (`title={cond ? "A" : "B"}`) is extracted by the neokapi-i18n walker as two blocks — no warning. The mixed case is unextractable.
 
 ```tsx
 // ✓ both branches are string literals — extractor handles them.
@@ -168,7 +168,7 @@ Catches the JSX-children counterpart of the attribute rule:
 <Button>{loading ? "Saving..." : "Save"}</Button>
 ```
 
-Why this slips through everything else: kapi-react's walker sees one `JSXExpressionContainer` and emits one `jsx:var` placeholder for it. It never looks inside at the branches — `"Saving..."` and `"Save"` are both invisible to extraction.
+Why this slips through everything else: neokapi-i18n's walker sees one `JSXExpressionContainer` and emits one `jsx:var` placeholder for it. It never looks inside at the branches — `"Saving..."` and `"Save"` are both invisible to extraction.
 
 Fix with `t()`:
 
@@ -211,7 +211,7 @@ Only fires on a narrow set of property names that _almost always_ name user-visi
 Customise via the `keys` option:
 
 ```json
-{ "rules": { "kapi-react/prefer-t-for-label-expr": ["warn", { "keys": ["label", "cta"] }] } }
+{ "rules": { "neokapi-i18n/prefer-t-for-label-expr": ["warn", { "keys": ["label", "cta"] }] } }
 ```
 
 Suppress false positives on a specific element with `translate="no"`:
@@ -245,7 +245,7 @@ const THEMES = [
 Only in the `recommendedStrict` preset by default because it can fire on internal-only data arrays. Same narrow key list as `prefer-t-for-label-expr`. Turn on individually:
 
 ```json
-{ "rules": { "kapi-react/prefer-t-for-label-props": "error" } }
+{ "rules": { "neokapi-i18n/prefer-t-for-label-props": "error" } }
 ```
 
 ### Module-level `t()` gotcha
@@ -285,7 +285,7 @@ Non-zero exit when any rule at severity `error` fires. Wire it alongside your ty
 **Extract CLI:**
 
 ```bash
-vpx kapi-react extract --strict
+vpx neokapi-i18n extract --strict
 ```
 
 Exits non-zero if the extractor recorded any warning (`unknown-component`, `ternary-attr-complex`, `dyn-label-splice`). Good for catching authoring issues the lint rules can't see from a single file.
@@ -293,7 +293,7 @@ Exits non-zero if the extractor recorded any warning (`unknown-component`, `tern
 **Plugin (build-time):**
 
 ```ts title="vite.config.ts"
-import neokapi from "@neokapi/kapi-react/vite";
+import neokapi from "@neokapi/i18n-react/vite";
 
 export default {
   plugins: [neokapi({ warningsAsErrors: process.env.CI === "true" })],
@@ -313,7 +313,7 @@ Stories, mocks, and fixtures don't usually warrant the same i18n rigor as shippe
 ```json title="package.json"
 {
   "scripts": {
-    "extract": "vpx kapi-react extract --out i18n/ --ignore 'src/stories/**' --ignore '**/*.test.tsx'"
+    "extract": "vpx neokapi-i18n extract --out i18n/ --ignore 'src/stories/**' --ignore '**/*.test.tsx'"
   }
 }
 ```

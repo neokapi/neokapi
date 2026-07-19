@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { X } from "lucide-react";
 import { Button, SimpleTooltip } from "@neokapi/ui-primitives";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import type { TabInfo } from "../types/api";
 
 interface TabBarProps {

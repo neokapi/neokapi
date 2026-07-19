@@ -61,7 +61,7 @@ async function shot(browser: Browser, url: string, out: string, w: number, h: nu
   const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2 });
   try {
     await page.goto(url, { waitUntil: "networkidle", timeout: 30_000 }).catch(() => page.goto(url, { timeout: 30_000 }));
-    // settleMs lets client-side work finish — e.g. a kapi-react runtime locale
+    // settleMs lets client-side work finish — e.g. a neokapi-i18n runtime locale
     // swap (fetch /translations/<lang>.json, then re-render) before the shot.
     await page.waitForTimeout(settleMs);
     await page.screenshot({ path: out });
@@ -156,7 +156,7 @@ async function captureOne(
         spec.reportTitle ?? path.basename(spec.path ?? ""),
         spec.reportSub ?? "",
         "Before — plain JSX",
-        "After — kapi-react",
+        "After — neokapi-i18n",
       );
       const tmpHtml = path.join(artDir, `${spec.id}.html`);
       fs.writeFileSync(tmpHtml, html);

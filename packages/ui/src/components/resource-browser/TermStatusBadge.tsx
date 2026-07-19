@@ -1,4 +1,4 @@
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 interface TermStatusBadgeProps {
   status: string;
   className?: string;

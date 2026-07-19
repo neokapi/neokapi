@@ -1,8 +1,8 @@
 ---
 sidebar_position: 5
 title: Plurals and Select
-description: Count-aware and choice-based text in kapi-react — author plural forms and select expressions as React components (Plural, Zero, One, Other) without writing raw ICU strings.
-keywords: [plurals, select, Plural component, ICU, i18n, kapi-react, count-aware, React i18n]
+description: Count-aware and choice-based text in neokapi-i18n — author plural forms and select expressions as React components (Plural, Zero, One, Other) without writing raw ICU strings.
+keywords: [plurals, select, Plural component, ICU, i18n, neokapi-i18n, count-aware, React i18n]
 ---
 
 import { PluralSelectExplorer } from "@site/src/components/react/PluralSelectExplorer";
@@ -14,7 +14,7 @@ Count-aware and choice-based text, authored in React with per-form children. No 
 ## Plurals — the authoring form
 
 ```tsx
-import { Plural, Zero, One, Two, Few, Many, Other } from "@neokapi/kapi-react/runtime";
+import { Plural, Zero, One, Two, Few, Many, Other } from "@neokapi/i18n-react/runtime";
 
 <p>
   <Plural count={n}>
@@ -30,7 +30,7 @@ At render time, `<Plural>` consults `Intl.PluralRules` for the active locale and
 ## Select — choice-based text
 
 ```tsx
-import { Select, Case, Other } from "@neokapi/kapi-react/runtime";
+import { Select, Case, Other } from "@neokapi/i18n-react/runtime";
 
 <p>
   <Select value={role}>
@@ -52,7 +52,7 @@ Traditional i18n libraries express plurals as a single ICU message:
 {count, plural, zero {No messages} one {1 message} other {# messages}}
 ```
 
-That works, but mixes the source-language forms into an opaque string literal. kapi-react keeps each form as a JSX child so:
+That works, but mixes the source-language forms into an opaque string literal. neokapi-i18n keeps each form as a JSX child so:
 
 - **Source readability** — the English forms look like English in source, translators see English in the extract.
 - **Inline elements per form** — you can write `<Other><strong>{n}</strong> items</Other>` with the strong tag preserved as a position token. ICU doesn't model that naturally.
@@ -121,7 +121,7 @@ const n = cart.items.length;
 
 Not every language needs plurals for every string. Italian uses the same form for 1 vs many in some constructs, Japanese has only one form, while German might want a count form where English didn't.
 
-kapi-react's editor UI (`<PluralTargetEditor>`, shipped with `@neokapi/ui-primitives`) lets translators **upgrade** a flat target into a per-form target without any source change. A translator's German target for `<p>You have {n} messages</p>` can become:
+neokapi-i18n's editor UI (`<PluralTargetEditor>`, shipped with `@neokapi/ui-primitives`) lets translators **upgrade** a flat target into a per-form target without any source change. A translator's German target for `<p>You have {n} messages</p>` can become:
 
 ```
 zero:  Keine Nachrichten

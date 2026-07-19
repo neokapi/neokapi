@@ -341,10 +341,10 @@ jobs:
       # Release gate: shared UI must type-check + pass unit tests (previously
       # run inside the GoReleaser job).
       - uses: ./.github/actions/setup-node-ui
-      # The shared UI imports @neokapi/kapi-react/runtime (a built ./dist subpath
-      # export, not committed), so build kapi-react before the type-check/tests.
-      - name: Build @neokapi/kapi-react
-        working-directory: packages/kapi-react
+      # The shared UI imports @neokapi/i18n-react/runtime (a built ./dist subpath
+      # export, not committed), so build neokapi-i18n before the type-check/tests.
+      - name: Build @neokapi/i18n-react
+        working-directory: packages/i18n-react
         run: vp run build
       - name: Type-check shared UI package
         working-directory: bowrain/packages/ui
@@ -874,10 +874,10 @@ jobs:
           wails3 generate bindings -f "-tags production,fts5 -trimpath -buildvcs=false -ldflags=\"${BUILD_LDFLAGS}\"" -clean=true
 
       # The kapi-desktop frontend's vite.config.ts imports
-      # @neokapi/kapi-react/vite, whose entry resolves to dist/plugin/vite.js.
-      # That dist tree is built (not committed), so build kapi-react first.
-      - name: Build @neokapi/kapi-react
-        working-directory: packages/kapi-react
+      # @neokapi/i18n-react/vite, whose entry resolves to dist/plugin/vite.js.
+      # That dist tree is built (not committed), so build neokapi-i18n first.
+      - name: Build @neokapi/i18n-react
+        working-directory: packages/i18n-react
         run: vp run build
 
       - name: Build Kapi Desktop frontend

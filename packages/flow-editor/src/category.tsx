@@ -6,7 +6,7 @@
 // for a whole category again. Hues are intentionally distinct per category but
 // warm-shifted to complement the Sandstone theme's earthy palette.
 
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import type { ToolCategory } from "./types";
 import {
   Languages,

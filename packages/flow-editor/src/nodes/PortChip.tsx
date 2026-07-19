@@ -3,7 +3,7 @@
 // (see ../portTypes), so the same chip reads consistently on nodes, edges, the
 // palette, the config panel, and the legend.
 
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { cn, SimpleTooltip } from "@neokapi/ui-primitives";
 import type { IOPort, Side } from "../types";
 import { getPortType } from "../portTypes";

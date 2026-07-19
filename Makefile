@@ -388,9 +388,9 @@ ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web f
 	# so the failure is an actionable one-liner rather than a puzzling TS2321.
 	bash scripts/audit-vite-alias.sh
 	# bowrain/packages/ui and bowrain/apps/web consume @neokapi/{ui,flow-editor},
-	# which import `@neokapi/kapi-react/runtime` (a built ./dist subpath export).
-	# Build kapi-react first so that subpath resolves (mirrors ci-kapi-desktop-frontend).
-	cd packages/kapi-react && vp run build
+	# which import `@neokapi/i18n-react/runtime` (a built ./dist subpath export).
+	# Build neokapi-i18n first so that subpath resolves (mirrors ci-kapi-desktop-frontend).
+	cd packages/i18n-react && vp run build
 	cd bowrain/packages/ui && vp check
 	cd bowrain/packages/ui && vp test
 	cd bowrain/apps/web && vp check
@@ -405,7 +405,7 @@ ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web f
 	node scripts/story-coverage.mjs || true
 
 ci-kapi-desktop-frontend: ## Mirror the CI `kapi-desktop` job's frontend half (Go backend test is a separate step)
-	cd packages/kapi-react && vp run build
+	cd packages/i18n-react && vp run build
 	cd packages/ui && vp check
 	cd packages/flow-editor && vp check
 	cd apps/kapi-desktop/frontend && vp check
@@ -414,18 +414,18 @@ ci-kapi-desktop-frontend: ## Mirror the CI `kapi-desktop` job's frontend half (G
 	cd storybook && vpx storybook build -o storybook-static
 
 ci-bowrain-desktop-frontend: ## Mirror the CI `bowrain-desktop` job's frontend half (Go backend test is a separate step)
-	# Build kapi-react first so its `/runtime` subpath export resolves for the
+	# Build neokapi-i18n first so its `/runtime` subpath export resolves for the
 	# @neokapi/{ui,flow-editor} components the desktop frontend pulls in.
-	cd packages/kapi-react && vp run build
+	cd packages/i18n-react && vp run build
 	cd bowrain/apps/bowrain/frontend && vp test
 
-ci-kapi-react: ## Mirror the CI `kapi-react` job: typecheck/validate/test/build kapi-format + kapi-react
+ci-i18n-react: ## Mirror the CI `neokapi-i18n` job: typecheck/validate/test/build kapi-format + neokapi-i18n
 	cd packages/kapi-format && vp run typecheck
 	cd packages/kapi-format && vp run validate
 	cd packages/kapi-format && vp run test
-	cd packages/kapi-react && vp run typecheck
-	cd packages/kapi-react && vp run test
-	cd packages/kapi-react && vp run build
+	cd packages/i18n-react && vp run typecheck
+	cd packages/i18n-react && vp run test
+	cd packages/i18n-react && vp run build
 
 ci-build: ## Mirror the CI `build` job: build all three binaries (no fts5) + assert module isolation
 	@mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html
@@ -995,20 +995,20 @@ kapi-desktop-frontend-test: kapi-desktop-frontend-deps ## Run Kapi Desktop front
 kapi-desktop-frontend-check: kapi-desktop-frontend-deps ## Lint + format + typecheck Kapi Desktop frontend
 	cd $(KAPI_DESKTOP_DIR)/frontend && vp check
 
-# Invoke the kapi-react CLI by its built entrypoint rather than `vpx kapi-react`,
+# Invoke the neokapi-i18n CLI by its built entrypoint rather than `vpx neokapi-i18n`,
 # which resolves the bin via the workspace and falls back to an npm fetch (404)
 # in a fresh CI checkout where the bin isn't linked. node-on-dist is environment
-# independent — it only needs the package built (the kapi-react-build prereq).
-KAPI_REACT_CLI := node $(CURDIR)/packages/kapi-react/dist/cli.js
+# independent — it only needs the package built (the i18n-react-build prereq).
+NEOKAPI_I18N_CLI := node $(CURDIR)/packages/i18n-react/dist/cli.js
 # Keep these globs in sync with the `extract` script in
 # apps/kapi-desktop/frontend/package.json.
 KAPI_DESKTOP_EXTRACT_SRC := --src "src/**/*.{tsx,jsx}" --src "../../../packages/ui/src/**/*.tsx" --src "../../../packages/flow-editor/src/**/*.tsx" --src "../../../packages/status-views/src/**/*.tsx" --ignore "src/stories/**" --ignore "../../../packages/*/src/stories/**" --ignore "../../../packages/*/src/__tests__/**"
 
-kapi-react-build: ## Build @neokapi/kapi-react (runtime + vite plugin + CLI) into dist/
-	cd packages/kapi-react && vp run build
+i18n-react-build: ## Build @neokapi/i18n-react (runtime + vite plugin + CLI) into dist/
+	cd packages/i18n-react && vp run build
 
-kapi-desktop-extract: kapi-desktop-frontend-deps kapi-react-build ## Extract translatable blocks to i18n/ (per-file .klf)
-	cd $(KAPI_DESKTOP_DIR)/frontend && $(KAPI_REACT_CLI) extract --out i18n/ --target-locale qps $(KAPI_DESKTOP_EXTRACT_SRC)
+kapi-desktop-extract: kapi-desktop-frontend-deps i18n-react-build ## Extract translatable blocks to i18n/ (per-file .klf)
+	cd $(KAPI_DESKTOP_DIR)/frontend && $(NEOKAPI_I18N_CLI) extract --out i18n/ --target-locale qps $(KAPI_DESKTOP_EXTRACT_SRC)
 
 kapi-desktop-pseudo-translate: kapi-desktop-extract bin/kapi ## Pseudo-translate i18n/ → i18n-qps/
 	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $(KAPI_DESKTOP_DIR)/frontend/i18n \
@@ -1016,27 +1016,27 @@ kapi-desktop-pseudo-translate: kapi-desktop-extract bin/kapi ## Pseudo-translate
 		-o $(KAPI_DESKTOP_DIR)/frontend/i18n-qps \
 		-q
 
-kapi-desktop-compile: kapi-react-build ## Compile i18n/ → public/translations/<locale>.json for the kapi-react runtime
-	cd $(KAPI_DESKTOP_DIR)/frontend && $(KAPI_REACT_CLI) compile i18n-qps/ --out public/translations
+kapi-desktop-compile: i18n-react-build ## Compile i18n/ → public/translations/<locale>.json for the neokapi-i18n runtime
+	cd $(KAPI_DESKTOP_DIR)/frontend && $(NEOKAPI_I18N_CLI) compile i18n-qps/ --out public/translations
 
 kapi-desktop-translations: kapi-desktop-pseudo-translate kapi-desktop-compile ## Extract → pseudo-translate → compile
 
 kapi-desktop-l10n-verify: kapi-desktop-translations ## CI gate: the desktop qps catalog regenerates byte-identically from source (a stale catalog would leak {=mN} placeholders in pseudo/translated UI)
 	git diff --exit-code $(KAPI_DESKTOP_DIR)/frontend/public/translations/qps.json
 
-# ── Bowrain app UIs (kapi-react) — mirrors the kapi-desktop family ──────────
+# ── Bowrain app UIs (neokapi-i18n) — mirrors the kapi-desktop family ──────────
 # One extraction per surface: bowrain-app (packages/app + packages/ui + the
 # web and desktop shells — they compile from the same i18n/ tree into each
 # shell's public/translations/), bowrain-ctrl and bowrain-pulse (standalone
 # admin apps, own src only; @neokapi/ui strings fall back to English there).
-# The componentMap lives in bowrain/packages/app/kapi-react.config.json and is
+# The componentMap lives in bowrain/packages/app/neokapi-i18n.config.json and is
 # shared by the extract CLI and every shell's vite transform so hashes match.
 BOWRAIN_APP_DIR := bowrain/packages/app
 BOWRAIN_UI_IGNORES := --ignore "**/*.stories.tsx" --ignore "**/*.test.tsx" --ignore "**/__tests__/**" --ignore "**/stories/**" --ignore "**/demo/**"
 BOWRAIN_APP_EXTRACT_SRC := --src "src/**/*.{tsx,jsx}" --src "../ui/src/**/*.tsx" --src "../../apps/web/src/**/*.tsx" --src "../../apps/bowrain/frontend/src/**/*.tsx" $(BOWRAIN_UI_IGNORES)
 
-bowrain-app-extract: kapi-react-build ## Extract bowrain app+ui+shell strings to bowrain/packages/app/i18n/ (per-file .klf)
-	cd $(BOWRAIN_APP_DIR) && $(KAPI_REACT_CLI) extract --config kapi-react.config.json --out i18n/ --target-locale qps $(BOWRAIN_APP_EXTRACT_SRC)
+bowrain-app-extract: i18n-react-build ## Extract bowrain app+ui+shell strings to bowrain/packages/app/i18n/ (per-file .klf)
+	cd $(BOWRAIN_APP_DIR) && $(NEOKAPI_I18N_CLI) extract --config neokapi-i18n.config.json --out i18n/ --target-locale qps $(BOWRAIN_APP_EXTRACT_SRC)
 
 bowrain-app-pseudo-translate: bowrain-app-extract bin/kapi ## Pseudo-translate bowrain app i18n/ → i18n-qps/
 	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $(BOWRAIN_APP_DIR)/i18n \
@@ -1044,17 +1044,17 @@ bowrain-app-pseudo-translate: bowrain-app-extract bin/kapi ## Pseudo-translate b
 		-o $(BOWRAIN_APP_DIR)/i18n-qps \
 		-q
 
-bowrain-app-compile: kapi-react-build ## Compile bowrain app i18n-qps/ → both shells' public/translations/
-	cd $(BOWRAIN_APP_DIR) && $(KAPI_REACT_CLI) compile i18n-qps/ --out ../../apps/web/public/translations
-	cd $(BOWRAIN_APP_DIR) && $(KAPI_REACT_CLI) compile i18n-qps/ --out ../../apps/bowrain/frontend/public/translations
+bowrain-app-compile: i18n-react-build ## Compile bowrain app i18n-qps/ → both shells' public/translations/
+	cd $(BOWRAIN_APP_DIR) && $(NEOKAPI_I18N_CLI) compile i18n-qps/ --out ../../apps/web/public/translations
+	cd $(BOWRAIN_APP_DIR) && $(NEOKAPI_I18N_CLI) compile i18n-qps/ --out ../../apps/bowrain/frontend/public/translations
 
 bowrain-app-translations: bowrain-app-pseudo-translate bowrain-app-compile ## Extract → pseudo-translate → compile (bowrain app)
 
 bowrain-app-l10n-verify: bowrain-app-translations ## CI gate: both bowrain app qps catalogs regenerate byte-identically from source
 	git diff --exit-code bowrain/apps/web/public/translations/qps.json bowrain/apps/bowrain/frontend/public/translations/qps.json
 
-bowrain-ctrl-extract: kapi-react-build ## Extract ctrl admin-app strings to bowrain/apps/ctrl/i18n/
-	cd bowrain/apps/ctrl && $(KAPI_REACT_CLI) extract --config ../../packages/app/kapi-react.config.json --out i18n/ --target-locale qps --src "src/**/*.{tsx,jsx}" $(BOWRAIN_UI_IGNORES)
+bowrain-ctrl-extract: i18n-react-build ## Extract ctrl admin-app strings to bowrain/apps/ctrl/i18n/
+	cd bowrain/apps/ctrl && $(NEOKAPI_I18N_CLI) extract --config ../../packages/app/neokapi-i18n.config.json --out i18n/ --target-locale qps --src "src/**/*.{tsx,jsx}" $(BOWRAIN_UI_IGNORES)
 
 bowrain-ctrl-pseudo-translate: bowrain-ctrl-extract bin/kapi ## Pseudo-translate ctrl i18n/ → i18n-qps/
 	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate bowrain/apps/ctrl/i18n \
@@ -1062,16 +1062,16 @@ bowrain-ctrl-pseudo-translate: bowrain-ctrl-extract bin/kapi ## Pseudo-translate
 		-o bowrain/apps/ctrl/i18n-qps \
 		-q
 
-bowrain-ctrl-compile: kapi-react-build ## Compile ctrl i18n-qps/ → public/translations/
-	cd bowrain/apps/ctrl && $(KAPI_REACT_CLI) compile i18n-qps/ --out public/translations
+bowrain-ctrl-compile: i18n-react-build ## Compile ctrl i18n-qps/ → public/translations/
+	cd bowrain/apps/ctrl && $(NEOKAPI_I18N_CLI) compile i18n-qps/ --out public/translations
 
 bowrain-ctrl-translations: bowrain-ctrl-pseudo-translate bowrain-ctrl-compile ## Extract → pseudo-translate → compile (ctrl)
 
 bowrain-ctrl-l10n-verify: bowrain-ctrl-translations ## CI gate: the ctrl qps catalog regenerates byte-identically from source
 	git diff --exit-code bowrain/apps/ctrl/public/translations/qps.json
 
-bowrain-pulse-extract: kapi-react-build ## Extract pulse dashboard strings to bowrain/apps/pulse/i18n/
-	cd bowrain/apps/pulse && $(KAPI_REACT_CLI) extract --config ../../packages/app/kapi-react.config.json --out i18n/ --target-locale qps --src "src/**/*.{tsx,jsx}" $(BOWRAIN_UI_IGNORES)
+bowrain-pulse-extract: i18n-react-build ## Extract pulse dashboard strings to bowrain/apps/pulse/i18n/
+	cd bowrain/apps/pulse && $(NEOKAPI_I18N_CLI) extract --config ../../packages/app/neokapi-i18n.config.json --out i18n/ --target-locale qps --src "src/**/*.{tsx,jsx}" $(BOWRAIN_UI_IGNORES)
 
 bowrain-pulse-pseudo-translate: bowrain-pulse-extract bin/kapi ## Pseudo-translate pulse i18n/ → i18n-qps/
 	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate bowrain/apps/pulse/i18n \
@@ -1079,8 +1079,8 @@ bowrain-pulse-pseudo-translate: bowrain-pulse-extract bin/kapi ## Pseudo-transla
 		-o bowrain/apps/pulse/i18n-qps \
 		-q
 
-bowrain-pulse-compile: kapi-react-build ## Compile pulse i18n-qps/ → public/translations/
-	cd bowrain/apps/pulse && $(KAPI_REACT_CLI) compile i18n-qps/ --out public/translations
+bowrain-pulse-compile: i18n-react-build ## Compile pulse i18n-qps/ → public/translations/
+	cd bowrain/apps/pulse && $(NEOKAPI_I18N_CLI) compile i18n-qps/ --out public/translations
 
 bowrain-pulse-translations: bowrain-pulse-pseudo-translate bowrain-pulse-compile ## Extract → pseudo-translate → compile (pulse)
 
@@ -1155,8 +1155,8 @@ l10n-bowrain-app: l10n-seed bowrain-app-extract ## Bowrain app UI strings → bo
 		./bin/kapi exec recycle $(BOWRAIN_APP_DIR)/i18n \
 			--target-lang $$lang \
 			-o $(BOWRAIN_APP_DIR)/i18n-$$lang || exit 1; \
-		(cd $(BOWRAIN_APP_DIR) && $(KAPI_REACT_CLI) compile i18n-$$lang/ --out ../../apps/web/public/translations --locale $$lang) || exit 1; \
-		(cd $(BOWRAIN_APP_DIR) && $(KAPI_REACT_CLI) compile i18n-$$lang/ --out ../../apps/bowrain/frontend/public/translations --locale $$lang) || exit 1; \
+		(cd $(BOWRAIN_APP_DIR) && $(NEOKAPI_I18N_CLI) compile i18n-$$lang/ --out ../../apps/web/public/translations --locale $$lang) || exit 1; \
+		(cd $(BOWRAIN_APP_DIR) && $(NEOKAPI_I18N_CLI) compile i18n-$$lang/ --out ../../apps/bowrain/frontend/public/translations --locale $$lang) || exit 1; \
 	done
 
 l10n-bowrain-ctrl: l10n-seed bowrain-ctrl-extract ## ctrl admin-app strings → public/translations/<lang>.json (TM-driven)
@@ -1164,7 +1164,7 @@ l10n-bowrain-ctrl: l10n-seed bowrain-ctrl-extract ## ctrl admin-app strings → 
 		./bin/kapi exec recycle bowrain/apps/ctrl/i18n \
 			--target-lang $$lang \
 			-o bowrain/apps/ctrl/i18n-$$lang || exit 1; \
-		(cd bowrain/apps/ctrl && $(KAPI_REACT_CLI) compile i18n-$$lang/ --out public/translations --locale $$lang) || exit 1; \
+		(cd bowrain/apps/ctrl && $(NEOKAPI_I18N_CLI) compile i18n-$$lang/ --out public/translations --locale $$lang) || exit 1; \
 	done
 
 l10n-bowrain-pulse: l10n-seed bowrain-pulse-extract ## pulse dashboard strings → public/translations/<lang>.json (TM-driven)
@@ -1172,7 +1172,7 @@ l10n-bowrain-pulse: l10n-seed bowrain-pulse-extract ## pulse dashboard strings �
 		./bin/kapi exec recycle bowrain/apps/pulse/i18n \
 			--target-lang $$lang \
 			-o bowrain/apps/pulse/i18n-$$lang || exit 1; \
-		(cd bowrain/apps/pulse && $(KAPI_REACT_CLI) compile i18n-$$lang/ --out public/translations --locale $$lang) || exit 1; \
+		(cd bowrain/apps/pulse && $(NEOKAPI_I18N_CLI) compile i18n-$$lang/ --out public/translations --locale $$lang) || exit 1; \
 	done
 
 kapi-cli-i18n-generate: ## Regenerate host/i18n/commands.json from the cobra command tree
@@ -1228,7 +1228,7 @@ l10n-bowrain-docs: l10n-seed ## bowrain docs site → bowrain/web/docs/i18n/<lan
 l10n: l10n-builtins l10n-desktop l10n-cli l10n-demos l10n-docs l10n-bowrain-docs l10n-bowrain-app l10n-bowrain-ctrl l10n-bowrain-pulse l10n-emails l10n-landing ## Rebuild all dogfood localization outputs from the l10n/ seeds
 
 # ── Transactional emails (bowrain/emails → bowrain/mailer) ──────────────────
-# kapi-react extraction over the React Email templates; qps via pseudo, nb via
+# neokapi-i18n extraction over the React Email templates; qps via pseudo, nb via
 # TM recycle from l10n/tm/emails-nb.klftm; compiled catalogs are inlined into
 # per-locale template renders (bowrain/mailer/templates/<lang>/*.html) and the
 # subject catalogs (bowrain/mailer/subjects/<lang>.json) — both committed and
@@ -1239,8 +1239,8 @@ KAPI_EMAILS_EXTRACT_SRC := --src "src/*.tsx" --ignore "src/*.stories.tsx" --igno
 emails-frontend-deps: ## Install email template dependencies
 	cd $(EMAILS_DIR) && vp install
 
-emails-extract: emails-frontend-deps kapi-react-build ## Extract translatable email blocks → bowrain/emails/i18n/ (per-file .klf)
-	cd $(EMAILS_DIR) && $(KAPI_REACT_CLI) extract --config kapi-react.config.json --out i18n/ --target-locale qps $(KAPI_EMAILS_EXTRACT_SRC)
+emails-extract: emails-frontend-deps i18n-react-build ## Extract translatable email blocks → bowrain/emails/i18n/ (per-file .klf)
+	cd $(EMAILS_DIR) && $(NEOKAPI_I18N_CLI) extract --config neokapi-i18n.config.json --out i18n/ --target-locale qps $(KAPI_EMAILS_EXTRACT_SRC)
 
 emails-pseudo-translate: emails-extract bin/kapi ## Pseudo-translate email strings + subjects → qps
 	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $(EMAILS_DIR)/i18n \
@@ -1261,9 +1261,9 @@ l10n-emails: l10n-seed emails-pseudo-translate ## Transactional emails → bowra
 		./bin/kapi exec recycle bowrain/mailer/subjects/en.json -f json \
 			--target-lang $$lang -o bowrain/mailer/subjects/$$lang.json || exit 1; \
 	done
-	cd $(EMAILS_DIR) && $(KAPI_REACT_CLI) compile i18n-qps/ --out translations
+	cd $(EMAILS_DIR) && $(NEOKAPI_I18N_CLI) compile i18n-qps/ --out translations
 	@for lang in $(L10N_LANGS); do \
-		(cd $(EMAILS_DIR) && $(KAPI_REACT_CLI) compile i18n-$$lang/ --out translations --locale $$lang) || exit 1; \
+		(cd $(EMAILS_DIR) && $(NEOKAPI_I18N_CLI) compile i18n-$$lang/ --out translations --locale $$lang) || exit 1; \
 	done
 	cd $(EMAILS_DIR) && vp run build
 
@@ -1271,7 +1271,7 @@ emails-l10n-verify: l10n-emails ## CI gate: rendered email templates + subject c
 	git diff --exit-code bowrain/mailer/templates bowrain/mailer/subjects
 
 # ── Landing page (bowrain/web/landing) ──────────────────────────────────────
-# kapi-react extraction over the landing SPA; compiled runtime catalogs
+# neokapi-i18n extraction over the landing SPA; compiled runtime catalogs
 # (translations/{qps,nb}.json) are committed so web-landing.yml can build the
 # nb variant (LOCALE=nb → dist/nb/, inline mode) without a kapi toolchain.
 # Keep the extract glob in sync with the `extract` script in
@@ -1281,8 +1281,8 @@ LANDING_DIR := bowrain/web/landing
 landing-frontend-deps: ## Install landing page dependencies
 	cd $(LANDING_DIR) && vp install
 
-landing-extract: landing-frontend-deps kapi-react-build ## Extract translatable landing blocks → bowrain/web/landing/i18n/
-	cd $(LANDING_DIR) && $(KAPI_REACT_CLI) extract --out i18n/ --target-locale qps --src "src/**/*.{tsx,jsx}"
+landing-extract: landing-frontend-deps i18n-react-build ## Extract translatable landing blocks → bowrain/web/landing/i18n/
+	cd $(LANDING_DIR) && $(NEOKAPI_I18N_CLI) extract --out i18n/ --target-locale qps --src "src/**/*.{tsx,jsx}"
 
 landing-pseudo-translate: landing-extract bin/kapi ## Pseudo-translate landing strings → i18n-qps/
 	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $(LANDING_DIR)/i18n \
@@ -1291,12 +1291,12 @@ landing-pseudo-translate: landing-extract bin/kapi ## Pseudo-translate landing s
 		-q
 
 l10n-landing: l10n-seed landing-pseudo-translate ## Landing page strings → bowrain/web/landing/translations/<lang>.json (TM-driven, committed)
-	cd $(LANDING_DIR) && $(KAPI_REACT_CLI) compile i18n-qps/ --out translations
+	cd $(LANDING_DIR) && $(NEOKAPI_I18N_CLI) compile i18n-qps/ --out translations
 	@for lang in $(L10N_LANGS); do \
 		./bin/kapi exec recycle $(LANDING_DIR)/i18n \
 			--target-lang $$lang \
 			-o $(LANDING_DIR)/i18n-$$lang || exit 1; \
-		(cd $(LANDING_DIR) && $(KAPI_REACT_CLI) compile i18n-$$lang/ --out translations --locale $$lang) || exit 1; \
+		(cd $(LANDING_DIR) && $(NEOKAPI_I18N_CLI) compile i18n-$$lang/ --out translations --locale $$lang) || exit 1; \
 	done
 
 landing-l10n-verify: l10n-landing ## CI gate: landing runtime catalogs regenerate byte-identically from source + seeds
@@ -2028,7 +2028,7 @@ help: ## Show this help
         bowrain-desktop-test \
         ci-test-framework ci-test-cli ci-test-kapi ci-test-platform \
         ci-test-bowrain ci-test-kapi-desktop ci-test-bowrain-desktop ci-test-all \
-        ci-frontend ci-kapi-desktop-frontend ci-bowrain-desktop-frontend ci-kapi-react ci-build ci-tidy \
+        ci-frontend ci-kapi-desktop-frontend ci-bowrain-desktop-frontend ci-i18n-react ci-build ci-tidy \
         verify-isolation audit-modules audit-vite-alias \
         build build-all build-server build-worker build-kapi-bowrain-plugin build-bowrain-plugin build-bowrain build-headless \
         plugin-bundle dev-skills \

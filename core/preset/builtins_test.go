@@ -6,7 +6,7 @@ func TestRegisterBuiltinsFrameworkPresets(t *testing.T) {
 	reg := NewPresetRegistry()
 	RegisterBuiltins(reg)
 
-	want := []string{"kapi-react", "react-i18next", "react-intl", "nextjs", "vue-i18n", "flutter", "angular"}
+	want := []string{"neokapi-i18n", "react-i18next", "react-intl", "nextjs", "vue-i18n", "flutter", "angular"}
 	for _, name := range want {
 		p := reg.GetFrameworkPreset(name)
 		if p == nil {
@@ -33,12 +33,12 @@ func TestRegisterBuiltinsFrameworkPresets(t *testing.T) {
 	}
 }
 
-func TestKapiReactPresetUsesKLF(t *testing.T) {
-	p := kapiReactPreset()
+func TestNeokapiI18nPresetUsesKLF(t *testing.T) {
+	p := neokapiI18nPreset()
 	if p.Mappings[0].Format != "klf" {
-		t.Errorf("kapi-react should extract to klf, got %q", p.Mappings[0].Format)
+		t.Errorf("neokapi-i18n should extract to klf, got %q", p.Mappings[0].Format)
 	}
-	if p.Detect[0] != "package.json:@neokapi/kapi-react" {
-		t.Errorf("kapi-react detect = %q", p.Detect[0])
+	if p.Detect[0] != "package.json:@neokapi/i18n-react" {
+		t.Errorf("neokapi-i18n detect = %q", p.Detect[0])
 	}
 }

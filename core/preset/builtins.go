@@ -4,18 +4,18 @@ package preset
 // (preset cannot import registry because registry transitively depends on preset).
 const sourceBuiltIn = "built-in"
 
-// KapiReactPresetName is the framework preset for projects using the
-// @neokapi/kapi-react stack. Its i18n is managed by the kapi-react bundler
-// plugin + `kapi-react extract|compile`, not by a `.kapi` content mapping —
+// NeokapiI18nPresetName is the framework preset for projects using the
+// @neokapi/i18n-react stack. Its i18n is managed by the neokapi-i18n bundler
+// plugin + `neokapi-i18n extract|compile`, not by a `.kapi` content mapping —
 // `kapi init --framework` handles it specially.
-const KapiReactPresetName = "kapi-react"
+const NeokapiI18nPresetName = "neokapi-i18n"
 
 // RegisterBuiltins registers built-in framework presets into the given registry.
 // Catalog-based presets carry recipe-ready mappings (source glob → target glob
 // with the `{lang}` placeholder), so `kapi init --framework <name>` can scaffold
 // a working content block directly.
 func RegisterBuiltins(reg *PresetRegistry) {
-	reg.RegisterFrameworkPreset(KapiReactPresetName, kapiReactPreset())
+	reg.RegisterFrameworkPreset(NeokapiI18nPresetName, neokapiI18nPreset())
 	reg.RegisterFrameworkPreset("react-i18next", reactI18nextPreset())
 	reg.RegisterFrameworkPreset("react-intl", reactIntlPreset())
 	reg.RegisterFrameworkPreset("nextjs", nextjsPreset())
@@ -24,15 +24,15 @@ func RegisterBuiltins(reg *PresetRegistry) {
 	reg.RegisterFrameworkPreset("angular", angularPreset())
 }
 
-// kapiReactPreset represents a React project using the @neokapi/kapi-react stack:
+// neokapiI18nPreset represents a React project using the @neokapi/i18n-react stack:
 // the bundler plugin extracts plain JSX to a KLF directory, kapi translates it,
-// and kapi-react compiles per-locale runtime dicts. Detection-oriented — the
-// mapping is informational (kapi-react owns the i18n/ directory).
-func kapiReactPreset() *FrameworkPreset {
+// and neokapi-i18n compiles per-locale runtime dicts. Detection-oriented — the
+// mapping is informational (neokapi-i18n owns the i18n/ directory).
+func neokapiI18nPreset() *FrameworkPreset {
 	return &FrameworkPreset{
-		Name:        KapiReactPresetName,
-		Description: "React with the @neokapi/kapi-react stack (zero-wrapper, KLF extraction)",
-		Detect:      []string{"package.json:@neokapi/kapi-react"},
+		Name:        NeokapiI18nPresetName,
+		Description: "React with the @neokapi/i18n-react stack (zero-wrapper, KLF extraction)",
+		Detect:      []string{"package.json:@neokapi/i18n-react"},
 		Mappings: []MappingTemplate{
 			{Local: "i18n/**/*.klf", Format: "klf", TargetPath: "i18n/**/*.klf"},
 		},

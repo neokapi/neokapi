@@ -40,7 +40,7 @@
   "a89e8Ych0Bb": "Målsti",
   "4oh7KX": "src/locales/{lang}/*.json",
   "ixPzAgHXRkq": "Uttrekkskommando",
-  "20IS6mG6fci": "vp kapi-react extract --stream",
+  "20IS6mG6fci": "vp neokapi-i18n extract --stream",
   "hq7ZdLIdzne": "`kapi extract -p` kjører denne kommandoen; NUL-separerte stier på stdin, NDJSON-blokker på stdout.",
   "4xOGP": "Formatforhåndsinnstilling",
   "25pjjn": "Standard",

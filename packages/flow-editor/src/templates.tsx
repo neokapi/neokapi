@@ -1,13 +1,13 @@
 // Built-in flow templates — common patterns for localization workflows.
 //
 // User-visible strings (template names, descriptions, step labels) are
-// declared as lazy `get` accessors wrapping `t()` from the kapi-react
+// declared as lazy `get` accessors wrapping `t()` from the neokapi-i18n
 // runtime. The accessor defers the dictionary lookup to property-access
 // time (i.e. render), so translations loaded after module evaluation
 // still apply. A plain `label: t("…")` at module scope would freeze the
 // source text before `loadTranslations()` resolves.
 
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import type { FlowSpec, ToolCategory } from "./types";
 
 export interface FlowTemplate {

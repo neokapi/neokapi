@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import type { SpanInfo } from "../../types/span";
 import { getDefaultRegistry } from "../../vocabularies";
 import { TagChipComponent } from "./TagChipComponent";

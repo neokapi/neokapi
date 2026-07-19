@@ -40,11 +40,11 @@ jobs:
       - name: Install workspace dependencies
         run: vp install
 
-      # landing/vite.config.ts imports @neokapi/kapi-react's vite plugin (i18n
+      # landing/vite.config.ts imports @neokapi/i18n-react's vite plugin (i18n
       # extraction transform), a built ./dist subpath export — build it first
       # so the config loads (mirrors ci-frontend / kapi-desktop-frontend).
-      - name: Build kapi-react (landing vite plugin dependency)
-        run: cd packages/kapi-react && vp run build
+      - name: Build neokapi-i18n (landing vite plugin dependency)
+        run: cd packages/i18n-react && vp run build
 
       - name: Determine VITE_BASE per environment
         id: base

@@ -125,7 +125,7 @@ content:
         format:
           name: exec
           config:
-            command: "vp kapi-react extract --stream"
+            command: "vp neokapi-i18n extract --stream"
         target: "i18n/{lang}.json"
       - path: "src/i18n/en/*.json"
         format: json
@@ -282,7 +282,7 @@ format reader used for each. Extracted blocks flow through the project's
 flow executor; persistent block state (hashes, per-locale targets,
 annotations) lives in the project's block store.
 
-For subprocess-based extractors (JSX via kapi-react, bespoke DSL walkers), the
+For subprocess-based extractors (JSX via neokapi-i18n, bespoke DSL walkers), the
 format is `exec`:
 
 ```yaml
@@ -291,7 +291,7 @@ items:
     format:
       name: exec
       config:
-        command: "vp kapi-react extract --stream"
+        command: "vp neokapi-i18n extract --stream"
 ```
 
 Kapi runs the declared command once per collection with every matched file

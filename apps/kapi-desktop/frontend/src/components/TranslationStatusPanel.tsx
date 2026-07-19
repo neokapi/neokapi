@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, CardContent, ErrorNotice } from "@neokapi/ui-primitives";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { Loader2, RefreshCw } from "lucide-react";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";

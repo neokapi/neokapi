@@ -18,14 +18,14 @@ tasks:
     cmds:
       - vp install
 
-  build:kapi-react:
+  build:neokapi-i18n:
     summary: >-
-      Build @neokapi/kapi-react. The frontend's vite.config.ts imports its
+      Build @neokapi/i18n-react. The frontend's vite.config.ts imports its
       ./vite plugin (dist/plugin/vite.js) and components import the /runtime
       subpath — both are generated (not committed), so the package must be built
       before the frontend can build. CI/release do this as a separate step; this
       keeps the wails build self-contained.
-    dir: ../../packages/kapi-react
+    dir: ../../packages/i18n-react
     deps:
       - task: install:frontend:deps
     sources:
@@ -46,7 +46,7 @@ tasks:
     generates:
       - dist/**/*
     deps:
-      - task: build:kapi-react
+      - task: build:neokapi-i18n
       - task: generate:bindings
         vars:
           BUILD_FLAGS:
@@ -88,7 +88,7 @@ tasks:
     summary: Runs the frontend in development mode
     dir: frontend
     deps:
-      - task: build:kapi-react
+      - task: build:neokapi-i18n
     cmds:
       - vp run dev -- --port {{.VITE_PORT}} --strictPort
 

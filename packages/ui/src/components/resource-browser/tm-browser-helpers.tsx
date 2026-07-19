@@ -1,4 +1,4 @@
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import type { Run } from "@neokapi/kapi-format";
 import { flattenRuns } from "@neokapi/kapi-format";
 import type {

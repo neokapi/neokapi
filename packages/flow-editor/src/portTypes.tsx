@@ -11,7 +11,7 @@
 // disambiguate within a family. Hues are chosen to sit clear of the category
 // rail hues in ./category.ts.
 
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import type { PortType } from "./types";
 import {
   AlignLeft,

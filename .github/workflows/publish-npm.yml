@@ -9,10 +9,10 @@ name: Publish npm packages
 #
 # Two ways to release (both run the same idempotent publish):
 #   - Push a scoped tag, mirroring the binary releases (`v*`) and the sat plugin
-#     (`sat-v*`): `kapi-react-vX.Y.Z`, `kapi-format-vX.Y.Z`, `contract-types-vX.Y.Z`,
+#     (`sat-v*`): `i18n-react-vX.Y.Z`, `kapi-format-vX.Y.Z`, `contract-types-vX.Y.Z`,
 #     or `engine-vX.Y.Z`. The tag version is verified against that package's
 #     package.json so a tag can't drift from what ships. Example:
-#     `git tag kapi-react-v1.0.1 && git push origin kapi-react-v1.0.1`.
+#     `git tag i18n-react-v1.0.1 && git push origin i18n-react-v1.0.1`.
 #   - Run the workflow manually (workflow_dispatch) as a fallback / re-run.
 #
 # First publish of a brand-new package must be bootstrapped once locally,
@@ -32,7 +32,7 @@ name: Publish npm packages
 on:
   push:
     tags:
-      - "kapi-react-v*"
+      - "i18n-react-v*"
       - "kapi-format-v*"
       - "contract-types-v*"
       - "engine-v*"
@@ -49,7 +49,7 @@ jobs:
       - uses: actions/checkout@v7
 
       # Install vp + vpx, mirroring the setup-node-ui composite the rest of CI
-      # uses. The kapi-format / kapi-react build.mjs shell out to `vpx` (e.g.
+      # uses. The kapi-format / neokapi-i18n build.mjs shell out to `vpx` (e.g.
       # `vpx tsc`), so it must be on PATH for the build step below.
       - uses: voidzero-dev/setup-vp@v1
         with:
@@ -92,7 +92,7 @@ jobs:
         run: |
           ref="$GITHUB_REF_NAME"
           case "$ref" in
-            kapi-react-v*)     pkg=packages/kapi-react;     expected="${ref#kapi-react-v}" ;;
+            i18n-react-v*)     pkg=packages/i18n-react;     expected="${ref#i18n-react-v}" ;;
             kapi-format-v*)    pkg=packages/kapi-format;    expected="${ref#kapi-format-v}" ;;
             contract-types-v*) pkg=packages/contract-types; expected="${ref#contract-types-v}" ;;
             engine-v*)         pkg=packages/engine;         expected="${ref#engine-v}" ;;
@@ -110,16 +110,16 @@ jobs:
           corepack enable
           corepack pnpm install --frozen-lockfile
 
-      # Build in dependency order: kapi-react consumes @neokapi/kapi-format and
+      # Build in dependency order: neokapi-i18n consumes @neokapi/kapi-format and
       # @neokapi/engine consumes @neokapi/contract-types.
       - name: Build packages
         run: |
           pnpm --filter @neokapi/kapi-format run build
-          pnpm --filter @neokapi/kapi-react run build
+          pnpm --filter @neokapi/i18n-react run build
           pnpm --filter @neokapi/contract-types run build
           pnpm --filter @neokapi/engine run build
 
-      # Publish in dependency order (kapi-format before kapi-react; contract-types
+      # Publish in dependency order (kapi-format before neokapi-i18n; contract-types
       # before engine). Skip a package whose current version is already on npm so
       # re-running the workflow is idempotent.
       #
@@ -159,6 +159,6 @@ jobs:
             npm publish "$RUNNER_TEMP/$tgz" --provenance --access public --@neokapi:registry=https://registry.npmjs.org/
           }
           publish_pkg packages/kapi-format    @neokapi/kapi-format
-          publish_pkg packages/kapi-react     @neokapi/kapi-react
+          publish_pkg packages/i18n-react     @neokapi/i18n-react
           publish_pkg packages/contract-types @neokapi/contract-types
           publish_pkg packages/engine         @neokapi/engine

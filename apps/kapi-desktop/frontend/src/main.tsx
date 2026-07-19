@@ -3,7 +3,7 @@ import "@fontsource-variable/jetbrains-mono";
 import "./index.css";
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { loadTranslations } from "@neokapi/kapi-react/runtime";
+import { loadTranslations } from "@neokapi/i18n-react/runtime";
 import App from "./App";
 import { api } from "./hooks/useApi";
 
@@ -19,7 +19,7 @@ import { api } from "./hooks/useApi";
 // and devtools refreshes keep the current pseudo config.
 async function wireDevPseudo() {
   if (!import.meta.env.DEV) return;
-  const { setPseudoMode, getPseudoMode } = await import("@neokapi/kapi-react/runtime/pseudo");
+  const { setPseudoMode, getPseudoMode } = await import("@neokapi/i18n-react/runtime/pseudo");
   const PERSIST_KEY = "kapi.dev.pseudo";
   const saved = localStorage.getItem(PERSIST_KEY);
   if (saved) {

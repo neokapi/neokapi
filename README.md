@@ -33,7 +33,7 @@ providers/                  AI + MT provider integrations
 cli/                        Shared CLI base (commands, output, config, credentials)
 kapi/                       Standalone CLI tool — github.com/neokapi/neokapi/kapi
 apps/kapi-desktop/          Wails v3 desktop app (Go + React/TS)
-packages/                   Apache-licensed npm workspaces (UI, kapi-react, docs-shared, ...)
+packages/                   Apache-licensed npm workspaces (UI, neokapi-i18n, docs-shared, ...)
 web/                   Docusaurus docs + landing home → /web/neokapi/
 storybook/                  Kapi Storybook (UI primitives + flow editor)
 bench/                      Benchmarks

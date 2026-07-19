@@ -163,7 +163,7 @@ var extSignals = []extSignal{
 	{id: "jvm", label: "Java properties bundles", exts: []string{".properties"}},
 	{id: "dotnet", label: ".NET resource files", exts: []string{".resx"}},
 	{id: "angular", label: "XLIFF catalogs", exts: []string{".xlf", ".xliff"}},
-	{id: "kapi-react", label: "KLF catalogs", exts: []string{".klf"}},
+	{id: "neokapi-i18n", label: "KLF catalogs", exts: []string{".klf"}},
 }
 
 // Generic locale-directory names: a directory with one of these exact segment

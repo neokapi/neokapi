@@ -9,7 +9,7 @@
     "./manager": "./src/manager.ts"
   },
   "peerDependencies": {
-    "@neokapi/kapi-react": "*",
+    "@neokapi/i18n-react": "*",
     "@storybook/addon-themes": "^10.3.6",
     "@storybook/react-vite": "^10.3.6",
     "@tailwindcss/vite": "^4.0.0",
@@ -19,7 +19,7 @@
     "storybook": "^10.3.1"
   },
   "peerDependenciesMeta": {
-    "@neokapi/kapi-react": {
+    "@neokapi/i18n-react": {
       "optional": true
     },
     "@tanstack/react-router": {

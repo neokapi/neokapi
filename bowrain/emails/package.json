@@ -13,7 +13,7 @@
     "react": "^19.2.7"
   },
   "devDependencies": {
-    "@neokapi/kapi-react": "*",
+    "@neokapi/i18n-react": "*",
     "@types/react": "^19.2.17",
     "esbuild": "^0.28.1",
     "react-email": "6.7.0",

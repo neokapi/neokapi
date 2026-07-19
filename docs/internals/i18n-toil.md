@@ -55,7 +55,7 @@ Score what the tooling enforces, not what a disciplined team could do.
 ### 2.1 W — Marking toil *(who ensures new strings enter the system?)*
 
 - **0** — Strings are localizable by default or compiler-detected; no wrapper
-  needed (SwiftUI `Text` literals; kapi-react plain JSX). Opting *out* is the
+  needed (SwiftUI `Text` literals; neokapi-i18n plain JSX). Opting *out* is the
   explicit act (`Text(verbatim:)`).
 - **1** — A wrapper is required but carries only the source text — no key
   invention (`_("Save changes")`, `t\`Save changes\``, `<Trans>`), **and** a
@@ -68,7 +68,7 @@ Score what the tooling enforces, not what a disciplined team could do.
 ### 2.2 X — Extraction toil *(how do strings get from code to catalog?)*
 
 - **0** — Extraction runs automatically on every build/compile; the catalog
-  cannot drift from the code (Xcode String Catalogs; kapi-react bundler
+  cannot drift from the code (Xcode String Catalogs; neokapi-i18n bundler
   plugin; Paraglide compile).
 - **1** — A one-command extractor exists and is wired into CI (xgettext /
   `lingui extract` / `ng extract-i18n`).
@@ -160,7 +160,7 @@ adjusts axes the same way any other tool does — by criteria, not by fiat:
 - **R** — `kapi pseudo-translate --target-lang qps` provides the pseudo-loc
   path; translate-QA gates validate placeholders/ICU before merge. R2 stacks
   typically land at R1; R1 stacks at R0.
-- **W, X, E** — kapi does not change these (except kapi-react, which is its
+- **W, X, E** — kapi does not change these (except neokapi-i18n, which is its
   own stack). A stack with no extractor still has no extractor; be honest
   about it.
 

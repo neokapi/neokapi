@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { RouterProvider, type RouterHistory } from "@tanstack/react-router";
 import { QueryClient } from "@tanstack/react-query";
-import { useNeokapi } from "@neokapi/kapi-react/runtime";
+import { useNeokapi } from "@neokapi/i18n-react/runtime";
 import { AnalyticsProvider, type ApiAdapter } from "@neokapi/ui";
 import { createBowrainRouter } from "./routes";
 import { applyUILocale, getStoredUILocale } from "./i18n";
@@ -45,7 +45,7 @@ export function BowrainApp({ api, platform, queryClient, history }: BowrainAppPr
   const [plat] = useState(() => platform ?? webPlatform());
   const [router] = useState(() => createBowrainRouter({ queryClient: qc, api }, { history }));
 
-  // Subscribe the root to kapi-react's translation store so the whole route
+  // Subscribe the root to neokapi-i18n's translation store so the whole route
   // tree re-renders when the dictionary changes (startup catalog load below,
   // or the user switching language in User Settings). Mirrors kapi-desktop.
   useNeokapi();

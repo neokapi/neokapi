@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@neokapi/ui-primitives";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { CheckCircle2, Hammer } from "lucide-react";
 import { TranslationStatusPanel, type ProjectStatus } from "./TranslationStatusPanel";
 import { ConvergencePanel } from "./ConvergencePanel";

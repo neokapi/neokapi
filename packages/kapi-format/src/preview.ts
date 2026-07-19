@@ -8,7 +8,7 @@
  * The purpose of having this in @neokapi/kapi-format is:
  *   1. Validate that Blocks carry enough info to render a preview
  *      without reading the original source.
- *   2. Give @neokapi/kapi-react's test suite a way to assert "the
+ *   2. Give @neokapi/i18n-react's test suite a way to assert "the
  *      extracted Block renders to exactly this HTML" without
  *      depending on neokapi's Go implementation.
  *   3. Give the Go-side `core/formats/jsx.PreviewBuilder`

@@ -1378,14 +1378,14 @@ export interface RecordOptions {
   /**
    * UI language for the recorded kapi-desktop app (default "en"; ignored for
    * the web/bowrain-desktop targets for now). How the app picks its locale
-   * (@neokapi/kapi-react runtime):
+   * (@neokapi/i18n-react runtime):
    *
    *   - the production entry (src/main.tsx) reads the persisted backend
    *     setting via api.getUILanguage() (wbridge: GetUILanguage, stored as
    *     `ui_language` in KAPI_DESKTOP_CONFIG_DIR/settings) and boots with
    *     loadTranslations(lang, `/translations/<lang>.json`);
    *   - the compiled dictionaries live in frontend/public/translations/
-   *     (currently only qps.json), produced by `vpx kapi-react compile`.
+   *     (currently only qps.json), produced by `vpx neokapi-i18n compile`.
    *
    * What this option does today (the recorder-side plumbing):
    *   1. persists the language on the recording backend via the wbridge
@@ -1398,7 +1398,7 @@ export interface RecordOptions {
    *     (mirroring `?theme=`) by calling
    *     loadTranslations(lang, `/translations/<lang>.json`), and
    *   - a compiled catalog for the locale must exist, e.g.
-   *     frontend/public/translations/nb.json (kapi-react extract + compile).
+   *     frontend/public/translations/nb.json (neokapi-i18n extract + compile).
    * Until both land, a localized pass records the English UI (the narration,
    * captions and published filenames are still fully localized).
    */

@@ -1,0 +1,9 @@
+{
+  "jsPlugins": ["@neokapi/i18n-react-lint/oxlint"],
+  "rules": {
+    "neokapi-i18n/t-literal-first-arg": "error",
+    "neokapi-i18n/t-no-concat": "error",
+    "neokapi-i18n/no-concat-in-translatable-attr": "error",
+    "neokapi-i18n/no-string-literal-jsx-expr": "warn"
+  }
+}

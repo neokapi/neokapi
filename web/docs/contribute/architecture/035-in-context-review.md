@@ -3,7 +3,7 @@ id: 035-in-context-review
 sidebar_position: 35
 title: "AD-035: In-Context Review"
 description: "Architecture decision: review translations on the running app — build-time DOM stamping maps pixels to block hashes, a dev-server middleware serves and writes back the local KLF tree, and a framework-free overlay paints terminology and QA findings with the CSS Custom Highlight API."
-keywords: [in-context review, live editing, DOM stamping, CSS Custom Highlight API, KLF write-back, terminology, QA, SSE, kapi-react, architecture decision, neokapi]
+keywords: [in-context review, live editing, DOM stamping, CSS Custom Highlight API, KLF write-back, terminology, QA, SSE, neokapi-i18n, architecture decision, neokapi]
 ---
 
 # AD-035: In-Context Review
@@ -143,7 +143,7 @@ are offsets into the same flat text the block already carries.
 
 ## Related
 
-- [AD-019: kapi-react extraction model](019-kapi-react.md) — the block
+- [AD-019: neokapi-i18n extraction model](019-i18n-react.md) — the block
   hashes, the transform, and the KLF the review tier reads and writes
 - [AD-002: Content Model](002-content-model.md) — stand-off overlays
   and run-anchored ranges, the shape the annotations arrive in

@@ -5,24 +5,24 @@ scores in [frameworks.yaml](frameworks.yaml)).
 
 | Stack | Grade | One-liner |
 |---|---|---|
-| **kapi-react** | **T0** | Plain JSX is the catalog; bundler extracts at build time. The greenfield default. |
+| **neokapi-i18n** | **T0** | Plain JSX is the catalog; bundler extracts at build time. The greenfield default. |
 | next-intl | T2 | The Next.js App Router standard; IDs + hand-authored catalogs, best RSC ergonomics. |
 | Lingui | T2 | Source-as-key macros + PO catalogs; lowest marking cost of the runtime libs. |
 | react-i18next | T2 | The incumbent; biggest ecosystem, key hygiene forever. |
 | next-i18next | T2 | Only for existing i18next investments on Next.js (v16 revived it). |
 | react-intl | **T3 — warn** | Maximum boilerplate + hash-ID churn; right only with an ICU/TMS mandate. |
 
-**Opinionated defaults:** greenfield React (Vite/webpack) → **kapi-react**.
-Next.js App Router with no i18n yet → **next-intl** (kapi-react works via the
+**Opinionated defaults:** greenfield React (Vite/webpack) → **neokapi-i18n**.
+Next.js App Router with no i18n yet → **next-intl** (neokapi-i18n works via the
 webpack hook, but next-intl is the ecosystem-native choice — offer both).
 Team wants source-as-key with a classic library → **Lingui**. Existing
 library already installed → keep it, install its recommended config below.
 Never convert a stack to a different key model in the same change as adoption.
 
-## Path A — adopt @neokapi/kapi-react (zero-wrapper, T0)
+## Path A — adopt @neokapi/i18n-react (zero-wrapper, T0)
 
 Write plain JSX; a bundler plugin extracts it at build time. See the
-[kapi-react quickstart](https://neokapi.github.io/web/neokapi/react/quickstart).
+[neokapi-i18n quickstart](https://neokapi.github.io/web/neokapi/react/quickstart).
 
 **Change as little as possible:**
 
@@ -40,35 +40,35 @@ Write plain JSX; a bundler plugin extracts it at build time. See the
   handful of non-JSX strings — nothing more. If you're rewriting component
   bodies, you're doing too much.
 
-The translation pipeline (step 5) is **CLI-driven** — `kapi-react` and `kapi`
+The translation pipeline (step 5) is **CLI-driven** — `neokapi-i18n` and `kapi`
 run on the source files; you don't need to build or run the app to translate,
 and there is **no `.kapi` project**, so project-scoped `kapi check --ship` does not
 apply — the readiness gate is `kapi pseudo-translate`. The npm install, bundler
 plugin, and runtime loader only wire compiled translations into the running
 app; add them as config and don't block translation on them.
 
-1. Install: `npm install -D @neokapi/kapi-react` (+ `kapi` CLI on PATH).
+1. Install: `npm install -D @neokapi/i18n-react` (+ `kapi` CLI on PATH).
 2. Bundler plugin (Vite shown; webpack/rollup/esbuild also exported):
    ```ts
-   import neokapi from "@neokapi/kapi-react/vite";
+   import neokapi from "@neokapi/i18n-react/vite";
    export default defineConfig({ plugins: [neokapi({ mode: "runtime" }), react()] });
    ```
 3. Scripts in `package.json`:
    ```json
    { "scripts": {
-       "extract": "kapi-react extract",
-       "compile": "kapi-react compile out/ --out public/translations"
+       "extract": "neokapi-i18n extract",
+       "compile": "neokapi-i18n compile out/ --out public/translations"
    } }
    ```
 4. **Run the linter to find the strings the extractor can't see.**
-   `@neokapi/kapi-react-lint` (oxlint or ESLint 8.57+/9/10) flags exactly the
+   `@neokapi/i18n-react-lint` (oxlint or ESLint 8.57+/9/10) flags exactly the
    escape-hatch cases: user-facing strings in data arrays (`{ title: 'Q3 plan' }`
    rendered as `{title}`), translatable attributes, bare `{'literal'}` JSX
    expressions. Use the **strict** preset for the adoption pass, autofix what it
    can, then wrap the rest in `t()`:
    ```jsonc
-   // .oxlintrc.json  → { "jsPlugins": ["@neokapi/kapi-react-lint/oxlint"], "rules": { … } }
-   // or eslint.config.js → import { recommendedStrict } from "@neokapi/kapi-react-lint/eslint";
+   // .oxlintrc.json  → { "jsPlugins": ["@neokapi/i18n-react-lint/oxlint"], "rules": { … } }
+   // or eslint.config.js → import { recommendedStrict } from "@neokapi/i18n-react-lint/eslint";
    ```
    ```bash
    npx oxlint --fix          # autofixes bare {'literal'} JSX; reports the rest
@@ -93,7 +93,7 @@ translated JSX must be a Client Component (`"use client"`). Add the plugin via
 the `webpack` hook:
 
 ```js
-import neokapi from "@neokapi/kapi-react/webpack";
+import neokapi from "@neokapi/i18n-react/webpack";
 export default { webpack: (config) => { config.plugins.push(neokapi({ mode: "runtime", translationsDir: "./public/translations" })); return config; } };
 ```
 
@@ -104,7 +104,7 @@ load (a flash of source language means the gate is missing):
 "use client";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { NeokapiProvider, loadTranslations } from "@neokapi/kapi-react/runtime";
+import { NeokapiProvider, loadTranslations } from "@neokapi/i18n-react/runtime";
 
 function Gate({ children }: { children: React.ReactNode }) {
   const lang = useSearchParams().get("lang") ?? "en";

@@ -102,7 +102,7 @@ parse-accuracy benchmark or enter a parsing leaderboard (PDF is an off-core plug
 | Builders editing structured files | the **Edit** wedge | `kapi inspect`/`kapi apply`, the format-aware toolbox |
 | AI / agent builders | kapi as an MCP tool / Agent Skill | use-with-Claude, the agent loop |
 | AI / RAG engineers | the **Parse** verb (`inspect`, anchored JSONL) | OSS mindshare |
-| Builders shipping in many languages | "and in every language" — it just works | the translate/TM/segmentation recipes, kapi-react i18n |
+| Builders shipping in many languages | "and in every language" — it just works | the translate/TM/segmentation recipes, neokapi-i18n i18n |
 
 Every destination is an open-source page on the project site. There is **no** sales funnel.
 
