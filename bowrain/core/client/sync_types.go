@@ -6,23 +6,33 @@ import "encoding/json"
 // Unlike BlockContent which only carries plain text, SyncBlock preserves structured
 // segments with inline spans, annotations, skeleton, display hints, and metadata.
 type SyncBlock struct {
-	ID                 string                   `json:"id"`
-	ItemName           string                   `json:"item_name"`
-	Name               string                   `json:"name"`
-	Type               string                   `json:"type,omitempty"`
-	MimeType           string                   `json:"mime_type,omitempty"`
-	Translatable       bool                     `json:"translatable"`
-	Source             []SyncSegment            `json:"source"`
-	SourceText         string                   `json:"source_text"`
-	Targets            map[string][]SyncSegment `json:"targets,omitempty"`
-	Properties         map[string]string        `json:"properties,omitempty"`
-	Annotations        json.RawMessage          `json:"annotations,omitempty"`
-	Skeleton           json.RawMessage          `json:"skeleton,omitempty"`
-	PreserveWhitespace bool                     `json:"preserve_whitespace,omitempty"`
-	DisplayHint        json.RawMessage          `json:"display_hint,omitempty"`
-	ContentRef         json.RawMessage          `json:"content_ref,omitempty"`
-	ConnectorData      map[string]string        `json:"connector_data,omitempty"`
-	ContentHash        string                   `json:"content_hash,omitempty"`
+	ID           string                   `json:"id"`
+	ItemName     string                   `json:"item_name"`
+	Name         string                   `json:"name"`
+	Type         string                   `json:"type,omitempty"`
+	MimeType     string                   `json:"mime_type,omitempty"`
+	Translatable bool                     `json:"translatable"`
+	SourceLocale string                   `json:"source_locale,omitempty"`
+	SourceStatus string                   `json:"source_status,omitempty"`
+	Source       []SyncSegment            `json:"source"`
+	SourceText   string                   `json:"source_text"`
+	Targets      map[string][]SyncSegment `json:"targets,omitempty"`
+	Properties   map[string]string        `json:"properties,omitempty"`
+	Annotations  json.RawMessage          `json:"annotations,omitempty"`
+	// Overlays are the block's positional, run-anchored stand-off layers
+	// (segmentation, term, entity, term-candidate, qa, alignment, plugin-defined),
+	// carried as the canonical overlay JSON (bowrain/core/sync.MarshalOverlays) so
+	// a term/entity/segmentation marked in kapi survives push→store→pull. A span's
+	// typed Value rides as a discriminated {"type","data"} envelope, matching the
+	// annotations blob above.
+	Overlays           json.RawMessage   `json:"overlays,omitempty"`
+	Skeleton           json.RawMessage   `json:"skeleton,omitempty"`
+	PreserveWhitespace bool              `json:"preserve_whitespace,omitempty"`
+	IsReferent         bool              `json:"is_referent,omitempty"`
+	DisplayHint        json.RawMessage   `json:"display_hint,omitempty"`
+	ContentRef         json.RawMessage   `json:"content_ref,omitempty"`
+	ConnectorData      map[string]string `json:"connector_data,omitempty"`
+	ContentHash        string            `json:"content_hash,omitempty"`
 }
 
 // SyncSegment represents a segment within a SyncBlock.
@@ -52,6 +62,7 @@ type SyncPlaceholderRun struct {
 	Data        string              `json:"data"`
 	Equiv       string              `json:"equiv"`
 	Disp        string              `json:"disp,omitempty"`
+	Attrs       map[string]string   `json:"attrs,omitempty"`
 	Constraints *SyncRunConstraints `json:"constraints,omitempty"`
 }
 
@@ -63,6 +74,7 @@ type SyncPcOpenRun struct {
 	Data        string              `json:"data"`
 	Equiv       string              `json:"equiv"`
 	Disp        string              `json:"disp,omitempty"`
+	Attrs       map[string]string   `json:"attrs,omitempty"`
 	Constraints *SyncRunConstraints `json:"constraints,omitempty"`
 }
 

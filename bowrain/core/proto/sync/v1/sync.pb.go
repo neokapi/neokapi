@@ -688,7 +688,23 @@ type SyncBlock struct {
 	// current hash differs (another client changed it).
 	ExpectedHash string `protobuf:"bytes,17,opt,name=expected_hash,json=expectedHash,proto3" json:"expected_hash,omitempty"`
 	// Content hash for diff computation.
-	ContentHash   string `protobuf:"bytes,18,opt,name=content_hash,json=contentHash,proto3" json:"content_hash,omitempty"`
+	ContentHash string `protobuf:"bytes,18,opt,name=content_hash,json=contentHash,proto3" json:"content_hash,omitempty"`
+	// Positional, run-anchored stand-off overlays: segmentation, term, entity,
+	// qa, alignment, term-candidate, and any plugin-defined type. Carried as the
+	// canonical OverlayMessage (core/proto/content/v1) — typed, not an opaque
+	// JSON blob — so every overlay kind, its run-index anchors, props, variant,
+	// and typed span value survive push→store→pull losslessly; an unknown/future
+	// overlay kind round-trips by type name + JSON (its value degrades to a
+	// GenericAnnotation) rather than being dropped. Unlike the content-model
+	// BlockMessage — which reconstructs segmentation from its multi-segment
+	// source/target boundaries and so EXCLUDES it from its overlays field — a
+	// SyncBlock carries source/target as a single wire segment, so segmentation
+	// rides in this list explicitly too.
+	Overlays []*v1.OverlayMessage `protobuf:"bytes,19,rep,name=overlays,proto3" json:"overlays,omitempty"`
+	// Source authoring locale — the locale of the source runs (Block.SourceLocale).
+	SourceLocale string `protobuf:"bytes,20,opt,name=source_locale,json=sourceLocale,proto3" json:"source_locale,omitempty"`
+	// Whether this block is referenced by a skeleton (Block.IsReferent).
+	IsReferent    bool `protobuf:"varint,21,opt,name=is_referent,json=isReferent,proto3" json:"is_referent,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -847,6 +863,27 @@ func (x *SyncBlock) GetContentHash() string {
 		return x.ContentHash
 	}
 	return ""
+}
+
+func (x *SyncBlock) GetOverlays() []*v1.OverlayMessage {
+	if x != nil {
+		return x.Overlays
+	}
+	return nil
+}
+
+func (x *SyncBlock) GetSourceLocale() string {
+	if x != nil {
+		return x.SourceLocale
+	}
+	return ""
+}
+
+func (x *SyncBlock) GetIsReferent() bool {
+	if x != nil {
+		return x.IsReferent
+	}
+	return false
 }
 
 // SyncSegmentList wraps a locale's segments so SyncBlock.targets can map
@@ -1650,7 +1687,7 @@ const file_bowrain_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	"\x05terms\x18\v \x03(\v2\x19.neokapi.sync.v1.SyncTermR\x05terms\x12;\n" +
 	"\n" +
 	"tm_entries\x18\f \x03(\v2\x1c.neokapi.sync.v1.SyncTMEntryR\ttmEntries\x120\n" +
-	"\x05media\x18\r \x03(\v2\x1a.neokapi.sync.v1.SyncMediaR\x05media\"\xe1\a\n" +
+	"\x05media\x18\r \x03(\v2\x1a.neokapi.sync.v1.SyncMediaR\x05media\"\xe7\b\n" +
 	"\tSyncBlock\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\titem_name\x18\x02 \x01(\tR\bitemName\x12\x12\n" +
@@ -1673,7 +1710,11 @@ const file_bowrain_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	"\x10content_ref_json\x18\x0f \x01(\fR\x0econtentRefJson\x12T\n" +
 	"\x0econnector_data\x18\x10 \x03(\v2-.neokapi.sync.v1.SyncBlock.ConnectorDataEntryR\rconnectorData\x12#\n" +
 	"\rexpected_hash\x18\x11 \x01(\tR\fexpectedHash\x12!\n" +
-	"\fcontent_hash\x18\x12 \x01(\tR\vcontentHash\x1a\\\n" +
+	"\fcontent_hash\x18\x12 \x01(\tR\vcontentHash\x12>\n" +
+	"\boverlays\x18\x13 \x03(\v2\".neokapi.content.v1.OverlayMessageR\boverlays\x12#\n" +
+	"\rsource_locale\x18\x14 \x01(\tR\fsourceLocale\x12\x1f\n" +
+	"\vis_referent\x18\x15 \x01(\bR\n" +
+	"isReferent\x1a\\\n" +
 	"\fTargetsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x126\n" +
 	"\x05value\x18\x02 \x01(\v2 .neokapi.sync.v1.SyncSegmentListR\x05value:\x028\x01\x1a=\n" +
@@ -1818,6 +1859,7 @@ var file_bowrain_core_proto_sync_v1_sync_proto_goTypes = []any{
 	nil,                          // 24: neokapi.sync.v1.SyncMedia.PropertiesEntry
 	nil,                          // 25: neokapi.sync.v1.SyncItemMeta.ConnectorDataEntry
 	(*v1.SegmentMessage)(nil),    // 26: neokapi.content.v1.SegmentMessage
+	(*v1.OverlayMessage)(nil),    // 27: neokapi.content.v1.OverlayMessage
 }
 var file_bowrain_core_proto_sync_v1_sync_proto_depIdxs = []int32{
 	16, // 0: neokapi.sync.v1.SyncPushInit.item_hashes:type_name -> neokapi.sync.v1.SyncPushInit.ItemHashesEntry
@@ -1833,22 +1875,23 @@ var file_bowrain_core_proto_sync_v1_sync_proto_depIdxs = []int32{
 	19, // 10: neokapi.sync.v1.SyncBlock.targets:type_name -> neokapi.sync.v1.SyncBlock.TargetsEntry
 	20, // 11: neokapi.sync.v1.SyncBlock.properties:type_name -> neokapi.sync.v1.SyncBlock.PropertiesEntry
 	21, // 12: neokapi.sync.v1.SyncBlock.connector_data:type_name -> neokapi.sync.v1.SyncBlock.ConnectorDataEntry
-	26, // 13: neokapi.sync.v1.SyncSegmentList.segments:type_name -> neokapi.content.v1.SegmentMessage
-	10, // 14: neokapi.sync.v1.SyncTerm.translations:type_name -> neokapi.sync.v1.SyncTermTranslation
-	22, // 15: neokapi.sync.v1.SyncTerm.properties:type_name -> neokapi.sync.v1.SyncTerm.PropertiesEntry
-	23, // 16: neokapi.sync.v1.SyncTMEntry.properties:type_name -> neokapi.sync.v1.SyncTMEntry.PropertiesEntry
-	24, // 17: neokapi.sync.v1.SyncMedia.properties:type_name -> neokapi.sync.v1.SyncMedia.PropertiesEntry
-	25, // 18: neokapi.sync.v1.SyncItemMeta.connector_data:type_name -> neokapi.sync.v1.SyncItemMeta.ConnectorDataEntry
-	7,  // 19: neokapi.sync.v1.SyncPullResponse.blocks:type_name -> neokapi.sync.v1.SyncBlock
-	9,  // 20: neokapi.sync.v1.SyncPullResponse.terms:type_name -> neokapi.sync.v1.SyncTerm
-	11, // 21: neokapi.sync.v1.SyncPullResponse.tm_entries:type_name -> neokapi.sync.v1.SyncTMEntry
-	12, // 22: neokapi.sync.v1.SyncPullResponse.media:type_name -> neokapi.sync.v1.SyncMedia
-	8,  // 23: neokapi.sync.v1.SyncBlock.TargetsEntry.value:type_name -> neokapi.sync.v1.SyncSegmentList
-	24, // [24:24] is the sub-list for method output_type
-	24, // [24:24] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	27, // 13: neokapi.sync.v1.SyncBlock.overlays:type_name -> neokapi.content.v1.OverlayMessage
+	26, // 14: neokapi.sync.v1.SyncSegmentList.segments:type_name -> neokapi.content.v1.SegmentMessage
+	10, // 15: neokapi.sync.v1.SyncTerm.translations:type_name -> neokapi.sync.v1.SyncTermTranslation
+	22, // 16: neokapi.sync.v1.SyncTerm.properties:type_name -> neokapi.sync.v1.SyncTerm.PropertiesEntry
+	23, // 17: neokapi.sync.v1.SyncTMEntry.properties:type_name -> neokapi.sync.v1.SyncTMEntry.PropertiesEntry
+	24, // 18: neokapi.sync.v1.SyncMedia.properties:type_name -> neokapi.sync.v1.SyncMedia.PropertiesEntry
+	25, // 19: neokapi.sync.v1.SyncItemMeta.connector_data:type_name -> neokapi.sync.v1.SyncItemMeta.ConnectorDataEntry
+	7,  // 20: neokapi.sync.v1.SyncPullResponse.blocks:type_name -> neokapi.sync.v1.SyncBlock
+	9,  // 21: neokapi.sync.v1.SyncPullResponse.terms:type_name -> neokapi.sync.v1.SyncTerm
+	11, // 22: neokapi.sync.v1.SyncPullResponse.tm_entries:type_name -> neokapi.sync.v1.SyncTMEntry
+	12, // 23: neokapi.sync.v1.SyncPullResponse.media:type_name -> neokapi.sync.v1.SyncMedia
+	8,  // 24: neokapi.sync.v1.SyncBlock.TargetsEntry.value:type_name -> neokapi.sync.v1.SyncSegmentList
+	25, // [25:25] is the sub-list for method output_type
+	25, // [25:25] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_bowrain_core_proto_sync_v1_sync_proto_init() }

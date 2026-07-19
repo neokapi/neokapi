@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -18,6 +19,7 @@ const (
 	propOriginTool   = "__origin_tool"
 	propOriginRef    = "__origin_reference"
 	propOriginTime   = "__origin_timestamp"
+	propOriginConf   = "__origin_confidence"
 )
 
 // StoredBlockToSyncBlock converts a StoredBlock to the JSON wire type.
@@ -30,8 +32,11 @@ func StoredBlockToSyncBlock(sb *store.StoredBlock) SyncBlock {
 		Type:               b.Type,
 		MimeType:           b.MimeType,
 		Translatable:       b.Translatable,
+		SourceLocale:       string(b.SourceLocale),
+		SourceStatus:       string(b.SourceStatus),
 		SourceText:         b.SourceText(),
 		PreserveWhitespace: b.PreserveWhitespace,
+		IsReferent:         b.IsReferent,
 		Properties:         b.Properties,
 		ContentHash:        sb.ContentHash,
 	}
@@ -64,10 +69,21 @@ func StoredBlockToSyncBlock(sb *store.StoredBlock) SyncBlock {
 		sync.Annotations = data
 	}
 
-	// Skeleton.
+	// Overlays — the positional, run-anchored stand-off layers. Carried via the
+	// canonical overlay JSON codec so a term/entity/segmentation marked in kapi
+	// survives the pull. Only emitted when present (nil/empty encode to "[]",
+	// which we drop to keep the wire lean).
+	if len(b.Overlays) > 0 {
+		if data, err := bowsync.MarshalOverlays(b.Overlays); err == nil {
+			sync.Overlays = data
+		}
+	}
+
+	// Skeleton (polymorphic parts ride a discriminated codec so they survive).
 	if b.Skeleton != nil {
-		data, _ := json.Marshal(b.Skeleton)
-		sync.Skeleton = data
+		if data, err := bowsync.MarshalSkeleton(b.Skeleton); err == nil {
+			sync.Skeleton = data
+		}
 	}
 
 	// Display hint.
@@ -141,6 +157,9 @@ func targetToWireSegment(t *model.Target) SyncSegment {
 	if t.Origin.Timestamp != "" {
 		props[propOriginTime] = t.Origin.Timestamp
 	}
+	if t.Origin.Confidence != 0 {
+		props[propOriginConf] = strconv.FormatFloat(t.Origin.Confidence, 'g', -1, 64)
+	}
 	if len(props) == 0 {
 		props = nil
 	}
@@ -156,6 +175,9 @@ func SyncBlockToBlock(sb SyncBlock) *model.Block {
 		MimeType:           sb.MimeType,
 		Translatable:       sb.Translatable,
 		PreserveWhitespace: sb.PreserveWhitespace,
+		IsReferent:         sb.IsReferent,
+		SourceLocale:       model.LocaleID(sb.SourceLocale),
+		SourceStatus:       model.SourceStatus(sb.SourceStatus),
 		Properties:         sb.Properties,
 	}
 
@@ -208,10 +230,20 @@ func SyncBlockToBlock(sb SyncBlock) *model.Block {
 		}
 	}
 
-	// Skeleton.
+	// Overlays — rehydrate the positional stand-off layers via the canonical
+	// overlay JSON codec (typed span values through the payload registry;
+	// unknown kinds degrade to a GenericAnnotation).
+	if len(sb.Overlays) > 0 {
+		if overlays, err := bowsync.UnmarshalOverlays(sb.Overlays); err == nil {
+			b.Overlays = overlays
+		}
+	}
+
+	// Skeleton (discriminated codec — see bowsync.MarshalSkeleton).
 	if len(sb.Skeleton) > 0 {
-		b.Skeleton = &model.Skeleton{}
-		_ = json.Unmarshal(sb.Skeleton, b.Skeleton)
+		if skel, err := bowsync.UnmarshalSkeleton(sb.Skeleton); err == nil {
+			b.Skeleton = skel
+		}
 	}
 
 	// Display hint.
@@ -250,6 +282,11 @@ func wireSegmentToTarget(runs []model.Run, first *SyncSegment) *model.Target {
 		Reference: props[propOriginRef],
 		Timestamp: props[propOriginTime],
 	}
+	if s := props[propOriginConf]; s != "" {
+		if v, err := strconv.ParseFloat(s, 64); err == nil {
+			t.Origin.Confidence = v
+		}
+	}
 	return t
 }
 
@@ -274,6 +311,7 @@ func (syncRunBuilder) Ph(p *model.PlaceholderRun) SyncRun {
 	return SyncRun{Ph: &SyncPlaceholderRun{
 		ID: p.ID, Type: p.Type, SubType: p.SubType,
 		Data: p.Data, Equiv: p.Equiv, Disp: p.Disp,
+		Attrs:       p.Attrs,
 		Constraints: modelRunConstraintsToSync(p.Constraints),
 	}}
 }
@@ -282,6 +320,7 @@ func (syncRunBuilder) PcOpen(p *model.PcOpenRun) SyncRun {
 	return SyncRun{PcOpen: &SyncPcOpenRun{
 		ID: p.ID, Type: p.Type, SubType: p.SubType,
 		Data: p.Data, Equiv: p.Equiv, Disp: p.Disp,
+		Attrs:       p.Attrs,
 		Constraints: modelRunConstraintsToSync(p.Constraints),
 	}}
 }
@@ -323,6 +362,7 @@ func (syncRunParser) Ph(r SyncRun) (*model.PlaceholderRun, bool) {
 		return &model.PlaceholderRun{
 			ID: r.Ph.ID, Type: r.Ph.Type, SubType: r.Ph.SubType,
 			Data: r.Ph.Data, Equiv: r.Ph.Equiv, Disp: r.Ph.Disp,
+			Attrs:       syncAttrsToModel(r.Ph.Attrs),
 			Constraints: syncRunConstraintsToModel(r.Ph.Constraints),
 		}, true
 	}
@@ -334,10 +374,21 @@ func (syncRunParser) PcOpen(r SyncRun) (*model.PcOpenRun, bool) {
 		return &model.PcOpenRun{
 			ID: r.PcOpen.ID, Type: r.PcOpen.Type, SubType: r.PcOpen.SubType,
 			Data: r.PcOpen.Data, Equiv: r.PcOpen.Equiv, Disp: r.PcOpen.Disp,
+			Attrs:       syncAttrsToModel(r.PcOpen.Attrs),
 			Constraints: syncRunConstraintsToModel(r.PcOpen.Constraints),
 		}, true
 	}
 	return nil, false
+}
+
+// syncAttrsToModel normalizes a decoded attrs map to the model's nil-when-empty
+// convention, matching the model's omitempty JSON semantics (nil and empty Attrs
+// are equivalent).
+func syncAttrsToModel(m map[string]string) map[string]string {
+	if len(m) == 0 {
+		return nil
+	}
+	return m
 }
 
 func (syncRunParser) PcClose(r SyncRun) (*model.PcCloseRun, bool) {
