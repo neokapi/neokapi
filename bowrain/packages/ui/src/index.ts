@@ -218,6 +218,7 @@ export type { ServerBlockInfo } from "./components/editor/blockRuns";
 export { PreProcessSurface } from "./components/PreProcessSurface";
 export { TranslationDashboard } from "./components/TranslationDashboard";
 export { ShipStateBadge, type ShipStateBadgeProps } from "./components/ShipStateBadge";
+export { ProjectTypeBadge, type ProjectTypeBadgeProps } from "./components/ProjectTypeBadge";
 export { OnBrandRateChip, type OnBrandRateChipProps } from "./components/OnBrandRateChip";
 export {
   DeliveryPanel,

@@ -265,6 +265,15 @@ export interface CreateStreamTagRequest {
 /** Collection kind */
 export type CollectionKind = "uploaded" | "connected";
 
+/**
+ * A collection's source of truth: "connected" (content synced from a connector,
+ * so the source is read-only) or "managed" (UI-native — uploads/edits/deletes
+ * allowed). The server folds the project-level source-connector signal into
+ * this, so a collection in a connector-sourced project is "connected" even when
+ * its own kind is "uploaded".
+ */
+export type CollectionOrigin = "connected" | "managed";
+
 /** Collection info */
 export interface CollectionInfo {
   id: string;
@@ -275,6 +284,12 @@ export interface CollectionInfo {
   is_default: boolean;
   stream?: string;
   connector_config?: Record<string, string>;
+  /** connector_config keys whose values were redacted server-side (secrets). */
+  connector_secret_keys?: string[];
+  /** Source-of-truth classification (see CollectionOrigin). */
+  origin?: CollectionOrigin;
+  /** Whether the UI may mutate this collection's source (upload/add/delete). */
+  editable?: boolean;
   item_count: number;
   created_at: string;
   updated_at: string;
@@ -303,6 +318,15 @@ export interface ArchivedProject {
   updated_at: string;
 }
 
+/**
+ * Project type: which side owns the project's source content.
+ *   - connected: content is connector-sourced (kapi push / GitHub App / git) —
+ *     the source is read-only in Bowrain; review and configuration still apply.
+ *   - managed: UI-native — Bowrain owns the source (uploads/edits/deletes ok).
+ *   - hybrid: a mix of connected and managed collections.
+ */
+export type ProjectType = "connected" | "managed" | "hybrid";
+
 /** Project info */
 export interface ProjectInfo {
   id: string;
@@ -324,6 +348,14 @@ export interface ProjectInfo {
   collections?: CollectionInfo[];
   streams?: StreamInfo[];
   active_stream?: string;
+  /**
+   * Project-type rollup over the collections' origins (detail response only):
+   * "connected" (all connector-sourced — read-only source), "managed"
+   * (UI-native — editable), or "hybrid" (a mix). Absent on the summary list.
+   */
+  type?: ProjectType;
+  /** Whether the UI may mutate the project's source (detail response only). */
+  editable?: boolean;
   /** Server-computed aggregates (summary + detail): total files in the project. */
   item_count?: number;
   /** Server-computed aggregates: total blocks (incl. non-translatable). */

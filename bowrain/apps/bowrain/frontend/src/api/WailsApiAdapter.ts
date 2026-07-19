@@ -1805,4 +1805,23 @@ export class WailsApiAdapter implements ApiAdapter {
   async getCollabSession(): Promise<CollabSessionInfo> {
     return Backend.GetCollabSession() as Promise<CollabSessionInfo>;
   }
+
+  // Back-to-source review (RV-F) — the source-proposal and entity-promotion
+  // flow — is a governed web/server surface. The desktop working copy does not
+  // host it, so these reject like the other server-only features above.
+  async createSourceProposal(): Promise<never> {
+    throw new Error("source proposals are not available in the desktop app");
+  }
+
+  async listSourceProposals(): Promise<never> {
+    throw new Error("source proposals are not available in the desktop app");
+  }
+
+  async decideSourceProposal(): Promise<never> {
+    throw new Error("source proposals are not available in the desktop app");
+  }
+
+  async promoteEntityToConcept(): Promise<never> {
+    throw new Error("entity-to-concept promotion is not available in the desktop app");
+  }
 }

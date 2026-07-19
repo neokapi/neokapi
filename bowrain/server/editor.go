@@ -145,6 +145,14 @@ type ProjectInfoResponse struct {
 	Collections           []CollectionResponse  `json:"collections,omitempty"`
 	Streams               []store.Stream        `json:"streams,omitempty"`
 	ActiveStream          string                `json:"active_stream,omitempty"`
+	// Type is the project-type rollup over its collections' origins plus the
+	// project-level source-connector signal: "connected" (all connector-sourced
+	// — read-only source), "managed" (UI-native — editable), or "hybrid" (a
+	// mix). Editable is the derived project-level gate. Both are filled by
+	// annotateProjectOrigin on the project-detail read; the summary list view
+	// leaves them empty.
+	Type     string `json:"type,omitempty"`
+	Editable bool   `json:"editable"`
 	// Precomputed aggregates so list consumers (dashboard cards, stats bar)
 	// never need the embedded arrays: total items, total blocks, translatable
 	// source words, and stream count. The workspace project list serves these

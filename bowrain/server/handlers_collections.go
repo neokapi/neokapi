@@ -29,8 +29,15 @@ type CollectionResponse struct {
 	// a secret is set from this list, not its value.
 	ConnectorSecretKeys []string `json:"connector_secret_keys,omitempty"`
 	ItemCount           int      `json:"item_count"`
-	CreatedAt           string   `json:"created_at"`
-	UpdatedAt           string   `json:"updated_at"`
+	// Origin classifies the collection's source of truth: "connected" (content
+	// synced from a connector — read-only source) or "managed" (UI-native, so
+	// uploads/edits/deletes are allowed). Editable is the derived gate the UI
+	// reads to hide/disable source-mutation affordances. Both fold in the
+	// project-level source-connector signal (see annotateProjectOrigin).
+	Origin     string `json:"origin"`
+	Editable   bool   `json:"editable"`
+	CreatedAt  string `json:"created_at"`
+	UpdatedAt  string `json:"updated_at"`
 }
 
 // CreateCollectionRequest is the request body for creating a collection.
@@ -44,6 +51,10 @@ type CreateCollectionRequest struct {
 
 func collectionToResponse(c *store.Collection) CollectionResponse {
 	cfg, secretKeys := redactConnectorConfig(c.ConnectorConfig)
+	origin := collectionOriginManaged
+	if collectionConnected(c) {
+		origin = collectionOriginConnected
+	}
 	return CollectionResponse{
 		ID:                  c.ID,
 		ProjectID:           c.ProjectID,
@@ -54,6 +65,8 @@ func collectionToResponse(c *store.Collection) CollectionResponse {
 		Stream:              c.Stream,
 		ConnectorConfig:     cfg,
 		ConnectorSecretKeys: secretKeys,
+		Origin:              origin,
+		Editable:            origin == collectionOriginManaged,
 		CreatedAt:           c.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:           c.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
@@ -142,6 +155,17 @@ func (s *Server) HandleListCollections(c echo.Context) error {
 	for i, coll := range colls {
 		result[i] = collectionToResponse(coll)
 		result[i].ItemCount = itemCounts[coll.ID]
+	}
+
+	// A project bound to a source connector (kapi push / GitHub App / git) makes
+	// every collection connector-sourced — read-only source — regardless of its
+	// own kind. Apply that project-level override to the origin/editable fields.
+	wsID, _ := c.Get("workspace_id").(string)
+	if s.projectHasSourceConnector(ctx, wsID, pid) {
+		for i := range result {
+			result[i].Origin = collectionOriginConnected
+			result[i].Editable = false
+		}
 	}
 
 	return c.JSON(http.StatusOK, result)
@@ -285,13 +309,15 @@ func (s *Server) HandleUploadToCollection(c echo.Context) error {
 	cid := c.Param("cid")
 	ctx := c.Request().Context()
 
-	// Verify collection exists and is uploaded kind.
+	// Verify collection exists, then refuse the upload if its source is
+	// connector-sourced — either this collection is connector-backed or the
+	// whole project is bound to a source connector (kapi push / GitHub App).
 	coll, err := s.ContentStore.GetCollection(ctx, pid, cid)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
-	if coll.Kind != store.CollectionUploaded {
-		return c.JSON(http.StatusConflict, ErrorResponse{Error: "cannot upload to a connected collection"})
+	if err := s.guardSourceMutation(c, pid, coll); err != nil {
+		return err
 	}
 
 	form, err := c.MultipartForm()
@@ -322,6 +348,8 @@ func (s *Server) HandleUploadToCollection(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
+	wsID, _ := c.Get("workspace_id").(string)
+	s.annotateProjectOrigin(ctx, wsID, info)
 	return c.JSON(http.StatusOK, info)
 }
 

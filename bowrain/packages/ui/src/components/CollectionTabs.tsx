@@ -34,7 +34,11 @@ export function CollectionTabs({
       <div className="flex items-center gap-0.5 rounded-lg bg-accent/30 p-0.5">
         {collections.map((coll) => {
           const isActive = coll.id === activeId;
-          const showActions = isActive && !coll.is_default;
+          // A connector-sourced collection is read-only: hide its edit/delete
+          // actions. `editable` folds in the project-level source-connector
+          // signal; fall back to the kind check for older responses.
+          const editable = coll.editable ?? coll.kind === "uploaded";
+          const showActions = isActive && !coll.is_default && editable;
           return (
             <div key={coll.id} className="flex items-center">
               <button
