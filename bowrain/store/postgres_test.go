@@ -990,3 +990,44 @@ func TestDefaultStream_ListProjects(t *testing.T) {
 	}
 	assert.True(t, found, "project should be in list")
 }
+
+// TestStoreBlocks_OverlaysRoundTrip proves a block's stand-off overlays
+// (segmentation incl. an ignorable span, entity, term, term-candidate, qa, and
+// a target-side alignment) survive a full StoreBlocks → GetBlock round-trip
+// through Postgres with run-index anchors intact — and the entity span's typed
+// Value rehydrates to the concrete *EntityAnnotation the entity→concept promote
+// path depends on. A block with no overlays round-trips as no overlays.
+func TestStoreBlocks_OverlaysRoundTrip(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	b := model.NewBlock("b1", "Acme widget")
+	b.Overlays = overlaysFixture()
+	require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{b}))
+
+	got, err := s.GetBlock(ctx, p.ID, "", "b1")
+	require.NoError(t, err)
+	require.Equal(t, overlaysFixture(), got.Block.Overlays,
+		"every overlay kind must survive the store round-trip with anchors intact")
+
+	ent := got.Block.OverlayOf(model.OverlayEntity)
+	require.NotNil(t, ent)
+	require.Len(t, ent.Spans, 1)
+	ea, ok := ent.Spans[0].Value.(*model.EntityAnnotation)
+	require.True(t, ok, "entity span value must rehydrate to *EntityAnnotation (entity-promote)")
+	assert.Equal(t, "Acme", ea.Text)
+	assert.True(t, ea.DNT)
+
+	// Re-storing the same block keeps overlays intact (ON CONFLICT UPDATE path).
+	require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{b}))
+	got, err = s.GetBlock(ctx, p.ID, "", "b1")
+	require.NoError(t, err)
+	require.Equal(t, overlaysFixture(), got.Block.Overlays)
+
+	// A block with no overlays round-trips as no overlays.
+	require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{model.NewBlock("b2", "plain")}))
+	got2, err := s.GetBlock(ctx, p.ID, "", "b2")
+	require.NoError(t, err)
+	assert.Nil(t, got2.Block.Overlays)
+}
