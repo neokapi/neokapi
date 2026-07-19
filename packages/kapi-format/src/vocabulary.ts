@@ -70,7 +70,7 @@ export interface ChipRendering {
 // ─── Default JSX vocabulary entries ────────────────────────────────
 
 /**
- * The three new span types neokapi-react needs. HTML renderings
+ * The three new span types neoneokapi-i18n needs. HTML renderings
  * produce semantic markup that downstream preview renderers can
  * style with a shared CSS theme — the same approach neokapi's
  * existing HTML and Markdown vocabularies already use.

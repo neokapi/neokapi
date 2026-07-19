@@ -1,5 +1,5 @@
 import { PenTool, ClipboardCheck, Fingerprint, Database, Zap, Plug } from "lucide-react";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { useReveal } from "../useReveal";
 
 // Every claim here traces to a shipped code path (epic 011 claims discipline):

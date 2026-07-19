@@ -70,7 +70,7 @@ describe("TranslationStatusPanel", () => {
 
     it("invokes api.runExtract and surfaces the log", async () => {
       const runExtract = vi.spyOn(api, "runExtract").mockResolvedValue({
-        log: "  ui → @neokapi/kapi-react (3 file(s))\n",
+        log: "  ui → @neokapi/i18n-react (3 file(s))\n",
       });
 
       render(<TranslationStatusPanel tabID="t1" status={statusFixture()} />);

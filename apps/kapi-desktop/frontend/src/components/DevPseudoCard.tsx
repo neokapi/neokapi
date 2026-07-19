@@ -1,7 +1,7 @@
 /**
  * Dev-only control panel for runtime pseudo-translation.
  *
- * Talks to `@neokapi/kapi-react/runtime/pseudo` via a dynamic import
+ * Talks to `@neokapi/i18n-react/runtime/pseudo` via a dynamic import
  * so the accent maps never ship in production builds. Renders
  * nothing at all outside `import.meta.env.DEV`.
  *
@@ -11,7 +11,7 @@
  *
  * The whole panel is `translate="no"` — without that, the pseudo
  * transform would recursively accent the UI's own labels. The
- * kapi-react plugin inherits that setting down the subtree (matching
+ * neokapi-i18n plugin inherits that setting down the subtree (matching
  * the W3C `translate` attribute spec), so every descendant label is
  * exempt.
  */
@@ -148,7 +148,7 @@ export function DevPseudoCard() {
   // repeated mounts hit the module cache.
   useEffect(() => {
     let alive = true;
-    void import("@neokapi/kapi-react/runtime/pseudo").then((mod) => {
+    void import("@neokapi/i18n-react/runtime/pseudo").then((mod) => {
       if (alive) setSetMode(() => mod.setPseudoMode);
     });
     return () => {
@@ -189,7 +189,7 @@ export function DevPseudoCard() {
   return (
     // translate="no" on the card root opts the whole subtree out of
     // runtime pseudo-translation. Inheritance is rock-solid: the
-    // kapi-react plugin walks self + ancestors and the nearest
+    // neokapi-i18n plugin walks self + ancestors and the nearest
     // explicit `translate` setting wins, matching the W3C spec. A
     // descendant can opt back in with `translate="yes"`.
     <Card translate="no">
@@ -358,7 +358,7 @@ export function DevPseudoCard() {
   );
 }
 
-// Mirror of the transform in @neokapi/kapi-react/runtime/pseudo —
+// Mirror of the transform in @neokapi/i18n-react/runtime/pseudo —
 // duplicated here only to render the preview without forcing a
 // dynamic import on every keystroke. Stays in lockstep with the
 // real transform because both use the same constants + approach.
@@ -416,7 +416,7 @@ const ACCENTED: Record<string, string> = {
   Y: "\u00dd",
   Z: "\u017d",
 };
-// Mirror of the WOBBLY map in kapi-react/runtime/pseudo. Cycles
+// Mirror of the WOBBLY map in @neokapi/i18n-react/runtime/pseudo. Cycles
 // three Mathematical Alphanumeric blocks per letter (italic → sans
 // → script) so the preview renders with visibly mixed angles and
 // weights. Reserved codepoints use their Letterlike-Symbols
@@ -481,7 +481,7 @@ const ALPHABETS: Record<AlphabetName, Record<string, string>> = {
   none: {},
 };
 
-// Mirror of `pseudoTransform` in kapi-react/runtime/pseudo. Kept in
+// Mirror of `pseudoTransform` in @neokapi/i18n-react/runtime/pseudo. Kept in
 // sync manually (one file, ~40 lines) so live preview updates
 // without forcing a dynamic import on every keystroke.
 function applyPreview(text: string, cfg: Required<PseudoConfig>): string {

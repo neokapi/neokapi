@@ -277,7 +277,7 @@ func TestContentCollectionExecFormat(t *testing.T) {
       format:
         name: exec
         config:
-          command: "vp kapi-react extract --stream"
+          command: "vp neokapi-i18n extract --stream"
 `
 	var content []ContentCollection
 	require.NoError(t, yaml.Unmarshal([]byte(yamlContent), &content))
@@ -285,7 +285,7 @@ func TestContentCollectionExecFormat(t *testing.T) {
 	require.Len(t, content[0].Items, 1)
 	require.NotNil(t, content[0].Items[0].Format)
 	assert.Equal(t, "exec", content[0].Items[0].Format.Name)
-	assert.Equal(t, "vp kapi-react extract --stream",
+	assert.Equal(t, "vp neokapi-i18n extract --stream",
 		content[0].Items[0].Format.Config["command"])
 
 	out, err := yaml.Marshal(content)

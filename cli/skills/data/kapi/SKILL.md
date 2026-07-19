@@ -89,7 +89,7 @@ kapi check --ship --json        # whole project; or: kapi check --ship <files> [
 - **Add i18n to a project / choose an i18n framework** — detect the stack,
   recommend the lowest-toil setup for it (every known framework carries a
   **Toil Index** grade from T0 "add and forget" to T4 "you're on your own"),
-  set up the kapi-react stack for React apps, or plug kapi into the catalogs
+  set up the neokapi-i18n stack for React apps, or plug kapi into the catalogs
   another stack already uses — with the specific tools that make that stack
   maintainable. See [references/i18n.md](references/i18n.md).
 
@@ -110,6 +110,6 @@ custom pipeline; the layer model is
   unattended translation (`kapi translate`) or the optional `--ai` checks. The
   rule-based brand and terminology checks need no credential.
 
-In kapi's own stacks (kapi-react, KLF) the English source text is always the
+In kapi's own stacks (neokapi-i18n, KLF) the English source text is always the
 key — don't introduce message IDs. When plugging into another stack's catalogs,
 follow that stack's key idiom instead (see references/i18n.md).

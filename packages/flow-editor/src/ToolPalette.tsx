@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { Search, ChevronDown, ChevronRight, GripVertical, Layers, Check } from "lucide-react";
 import {
   InputGroup,

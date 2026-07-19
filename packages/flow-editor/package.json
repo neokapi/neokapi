@@ -21,7 +21,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@neokapi/contract-types": "*",
-    "@neokapi/kapi-react": "*",
+    "@neokapi/i18n-react": "*",
     "@neokapi/ui-primitives": "*",
     "@xyflow/react": "^12.11.2",
     "lucide-react": "^1.24.0",

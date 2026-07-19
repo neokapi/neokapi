@@ -66,7 +66,7 @@ type Tier = {
 };
 
 // Two ways to USE the engine: directly as a Go library, or through kapi (the
-// CLI + desktop app built on it). kapi-react is a separate React i18n library
+// CLI + desktop app built on it). neokapi-i18n is a separate React i18n library
 // that lives in the same codebase — highlighted on its own below, not framed as
 // a third "way to use the engine".
 const Tiers: Tier[] = [
@@ -191,7 +191,7 @@ function HomepageFeatures() {
               <Link to="/react/introduction" className={styles.reactCallout}>
                 <span className={styles.reactCalloutBadge}>In the family</span>
                 <span className={styles.reactCalloutText}>
-                  <strong>kapi-react</strong> — a zero-config i18n library for React. Its own
+                  <strong>neokapi-i18n</strong> — a zero-config i18n library for React. Its own
                   framework, powered by neokapi under the hood for build-time string extraction and
                   catalog compilation.
                 </span>

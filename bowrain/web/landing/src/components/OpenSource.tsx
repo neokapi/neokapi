@@ -7,7 +7,7 @@ import { useReveal } from "../useReveal";
 export function OpenSource() {
   const ref = useReveal();
 
-  // Hoisted so kapi-react extracts the sentence as one block with a named
+  // Hoisted so neokapi-i18n extracts the sentence as one block with a named
   // {kapiLink} placeholder (see Hero.tsx).
   const kapiLink = (
     <a

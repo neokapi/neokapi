@@ -12,7 +12,7 @@ import {
   useSidebar,
 } from "@neokapi/ui-primitives";
 import { useMemo } from "react";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import type { Workspace, User, ProjectInfo, StreamInfo } from "../types/api";
 import {
   Brain,
@@ -113,7 +113,7 @@ export interface AppSidebarProps<V extends string = string> {
 // Nav data
 // ---------------------------------------------------------------------------
 // Getter functions, not module-level consts: the labels go through t() so the
-// kapi-react transform extracts them and looks them up in the active locale's
+// neokapi-i18n transform extracts them and looks them up in the active locale's
 // dictionary at CALL time. Evaluating these per render (the components call
 // them below) picks up a locale switch; a module-level const would freeze the
 // labels in whatever locale was active at import time.

@@ -11,7 +11,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Button, Badge, EmptyState, ActionCard, LocalePill } from "@neokapi/ui-primitives";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import type {
   KapiProject,
   PluginIssue,

@@ -33,7 +33,7 @@ RUN corepack pnpm fetch
 # members in pnpm-workspace.yaml resolve only from the dirs present here, so a
 # partial checkout is a valid (smaller) workspace.
 COPY packages/kapi-format/package.json packages/kapi-format/
-COPY packages/kapi-react/package.json packages/kapi-react/
+COPY packages/i18n-react/package.json packages/i18n-react/
 COPY packages/ui/package.json packages/ui/
 COPY packages/concept-ui/package.json packages/concept-ui/
 COPY packages/contract-types/package.json packages/contract-types/
@@ -50,10 +50,10 @@ RUN corepack pnpm install --offline
 
 # Source for the web app + its workspace deps. Most @neokapi/* packages are
 # consumed from source (their exports point at ./src), so the Vite build follows
-# the import graph into them. The exception is @neokapi/kapi-react, whose
+# the import graph into them. The exception is @neokapi/i18n-react, whose
 # ./runtime export is dist-only — it must be built before the web build.
 COPY packages/kapi-format/ packages/kapi-format/
-COPY packages/kapi-react/ packages/kapi-react/
+COPY packages/i18n-react/ packages/i18n-react/
 COPY packages/ui/ packages/ui/
 COPY packages/concept-ui/ packages/concept-ui/
 COPY packages/contract-types/ packages/contract-types/
@@ -61,15 +61,15 @@ COPY packages/editor-grid/ packages/editor-grid/
 COPY packages/status-views/ packages/status-views/
 COPY packages/flow-editor/ packages/flow-editor/
 COPY bowrain/packages/ui/ bowrain/packages/ui/
-# bowrain/apps/web's vite.config imports ../../packages/app/kapi-react.config.json
+# bowrain/apps/web's vite.config imports ../../packages/app/neokapi-i18n.config.json
 # (the extract config shared with the desktop app), so the app package must be
 # in the build context.
 COPY bowrain/packages/app/ bowrain/packages/app/
 COPY bowrain/apps/web/ bowrain/apps/web/
 
-# @neokapi/kapi-react/runtime is a built ./dist subpath export consumed by
+# @neokapi/i18n-react/runtime is a built ./dist subpath export consumed by
 # @neokapi/ui; build it before the web app so the import resolves.
-RUN corepack pnpm --filter @neokapi/kapi-react run build
+RUN corepack pnpm --filter @neokapi/i18n-react run build
 
 # Build the web app. Type safety is enforced by `vp check` in CI, not the build.
 RUN corepack pnpm --filter neokapi-web run build

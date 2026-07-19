@@ -1,21 +1,21 @@
 {
   "ignorePatterns": ["bindings/**", "dist/**", "storybook-static/**"],
-  "jsPlugins": ["@neokapi/kapi-react-lint/oxlint"],
+  "jsPlugins": ["@neokapi/i18n-react-lint/oxlint"],
   "rules": {
-    "kapi-react/t-literal-first-arg": "error",
-    "kapi-react/t-no-concat": "error",
-    "kapi-react/no-concat-in-translatable-attr": "error",
-    "kapi-react/no-ternary-in-translatable-attr": "error",
-    "kapi-react/no-ternary-literals-in-jsx-child": "error",
-    "kapi-react/no-string-literal-jsx-expr": "warn",
-    "kapi-react/prefer-t-for-label-expr": "warn"
+    "neokapi-i18n/t-literal-first-arg": "error",
+    "neokapi-i18n/t-no-concat": "error",
+    "neokapi-i18n/no-concat-in-translatable-attr": "error",
+    "neokapi-i18n/no-ternary-in-translatable-attr": "error",
+    "neokapi-i18n/no-ternary-literals-in-jsx-child": "error",
+    "neokapi-i18n/no-string-literal-jsx-expr": "warn",
+    "neokapi-i18n/prefer-t-for-label-expr": "warn"
   },
   "overrides": [
     {
       "files": ["src/stories/**"],
       "rules": {
-        "kapi-react/no-ternary-literals-in-jsx-child": "off",
-        "kapi-react/prefer-t-for-label-expr": "off"
+        "neokapi-i18n/no-ternary-literals-in-jsx-child": "off",
+        "neokapi-i18n/prefer-t-for-label-expr": "off"
       }
     }
   ]

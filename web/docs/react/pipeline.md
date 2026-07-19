@@ -1,8 +1,8 @@
 ---
 sidebar_position: 7
 title: Extract, Translate, Compile Pipeline
-description: The three-phase kapi-react pipeline — extract JSX to a KLF archive, translate it with kapi (AI, MT, or TM), compile locales back into runtime JSON. Includes an optional split phase for code-split apps.
-keywords: [extract, translate, compile, KLF, kapi-react pipeline, code splitting, localization pipeline]
+description: The three-phase neokapi-i18n pipeline — extract JSX to a KLF archive, translate it with kapi (AI, MT, or TM), compile locales back into runtime JSON. Includes an optional split phase for code-split apps.
+keywords: [extract, translate, compile, KLF, neokapi-i18n pipeline, code splitting, localization pipeline]
 ---
 
 import { PhaseFlow } from "@neokapi/docs-shared";
@@ -18,18 +18,18 @@ Three phases, one contract: the KLF directory archive. A fourth optional phase �
       label: "i18n/",
       sub: "KLF archive",
       role: "io",
-      edge: "kapi-react extract",
+      edge: "neokapi-i18n extract",
       loop: ["kapi translate / pseudo-translate / qa / review", "accumulate target locales in place"],
     },
     {
       label: "public/translations/{locale}.json",
       sub: "loaded at runtime by your app",
-      edge: "kapi-react compile",
+      edge: "neokapi-i18n compile",
     },
     {
       label: "dist/translations/{locale}/{chunk}.json",
       sub: "lazy-loaded per route",
-      edge: "kapi-react split (optional)",
+      edge: "neokapi-i18n split (optional)",
     },
   ]}
 />
@@ -43,7 +43,7 @@ Each phase has a single tool; none of them are coupled to the others. You can sw
 Before you extract anything, you can ask the extractor what it *would* do and why:
 
 ```bash
-vp kapi-react explain src/components/Settings.tsx
+vp neokapi-i18n explain src/components/Settings.tsx
 ```
 
 ```text
@@ -65,7 +65,7 @@ The extractor walks every `.jsx` / `.tsx` file in your project and produces tran
 
 ```bash
 # Default: write .klf files for inspection / commit.
-vp kapi-react extract \
+vp neokapi-i18n extract \
   --src "src/**/*.{tsx,jsx}" \
   --out i18n \
   --source-locale en \
@@ -74,7 +74,7 @@ vp kapi-react extract \
   --target-locale ja
 
 # Or stream NDJSON blocks to stdout for piping:
-vp kapi-react extract --stream > i18n/blocks.ndjson
+vp neokapi-i18n extract --stream > i18n/blocks.ndjson
 ```
 
 Flags:
@@ -104,14 +104,14 @@ Wire it into your package scripts and CI:
 ```json title="package.json"
 {
   "scripts": {
-    "extract": "vp kapi-react extract",
-    "extract:ci": "vp kapi-react extract --strict",
-    "pack": "vp kapi-react extract --stream > i18n/blocks.ndjson"
+    "extract": "vp neokapi-i18n extract",
+    "extract:ci": "vp neokapi-i18n extract --strict",
+    "pack": "vp neokapi-i18n extract --stream > i18n/blocks.ndjson"
   }
 }
 ```
 
-For full authoring-time coverage, pair this with [`@neokapi/kapi-react-lint`](./linting) — editor squigglies for `t(variable)`, `<img alt={'Logo ' + x} />`, and the other patterns the build-time transform can't catch.
+For full authoring-time coverage, pair this with [`@neokapi/i18n-react-lint`](./linting) — editor squigglies for `t(variable)`, `<img alt={'Logo ' + x} />`, and the other patterns the build-time transform can't catch.
 
 ### What's in the KLF directory
 
@@ -189,7 +189,7 @@ A single `i18n/` tree with N target locales on each block is the default and rec
 
 ### Project-driven flow with `.kapi`
 
-If you already use a [`.kapi` project file](/contribute/architecture/008-project-model) to define your workflow, declare each archive-backed collection with an `exec` format pointing at kapi-react (or any other extractor):
+If you already use a [`.kapi` project file](/contribute/architecture/008-project-model) to define your workflow, declare each archive-backed collection with an `exec` format pointing at neokapi-i18n (or any other extractor):
 
 ```yaml title="translation.kapi"
 version: v1
@@ -205,7 +205,7 @@ content:
         format:
           name: exec
           config:
-            command: "vp kapi-react extract --stream"
+            command: "vp neokapi-i18n extract --stream"
 ```
 
 ```bash
@@ -224,19 +224,19 @@ The `command` string picks the package manager — `vp`, `pnpm`, `npm`, `yarn`, 
 For ad-hoc projects, skip `.kapi` entirely and compose with Unix pipes:
 
 ```bash
-vp kapi-react extract --stream > i18n/blocks.ndjson
+vp neokapi-i18n extract --stream > i18n/blocks.ndjson
 kapi pseudo-translate i18n/
-vp kapi-react compile i18n/ --out public/translations
+vp neokapi-i18n compile i18n/ --out public/translations
 ```
 
 Same underlying wire format (NDJSON on the extract stage, KLF from there on) — the declarative `.kapi` form just factors the pipe into the project file.
 
 ## Phase 3: compile
 
-`kapi-react compile` reads the translated `.klf` and emits one JSON dict per locale:
+`neokapi-i18n compile` reads the translated `.klf` and emits one JSON dict per locale:
 
 ```bash
-kapi-react compile i18n/ \
+neokapi-i18n compile i18n/ \
   --out public/translations
 ```
 
@@ -252,7 +252,7 @@ Each JSON file is a flat `{hash: renderedText}` map. The runtime `__t(hash, fall
 
 ## Phase 4: split (optional)
 
-For code-split apps, the compiled `{locale}.json` is one file per locale — the user downloads every string even for routes they never visit. The plugin + `kapi-react split` divide that catalog along bundler chunk boundaries so each chunk lands its own translation subset alongside its JS.
+For code-split apps, the compiled `{locale}.json` is one file per locale — the user downloads every string even for routes they never visit. The plugin + `neokapi-i18n split` divide that catalog along bundler chunk boundaries so each chunk lands its own translation subset alongside its JS.
 
 Two inputs:
 
@@ -261,8 +261,8 @@ Two inputs:
 
 ```bash
 vite build                                       # emits dist/translations-manifest.json
-kapi-react compile i18n/ --out public/translations
-kapi-react split \
+neokapi-i18n compile i18n/ --out public/translations
+neokapi-i18n split \
   --manifest dist/translations-manifest.json \
   --locales  public/translations \
   --out      dist/translations
@@ -282,7 +282,7 @@ dist/translations/
 Hashes shared across chunks are duplicated into each subset so every chunk file is independently loadable. Runtime wiring is a one-line addition to each lazy route:
 
 ```tsx
-import { loadTranslationChunk } from "@neokapi/kapi-react/runtime";
+import { loadTranslationChunk } from "@neokapi/i18n-react/runtime";
 
 const routes = [
   {
@@ -310,21 +310,21 @@ Apps that ship a single bundle don't need this phase at all — keep using `load
     {
       label: "i18n/ Block",
       sub: 'hash "aB3" · source + targets',
-      edge: "kapi-react extract (source only)",
+      edge: "neokapi-i18n extract (source only)",
       role: "io",
       loop: ["kapi translate --target-lang fr", "then de … (additive, in place)"],
     },
     {
       label: "public/translations/{locale}.json",
       sub: '{ "aB3": "Bienvenue" }',
-      edge: "kapi-react compile",
+      edge: "neokapi-i18n compile",
       role: "io",
       loop: ["loadTranslations(locale, url)", "single bundle → app renders"],
     },
     {
       label: "dist/translations/{locale}/",
       sub: "index.json + lazy chunks",
-      edge: "kapi-react split (optional)",
+      edge: "neokapi-i18n split (optional)",
       role: "io",
     },
     {

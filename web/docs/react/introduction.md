@@ -2,11 +2,11 @@
 sidebar_position: 1
 title: Introduction
 slug: /react/introduction
-description: kapi-react is a zero-toil i18n library for React — no key strings, no wrapping calls. The Vite plugin extracts translatable JSX at build time; kapi translates the KLF archive with AI, MT, or TM.
-keywords: [kapi-react, React i18n, internationalization, Vite plugin, JSX extraction, KLF, zero-toil]
+description: neokapi-i18n is a zero-toil i18n library for React — no key strings, no wrapping calls. The Vite plugin extracts translatable JSX at build time; kapi translates the KLF archive with AI, MT, or TM.
+keywords: [neokapi-i18n, React i18n, internationalization, Vite plugin, JSX extraction, KLF, zero-toil]
 ---
 
-# kapi-react
+# neokapi-i18n
 
 Zero-toil internationalisation for React.
 
@@ -40,12 +40,12 @@ three kinds of toil:
 
 You pay that cost on day one, the day a new engineer joins, and every time a designer changes a word of copy.
 
-## What kapi-react does differently
+## What neokapi-i18n does differently
 
-kapi-react extracts translatable content from the JSX you already write — no wrappers, no keys.
+neokapi-i18n extracts translatable content from the JSX you already write — no wrappers, no keys.
 
 ```tsx
-// The kapi-react way
+// The neokapi-i18n way
 <h1>Welcome</h1>
 <p>Ship your product in every language your users speak.</p>
 <button>Get started</button>
@@ -80,19 +80,19 @@ The source text is the identifier. When the copy changes, you change the JSX —
 - **A proper exchange format** — KLF (see [AD-008](/contribute/architecture/008-project-model)) — that carries structural context, placeholders, plural forms, and annotation overlays. Not a flat key-value JSON.
 - **Full integration with `kapi`** for pseudo-translation, AI translation, QA, TM leverage, and terminology. The same toolchain that handles XLIFF, JSON, Markdown, HTML, and every other format kapi supports.
 
-## When kapi-react isn't the right fit
+## When neokapi-i18n isn't the right fit
 
 - **Server-rendered HTML pipelines without a React build step.** If you're outputting raw HTML from a non-React framework, use kapi's HTML / XLIFF filters directly instead.
-- **Large string catalogs with heavy programmatic composition.** If 80% of your strings are assembled from programmatic templates — `t("error.code." + code)` — the source-text-as-key model fights you. kapi-react is happiest when strings are visible in the source.
-- **Need for multi-vendor TMS round-tripping with pre-existing translation keys.** If your workflow already depends on specific translation keys inherited from another system, kapi-react's hash model would require a migration.
+- **Large string catalogs with heavy programmatic composition.** If 80% of your strings are assembled from programmatic templates — `t("error.code." + code)` — the source-text-as-key model fights you. neokapi-i18n is happiest when strings are visible in the source.
+- **Need for multi-vendor TMS round-tripping with pre-existing translation keys.** If your workflow already depends on specific translation keys inherited from another system, neokapi-i18n's hash model would require a migration.
 
-For everything else — product UI, marketing sites, internal dashboards, extension pages, embedded apps — kapi-react removes the i18n tax entirely.
+For everything else — product UI, marketing sites, internal dashboards, extension pages, embedded apps — neokapi-i18n removes the i18n tax entirely.
 
 ## Next steps
 
-- [Quick start](./quickstart) — add kapi-react to a Vite + React project in 5 minutes.
+- [Quick start](./quickstart) — add neokapi-i18n to a Vite + React project in 5 minutes.
 - [Writing translatable components](./writing-components) — what gets picked up automatically, and when a warning fires.
 - [`t()` escape hatch](./t-escape-hatch) — marking strings that live outside JSX.
 - [Extract → translate → compile](./pipeline) — the full end-to-end flow with `kapi`.
 
-Already using another React i18n library? See [Alternatives](./alternatives) for how kapi-react compares.
+Already using another React i18n library? See [Alternatives](./alternatives) for how neokapi-i18n compares.

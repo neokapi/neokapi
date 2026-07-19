@@ -6,7 +6,7 @@
  */
 
 import { useState, useMemo, useCallback, type ReactNode } from "react";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "../ui/table";
 import { Input } from "../ui/input";
 import { cn } from "../../lib/utils";

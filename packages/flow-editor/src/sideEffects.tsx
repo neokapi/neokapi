@@ -3,7 +3,7 @@
 // hanging off the node — the external things it reads from or writes to (TM,
 // termbase, an API/provider, analytics, a redaction vault).
 
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { Database, BookMarked, Cloud, BarChart3, Vault, type LucideIcon } from "lucide-react";
 import type { IOPort } from "./types";
 

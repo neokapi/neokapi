@@ -22,13 +22,13 @@ RUN corepack pnpm fetch
 
 # Workspace manifests for ctrl's dependency closure (ctrl → @neokapi/ui →
 # concept-ui, contract-types, editor-grid, kapi-format, status-views,
-# ui-primitives → kapi-react); glob workspace members resolve only from the
+# ui-primitives → neokapi-i18n); glob workspace members resolve only from the
 # dirs present here.
 COPY packages/concept-ui/package.json packages/concept-ui/
 COPY packages/contract-types/package.json packages/contract-types/
 COPY packages/editor-grid/package.json packages/editor-grid/
 COPY packages/kapi-format/package.json packages/kapi-format/
-COPY packages/kapi-react/package.json packages/kapi-react/
+COPY packages/i18n-react/package.json packages/i18n-react/
 COPY packages/status-views/package.json packages/status-views/
 COPY packages/ui/package.json packages/ui/
 COPY bowrain/packages/ui/package.json bowrain/packages/ui/
@@ -42,16 +42,16 @@ COPY packages/concept-ui/ packages/concept-ui/
 COPY packages/contract-types/ packages/contract-types/
 COPY packages/editor-grid/ packages/editor-grid/
 COPY packages/kapi-format/ packages/kapi-format/
-COPY packages/kapi-react/ packages/kapi-react/
+COPY packages/i18n-react/ packages/i18n-react/
 COPY packages/status-views/ packages/status-views/
 COPY packages/ui/ packages/ui/
 COPY bowrain/packages/ui/ bowrain/packages/ui/
 COPY bowrain/apps/ctrl/ bowrain/apps/ctrl/
 
-# @neokapi/kapi-react/runtime is a built ./dist subpath export consumed by
+# @neokapi/i18n-react/runtime is a built ./dist subpath export consumed by
 # @neokapi/ui-primitives and @neokapi/status-views; build it before the ctrl
 # build so the import resolves.
-RUN corepack pnpm --filter @neokapi/kapi-react run build
+RUN corepack pnpm --filter @neokapi/i18n-react run build
 
 # Build. Type safety is enforced by `vp check` in CI, not the build.
 RUN corepack pnpm --filter bowrain-ctrl run build

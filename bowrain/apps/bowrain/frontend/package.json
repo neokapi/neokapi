@@ -21,7 +21,7 @@
     "@neokapi/bowrain-app": "*",
     "@neokapi/contract-types": "*",
     "@neokapi/flow-editor": "*",
-    "@neokapi/kapi-react": "*",
+    "@neokapi/i18n-react": "*",
     "@neokapi/ui": "*",
     "@tailwindcss/vite": "^4.3.2",
     "@tanstack/react-query": "^5.101.2",

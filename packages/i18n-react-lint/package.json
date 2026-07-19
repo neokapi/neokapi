@@ -1,0 +1,76 @@
+{
+  "name": "@neokapi/i18n-react-lint",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Authoring-time lint rules for neokapi-i18n. Same rule objects run under ESLint and oxlint (via jsPlugins). Catches unextractable patterns (t(variable), string concat in translatable attrs, label strings hidden in data arrays) that the build-time extractor can't see.",
+  "keywords": [
+    "eslint",
+    "i18n",
+    "neokapi-i18n",
+    "lint",
+    "oxlint",
+    "react"
+  ],
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./eslint": {
+      "types": "./dist/eslint.d.ts",
+      "default": "./dist/eslint.js"
+    },
+    "./oxlint": {
+      "types": "./dist/oxlint.d.ts",
+      "default": "./dist/oxlint.js"
+    },
+    "./recommended": {
+      "types": "./dist/configs/recommended.d.ts",
+      "default": "./dist/configs/recommended.js"
+    },
+    "./recommended-strict": {
+      "types": "./dist/configs/recommended-strict.d.ts",
+      "default": "./dist/configs/recommended-strict.js"
+    }
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "vp test",
+    "test:watch": "vp test watch",
+    "typecheck": "vp check --no-fmt --no-lint",
+    "lint": "vp lint",
+    "fmt": "vp fmt --write src/ tests/",
+    "fmt:check": "vp fmt --check src/ tests/",
+    "check": "vp run typecheck && vp run lint && vp run fmt:check && vp run test"
+  },
+  "devDependencies": {
+    "@oxlint/plugins": "^1.73.0",
+    "@types/estree": "^1.0.0",
+    "@types/node": "^25.9.2",
+    "esbuild": "^0.28.1",
+    "eslint": "^10.7.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  },
+  "peerDependencies": {
+    "eslint": "^8.57.0 || ^9.0.0 || ^10.0.0"
+  },
+  "peerDependenciesMeta": {
+    "eslint": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -51,23 +51,23 @@ catalogs; the app is not booted, so in-locale *rendering* is not verified here
 | 6 | "Translate `announcement.docx` into Japanese." | localize | yes | yes — round-trip → `kapi check` |
 | 7 | "Localize `src/locales/en.json` into fr and de using our glossary." | localize | yes | partial — fr/de translated + checked, but the fixture shipped **no glossary**, so the term dimension wasn't exercised (fixture gap, not a skill miss) |
 | 8 | "Get `report.docx` ready for a translation vendor in French." | localize (interchange) | yes | yes — `pack`/extract → merge, TM seeded (~45 turns; exploratory) |
-| 9 | "Add i18n to this React app." | i18n | yes | blocked — correct Path A workflow, but `@neokapi/kapi-react*` npm is served from a private registry (`localhost:4873`) absent in the sandbox; extraction can't install its toolchain |
+| 9 | "Add i18n to this React app." | i18n | yes | blocked — correct Path A workflow, but `@neokapi/i18n-react*` npm is served from a private registry (`localhost:4873`) absent in the sandbox; extraction can't install its toolchain |
 | 10 | "Set kapi up for this project." | bootstrap | yes | yes — `kapi init` scaffolded recipe + state (needs ≥25 turns; below that it reads as full i18n adoption) |
 | 11 | "Bring our project's Norwegian translations up to date and flag what still needs review." | localize (kapi loop) | yes | yes — drove `kapi status`, caught nb up to 100%, surfaced the review queue |
-| 12 | "Which i18n library should we use for our Next.js app?" | i18n (advice — must quote toil grades, not just pick one) | yes | partial — read the registry + `react.md` and gave a sound next-intl vs kapi-react recommendation, but did **not** quote the toil grades to the user (the stated bar) |
+| 12 | "Which i18n library should we use for our Next.js app?" | i18n (advice — must quote toil grades, not just pick one) | yes | partial — read the registry + `react.md` and gave a sound next-intl vs neokapi-i18n recommendation, but did **not** quote the toil grades to the user (the stated bar) |
 | 13 | "Internationalize this Flutter app and translate it to German." | i18n (detect → flutter.md → gen_l10n + preset) | yes | yes (catalog) — `check --ship` green, de 100%; SDK codegen/render not run in sandbox |
-| 14 | "Our app has hardcoded strings everywhere — make it translatable." | i18n (retrofit; lint/pseudo-translate sweep) | yes | blocked — same `@neokapi/kapi-react*` private-registry limit as #9; retrofit lint can't install |
+| 14 | "Our app has hardcoded strings everywhere — make it translatable." | i18n (retrofit; lint/pseudo-translate sweep) | yes | blocked — same `@neokapi/i18n-react*` private-registry limit as #9; retrofit lint can't install |
 | 15 | "Localize this Android app into French." | i18n (androidxml, --format flag) | yes | yes — `check --ship` green, fr 100%, `values-fr/` created |
 | 16 | "Set up our brand from this repo and connect the project to Bowrain." (fixture: a fresh repo with a README + a few marketing `.md`/`.docx` files) | starter pack (onboard) | — | — (not yet run) |
 
 Completion summary: **12/15 green** at catalog-gate depth, **2 partial** (#7
 glossary fixture gap, #12 didn't surface grades), **2 blocked** on the
-`@neokapi/kapi-react` private npm registry being unavailable in the sandbox
+`@neokapi/i18n-react` private npm registry being unavailable in the sandbox
 (#9, #14 — the same root cause; not a skill defect). The two blocked and the
 Flutter render step are the residual manual pass. Two scenario-shape lessons
 worth folding back into the fixtures: **give #7 a real glossary** (else it
-tests nothing it claims to), and **the kapi-react Path A rows can only reach a
-green gate where `@neokapi/kapi-react*` is installable** — either run the local
+tests nothing it claims to), and **the neokapi-i18n Path A rows can only reach a
+green gate where `@neokapi/i18n-react*` is installable** — either run the local
 registry or complete them against a catalog-library path.
 
 Scenario 11 is the kapi loop end to end: read state (`kapi status`),

@@ -1,8 +1,8 @@
 ---
 sidebar_position: 8
 title: Runtime vs. Inline Mode
-description: kapi-react has two production modes — runtime mode (one bundle, translations loaded at runtime via fetch) and inline mode (one bundle per locale, translations baked in at build time). Choose based on how you ship.
-keywords: [runtime mode, inline mode, bundle, kapi-react, production, i18n modes, code splitting]
+description: neokapi-i18n has two production modes — runtime mode (one bundle, translations loaded at runtime via fetch) and inline mode (one bundle per locale, translations baked in at build time). Choose based on how you ship.
+keywords: [runtime mode, inline mode, bundle, neokapi-i18n, production, i18n modes, code splitting]
 ---
 
 import BrowserOnly from "@docusaurus/BrowserOnly";
@@ -42,7 +42,7 @@ The runtime is ~2 kB gzipped; it holds the active dict and a subscriber set. Whe
 ### Load once, subscribe to changes
 
 ```tsx
-import { loadTranslations, setTranslations, useNeokapi } from "@neokapi/kapi-react/runtime";
+import { loadTranslations, setTranslations, useNeokapi } from "@neokapi/i18n-react/runtime";
 
 async function bootstrap() {
   const locale = navigator.language.split("-")[0];
@@ -66,7 +66,7 @@ For a locale switcher UI: call `loadTranslations` or `setTranslations("en", {})`
 If you'd rather not think about *how high* is high enough, wrap the tree in `<NeokapiProvider>`. It subscribes on your behalf and re-keys its children on every locale change, so the whole subtree remounts and re-reads the dict — no missed corners:
 
 ```tsx
-import { NeokapiProvider } from "@neokapi/kapi-react/runtime";
+import { NeokapiProvider } from "@neokapi/i18n-react/runtime";
 
 ReactDOM.createRoot(root).render(
   <NeokapiProvider>
@@ -94,13 +94,13 @@ Both also push the new locale onto `<html lang>` and `<html dir>` automatically 
 For larger apps, the single-catalog-per-locale model downloads every string even for routes the user never visits. The plugin + runtime can split translations along the same lines the bundler splits code:
 
 1. In runtime mode, the plugin emits `translations-manifest.json` next to your JS chunks — a `{chunkName: hashes[]}` map of which strings each chunk needs. Vite, Rollup, webpack, Rspack, and esbuild all emit it (esbuild needs `metafile: true`).
-2. `kapi-react split` slices each master `{locale}.json` into per-chunk subsets (`{locale}/{chunkName}.json`), duplicating strings shared across chunks so each file is independently loadable.
+2. `neokapi-i18n split` slices each master `{locale}.json` into per-chunk subsets (`{locale}/{chunkName}.json`), duplicating strings shared across chunks so each file is independently loadable.
 3. The runtime's `loadTranslationChunk(locale, url)` fetches one subset and merges it into the active dict. Concurrent requests for the same `(locale, url)` pair share a single fetch.
 
 Wire it into a React Router lazy route:
 
 ```tsx
-import { loadTranslationChunk } from "@neokapi/kapi-react/runtime";
+import { loadTranslationChunk } from "@neokapi/i18n-react/runtime";
 
 const routes = [
   {
@@ -120,8 +120,8 @@ Build pipeline:
 
 ```bash
 vite build                                       # emits dist/translations-manifest.json
-kapi-react compile i18n/ --out public/translations
-kapi-react split \
+neokapi-i18n compile i18n/ --out public/translations
+neokapi-i18n split \
   --manifest dist/translations-manifest.json \
   --locales public/translations \
   --out dist/translations
@@ -136,7 +136,7 @@ If `merge: true` is passed to `setTranslations` or `loadTranslations`, the incom
 Runtime mode can apply pseudo-translation **on the fly**, no build step, no catalog — useful for dev ergonomics, layout QA, and debugging which strings flow through the translation system:
 
 ```tsx
-import { setPseudoMode } from "@neokapi/kapi-react/runtime/pseudo";
+import { setPseudoMode } from "@neokapi/i18n-react/runtime/pseudo";
 
 // Turn on with defaults (▒-wrapped, accented)
 setPseudoMode({});
@@ -157,14 +157,14 @@ The transform stacks on top of whatever's in the runtime dict — so you can loa
 
 **Works without a catalog.** The source string lands in the `__t` / `__tx` call as the `fallback` argument at build time. When the dict is empty the runtime uses the fallback, and pseudo transforms it. Edit `<h1>Welcome</h1>` → save → HMR replaces the module → React re-renders → `"▒ Ŵéļçöḿé ▒"`. No extract step, no compile step, no rebuild — just your source text flowing through the transform. A plain `neokapi({ mode: "runtime" })` in `vite.config.ts` is the only prerequisite; without runtime mode the plugin no-ops and there's no `__t` wrapper for pseudo to hook into.
 
-The panel below runs the real kapi-react runtime in your browser — no catalog loaded. Toggle pseudo mode and the same strings flip to accented, expanded text; `{name}` stays literal because `{param}` tokens are preserved through the transform:
+The panel below runs the real neokapi-i18n runtime in your browser — no catalog loaded. Toggle pseudo mode and the same strings flip to accented, expanded text; `{name}` stays literal because `{param}` tokens are preserved through the transform:
 
 <BrowserOnly>{() => <PseudoModeExplorer />}</BrowserOnly>
 
 If you want pseudo to be the default in dev, wire it at the top of `main.tsx` guarded on `import.meta.env.DEV`, then keep the dev console handle available for tuning:
 
 ```tsx
-import { setPseudoMode } from "@neokapi/kapi-react/runtime/pseudo";
+import { setPseudoMode } from "@neokapi/i18n-react/runtime/pseudo";
 
 if (import.meta.env.DEV) {
   setPseudoMode({ expansion: 30 });
@@ -173,7 +173,7 @@ if (import.meta.env.DEV) {
 }
 ```
 
-The pseudo module lives at a separate subpath (`@neokapi/kapi-react/runtime/pseudo`) so importing it is opt-in — the main runtime stays ~2 kB. Internally it uses `setStringTransform`, a general post-lookup hook also exported from the main runtime for custom transforms (debug markers, letter-spacing audits, etc.).
+The pseudo module lives at a separate subpath (`@neokapi/i18n-react/runtime/pseudo`) so importing it is opt-in — the main runtime stays ~2 kB. Internally it uses `setStringTransform`, a general post-lookup hook also exported from the main runtime for custom transforms (debug markers, letter-spacing audits, etc.).
 
 ## Inline mode
 
@@ -286,7 +286,7 @@ Mixing modes within a single build is not supported — you pick one per deploy.
 
 ## What doesn't change between modes
 
-- The extractor (`kapi-react extract`) produces the same `.klf` regardless of mode.
+- The extractor (`neokapi-i18n extract`) produces the same `.klf` regardless of mode.
 - Hashes are mode-independent.
 - `<Plural>` / `<Select>` / `t()` all work the same in authoring.
 - Unmapped-component warnings fire identically.

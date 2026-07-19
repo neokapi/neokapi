@@ -4,9 +4,9 @@
  *
  * English (the source locale) renders straight from src/ into
  * ../../mailer/templates/*.html. For every compiled catalog found in
- * translations/<locale>.json (produced by `make l10n-emails`: kapi-react
- * extraction → kapi pseudo-translate / TM recycle → kapi-react compile),
- * the template module is re-bundled with the @neokapi/kapi-react esbuild
+ * translations/<locale>.json (produced by `make l10n-emails`: neokapi-i18n
+ * extraction → kapi pseudo-translate / TM recycle → neokapi-i18n compile),
+ * the template module is re-bundled with the @neokapi/i18n-react esbuild
  * plugin in inline mode — which bakes that locale's strings into the JSX —
  * and rendered into ../../mailer/templates/<locale>/*.html. The Go mailer
  * embeds the whole tree and picks the variant per recipient locale,
@@ -17,7 +17,7 @@
  */
 
 import { build } from "esbuild";
-import neokapi from "@neokapi/kapi-react/esbuild";
+import neokapi from "@neokapi/i18n-react/esbuild";
 import { mkdirSync, writeFileSync, readdirSync, readFileSync, existsSync, rmSync } from "fs";
 import { dirname, resolve } from "path";
 import { fileURLToPath, pathToFileURL } from "url";
@@ -50,15 +50,15 @@ function targetLocales(): string[] {
 }
 
 /**
- * Bundles scripts/templates.tsx with the kapi-react inline transform for
+ * Bundles scripts/templates.tsx with the neokapi-i18n inline transform for
  * the given locale and imports the result. The bundle keeps node_modules
  * imports external (it lives inside the package, so resolution works) —
  * only the template sources are transformed and inlined.
  */
 async function localizedRenderer(locale: string): Promise<RenderTemplates> {
-  // Same componentMap as extraction (kapi-react.config.json) so the
+  // Same componentMap as extraction (neokapi-i18n.config.json) so the
   // transform hashes blocks identically to the extract CLI.
-  const config = JSON.parse(readFileSync(resolve(pkgDir, "kapi-react.config.json"), "utf-8")) as {
+  const config = JSON.parse(readFileSync(resolve(pkgDir, "neokapi-i18n.config.json"), "utf-8")) as {
     componentMap: Record<string, string>;
   };
   const outfile = resolve(pkgDir, ".render", `templates-${locale}.mjs`);

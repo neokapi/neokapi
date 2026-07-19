@@ -63,8 +63,8 @@ jobs:
 
       - uses: ./.github/actions/setup-node-ui
 
-      - name: Build kapi-react (storybook-config imports from dist)
-        working-directory: packages/kapi-react
+      - name: Build neokapi-i18n (storybook-config imports from dist)
+        working-directory: packages/i18n-react
         run: vp run build
 
       - name: Determine base paths

@@ -30,9 +30,9 @@ func PrintPresetList(cmd Command) error {
 }
 
 // FrameworkContent resolves a framework preset's catalog mappings into scaffold
-// content entries. Returns nil for an empty framework. The kapi-react stack is
+// content entries. Returns nil for an empty framework. The neokapi-i18n stack is
 // rejected with guidance because it manages i18n via its own bundler plugin and
-// `kapi-react extract|compile`, not a .kapi content mapping.
+// `neokapi-i18n extract|compile`, not a .kapi content mapping.
 func FrameworkContent(framework string) ([]scaffoldContent, error) {
 	if framework == "" {
 		return nil, nil
@@ -40,9 +40,9 @@ func FrameworkContent(framework string) ([]scaffoldContent, error) {
 	reg := preset.NewPresetRegistry()
 	preset.RegisterBuiltins(reg)
 
-	if framework == preset.KapiReactPresetName {
-		return nil, fmt.Errorf("the %q stack manages i18n via its bundler plugin and `kapi-react extract|compile`, not a .kapi content mapping — "+
-			"install @neokapi/kapi-react and follow the kapi-react quickstart (see the kapi-i18n skill). "+
+	if framework == preset.NeokapiI18nPresetName {
+		return nil, fmt.Errorf("the %q stack manages i18n via its bundler plugin and `neokapi-i18n extract|compile`, not a .kapi content mapping — "+
+			"install @neokapi/i18n-react and follow its quickstart. "+
 			"`kapi init --framework` is for catalog-based stacks", framework)
 	}
 

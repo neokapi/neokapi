@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 
 // label/tone are user-visible and translatable; id and formality are
 // programmatic keys (rule lookup) and stay literal. The rule patterns,
@@ -226,7 +226,7 @@ export function BrandChallenge() {
         ? "text-warning"
         : "text-destructive";
 
-  // Hoisted so kapi-react extracts "Tone: {activeProfileTone}" as one block
+  // Hoisted so neokapi-i18n extracts "Tone: {activeProfileTone}" as one block
   // with a named placeholder instead of an opaque expression.
   const activeProfile = PROFILES.find((p) => p.id === profile);
   const activeProfileLabel = activeProfile?.label;

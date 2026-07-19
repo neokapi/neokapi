@@ -1,5 +1,5 @@
 import { AppWindow, Globe2, BookOpen, Rss, Mail, MessageCircle } from "lucide-react";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { Logo } from "./Logo";
 import { useReveal } from "../useReveal";
 

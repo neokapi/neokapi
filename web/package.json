@@ -5,7 +5,7 @@
   "scripts": {
     "docusaurus": "vpx docusaurus",
     "gen-reference": "node --no-warnings --experimental-strip-types scripts/gen-reference-pages.ts",
-    "build-runtime-dep": "pnpm --filter @neokapi/kapi-react run build",
+    "build-runtime-dep": "pnpm --filter @neokapi/i18n-react run build",
     "prestart": "vp run build-runtime-dep",
     "start": "vpx docusaurus start",
     "prebuild": "vp run build-runtime-dep",
@@ -29,7 +29,7 @@
     "@neokapi/kapi-format": "*",
     "@neokapi/kapi-lab": "*",
     "@neokapi/kapi-playground": "*",
-    "@neokapi/kapi-react": "*",
+    "@neokapi/i18n-react": "*",
     "@neokapi/reference-data": "*",
     "@neokapi/ui-primitives": "*",
     "clsx": "^2.1.0",

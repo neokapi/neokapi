@@ -9,7 +9,7 @@ import {
 } from "react";
 import { X, Copy } from "lucide-react";
 import { Button, ErrorNotice, parseAppError } from "@neokapi/ui-primitives";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */

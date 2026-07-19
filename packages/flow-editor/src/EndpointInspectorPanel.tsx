@@ -5,7 +5,7 @@
 // model a reader produced from the bound input, or the bytes a writer emitted.
 
 import type { ReactNode } from "react";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { Button, PanelHeader } from "@neokapi/ui-primitives";
 
 export interface EndpointInspectorPanelProps {

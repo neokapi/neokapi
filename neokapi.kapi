@@ -9,9 +9,9 @@
 #   framework-data   — generated tool/format metadata → gettext MO catalogs
 #                      embedded in the kapi binary (core/i18n)
 #   kapi-desktop-ui  — KLF catalogs extracted from the React frontend by
-#                      @neokapi/kapi-react → public/translations/<locale>.json
+#                      @neokapi/i18n-react → public/translations/<locale>.json
 #   bowrain-app-ui   — the shared bowrain SPA (bowrain/packages/{app,ui} + the
-#                      web and desktop shells), same kapi-react pipeline →
+#                      web and desktop shells), same neokapi-i18n pipeline →
 #                      each shell's public/translations/<locale>.json
 #   bowrain-ctrl-ui  — the ctrl admin app (bowrain/apps/ctrl)
 #   bowrain-pulse-ui — the pulse dashboard (bowrain/apps/pulse)
@@ -21,7 +21,7 @@
 #   demo-narration   — harness demo scripts → generated demo.<lang>.yaml
 #                      sidecars (harness/demos/<id>/, overlaid at load time)
 #   emails           — KLF catalogs extracted from the React Email templates
-#                      (bowrain/emails/src) by @neokapi/kapi-react → per-locale
+#                      (bowrain/emails/src) by @neokapi/i18n-react → per-locale
 #                      template renders under bowrain/mailer/templates/<lang>/
 #                      (make l10n-emails)
 #   email-subjects   — transactional-email subject lines

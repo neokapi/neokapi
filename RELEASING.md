@@ -7,7 +7,7 @@ against source so a tag can never drift from what actually ships.
 
 | Artifact | Tag pattern | Workflow |
 |---|---|---|
-| Public `@neokapi` npm packages | `kapi-format-v*`, `kapi-react-v*`, `contract-types-v*`, `engine-v*` | `publish-npm.yml` |
+| Public `@neokapi` npm packages | `kapi-format-v*`, `i18n-react-v*`, `contract-types-v*`, `engine-v*` | `publish-npm.yml` |
 | kapi / bowrain binaries + desktop apps + casks | `v[0-9]*` | `release.yml` |
 | Coordinated multi-artifact release | (via `workflow_dispatch`) | `release-coordinated.yml` |
 | Native plugins (sat, pdfium, asr, av, vision) | `sat-v*`, `pdfium-v*`, `asr-v*`, `av-v*`, `vision-v*` | `release-<name>.yml` |
@@ -27,7 +27,7 @@ Four public packages publish from this repo, all **Apache-2.0**:
 | Package | Purpose | Depends on |
 |---|---|---|
 | `@neokapi/kapi-format` | Format primitives for JS consumers | — |
-| `@neokapi/kapi-react` | React bindings | `@neokapi/kapi-format` |
+| `@neokapi/i18n-react` | React bindings | `@neokapi/kapi-format` |
 | `@neokapi/contract-types` | Go→TS generated IO-contract + content types | — |
 | `@neokapi/engine` | Wasm engine boot loader (versioned ABI) | `@neokapi/contract-types` |
 
@@ -94,7 +94,7 @@ Then, on npmjs.com → the package's **Settings → Trusted Publisher**, point i
 After that, all subsequent versions publish tokenlessly via the tag flow above.
 
 > **Current bootstrap status (2026-07):** `@neokapi/kapi-format` and
-> `@neokapi/kapi-react` are live on npmjs and fully OIDC-configured.
+> `@neokapi/i18n-react` are live on npmjs and fully OIDC-configured.
 > `@neokapi/contract-types@0.1.0` and `@neokapi/engine@0.1.0` are **not yet on
 > npmjs** — each needs the one-time bootstrap above before its tag flow works.
 > Bootstrap `contract-types` before `engine` (engine depends on it).

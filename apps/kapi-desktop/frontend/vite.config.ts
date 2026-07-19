@@ -2,8 +2,8 @@ import { defineConfig } from "vite-plus";
 import type { PluginOption } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import neokapi from "@neokapi/kapi-react/vite";
-import kapiReactConfig from "./kapi-react.config.json" with { type: "json" };
+import neokapi from "@neokapi/i18n-react/vite";
+import neokapiI18nConfig from "./neokapi-i18n.config.json" with { type: "json" };
 
 export default defineConfig({
   // neokapi() is an unplugin `.vite` adapter; its deeply-inferred return type
@@ -12,12 +12,12 @@ export default defineConfig({
   // PluginOption keeps the plugin fully type-safe while stopping the recursion.
   plugins: [
     // componentMap stabilises i18n hashes for app-local wrapper components
-    // (kept in kapi-react.config.json so the extract CLI and this
+    // (kept in neokapi-i18n.config.json so the extract CLI and this
     // transform hash identically — a map that exists on one side only
     // makes those strings unresolvable at runtime)
     // that render translatable text — without it the extractor warns and the
     // hash could shift once a mapping is added. Map each to its rendered tag.
-    neokapi({ mode: "runtime", componentMap: kapiReactConfig.componentMap }) as PluginOption,
+    neokapi({ mode: "runtime", componentMap: neokapiI18nConfig.componentMap }) as PluginOption,
     react(),
     tailwindcss(),
   ],

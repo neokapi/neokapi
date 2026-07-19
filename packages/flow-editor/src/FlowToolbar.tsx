@@ -1,4 +1,4 @@
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { Play, Loader2, Lock } from "lucide-react";
 import { Button, PanelHeader, SimpleTooltip } from "@neokapi/ui-primitives";
 import type { FlowSpec } from "./types";

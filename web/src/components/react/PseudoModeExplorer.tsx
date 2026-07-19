@@ -2,22 +2,22 @@ import React, { useEffect, useState } from "react";
 import BrowserOnly from "@docusaurus/BrowserOnly";
 
 // The runtime subpath is browser-safe: it imports only React + local relative
-// modules. The package ROOT (`@neokapi/kapi-react`) pulls in the build-time
+// modules. The package ROOT (`@neokapi/i18n-react`) pulls in the build-time
 // extractor, which depends on the native `@swc/core` Rust binary — that must
 // never enter the docs client bundle, so we import only from the two runtime
 // subpaths here.
-import { __t, useNeokapi } from "@neokapi/kapi-react/runtime";
+import { __t, useNeokapi } from "@neokapi/i18n-react/runtime";
 import {
   setPseudoMode,
   getPseudoMode,
   BUILT_IN_ALPHABETS,
   type AlphabetName,
   type PseudoConfig,
-} from "@neokapi/kapi-react/runtime/pseudo";
+} from "@neokapi/i18n-react/runtime/pseudo";
 
 import styles from "./PseudoModeExplorer.module.css";
 
-// A handful of real UI strings. In a kapi-react app the Vite/Rollup plugin
+// A handful of real UI strings. In a neokapi-i18n app the Vite/Rollup plugin
 // rewrites each JSX text node into a `__t(hash, fallback, params?)` call at
 // build time; here we call `__t` directly with the source text as the
 // `fallback`, which is exactly what the plugin emits. The docs site has no
@@ -116,7 +116,7 @@ function PseudoModeExplorerInner(): React.ReactElement {
         </label>
       </div>
 
-      <div className={styles.colLabel}>Live UI — rendered through the kapi-react runtime</div>
+      <div className={styles.colLabel}>Live UI — rendered through the neokapi-i18n runtime</div>
       <ul className={styles.strings}>
         {STRINGS.map((s) => (
           <li key={s.hash} className={styles.stringRow}>
@@ -135,7 +135,7 @@ function PseudoModeExplorerInner(): React.ReactElement {
 }
 
 /**
- * PseudoModeExplorer surfaces kapi-react's runtime `setPseudoMode` as an
+ * PseudoModeExplorer surfaces neokapi-i18n's runtime `setPseudoMode` as an
  * in-browser toggle. The runtime mutates module-global state and re-renders via
  * `useSyncExternalStore`, so the widget is client-only: Docusaurus
  * server-renders pages, and touching that state during SSR would cause a

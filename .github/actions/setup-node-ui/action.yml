@@ -27,13 +27,13 @@ runs:
         GITHUB_TOKEN: ${{ github.token }}
       run: vp install --frozen-lockfile
 
-    # @neokapi/kapi-react ships dist-only subpath exports (./runtime, ./vite, …)
+    # @neokapi/i18n-react ships dist-only subpath exports (./runtime, ./vite, …)
     # that other workspace packages import; its dist/ is not committed, so any
     # job that typechecks or builds a consumer needs it built first. Building it
     # here — once, right after install, for every job that uses this composite —
     # avoids each job re-deriving that ordering (and forgetting it, which broke
-    # the desktop typecheck: "Cannot find module '@neokapi/kapi-react/runtime'").
-    - name: Build @neokapi/kapi-react
+    # the desktop typecheck: "Cannot find module '@neokapi/i18n-react/runtime'").
+    - name: Build @neokapi/i18n-react
       shell: bash
-      working-directory: packages/kapi-react
+      working-directory: packages/i18n-react
       run: vp run build

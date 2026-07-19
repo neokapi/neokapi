@@ -44,7 +44,7 @@ import { coerceInstallationId } from "./installation-id";
  *
  * History: the original page used shadcn Selects and ProjectFormDialog, which
  * rendered nothing in production (#1348). The cause was NOT this route's
- * layout — the @neokapi/kapi-react build transform recognised ICU authoring
+ * layout — the @neokapi/i18n-react build transform recognised ICU authoring
  * components by bare identifier, so the controlled `<Select value={...}>`
  * widgets were serialised to empty ICU `{value, select, }` templates and
  * deleted from the compiled chunk. That transform bug is fixed (shape-based

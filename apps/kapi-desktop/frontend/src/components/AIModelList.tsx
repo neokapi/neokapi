@@ -1,6 +1,6 @@
 import { Cpu, Cloud, Check, Download, KeyRound } from "lucide-react";
 import { Badge, cn } from "@neokapi/ui-primitives";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import type { AIModelOption } from "../types/api";
 
 export interface AIModelListProps {

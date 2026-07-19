@@ -1,7 +1,7 @@
 import { Component, type ReactNode } from "react";
 import { AlertTriangle, Plug, Loader2, RefreshCw } from "lucide-react";
 import { Button, Badge } from "@neokapi/ui-primitives";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import type { PluginIssue } from "../types/api";
 import { api } from "../hooks/useApi";
 

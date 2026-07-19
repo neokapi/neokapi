@@ -2,7 +2,7 @@ import "./app.css";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { loadTranslations } from "@neokapi/kapi-react/runtime";
+import { loadTranslations } from "@neokapi/i18n-react/runtime";
 import { router } from "./routes";
 import { initAnalytics, capturePageview } from "./analytics";
 

@@ -9,7 +9,7 @@ import {
   Label,
   LocaleSelect,
 } from "@neokapi/ui-primitives";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { api } from "../hooks/useApi";
 import { useLocales } from "../hooks/useLocales";
 

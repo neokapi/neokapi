@@ -25,10 +25,10 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # The keycloak theme bundles @neokapi/ui → @neokapi/kapi-react/runtime
-      # (dist-only export); build kapi-react first so its vite build resolves it.
-      - name: Build @neokapi/kapi-react
-        working-directory: packages/kapi-react
+      # The keycloak theme bundles @neokapi/ui → @neokapi/i18n-react/runtime
+      # (dist-only export); build neokapi-i18n first so its vite build resolves it.
+      - name: Build @neokapi/i18n-react
+        working-directory: packages/i18n-react
         run: vp run build
 
       # Public client-side key (same project as _build-web.yml), baked into the

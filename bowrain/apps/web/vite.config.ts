@@ -2,17 +2,17 @@ import { defineConfig } from "vite-plus";
 import type { PluginOption } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import neokapi from "@neokapi/kapi-react/vite";
-import kapiReactConfig from "../../packages/app/kapi-react.config.json" with { type: "json" };
+import neokapi from "@neokapi/i18n-react/vite";
+import neokapiI18nConfig from "../../packages/app/neokapi-i18n.config.json" with { type: "json" };
 
 export default defineConfig({
   // neokapi() is bounded to vite's own PluginOption to stop a type-instantiation
   // overflow against vite-plus's UserConfig — see apps/kapi-desktop/frontend/
   // vite.config.ts for the full rationale. The componentMap is the SAME file the
-  // extract CLI reads (bowrain/packages/app/kapi-react.config.json) so the
+  // extract CLI reads (bowrain/packages/app/neokapi-i18n.config.json) so the
   // build-time transform and the extracted catalogs hash identically.
   plugins: [
-    neokapi({ mode: "runtime", componentMap: kapiReactConfig.componentMap }) as PluginOption,
+    neokapi({ mode: "runtime", componentMap: neokapiI18nConfig.componentMap }) as PluginOption,
     react(),
     tailwindcss(),
   ],

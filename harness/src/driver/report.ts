@@ -190,7 +190,7 @@ export { renderCode };
 /**
  * Per-line status for a before/after pair via an LCS line diff. Lines present in
  * both (trimmed-equal) are "same"; lines only in `before` are "removed"; lines only
- * in `after` are "added". Lets the diff card tint exactly the lines kapi-react changed.
+ * in `after` are "added". Lets the diff card tint exactly the lines neokapi-i18n changed.
  */
 function lineDiff(before: string[], after: string[]): { beforeStatus: string[]; afterStatus: string[] } {
   const t = (s: string) => s.trim();

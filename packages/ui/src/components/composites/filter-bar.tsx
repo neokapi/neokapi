@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { createPortal } from "react-dom";
 import { X, Search, Check, ChevronDown } from "lucide-react";
 import { Badge } from "../ui/badge";

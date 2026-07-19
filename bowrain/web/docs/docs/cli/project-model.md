@@ -191,7 +191,7 @@ content:
         format:
           name: exec
           config:
-            command: "vp kapi-react extract --stream"
+            command: "vp neokapi-i18n extract --stream"
       - path: "src/i18n/en/*.json"
         format: json
 ```
@@ -220,7 +220,7 @@ content:
     format:
       name: exec
       config:
-        command: "vp kapi-react extract --stream"
+        command: "vp neokapi-i18n extract --stream"
 
   - path: "docs/**/*.html"
     format:

@@ -97,7 +97,7 @@ func init() {
 	// type is unregistered on replay. Unregistered, a block served from cache
 	// silently loses its KLFAnnotation, and with it the block's content hash,
 	// placeholders, and preview — so a reconstructed .klf target comes out with
-	// empty hashes (breaking downstream identity, e.g. kapi-react compile). This
+	// empty hashes (breaking downstream identity, e.g. neokapi-i18n compile). This
 	// surfaced non-deterministically under `kapi up`, whose concurrent per-locale
 	// converge workers share the cache and race on the same cached source.
 	model.RegisterPayload(AnnotationType, func() model.Payload { return &KLFAnnotation{} })

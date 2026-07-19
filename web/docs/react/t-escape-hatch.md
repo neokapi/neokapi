@@ -2,8 +2,8 @@
 sidebar_position: 4
 title: The t() Escape Hatch
 sidebar_label: The t() escape hatch
-description: Use the t() function in kapi-react to mark strings for extraction when they live outside JSX — in arrays, reducers, refs, or any expression the plugin cannot walk statically.
-keywords: [t(), escape hatch, extraction, non-JSX strings, kapi-react, i18n, React]
+description: Use the t() function in neokapi-i18n to mark strings for extraction when they live outside JSX — in arrays, reducers, refs, or any expression the plugin cannot walk statically.
+keywords: [t(), escape hatch, extraction, non-JSX strings, neokapi-i18n, i18n, React]
 ---
 
 # The `t()` escape hatch
@@ -15,7 +15,7 @@ Use `t()` to mark them for extraction without leaving the translator's flow.
 ## The pattern
 
 ```tsx
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 
 const UI_LANGUAGES = [
   { value: "en", label: t("English") },
@@ -33,7 +33,7 @@ function greet(user: User) {
 }
 ```
 
-At build time the plugin rewrites every `t("...")` call bound to `@neokapi/kapi-react/runtime` into a hash-based lookup:
+At build time the plugin rewrites every `t("...")` call bound to `@neokapi/i18n-react/runtime` into a hash-based lookup:
 
 ```ts
 // Input
@@ -47,7 +47,7 @@ In dev mode (plugin not active) `t` is a no-op that returns the source text verb
 
 ## Why a separate marker?
 
-kapi-react's promise is zero wrappers for JSX. JS data structures are different — the extractor has no AST-level signal that `label: "English"` is a translatable string rather than an ID, an enum value, a CSS class, or anything else.
+neokapi-i18n's promise is zero wrappers for JSX. JS data structures are different — the extractor has no AST-level signal that `label: "English"` is a translatable string rather than an ID, an enum value, a CSS class, or anything else.
 
 `t()` is the explicit "treat this as translatable" marker for that context. It's the minimum necessary handoff — one function call per string — and it keeps the JSX story wrapper-free.
 
@@ -87,10 +87,10 @@ Context mirrors gettext's `msgctxt` for teams familiar with the pattern.
 
 ## Import-name tracking
 
-The plugin only rewrites `t` identifiers bound to `@neokapi/kapi-react/runtime`. A local helper named `t` or a `t` imported from a different library is left alone:
+The plugin only rewrites `t` identifiers bound to `@neokapi/i18n-react/runtime`. A local helper named `t` or a `t` imported from a different library is left alone:
 
 ```tsx
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { t as styled } from "styled-components"; // ← unrelated
 
 const Wrapper = styled.div`...`; // ← not rewritten
@@ -101,7 +101,7 @@ const label = t("Hello"); // ← rewritten to __t("hash", "Hello")
 Aliases work too:
 
 ```tsx
-import { t as tr } from "@neokapi/kapi-react/runtime";
+import { t as tr } from "@neokapi/i18n-react/runtime";
 
 const label = tr("Hello"); // ← rewritten
 ```
@@ -162,7 +162,7 @@ subtree. See [Writing components → Double-translation](./writing-components#do
 
 ## Ternary children with string literals
 
-kapi-react treats the _whole_ `JSXExpressionContainer` as one
+neokapi-i18n treats the _whole_ `JSXExpressionContainer` as one
 placeholder — it never looks inside a ternary at its branches:
 
 ```tsx
@@ -234,7 +234,7 @@ Both return a `string`. No ReactNode result — for that you need the JSX path.
 
 ## ESLint / oxlint: keep `t()` honest
 
-`t(someVariable)` defeats the point — the extractor has no text to hash. Install [`@neokapi/kapi-react-lint`](./linting) which ships rules for both ESLint and oxlint that catch this and the related pitfalls (`t('Hello ' + name)`, `<img alt={'Logo ' + brand} />`, string literals hidden in JSX expression containers).
+`t(someVariable)` defeats the point — the extractor has no text to hash. Install [`@neokapi/i18n-react-lint`](./linting) which ships rules for both ESLint and oxlint that catch this and the related pitfalls (`t('Hello ' + name)`, `<img alt={'Logo ' + brand} />`, string literals hidden in JSX expression containers).
 
 ## Next
 

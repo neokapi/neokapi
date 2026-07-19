@@ -9,7 +9,7 @@
  * consumed two ways by scripts/render.ts:
  *
  *  - imported directly (via tsx) for the English render, and
- *  - bundled per target locale with esbuild + the @neokapi/kapi-react
+ *  - bundled per target locale with esbuild + the @neokapi/i18n-react
  *    esbuild plugin in inline mode, which bakes the locale's compiled
  *    catalog (translations/<locale>.json) into the JSX before rendering.
  */

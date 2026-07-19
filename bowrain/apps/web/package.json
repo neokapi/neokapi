@@ -18,7 +18,7 @@
     "@fontsource-variable/dm-sans": "^5.2.8",
     "@fontsource/dm-mono": "^5.2.7",
     "@neokapi/bowrain-app": "*",
-    "@neokapi/kapi-react": "*",
+    "@neokapi/i18n-react": "*",
     "@neokapi/ui": "*",
     "@sentry/react": "^10.66.0",
     "@tailwindcss/vite": "^4.3.2",

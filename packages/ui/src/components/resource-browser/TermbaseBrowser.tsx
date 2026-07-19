@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import type { TermbaseAdapter } from "./adapters";
 import type { ConceptDTO, TermDTO } from "./types";
 import { BulkActionBar } from "./BulkActionBar";

@@ -18,7 +18,7 @@
  */
 
 import type { ReactElement } from "react";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { useMemo, useState } from "react";
 
 import type { Block, PluralForm, Run } from "@neokapi/kapi-format";

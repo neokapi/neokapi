@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { t } from "@neokapi/kapi-react/runtime";
+import { t } from "@neokapi/i18n-react/runtime";
 import { GitBranch, Layers } from "lucide-react";
 import {
   Button,

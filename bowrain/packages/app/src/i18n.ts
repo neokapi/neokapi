@@ -1,7 +1,7 @@
-import { loadTranslations, setTranslations } from "@neokapi/kapi-react/runtime";
+import { loadTranslations, setTranslations } from "@neokapi/i18n-react/runtime";
 
 /**
- * UI-locale plumbing for the shared Bowrain app (kapi-react runtime mode).
+ * UI-locale plumbing for the shared Bowrain app (neokapi-i18n runtime mode).
  *
  * The compiled per-locale dictionaries ship as static assets at
  * `public/translations/<locale>.json` in every shell (web, desktop webview,

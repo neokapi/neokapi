@@ -20,7 +20,7 @@
     "test:watch": "vp test watch"
   },
   "dependencies": {
-    "@neokapi/kapi-react": "*",
+    "@neokapi/i18n-react": "*",
     "@neokapi/ui-primitives": "*",
     "lucide-react": "^1.24.0"
   },

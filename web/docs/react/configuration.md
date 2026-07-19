@@ -1,18 +1,18 @@
 ---
 sidebar_position: 11
-title: kapi-react Configuration Reference
-description: Full reference for the kapi-react Vite plugin options — mode, locale, fallbackLocales, translationsDir, componentMap, Storybook integration, and CLI flags for extract and compile.
-keywords: [kapi-react, configuration, plugin options, Vite, locale, componentMap, CLI flags, Storybook]
+title: neokapi-i18n Configuration Reference
+description: Full reference for the neokapi-i18n Vite plugin options — mode, locale, fallbackLocales, translationsDir, componentMap, Storybook integration, and CLI flags for extract and compile.
+keywords: [neokapi-i18n, configuration, plugin options, Vite, locale, componentMap, CLI flags, Storybook]
 ---
 
 # Configuration
 
-The `neokapi(...)` plugin options, the `kapi-react` CLI flags, and the ecosystem bits (Storybook, custom warning routing).
+The `neokapi(...)` plugin options, the `neokapi-i18n` CLI flags, and the ecosystem bits (Storybook, custom warning routing).
 
 ## Plugin options
 
 ```ts
-import neokapi from "@neokapi/kapi-react/vite";
+import neokapi from "@neokapi/i18n-react/vite";
 
 neokapi({
   mode: "runtime",
@@ -173,7 +173,7 @@ neokapi({
 });
 ```
 
-Pair with [`@neokapi/kapi-react-lint`](./linting) to get a fully-enforced "no authoring mistakes land on main" story.
+Pair with [`@neokapi/i18n-react-lint`](./linting) to get a fully-enforced "no authoring mistakes land on main" story.
 
 ### `review` / `reviewKlfDir`
 
@@ -190,10 +190,10 @@ Dev and staging only — never ship a production build with it on.
 
 ## CLI flags
 
-`kapi-react extract`:
+`neokapi-i18n extract`:
 
 ```bash
-kapi-react extract \
+neokapi-i18n extract \
   --src "src/**/*.{tsx,jsx}" \
   --ignore "src/stories/**" \
   --ignore "**/*.test.tsx" \
@@ -205,10 +205,10 @@ kapi-react extract \
   --target-locale de
 
 # or stream mode for pipes into any kapi-aware consumer:
-kapi-react extract --stream | any-kapi-tool
+neokapi-i18n extract --stream | any-kapi-tool
 
 # CI-friendly: fail on any recorded warning.
-kapi-react extract --strict
+neokapi-i18n extract --strict
 ```
 
 `--ignore` is repeatable and accepts any glob; it's piped through to
@@ -217,20 +217,20 @@ fixture-only code (`src/stories/**`, test helpers) out of the catalog
 — your lint config should agree (see [Linting → Excluding fixture
 code](./linting#excluding-fixture-code)).
 
-`kapi-react compile` (accepts `.klf`, `.klf` directory, or `-` for NDJSON stdin):
+`neokapi-i18n compile` (accepts `.klf`, `.klf` directory, or `-` for NDJSON stdin):
 
 ```bash
-kapi-react compile \
+neokapi-i18n compile \
   i18n/ \
   --out public/translations \
   --locale fr            # optional — filter to a single locale
 ```
 
-`kapi-react explain` (audit what extracts, and why):
+`neokapi-i18n explain` (audit what extracts, and why):
 
 ```bash
-kapi-react explain src/Settings.tsx
-kapi-react explain "src/**/*.tsx" --extracted   # only the elements that extracted
+neokapi-i18n explain src/Settings.tsx
+neokapi-i18n explain "src/**/*.tsx" --extracted   # only the elements that extracted
 ```
 
 ```text
@@ -243,7 +243,7 @@ L7    <input>        [container] skipped — no translator-editable text
 
 Every line is the W3C ITS classification, the gate that fired, and the hash the block got. Reach for it when a string you expected didn't make the catalog, or one you didn't expect did.
 
-`kapi-react split` slices master dicts into per-chunk subsets for lazy loading — see [Lazy loading per route](./modes#lazy-loading-per-route-code-splitting).
+`neokapi-i18n split` slices master dicts into per-chunk subsets for lazy loading — see [Lazy loading per route](./modes#lazy-loading-per-route-code-splitting).
 
 ### Share one config between the CLI and the plugin
 
@@ -251,7 +251,7 @@ The `componentMap` and `rules` feed the **hash**. If the extract CLI and the bui
 
 So don't maintain two copies. Keep one JSON file and have both sides read it:
 
-```json title="kapi-react.config.json"
+```json title="neokapi-i18n.config.json"
 {
   "componentMap": {
     "TabsTrigger": "button",
@@ -262,24 +262,24 @@ So don't maintain two copies. Keep one JSON file and have both sides read it:
 ```
 
 ```ts title="vite.config.ts"
-import kapiReactConfig from "./kapi-react.config.json";
+import neokapiI18nConfig from "./neokapi-i18n.config.json";
 
-neokapi({ mode: "runtime", ...kapiReactConfig });
+neokapi({ mode: "runtime", ...neokapiI18nConfig });
 ```
 
 ```bash
-kapi-react extract --config kapi-react.config.json
+neokapi-i18n extract --config neokapi-i18n.config.json
 ```
 
 The file name is yours to choose — the CLI takes it via `--config` and the plugin just takes the object. What matters is that there is exactly one of them.
 
 ## Storybook integration
 
-`@neokapi/kapi-react/storybook` exports a decorator and toolbar entry for switching locales inside Storybook:
+`@neokapi/i18n-react/storybook` exports a decorator and toolbar entry for switching locales inside Storybook:
 
 ```ts title=".storybook/preview.ts"
 import type { Preview } from "@storybook/react-vite";
-import { neokapiDecorator, neokapiGlobalType } from "@neokapi/kapi-react/storybook";
+import { neokapiDecorator, neokapiGlobalType } from "@neokapi/i18n-react/storybook";
 
 const i18n = {
   locales: [
@@ -302,7 +302,7 @@ export default preview;
 And in `.storybook/main.ts`, enable the plugin so stories get the runtime transform:
 
 ```ts title=".storybook/main.ts"
-import neokapi from "@neokapi/kapi-react/vite";
+import neokapi from "@neokapi/i18n-react/vite";
 
 export default {
   stories: ["../src/**/*.stories.tsx"],
@@ -338,7 +338,7 @@ Your `index.html` renders with whatever `lang` you hard-code, typically `en`. Wh
 If your app manages `<html lang>` itself (SSR with preset lang, framework-owned locale routing, multi-locale surfaces on one page), pass `syncDocumentLocale: false`:
 
 ```ts
-import { setTranslations } from "@neokapi/kapi-react/runtime";
+import { setTranslations } from "@neokapi/i18n-react/runtime";
 
 setTranslations("ja-JP", dict, { syncDocumentLocale: false });
 // or:
@@ -354,7 +354,7 @@ SSR is handled automatically — the option defaults to `true` when `document` i
 When you need to push locale state without swapping the dict (e.g. your app has the dict inlined and you only want to set `<html lang>`), use `syncDocumentLocale` directly:
 
 ```ts
-import { syncDocumentLocale } from "@neokapi/kapi-react/runtime";
+import { syncDocumentLocale } from "@neokapi/i18n-react/runtime";
 
 syncDocumentLocale("fr-FR");
 ```
@@ -398,11 +398,11 @@ Use the CLI `--src` flag to scope extraction. The plugin still runs for the Vite
 
 ### "I changed a string but translations still load the old text"
 
-Hash changed; run `kapi-react extract` and update the translation dict. A stale `.klf` means stale hashes.
+Hash changed; run `neokapi-i18n extract` and update the translation dict. A stale `.klf` means stale hashes.
 
 ### "My custom component's text isn't getting translated"
 
-Run `kapi-react explain <file>` — it prints the decision for every element on the page, so you rarely have to guess. The usual causes:
+Run `neokapi-i18n explain <file>` — it prints the decision for every element on the page, so you rarely have to guess. The usual causes:
 
 1. Does the component have direct JSXText children? The `<MyWidget>some text</MyWidget>` pattern auto-extracts with a warning.
 2. Is the prop translatable *here*? HTML/ARIA names extract anywhere; convention names like `helpText` extract on PascalCase components only.
@@ -414,7 +414,7 @@ You're probably building Storybook or running tests with the plugin active. Rout
 
 ### "Hash mismatch between extract and transform"
 
-Almost always a `componentMap` desync — the plugin and the CLI computed different keys because they were configured differently. [Share one config file](#share-one-config-between-the-cli-and-the-plugin) between them. `kapi-react explain` prints the hash each element gets, so you can compare it against the `.klf` directly.
+Almost always a `componentMap` desync — the plugin and the CLI computed different keys because they were configured differently. [Share one config file](#share-one-config-between-the-cli-and-the-plugin) between them. `neokapi-i18n explain` prints the hash each element gets, so you can compare it against the `.klf` directly.
 
 ### "A string renders in English in a pseudo build, but the component looks translatable"
 
@@ -422,7 +422,7 @@ Usually one of these three:
 
 1. **A stale build, not a stale dict.** The plugin re-reads a
    translation file whenever its mtime changes, so re-running
-   `kapi-react compile` while the dev server is up is enough — you
+   `neokapi-i18n compile` while the dev server is up is enough — you
    don't need to restart it. If a *code* change seems not to have
    landed, that's Vite's dep cache: kill the dev server and
    `rm -rf node_modules/.vite`.

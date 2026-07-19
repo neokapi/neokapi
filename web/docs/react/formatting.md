@@ -1,8 +1,8 @@
 ---
 sidebar_position: 6
 title: Formatting Dates, Numbers, and Currency
-description: ICU number, date, and time formatting inside translated strings, and how to combine kapi-react's locale with the platform Intl API and third-party formatters for everything else.
-keywords: [formatting, dates, numbers, currency, ICU, Intl API, date-fns, Luxon, locale, kapi-react]
+description: ICU number, date, and time formatting inside translated strings, and how to combine neokapi-i18n's locale with the platform Intl API and third-party formatters for everything else.
+keywords: [formatting, dates, numbers, currency, ICU, Intl API, date-fns, Luxon, locale, neokapi-i18n]
 ---
 
 # Formatting dates, numbers, currency
@@ -10,7 +10,7 @@ keywords: [formatting, dates, numbers, currency, ICU, Intl API, date-fns, Luxon,
 There are two places formatting happens, and the split matters:
 
 - **Inside a translated string** — `You have {n, number} unread messages`. The runtime formats the value through `Intl`, in the active locale, as part of resolving the string. The translator controls it; no code change.
-- **Outside a translated string** — a price in a table cell, a timestamp in a log view. That's your code's job. kapi-react gives you the locale; you bring the formatter.
+- **Outside a translated string** — a price in a table cell, a timestamp in a log view. That's your code's job. neokapi-i18n gives you the locale; you bring the formatter.
 
 ## Formatting inside translated strings
 
@@ -51,10 +51,10 @@ This costs no extra bundle: it's the same `Intl` the plural resolver already use
 
 ## Formatting outside translated strings — the integration surface
 
-Every locale-aware library on the platform takes a BCP-47 locale string — the same shape kapi-react tracks internally. Pull it out reactively via `useNeokapi()`:
+Every locale-aware library on the platform takes a BCP-47 locale string — the same shape neokapi-i18n tracks internally. Pull it out reactively via `useNeokapi()`:
 
 ```tsx
-import { useNeokapi } from "@neokapi/kapi-react/runtime";
+import { useNeokapi } from "@neokapi/i18n-react/runtime";
 
 function Price({ amount, currency }: { amount: number; currency: string }) {
   const { locale } = useNeokapi();
@@ -110,7 +110,7 @@ new Intl.NumberFormat(locale, { notation: "compact", compactDisplay: "short" }).
 
 Three Intl APIs that matter for other subsystems:
 
-- **`Intl.PluralRules`** — already used internally by kapi-react's [`<Plural>`](./plurals-and-select) component. You don't need a third-party pluralizer.
+- **`Intl.PluralRules`** — already used internally by neokapi-i18n's [`<Plural>`](./plurals-and-select) component. You don't need a third-party pluralizer.
 - **`Intl.Collator`** — locale-correct string comparison. Use for sorting lists of translated names (`items.sort((a, b) => new Intl.Collator(locale).compare(a.name, b.name))`).
 - **`Intl.Segmenter`** — word / sentence / grapheme boundaries (useful when you want to cut a label mid-word correctly in CJK).
 
@@ -120,7 +120,7 @@ Re-creating formatters on every render is fine (they're cheap), but memoizing is
 
 ```tsx
 import { useMemo } from "react";
-import { useNeokapi } from "@neokapi/kapi-react/runtime";
+import { useNeokapi } from "@neokapi/i18n-react/runtime";
 
 export function useCurrency(currency: string) {
   const { locale } = useNeokapi();
@@ -222,11 +222,11 @@ Side-effect imports register locale data; one per locale you ship.
 
 ### FormatJS / react-intl
 
-FormatJS is a full-featured ICU MessageFormat stack. If you're already on it, kapi-react and FormatJS can coexist — use FormatJS for formatting and kapi-react for extraction + translation. But you'll have two systems tracking locale: wire `currentLocale` into FormatJS's `IntlProvider`:
+FormatJS is a full-featured ICU MessageFormat stack. If you're already on it, neokapi-i18n and FormatJS can coexist — use FormatJS for formatting and neokapi-i18n for extraction + translation. But you'll have two systems tracking locale: wire `currentLocale` into FormatJS's `IntlProvider`:
 
 ```tsx
 import { IntlProvider } from "react-intl";
-import { useNeokapi } from "@neokapi/kapi-react/runtime";
+import { useNeokapi } from "@neokapi/i18n-react/runtime";
 
 function I18nRoot({ children }) {
   const { locale } = useNeokapi();
@@ -238,14 +238,14 @@ function I18nRoot({ children }) {
 }
 ```
 
-For greenfield apps: stick with Intl. FormatJS adds ~40 kB for features kapi-react already handles (plurals, select, message interpolation, and number/date/time formatting inside strings) plus a bunch it doesn't (but which Intl often covers).
+For greenfield apps: stick with Intl. FormatJS adds ~40 kB for features neokapi-i18n already handles (plurals, select, message interpolation, and number/date/time formatting inside strings) plus a bunch it doesn't (but which Intl often covers).
 
 ## Library picker
 
 | Need                                                                      | Pick                                                                   | Notes                                                                             |
 | ------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | Currency, percent, date, time, relative time, list, unit, compact numbers | `Intl.*`                                                               | Already in the runtime. No imports.                                               |
-| Pluralization (count-aware copy)                                          | kapi-react's [`<Plural>`](./plurals-and-select)                        | Uses `Intl.PluralRules`. No extra library.                                        |
+| Pluralization (count-aware copy)                                          | neokapi-i18n's [`<Plural>`](./plurals-and-select)                        | Uses `Intl.PluralRules`. No extra library.                                        |
 | Sorting translated names                                                  | `Intl.Collator`                                                        | `list.sort((a,b) => col.compare(a,b))`                                            |
 | Timezone-aware dates, heavy date math                                     | Luxon or date-fns(-tz)                                                 | Luxon is Intl-based; date-fns is older but lighter.                               |
 | Duration formatting ("3h 12m")                                            | Luxon `Duration.toHuman()` or `@formatjs/intl-durationformat` polyfill | `Intl.DurationFormat` exists in newer runtimes but isn't universally shipped yet. |
@@ -266,16 +266,16 @@ Now the first client render happens with the right locale, Intl formatters match
 
 See also [Configuration → HTML `lang` and `dir` attributes](./configuration#html-lang-and-dir-attributes) for keeping the document locale in sync on first paint.
 
-## What kapi-react deliberately doesn't do
+## What neokapi-i18n deliberately doesn't do
 
 - **Number input parsing.** Parsing `"1.234,56 €"` back into `1234.56` is locale-dependent and non-trivial. Use a form library with a locale-aware input (`react-number-format` has locale support) or write a small parser per input shape.
 - **Unit conversion.** Intl formats "1 km"; converting 1 km to miles is your app's responsibility.
 - **Address / phone / postal code formatting.** Use a specialized library (`libphonenumber-js`, `libpostal`).
 
-These aren't i18n concerns so much as data normalization — they need domain logic kapi-react has no business in.
+These aren't i18n concerns so much as data normalization — they need domain logic neokapi-i18n has no business in.
 
 ## Next
 
-- [Plurals and select](./plurals-and-select) — the one formatting case kapi-react _does_ own, because it's intertwined with the translated string itself.
+- [Plurals and select](./plurals-and-select) — the one formatting case neokapi-i18n _does_ own, because it's intertwined with the translated string itself.
 - [`t()` escape hatch](./t-escape-hatch) — feeding formatted values into translated copy via placeholders: `t("Price: {price}", { price: currencyFormatter.format(amount) })`.
 - [Configuration](./configuration) — runtime options, including the `<html lang>` / `dir` sync.

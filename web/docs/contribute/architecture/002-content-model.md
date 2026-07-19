@@ -676,7 +676,7 @@ The framework provides:
 | `RunsGeneralizedText(runs)`    | structural + entity placeholders | TM matching (generalized tier)                                            |
 | `RunsPlaceholderText(runs)`    | `<x id="1"/>here<x id="/1"/>`    | LLM prompts where tag preservation is critical                            |
 | `RunsSemanticHTML(runs, reg)`  | `<a href="…">here</a>`           | Commercial MT (DeepL, Google) and HTML-style LLM prompts                  |
-| `flattenRuns(runs)` (TS)       | `Click {=m0}here{/=m0}`          | ICU runtime, kapi-react `__tx` re-attach                                  |
+| `flattenRuns(runs)` (TS)       | `Click {=m0}here{/=m0}`          | ICU runtime, neokapi-i18n `__tx` re-attach                                  |
 | `runsToCoded(runs)` (TS)       | PUA-marker text + `SpanInfo[]`   | Visual editor (chips, formatting, semantic spans rendered as styled text) |
 
 Two consequences fall out of the convention:
@@ -688,7 +688,7 @@ Two consequences fall out of the convention:
    `RunsSemanticHTML`. The structural Block is identical; each consumer
    renders it differently.
 2. **Format extensions follow the same rule.** A new format reader, a new
-   extractor (e.g., kapi-react), a new translator surface — each emits
+   extractor (e.g., neokapi-i18n), a new translator surface — each emits
    `Run[]` and lets the framework's existing projections handle every
    consumer. New textual conventions are only introduced when an existing
    projection is genuinely insufficient.

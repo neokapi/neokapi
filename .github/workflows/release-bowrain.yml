@@ -262,8 +262,8 @@ jobs:
 
       # Release gate: shared UI must type-check + pass unit tests.
       - uses: ./.github/actions/setup-node-ui
-      - name: Build @neokapi/kapi-react
-        working-directory: packages/kapi-react
+      - name: Build @neokapi/i18n-react
+        working-directory: packages/i18n-react
         run: vp run build
       - name: Type-check shared UI package
         working-directory: bowrain/packages/ui
@@ -569,10 +569,10 @@ jobs:
       - uses: ./.github/actions/setup-node-ui
 
       # The keycloak theme bundles @neokapi/ui, which imports
-      # @neokapi/kapi-react/runtime (a built ./dist subpath export). Build
-      # kapi-react first so the theme's vite build resolves it.
-      - name: Build @neokapi/kapi-react
-        working-directory: packages/kapi-react
+      # @neokapi/i18n-react/runtime (a built ./dist subpath export). Build
+      # neokapi-i18n first so the theme's vite build resolves it.
+      - name: Build @neokapi/i18n-react
+        working-directory: packages/i18n-react
         run: vp run build
 
       - name: Set up JDK 17
@@ -738,11 +738,11 @@ jobs:
           rm -f frontend/bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js.bak
 
       # The bowrain frontend bundles @neokapi/flow-editor, which imports
-      # @neokapi/kapi-react/runtime — a built ./dist subpath export (not
-      # committed). Build kapi-react first so the import resolves (mirrors the
+      # @neokapi/i18n-react/runtime — a built ./dist subpath export (not
+      # committed). Build neokapi-i18n first so the import resolves (mirrors the
       # kapi-desktop job).
-      - name: Build @neokapi/kapi-react
-        working-directory: packages/kapi-react
+      - name: Build @neokapi/i18n-react
+        working-directory: packages/i18n-react
         run: vp run build
 
       - name: Build Bowrain frontend

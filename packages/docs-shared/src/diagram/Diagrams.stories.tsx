@@ -130,13 +130,13 @@ export const Phases: Story = {
         {
           label: "i18n/",
           sub: "KLF archive",
-          edge: "kapi-react extract",
+          edge: "neokapi-i18n extract",
           role: "io",
           loop: ["kapi translate / pseudo / qa", "accumulate locales in place"],
         },
         {
           label: "public/translations/{locale}.json",
-          edge: "kapi-react compile",
+          edge: "neokapi-i18n compile",
           role: "translate",
         },
       ]}

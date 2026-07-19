@@ -2,15 +2,15 @@ import { defineConfig } from "vite-plus";
 import type { PluginOption } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import neokapi from "@neokapi/kapi-react/vite";
-import kapiReactConfig from "../../packages/app/kapi-react.config.json" with { type: "json" };
+import neokapi from "@neokapi/i18n-react/vite";
+import neokapiI18nConfig from "../../packages/app/neokapi-i18n.config.json" with { type: "json" };
 
 export default defineConfig({
   // neokapi() is bounded to vite's own PluginOption — see apps/kapi-desktop/
   // frontend/vite.config.ts. componentMap is shared with the extract CLI
-  // (bowrain/packages/app/kapi-react.config.json) so hashes match the catalog.
+  // (bowrain/packages/app/neokapi-i18n.config.json) so hashes match the catalog.
   plugins: [
-    neokapi({ mode: "runtime", componentMap: kapiReactConfig.componentMap }) as PluginOption,
+    neokapi({ mode: "runtime", componentMap: neokapiI18nConfig.componentMap }) as PluginOption,
     react(),
     tailwindcss(),
   ],

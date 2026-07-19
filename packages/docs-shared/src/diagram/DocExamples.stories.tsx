@@ -68,7 +68,7 @@ export const Segmentation: Story = {
 
 // react/pipeline.md — "Round-trip in one diagram"
 export const ReactRoundTrip: Story = {
-  name: "kapi-react round-trip — react/pipeline",
+  name: "neokapi-i18n round-trip — react/pipeline",
   render: () => (
     <PhaseFlow
       nodes={[
@@ -76,7 +76,7 @@ export const ReactRoundTrip: Story = {
         {
           label: "i18n/ Block",
           sub: 'hash "aB3" · source + targets',
-          edge: "kapi-react extract (source only)",
+          edge: "neokapi-i18n extract (source only)",
           role: "io",
           loop: ["kapi translate --target-lang fr", "then de … (additive, in place)"],
         },
@@ -89,7 +89,7 @@ export const ReactRoundTrip: Story = {
         {
           label: "dist/translations/{locale}/",
           sub: "index.json + lazy chunks",
-          edge: "kapi-react split (optional)",
+          edge: "neokapi-i18n split (optional)",
         },
         {
           label: 'Your app renders "Bienvenue"',
