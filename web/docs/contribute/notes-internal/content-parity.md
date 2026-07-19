@@ -125,6 +125,26 @@ Adding a Block/Run/Overlay field, or a new Run/Overlay kind:
   not survive the store leg — they *do* survive the model↔proto and model↔JSON
   legs. The full-chain test therefore asserts overlays + core content, not full
   deep-equal.
+- **`Block.Skeleton` is deliberately not stored — it is a delivery-edge
+  concern, not platform state.** The skeleton (a format's non-translatable
+  document frame: comments, attribute order, non-translatable entries, element
+  ordering) is *typed scaffolding of one format* and would couple the
+  format-agnostic content store to per-format structure. Instead, faithful
+  server-side delivery reconstructs it **at the edge**: the file/git/forge
+  connector's write path (`bowrain/connector/file.go`, `publishFile`) re-reads
+  the co-located **source** document, captures its skeleton with the format
+  reader, and splices the reviewed targets back in — exactly the local
+  `kapi merge` roundtrip (`host/merge.go` `writeMergedSourceWithSkeleton`). This
+  is always available in the kapi-as-connector topology: push and delivery share
+  the same repository checkout, so the source sits on disk next to the delivery
+  target. Pure-structure formats (json/yaml/arb/po/…) whose block set fully
+  determines the file deliver byte-identically either way, so the re-parse path
+  is transparent for them.
+  - **Out of scope (documented, not fixed):** content pushed to Bowrain with
+    **no** co-located source at delivery time. That topology does not arise in
+    the kapi-as-connector model; delivery degrades to the from-blocks
+    reconstruction (today's behaviour) rather than reintroducing skeleton
+    storage into the platform.
 - On the **proto push** path an *unregistered* overlay payload degrades to a
   `GenericAnnotation` whose `Fields` nests the payload's whole JSON (via
   `protoconvert`), whereas the JSON pull / store codecs reconstruct it exactly.
