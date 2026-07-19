@@ -642,6 +642,12 @@ func NewServer(cfg Config) *Server {
 		// queue empties, review.completed starts a completing run so approved
 		// content ships with no extra user action. Durable, like the two above.
 		s.subscribeReviewCompletion()
+		// Review loop fan-out to translations (RV-E): when a term/concept is marked
+		// forbidden or a brand rule is promoted, re-check existing reviewed targets
+		// and pull the violating ones back into the review queue. Durable, and
+		// deliberately does not start a run — it only re-queues; the human (or bulk
+		// approve-passing) re-drives completion through the path wired above.
+		s.subscribeReviewRecheck()
 	}
 
 	// Unclaimed-project purge (epic 003 item 6): periodically remove expired

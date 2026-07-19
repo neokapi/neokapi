@@ -16,6 +16,7 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	coreblockstore "github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/id"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // registerDefaultAutomations registers the built-in automation rules.
@@ -537,6 +538,21 @@ func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationA
 		return
 	}
 
+	s.createReviewTasksForLocales(ctx, proj, proj.TargetLanguages, action, ev, stepID)
+}
+
+// createReviewTasksForLocales creates review/translate tasks for a specific set
+// of `locales` of an already-loaded governed project (the caller owns the
+// workflowReviewEnabled gate). createReviewTasks fans out to every configured
+// target language; RV-E's re-check (recheckProjectTargets) reuses this to
+// re-queue only the locales whose approved targets it demoted. The per-locale
+// dedup against open tasks and the owner-reach fallback are shared, so both
+// callers route work to a person the same way.
+func (s *Server) createReviewTasksForLocales(ctx context.Context, proj *store.Project, locales []model.LocaleID, action event.AutomationAction, ev platev.Event, stepID string) {
+	if s.TaskStore == nil || s.AuthStore == nil {
+		return
+	}
+
 	mode := action.Config["mode"]
 	if mode == "" {
 		mode = "review"
@@ -575,7 +591,7 @@ func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationA
 	existingLocales := s.existingOpenTaskLocales(ctx, proj.WorkspaceID, proj.ID, string(taskType))
 
 	var taskIDs []string
-	for _, locale := range proj.TargetLanguages {
+	for _, locale := range locales {
 		localeStr := string(locale)
 
 		// Skip if an open/in-progress task already exists for this locale.
