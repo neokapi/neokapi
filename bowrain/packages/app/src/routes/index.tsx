@@ -362,6 +362,31 @@ const reviewRoute = createRoute({
   },
 });
 
+// The dedicated project-level governed review session (walks all pending
+// blocks across items + locales). Distinct from the per-item `$itemId/review`
+// surface above; every "review" entry point routes here.
+const reviewSessionRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "p/$projectId/s/$stream/review",
+  component: lazyRouteComponent(() => import("./workspace/review-session"), "ReviewSessionRoute"),
+  pendingComponent: EditorSkeleton,
+  loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
+    await Promise.all([
+      queryClient.ensureQueryData(
+        projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
+      ),
+      queryClient.ensureQueryData(
+        translationDashboardQueryOptions(
+          api,
+          activeWorkspace.slug,
+          params.projectId,
+          params.stream,
+        ),
+      ),
+    ]);
+  },
+});
+
 const preProcessRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "p/$projectId/s/$stream/$itemId/pre-process",
@@ -615,6 +640,15 @@ const tasksRoute = createRoute({
   component: lazyRouteComponent(() => import("./workspace/tasks"), "TasksRoute"),
 });
 
+// Workspace-level review inbox: projects with pending review, linking into
+// each project's focused review session.
+const reviewInboxRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "review-inbox",
+  pendingComponent: TaskBoardSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/review-inbox"), "ReviewInboxRoute"),
+});
+
 const userSettingsRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "user-settings",
@@ -741,6 +775,7 @@ const routeTree = rootRoute.addChildren([
     projectSettingsRoute,
     translateRoute,
     reviewRoute,
+    reviewSessionRoute,
     preProcessRoute,
     automationsRoute,
     runsRoute,
@@ -769,6 +804,7 @@ const routeTree = rootRoute.addChildren([
     auditlogRoute,
     activitiesRoute,
     tasksRoute,
+    reviewInboxRoute,
     userSettingsRoute,
     binRoute,
     settingsRoute.addChildren([

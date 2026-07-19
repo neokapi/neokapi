@@ -128,6 +128,9 @@ import type {
   Pilot,
   StartPilotRequest,
   ReviewDemotion,
+  ApprovePassingResult,
+  BrandCorrectionRequest,
+  BrandCorrectionResult,
   BrandScanRequest,
   BrandScanUploadResult,
   BrandScanJob,
@@ -922,6 +925,18 @@ export class WailsApiAdapter implements ApiAdapter {
       reviewed,
       (!reviewed && demoteTo) || "",
     );
+  }
+  async approvePassingReview(): Promise<ApprovePassingResult> {
+    // Bulk approve-passing is a server-side governance operation; the desktop
+    // working copy signs off block-by-block via reviewBlock instead.
+    throw new Error("bulk approve-passing is not available in the desktop app");
+  }
+  async recordBrandCorrection(
+    _ws: string,
+    _projectId: string,
+    _req: BrandCorrectionRequest,
+  ): Promise<BrandCorrectionResult> {
+    throw new Error("recording brand corrections is not available in the desktop app");
   }
   async listGroups(): Promise<Group[]> {
     return [];

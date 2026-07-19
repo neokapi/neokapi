@@ -106,6 +106,8 @@ import type {
   SlugReservation,
   UploadFilesResult,
   ReviewDemotion,
+  ApprovePassingRequest,
+  ApprovePassingResult,
   BrandScanRequest,
   BrandScanUploadResult,
   BrandScanJob,
@@ -128,6 +130,8 @@ import type {
   DriftResult,
   BrandRollup,
   BrandRollupOptions,
+  BrandCorrectionRequest,
+  BrandCorrectionResult,
 } from "../brand/types";
 import type {
   ListConceptsParams,
@@ -632,6 +636,18 @@ export interface ApiAdapter {
     demoteTo?: ReviewDemotion,
   ): Promise<void>;
 
+  /**
+   * Bulk "Approve all passing": promote to reviewed every pending block that
+   * passes checks + the on-brand bar, leaving flagged ones. When this empties
+   * the project's review queue the server starts the completing convergence
+   * run + delivery (`review_completed: true`). The solo-founder fast path.
+   */
+  approvePassingReview(
+    workspaceSlug: string,
+    projectId: string,
+    req?: ApprovePassingRequest,
+  ): Promise<ApprovePassingResult>;
+
   // Governance (#778): groups, deny rules, separation-of-duties, role overrides
   listGroups(workspaceSlug: string): Promise<Group[]>;
   createGroup(workspaceSlug: string, name: string, description?: string): Promise<Group>;
@@ -870,6 +886,18 @@ export interface ApiAdapter {
    */
   getBrandRollup(workspaceSlug: string, opts?: BrandRollupOptions): Promise<BrandRollup>;
   // Correction-learning loop (AD-019)
+  /**
+   * Record a reviewer's in-place correction (original → corrected) against the
+   * bound brand profile. Feeds the correction-learning loop: repeated
+   * corrections surface as candidate rules and auto-promote past the profile's
+   * threshold. `ref` is the stream (defaults server-side).
+   */
+  recordBrandCorrection(
+    workspaceSlug: string,
+    projectId: string,
+    req: BrandCorrectionRequest,
+    stream?: string,
+  ): Promise<BrandCorrectionResult>;
   listBrandCandidates(
     workspaceSlug: string,
     profileId: string,

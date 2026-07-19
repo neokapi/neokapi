@@ -89,6 +89,8 @@ export interface LoopStatusRowProps {
   onOpenRuns?: () => void;
   /** Opens the workspace task queue. */
   onOpenTasks?: () => void;
+  /** Opens the workspace review inbox (the "Awaiting review" card's target). */
+  onOpenReview?: () => void;
   /** Opens the delivery (translation dashboard) surface. */
   onOpenDelivery?: () => void;
   /** Opens the brand dashboard. */
@@ -199,6 +201,7 @@ export function LoopStatusRow({
   onOpenActivities,
   onOpenRuns,
   onOpenTasks,
+  onOpenReview,
   onOpenDelivery,
   onOpenBrandDashboard,
 }: LoopStatusRowProps) {
@@ -269,8 +272,8 @@ export function LoopStatusRow({
       <StatusCard
         label="Awaiting review"
         icon={<Eye />}
-        footer="Open tasks"
-        onOpen={onOpenTasks}
+        footer={onOpenReview ? "Open review inbox" : "Open tasks"}
+        onOpen={onOpenReview ?? onOpenTasks}
         testId="loop-card-review"
       >
         {typeof openReviewTasks !== "number" ? (

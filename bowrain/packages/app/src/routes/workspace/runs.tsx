@@ -140,11 +140,12 @@ export function RunsRoute() {
   const goToTasks = () => void navigate({ to: "/$workspace/tasks", params: { workspace: ws } });
   const goToBilling = () =>
     void navigate({ to: "/$workspace/settings/billing", params: { workspace: ws } });
-  // The awaiting-review element deep-links into this project/stream's surface,
-  // where each item's review view opens (block-level sign-off).
+  // The awaiting-review hand-off deep-links into the dedicated review session
+  // (all pending blocks across the project's items + locales), not the moded
+  // translation editor.
   const goToReviewSurface = () =>
     void navigate({
-      to: "/$workspace/p/$projectId/s/$stream",
+      to: "/$workspace/p/$projectId/s/$stream/review",
       params: { workspace: ws, projectId: projectId ?? "", stream: stream ?? "main" },
     });
 
@@ -169,7 +170,7 @@ export function RunsRoute() {
             reviewEnabled={reviewEnabled}
             onSettleSource={goToTasks}
             onBuyCredits={goToBilling}
-            onOpenReview={goToTasks}
+            onOpenReview={goToReviewSurface}
             onOpenReviewSurface={goToReviewSurface}
           />
           <ConvergenceRunView

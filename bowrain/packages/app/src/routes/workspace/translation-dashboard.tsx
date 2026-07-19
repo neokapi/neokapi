@@ -10,7 +10,6 @@ import {
   type DashboardItemSort,
   type DeliveryConnectorStatus,
   type FileProgressPaging,
-  type ItemTranslationStats,
 } from "@neokapi/ui";
 import {
   DASHBOARD_ITEM_PAGE_SIZE,
@@ -18,17 +17,6 @@ import {
   translationDashboardQueryOptions,
 } from "../../queries";
 import type { WorkspaceRouteContext } from "..";
-
-/**
- * itemAwaitingReview picks the first item with translations that carry no
- * review decision yet — the target for the delivery panel's review deep link.
- */
-function itemAwaitingReview(items: ItemTranslationStats[]): ItemTranslationStats | undefined {
-  return (
-    items.find((it) => it.locales.some((l) => l.translated_blocks > (l.approved_blocks ?? 0))) ??
-    items[0]
-  );
-}
 
 export function TranslationDashboardRoute() {
   const navigate = useNavigate();
@@ -115,7 +103,6 @@ export function TranslationDashboardRoute() {
     };
   });
 
-  const reviewItem = itemAwaitingReview(stats.item_stats);
   const routeParams = {
     workspace: workspace ?? ws,
     projectId: project.id,
@@ -129,14 +116,8 @@ export function TranslationDashboardRoute() {
       onOpenConnectors={() =>
         navigate({ to: "/$workspace/p/$projectId/s/$stream/connectors", params: routeParams })
       }
-      onOpenReview={
-        reviewItem
-          ? () =>
-              navigate({
-                to: "/$workspace/p/$projectId/s/$stream/$itemId/review",
-                params: { ...routeParams, itemId: reviewItem.item_id },
-              })
-          : undefined
+      onOpenReview={() =>
+        navigate({ to: "/$workspace/p/$projectId/s/$stream/review", params: routeParams })
       }
     />
   );

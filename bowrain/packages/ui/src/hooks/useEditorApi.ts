@@ -107,6 +107,12 @@ export function useEditorApi() {
     [api, ws, activeStream],
   );
 
+  const approvePassing = useCallback(
+    async (projectId: string, locales?: string[]) =>
+      api.approvePassingReview(ws, projectId, { stream: activeStream, locales }),
+    [api, ws, activeStream],
+  );
+
   const reviewBlock = useCallback(
     async (
       projectId: string,
@@ -185,6 +191,7 @@ export function useEditorApi() {
       getBlockHistory,
       rollbackBlock,
       reviewBlock,
+      approvePassing,
       addBlockNote,
       listBlockNotes,
       deleteBlockNote,
@@ -206,6 +213,7 @@ export function useEditorApi() {
       getBlockHistory,
       rollbackBlock,
       reviewBlock,
+      approvePassing,
       addBlockNote,
       listBlockNotes,
       deleteBlockNote,

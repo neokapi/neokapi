@@ -32,6 +32,8 @@ export type {
   ChannelOverride,
   PersonaOverride,
   Dimension,
+  BrandCorrectionRequest,
+  BrandCorrectionResult,
   BrandSeverity,
   BrandVoiceFinding,
   DimensionScore,
