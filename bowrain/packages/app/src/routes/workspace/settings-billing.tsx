@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type ReactNode } from "react";
 import {
   useWorkspace,
   useApi,
@@ -21,7 +21,9 @@ import {
   type RunnerUsage,
   ModelUsageTable,
 } from "@neokapi/ui";
+import { useSearch } from "@tanstack/react-router";
 import { usePlatform } from "../../platform";
+import { searchPlan, searchSeats, type IntendedPlan } from "../intended-plan";
 
 function formatTokens(value: number): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
@@ -51,11 +53,77 @@ function UsageBreakdownRow({ label, value }: { label: string; value: number }) {
   );
 }
 
+/**
+ * Prominent card shown when the user arrived from a landing "Start free trial"
+ * CTA (the index route carries `?plan` through, surviving the OIDC round-trip).
+ * It names the pre-selected plan and offers one-click checkout — but never forces
+ * it. Purchasability is decided by the server (the plans response), so this
+ * degrades to a friendly "not enabled yet" state instead of a button that 503s
+ * when the deployment has no Stripe price configured (prod placeholder keys).
+ */
+function IntendedPlanBanner({
+  plan,
+  seats,
+  plans,
+  isOwner,
+  onUpgrade,
+}: {
+  plan: IntendedPlan;
+  seats?: number;
+  plans: BillingPlansResponse | null;
+  isOwner: boolean;
+  onUpgrade: (plan: BillingPlan, seats?: number) => void;
+}) {
+  const info = plans?.plans.find((p) => p.id === plan);
+  const name = info?.name ?? plan.charAt(0).toUpperCase() + plan.slice(1);
+
+  let title = `Complete your ${name} upgrade`;
+  let body: string;
+  let action: ReactNode = null;
+
+  if (info?.current) {
+    title = `You're on the ${name} plan`;
+    body = `You're already subscribed to ${name} — nothing more to do here.`;
+  } else if (info?.purchasable) {
+    if (isOwner) {
+      body = `You selected ${name} on bowrain.cloud. One step left — continue to checkout to activate it for this workspace.`;
+      action = (
+        <Button size="sm" onClick={() => onUpgrade(plan, seats)}>
+          Complete your {name} upgrade
+        </Button>
+      );
+    } else {
+      body = `You selected ${name}, but only a workspace owner can complete the purchase. Ask an owner to finish the upgrade.`;
+    }
+  } else {
+    // Billing not provisioned on this deployment (e.g. prod placeholder Stripe
+    // keys): name the plan and degrade to a friendly state — never a 503 error.
+    body = `You selected ${name}. Paid plans aren't enabled on this deployment yet, so there's nothing to purchase right now.`;
+    title = `${name} plan`;
+  }
+
+  return (
+    <Card className="border-primary/40 bg-primary/5">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{body}</CardDescription>
+      </CardHeader>
+      {action && <CardContent>{action}</CardContent>}
+    </Card>
+  );
+}
+
 export function SettingsBillingRoute() {
   const { activeWorkspace } = useWorkspace();
   const api = useApi();
   const platform = usePlatform();
   const ws = activeWorkspace?.slug ?? "";
+
+  // Plan pre-selected on the landing page and carried here by the index route's
+  // plan passthrough. The route already validated it; re-coerce defensively.
+  const rawSearch = useSearch({ strict: false }) as { plan?: unknown; seats?: unknown };
+  const intendedPlan = searchPlan(rawSearch.plan);
+  const intendedSeats = searchSeats(rawSearch.seats);
 
   // Stripe portal/checkout URLs are external redirects. In the browser we
   // navigate the tab; in the desktop webview that would trap the user on
@@ -123,7 +191,7 @@ export function SettingsBillingRoute() {
   // shown — an upgrade button that silently does nothing is worse than one that
   // errors, because the customer concludes the product is broken and leaves.
   const handleUpgrade = useCallback(
-    async (plan: BillingPlan) => {
+    async (plan: BillingPlan, seats?: number) => {
       if (!ws) return;
       setCheckoutError(null);
       try {
@@ -132,6 +200,7 @@ export function SettingsBillingRoute() {
           plan,
           `${window.location.origin}/${ws}/settings/billing?success=true`,
           `${window.location.origin}/${ws}/settings/billing`,
+          seats,
         );
         openBilling(url);
       } catch (err) {
@@ -161,7 +230,16 @@ export function SettingsBillingRoute() {
 
   if (!overview) {
     return (
-      <div className="mx-auto w-full max-w-3xl py-4">
+      <div className="mx-auto w-full max-w-3xl py-4 space-y-4">
+        {intendedPlan && (
+          <IntendedPlanBanner
+            plan={intendedPlan}
+            seats={intendedSeats}
+            plans={plans}
+            isOwner={activeWorkspace.role === "owner"}
+            onUpgrade={handleUpgrade}
+          />
+        )}
         <Card>
           <CardHeader>
             <CardTitle>Billing</CardTitle>
@@ -191,6 +269,16 @@ export function SettingsBillingRoute() {
         <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {checkoutError}
         </div>
+      )}
+
+      {intendedPlan && (
+        <IntendedPlanBanner
+          plan={intendedPlan}
+          seats={intendedSeats}
+          plans={plans}
+          isOwner={isOwner}
+          onUpgrade={handleUpgrade}
+        />
       )}
 
       {/* A failed payment keeps full access until Stripe's dunning finally cancels

@@ -1,0 +1,42 @@
+{
+  "_note": "GENERATED from bowrain/billing/plans.go by `go generate ./...` (directive in billing/gen.go). Do not edit by hand: change the facts in plans.go and regenerate. Facts only (ids, names, credits, limits, flags) — dollar prices are marketing copy in Plans.tsx / Stripe.",
+  "trialGrantCredits": 200000,
+  "plans": [
+    {
+      "id": "free",
+      "name": "Free",
+      "monthlyCredits": 0,
+      "maxProjects": 1,
+      "maxSeats": 1,
+      "perSeat": false,
+      "selfServe": false
+    },
+    {
+      "id": "pro",
+      "name": "Pro",
+      "monthlyCredits": 2000000,
+      "maxProjects": 10,
+      "maxSeats": 3,
+      "perSeat": false,
+      "selfServe": true
+    },
+    {
+      "id": "team",
+      "name": "Team",
+      "monthlyCredits": 8000000,
+      "maxProjects": -1,
+      "maxSeats": -1,
+      "perSeat": true,
+      "selfServe": true
+    },
+    {
+      "id": "enterprise",
+      "name": "Enterprise",
+      "monthlyCredits": -1,
+      "maxProjects": -1,
+      "maxSeats": -1,
+      "perSeat": false,
+      "selfServe": false
+    }
+  ]
+}

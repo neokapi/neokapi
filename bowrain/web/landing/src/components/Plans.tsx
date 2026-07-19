@@ -1,21 +1,139 @@
 import { Check, Gift, Zap, Users, Building2 } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
-import { CONTACT_EMAIL, SIGNUP_URL } from "../links";
+import { CONTACT_EMAIL, SIGNUP_URL, signupUrl } from "../links";
 import { useReveal } from "../useReveal";
+import plansCatalog from "../generated/plans.json";
 
-// Tiers mirror the real billing model one-for-one:
-// bowrain/billing/plans.go (plan ids, monthly credits + the one-time trial
-// grant, seat/project limits, feature gates) and DECISIONS L4 ($0 / $25 / $20
-// per seat / custom; $5 credit pack = 200K credits, packs don't expire).
-// Never per-word pricing.
-const CREDITS = {
-  trial: "200K",
-  pro: "2M",
-  team: "8M",
-} as const;
+// ── Facts (generated) vs marketing copy (hand-authored) ──────────────────────
+// The FACTUAL fields — plan ids, display credits, seat/project limits, per-seat
+// and self-serve flags — come from plans.json, which is generated from
+// bowrain/billing/plans.go by `go generate ./...` and drift-gated by
+// billing/plans_gen_test.go. Change a credit allowance or limit there and
+// regenerate; never hand-edit the numbers here.
+//
+// Everything below is hand-authored marketing copy the backend has no equivalent
+// for — dollar prices (they live in Stripe, DECISIONS L4), descriptions, feature
+// phrasing, icons, and CTA labels — keyed by plan id and woven together with the
+// generated facts at render time.
+
+type PlanId = "free" | "pro" | "team" | "enterprise";
+
+type PlanFacts = (typeof plansCatalog.plans)[number];
+
+const factsById = Object.fromEntries(plansCatalog.plans.map((p) => [p.id, p])) as Record<
+  PlanId,
+  PlanFacts
+>;
+
+/** Compact human credits: 200000 → "200K", 2_000_000 → "2M". */
+function formatCredits(n: number): string {
+  if (n >= 1_000_000) return `${n / 1_000_000}M`;
+  if (n >= 1_000) return `${n / 1_000}K`;
+  return String(n);
+}
+
+type Marketing = {
+  icon: typeof Zap;
+  name: string;
+  description: string;
+  price: string;
+  priceNote: string;
+  cta: string;
+  featured?: boolean;
+  /** Seat hint carried on the CTA for per-seat plans (server clamps to members). */
+  defaultSeats?: number;
+  /** Feature bullets: hand-authored phrasing, generated numbers woven in. */
+  features: (f: PlanFacts) => string[];
+};
+
+const MARKETING: Record<PlanId, Marketing> = {
+  free: {
+    icon: Gift,
+    name: t("Free"),
+    description: t("For an individual evaluating the platform or running a single project."),
+    price: "$0",
+    priceNote: t("forever"),
+    cta: t("Get started"),
+    features: (f) => [
+      t("{credits} one-time AI trial credits", {
+        credits: formatCredits(plansCatalog.trialGrantCredits),
+      }),
+      t("{projects} project, {seats} seat", { projects: f.maxProjects, seats: f.maxSeats }),
+      t("All formats and workflow tools"),
+      t("Content memory & terminology"),
+      t("Shared editor with review"),
+      t("Bring your own AI key — uses no credits"),
+      t("Community support"),
+    ],
+  },
+  pro: {
+    icon: Zap,
+    name: t("Pro"),
+    description: t("For a practitioner running several projects with connectors and the API."),
+    price: "$25",
+    priceNote: t("/month"),
+    cta: t("Start free trial"),
+    features: (f) => [
+      t("Everything in Free, plus:"),
+      t("{credits} AI credits / month", { credits: formatCredits(f.monthlyCredits) }),
+      t("Up to {projects} projects, {seats} seats", { projects: f.maxProjects, seats: f.maxSeats }),
+      t("Git connector"),
+      t("REST API access"),
+    ],
+  },
+  team: {
+    icon: Users,
+    name: t("Team"),
+    description: t("For teams that need collaboration, shared review, and automation."),
+    price: "$20",
+    priceNote: t("/seat/month"),
+    cta: t("Start free trial"),
+    featured: true,
+    defaultSeats: 3,
+    features: (f) => [
+      t("Everything in Pro, plus:"),
+      t("{credits} AI credits / month", { credits: formatCredits(f.monthlyCredits) }),
+      t("Unlimited projects & seats"),
+      t("Custom connectors"),
+      t("Priority support"),
+    ],
+  },
+  enterprise: {
+    icon: Building2,
+    name: t("Enterprise"),
+    description: t("For organizations with SSO, compliance, and deployment requirements."),
+    price: t("Custom"),
+    priceNote: "",
+    cta: t("Talk to us"),
+    features: () => [
+      t("Everything in Team, plus:"),
+      t("Unlimited AI credits"),
+      t("SSO / SAML"),
+      t("Audit trails"),
+      t("On-premise deployment option"),
+      t("Dedicated support & SLA"),
+    ],
+  },
+};
+
+/**
+ * CTA target for a tier. A self-serve paid tier carries `?plan=<id>` (Team also a
+ * default `&seats=`) so the app pre-selects it after signup; Free lands at the app
+ * root (no param needed), Enterprise opens a mailto. The self-serve set is read
+ * from the generated catalog, so retiring or adding a self-serve plan flows
+ * through automatically.
+ */
+function ctaHref(id: PlanId, facts: PlanFacts): string {
+  if (id === "enterprise") return `mailto:${CONTACT_EMAIL}`;
+  if (!facts.selfServe) return SIGNUP_URL;
+  return signupUrl({
+    plan: id,
+    seats: facts.perSeat ? MARKETING[id].defaultSeats : undefined,
+  });
+}
 
 type Tier = {
-  id: "free" | "pro" | "team" | "enterprise";
+  id: PlanId;
   name: string;
   icon: typeof Zap;
   description: string;
@@ -27,80 +145,23 @@ type Tier = {
   features: string[];
 };
 
-const TIERS: Tier[] = [
-  {
-    id: "free",
-    name: t("Free"),
-    icon: Gift,
-    description: t("For an individual evaluating the platform or running a single project."),
-    price: "$0",
-    priceNote: t("forever"),
-    cta: t("Get started"),
-    ctaHref: SIGNUP_URL,
-    features: [
-      t("{credits} one-time AI trial credits", { credits: CREDITS.trial }),
-      t("1 project, 1 seat"),
-      t("All formats and workflow tools"),
-      t("Content memory & terminology"),
-      t("Shared editor with review"),
-      t("Bring your own AI key — uses no credits"),
-      t("Community support"),
-    ],
-  },
-  {
-    id: "pro",
-    name: t("Pro"),
-    icon: Zap,
-    description: t("For a practitioner running several projects with connectors and the API."),
-    price: "$25",
-    priceNote: t("/month"),
-    cta: t("Start free trial"),
-    ctaHref: SIGNUP_URL,
-    features: [
-      t("Everything in Free, plus:"),
-      t("{credits} AI credits / month", { credits: CREDITS.pro }),
-      t("Up to 10 projects, 3 seats"),
-      t("Git connector"),
-      t("REST API access"),
-    ],
-  },
-  {
-    id: "team",
-    name: t("Team"),
-    icon: Users,
-    description: t("For teams that need collaboration, shared review, and automation."),
-    price: "$20",
-    priceNote: t("/seat/month"),
-    cta: t("Start free trial"),
-    ctaHref: SIGNUP_URL,
-    featured: true,
-    features: [
-      t("Everything in Pro, plus:"),
-      t("{credits} AI credits / month", { credits: CREDITS.team }),
-      t("Unlimited projects & seats"),
-      t("Custom connectors"),
-      t("Priority support"),
-    ],
-  },
-  {
-    id: "enterprise",
-    name: t("Enterprise"),
-    icon: Building2,
-    description: t("For organizations with SSO, compliance, and deployment requirements."),
-    price: t("Custom"),
-    priceNote: "",
-    cta: t("Talk to us"),
-    ctaHref: `mailto:${CONTACT_EMAIL}`,
-    features: [
-      t("Everything in Team, plus:"),
-      t("Unlimited AI credits"),
-      t("SSO / SAML"),
-      t("Audit trails"),
-      t("On-premise deployment option"),
-      t("Dedicated support & SLA"),
-    ],
-  },
-];
+// Tier order follows the generated catalog (free → pro → team → enterprise).
+const TIERS: Tier[] = plansCatalog.plans.map((facts): Tier => {
+  const id = facts.id as PlanId;
+  const m = MARKETING[id];
+  return {
+    id,
+    name: m.name,
+    icon: m.icon,
+    description: m.description,
+    price: m.price,
+    priceNote: m.priceNote,
+    cta: m.cta,
+    ctaHref: ctaHref(id, facts),
+    featured: m.featured,
+    features: m.features(facts),
+  };
+});
 
 export function Plans() {
   const ref = useReveal();
