@@ -17,6 +17,7 @@ import {
   CircleCheck,
   AlertTriangle,
   Info,
+  FileText,
 } from "../icons";
 import { entryCheckStatus, type ReviewEntry } from "./reviewQueue";
 
@@ -59,6 +60,15 @@ export interface FocusedReviewerProps {
   onSuggestBrandRule: (sourceText: string) => void;
   /** Turn the reviewer's target fix into a brand-voice correction/rule. */
   onMakeRule: () => void;
+  /**
+   * Propose a change to the SOURCE text (back-to-source review, RV-F). Unlike a
+   * term mark (which re-checks the locales) an approved source change re-drafts
+   * every locale — a wider blast radius the dialog makes legible. Receives the
+   * selected span, or the whole block source when nothing is selected.
+   */
+  onProposeSourceChange?: (sourceText: string) => void;
+  /** Promote a marked source entity to a termbase concept (lights the popover's Promote button). */
+  onEntityPromote?: (entityKey: string) => void;
 }
 
 const checkChip: Record<string, { label: string; className: string }> = {
@@ -99,6 +109,8 @@ export function FocusedReviewer({
   onMarkTerm,
   onSuggestBrandRule,
   onMakeRule,
+  onProposeSourceChange,
+  onEntityPromote,
 }: FocusedReviewerProps) {
   const { block, locale, issues } = entry;
   const status = getBlockStatus(block, locale);
@@ -189,12 +201,19 @@ export function FocusedReviewer({
                   entities={block.entities}
                 />
               ) : (
-                <HighlightedSource text={block.source} termMatches={[]} entities={block.entities} />
+                <HighlightedSource
+                  text={block.source}
+                  termMatches={[]}
+                  entities={block.entities}
+                  onEntityPromote={onEntityPromote}
+                />
               )}
             </div>
-            {/* Source-side review lane */}
+            {/* Source-side review lane. Mark-as-term and suggest-rule act on a
+                selection (annotate → re-check the locales); propose-source-change
+                is the back-to-source lane (transform → re-draft all locales). */}
             <div className="flex flex-wrap items-center gap-2" data-testid="source-lane">
-              {selection ? (
+              {selection && (
                 <>
                   <span
                     className="max-w-[16rem] truncate text-xs text-muted-foreground"
@@ -222,9 +241,23 @@ export function FocusedReviewer({
                     <Wand2 className="mr-1 h-3.5 w-3.5" /> Suggest brand rule
                   </Button>
                 </>
-              ) : (
+              )}
+              {onProposeSourceChange && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => onProposeSourceChange(selection || block.source)}
+                  data-testid="source-propose-change"
+                  title="Propose a fix to the source text — a source change re-drafts every locale"
+                >
+                  <FileText className="mr-1 h-3.5 w-3.5" /> Propose source change
+                </Button>
+              )}
+              {!selection && (
                 <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <Info className="h-3 w-3" /> Select source text to mark a term or suggest a rule.
+                  <Info className="h-3 w-3" /> Select source text to mark a term, or propose a
+                  source change for the whole block.
                 </span>
               )}
             </div>

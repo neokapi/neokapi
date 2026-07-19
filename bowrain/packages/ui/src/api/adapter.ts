@@ -108,6 +108,9 @@ import type {
   ReviewDemotion,
   ApprovePassingRequest,
   ApprovePassingResult,
+  SourceProposal,
+  CreateSourceProposalRequest,
+  DecideSourceProposalResult,
   BrandScanRequest,
   BrandScanUploadResult,
   BrandScanJob,
@@ -647,6 +650,37 @@ export interface ApiAdapter {
     projectId: string,
     req?: ApprovePassingRequest,
   ): Promise<ApprovePassingResult>;
+
+  // Back-to-source review (RV-F): a reviewer proposes a source-text fix; a source
+  // owner (PermEditSource) approves it — applying it and re-drafting every locale
+  // — or rejects it.
+  createSourceProposal(
+    workspaceSlug: string,
+    projectId: string,
+    req: CreateSourceProposalRequest,
+  ): Promise<SourceProposal>;
+  listSourceProposals(workspaceSlug: string, projectId: string): Promise<SourceProposal[]>;
+  decideSourceProposal(
+    workspaceSlug: string,
+    projectId: string,
+    proposalId: string,
+    decision: "approve" | "reject",
+    reason?: string,
+  ): Promise<DecideSourceProposalResult>;
+
+  /**
+   * Promote a marked source entity to a real termbase concept (RV-F piece 3).
+   * Distinct from the term-candidate `/promote`: this creates a concept, which
+   * fires concept.created and flows into the governed terminology re-check.
+   */
+  promoteEntityToConcept(
+    workspaceSlug: string,
+    projectId: string,
+    itemName: string,
+    blockId: string,
+    entityKey: string,
+    stream?: string,
+  ): Promise<{ ok: boolean; concept: ConceptInfo }>;
 
   // Governance (#778): groups, deny rules, separation-of-duties, role overrides
   listGroups(workspaceSlug: string): Promise<Group[]>;

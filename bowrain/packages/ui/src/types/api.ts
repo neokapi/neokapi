@@ -592,6 +592,61 @@ export interface ApprovePassingResult {
   review_completed: boolean;
 }
 
+/** What a back-to-source proposal asks for (RV-F). */
+export type SourceProposalKind = "text-fix" | "mark-dnt";
+
+/** Lifecycle of a back-to-source proposal. */
+export type SourceProposalStatus = "open" | "approved" | "rejected";
+
+/**
+ * A reviewer's proposed change to a block's SOURCE text (back-to-source review,
+ * RV-F). Any reviewer may create one while reviewing a target; a source owner
+ * (PermEditSource) approves it — applying the change and re-drafting every locale
+ * — or rejects it.
+ */
+export interface SourceProposal {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  stream?: string;
+  item_name?: string;
+  block_id: string;
+  kind: SourceProposalKind;
+  original_source: string;
+  proposed_source: string;
+  rationale?: string;
+  /** The target locale the finder was reviewing when they caught the problem. */
+  found_in_locale?: string;
+  finder_user?: string;
+  status: SourceProposalStatus;
+  decided_by?: string;
+  decision_reason?: string;
+  created_at: string;
+  updated_at: string;
+  decided_at?: string;
+}
+
+/** Request body for `POST /:ws/:id/source-proposals`. */
+export interface CreateSourceProposalRequest {
+  block_id: string;
+  item_name?: string;
+  proposed_source: string;
+  kind?: SourceProposalKind;
+  rationale?: string;
+  found_in_locale?: string;
+  stream?: string;
+}
+
+/** Result of approving/rejecting a source proposal. */
+export interface DecideSourceProposalResult {
+  ok: boolean;
+  status: string;
+  /** True when an approval applied the source change. */
+  applied?: boolean;
+  /** True when the approval started a convergence run to re-draft the locales. */
+  run_started?: boolean;
+}
+
 /**
  * A per-locale committed target in the blocks payload: the plain text plus its
  * lifecycle status (mirrors the server's per-locale `model.Target`). Targets

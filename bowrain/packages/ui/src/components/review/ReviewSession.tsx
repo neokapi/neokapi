@@ -15,11 +15,14 @@ import { useWorkspace } from "../../context/WorkspaceContext";
 import { ErrorNotice } from "../../errors";
 import { getTargetText } from "../editor/blockStatus";
 import { type UnifiedSaveResult } from "../UnifiedTargetEditor";
-import { ArrowLeft, Rocket, CircleCheck, Sparkles, RefreshCw } from "../icons";
+import { ArrowLeft, Rocket, CircleCheck, Sparkles, RefreshCw, FileText } from "../icons";
 import { ReviewQueueList } from "./ReviewQueueList";
 import { FocusedReviewer, type ReviewerOnBrand } from "./FocusedReviewer";
 import { MarkSourceTermDialog } from "./MarkSourceTermDialog";
 import { SuggestBrandRuleDialog } from "./SuggestBrandRuleDialog";
+import { ProposeSourceChangeDialog } from "./ProposeSourceChangeDialog";
+import { SourceProposalsDialog } from "./SourceProposalsDialog";
+import { useSourceProposals } from "../../hooks/useSourceProposalsApi";
 import {
   entryKey,
   filterEntries,
@@ -219,6 +222,17 @@ export function ReviewSession({
   // Dialog state for the source-side affordances.
   const [markTermText, setMarkTermText] = useState<string | null>(null);
   const [brandRule, setBrandRule] = useState<{ original: string; blockId?: string } | null>(null);
+  // Back-to-source review (RV-F): the block whose source is being proposed for a
+  // change, and whether the source-owner review surface is open.
+  const [proposeSource, setProposeSource] = useState<{
+    text: string;
+    blockId: string;
+    itemName: string;
+    locale: string;
+  } | null>(null);
+  const [showProposals, setShowProposals] = useState(false);
+  const { data: openProposals = [] } = useSourceProposals(project.id);
+  const localeCount = project.target_languages?.length ?? 0;
 
   const visible = useMemo(() => filterEntries(entries, filter), [entries, filter]);
   const counts = useMemo(() => queueCounts(entries), [entries]);
@@ -297,6 +311,20 @@ export function ReviewSession({
         // Non-fatal: leave the prior findings.
       } finally {
         setRecheckingId(null);
+      }
+    },
+    [api, project.id],
+  );
+
+  // Promote a marked source entity to a termbase concept (RV-F piece 3). The
+  // resulting concept.created flows into the governed terminology re-check.
+  const promoteEntity = useCallback(
+    async (entry: ReviewEntry, entityKey: string) => {
+      try {
+        await api.promoteEntityToConcept(project.id, entry.itemName, entry.block.id, entityKey);
+        setMessage("Promoted to a termbase concept.");
+      } catch (e) {
+        setActionError(e);
       }
     },
     [api, project.id],
@@ -470,6 +498,19 @@ export function ReviewSession({
           {counts.total} pending
         </span>
         <div className="flex-1" />
+        {openProposals.length > 0 && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowProposals(true)}
+            data-testid="open-source-proposals"
+          >
+            <FileText className="mr-1 h-4 w-4" /> Source proposals
+            <span className="ml-1.5 rounded-full bg-muted px-1.5 text-[11px] tabular-nums">
+              {openProposals.length}
+            </span>
+          </Button>
+        )}
         {!allClear && (
           <Button
             size="sm"
@@ -603,6 +644,15 @@ export function ReviewSession({
                   blockId: current.block.id,
                 })
               }
+              onProposeSourceChange={(text) =>
+                setProposeSource({
+                  text,
+                  blockId: current.block.id,
+                  itemName: current.itemName,
+                  locale: current.locale,
+                })
+              }
+              onEntityPromote={(entityKey) => void promoteEntity(current, entityKey)}
             />
           ) : (
             <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
@@ -647,6 +697,30 @@ export function ReviewSession({
           onDone={setMessage}
         />
       )}
+
+      {/* Back-to-source review (RV-F): propose a source change, and the source
+          owner's surface for approving/rejecting open proposals. */}
+      {proposeSource && (
+        <ProposeSourceChangeDialog
+          open={proposeSource !== null}
+          onOpenChange={(o) => !o && setProposeSource(null)}
+          projectId={project.id}
+          blockId={proposeSource.blockId}
+          itemName={proposeSource.itemName}
+          sourceLocale={sourceLocale}
+          foundInLocale={proposeSource.locale}
+          initialSource={proposeSource.text}
+          localeCount={localeCount}
+          onDone={setMessage}
+        />
+      )}
+      <SourceProposalsDialog
+        open={showProposals}
+        onOpenChange={setShowProposals}
+        projectId={project.id}
+        localeName={localeName}
+        onDone={setMessage}
+      />
     </div>
   );
 }

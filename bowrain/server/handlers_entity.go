@@ -6,11 +6,16 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/knowledge"
+	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/termbase"
 )
 
 // CreateEntityRequest creates a new entity annotation on a block.
@@ -226,6 +231,116 @@ func (s *Server) HandlePromoteEntity(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"ok": true, "term_candidate_key": tcKey})
+}
+
+// HandlePromoteEntityToConcept promotes a marked entity to a real termbase
+// concept — distinct from HandlePromoteEntity, which only creates a term
+// *candidate* review item. Creating the concept fires concept.created, which the
+// RV-E/RV-F re-check subscriber reacts to automatically (re-checking existing
+// targets against the new term), so a promoted entity flows straight into the
+// governed terminology loop. It reuses the ordinary AddConcept curation path
+// (the same one HandleCreateConcept uses).
+//
+// POST /:ws/:id/blocks/:ref/:bid/entities/:idx/promote-to-concept
+func (s *Server) HandlePromoteEntityToConcept(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
+		return err
+	}
+	if s.ContentStore == nil || s.wsStores == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+	}
+
+	ws := c.Param("ws")
+	wsID, _ := c.Get("workspace_id").(string)
+	actor, _ := c.Get("user_id").(string)
+	projectID := projectParam(c)
+	blockID := c.Param("bid")
+	entityKey := "entity:" + c.Param("idx")
+	itemName := c.QueryParam("item")
+
+	ctx := c.Request().Context()
+	block, err := getBlock(ctx, s.ContentStore, projectID, itemName, blockID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found"})
+	}
+	span := block.OverlaySpan(model.OverlayEntity, entityKey)
+	if span == nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "entity not found"})
+	}
+	entity, ok := span.Value.(*model.EntityAnnotation)
+	if !ok {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "not an entity annotation"})
+	}
+
+	concept, err := s.promoteEntityToConcept(ctx, ws, wsID, actor, projectID, streamParam(c), entity)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	return c.JSON(http.StatusCreated, map[string]any{"ok": true, "concept": editorConceptToInfo(concept)})
+}
+
+// promoteEntityToConcept creates a termbase concept from a marked entity and fires
+// concept.created (which the RV-E/RV-F re-check reacts to automatically). Split
+// from the HTTP handler so the promotion mapping is testable directly.
+func (s *Server) promoteEntityToConcept(ctx context.Context, wsSlug, wsID, actor, projectID, stream string, entity *model.EntityAnnotation) (termbase.Concept, error) {
+	// The concept's source term lives in the entity's locale, falling back to the
+	// project's source language when the entity carries none.
+	loc := entity.Locale
+	if loc == "" {
+		if proj, perr := s.ContentStore.GetProject(ctx, projectID); perr == nil {
+			loc = proj.DefaultSourceLanguage
+		}
+	}
+
+	// Promote to an APPROVED term — ordinary curation, not a governed transition
+	// (forbidden/preferred creation is governed and refused on the direct path).
+	now := time.Now()
+	concept := termbase.Concept{
+		ID:        id.New(),
+		ProjectID: projectID,
+		Domain:    string(entity.Type),
+		Source:    termbase.TermSourceTerminology,
+		Terms: []termbase.Term{
+			{Text: entity.Text, Locale: loc, Status: model.TermApproved},
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	// Preserve the entity's DNT signal as concept metadata (matching the term
+	// candidate → concept mapping in review_effects.go).
+	if entity.DNT {
+		concept.Properties = map[string]string{"translatability": string(model.TranslatabilityDNT)}
+	}
+
+	tb, err := s.wsStores.getTB(wsSlug)
+	if err != nil {
+		return concept, err
+	}
+	if stream != "" && stream != "main" {
+		err = tb.AddConceptWithStream(ctx, concept, stream)
+	} else {
+		err = tb.AddConcept(ctx, concept)
+	}
+	if err != nil {
+		return concept, err
+	}
+
+	// concept.created drives the RV-E/RV-F fan-out re-check automatically. Published
+	// directly (context-free) to match publishKnowledgeEvents' concept-event shape.
+	if s.EventBus != nil {
+		s.EventBus.Publish(platev.Event{
+			ID:           id.New(),
+			Type:         knowledge.EventConceptCreated,
+			Source:       "knowledge",
+			WorkspaceID:  wsID,
+			Actor:        actor,
+			Data:         map[string]string{"concept_id": concept.ID},
+			ResourceType: "concept",
+			ResourceID:   concept.ID,
+			Timestamp:    time.Now().UTC(),
+		})
+	}
+	return concept, nil
 }
 
 // getBlock loads a single block by project, item, and block ID.

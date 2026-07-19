@@ -191,6 +191,10 @@ export { MarkSourceTermDialog } from "./components/review/MarkSourceTermDialog";
 export type { MarkSourceTermDialogProps } from "./components/review/MarkSourceTermDialog";
 export { SuggestBrandRuleDialog } from "./components/review/SuggestBrandRuleDialog";
 export type { SuggestBrandRuleDialogProps } from "./components/review/SuggestBrandRuleDialog";
+export { ProposeSourceChangeDialog } from "./components/review/ProposeSourceChangeDialog";
+export type { ProposeSourceChangeDialogProps } from "./components/review/ProposeSourceChangeDialog";
+export { SourceProposalsDialog } from "./components/review/SourceProposalsDialog";
+export type { SourceProposalsDialogProps } from "./components/review/SourceProposalsDialog";
 export {
   entryKey,
   entryCheckStatus,

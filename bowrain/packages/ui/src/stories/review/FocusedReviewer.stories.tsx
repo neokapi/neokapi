@@ -59,6 +59,8 @@ const meta: Meta<typeof FocusedReviewer> = {
     onMarkTerm: fn(),
     onSuggestBrandRule: fn(),
     onMakeRule: fn(),
+    onProposeSourceChange: fn(),
+    onEntityPromote: fn(),
   },
 };
 export default meta;

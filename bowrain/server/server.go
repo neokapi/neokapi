@@ -199,6 +199,11 @@ type Server struct {
 	// ReviewQueueStore persists entity/term extraction review items. Nil when not configured.
 	ReviewQueueStore *bstore.ReviewQueueStore
 
+	// SourceProposalStore persists back-to-source review proposals (RV-F): a
+	// reviewer's proposed source-text fix, approved by a source owner (which
+	// re-drafts every locale) or rejected. Nil when not configured.
+	SourceProposalStore *bstore.SourceProposalStore
+
 	// NotificationStore persists user notifications. Nil when not configured.
 	NotificationStore *bstore.NotificationStore
 
@@ -547,6 +552,7 @@ func NewServer(cfg Config) *Server {
 			s.AutomationRuleStore = event.NewRuleStore(pgSQL)
 			s.FlowDefStore = bstore.NewFlowDefStore(pgSQL)
 			s.ReviewQueueStore = bstore.NewReviewQueueStore(pgSQL)
+			s.SourceProposalStore = bstore.NewSourceProposalStore(pgSQL)
 			s.NotificationStore = bstore.NewNotificationStore(pgSQL)
 			s.ActivityStore = bstore.NewActivityStore(pgSQL)
 			s.TaskStore = bstore.NewTaskStore(pgSQL)
@@ -1699,6 +1705,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.PUT("/:id/blocks/:ref/:bid/entities/:idx", s.HandleUpdateEntity)
 	g.DELETE("/:id/blocks/:ref/:bid/entities/:idx", s.HandleDeleteEntity)
 	g.POST("/:id/blocks/:ref/:bid/entities/:idx/promote", s.HandlePromoteEntity)
+	g.POST("/:id/blocks/:ref/:bid/entities/:idx/promote-to-concept", s.HandlePromoteEntityToConcept)
 
 	// Actions — Bowrain AD-011: /:ws/:id/actions/:ref/<verb>
 	g.POST("/:id/actions/:ref/pseudo-translate", s.HandlePseudoTranslate)
@@ -1764,6 +1771,13 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/:id/review-queue/:ref/:itemId/split", s.HandleSplitReviewItem)
 	g.POST("/:id/review-queue/:ref/batch-decide", s.HandleBatchDecideReviewItems)
 	g.POST("/:id/review-queue/:ref/sync", s.HandleSyncReviewDecisions)
+
+	// Back-to-source review (RV-F): a reviewer proposes a source-text fix; a
+	// source owner (PermEditSource) approves it (applies + re-drafts every locale)
+	// or rejects it. /:ws/:id/source-proposals
+	g.GET("/:id/source-proposals", s.HandleListSourceProposals)
+	g.POST("/:id/source-proposals", s.HandleCreateSourceProposal)
+	g.POST("/:id/source-proposals/:pid/decide", s.HandleDecideSourceProposal)
 
 	// Brand voice — Bowrain AD-011: /:ws/:id/brand-voice/:ref
 	g.GET("/:id/brand-voice/:ref/scores", s.HandleGetBrandVoiceScores)
