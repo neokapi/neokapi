@@ -353,13 +353,22 @@ func (s *Server) deliverToForges(ctx context.Context, ev platev.Event) {
 // files: for every source item and every target language, a copy of the item's
 // blocks with that locale's translation promoted to the source position (what
 // a format writer emits), at the conventional target path. Items where a
-// locale has no translations at all are skipped rather than delivered empty.
+// locale has no deliverable translations are skipped rather than delivered
+// empty.
+//
+// Governed projects (workflow_enabled != "false") ship only APPROVED
+// translations (RV-A): a reviewed or signed-off target is a person's decision
+// to ship; a draft/translated one is not, so unreviewed drafts are withheld
+// until approved. A non-governed project keeps the kapi-drafts-ship semantics —
+// any committed target delivers — so this path stays byte-for-byte identical
+// for it.
 func (s *Server) materializeDelivery(ctx context.Context, proj *platstore.Project) ([]*platconn.ContentItem, error) {
 	storeItems, err := s.ContentStore.ListItems(ctx, proj.ID, "main")
 	if err != nil {
 		return nil, fmt.Errorf("list items: %w", err)
 	}
 	sourceLang := string(proj.DefaultSourceLanguage)
+	governed := workflowReviewEnabled(proj)
 
 	var out []*platconn.ContentItem
 	for _, item := range storeItems {
@@ -373,6 +382,12 @@ func (s *Server) materializeDelivery(ctx context.Context, proj *platstore.Projec
 			var promoted []*model.Block
 			for _, sb := range blocks {
 				if sb.Block == nil || !sb.Block.HasTarget(locale) {
+					continue
+				}
+				// Governed delivery ships only approved (reviewed/signed-off)
+				// targets; a governed item/locale with zero approved blocks is
+				// skipped as empty, exactly as an untranslated one is.
+				if governed && !targetApproved(sb.Block, locale) {
 					continue
 				}
 				cp := *sb.Block

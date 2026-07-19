@@ -638,6 +638,10 @@ func NewServer(cfg Config) *Server {
 		s.convergence.SweepInterruptedRuns(context.Background())
 		s.subscribeConvergeOnPush()
 		s.subscribeForgeDelivery()
+		// Governed review → delivery continuation (RV-B): when a project's review
+		// queue empties, review.completed starts a completing run so approved
+		// content ships with no extra user action. Durable, like the two above.
+		s.subscribeReviewCompletion()
 	}
 
 	// Unclaimed-project purge (epic 003 item 6): periodically remove expired
@@ -1670,6 +1674,9 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.PUT("/:id/blocks/:ref/:bid/runs", s.HandleUpdateBlockTargetRuns)
 	g.PUT("/:id/blocks/:ref/:bid/status", s.HandleSetBlockStatus)
 	g.PUT("/:id/blocks/:ref/:bid/review", s.HandleReviewBlock)
+	// Bulk approve every passing draft in one action, then continue the loop to
+	// delivery (RV-D). Distinct path segment from /:id/review-queue below.
+	g.POST("/:id/review/approve-passing", s.HandleApprovePassing)
 	g.GET("/:id/blocks/:ref/:bid/history", s.HandleGetBlockHistory)
 	g.POST("/:id/blocks/:ref/:bid/rollback", s.HandleRollbackBlock)
 	g.POST("/:id/revert", s.HandleRevertBatch)

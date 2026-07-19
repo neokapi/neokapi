@@ -206,6 +206,9 @@ func TestForgeDelivery_MaterializesPerLocaleAndPublishes(t *testing.T) {
 	}))
 	b := model.NewBlock("greeting", "Hello")
 	b.SetTargetText("fr", "Bonjour")
+	// proj1 is governed (workflow default), so delivery ships only approved
+	// targets (RV-A): mark fr reviewed so it materializes.
+	b.Target("fr").Status = model.TargetStatusReviewed
 	require.NoError(t, s.ContentStore.StoreBlocksForItem(ctx, "proj1", "main", "locales/en/app.txt", []*model.Block{b}))
 
 	s.deliverToForges(ctx, platev.Event{
