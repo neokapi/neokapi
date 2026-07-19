@@ -199,20 +199,25 @@ echo "✅ Signed Windows artifacts added to release $TAG:"
 for f in "${signed[@]}"; do echo "   • ${f##*/}"; done
 
 # Now that the signed CLI zip + desktop setup.exe are on the release, kick off
-# two INDEPENDENT post-signing workflows:
+# three INDEPENDENT post-signing workflows:
 #
 #   1. winget.yml          — bumps Neokapi.KapiCli + Neokapi.Kapi in winget-pkgs.
 #   2. appcast-windows.yml — publishes the Windows in-app-update feed (the Wails
 #                            native updater swaps the signed .exe).
+#   3. release-docs.yml    — re-splices the docs installation page's download
+#                            links now that the signed Windows assets exist, and
+#                            opens/updates the rolling download-links PR.
 #
 # They're decoupled so a prerelease can publish the Windows update feed WITHOUT
 # pushing an rc to the public winget catalog:
-#   SKIP_WINGET=1   skip the winget submission only (still publishes the feed).
-#   SKIP_APPCAST=1  skip the update-feed only (still submits to winget).
+#   SKIP_WINGET=1   skip the winget submission only.
+#   SKIP_APPCAST=1  skip the update-feed only.
+#   SKIP_DOCS=1     skip the website download-link refresh only.
 if ! command -v gh >/dev/null 2>&1; then
-  echo ">> gh not found — skipping both dispatches. Run later:" >&2
+  echo ">> gh not found — skipping all dispatches. Run later:" >&2
   echo "     gh workflow run winget.yml -f tag=$TAG" >&2
   echo "     gh workflow run appcast-windows.yml -f tag=$TAG" >&2
+  echo "     gh workflow run release-docs.yml -f tag=$TAG" >&2
 else
   if [ "$TRACK" = "bowrain" ]; then
     echo ">> bowrain track — winget has no bowrain package (Neokapi.KapiCli/Neokapi.Kapi are kapi-only); skipping winget."
@@ -235,6 +240,20 @@ else
       echo "   appcast-windows.yml dispatched — watch: gh run list --workflow=appcast-windows.yml --repo $REPO"
     else
       echo "   ⚠ appcast-windows dispatch failed. Retry: gh workflow run appcast-windows.yml -f tag=$TAG" >&2
+    fi
+  fi
+
+  # Refresh the docs installation-page download links now that the signed
+  # Windows assets are on the release (both tracks have a Windows download row).
+  # release-docs.yml re-splices the page and force-updates the rolling PR.
+  if [ "${SKIP_DOCS:-0}" = "1" ]; then
+    echo ">> SKIP_DOCS=1 — not refreshing website download links. Run later: gh workflow run release-docs.yml -f tag=$TAG"
+  else
+    echo ">> Dispatching website download-link refresh (release-docs.yml) for $TAG ..."
+    if gh workflow run release-docs.yml --repo "$REPO" -f tag="$TAG"; then
+      echo "   release-docs.yml dispatched — watch: gh run list --workflow=release-docs.yml --repo $REPO"
+    else
+      echo "   ⚠ release-docs dispatch failed. Retry: gh workflow run release-docs.yml -f tag=$TAG" >&2
     fi
   fi
 fi

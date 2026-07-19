@@ -336,6 +336,16 @@ jobs:
               dist/checksums.txt brew-formulae "$ch" bowrain "bowrain-v${VERSION}"
           done
 
+      # Generate categorized release notes — feat / fix / perf / docs / chore /
+      # Other, derived from the conventional-commit subjects of every squash
+      # merge since the previous bowrain-v* tag, with the install footer
+      # appended — written to scripts/release-notes/<tag>.md for the publish
+      # step's body_path. The generator preserves a committed, hand-authored
+      # notes file for this tag; the fetch-depth: 0 checkout above gives it full
+      # history + tags. REF_NAME is the job env.
+      - name: Generate release notes
+        run: bash scripts/release-notes/generate.sh "$REF_NAME"
+
       - name: Publish plugin archives to release
         uses: softprops/action-gh-release@v3
         with:
@@ -346,21 +356,8 @@ jobs:
             dist/kapi-bowrain_*.zip
             dist/*.sigstore.json
             dist/checksums.txt
-          body: |
-            ## Installation
-
-            **Homebrew (kapi + bowrain plugin):**
-            ```
-            brew install neokapi/tap/bowrain-cli
-            ```
-
-            **Homebrew (Bowrain desktop app, macOS):**
-            ```
-            brew install --cask neokapi/tap/bowrain
-            ```
-
-            The kapi CLI (Apache-2.0) and Kapi desktop app are released
-            separately on `v*` tags.
+          # Generated above; carries the install instructions as its footer.
+          body_path: scripts/release-notes/${{ needs.setup.outputs.tag }}.md
 
       - name: Push brew formula to homebrew-tap
         env:
