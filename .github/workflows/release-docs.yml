@@ -1,0 +1,151 @@
+name: Refresh website download links
+
+# Splice the real, per-platform download links for a release into the docs
+# installation pages (scripts/update-website-downloads.sh) and open a rolling
+# auto-PR with the result — never a direct push to the default branch.
+#
+# Why a separate workflow (not part of release.yml)? The links must reflect the
+# assets ACTUALLY on the release, and the Windows binaries are Authenticode-
+# signed and uploaded out of band the morning after the release
+# (scripts/publish-windows-signed.sh). So this runs:
+#   • release: published   — first pass, right after CI publishes mac/Linux;
+#   • workflow_dispatch     — manual re-run (e.g. after Windows signing);
+#   • repository_dispatch   — external hook (publish-windows-signed.sh dispatches
+#                             it via `gh workflow run` once the signed Windows
+#                             assets are on the release, so the Windows rows fill
+#                             in without a hand re-run).
+#
+# Track is derived from the tag family: v*  → kapi docs; bowrain-v* → bowrain
+# docs. Plugin releases (vision-v*, …) are ignored. Prereleases are skipped on
+# the release event — the public installation pages track the latest STABLE
+# download — but an explicit dispatch still runs (manual intent wins).
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to refresh download links for (e.g. v1.2.3 or bowrain-v1.2.3)"
+        required: true
+  repository_dispatch:
+    types: [release-docs]
+
+permissions:
+  contents: read
+
+jobs:
+  # Resolve tag + track from whichever event fired, validate the tag, and decide
+  # whether to run (kapi/bowrain family only; stable only on the release event).
+  resolve:
+    name: Resolve tag and track
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.r.outputs.tag }}
+      track: ${{ steps.r.outputs.track }}
+      should_run: ${{ steps.r.outputs.should_run }}
+    steps:
+      - id: r
+        env:
+          EV: ${{ github.event_name }}
+          REL_TAG: ${{ github.event.release.tag_name }}
+          WD_TAG: ${{ inputs.tag }}
+          RD_TAG: ${{ github.event.client_payload.tag }}
+        run: |
+          set -euo pipefail
+          case "$EV" in
+            release)             tag="$REL_TAG" ;;
+            workflow_dispatch)   tag="$WD_TAG" ;;
+            repository_dispatch) tag="$RD_TAG" ;;
+            *)                   tag="" ;;
+          esac
+
+          # Defensive: repository_dispatch client_payload is caller-supplied, so
+          # reject any tag outside a safe git-tag charset before it reaches a
+          # shell command (it is only ever passed quoted, but fail loud anyway).
+          if printf '%s' "$tag" | grep -qE '[^A-Za-z0-9._-]'; then
+            echo "::error::refusing suspicious tag '$tag'"; exit 1
+          fi
+
+          # Family → track. Anchored (v<digit> / bowrain-v<digit>) so plugin tag
+          # families (vision-v*, kapi-asr-v*, …) never match.
+          track=""; ver=""
+          case "$tag" in
+            bowrain-v[0-9]*) track="bowrain"; ver="${tag#bowrain-v}" ;;
+            v[0-9]*)         track="kapi";    ver="${tag#v}" ;;
+          esac
+          case "$ver" in *-*) pre="true" ;; *) pre="false" ;; esac
+
+          should_run="true"
+          [ -n "$track" ] || should_run="false"
+          if [ "$EV" = "release" ] && [ "$pre" = "true" ]; then
+            should_run="false"
+            echo "prerelease $tag on the release event — installation docs track the latest STABLE download; skipping."
+          fi
+          [ -n "$track" ] || echo "tag '$tag' is not a kapi/bowrain release tag; skipping."
+
+          {
+            echo "tag=$tag"
+            echo "track=$track"
+            echo "should_run=$should_run"
+          } >> "$GITHUB_OUTPUT"
+
+  update:
+    name: Splice links and open PR
+    needs: resolve
+    if: ${{ needs.resolve.outputs.should_run == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      TAG: ${{ needs.resolve.outputs.tag }}
+      TRACK: ${{ needs.resolve.outputs.track }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      # Base the change on the current default branch (not the tagged commit) so
+      # the PR is a clean single-file diff against main.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+
+      - name: Splice download links from the release assets
+        run: |
+          set -euo pipefail
+          if [ "$TRACK" = "bowrain" ]; then
+            bash scripts/update-website-downloads.sh --bowrain "$TAG"
+            echo "PAGE=bowrain/web/docs/docs/getting-started/installation.md" >> "$GITHUB_ENV"
+          else
+            bash scripts/update-website-downloads.sh "$TAG"
+            echo "PAGE=web/docs/kapi/get-started/installation.md" >> "$GITHUB_ENV"
+          fi
+
+      # One rolling PR per track (branch bot/release-downloads-<track>), force-
+      # updated on each run. github-actions[bot] identity + push pattern mirror
+      # scripts/l10n-autofix.sh. Never a direct push to the default branch.
+      - name: Open or update the download-links PR
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- "$PAGE"; then
+            echo "No download-link changes for ${TRACK} (${TAG}); nothing to do."
+            exit 0
+          fi
+          branch="bot/release-downloads-${TRACK}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
+          git add -- "$PAGE"
+          git commit -m "docs(downloads): refresh ${TRACK} download links for ${TAG}" \
+            -m "Regenerated from the ${TAG} release assets by the release-docs workflow (scripts/update-website-downloads.sh). Re-run after out-of-band Windows signing to fill in the Windows rows."
+          git push --force origin "HEAD:refs/heads/${branch}"
+          if [ "$(gh pr list --head "$branch" --state open --json number --jq 'length')" = "0" ]; then
+            gh pr create --base "$DEFAULT_BRANCH" --head "$branch" \
+              --title "docs(downloads): refresh ${TRACK} download links (${TAG})" \
+              --body "Auto-generated by \`.github/workflows/release-docs.yml\` from the **${TAG}** release assets (via \`scripts/update-website-downloads.sh\`). One rolling PR per track; it is re-dispatched after the out-of-band Windows signing so the Windows rows fill in. Close it to opt out until the next release."
+            echo "Opened download-links PR for ${branch}."
+          else
+            echo "Existing open PR for ${branch} updated by force-push."
+          fi
