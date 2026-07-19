@@ -3,6 +3,7 @@ package jobs
 import (
 	"context"
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -194,12 +195,7 @@ type fakeSweepSettings struct {
 func (f *fakeSweepSettings) ModelSweepsEnabled() bool  { return f.enabled }
 func (f *fakeSweepSettings) AIEnabledModels() []string { return f.models }
 func (f *fakeSweepSettings) IsModelEnabled(id string) bool {
-	for _, m := range f.models {
-		if m == id {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(f.models, id)
 }
 
 func TestSweepModelRecommender_Gates(t *testing.T) {

@@ -238,10 +238,6 @@ include:
 
   Server-connected projects skip this — the project state lives on the server.
 
-:::note[Works with Bowrain]
-Everything on this page runs the loop inside your own CI. A project whose recipe declares a `server:` block runs the same loop on a Bowrain server instead — `kapi up` pushes, the server catches every locale up against the workspace's shared memory and terminology, and the run streams back — with review handled in the Bowrain web app rather than in your checkout. See the [Bowrain documentation](https://bowrain.cloud/docs/).
-:::
-
 ## Next
 
 - [The kapi loop](/kapi/convergence) — the loop and the derived-state model behind `status`, `up`, and the gates.

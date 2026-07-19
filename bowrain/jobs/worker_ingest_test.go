@@ -165,7 +165,7 @@ func TestForgeIngestJob_FetchFailureRetriesThenFails(t *testing.T) {
 	// Attempt 2 (budget = 2): terminal failure.
 	err = processJobWithDeps(ctx, deps, job.ID)
 	require.Error(t, err)
-	assert.False(t, errors.As(err, &te), "an exhausted budget is terminal, not a retry")
+	assert.NotErrorAs(t, err, &te, "an exhausted budget is terminal, not a retry")
 	got, gerr = deps.JobStore.GetJob(ctx, job.ID)
 	require.NoError(t, gerr)
 	assert.Equal(t, StatusFailed, got.Status)

@@ -138,7 +138,7 @@ func (s *Server) forgeIngest(ctx context.Context, cfg bstore.ConnectorConfig, ev
 		deps.Recorder = s.ConnectorConfigStore
 	}
 	go func() {
-		ctx, cancel := context.WithTimeout(context.WithoutCancel(context.Background()), 10*time.Minute)
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Minute)
 		defer cancel()
 		_ = jobs.ForgeIngest(ctx, deps, jobs.ForgeIngestParams{
 			WorkspaceID: workspaceID,

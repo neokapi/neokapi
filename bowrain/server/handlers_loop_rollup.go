@@ -114,7 +114,7 @@ func toLoopRollupRunView(run *bstore.ConvergenceRun, proj *store.Project) *loopR
 		ProjectID:   run.ProjectID,
 		Stream:      projectDefaultStream(proj),
 		State:       run.State,
-		StallReason: string(run.StallReason),
+		StallReason: run.StallReason,
 		Trigger:     run.Trigger,
 	}
 	if proj != nil {
