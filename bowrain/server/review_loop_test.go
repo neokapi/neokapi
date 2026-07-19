@@ -190,7 +190,7 @@ func TestReviewLoop_LastApprovalAutoContinuesToDelivery(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	time.Sleep(300 * time.Millisecond)
-	assert.Nil(t, stub.published, "delivery must not fire while a block is still pending review")
+	assert.Nil(t, stub.Published(), "delivery must not fire while a block is still pending review")
 	assert.Nil(t, reviewRun(t, s, projID), "no completing run before the last review is approved")
 	open, err := s.TaskStore.CountOpenByType(ctx, wsID, projID, "review")
 	require.NoError(t, err)
@@ -203,12 +203,13 @@ func TestReviewLoop_LastApprovalAutoContinuesToDelivery(t *testing.T) {
 
 	// The completing run converges and delivery materializes the approved content.
 	require.Eventually(t, func() bool {
-		return len(stub.published) > 0
+		return len(stub.Published()) > 0
 	}, 30*time.Second, 50*time.Millisecond, "approving the last review must auto-continue to delivery")
 
-	require.Len(t, stub.published, 1)
-	assert.Equal(t, model.LocaleID("fr"), stub.published[0].Locale)
-	require.Len(t, stub.published[0].Blocks, 2, "both approved blocks ship")
+	published := stub.Published()
+	require.Len(t, published, 1)
+	assert.Equal(t, model.LocaleID("fr"), published[0].Locale)
+	require.Len(t, published[0].Blocks, 2, "both approved blocks ship")
 
 	run := reviewRun(t, s, projID)
 	require.NotNil(t, run, "review completion must start a completing run")
@@ -278,7 +279,7 @@ func TestApprovePassing_ExcludesFailingBlocks(t *testing.T) {
 
 	// No auto-delivery yet: the review queue is not empty.
 	time.Sleep(300 * time.Millisecond)
-	assert.Nil(t, stub.published, "a mixed project does not auto-deliver until every block is reviewed")
+	assert.Nil(t, stub.Published(), "a mixed project does not auto-deliver until every block is reviewed")
 	assert.Nil(t, reviewRun(t, s, projID))
 }
 
@@ -306,10 +307,11 @@ func TestApprovePassing_AllPassingAutoContinues(t *testing.T) {
 	assert.True(t, resp.ReviewCompleted, "clearing the whole queue continues the loop")
 
 	require.Eventually(t, func() bool {
-		return len(stub.published) > 0
+		return len(stub.Published()) > 0
 	}, 30*time.Second, 50*time.Millisecond, "bulk-approving the whole queue must auto-continue to delivery")
-	require.Len(t, stub.published, 1)
-	require.Len(t, stub.published[0].Blocks, 2)
+	published := stub.Published()
+	require.Len(t, published, 1)
+	require.Len(t, published[0].Blocks, 2)
 }
 
 // TestAddProjectCreatorMembership (founder fix) proves a project creator is made
