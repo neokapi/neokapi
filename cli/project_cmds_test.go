@@ -123,7 +123,7 @@ func TestInitCmd_framework(t *testing.T) {
 	assert.Equal(t, "lib/l10n/app_{lang}.arb", items[0].Target)
 }
 
-func TestInitCmd_frameworkNeokapiI18nRejected(t *testing.T) {
+func TestInitCmd_frameworkNeokapiI18nScaffoldsCleanLayout(t *testing.T) {
 	app := newAppForTest(t)
 	dir := t.TempDir()
 
@@ -131,12 +131,19 @@ func TestInitCmd_frameworkNeokapiI18nRejected(t *testing.T) {
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(&bytes.Buffer{})
 	cmd.SetArgs([]string{"--dir", dir, "--framework", "neokapi-i18n"})
-	err := cmd.Execute()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "neokapi-i18n")
-	// No recipe should have been written.
-	_, statErr := os.Stat(filepath.Join(dir, project.RecipeFileName))
-	assert.True(t, os.IsNotExist(statErr))
+	require.NoError(t, cmd.Execute())
+
+	// The recipe is written and encodes the clean nested i18n/{lang} layout:
+	// source in i18n/src/, per-locale targets in i18n/{lang}/, and brand voice +
+	// termbase under i18n/ — no sibling i18n-<lang>/ sprawl.
+	recipe, err := project.Load(filepath.Join(dir, project.RecipeFileName))
+	require.NoError(t, err)
+	require.Len(t, recipe.Content, 1)
+	assert.Equal(t, "i18n/src/**/*.klf", recipe.Content[0].Path)
+	assert.Equal(t, "i18n/{lang}/{path}.klf", recipe.Content[0].Target)
+	require.NotNil(t, recipe.Defaults.BrandVoice)
+	assert.Equal(t, "i18n/brand-voice.yaml", recipe.Defaults.BrandVoice.ProfileFile)
+	assert.Equal(t, "i18n/termbase.klftb", recipe.Defaults.TermbaseSource)
 }
 
 func TestInitCmd_frameworkUnknown(t *testing.T) {

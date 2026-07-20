@@ -1,6 +1,7 @@
 package project
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -44,6 +45,33 @@ func TestResolveTargetPath(t *testing.T) {
 func TestResolveTargetPath_NoDoubleExtension(t *testing.T) {
 	got := ResolveTargetPath("input/docs/*.md", "", "output/{lang}/docs/*.md", "input/docs/api-reference.md", "fr-FR")
 	assert.Equal(t, "output/fr-FR/docs/api-reference.md", got)
+}
+
+// TestResolveTargetPath_NestedI18nLayout pins the clean nested convention the
+// neokapi-i18n framework preset scaffolds (core/preset.neokapiI18nPreset): a
+// source glob confined to i18n/src/ resolving to per-locale targets under
+// i18n/{lang}/. The source subdir is what keeps the source glob from ever
+// re-ingesting a generated target — the collision that otherwise drives sibling
+// i18n-<lang>/ sprawl. Kept in lockstep with the preset's mapping strings.
+func TestResolveTargetPath_NestedI18nLayout(t *testing.T) {
+	const (
+		glob   = "i18n/src/**/*.klf"
+		target = "i18n/{lang}/{path}.klf"
+	)
+	cases := []struct {
+		src, lang, want string
+	}{
+		{"i18n/src/App.klf", "de", "i18n/de/App.klf"},
+		{"i18n/src/components/Button.klf", "fr", "i18n/fr/components/Button.klf"},
+		{"i18n/src/App.klf", "nb", "i18n/nb/App.klf"},
+	}
+	for _, c := range cases {
+		got := ResolveTargetPath(glob, "", target, c.src, c.lang)
+		assert.Equal(t, c.want, got, "src=%s lang=%s", c.src, c.lang)
+		assert.NotContains(t, got, ".klf.klf", "must not double the extension")
+		assert.False(t, strings.HasPrefix(got, "i18n/src/"),
+			"target %q must not land inside the source subtree i18n/src/", got)
+	}
 }
 
 // Directory-mirror target: no token/wildcard needed — the source tree (relative

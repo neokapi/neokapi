@@ -4,7 +4,10 @@
  * neokapi-i18n CLI.
  *
  *   neokapi-i18n extract   Walk JSX/TSX source and produce one .klf per
- *                        source file under --out (default: i18n/).
+ *                        source file under --out (default: i18n/),
+ *                        mirroring the source tree — so `src/**` lands
+ *                        catalogs under i18n/src/, leaving i18n/{lang}/
+ *                        for kapi's per-locale targets.
  *
  *   neokapi-i18n compile   Consume a translated .klf directory (kapi or
  *                        another tool filled in block.targets[locale]),

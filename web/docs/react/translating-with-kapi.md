@@ -154,8 +154,41 @@ app you translate every release, a [`kapi.yaml` project file](/contribute/archit
 is the working model worth adopting: it captures the content patterns, target
 languages, flows, and defaults once, so you drive everything through named flows
 instead of repeating flags, and the project store accumulates translation memory
-and terminology across releases. Define a `translate` flow in the recipe (for example
-`recycle` → `translate` → `qa`), then:
+and terminology across releases.
+
+`kapi init --framework neokapi-i18n` scaffolds the recommended layout, in which
+everything the stack authors sits under one `i18n/` directory. The bundler writes
+source catalogs to `i18n/src/`; kapi writes per-locale targets to `i18n/{lang}/`.
+Source living under `i18n/src/` (not flat under `i18n/`) is what lets the source
+glob stay clear of the generated targets — no sibling `i18n-<lang>/` trees:
+
+```yaml title="kapi.yaml"
+version: v1
+name: MyApp
+defaults:
+  source_language: en
+  target_languages: [de, fr, ja, nb]
+  # Brand vocabulary and voice are git-tracked sources under i18n/.
+  brand_voice:
+    profile_file: i18n/brand-voice.yaml
+  termbase_source: i18n/termbase.klftb
+content:
+  - path: "i18n/src/**/*.klf"
+    format: klf
+    target: "i18n/{lang}/{path}.klf"
+```
+
+```
+i18n/
+├── src/               source KLF catalogs (from `neokapi-i18n extract`)
+├── de/ fr/ ja/ nb/    per-locale targets (from kapi)
+├── termbase.klftb     brand vocabulary (git source)
+└── brand-voice.yaml   brand voice profile (git source)
+```
+
+Translation memory and pseudo-locale output are rebuildable state, so they live
+under `.kapi/` (gitignored) — never committed siblings. Define a `translate` flow
+in the recipe (for example `recycle` → `translate` → `qa`), then:
 
 ```json title="package.json"
 {

@@ -221,8 +221,8 @@ the termbase ([AD-010](010-terminology.md)), which is *source*, the TM is
   the bowrain platform database for a team (the shared, authoritative "remote
   backend"). One continuum, larger backend.
 - it is **rebuildable**, which makes it softer than Terraform state: the leverage
-  reconstructs from the committed translations (`i18n-<lang>/` source+target
-  pairs) plus an optional human-curated, **read-only** committed `.klftm` *seed*
+  reconstructs from the committed translations (the per-locale `i18n/{lang}/`
+  target catalogs) plus an optional human-curated, **read-only** committed `.klftm` *seed*
   bound by `defaults.tm_source`. A cold or clobbered cache is a performance hit,
   not data loss.
 - because it is additive and rebuildable it needs **no locking**: it tolerates
@@ -231,7 +231,7 @@ the termbase ([AD-010](010-terminology.md)), which is *source*, the TM is
 
 Consequently **CI never commits the TM**: it restores the store from the cache,
 leverages and accumulates during the run, and saves it back to the cache — the
-translation *output* (`i18n-<lang>/`) is what gets committed to git. This is why
+translation *output* (`i18n/{lang}/`) is what gets committed to git. This is why
 "a new `.klftb` arrives while a TM is in play" is not a reconciliation problem:
 no store lives in git to conflict. Committing the binary SQLite would be
 git-hostile and defeat interchange in any case; the `.klftm` interchange form

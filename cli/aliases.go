@@ -119,6 +119,7 @@ var (
 	ExitCode                     = host.ExitCode
 	ExportKLFTB                  = host.ExportKLFTB
 	FilterFormats                = host.FilterFormats
+	FrameworkBindings            = host.FrameworkBindings
 	FrameworkContent             = host.FrameworkContent
 	FrameworkPresetEntry         = host.FrameworkPresetEntry
 	HasTag                       = host.HasTag
