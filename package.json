@@ -1,5 +1,8 @@
 {
   "private": true,
+  "scripts": {
+    "postinstall": "node -e \"const f='scripts/postinstall-build-i18n-react.mjs';if(require('fs').existsSync(f))require('child_process').execFileSync(process.execPath,[f],{stdio:'inherit'})\""
+  },
   "devDependencies": {
     "jsdom": "^29.1.1",
     "storybook": "^10.5.0",
