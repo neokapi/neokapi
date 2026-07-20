@@ -152,6 +152,11 @@ func run() error {
 	if envPublic := os.Getenv("BOWRAIN_OIDC_PUBLIC_URL"); envPublic != "" {
 		cfg.OIDCPublicURL = envPublic
 	}
+	// Marketing landing origin (e.g. https://bowrain.cloud). Allowlisted for
+	// the credentialed cross-origin whoami fetch that renders the signed-in CTA.
+	if v := os.Getenv("BOWRAIN_PUBLIC_SITE_URL"); v != "" {
+		cfg.PublicSiteURL = v
+	}
 	// Identity provider selection: "keycloak" (default; self-host/dev) or
 	// "cognito" (hosted prod). Steers the IdentityAdmin write-through and the
 	// logout URL; the OIDC verify path is issuer-driven regardless.

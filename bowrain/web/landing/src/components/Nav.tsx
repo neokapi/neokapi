@@ -5,6 +5,7 @@ import { GithubIcon } from "./GithubIcon";
 import { Logo } from "./Logo";
 import { APP_URL, GITHUB_URL, SIGNUP_URL, docsUrl } from "../links";
 import { isDark, toggleMode } from "../theme";
+import { useAuthStatus, type AuthStatus } from "../useAuthStatus";
 
 const LINKS = [
   { href: "#product", label: t("Product") },
@@ -13,9 +14,38 @@ const LINKS = [
   { href: "#pricing", label: t("Pricing") },
 ];
 
+// Small round avatar: the user's picture when present, otherwise the first
+// initial of their name. Marketing-restrained (no menu, no dropdown).
+function Avatar({ status }: { status: AuthStatus }) {
+  if (status.avatarUrl) {
+    return (
+      <img
+        src={status.avatarUrl}
+        alt=""
+        width={28}
+        height={28}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        className="h-7 w-7 rounded-full object-cover ring-1 ring-border"
+      />
+    );
+  }
+  const initial = status.name.trim().charAt(0).toUpperCase() || "?";
+  return (
+    <span
+      aria-hidden
+      className="flex h-7 w-7 items-center justify-center rounded-full bg-secondary text-xs font-medium text-foreground ring-1 ring-border"
+    >
+      {initial}
+    </span>
+  );
+}
+
 export function Nav() {
   const [open, setOpen] = useState(false);
   const [dark, setDark] = useState(isDark());
+  const { status } = useAuthStatus();
+  const signedIn = status !== null;
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">
@@ -62,18 +92,42 @@ export function Nav() {
           >
             <GithubIcon className="h-4 w-4" />
           </a>
-          <a
-            href={APP_URL}
-            className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition hover:bg-secondary hover:text-foreground"
-          >
-            Sign in
-          </a>
-          <a
-            href={SIGNUP_URL}
-            className="rounded-lg bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
-          >
-            Get started
-          </a>
+          {signedIn ? (
+            <>
+              {status.name && (
+                <span className="flex items-center gap-2 pl-1">
+                  <Avatar status={status} />
+                  <span
+                    translate="no"
+                    className="max-w-[9rem] truncate text-sm text-muted-foreground"
+                  >
+                    {status.name}
+                  </span>
+                </span>
+              )}
+              <a
+                href={APP_URL}
+                className="rounded-lg bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+              >
+                Go to app
+              </a>
+            </>
+          ) : (
+            <>
+              <a
+                href={APP_URL}
+                className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+              >
+                Sign in
+              </a>
+              <a
+                href={SIGNUP_URL}
+                className="rounded-lg bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+              >
+                Get started
+              </a>
+            </>
+          )}
         </div>
 
         <button
@@ -106,13 +160,30 @@ export function Nav() {
             >
               Docs
             </a>
+            {signedIn && status.name && (
+              <div className="flex items-center gap-2 py-1">
+                <Avatar status={status} />
+                <span translate="no" className="truncate text-sm text-muted-foreground">
+                  {status.name}
+                </span>
+              </div>
+            )}
             <div className="mt-2 flex items-center gap-3">
-              <a
-                href={SIGNUP_URL}
-                className="rounded-lg bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground"
-              >
-                Get started
-              </a>
+              {signedIn ? (
+                <a
+                  href={APP_URL}
+                  className="rounded-lg bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground"
+                >
+                  Go to app
+                </a>
+              ) : (
+                <a
+                  href={SIGNUP_URL}
+                  className="rounded-lg bg-primary px-3.5 py-1.5 text-sm font-medium text-primary-foreground"
+                >
+                  Get started
+                </a>
+              )}
               <button
                 type="button"
                 onClick={() => setDark(toggleMode())}
