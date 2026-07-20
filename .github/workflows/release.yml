@@ -681,7 +681,14 @@ jobs:
               test -f "docker/kapi/plugins/${arch}/bowrain/manifest.json"
             done
           else
-            echo "::notice::kapi-bowrain ${VERSION} archives not found at ${PLUGIN_TAG} — skipping the CLI image (it bundles the bowrain plugin; publish it from a coordinated same-version release)"
+            echo "::warning::CLI image SKIPPED — kapi-bowrain ${VERSION} archives not found at ${PLUGIN_TAG}. ${IMAGE}:${VERSION} bundles the bowrain plugin, so image consumers (samples, GitLab CI) will get 'manifest unknown' until a matching bowrain-v${VERSION} release exists. Cut releases together: 'make release-coordinated' or 'make release-bowrain v=${VERSION}'."
+            {
+              echo "### ⚠️ CLI container image was NOT published"
+              echo ""
+              echo "\`${IMAGE}:${VERSION}\` was skipped — no matching \`bowrain-v${VERSION}\` plugin release, and the image bundles the kapi-bowrain plugin."
+              echo ""
+              echo "Image consumers (samples, GitLab CI) will fail with \`manifest unknown\`. Fix: cut \`make release-bowrain v=${VERSION}\` (or a \`make release-coordinated\`) and re-run this job."
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "has_plugin=${has_plugin}" >> "$GITHUB_OUTPUT"
 

@@ -1929,6 +1929,12 @@ release: ## Tag + push a kapi release (v=1.3.4 → tag v1.3.4); CI builds & publ
 	@git fetch --quiet origin main
 	@test "$$(git rev-parse HEAD)" = "$$(git rev-parse origin/main)" || { echo "✗ local main is not in sync with origin/main"; exit 1; }
 	@git rev-parse "$(TAG)" >/dev/null 2>&1 && { echo "✗ tag $(TAG) already exists"; exit 1; } || true
+	@git ls-remote --exit-code --tags origin "$(BTAG)" >/dev/null 2>&1 || { \
+	  printf '\n⚠️  No %s release found. The kapi CLI container image (ghcr.io/neokapi/kapi:%s)\n' "$(BTAG)" "$(VER)"; \
+	  printf '    bundles the kapi-bowrain plugin and is SKIPPED unless a matching %s release\n' "$(BTAG)"; \
+	  printf '    publishes its archives — samples and GitLab CI pull that image. Cut them together:\n'; \
+	  printf '        make release-coordinated   (or run make release-bowrain v=%s right after this).\n\n' "$(VER)"; \
+	}
 	@printf "Tag and push %s at %s? [y/N] " "$(TAG)" "$$(git rev-parse --short HEAD)"; read ok; [ "$$ok" = "y" ] || { echo aborted; exit 1; }
 	git tag -a "$(TAG)" -m "Release $(TAG)"
 	git push origin "$(TAG)"
