@@ -1,6 +1,6 @@
 {
   "name": "@neokapi/i18n-react-lint",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "description": "Authoring-time lint rules for neokapi-i18n. Same rule objects run under ESLint and oxlint (via jsPlugins). Catches unextractable patterns (t(variable), string concat in translatable attrs, label strings hidden in data arrays) that the build-time extractor can't see.",
   "keywords": [
