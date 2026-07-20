@@ -71,6 +71,34 @@ func TestCheckoutCompleted_PlanFallsBackToPro(t *testing.T) {
 	}
 }
 
+// A checkout.session.completed can arrive with no customer/subscription objects
+// (a minimal event, or a non-subscription session that isn't a credit pack).
+// Dereferencing them used to panic the handler — an event from Stripe's own CLI
+// fixtures crashed it (found while sandbox-testing before go-live). It must not
+// panic; the ids are left empty and reconciled by the later subscription events.
+func TestCheckoutCompleted_NilCustomerAndSubscription_NoPanic(t *testing.T) {
+	store := &recordingStore{}
+	handler := NewWebhookHandler(store, "whsec_test")
+
+	raw, err := json.Marshal(stripe.CheckoutSession{
+		// Customer and Subscription intentionally nil.
+		Metadata: map[string]string{"workspace_id": "ws-1", "plan": "pro"},
+	})
+	require.NoError(t, err)
+
+	require.NotPanics(t, func() {
+		require.NoError(t, handler.handleCheckoutCompleted(t.Context(), stripe.Event{
+			Type: "checkout.session.completed",
+			Data: &stripe.EventData{Raw: raw},
+		}))
+	})
+
+	require.Len(t, store.upsertedSubs, 1)
+	assert.Equal(t, PlanPro, store.upsertedSubs[0].Plan)
+	assert.Empty(t, store.upsertedSubs[0].StripeCustomerID)
+	assert.Empty(t, store.upsertedSubs[0].StripeSubscriptionID)
+}
+
 // customer.subscription.created must be handled, not merely logged as unknown:
 // it is the event Stripe is guaranteed to send for a new subscription, and it
 // carries the price metadata that is the authoritative plan signal.
