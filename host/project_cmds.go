@@ -30,21 +30,15 @@ func PrintPresetList(cmd Command) error {
 }
 
 // FrameworkContent resolves a framework preset's catalog mappings into scaffold
-// content entries. Returns nil for an empty framework. The neokapi-i18n stack is
-// rejected with guidance because it manages i18n via its own bundler plugin and
-// `neokapi-i18n extract|compile`, not a .kapi content mapping.
+// content entries. Returns nil for an empty framework. The neokapi-i18n stack
+// scaffolds the clean nested layout — source KLF catalogs under i18n/src/,
+// per-locale targets under i18n/{lang}/ — the same mapping the preset carries.
 func FrameworkContent(framework string) ([]scaffoldContent, error) {
 	if framework == "" {
 		return nil, nil
 	}
 	reg := preset.NewPresetRegistry()
 	preset.RegisterBuiltins(reg)
-
-	if framework == preset.NeokapiI18nPresetName {
-		return nil, fmt.Errorf("the %q stack manages i18n via its bundler plugin and `neokapi-i18n extract|compile`, not a kapi.yaml content mapping — "+
-			"install @neokapi/i18n-react and follow its quickstart. "+
-			"`kapi init --framework` is for catalog-based stacks", framework)
-	}
 
 	fp := reg.GetFrameworkPreset(framework)
 	if fp == nil {
@@ -65,6 +59,23 @@ func FrameworkContent(framework string) ([]scaffoldContent, error) {
 		})
 	}
 	return content, nil
+}
+
+// FrameworkBindings returns the standing project-context bindings a framework
+// preset declares — a brand voice profile file and a termbase source — for the
+// scaffolder to write under defaults:. Both are empty when the framework
+// declares none (or is unknown/empty).
+func FrameworkBindings(framework string) (brandVoiceProfile, termbaseSource string) {
+	if framework == "" {
+		return "", ""
+	}
+	reg := preset.NewPresetRegistry()
+	preset.RegisterBuiltins(reg)
+	fp := reg.GetFrameworkPreset(framework)
+	if fp == nil {
+		return "", ""
+	}
+	return fp.BrandVoiceProfile, fp.TermbaseSource
 }
 
 // ─── helpers ────────────────────────────────────────────────────
@@ -96,7 +107,7 @@ func RecipeExists(dir string) (bool, error) {
 	return false, err
 }
 
-func ScaffoldRecipe(name, sourceLocale string, targetLocales []string, content []scaffoldContent) []byte {
+func ScaffoldRecipe(name, sourceLocale string, targetLocales []string, content []scaffoldContent, brandVoiceProfile, termbaseSource string) []byte {
 	var b strings.Builder
 	b.WriteString("version: v1\n")
 	b.WriteString("name: ")
@@ -115,6 +126,16 @@ func ScaffoldRecipe(name, sourceLocale string, targetLocales []string, content [
 			b.WriteString(t)
 			b.WriteByte('\n')
 		}
+	}
+	// Standing project-context bindings the stack declares — a brand voice
+	// profile and a committed native termbase source — so project-scoped brand
+	// and terminology checks need no flags.
+	if brandVoiceProfile != "" {
+		b.WriteString("  brand_voice:\n")
+		fmt.Fprintf(&b, "    profile_file: %s\n", brandVoiceProfile)
+	}
+	if termbaseSource != "" {
+		fmt.Fprintf(&b, "  termbase_source: %s\n", termbaseSource)
 	}
 
 	if len(content) > 0 {

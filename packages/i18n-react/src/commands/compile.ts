@@ -51,7 +51,8 @@ export async function runCompile(args: string[]) {
   }
 
   // Accumulate blocks across every input so one invocation can span the source
-  // catalog and each i18n-<locale> tree (needed for a complete review manifest).
+  // catalog (i18n/src/) and each per-locale target tree (i18n/{lang}/) — a single
+  // recursive i18n/ dir covers them all (needed for a complete review manifest).
   const blocks: BlockRecord[] = [];
   const declaredSet = new Set<string>();
   for (const input of inputs) {
@@ -193,8 +194,9 @@ Options:
   --out <dir>       Output directory (default: public/translations)
   --review          Also emit review.json — a read-only in-context review
                     manifest (source + all targets + annotations, merged by
-                    hash) for @neokapi/i18n-react/review/hosted. Pass the source
-                    catalog and every i18n-<locale> tree so it carries source
-                    text and all locales, e.g.
-                    neokapi-i18n compile i18n i18n-* --out public/translations --review
+                    hash) for @neokapi/i18n-react/review/hosted. Point it at the
+                    i18n/ tree, which is walked recursively so it picks up the
+                    source catalog (i18n/src/) and every per-locale target
+                    (i18n/{lang}/) in one pass, e.g.
+                    neokapi-i18n compile i18n --out public/translations --review
 `;

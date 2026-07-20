@@ -5,9 +5,10 @@ package preset
 const sourceBuiltIn = "built-in"
 
 // NeokapiI18nPresetName is the framework preset for projects using the
-// @neokapi/i18n-react stack. Its i18n is managed by the neokapi-i18n bundler
-// plugin + `neokapi-i18n extract|compile`, not by a `.kapi` content mapping —
-// `kapi init --framework` handles it specially.
+// @neokapi/i18n-react stack. The bundler plugin (`neokapi-i18n extract`) writes
+// KLF source catalogs under i18n/src/; kapi reads those and writes per-locale
+// targets under i18n/{lang}/. `kapi init --framework neokapi-i18n` scaffolds
+// that content mapping.
 const NeokapiI18nPresetName = "neokapi-i18n"
 
 // RegisterBuiltins registers built-in framework presets into the given registry.
@@ -24,20 +25,35 @@ func RegisterBuiltins(reg *PresetRegistry) {
 	reg.RegisterFrameworkPreset("angular", angularPreset())
 }
 
-// neokapiI18nPreset represents a React project using the @neokapi/i18n-react stack:
-// the bundler plugin extracts plain JSX to a KLF directory, kapi translates it,
-// and neokapi-i18n compiles per-locale runtime dicts. Detection-oriented — the
-// mapping is informational (neokapi-i18n owns the i18n/ directory).
+// neokapiI18nPreset represents a React project using the @neokapi/i18n-react
+// stack. The bundler plugin (`neokapi-i18n extract`) writes one KLF catalog per
+// source file under i18n/src/ (mirroring the src/ tree); kapi reads those and
+// writes per-locale targets under i18n/{lang}/. Everything the stack authors
+// lives under one i18n/ directory:
+//
+//	i18n/
+//	├── src/               source KLF catalogs (bundler output)
+//	├── de/ fr/ ja/ nb/    per-locale targets (kapi output)
+//	├── termbase.klftb     brand vocabulary (git source)
+//	└── brand-voice.yaml   brand voice profile (git source)
+//
+// Source lives in i18n/src/ so the source glob (i18n/src/**/*.klf) never matches
+// the per-locale target dirs — the collision that otherwise forces sibling
+// i18n-<lang>/ trees. Translation memory and pseudo-locale output are
+// rebuildable state and live under .kapi/ (gitignored), never committed
+// siblings.
 func neokapiI18nPreset() *FrameworkPreset {
 	return &FrameworkPreset{
 		Name:        NeokapiI18nPresetName,
 		Description: "React with the @neokapi/i18n-react stack (zero-wrapper, KLF extraction)",
 		Detect:      []string{"package.json:@neokapi/i18n-react"},
 		Mappings: []MappingTemplate{
-			{Local: "i18n/**/*.klf", Format: "klf", TargetPath: "i18n/**/*.klf"},
+			{Local: "i18n/src/**/*.klf", Format: "klf", TargetPath: "i18n/{lang}/{path}.klf"},
 		},
-		Exclude: []string{"node_modules/**", "dist/**", "build/**"},
-		Source:  sourceBuiltIn,
+		Exclude:           []string{"node_modules/**", "dist/**", "build/**"},
+		BrandVoiceProfile: "i18n/brand-voice.yaml",
+		TermbaseSource:    "i18n/termbase.klftb",
+		Source:            sourceBuiltIn,
 	}
 }
 

@@ -2,8 +2,12 @@
  * neokapi-i18n extract — walk every matched JSX/TSX file and emit
  * translatable content in one of two shapes:
  *
- *   1. Default: per-file .klf JSON under --out (default `./i18n/`).
- *      Human-readable, git-diffable, self-contained per source.
+ *   1. Default: per-file .klf JSON under --out (default `./i18n/`),
+ *      mirroring the source tree — so the default `src/**` glob lands
+ *      catalogs under `i18n/src/`. Source living in `i18n/src/` (rather
+ *      than flat under `i18n/`) leaves kapi free to write per-locale
+ *      targets under `i18n/{lang}/` without the source glob re-ingesting
+ *      them. Human-readable, git-diffable, self-contained per source.
  *   2. --stream: NDJSON block records on stdout, one per block,
  *      for piping into any kapi-aware consumer (e.g. kapi's exec
  *      format reader). No file output.
@@ -322,7 +326,11 @@ Options:
                           packages, e.g. --src "src/**/*.tsx" --src
                           "../../packages/ui/src/**/*.tsx"
   --ignore <glob>         Exclude pattern (repeatable). E.g. --ignore "src/stories/**"
-  --out <dir>             Output directory for .klf files (default: "i18n")
+  --out <dir>             Output directory for .klf files (default: "i18n").
+                          Catalogs mirror the source tree, so the default
+                          "src/**" glob writes them under "i18n/src/" —
+                          leaving "i18n/{lang}/" free for kapi's per-locale
+                          targets.
   --stream                Emit NDJSON block records on stdout instead
                           of writing .klf files. Reads NUL-separated
                           paths on stdin instead of expanding --src.

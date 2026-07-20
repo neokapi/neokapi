@@ -183,9 +183,14 @@ The context a block carries (its file and line, its element, the translator note
 
 Non-KLF formats (JSON, XLIFF, …) aren't locale-additive, so they write a new file in a locale-aware location: if the input path carries the source locale it is swapped for the target (`src/locales/en/app.json → src/locales/fr/app.json`), otherwise the output lands under a `{lang}/` directory beside the input (`messages.json → fr/messages.json`). Use `-o` for an explicit path or template, or `--output-dir DIR` to root outputs at `DIR/{lang}/`.
 
-### Multiple locales in one `i18n/`
+### Layout: one tree, or a subdir per locale
 
-A single `i18n/` tree with N target locales on each block is the default and recommended layout — simpler to version, all translations stay together. See [AD-008](/contribute/architecture/008-project-model) for the project model.
+Two layouts, both clean:
+
+- **Locale-additive** — one `i18n/` tree where each block carries every target locale, filled in place (the default for `kapi translate i18n/ --target-lang …`). Simplest to version; all translations stay together.
+- **Recipe-driven per-locale files** — the source catalogs live under `i18n/src/` and kapi writes a separate file per locale under `i18n/{lang}/`, mapped by a `kapi.yaml` content entry (`path: i18n/src/**/*.klf` → `target: i18n/{lang}/{path}.klf`). This is what `kapi init --framework neokapi-i18n` scaffolds.
+
+Both keep everything under one `i18n/` directory. Because the source lives under `i18n/src/`, the source glob never matches the generated `i18n/{lang}/` targets — so there is no need for sibling `i18n-<lang>/` trees. See [AD-008](/contribute/architecture/008-project-model) for the project model and [Drive it from a project](./translating-with-kapi#drive-it-from-a-project) for the recipe.
 
 ### Project-driven flow with `kapi.yaml`
 

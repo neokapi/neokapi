@@ -667,14 +667,20 @@ func finishInit(cwd string, recipe *project.Recipe) (*output.InitOutput, error) 
 	return out, nil
 }
 
-// writeStateGitignore drops a .gitignore inside the .kapi/ state dir so the
-// regenerable cache subdir is excluded from version control.
+// writeStateGitignore drops a .gitignore inside the .kapi/ state dir so its
+// regenerable contents are excluded from version control: the cache root, plus
+// the rebuildable SQLite stores (translation memory, termbase, block store) and
+// their WAL sidecars. These are derived state — rebuilt from committed source
+// (recipe, target catalogs, the .klftb/.klftm sources) — never source of truth,
+// so they stay out of git. Committed state (manifest.yaml, flows/) is not
+// matched by these patterns.
 func writeStateGitignore(proj *project.Project) error {
 	gitignorePath := filepath.Join(proj.StateDir(), ".gitignore")
 	if _, err := os.Stat(gitignorePath); err == nil {
 		return nil
 	}
-	return os.WriteFile(gitignorePath, []byte("cache/\n"), 0o644)
+	const content = "cache/\n*.db\n*.db-shm\n*.db-wal\n"
+	return os.WriteFile(gitignorePath, []byte(content), 0o644)
 }
 
 func createExampleFlow(proj *project.Project) error {
@@ -734,6 +740,16 @@ func applyFrameworkPreset(recipe *project.Recipe, presetName string) error {
 
 	// Apply exclude patterns.
 	recipe.Defaults.Exclude = append(recipe.Defaults.Exclude, fp.Exclude...)
+
+	// Standing project-context bindings the stack declares — a brand voice
+	// profile and a committed native termbase source — scaffolded under
+	// defaults: so project-scoped brand and terminology checks need no flags.
+	if fp.BrandVoiceProfile != "" && recipe.Defaults.BrandVoice == nil {
+		recipe.Defaults.BrandVoice = &coreproj.BrandVoiceBinding{ProfileFile: fp.BrandVoiceProfile}
+	}
+	if fp.TermbaseSource != "" && recipe.Defaults.TermbaseSource == "" {
+		recipe.Defaults.TermbaseSource = fp.TermbaseSource
+	}
 
 	// Apply format preset overrides as Defaults.Formats entries.
 	if len(fp.FormatPresets) > 0 && recipe.Defaults.Formats == nil {

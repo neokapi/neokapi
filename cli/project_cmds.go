@@ -69,6 +69,7 @@ scaffolds plus per-format parsing presets) with --list-presets.`,
 			if err != nil {
 				return err
 			}
+			brandVoiceProfile, termbaseSource := FrameworkBindings(framework)
 
 			// `kapi init` is idempotent: re-running it (or running it on a
 			// project that already has a recipe) is not an error. This lets
@@ -96,7 +97,7 @@ scaffolds plus per-format parsing presets) with --list-presets.`,
 				// scaffold the content project (brand voice + termbase + check).
 				var recipe []byte
 				if len(targetLocale) > 0 || framework != "" {
-					recipe = ScaffoldRecipe(name, sourceLocale, targetLocale, content)
+					recipe = ScaffoldRecipe(name, sourceLocale, targetLocale, content, brandVoiceProfile, termbaseSource)
 				} else {
 					recipe = ScaffoldContentRecipe(name, sourceLocale)
 				}
