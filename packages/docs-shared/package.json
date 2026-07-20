@@ -11,7 +11,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "posthog-js": "^1.399.2"
+    "posthog-js": "^1.404.1"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",
