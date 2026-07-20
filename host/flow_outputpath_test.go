@@ -52,7 +52,7 @@ func TestProjectItemTargetPath(t *testing.T) {
 			}},
 		},
 	}
-	a := &App{ProjectContext: project.NewProjectContext(proj, filepath.Join(root, "p.kapi"))}
+	a := &App{ProjectContext: project.NewProjectContext(proj, filepath.Join(root, "kapi.yaml"))}
 
 	got, ok := a.projectItemTargetPath(filepath.Join(root, "input/docs/api-reference.md"), "fr")
 	require.True(t, ok)

@@ -97,7 +97,7 @@ type ProjectFileInfo struct {
 }
 
 // IsEmptyProject returns true if the project directory contains only
-// ignored files (project.kapi, hidden files, .kapiignore entries), using the
+// ignored files (kapi.yaml, hidden files, .kapiignore entries), using the
 // shared project walk so "empty" agrees with what ListProjectFiles shows.
 func (a *App) IsEmptyProject(tabID string) bool {
 	basePath := a.GetBasePath(tabID)

@@ -155,8 +155,8 @@ or human translation:
 
 ```bash
 kapi translate ./report.docx --target-lang fr -o ./out/report.fr.docx
-kapi extract -p project.kapi --target-lang fr --format xliff2          # emit XLIFF
-kapi merge -i ./out/*.fr.xlf -p project.kapi                          # merge back
+kapi extract -p kapi.yaml --target-lang fr --format xliff2          # emit XLIFF
+kapi merge -i ./out/*.fr.xlf -p kapi.yaml                          # merge back
 ```
 
 Native readers/writers cover localization, document, data, and office formats —

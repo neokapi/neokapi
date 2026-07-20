@@ -125,7 +125,7 @@ func (a *App) RunPack(cmd Command) error {
 	// nothing worth packing; its intent is the .kapi recipe, which is shared via
 	// git, not a .klz.
 	if !pkg.HasContent() {
-		return fmt.Errorf("pack: nothing to pack — %s has no extracted content, translation memory, or terminology yet; run `kapi extract` (and translate) first, or share the .kapi recipe directly", filepath.Base(projectPath))
+		return fmt.Errorf("pack: nothing to pack — %s has no extracted content, translation memory, or terminology yet; run `kapi extract` (and translate) first, or share the kapi.yaml recipe directly", filepath.Base(projectPath))
 	}
 
 	if err := saveWorkspace(pkg, outPath); err != nil {
@@ -311,16 +311,18 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 	return outputPrint(cmd, fmt.Sprintf("Unpacked %s → %s", snapshotPath, layout.StateDir))
 }
 
-// reconstitutedProjectPath derives the <name>.kapi path to materialize when
-// unpacking a project snapshot with no project in scope: prefer the recipe's
-// name, else the snapshot's base name, placed beside the snapshot.
+// reconstitutedProjectPath derives the kapi.yaml path to materialize when
+// unpacking a project snapshot with no project in scope. The recipe filename
+// is fixed, so the project's identity is carried by its folder: a fresh
+// <name>/ directory beside the snapshot (named from the recipe, else the
+// snapshot's base name) holding the kapi.yaml recipe.
 func reconstitutedProjectPath(snapshotPath string, pkg *klz.Package) string {
 	dir := filepath.Dir(snapshotPath)
 	name := strings.TrimSuffix(filepath.Base(snapshotPath), filepath.Ext(snapshotPath))
 	if pkg != nil && pkg.Recipe != nil && pkg.Recipe.Name != "" {
 		name = pkg.Recipe.Name
 	}
-	return filepath.Join(dir, name+project.RecipeExt)
+	return filepath.Join(dir, name, project.RecipeFileName)
 }
 
 // blocksToKLF wraps exported block-store blocks into a single klf.File

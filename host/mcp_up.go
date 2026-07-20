@@ -18,7 +18,7 @@ func init() {
 
 // upMCPInput is the input to the `up` MCP tool.
 type upMCPInput struct {
-	Project     string `json:"project,omitempty" jsonschema:"path to the .kapi recipe (default: discovered upward from the working directory, like git)"`
+	Project     string `json:"project,omitempty" jsonschema:"path to the kapi.yaml recipe (default: discovered upward from the working directory, like git)"`
 	Passes      int    `json:"passes,omitempty" jsonschema:"maximum reconciliation passes (0 = loop until up to date or parked; 1 = single pass)"`
 	Jobs        int    `json:"jobs,omitempty" jsonschema:"how many languages to catch up concurrently per pass (0 = project default, else 4)"`
 	Materialize bool   `json:"materialize,omitempty" jsonschema:"after the loop, write localized files for every shippable locale (overrides the recipe's materialize policy)"`
@@ -27,7 +27,7 @@ type upMCPInput struct {
 
 // upPlanMCPInput is the input to the `up_plan` MCP tool.
 type upPlanMCPInput struct {
-	Project string `json:"project,omitempty" jsonschema:"path to the .kapi recipe (default: discovered upward from the working directory, like git)"`
+	Project string `json:"project,omitempty" jsonschema:"path to the kapi.yaml recipe (default: discovered upward from the working directory, like git)"`
 }
 
 func registerUpMCPTools(server *mcp.Server, a *App) {
@@ -97,7 +97,7 @@ func (a *App) mcpProjectPath(explicit string) (string, error) {
 		return "", err
 	}
 	if path == "" {
-		return "", errors.New("no .kapi project found — pass project, or run the MCP server inside a kapi project directory")
+		return "", errors.New("no kapi project found — pass project, or run the MCP server inside a kapi project directory")
 	}
 	return path, nil
 }

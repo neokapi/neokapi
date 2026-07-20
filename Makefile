@@ -1101,7 +1101,7 @@ kapi-i18n-pseudo-translate: kapi-i18n-generate bin/kapi ## Pseudo-translate buil
 
 kapi-i18n-translations: kapi-i18n-pseudo-translate ## Regenerate + pseudo-translate builtin metadata → MO
 
-# ── Dogfood localization (root recipe: neokapi.kapi) ────────────────────────
+# ── Dogfood localization (root recipe: kapi.yaml) ────────────────────────
 # These targets ARE the dogfood workflow, so they deliberately run WITHOUT
 # $(KAPI_ISO_ENV): they bind to the repo-root project and its .kapi/ state.
 # Reviewed translations are committed as TMX under l10n/tm/; the project TM
@@ -1189,7 +1189,7 @@ l10n-cli: l10n-seed kapi-cli-i18n-generate ## CLI help + output chrome → host/
 # Demo-video narration sidecars: generated demo.<lang>.yaml next to each
 # demo.yaml (the harness overlays them at load time; EN falls back when a
 # string is still untranslated). Driven through the recipe's tm-recycle flow
-# so the yaml keyPathPatterns in neokapi.kapi bind (only narration/caption/
+# so the yaml keyPathPatterns in kapi.yaml bind (only narration/caption/
 # title/subtitle are translatable — never ids, beats, commands, or timings).
 # Sidecars are generated only for the demos listed here — the ones with
 # reviewed nb narration in the TM (l10n/tm/demo-narration-nb.klftm); add a
@@ -1211,7 +1211,7 @@ l10n-demos: l10n-seed ## Demo narration → harness/demos/<id>/demo.<lang>.yaml 
 # must never block the build"; TM misses fall back to English and the sites
 # build with the tree absent). Scoped to the surface by passing its source
 # files as -i; with no -o, the flow-run path resolves every output from the
-# matching content item's target template in neokapi.kapi. Frontmatter keys
+# matching content item's target template in kapi.yaml. Frontmatter keys
 # bind via defaults.formats (the flow-run path reads only the defaults).
 l10n-docs: l10n-seed ## kapi docs site → web/i18n/<lang>/... (TM-driven, gitignored)
 	@for lang in $(L10N_LANGS); do \

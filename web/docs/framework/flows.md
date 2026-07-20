@@ -167,7 +167,7 @@ in the editor, and an editor-built flow runs from the CLI.
 :::tip Build a flow, then run it
 Assemble a flow in the same node editor the desktop app uses — add, remove, and
 reorder tool nodes — then press **Run flow** to execute it on a file and step
-through the result. The graph is serialized to a `.kapi` recipe and run with the
+through the result. The graph is serialized to a `kapi.yaml` recipe and run with the
 real `kapi` engine in your browser via WebAssembly, so the flow you build is the
 flow that runs.
 :::

@@ -5,7 +5,7 @@ description: How to activate (and deactivate) the customer-#1 dogfood that syncs
 
 # Dogfood sync (customer #1)
 
-neokapi localizes its own surfaces with kapi (the root `neokapi.kapi` recipe).
+neokapi localizes its own surfaces with kapi (the root `kapi.yaml` recipe).
 The next step in the dogfood is to become the **first real workspace on
 Bowrain**: push those surfaces to a bowrain-server, let the nb drafts land in
 the governed review queue, and round-trip approved segments back into
@@ -31,7 +31,7 @@ flip doubles as the production acceptance test.
 1. **Sign up through the public funnel** (dogfoods epic 007). Create the
    `neokapi` workspace, claim the project, and copy its compound project URL
    (`https://<server>/<workspace>/<project-id>`).
-2. **Uncomment the `server:` block** at the foot of `neokapi.kapi` and set
+2. **Uncomment the `server:` block** at the foot of `kapi.yaml` and set
    `url:` to that compound URL. Commit it. From this point `kapi status` /
    `kapi push` operate against the server (this is the one in-repo invocation
    that legitimately binds the root recipe).

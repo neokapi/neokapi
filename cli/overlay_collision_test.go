@@ -29,7 +29,7 @@ func TestOverlayKey_NoCollisionAcrossFiles(t *testing.T) {
 	root, err := filepath.EvalSymlinks(dir)
 	require.NoError(t, err)
 
-	recipe := filepath.Join(root, "app.kapi")
+	recipe := filepath.Join(root, project.RecipeFileName)
 	proj := &project.KapiProject{
 		Version:  "v1",
 		Name:     "OverlayCollision",

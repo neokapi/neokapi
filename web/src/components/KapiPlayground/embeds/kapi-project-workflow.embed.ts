@@ -14,7 +14,7 @@ const config: WalkthroughEmbedConfig = {
         '<?xml version="1.0" encoding="UTF-8"?>\n<tmx version="1.4">\n  <header creationtool="neokapi" creationtoolversion="1.0"\n          segtype="sentence" o-tmf="unknown" adminlang="en"\n          srclang="en" datatype="plaintext"/>\n  <body>\n    <tu>\n      <tuv xml:lang="en"><seg>Hello, World!</seg></tuv>\n      <tuv xml:lang="fr"><seg>Bonjour le monde !</seg></tuv>\n    </tu>\n    <tu>\n      <tuv xml:lang="en"><seg>See you tomorrow</seg></tuv>\n      <tuv xml:lang="fr"><seg>À demain</seg></tuv>\n    </tu>\n    <tu>\n      <tuv xml:lang="en"><seg>Your cart is empty</seg></tuv>\n      <tuv xml:lang="fr"><seg>Votre panier est vide</seg></tuv>\n    </tu>\n  </body>\n</tmx>\n',
     },
     {
-      path: "demo.kapi",
+      path: "kapi.yaml",
       content:
         'version: v1\nname: demo\ndefaults:\n  source_language: en\n  target_languages: [fr]\n  flow: tm-recycle\ncontent:\n  - path: messages.json\n    target: "messages.{lang}.json"\nflows:\n  tm-recycle:\n    steps:\n      - tool: recycle\n',
     },

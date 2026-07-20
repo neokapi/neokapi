@@ -1,17 +1,17 @@
 ---
 sidebar_position: 7
-title: .kapi Project File Format
-description: Implementation note for AD-008 — the KapiProject YAML schema, ContentCollection/ContentItem and Defaults struct layouts, how extension extras are decoded, and how the .kapi recipe is loaded, validated, and saved.
-keywords: [kapi project file, KapiProject, YAML schema, ContentCollection, ContentItem, Defaults, project model, implementation note]
+title: kapi.yaml Project File Format
+description: Implementation note for AD-008 — the KapiProject YAML schema, ContentCollection/ContentItem and Defaults struct layouts, how extension extras are decoded, and how the kapi.yaml recipe is loaded, validated, and saved.
+keywords: [kapi project file, kapi.yaml, KapiProject, YAML schema, ContentCollection, ContentItem, Defaults, project model, implementation note]
 ---
 
-# .kapi Project File Format
+# kapi.yaml Project File Format
 
-Implementation notes for the `.kapi` project file format. See [AD-008](/contribute/architecture/008-project-model) for the architectural decision.
+Implementation notes for the `kapi.yaml` project file format. See [AD-008](/contribute/architecture/008-project-model) for the architectural decision.
 
 ## Schema
 
-The `.kapi` file is a YAML document parsed by `core/project.KapiProject`:
+The `kapi.yaml` recipe is a YAML document parsed by `core/project.KapiProject`:
 
 ```go
 type KapiProject struct {
@@ -181,7 +181,7 @@ require it.
 
 ## Credential Resolution
 
-The `.kapi` file references AI providers by type (e.g., `provider: anthropic`), not by key. API keys are resolved at runtime:
+The `kapi.yaml` recipe references AI providers by type (e.g., `provider: anthropic`), not by key. API keys are resolved at runtime:
 
 1. OS keychain via `cli/credentials.Store` (non-secret config at
    `~/.config/kapi/providers.json`; keys under the keychain service `"kapi"`)
@@ -196,10 +196,10 @@ The `.kapi` file references AI providers by type (e.g., `provider: anthropic`), 
 kapi translate -i file.json --target-lang fr
 
 # With project file: run a built-in flow with project defaults
-kapi run translate-qa -p translation.kapi --target-lang de
+kapi run translate-qa -p kapi.yaml --target-lang de
 
 # Or run a flow defined in the recipe's flows: map (here named "translate")
-kapi run translate -p translation.kapi
+kapi run translate -p kapi.yaml
 ```
 
 Built-in flows are `translate`, `translate-qa`, `pseudo-translate`,
@@ -227,7 +227,7 @@ With `-p`:
 
 Kapi Desktop at `apps/kapi-desktop/`:
 
-- Opens `.kapi` files as documents (File > Open, drag-and-drop, OS file association)
+- Opens a project by its folder (which contains `kapi.yaml`) — File > Open, drag-and-drop
 - Edits flows inline (steps editor)
 - Resolves content patterns against the filesystem via `App.MatchContent(tabID)`,
   using the same `core/project` glob expansion the CLI relies on for `extract` /

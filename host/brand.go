@@ -280,7 +280,7 @@ func (a *App) ResolveBrandProfileCmd(cmd Command) (*brand.VoiceProfile, string, 
 		if ok {
 			return profile, src, nil
 		}
-		return nil, "", errors.New("specify a profile with --profile, --profile-file, or --pack (or bind one in your .kapi project under defaults.brand_voice)")
+		return nil, "", errors.New("specify a profile with --profile, --profile-file, or --pack (or bind one in your kapi.yaml under defaults.brand_voice)")
 	}
 
 	var profile *brand.VoiceProfile

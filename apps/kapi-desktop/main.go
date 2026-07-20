@@ -13,8 +13,8 @@ import (
 	// pulls in extension decoders only — no heavy CLI / connector code.
 	_ "github.com/neokapi/neokapi/bowrain/plugin/schema"
 
-	"github.com/neokapi/neokapi/host/desktopmenu"
 	"github.com/neokapi/neokapi/core/version"
+	"github.com/neokapi/neokapi/host/desktopmenu"
 	"github.com/neokapi/neokapi/kapi-desktop/backend"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -93,8 +93,9 @@ func main() {
 		app.Event.Emit("files-dropped", files)
 	})
 
-	// Handle .kapi files opened from Finder (double-click, or second instance).
-	// macOS sends the file path(s) to the running instance via this event.
+	// Handle project paths delivered by the OS (e.g. a kapi.yaml recipe dropped
+	// on the dock icon, or a second instance). Recipes are normally opened by
+	// their folder via the Open dialog — there is no branded .kapi file type.
 	app.Event.OnApplicationEvent(events.Common.ApplicationOpenedWithFile, func(event *application.ApplicationEvent) {
 		files := event.Context().OpenedFiles()
 		if len(files) == 0 {
@@ -180,13 +181,14 @@ func buildAppMenu(app *application.App, appService *backend.App) *application.Me
 	recents := appService.ListRecentFiles()
 	for _, recent := range recents {
 		r := recent // capture
-		// Format: ~/path (Name) — include filename if not "project.kapi".
+		// Format: ~/path (Name). The recipe filename is fixed (kapi.yaml), so the
+		// folder identifies the project; only show a non-standard filename.
 		dir := filepath.Dir(r.Path)
 		if home != "" && strings.HasPrefix(dir, home) {
 			dir = "~" + dir[len(home):]
 		}
 		var label string
-		if filepath.Base(r.Path) != "project.kapi" {
+		if filepath.Base(r.Path) != "kapi.yaml" {
 			label = dir + "/" + filepath.Base(r.Path) + " (" + r.Name + ")"
 		} else {
 			label = dir + " (" + r.Name + ")"

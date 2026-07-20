@@ -66,7 +66,7 @@ export function AppHome({
             <FolderOpen size={22} className="mb-2 text-primary" />
             <div className="text-base font-semibold">Open a Project</div>
             <div className="text-xs text-muted-foreground font-normal">
-              Open an existing .kapi project from disk
+              Open an existing kapi project folder from disk
             </div>
           </Button>
         </div>
@@ -90,8 +90,8 @@ export function AppHome({
                 <div className="flex-1 truncate">
                   <div className="text-sm font-medium">{file.name}</div>
                   <div className="truncate text-xs text-muted-foreground">
-                    {file.path.endsWith("/project.kapi")
-                      ? shortenHome(file.path.replace(/\/project\.kapi$/, ""))
+                    {file.path.endsWith("/kapi.yaml")
+                      ? shortenHome(file.path.replace(/\/kapi\.yaml$/, ""))
                       : shortenHome(file.path)}
                   </div>
                 </div>

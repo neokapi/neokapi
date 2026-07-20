@@ -56,7 +56,7 @@ content:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
 `
-	require.NoError(t, os.WriteFile(filepath.Join(root, "proj.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "brand.yaml"), []byte(verifyBrandYAML), 0o644))
 
 	// Source: contains the competitor term "Globex" (brand fail) and a
@@ -237,7 +237,7 @@ func TestVerify_NoProject(t *testing.T) {
 	require.Error(t, err)
 	require.NotErrorIs(t, err, ErrQualityGate, "no-project is operational, not a gate failure")
 	assert.Equal(t, ExitError, ExitCode(nil, err), "operational error must map to exit 1")
-	assert.Contains(t, err.Error(), "no .kapi project")
+	assert.Contains(t, err.Error(), "no kapi project")
 }
 
 // TestVerify_GateSelection asserts that --terms runs only the terminology gate.
@@ -288,7 +288,7 @@ content:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
 `
-	require.NoError(t, os.WriteFile(filepath.Join(root, "proj.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 
 	src := `{
   "brand": "KapiMart",

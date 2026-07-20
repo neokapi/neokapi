@@ -24,7 +24,7 @@ notes describe the implementation.
 | [Session-Scoped Tool Authoring](session-tool-authoring.md) | [AD-006](/contribute/architecture/006-tool-system)        | Guide for writing tools against BlockStore          |
 | [Plugin Model](plugin-model.md)                            | [AD-007](/contribute/architecture/007-plugin-system)      | In-process registry contract for plugin binaries    |
 | [Plugin Bridge Protocol](plugin-bridge-protocol.md)        | [AD-007](/contribute/architecture/007-plugin-system)      | gRPC protocol, bridge descriptor                    |
-| [Kapi Project File](kapi-project-file.md)                  | [AD-008](/contribute/architecture/008-project-model)      | `.kapi` recipe schema and examples                  |
+| [Kapi Project File](kapi-project-file.md)                  | [AD-008](/contribute/architecture/008-project-model)      | `kapi.yaml` recipe schema and examples              |
 | [TM Matching Algorithm](tm-matching-algorithm.md)          | [AD-009](/contribute/architecture/009-translation-memory) | Tiered matching, TMX mapping                        |
 | [Terminology Data Model](terminology-data-model.md)        | [AD-010](/contribute/architecture/010-terminology)        | Go structs, TermBase interface                      |
 | [MCP Tools Reference](mcp-tools-reference.md)              | [AD-013](/contribute/architecture/013-kapi-cli)           | Tool specs, input/output schemas                    |

@@ -44,7 +44,7 @@ content:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
 `
-	require.NoError(t, os.WriteFile(filepath.Join(root, "tm.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	return root, filepath.Join(root, ".kapi", "tm.db")
 }
 

@@ -124,13 +124,13 @@ func TestValidateContentPath(t *testing.T) {
 
 func TestIsEmptyProject(t *testing.T) {
 	dir := t.TempDir()
-	kapiPath := filepath.Join(dir, "project.kapi")
+	kapiPath := filepath.Join(dir, "kapi.yaml")
 	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
 
 	app := NewApp()
 	tab := openTestProjectFile(t, app, kapiPath)
 
-	assert.True(t, app.IsEmptyProject(tab.ID), "project with only project.kapi should be empty")
+	assert.True(t, app.IsEmptyProject(tab.ID), "project with only kapi.yaml should be empty")
 
 	// Add a file — no longer empty.
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "hello.json"), []byte(`{}`), 0o644))
@@ -143,7 +143,7 @@ func TestListProjectFiles(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "input", "en.json"), []byte(`{}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "readme.txt"), []byte("hi"), 0o644))
 
-	kapiPath := filepath.Join(dir, "project.kapi")
+	kapiPath := filepath.Join(dir, "kapi.yaml")
 	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
 
 	app := NewApp()
@@ -154,9 +154,9 @@ func TestListProjectFiles(t *testing.T) {
 	// Should find: input/ dir, input/en.json, readme.txt
 	assert.Len(t, files, 3)
 
-	// Should not include project.kapi or hidden files.
+	// Should not include kapi.yaml or hidden files.
 	for _, f := range files {
-		assert.NotEqual(t, "project.kapi", f.Relative)
+		assert.NotEqual(t, "kapi.yaml", f.Relative)
 	}
 }
 
@@ -170,7 +170,7 @@ func TestKapiIgnoreExcludesFiles(t *testing.T) {
 	// Write .kapiignore.
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".kapiignore"), []byte("*.tmp\nbuild/\n"), 0o644))
 
-	kapiPath := filepath.Join(dir, "project.kapi")
+	kapiPath := filepath.Join(dir, "kapi.yaml")
 	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
 
 	app := NewApp()
@@ -192,7 +192,7 @@ func TestMatchContentRespectsKapiIgnore(t *testing.T) {
 	// Ignore temp.json.
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".kapiignore"), []byte("temp.json\n"), 0o644))
 
-	kapiPath := filepath.Join(dir, "project.kapi")
+	kapiPath := filepath.Join(dir, "kapi.yaml")
 	proj := &project.KapiProject{
 		Version: "v1",
 		Content: []project.ContentCollection{{Path: "*.json"}},
@@ -213,7 +213,7 @@ func TestMatchContentRespectsKapiIgnore(t *testing.T) {
 func TestApplyTemplateInputOutput(t *testing.T) {
 	app := NewApp()
 	dir := t.TempDir()
-	kapiPath := filepath.Join(dir, "project.kapi")
+	kapiPath := filepath.Join(dir, "kapi.yaml")
 	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
 
 	tab := openTestProjectFile(t, app, kapiPath)
@@ -236,7 +236,7 @@ func TestApplyTemplateInputOutput(t *testing.T) {
 func TestApplyTemplateEmpty(t *testing.T) {
 	app := NewApp()
 	dir := t.TempDir()
-	kapiPath := filepath.Join(dir, "project.kapi")
+	kapiPath := filepath.Join(dir, "kapi.yaml")
 	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
 
 	tab := openTestProjectFile(t, app, kapiPath)
@@ -250,7 +250,7 @@ func TestApplyTemplateEmpty(t *testing.T) {
 func TestCopyFileToProject(t *testing.T) {
 	app := NewApp()
 	dir := t.TempDir()
-	kapiPath := filepath.Join(dir, "project.kapi")
+	kapiPath := filepath.Join(dir, "kapi.yaml")
 	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
 
 	tab := openTestProjectFile(t, app, kapiPath)

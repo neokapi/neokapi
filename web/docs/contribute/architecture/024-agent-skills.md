@@ -172,7 +172,7 @@ through a single command, `kapi apply` (the write sibling of `kapi inspect`):
 | `term` | a glossary term | committed `.klftb` source → termbase import → `.kapi/termbase.db` |
 | `tm` | a translation-memory pair | committed `.klftm` source → TM import → `.kapi/tm.db` |
 | `brand` | a brand vocabulary rule | committed brand profile YAML → brand-store import ([AD-022](022-brand-voice.md)) |
-| `recipe` | an allowlisted recipe field | the `.kapi` recipe, via project load/save |
+| `recipe` | an allowlisted recipe field | the `kapi.yaml` recipe, via project load/save |
 
 Two properties make this one verb rather than five:
 

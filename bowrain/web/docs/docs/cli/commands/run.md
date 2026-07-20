@@ -18,7 +18,7 @@ kapi flows
 
 The `kapi run` command executes a named multi-step processing pipeline. Where content comes from and goes to is a binding: a source is read, streamed through each tool, and written to the sink. Ad-hoc, the sink is a file (`-o`); inside a project with no `-o`, the run is *process-only* — it commits results to the project store and `kapi merge` materializes the files. Multiple input files can be processed in parallel. Use `--explain` to print the resolved `source → sink` without running.
 
-**Project-based flows**: If a `.kapi` project exists (a `*.kapi` recipe found by walking up the tree), flows are loaded from inline `flows:` on the recipe and from `.kapi/flows/*.yaml`. This is the primary mode for the bowrain plugin.
+**Project-based flows**: If a `.kapi` project exists (a `kapi.yaml` recipe found by walking up the tree), flows are loaded from inline `flows:` on the recipe and from `.kapi/flows/*.yaml`. This is the primary mode for the bowrain plugin.
 
 **Built-in composed flows**: Multi-tool pipelines like `translate-qa` are available as built-in flows.
 

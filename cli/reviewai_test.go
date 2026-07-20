@@ -29,7 +29,7 @@ content:
     target: "{lang}.json"
 ship_gate: ` + gateYAML + `
 `
-	require.NoError(t, os.WriteFile(filepath.Join(root, "proj.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
 		[]byte(`{"a":"Apple","b":"Banana"}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "nb.json"),
@@ -42,7 +42,7 @@ ship_gate: ` + gateYAML + `
 // "agent/<client>" for MCP agents, empty for plain human decisions.
 func TestApplyReviewDecisionAs_RecordsIdentity(t *testing.T) {
 	root := writeReviewProject(t)
-	proj := filepath.Join(root, "proj.kapi")
+	proj := filepath.Join(root, "kapi.yaml")
 	a := &App{}
 
 	before, err := a.ProjectConvergence(context.Background(), proj, "en")
@@ -82,7 +82,7 @@ func TestApplyReviewDecisionAs_RecordsIdentity(t *testing.T) {
 // honest default.
 func TestShipGate_ShortFormRequiresHumanReview(t *testing.T) {
 	root := writeReviewProjectWithGate(t, `{ translated: 100, reviewed: 100 }`)
-	proj := filepath.Join(root, "proj.kapi")
+	proj := filepath.Join(root, "kapi.yaml")
 	a := &App{}
 
 	rep, err := a.ProjectConvergence(context.Background(), proj, "en")
@@ -114,7 +114,7 @@ func TestShipGate_ShortFormRequiresHumanReview(t *testing.T) {
 // approvals satisfy the reviewed threshold.
 func TestShipGate_ByAnyAdmitsAIApprovals(t *testing.T) {
 	root := writeReviewProjectWithGate(t, `{ translated: 100, reviewed: { pct: 100, by: any } }`)
-	proj := filepath.Join(root, "proj.kapi")
+	proj := filepath.Join(root, "kapi.yaml")
 	a := &App{}
 
 	rep, err := a.ProjectConvergence(context.Background(), proj, "en")
@@ -137,7 +137,7 @@ func TestShipGate_ByAnyAdmitsAIApprovals(t *testing.T) {
 // behaves exactly like the short form for ai/ decisions.
 func TestShipGate_ExplicitHumanExcludesAIApprovals(t *testing.T) {
 	root := writeReviewProjectWithGate(t, `{ reviewed: { pct: 50, by: human } }`)
-	proj := filepath.Join(root, "proj.kapi")
+	proj := filepath.Join(root, "kapi.yaml")
 	a := &App{}
 
 	rep, err := a.ProjectConvergence(context.Background(), proj, "en")
@@ -168,7 +168,7 @@ func TestShipGate_ExplicitHumanExcludesAIApprovals(t *testing.T) {
 // them stale (the queue drops the score).
 func TestRecordAIReviews_AnnotatesQueue(t *testing.T) {
 	root := writeReviewProject(t)
-	proj := filepath.Join(root, "proj.kapi")
+	proj := filepath.Join(root, "kapi.yaml")
 	a := &App{}
 
 	before, err := a.ProjectConvergence(context.Background(), proj, "en")
@@ -213,7 +213,7 @@ func TestRecordAIReviews_AnnotatesQueue(t *testing.T) {
 // annotation keeps the annotation on the unit's state record.
 func TestRecordAIReviews_SurvivesDecision(t *testing.T) {
 	root := writeReviewProject(t)
-	proj := filepath.Join(root, "proj.kapi")
+	proj := filepath.Join(root, "kapi.yaml")
 	a := &App{}
 
 	rep, err := a.ProjectConvergence(context.Background(), proj, "en")
@@ -244,7 +244,7 @@ func TestRecordAIReviews_SurvivesDecision(t *testing.T) {
 // recorded decision with identity, and the fresh AI annotation.
 func TestReviewUnit_FullPicture(t *testing.T) {
 	root := writeReviewProject(t)
-	proj := filepath.Join(root, "proj.kapi")
+	proj := filepath.Join(root, "kapi.yaml")
 	a := &App{}
 
 	rep, err := a.ProjectConvergence(context.Background(), proj, "en")

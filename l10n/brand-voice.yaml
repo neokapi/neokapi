@@ -1,6 +1,6 @@
 # neokapi brand voice profile — the machine-enforceable encoding of
 # docs/internals/brand-communication.md. Bound to the dogfood project via
-# `defaults.brand_voice.profile_file` in the root neokapi.kapi recipe, so
+# `defaults.brand_voice.profile_file` in the root kapi.yaml recipe, so
 # ai-translate, brand check/rewrite, and project flows pick it up with no
 # flags. Keep the two documents in sync: the markdown guide is the prose
 # authority, this profile is what the tools read.

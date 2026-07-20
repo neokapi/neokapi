@@ -7,9 +7,9 @@
 //   - **Tools (built-in, direct command, default params)**: `kapi <tool-id>
 //     <fixture>` — the simplest invocation.
 //   - **Tools (built-in, no direct command, or with non-default params)**:
-//     write a minimal `project.kapi` (single-step flow using the tool's current
+//     write a minimal `kapi.yaml` (single-step flow using the tool's current
 //     YAML config) into the session via `files`, then `kapi run my-flow -p
-//     project.kapi -i <fixture>`.
+//     kapi.yaml -i <fixture>`.
 //   - **Okapi-source entries**: not offline-capable (need the Java bridge);
 //     the button is hidden.
 //
@@ -226,7 +226,7 @@ export function buildRunOptions(
   // Otherwise write a single-step flow project carrying the form's YAML config
   // and run it. The project file goes in via `files` (the playground shell has
   // no echo/printf/redirection); the fixture goes in via `seed`.
-  const projectFile = "project.kapi";
+  const projectFile = "kapi.yaml";
   const files = [{ path: projectFile, content: buildProjectFile(entry, values, schema) }];
   const cmd = `kapi run my-flow -p ${projectFile} -i ${fixture}`;
   return { cmd, seed, files, autoRun: true };

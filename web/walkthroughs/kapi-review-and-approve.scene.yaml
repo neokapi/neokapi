@@ -20,7 +20,7 @@ id: kapi-review-and-approve
 scene: review-and-approve
 mode: interactive
 
-# messages.json is the kit fixture (greeting / farewell / cart). demo.kapi is a
+# messages.json is the kit fixture (greeting / farewell / cart). kapi.yaml is a
 # project whose one content file is already fully translated into fr — a flat
 # target path (messages.fr.json, no subdirectory) seeds cleanly into the embed's
 # in-memory volume. review.jsonl is the approval change-set for the greeting unit,
@@ -28,7 +28,7 @@ mode: interactive
 seed:
   - messages.json
 files:
-  - path: demo.kapi
+  - path: kapi.yaml
     content: |
       version: v1
       name: demo

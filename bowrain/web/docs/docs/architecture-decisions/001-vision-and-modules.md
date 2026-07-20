@@ -73,7 +73,7 @@ Bowrain is composed of three independent Go modules, each with its own
 | Module         | Import Path                               | Directory       | Role                                                                       |
 | -------------- | ----------------------------------------- | --------------- | -------------------------------------------------------------------------- |
 | `bowrain/core` | `github.com/neokapi/neokapi/bowrain/core` | `bowrain/core/` | Shared platform types and interfaces: project model, auth, connector, store, event, client, agent |
-| `bowrain/plugin` | `github.com/neokapi/neokapi/bowrain/plugin` | `bowrain/plugin/` | Plugin behavior (schema, commands, connector, MCP) + the `kapi-bowrain` plugin binary: `.kapi` recipe init, push, pull, status, auth |
+| `bowrain/plugin` | `github.com/neokapi/neokapi/bowrain/plugin` | `bowrain/plugin/` | Plugin behavior (schema, commands, connector, MCP) + the `kapi-bowrain` plugin binary: `kapi.yaml` recipe init, push, pull, status, auth |
 | `bowrain`      | `github.com/neokapi/neokapi/bowrain`      | `bowrain/`      | Server, workers, desktop and web apps, storage implementations             |
 
 Dependency rules, verified in CI with `GOWORK=off` builds:

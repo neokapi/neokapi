@@ -886,7 +886,7 @@ func (a *App) resolveOutputPathFrom(inputPath, outputTemplate, base string) stri
 // projectItemTargetPath resolves inputPath to its output path via the matched
 // project content item's target template, using the one core resolver
 // (project.ResolveTargetPath). Mirrors the desktop runner's resolution. Returns
-// ("", false) when no .kapi project is in scope, the input is outside the
+// ("", false) when no kapi project is in scope, the input is outside the
 // project root, or no content item with a target matches it.
 func (a *App) projectItemTargetPath(inputPath, lang string) (string, bool) {
 	if a.ProjectContext == nil || a.ProjectContext.Project == nil {

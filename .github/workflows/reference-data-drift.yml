@@ -40,7 +40,7 @@ on:
       - "web/src/components/reference/slugs.ts"
       - "web/docs/**"
       - "bowrain/web/docs/docs/**"
-      - "neokapi.kapi"
+      - "kapi.yaml"
       - ".github/workflows/reference-data-drift.yml"
   pull_request:
     paths:
@@ -67,7 +67,7 @@ on:
       - "web/src/components/reference/slugs.ts"
       - "web/docs/**"
       - "bowrain/web/docs/docs/**"
-      - "neokapi.kapi"
+      - "kapi.yaml"
       - ".github/workflows/reference-data-drift.yml"
 
 # Cancel superseded PR runs; never cancel a push to main.

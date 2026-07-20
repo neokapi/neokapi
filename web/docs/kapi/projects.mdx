@@ -21,13 +21,13 @@ This is the quick path for a one-time job, a script, or a CI step. In the CLI yo
 
 ## Project — a recipe plus a memory
 
-A **project** is a small `.kapi` recipe file (your languages, which files count as content, your flows, your defaults) plus a store that **remembers your work** — translations, terminology, and review decisions, ready to reuse on the next run. Kapi finds the project automatically by walking up the folder tree, the way git finds its repo.
+A **project** is a small `kapi.yaml` recipe file (your languages, which files count as content, your flows, your defaults) plus a store that **remembers your work** — translations, terminology, and review decisions, ready to reuse on the next run. Kapi finds the project automatically by walking up the folder tree, the way git finds its repo.
 
 > _Localize this whole repo every release, reusing everything translated last time._
 
 | | **Ad-hoc** | **Project** |
 | --- | --- | --- |
-| Setup | none | a `.kapi` recipe (commit it) |
+| Setup | none | a `kapi.yaml` recipe (commit it) |
 | Memory | nothing saved | a store accumulates work (TM, terms, approvals) |
 | Finds your files | you name them | discovered automatically |
 | The main verb | `kapi <tool> <file>` | `kapi up` — bring the project up to date |
@@ -128,4 +128,4 @@ A tool run *inside* a project (`kapi translate src/app.json`) still picks up the
 - [The kapi loop](/kapi/convergence) — the derived-state model behind `up`, `status`, gates, and review.
 - [Ship gates & CI](/kapi/recipes/gate-localization-in-ci) — enforce the gates with `kapi check --ship`.
 - [Flows](/framework/flows) — authoring composed flows and the source/sink ends.
-- [`.kapi` project file](/reference/project-file) — the recipe format.
+- [`kapi.yaml` project file](/reference/project-file) — the recipe format.

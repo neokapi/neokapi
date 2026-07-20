@@ -50,7 +50,7 @@ function Launcher() {
               <div className="text-lg font-semibold">New project</div>
               <p className="mt-1 text-sm text-muted-foreground">
                 Point Kapi at your content — a file, a folder, a glob, or a{" "}
-                <span className="font-mono text-xs">.kapi</span> recipe.
+                <span className="font-mono text-xs">kapi.yaml</span> recipe.
               </p>
             </div>
             <ArrowRight

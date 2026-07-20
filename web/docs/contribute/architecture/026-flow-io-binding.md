@@ -266,7 +266,7 @@ A flow's only binding is intrinsic intent, so there is no per-flow output path t
 surprise a reader; the same flow document runs over a loose file, a `.klz`
 workspace, or a project, and `--explain` shows where a given run's content lands.
 
-**In a project, a run lands in the store.** When a `.kapi` recipe is in scope, a
+**In a project, a run lands in the store.** When a `kapi.yaml` recipe is in scope, a
 run with no explicit sink commits its work as overlays to the project block store
 and emits no document. Materializing the localized files is a separate, explicit
 step (`kapi merge`). The store is the working copy: a re-run reuses the overlays

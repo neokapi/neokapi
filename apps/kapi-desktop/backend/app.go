@@ -362,11 +362,13 @@ type TabInfo struct {
 }
 
 // NewProject creates a new project, saves it to disk, and opens it as a tab.
-// If savePath is empty, defaults to ~/KapiProjects/{name}/project.kapi.
-// The name is not stored in the YAML — the display name is derived from the
-// folder name. Users can override it later on the project detail page.
+// If savePath is empty, defaults to ~/KapiProjects/{name}/. The recipe file is
+// always kapi.yaml; the project's identity is its folder, so savePath may be a
+// project folder or a full path to kapi.yaml — either is normalized to
+// <folder>/kapi.yaml. The name is not stored in the YAML — the display name is
+// derived from the folder name. Users can override it later on the project page.
 func (a *App) NewProject(name, sourceLang string, targetLangs []string, savePath string) (*TabInfo, error) {
-	// Default save location: ~/KapiProjects/{name}/project.kapi
+	// Default save location: ~/KapiProjects/{name}/
 	if savePath == "" {
 		if name == "" {
 			return nil, errors.New("project name or save path is required")
@@ -375,7 +377,7 @@ func (a *App) NewProject(name, sourceLang string, targetLangs []string, savePath
 		if err != nil {
 			return nil, fmt.Errorf("cannot determine home directory: %w", err)
 		}
-		savePath = filepath.Join(home, "KapiProjects", name, "project.kapi")
+		savePath = filepath.Join(home, "KapiProjects", name)
 	}
 
 	// Expand ~ to the actual home directory (frontend may send ~/... paths).
@@ -386,9 +388,10 @@ func (a *App) NewProject(name, sourceLang string, targetLangs []string, savePath
 		}
 	}
 
-	// Ensure .kapi extension.
-	if !strings.HasSuffix(strings.ToLower(savePath), ".kapi") {
-		savePath += ".kapi"
+	// Normalize to <folder>/kapi.yaml: the recipe filename is fixed, so a
+	// savePath that isn't already the recipe is treated as the project folder.
+	if filepath.Base(savePath) != project.RecipeFileName {
+		savePath = filepath.Join(savePath, project.RecipeFileName)
 	}
 
 	// Create parent directory.
@@ -439,7 +442,7 @@ func (a *App) startWatcher(op *openProject) {
 
 // projectDisplayName returns the project name for display purposes.
 // If the project has an explicit name set in the YAML, use it.
-// Otherwise derive it from the parent directory of the .kapi file.
+// Otherwise derive it from the parent directory of the kapi.yaml recipe.
 func projectDisplayName(proj *project.KapiProject, path string) string {
 	if proj.Name != "" {
 		return proj.Name
@@ -447,8 +450,8 @@ func projectDisplayName(proj *project.KapiProject, path string) string {
 	return filepath.Base(filepath.Dir(path))
 }
 
-// OpenProject loads a .kapi file from disk and returns its tab ID.
-// If the file is already open in another tab, returns that tab's ID.
+// OpenProject loads a kapi.yaml recipe from disk and returns its tab ID.
+// If the recipe is already open in another tab, returns that tab's ID.
 func (a *App) OpenProject(path string) (*TabInfo, error) {
 	// Check if already open.
 	a.mu.RLock()

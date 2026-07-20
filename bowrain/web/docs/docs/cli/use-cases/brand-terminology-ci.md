@@ -25,7 +25,7 @@ the gate enforces exactly what the hub shows.
 
 ## Prerequisites
 
-- The project is claimed into a workspace (its `*.kapi` recipe carries a
+- The project is claimed into a workspace (its `kapi.yaml` recipe carries a
   [`server:` block](/cli/project-model)).
 - The project binds a termbase — `defaults.termbase` in the recipe, or the
   conventional `.kapi/termbase.db`, which is where `kapi pull` writes the
@@ -68,7 +68,7 @@ on:
   pull_request:
     paths:
       - "src/locales/**"
-      - "*.kapi"
+      - "kapi.yaml"
       - ".kapi/**"
 
 jobs:

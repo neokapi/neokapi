@@ -63,7 +63,7 @@ func FindProject(startDir string) (*Project, error) {
 	}, nil
 }
 
-// InitProject creates a new kapi recipe at <root>/<dir-name>.kapi and
+// InitProject creates a new kapi recipe at <root>/kapi.yaml and
 // scaffolds the .kapi/ state directory. The supplied recipe is saved
 // verbatim (both framework and bowrain fields).
 func InitProject(root string, recipe *Recipe) (*Project, error) {
@@ -79,7 +79,7 @@ func InitProject(root string, recipe *Recipe) (*Project, error) {
 	if name == "." || name == string(filepath.Separator) {
 		return nil, errors.New("cannot derive project name from root path")
 	}
-	recipePath := filepath.Join(absRoot, name+coreproj.RecipeExt)
+	recipePath := filepath.Join(absRoot, coreproj.RecipeFileName)
 	if _, err := os.Stat(recipePath); err == nil {
 		return nil, fmt.Errorf("recipe already exists at %s", recipePath)
 	}
@@ -114,7 +114,7 @@ func (p *Project) Save() error {
 	return SaveRecipe(p.Layout.RecipePath, p.Recipe)
 }
 
-// RecipePath is the absolute path to the *.kapi recipe.
+// RecipePath is the absolute path to the kapi.yaml recipe.
 func (p *Project) RecipePath() string { return p.Layout.RecipePath }
 
 // StateDir is the absolute path to the .kapi/ state directory.

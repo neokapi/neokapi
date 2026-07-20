@@ -2,7 +2,7 @@
 id: 014-kapi-desktop
 sidebar_position: 14
 title: "AD-014: Kapi Desktop"
-description: "Architecture decision: Kapi Desktop is a Wails v3 app that provides a visual companion to the kapi CLI — opening .kapi project files, editing flows visually, running them with live progress, and managing plugins and credentials."
+description: "Architecture decision: Kapi Desktop is a Wails v3 app that provides a visual companion to the kapi CLI — opening kapi.yaml project files, editing flows visually, running them with live progress, and managing plugins and credentials."
 keywords: [Kapi Desktop, Wails v3, desktop app, flow editor, visual companion, architecture decision, neokapi]
 ---
 
@@ -11,8 +11,8 @@ keywords: [Kapi Desktop, Wails v3, desktop app, flow editor, visual companion, a
 ## Summary
 
 Kapi Desktop is a Wails v3 desktop application at `apps/kapi-desktop/` that
-provides a visual companion to the kapi CLI. It opens `.kapi` project files
-as documents, offers a flow editor with live runner progress, manages
+provides a visual companion to the kapi CLI. It opens a project by its folder
+(which holds a `kapi.yaml` recipe), offers a flow editor with live runner progress, manages
 plugins, and surfaces the OS-keychain credential vault. The module depends
 on the framework and the shared CLI base only, and reuses
 `@neokapi/ui-primitives` and `@neokapi/flow-editor` from the monorepo's npm
@@ -55,7 +55,7 @@ apps/kapi-desktop/
 ├── main.go                  # Wails v3 entry point
 ├── backend/                 # Go backend services (flat package)
 │   ├── app.go               # service registry exposed to the frontend
-│   ├── files.go             # .kapi open/save/edit
+│   ├── files.go             # kapi.yaml open/save/edit
 │   ├── flows.go             # flow CRUD
 │   ├── runner.go            # flow execution with event streaming
 │   ├── credentials.go       # OS keychain wrapper
@@ -96,10 +96,10 @@ Module isolation is verified by `GOWORK=off bash -c "cd apps/kapi-desktop && go 
 bindings. The main groups:
 
 - **Project operations** — `NewProject`, `OpenProject`, `SaveProject`,
-  `SaveProjectAs`. Loads and writes `.kapi` recipes
+  `SaveProjectAs`. Loads and writes `kapi.yaml` recipes
   ([AD-008: Kapi Project Model](008-project-model.md)).
 - **Flow CRUD** — add, remove, reorder, and configure flows within the
-  open `.kapi` project. Validates step schemas against the tool registry.
+  open kapi project. Validates step schemas against the tool registry.
 - **Flow execution** — runs a flow through the framework's Executor and
   streams `TraceRecorder` events (step start/finish, block progress,
   error/warning, tool log output) to the frontend over Wails events.
@@ -195,8 +195,8 @@ projects backed by any store the framework supports.
 ### Distribution
 
 - **macOS** — DMG via GitHub Releases, Homebrew Cask
-  (`brew install --cask neokapi/tap/kapi`). `.kapi` file
-  association via `CFBundleDocumentTypes` in Info.plist.
+  (`brew install --cask neokapi/tap/kapi`). Projects open by their folder
+  (the one containing `kapi.yaml`) rather than a branded document type.
 - **Windows** — ZIP archive via GitHub Releases.
 - **Linux** — binary via GitHub Releases; AppImage planned.
 - **CI** — a GitHub Actions workflow builds all platforms on tag push.
@@ -204,8 +204,8 @@ projects backed by any store the framework supports.
 ## Consequences
 
 - Kapi Desktop provides a visual GUI for every kapi CLI capability.
-- `.kapi` files are shareable workflow documents — open, edit, save,
-  commit to git; no hidden state travels with the document.
+- `kapi.yaml` recipes are shareable workflow documents — open, edit, save,
+  commit to git; no hidden state travels with the recipe.
 - The OS keychain integration makes the desktop the preferred way for
   non-engineering users to configure AI and MT providers.
 - Sharing the framework, CLI base, and frontend packages reduces
@@ -225,7 +225,7 @@ projects backed by any store the framework supports.
   event streaming
 - [AD-006: Tool System](006-tool-system.md) — tool registry and schemas
 - [AD-007: Plugin System](007-plugin-system.md) — plugin install/update
-- [AD-008: Kapi Project Model](008-project-model.md) — `.kapi` recipe
+- [AD-008: Kapi Project Model](008-project-model.md) — `kapi.yaml` recipe
   and `.kapi/` state
 - [AD-011: AI Providers](011-ai-providers.md) — provider credential
   store

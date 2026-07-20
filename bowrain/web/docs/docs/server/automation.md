@@ -41,11 +41,11 @@ and duplicated from the editor.
 
 ## Local automation (CLI)
 
-Local automations run in kapi (with the bowrain plugin) and are declared at the top level of your project's `.kapi` recipe. They hook into CLI commands and execute actions before or after operations like push, pull, and flow runs — the developer-workflow and CI layer that complements the server rules above.
+Local automations run in kapi (with the bowrain plugin) and are declared at the top level of your project's `kapi.yaml` recipe. They hook into CLI commands and execute actions before or after operations like push, pull, and flow runs — the developer-workflow and CI layer that complements the server rules above.
 
 ### Configuration
 
-Add an `automations:` section to your `<dir-name>.kapi` recipe:
+Add an `automations:` section to your `kapi.yaml` recipe:
 
 ```yaml
 automations:
@@ -110,7 +110,7 @@ kapi loop (translation, QA, terminology, gates, parking) after every push,
 recorded as a run anyone can watch:
 
 ```yaml
-# my-app.kapi
+# kapi.yaml
 server:
   url: https://bowrain.example.com/my-team/abc123
   converge: on-push        # on-push (default) | manual | schedule

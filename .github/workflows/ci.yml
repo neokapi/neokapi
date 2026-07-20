@@ -81,7 +81,7 @@ jobs:
           check_paths kapi_desktop '^apps/kapi-desktop/' '^packages/(ui|flow-editor)/'
           check_paths bowrain_desktop '^bowrain/apps/bowrain/' '^bowrain/packages/ui/'
           check_paths i18n_react '^packages/(kapi-format|i18n-react)/'
-          check_paths l10n_surfaces '^bowrain/emails/' '^bowrain/web/landing/' '^bowrain/mailer/' '^l10n/' '^packages/(kapi-format|i18n-react)/' '^neokapi\.kapi$'
+          check_paths l10n_surfaces '^bowrain/emails/' '^bowrain/web/landing/' '^bowrain/mailer/' '^l10n/' '^packages/(kapi-format|i18n-react)/' '^kapi\.yaml$'
           check_paths workflows '^\.github/workflows/'
 
   # ── Frontend checks & builds ─────────────────────────────────────────────

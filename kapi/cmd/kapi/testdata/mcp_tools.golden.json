@@ -3033,7 +3033,7 @@
           "type": "integer"
         },
         "project": {
-          "description": "path to the .kapi recipe (default: discovered upward from the working directory, like git)",
+          "description": "path to the kapi.yaml recipe (default: discovered upward from the working directory, like git)",
           "type": "string"
         }
       },
@@ -3046,7 +3046,7 @@
       "additionalProperties": false,
       "properties": {
         "project": {
-          "description": "path to the .kapi recipe (default: discovered upward from the working directory, like git)",
+          "description": "path to the kapi.yaml recipe (default: discovered upward from the working directory, like git)",
           "type": "string"
         }
       },

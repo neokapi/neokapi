@@ -24,7 +24,7 @@ type Story = StoryObj<typeof TabBar>;
 
 export const SingleTab: Story = {
   args: {
-    tabs: [{ id: "1", name: "translation.kapi", path: "/Users/dev/translation.kapi" }],
+    tabs: [{ id: "1", name: "translation", path: "/Users/dev/translation/kapi.yaml" }],
     activeTabID: "1",
   },
 };
@@ -32,8 +32,8 @@ export const SingleTab: Story = {
 export const MultipleTabs: Story = {
   args: {
     tabs: [
-      { id: "1", name: "translation.kapi", path: "/Users/dev/translation.kapi" },
-      { id: "2", name: "qa-pipeline.kapi", path: "/Users/dev/qa-pipeline.kapi" },
+      { id: "1", name: "translation", path: "/Users/dev/translation/kapi.yaml" },
+      { id: "2", name: "qa-pipeline", path: "/Users/dev/qa-pipeline/kapi.yaml" },
       { id: "3", name: "New Project", path: "" },
     ],
     activeTabID: "2",
@@ -44,8 +44,8 @@ export const ManyTabs: Story = {
   args: {
     tabs: Array.from({ length: 8 }, (_, i) => ({
       id: String(i + 1),
-      name: `project-${i + 1}.kapi`,
-      path: `/tmp/project-${i + 1}.kapi`,
+      name: `project-${i + 1}`,
+      path: `/tmp/project-${i + 1}/kapi.yaml`,
     })),
     activeTabID: "3",
   },

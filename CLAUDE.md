@@ -8,7 +8,7 @@ neokapi is an AI-native reimagining of the [Okapi Framework](https://okapiframew
 
 The repository is a **multi-module monorepo** whose Go modules are:
 
-- **Framework** (`github.com/neokapi/neokapi`) — the open-source localization engine: content model, format readers/writers, processing tools, pipeline executor, plugin system, SQLite-backed TM and termbase (`sievepen/`, `termbase/`), shared SQLite infrastructure (`core/storage/`), `.kapi` project file format (`core/project/`), AI providers (`providers/ai/`, package `aiprovider`), MT providers (`providers/mt/`, package `mtprovider`). Framework packages live under `core/`, `sievepen/`, `termbase/`, and `providers/`. No bowrain dependencies (no Wails, Echo, Cobra, OIDC).
+- **Framework** (`github.com/neokapi/neokapi`) — the open-source localization engine: content model, format readers/writers, processing tools, pipeline executor, plugin system, SQLite-backed TM and termbase (`sievepen/`, `termbase/`), shared SQLite infrastructure (`core/storage/`), `kapi.yaml` project file format (`core/project/`), AI providers (`providers/ai/`, package `aiprovider`), MT providers (`providers/mt/`, package `mtprovider`). Framework packages live under `core/`, `sievepen/`, `termbase/`, and `providers/`. No bowrain dependencies (no Wails, Echo, Cobra, OIDC).
 - **Host** (`github.com/neokapi/neokapi/host`) — the cobra-free application runtime + service layer shared by the kapi CLI, the kapi-bowrain plugin binary, and Kapi Desktop: the `host.App` runtime (registries, Viper app config in `host/config/`, OS keychain credential store in `host/credentials/`, plugin host in `host/pluginhost/`), the workflow services (flow runs/`RunFlowAllLocales`, convergence, checks/coverage/review, project state, up planning, brand resolution, toolbox engines, model assets, MCP tools), the built-in flow catalog + filesystem flow store (`host/flowdef/`), the engine gRPC service (`host/engineserve/`), output formatting (`host/output/`), CLI i18n catalogs (`host/i18n/`), and the SQLite brand/graph stores (`host/storage/`). Command threading is the `host.Command` interface (context + `*pflag.FlagSet` + IO), which `*cobra.Command` satisfies natively; embedded runs use `host.EnvCommand`. Depends on framework only — **no cobra, no bowrain**.
 - **CLI** (`github.com/neokapi/neokapi/cli`) — the thin Cobra presentation shell over host, used by both kapi and bowrain: command factories (plain funcs taking `*cli.App`), flag registration, RunE dispatch, exit-code plumbing, plugin command attachment (`cli/pluginattach/`), the self-update client (`cli/selfupdate/`), the parity harness (`cli/parity/`), and the help-string generator (`cli/i18ngen/`). Re-exports the host API under the historical `package cli` names (`cli.App = host.App`, …) via `cli/aliases.go`. Depends on framework + host. No bowrain dependency.
 - **Bowrain Core** (`github.com/neokapi/neokapi/bowrain/core`) — shared bowrain platform types and interfaces: Recipe wrapper around the framework's `KapiProject` (with type aliases re-exported from `bowrain/plugin/schema`), Project facade, auth types, connector interfaces, REST client (incl. the Merkle-diff push client), store interfaces, event types, plus the low sync packages the push client needs — `bowrain/core/sync` (pure model↔protobuf converters + content-hash helpers) and `bowrain/core/proto/sync/v1` (the sync-protocol protobuf messages). Depends on framework only (+ `bowrain/plugin/schema`); no CLI dependency (no Cobra, Viper) and **no dependency on the main `bowrain` module** — the redis-backed sync hash cache and the store-backed diff engine stay in `bowrain/sync`, which re-exports the pure converters so server-side callers keep one import.
@@ -115,7 +115,7 @@ For the multi-module structure:
 
 ## Dogfooding kapi (in-repo isolation contract)
 
-This repo dogfoods kapi: a `*.kapi` recipe lives at the repo root and is driven
+This repo dogfoods kapi: a `kapi.yaml` recipe lives at the repo root and is driven
 by the **system/user-installed** kapi + plugins (the real `kapi-bowrain` plugin,
 real keychain auth, real server). That recipe is auto-discovered by a git-style
 **upward walk** from any cwd inside the tree (`core/project.ResolveLayout` →
@@ -141,7 +141,7 @@ Where this is already wired:
 - **Makefile** — use the shared `$(KAPI_ISO_ENV)` (defined near the top) to
   prefix any in-repo `bin/kapi` call (e.g. the `kapi-*-pseudo-translate`
   targets): it applies config isolation and adds `KAPI_NO_PROJECT=1` for
-  invocations that don't own a `*.kapi` fixture (those that do keep discovery on
+  invocations that don't own a `kapi.yaml` fixture (those that do keep discovery on
   and rely on nearest-recipe-wins).
 - **`kapi/e2e`** — `TestMain` builds with `-tags fts5` and pins an isolated
   config/data/cache home with `KAPI_NO_PROJECT=1` (see `isoEnv`).
@@ -168,7 +168,7 @@ is a last resort.
   drift are pending work).
 
 Target-language artefacts are **generated, not authored**: the root
-`neokapi.kapi` dogfood recipe produces `web/i18n/nb/` from `web/docs/**`, just as
+`kapi.yaml` dogfood recipe produces `web/i18n/nb/` from `web/docs/**`, just as
 the desktop catalogs under `apps/kapi-desktop/frontend/i18n-nb/` are generated.
 Treat them as build artefacts (gitignored + regenerated by kapi), never as files
 to hand-edit or to gate a source change on. Use English source for i18n; do not
@@ -196,7 +196,7 @@ neokapi/
 │   ├── version/           # Version info (set via ldflags)
 │   ├── formats/           # Built-in format implementations (one package per format)
 │   ├── storage/           # Shared SQLite DB infrastructure (Open, Migrate)
-│   ├── project/           # .kapi project file format (Load, Save, Validate)
+│   ├── project/           # kapi.yaml project file format (Load, Save, Validate)
 │   ├── tools/             # Built-in utility tools
 │   ├── plugin/            # go-plugin + gRPC plugin system + Java bridge
 │   └── internal/testutil/ # Shared test helpers (RawDocFromString, CollectBlocks, …)
@@ -308,13 +308,13 @@ neokapi/
 └── Makefile               # Multi-module build targets
 ```
 
-### Bowrain Project Model (`.kapi` Recipe + State Dir)
+### Bowrain Project Model (`kapi.yaml` Recipe + `.kapi/` State Dir)
 
-Bowrain CLI uses the framework's unified `.kapi` project model — a `<dir-name>.kapi` recipe at the project root with a `server:` block, plus a sibling `.kapi/` state directory ([Bowrain AD-010](bowrain/web/docs/docs/architecture-decisions/010-bowrain-cli-and-project-model.md)):
+Bowrain CLI uses the framework's unified `.kapi` project model — a `kapi.yaml` recipe at the project root with a `server:` block, plus a sibling `.kapi/` state directory ([Bowrain AD-010](bowrain/web/docs/docs/architecture-decisions/010-bowrain-cli-and-project-model.md)):
 
 ```
 my-app/
-├── my-app.kapi             # Recipe (committed) — directory-named YAML, includes server: block
+├── kapi.yaml               # Recipe (committed) — fixed conventional YAML filename, includes server: block
 ├── .kapi/                  # State (gitignored)
 │   ├── manifest.yaml
 │   ├── tm.db               # authoritative project TM
@@ -337,7 +337,7 @@ A bowrain project is just a kapi project whose recipe declares a `server:` block
 **Key bowrain plugin commands (run via `kapi` once the `kapi-bowrain` plugin is installed):**
 
 ```bash
-kapi init                       # Write <dir-name>.kapi + .kapi/ state dir
+kapi init                       # Write kapi.yaml + .kapi/ state dir
 kapi status                     # Show sync state (like git status)
 kapi pull                       # Fetch from Bowrain Server → update local files
 kapi push                       # Send local files → update Bowrain Server
@@ -359,15 +359,15 @@ kapi flows                    # List available flows
 kapi plugins list             # List installed plugins
 ```
 
-**Kapi with .kapi project files:**
+**Kapi with a project recipe (`kapi.yaml`):**
 
 ```bash
-# Use a .kapi project file for saved workflow defaults
-kapi run translate -p myproject.kapi
-kapi run translate-and-qa -p myproject.kapi --target-lang de
+# Use a kapi.yaml recipe for saved workflow defaults
+kapi run translate -p kapi.yaml
+kapi run translate-and-qa -p kapi.yaml --target-lang de
 ```
 
-`.kapi` files are portable YAML documents — see [AD-008](web/docs/contribute/architecture/008-project-model.md). They work with both kapi CLI (`-p` flag) and Kapi (open/edit/save as documents).
+The `kapi.yaml` recipe is a portable YAML document — see [AD-008](web/docs/contribute/architecture/008-project-model.md). It works with both the kapi CLI (`-p` flag) and Kapi Desktop (which opens the project folder).
 
 **Role Separation:**
 
@@ -378,7 +378,7 @@ kapi run translate-and-qa -p myproject.kapi --target-lang de
 - **Bowrain Server** = integration platform (CMS connectors, automation, ContentStore)
 - **Bowrain desktop app** (`bowrain/apps/bowrain/`) = a real-time **working copy of the server**, not a local-file/project authoring tool. Its local footprint is cache and speed only — a content cache, an offline edit queue, and TM/termbase mirrors — and is never a source of truth. It offers only **remote/CMS connectors** (wordpress, figma, hubspot); the local-filesystem connectors (file, git) are registered **server-side only** (`bowrain/connector.RegisterAll` for the server/worker vs `RegisterRemote` for the desktop). Sourcing from a filesystem or git checkout is a server-side concern.
 
-**Product boundary (canonical):** kapi owns local files + project configuration — the `.kapi` recipe (content/flows/plugins/languages/brand + `server:` block) is authored and versioned locally with kapi, including configuring projects pushed to Bowrain via `kapi push` / `kapi sync`. Bowrain's local footprint is cache/speed/implementation only — never source of truth.
+**Product boundary (canonical):** kapi owns local files + project configuration — the `kapi.yaml` recipe (content/flows/plugins/languages/brand + `server:` block) is authored and versioned locally with kapi, including configuring projects pushed to Bowrain via `kapi push` / `kapi sync`. Bowrain's local footprint is cache/speed/implementation only — never source of truth.
 
 ### Streaming Pipeline
 

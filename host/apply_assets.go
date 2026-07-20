@@ -64,7 +64,7 @@ func (a *App) resolveProjectRoot(cmd Command) (recipePath, root string, err erro
 		return "", "", err
 	}
 	if recipePath == "" {
-		return "", "", errors.New("no .kapi project")
+		return "", "", errors.New("no kapi project")
 	}
 	return recipePath, filepath.Dir(recipePath), nil
 }

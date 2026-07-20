@@ -19,7 +19,7 @@ kapi init --name my-app --source-locale en --target-locale fr --target-locale de
 # --framework react-i18next | nextjs | vue-i18n | flutter | angular  pre-fills content paths
 ```
 
-This writes `my-app.kapi` (the recipe, committed) and a `.kapi/` state directory
+This writes `kapi.yaml` (the recipe, committed) and a `.kapi/` state directory
 (gitignored: tm.db, termbase.db, caches).
 
 ## What the recipe binds

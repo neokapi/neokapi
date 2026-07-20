@@ -84,7 +84,7 @@ gates (e.g. before a release tag).
   kapi up --passes 1     # a single pass over every locale that needs work
   kapi up --materialize  # also write localized files for the shippable locales
   kapi up --local        # connected project: run the loop on this machine, then push the results
-  kapi up -p app.kapi    # bring an explicit project recipe up to date`,
+  kapi up -p kapi.yaml   # bring an explicit project recipe up to date`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			projectPath, err := ResolveProjectPath(cmd)
 			if err != nil {

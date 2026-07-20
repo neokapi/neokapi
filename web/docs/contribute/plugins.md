@@ -105,7 +105,7 @@ client, and signature verification — lives in
 
 ## Declaring a plugin dependency
 
-A `.kapi` recipe declares the plugins it needs as a map of name → semver
+A `kapi.yaml` recipe declares the plugins it needs as a map of name → semver
 constraint:
 
 ```yaml

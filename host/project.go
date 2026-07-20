@@ -8,9 +8,9 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 )
 
-// projectEnvVar is the environment variable kapi reads to locate a .kapi
-// project recipe when the -p flag is not passed. Intended for CI where
-// walking up from cwd is awkward.
+// projectEnvVar is the environment variable kapi reads to locate a
+// project recipe (kapi.yaml) when the -p flag is not passed. Intended for
+// CI where walking up from cwd is awkward.
 const projectEnvVar = "KAPI_PROJECT"
 
 // noProjectEnvVar disables implicit project discovery. When set to any
@@ -31,7 +31,7 @@ const projectFlagName = "project"
 // resolve the flag via ResolveProjectPath so every command uses the same
 // semantics: explicit flag > env var > git-style upward walk.
 func AddProjectFlag(cmd Command) {
-	cmd.Flags().StringP(projectFlagName, "p", "", "path to a .kapi project recipe (auto-discovered from cwd if omitted)")
+	cmd.Flags().StringP(projectFlagName, "p", "", "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)")
 }
 
 // ResolveProjectPath resolves the effective project recipe path for a
@@ -45,8 +45,6 @@ func AddProjectFlag(cmd Command) {
 // Returns an empty path and nil error when nothing is found, so callers can
 // fall through to one-shot mode (commands that support it). Callers that
 // require a project should check for "" and return a clear error.
-//
-// project.ErrAmbiguousLayout is wrapped with guidance to pass -p explicitly.
 func ResolveProjectPath(cmd Command) (string, error) {
 	if cmd != nil {
 		if flag, _ := cmd.Flags().GetString(projectFlagName); flag != "" {
@@ -71,14 +69,10 @@ func ResolveProjectPath(cmd Command) (string, error) {
 	}
 	layout, err := project.ResolveLayout(cwd)
 	if err != nil {
-		switch {
-		case errors.Is(err, project.ErrNoProject):
+		if errors.Is(err, project.ErrNoProject) {
 			return "", nil
-		case errors.Is(err, project.ErrAmbiguousLayout):
-			return "", fmt.Errorf("%w — pass -p <recipe> to disambiguate", err)
-		default:
-			return "", err
 		}
+		return "", err
 	}
 	return layout.RecipePath, nil
 }
@@ -92,7 +86,7 @@ func RequireProjectPath(cmd Command) (string, error) {
 		return "", err
 	}
 	if path == "" {
-		return "", errors.New("no .kapi project found — pass -p <recipe> or run from inside a kapi project directory")
+		return "", errors.New("no kapi project found — pass -p <path to kapi.yaml> or run from inside a kapi project directory")
 	}
 	return path, nil
 }

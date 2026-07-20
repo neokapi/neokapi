@@ -2,7 +2,8 @@
 // following the same syntax as .gitignore.
 //
 // Default rules (always applied, even without a .kapiignore file):
-//   - *.kapi        (project files are infrastructure, not content)
+//   - kapi.yaml     (the project recipe — infrastructure, not content)
+//   - .kapi/        (kapi's working-state directory)
 //   - .git/         (version control)
 //   - .DS_Store     (macOS metadata)
 //
@@ -18,8 +19,13 @@ import (
 )
 
 // defaultPatterns are always ignored, even without a .kapiignore file.
+// kapi.yaml is the project recipe (infrastructure, not content); .kapi is
+// kapi's working-state directory. Both are matched by exact name — the old
+// "*.kapi" glob happened to also cover the state dir, so the state dir now
+// needs its own rule.
 var defaultPatterns = []rule{
-	{pattern: "*.kapi", dirOnly: false, negated: false},
+	{pattern: "kapi.yaml", dirOnly: false, negated: false},
+	{pattern: ".kapi", dirOnly: false, negated: false},
 	{pattern: ".git", dirOnly: false, negated: false},
 	{pattern: ".DS_Store", dirOnly: false, negated: false},
 }

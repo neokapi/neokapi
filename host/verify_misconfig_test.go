@@ -31,7 +31,7 @@ content:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
 `
-	require.NoError(t, os.WriteFile(filepath.Join(root, "proj.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "en", "app.json"),
 		[]byte("{\"greeting\": \"Hello\"}\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "fr", "app.json"),
@@ -172,7 +172,7 @@ content:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
 `
-	require.NoError(t, os.WriteFile(filepath.Join(root, "proj.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "brand.yaml"),
 		[]byte("name: Clean Voice\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "en", "app.json"),

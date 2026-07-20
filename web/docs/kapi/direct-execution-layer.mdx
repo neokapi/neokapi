@@ -89,7 +89,7 @@ lists what your build ships), and a project recipe defines its own under
 ```bash
 kapi run translate-qa -i app.xliff --target-lang fr   # translate, then LLM-judged QA
 kapi run secure-translate -i notes.md --target-lang de # redact → translate → unredact
-kapi run pseudo -p myproject.kapi                      # a project-defined flow
+kapi run pseudo -p kapi.yaml                           # a project-defined flow
 ```
 
 A flow is also what `kapi up` loops: `defaults.flow` names the project's

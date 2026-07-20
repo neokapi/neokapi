@@ -6,7 +6,7 @@ kind: use-case
 publishAs: bilingual-workflow
 # A scripted plain-shell demo (no Claude): extract/merge/tm are deterministic, so
 # the commands run for real and their output is recorded exactly. KAPI_NO_PROJECT
-# is set by the shell harness, so extract/merge take the recipe via `-p app.kapi`.
+# is set by the shell harness, so extract/merge take the recipe via `-p kapi.yaml`.
 terminal: shell
 brand: kapi
 cwd: ~/app
@@ -25,12 +25,12 @@ script:
   - comment: "One-time: seed the project TM from a corporate TMX."
   - command: kapi tm import corporate.tmx --file .kapi/tm.db --all-pairs
   - comment: kapi extract — one bilingual XLIFF per target locale, TM pre-filled.
-  - command: kapi extract -p app.kapi
+  - command: kapi extract -p kapi.yaml
   - command: ls out/
   - comment: A translator fills the <target>s in their CAT tool (here, a stand-in).
   - command: ./fake-translator.sh out/*.xliff
   - comment: kapi merge — apply the returned XLIFFs back onto the source.
-  - command: kapi merge -p app.kapi -i out/
+  - command: kapi merge -p kapi.yaml -i out/
   - comment: kapi tm audit — trace exactly what this merge wrote into the TM.
   - command: kapi tm audit --file .kapi/tm.db --batch $(ls .kapi/cache/extractions | head -1) --limit 10
   - comment: The source is now localized — French, ready to ship.

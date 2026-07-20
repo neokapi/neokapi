@@ -20,7 +20,7 @@ export default meta;
 type Story = StoryObj<typeof ProjectStatusPanel>;
 
 const WORKING: ProjectStatus = {
-  projectPath: "/Users/dev/app/translation.kapi",
+  projectPath: "/Users/dev/app/kapi.yaml",
   projectName: "My App Localization",
   collections: [
     {

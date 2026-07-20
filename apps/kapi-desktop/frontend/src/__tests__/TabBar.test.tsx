@@ -11,8 +11,8 @@ const defaultProps = {
 
 describe("TabBar", () => {
   const tabs = [
-    { id: "1", name: "Project A", path: "/a.kapi" },
-    { id: "2", name: "Project B", path: "/b.kapi" },
+    { id: "1", name: "Project A", path: "/a/kapi.yaml" },
+    { id: "2", name: "Project B", path: "/b/kapi.yaml" },
   ];
 
   it("renders tab names", () => {

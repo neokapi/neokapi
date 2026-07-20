@@ -47,7 +47,7 @@ pseudocode) are separated into [Implementation Notes](/contribute/notes-internal
 
 | AD                          | Title         | Scope                                                                |
 | --------------------------- | ------------- | -------------------------------------------------------------------- |
-| [008](008-project-model.md) | Project Model | `.kapi` recipe, `.kapi/` state, BlockStore interface, ProjectContext |
+| [008](008-project-model.md) | Project Model | `kapi.yaml` recipe, `.kapi/` state, BlockStore interface, ProjectContext |
 
 ## Intelligence
 

@@ -66,7 +66,7 @@ const config: Config = {
   // Drift policy (CLAUDE.md "Target-language drift must never block the build",
   // mirroring the kapi docs site): the source/default locale stays strict —
   // broken links throw — while target-locale pages are GENERATED into the
-  // gitignored i18n/nb/ tree by the root neokapi.kapi recipe
+  // gitignored i18n/nb/ tree by the root kapi.yaml recipe
   // (make l10n-bowrain-docs) and fall back to English wherever absent, so the
   // nb locale builds with zero nb files present. Markdown-level link/image
   // breakage warns (markdown.hooks below), matching the kapi site.

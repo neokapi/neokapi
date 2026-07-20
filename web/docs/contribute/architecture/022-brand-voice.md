@@ -32,7 +32,7 @@ a brand wants to sound, against which a draft can be scored and rewritten. The
 subsystem must satisfy several constraints:
 
 - **Portable and git-shareable.** A profile is a YAML document a team can commit
-  and review, with no backing store required — the same way a `.kapi` recipe is
+  and review, with no backing store required — the same way a `kapi.yaml` recipe is
   portable ([AD-008](008-project-model.md)).
 - **Offline by default, AI-optional.** A vocabulary check (forbidden,
   competitor, and preferred terms; regex patterns) is deterministic and needs no
@@ -247,7 +247,7 @@ it.
 - [AD-006: Tool System](006-tool-system.md) — `brand-vocab-check` and
   `brand-voice-check` as registered tools
 - [AD-008: Kapi Project Model](008-project-model.md) — `defaults.brand_voice`
-  binding in a `.kapi` recipe
+  binding in a `kapi.yaml` recipe
 - [AD-010: Terminology](010-terminology.md) — concept-level terminology
   consistency that brand vocabulary intersects
 - [AD-011: AI Providers](011-ai-providers.md) — the LLM provider behind the AI

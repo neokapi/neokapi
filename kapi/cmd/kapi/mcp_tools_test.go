@@ -262,7 +262,7 @@ func TestHandleRunFlowWithProject(t *testing.T) {
 			{Path: "input/*.json"},
 		},
 	}
-	kapiPath := filepath.Join(dir, "project.kapi")
+	kapiPath := filepath.Join(dir, project.RecipeFileName)
 	require.NoError(t, project.Save(kapiPath, proj))
 
 	tmpDir := t.TempDir()
@@ -305,7 +305,7 @@ func TestHandleRunFlowWithProjectDefaults(t *testing.T) {
 			TargetLanguages: []model.LocaleID{"qps"},
 		},
 	}
-	kapiPath := filepath.Join(dir, "project.kapi")
+	kapiPath := filepath.Join(dir, project.RecipeFileName)
 	require.NoError(t, project.Save(kapiPath, proj))
 
 	tmpDir := t.TempDir()
@@ -339,7 +339,7 @@ func TestHandleExtractContentWithProject(t *testing.T) {
 		Version: "v1",
 		// No plugins — should use built-in "json" format, not "okf_json".
 	}
-	kapiPath := filepath.Join(dir, "project.kapi")
+	kapiPath := filepath.Join(dir, project.RecipeFileName)
 	require.NoError(t, project.Save(kapiPath, proj))
 
 	_, out, err := handleExtractContent(ctx, a, ExtractContentInput{

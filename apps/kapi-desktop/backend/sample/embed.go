@@ -50,16 +50,16 @@ func Scaffold(name, targetDir string) error {
 		}
 	}
 
-	// Copy the project-specific .kapi file.
-	kapiData, err := assetsFS.ReadFile(name + "/project.kapi")
+	// Copy the project recipe (kapi.yaml).
+	kapiData, err := assetsFS.ReadFile(name + "/kapi.yaml")
 	if err != nil {
-		return fmt.Errorf("read project.kapi: %w", err)
+		return fmt.Errorf("read kapi.yaml: %w", err)
 	}
 	if err := os.MkdirAll(targetDir, 0o755); err != nil {
 		return fmt.Errorf("create project dir: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(targetDir, "project.kapi"), kapiData, 0o644); err != nil {
-		return fmt.Errorf("write project.kapi: %w", err)
+	if err := os.WriteFile(filepath.Join(targetDir, "kapi.yaml"), kapiData, 0o644); err != nil {
+		return fmt.Errorf("write kapi.yaml: %w", err)
 	}
 
 	kapiDir := filepath.Join(targetDir, ".kapi")

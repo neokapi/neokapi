@@ -30,7 +30,7 @@ content:
         target: "{lang}.json"
 ship_gate: { translated: 100, reviewed: 100 }
 `
-	require.NoError(t, os.WriteFile(filepath.Join(root, "proj.kapi"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
 		[]byte(`{"a":"Apple","b":"Banana"}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "nb.json"),
@@ -41,7 +41,7 @@ ship_gate: { translated: 100, reviewed: 100 }
 func TestHandleReviewQueue(t *testing.T) {
 	root := writeMCPReviewProject(t)
 	a := testApp()
-	proj := filepath.Join(root, "proj.kapi")
+	proj := filepath.Join(root, "kapi.yaml")
 
 	_, out, err := handleReviewQueue(t.Context(), a, ReviewQueueInput{Project: proj})
 	require.NoError(t, err)
@@ -69,13 +69,13 @@ func TestHandleReviewQueue_NoProject(t *testing.T) {
 	a := testApp()
 	_, _, err := handleReviewQueue(t.Context(), a, ReviewQueueInput{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no .kapi project")
+	assert.Contains(t, err.Error(), "no kapi project")
 }
 
 func TestHandleReviewUnit(t *testing.T) {
 	root := writeMCPReviewProject(t)
 	a := testApp()
-	proj := filepath.Join(root, "proj.kapi")
+	proj := filepath.Join(root, "kapi.yaml")
 
 	_, queue, err := handleReviewQueue(t.Context(), a, ReviewQueueInput{Project: proj})
 	require.NoError(t, err)
@@ -102,7 +102,7 @@ func TestHandleReviewUnit(t *testing.T) {
 func TestHandleReviewDecision_ApproveRejectSignOff(t *testing.T) {
 	root := writeMCPReviewProject(t)
 	a := testApp()
-	proj := filepath.Join(root, "proj.kapi")
+	proj := filepath.Join(root, "kapi.yaml")
 
 	_, queue, err := handleReviewQueue(t.Context(), a, ReviewQueueInput{Project: proj})
 	require.NoError(t, err)

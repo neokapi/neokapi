@@ -1283,7 +1283,7 @@ export function IsArchive(filePath) {
 
 /**
  * IsEmptyProject returns true if the project directory contains only
- * ignored files (project.kapi, hidden files, .kapiignore entries), using the
+ * ignored files (kapi.yaml, hidden files, .kapiignore entries), using the
  * shared project walk so "empty" agrees with what ListProjectFiles shows.
  * @param {string} tabID
  * @returns {$CancellablePromise<boolean>}
@@ -1592,9 +1592,11 @@ export function MediaDataURL(path) {
 
 /**
  * NewProject creates a new project, saves it to disk, and opens it as a tab.
- * If savePath is empty, defaults to ~/KapiProjects/{name}/project.kapi.
- * The name is not stored in the YAML — the display name is derived from the
- * folder name. Users can override it later on the project detail page.
+ * If savePath is empty, defaults to ~/KapiProjects/{name}/. The recipe file is
+ * always kapi.yaml; the project's identity is its folder, so savePath may be a
+ * project folder or a full path to kapi.yaml — either is normalized to
+ * <folder>/kapi.yaml. The name is not stored in the YAML — the display name is
+ * derived from the folder name. Users can override it later on the project page.
  * @param {string} name
  * @param {string} sourceLang
  * @param {string[]} targetLangs

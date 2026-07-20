@@ -28,11 +28,12 @@ func newTestCmd() *EnvCommand {
 	return cmd
 }
 
-// writeProject writes a valid {name}.kapi recipe + adjacent .kapi/ state dir
-// at `dir` so project.ResolveLayout recognizes it.
+// writeProject writes a valid kapi.yaml recipe + adjacent .kapi/ state dir
+// at `dir` so project.ResolveLayout recognizes it. `name` is the recipe's
+// project label; the filename is always kapi.yaml.
 func writeProject(t *testing.T, dir, name string) string {
 	t.Helper()
-	recipe := filepath.Join(dir, name+".kapi")
+	recipe := filepath.Join(dir, project.RecipeFileName)
 	proj := &project.KapiProject{Version: "v1", Name: name}
 	require.NoError(t, project.Save(recipe, proj))
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, project.StateDirName), 0o755))
@@ -97,24 +98,23 @@ func TestResolveProjectPath_NoProjectReturnsEmpty(t *testing.T) {
 	assert.Empty(t, got, "no project found should return empty without error")
 }
 
-func TestResolveProjectPath_AmbiguousLayoutWrapsError(t *testing.T) {
+// A .kapi/ state dir with no adjacent kapi.yaml is a broken layout: the
+// project's identity was lost. ResolveProjectPath surfaces that as an error
+// (it is not the "no project here" case, which returns empty).
+func TestResolveProjectPath_StateDirWithoutRecipeErrors(t *testing.T) {
 	unsetEnv(t, projectEnvVar)
 	unsetEnv(t, noProjectEnvVar)
 	dir := t.TempDir()
 	real, err := filepath.EvalSymlinks(dir)
 	require.NoError(t, err)
 
-	// Two sibling recipes — ambiguous.
-	require.NoError(t, project.Save(filepath.Join(real, "a.kapi"), &project.KapiProject{Version: "v1", Name: "A"}))
-	require.NoError(t, project.Save(filepath.Join(real, "b.kapi"), &project.KapiProject{Version: "v1", Name: "B"}))
 	require.NoError(t, os.MkdirAll(filepath.Join(real, project.StateDirName), 0o755))
 	t.Chdir(real)
 
 	got, err := ResolveProjectPath(newTestCmd())
 	require.Error(t, err)
 	assert.Empty(t, got)
-	require.ErrorIs(t, err, project.ErrAmbiguousLayout)
-	assert.Contains(t, err.Error(), "-p")
+	require.ErrorIs(t, err, project.ErrRecipeMissing)
 }
 
 func TestRequireProjectPath_ErrorWhenMissing(t *testing.T) {
@@ -127,7 +127,7 @@ func TestRequireProjectPath_ErrorWhenMissing(t *testing.T) {
 
 	_, err = RequireProjectPath(newTestCmd())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no .kapi project found")
+	assert.Contains(t, err.Error(), "no kapi project found")
 }
 
 // TestResolveProjectPath_NoProjectEnvVarSkipsDiscovery verifies that
@@ -152,7 +152,7 @@ func TestResolveProjectPath_NoProjectEnvVarSkipsDiscovery(t *testing.T) {
 // also wins over the KAPI_PROJECT env fallback (an explicit -p flag still wins —
 // see TestResolveProjectPath_ExplicitFlagBeatsNoProject).
 func TestResolveProjectPath_NoProjectEnvVarSkipsEnvFallback(t *testing.T) {
-	t.Setenv(projectEnvVar, "/some/where/proj.kapi")
+	t.Setenv(projectEnvVar, "/some/where/kapi.yaml")
 	t.Setenv(noProjectEnvVar, "1")
 
 	got, err := ResolveProjectPath(newTestCmd())

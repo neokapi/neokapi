@@ -24,7 +24,7 @@ const project: KapiProject = {
 describe("HomePage merged collection surface", () => {
   it("renders per-collection stats and a project-wide coverage strip", () => {
     const status: ProjectStatus = {
-      projectPath: "/p/demo.kapi",
+      projectPath: "/p/demo/kapi.yaml",
       projectName: "Demo",
       hasData: true,
       collections: [
@@ -57,7 +57,7 @@ describe("HomePage merged collection surface", () => {
 
   it("prompts to run extract when nothing has been extracted yet", () => {
     const status: ProjectStatus = {
-      projectPath: "/p/demo.kapi",
+      projectPath: "/p/demo/kapi.yaml",
       projectName: "Demo",
       hasData: false,
       collections: [],
@@ -77,7 +77,7 @@ describe("HomePage merged collection surface", () => {
 
   it("keeps the Re-extract affordance behind the Advanced disclosure", async () => {
     const status: ProjectStatus = {
-      projectPath: "/p/demo.kapi",
+      projectPath: "/p/demo/kapi.yaml",
       projectName: "Demo",
       hasData: true,
       collections: [
@@ -107,7 +107,7 @@ describe("HomePage merged collection surface", () => {
 
   it("no stale-store banner — Bring up to date auto-heals version drift", () => {
     const status: ProjectStatus = {
-      projectPath: "/p/demo.kapi",
+      projectPath: "/p/demo/kapi.yaml",
       projectName: "Demo",
       hasData: true,
       stale: true,
@@ -134,7 +134,7 @@ describe("HomePage merged collection surface", () => {
 
   it("shows ship-gate ladder states from convergence instead of raw %", () => {
     const status: ProjectStatus = {
-      projectPath: "/p/demo.kapi",
+      projectPath: "/p/demo/kapi.yaml",
       projectName: "Demo",
       hasData: true,
       collections: [

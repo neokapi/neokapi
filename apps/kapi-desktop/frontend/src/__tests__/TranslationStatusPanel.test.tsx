@@ -6,7 +6,7 @@ import { api } from "../hooks/useApi";
 
 function statusFixture(overrides: Partial<ProjectStatus> = {}): ProjectStatus {
   return {
-    projectPath: "/tmp/project.kapi",
+    projectPath: "/tmp/project/kapi.yaml",
     projectName: "Test",
     collections: [
       {

@@ -30,7 +30,7 @@ func NewReader() format.DataFormatReader {
 
 // stubReader implements DataFormatReader but intentionally errors on
 // Open/Read. The registry entry exists for discoverability; running
-// actual extraction goes through `kapi extract -p project.kapi`.
+// actual extraction goes through `kapi extract` in a project.
 type stubReader struct {
 	format.BaseFormatReader
 }
@@ -45,8 +45,8 @@ func (r *stubReader) Signature() format.FormatSignature {
 func (r *stubReader) Open(ctx context.Context, doc *model.RawDocument) error {
 	return errors.New(
 		"exec format is declarative — configure a collection's format: " +
-			"{ name: exec, config: { command: ... } } in a .kapi project, " +
-			"then run `kapi extract -p project.kapi`",
+			"{ name: exec, config: { command: ... } } in a kapi.yaml recipe, " +
+			"then run `kapi extract` from the project",
 	)
 }
 

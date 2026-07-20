@@ -22,7 +22,7 @@ mode: video
 # config from the steps marked `offline: true`.
 embed:
   files:
-    - path: app.kapi
+    - path: kapi.yaml
       content: |
         version: v1
         name: Bilingual Demo
@@ -59,7 +59,7 @@ steps:
     narration: One-time setup — warm the TM so extract can pre-fill matches.
     offline: false
   - comment: 2. kapi extract — one XLIFF per target locale, with TM pre-fill
-  - command: kapi extract -p app.kapi --no-tm
+  - command: kapi extract -p kapi.yaml --no-tm
     narration: >-
       Extract emits a bilingual XLIFF per target locale. This step runs live in
       the embed below — inspect the emitted file in the files pane.

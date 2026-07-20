@@ -242,7 +242,7 @@ config, with the following precedence (highest wins):
 
 1. **CLI flags** (via Cobra) — one-off overrides
 2. **Environment variables** (`KAPI_*` prefix) — CI/CD and Docker
-3. **Project config** (`.kapi` project files) — workflow defaults
+3. **Project config** (`kapi.yaml` project files) — workflow defaults
 4. **User config** (`~/.config/kapi/kapi.yaml`) — personal defaults
 5. **Code defaults** — sensible zero-config behavior
 

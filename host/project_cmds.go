@@ -41,7 +41,7 @@ func FrameworkContent(framework string) ([]scaffoldContent, error) {
 	preset.RegisterBuiltins(reg)
 
 	if framework == preset.NeokapiI18nPresetName {
-		return nil, fmt.Errorf("the %q stack manages i18n via its bundler plugin and `neokapi-i18n extract|compile`, not a .kapi content mapping — "+
+		return nil, fmt.Errorf("the %q stack manages i18n via its bundler plugin and `neokapi-i18n extract|compile`, not a kapi.yaml content mapping — "+
 			"install @neokapi/i18n-react and follow its quickstart. "+
 			"`kapi init --framework` is for catalog-based stacks", framework)
 	}
@@ -83,19 +83,17 @@ func ResolveDir(flag string) (string, error) {
 	return abs, nil
 }
 
-// ExistingRecipeName returns the base name of the first *.kapi recipe directly
-// in dir, or "" if none exists. Used to detect an already-initialized project.
-func ExistingRecipeName(dir string) (string, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return "", err
+// RecipeExists reports whether dir already holds a kapi.yaml recipe. Used to
+// detect an already-initialized project so `kapi init` is idempotent.
+func RecipeExists(dir string) (bool, error) {
+	_, err := os.Stat(filepath.Join(dir, project.RecipeFileName))
+	if err == nil {
+		return true, nil
 	}
-	for _, e := range entries {
-		if !e.IsDir() && filepath.Ext(e.Name()) == project.RecipeExt {
-			return e.Name(), nil
-		}
+	if os.IsNotExist(err) {
+		return false, nil
 	}
-	return "", nil
+	return false, err
 }
 
 func ScaffoldRecipe(name, sourceLocale string, targetLocales []string, content []scaffoldContent) []byte {

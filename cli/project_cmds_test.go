@@ -34,7 +34,7 @@ func TestInitCmd_scaffoldsProject(t *testing.T) {
 	require.NoError(t, cmd.Execute())
 
 	// Recipe + state dir both exist.
-	recipe := filepath.Join(dir, "my-app.kapi")
+	recipe := filepath.Join(dir, project.RecipeFileName)
 	info, err := os.Stat(recipe)
 	require.NoError(t, err)
 	assert.False(t, info.IsDir())
@@ -86,7 +86,7 @@ func TestInitCmd_translationScaffold(t *testing.T) {
 	// Recipe loads with source/target locales populated under defaults: — the
 	// schema the loader actually reads (not top-level sourceLocale). The
 	// translation scaffold does not bind a brand-voice pack.
-	recipe := filepath.Join(dir, "my-app.kapi")
+	recipe := filepath.Join(dir, project.RecipeFileName)
 	p, err := project.Load(recipe)
 	require.NoError(t, err)
 	assert.Equal(t, "en", string(p.Defaults.SourceLanguage))
@@ -109,7 +109,7 @@ func TestInitCmd_framework(t *testing.T) {
 	cmd.SetArgs([]string{"--dir", dir, "--name", "demo", "--framework", "flutter", "--target-locale", "fr"})
 	require.NoError(t, cmd.Execute())
 
-	recipe := filepath.Join(dir, "demo.kapi")
+	recipe := filepath.Join(dir, project.RecipeFileName)
 	// The scaffolded recipe must parse and carry the framework's content mapping.
 	p, err := project.Load(recipe)
 	require.NoError(t, err)
@@ -135,7 +135,7 @@ func TestInitCmd_frameworkNeokapiI18nRejected(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "neokapi-i18n")
 	// No recipe should have been written.
-	_, statErr := os.Stat(filepath.Join(dir, filepath.Base(dir)+".kapi"))
+	_, statErr := os.Stat(filepath.Join(dir, project.RecipeFileName))
 	assert.True(t, os.IsNotExist(statErr))
 }
 
@@ -155,8 +155,8 @@ func TestInitCmd_frameworkUnknown(t *testing.T) {
 func TestInitCmd_idempotentOnExistingRecipe(t *testing.T) {
 	app := newAppForTest(t)
 	dir := t.TempDir()
-	// Pre-create the recipe file under the same name init will use.
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "existing.kapi"), []byte("version: v1\nname: existing\n"), 0o644))
+	// Pre-create the recipe file under the fixed name init uses (kapi.yaml).
+	require.NoError(t, os.WriteFile(filepath.Join(dir, project.RecipeFileName), []byte("version: v1\nname: existing\n"), 0o644))
 
 	cmd := NewInitCmd(app)
 	cmd.SetArgs([]string{"--dir", dir, "--name", "existing"})
@@ -165,22 +165,7 @@ func TestInitCmd_idempotentOnExistingRecipe(t *testing.T) {
 	cmd.SetErr(&out)
 	// Idempotent: re-running init on an existing project is not an error, so
 	// plugin contributions (e.g. connecting to a server) can run on top of it.
+	// The recipe filename is fixed, so an existing recipe is always adopted.
 	require.NoError(t, cmd.Execute())
 	assert.Contains(t, out.String(), "already initialized")
-}
-
-func TestInitCmd_refusesDifferentNamedProject(t *testing.T) {
-	app := newAppForTest(t)
-	dir := t.TempDir()
-	// A project already exists under a different name.
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "existing.kapi"), []byte("version: v1\nname: existing\n"), 0o644))
-
-	cmd := NewInitCmd(app)
-	cmd.SetArgs([]string{"--dir", dir, "--name", "other"})
-	var out bytes.Buffer
-	cmd.SetOut(&out)
-	cmd.SetErr(&out)
-	err := cmd.Execute()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "already contains a kapi project")
 }

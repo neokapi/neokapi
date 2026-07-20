@@ -25,7 +25,7 @@ With no arguments, prints the path to the config file.
 With one argument (key), prints the current value.
 With two arguments (key value), sets the value.
 
-By default, operates on the project recipe (`<dir-name>.kapi`) — for which the
+By default, operates on the project recipe (`kapi.yaml`) — for which the
 documented spelling is the built-in positional form, `kapi config server.url …`.
 Use `--global` to read or write the global config file
 (`~/.config/bowrain/bowrain.yaml`) — for example the default server URL that
@@ -52,7 +52,7 @@ kapi bowrain config --global server.url https://app.bowrain.cloud # Set it (appl
 
 ## Config Keys
 
-### Project Recipe (`<dir-name>.kapi`)
+### Project Recipe (`kapi.yaml`)
 
 | Key                          | Description                                                | Example                                            |
 | ---------------------------- | ---------------------------------------------------------- | -------------------------------------------------- |

@@ -24,7 +24,7 @@ describe("AppHome", () => {
   it("shows sample project cards even with recent files", () => {
     const recentFiles = [
       {
-        path: "/tmp/project.kapi",
+        path: "/tmp/project/kapi.yaml",
         name: "Test",
         opened_at: "2026-03-01T00:00:00Z",
       },
@@ -100,7 +100,7 @@ describe("AppHome", () => {
   it("renders recent projects when present", () => {
     const recentFiles = [
       {
-        path: "/home/dev/KapiProjects/MyApp/project.kapi",
+        path: "/home/dev/KapiProjects/MyApp/kapi.yaml",
         name: "MyApp",
         opened_at: "2026-03-01T00:00:00Z",
       },

@@ -27,7 +27,7 @@ func TestScaffoldKapiMart(t *testing.T) {
 	require.NoError(t, Scaffold("kapimart", dir))
 
 	// Validate project file.
-	proj, err := project.Load(filepath.Join(dir, "project.kapi"))
+	proj, err := project.Load(filepath.Join(dir, "kapi.yaml"))
 	require.NoError(t, err)
 	assert.Equal(t, "KapiMart", proj.Name)
 	assert.Equal(t, model.LocaleID("en-US"), proj.Defaults.SourceLanguage)

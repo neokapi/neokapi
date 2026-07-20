@@ -38,7 +38,8 @@ export function NewProjectDialog({ onCreate, onCancel, shortenHome }: NewProject
   };
 
   const handleCreate = () => {
-    if (canCreate) onCreate(trimmed, sourceLang, saveDir ? `${saveDir}/project.kapi` : undefined);
+    // Pass the project folder; the backend writes the fixed kapi.yaml recipe inside it.
+    if (canCreate) onCreate(trimmed, sourceLang, saveDir || undefined);
   };
 
   return (

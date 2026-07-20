@@ -6,7 +6,7 @@
 # no-op: scheduled runs and manual dispatches evaluate the gate and skip.
 #
 # Activation checklist:
-#   1. Uncomment + fill the `server:` block in neokapi.kapi (compound project URL).
+#   1. Uncomment + fill the `server:` block in kapi.yaml (compound project URL).
 #   2. Add repo secret  BOWRAIN_AUTH_TOKEN  (from `kapi auth token` after signup).
 #   3. Set   repo variable  DOGFOOD_SYNC_ENABLED = true.
 # Deactivate at any time by unsetting DOGFOOD_SYNC_ENABLED — fully reversible.
@@ -72,8 +72,8 @@ jobs:
 
       - name: Guard — recipe must declare a server block
         run: |
-          if ! grep -qE '^\s*server:' neokapi.kapi; then
-            echo "::error::DOGFOOD_SYNC_ENABLED is set but neokapi.kapi has no active server: block. Uncomment it (see the recipe footer) before arming the sync." >&2
+          if ! grep -qE '^\s*server:' kapi.yaml; then
+            echo "::error::DOGFOOD_SYNC_ENABLED is set but kapi.yaml has no active server: block. Uncomment it (see the recipe footer) before arming the sync." >&2
             exit 1
           fi
 

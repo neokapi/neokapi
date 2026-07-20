@@ -29,9 +29,9 @@ you install into it (`kapi plugins install bowrain`, or
 `brew install neokapi/tap/bowrain-cli`).
 
 A bowrain project is just a kapi project with a `server:` block on its
-recipe — same `*.kapi` recipe file, same `.kapi/` state directory, same
+recipe — same `kapi.yaml` recipe file, same `.kapi/` state directory, same
 discovery rules as the framework. Commands walk upward from the current
-working directory looking for a `*.kapi` recipe, in the same style as
+working directory looking for a file named `kapi.yaml`, in the same style as
 `git` and `terraform`.
 
 This is the only project model. Bowrain does not maintain a parallel
@@ -51,7 +51,7 @@ They need a first-class command surface that:
 - composes with git, CI, and Makefile-driven workflows, and
 - stores its own configuration alongside the code it describes.
 
-The framework's `.kapi` recipe model
+The framework's `kapi.yaml` recipe model
 ([AD-framework-008: Kapi Project Model](https://neokapi.github.io/web/neokapi/contribute/architecture/008-project-model))
 already provides a portable, gitignore-aware project layout with stateless
 recipe + sibling state directory. Bowrain extends it with a `server:`
@@ -134,7 +134,7 @@ With the plugin installed, `kapi` exposes:
   `add`, `rm`, `ls`, `flows`, `exec`, `tools`, `formats`, `plugin`,
   `termbase`, `tm`, `credentials`, `mcp`, `version`. The
   local project-content commands `add`/`rm`/`ls` are core — they edit and
-  list the `.kapi` recipe's content, which is local configuration, not a
+  list the `kapi.yaml` recipe's content, which is local configuration, not a
   server concern (a server-connected project just declares `requires: bowrain`).
 - Bowrain commands (contributed by the `kapi-bowrain` manifest) follow the
   **no-shadowing rule**: installing the plugin never changes what an
@@ -183,16 +183,16 @@ Without the plugin, `kapi` is framework-only — a bowrain recipe still
 loads, but `kapi push`/`kapi pull` are unavailable and a recipe that
 declares `requires: [bowrain]` fails validation.
 
-All bowrain server-sync commands require a `.kapi` recipe with a `server:`
-block. Discovery is identical to kapi: walk upward looking for a `*.kapi`
-recipe; the recipe must declare `server:` for push/pull/status to be
-meaningful.
+All bowrain server-sync commands require a `.kapi` project whose `kapi.yaml`
+recipe declares a `server:` block. Discovery is identical to kapi: walk upward
+looking for a `kapi.yaml` recipe; the recipe must declare `server:` for
+push/pull/status to be meaningful.
 
 ### Project layout
 
 ```
 my-app/
-├── my-app.kapi         # the recipe (committed) — directory-named
+├── kapi.yaml           # the recipe (committed) — fixed, conventional filename
 ├── .kapi/              # state (gitignored)
 │   ├── manifest.yaml
 │   ├── tm.db           # authoritative project TM
@@ -212,8 +212,14 @@ my-app/
 
 Ownership:
 
-- **`{name}.kapi`** — hand-edited, committed to git. The single source of
-  truth for project configuration.
+- **`kapi.yaml`** — hand-edited, committed to git. The single source of
+  truth for project configuration. The recipe is a fixed, conventional YAML
+  config filename, so every editor and every code host (GitHub, GitLab) applies
+  YAML syntax highlighting to diffs and previews with no configuration. This is
+  a breaking change introduced in kapi 1.2 — earlier builds named the recipe
+  after the project directory (`<dir-name>.kapi`). See
+  [AD-framework-008](https://neokapi.github.io/web/neokapi/contribute/architecture/008-project-model)
+  for the full rationale.
 - **`.kapi/cache/`** — CLI-owned, gitignored. Contains everything that's
   cheaply regenerable: the block store, the kapi sync cache, extraction
   intermediates, overlay layers.
@@ -351,7 +357,7 @@ rather than user-scoped.
 ### Workflow
 
 ```bash
-kapi init                # create my-app.kapi + .kapi/, populate server: block
+kapi init                # create kapi.yaml + .kapi/, populate server: block
 kapi auth login          # OAuth login → tokens to keychain, metadata to ~/.config/bowrain/auth.json
 kapi status              # show standing: coverage, gates, and what's pending push / pull
 kapi push [--dry-run]    # transport: scan local files, diff against cache, upload changed blocks
@@ -364,10 +370,10 @@ kapi rm <path>           # remove or exclude a content entry
 kapi mcp                 # stdio MCP server exposing project tools
 ```
 
-`kapi init` writes a `<dir-name>.kapi` recipe by default. The recipe
-lands at the project root; the sibling `.kapi/` state dir is created
-empty (caches populate as commands run). No `.bowrain/` directory is
-ever created.
+`kapi init` writes a `kapi.yaml` recipe, defaulting the recipe's `name:`
+label to the current directory's basename. The recipe lands at the project
+root; the sibling `.kapi/` state dir is created empty (caches populate as
+commands run). No `.bowrain/` directory is ever created.
 
 ## Consequences
 
@@ -387,9 +393,9 @@ ever created.
   (plugin registries, per-flow config maps, `LocalFormatPreset.Description`)
   are deferred or dropped. Future work re-adds them as framework recipe
   fields when needed.
-- The unified discovery means a `*.kapi` recipe with a `server:` block
-  must be unambiguous in its directory. Multiple recipes at the same
-  level require an explicit `-p` flag — same rule as kapi.
+- A directory holds at most one `kapi.yaml`, so the recipe with its `server:`
+  block is unambiguous by construction — discovery never has to choose between
+  competing recipes.
 
 ## Related
 

@@ -243,7 +243,7 @@ steps:
 kapi run translate-qa -i input.xliff --target-lang fr
 
 # Run a flow defined in a .kapi project file
-kapi run my-flow -p myproject.kapi -i input.json
+kapi run my-flow -p kapi.yaml -i input.json
 
 # List available flows
 kapi flows

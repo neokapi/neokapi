@@ -9,7 +9,7 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Automate translation sync with local rules + CI
 
-Bowrain has two layers of automation: **local rules** declared on the `.kapi`
+Bowrain has two layers of automation: **local rules** declared on the `kapi.yaml`
 recipe (top-level `automations:`) that run on the developer machine
 (e.g. pre-push QA), and the **server side** — the project's converge-on-push
 policy and CI pipelines. Together they make translation sync fully automated —
@@ -17,7 +17,7 @@ code lands, translations follow.
 
 ## Local rules
 
-Declare `automations:` at the top level of the `<dir-name>.kapi` recipe. A
+Declare `automations:` at the top level of the `kapi.yaml` recipe. A
 pre-push QA rule, for example, fires before `kapi push` completes, so source
 never reaches the server without passing your checks. Local rules give a
 developer guardrails on their own machine. (The recipe also accepts a `hooks:`

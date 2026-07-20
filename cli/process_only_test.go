@@ -39,7 +39,7 @@ func processOnlyProjectFixture(t *testing.T, targets []model.LocaleID) (recipe, 
 	real, err := filepath.EvalSymlinks(dir)
 	require.NoError(t, err)
 
-	recipe = filepath.Join(real, "app.kapi")
+	recipe = filepath.Join(real, project.RecipeFileName)
 	proj := &project.KapiProject{
 		Version: "v1",
 		Name:    "ProcessOnlyTest",

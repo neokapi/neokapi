@@ -433,7 +433,7 @@ func unboundGate(gate, binding, flag string) verifyGateResult {
 			Gate:       gate,
 			Severity:   "error",
 			Message:    fmt.Sprintf("%s gate was requested with %s but the project binds no %s — nothing to check", gate, flag, binding),
-			Suggestion: fmt.Sprintf("add %s to the .kapi project, or drop %s to skip this gate", binding, flag),
+			Suggestion: fmt.Sprintf("add %s to the kapi.yaml recipe, or drop %s to skip this gate", binding, flag),
 		}},
 	}
 }

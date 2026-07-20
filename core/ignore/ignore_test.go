@@ -12,11 +12,13 @@ import (
 func TestDefaultRules(t *testing.T) {
 	m := New()
 
-	assert.True(t, m.Match("project.kapi", false), "*.kapi should be ignored by default")
-	assert.True(t, m.Match("sub/other.kapi", false))
+	assert.True(t, m.Match("kapi.yaml", false), "the recipe should be ignored by default")
+	assert.True(t, m.Match(".kapi", true), "the state dir should be ignored by default")
 	assert.True(t, m.Match(".git", true))
 	assert.True(t, m.Match(".DS_Store", false))
 
+	// A directory-named recipe is no longer special: only kapi.yaml is.
+	assert.False(t, m.Match("project.kapi", false))
 	assert.False(t, m.Match("README.md", false))
 	assert.False(t, m.Match("src/main.go", false))
 }
@@ -136,7 +138,7 @@ func TestForProjectDir(t *testing.T) {
 	m := ForProjectDir(dir)
 
 	// Defaults.
-	assert.True(t, m.Match("project.kapi", false))
+	assert.True(t, m.Match("kapi.yaml", false))
 	assert.True(t, m.Match(".git", true))
 
 	// From file.

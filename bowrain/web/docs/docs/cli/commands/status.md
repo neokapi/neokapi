@@ -22,7 +22,7 @@ kapi status
 
 # Example output (connected to server):
 # Project root: /Users/me/my-project
-# Recipe:       /Users/me/my-project/my-project.kapi
+# Recipe:       /Users/me/my-project/kapi.yaml
 #
 # Local blocks: 142
 # Pending push: 3 blocks changed locally
@@ -30,10 +30,10 @@ kapi status
 
 # Example output (no server configured):
 # Project root: /Users/me/my-project
-# Recipe:       /Users/me/my-project/my-project.kapi
+# Recipe:       /Users/me/my-project/kapi.yaml
 #
 # Sync status requires a Bowrain server connection.
-#   Add a server: block to /Users/me/my-project/my-project.kapi
+#   Add a server: block to /Users/me/my-project/kapi.yaml
 ```
 
 ## What It Shows

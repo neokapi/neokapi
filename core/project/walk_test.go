@@ -18,7 +18,7 @@ func TestWalkProjectDir(t *testing.T) {
 	write := func(rel string) {
 		require.NoError(t, os.WriteFile(filepath.Join(root, rel), []byte("x"), 0o644))
 	}
-	write("proj.kapi")
+	write("kapi.yaml")
 	write(filepath.Join("src", "en.json"))
 	write(filepath.Join("src", "sub", "deep.md"))
 	write(filepath.Join("src", ".hidden"))
@@ -42,7 +42,7 @@ func TestWalkProjectDir(t *testing.T) {
 	assert.ElementsMatch(t, []string{
 		filepath.Join("src", "en.json"),
 		filepath.Join("src", "sub", "deep.md"),
-	}, got, "hidden, dot-dir, default-ignored (*.kapi), and .kapiignore-matched entries are excluded")
+	}, got, "hidden, dot-dir, default-ignored (kapi.yaml + .kapi/), and .kapiignore-matched entries are excluded")
 	assert.ElementsMatch(t, []string{"src", filepath.Join("src", "sub")}, dirs,
 		"visible directories are visited; hidden/ignored ones are pruned")
 }

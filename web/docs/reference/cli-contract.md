@@ -148,7 +148,7 @@ The toolbox utilities (`kgrep`) additionally use grep-parity semantics: exit 1 w
 | `complete` | Run finished | `duration_ms`, `files_processed`, `message` |
 
 ```bash
-kapi extract -p app.kapi --progress jsonl 2> >(jq -c 'select(.type=="file_done")')
+kapi extract -p kapi.yaml --progress jsonl 2> >(jq -c 'select(.type=="file_done")')
 ```
 
 ```json

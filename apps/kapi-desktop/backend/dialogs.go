@@ -1,9 +1,12 @@
 package backend
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/neokapi/neokapi/core/project"
 )
 
 // BrowsePathFilter mirrors the schema-form host's SchemaFormFileFilter.
@@ -180,30 +183,36 @@ func seedDirAndName(current string) (dir, name string) {
 	return filepath.Dir(current), filepath.Base(current)
 }
 
-// OpenProjectDialog shows a native file-open dialog for Kapi project files,
-// opens the selected file, and returns the tab info.
+// OpenProjectDialog shows a native folder-open dialog and opens the kapi
+// project it contains. A kapi project is a folder holding a kapi.yaml recipe,
+// so the user picks the folder rather than a branded file.
 func (a *App) OpenProjectDialog() (*TabInfo, error) {
 	if a.app == nil {
 		return nil, nil
 	}
 
-	path, err := a.app.Dialog.OpenFile().
-		AddFilter("Kapi Projects", "*.kapi").
-		AddFilter("All Files", "*").
+	dir, err := a.app.Dialog.OpenFile().
+		CanChooseDirectories(true).
+		CanChooseFiles(false).
 		PromptForSingleSelection()
 	if err != nil {
 		return nil, err
 	}
-	if path == "" {
+	if dir == "" {
 		return nil, nil // user canceled
 	}
 
-	return a.OpenProject(path)
+	recipe := filepath.Join(dir, project.RecipeFileName)
+	if _, err := os.Stat(recipe); err != nil {
+		return nil, fmt.Errorf("no %s in %q — choose a folder that contains a kapi project", project.RecipeFileName, dir)
+	}
+
+	return a.OpenProject(recipe)
 }
 
-// SaveProjectDialog shows a native file-save dialog for a project tab.
-// Ensures the .kapi extension is appended and updates the project name
-// to match the filename.
+// SaveProjectDialog shows a native folder picker and saves the project's
+// kapi.yaml into the chosen folder. The recipe filename is fixed, so "save as"
+// relocates the project to a new folder and derives the project name from it.
 func (a *App) SaveProjectDialog(tabID string) (*TabInfo, error) {
 	if a.app == nil {
 		return nil, nil
@@ -214,32 +223,28 @@ func (a *App) SaveProjectDialog(tabID string) (*TabInfo, error) {
 		return nil, nil
 	}
 
-	dlg := a.app.Dialog.SaveFile().
-		AddFilter("Kapi Projects", "*.kapi").
-		SetFilename(projectDisplayName(op.Project, op.Path) + ".kapi")
+	dlg := a.app.Dialog.OpenFile().
+		CanChooseDirectories(true).
+		CanChooseFiles(false).
+		CanCreateDirectories(true)
 
-	// Default to base path directory for the save dialog.
+	// Seed the picker at the current project's parent directory.
 	if dir := a.GetBasePath(tabID); dir != "" {
-		dlg.SetDirectory(dir)
+		dlg.SetDirectory(filepath.Dir(dir))
 	}
 
-	path, err := dlg.PromptForSingleSelection()
+	dir, err := dlg.PromptForSingleSelection()
 	if err != nil {
 		return nil, err
 	}
-	if path == "" {
+	if dir == "" {
 		return nil, nil // user canceled
 	}
 
-	// Ensure .kapi extension.
-	if !strings.HasSuffix(strings.ToLower(path), ".kapi") {
-		path += ".kapi"
-	}
+	path := filepath.Join(dir, project.RecipeFileName)
 
-	// Update the project name to match the filename (without extension).
-	base := filepath.Base(path)
-	name := strings.TrimSuffix(base, filepath.Ext(base))
-	if name != "" {
+	// Derive the project name from the destination folder.
+	if name := filepath.Base(dir); name != "" && name != "." && name != string(filepath.Separator) {
 		op.Project.Name = name
 	}
 

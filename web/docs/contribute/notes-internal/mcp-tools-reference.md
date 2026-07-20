@@ -11,7 +11,7 @@ This note provides implementation details for [AD-013](/contribute/architecture/
 
 ## Kapi MCP Server
 
-Started via `kapi mcp`. The tools default to ad-hoc single-file processing, but optionally accept a `project` (`.kapi`) file for project-scoped defaults and content resolution.
+Started via `kapi mcp`. The tools default to ad-hoc single-file processing, but optionally accept a `project` (`kapi.yaml`) file for project-scoped defaults and content resolution.
 
 **Server info:** `{"name": "kapi", "version": "<version>"}`
 
@@ -77,7 +77,7 @@ rendered as `<x id="…"/>` placeholders, and its `word_count`. Pair it with
 | `path` | string | yes | File path to extract content from |
 | `format` | string | no | Override format detection |
 | `source_lang` | string | no | Source language (default: `en`) |
-| `project` | string | no | Path to `.kapi` project file for scoped format detection |
+| `project` | string | no | Path to `kapi.yaml` project file for scoped format detection |
 
 **Output:**
 
@@ -154,7 +154,7 @@ Execute a processing flow on a file. The flow name is any built-in flow from `li
 |-----------|------|----------|-------------|
 | `flow_name` | string | yes | Name of the flow (e.g. `pseudo-translate`) |
 | `path` | string | yes* | Input file path (*optional when a `project` file with content patterns resolves the inputs) |
-| `project` | string | no | Path to a `.kapi` project file for project-scoped execution (resolves inputs from content patterns) |
+| `project` | string | no | Path to a `kapi.yaml` project file for project-scoped execution (resolves inputs from content patterns) |
 | `source_lang` | string | no | Source language (default: `en`) |
 | `target_lang` | string | yes* | Target language (*optional for `pseudo-translate`, defaults to `qps`) |
 | `output_path` | string | no | Output file path (default: auto-generated as `<base>_<lang><ext>`) |

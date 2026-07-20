@@ -13,13 +13,13 @@ import (
 func NewPackCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "pack -o <snapshot.klz>",
-		Short:   "Snapshot a .kapi project's working state into a .klz",
+		Short:   "Snapshot a kapi project's working state into a .klz",
 		GroupID: "advanced",
-		Long: `Snapshot a .kapi project's working state — the block-store overlays, the
+		Long: `Snapshot a kapi project's working state — the block-store overlays, the
 authoritative translation memory, and the termbase — into a portable .klz.
 Regenerable caches and secrets are excluded. Move the snapshot to another
 machine and "kapi unpack" it to resume work there.`,
-		Example: `  kapi pack -o snapshot.klz   # a .kapi project
+		Example: `  kapi pack -o snapshot.klz   # a kapi project
   kapi pack work.klz         # eject a .klz workspace's cache`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

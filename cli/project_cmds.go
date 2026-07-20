@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/version"
@@ -12,9 +11,9 @@ import (
 )
 
 // NewInitCmd returns `kapi init` — scaffold a new kapi project in
-// the current directory (or `--dir <path>`). Creates `{name}.kapi`
-// + `.kapi/` adjacent to it. Does nothing destructive; aborts if
-// either target already exists.
+// the current directory (or `--dir <path>`). Creates `kapi.yaml`
+// + `.kapi/` adjacent to it. Idempotent; re-running on an existing
+// project adopts it rather than erroring.
 func NewInitCmd(a *App) *cobra.Command {
 	var (
 		dir          string
@@ -29,7 +28,7 @@ func NewInitCmd(a *App) *cobra.Command {
 		Use:     "init",
 		Short:   "Scaffold a new kapi project in the current directory",
 		GroupID: "work",
-		Long: `Create a new kapi project with a {name}.kapi recipe and an
+		Long: `Create a new kapi project with a kapi.yaml recipe and an
 adjacent .kapi/ state directory.
 
 By default kapi init scaffolds a content project that keeps your source on
@@ -77,21 +76,16 @@ scaffolds plus per-format parsing presets) with --list-presets.`,
 			// a server) run on top of `kapi init` without a separate command —
 			// `kapi init --server …` on an existing project just connects it.
 			//
-			// When the directory already hosts a project we adopt that recipe
-			// (so contributions run against it). The one hard error is an
-			// explicit --name that names a *different* project than the one
-			// already here — that would scaffold a second recipe alongside it.
-			recipeExists := false
-			if existing, err := ExistingRecipeName(root); err == nil && existing != "" {
-				existingName := strings.TrimSuffix(existing, project.RecipeExt)
-				if cmd.Flags().Changed("name") && name != existingName {
-					return fmt.Errorf("directory already contains a kapi project (%s); run from a clean directory or use --name %s", existing, existingName)
-				}
-				name = existingName
-				recipeExists = true
+			// The recipe filename is fixed (kapi.yaml), so re-running can never
+			// scaffold a second recipe: when one is already here we adopt it and
+			// leave it untouched. The project label lives in the recipe's name:
+			// field; --name only affects a fresh scaffold.
+			recipeExists, err := RecipeExists(root)
+			if err != nil {
+				return fmt.Errorf("check for existing project: %w", err)
 			}
 
-			recipePath := filepath.Join(root, name+project.RecipeExt)
+			recipePath := filepath.Join(root, project.RecipeFileName)
 			stateDir := filepath.Join(root, project.StateDirName)
 
 			if recipeExists {
