@@ -78,7 +78,7 @@ require (
 	github.com/itchyny/timefmt-go v0.1.8 // indirect
 	github.com/leonelquinteros/gotext v1.7.2 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
-	github.com/mattn/go-isatty v0.0.22 // indirect
+	github.com/mattn/go-isatty v0.0.23 // indirect
 	github.com/mattn/go-runewidth v0.0.23 // indirect
 	github.com/mattn/go-sqlite3 v1.14.42 // indirect
 	github.com/muesli/reflow v0.3.0 // indirect

@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/charmbracelet/huh v1.0.0
-	github.com/mattn/go-isatty v0.0.22
+	github.com/mattn/go-isatty v0.0.23
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/neokapi/neokapi v0.0.0
 	github.com/neokapi/neokapi/bowrain/core v0.0.0
