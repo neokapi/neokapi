@@ -12,6 +12,12 @@
     "react"
   ],
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/neokapi/neokapi.git",
+    "directory": "packages/i18n-react-lint"
+  },
+  "homepage": "https://github.com/neokapi/neokapi/tree/main/packages/i18n-react-lint#readme",
   "publishConfig": {
     "access": "public"
   },
