@@ -92,7 +92,16 @@ func (h *WebhookHandler) syncPlan(ctx context.Context, workspaceID string, plan 
 // return a non-nil error only for genuine processing failures that should be
 // retried.
 func (h *WebhookHandler) HandleWebhook(payload []byte, signature string) error {
-	event, err := webhook.ConstructEvent(payload, signature, h.webhookSecret)
+	// Tolerate Stripe API-version skew. The strict ConstructEvent rejects any
+	// event whose api_version differs from the pinned stripe-go version — so if
+	// the account's (or endpoint's) default drifts from what stripe-go expects,
+	// EVERY live webhook 400s and no plan/credit change ever applies (a silent
+	// billing outage). We read only stable fields (customer/subscription ids and
+	// metadata), so ignoring the mismatch is safe. Belt-and-suspenders: also pin
+	// the webhook endpoint's API version at registration (see the billing
+	// go-live runbook).
+	event, err := webhook.ConstructEventWithOptions(payload, signature, h.webhookSecret,
+		webhook.ConstructEventOptions{IgnoreAPIVersionMismatch: true})
 	if err != nil {
 		return fmt.Errorf("verify webhook signature: %w", err)
 	}
@@ -197,10 +206,22 @@ func (h *WebhookHandler) handleCheckoutCompleted(ctx context.Context, event stri
 		wasTrialing = true
 	}
 
+	// Stripe can deliver a checkout.session.completed whose customer / subscription
+	// objects are absent (a minimal event, or a non-subscription session that
+	// isn't a credit pack) — dereferencing them directly panics the handler. Nil-
+	// guard both; the subsequent customer.subscription.* events reconcile the ids.
+	var custID, subID string
+	if sess.Customer != nil {
+		custID = sess.Customer.ID
+	}
+	if sess.Subscription != nil {
+		subID = sess.Subscription.ID
+	}
+
 	sub := &Subscription{
 		WorkspaceID:          workspaceID,
-		StripeCustomerID:     sess.Customer.ID,
-		StripeSubscriptionID: sess.Subscription.ID,
+		StripeCustomerID:     custID,
+		StripeSubscriptionID: subID,
 		Plan:                 plan,
 		Status:               "active",
 		SeatCount:            seatsFromMetadata(sess.Metadata),
@@ -210,13 +231,13 @@ func (h *WebhookHandler) handleCheckoutCompleted(ctx context.Context, event stri
 		return fmt.Errorf("upsert subscription: %w", err)
 	}
 
-	h.syncPlan(ctx, workspaceID, sub.Plan, sess.Customer.ID)
+	h.syncPlan(ctx, workspaceID, sub.Plan, custID)
 
 	// Track checkout completed conversion (and trial conversion when the
 	// workspace was on the local card-free trial).
 	h.track(workspaceID, analytics.EventCheckoutCompleted, map[string]any{
 		"workspace_id": workspaceID,
-		"customer_id":  sess.Customer.ID,
+		"customer_id":  custID,
 		"plan":         string(sub.Plan),
 		"seats":        sub.SeatCount,
 	})
@@ -230,7 +251,7 @@ func (h *WebhookHandler) handleCheckoutCompleted(ctx context.Context, event stri
 	return h.store.RecordBillingEvent(ctx, &BillingEvent{
 		WorkspaceID: workspaceID,
 		EventType:   "subscription_created",
-		Detail:      fmt.Sprintf("Checkout completed, plan=%s, seats=%d, customer=%s", sub.Plan, sub.SeatCount, sess.Customer.ID),
+		Detail:      fmt.Sprintf("Checkout completed, plan=%s, seats=%d, customer=%s", sub.Plan, sub.SeatCount, custID),
 	})
 }
 
