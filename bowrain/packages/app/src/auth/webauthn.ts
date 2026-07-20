@@ -105,6 +105,19 @@ const ELEVATE_URL = "/api/v1/account/security/elevate";
  * step-up re-authentication.
  */
 export function isElevationRequired(err: unknown): boolean {
+  // The 409 contract's machine code is the ApiError `code` (the envelope's
+  // `error` field), NOT `Error.message` — which now carries the human sentence
+  // ("This action needs a recent security check…"), so a substring check on the
+  // message silently fails and the step-up never starts. Duck-type on `code` so
+  // this holds regardless of which package instance constructed the ApiError.
+  if (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { code?: unknown }).code === "elevation_required"
+  ) {
+    return true;
+  }
+  // Defensive fallback for any non-envelope throw that still carries the marker.
   return err instanceof Error && err.message.includes("elevation_required");
 }
 
