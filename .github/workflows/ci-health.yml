@@ -72,7 +72,12 @@ jobs:
 
           short="${SHA:0:9}"
 
-          if [ "${CONCLUSION}" != "success" ]; then
+          # Only a genuine failure is "red". A cancelled/skipped/neutral run means
+          # the full suite didn't COMPLETE (commonly: rapid main merges supersede a
+          # queued run) — not that main is broken — so it must not raise the alarm.
+          # Those conclusions fall through to the close-check below, which reopens
+          # nothing and closes the issue if main is actually green again.
+          if [ "${CONCLUSION}" = "failure" ] || [ "${CONCLUSION}" = "timed_out" ]; then
             body=$(printf 'Workflow "%s" finished with "%s" on main at commit %s.\n\nRun: %s\n\npush-to-main and the nightly run the FULL suite (race detector, every module). A red here means main is broken even though the merging PR was green (its check was path-skipped). Fix forward or revert; this issue closes automatically when main is green across all watched workflows again.' \
               "$WF" "$CONCLUSION" "$short" "$RUN_URL")
             existing="$(num)"
