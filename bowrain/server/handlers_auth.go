@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -738,6 +739,46 @@ func (s *Server) HandleDeviceAuthCallback(c echo.Context) error {
 
 const refreshCookieName = "bowrain_refresh"
 
+// signedInHintCookie is a NON-HttpOnly, non-sensitive hint cookie set on the
+// PARENT domain (e.g. ".bowrain.cloud") alongside the session. It carries no
+// secret — just "1" — and exists so the same-site marketing landing can render
+// the correct CTA ("Go to app" vs "Sign in") on first paint, before its
+// credentialed whoami fetch resolves. whoami remains the source of truth; the
+// hint only removes the flash.
+const signedInHintCookie = "bowrain_signed_in"
+
+// parentCookieDomain derives the registrable parent domain for the cross-
+// subdomain hint cookie by stripping the first DNS label from the request host
+// (app.bowrain.cloud → ".bowrain.cloud"), so a cookie set by the app is
+// readable by the landing on the parent domain. It returns "" — meaning "omit
+// the Domain attribute" (a host-only cookie) — for localhost, IP hosts, or any
+// host with fewer than three labels, where a parent Domain would either be
+// rejected by the browser (public suffix) or be pointless.
+func parentCookieDomain(c echo.Context) string {
+	host := c.Request().Header.Get("X-Forwarded-Host")
+	if host == "" {
+		host = c.Request().Host
+	}
+	// Drop any port, then a trailing dot (fully-qualified form).
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	host = strings.TrimSuffix(host, ".")
+
+	// Host-only for localhost and bare IPs.
+	if host == "localhost" || net.ParseIP(host) != nil {
+		return ""
+	}
+
+	labels := strings.Split(host, ".")
+	// Need at least sub.domain.tld (3 labels) to strip a subdomain and be left
+	// with a non-public-suffix parent. Fewer → host-only.
+	if len(labels) < 3 {
+		return ""
+	}
+	return "." + strings.Join(labels[1:], ".")
+}
+
 // cookieSecure reports whether session cookies should carry the Secure flag.
 // It is true on a real HTTPS request OR when ForceSecureCookies is set. The
 // override matters behind CloudFront→ALB: TLS terminates at the edge and the
@@ -773,6 +814,20 @@ func (s *Server) setSessionCookies(c echo.Context, accessToken, refreshToken str
 			SameSite: http.SameSiteStrictMode,
 		})
 	}
+
+	// No-flash hint for the landing (parent-domain, readable by JS, non-secret).
+	// MaxAge tracks the session cookie so hint and whoami expire together — a
+	// stale hint would otherwise flash the wrong CTA.
+	c.SetCookie(&http.Cookie{
+		Name:     signedInHintCookie,
+		Value:    "1",
+		Path:     "/",
+		Domain:   parentCookieDomain(c),
+		MaxAge:   900, // 15 minutes — matches the session cookie
+		HttpOnly: false,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+	})
 }
 
 // clearSessionCookies removes the session and refresh cookies.
@@ -796,6 +851,17 @@ func (s *Server) clearSessionCookies(c echo.Context) {
 		HttpOnly: true,
 		Secure:   secure,
 		SameSite: http.SameSiteStrictMode,
+	})
+	// Clear the parent-domain no-flash hint (same Domain/Path as when set).
+	c.SetCookie(&http.Cookie{
+		Name:     signedInHintCookie,
+		Value:    "",
+		Path:     "/",
+		Domain:   parentCookieDomain(c),
+		MaxAge:   -1,
+		HttpOnly: false,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
 	})
 }
 
@@ -1017,6 +1083,58 @@ func (s *Server) HandleAuthMe(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, user)
+}
+
+// WhoAmIResponse is the trimmed, display-only body returned by
+// GET /api/v1/auth/whoami. It intentionally carries ONLY fields safe to expose
+// to a cross-origin caller (the marketing landing) — a name, an email, and an
+// avatar URL — and never a token, an internal user id, or the OIDC subject.
+type WhoAmIResponse struct {
+	Authenticated bool   `json:"authenticated"`
+	Name          string `json:"name"`
+	Email         string `json:"email"`
+	AvatarURL     string `json:"avatar_url"`
+}
+
+// HandleAuthWhoami is an unauthenticated-tolerant identity probe. It resolves
+// the session cookie itself (this route is registered OUTSIDE the auth-required
+// group) and ALWAYS returns 200:
+//
+//   - no / invalid / expired session → {authenticated:false} with empty fields;
+//   - valid session → {authenticated:true} with the display name, email, and
+//     avatar URL.
+//
+// The same-site marketing landing calls this cross-origin with credentials to
+// decide between a "Sign in" and a "Go to app" CTA. The response is display-only
+// by construction (WhoAmIResponse) — it never leaks a token or the full user
+// record across origins.
+func (s *Server) HandleAuthWhoami(c echo.Context) error {
+	claims := validateSessionCookie(c, s.Config.JWTSecret)
+	if claims == nil {
+		return c.JSON(http.StatusOK, WhoAmIResponse{Authenticated: false})
+	}
+
+	// The session JWT already carries a display name + email; use them as the
+	// answer (and the fallback) so whoami stays correct even if the user-record
+	// lookup below is briefly unavailable.
+	resp := WhoAmIResponse{
+		Authenticated: true,
+		Name:          claims.Name,
+		Email:         claims.Email,
+	}
+
+	// Enrich with the freshest profile (name/email may have changed) and the
+	// avatar URL from the user record. Best-effort: a lookup miss leaves the
+	// claim-derived fields in place.
+	if s.AuthStore != nil {
+		if user, err := s.AuthStore.GetUser(c.Request().Context(), claims.Subject); err == nil && user != nil {
+			resp.Name = user.Name
+			resp.Email = user.Email
+			resp.AvatarURL = user.AvatarURL
+		}
+	}
+
+	return c.JSON(http.StatusOK, resp)
 }
 
 // HandleAuthLogout invalidates the current session by revoking all refresh

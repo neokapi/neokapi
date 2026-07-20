@@ -35,6 +35,16 @@ type Config struct {
 	OIDCClientSecret string
 	OIDCPublicURL    string // browser-facing OIDC URL; defaults to OIDCIssuerURL
 
+	// PublicSiteURL is the origin of the marketing landing site (e.g.
+	// "https://bowrain.cloud"). It is same-site with the app (shared registrable
+	// domain) but a DIFFERENT origin, so the landing's credentialed fetch of
+	// GET /api/v1/auth/whoami — used to render the signed-in CTA — needs this
+	// origin on the CORS allowlist with AllowCredentials. Empty (default) leaves
+	// the credentialed cross-origin surface off; only this exact origin (plus the
+	// app's own origin) is ever allowed with credentials. Set via
+	// BOWRAIN_PUBLIC_SITE_URL.
+	PublicSiteURL string
+
 	// AuthProvider selects the upstream identity provider the server is wired
 	// to: "keycloak" (default; self-host/dev) or "cognito" (hosted prod). The
 	// OIDC verification path is provider-agnostic (issuer-URL driven either

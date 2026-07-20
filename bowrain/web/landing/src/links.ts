@@ -18,6 +18,12 @@ export function signupUrl(opts?: { plan?: string; seats?: number }): string {
   if (opts.seats && opts.seats > 0) params.set("seats", String(opts.seats));
   return `${SIGNUP_URL}?${params.toString()}`;
 }
+// Display-only identity probe on the app API. The landing (bowrain.cloud) is a
+// DIFFERENT origin from the app (app.bowrain.cloud) but same-site, so a
+// credentialed fetch sends the SameSite=Lax session cookie; the server answers
+// with only display fields (never a token). Used to render the signed-in CTA.
+export const whoamiUrl = () => `${APP_URL}/api/v1/auth/whoami`;
+
 export const GITHUB_URL = "https://github.com/neokapi";
 export const KAPI_SITE_URL = "https://neokapi.github.io/web/neokapi/";
 

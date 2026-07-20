@@ -1135,6 +1135,13 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		// rather than the client.
 		authGroup.GET("/check-slug", s.HandleCheckSlug)
 
+		// Display-only identity probe — intentionally OUTSIDE the auth-required
+		// group: it resolves the session cookie itself and always answers 200
+		// ({authenticated:false} when there is none). The same-site marketing
+		// landing reads it cross-origin (credentialed CORS) to render the
+		// signed-in CTA. It returns only display fields — never a token.
+		authGroup.GET("/whoami", s.HandleAuthWhoami)
+
 		// Email-change confirmation — token-authenticated, intentionally
 		// outside the JWT-protected group so the link works in any browser
 		// session (incl. one without an active Bowrain login).
@@ -2026,9 +2033,19 @@ func requestBaseURL(c echo.Context) string {
 }
 
 // corsConfig builds a CORS middleware configuration. When a fixed
-// OIDCPublicURL is configured (production), only that origin is allowed.
-// Otherwise, the middleware dynamically allows the request's own origin
-// (same-origin requests only).
+// OIDCPublicURL is configured (production), only that origin — plus the
+// marketing landing origin (PublicSiteURL), when set — is allowed. Otherwise
+// the middleware dynamically allows the request's own (localhost) origin, plus
+// the configured landing origin.
+//
+// Credentials are enabled so the landing (a DIFFERENT but same-site origin) can
+// read GET /api/v1/auth/whoami with the session cookie and render the signed-in
+// CTA. Per the Fetch spec, credentialed CORS forbids a "*" origin, so the
+// allowlist is kept to exactly the two trusted origins (app + landing). This is
+// BFF-safe — whoami returns only display JSON, never a token — and CSRF-safe:
+// the credentialed surface a cross-origin caller can reach is a read-only GET,
+// while every state-changing cookie request still passes the CSRF gate in
+// AuthMiddleware.
 func (s *Server) corsConfig() middleware.CORSConfig {
 	cfg := middleware.CORSConfig{
 		AllowMethods: []string{http.MethodGet, http.MethodHead, http.MethodPut, http.MethodPatch, http.MethodPost, http.MethodDelete, http.MethodOptions},
@@ -2036,28 +2053,57 @@ func (s *Server) corsConfig() middleware.CORSConfig {
 		// Expose the correlation ID so cross-origin clients (desktop app, CLI)
 		// can read it off any response and attach it as the error "reference".
 		ExposeHeaders: []string{observe.RequestIDHeader},
+		// Allow the same-site landing to send the session cookie on its whoami
+		// fetch. Never combined with a "*" origin (see origin allowlist below).
+		AllowCredentials: true,
 	}
 
+	landingOrigin := originOf(s.Config.PublicSiteURL)
+
 	if s.Config.OIDCPublicURL != "" {
-		// Use the OIDC public URL's origin (scheme + host) as the allowed origin.
-		if u, err := url.Parse(s.Config.OIDCPublicURL); err == nil && u.Host != "" {
-			origin := u.Scheme + "://" + u.Host
-			cfg.AllowOrigins = []string{origin}
+		// Fixed allowlist (production): the app's own origin plus the landing.
+		var origins []string
+		if o := originOf(s.Config.OIDCPublicURL); o != "" {
+			origins = append(origins, o)
+		}
+		if landingOrigin != "" {
+			origins = append(origins, landingOrigin)
+		}
+		if len(origins) > 0 {
+			cfg.AllowOrigins = origins
 			return cfg
 		}
 	}
 
-	// Dynamic: allow only requests whose Origin matches the server's own host.
+	// Dynamic: allow localhost origins (development) and the configured landing
+	// origin. Echo reflects only the matching origin — never "*" — so this stays
+	// credential-safe.
 	cfg.AllowOriginFunc = func(origin string) (bool, error) {
 		u, err := url.Parse(origin)
 		if err != nil {
 			return false, nil
 		}
-		// Allow localhost origins in development.
 		if u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1" {
+			return true, nil
+		}
+		if landingOrigin != "" && origin == landingOrigin {
 			return true, nil
 		}
 		return false, nil
 	}
 	return cfg
+}
+
+// originOf reduces a URL to its scheme://host origin (dropping any path, query,
+// or fragment). Returns "" when the input is empty or unparsable — callers omit
+// it from the allowlist rather than allow a malformed origin.
+func originOf(rawURL string) string {
+	if rawURL == "" {
+		return ""
+	}
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Host == "" {
+		return ""
+	}
+	return u.Scheme + "://" + u.Host
 }
