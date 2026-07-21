@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 
 import {
   languagePickerModel,
+  type LanguagePickerOptions,
   loadShipStatus,
   type LocaleInput,
   type PickerLocale,
@@ -22,6 +23,7 @@ import {
 
 export {
   languagePickerModel,
+  type LanguagePickerOptions,
   loadShipStatus,
   type LocaleBadge,
   type LocaleInput,
@@ -31,7 +33,9 @@ export {
 } from "./index.ts";
 
 /**
- * Load the ship manifest and return the picker render model for `locales`. On
+ * Load the ship manifest and return the picker render model for `locales`. Pass
+ * locale CODES; labels are derived automatically via `Intl.DisplayNames` (pass
+ * `options.labels` to override codes it cannot name, e.g. a pseudo-locale). On
  * first render (and until the manifest resolves) the model is computed from an
  * empty manifest, so every locale shows unbadged; it repaints once ship.json
  * loads. A missing/malformed manifest stays empty (the loader tolerates it).
@@ -42,6 +46,7 @@ export {
 export function useShipStatus(
   locales: ReadonlyArray<string | LocaleInput>,
   url?: string,
+  options?: LanguagePickerOptions,
 ): PickerLocale[] {
   const [status, setStatus] = useState<ShipStatus>({});
   useEffect(() => {
@@ -53,5 +58,5 @@ export function useShipStatus(
       alive = false;
     };
   }, [url]);
-  return languagePickerModel(status, locales);
+  return languagePickerModel(status, locales, options);
 }

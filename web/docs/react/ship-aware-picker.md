@@ -93,29 +93,54 @@ transform. The loader tolerates a missing or malformed manifest — it resolves 
 an empty object, so the picker falls back to showing every locale unbadged
 rather than breaking the page.
 
+Pass locale **codes**; the display label for each is derived automatically as the
+locale's endonym — the language named in its own language — via
+`Intl.DisplayNames`, so there is no per-locale label table to maintain:
+
 ```ts
 import { loadShipStatus, languagePickerModel } from "@neokapi/i18n-react/ship";
 
 const status = await loadShipStatus(); // defaults to /ship.json
-const model = languagePickerModel(status, [
-  { locale: "en", label: "English" },
-  { locale: "fr", label: "Français" },
-  { locale: "de", label: "Deutsch" },
-  { locale: "ja", label: "日本語" },
-]);
-// → [{ locale, label, shippable: true, badge: 'ai' | null }, …]
+const model = languagePickerModel(status, ["en", "fr", "de", "ja"]);
+// → [{ locale: "fr", label: "Français", shippable: true, badge: 'ai' | null }, …]
 ```
+
+The label is resolved in this order: an explicit `label` on a `LocaleInput`, then
+an entry in the `labels` override map, then the `Intl.DisplayNames` endonym, then
+the raw code. So an explicit label overrides the derived one where you want a
+different form, and the override map names locales `Intl` cannot — a pseudo-locale
+such as `qps` has no standard name, so give it one:
+
+```ts
+const model = languagePickerModel(status, ["fr", "de", "qps"], {
+  labels: { qps: "Pseudo English" },
+});
+// fr → "Français" (derived), de → "Deutsch" (derived), qps → "Pseudo English" (override)
+```
+
+The signature is
+`languagePickerModel(status, locales, options?)`, where `options` is
+`{ labels?: Record<string, string> }`.
+
+The first letter of a derived endonym is capitalized for a menu-style label
+(`français` → `Français`), so lowercase endonyms read consistently alongside the
+ones that are already capitalized (`Deutsch`); scripts without case (`日本語`) are
+left unchanged. If `Intl.DisplayNames` is unavailable or has no name for a code,
+the label falls back to the override map and then to the raw code — it never
+throws.
 
 `languagePickerModel` returns only the shippable locales. Each entry carries a
 `badge`: `'ai'` when the locale ships but is not verified, and `null` when it is
 verified. **`'ai'` is the only badge this layer emits — a verified locale has no
-badge.** A React binding wraps the same two functions:
+badge.** A React binding wraps the same two functions and takes the same options
+as a third argument:
 
 ```tsx
 import { useShipStatus } from "@neokapi/i18n-react/ship/react";
 
 function LanguagePicker({ locales }) {
-  const options = useShipStatus(locales); // loads /ship.json, returns the model
+  // loads /ship.json, derives labels, returns the model
+  const options = useShipStatus(locales, undefined, { labels: { qps: "Pseudo English" } });
   return (
     <ul>
       {options.map(({ locale, label, badge }) => (
@@ -131,7 +156,9 @@ function LanguagePicker({ locales }) {
 
 Rendering is left to the application: style the entries and the `AI` badge to
 match your design. Development-only locales (pseudo-translation such as `qps`)
-are not part of this model — surface those separately in your own dev tooling.
+are not part of the ship manifest — name them through the `labels` override map
+if you list them in the picker, or surface them separately in your own dev
+tooling.
 
 ## Compatibility
 
