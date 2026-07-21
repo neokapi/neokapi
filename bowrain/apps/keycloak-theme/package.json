@@ -16,12 +16,12 @@
   "dependencies": {
     "@neokapi/docs-shared": "*",
     "@neokapi/ui": "*",
-    "@tailwindcss/vite": "^4.3.2",
+    "@tailwindcss/vite": "^4.3.3",
     "keycloakify": "^11.15.11",
-    "lucide-react": "^1.24.0",
+    "lucide-react": "^1.25.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "tailwindcss": "^4.3.2"
+    "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
     "@types/node": "^25.9.2",
@@ -29,6 +29,6 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "typescript": "^7.0.2",
-    "vite-plus": "^0.2.4"
+    "vite-plus": "^0.2.5"
   }
 }

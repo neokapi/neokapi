@@ -17,23 +17,23 @@
     "test:e2e:headed": "vpx playwright test --headed"
   },
   "dependencies": {
-    "@lexical/react": "^0.47.0",
+    "@lexical/react": "^0.48.0",
     "@neokapi/bowrain-app": "*",
     "@neokapi/contract-types": "*",
     "@neokapi/flow-editor": "*",
     "@neokapi/i18n-react": "*",
     "@neokapi/ui": "*",
-    "@tailwindcss/vite": "^4.3.2",
-    "@tanstack/react-query": "^5.101.2",
-    "@tanstack/react-router": "^1.170.17",
+    "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/react-query": "^5.101.3",
+    "@tanstack/react-router": "^1.170.18",
     "@wailsio/runtime": "^3.0.0-alpha.79",
     "@xyflow/react": "^12.11.2",
-    "lexical": "^0.47.0",
-    "lucide-react": "^1.24.0",
-    "posthog-js": "^1.399.2",
+    "lexical": "^0.48.0",
+    "lucide-react": "^1.25.0",
+    "posthog-js": "^1.405.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "tailwindcss": "^4.3.2"
+    "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
@@ -45,6 +45,6 @@
     "@vitejs/plugin-react": "^6.0.3",
     "jsdom": "^29.1.1",
     "typescript": "^7.0.2",
-    "vite-plus": "^0.2.4"
+    "vite-plus": "^0.2.5"
   }
 }
