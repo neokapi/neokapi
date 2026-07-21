@@ -22,6 +22,7 @@ import {
 } from "./ast.ts";
 import { buildJSXPath, FRAGMENT_DESCRIPTOR } from "./jsx-path.ts";
 import { collectTIdentifiers, walkTCalls } from "./messages.ts";
+import { collectHeadIdentifiers, walkHeadCalls } from "./head.ts";
 import { buildRuns } from "./runs.ts";
 import { getTranslatability } from "../plugin/defaults.ts";
 import { hasTranslatableText, isAllInlineContent, resolvePolicy } from "./translatable.ts";
@@ -30,7 +31,7 @@ import type { Warning, WarningCollector } from "./warnings.ts";
 import { isTranslatableAttribute } from "../plugin/defaults.ts";
 import { hashKey } from "../plugin/hash.ts";
 import { resolveLibraryComponentMap } from "../plugin/manifests.ts";
-import { CONTEXT_SEPARATOR, type PluginOptions } from "../types.ts";
+import { CONTEXT_SEPARATOR, HEAD_DESCRIPTOR, type PluginOptions } from "../types.ts";
 
 export type ExtractOptions = Pick<PluginOptions, "componentMap" | "rules" | "communityManifestDir">;
 
@@ -122,6 +123,15 @@ export function extractDocument(code: string, opts: WalkerOptions): Document | n
     code.slice(start - findBaseOffset(ast), end - findBaseOffset(ast)),
   )) {
     collector.visitTCall(call.text, call.context, call.node, fallbackComponent);
+  }
+
+  // Document-head strings set through the `@neokapi/i18n-react/head` hooks
+  // (title / meta / og / twitter). They carry no DOM text node, so the hook
+  // self-hashes at runtime with the `head` descriptor; emit the matching block
+  // so its translation lands in the catalog under the same hash.
+  const headNames = collectHeadIdentifiers(ast);
+  for (const call of walkHeadCalls(ast, headNames)) {
+    collector.visitHeadCall(call.text, call.node, fallbackComponent);
   }
 
   const blocks = collector.blocks();
@@ -410,6 +420,46 @@ class BlockCollector {
       source: [{ text }] as Run[],
       placeholders: [],
       properties,
+    });
+  }
+
+  // ─── Head hook calls ─────────────────────────────────────────
+
+  /**
+   * Emit a Block for a `@neokapi/i18n-react/head` hook call
+   * (`useTranslatedTitle("…")`, `useTranslatedDescription("…")`,
+   * `useTranslatedMeta("…", …)`). Head strings share one descriptor channel
+   * (`HEAD_DESCRIPTOR`) so the runtime hook — which self-hashes with the same
+   * descriptor — resolves against this block, and so identically-worded head
+   * kinds (`<title>` / `og:title`) reuse a single translation. The precise kind
+   * lives on the runtime registry, not the hash, so it isn't needed here.
+   */
+  visitHeadCall(
+    text: string,
+    node: { span: { start: number; end: number } },
+    component: string,
+  ): void {
+    if (text === "") return;
+
+    const hash = hashKey(text, HEAD_DESCRIPTOR);
+    if (this.seenHashes.has(hash)) return;
+    this.seenHashes.add(hash);
+
+    const line = lineFromOffset(this.code, node.span.start);
+    this.out.push({
+      id: `${this.filename}:${line}:head`,
+      hash,
+      translatable: true,
+      type: "js:t",
+      source: [{ text }] as Run[],
+      placeholders: [],
+      properties: {
+        file: this.filename,
+        line,
+        component,
+        jsxPath: "head",
+        element: "head",
+      },
     });
   }
 

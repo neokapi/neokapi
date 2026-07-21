@@ -92,3 +92,18 @@ export type PluginOptions = {
 
 /** Unit Separator — delimits context from translator note in hash computation. */
 export const CONTEXT_SEPARATOR = "\x1F";
+
+/**
+ * Hash descriptor channel for document-head translatables — the
+ * `<title>`, `<meta name="description">`, and Open Graph / Twitter
+ * card strings set through the `@neokapi/i18n-react/head` hooks.
+ *
+ * Head strings carry no DOM text node, so the build transform never
+ * rewrites them; instead the head hook self-hashes its source with
+ * this descriptor at runtime and the extractor emits the matching
+ * block. Using a dedicated channel (not the `t()` channel) keeps a
+ * page title distinct from an identically-worded JS label, while
+ * every head kind sharing one descriptor lets `<title>` and
+ * `og:title` reuse a single translation when their source matches.
+ */
+export const HEAD_DESCRIPTOR = "head";
