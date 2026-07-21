@@ -66,6 +66,22 @@ type KapiProject struct {
 	ShipGates []ShipGateRule       `yaml:"ship_gates,omitempty" json:"ship_gates,omitempty"`
 	Gates     map[string]gate.Gate `yaml:"gates,omitempty" json:"gates,omitempty"`
 
+	// Verified gates decide when localized content is "human-verified": the
+	// second gate, evaluated exactly like the ship gate but against a bar that
+	// implies a person reviewed or signed off the work (e.g. {reviewed: 100}).
+	// A locale that clears its ship gate but not its verified gate ships flagged
+	// AI in a language picker; a verified locale carries no badge. The two gates
+	// are independent — being verified is not a prerequisite for shipping. Same
+	// additive forms and precedence as the ship gate, resolving a rule's
+	// `gate: <name>` reference against the same Gates registry:
+	//   VerifiedGate  — a single catch-all gate.
+	//   VerifiedGates — a when/gate rule list; most-specific rule wins.
+	// With NO verified gate configured, nothing is verified: BuildVerifiedGates
+	// returns an empty RuleSet, so every locale reads unverified (the honest
+	// default — a project opts in to "verified" by declaring the bar).
+	VerifiedGate  gate.Gate      `yaml:"verified_gate,omitempty" json:"verified_gate,omitempty"`
+	VerifiedGates []ShipGateRule `yaml:"verified_gates,omitempty" json:"verified_gates,omitempty"`
+
 	// SourceGate is the source-readiness bar: a single coverage gate over the
 	// source authoring ladder (authored → checked → approved), e.g.
 	// {checked: 100}. It is the source-side counterpart of ShipGate — it gates

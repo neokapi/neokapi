@@ -267,6 +267,14 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 			return fmt.Errorf("compute coverage: %w", err)
 		}
 
+		// --ship emits the minimal picker manifest (locale → {shippable,
+		// verified}) and stops — a build redirects it to ship.json, or writes it
+		// with --emit. The richer coverage report is skipped: this shape is for a
+		// language picker, not a dashboard.
+		if ship, _ := cmd.Flags().GetBool("ship"); ship {
+			return a.emitShipManifest(cmd, BuildShipManifest(cov))
+		}
+
 		src, err := a.computeSourceReadiness(cmd.Context(), proj, units)
 		if err != nil {
 			return fmt.Errorf("compute source readiness: %w", err)
@@ -344,4 +352,6 @@ func AddStatusFlags(cmd Command) {
 	cmd.Flags().String("source-lang", "", "source language (overrides the project's source_language)")
 	cmd.Flags().Bool("review", false, "list translated units not yet approved in the project state store (the review worklist), instead of the coverage grid; approve a unit with `kapi apply` (kind:\"review\")")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
+	cmd.Flags().Bool("ship", false, "emit the minimal ship.json picker manifest (locale → {shippable, verified}) instead of the coverage grid — the shape a language picker consumes to hide un-shippable locales and badge unverified ones AI")
+	cmd.Flags().String("emit", "", "with --ship, write the manifest to this path (e.g. ship.json) instead of stdout")
 }

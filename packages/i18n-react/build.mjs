@@ -41,6 +41,8 @@ const entryPoints = [
   "src/review/store.ts",
   "src/review/manifest.ts",
   "src/review/hosted.ts",
+  "src/ship/index.ts",
+  "src/ship/react.tsx",
 ];
 
 // Rewrites ./foo.ts → ./foo.js in relative imports so the emitted JS

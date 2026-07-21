@@ -174,3 +174,122 @@ ship_gate: { reviewed: { pct: 100, by: robot } }
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "approver class")
 }
+
+// ── Verified gate: the second bar, resolved exactly like the ship gate ──
+
+func TestVerifiedGate_SingleMap(t *testing.T) {
+	p := loadProject(t, `
+version: v1
+name: app
+verified_gate: { reviewed: 100 }
+`)
+	require.True(t, p.HasVerifiedGates())
+	rs, err := p.BuildVerifiedGates()
+	require.NoError(t, err)
+
+	g, ok := rs.Resolve("docs", "nb")
+	require.True(t, ok)
+	assert.Equal(t, gate.Gate{"reviewed": {Pct: 100}}, g)
+}
+
+func TestVerifiedGates_RuleList_MostSpecificWins(t *testing.T) {
+	p := loadProject(t, `
+version: v1
+name: app
+verified_gates:
+  - when: { locales: [ja] }
+    gate: { signed-off: 100 }
+  - gate: { reviewed: 100 }
+`)
+	rs, err := p.BuildVerifiedGates()
+	require.NoError(t, err)
+
+	g, _ := rs.Resolve("docs", "ja")
+	assert.Equal(t, gate.Gate{"signed-off": {Pct: 100}}, g, "locale rule wins over the catch-all")
+
+	g, _ = rs.Resolve("docs", "de")
+	assert.Equal(t, gate.Gate{"reviewed": {Pct: 100}}, g, "falls to the catch-all default")
+}
+
+func TestVerifiedGates_NamedRegistryReference(t *testing.T) {
+	p := loadProject(t, `
+version: v1
+name: app
+gates:
+  human: { reviewed: { pct: 100, by: human } }
+verified_gates:
+  - gate: human
+`)
+	rs, err := p.BuildVerifiedGates()
+	require.NoError(t, err)
+	g, ok := rs.Resolve("docs", "ja")
+	require.True(t, ok)
+	assert.Equal(t, gate.Gate{"reviewed": {Pct: 100, By: gate.ByHuman}}, g,
+		"a verified gate resolves registry names against the shared gates: map")
+}
+
+func TestVerifiedGates_UnknownRegistryName(t *testing.T) {
+	p := loadProject(t, `
+version: v1
+name: app
+verified_gates:
+  - gate: missing
+`)
+	_, err := p.BuildVerifiedGates()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown registry gate")
+	assert.Contains(t, err.Error(), "verified_gates", "error names the verified field")
+}
+
+func TestVerifiedGates_InvalidStateRejected(t *testing.T) {
+	p := loadProject(t, `
+version: v1
+name: app
+verified_gate: { bogus: 100 }
+`)
+	_, err := p.BuildVerifiedGates()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown state")
+}
+
+func TestVerifiedGates_AbsentIsEmpty(t *testing.T) {
+	// The default: no verified gate configured → nothing resolves a verified
+	// gate → nothing is verified. Ship-gate resolution is untouched.
+	p := loadProject(t, `
+version: v1
+name: app
+ship_gate: { translated: 100 }
+`)
+	assert.False(t, p.HasVerifiedGates())
+	require.True(t, p.HasShipGates(), "ship gate is independent of the verified gate")
+
+	vs, err := p.BuildVerifiedGates()
+	require.NoError(t, err)
+	_, ok := vs.Resolve("docs", "nb")
+	assert.False(t, ok, "no verified gate configured — nothing is verified")
+
+	rs, err := p.BuildShipGates()
+	require.NoError(t, err)
+	_, ok = rs.Resolve("docs", "nb")
+	assert.True(t, ok, "the ship gate still resolves")
+}
+
+func TestVerifiedGates_RoundTrip(t *testing.T) {
+	src := `version: v1
+name: app
+verified_gates:
+    - when: {locales: [ja]}
+      gate: {signed-off: 100}
+    - gate: {reviewed: 100}
+`
+	p := loadProject(t, src)
+	out, err := yaml.Marshal(p)
+	require.NoError(t, err)
+	var p2 KapiProject
+	require.NoError(t, yaml.Unmarshal(out, &p2))
+	rs, err := p2.BuildVerifiedGates()
+	require.NoError(t, err)
+	g, ok := rs.Resolve("docs", "ja")
+	require.True(t, ok)
+	assert.Equal(t, gate.Gate{"signed-off": {Pct: 100}}, g)
+}

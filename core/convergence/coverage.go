@@ -82,8 +82,20 @@ func (t *CoverageTally) Coverage(s Scope) (gate.Coverage, bool) {
 // Rollup evaluates every tallied scope against the resolved ship gates and
 // returns the LocaleCoverage rows, sorted by (locale, collection). Percentages
 // are the rounded "at least" values over the target ladder; a scope no gate
-// rule matches reads as shippable.
-func (t *CoverageTally) Rollup(rules gate.RuleSet) []LocaleCoverage {
+// rule matches reads as shippable. It is RollupGates with no verified gate — the
+// verified flag is false everywhere.
+func (t *CoverageTally) Rollup(ship gate.RuleSet) []LocaleCoverage {
+	return t.RollupGates(ship, gate.RuleSet{})
+}
+
+// RollupGates evaluates every tallied scope against BOTH the ship gates and the
+// verified gates — the two-gate model — and returns the LocaleCoverage rows,
+// sorted by (locale, collection). Both gates read the same tallied distribution
+// over the target ladder; they differ only in the bar. A scope no ship rule
+// matches reads as shippable (the ship default); a scope no verified rule
+// matches reads as NOT verified (the verified default — nothing is verified
+// unless a bar is declared and cleared).
+func (t *CoverageTally) RollupGates(ship, verified gate.RuleSet) []LocaleCoverage {
 	ladder := gate.TargetLadder()
 	scopes := make([]Scope, 0, len(t.tallies))
 	for s := range t.tallies {
@@ -107,13 +119,19 @@ func (t *CoverageTally) Rollup(rules gate.RuleSet) []LocaleCoverage {
 		for _, rung := range ladder {
 			lc.Pct[rung] = int(math.Round(cov.AtLeastPct(ladder, rung)))
 		}
-		if g, ok := rules.Resolve(s.Collection, s.Locale); ok {
+		if g, ok := ship.Resolve(s.Collection, s.Locale); ok {
 			lc.Gated = true
 			res := gate.Evaluate(g, cov, ladder)
 			lc.Shippable = res.Pass
 			lc.Pending = res.Shortfalls
 		} else {
-			lc.Shippable = true // no gate matched this scope
+			lc.Shippable = true // no ship gate matched this scope
+		}
+		// The verified gate is evaluated the same way as the ship gate, over the
+		// same distribution. No matching rule means the scope has no verified bar,
+		// so it reads as unverified (the honest default).
+		if vg, ok := verified.Resolve(s.Collection, s.Locale); ok {
+			lc.Verified = gate.Evaluate(vg, cov, ladder).Pass
 		}
 		out = append(out, lc)
 	}

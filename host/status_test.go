@@ -258,6 +258,104 @@ func TestStatus_Coverage(t *testing.T) {
 	assert.False(t, ja.Shippable)
 }
 
+// writeVerifiedGateProject builds a project where everything ships (a trivial
+// ship gate) but only fully-translated locales are verified (verified_gate:
+// {translated: 100}). nb is fully translated (verified); de is 2 of 3
+// (shippable but unverified — the AI case). Using `translated` as the verified
+// bar keeps the test to file-scan coverage — the evaluation mechanism is what
+// matters, and it is identical to the ship gate's.
+func writeVerifiedGateProject(t *testing.T) string {
+	t.Helper()
+	t.Setenv("KAPI_NO_PROJECT", "")
+	root := t.TempDir()
+	recipe := `version: v1
+name: verified
+defaults:
+  source_language: en
+  target_languages: [nb, de]
+content:
+  - path: en.json
+    target: "{lang}.json"
+ship_gate: { translated: 0 }
+verified_gate: { translated: 100 }
+`
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "en.json"),
+		[]byte(`{"a":"Apple","b":"Banana","c":"Cherry"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "nb.json"),
+		[]byte(`{"a":"Eple","b":"Banan","c":"Kirsebær"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "de.json"),
+		[]byte(`{"a":"Apfel","b":"Banane"}`), 0o644))
+	return root
+}
+
+func TestStatus_VerifiedGate(t *testing.T) {
+	t.Chdir(writeVerifiedGateProject(t))
+	out := runStatusJSON(t)
+
+	nb, ok := locale(out, "nb")
+	require.True(t, ok)
+	assert.True(t, nb.Shippable, "trivial ship gate → shippable")
+	assert.True(t, nb.Verified, "fully translated clears verified_gate: {translated: 100}")
+
+	de, ok := locale(out, "de")
+	require.True(t, ok)
+	assert.True(t, de.Shippable, "ships under the translated:0 gate")
+	assert.False(t, de.Verified, "2 of 3 translated → not verified (the AI case)")
+}
+
+func TestStatus_NoVerifiedGate_NothingVerified(t *testing.T) {
+	// The default: writeStatusProject declares no verified gate, so every locale
+	// reads unverified regardless of coverage.
+	t.Chdir(writeStatusProject(t))
+	out := runStatusJSON(t)
+	require.NotEmpty(t, out.Locales)
+	for _, lc := range out.Locales {
+		assert.False(t, lc.Verified, "%s: no verified gate configured → unverified", lc.Locale)
+	}
+}
+
+func TestStatus_ShipManifestEmit(t *testing.T) {
+	root := writeVerifiedGateProject(t)
+	t.Chdir(root)
+	shipPath := filepath.Join(root, "ship.json")
+
+	a := &App{}
+	cmd := NewEnvCommand(context.Background(), "status")
+	AddProjectFlag(cmd)
+	AddStatusFlags(cmd)
+	require.NoError(t, cmd.Flags().Set("ship", "true"))
+	require.NoError(t, cmd.Flags().Set("emit", shipPath))
+	_, err := captureStdout(t, func() error { return a.RunStatus(cmd, nil) })
+	require.NoError(t, err)
+
+	raw, err := os.ReadFile(shipPath)
+	require.NoError(t, err)
+	var manifest map[string]ShipEntry
+	require.NoError(t, json.Unmarshal(raw, &manifest), "ship.json must be valid JSON: %s", raw)
+
+	assert.Equal(t, ShipEntry{Shippable: true, Verified: true}, manifest["nb"])
+	assert.Equal(t, ShipEntry{Shippable: true, Verified: false}, manifest["de"],
+		"shippable but unverified — the AI case")
+}
+
+func TestStatus_ShipManifestStdout(t *testing.T) {
+	// Without --emit, --ship prints the minimal manifest to stdout so a build can
+	// redirect it into ship.json.
+	t.Chdir(writeVerifiedGateProject(t))
+	a := &App{}
+	cmd := NewEnvCommand(context.Background(), "status")
+	AddProjectFlag(cmd)
+	AddStatusFlags(cmd)
+	require.NoError(t, cmd.Flags().Set("ship", "true"))
+	out, err := captureStdout(t, func() error { return a.RunStatus(cmd, nil) })
+	require.NoError(t, err)
+	var manifest map[string]ShipEntry
+	require.NoError(t, json.Unmarshal([]byte(out), &manifest), "stdout must be the ship manifest: %s", out)
+	assert.True(t, manifest["nb"].Verified)
+	assert.False(t, manifest["de"].Verified)
+}
+
 func shipGate(out verifyOutput) (verifyGateResult, bool) {
 	for _, g := range out.Gates {
 		if g.Gate == gateShip {

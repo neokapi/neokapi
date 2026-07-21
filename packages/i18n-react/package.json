@@ -71,6 +71,14 @@
       "types": "./dist/review/manifest.d.ts",
       "default": "./dist/review/manifest.js"
     },
+    "./ship": {
+      "types": "./dist/ship/index.d.ts",
+      "default": "./dist/ship/index.js"
+    },
+    "./ship/react": {
+      "types": "./dist/ship/react.d.ts",
+      "default": "./dist/ship/react.js"
+    },
     "./storybook": {
       "types": "./dist/storybook/index.d.ts",
       "default": "./dist/storybook/index.js"
