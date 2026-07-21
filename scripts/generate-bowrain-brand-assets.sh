@@ -28,7 +28,7 @@
 #     build/windows/icon.ico  frontend/public/favicon.ico
 #     frontend/public/apple-touch-icon.png (180, tile)
 #   docs site (bowrain/web/docs/static/img/):
-#     logo.png (256)  favicon.png (32)  favicon.ico  hero-logo.png (512, tile)
+#     logo.png (256)  favicon.png (32)  favicon.ico  hero-logo.png (512, transparent)
 #     apple-touch-icon.png (180, tile)
 #   keycloak theme (bowrain/apps/keycloak-theme/):
 #     public/logo.png (512)  src/login/assets/logo.png (512)
@@ -167,7 +167,10 @@ DOCS="$REPO_ROOT/bowrain/web/docs/static/img"
 resize "$MASTER" 256 "$DOCS/logo.png"
 rsvg-convert -w 32 -h 32 "$GLYPH" -o "$DOCS/favicon.png"  # glyph: crisp at tab size
 make_favicon "$MASTER" "$DOCS/favicon.ico"
-resize "$TILE" 512 "$DOCS/hero-logo.png"
+# Transparent, not the tile: this is shown inline on the docs homepage (not
+# used as an og:image), so it must sit on the page's own background in both
+# themes rather than carry a light square baked in.
+resize "$MASTER" 512 "$DOCS/hero-logo.png"
 resize "$TILE" 180 "$DOCS/apple-touch-icon.png"
 
 # --- Keycloak theme ----------------------------------------------------------
