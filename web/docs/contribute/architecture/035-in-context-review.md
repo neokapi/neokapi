@@ -68,6 +68,34 @@ free — no separate traversal, and no runtime identification machinery.
 This is dev/staging only, and gated behind an explicit flag: it puts
 source paths in the DOM and mounts a middleware that writes to disk.
 
+### Head strings have no DOM node — a runtime registry
+
+The stamp needs an element to attach to. The document head has none: a
+`<title>`, a `<meta name="description">`, an Open Graph card title are
+page metadata, not rendered content, so there is nothing to hover and
+nothing to outline — and these are frequently the highest-SEO-value
+strings on the page.
+
+They are reached through the opt-in `@neokapi/i18n-react/head` hooks
+(`useTranslatedTitle`, `useTranslatedDescription`, `useTranslatedMeta`).
+A head string never gets a DOM text node, so the build transform cannot
+rewrite it the way it rewrites a `t()` call. Instead the hook
+**self-hashes** its source at render time, using a browser port of the
+build hasher over a dedicated `head` descriptor channel, and looks the
+translation up in the runtime dictionary. The extractor recognises the
+same hook calls and emits a matching block, so the hash the hook
+computes and the `Block.hash` the extractor writes are identical by
+construction — the [hash-parity](019-i18n-react.md) invariant, extended
+to the head. (A `hash-parity` test asserts the two hashers agree.)
+
+As it applies the string, the hook registers `{ kind, hash, source }`
+in a small framework-free registry the overlay reads. The overlay lists
+the page's head translatables in a panel and edits them through the
+identical `PUT /{hash}` write-back a body string uses — the block exists
+in the KLF tree, so the store keys on it with no new protocol. Nothing
+scrapes arbitrary head markup: only strings the pipeline translated
+register, and a page with none shows no panel.
+
 ### The dev server serves the KLF tree
 
 `/__kapi/review` (mounted by the Vite plugin, plain Node `http` so it

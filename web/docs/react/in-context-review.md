@@ -36,6 +36,31 @@ Type a fix, save, and the app repaints immediately. You are not previewing the c
 
 The fix is written into the `.klf` file the string came from — so it shows up as a line in `git diff`, travels through review in a pull request like any other change, and is picked up by the next `neokapi-i18n compile` with no extra step. A reviewer's edit takes exactly the same path as a translator's, because it is the same file.
 
+## Head and SEO strings
+
+The page title, meta description, and Open Graph / Twitter card strings carry no rendered text node, so there is nothing on the page to hold ALT and click — yet they are often the strings a search result or a shared link shows first. Translate them through the head hooks and they become reviewable in a panel of their own.
+
+```tsx
+import {
+  useTranslatedTitle,
+  useTranslatedDescription,
+  useTranslatedMeta,
+} from "@neokapi/i18n-react/head";
+
+function Head() {
+  useTranslatedTitle("Dashboard · Acme");
+  useTranslatedDescription("Manage your team, projects, and billing.");
+  useTranslatedMeta("Dashboard · Acme", { property: "og:title" });
+  return null;
+}
+```
+
+Each hook translates its source through the runtime dictionary — the same lookup `t()` uses — sets the real head element, and registers the string for review. Nothing scrapes arbitrary head markup; only strings the pipeline translated appear.
+
+A **head/SEO** button appears in the review toolbar whenever a page has such strings. It opens a panel listing each one — its slot (`title`, `description`, `og:title`, …), the source, and the current target — with the same editable field and save the inline panel uses. An edit writes back through the same `.klf` file and repaints the head in place. When a page registers no head strings, the button stays hidden.
+
+Head translation resolves through the runtime dictionary, so it applies in OTA / [runtime mode](./modes). Identically-worded slots — a `<title>` and its `og:title` — share one translation.
+
 ## See terminology and QA on the page
 
 Run kapi's checks against the same `i18n/` directory and their findings appear on the rendered text:

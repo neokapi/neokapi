@@ -59,6 +59,10 @@
       "types": "./dist/runtime/pseudo.d.ts",
       "default": "./dist/runtime/pseudo.js"
     },
+    "./head": {
+      "types": "./dist/head/index.d.ts",
+      "default": "./dist/head/index.js"
+    },
     "./review": {
       "types": "./dist/review/index.d.ts",
       "default": "./dist/review/index.js"
