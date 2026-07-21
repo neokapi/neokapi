@@ -36,8 +36,15 @@ type LocaleCoverage struct {
 	Total      int              `json:"total"`
 	Pct        map[string]int   `json:"pct"`               // ladder state → "at least" percent (rounded)
 	Gated      bool             `json:"gated"`             // a ship gate applies to this scope
-	Shippable  bool             `json:"shippable"`         // gate satisfied (or no gate)
-	Pending    []gate.Shortfall `json:"pending,omitempty"` // unmet gate thresholds
+	Shippable  bool             `json:"shippable"`         // ship gate satisfied (or no ship gate)
+	Pending    []gate.Shortfall `json:"pending,omitempty"` // unmet ship-gate thresholds
+	// Verified reports whether the scope clears its verified gate — the second,
+	// independent bar meaning a person reviewed or signed off the content. It is
+	// evaluated exactly like Shippable but against the recipe's verified gate.
+	// With no verified gate configured for the scope, Verified is false (nothing
+	// is verified by default): a shippable-but-unverified locale is flagged AI in
+	// a language picker, a verified one carries no badge.
+	Verified bool `json:"verified"`
 	// AIReviewed counts units whose reviewed/signed-off rung was reached by an
 	// autonomous AI decision ("ai/…" identity). They read as reviewed in Pct —
 	// with an "(ai)" qualifier in displays — but do not satisfy a gate's

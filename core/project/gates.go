@@ -50,13 +50,16 @@ func (r GateRef) MarshalYAML() (any, error) {
 	return r.Inline, nil
 }
 
-// BuildShipGates resolves the recipe's ship-gate configuration into an
-// evaluatable gate.RuleSet, expanding registry references and validating every
-// gate against the target lifecycle ladder. Resolution precedence:
-//   - ShipGates (the rule list), if present;
-//   - else ShipGate (a single catch-all gate), if present;
-//   - else an empty RuleSet (no gate configured — nothing is gated).
-func (p *KapiProject) BuildShipGates() (gate.RuleSet, error) {
+// resolveGateGates turns a recipe gate configuration — a when/gate rule list or
+// a single catch-all gate — into a validated gate.RuleSet over the target
+// lifecycle ladder, expanding any registry-name reference against p.Gates.
+// It is the shared resolver behind the ship and verified gates. Precedence:
+//   - the rule list, if present;
+//   - else the catch-all gate, if present;
+//   - else an empty RuleSet (no gate configured — nothing matched).
+//
+// label names the field in error messages ("ship_gates" / "verified_gates").
+func (p *KapiProject) resolveGateGates(catchAll gate.Gate, ruleList []ShipGateRule, label string) (gate.RuleSet, error) {
 	resolve := func(ref GateRef) (gate.Gate, error) {
 		if ref.Name != "" {
 			g, ok := p.Gates[ref.Name]
@@ -70,11 +73,11 @@ func (p *KapiProject) BuildShipGates() (gate.RuleSet, error) {
 
 	var rules []gate.Rule
 	switch {
-	case len(p.ShipGates) > 0:
-		for i, r := range p.ShipGates {
+	case len(ruleList) > 0:
+		for i, r := range ruleList {
 			g, err := resolve(r.Gate)
 			if err != nil {
-				return gate.RuleSet{}, fmt.Errorf("ship_gates[%d]: %w", i, err)
+				return gate.RuleSet{}, fmt.Errorf("%s[%d]: %w", label, i, err)
 			}
 			var sel gate.Selector
 			if r.When != nil {
@@ -82,8 +85,8 @@ func (p *KapiProject) BuildShipGates() (gate.RuleSet, error) {
 			}
 			rules = append(rules, gate.Rule{When: sel, Gate: g})
 		}
-	case len(p.ShipGate) > 0:
-		rules = append(rules, gate.Rule{Gate: p.ShipGate})
+	case len(catchAll) > 0:
+		rules = append(rules, gate.Rule{Gate: catchAll})
 	}
 
 	rs := gate.RuleSet{Rules: rules}
@@ -93,9 +96,34 @@ func (p *KapiProject) BuildShipGates() (gate.RuleSet, error) {
 	return rs, nil
 }
 
+// BuildShipGates resolves the recipe's ship-gate configuration into an
+// evaluatable gate.RuleSet, expanding registry references and validating every
+// gate against the target lifecycle ladder. Resolution precedence:
+//   - ShipGates (the rule list), if present;
+//   - else ShipGate (a single catch-all gate), if present;
+//   - else an empty RuleSet (no gate configured — nothing is gated).
+func (p *KapiProject) BuildShipGates() (gate.RuleSet, error) {
+	return p.resolveGateGates(p.ShipGate, p.ShipGates, "ship_gates")
+}
+
 // HasShipGates reports whether the recipe configures any ship gate.
 func (p *KapiProject) HasShipGates() bool {
 	return len(p.ShipGates) > 0 || len(p.ShipGate) > 0
+}
+
+// BuildVerifiedGates resolves the recipe's verified-gate configuration into an
+// evaluatable gate.RuleSet, mirroring BuildShipGates exactly (same precedence,
+// same registry resolution, same target-ladder validation) but over the
+// verified_gate/verified_gates fields. An absent configuration yields an empty
+// RuleSet — no locale resolves a verified gate, so nothing is verified. This is
+// the deliberate default: a project declares the human-verified bar to opt in.
+func (p *KapiProject) BuildVerifiedGates() (gate.RuleSet, error) {
+	return p.resolveGateGates(p.VerifiedGate, p.VerifiedGates, "verified_gates")
+}
+
+// HasVerifiedGates reports whether the recipe configures any verified gate.
+func (p *KapiProject) HasVerifiedGates() bool {
+	return len(p.VerifiedGates) > 0 || len(p.VerifiedGate) > 0
 }
 
 // BuildSourceGate validates and returns the recipe's source-readiness gate (a

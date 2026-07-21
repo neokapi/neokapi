@@ -256,6 +256,10 @@ func (a *App) ComputeShipCoverage(ctx context.Context, proj *project.KapiProject
 	if err != nil {
 		return nil, err
 	}
+	vs, err := proj.BuildVerifiedGates()
+	if err != nil {
+		return nil, err
+	}
 	reviewed, err := a.loadReviewedCorrections(proj, root)
 	if err != nil {
 		return nil, err
@@ -320,5 +324,5 @@ func (a *App) ComputeShipCoverage(ctx context.Context, proj *project.KapiProject
 		}
 	}
 
-	return tally.Rollup(rs), nil
+	return tally.RollupGates(rs, vs), nil
 }
