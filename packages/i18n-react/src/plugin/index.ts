@@ -12,6 +12,7 @@ import { createUnplugin } from "unplugin";
 import { transform } from "./transform.ts";
 import { buildChunkManifest, type BundleLike } from "./chunk-manifest.ts";
 import type { PluginOptions } from "../types.ts";
+import type { ReviewManifest, ReviewManifestEntry } from "../review/manifest.ts";
 
 export type { PluginOptions };
 export type { TranslationsManifest } from "./chunk-manifest.ts";
@@ -25,6 +26,17 @@ interface EmitContext {
 }
 
 const MANIFEST_FILENAME = "translations-manifest.json";
+
+/**
+ * Read-only review manifest emitted when `review: true`, in any render
+ * mode (inline/SSG or runtime). Path matches the hosted overlay's
+ * default fetch URL (`<base>translations/review.json`), so a static
+ * build is self-sufficient: stamps + this file → `initKapiReviewHosted`
+ * works with no dev server and no app i18n runtime (AD-035). Richer
+ * manifests (all locales, term/QA annotations) still come from
+ * `neokapi-i18n compile --review`, which reads the whole KLF tree.
+ */
+const REVIEW_FILENAME = "translations/review.json";
 
 /** Review mode: explicit option, or the KAPI_REVIEW=1 env toggle. */
 function reviewEnabled(options: PluginOptions): boolean {
@@ -43,25 +55,53 @@ export const unpluginFactory = (rawOptions: PluginOptions = {}) => {
   // Resolve the review toggle once (option or KAPI_REVIEW env) so the
   // transform, middleware, and html injection agree.
   const options: PluginOptions = { ...rawOptions, review: reviewEnabled(rawOptions) };
-  if (options.review && options.mode !== "runtime") {
-    console.warn(
-      "[neokapi] review mode needs mode: 'runtime' (live dictionary lookups); " +
-        "stamping data-kapi-* attributes anyway, but in-place repaint won't work.",
-    );
-  }
   // module id → hashes the transform emitted into `__t`/`__tx` calls.
   // Consumed by the Vite/Rollup `generateBundle` hook to emit the
   // per-chunk manifest (issue #406). Only populated in runtime mode.
   const hashesByFile = new Map<string, Set<string>>();
+  // block hash → review data, unioned across every transformed file.
+  // Serialized to `translations/review.json` when `review: true`.
+  // Render-mode-independent (populated in inline and runtime alike).
+  const reviewByHash = new Map<string, ReviewManifestEntry>();
+
+  /** Merge one file's review entries into the build-wide manifest. */
+  function mergeReview(fileManifest: ReviewManifest): void {
+    for (const [hash, entry] of Object.entries(fileManifest)) {
+      const existing = reviewByHash.get(hash);
+      if (!existing) {
+        reviewByHash.set(hash, entry);
+        continue;
+      }
+      if (!existing.source && entry.source) existing.source = entry.source;
+      if (!existing.properties.file && entry.properties.file)
+        existing.properties = entry.properties;
+      for (const [loc, text] of Object.entries(entry.targets)) existing.targets[loc] ??= text;
+    }
+  }
+
+  /** Serialize the accumulated review manifest (sorted for reproducibility). */
+  function buildReviewJSON(): string {
+    const manifest: ReviewManifest = {};
+    for (const hash of Array.from(reviewByHash.keys()).sort()) {
+      manifest[hash] = reviewByHash.get(hash) as ReviewManifestEntry;
+    }
+    return JSON.stringify(manifest, null, 2);
+  }
 
   function emitManifest(ctx: EmitContext, bundle: BundleLike): void {
-    if (options.mode !== "runtime") return;
-    const manifest = buildChunkManifest(bundle, hashesByFile);
-    ctx.emitFile({
-      type: "asset",
-      fileName: MANIFEST_FILENAME,
-      source: JSON.stringify(manifest, null, 2),
-    });
+    if (options.mode === "runtime") {
+      const manifest = buildChunkManifest(bundle, hashesByFile);
+      ctx.emitFile({
+        type: "asset",
+        fileName: MANIFEST_FILENAME,
+        source: JSON.stringify(manifest, null, 2),
+      });
+    }
+    // Review manifest: gated on `review`, not mode — a static/inline
+    // build emits it too, so the hosted overlay works on SSG pages.
+    if (options.review) {
+      ctx.emitFile({ type: "asset", fileName: REVIEW_FILENAME, source: buildReviewJSON() });
+    }
   }
 
   return {
@@ -72,6 +112,7 @@ export const unpluginFactory = (rawOptions: PluginOptions = {}) => {
       // Full builds start clean. Dev-server HMR doesn't call this
       // per edit, but dev doesn't emit a manifest anyway (no bundle).
       hashesByFile.clear();
+      reviewByHash.clear();
     },
 
     transformInclude(id: string) {
@@ -79,13 +120,15 @@ export const unpluginFactory = (rawOptions: PluginOptions = {}) => {
     },
 
     transform(code: string, id: string) {
-      // Dev mode: no locale and no runtime mode → no-op
-      if (!options.locale && options.mode !== "runtime") return null;
+      // No-op unless there's work: a locale (inline), runtime mode, or
+      // review (which stamps + records a manifest in any mode).
+      if (!options.locale && options.mode !== "runtime" && !options.review) return null;
       const result = transform(code, id, options);
       if (!result) return null;
       if (options.mode === "runtime" && result.hashes.length > 0) {
         hashesByFile.set(id, new Set(result.hashes));
       }
+      if (options.review) mergeReview(result.review);
       return { code: result.code };
     },
 
@@ -156,7 +199,7 @@ export const unpluginFactory = (rawOptions: PluginOptions = {}) => {
     // steer users to, and route-level lazy loading silently no-oped.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     webpack(compiler: any) {
-      if (options.mode !== "runtime") return;
+      if (options.mode !== "runtime" && !options.review) return;
       const { webpack } = compiler;
       compiler.hooks.thisCompilation.tap("neoneokapi-i18n", (compilation: any) => {
         compilation.hooks.processAssets.tap(
@@ -165,21 +208,29 @@ export const unpluginFactory = (rawOptions: PluginOptions = {}) => {
             stage: webpack.Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
           },
           () => {
-            const bundle: BundleLike = {};
-            for (const chunk of compilation.chunks) {
-              const modules: Record<string, unknown> = {};
-              for (const mod of compilation.chunkGraph.getChunkModulesIterable(chunk)) {
-                const resource = (mod as { resource?: string }).resource;
-                if (resource) modules[resource] = true;
+            if (options.mode === "runtime") {
+              const bundle: BundleLike = {};
+              for (const chunk of compilation.chunks) {
+                const modules: Record<string, unknown> = {};
+                for (const mod of compilation.chunkGraph.getChunkModulesIterable(chunk)) {
+                  const resource = (mod as { resource?: string }).resource;
+                  if (resource) modules[resource] = true;
+                }
+                const name: string = chunk.name ?? chunk.id?.toString() ?? "chunk";
+                bundle[name] = { type: "chunk", name, modules };
               }
-              const name: string = chunk.name ?? chunk.id?.toString() ?? "chunk";
-              bundle[name] = { type: "chunk", name, modules };
+              const manifest = buildChunkManifest(bundle, hashesByFile);
+              compilation.emitAsset(
+                MANIFEST_FILENAME,
+                new webpack.sources.RawSource(JSON.stringify(manifest, null, 2)),
+              );
             }
-            const manifest = buildChunkManifest(bundle, hashesByFile);
-            compilation.emitAsset(
-              MANIFEST_FILENAME,
-              new webpack.sources.RawSource(JSON.stringify(manifest, null, 2)),
-            );
+            if (options.review) {
+              compilation.emitAsset(
+                REVIEW_FILENAME,
+                new webpack.sources.RawSource(buildReviewJSON()),
+              );
+            }
           },
         );
       });
@@ -191,44 +242,52 @@ export const unpluginFactory = (rawOptions: PluginOptions = {}) => {
     esbuild: {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setup(build: any) {
-        if (options.mode !== "runtime") return;
+        if (options.mode !== "runtime" && !options.review) return;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         build.onEnd(async (result: any) => {
           const outdir = build.initialOptions.outdir;
           if (!outdir) return;
-          const bundle: BundleLike = {};
-          if (result.metafile) {
-            for (const [outFile, output] of Object.entries(
-              result.metafile.outputs as Record<string, { inputs: Record<string, unknown> }>,
-            )) {
-              if (!outFile.endsWith(".js") && !outFile.endsWith(".mjs")) continue;
-              const modules: Record<string, unknown> = {};
-              for (const input of Object.keys(output.inputs)) {
-                modules[input] = true;
-                // hashesByFile keys are absolute; metafile inputs are
-                // outdir-relative — index both spellings.
-                modules[resolvePath(input)] = true;
-              }
-              const name = basenameNoExt(outFile);
-              bundle[name] = { type: "chunk", name, modules };
-            }
-          } else {
-            const modules: Record<string, unknown> = {};
-            for (const id of hashesByFile.keys()) modules[id] = true;
-            bundle["main"] = { type: "chunk", name: "main", modules };
-            console.warn(
-              "[neokapi] esbuild build has no metafile — emitting a single-chunk " +
-                "translations-manifest.json. Pass `metafile: true` for per-chunk splitting.",
-            );
-          }
-          const manifest = buildChunkManifest(bundle, hashesByFile);
           const { writeFile, mkdir } = await import("node:fs/promises");
           await mkdir(outdir, { recursive: true });
-          await writeFile(
-            joinPath(outdir, MANIFEST_FILENAME),
-            JSON.stringify(manifest, null, 2),
-            "utf8",
-          );
+
+          if (options.mode === "runtime") {
+            const bundle: BundleLike = {};
+            if (result.metafile) {
+              for (const [outFile, output] of Object.entries(
+                result.metafile.outputs as Record<string, { inputs: Record<string, unknown> }>,
+              )) {
+                if (!outFile.endsWith(".js") && !outFile.endsWith(".mjs")) continue;
+                const modules: Record<string, unknown> = {};
+                for (const input of Object.keys(output.inputs)) {
+                  modules[input] = true;
+                  // hashesByFile keys are absolute; metafile inputs are
+                  // outdir-relative — index both spellings.
+                  modules[resolvePath(input)] = true;
+                }
+                const name = basenameNoExt(outFile);
+                bundle[name] = { type: "chunk", name, modules };
+              }
+            } else {
+              const modules: Record<string, unknown> = {};
+              for (const id of hashesByFile.keys()) modules[id] = true;
+              bundle["main"] = { type: "chunk", name: "main", modules };
+              console.warn(
+                "[neokapi] esbuild build has no metafile — emitting a single-chunk " +
+                  "translations-manifest.json. Pass `metafile: true` for per-chunk splitting.",
+              );
+            }
+            const manifest = buildChunkManifest(bundle, hashesByFile);
+            await writeFile(
+              joinPath(outdir, MANIFEST_FILENAME),
+              JSON.stringify(manifest, null, 2),
+              "utf8",
+            );
+          }
+
+          if (options.review) {
+            await mkdir(joinPath(outdir, "translations"), { recursive: true });
+            await writeFile(joinPath(outdir, REVIEW_FILENAME), buildReviewJSON(), "utf8");
+          }
         });
       },
     },

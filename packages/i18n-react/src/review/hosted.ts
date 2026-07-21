@@ -1,11 +1,23 @@
 /**
- * @neokapi/i18n-react/review/hosted — read-only in-context review for a
- * deployed site (browser).
+ * @neokapi/i18n-react/review/hosted — in-context review for a
+ * statically-rendered site (browser).
  *
- * The dev overlay (`review/index.ts`) needs a Vite middleware and writes back
- * to local `.klf` files. This variant needs neither: it reads a static
- * `review.json` (emitted by `neokapi-i18n compile --review`) and is entirely
- * read-only, so it works on a plain static deploy (GitHub/GitLab Pages).
+ * The dev overlay (`review/index.ts`) repaints through the app's i18n runtime
+ * dictionary, so it only works on `mode: "runtime"` builds. This variant
+ * repaints by patching the DOM directly and is independent of any app i18n
+ * runtime — so it works on a fully-static/inline (SSG/SSR) page. It reads a
+ * static `review.json` (emitted by the neokapi-i18n plugin when `review: true`,
+ * or by `neokapi-i18n compile --review`), and is read-only by default:
+ *
+ *   - Read-only (default): a plain static deploy (GitHub/GitLab Pages) — no
+ *     server needed. Deep-link, whole-page index, inspect source/target/notes.
+ *   - Edit (`edit: true`): the panel becomes editable. Saving PUTs to the same
+ *     review-store `{endpoint}/{hash}` protocol the dev overlay uses and patches
+ *     the element's text in place — live in-context editing even on a page with
+ *     no app i18n runtime. Requires a reachable review store (the dev middleware
+ *     or a proxied review backend); without one, saves fail and it stays
+ *     read-only. In-place repaint is text-only: blocks with inline codes or ICU
+ *     plurals save to the store but are not repainted live (see `canPatchInPlace`).
  *
  * What it enables — the "click from Bowrain into the live site" flow (#38):
  *
@@ -48,9 +60,24 @@ export interface HostedReviewOptions {
   reviewParam?: string;
   /** Open the panel (not just outline) when focusing via the deep link. Default true. */
   openOnFocus?: boolean;
+  /**
+   * Enable in-place editing. The panel shows an editable target; saving PUTs to
+   * `{endpoint}/{hash}` and patches the element's DOM text directly (no app i18n
+   * runtime required). Requires a reachable review store. Default false
+   * (read-only).
+   */
+  edit?: boolean;
+  /**
+   * Review-store base URL for edit saves (PUT `{endpoint}/{hash}`). Same
+   * protocol the dev overlay uses. Default "/__kapi/review".
+   */
+  endpoint?: string;
 }
 
 let installed = false;
+/** Set from options in `initKapiReviewHosted` — read by the panel. */
+let editEnabled = false;
+let reviewEndpoint = "/__kapi/review";
 
 /** Idempotent bootstrap. Safe to call before the manifest exists (fetch is lazy). */
 export function initKapiReviewHosted(options: HostedReviewOptions = {}): void {
@@ -61,6 +88,8 @@ export function initKapiReviewHosted(options: HostedReviewOptions = {}): void {
   const reviewParam = options.reviewParam ?? "kapi-review";
   const manifestUrl = options.manifestUrl ?? defaultManifestUrl();
   const openOnFocus = options.openOnFocus ?? true;
+  editEnabled = options.edit ?? false;
+  reviewEndpoint = (options.endpoint ?? "/__kapi/review").replace(/\/$/, "");
 
   let manifest: ReviewManifest = {};
   const getManifest = () => manifest;
@@ -357,7 +386,7 @@ function installClickHandler(getManifest: () => ReviewManifest): void {
   );
 }
 
-// ─── Panel (read-only) ───────────────────────────────────────
+// ─── Panel ───────────────────────────────────────────────────
 
 function openPanel(hash: string, el: Element, manifest: ReviewManifest): void {
   closePanel();
@@ -372,6 +401,44 @@ function openPanel(hash: string, el: Element, manifest: ReviewManifest): void {
         entry.properties.component ? ` · ${escapeHTML(entry.properties.component)}` : ""
       }`
     : "kapi review";
+  const canEdit = editEnabled;
+
+  const body: string[] = [];
+  if (entry) {
+    body.push(`<div class="kapi-label">Source</div>`);
+    body.push(`<div class="kapi-source">${escapeHTML(entry.source)}</div>`);
+    if (entry.properties.locNote) {
+      body.push(`<div class="kapi-label">Note</div>`);
+      body.push(`<div class="kapi-note">${escapeHTML(entry.properties.locNote)}</div>`);
+    }
+  }
+  body.push(
+    `<div class="kapi-label">Target <span class="kapi-locale">(${escapeHTML(locale || "—")})</span></div>`,
+  );
+  if (canEdit) {
+    body.push(
+      `<textarea id="kapi-review-edit" aria-label="Target translation">${escapeHTML(target)}</textarea>`,
+    );
+  } else {
+    body.push(
+      `<div class="kapi-target">${target ? escapeHTML(target) : '<span class="kapi-untranslated">untranslated</span>'}</div>`,
+    );
+  }
+  if (entry) {
+    body.push(renderOtherLocales(entry, locale));
+    body.push(renderAnnotations(entry.annotations));
+  } else if (!canEdit) {
+    body.push(
+      `<div class="kapi-note">No review data for this block — build with <code>review: true</code> or run <code>neokapi-i18n compile --review</code>.</div>`,
+    );
+  }
+
+  const actions = canEdit
+    ? `<button class="kapi-primary" id="kapi-review-save">Save</button>` +
+      `<button id="kapi-review-link" title="Copy a link that opens this block in context">⧉ Link</button>` +
+      `<span class="kapi-status" id="kapi-review-status"></span>`
+    : `<button id="kapi-review-link" title="Copy a link that opens this block in context">⧉ Copy context link</button>` +
+      `<span class="kapi-status" id="kapi-review-status">read-only</span>`;
 
   const panel = document.createElement("div");
   panel.id = "kapi-review-panel";
@@ -379,22 +446,8 @@ function openPanel(hash: string, el: Element, manifest: ReviewManifest): void {
     <button class="kapi-close" title="Close">✕</button>
     <h3>${heading}</h3>
     <div class="kapi-loc">${escapeHTML(loc)} · ${escapeHTML(hash)}</div>
-    ${
-      entry
-        ? `
-      <div class="kapi-label">Source</div>
-      <div class="kapi-source">${escapeHTML(entry.source)}</div>
-      ${entry.properties.locNote ? `<div class="kapi-label">Note</div><div class="kapi-note">${escapeHTML(entry.properties.locNote)}</div>` : ""}
-      <div class="kapi-label">Target <span class="kapi-locale">(${escapeHTML(locale || "—")})</span></div>
-      <div class="kapi-target">${target ? escapeHTML(target) : '<span class="kapi-untranslated">untranslated</span>'}</div>
-      ${renderOtherLocales(entry, locale)}
-      ${renderAnnotations(entry.annotations)}`
-        : `<div class="kapi-note">No review data for this block — run <code>neokapi-i18n compile --review</code>.</div>`
-    }
-    <div class="kapi-row">
-      <button id="kapi-review-link" title="Copy a link that opens this block in context">⧉ Copy context link</button>
-      <span class="kapi-status" id="kapi-review-status">read-only</span>
-    </div>
+    ${body.join("\n")}
+    <div class="kapi-row">${actions}</div>
   `;
   document.body.appendChild(panel);
 
@@ -408,6 +461,68 @@ function openPanel(hash: string, el: Element, manifest: ReviewManifest): void {
       () => (status.textContent = url.href),
     );
   });
+  if (canEdit) {
+    panel
+      .querySelector("#kapi-review-save")
+      ?.addEventListener("click", () => void saveEdit(hash, el, locale, manifest, panel));
+  }
+}
+
+/**
+ * Text-only in-place patch is safe only when the edited hash is the
+ * element's own content block (not one of its `data-kapi-attr` values —
+ * those are attribute strings, not text), the element has no inline
+ * structure to preserve (no child elements like `<a>`/`<strong>`), and
+ * the source carries no `{…}` placeholders / ICU. Anything else needs
+ * structural rendering a text swap can't reproduce, so we save to the
+ * store but skip the live repaint (a reload picks up the real rendering).
+ */
+function canPatchInPlace(el: Element, hash: string, entry?: ReviewManifestEntry): boolean {
+  if (el.getAttribute("data-kapi-id") !== hash) return false;
+  if (el.children.length > 0) return false;
+  return !/[{}]/.test(entry?.source ?? "");
+}
+
+/**
+ * PUT the edited target to the review store (`{endpoint}/{hash}`) — the same
+ * protocol the dev overlay uses — then patch the DOM in place and reflect the
+ * change in the in-memory manifest. Independent of any app i18n runtime.
+ */
+async function saveEdit(
+  hash: string,
+  el: Element,
+  locale: string,
+  manifest: ReviewManifest,
+  panel: Element,
+): Promise<void> {
+  const status = panel.querySelector("#kapi-review-status") as HTMLElement;
+  const textarea = panel.querySelector("#kapi-review-edit") as HTMLTextAreaElement | null;
+  if (!textarea) return;
+  const text = textarea.value;
+  if (!locale) {
+    status.textContent = "no active locale — switch language first";
+    return;
+  }
+  status.textContent = "saving…";
+  try {
+    const res = await fetch(`${reviewEndpoint}/${hash}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ locale, text }),
+    });
+    if (!res.ok) throw new Error(String(res.status));
+  } catch (err) {
+    status.textContent = `save failed (${String(err)})`;
+    return;
+  }
+  const entry = (manifest[hash] ??= { source: "", targets: {}, properties: {}, annotations: [] });
+  entry.targets[locale] = text;
+  if (canPatchInPlace(el, hash, entry)) {
+    el.textContent = text;
+    status.textContent = "saved ✓";
+  } else {
+    status.textContent = "saved — inline structure not repainted live";
+  }
 }
 
 function renderOtherLocales(entry: ReviewManifestEntry, active: string): string {
@@ -486,6 +601,8 @@ const STYLES = `
 #kapi-review-panel .kapi-label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #71717a; margin: 10px 0 3px; }
 #kapi-review-panel .kapi-source, #kapi-review-panel .kapi-target { white-space: pre-wrap; background: #f4f4f5; border-radius: 6px; padding: 8px; }
 #kapi-review-panel .kapi-target { background: #eef2ff; }
+#kapi-review-panel textarea { width: 100%; box-sizing: border-box; min-height: 64px; border: 1px solid #d4d4d8; border-radius: 6px; padding: 8px; font: inherit; background: #fff; color: inherit; }
+#kapi-review-panel button.kapi-primary { background: #4f46e5; border-color: #4f46e5; color: #fff; }
 #kapi-review-panel .kapi-untranslated { color: #a1a1aa; font-style: italic; }
 #kapi-review-panel .kapi-note { background: #fef9c3; border-radius: 6px; padding: 6px 8px; }
 #kapi-review-panel .kapi-other { font-size: 12px; padding: 3px 0; border-bottom: 1px solid #f4f4f5; }
@@ -561,6 +678,7 @@ html[data-kapi-review-mode] [data-kapi-review-untranslated] {
   #kapi-review-panel { background: #18181b; color: #fafafa; border-color: #3f3f46; }
   #kapi-review-panel .kapi-source { background: #27272a; }
   #kapi-review-panel .kapi-target { background: #1e1b4b; }
+  #kapi-review-panel textarea { background: #27272a; border-color: #3f3f46; }
   #kapi-review-panel .kapi-note { background: #422006; }
   #kapi-review-panel .kapi-other { border-bottom-color: #27272a; }
   #kapi-review-panel .kapi-ann { background: #172554; }

@@ -34,6 +34,7 @@ import {
 import { isTranslatableAttribute } from "./defaults.ts";
 import { hashKey } from "./hash.ts";
 import { CONTEXT_SEPARATOR, type PluginOptions } from "../types.ts";
+import type { ReviewManifest } from "../review/manifest.ts";
 
 type TransformOp = {
   offset: number;
@@ -209,9 +210,15 @@ export function transform(
   code: string,
   filename: string,
   options: PluginOptions,
-): { code: string; hashes: string[] } | null {
+): { code: string; hashes: string[]; review: ReviewManifest } | null {
   const rules = options.rules || [];
-  const mode = options.mode || (options.locale ? "inline" : undefined);
+  // Review runs even without a locale: a source-language build still
+  // stamps `data-kapi-id` and contributes review-manifest entries, so
+  // the read-only hosted overlay works on any statically-rendered page
+  // (the IDs are content hashes — render-mode-independent, AD-035).
+  // Such a build defaults to inline (bakes source, adds stamps); an
+  // explicit `mode` always wins.
+  const mode = options.mode || (options.locale || options.review ? "inline" : undefined);
   if (!mode) return null;
 
   const dict = mode === "inline" ? loadTranslationDict(options) : null;
@@ -252,6 +259,14 @@ export function transform(
   // manifest (issue #406). Inline builds stay at zero — baked strings
   // don't hit the runtime dict.
   const hashes = new Set<string>();
+  // Review-manifest entries this file contributes (keyed by block
+  // hash): source text, the build locale's baked target, and
+  // translator-facing properties. Populated only when
+  // `options.review`; the plugin unions these across files and emits
+  // `translations/review.json` — the read-only hosted overlay's data
+  // source. Render-mode-independent: inline and runtime builds record
+  // the same hashes (AD-035).
+  const reviewEntries: ReviewManifest = {};
   let needsT = false;
   let needsTx = false;
 
@@ -273,6 +288,7 @@ export function transform(
         warnings,
         code,
         hashes,
+        reviewEntries,
       );
       if (r.runtime === "runtime-t") needsT = true;
       if (r.runtime === "runtime-tx") {
@@ -444,7 +460,7 @@ export function transform(
     }
   }
 
-  return { code: result, hashes: Array.from(hashes) };
+  return { code: result, hashes: Array.from(hashes), review: reviewEntries };
 }
 
 // ─── AST Walking ─────────────────────────────────────────────
@@ -513,6 +529,7 @@ function processElement(
   warnings: WarningCollector,
   code: string,
   hashes: Set<string>,
+  reviewEntries: ReviewManifest,
 ): ProcessResult {
   const tagName = getTagName(el);
   if (!tagName) return { runtime: null, consumed: false };
@@ -547,24 +564,56 @@ function processElement(
   );
   let usedRuntime: "runtime-t" | "runtime-tx" | null = attrResult.usedRuntime ? "runtime-t" : null;
 
-  // In review mode, attribute-only elements still get a stamp so the
-  // overlay can reach placeholder/aria strings.
-  const stampAttrsOnly = () => {
-    if (options.review) {
-      stampReviewAttributes(el, buf, s, ops, filename, code, null, attrResult.pairs);
+  // Review: stamp the element's opening tag with `data-kapi-*` and
+  // record its block(s) into the review manifest. `blockHash` is the
+  // element's content-block hash (null for attribute-only elements —
+  // their placeholder/aria strings still get a `data-kapi-attr` stamp
+  // and manifest entries). This runs identically in inline and
+  // runtime mode; only the baked target differs (inline has one).
+  const doReview = (
+    blockHash: string | null,
+    blockSource: string | null,
+    blockTarget: string | undefined,
+  ) => {
+    if (!options.review) return;
+    stampReviewAttributes(el, buf, s, ops, filename, code, blockHash, attrResult.pairs);
+    const line = lineFromOffset(code, s(el.span.start));
+    if (blockHash && blockSource) {
+      recordReviewEntry(reviewEntries, {
+        hash: blockHash,
+        source: blockSource,
+        element: tagName,
+        filename,
+        line,
+        locNote: policy.locNote,
+        target: blockTarget,
+        locale: options.locale,
+      });
+    }
+    for (const p of attrResult.pairs) {
+      recordReviewEntry(reviewEntries, {
+        hash: p.hash,
+        source: p.source,
+        element: tagName,
+        filename,
+        line,
+        locNote: undefined,
+        target: p.target,
+        locale: options.locale,
+      });
     }
   };
 
   if (!policy.translate) {
-    stampAttrsOnly();
+    doReview(null, null, undefined);
     return { runtime: usedRuntime, consumed: false };
   }
   if (!hasTranslatableText(el)) {
-    stampAttrsOnly();
+    doReview(null, null, undefined);
     return { runtime: usedRuntime, consumed: false };
   }
   if (!isAllInlineContent(el, componentMap)) {
-    stampAttrsOnly();
+    doReview(null, null, undefined);
     return { runtime: usedRuntime, consumed: false };
   }
 
@@ -623,9 +672,7 @@ function processElement(
   });
   if (blockRuntime) usedRuntime = blockRuntime;
 
-  if (options.review) {
-    stampReviewAttributes(el, buf, s, ops, filename, code, hk, attrResult.pairs);
-  }
+  doReview(hk, text, mode === "inline" ? dict?.[hk] : undefined);
   removeDataI18nAttrs(el, buf, s, ops);
   return { runtime: usedRuntime, consumed: true };
 }
@@ -1010,9 +1057,9 @@ function processAttributes(
   s: (offset: number) => number,
   ops: TransformOp[],
   hashes: Set<string>,
-): { usedRuntime: boolean; pairs: Array<[string, string]> } {
+): { usedRuntime: boolean; pairs: AttrPair[] } {
   let usedRuntime = false;
-  const pairs: Array<[string, string]> = [];
+  const pairs: AttrPair[] = [];
 
   for (const attr of el.opening.attributes || []) {
     if (attr.type !== "JSXAttribute") continue;
@@ -1034,7 +1081,12 @@ function processAttributes(
       const desc = locNote ? `${context}${CONTEXT_SEPARATOR}${locNote}` : context;
       const hk = hashKey(text, desc);
 
-      pairs.push([attrName, hk]);
+      pairs.push({
+        name: attrName,
+        hash: hk,
+        source: text,
+        target: mode === "inline" ? dict?.[hk] : undefined,
+      });
       const valueStart = s(attr.value.span.start);
       const valueEnd = s(attr.value.span.end);
       if (mode === "inline") {
@@ -1077,7 +1129,12 @@ function processAttributes(
         const context = `${jsxPath}[${attrName}::${branchIndex}]`;
         const desc = locNote ? `${context}${CONTEXT_SEPARATOR}${locNote}` : context;
         const hk = hashKey(text, desc);
-        pairs.push([`${attrName}::${branchIndex}`, hk]);
+        pairs.push({
+          name: `${attrName}::${branchIndex}`,
+          hash: hk,
+          source: text,
+          target: mode === "inline" ? dict?.[hk] : undefined,
+        });
         const start = s(literal.span.start);
         const end = s(literal.span.end);
         if (mode === "inline") {
@@ -1106,7 +1163,64 @@ function processAttributes(
   return { usedRuntime, pairs };
 }
 
-// ─── Review-mode stamping ────────────────────────────────────
+// ─── Review-mode stamping + manifest ─────────────────────────
+
+/**
+ * One translatable attribute on an element: its prop name, block
+ * hash, source text, and (inline mode) the baked target. The hash
+ * feeds the `data-kapi-attr` stamp; the text feeds the review
+ * manifest so the hosted overlay can show a placeholder/aria string
+ * without a separate extract pass.
+ */
+type AttrPair = { name: string; hash: string; source: string; target: string | undefined };
+
+/**
+ * Project-relative module path. Bundlers hand the transform absolute
+ * ids; the review stamp + manifest read like the extract-side
+ * `properties.file`.
+ */
+function toRelFile(filename: string): string {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cwd: string = (globalThis as any).process?.cwd?.() ?? "";
+  let rel = filename;
+  if (cwd && rel.startsWith(cwd)) rel = rel.slice(cwd.length).replace(/^\/+/, "");
+  return rel;
+}
+
+/**
+ * Merge one block's review data into the file's manifest. First write
+ * wins for source + properties (a block reached twice keeps its
+ * original context); targets union so a multi-locale accumulation
+ * keeps every locale. Empty/absent targets are skipped so the overlay
+ * shows "untranslated" rather than an empty string.
+ */
+function recordReviewEntry(
+  entries: ReviewManifest,
+  info: {
+    hash: string;
+    source: string;
+    element: string;
+    filename: string;
+    line: number;
+    locNote: string | undefined;
+    target: string | undefined;
+    locale: string | undefined;
+  },
+): void {
+  let e = entries[info.hash];
+  if (!e) {
+    e = { source: info.source, targets: {}, properties: {}, annotations: [] };
+    entries[info.hash] = e;
+  }
+  if (!e.source) e.source = info.source;
+  if (!e.properties.file) {
+    e.properties = { file: toRelFile(info.filename), line: info.line, element: info.element };
+    if (info.locNote) e.properties.locNote = info.locNote;
+  }
+  if (info.locale && info.target !== undefined && info.target !== "") {
+    e.targets[info.locale] ??= info.target;
+  }
+}
 
 /**
  * Insert `data-kapi-id` / `data-kapi-loc` / `data-kapi-attr`
@@ -1124,7 +1238,7 @@ function stampReviewAttributes(
   filename: string,
   code: string,
   blockHash: string | null,
-  attrPairs: Array<[string, string]>,
+  attrPairs: AttrPair[],
 ): void {
   if (!blockHash && attrPairs.length === 0) return;
   const openEnd = s(el.opening.span.end);
@@ -1136,16 +1250,10 @@ function stampReviewAttributes(
   const parts: string[] = [];
   if (blockHash) parts.push(`data-kapi-id="${blockHash}"`);
   if (attrPairs.length > 0) {
-    const spec = attrPairs.map(([name, h]) => `${name}:${h}`).join(" ");
+    const spec = attrPairs.map((p) => `${p.name}:${p.hash}`).join(" ");
     parts.push(`data-kapi-attr="${spec}"`);
   }
-  // Bundlers pass absolute module ids; the loc should read like the
-  // extract-side `properties.file` (project-relative).
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cwd: string = (globalThis as any).process?.cwd?.() ?? "";
-  let relFile = filename;
-  if (cwd && relFile.startsWith(cwd)) relFile = relFile.slice(cwd.length).replace(/^\/+/, "");
-  parts.push(`data-kapi-loc="${relFile.replace(/"/g, "")}:${line}"`);
+  parts.push(`data-kapi-loc="${toRelFile(filename).replace(/"/g, "")}:${line}"`);
   ops.push({ offset: insertAt, deleteCount: 0, insert: ` ${parts.join(" ")}` });
 }
 
