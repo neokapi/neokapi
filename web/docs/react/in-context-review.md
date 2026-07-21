@@ -72,6 +72,32 @@ kapi exec term-check i18n/ --target-lang de --termbase de-termbase.csv
 
 A glossary term that wasn't used, a placeholder that went missing in translation, a string that runs 60% longer than its source and is about to break the button it lives in — each is marked on the words it's about, in the place it happens. Re-run a check while the app is open and the marks update; you don't need to restart anything.
 
+## Review on statically-rendered pages
+
+The review identifier is a **content hash**, not a runtime artifact: `data-kapi-id` is the same whether the build [inlines](./modes) the translation (zero-runtime SSG/SSR) or emits a runtime `t()` call. So review is render-mode-independent — it works on a fully static page with no app i18n runtime.
+
+Turn `review: true` on for an **inline** (or SSG/SSR) build and the plugin does two things regardless of mode: it stamps `data-kapi-id` into the baked HTML, and it emits `translations/review.json` — a read-only manifest of source, target, and location for every string on the page. That is everything a **hosted overlay** needs:
+
+```ts
+import { initKapiReviewHosted } from "@neokapi/i18n-react/review/hosted";
+
+initKapiReviewHosted(); // read-only; fetches translations/review.json
+```
+
+With nothing but a static deploy — no dev server, no backend — a reviewer can deep-link to a string (`?kapi-focus=<hash>`), open the whole-page index (`?kapi-review`), and inspect any string's source and target in context. This is the "click from the platform into the live site" path.
+
+To let a reviewer **edit** on that static page, pass `edit: true` and an endpoint that speaks the review-store protocol (a staging deployment of the dev middleware, or a proxied review backend):
+
+```ts
+initKapiReviewHosted({ edit: true, endpoint: "https://staging.example.com/review" });
+```
+
+Saving PUTs to `{endpoint}/{hash}` — the same write-back a body string uses — and repaints the element's text in place, independent of any app i18n runtime. Repaint is text-only: a string with inline markup (a link, a bold span) or an ICU plural saves to the store but is not repainted live; a reload picks up the real rendering. For a manifest that also carries every locale's target and the terminology/QA findings, generate it over the whole KLF tree instead:
+
+```bash
+neokapi-i18n compile i18n --out public/translations --review
+```
+
 ## Reviewers without a checkout
 
 Review talks to an endpoint, and the local one — reading and writing the `.klf` files in your repository — is simply the endpoint that needs no infrastructure. Point it at a different endpoint on a staging deployment and a reviewer with no repository and no toolchain can review the app in place:

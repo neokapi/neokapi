@@ -132,6 +132,33 @@ approval, threaded comments). That is deliberate — those belong to the
 platform tier (see [Related](#related)), and the same stamping and the
 same hashes carry the overlay there unchanged.
 
+### The identifier is content-addressed — review runs on any render mode
+
+`data-kapi-id` is the block's **content hash** —
+`hashKey(source, descriptor)` — computed identically whether the build
+**inlines** the translation (zero-runtime, SSG/SSR) or emits a
+**runtime** `t()` call, by the same [hash-parity](019-i18n-react.md)
+invariant. Nothing about the stamp depends on a runtime dictionary
+being present, so review is **render-mode-independent**: an inline/SSG
+build stamps the same id an OTA build does, and one manifest resolves
+both.
+
+To make a statically-rendered page self-sufficient, the plugin emits a
+read-only `translations/review.json` (source, per-locale target,
+`file:line`, element) whenever `review: true` — gated on `review`, not
+on mode, so an inline build emits it as much as a runtime one. A
+**hosted overlay** (`@neokapi/i18n-react/review/hosted`) fetches that
+file, finds elements by `data-kapi-id`, and needs neither a dev server
+nor the app's i18n runtime: deep-link `?kapi-focus=<hash>`, a
+whole-page index, and read-only inspection all work on a plain static
+deploy. With `edit: true` it edits through the identical `PUT /{hash}`
+protocol and repaints by patching the element's text **directly** —
+text-only, so blocks with inline codes or ICU plurals save to the store
+but are not repainted live — giving live in-context editing even on a
+page with no runtime dictionary to repaint through. Richer manifests
+(every locale, term/QA annotations) still come from
+`neokapi-i18n compile --review` over the whole KLF tree.
+
 ### Paint findings with the CSS Custom Highlight API
 
 Terminology and QA results are stand-off annotations (`*.klfl`)
@@ -166,8 +193,15 @@ are offsets into the same flat text the block already carries.
   local overlay find a `.klf` block lets a staging overlay find a
   platform block. The Tier-2 (Bowrain) surface is a different backend
   behind the same client contract, not a different feature.
-- **Not for production.** Stamping and the write-back middleware are
-  flag-gated; shipping them would leak source paths and mount a writer.
+- **Render-mode-independent.** Because the id is a content hash, the
+  same stamp and the same `review.json` drive review on an inline/SSG/SSR
+  page, a runtime/OTA page, and the platform tier — one mechanism,
+  every render mode.
+- **Enable deliberately.** Review is opt-in per build. Stamping puts
+  `file:line` in the DOM, the dev server mounts a writer, and inline
+  review bakes a `review.json` — all appropriate for dev and
+  preview/staging deploys, but turn review off for the production build
+  end users get.
 
 ## Related
 
