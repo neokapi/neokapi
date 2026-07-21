@@ -1,22 +1,12 @@
-// The bowrain mark — a perfect quarter-circle rainbow (square-cut ends).
-// Drawn inline so it recolors with the active theme's prism ramp; the
-// canonical standalone vector lives at bowrain/assets/brand/mark.svg and
-// fans out to all raster assets via scripts/generate-bowrain-brand-assets.sh.
+// The bowrain mark, for inline UI use (navbar, footer, surface cards). A PNG
+// rather than the inline SVG: mark.svg is the full illustration (~300KB of
+// path data with a per-shape soft-focus filter), too heavy to embed on every
+// page. mark.png is a 256px transparent render of it, regenerated alongside
+// every other derived asset by scripts/generate-bowrain-brand-assets.sh from
+// the canonical bowrain/assets/brand/mark.svg — update that file and re-run
+// rather than editing mark.png directly.
 export function Logo({ className = "h-7 w-7" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 64 64" fill="none" className={className} aria-hidden="true">
-      <defs>
-        <linearGradient id="bowmark" x1="6" y1="10" x2="54" y2="54" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="var(--prism-1)" />
-          <stop offset="0.3" stopColor="var(--prism-2)" />
-          <stop offset="0.55" stopColor="var(--prism-3)" />
-          <stop offset="0.8" stopColor="var(--prism-4)" />
-          <stop offset="1" stopColor="var(--prism-5)" />
-        </linearGradient>
-      </defs>
-      <path d="M6 6 A52 52 0 0 1 58 58 L38 58 A32 32 0 0 0 6 26 Z" fill="url(#bowmark)" />
-    </svg>
-  );
+  return <img src="/mark.png" alt="" className={className} aria-hidden="true" />;
 }
 
 // The bow motif as a wide atmospheric arc, used behind the hero.

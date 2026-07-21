@@ -1617,9 +1617,15 @@ pulse-build pulse-dev pulse-check:
 # source pair (web/assets/neokapi-logo-2-{black,white}.png): combines them
 # into one transparent, watermark-free master and fans it out. Fully scripted —
 # no AI. Re-render the demo videos afterwards (make harness-videos) to pick up
-# the new mascot. Bowrain is a separate brand: see scripts/generate-icons.sh.
+# the new mascot. Bowrain is a separate brand: see `make bowrain-logo`.
 logo: ## Regenerate all neokapi logo/icon/favicon assets from the source pair
 	@bash scripts/generate-neokapi-logo.sh
+
+# Regenerate every bowrain-branded logo/icon/favicon from the canonical vector
+# mark (bowrain/assets/brand/mark.svg + mark-favicon.svg). Fully scripted —
+# drop in an updated mark and re-run.
+bowrain-logo: ## Regenerate all bowrain logo/icon/favicon assets from the vector mark
+	@bash scripts/generate-bowrain-brand-assets.sh
 
 # ── CDN (S3 + CloudFront) asset publishing ──────────────────────────────────
 # The large, desktop-produced docs assets (wasm engine, ONNX vision models,

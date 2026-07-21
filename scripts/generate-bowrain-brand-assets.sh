@@ -2,20 +2,25 @@
 #
 # Regenerate every bowrain-branded asset from the canonical vector mark.
 #
-# The bowrain mark (quarter-circle rainbow) lives at:
-#   bowrain/assets/brand/mark.svg
+# The bowrain mark (rainbow arc dripping into rain) lives at:
+#   bowrain/assets/brand/mark.svg           (full illustration, >=48px)
+#   bowrain/assets/brand/mark-favicon.svg   (simplified companion, <=32px)
 #
-# This script is fully deterministic — drop in an updated mark.svg and re-run;
-# every derived asset is rebuilt the same way. (Bowrain is a separate brand
-# from neokapi/kapi — for kapi assets see scripts/generate-neokapi-logo.sh.)
+# This script is fully deterministic — drop in an updated mark.svg/
+# mark-favicon.svg and re-run; every derived asset is rebuilt the same way.
+# (Bowrain is a separate brand from neokapi/kapi — for kapi assets see
+# scripts/generate-neokapi-logo.sh.)
 #
 # Requires: rsvg-convert (librsvg), ImageMagick (magick), iconutil (macOS).
+# Optional: pngquant (compresses landing/mark.png; falls back to a plain
+# resize if missing).
 #
 # Generated:
 #   masters:
 #     bowrain/assets/brand/mark-1024.png                (transparent, full-bleed)
 #   landing (bowrain/web/landing/public/):
 #     favicon.svg  favicon.ico (16/32/48)  og.png (1200x630)
+#     mark.png (256, transparent — inline navbar/UI mark, src/components/Logo.tsx)
 #   web app (bowrain/apps/web/public/):
 #     favicon.ico  apple-touch-icon.png (180, tile)  icon-192.png  icon-512.png
 #   desktop app (bowrain/apps/bowrain/):
@@ -107,6 +112,16 @@ cat > "$TMPDIR/og.svg" <<EOF
 </svg>
 EOF
 rsvg-convert -w 1200 -h 630 "$TMPDIR/og.svg" -o "$LANDING/og.png"
+# Inline navbar/UI mark: a transparent PNG (not the raw SVG) so
+# src/components/Logo.tsx can show the real illustrated mark without
+# shipping ~300KB of inline SVG path data on every page. 256px stays crisp
+# at retina resolutions up to the largest on-page usage (48px).
+resize "$MASTER" 256 "$TMPDIR/mark-256.png"
+if command -v pngquant >/dev/null; then
+  pngquant --quality=80-95 --speed=1 --strip --force --output "$LANDING/mark.png" "$TMPDIR/mark-256.png"
+else
+  cp "$TMPDIR/mark-256.png" "$LANDING/mark.png"
+fi
 
 # --- Web app ---------------------------------------------------------------
 echo "  web app icons"
