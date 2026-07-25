@@ -13,6 +13,15 @@ flags. This page describes the intended design; until execution ships, use
 [automations](#what-runs-today) for the lifecycle behavior that does run.
 :::
 
+:::note Not the assistant hooks
+This page is about the recipe's `hooks:` block — lifecycle flows around
+`kapi push` / `kapi pull`. It is a different mechanism from kapi's
+**assistant-integration hooks** (`kapi hook stop`, `kapi hook pre-edit`), which
+do run, on every Claude Code session in a kapi project, and have their own
+fail-open decision protocol. Those are documented on the kapi docs site under
+**Get started → Use with Claude**, and in `kapi hook --help`.
+:::
+
 Hooks are intended to be flows that run automatically around sync operations, so
 a project can enforce quality gates before content leaves the machine and
 post-process content after it arrives.

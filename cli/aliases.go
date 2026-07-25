@@ -33,6 +33,7 @@ type (
 	FlowRunEvent                  = host.FlowRunEvent
 	FlowRunOptions                = host.FlowRunOptions
 	GrepOptions                   = host.GrepOptions
+	HookNotice                    = host.HookNotice
 	InputOptions                  = host.InputOptions
 	LoadProjectInteractiveOptions = host.LoadProjectInteractiveOptions
 	LocaleCoverage                = host.LocaleCoverage
