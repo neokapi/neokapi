@@ -1,6 +1,7 @@
 /**
  * W3C HTML5 HTML5 default translatability rules.
- * Pure data — no AST dependencies. Shared between Babel and unplugin adapters.
+ * Pure data — no AST dependencies. Shared by the SWC transform and the
+ * unplugin adapters (vite, webpack, rollup, esbuild).
  */
 
 export const nonTranslatableElements = new Set([
