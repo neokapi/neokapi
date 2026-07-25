@@ -40,6 +40,31 @@ func (c *InlineCodesRemoveConfig) Validate() error {
 	return nil
 }
 
+// NewInlineCodesRemoveConfig creates an InlineCodesRemoveConfig at its
+// documented defaults for the given target locale.
+func NewInlineCodesRemoveConfig(targetLocale model.LocaleID) *InlineCodesRemoveConfig {
+	cfg := &InlineCodesRemoveConfig{}
+	cfg.Reset()
+	cfg.TargetLocale = targetLocale
+	return cfg
+}
+
+// NewInlineCodesRemoveFromConfig creates an inline-codes-remove tool from a
+// config map. Without it `applySource` and `replaceWithSpace` were discarded and
+// the target locale stayed empty, so from a flow the tool stripped codes from
+// nothing at all (#1476).
+func NewInlineCodesRemoveFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	cfg := NewInlineCodesRemoveConfig(model.LocaleID(targetLang))
+	if err := applyStepConfig("inline-codes-remove", config, cfg, targetLang, setInlineCodesRemoveLocale); err != nil {
+		return nil, err
+	}
+	return NewInlineCodesRemoveTool(cfg), nil
+}
+
+func setInlineCodesRemoveLocale(c *InlineCodesRemoveConfig, loc model.LocaleID) {
+	c.TargetLocale = loc
+}
+
 // NewInlineCodesRemoveTool creates a new tool that strips inline-code
 // runs (Ph / PcOpen / PcClose) from segment content, producing clean
 // plain text.

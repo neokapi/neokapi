@@ -31,6 +31,29 @@ func (c *PropertiesSetConfig) Validate() error {
 	return nil
 }
 
+// NewPropertiesSetConfig creates a PropertiesSetConfig at its documented
+// defaults.
+func NewPropertiesSetConfig() *PropertiesSetConfig {
+	cfg := &PropertiesSetConfig{}
+	cfg.Reset()
+	return cfg
+}
+
+// NewPropertiesSetFromConfig creates a properties-set tool from a config map.
+//
+// The Properties map is the tool's entire behaviour and can only come from the
+// step, so without this factory the tool set nothing at all — its Validate()
+// rejects an empty map, but a flow never reached Validate: the zero-arg factory
+// simply produced a tool with no properties to set (#1476). Monolingual: there
+// is no locale to pin.
+func NewPropertiesSetFromConfig(config map[string]any, _ string) (tool.Tool, error) {
+	cfg := NewPropertiesSetConfig()
+	if err := applyStepConfig("properties-set", config, cfg, "", nil); err != nil {
+		return nil, err
+	}
+	return NewPropertiesSetTool(cfg), nil
+}
+
 // NewPropertiesSetTool creates a new tool that sets or modifies properties
 // on blocks programmatically.
 func NewPropertiesSetTool(cfg *PropertiesSetConfig) *tool.BaseTool {

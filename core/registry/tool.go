@@ -58,6 +58,12 @@ type ToolInfo struct {
 	DefaultParallelBlocks int      `json:"default_parallel_blocks,omitempty"`
 	Aliases               []string `json:"aliases,omitempty"`
 
+	// Internal withholds the tool from the CLI/MCP surface even though it has a
+	// schema and a config factory — see schema.ToolMeta.Internal. It says
+	// nothing about configurability: an internal tool's step config is applied
+	// like any other tool's.
+	Internal bool `json:"internal,omitempty"`
+
 	// Bridge step metadata (only for Okapi bridge step tools).
 	StepMeta *schema.StepMeta `json:"step_meta,omitempty"`
 
@@ -135,6 +141,7 @@ func copyToolMeta(info *ToolInfo, m *schema.ToolMeta) {
 	info.WritesOutput = m.WritesOutput
 	info.DefaultParallelBlocks = m.DefaultParallelBlocks
 	info.Aliases = m.Aliases
+	info.Internal = m.Internal
 }
 
 // ToolRegistration bundles a factory with optional schema and metadata.
@@ -243,6 +250,19 @@ func (r *ToolRegistry) SetConfigFactory(name ToolID, factory ToolConfigFactory) 
 	if reg, ok := r.tools[name]; ok {
 		reg.ConfigFactory = factory
 	}
+}
+
+// HasConfigFactory reports whether a tool can be built from a step's config
+// map. Without one, ToolRegistry.NewToolWithConfig falls back to the zero-arg
+// factory and throws the step's `config:` block away without a word, so this is
+// the difference between a configurable tool and one whose configuration is
+// silently ignored (#1476). Exported so the registration invariants can be
+// asserted over the populated registry — the field itself is package-private.
+func (r *ToolRegistry) HasConfigFactory(name ToolID) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	reg, ok := r.tools[name]
+	return ok && reg.ConfigFactory != nil
 }
 
 // SetContractResolver registers a contract resolver for an already-registered
@@ -414,14 +434,22 @@ type CLIToolEntry struct {
 
 // CLITools returns tools that should be exposed as CLI commands.
 // A tool is CLI-visible if it has a schema and a ConfigFactory (built-in tools
-// with NewToolFromConfig) or is a plugin tool with a Factory and schema.
-// Internal pipeline tools that lack a ConfigFactory are excluded.
+// with NewToolFromConfig) or is a plugin tool with a Factory and schema, and is
+// not declared Internal.
+//
+// Internal is a declaration, not an inference: a missing ConfigFactory used to
+// double as "deliberately internal", which is why thirteen built-in tools sat
+// silently unreachable with their step config discarded (#1476). Withholding a
+// tool from the CLI is now said out loud, in its ToolMeta.
 func (r *ToolRegistry) CLITools() []CLIToolEntry {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	entries := make([]CLIToolEntry, 0, len(r.tools))
 	for _, reg := range r.tools {
 		if reg.Schema == nil {
+			continue
+		}
+		if reg.Info.Internal {
 			continue
 		}
 		// Built-in tools need ConfigFactory to be CLI-visible.

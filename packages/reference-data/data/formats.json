@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-25T12:23:00Z",
+  "generatedAt": "2026-07-25T13:15:19Z",
   "kind": "format",
   "entries": [
     {
@@ -3582,7 +3582,7 @@
         "$id": "",
         "$version": "",
         "title": "TMX (Translation Memory eXchange)",
-        "description": "Configuration for the native TMX content memory format reader/writer",
+        "description": "Configuration for the native TMX translation memory format reader/writer",
         "type": "object",
         "formatMeta": {
           "id": "tmx",
@@ -3656,11 +3656,11 @@
         }
       },
       "doc": {
-        "overview": "TMX (Translation Memory eXchange) is the XML interchange format for\ncontent memories. The expansion of the acronym is the LISA standard's own\nname, not our vocabulary, so it keeps its original wording — a format we do\nnot own is not ours to rename. A TMX document holds a header declaring the\nsource language (`srclang`) and a body of `\u003ctu\u003e` translation units;\neach unit carries one `\u003ctuv\u003e` translation-unit variant per language,\nwith optional unit- and header-level `\u003cnote\u003e` and `\u003cprop\u003e` metadata.\n\nThe reader emits one translatable block per `\u003ctu\u003e`: the source segment\nmatches the header `srclang` and a target segment is produced for each\nother-language `\u003ctuv\u003e`. The header attributes and any header-level note\nor property are surfaced as a single non-translatable data part ahead\nof the blocks, while unit-level notes and properties attach to the\nblock. This makes TMX usable both as an input for review or alignment\nand as an output for exporting a memory. It mirrors Okapi's TMX filter.\n",
+        "overview": "TMX (Translation Memory eXchange) is the XML interchange format for\ntranslation memories. A TMX document holds a header declaring the\nsource language (`srclang`) and a body of `\u003ctu\u003e` translation units;\neach unit carries one `\u003ctuv\u003e` translation-unit variant per language,\nwith optional unit- and header-level `\u003cnote\u003e` and `\u003cprop\u003e` metadata.\n\nThe reader emits one translatable block per `\u003ctu\u003e`: the source segment\nmatches the header `srclang` and a target segment is produced for each\nother-language `\u003ctuv\u003e`. The header attributes and any header-level note\nor property are surfaced as a single non-translatable data part ahead\nof the blocks, while unit-level notes and properties attach to the\nblock. This makes TMX usable both as an input for review or alignment\nand as an output for exporting a memory. It mirrors Okapi's TMX filter.\n",
         "parameters": {
           "codeFinderRules": {
             "description": "Regular-expression patterns that match inline codes in segment text.",
-            "help": "A list of regular expressions; each match within a translatable\nblock is protected as an inline code rather than translated. Used to\nshield placeholders or markup carried inside Memory segments. Only takes\neffect when `useCodeFinder` is enabled; invalid patterns are skipped.\n",
+            "help": "A list of regular expressions; each match within a translatable\nblock is protected as an inline code rather than translated. Used to\nshield placeholders or markup carried inside TM segments. Only takes\neffect when `useCodeFinder` is enabled; invalid patterns are skipped.\n",
             "values": "Array of regular-expression strings",
             "examples": [
               "`\\{[0-9]+\\}` — protect numbered placeholders like `{0}`"

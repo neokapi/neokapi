@@ -49,6 +49,25 @@ var defaultTagPatterns = []string{
 	`\$\{[^}]+\}`,        // ${...} template expressions
 }
 
+// NewTagProtectFromConfig creates a tag-protect tool from a config map.
+//
+// Patterns is the tool's entire behaviour, and it is read once at construction
+// (the regexes are precompiled), so a config map applied after the fact would
+// have no effect — which is why the factory has to exist rather than the caller
+// mutating the config afterwards. Without it every flow got defaultTagPatterns
+// however the step was written (#1476). Monolingual: no locale to pin.
+func NewTagProtectFromConfig(config map[string]any, _ string) (tool.Tool, error) {
+	cfg := &TagProtectConfig{}
+	cfg.Reset()
+	if err := applyStepConfig("tag-protect", config, cfg, "", nil); err != nil {
+		return nil, err
+	}
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+	return NewTagProtectTool(cfg), nil
+}
+
 // NewTagProtectTool creates a tool that identifies and marks tags/placeholders
 // in source text. Protected patterns are stored as annotations for downstream
 // tools (e.g., MT connectors) to preserve.

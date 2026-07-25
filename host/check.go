@@ -30,9 +30,34 @@ type checkReport struct {
 
 // FormatText renders the report as a human-readable summary.
 func (r checkReport) FormatText(w io.Writer) error {
+	renderFindingsTable(w, r.Findings)
+	s := output.NewTable(w).Styles()
+	verdict := s.Success.Render("PASS")
+	if !r.Pass {
+		verdict = s.Error.Render("FAIL")
+	}
+	fmt.Fprintf(w, "%s — ", verdict)
+	writeFindingsCounts(w, r.Summary)
+	for _, reason := range r.Gate.Failed {
+		fmt.Fprintf(w, "  gate: %s\n", reason)
+	}
+	return nil
+}
+
+// writeFindingsCounts writes the score + severity roll-up line shared by
+// `kapi check` (after its PASS/FAIL verdict) and a `kapi exec <check>` run.
+func writeFindingsCounts(w io.Writer, s check.Summary) {
+	fmt.Fprintf(w, "score %d/100 · %d finding(s) (%d critical, %d major, %d minor)\n",
+		s.Score, s.Findings, s.Critical, s.Major, s.Minor)
+}
+
+// renderFindingsTable writes the severity/rule/location/message table shared by
+// `kapi check` and the findings a `kapi exec <check>` run reports, so the two
+// read identically — an assistant that learned one has learned the other.
+func renderFindingsTable(w io.Writer, diags []check.Diagnostic) {
 	t := output.NewTable(w).Accent(1).Headers("severity", "rule", "location", "message")
 	s := t.Styles()
-	for _, d := range r.Findings {
+	for _, d := range diags {
 		loc := d.Location.Block
 		if d.Location.File != "" {
 			loc = d.Location.File + ":" + loc
@@ -43,20 +68,10 @@ func (r checkReport) FormatText(w io.Writer) error {
 		}
 	}
 	t.Render()
-	if len(r.Findings) == 0 {
+	if len(diags) == 0 {
 		fmt.Fprintln(w, "  No findings.")
 	}
 	fmt.Fprintln(w)
-	verdict := s.Success.Render("PASS")
-	if !r.Pass {
-		verdict = s.Error.Render("FAIL")
-	}
-	fmt.Fprintf(w, "%s — score %d/100 · %d finding(s) (%d critical, %d major, %d minor)\n",
-		verdict, r.Summary.Score, r.Summary.Findings, r.Summary.Critical, r.Summary.Major, r.Summary.Minor)
-	for _, reason := range r.Gate.Failed {
-		fmt.Fprintf(w, "  gate: %s\n", reason)
-	}
-	return nil
 }
 
 func (a *App) RunCheck(cmd Command, args []string) error {

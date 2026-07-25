@@ -32,6 +32,37 @@ func (c *RemoveTargetConfig) Validate() error {
 	return nil
 }
 
+// NewRemoveTargetConfig creates a RemoveTargetConfig at its documented defaults
+// for the given target locale.
+func NewRemoveTargetConfig(targetLocale model.LocaleID) *RemoveTargetConfig {
+	cfg := &RemoveTargetConfig{}
+	cfg.Reset()
+	cfg.TargetLocale = targetLocale
+	return cfg
+}
+
+// NewRemoveTargetFromConfig creates a remove-target tool from a config map.
+//
+// This is the destructive member of the family, and the config that narrows it
+// was the config being dropped: the defaults are FilterByIDs with an empty
+// TextUnitIDs (which narrows nothing) and an empty TargetLocale (which means
+// *every* locale), so a step that named the ids and the locale to remove
+// removed everything instead (#1476).
+//
+// The run's --target-lang pins the locale, as it does for every other bilingual
+// tool, which also makes the safe reading the default one: a run for `nb` cannot
+// wipe the `de` and `fr` targets it was never pointed at. Removing every locale
+// stays expressible — leave the run's target language unset.
+func NewRemoveTargetFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	cfg := NewRemoveTargetConfig(model.LocaleID(targetLang))
+	if err := applyStepConfig("remove-target", config, cfg, targetLang, setRemoveTargetLocale); err != nil {
+		return nil, err
+	}
+	return NewRemoveTargetTool(cfg), nil
+}
+
+func setRemoveTargetLocale(c *RemoveTargetConfig, loc model.LocaleID) { c.TargetLocale = loc }
+
 // NewRemoveTargetTool creates a new remove-target tool.
 // It removes target segments from blocks for a specified locale,
 // or all targets if no locale is specified.

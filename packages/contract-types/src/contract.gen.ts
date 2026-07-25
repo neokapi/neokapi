@@ -68,6 +68,7 @@ export interface ToolMeta {
   writesOutput?: boolean;
   defaultParallelBlocks?: number;
   aliases?: string[];
+  internal?: boolean;
 }
 
 /**

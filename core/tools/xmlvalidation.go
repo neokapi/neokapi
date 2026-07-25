@@ -44,6 +44,29 @@ func (c *XMLValidationConfig) Validate() error {
 	return nil
 }
 
+// NewXMLValidationConfig creates an XMLValidationConfig at its documented
+// defaults for the given locale.
+func NewXMLValidationConfig(loc model.LocaleID) *XMLValidationConfig {
+	cfg := &XMLValidationConfig{}
+	cfg.Reset()
+	cfg.Locale = loc
+	return cfg
+}
+
+// NewXMLValidationFromConfig creates an xml-validation tool from a config map.
+// Without it a step's `checkTarget` / `wrapRoot` were discarded, so the tool
+// only ever validated the source with a wrapping root element — the defaults —
+// however the step was written (#1476).
+func NewXMLValidationFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	cfg := NewXMLValidationConfig(model.LocaleID(targetLang))
+	if err := applyStepConfig("xml-validation", config, cfg, targetLang, setXMLValidationLocale); err != nil {
+		return nil, err
+	}
+	return NewXMLValidationTool(cfg), nil
+}
+
+func setXMLValidationLocale(c *XMLValidationConfig, loc model.LocaleID) { c.Locale = loc }
+
 // NewXMLValidationTool creates a tool that validates XML well-formedness
 // of source and/or target text in blocks.
 func NewXMLValidationTool(cfg *XMLValidationConfig) *tool.BaseTool {

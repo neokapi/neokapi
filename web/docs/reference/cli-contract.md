@@ -165,4 +165,16 @@ For block-level content streaming (rather than run progress), `kapi inspect --js
 
 The [MCP server](/reference/mcp) (`kapi mcp`) is part of the same contract: its tool names and input schemas are a stable surface for agent integrations, locked by a snapshot test (`kapi/cmd/kapi/mcp_snapshot_test.go`). New tools and new optional fields may be added; existing tools are not renamed or removed, and existing fields do not change type, without an explicit, documented decision.
 
-The registry tools on that surface are exactly the CLI-visible ones — a built-in tool appears under `kapi exec`, in `kapi tools list`, and as an MCP tool when, and only when, it registers a config factory (`registry.ToolRegistry.CLITools`). Wiring a factory for a tool that lacked one is therefore an additive surface change: it adds the tool to all three at once, and the snapshot moves. `whitespace-correct` gained one this way.
+The registry tools on that surface are exactly the CLI-visible ones — a built-in tool appears under `kapi exec`, in `kapi tools list`, and as an MCP tool when it registers a config factory and does not declare itself internal (`registry.ToolRegistry.CLITools`). Wiring a factory for a tool that lacked one is therefore an additive surface change: it adds the tool to all three at once, and the snapshot moves. `whitespace-correct` gained one this way, and `dnt-check`, `placeholder-check`, `xml-validation`, `create-target`, `remove-target`, `inline-codes-remove` and `external-command` followed.
+
+## Tool registration invariants
+
+Three properties of a built-in tool's registration are asserted over the populated registry, in `core/tools/registration_invariants_test.go`, because each one failed silently when it was left to review:
+
+- **A tool that declares settable schema fields registers a config factory.** Without one, `NewToolWithConfig` calls the zero-arg factory and discards the step's `config:` map without a word — the tool's documented parameters do nothing.
+- **A bilingual tool's target locale comes from the run.** `--target-lang` outranks any locale written into a step's config, so one flow serves every locale it is run for. A factory that pins a locale leaves the tool processing content the run never asked for, and reporting success.
+- **A CLI-visible tool that rewrites content declares `writesOutput`.** `kapi exec` grows `-o` / `--output-dir` only for tools that do; without it an exec run rewrites the content in memory, exits 0, and writes nothing.
+
+Withholding a tool from the CLI is a separate decision, declared with `internal: true` on its `ToolMeta` — never expressed by omitting a config factory. The two used to be spelled the same way, so a tool that had simply been forgotten was indistinguishable from one deliberately withheld, and its configuration was dropped either way. An internal tool is still configurable: a flow may name it as a step.
+
+Step config keys are the config struct's JSON names, which are **camelCase** (`normalizeSpaces`, `flagExtra`, `textUnitIDs`). Application is a `json.Unmarshal`, so an unrecognized key — a snake_case spelling, or a field the tool does not have — is silently ignored.

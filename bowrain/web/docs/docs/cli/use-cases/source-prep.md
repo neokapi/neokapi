@@ -54,6 +54,12 @@ The `qa` tool validates:
 
 Create `.kapi/flows/source-qa.yaml`:
 
+Step config keys are the tool's own schema keys, in camelCase — see
+[the tool reference](https://neokapi.github.io/web/neokapi/reference/tools/qa).
+An unrecognized key is silently ignored, so a misspelling costs you the check
+rather than an error. The locale is not a config key either: it comes from the
+run's `--target-lang`, so one flow serves every locale.
+
 ```yaml
 name: source-qa
 description: Validate source content quality before translation
@@ -61,22 +67,27 @@ description: Validate source content quality before translation
 steps:
   - tool: term-check
     config:
-      target_locale: en-US
+      caseSensitive: true
+
+  - tool: placeholder-check
+    config:
+      flagExtra: true
 
   - tool: qa
     config:
-      rules:
-        - whitespace
-        - placeholders
-        - patterns
+      checkDoubleSpaces: true
+      checkDoubledWord: true
+      checkPatterns: true
       checkTargetInconsistency: true
-      fail_on_error: true
 ```
 
-Run it:
+Run it, then gate on the findings — the flow annotates the content, and
+`kapi check` is what turns findings into an exit code:
 
 ```bash
-kapi run source-qa
+kapi run source-qa --target-lang fr
+kapi check src/locales/en/*.json --target src/locales/fr/app.json \
+  --target-lang fr --max-critical 0
 ```
 
 ### Scoping and Content Stats
