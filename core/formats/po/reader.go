@@ -336,6 +336,39 @@ func pluralBlockID(blockID, idx int) string {
 // Form 0 carries the singular msgid; every later form carries the
 // msgid_plural — matching Okapi's POFilter, which sets the source to
 // msgID for plural index 0 and to msgIDPlural for index > 0.
+// fieldType names the PO field a line belongs to. Used both as the parser's
+// "which field am I continuing?" state and as the per-line classification the
+// skeleton pass reads to decide text-vs-ref.
+type fieldType int
+
+const (
+	fieldNone fieldType = iota
+	fieldMsgctxt
+	fieldMsgid
+	fieldMsgidPlural
+	fieldMsgstr
+	fieldMsgstrPlural
+)
+
+// msgidRefSep separates a skeleton ref's block id from the msgid field it
+// stands for, so a msgid hole and a msgstr hole for the same entry cannot
+// collide. Chosen because a PO block id (`tu3`, `tu3-plural2`) never contains
+// it.
+const msgidRefSep = "#"
+
+// msgidRefID names the skeleton ref that stands in for an entry's msgid (or
+// msgid_plural) line group. It points at the block whose SOURCE that line
+// supplies: form 0 for msgid, form 1 for the shared msgid_plural.
+func msgidRefID(entry *poEntry, blockID int, field fieldType) string {
+	if entry.isPlural {
+		if field == fieldMsgidPlural {
+			return pluralBlockID(blockID, 1) + msgidRefSep + "msgid_plural"
+		}
+		return pluralBlockID(blockID, 0) + msgidRefSep + "msgid"
+	}
+	return fmt.Sprintf("tu%d", blockID) + msgidRefSep + "msgid"
+}
+
 func (r *Reader) pluralForms(entry *poEntry, blockID int) []pluralForm {
 	n := r.nPlurals
 	if n < 1 {
@@ -427,16 +460,6 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 		r.skelBuf.WriteString("\ufeff")
 	}
 
-	type fieldType int
-	const (
-		fieldNone fieldType = iota
-		fieldMsgctxt
-		fieldMsgid
-		fieldMsgidPlural
-		fieldMsgstr
-		fieldMsgstrPlural
-	)
-
 	// Collect entries first (with raw line tracking), then emit parts.
 	// We need the full entry to know the block ID before we can write refs.
 	//
@@ -447,8 +470,13 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 	type rawEntry struct {
 		entry *poEntry
 		lines []string // raw lines (without \n)
-		// For each line, whether it belongs to a msgstr field.
-		isMsgstr []bool
+		// Which field each line belongs to (fieldNone for comments, msgctxt,
+		// obsolete and directive lines). msgid / msgid_plural are classified
+		// as well as msgstr, because both sides need a skeleton hole: the
+		// msgid is the *source* text in bilingual mode, and while it was
+		// emitted as opaque skeleton text a source edit had nowhere to go —
+		// `kapi ksed -i` on a .po was a silent no-op (#1473).
+		fields []fieldType
 		// Which msgstr field (for plurals): -1 = regular msgstr, N = msgstr[N]
 		msgstrIndex []int
 		// Blank lines that precede this entry (separator from previous entry)
@@ -470,13 +498,16 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 		return re
 	}
 
-	addLine := func(line string, isMsgstr bool, msgstrIdx int) {
+	addLine := func(line string, field fieldType, msgstrIdx int) {
 		if current == nil {
 			current = newEntry()
 		}
 		current.lines = append(current.lines, line)
-		current.isMsgstr = append(current.isMsgstr, isMsgstr)
+		current.fields = append(current.fields, field)
 		current.msgstrIndex = append(current.msgstrIndex, msgstrIdx)
+	}
+	isMsgstrLine := func(f fieldType) bool {
+		return f == fieldMsgstr || f == fieldMsgstrPlural
 	}
 
 	finishEntry := func() {
@@ -501,7 +532,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			if current == nil {
 				current = newEntry()
 			}
-			addLine(line, false, -1)
+			addLine(line, fieldNone, -1)
 
 			e := current.entry
 			if strings.HasPrefix(line, "#:") {
@@ -526,7 +557,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			if current == nil {
 				current = newEntry()
 			}
-			addLine(line, false, -1)
+			addLine(line, fieldNone, -1)
 			continue
 		}
 
@@ -537,7 +568,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			if current == nil {
 				current = newEntry()
 			}
-			addLine(line, false, -1)
+			addLine(line, fieldNone, -1)
 			continue
 		}
 
@@ -547,7 +578,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			}
 			current.entry.msgctxt = unquotePO(line[8:])
 			currentField = fieldMsgctxt
-			addLine(line, false, -1)
+			addLine(line, fieldMsgctxt, -1)
 			continue
 		}
 
@@ -558,7 +589,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			current.entry.msgidPlural = unquotePO(line[13:])
 			current.entry.isPlural = true
 			currentField = fieldMsgidPlural
-			addLine(line, false, -1)
+			addLine(line, fieldMsgidPlural, -1)
 			continue
 		}
 
@@ -568,7 +599,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			}
 			current.entry.msgid = unquotePO(line[6:])
 			currentField = fieldMsgid
-			addLine(line, false, -1)
+			addLine(line, fieldMsgid, -1)
 			continue
 		}
 
@@ -584,7 +615,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 				current.entry.msgstrPlurals[n] = val
 				currentPluralIndex = n
 				currentField = fieldMsgstrPlural
-				addLine(line, true, n)
+				addLine(line, fieldMsgstrPlural, n)
 			}
 			continue
 		}
@@ -595,7 +626,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			}
 			current.entry.msgstr = unquotePO(line[7:])
 			currentField = fieldMsgstr
-			addLine(line, true, -1)
+			addLine(line, fieldMsgstr, -1)
 			continue
 		}
 
@@ -606,19 +637,19 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			switch currentField {
 			case fieldMsgctxt:
 				current.entry.msgctxt += val
-				addLine(line, false, -1)
+				addLine(line, fieldMsgctxt, -1)
 			case fieldMsgid:
 				current.entry.msgid += val
-				addLine(line, false, -1)
+				addLine(line, fieldMsgid, -1)
 			case fieldMsgidPlural:
 				current.entry.msgidPlural += val
-				addLine(line, false, -1)
+				addLine(line, fieldMsgidPlural, -1)
 			case fieldMsgstr:
 				current.entry.msgstr += val
-				addLine(line, true, -1)
+				addLine(line, fieldMsgstr, -1)
 			case fieldMsgstrPlural:
 				current.entry.msgstrPlurals[currentPluralIndex] += val
-				addLine(line, true, currentPluralIndex)
+				addLine(line, fieldMsgstrPlural, currentPluralIndex)
 			}
 		}
 	}
@@ -658,7 +689,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			// plural blocks subsequent plural entries expose.
 			r.nPlurals = pluralFormsFromHeader(entry.msgstr)
 			for i, line := range re.lines {
-				if re.isMsgstr[i] {
+				if isMsgstrLine(re.fields[i]) {
 					continue
 				}
 				r.skelText(line + "\n")
@@ -696,45 +727,69 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			continue
 		}
 
-		// For regular/plural entries: non-msgstr lines are skeleton text,
-		// msgstr lines are skeleton refs.
+		// For regular/plural entries: comment / msgctxt / obsolete lines are
+		// skeleton text; msgstr lines are skeleton refs, and so are msgid /
+		// msgid_plural lines in bilingual mode.
 		//
-		// We group consecutive msgstr lines into a single ref.
-		// For regular entries: ref ID = "tu{N}"
-		// For plural entries: ref ID = "tu{N}-singular" (msgstr[0]) or "tu{N}-plural" (msgstr[1])
+		// We group consecutive lines of one field into a single ref.
+		// For regular entries: msgstr ref ID = "tu{N}"
+		// For plural entries: "tu{N}-singular" (msgstr[0]) or "tu{N}-plural" (msgstr[1])
+		// msgid refs carry a field suffix: "tu{N}#msgid" / "…#msgid_plural".
 		//
-		// Also collect raw msgstr lines per field so the writer can
-		// reproduce the exact formatting for byte-exact roundtrip.
+		// The msgid hole is what lets a SOURCE edit reach the file. In
+		// bilingual mode the msgid IS the block's source text, and while it
+		// was opaque skeleton text the writer had nowhere to put an edited
+		// source: `kapi ksed -i` rewrote the content model and emitted the
+		// original bytes, exit 0 (#1473). In MONOLINGUAL mode the msgid is an
+		// identifier and the msgstr supplies the source, so the msgid stays
+		// skeleton text — a hole there would let a source edit rewrite the
+		// catalog's keys.
+		//
+		// Also collect the raw lines per field so the writer can reproduce the
+		// exact formatting for a byte-exact round-trip.
+		emitMsgidRefs := r.cfg.BilingualMode
 		inRef := false
-		lastMsgstrIdx := -2
+		lastRefKey := ""
 		rawMsgstrLines := make(map[int][]string) // msgstrIndex -> raw lines
+		rawMsgidLines := make(map[fieldType][]string)
 
 		for i, line := range re.lines {
-			if re.isMsgstr[i] {
+			field := re.fields[i]
+			isMsgid := emitMsgidRefs && (field == fieldMsgid || field == fieldMsgidPlural)
+			switch {
+			case isMsgstrLine(field):
 				msIdx := re.msgstrIndex[i]
 				rawMsgstrLines[msIdx] = append(rawMsgstrLines[msIdx], line)
-				if !inRef || msIdx != lastMsgstrIdx {
-					var refID string
-					if entry.isPlural {
-						refID = pluralBlockID(entryBlockID, msIdx)
-					} else {
-						refID = fmt.Sprintf("tu%d", entryBlockID)
-					}
+				var refID string
+				if entry.isPlural {
+					refID = pluralBlockID(entryBlockID, msIdx)
+				} else {
+					refID = fmt.Sprintf("tu%d", entryBlockID)
+				}
+				if !inRef || lastRefKey != refID {
 					r.skelRef(refID)
 					inRef = true
-					lastMsgstrIdx = msIdx
+					lastRefKey = refID
 				}
-			} else {
+			case isMsgid:
+				rawMsgidLines[field] = append(rawMsgidLines[field], line)
+				refID := msgidRefID(entry, entryBlockID, field)
+				if !inRef || lastRefKey != refID {
+					r.skelRef(refID)
+					inRef = true
+					lastRefKey = refID
+				}
+			default:
 				inRef = false
+				lastRefKey = ""
 				r.skelText(line + "\n")
 			}
 		}
 
-		// Build raw msgstr field text for each field.
+		// Build raw field text for each field.
 		// For regular entries: rawMsgstrLines[-1] has the lines.
 		// For plural entries: rawMsgstrLines[0] and rawMsgstrLines[1].
-		buildRawMsgstr := func(idx int) string {
-			lines := rawMsgstrLines[idx]
+		joinRawLines := func(lines []string) string {
 			if len(lines) == 0 {
 				return ""
 			}
@@ -748,6 +803,8 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			sb.WriteByte('\n')
 			return sb.String()
 		}
+		buildRawMsgstr := func(idx int) string { return joinRawLines(rawMsgstrLines[idx]) }
+		buildRawMsgid := func(field fieldType) string { return joinRawLines(rawMsgidLines[field]) }
 
 		// Emit Data parts for metadata
 		if len(entry.translatorComments) > 0 {
@@ -803,6 +860,18 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			for _, pf := range r.pluralForms(entry, entryBlockID) {
 				block := r.newPluralBlock(entry, pf, targetLocale)
 				block.Properties["raw-msgstr"] = buildRawMsgstr(pf.index)
+				// The msgid line is form 0's source; the single msgid_plural
+				// line is the source every form ≥ 1 shares, so form 1 owns it
+				// (a file has exactly one msgid_plural, so an edit to a
+				// higher form's source has no line of its own to land in).
+				if emitMsgidRefs {
+					switch pf.index {
+					case 0:
+						format.RecordVerbatim(block, "raw-msgid", buildRawMsgid(fieldMsgid), entry.msgid)
+					case 1:
+						format.RecordVerbatim(block, "raw-msgid", buildRawMsgid(fieldMsgidPlural), entry.msgidPlural)
+					}
+				}
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 					return
 				}
@@ -827,6 +896,9 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 				block.Properties["context"] = entry.msgctxt
 			}
 			block.Properties["raw-msgstr"] = buildRawMsgstr(-1)
+			if emitMsgidRefs {
+				format.RecordVerbatim(block, "raw-msgid", buildRawMsgid(fieldMsgid), entry.msgid)
+			}
 			if target != "" && !targetLocale.IsEmpty() {
 				block.SetTargetText(targetLocale, target)
 			}

@@ -169,7 +169,17 @@ func (w *Writer) renderRef(block *model.Block) ([]byte, error) {
 
 // blockValue returns the appropriate value text for skeleton output.
 // If the block has a target translation, it encodes it. Otherwise it
-// uses the raw value stored during reading for byte-exact roundtrip.
+// re-emits the line's original value bytes — byte-exact for an entry
+// nothing touched — but only while those bytes still spell exactly the
+// source being written.
+//
+// That last condition is the fix for #1473: this used to return the
+// captured bytes whenever no target was set, so a SOURCE edit
+// (`kapi ksed -i`, `kapi apply`, the desktop's "apply fix") was written
+// back as the pre-edit line and the command exited 0. The bytes cannot be
+// decoded back to text here — a .properties value carries \uXXXX escapes
+// and backslash line continuations — so the test is against the text the
+// reader recorded with them. See core/format.VerbatimFor.
 //
 // Inline-code Ph runs (created by the reader's codeFinder for HTML tags
 // and Java escapes) are spliced back into the text via
@@ -178,10 +188,11 @@ func (w *Writer) blockValue(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		return encodePropertyValue(renderRunsText(block.TargetRuns(w.Locale)), w.escapeExtended())
 	}
-	if raw, ok := block.Properties["rawValue"]; ok {
+	source := renderRunsText(block.Source)
+	if raw, ok := format.VerbatimFor(block, "rawValue", source); ok {
 		return raw
 	}
-	return encodePropertyValue(renderRunsText(block.Source), w.escapeExtended())
+	return encodePropertyValue(source, w.escapeExtended())
 }
 
 func renderRunsText(runs []model.Run) string {

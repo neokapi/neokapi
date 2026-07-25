@@ -638,7 +638,13 @@ func (r *Reader) emitLeaf(ctx context.Context, ch chan<- model.PartResult,
 	}
 
 	vr.applyToBlockProps(block)
-	block.Properties["xcstrings.value"] = su.Value
+	// The leaf's value as read, kept so a leaf the writer has no translation for
+	// round-trips unchanged — together with the text it spells, which is what
+	// lets the writer tell "this leaf was not touched" from "this leaf's text
+	// equals its source". Without that witness a source edit on the
+	// source-language leaf was replaced by the pre-edit value whenever a target
+	// locale was being written, exit 0 (#1473).
+	format.RecordVerbatim(block, propLeafValue, su.Value, su.Value)
 	if su.State != "" {
 		block.Properties["state"] = su.State
 	}

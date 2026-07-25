@@ -53,6 +53,12 @@ type valueRef struct {
 	Category string    // plural category or device class
 }
 
+// propLeafValue names the per-leaf verbatim value the reader captures so a leaf
+// the writer has no translation for round-trips unchanged. Recorded with its
+// as-read text (core/format.RecordVerbatim) so the writer can prove it is
+// still current before preferring it.
+const propLeafValue = "xcstrings.value"
+
 // applyToBlockProps records the value reference on a Block's Properties so the
 // writer can round-trip it. The entry key + lang are also exposed under
 // human-friendly keys for tooling.

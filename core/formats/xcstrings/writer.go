@@ -167,7 +167,7 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 
 // blockValue resolves the output value for a block on the skeleton path: the
 // target text for the writer's active locale when present, otherwise the value
-// the reader recorded for this leaf (xcstrings.value), otherwise the locale-
+// the reader recorded for this leaf (propLeafValue), otherwise the locale-
 // appropriate runs. This mirrors collectBlock's resolution so the two write
 // paths agree.
 func (w *Writer) blockValue(block *model.Block) string {
@@ -180,16 +180,25 @@ func (w *Writer) blockValue(block *model.Block) string {
 	case !w.Locale.IsEmpty() && w.Locale == block.SourceLocale:
 		return valueFromRuns(block.SourceRuns())
 	default:
-		// No translation for the active locale — keep the leaf's original
-		// value so it round-trips unchanged.
-		if v, ok := block.Properties["xcstrings.value"]; ok {
-			return v
-		}
-		if model.LocaleID(vr.Lang) == block.SourceLocale {
-			return valueFromRuns(block.SourceRuns())
-		}
-		return valueFromRuns(block.TargetRuns(model.LocaleID(vr.Lang)))
+		return w.untranslatedLeafValue(block, vr)
 	}
+}
+
+// untranslatedLeafValue resolves a leaf the writer has no translation for: keep
+// the value the reader recorded so the leaf round-trips unchanged, but only
+// while that value still spells the leaf's content. Once it does not — a source
+// edit on the source-language leaf while a target locale is being written — the
+// leaf's own runs win, so the edit reaches the file instead of being replaced by
+// the pre-edit value (#1473).
+func (w *Writer) untranslatedLeafValue(block *model.Block, vr valueRef) string {
+	current := valueFromRuns(block.TargetRuns(model.LocaleID(vr.Lang)))
+	if model.LocaleID(vr.Lang) == block.SourceLocale {
+		current = valueFromRuns(block.SourceRuns())
+	}
+	if v, ok := format.VerbatimFor(block, propLeafValue, current); ok {
+		return v
+	}
+	return current
 }
 
 // collectBlock records the output value for a block keyed by its value
@@ -211,16 +220,7 @@ func (w *Writer) collectBlock(block *model.Block, repl *replacements) {
 	case !w.Locale.IsEmpty() && w.Locale == block.SourceLocale:
 		value = valueFromRuns(block.SourceRuns())
 	default:
-		// No translation for the active locale on this block — keep the
-		// original value (recorded by the reader) so the leaf round-trips
-		// unchanged.
-		if v, ok := block.Properties["xcstrings.value"]; ok {
-			value = v
-		} else if model.LocaleID(vr.Lang) == block.SourceLocale {
-			value = valueFromRuns(block.SourceRuns())
-		} else {
-			value = valueFromRuns(block.TargetRuns(model.LocaleID(vr.Lang)))
-		}
+		value = w.untranslatedLeafValue(block, vr)
 	}
 
 	state := block.Properties["state"]

@@ -487,11 +487,20 @@ func injectTargetLanguage(tag []byte, targetLang string) []byte {
 	return out
 }
 
-// sourceText renders the block's <source> content. Source is the
-// original — tools mutate the target, not the source — so the writer
-// emits the source body native IR verbatim, preserving every byte of
-// the original <source> element (inline-code attributes, attribute
-// order, inter-element whitespace).
+// sourceText renders the block's <source> content. While the source is
+// untouched the writer emits the source body native IR verbatim,
+// preserving every byte of the original <source> element (inline-code
+// attributes, attribute order, inter-element whitespace).
+//
+// The premise this used to rest on — "tools mutate the target, not the
+// source" — is not true: a source-transform tool rewrites the source
+// (AD-006's Transform stage), which is how `kapi ksed -i`, `kapi apply`
+// and the desktop's "apply fix" work. Emitting the captured body
+// unconditionally wrote the pre-edit <source> back and exited 0 (#1473).
+// So the captured body is used only while its text still equals the
+// block's; once it does not, the block's runs are substituted into the
+// same IR — exactly what targetText does — so an edited source reaches the
+// file with the inline-code fidelity still intact.
 //
 // Falls back to per-segment concatenation when no body annotation
 // exists (synthetic blocks created by tools, for example).
@@ -503,7 +512,17 @@ func (w *Writer) sourceText(block *model.Block) string {
 	}
 	if a, ok := block.Anno("xliff:source-body"); ok {
 		if sa, ok := a.(*SourceBodyNativeAnnotation); ok && sa.Content != nil {
-			return renderNativeWithRunsOpts(sa.Content, nil, opts)
+			if sourceBodyIsCurrent(sa, block) {
+				return renderNativeWithRunsOpts(sa.Content, nil, opts)
+			}
+			// Edited: substitute the block's runs into the captured IR, so
+			// inline-code attributes and their order survive the edit. The
+			// whole source is substituted (not per-segment) because a
+			// `<source>` body is always unsegmented — for a segmented
+			// trans-unit the mrk wrappers and the whitespace between them
+			// live in `<seg-source>`, which is emitted from its own path and
+			// keeps them.
+			return renderNativeWithRunsOpts(sa.Content, block.Source, opts)
 		}
 	}
 	return concatSegments(sourceSegViews(block))

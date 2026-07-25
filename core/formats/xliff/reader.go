@@ -1376,7 +1376,8 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 		// inline-code structure). Falls back to building it from the
 		// segments + reasonable separators when <source> wasn't present.
 		block.SetAnno("xliff:source-body", &SourceBodyNativeAnnotation{
-			Content: parseNativeContent(tu.source),
+			Content:      parseNativeContent(tu.source),
+			SourceAsRead: model.RunsText(block.Source),
 		})
 	} else {
 		// Use <source> content. The single segment and the body
@@ -1386,7 +1387,8 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 		block.Source = nativeToRuns(srcNative)
 		block.SetAnno(segNativeKey("s1"), &SegmentNativeAnnotation{Content: srcNative})
 		block.SetAnno("xliff:source-body", &SourceBodyNativeAnnotation{
-			Content: srcNative,
+			Content:      srcNative,
+			SourceAsRead: model.RunsText(block.Source),
 		})
 		// When we dropped the seg-source segments, also clear the
 		// downstream segmentation hints so the writer doesn't try to

@@ -165,6 +165,16 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 					// if a tool erroneously attached a target to it.
 					if block.Translatable && !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 						overrides[key] = renderRunsToXML(block.TargetRuns(w.Locale))
+					} else if block.Translatable && !format.VerbatimCurrent(block, propEntryValue, scratch[key]) {
+						// …and so does an edited SOURCE. Without this, a source
+						// rewrite (`kapi ksed -i`, `kapi apply`, a source-transform
+						// step) never entered overrides, so rewrite() replayed the
+						// original bytes and the command reported success (#1473).
+						// Gated on the as-read witness rather than spliced
+						// unconditionally, because renderRunsToXML can re-escape a
+						// value it did not change — which is exactly the
+						// byte-for-byte round-trip this map exists to protect.
+						overrides[key] = scratch[key]
 					}
 				}
 			}
