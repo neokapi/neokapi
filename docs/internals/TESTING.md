@@ -79,7 +79,7 @@ neokapi/                              ── Framework Module Tests (repo root) 
 The Okapi Java bridge has no Go package in this repo. It lives in the separate
 [okapi-bridge](https://github.com/neokapi/okapi-bridge) repository, ships as a
 plugin binary, and is exercised through `cli/pluginhost` (see
-[Bridge protocol](../../web/docs/contribute/notes-internal/plugin-bridge-protocol.md)).
+[Plugin protocol v1](../../web/docs/contribute/notes-internal/plugin-protocol-v1.md)).
 
 ---
 
@@ -661,7 +661,7 @@ side (`cli/pluginhost`) spawns the daemon, connects over a Unix-socket gRPC
 `BridgeService`, and converts between neokapi Parts and Okapi Events via
 `core/plugin/protoconvert`. Bridge format tests exercise it through the same
 discovery/dispatch path as any other plugin; the wire protocol is documented
-in the [bridge protocol](../../web/docs/contribute/notes-internal/plugin-bridge-protocol.md)
+in the [plugin protocol](../../web/docs/contribute/notes-internal/plugin-protocol-v1.md)
 note.
 
 ---

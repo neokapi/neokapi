@@ -532,7 +532,6 @@ The `ProcessRequest` / `ProcessResponse` payloads stream `PartMessage`s that map
 onto the in-process `Part` model via `core/plugin/protoconvert`. The full
 service is defined in `core/plugin/proto/v2/neokapi_bridge.proto`.
 
-See [Plugin System](/contribute/plugins),
-[Okapi Bridge](/contribute/java-bridge), and the
-[Okapi Bridge Protocol](/contribute/notes-internal/plugin-bridge-protocol) for
-the full protocol.
+See [Plugin System](/contribute/plugins) and
+[Plugin protocol v1](/contribute/notes-internal/plugin-protocol-v1) for the full
+contract.

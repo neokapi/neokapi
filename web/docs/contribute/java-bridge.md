@@ -16,6 +16,9 @@ plugin protocol honest: it is the reference implementation of a third-party
 kapi plugin in a non-Go language, and its CI runs the protocol conformance
 suite against released kapi versions.
 
-The plugin *protocol* (manifest model, subprocess lifecycle, gRPC services) is
-documented in [Plugin system](./architecture/007-plugin-system.md) and the
-[plugin bridge protocol notes](./notes-internal/plugin-bridge-protocol.md).
+The plugin *protocol* — the manifest model, the three transports, and the gRPC
+services a daemon serves — is specified in
+[Plugin protocol v1](./notes-internal/plugin-protocol-v1.md), with its rationale
+in [Plugin system](./architecture/007-plugin-system.md). Any plugin repository
+can verify itself against that contract with the conformance suite the spec
+describes.

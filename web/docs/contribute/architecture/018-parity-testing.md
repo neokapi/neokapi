@@ -12,27 +12,37 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 
 ## Summary
 
-neokapi (Go) is an in-progress port of Okapi Framework (Java). For every
-filter and step the Go side intends to match, the **parity harness**
-runs both implementations against the same input and asserts that they
-produce equivalent output. Tests live under `cli/parity/`, gated by the
-`parity` build tag. `make parity-test` builds a sandboxed kapi binary
-and a freshly built okapi-bridge plugin, spawns the bridge daemon, runs
-every parity case, and writes a JSON report consumed by the docs-site
-parity dashboard.
+For every Okapi filter and step a neokapi format or tool intends to
+match, the **parity harness** runs both implementations against the same
+input and asserts they produce equivalent output. Tests live under
+`cli/parity/`, gated by the `parity` build tag. `make parity-test` builds
+a sandboxed kapi binary plus a freshly built okapi-bridge plugin, spawns
+the bridge daemon, runs every parity case, and writes a JSON report.
 
-This is the load-bearing safety net for v1.0.0 onward — without it,
-Go-port refactors can silently diverge from the Java reference.
+Parity is a **maintainer-facing fidelity check on Go ports**, not a
+product surface and not a plugin contract. Its report is a local artifact
+under the gitignored `.parity/` sandbox; nothing parity-related is
+published. The distinct, durable, cross-repo guarantee — that a plugin
+implements the plugin protocol at all — is
+[protocol conformance](#parity-is-not-conformance), which lives in the
+framework module and needs no bridge checkout.
+
+Without parity, a Go-port refactor can silently diverge from the Java
+reference. That risk is real and worth a harness; it is simply a
+different risk from "is this plugin still speaking the protocol?".
 
 ## Context
 
-The codebase has two independent stacks that must agree on output:
+Two independent stacks must agree on output:
 
 - **neokapi (Go)** — native readers, writers, and tools embedded in the kapi
   binary.
-- **okapi-bridge** — a Java plugin distributed as `okapi-bridge`, built
-  from the Okapi Framework JARs. Spawned as a Mode-C daemon on demand,
-  speaks gRPC over a Unix socket.
+- **okapi-bridge** — a Java plugin built from the Okapi Framework JARs,
+  developed in [its own repository](https://github.com/neokapi/okapi-bridge)
+  and spawned as a Mode-C daemon on demand over a Unix socket. It is not
+  part of the product surface; it is the reference implementation of a
+  third-party plugin in a non-Go language, and — for parity — a
+  convenient second opinion on what an Okapi filter produces.
 
 When a Go port and a bridge filter both claim to read `okf_html`, kapi
 prefers the Go port (`format_factory.go` only registers a daemon-backed
@@ -42,6 +52,35 @@ is invisible: the bridge would have caught it, but the bridge never
 runs. The parity harness exists to invert that: it explicitly runs both
 implementations side by side, on the same input, and fails when their
 outputs diverge.
+
+## Parity is not conformance
+
+Two guarantees are easy to conflate because both involve running the
+bridge. Keeping them apart is what lets the bridge live in its own
+repository:
+
+|                | Parity                                                        | Protocol conformance                                                        |
+| -------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Question       | Do two implementations of the same filter produce the same output? | Does this plugin implement the plugin protocol?                             |
+| Subject        | neokapi's own Go readers, writers, and tools                   | Any plugin, in any language                                                 |
+| Needs          | a built okapi-bridge, an Okapi version pin, a JVM              | only the plugin directory                                                   |
+| Lives in       | `cli/parity/` (build tag `parity`)                             | `core/plugin/conformance/` (framework module, no build tag)                  |
+| Audience       | neokapi maintainers                                            | plugin authors, in their own repositories                                    |
+| Runs where     | this repository, gated on `main`                               | wherever the plugin lives, against a *released* kapi                        |
+| Report         | a local artifact under `.parity/`                              | `conformance.Report` — text transcript plus a stable JSON artifact           |
+
+Conformance is the load-bearing cross-repo contract: it is what makes a
+plugin repository able to answer "do I still work with kapi?" on its own,
+without a checkout of this repository and without this repository running
+its tests. See
+[Plugin protocol v1](../notes-internal/plugin-protocol-v1.md) and
+[AD-007](007-plugin-system.md).
+
+Parity is the narrower question, and it points the other way: it is about
+neokapi's fidelity, using the bridge as a reference. That is why parity
+is not, and must not become, a gate on the bridge repository — and why
+the bridge's own CI reports *conformance*, on a schedule, never gating
+this repository.
 
 ## Design
 
@@ -146,9 +185,11 @@ Each parity test reports one row via `parity.Report` with `Kind`
 (`format` or `step`), `ID` (the Okapi short id), `Mode`
 (`head-to-head`, `bridge-only`, or `byte`), and the test outcome.
 `parity.FlushReport` from each package's `TestMain` writes the
-accumulated rows to `$REPO/.parity/test-comparison.json`. The
-`parity.yml` CI workflow uploads that JSON as an artifact; the
-parity report renders it as a per-filter / per-step status table.
+accumulated rows to `$REPO/.parity/test-comparison.json`, and the
+`parity.yml` CI workflow uploads that JSON as an artifact. It is
+maintainer telemetry: a per-filter / per-step status table for whoever is
+working on a port. It is not published, and no product claim is derived
+from it — `/format-maturity` carries the public quality story.
 
 ## Consequences
 
@@ -220,9 +261,36 @@ in-progress / failed runs. The top-level independent release jobs (such
 as `build-cli`) then `needs: parity-gate`, so the entire downstream
 release pipeline inherits the gate.
 
+## Where the harness ends up
+
+The harness's dependencies point the wrong way for a repository that no
+longer ships the bridge: running it here means this repository needs an
+okapi-bridge checkout, an Okapi version pin, a Maven build, and a JVM —
+for a check about *neokapi's* fidelity, whose reference implementation is
+maintained elsewhere.
+
+The end state inverts that. The parity harness and its specs move to the
+bridge repository, which already owns the Okapi version matrix and builds
+the JARs, and consumes released `neokapi` modules to obtain the native
+side. This repository keeps no bridge build, no sandbox script, and no
+PR-blocking bridge job; what remains is a scheduled, non-blocking
+conformance smoke against the released bridge. The bridge repository runs
+both parity and protocol conformance against released kapi versions on
+its own schedule.
+
+What makes that inversion possible is exactly the split in
+[Parity is not conformance](#parity-is-not-conformance): the durable
+contract between the two repositories is the protocol, and the protocol
+is verifiable from a released module. Parity then becomes an ordinary
+consumer of that released module rather than a reason for the two
+repositories to share a build. Tracked in
+[#1073](https://github.com/neokapi/neokapi/issues/1073).
+
 ## References
 
 - Issue: [#448 — Restore full parity coverage](https://github.com/neokapi/neokapi/issues/448)
+- Issue: [#1073 — De-couple okapi-bridge from the monorepo](https://github.com/neokapi/neokapi/issues/1073)
 - PR: [#447 — Retire core/plugin/bridge](https://github.com/neokapi/neokapi/pull/447) (the deletion that #448 reverses on top of Mode-C dispatch)
 - Bridge proto sync: [#450](https://github.com/neokapi/neokapi/issues/450) — closed by okapi-bridge `b0ee4d5`
 - Short-id resolution: [#451](https://github.com/neokapi/neokapi/issues/451) — closed by okapi-bridge `b0ee4d5`
+- [Plugin protocol v1](../notes-internal/plugin-protocol-v1.md) — the contract the two repositories share
