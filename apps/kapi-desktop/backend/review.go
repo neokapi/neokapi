@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -134,12 +135,31 @@ func (a *App) reviewUnitBlocks(ctx context.Context, op *openProject, rf project.
 // locale — brand vocabulary on the source when a profile is bound, placeholder
 // integrity and do-not-translate on the target — the ChecksPanel checkset
 // scoped to a single unit.
+//
+// A checker that cannot RUN becomes a `major` "checks did not complete" finding
+// rather than being dropped. Dropping it made every caller fail unsafe: the
+// review pane showed a clean unit, HasFindings read false, and — worst —
+// review_ai's AutoApprove consults hasBlockingCheckFinding on this very slice, so
+// a checker that errored would have auto-approved a translation whose placeholder
+// integrity was never verified. A synthetic blocking finding is honest at the
+// panel and fail-safe at the gate, and keeps the signature usable from the paths
+// that legitimately continue past one bad unit.
 func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale model.LocaleID, profile *brand.VoiceProfile, dntTerms []string) []DesktopFinding {
 	findings := []DesktopFinding{}
+	fail := func(what string, err error) []DesktopFinding {
+		return append(findings, DesktopFinding{
+			Category: "check",
+			Severity: string(check.SeverityMajor),
+			Message:  fmt.Sprintf("checks did not complete: %s: %v", what, err),
+			BlockID:  b.ID,
+		})
+	}
 
 	if profile != nil {
 		vocab := coretools.NewBrandVocabCheckTool(profile, nil)
-		host.RunCheckTool(ctx, vocab, b)
+		if err := host.RunCheckTool(ctx, vocab, b); err != nil {
+			return fail("brand vocabulary", err)
+		}
 		if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
 			for _, f := range ann.Findings {
 				findings = append(findings, toDesktopFinding(f, b, "source"))
@@ -149,7 +169,9 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale mod
 	}
 
 	placeholder := coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(locale))
-	host.RunCheckTool(ctx, placeholder, b)
+	if err := host.RunCheckTool(ctx, placeholder, b); err != nil {
+		return fail("placeholder", err)
+	}
 	for _, f := range host.FindingsFromBlock(b, true) {
 		findings = append(findings, toDesktopFinding(f, b, "target"))
 	}
@@ -158,7 +180,9 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale mod
 		dntCfg := coretools.NewDNTCheckConfig(locale)
 		dntCfg.Terms = dntTerms
 		dnt := coretools.NewDNTCheckTool(dntCfg)
-		host.RunCheckTool(ctx, dnt, b)
+		if err := host.RunCheckTool(ctx, dnt, b); err != nil {
+			return fail("do-not-translate", err)
+		}
 		for _, f := range host.FindingsFromBlock(b, true) {
 			findings = append(findings, toDesktopFinding(f, b, "target"))
 		}

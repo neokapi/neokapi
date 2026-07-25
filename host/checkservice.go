@@ -2,6 +2,7 @@ package host
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/convergence"
@@ -79,7 +80,15 @@ type BlockProcessor interface {
 // vocabulary / placeholder / do-not-translate) over a single block in place.
 // The tool records its findings on the block's annotations or properties;
 // read them with FindingsFromBlock or the tool's own property keys.
-func RunCheckTool(ctx context.Context, t BlockProcessor, b *model.Block) {
+//
+// The tool's error is RETURNED, and every caller must act on it. A checker that
+// could not run is NOT a checker that passed: the block carries no annotation
+// either way, so a dropped error is indistinguishable from a clean result — and
+// via computeLoopCheckExclusions that silently readmits a unit that fails a bound
+// check into the shippable set. Checkers are not all local and deterministic
+// (the voice checker dials the kapi-check plugin over gRPC), so this fires in
+// practice, not only in theory.
+func RunCheckTool(ctx context.Context, t BlockProcessor, b *model.Block) error {
 	in := make(chan *model.Part, 1)
 	out := make(chan *model.Part, 1)
 	in <- &model.Part{Type: model.PartBlock, Resource: b}
@@ -91,7 +100,10 @@ func RunCheckTool(ctx context.Context, t BlockProcessor, b *model.Block) {
 	}()
 	for range out { //nolint:revive // drain
 	}
-	<-errc
+	if err := <-errc; err != nil {
+		return fmt.Errorf("check %q: %w", blockKey(b), err)
+	}
+	return nil
 }
 
 // FindingsFromBlock reads the unified check annotation off a block. With

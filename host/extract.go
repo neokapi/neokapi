@@ -1054,10 +1054,22 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 		return fmt.Errorf("read blocks: %w", err)
 	}
 
-	// Capture the round-trip skeleton (best effort).
+	// Capture the round-trip skeleton. A capture FAILURE is not the same thing
+	// as "this format has no skeleton": captureSkeletonBytes already reports
+	// genuine absence as (nil, nil) — no emitter, or an emitter that wrote
+	// nothing — so any error here means the skeleton exists and could not be
+	// taken. Shipping the .kpz anyway leaves merge with nothing to write back
+	// through, so it re-serializes from the content model and silently loses the
+	// source's exact formatting, while the extract reports success. Fail instead;
+	// faithful write-back is the contract (the doccache half of #1459, one layer
+	// out).
 	var skeletons []kpz.SkeletonDoc
 	skelMember := ""
-	if skel, serr := captureSkeletonBytes(ctx, a.FormatReg, formatID, srcAbs, data, task.ctx.SourceLocale); serr == nil && len(skel) > 0 {
+	skel, serr := captureSkeletonBytes(ctx, a.FormatReg, formatID, srcAbs, data, task.ctx.SourceLocale)
+	if serr != nil {
+		return fmt.Errorf("capture round-trip skeleton for %s: %w", task.source.Relative, serr)
+	}
+	if len(skel) > 0 {
 		skelMember = kpz.SkeletonDir + filepath.Base(task.source.Relative)
 		skeletons = append(skeletons, kpz.SkeletonDoc{
 			Path: skelMember, SourcePath: task.source.Relative, FormatID: task.source.Format,

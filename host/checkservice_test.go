@@ -114,7 +114,7 @@ func TestRunCheckToolAndFindingsFromBlock(t *testing.T) {
 	b.SetTargetText("fr", "Placeholder dropped") // {name} missing → finding
 
 	tool := coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig("fr"))
-	RunCheckTool(context.Background(), tool, b)
+	require.NoError(t, RunCheckTool(context.Background(), tool, b))
 
 	// Non-clearing read leaves the annotation in place.
 	found := FindingsFromBlock(b, false)

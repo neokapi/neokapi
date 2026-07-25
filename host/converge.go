@@ -343,23 +343,37 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		// loop (as the server's runSettleSource does), stamp SourceStatus over the
 		// distinct source files, and count how many blocks are held below the
 		// gate — the number surfaced as "N blocks held on source". A no-op when the
-		// gate is `none`. A settle read error is non-fatal: the run degrades to the
-		// gate-off behavior rather than failing on a source-check hiccup (the
-		// per-block hold still applies inside the flow).
+		// gate is `none`.
+		//
+		// The settle error is PROPAGATED. It used to be swallowed (`herr == nil`)
+		// on the stated grounds that the run "degrades to the gate-off behavior",
+		// but it does not degrade — it MISREPORTS: with the error dropped,
+		// blockedOnSource and totalSource both stay 0, so finishConverge's
+		// `blockedOnSource >= totalSource` test is false, the run is labelled
+		// converged rather than source_not_ready, and the materialize guard that
+		// exists to stop source-fallback output being written "as if caught up" is
+		// disarmed. Nor was it ever a survivable degradation: settleAndCountHeldSource
+		// fails only on a source-file read, and ComputeShipCoverage reads the same
+		// source files through the same readBlocks and hard-fails on them a moment
+		// later inside the loop. Strictness costs nothing and names the fault sooner.
+		//
+		// admissionUnits is reused rather than re-resolved: it is the identical
+		// pure re-resolution of the recipe's content patterns, already resolved
+		// (and hard-failed on) above.
 		var blockedOnSource, totalSource int
 		if sourceGate != model.SourceGateNone {
-			if units, uerr := a.UnitsFromProject(proj, root, ""); uerr == nil {
-				if held, total, herr := a.settleAndCountHeldSource(ctx, sourceGate, units); herr == nil {
-					blockedOnSource, totalSource = held, total
-					emitter.Emit(convergence.Event{
-						Type:            convergence.EventLog,
-						Stage:           convergence.StageSettleSource,
-						BlockedOnSource: held,
-						Message: fmt.Sprintf("Settled source: %d block(s) checked, %d held below the %q gate.",
-							total, held, sourceGate),
-					})
-				}
+			held, total, herr := a.settleAndCountHeldSource(ctx, sourceGate, admissionUnits)
+			if herr != nil {
+				return fmt.Errorf("settle source for the %q gate: %w", sourceGate, herr)
 			}
+			blockedOnSource, totalSource = held, total
+			emitter.Emit(convergence.Event{
+				Type:            convergence.EventLog,
+				Stage:           convergence.StageSettleSource,
+				BlockedOnSource: held,
+				Message: fmt.Sprintf("Settled source: %d block(s) checked, %d held below the %q gate.",
+					total, held, sourceGate),
+			})
 		}
 
 		res, err := convergence.Loop(ctx, convergence.LoopOptions{

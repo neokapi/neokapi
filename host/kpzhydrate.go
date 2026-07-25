@@ -3,6 +3,8 @@ package host
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
@@ -39,8 +41,21 @@ func (t *hydrateTargetsTool) SessionProcess(ctx context.Context, sess blockstore
 				// Address overlays by the same globally-unique key the run wrote
 				// (source-file-namespaced when the caller set it on ctx).
 				key := blockstore.OverlayKey(ctx, b.ID, b.SourceText())
-				if o, err := sess.GetOverlay(kind, key); err == nil && len(o.Payload) > 0 {
-					applyTargetOverlay(b, t.locale, o.Payload)
+				// Absence and failure are different: ErrNotFound is "this block
+				// has no translation yet" (ordinary pending work), anything else
+				// is a store read that failed. Conflating them made a locked or
+				// corrupt blocks.db write the SOURCE text into the target file
+				// and report the merge applied — the shipped-deliverable form of
+				// #1449. The same distinction absorbStoreTargets now draws, and
+				// the one core/convergence/coverage.go already drew.
+				o, err := sess.GetOverlay(kind, key)
+				if err != nil && !errors.Is(err, blockstore.ErrNotFound) {
+					return fmt.Errorf("read %s overlay for block %s: %w", kind, blockKey(b), err)
+				}
+				if err == nil && len(o.Payload) > 0 {
+					if aerr := applyTargetOverlay(b, t.locale, o.Payload); aerr != nil {
+						return aerr
+					}
 				}
 			}
 			select {
@@ -55,7 +70,12 @@ func (t *hydrateTargetsTool) SessionProcess(ctx context.Context, sess blockstore
 // applyTargetOverlay sets a block's target from a target-overlay payload,
 // accepting the conventional {runs|text|target} shapes the translate-family
 // tools write.
-func applyTargetOverlay(b *model.Block, locale model.LocaleID, payload []byte) {
+//
+// An undecodable payload is RETURNED, not swallowed: returning silently left
+// the block with no target, so the merged file shipped that segment as source
+// text while the run still counted it applied. A stored overlay that cannot be
+// read is a fault in the workspace, not an absent translation.
+func applyTargetOverlay(b *model.Block, locale model.LocaleID, payload []byte) error {
 	var p struct {
 		Runs   []model.Run `json:"runs"`
 		Text   string      `json:"text"`
@@ -63,7 +83,7 @@ func applyTargetOverlay(b *model.Block, locale model.LocaleID, payload []byte) {
 		Status string      `json:"status"`
 	}
 	if err := json.Unmarshal(payload, &p); err != nil {
-		return
+		return fmt.Errorf("decode target overlay for block %s (%s): %w", blockKey(b), locale, err)
 	}
 	switch {
 	case len(p.Runs) > 0:
@@ -81,4 +101,5 @@ func applyTargetOverlay(b *model.Block, locale model.LocaleID, payload []byte) {
 			t.Status = model.TargetStatus(p.Status)
 		}
 	}
+	return nil
 }

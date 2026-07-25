@@ -137,13 +137,22 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 			}
 
 			var fileFindings []DesktopFinding
+			// checkErr records a checker that could not RUN, as distinct from one
+			// that ran and found nothing. It is reported as a finding on the file,
+			// never dropped: a panel showing a clean file for checks that never
+			// executed is the "operation failed, success reported" defect this
+			// loop's own read-failure branch above already guards against.
+			var checkErr error
 
 			// Brand vocabulary — source-side, when a profile is bound. Runs once per
 			// file (independent of how many target languages are checked).
 			if profile != nil {
 				vocab := coretools.NewBrandVocabCheckTool(profile, nil)
 				for _, b := range sourceBlocks {
-					host.RunCheckTool(ctx, vocab, b)
+					if cerr := host.RunCheckTool(ctx, vocab, b); cerr != nil {
+						checkErr = fmt.Errorf("brand vocabulary: %w", cerr)
+						break
+					}
 					if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
 						for _, f := range ann.Findings {
 							fileFindings = append(fileFindings, toDesktopFinding(f, b, "source"))
@@ -155,6 +164,9 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 
 			// Target-side checks, once per filtered language.
 			for _, lang := range filter.Languages {
+				if checkErr != nil {
+					break
+				}
 				if lang == "" {
 					continue
 				}
@@ -181,7 +193,10 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 				// Placeholder integrity.
 				placeholder := coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(targetLoc))
 				for _, b := range passBlocks {
-					host.RunCheckTool(ctx, placeholder, b)
+					if cerr := host.RunCheckTool(ctx, placeholder, b); cerr != nil {
+						checkErr = fmt.Errorf("placeholder (%s): %w", lang, cerr)
+						break
+					}
 					for _, f := range host.FindingsFromBlock(b, true) {
 						fileFindings = append(fileFindings, toDesktopFinding(f, b, "target"))
 						allFindings = append(allFindings, f)
@@ -189,18 +204,29 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 				}
 
 				// Do-not-translate: only when terms are configured.
-				if len(dntTerms) > 0 {
+				if checkErr == nil && len(dntTerms) > 0 {
 					dntCfg := coretools.NewDNTCheckConfig(targetLoc)
 					dntCfg.Terms = dntTerms
 					dnt := coretools.NewDNTCheckTool(dntCfg)
 					for _, b := range passBlocks {
-						host.RunCheckTool(ctx, dnt, b)
+						if cerr := host.RunCheckTool(ctx, dnt, b); cerr != nil {
+							checkErr = fmt.Errorf("do-not-translate (%s): %w", lang, cerr)
+							break
+						}
 						for _, f := range host.FindingsFromBlock(b, true) {
 							fileFindings = append(fileFindings, toDesktopFinding(f, b, "target"))
 							allFindings = append(allFindings, f)
 						}
 					}
 				}
+			}
+
+			if checkErr != nil {
+				fileFindings = append(fileFindings, DesktopFinding{
+					Category: "check",
+					Severity: string(check.SeverityMajor),
+					Message:  "checks did not complete: " + checkErr.Error(),
+				})
 			}
 
 			sortDesktopFindings(fileFindings)
