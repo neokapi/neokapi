@@ -6,6 +6,7 @@ import {
   ErrorNotice,
   ListCapRow,
   SimpleTooltip,
+  directionAttrs,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { Check, CheckCircle2, ClipboardCheck, Loader2, PlayCircle, RefreshCw } from "lucide-react";
@@ -345,7 +346,12 @@ function ReviewQueue({
                   </SimpleTooltip>
                   {it.target && (
                     <SimpleTooltip content={it.target}>
-                      <div className="truncate pl-1 text-muted-foreground">→ {it.target}</div>
+                      <div className="truncate pl-1 text-muted-foreground">
+                        {"→ "}
+                        {/* Isolated: an RTL translation must not drag the arrow
+                            (a neutral character) to the wrong side of the row. */}
+                        <bdi {...directionAttrs(it.locale)}>{it.target}</bdi>
+                      </div>
                     </SimpleTooltip>
                   )}
                 </div>

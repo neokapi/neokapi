@@ -222,13 +222,13 @@ function SimulatedMemoriesPage() {
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Translation Memories</h1>
+        <h1 className="text-xl font-semibold">Content Memories</h1>
         <div className="flex gap-2">
           <Button variant="outline" size="sm">
             <FolderOpen size={12} /> Open File...
           </Button>
           <Button size="sm">
-            <Plus size={12} /> Create TM
+            <Plus size={12} /> New memory
           </Button>
         </div>
       </div>
@@ -257,7 +257,7 @@ const meta: Meta<typeof SimulatedMemoriesPage> = {
     docs: {
       description: {
         component:
-          "Translation Memory browser with resource picker, full-text search, inline code rendering, entity-aware lookup, and batch entity annotation.",
+          "Content Memory browser with resource picker, full-text search, inline code rendering, entity-aware lookup, and batch entity annotation.",
       },
     },
   },

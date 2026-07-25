@@ -221,6 +221,26 @@ export interface ProviderConfig {
   default?: boolean;
 }
 
+/**
+ * Which layer supplied an effective AI provider/model (matches Go
+ * host.AIModelOrigin). Ordered high to low precedence.
+ */
+export type AIModelOrigin = "locale-preset" | "project-preset" | "app-config" | "built-in";
+
+/**
+ * The provider/model an AI step will actually run with, and where each half came
+ * from (matches Go host.AIModelResolution). Derived by the shared
+ * host.EffectiveAIModel, so the desktop reports exactly what the CLI resolves.
+ */
+export interface AIModelResolution {
+  provider: string;
+  model: string;
+  provider_origin: AIModelOrigin;
+  model_origin: AIModelOrigin;
+  /** False when nothing is configured and the built-in fallback is carrying the run. */
+  configured: boolean;
+}
+
 /** The configured default AI model and the provider it implies (matches Go DefaultModelInfo). */
 export interface DefaultModelInfo {
   provider: string;
@@ -513,6 +533,44 @@ export interface TargetOrigin {
 }
 
 /** Full review picture for one queue unit (matches Go ReviewUnitDetail). */
+/** What affordance the UI should render for a remedy. Mirrors backend.RunErrorActionKind. */
+export type RunErrorActionKind = "command" | "open-settings" | "open-url";
+
+/** One thing the user can do about a run failure. Mirrors backend.RunErrorAction. */
+export interface RunErrorAction {
+  kind: RunErrorActionKind;
+  label: string;
+  command?: string;
+  url?: string;
+  target?: string;
+}
+
+/** Stable classification of a run failure. Mirrors backend.RunErrorKind. */
+export type RunErrorKind =
+  | "ollama-unreachable"
+  | "model-not-installed"
+  | "ambiguous-credential"
+  | "missing-credential"
+  | "canceled"
+  | "unknown";
+
+/**
+ * A run failure as structure rather than prose (backend.RunError): a headline,
+ * the remediation with concrete actions, the affected file/locale, and the raw
+ * wrapped chain for a details disclosure.
+ */
+export interface RunError {
+  kind: RunErrorKind;
+  headline: string;
+  remediation?: string;
+  actions?: RunErrorAction[];
+  locale?: string;
+  file?: string;
+  provider?: string;
+  model?: string;
+  raw: string;
+}
+
 export interface ReviewUnitDetail {
   locale: string;
   file: string;
@@ -520,6 +578,8 @@ export interface ReviewUnitDetail {
   collection?: string;
   source: string;
   target: string;
+  /** The project's source language — drives `dir`/`lang` on the source pane. */
+  source_locale?: string;
   /** Effective ladder state (draft|translated|reviewed|signed-off). */
   status: string;
   /** Last recorded decision when it still judges the current translation. */

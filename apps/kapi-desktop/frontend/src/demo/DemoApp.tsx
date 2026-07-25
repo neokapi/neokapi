@@ -3,7 +3,7 @@
  *
  * Renders the REAL app chrome (IconSidebar) and the REAL termbase / TM browser
  * components from @neokapi/ui-primitives, wired to in-browser mock adapters with
- * a rich, coherent sample glossary + translation memory. There is no Wails
+ * a rich, coherent sample terms list + content memory. There is no Wails
  * backend in play — this entry exists purely so the walkthrough recorder
  * (harness/) can drive the genuine UI in a browser and capture a clean,
  * deterministic screencast (ripple clicks, human-like mouse motion, zoom).
@@ -186,7 +186,7 @@ const CONCEPTS: ConceptDTO[] = [
   },
 ];
 
-// ── Sample translation memory: real UI strings, with inline code + an entity ─
+// ── Sample content memory: real UI strings, with inline code + an entity ────
 const TM_ENTRIES: TMEntryDTO[] = [
   {
     id: "tm-1",
@@ -421,8 +421,8 @@ function tmAdapter(seed: TMEntryDTO[]): TMAdapter {
 // ── Resource lists for the picker screens ───────────────────────────────────
 const TERMBASE_RESOURCES = [
   {
-    name: "product-glossary",
-    path: "~/.config/kapi/termbases/product-glossary.db",
+    name: "product-terms",
+    path: "~/.config/kapi/termbases/product-terms.db",
     size: 262144,
     modified: hoursAgo(2),
   },
@@ -456,8 +456,8 @@ function HomeView({ onGo }: { onGo: (v: string) => void }) {
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">Kapi Desktop</h1>
         <p className="mt-2 max-w-xl text-muted-foreground">
-          Browse the terminology and translation memory behind your localisation — every concept,
-          every approved term, every remembered translation.
+          Browse the terminology and content memory behind your localisation — every concept, every
+          approved term, every remembered translation.
         </p>
       </div>
       <div className="grid w-full max-w-2xl grid-cols-1 gap-3 md:grid-cols-2">
@@ -466,7 +466,7 @@ function HomeView({ onGo }: { onGo: (v: string) => void }) {
           className="group flex flex-col items-start gap-2 rounded-xl border border-border bg-card p-5 text-left transition-all hover:border-primary/40 hover:shadow-md"
         >
           <BookOpen size={22} className="text-primary" />
-          <div className="text-base font-semibold">Termbases</div>
+          <div className="text-base font-semibold">Terms</div>
           <div className="text-sm text-muted-foreground">
             Multi-locale concepts with preferred and deprecated terms.
           </div>
@@ -479,7 +479,7 @@ function HomeView({ onGo }: { onGo: (v: string) => void }) {
           className="group flex flex-col items-start gap-2 rounded-xl border border-border bg-card p-5 text-left transition-all hover:border-primary/40 hover:shadow-md"
         >
           <Database size={22} className="text-primary" />
-          <div className="text-base font-semibold">Translation Memories</div>
+          <div className="text-base font-semibold">Content Memory</div>
           <div className="text-sm text-muted-foreground">
             Searchable past translations, inline formatting preserved.
           </div>
@@ -526,14 +526,14 @@ function TermbasesView() {
   return (
     <div className="p-6">
       <PageHeader
-        title="Termbases"
+        title="Terms"
         actions={
           <div className="flex gap-2">
             <Button variant="outline" size="sm">
               <FolderOpen size={12} /> Open File...
             </Button>
             <Button size="sm">
-              <Plus size={12} /> New Termbase
+              <Plus size={12} /> New Terms
             </Button>
           </div>
         }
@@ -546,7 +546,7 @@ function TermbasesView() {
             path={r.path}
             size={r.size}
             modified={r.modified}
-            entryCount={r.name === "product-glossary" ? CONCEPTS.length : 24}
+            entryCount={r.name === "product-terms" ? CONCEPTS.length : 24}
             icon={<BookOpen size={18} />}
             onClick={() => setOpen(r.name)}
           />
@@ -600,14 +600,14 @@ function MemoriesView() {
   return (
     <div className="p-6">
       <PageHeader
-        title="Translation Memories"
+        title="Content Memories"
         actions={
           <div className="flex gap-2">
             <Button variant="outline" size="sm">
               <FolderOpen size={12} /> Open File...
             </Button>
             <Button size="sm">
-              <Plus size={12} /> Create TM
+              <Plus size={12} /> New memory
             </Button>
           </div>
         }

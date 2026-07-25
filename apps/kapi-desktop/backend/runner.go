@@ -35,6 +35,12 @@ type RunEvent struct {
 	FlowID  string `json:"flow_id"`
 	Message string `json:"message,omitempty"`
 
+	// Error carries the failure as structure (when type == "error"): a
+	// headline, the remediation as actions, the affected file/locale, and the
+	// raw chain for a details disclosure. Message stays populated with the raw
+	// text so nothing regresses for a consumer that only reads it.
+	Error *RunError `json:"error,omitempty"`
+
 	// Progress fields
 	FileIndex int    `json:"file_index,omitempty"`
 	FileCount int    `json:"file_count,omitempty"`
@@ -70,10 +76,39 @@ type runner struct {
 	running   bool
 	lastTrace *flow.FlowTrace // trace from the last completed run
 	events    []RunEvent      // accumulated events for reconnection
+	// lastFailure is the classified failure of the most recent run, kept until
+	// a run succeeds. Derived state (coverage, the up plan) is computed from
+	// files and cannot express "the last attempt to produce these files
+	// failed", so without this the UI has no way to tell a converged project
+	// from one whose catch-up run died on its first locale.
+	lastFailure *RunError
 }
 
 func newRunner() *runner {
 	return &runner{state: RunStateIdle}
+}
+
+// recordRunFailure stores (or, with nil, clears) the classified failure of the
+// most recent run. Safe on a nil runner so callers need no guard.
+func (a *App) recordRunFailure(re *RunError) {
+	if a.runState == nil {
+		return
+	}
+	a.runState.mu.Lock()
+	a.runState.lastFailure = re
+	a.runState.mu.Unlock()
+}
+
+// GetLastRunError returns the classified failure of the most recent run, or nil
+// when the last run succeeded (or none has been attempted). The home surfaces
+// read it so a failed catch-up run can never be presented as convergence.
+func (a *App) GetLastRunError() *RunError {
+	if a.runState == nil {
+		return nil
+	}
+	a.runState.mu.Lock()
+	defer a.runState.mu.Unlock()
+	return a.runState.lastFailure
 }
 
 // RunFlow executes a flow by name from the current project. Target locales
@@ -181,11 +216,23 @@ func (a *App) executeFlowRun(ctx context.Context, op *openProject, flowName stri
 		}
 	})
 	if err != nil {
-		a.emitRunEvent(RunEvent{Type: "error", FlowID: flowName, Message: runErrorMessage(err)})
+		a.emitRunEvent(RunEvent{
+			Type:    "error",
+			FlowID:  flowName,
+			Message: runErrorMessage(err),
+			Error:   classifyRunError(err),
+		})
 		a.runState.mu.Lock()
 		a.runState.state = RunStateError
+		a.runState.lastFailure = classifyRunError(err)
 		a.runState.mu.Unlock()
+		// The failed run may still have written some outputs; re-derive so the
+		// home surfaces reflect the real on-disk state rather than the pre-run
+		// snapshot (which a partial failure would otherwise present as done).
+		a.emitEvent("outputs-changed", map[string]any{})
+		return
 	}
+	a.recordRunFailure(nil)
 }
 
 // runErrorMessage renders an orchestrator failure for the run feed: tool

@@ -8,9 +8,11 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/host"
 	appconfig "github.com/neokapi/neokapi/host/config"
+	"github.com/neokapi/neokapi/host/credentials"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
@@ -44,7 +46,9 @@ type AIModelOption struct {
 }
 
 // GetDefaultModel returns the configured default AI provider+model (empty when
-// none is set — AI tools then fall back to the built-in provider default).
+// none is set — AI tools then fall back to the built-in provider default). This
+// is the raw `ai.provider`/`ai.model` pair the picker edits; for what a run will
+// actually use (recipe presets included) call GetEffectiveModel.
 func (a *App) GetDefaultModel() DefaultModelInfo {
 	if a.aiConfig == nil {
 		return DefaultModelInfo{}
@@ -52,6 +56,37 @@ func (a *App) GetDefaultModel() DefaultModelInfo {
 	return DefaultModelInfo{
 		Provider: a.aiConfig.GetString(appconfig.KeyAIProvider),
 		Model:    a.aiConfig.GetString(appconfig.KeyAIModel),
+	}
+}
+
+// GetEffectiveModel reports the provider and model an AI step of the open
+// project will actually run with, and which layer decided each — the recipe's
+// per-locale preset, its project preset, the shared `ai.*` app config that
+// `kapi models setup` / `kapi models default` write, or the built-in fallback.
+//
+// It delegates to host.EffectiveAIModel, the single statement of that
+// precedence, so the desktop cannot disagree with the CLI (or with its own run)
+// about which model is active. tabID may be "" for the ad-hoc case; locale may
+// be "" to ask about the project-wide default.
+func (a *App) GetEffectiveModel(tabID, locale string) host.AIModelResolution {
+	var proj *project.KapiProject
+	if op := a.getOpenProject(tabID); op != nil {
+		proj = op.Project
+	}
+	return host.EffectiveAIModel(a.aiConfig, proj, "translate", locale)
+}
+
+// aiConfigPreprocessor is the tool-registry config preprocessor the desktop
+// installs on every registry it runs tools through: fill the configured default
+// AI provider/model for tools that pin none, then resolve that provider's key
+// from the credential store. It is the CLI's composition (host/app.go), and it
+// is defined once here because the desktop wires it in more than one place — a
+// second copy is how the run path and the converge path start disagreeing about
+// which model is active.
+func (a *App) aiConfigPreprocessor() func(string, []string, map[string]any) (map[string]any, error) {
+	return func(toolName string, requires []string, cfg map[string]any) (map[string]any, error) {
+		cfg = host.ApplyAIDefaults(a.aiConfig, toolName, requires, cfg)
+		return credentials.ResolveCredentials(a.credentials, toolName, requires, cfg)
 	}
 }
 

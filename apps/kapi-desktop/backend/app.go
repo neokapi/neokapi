@@ -181,10 +181,7 @@ func NewApp() *App {
 	// fill the default provider/model (ai.provider/ai.model) for AI tools that
 	// pin none — the shared convention — then resolve the API key for that
 	// provider from the credential store.
-	toolReg.SetConfigPreprocessor(func(toolName string, requires []string, cfg map[string]any) (map[string]any, error) {
-		cfg = appconfig.ApplyAIToolDefaults(app.aiConfig, toolName, requires, cfg)
-		return credentials.ResolveCredentials(credStore, toolName, requires, cfg)
-	})
+	toolReg.SetConfigPreprocessor(app.aiConfigPreprocessor())
 
 	// The plugin runtime owns discovery, the host, the daemon pool, and the
 	// schema/format wiring — the same pluginhost.Runtime the CLI uses. Cache is

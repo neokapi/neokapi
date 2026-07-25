@@ -16,6 +16,7 @@ import type {
   PluginStatus,
   ProviderConfig,
   DefaultModelInfo,
+  AIModelResolution,
   AIModelOption,
   AIDetectionResult,
   ProjectFilter,
@@ -30,6 +31,7 @@ import type {
   ExtractResult,
   ConvergenceReport,
   ConvergePlan,
+  RunError,
   ProjectServer,
   ReviewItem,
   ReviewUnitDetail,
@@ -207,6 +209,13 @@ export const api = {
   cancelRun: () => call<void>("CancelRun"),
   getRunState: () => call<string>("GetRunState"),
   getRunEvents: () => call<unknown[]>("GetRunEvents"),
+  /**
+   * The classified failure of the most recent run, or null when the last run
+   * succeeded. Coverage is derived from files and cannot express "the run that
+   * was supposed to write these files failed", so the home surfaces read this
+   * to avoid presenting a failed catch-up as convergence.
+   */
+  getLastRunError: () => call<RunError | null>("GetLastRunError"),
 
   // Tools
   listTools: () => call<ToolInfo[]>("ListTools"),
@@ -320,6 +329,15 @@ export const api = {
   // AI models — the shared default provider+model (ai.provider/ai.model), the
   // model-first catalog, and the run-time prompt check.
   getDefaultModel: () => call<DefaultModelInfo>("GetDefaultModel"),
+  /**
+   * The provider/model a run of this project will actually use, and which layer
+   * decided it — recipe locale preset, recipe project preset, the shared `ai.*`
+   * app config (`kapi models setup` / `kapi models default`), or the built-in
+   * fallback. Resolved by the same host.EffectiveAIModel the CLI reads, so the
+   * displayed model cannot drift from the one that runs.
+   */
+  getEffectiveModel: (tabID: string, locale = "") =>
+    call<AIModelResolution>("GetEffectiveModel", tabID, locale),
   /** Persist the default model; provider "" infers it from the model name. */
   setDefaultModel: (model: string, provider: string) =>
     call<void>("SetDefaultModel", model, provider),

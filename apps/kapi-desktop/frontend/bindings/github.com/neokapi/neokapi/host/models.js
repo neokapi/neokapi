@@ -11,6 +11,108 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as convergence$0 from "../core/convergence/models.js";
 
 /**
+ * AIModelOrigin says which layer supplied the effective value.
+ * @readonly
+ * @enum {string}
+ */
+export const AIModelOrigin = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * AIModelFromLocalePreset — `defaults.locales.<lang>.tools.<tool>` in the recipe.
+     */
+    AIModelFromLocalePreset: "locale-preset",
+
+    /**
+     * AIModelFromProjectPreset — `defaults.tools.<tool>` in the recipe.
+     */
+    AIModelFromProjectPreset: "project-preset",
+
+    /**
+     * AIModelFromAppConfig — `ai.provider` / `ai.model` in ~/.config/kapi/kapi.yaml,
+     * which is what `kapi models setup` and `kapi models default` write.
+     */
+    AIModelFromAppConfig: "app-config",
+
+    /**
+     * AIModelFromBuiltIn — nothing configured; the tool's own default applies.
+     */
+    AIModelFromBuiltIn: "built-in",
+};
+
+/**
+ * AIModelResolution is the provider/model an AI tool will run with, plus where
+ * each half came from.
+ */
+export class AIModelResolution {
+    /**
+     * Creates a new AIModelResolution instance.
+     * @param {Partial<AIModelResolution>} [$$source = {}] - The source object to create the AIModelResolution.
+     */
+    constructor($$source = {}) {
+        if (!("provider" in $$source)) {
+            /**
+             * Provider is the effective provider id ("anthropic", "ollama", …).
+             * @member
+             * @type {string}
+             */
+            this["provider"] = "";
+        }
+        if (!("model" in $$source)) {
+            /**
+             * Model is the effective model name. Empty means "the provider's own
+             * default", which is the honest answer when nothing pins a model.
+             * @member
+             * @type {string}
+             */
+            this["model"] = "";
+        }
+        if (!("provider_origin" in $$source)) {
+            /**
+             * ProviderOrigin / ModelOrigin name the layer each value came from, so a UI
+             * can explain *why* this is active ("from your recipe", "from kapi models
+             * default").
+             * @member
+             * @type {AIModelOrigin}
+             */
+            this["provider_origin"] = AIModelOrigin.$zero;
+        }
+        if (!("model_origin" in $$source)) {
+            /**
+             * @member
+             * @type {AIModelOrigin}
+             */
+            this["model_origin"] = AIModelOrigin.$zero;
+        }
+        if (!("configured" in $$source)) {
+            /**
+             * Configured is false when neither half is configured anywhere — the
+             * built-in fallback is carrying the run, which is worth surfacing rather
+             * than presenting as a deliberate choice.
+             * @member
+             * @type {boolean}
+             */
+            this["configured"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AIModelResolution instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {AIModelResolution}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AIModelResolution(/** @type {Partial<AIModelResolution>} */($$parsedSource));
+    }
+}
+
+/**
  * ConvergeLocaleResult is the per-locale outcome of a convergence run.
  */
 export class ConvergeLocaleResult {
@@ -150,6 +252,38 @@ export class ConvergeOutput {
              */
             this["materializedFiles"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * BlockedOnSource is how many translatable source blocks were held below the
+             * active source gate this run (epic 019): their translations were NOT
+             * produced because the source is un-settled. 0 when the gate is `none` or the
+             * source is fully settled. It is source-scoped (deduped across locales — a
+             * source block is shared by every target), mirroring the server's run row.
+             * @member
+             * @type {number | undefined}
+             */
+            this["blockedOnSource"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * SourceGate is the resolved source-first gate level applied
+             * (none|authored|checked|approved), for observability. Empty when no gate
+             * was evaluated (no content).
+             * @member
+             * @type {string | undefined}
+             */
+            this["sourceGate"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * StallReason is the machine-readable cause a run did not converge — set to
+             * source_not_ready when every pending locale had nothing producible because
+             * its source is held below the gate. Empty on a clean/parked-on-target run.
+             * @member
+             * @type {string | undefined}
+             */
+            this["stallReason"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -170,95 +304,6 @@ export class ConvergeOutput {
             $$parsedSource["parkedScopes"] = $$createField4_0($$parsedSource["parkedScopes"]);
         }
         return new ConvergeOutput(/** @type {Partial<ConvergeOutput>} */($$parsedSource));
-    }
-}
-
-/**
- * ConvergePassEvent is the structured per-pass progress of a convergence run,
- * emitted through ConvergeOptions.onPass / UpOptions.OnPass after each pass's
- * post-derivation. It carries what the desktop's convergence view renders:
- * "pass N: extracted X, produced Y, checks failing Z" plus the locales still
- * short of their gate.
- */
-export class ConvergePassEvent {
-    /**
-     * Creates a new ConvergePassEvent instance.
-     * @param {Partial<ConvergePassEvent>} [$$source = {}] - The source object to create the ConvergePassEvent.
-     */
-    constructor($$source = {}) {
-        if (!("pass" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["pass"] = 0;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * ExtractedFiles/ExtractedBlocks report the pre-pass auto-extract on
-             * drift; both zero when the block store was already in sync.
-             * @member
-             * @type {number | undefined}
-             */
-            this["extractedFiles"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {number | undefined}
-             */
-            this["extractedBlocks"] = undefined;
-        }
-        if (!("produced" in $$source)) {
-            /**
-             * Produced is the count of units at ≥ draft (any committed target) after
-             * the pass; ProducedDelta is the pass's progress over that metric.
-             * @member
-             * @type {number}
-             */
-            this["produced"] = 0;
-        }
-        if (!("producedDelta" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["producedDelta"] = 0;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * FailingChecks counts produced units that fail the project's bound
-             * checks after the pass (they read at draft for gating).
-             * @member
-             * @type {number | undefined}
-             */
-            this["failingChecks"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * PendingLocales are the locales still short of their gate after the pass
-             * (the candidates to park if the loop stalls).
-             * @member
-             * @type {string[] | undefined}
-             */
-            this["pendingLocales"] = undefined;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ConvergePassEvent instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {ConvergePassEvent}
-     */
-    static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType5;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("pendingLocales" in $$parsedSource) {
-            $$parsedSource["pendingLocales"] = $$createField6_0($$parsedSource["pendingLocales"]);
-        }
-        return new ConvergePassEvent(/** @type {Partial<ConvergePassEvent>} */($$parsedSource));
     }
 }
 
@@ -417,8 +462,8 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType7;
-        const $$createField2_0 = $$createType6;
+        const $$createField1_0 = $$createType6;
+        const $$createField2_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField1_0($$parsedSource["scopes"]);
@@ -514,6 +559,5 @@ const $$createType1 = ConvergeLocaleResult.createFrom;
 const $$createType2 = $Create.Array($$createType1);
 const $$createType3 = ParkedScope.createFrom;
 const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = $Create.Array($Create.Any);
-const $$createType6 = UpPlanScope.createFrom;
-const $$createType7 = $Create.Array($$createType6);
+const $$createType5 = UpPlanScope.createFrom;
+const $$createType6 = $Create.Array($$createType5);

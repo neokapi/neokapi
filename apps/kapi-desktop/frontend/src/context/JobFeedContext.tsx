@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useRef, useEffect } f
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import { api } from "../hooks/useApi";
 import { captureEvent, durationBucket } from "../analytics";
+import type { RunError } from "../types/api";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -39,6 +40,11 @@ export interface RunEvent {
   converge_event?: import("../types/api").ConvergeEvent;
   /** Final structured convergence result (on a convergence run's "complete"). */
   converge_result?: import("../types/api").ConvergeOutput;
+  /**
+   * The failure as structure (type == "error"): headline + remediation actions +
+   * affected file/locale + the raw chain. `message` keeps the raw text.
+   */
+  error?: import("../types/api").RunError;
 }
 
 export interface Job {
@@ -53,7 +59,15 @@ export interface Job {
   stepSnapshots: StepSnapshot[];
   startTime: number;
   durationMs?: number;
+  /** Friendly one-liner for the feed row (the classified headline when there is one). */
   error?: string;
+  /**
+   * The classified failure, when the backend produced one — headline,
+   * remediation actions, affected file/locale, raw chain. The feed renders this
+   * in preference to `error` so a run failure arrives as structure, not as a
+   * wrapped Go error chain.
+   */
+  runError?: RunError;
 }
 
 interface JobFeedContextValue {
@@ -218,12 +232,15 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
               activeIdRef.current = null;
               const rawMsg = e.message ?? "Flow execution failed";
               const isCanceled =
-                rawMsg.includes("context canceled") || rawMsg.includes("context cancelled");
+                e.error?.kind === "canceled" ||
+                rawMsg.includes("context canceled") ||
+                rawMsg.includes("context cancelled");
               return {
                 ...job,
                 events,
                 status: isCanceled ? ("canceled" as const) : ("error" as const),
-                error: isCanceled ? "Flow canceled" : rawMsg,
+                error: isCanceled ? "Flow canceled" : (e.error?.headline ?? rawMsg),
+                ...(isCanceled || !e.error ? {} : { runError: e.error }),
               };
             }
             case "pipeline_metrics":
@@ -314,11 +331,14 @@ export function JobFeedProvider({ children }: { children: React.ReactNode }) {
             terminal = true;
             const rawMsg = e.message ?? "Flow execution failed";
             const isCanceled =
-              rawMsg.includes("context canceled") || rawMsg.includes("context cancelled");
+              e.error?.kind === "canceled" ||
+              rawMsg.includes("context canceled") ||
+              rawMsg.includes("context cancelled");
             updated = {
               ...updated,
               status: isCanceled ? "canceled" : "error",
-              error: isCanceled ? "Flow canceled" : rawMsg,
+              error: isCanceled ? "Flow canceled" : (e.error?.headline ?? rawMsg),
+              ...(isCanceled || !e.error ? {} : { runError: e.error }),
             };
           }
         }

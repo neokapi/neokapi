@@ -37,6 +37,18 @@ export class Event {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Stage is the loop phase this event was emitted from
+             * (sync|derive|recycle|ai_translate|checks|materialize). Optional and
+             * back-compatible: a consumer may ignore it, and it is omitted from JSON
+             * when unset. It gives a surface "where in the loop the run is" without
+             * inferring it from the event type (theme D).
+             * @member
+             * @type {string | undefined}
+             */
+            this["stage"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Pass-scoped fields (pass_start, pass_done; Pass also stamps every
              * locale-scoped event so consumers need no ambient state).
              * @member
@@ -133,6 +145,27 @@ export class Event {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Source-first fields (settle_source stage / pass_done / done). SettledSource
+             * is how many source blocks the settlement phase stamped this pass;
+             * BlockedOnSource is how many remain below the source gate — the count the UI
+             * renders as "N segments need source review before translating" and the
+             * signal that a run held on source (source_not_ready). Both are omitted when
+             * zero, so a project with no source gate (or a fully-settled source) carries
+             * neither (strategy 2026-07-dogfood doc 07 / roadmap epic 019).
+             * @member
+             * @type {number | undefined}
+             */
+            this["settledSource"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["blockedOnSource"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * State on done is the run outcome (converged|parked|failed|canceled) and
              * is always set. On locale_done State is OPTIONAL: a per-locale
              * shippable|parked|pending verdict is a whole-pass property (it depends on
@@ -143,6 +176,17 @@ export class Event {
              * @type {string | undefined}
              */
             this["state"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * StallReason (done) is the machine-readable cause a run did not converge:
+             * needs_credits | needs_ai_key | rate_limited | no_progress |
+             * checks_failing. Empty on a converged run (or when no reason is recorded),
+             * so an actionable stall is distinguishable from a clean finish (theme C).
+             * @member
+             * @type {StallReason | undefined}
+             */
+            this["stallReason"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -170,10 +214,10 @@ export class Event {
      * @returns {Event}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pending" in $$parsedSource) {
-            $$parsedSource["pending"] = $$createField3_0($$parsedSource["pending"]);
+            $$parsedSource["pending"] = $$createField4_0($$parsedSource["pending"]);
         }
         return new Event(/** @type {Partial<Event>} */($$parsedSource));
     }
@@ -298,7 +342,7 @@ export class LocaleCoverage {
         }
         if (!("shippable" in $$source)) {
             /**
-             * gate satisfied (or no gate)
+             * ship gate satisfied (or no ship gate)
              * @member
              * @type {boolean}
              */
@@ -306,11 +350,24 @@ export class LocaleCoverage {
         }
         if (/** @type {any} */(false)) {
             /**
-             * unmet gate thresholds
+             * unmet ship-gate thresholds
              * @member
              * @type {gate$0.Shortfall[] | undefined}
              */
             this["pending"] = undefined;
+        }
+        if (!("verified" in $$source)) {
+            /**
+             * Verified reports whether the scope clears its verified gate — the second,
+             * independent bar meaning a person reviewed or signed off the content. It is
+             * evaluated exactly like Shippable but against the recipe's verified gate.
+             * With no verified gate configured for the scope, Verified is false (nothing
+             * is verified by default): a shippable-but-unverified locale is flagged AI in
+             * a language picker, a verified one carries no badge.
+             * @member
+             * @type {boolean}
+             */
+            this["verified"] = false;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -579,6 +636,75 @@ export class SourceCoverage {
         return new SourceCoverage(/** @type {Partial<SourceCoverage>} */($$parsedSource));
     }
 }
+
+/**
+ * StallReason is the machine-readable cause a run did not converge — the label
+ * that turns a silent stuck spinner into an actionable state (strategy
+ * 2026-07-dogfood doc 06, theme C). It is set on the run row and carried on the
+ * terminal done event so the UI and analytics can distinguish "out of credits"
+ * from "pending human review".
+ * @typedef {string} StallReason
+ */
+
+/**
+ * Predefined constants for type StallReason.
+ * @namespace
+ */
+export const StallReason = {
+    /**
+     * StallNone is the zero value: the run converged, or has no blocking
+     * reason recorded.
+     */
+    StallNone: "",
+
+    /**
+     * StallNeedsCredits: the platform credit pre-check refused to produce (a
+     * zero-credit workspace). Work so far is saved; add credits and resume.
+     */
+    StallNeedsCredits: "needs_credits",
+
+    /**
+     * StallNeedsAIKey: no usable AI provider/key (provider or auth error).
+     */
+    StallNeedsAIKey: "needs_ai_key",
+
+    /**
+     * StallRateLimited: the provider returned repeated 429s.
+     */
+    StallRateLimited: "rate_limited",
+
+    /**
+     * StallNoProgress: a full pass produced nothing new and the remainder
+     * cannot advance unaided — ordinary parking (genuine pending work).
+     */
+    StallNoProgress: "no_progress",
+
+    /**
+     * StallChecksFailing: coverage is complete but bound checks demote units
+     * below the gate, so the locale parks on failing terminology/length checks.
+     */
+    StallChecksFailing: "checks_failing",
+
+    /**
+     * StallSourceNotReady: the source itself is below the source-first gate
+     * (terminology/brand/source-QA not settled, or human source review pending),
+     * so the fan-out is HELD on source rather than translating an unsettled,
+     * off-brand source into N locales (strategy 2026-07-dogfood doc 07 / roadmap
+     * epic 019). The run creates a source-review task and parks; settling the
+     * source (or lowering `defaults.source_gate`) lets the next run translate.
+     */
+    StallSourceNotReady: "source_not_ready",
+
+    /**
+     * StallNoTargetLocales: the project has no configured target languages, so
+     * there is no locale to converge toward. This is a configuration hold, not
+     * an up-to-date state — a run over N source blocks with zero target locales
+     * must never read "converged". Adding a target language (and pushing/running
+     * again) lets the next run derive real pending work. The local venue refuses
+     * to start with the same message ("no target languages configured").
+     */
+    StallNoTargetLocales: "no_target_locales",
+};
 
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);

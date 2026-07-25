@@ -28,6 +28,14 @@ export type { RenderedDocumentProps } from "./RenderedDocument";
 export { default as CodeView } from "./CodeView";
 export type { CodeViewProps } from "./CodeView";
 
+export {
+  localeDirection,
+  isRTLLocale,
+  directionAttrs,
+  needsIsolation,
+  type TextDirection,
+} from "../../lib/text-direction";
+
 export { detectLang, tokenize } from "./highlight";
 export type { Lang, Token, TokenType } from "./highlight";
 export { FileIcon, fileType, extOf } from "./fileTypes";

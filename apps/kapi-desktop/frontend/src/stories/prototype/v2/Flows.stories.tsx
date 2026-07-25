@@ -127,7 +127,7 @@ const RAIL_ITEMS: { view: string; label: string; icon: typeof Home }[] = [
   { view: "content", label: "Content", icon: FileText },
   { view: "checks", label: "Checks", icon: ShieldCheck },
   { view: "toolbox", label: "Toolbox", icon: Wrench },
-  { view: "termbases", label: "Termbases", icon: BookOpen },
+  { view: "termbases", label: "Terms", icon: BookOpen },
 ];
 
 function Rail({ active }: { active: string }) {

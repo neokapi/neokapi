@@ -11,7 +11,6 @@ import {
   Settings2,
   ChevronDown,
   ChevronRight,
-  ArrowRight,
   Layers,
   Check,
   Files,
@@ -217,18 +216,37 @@ function statusLabelOf(coll: ContentCollection): string {
 }
 
 /**
- * Collapse a source file's per-locale outputs into one templated path, replacing
- * the locale path segment with {lang} — e.g. output/de-DE/docs/api-reference.md
- * → output/{lang}/docs/api-reference.md. All locales share the same shape, so
- * one templated line stands in for the lot; expand it for the per-locale detail.
+ * Replace every whole-token occurrence of `lang` in a path with `{lang}`.
+ *
+ * The locale is a token, not a substring: it may be a whole path segment
+ * (`output/de-DE/api.md`), the file stem (`locales/de-DE.json`), or a suffix
+ * (`messages_de-DE.properties`). Matching on token boundaries covers all three
+ * while refusing to corrupt a path that merely *contains* the letters — a
+ * segment-equality test misses the last two, and a plain substring replace
+ * would turn `de/render.md` into `de/ren{lang}r.md`.
  */
-function templatedOutputPath(outs: OutputFileInfo[]): string {
-  const o = outs[0];
-  if (!o) return "";
-  return o.relative
-    .split("/")
-    .map((seg) => (seg === o.lang ? "{lang}" : seg))
-    .join("/");
+export function templatize(relative: string, lang: string): string {
+  if (!lang) return relative;
+  const escaped = lang.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return relative.replace(new RegExp(`(^|[^A-Za-z0-9])${escaped}(?![A-Za-z0-9])`, "g"), "$1{lang}");
+}
+
+/**
+ * The output *pattern* a source file's per-locale outputs share — the node the
+ * explorer shows, with the concrete files as its children.
+ *
+ * Every locale's output is the same template with `{lang}` filled in, so
+ * templatizing each one must agree. When they disagree (a recipe with
+ * per-locale target overrides) there is no single pattern to show, so the
+ * caller falls back to listing the concrete files directly.
+ */
+export function outputPattern(outs: OutputFileInfo[]): string {
+  if (outs.length === 0) return "";
+  const first = templatize(outs[0].relative, outs[0].lang);
+  for (const o of outs.slice(1)) {
+    if (templatize(o.relative, o.lang) !== first) return "";
+  }
+  return first;
 }
 
 /** A compact inline coverage cell for the project-wide strip: "loc ▮▮▯ 78%". */
@@ -559,12 +577,9 @@ export function CollectionsPanel({
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [otherCollapsed, setOtherCollapsed] = useState(false);
   // Generated output files keyed by their source file's relative path (issue #5),
-  // plus the set of source rows whose outputs are expanded.
+  // plus the set of pattern rows whose per-locale files are expanded.
   const [outputs, setOutputs] = useState<Record<string, OutputFileInfo[]>>({});
   const [expandedOutputs, setExpandedOutputs] = useState<Set<string>>(new Set());
-  // Second level under a source row: the templated output/{lang}/… line expands
-  // to its per-locale output files.
-  const [expandedTemplate, setExpandedTemplate] = useState<Set<string>>(new Set());
   // Preview target: the file whose content is shown in the PreviewKit sheet.
   const [preview, setPreview] = useState<{ path: string; relative: string } | null>(null);
   // Archive rows that are expanded to show their inner entries, keyed by path.
@@ -1161,6 +1176,44 @@ export function CollectionsPanel({
   // scroll or a giant DOM.
   const matchedTable = (allFiles: FileMatch[]) => {
     const files = allFiles.slice(0, FILE_TABLE_CAP);
+
+    // One concrete per-locale output file under a pattern node.
+    const outputRow = (o: OutputFileInfo, key: string, indent: string) => (
+      <SimpleTooltip
+        key={key}
+        content={
+          o.exists
+            ? t("Inspect {file}", { file: o.relative })
+            : t("Not generated yet — run a flow to create it")
+        }
+      >
+        <tr
+          onClick={o.exists ? () => setPreview({ path: o.path, relative: o.relative }) : undefined}
+          className={`border-b border-border last:border-0 ${
+            o.exists ? "cursor-pointer hover:bg-accent/30" : "opacity-60"
+          }`}
+          data-slot="matched-output-row"
+        >
+          <td className={`py-1 pr-3 ${indent}`}>
+            <span className="flex items-center gap-1.5 font-mono text-muted-foreground">
+              <LocalePill locale={o.lang} />
+              <span translate="no">{o.relative}</span>
+            </span>
+          </td>
+          <td className="px-3 py-1">
+            {o.exists ? (
+              <Badge variant="secondary">{o.format || "—"}</Badge>
+            ) : (
+              <span className="text-[10px] text-muted-foreground">{t("pending")}</span>
+            )}
+          </td>
+          <td className="px-3 py-1 text-right text-muted-foreground">
+            {o.exists ? formatSize(o.size) : ""}
+          </td>
+        </tr>
+      </SimpleTooltip>
+    );
+
     return (
       <div>
         <div className={`${FILE_TABLE_MAX_H} overflow-y-auto`} data-slot="matched-files-scroll">
@@ -1174,44 +1227,94 @@ export function CollectionsPanel({
             </thead>
             <tbody>
               {files.map((m, i) => {
-                const outs = outputs[m.relative] ?? [];
+                // Outputs generated from this source, minus any that resolve
+                // back to the source file itself (a locale whose target path
+                // equals the source — it is listed once, as [source]).
+                const outs = (outputs[m.relative] ?? []).filter((o) => o.relative !== m.relative);
                 const isOpen = expandedOutputs.has(m.relative);
                 const present = outs.filter((o) => o.exists).length;
-                const templated = templatedOutputPath(outs);
-                const tOpen = expandedTemplate.has(m.relative);
+                // The node is the *pattern* the whole language family shares —
+                // the source file and every target are its children, each
+                // labelled by locale. Without a single shared pattern (or with
+                // no outputs at all) the source file is the node itself.
+                const pattern = outputPattern(outs);
+                const grouped = outs.length > 0 && pattern !== "";
+                const toggle = () =>
+                  setExpandedOutputs((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(m.relative)) next.delete(m.relative);
+                    else next.add(m.relative);
+                    return next;
+                  });
+                const sourceRow = (indent: boolean) => (
+                  <SimpleTooltip
+                    key={`${i}-source`}
+                    content={t("Preview {file}", { file: m.relative })}
+                  >
+                    <tr
+                      onClick={() => setPreview({ path: m.path, relative: m.relative })}
+                      className="cursor-pointer border-b border-border last:border-0 hover:bg-accent/30"
+                      data-slot="matched-source-row"
+                    >
+                      <td className={indent ? "py-1 pl-9 pr-3" : "px-3 py-1.5"}>
+                        <span
+                          className={`flex items-center gap-1.5 font-mono${
+                            indent ? " text-muted-foreground" : ""
+                          }`}
+                        >
+                          {indent ? (
+                            <Badge variant="outline" className="shrink-0 text-[10px] font-normal">
+                              {t("source")}
+                            </Badge>
+                          ) : (
+                            <FileText size={12} className="shrink-0 text-muted-foreground" />
+                          )}
+                          <span translate="no">{m.relative}</span>
+                        </span>
+                      </td>
+                      <td className={indent ? "px-3 py-1" : "px-3 py-1.5"}>
+                        <Badge variant="secondary">{m.format || "unknown"}</Badge>
+                      </td>
+                      <td
+                        className={`text-muted-foreground ${indent ? "px-3 py-1 text-right" : "px-3 py-1.5"}`}
+                      >
+                        {/* The glob belongs on the node row; under a pattern
+                            node it would just repeat what is directly above. */}
+                        {indent ? null : <span>{m.pattern}</span>}
+                      </td>
+                    </tr>
+                  </SimpleTooltip>
+                );
+
+                // No shared output pattern → the source file is the node, as
+                // before, with the concrete outputs (if any) directly under it.
+                if (!grouped) {
+                  return (
+                    <Fragment key={i}>
+                      {sourceRow(false)}
+                      {outs.map((o) => outputRow(o, `${i}-${o.relative}`, "pl-9"))}
+                    </Fragment>
+                  );
+                }
+
                 return (
                   <Fragment key={i}>
-                    <SimpleTooltip content={t("Preview {file}", { file: m.relative })}>
+                    <SimpleTooltip
+                      content={isOpen ? t("Hide the language files") : t("Show the language files")}
+                    >
                       <tr
-                        onClick={() => setPreview({ path: m.path, relative: m.relative })}
+                        onClick={toggle}
                         className="cursor-pointer border-b border-border last:border-0 hover:bg-accent/30"
+                        data-slot="matched-pattern-row"
                       >
                         <td className="px-3 py-1.5">
                           <span className="flex items-center gap-1.5 font-mono">
-                            {outs.length > 0 ? (
-                              <SimpleTooltip
-                                content={isOpen ? t("Hide outputs") : t("Show outputs")}
-                              >
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setExpandedOutputs((prev) => {
-                                      const next = new Set(prev);
-                                      if (next.has(m.relative)) next.delete(m.relative);
-                                      else next.add(m.relative);
-                                      return next;
-                                    });
-                                  }}
-                                  className="shrink-0 text-muted-foreground hover:text-foreground"
-                                  aria-label={isOpen ? t("Hide outputs") : t("Show outputs")}
-                                >
-                                  {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                                </button>
-                              </SimpleTooltip>
+                            {isOpen ? (
+                              <ChevronDown size={12} className="shrink-0 text-muted-foreground" />
                             ) : (
-                              <FileText size={12} className="shrink-0 text-muted-foreground" />
+                              <ChevronRight size={12} className="shrink-0 text-muted-foreground" />
                             )}
-                            {m.relative}
+                            <span translate="no">{pattern}</span>
                           </span>
                         </td>
                         <td className="px-3 py-1.5">
@@ -1220,98 +1323,15 @@ export function CollectionsPanel({
                         <td className="px-3 py-1.5 text-muted-foreground">
                           <span className="flex items-center justify-between gap-2">
                             <span>{m.pattern}</span>
-                            {outs.length > 0 && (
-                              <Badge variant="outline" className="shrink-0 text-[10px] font-normal">
-                                {t("{present}/{total} outputs", { present, total: outs.length })}
-                              </Badge>
-                            )}
+                            <Badge variant="outline" className="shrink-0 text-[10px] font-normal">
+                              {t("{present}/{total} outputs", { present, total: outs.length })}
+                            </Badge>
                           </span>
                         </td>
                       </tr>
                     </SimpleTooltip>
-                    {/* One templated output line stands in for every locale; expand
-                  it for the per-locale files. */}
-                    {isOpen && outs.length > 0 && (
-                      <SimpleTooltip
-                        content={
-                          tOpen ? t("Hide per-language outputs") : t("Show per-language outputs")
-                        }
-                      >
-                        <tr
-                          onClick={() =>
-                            setExpandedTemplate((prev) => {
-                              const next = new Set(prev);
-                              if (next.has(m.relative)) next.delete(m.relative);
-                              else next.add(m.relative);
-                              return next;
-                            })
-                          }
-                          className="cursor-pointer border-b border-border last:border-0 hover:bg-accent/30"
-                        >
-                          <td className="py-1 pl-9 pr-3">
-                            <span className="flex items-center gap-1.5 font-mono text-muted-foreground">
-                              {tOpen ? (
-                                <ChevronDown size={11} className="shrink-0" />
-                              ) : (
-                                <ChevronRight size={11} className="shrink-0" />
-                              )}
-                              <ArrowRight size={10} className="shrink-0 opacity-50" />
-                              <span translate="no">{templated}</span>
-                            </span>
-                          </td>
-                          <td className="px-3 py-1">
-                            <Badge variant="secondary">{m.format || "—"}</Badge>
-                          </td>
-                          <td className="px-3 py-1 text-right">
-                            <Badge variant="outline" className="text-[10px] font-normal">
-                              {t("{present}/{total} generated", { present, total: outs.length })}
-                            </Badge>
-                          </td>
-                        </tr>
-                      </SimpleTooltip>
-                    )}
-                    {isOpen &&
-                      tOpen &&
-                      outs.map((o) => (
-                        <SimpleTooltip
-                          content={
-                            o.exists
-                              ? t("Inspect {file}", { file: o.relative })
-                              : t("Not generated yet — run a flow to create it")
-                          }
-                        >
-                          <tr
-                            key={`${i}-${o.relative}`}
-                            onClick={
-                              o.exists
-                                ? () => setPreview({ path: o.path, relative: o.relative })
-                                : undefined
-                            }
-                            className={`border-b border-border last:border-0 ${
-                              o.exists ? "cursor-pointer hover:bg-accent/30" : "opacity-60"
-                            }`}
-                          >
-                            <td className="py-1 pl-16 pr-3">
-                              <span className="flex items-center gap-1.5 font-mono text-muted-foreground">
-                                <LocalePill locale={o.lang} />
-                                <span>{o.relative}</span>
-                              </span>
-                            </td>
-                            <td className="px-3 py-1">
-                              {o.exists ? (
-                                <Badge variant="secondary">{o.format || "—"}</Badge>
-                              ) : (
-                                <span className="text-[10px] text-muted-foreground">
-                                  {t("pending")}
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-3 py-1 text-right text-muted-foreground">
-                              {o.exists ? formatSize(o.size) : ""}
-                            </td>
-                          </tr>
-                        </SimpleTooltip>
-                      ))}
+                    {isOpen && sourceRow(true)}
+                    {isOpen && outs.map((o) => outputRow(o, `${i}-${o.relative}`, "pl-9"))}
                   </Fragment>
                 );
               })}

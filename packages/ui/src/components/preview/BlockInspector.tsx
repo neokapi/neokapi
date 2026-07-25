@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ChevronDown, ChevronRight, Sparkles } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { directionAttrs } from "../../lib/text-direction";
 import { Badge } from "../ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { Separator } from "../ui/separator";
@@ -108,7 +109,9 @@ export default function BlockInspector({
         <Separator />
         <div className="flex flex-col gap-3 px-3 py-2.5 text-sm">
           <Field label={`source${node.sourceLocale ? ` · ${node.sourceLocale}` : ""}`}>
-            <RunSequence runs={node.source ?? []} segments={node.segments} />
+            <span {...directionAttrs(node.sourceLocale)}>
+              <RunSequence runs={node.source ?? []} segments={node.segments} />
+            </span>
           </Field>
 
           {targetKeys.length > 0 && (
@@ -222,9 +225,20 @@ function TargetRow({
           </span>
         )}
       </div>
-      <RunSequence runs={runs} />
+      {/* The variant key is the target locale (plus optional tone/channel), so
+          it decides this row's writing direction — an Arabic target must read
+          right-to-left even though the inspector chrome around it is LTR. */}
+      <span {...directionAttrs(localeOfVariant(variant))}>
+        <RunSequence runs={runs} />
+      </span>
     </div>
   );
+}
+
+/** The locale part of a variant key ("ar-EG", "ar-EG#formal" → "ar-EG"). */
+function localeOfVariant(variant: string): string {
+  const cut = variant.search(/[#|]/);
+  return cut === -1 ? variant : variant.slice(0, cut);
 }
 
 function OverlayRow({ overlay }: { overlay: OverlayView }): React.ReactElement {

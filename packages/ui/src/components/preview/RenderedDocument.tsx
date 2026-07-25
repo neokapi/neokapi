@@ -1,5 +1,6 @@
 import React from "react";
 import { cn } from "../../lib/utils";
+import { directionAttrs } from "../../lib/text-direction";
 import { headingLevel, inlineSegments, type InlineSeg } from "./projectionRender";
 import type { RenderNode } from "./types";
 
@@ -14,6 +15,13 @@ import type { RenderNode } from "./types";
 export interface RenderedDocumentProps {
   /** The projected render tree (ContentTree.render). */
   node: RenderNode;
+  /**
+   * The locale of the rendered text. Sets `dir`/`lang` on the document root so
+   * an RTL document (Arabic, Hebrew, Persian, Urdu) reads right-to-left, and
+   * embedded LTR fragments — URLs, code, product names — resolve in the right
+   * visual order rather than scrambling.
+   */
+  locale?: string;
   className?: string;
 }
 
@@ -33,10 +41,14 @@ const INLINE_TAG: Record<string, keyof React.JSX.IntrinsicElements> = {
 
 export default function RenderedDocument({
   node,
+  locale,
   className,
 }: RenderedDocumentProps): React.ReactElement {
   return (
-    <div className={cn("kapi-rendered space-y-2 text-sm leading-relaxed", className)}>
+    <div
+      {...directionAttrs(locale)}
+      className={cn("kapi-rendered space-y-2 text-sm leading-relaxed", className)}
+    >
       {renderNode(node, "n")}
     </div>
   );

@@ -188,7 +188,7 @@ describe("ConvergenceHero", () => {
     const dialog = await screen.findByRole("dialog");
     expect(dialog).toHaveTextContent("docs");
     expect(dialog).toHaveTextContent("12");
-    expect(dialog).toHaveTextContent("TM exact");
+    expect(dialog).toHaveTextContent("Memory exact");
     expect(dialog).toHaveTextContent("AI work");
     // Total token estimate + the disclosed heuristic note.
     expect(dialog).toHaveTextContent("1360");

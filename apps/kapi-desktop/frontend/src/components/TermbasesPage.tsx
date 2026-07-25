@@ -112,7 +112,7 @@ export function TermbasesPage({
 
   useEffect(() => {
     if (resourcesQuery.error) {
-      showError("Failed to load termbases", resourcesQuery.error);
+      showError("Failed to load terms", resourcesQuery.error);
     }
   }, [resourcesQuery.error, showError]);
 
@@ -159,11 +159,11 @@ export function TermbasesPage({
       const h = await api.openTermbaseDialog();
       if (h) {
         setHandle(h);
-        setTbName("Termbase");
+        setTbName("Terms");
         setTbPath("");
       }
     } catch (err) {
-      showError("Failed to open termbase", err);
+      showError("Failed to open terms", err);
     }
   }, [showError]);
 
@@ -179,7 +179,7 @@ export function TermbasesPage({
         setNewName("");
       }
     } catch (err) {
-      showError("Failed to create termbase", err);
+      showError("Failed to create terms", err);
     }
   }, [newName, showError]);
 
@@ -222,7 +222,7 @@ export function TermbasesPage({
     try {
       await api.exportTermbaseJSONDialog(activeHandle, tbName || "termbase");
     } catch (err) {
-      showError("Failed to export termbase", err);
+      showError("Failed to export terms", err);
     }
   }, [activeHandle, tbName, showError]);
 
@@ -234,18 +234,18 @@ export function TermbasesPage({
     return (
       <div className="p-6">
         <PageHeader
-          title={isProject ? "Project Termbase" : tbName}
+          title={isProject ? "Project Terms" : tbName}
           subtitle={
             projectStats ? `${projectStats.count.toLocaleString()} concepts` : tbPath || undefined
           }
           backButton={
             isProject ? undefined : (
-              <SimpleTooltip content="Close Termbase">
+              <SimpleTooltip content="Close terms">
                 <Button
                   variant="ghost"
                   size="icon-xs"
                   onClick={handleClose}
-                  aria-label="Close Termbase"
+                  aria-label="Close terms"
                 >
                   <X size={16} />
                 </Button>
@@ -315,7 +315,7 @@ export function TermbasesPage({
   return (
     <div className="p-6">
       <PageHeader
-        title="Termbases"
+        title="Terms"
         actions={
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleOpenDialog}>
@@ -324,7 +324,7 @@ export function TermbasesPage({
             </Button>
             <Button size="sm" onClick={() => setShowCreateDialog(true)}>
               <Plus size={12} />
-              New Termbase
+              New Terms
             </Button>
           </div>
         }
@@ -335,7 +335,7 @@ export function TermbasesPage({
         <Card className="mb-4 border-dashed">
           <CardContent className="p-4 text-center text-sm text-muted-foreground">
             <BookOpen size={16} className="mx-auto mb-1 opacity-50" />
-            No project termbase found. Import terminology to create one automatically, or create one
+            No project terms found. Import terminology to create one automatically, or create one
             below.
           </CardContent>
         </Card>
@@ -362,11 +362,11 @@ export function TermbasesPage({
       {!loading && resources.length === 0 && !tabID && (
         <EmptyState
           icon={<BookOpen size={24} className="text-muted-foreground/50" />}
-          title="No termbases found. Create one or open a .db file."
+          title="No terms found. Create one or open a .db file."
           action={
             <div className="flex justify-center gap-2">
               <Button size="sm" onClick={() => setShowCreateDialog(true)}>
-                New Termbase
+                New Terms
               </Button>
               <Button variant="outline" size="sm" onClick={handleOpenDialog}>
                 Open File...
@@ -379,7 +379,7 @@ export function TermbasesPage({
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>New Termbase</DialogTitle>
+            <DialogTitle>New Terms</DialogTitle>
           </DialogHeader>
           <div>
             <Label className="mb-1 block text-xs text-muted-foreground">Name</Label>
@@ -390,7 +390,7 @@ export function TermbasesPage({
               onKeyDown={(e) => {
                 if (e.key === "Enter") void handleCreate();
               }}
-              placeholder="my-glossary"
+              placeholder="my-terms"
               autoFocus
               className="mb-4"
             />
@@ -419,7 +419,7 @@ export function TermbasesPage({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle size={18} className="text-destructive" />
-              Corrupt Termbase
+              Corrupt Terms
             </DialogTitle>
           </DialogHeader>
           <div>
@@ -433,7 +433,7 @@ export function TermbasesPage({
             </p>
             <div className="flex gap-2">
               <Button size="sm" onClick={() => void handleRecover()} disabled={recovering}>
-                {recovering ? t("Recovering...") : t("Create Fresh Termbase")}
+                {recovering ? t("Recovering...") : t("Create Fresh Terms")}
               </Button>
               <Button
                 variant="outline"

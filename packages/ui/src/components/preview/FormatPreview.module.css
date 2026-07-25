@@ -327,6 +327,42 @@
   color: var(--doc-fg);
 }
 
+/* Blocks the engine flagged as whitespace-significant (PreserveWhitespace):
+   render newlines and runs of spaces as authored instead of reflowing them. */
+.preserve {
+  white-space: pre-wrap;
+}
+
+/* ── Code block ──────────────────────────────────────────────────────────────
+   A fenced or indented code block reaches the preview as a block whose semantic
+   role is `code` (model.RoleCode). It must read as code — monospaced, one line
+   per authored line, indentation intact, and never typeset as prose. Colors come
+   from the document-surface tokens, so it tracks the preview paper in both the
+   light and dark app themes rather than pinning its own palette. */
+.code {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--doc-border);
+  border-radius: 6px;
+  background: var(--doc-subtle);
+  color: var(--doc-fg);
+  font-family: var(--ifm-font-family-monospace, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  /* Wrap rather than clip: the preview pane is narrow and a horizontal
+     scrollbar per block would be worse than a soft wrap. Indentation still
+     survives because `pre-wrap` only wraps at the line's soft break. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 2;
+}
+
+.code code {
+  font: inherit;
+  background: none;
+  padding: 0;
+}
+
 .bulletList {
   margin: 0;
   padding-left: 1.15rem;
