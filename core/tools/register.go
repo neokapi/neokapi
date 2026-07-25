@@ -159,10 +159,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 		withTags("configurable"), withCardinality(schema.Monolingual))))
 
 	reg.RegisterWithSchema("whitespace-correct", func() tool.Tool {
-		cfg := &WhitespaceCorrectConfig{}
-		cfg.Reset()
-		cfg.TargetLocale = model.LocaleEnglish
-		return NewWhitespaceCorrectTool(cfg)
+		return NewWhitespaceCorrectTool(NewWhitespaceCorrectConfig(model.LocaleEnglish))
 	}, toolSchema(&WhitespaceCorrectConfig{NormalizeSpaces: true, MatchSourceWhitespace: true, RemoveZeroWidthChars: true, CorrectFullStop: true, CorrectComma: true, CorrectExclamation: true, CorrectQuestion: true, IncludeVerticalWS: true, IncludeHorizontalWS: true},
 		toolMeta("whitespace-correct", "Whitespace Correct", schema.CategoryTextProcessing,
 			withTags("text-processing", schema.TagL10n), withRequires("target-language"), withCardinality(schema.Bilingual))))
@@ -262,6 +259,7 @@ func registerConfigFactories(reg *registry.ToolRegistry) {
 	reg.SetConfigFactory("unredact", NewUnredactFromConfig)
 	reg.SetConfigFactory("search-replace", NewSearchReplaceFromConfig)
 	reg.SetConfigFactory("case-transform", NewCaseTransformFromConfig)
+	reg.SetConfigFactory("whitespace-correct", NewWhitespaceCorrectFromConfig)
 	// segmentation's ConfigFactory is set by RegisterGroup (it's a ToolGroup).
 	reg.SetConfigFactory("source-gate", NewSourceGateFromConfig)
 	reg.SetConfigFactory("recycle", NewTMLeverageFromConfig)

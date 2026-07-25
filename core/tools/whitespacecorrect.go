@@ -2,11 +2,13 @@ package tools
 
 import (
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -63,6 +65,33 @@ func (c *WhitespaceCorrectConfig) Validate() error {
 		return errors.New("whitespace-correct: TargetLocale is required")
 	}
 	return nil
+}
+
+// NewWhitespaceCorrectConfig creates a WhitespaceCorrectConfig at its
+// documented defaults for the given target locale.
+func NewWhitespaceCorrectConfig(targetLocale model.LocaleID) *WhitespaceCorrectConfig {
+	cfg := &WhitespaceCorrectConfig{}
+	cfg.Reset()
+	cfg.TargetLocale = targetLocale
+	return cfg
+}
+
+// NewWhitespaceCorrectFromConfig creates a whitespace-correct tool from a
+// config map. Without this the registry has only the zero-arg factory, and
+// NewToolWithConfig then throws the step's config away without a word — the
+// tool declares eleven knobs and honoured none of them, on a locale pinned to
+// English regardless of what the run was for.
+func NewWhitespaceCorrectFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	cfg := NewWhitespaceCorrectConfig(model.LocaleID(targetLang))
+	if err := schema.ApplyConfig(config, cfg); err != nil {
+		return nil, fmt.Errorf("whitespace-correct config: %w", err)
+	}
+	// The run's target language wins over a locale spelled in the step config:
+	// the same flow has to serve every locale it is run for.
+	if targetLang != "" {
+		cfg.TargetLocale = model.LocaleID(targetLang)
+	}
+	return NewWhitespaceCorrectTool(cfg), nil
 }
 
 // NewWhitespaceCorrectTool creates a tool that normalizes and fixes whitespace
