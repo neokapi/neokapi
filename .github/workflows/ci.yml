@@ -197,9 +197,9 @@ jobs:
       # path-gated on ^apps/kapi-desktop/, which covers both the backend Go
       # files the bindings derive from and the bindings directory itself, and
       # pushes to main run it unconditionally (so drift originating in
-      # core/ or host/ model types is still caught post-merge). Needs the Go
-      # toolchain + libicu-dev from the two steps above; regeneration is a
-      # static analysis of the service API, so it reuses this job's build cache.
+      # core/ or host/ model types is still caught post-merge). It needs only the
+      # Go toolchain set up above and the wails3 CLI below — generation is
+      # cgo-off, so no C toolchain — and reuses this job's Go build cache.
       - name: Install wails3 CLI (pinned to the app's wails module)
         run: make wails3-cli
 
