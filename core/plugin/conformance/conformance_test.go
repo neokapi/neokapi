@@ -66,6 +66,7 @@ func TestMain(m *testing.M) {
 	); err != nil {
 		fail(fmt.Errorf("read hello manifest: %w", err))
 	}
+	prewarm(ctx, probeBin, helloBin)
 
 	code := m.Run()
 	_ = os.RemoveAll(buildDir)
@@ -80,6 +81,20 @@ func build(ctx context.Context, root, outDir, pkg, name string) (string, error) 
 		return "", fmt.Errorf("build %s: %w\n%s", pkg, err, combined)
 	}
 	return out, nil
+}
+
+// prewarm runs each fixture binary once, outside any timed window.
+//
+// The first execution of a freshly written executable is far more expensive than
+// the rest — on macOS the kernel validates the code signature per inode, which
+// costs seconds, not milliseconds. Paying it inside a check that is timing the
+// daemon's startup makes the platform's bookkeeping look like a slow plugin.
+// Errors are ignored on purpose: a broken fixture is the individual tests' story
+// to tell, not TestMain's.
+func prewarm(ctx context.Context, bins ...string) {
+	for _, bin := range bins {
+		_ = exec.CommandContext(ctx, bin, "version").Run()
+	}
 }
 
 // findModuleRoot walks up from the working directory to the framework module
@@ -112,14 +127,28 @@ func pluginDir(t *testing.T, plugin string, man map[string]any, binSrc string) s
 	if binSrc != "" {
 		binName, _ := man["binary"].(string)
 		require.NotEmpty(t, binName, "manifest must declare a binary to stage one")
-		data, err := os.ReadFile(binSrc)
-		require.NoError(t, err)
 		dst := filepath.Join(dir, filepath.FromSlash(binName))
 		require.NoError(t, os.MkdirAll(filepath.Dir(dst), 0o755))
-		require.NoError(t, os.WriteFile(dst, data, 0o755))
+		stageBinary(t, binSrc, dst)
 	}
 	writeManifest(t, dir, man)
 	return dir
+}
+
+// stageBinary places the fixture binary at dst, preferring a hard link so every
+// staged copy shares one inode with the binary TestMain prewarmed. A byte copy
+// creates a new inode, which on macOS re-pays the per-inode code-signature
+// validation on first exec — seconds, inside checks that are timing a daemon's
+// startup. Nothing mutates a staged binary, so sharing is safe; a link across
+// filesystems cannot be made, so copying remains the fallback.
+func stageBinary(t *testing.T, src, dst string) {
+	t.Helper()
+	if err := os.Link(src, dst); err == nil {
+		return
+	}
+	data, err := os.ReadFile(src)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(dst, data, 0o755))
 }
 
 func writeManifest(t *testing.T, dir string, man map[string]any) {
@@ -175,8 +204,12 @@ func probeDir(t *testing.T, mutate func(map[string]any)) string {
 	return pluginDir(t, plugin, man, probeBin)
 }
 
-// suite is the common Suite for fixture runs: short timeouts keep the negative
-// paths (which wait out a deadline on purpose) fast.
+// suite is the common Suite for fixture runs. Only Timeout is trimmed — the
+// working budget for a fixture that answers in milliseconds. The two
+// daemon-lifecycle budgets are left at their defaults on purpose: a case that
+// wants to wait one of them out shortens *that* one (Suite.StartupTimeout,
+// Suite.ShutdownGrace) rather than squeezing everything through Timeout, which is
+// what made the negative Mode-C paths race a spawn under load (#1457).
 func suite(dir string) conformance.Suite {
 	return conformance.Suite{Dir: dir, Timeout: 20 * time.Second}
 }
@@ -743,24 +776,29 @@ func TestModeCDaemonIsConformant(t *testing.T) {
 func TestModeCHandshakeFailures(t *testing.T) {
 	skipUnlessModeCSupported(t)
 
+	// Only the case that is *designed* to wait a deadline out shortens the
+	// startup budget. The three protocol violations print promptly and are
+	// asserted on by reason, so they keep the manifest's generous budget: racing
+	// a spawn against a short wall clock is what made every one of them collapse
+	// into "no handshake line" on a loaded machine (#1457).
 	cases := []struct {
 		name    string
 		env     string
+		startup time.Duration
 		wantSub string
 	}{
-		{"no handshake at all", "PROBE_NO_HANDSHAKE=1", "no handshake line within"},
-		{"non-JSON first line", "PROBE_BAD_HANDSHAKE=1", "parse handshake"},
-		{"missing socket field", "PROBE_NO_SOCKET_FIELD=1", `omits "socket"`},
-		{"relative socket path", "PROBE_RELATIVE_SOCKET=1", "not an absolute path"},
+		{"no handshake at all", "PROBE_NO_HANDSHAKE=1", 500 * time.Millisecond, "startup budget"},
+		{"non-JSON first line", "PROBE_BAD_HANDSHAKE=1", 0, "parse handshake"},
+		{"missing socket field", "PROBE_NO_SOCKET_FIELD=1", 0, `omits "socket"`},
+		{"relative socket path", "PROBE_RELATIVE_SOCKET=1", 0, "not an absolute path"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			s := conformance.Suite{
-				Dir:     probeDir(t, nil),
-				Timeout: 4 * time.Second, // the no-handshake case waits this out
-				Only:    []string{"modeC"},
-				Env:     []string{tc.env},
-			}
+			s := suite(probeDir(t, nil))
+			s.StartupTimeout = tc.startup
+			s.Only = []string{"modeC"}
+			s.Env = []string{tc.env}
+
 			rep := run(t, s)
 			res := requireStatus(t, rep, "modeC.handshake", conformance.Fail)
 			assert.Contains(t, res.Detail, tc.wantSub)
@@ -775,6 +813,95 @@ func TestModeCHandshakeFailures(t *testing.T) {
 			assert.Len(t, rep.Failures(), 1)
 		})
 	}
+}
+
+// TestDaemonLifecycleBudgetsAreIndependent pins the structural invariant behind
+// #1457: the per-check working budget, the startup handshake budget, and the
+// teardown grace are three separate budgets. When they were one, shortening it
+// for any one purpose starved the other two, and a loaded machine turned every
+// negative Mode-C case into the same startup timeout.
+func TestDaemonLifecycleBudgetsAreIndependent(t *testing.T) {
+	skipUnlessModeCSupported(t)
+
+	t.Run("a short Timeout does not starve the startup handshake", func(t *testing.T) {
+		// 50ms is far less than any process spawn. Under the old model this was
+		// also the handshake budget, so a healthy daemon failed to start.
+		s := suite(probeDir(t, nil))
+		s.Timeout = 50 * time.Millisecond
+		s.Only = []string{"modeC.handshake"}
+
+		rep := run(t, s)
+		requireStatus(t, rep, "modeC.handshake", conformance.Pass)
+	})
+
+	t.Run("a short ShutdownGrace does not starve the startup handshake", func(t *testing.T) {
+		s := suite(probeDir(t, nil))
+		s.ShutdownGrace = time.Millisecond
+		s.Only = []string{"modeC.handshake"}
+
+		rep := run(t, s)
+		requireStatus(t, rep, "modeC.handshake", conformance.Pass)
+	})
+
+	t.Run("a short Timeout does not shorten the teardown grace", func(t *testing.T) {
+		// Under the old model the grace was min(5s, Timeout), so trimming the
+		// working budget quietly demanded the daemon exit in 100ms. The teardown
+		// check reports the grace it applied, so the budget is observable.
+		s := suite(probeDir(t, nil))
+		s.Timeout = 100 * time.Millisecond
+		s.Only = []string{"modeC.handshake", "modeC.sigterm-exit"}
+
+		rep := run(t, s)
+		requireStatus(t, rep, "modeC.handshake", conformance.Pass)
+		res := requireStatus(t, rep, "modeC.sigterm-exit", conformance.Pass)
+		assert.Contains(t, res.Detail, "budget "+conformance.DefaultShutdownGrace.String())
+	})
+
+	t.Run("the teardown grace is not derived from the startup budget", func(t *testing.T) {
+		// Skipping the Shutdown RPC leaves SIGTERM as what stops the daemon, so
+		// the teardown check reports which grace it actually applied.
+		s := suite(probeDir(t, nil))
+		s.StartupTimeout = 3 * time.Second
+		s.ShutdownGrace = 4 * time.Second
+		s.Only = []string{"modeC"}
+		s.Skip = []string{"modeC.shutdown-rpc"}
+
+		rep := run(t, s)
+		requireStatus(t, rep, "modeC.handshake", conformance.Pass)
+		res := requireStatus(t, rep, "modeC.sigterm-exit", conformance.Pass)
+		assert.Contains(t, res.Detail, "budget 4s")
+	})
+}
+
+// TestStartupTimeoutIsItsOwnFailureMode asserts a startup timeout reports *that*,
+// rather than presenting as an anonymous failure indistinguishable from a
+// protocol violation — the property that cost #1449 a full investigation cycle.
+func TestStartupTimeoutIsItsOwnFailureMode(t *testing.T) {
+	skipUnlessModeCSupported(t)
+
+	s := suite(probeDir(t, nil))
+	s.StartupTimeout = 500 * time.Millisecond
+	s.Only = []string{"modeC"}
+	s.Env = []string{"PROBE_NO_HANDSHAKE=1"}
+
+	rep := run(t, s)
+	res := requireStatus(t, rep, "modeC.handshake", conformance.Fail)
+	require.ErrorIs(t, res.Err, conformance.ErrStartupTimeout,
+		"a startup timeout must be recognisable as one, not just readable as one")
+	assert.Contains(t, res.Detail, "500ms startup budget")
+
+	// The dependent checks inherit that distinction rather than reporting the
+	// generic "did not start", which reads as the plugin's fault.
+	skipped := requireStatus(t, rep, "modeC.grpc-ready", conformance.Skip)
+	assert.Contains(t, skipped.Detail, "startup budget")
+
+	// A real protocol violation carries no such cause.
+	s.Env = []string{"PROBE_BAD_HANDSHAKE=1"}
+	s.StartupTimeout = 0
+	bad := run(t, s)
+	res = requireStatus(t, bad, "modeC.handshake", conformance.Fail)
+	require.Error(t, res.Err)
+	assert.NotErrorIs(t, res.Err, conformance.ErrStartupTimeout)
 }
 
 func TestModeCUnregisteredServiceFails(t *testing.T) {
@@ -822,20 +949,19 @@ func TestModeCMissingShutdownIsAdvisoryButSigtermIsNot(t *testing.T) {
 	})
 
 	t.Run("ignores SIGTERM", func(t *testing.T) {
-		// Use the standard 20s budget, not a shortened one. Suite.Timeout bounds
-		// the daemon's *startup* handshake as well as the shutdown grace
-		// (shutdownGrace = min(5s, Timeout)), so trimming it to buy a shorter
-		// post-SIGTERM wait also starves startup: under load the handshake
-		// missed the budget and the check reported "the daemon did not start"
-		// instead of the "still running" this test is about. The grace caps at
-		// 5s either way, so the standard budget costs ~1s and removes the race.
+		// This case waits the teardown grace out on purpose, so it shortens
+		// exactly that — ShutdownGrace — and leaves the startup budget alone.
+		// Trimming Suite.Timeout to buy the same second used to starve startup
+		// as well, and under load the check reported "the daemon did not start"
+		// instead of the "still running" this test is about.
 		s := suite(probeDir(t, nil))
+		s.ShutdownGrace = time.Second
 		s.Only = []string{"modeC"}
 		s.Env = []string{"PROBE_NO_SHUTDOWN=1", "PROBE_IGNORE_SIGTERM=1"}
 		rep := run(t, s)
 		res := requireStatus(t, rep, "modeC.sigterm-exit", conformance.Fail)
 		assert.True(t, res.Required)
-		assert.Contains(t, res.Detail, "still running")
+		assert.Contains(t, res.Detail, "still running 1s after SIGTERM")
 		assert.False(t, rep.OK())
 	})
 }
