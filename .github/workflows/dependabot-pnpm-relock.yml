@@ -1,0 +1,81 @@
+name: Dependabot pnpm Relock
+
+# Dependabot resolves pnpm-lock.yaml with its own bundled pnpm, which omits the
+# `tarball:` provenance URL that the pinned pnpm (package.json#packageManager)
+# records on every registry resolution. `scripts/check-lockfile-provenance.sh`
+# now fails on that, so without this workflow every npm Dependabot PR would be
+# permanently unmergeable.
+#
+# The subtlety that broke the first attempt at this workflow: the pinned pnpm is
+# format-preserving in BOTH directions. Re-resolving the PR's own (already
+# stripped) lockfile does nothing — pnpm never adds the field back, so the job
+# reported "already matches" and passed while the provenance stayed gone.
+#
+# The fix is the checkout order below: take the lockfile from the BASE branch,
+# which still has the provenance, and re-resolve THAT against the PR's
+# package.json. pnpm then applies the dependency change while preserving the
+# fields it already sees. Verified by hand on #1418's @types/node bump — base
+# lockfile (2319 entries) + bumped package.json re-resolved to 2320 entries,
+# provenance intact and the bump applied.
+#
+# This is the npm counterpart of dependabot-go-tidy.yml.
+
+on: pull_request
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  relock:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # Need the base commit too, to recover its lockfile.
+          fetch-depth: 0
+
+      # Mirrors .github/actions/setup-node-ui, minus run-install and the
+      # i18n-react build — relocking needs the toolchain, not the workspace.
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          version: "0.1.23"
+          node-version: "22"
+          cache: true
+          cache-dependency-path: pnpm-lock.yaml
+          run-install: false
+
+      # Order matters: the base lockfile carries the provenance the PR's does
+      # not. Re-resolving from here applies the PR's package.json change while
+      # keeping the `tarball:` fields.
+      - name: Recover the base branch lockfile
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --no-tags origin "$BASE_REF"
+          git checkout "origin/$BASE_REF" -- pnpm-lock.yaml
+          echo "provenance entries recovered from $BASE_REF: $(grep -c 'tarball: ' pnpm-lock.yaml || true)"
+
+      - name: Re-resolve against the PR's package.json
+        env:
+          # Required by .npmrc for @neokapi scoped packages on npm.pkg.github.com.
+          GITHUB_TOKEN: ${{ github.token }}
+        run: vp install --lockfile-only
+
+      - name: Verify the provenance survived
+        run: ./scripts/check-lockfile-provenance.sh
+
+      - name: Push if the lockfile changed
+        run: |
+          if git diff --quiet -- pnpm-lock.yaml; then
+            echo "Lockfile already matches the pinned pnpm's resolution"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          git commit -m "chore: re-resolve pnpm-lock.yaml with the pinned pnpm"
+          git push
