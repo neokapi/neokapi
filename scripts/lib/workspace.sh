@@ -15,7 +15,7 @@
 # both cases, so derive from that and fall back to <root>/.. outside git.
 #
 # Mirrors the defaults in the root Makefile — keep the two in step.
-# See web/docs/contribute/workspace-paths.md.
+# See docs/internals/workspace-paths.md.
 
 neokapi_init_workspace() {
   local root="${1:?neokapi_init_workspace: repo root required}"

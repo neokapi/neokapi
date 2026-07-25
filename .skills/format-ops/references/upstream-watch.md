@@ -19,7 +19,7 @@ a backport list, and (when the Okapi tag moved) a version-bump plan.
 The Okapi tracker is **GitLab, not GitHub** (`gh` does not apply). Project
 `okapiframework/Okapi` == id `62298414`; the local clone is pinned to
 **1.48.0** and lives at `$NEOKAPI_OKAPI_DIR` (default `<checkouts>/okapi/Okapi`
-— see [workspace paths](../../../web/docs/contribute/workspace-paths.md)).
+— see [workspace paths](../../../docs/internals/workspace-paths.md)).
 
 ```bash
 # Issues updated since the watermark (public, no auth):

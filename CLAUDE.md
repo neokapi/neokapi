@@ -109,7 +109,7 @@ a workspace. Prose names the variable, not a resolved path.
 lint`, `make pre-push`, and the *Repo guards* CI job. Watch generated artefacts
 too — a Go subtest named after an absolute fixture path once put 358 home paths
 into a committed dataset. See
-[Workspace Paths](web/docs/contribute/workspace-paths.md).
+[Workspace Paths](docs/internals/workspace-paths.md).
 
 ## Target-language drift must never block the build
 
@@ -193,9 +193,11 @@ and flow name against the code before publishing.
   detail (SQL schemas, API routes, pseudocode) kept out of the ADs.
 - **Contributor guides** — `web/docs/contribute/`: `formats.md`,
   `tool-authoring.md`, `flow-authoring.md`, `plugins.md`, `testing.md`,
-  `interfaces.md`, `workspace-paths.md`.
+  `interfaces.md`. These are published: they document how to extend neokapi.
 - **Repo internals** — `docs/internals/`: format ops, testing strategy, i18n
-  toil, docs-asset runbooks, brand communication.
+  toil, docs-asset runbooks, brand communication, workspace paths. Unpublished
+  by design — contributor machine setup and working notes, not product
+  documentation.
 - **kapi agent skill** — `cli/skills/data/kapi/` (`SKILL.md` + `references/`),
   the shipped guidance for driving kapi itself.
 

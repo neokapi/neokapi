@@ -287,6 +287,17 @@ const config: Config = {
             from: "/reference/commands/termbase-stats",
             to: "/reference/commands/terms-stats",
           },
+          // Workspace paths was contributor machine setup (NEOKAPI_* variables
+          // and the absolute-path guard), not product documentation, so it was
+          // unpublished and now lives in the repository at
+          // docs/internals/workspace-paths.md. The route was indexed, so it
+          // redirects to the file's new home rather than 404ing. An absolute
+          // "to" is passed through verbatim by the redirects plugin (only
+          // values starting with "/" are resolved against site routes).
+          {
+            from: "/contribute/workspace-paths",
+            to: "https://github.com/neokapi/neokapi/blob/main/docs/internals/workspace-paths.md",
+          },
         ],
       },
     ],

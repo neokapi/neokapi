@@ -1,11 +1,11 @@
----
-sidebar_position: 13
-title: Workspace Paths
-description: How neokapi names locations outside the repository — NEOKAPI_WORKSPACE_DIR, NEOKAPI_CHECKOUTS_DIR, NEOKAPI_OKAPI_DIR and NEOKAPI_DOCLANG_DIR — and the CI guard that keeps absolute home paths out of the tree.
-keywords: [workspace, absolute path, environment variables, NEOKAPI_WORKSPACE_DIR, NEOKAPI_OKAPI_DIR, monorepo, contributing]
----
+# Workspace paths
 
-# Workspace Paths
+How neokapi names locations outside the repository — `NEOKAPI_WORKSPACE_DIR`,
+`NEOKAPI_CHECKOUTS_DIR`, `NEOKAPI_OKAPI_DIR` and `NEOKAPI_DOCLANG_DIR` — and the
+CI guard that keeps absolute home paths out of the tree.
+
+This is contributor machine setup, not product documentation, so it lives here
+in `docs/internals/` rather than on the documentation site.
 
 A few build and audit targets reach outside this repository: sibling repos in
 the multi-repo workspace, and reference checkouts of unrelated projects. Those

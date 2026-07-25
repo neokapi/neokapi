@@ -57,7 +57,7 @@ const REPO = 'the neokapi repo root (your current working directory)'
 // an absolute home path. scripts/lib/workspace.sh is the single source of
 // truth for the default (<checkouts>/okapi/Okapi) and is worktree-aware; the
 // value below is a shell expression the agent can paste into a bash command.
-// See web/docs/contribute/workspace-paths.md, or run `make workspace-paths`.
+// See docs/internals/workspace-paths.md, or run `make workspace-paths`.
 const OKAPI =
   '"$(. scripts/lib/workspace.sh && neokapi_init_workspace "$PWD" && echo "$NEOKAPI_OKAPI_DIR")/okapi/filters"'
 const ICU = 'export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c@78/lib/pkgconfig:$PKG_CONFIG_PATH";'
