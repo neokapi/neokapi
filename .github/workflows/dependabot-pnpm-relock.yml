@@ -1,0 +1,60 @@
+name: Dependabot pnpm Relock
+
+# Dependabot resolves pnpm-lock.yaml with its own bundled pnpm, which does not
+# match the version pinned in package.json#packageManager (pnpm@11.5.0). The
+# mismatch silently rewrites the entire lockfile alongside the intended bump —
+# most visibly stripping the `tarball:` provenance URL from every registry
+# resolution (2319 entries, as shipped by #1414 and reverted here).
+#
+# Nothing catches it: the rewritten lockfile is internally consistent, so
+# `vp install --frozen-lockfile` succeeds and every check goes green. The cost
+# is silent — explicit registry-URL pinning disappears for the whole tree, and
+# every npm PR conflicts with every other npm PR on those 2319 lines.
+#
+# This is the npm counterpart of `dependabot-go-tidy.yml`: re-resolve with the
+# pinned toolchain and push, so a Dependabot PR diff contains only its bump.
+
+on: pull_request
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  relock:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Mirrors .github/actions/setup-node-ui, but with run-install: false and
+      # no i18n-react build — relocking needs the toolchain, not the workspace.
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          version: "0.1.23"
+          node-version: "22"
+          cache: true
+          cache-dependency-path: pnpm-lock.yaml
+          run-install: false
+
+      - name: Re-resolve the lockfile with the pinned pnpm
+        env:
+          # Required by .npmrc for @neokapi scoped packages on npm.pkg.github.com.
+          GITHUB_TOKEN: ${{ github.token }}
+        run: vp install --lockfile-only
+
+      - name: Push if the lockfile changed
+        run: |
+          if git diff --quiet -- pnpm-lock.yaml; then
+            echo "Lockfile already matches the pinned pnpm"
+            exit 0
+          fi
+          echo "Lockfile differed from the pinned pnpm's resolution — relocking."
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          git commit -m "chore: re-resolve pnpm-lock.yaml with the pinned pnpm"
+          git push
