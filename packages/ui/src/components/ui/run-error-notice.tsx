@@ -57,6 +57,13 @@ export interface RunErrorNoticeProps {
    * may ignore "command" entirely.
    */
   onAction?: (action: RunErrorActionView) => void;
+  /**
+   * The action kinds this host can actually service. An action the host cannot
+   * carry out is a dead button, so it is not rendered rather than rendered inert
+   * — a compact surface (a feed row) may be able to copy a command but have
+   * nowhere to navigate to. Defaults to all kinds.
+   */
+  actionKinds?: readonly RunErrorActionKind[];
   /** Contextual label above the headline (e.g. the flow or run name). */
   context?: React.ReactNode;
   /** Compact inline row, or a bordered destructive panel (default). */
@@ -74,9 +81,12 @@ const ACTION_ICON: Record<RunErrorActionKind, React.ComponentType<{ size?: numbe
   "open-url": ExternalLink,
 };
 
+const ALL_ACTION_KINDS: readonly RunErrorActionKind[] = ["command", "open-settings", "open-url"];
+
 export function RunErrorNotice({
   error,
   onAction,
+  actionKinds = ALL_ACTION_KINDS,
   context,
   variant = "panel",
   detailsLabel = "Details",
@@ -103,6 +113,9 @@ export function RunErrorNotice({
     },
     [onAction],
   );
+
+  // Only the actions this host can carry out.
+  const actions = (error.actions ?? []).filter((a) => actionKinds.includes(a.kind));
 
   // The scope chips: only the fields the classifier actually knew.
   const scope: Array<[string, string]> = [];
@@ -172,9 +185,9 @@ export function RunErrorNotice({
             </div>
           )}
 
-          {error.actions !== undefined && error.actions.length > 0 && (
+          {actions.length > 0 && (
             <div className="mt-2.5 flex flex-wrap items-center gap-2" data-slot="run-error-actions">
-              {error.actions.map((action, i) => {
+              {actions.map((action, i) => {
                 const Icon = ACTION_ICON[action.kind];
                 const isCopied = action.kind === "command" && copied === action.command;
                 return (

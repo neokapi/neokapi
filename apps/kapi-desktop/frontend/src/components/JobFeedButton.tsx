@@ -202,6 +202,11 @@ export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void })
                         <RunErrorNotice
                           error={job.runError}
                           variant="inline"
+                          // The feed is a dropdown over whatever view you are
+                          // on; it can copy a command and open a page, but it
+                          // has no business navigating you elsewhere. Offering
+                          // only what it can do beats an inert button.
+                          actionKinds={["command", "open-url"]}
                           onAction={(a) => {
                             if (a.kind === "open-url" && a.url)
                               window.open(a.url, "_blank", "noopener,noreferrer");
