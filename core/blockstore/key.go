@@ -2,6 +2,9 @@ package blockstore
 
 import (
 	"context"
+	"fmt"
+	"path/filepath"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -20,6 +23,46 @@ func StoreKey(sourceRel, blockID, sourceText string) string {
 		seed = sourceRel + "\x00" + sourceText
 	}
 	return model.ComputeContentHash(seed)
+}
+
+// ProjectRel derives the namespace half of StoreKey for a source file: the
+// file's path relative to the project root, in the exact spelling the store's
+// keys use (project.ResolvedFile.Relative, which is filepath.Rel of the
+// resolver's absolute path against the project directory).
+//
+// Both ends of the `kapi run --process-only` → `kapi merge` round-trip must spell
+// this identically or the overlays the run commits cannot be found again, and the
+// symptom is not an error: merge finds no translation for any block, treats that
+// as pending work (blockstore.ErrNotFound is the legitimate "not translated yet"
+// sentinel) and writes the source text into every target file, exit 0. Hence one
+// function, and hence an error rather than a fallback — a run that cannot name
+// its own file the way merge will has nowhere to put its work.
+//
+// path may be relative (a CLI argument as the user typed it) and is resolved
+// against the process working directory, exactly as the resolver did. Symlinks
+// are deliberately NOT resolved: the resolver does not resolve them either, and
+// agreement between the two sides is what matters, not canonicality.
+func ProjectRel(projectRoot, path string) (string, error) {
+	absRoot, err := filepath.Abs(projectRoot)
+	if err != nil {
+		return "", fmt.Errorf("resolve project root %q: %w", projectRoot, err)
+	}
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("resolve %q: %w", path, err)
+	}
+	rel, err := filepath.Rel(absRoot, absPath)
+	if err != nil {
+		return "", fmt.Errorf("%s is not addressable relative to the project root %s, "+
+			"so its blocks cannot be keyed the way merge will look them up: %w", absPath, absRoot, err)
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("%s lies outside the project root %s: a process-only run stores its "+
+			"work under the file's project-relative path, and merge only ever looks up files the "+
+			"recipe resolves — so this work could never be collected. Write the result directly with "+
+			"-o, add the file to the recipe's content, or run outside the project", absPath, absRoot)
+	}
+	return rel, nil
 }
 
 type sourceRelKey struct{}

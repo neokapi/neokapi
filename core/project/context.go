@@ -189,7 +189,26 @@ func (ctx *ProjectContext) ResolveContent(reg *registry.FormatRegistry) ([]Resol
 
 			for _, f := range matches {
 				info, err := os.Stat(f)
-				if err != nil || info.IsDir() {
+				if err != nil {
+					// ExpandGlob matched this path, so something is there; a stat
+					// that then fails means present-but-unreadable (permissions, a
+					// broken symlink, a race with a delete) — not absent.
+					//
+					// The two used to share one `continue`, which is the same
+					// conflation the ExpandGlob error above was hardened against,
+					// one file at a time instead of one pattern at a time: the file
+					// vanished from `kapi ls`, was never extracted, and coverage was
+					// computed over the smaller universe — so the locale read 100%
+					// translated while that file shipped untranslated, and it never
+					// appeared in ExtractStats.Skipped either.
+					return nil, fmt.Errorf("content %s matched %s, but it cannot be read, "+
+						"so it would silently drop out of every count: %w", item.Path, f, err)
+				}
+				if info.IsDir() {
+					// A directory match is expected and correct: ExpandGlob returns
+					// directories for patterns like `src/**`, and a directory holds
+					// no content of its own. The files under it arrive as their own
+					// matches.
 					continue
 				}
 

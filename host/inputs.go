@@ -271,6 +271,13 @@ func expandGlobArg(pattern string, opts InputOptions) ([]string, error) {
 		p := filepath.Join(root, filepath.FromSlash(r))
 		info, err := os.Stat(p)
 		if err != nil {
+			// Report the drop instead of dropping it. Whether the user is told
+			// used to depend only on whether they typed a wildcard: expandOne
+			// calls skip() for an unreadable file named explicitly (which
+			// resolveFiles turns into a non-zero exit), while a match from a glob
+			// disappeared with no signal at all — `Processed 11 files` when the
+			// glob matched 12, invisible to --on-skip and to the exit code.
+			skip(opts, p, err)
 			continue
 		}
 		if info.IsDir() {

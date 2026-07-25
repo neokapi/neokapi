@@ -586,10 +586,23 @@ func (r *FileRunner) RunFileToStore(ctx context.Context, flowName string, tools 
 	// Tag the session with this file's project-relative path so the target
 	// overlays committed below are keyed globally-unique per source file
 	// (matching the block store's own keys), not by the file-local block id.
+	//
+	// A failure here is fatal rather than a fallback to the untagged id space.
+	// The tag is one half of blockstore.StoreKey and `kapi merge` supplies the
+	// other half unconditionally from the recipe, so an untagged run commits its
+	// overlays under keys merge cannot address — and merge reads that as "nothing
+	// translated yet", writes the source text into every target file and exits 0.
+	// Silently producing a wrong deliverable is worse than refusing to start.
+	// filepath.Rel of a plain relative CLI argument against the absolute project
+	// root is exactly the case that used to fail, so ProjectRel absolutises both
+	// sides first; what remains an error is genuinely unaddressable.
 	if r.cfg.ProjectRoot != "" {
-		if rel, err := filepath.Rel(r.cfg.ProjectRoot, inputPath); err == nil {
-			ctx = blockstore.WithSourceRel(ctx, rel)
+		rel, err := blockstore.ProjectRel(r.cfg.ProjectRoot, inputPath)
+		if err != nil {
+			reader.Close()
+			return fmt.Errorf("process-only run: %w", err)
 		}
+		ctx = blockstore.WithSourceRel(ctx, rel)
 	}
 
 	// Project mode: stream the source through the document cache (parse → record
