@@ -274,9 +274,22 @@ func ExtractToBlockStore(
 		}
 		stats.Files++
 
-		if stamp, serr := sourceStampFor(rf.Path); serr == nil {
-			stamps[rf.Relative] = stamp
+		// The drift stamp is not optional bookkeeping: DetectStoreDrift treats a
+		// file with NO stamp as unconditionally Changed, so a dropped stamp means
+		// this file reads as drifted on every future invocation — re-extracted and
+		// re-translated forever, with any "N drifted" summary permanently
+		// over-reporting. The whole-sidecar write below really is best-effort (it
+		// self-heals on the next run); a per-file hole is not, because the same
+		// stat/hash fails again every time. And stats.Files++ above has already
+		// counted the file as extracted, so silence here makes the stats and the
+		// stamp map disagree about the same file.
+		stamp, serr := sourceStampFor(rf.Path)
+		if serr != nil {
+			_ = sess.Rollback()
+			return stats, fmt.Errorf("stamp source %q for drift detection: %w — without a stamp "+
+				"this file would be re-extracted on every run and always report as drifted", rf.Relative, serr)
 		}
+		stamps[rf.Relative] = stamp
 	}
 
 	if err := sess.Commit(); err != nil {

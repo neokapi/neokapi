@@ -991,19 +991,41 @@ func (a *App) RunExtractKpz(cmd Command) error {
 		return fmt.Errorf("extract: create out dir: %w", err)
 	}
 
-	var tm memory.ContentMemory
+	// Content-memory / terms leverage context. A store that will not open is
+	// REPORTED, never dropped: both constructors CREATE the file when it is
+	// absent, so a failure here can only mean "a store that exists and cannot be
+	// read" (locked, corrupt, an FTS5 tokenizer mismatch between builds, bad
+	// permissions). Swallowing it shipped .kpz packages whose recycling context
+	// was silently empty — the translator sees no matches and no glossary on a
+	// project that has both, and nothing explains why. Reported and continued
+	// rather than fatal, matching the two siblings on the same call in this file
+	// (RunExtract, MergeOneKpz): the packages are still usable, just without
+	// leverage.
+	var mem memory.ContentMemory
 	if !noMemory {
 		if a.MemoryBackend != nil {
-			tm = a.MemoryBackend
-		} else if loaded, lerr := memory.NewSQLiteStore(filepath.Join(layout.StateDir, "tm.db")); lerr == nil {
-			defer loaded.Close()
-			tm = loaded
+			mem = a.MemoryBackend
+		} else {
+			memoryPath := filepath.Join(layout.StateDir, "tm.db")
+			loaded, lerr := memory.NewSQLiteStore(memoryPath)
+			if lerr != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "Warning: extract: open project content memory at %s: %v "+
+					"(continuing with no memory — the packages will report zero recycling leverage)\n", memoryPath, lerr)
+			} else {
+				defer loaded.Close()
+				mem = loaded
+			}
 		}
 	}
 
-	// Terms context (optional): bound terms or project termbase.db.
+	// Terms context (optional): bound terms or the project terms store.
 	var tb terms.Terminology
-	if tbLoaded, terr := terms.NewSQLiteStore(filepath.Join(layout.StateDir, "termbase.db")); terr == nil {
+	termsPath := filepath.Join(layout.StateDir, "termbase.db")
+	tbLoaded, terr := terms.NewSQLiteStore(termsPath)
+	if terr != nil {
+		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: extract: open project terms at %s: %v "+
+			"(continuing with no glossary)\n", termsPath, terr)
+	} else {
 		defer tbLoaded.Close()
 		tb = tbLoaded
 	}
@@ -1014,7 +1036,7 @@ func (a *App) RunExtractKpz(cmd Command) error {
 			outName := bilingualOutputName(src, pctx.SourceLocale, tgt, ExtractFormatKPZ)
 			outPath := filepath.Join(absOut, outName)
 			if err := a.extractOneKpz(cmd.Context(), kpzInterchangeTask{
-				ctx: pctx, source: src, targetLocale: tgt, outputPath: outPath, tm: tm, tb: tb,
+				ctx: pctx, source: src, targetLocale: tgt, outputPath: outPath, tm: mem, tb: tb,
 			}); err != nil {
 				return fmt.Errorf("extract: %s → %s: %w", src.Relative, tgt, err)
 			}

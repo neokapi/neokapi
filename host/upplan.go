@@ -123,9 +123,9 @@ func (a *App) runUpPlan(cmd Command, proj *project.KapiProject, projectPath stri
 	return output.Print(cmd, plan)
 }
 
-// computeProjectPlan resolves the project's units, opens the project content memory as a
-// read-only leverage source (only an existing tm.db — a plan must not create
-// files), and derives the dry-run work plan. Shared by `kapi up --plan` and
+// computeProjectPlan resolves the project's units, opens the project content
+// memory as a read-only leverage source (only an existing store — a plan must
+// not create files), and derives the dry-run work plan. Shared by `kapi up --plan` and
 // the exported UpPlan the desktop binds to.
 func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject, projectPath string) (UpPlanOutput, error) {
 	root := filepath.Dir(projectPath)
@@ -134,20 +134,40 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 		return UpPlanOutput{}, fmt.Errorf("resolve content: %w", err)
 	}
 
-	var tm memory.ContentMemory
+	// The plan IS a number, so a content memory that cannot be read is a fault,
+	// not a degradation: with mem nil every unit reports zero leverage, and the
+	// plan quotes the token and cost estimate for translating from scratch a
+	// project the memory already largely covers. The user approves a far larger —
+	// and more expensive — run than reality warrants, off a figure that looks
+	// authoritative. A wrong number here costs real money.
+	//
+	// The os.Stat guard below already draws the distinction this family needs and
+	// it is load-bearing, not decoration: a plan must not create files, so an
+	// ABSENT store is the legitimate no-leverage case and stays silent. Past the
+	// stat the file exists, so a failure to open it can only mean it exists and
+	// cannot be read — exactly the case that must not read as "no memory".
+	var mem memory.ContentMemory
 	if a.MemoryBackend != nil {
-		tm = a.MemoryBackend
-	} else if layout, lerr := project.LayoutFor(projectPath); lerr == nil {
+		mem = a.MemoryBackend
+	} else {
+		layout, lerr := project.LayoutFor(projectPath)
+		if lerr != nil {
+			return UpPlanOutput{}, fmt.Errorf("resolve project layout for %s: %w", projectPath, lerr)
+		}
 		memoryPath := filepath.Join(layout.StateDir, "tm.db")
 		if _, statErr := os.Stat(memoryPath); statErr == nil {
-			if loaded, terr := memory.NewSQLiteStore(memoryPath); terr == nil {
-				defer loaded.Close()
-				tm = loaded
+			loaded, terr := memory.NewSQLiteStore(memoryPath)
+			if terr != nil {
+				return UpPlanOutput{}, fmt.Errorf("open project content memory at %s: %w — the plan's "+
+					"leverage, token and cost figures are computed against it, so they would understate "+
+					"the work and overstate the spend; fix or remove the store before planning", memoryPath, terr)
 			}
+			defer loaded.Close()
+			mem = loaded
 		}
 	}
 
-	plan, err := a.computeUpPlan(ctx, tm, proj, units)
+	plan, err := a.computeUpPlan(ctx, mem, proj, units)
 	if err != nil {
 		return plan, err
 	}

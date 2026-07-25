@@ -163,7 +163,15 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 		if !cmd.Flags().Changed("source-lang") && proj.Defaults.SourceLanguage != "" {
 			a.SourceLang = string(proj.Defaults.SourceLanguage)
 		}
-		if plan, perr := a.computeProjectPlan(cmd.Context(), proj, projectPath); perr == nil {
+		// The preamble is a courtesy line, so a plan that cannot be computed must
+		// not stop a run that is otherwise fine — the converge below opens its own
+		// content memory and does its own resolution. But it is REPORTED: the
+		// preamble silently vanishing looks identical to a build where it was
+		// never printed, and the usual cause (a memory store that will not open)
+		// is the same fault that would make the plan's leverage figure wrong.
+		if plan, perr := a.computeProjectPlan(cmd.Context(), proj, projectPath); perr != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Warning: up: cannot show the plan preamble: %v (the run continues)\n", perr)
+		} else {
 			fmt.Fprintln(cmd.ErrOrStderr(), formatPlanLine(plan))
 		}
 		renderer := NewConvergeRenderer(cmd.ErrOrStderr(), isatty.IsTerminal(os.Stderr.Fd()))
