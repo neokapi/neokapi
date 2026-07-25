@@ -124,8 +124,11 @@ func (t *CoverageTally) RollupGates(ship, verified gate.RuleSet) []LocaleCoverag
 			res := gate.Evaluate(g, cov, ladder)
 			lc.Shippable = res.Pass
 			lc.Pending = res.Shortfalls
+			lc.ShipProgress = res.Progress
+			lc.Blocking = res.Blocking
 		} else {
 			lc.Shippable = true // no ship gate matched this scope
+			lc.ShipProgress = 100
 		}
 		// The verified gate is evaluated the same way as the ship gate, over the
 		// same distribution. No matching rule means the scope has no verified bar,

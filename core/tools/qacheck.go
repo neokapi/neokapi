@@ -234,12 +234,22 @@ func compileQAPatterns(patterns []QAPattern) []compiledQAPattern {
 	return out
 }
 
-// checkTextIssues runs text-level checks: empty, whitespace, doubled words, same-as-source, corrupted chars.
-func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, targetText string) []check.Finding {
+// checkTextIssues runs the content-*shape* checks: emptiness, whitespace at the
+// boundaries, adjacency, repetition, same-as-source, corrupted characters.
+//
+// srcShape / tgtShape are check.HygieneText flattenings, where each inline-code
+// run stands as one sentinel rune. Every predicate below asks where the content
+// begins and ends, or what sits next to what, and a plain SourceText/TargetText
+// answers those wrongly because it drops inline code: `[ph][text " each"]` reads
+// as leading whitespace, `[text "a "][ph][text " b"]` as a double space, and a
+// placeholder-only target as empty. sourceText / targetText stay available for
+// the judgements that are genuinely about characters (see corruptionFindings,
+// which must not see a sentinel).
+func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, targetText, srcShape, tgtShape string) []check.Finding {
 	var findings []check.Finding
 
 	// Check: empty target (target segments exist but text is empty).
-	if conf.CheckEmptyTarget && targetText == "" && sourceText != "" {
+	if conf.CheckEmptyTarget && tgtShape == "" && srcShape != "" {
 		findings = append(findings, check.Finding{
 			Category: "empty-target",
 			Severity: check.SeverityMajor,
@@ -248,7 +258,7 @@ func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, target
 	}
 
 	// Check: empty source (non-empty target but empty source).
-	if conf.CheckEmptySource && sourceText == "" && targetText != "" {
+	if conf.CheckEmptySource && srcShape == "" && tgtShape != "" {
 		findings = append(findings, check.Finding{
 			Category: "empty-source",
 			Severity: check.SeverityMinor,
@@ -257,9 +267,9 @@ func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, target
 	}
 
 	// Check: leading whitespace mismatch.
-	if conf.CheckLeadingWhitespace && targetText != "" {
-		srcLeading := leadingWhitespace(sourceText)
-		tgtLeading := leadingWhitespace(targetText)
+	if conf.CheckLeadingWhitespace && tgtShape != "" {
+		srcLeading := leadingWhitespace(srcShape)
+		tgtLeading := leadingWhitespace(tgtShape)
 		if srcLeading != tgtLeading {
 			findings = append(findings, check.Finding{
 				Category: "leading-whitespace",
@@ -270,9 +280,9 @@ func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, target
 	}
 
 	// Check: trailing whitespace mismatch.
-	if conf.CheckTrailingWhitespace && targetText != "" {
-		srcTrailing := trailingWhitespace(sourceText)
-		tgtTrailing := trailingWhitespace(targetText)
+	if conf.CheckTrailingWhitespace && tgtShape != "" {
+		srcTrailing := trailingWhitespace(srcShape)
+		tgtTrailing := trailingWhitespace(tgtShape)
 		if srcTrailing != tgtTrailing {
 			findings = append(findings, check.Finding{
 				Category: "trailing-whitespace",
@@ -283,7 +293,7 @@ func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, target
 	}
 
 	// Check: double spaces in target.
-	if conf.CheckDoubleSpaces && strings.Contains(targetText, "  ") {
+	if conf.CheckDoubleSpaces && strings.Contains(tgtShape, "  ") {
 		findings = append(findings, check.Finding{
 			Category: "double-spaces",
 			Severity: check.SeverityMinor,
@@ -292,8 +302,8 @@ func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, target
 	}
 
 	// Check: doubled words in target.
-	if conf.CheckDoubledWord && targetText != "" {
-		if word := findDoubledWord(targetText, conf.DoubledWordExceptions); word != "" {
+	if conf.CheckDoubledWord && tgtShape != "" {
+		if word := findDoubledWord(tgtShape, conf.DoubledWordExceptions); word != "" {
 			findings = append(findings, check.Finding{
 				Category:     "doubled-word",
 				Severity:     check.SeverityMinor,
@@ -303,8 +313,10 @@ func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, target
 		}
 	}
 
-	// Check: target same as source.
-	if conf.CheckTargetSameAsSource && targetText != "" && sourceText != "" && targetText == sourceText {
+	// Check: target same as source. The comparison is on the shapes, so a target
+	// that merely moved a placeholder is not "identical"; the word/number
+	// heuristics below stay on the plain text, which is what they are about.
+	if conf.CheckTargetSameAsSource && tgtShape != "" && srcShape != "" && tgtShape == srcShape {
 		if containsWordChar(sourceText) {
 			if conf.TargetSameAsSourceWithNumbers || !isNumberOnly(sourceText) {
 				findings = append(findings, check.Finding{
@@ -554,10 +566,14 @@ func NewQACheckTool(cfg *QACheckConfig) *tool.BaseTool {
 		conf := t.Cfg.(*QACheckConfig)
 
 		sourceText := v.SourceText()
+		// The shape flattening keeps inline code visible as a sentinel; every
+		// boundary/adjacency/emptiness predicate reads it instead of the plain
+		// text (check.HygieneText).
+		srcShape := check.HygieneText(v.SourceRuns())
 
 		// If there is no target, check if empty target is an issue.
 		if !v.HasTarget(conf.TargetLocale) {
-			if conf.CheckEmptyTarget && sourceText != "" {
+			if conf.CheckEmptyTarget && srcShape != "" {
 				check.Annotate(v, "qa", []check.Finding{{
 					Category: "empty-target",
 					Severity: check.SeverityMajor,
@@ -568,9 +584,10 @@ func NewQACheckTool(cfg *QACheckConfig) *tool.BaseTool {
 		}
 
 		targetText := v.TargetText(conf.TargetLocale)
+		tgtShape := check.HygieneText(v.TargetRuns(conf.TargetLocale))
 
 		var findings []check.Finding
-		findings = append(findings, h.checkTextIssues(conf, sourceText, targetText)...)
+		findings = append(findings, h.checkTextIssues(conf, sourceText, targetText, srcShape, tgtShape)...)
 		findings = append(findings, h.checkCharacterIssues(conf, sourceText, targetText)...)
 		findings = append(findings, h.checkLengthIssues(conf, sourceText, targetText)...)
 		findings = append(findings, h.checkPatternAndCodeIssues(conf, v, sourceText, targetText)...)

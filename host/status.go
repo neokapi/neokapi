@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/gate"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host/output"
 )
@@ -103,20 +104,28 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 // writeCoverageGrid renders the per-locale coverage table. The scope column
 // is the locale, or "locale/collection" when the project has named
 // collections with their own gates.
+//
+// Ship is a verdict, not a percentage. A percentage there would invite the
+// question "is 80% shippable?", whose answer is always no — a gate either holds
+// or it does not. So the column reads `ready` or `blocked: <rung>`, naming the
+// first unmet gate so it points at the work; the numbers live in the stage
+// columns, and the pipeline bar carries distance-to-the-bar at a glance.
 func (o StatusOutput) writeCoverageGrid(w io.Writer) {
-	headers := make([]string, 0, len(statusLadder)+3)
+	headers := make([]string, 0, len(statusLadder)+4)
 	headers = append(headers, "scope", "units")
 	headers = append(headers, statusLadder...)
-	headers = append(headers, "ship")
+	headers = append(headers, "pipeline", "ship")
 
 	t := output.NewTable(w).Accent(0).Headers(headers...)
 	s := t.Styles()
+	bars := shipBars(w)
 	for _, lc := range o.Locales {
 		cells := make([]string, 0, len(headers))
 		cells = append(cells, scopeLabel(lc), strconv.Itoa(lc.Total))
 		for _, rung := range statusLadder {
 			cells = append(cells, fmt.Sprintf("%d%%", lc.Pct[rung]))
 		}
+		cells = append(cells, pipelineCell(lc, bars))
 		ship := shipCell(lc, s)
 		// AI-approved units read as reviewed above, but honest provenance
 		// matters: qualify how many of them an autonomous AI approved. Gates
@@ -127,6 +136,66 @@ func (o StatusOutput) writeCoverageGrid(w io.Writer) {
 		t.Row(append(cells, ship)...)
 	}
 	t.Render()
+	o.writeShipSummary(w, s)
+}
+
+// writeShipSummary closes the grid with the one number a release decision needs:
+// how many gated scopes clear their bar. Omitted when nothing is gated, since
+// "0 of 0 ready" says nothing.
+func (o StatusOutput) writeShipSummary(w io.Writer, s *output.Styles) {
+	gated, ready := 0, 0
+	for _, lc := range o.Locales {
+		if !lc.Gated {
+			continue
+		}
+		gated++
+		if lc.Shippable {
+			ready++
+		}
+	}
+	if gated == 0 {
+		return
+	}
+	line := fmt.Sprintf("%d of %d scopes ready to ship", ready, gated)
+	if ready == gated {
+		fmt.Fprintf(w, "\n%s\n", s.Success.Render(line))
+		return
+	}
+	fmt.Fprintf(w, "\n%s\n", line)
+}
+
+// shipBarWidth is the pipeline bar's width on a normal terminal.
+const shipBarWidth = 10
+
+// shipGridMinWidth is the terminal width below which the pipeline column drops
+// its bar and shows the percentage alone.
+const shipGridMinWidth = 100
+
+// shipBars decides whether the pipeline column draws a block bar. A narrow
+// terminal gets the percentage alone rather than a bar squeezed to noise; the
+// number is the information, the bar is the affordance.
+func shipBars(w io.Writer) bool {
+	if !writerIsTerminal(w) {
+		// A pipe or a captured buffer keeps the bar: it is plain UTF-8, not an
+		// escape sequence, so a log or a golden file reads fine. Only width is
+		// a reason to drop it, and a non-terminal has no width to respect.
+		return true
+	}
+	return output.TerminalWidth(w) >= shipGridMinWidth
+}
+
+// pipelineCell renders the distance-to-ship column: a block bar plus the
+// percentage, or the percentage alone when there is no room. An ungated scope
+// has no bar to fill, so it reads as a dash — the same "not applicable" the
+// ship column shows.
+func pipelineCell(lc LocaleCoverage, bars bool) string {
+	if !lc.Gated {
+		return "—"
+	}
+	if !bars {
+		return fmt.Sprintf("%3d%%", lc.ShipProgress)
+	}
+	return fmt.Sprintf("%s %3d%%", ProgressBar(lc.ShipProgress, 100, shipBarWidth), lc.ShipProgress)
 }
 
 // writeVenueLine renders the one-line convergence-venue standing for a
@@ -172,7 +241,9 @@ var sourceLadder = gate.SourceLadder()
 
 // writeSourceLine renders the one-line source-readiness summary: per-rung
 // coverage of the author's content (labeled, since its ladder differs from the
-// translation grid) plus its source-gate standing.
+// translation grid) plus its source-gate standing. It uses the same verdict
+// vocabulary as the ship column — a gate reads `ready` or `blocked: <rung>`
+// wherever it appears.
 func writeSourceLine(w io.Writer, sc SourceCoverage) {
 	cells := make([]string, 0, len(sourceLadder))
 	for _, s := range sourceLadder {
@@ -183,15 +254,11 @@ func writeSourceLine(w io.Writer, sc SourceCoverage) {
 	case !sc.Gated:
 		standing = ""
 	case sc.Shippable:
-		standing = "  ✓ ready"
+		standing = " · ready"
 	default:
-		parts := make([]string, 0, len(sc.Pending))
-		for _, sf := range sc.Pending {
-			parts = append(parts, fmt.Sprintf("%s %d%%<%d%%", sf.State, int(sf.Actual), sf.Required))
-		}
-		standing = "  pending (" + strings.Join(parts, ", ") + ")"
+		standing = " · blocked: " + sc.Pending[0].State
 	}
-	fmt.Fprintf(w, "source: %d units  %s%s\n\n", sc.Total, strings.Join(cells, "  "), standing)
+	fmt.Fprintf(w, "source  %d units · %s%s\n\n", sc.Total, strings.Join(cells, " · "), standing)
 }
 
 // scopeLabel renders a coverage row's scope: the locale, or "locale/collection"
@@ -203,20 +270,44 @@ func scopeLabel(lc LocaleCoverage) string {
 	return lc.Locale
 }
 
-// shipCell renders the ship column: shippable, pending (with the binding
-// shortfall), or a dash when no gate applies to the locale.
+// shipCell renders the ship verdict: `ready`, `blocked: <rung>` naming the
+// first unmet gate, or a dash when no gate applies to the scope.
+//
+// The blocking rung is the *lowest* unmet one (gate.Result.Blocking), so the
+// verdict points at the work that unblocks the rest — saying "blocked: sign-off"
+// while translation is also short would send someone to the wrong task.
 func shipCell(lc LocaleCoverage, s *output.Styles) string {
 	if !lc.Gated {
-		return s.Dim("")
+		return s.Dim("—")
 	}
 	if lc.Shippable {
-		return s.Success.Render("✓ shippable")
+		return s.Success.Render("ready")
 	}
-	parts := make([]string, 0, len(lc.Pending))
-	for _, sf := range lc.Pending {
-		parts = append(parts, fmt.Sprintf("%s %d%%<%d%%", sf.State, int(sf.Actual), sf.Required))
+	return s.Warn.Render("blocked: " + shipBlockingLabel(lc))
+}
+
+// shipBlockingLabel names the blocking gate in the CLI's own vocabulary: the
+// ladder rungs are lifecycle states ("signed-off"), but a verdict reads as the
+// action that clears them ("sign-off").
+func shipBlockingLabel(lc LocaleCoverage) string {
+	blocking := lc.Blocking
+	if blocking == "" && len(lc.Pending) > 0 {
+		blocking = lc.Pending[0].State
 	}
-	return s.Warn.Render("pending (" + strings.Join(parts, ", ") + ")")
+	switch blocking {
+	case "":
+		return "gate"
+	case string(model.TargetStatusSignedOff):
+		return "sign-off"
+	case string(model.TargetStatusReviewed):
+		return "review"
+	case string(model.TargetStatusTranslated):
+		return "translate"
+	case string(model.TargetStatusDraft):
+		return "draft"
+	default:
+		return blocking
+	}
 }
 
 func (a *App) RunStatus(cmd Command, _ []string) error {

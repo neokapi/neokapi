@@ -534,10 +534,78 @@ func flattenRunsTo(buf *strings.Builder, runs []Run) {
 // nothing, plural / select take the 'other' branch (or the first form if
 // 'other' is absent). This is the text-only variant of FlattenRuns, which
 // renders {equiv} for placeholders.
+//
+// It drops inline code entirely, which makes it the wrong basis for any
+// judgement about the *shape* of the content — whitespace at the boundaries,
+// adjacency, emptiness. Use [RunsHygieneText] for those; see its doc for why.
 func RunsText(runs []Run) string {
 	var buf strings.Builder
 	runsTextTo(&buf, runs)
 	return buf.String()
+}
+
+// ObjectReplacement is the sentinel rune standing in for one inline-code run in
+// [RunsHygieneText]: U+FFFC OBJECT REPLACEMENT CHARACTER, whose Unicode purpose
+// is exactly this — "a character that stands in for an object embedded in
+// text". It is non-whitespace, non-control, and belongs to no word, so it reads
+// as content to every shape predicate without being mistaken for one.
+const ObjectReplacement = '￼'
+
+// RunsHygieneText flattens a Run sequence for content-*shape* inspection: text
+// runs verbatim, and every inline-code run (Ph / PcOpen / PcClose / Sub)
+// collapsed to a single [ObjectReplacement] rune.
+//
+// This is the flattening any whitespace, adjacency, or emptiness rule must use.
+// [RunsText] drops inline code, which silently changes the shape of the content
+// and produces false positives:
+//
+//	[ph{p.price}][text " each"]   RunsText → " each"        → leading whitespace
+//	                              hygiene  → "￼ each"  → a separator, correctly
+//
+//	[text "Hello "][ph][text " world"]  RunsText → "Hello  world" → double space
+//	                                    hygiene  → "Hello ￼ world" → correct
+//
+//	[ph{p.price}]                 RunsText → ""             → "content is empty"
+//	                              hygiene  → "￼"       → a placeholder, not empty
+//
+// A placeholder is content: it occupies a position, and the space beside it is a
+// legitimate separator rather than stray whitespace on the block's boundary. The
+// sentinel keeps that position visible while contributing no text of its own, so
+// a placeholder's *equivalent* text can never leak into a word- or
+// character-level judgement the way FlattenRuns' `{equiv}` rendering would.
+func RunsHygieneText(runs []Run) string {
+	var buf strings.Builder
+	runsHygieneTextTo(&buf, runs)
+	return buf.String()
+}
+
+func runsHygieneTextTo(buf *strings.Builder, runs []Run) {
+	for _, r := range runs {
+		switch r.Kind() {
+		case RunKindText:
+			buf.WriteString(r.Text.Text)
+		case RunKindPh, RunKindPcOpen, RunKindPcClose, RunKindSub:
+			buf.WriteRune(ObjectReplacement)
+		case RunKindPlural:
+			if form, ok := r.Plural.Forms[PluralOther]; ok {
+				runsHygieneTextTo(buf, form)
+				continue
+			}
+			for _, form := range r.Plural.Forms {
+				runsHygieneTextTo(buf, form)
+				break
+			}
+		case RunKindSelect:
+			if form, ok := r.Select.Cases["other"]; ok {
+				runsHygieneTextTo(buf, form)
+				continue
+			}
+			for _, form := range r.Select.Cases {
+				runsHygieneTextTo(buf, form)
+				break
+			}
+		}
+	}
 }
 
 func runsTextTo(buf *strings.Builder, runs []Run) {

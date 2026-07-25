@@ -74,6 +74,13 @@ checkset):
 
 - **Text hygiene** — empty content, doubled spaces and words, stray leading/
   trailing whitespace, control characters. Always on.
+
+  Hygiene is judged against the block's **content boundaries**, where an inline
+  code counts as content. A leading or trailing placeholder is the edge of the
+  content, so the space beside it is a separator, not stray whitespace:
+  `{price} each` has no leading whitespace, `Hello {name} world` has no double
+  space, and a block that is only a placeholder is not empty. Genuine
+  whitespace — ` {price} each` — still reports.
 - **Length** — flag content over a character or word budget (`--max-chars`/
   `--max-words`).
 - **Patterns** — regex that must not appear (`--forbid`) or must appear
