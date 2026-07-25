@@ -1,7 +1,7 @@
 /**
  * Hash parity regression test.
  *
- * `Block.hash` in the .kbf extract output must equal the `hash`
+ * `Block.hash` in the .kbf.json extract output must equal the `hash`
  * argument the plugin transform stamps into every `__t()` / `__tx()`
  * call at build time. If they drift, the neokapi-i18n runtime dict
  * loaded via `loadTranslations()` stops resolving. The test walks a

@@ -8,7 +8,7 @@ import (
 	"github.com/neokapi/neokapi/internal/bundlekind"
 )
 
-// Unmarshal decodes a .kbf JSON payload into a File, returning an
+// Unmarshal decodes a .kbf.json payload into a File, returning an
 // error if the payload's kind or major schema version is unknown.
 // Unknown minor versions within the same major are accepted per the
 // forward-compatibility contract in RFC 0001 §Versioning.
@@ -23,7 +23,7 @@ func Unmarshal(data []byte) (*File, error) {
 	return &f, nil
 }
 
-// Decode streams a .kbf JSON payload from an io.Reader.
+// Decode streams a .kbf.json payload from an io.Reader.
 func Decode(r io.Reader) (*File, error) {
 	dec := json.NewDecoder(r)
 	var f File

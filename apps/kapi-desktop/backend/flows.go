@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
+	"github.com/neokapi/neokapi/core/format"
 	"os"
 	"path/filepath"
 	"slices"
@@ -316,7 +317,7 @@ func (a *App) openFlowFile(path string) (*UserFlowDetail, error) {
 	var spec flow.StepsSpec
 	if err := yaml.Unmarshal(data, &spec); err == nil && len(spec.Steps) > 0 {
 		name := filepath.Base(path)
-		name = strings.TrimSuffix(name, filepath.Ext(name))
+		name = format.TrimExt(name)
 		return &UserFlowDetail{
 			ID:     name,
 			Name:   name,

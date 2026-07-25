@@ -19,7 +19,7 @@ package flow
 
 import (
 	"fmt"
-	"path/filepath"
+	"github.com/neokapi/neokapi/core/format"
 	"strings"
 )
 
@@ -118,7 +118,7 @@ func (l Locator) Kind() BindingKind {
 	case SchemeFile:
 		return BindingFile
 	}
-	switch ext := strings.ToLower(filepath.Ext(l.Path)); {
+	switch ext := format.Ext(l.Path); {
 	case ext == ".kpz":
 		return BindingStore
 	case interchangeExts[ext]:

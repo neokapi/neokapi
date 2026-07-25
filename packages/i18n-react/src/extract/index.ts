@@ -3,7 +3,7 @@
  *
  * Consumers:
  *   - CLI (`neokapi-i18n extract`) walks a glob, calls `extractDocument`
- *     per file, and writes one `.kbf` per source document via
+ *     per file, and writes one `.kbf.json` per source document via
  *     @neokapi/kapi-format.
  *   - Tests call `extractDocument` with a single-source fixture and
  *     assert on `Block[]` / `Run[]` structure.

@@ -154,7 +154,7 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 // When the writer has NO active locale it is reproducing the table rather than
 // merging a translation into it, and the column still belongs to the locale the
 // reader attached its content under. The model's target for that locale is the
-// authority — the same rule #1471 established for .kbf, here under a non-write
+// authority — the same rule #1471 established for .kbf.json, here under a non-write
 // locale (#1482). Without it, every tool that edits a target it was not asked to
 // write (a whitespace correction, a post-edit pass, an unredact) was a silent
 // no-op through a bilingual .csv: `kapi apply` and the MCP edit tool pass no

@@ -79,7 +79,7 @@ func samplePackage() *Package {
 	return &Package{
 		Created:     "2026-06-04T00:00:00Z",
 		Generator:   &GeneratorInfo{ID: "kapi", Version: "1"},
-		Blocks:      []BlockDoc{{Path: "blocks/a.kbf", File: sampleBlocks()}},
+		Blocks:      []BlockDoc{{Path: "blocks/a.kbf.json", File: sampleBlocks()}},
 		Annotations: []AnnotationDoc{{Path: "annotations/a.overlays.jsonl", File: sampleAnnotations()}},
 		Memory:      kmb.FromModel(sampleMemory(), nil),
 		Terms:       ktb.FromConcepts(sampleTerms()),

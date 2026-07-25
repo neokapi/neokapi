@@ -1623,7 +1623,7 @@
     "kbf": {
       "displayName": "Kapi Bundle Format (KBF)",
       "extensions": [
-        ".kbf"
+        ".kbf.json"
       ],
       "mimeTypes": [
         "application/vnd.neokapi.kbf+json"

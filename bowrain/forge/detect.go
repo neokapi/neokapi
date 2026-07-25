@@ -164,7 +164,7 @@ var extSignals = []extSignal{
 	{id: "jvm", label: "Java properties bundles", exts: []string{".properties"}},
 	{id: "dotnet", label: ".NET resource files", exts: []string{".resx"}},
 	{id: "angular", label: "XLIFF catalogs", exts: []string{".xlf", ".xliff"}},
-	{id: "neokapi-i18n", label: "KBF catalogs", exts: []string{".kbf"}},
+	{id: "neokapi-i18n", label: "KBF catalogs", exts: []string{".kbf.json"}},
 }
 
 // Generic locale-directory names: a directory with one of these exact segment
@@ -357,7 +357,7 @@ func detectSignals(paths []string) []ContentSignalHit {
 	}
 
 	// --- Generic locale dirs -------------------------------------------------
-	catalogExts := []string{".json", ".yaml", ".yml", ".kbf"}
+	catalogExts := []string{".json", ".yaml", ".yml", ".kbf.json"}
 	genericRoots := map[string]int{}
 	for _, p := range paths {
 		if ignored(p) || underClaimed(p) || !hasExt(p, catalogExts) {

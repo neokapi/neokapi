@@ -27,7 +27,7 @@ type FrameworkPreset struct {
 	BrandVoiceProfile string
 	// TermsSource, when non-empty, is scaffolded as defaults.termbase_source
 	// — the committed, git-tracked native terms the project compiles its
-	// glossary from (e.g. i18n/termbase.ktb).
+	// glossary from (e.g. i18n/terms.json).
 	TermsSource string
 }
 

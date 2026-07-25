@@ -38,7 +38,7 @@ export interface ReviewManifestEntry {
 export type ReviewManifest = Record<string, ReviewManifestEntry>;
 
 /**
- * Build a review manifest from one or more `.kbf`/`.overlays.jsonl` files or directories.
+ * Build a review manifest from one or more `.kbf.json`/`.overlays.jsonl` files or directories.
  * Blocks are merged by hash across inputs, so passing the source catalog and
  * every `i18n-<locale>` directory yields a single entry per block carrying all
  * of its locales' targets.

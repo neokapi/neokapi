@@ -1,7 +1,7 @@
 # KBF format specification.
 #
 # This is the neokapi reader/writer for the Kapi Bundle Format
-# (.kbf), a structured JSON envelope for source-code-extracted
+# (.kbf.json), a structured JSON envelope for source-code-extracted
 # translatable strings. Each KBF document carries Blocks; each Block
 # has a structured Run sequence (text + placeholders + paired-codes
 # + plurals + selects). The reader flattens runs into Block source
@@ -25,7 +25,7 @@ format: okf_kbf
 kind: top_level
 mime_type: application/vnd.neokapi.kbf+json
 description: |
-  KBF (.kbf) reader/writer. Parses a `kind: kapi-bundle`
+  KBF (.kbf.json) reader/writer. Parses a `kind: kapi-bundle`
   JSON envelope, walks every Document → Block, and emits one
   translatable Block per KBF Block whose:
     - source text = flattened run sequence (placeholders → equivs,

@@ -317,25 +317,29 @@ export type PlaceholderKind =
 // ─── Document + File envelope ─────────────────────────────────────
 
 /**
- * The .kbf file envelope version. Incremented on non-backward-
+ * The .kbf.json file envelope version. Incremented on non-backward-
  * compatible schema changes. Consumers MUST reject unknown major
  * versions and SHOULD accept unknown minor versions of their major.
  */
 export const SchemaVersion = "1.0" as const;
 
 /**
- * The .kbf file kind discriminator. Lets a consumer confirm a JSON
+ * The .kbf.json file kind discriminator. Lets a consumer confirm a JSON
  * blob is a KBF document before parsing, rather than a same-shaped
  * structure from a different producer.
  */
 export const Kind = "kapi-bundle" as const;
 
-/** Canonical file extension of a Kapi Bundle Format document. */
-export const Ext = ".kbf" as const;
+/**
+ * Compound suffix of a Kapi Bundle Format document. It is a *compound*
+ * suffix: `foo.kbf.json`, not a bare `.json`, so plain
+ * `path.extname()` never identifies one — use {@link isKbfPath}.
+ */
+export const Ext = ".kbf.json" as const;
 
 /**
  * Compound suffix of the JSON-Lines stand-off annotation overlay
- * sidecar that accompanies a `.kbf` document. It is a *compound*
+ * sidecar that accompanies a `.kbf.json` document. It is a *compound*
  * suffix: `foo.overlays.jsonl`, not a bare `.jsonl`, so plain
  * `path.extname()` never identifies one — use {@link isAnnotationPath}.
  */
@@ -348,7 +352,11 @@ export const AnnotationExt = ".overlays.jsonl" as const;
  */
 export const OverlaySetExt = ".overlays.json" as const;
 
-/** Reports whether `path` names a `.kbf` document. */
+/**
+ * Reports whether `path` names a `.kbf.json` document. Matches the whole
+ * compound suffix, so an unrelated `data.json` is not mistaken for one
+ * (and neither is a `.overlays.json` overlay-set sidecar).
+ */
 export function isKbfPath(path: string): boolean {
   return path.toLowerCase().endsWith(Ext);
 }
@@ -391,7 +399,7 @@ export interface Skeleton {
 }
 
 /**
- * One extracted source file, with its blocks. A .kbf File wraps
+ * One extracted source file, with its blocks. A .kbf.json File wraps
  * one or more Documents.
  */
 export interface Document {
@@ -403,14 +411,14 @@ export interface Document {
   blocks: Block[];
 }
 
-/** Identifies the extractor that produced a .kbf. */
+/** Identifies the extractor that produced a .kbf.json. */
 export interface Generator {
   id: string;
   version: string;
   capabilities?: string[];
 }
 
-/** Identifies the project a .kbf belongs to. */
+/** Identifies the project a .kbf.json belongs to. */
 export interface Project {
   id: string;
   sourceLocale: LocaleID;
@@ -425,7 +433,7 @@ export interface Vocabulary {
 }
 
 /**
- * Top-level .kbf JSON envelope. This is what `marshalFile` emits
+ * Top-level .kbf.json envelope. This is what `marshalFile` emits
  * and what `core/kbf.Unmarshal` parses on the Go side. Field order
  * and shape are normative; deterministic serialization is what
  * makes the manifest SHA-256 stable across languages.

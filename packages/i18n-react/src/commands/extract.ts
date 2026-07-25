@@ -2,7 +2,7 @@
  * neokapi-i18n extract — walk every matched JSX/TSX file and emit
  * translatable content in one of two shapes:
  *
- *   1. Default: per-file .kbf JSON under --out (default `./i18n/`),
+ *   1. Default: per-file .kbf.json under --out (default `./i18n/`),
  *      mirroring the source tree — so the default `src/**` glob lands
  *      catalogs under `i18n/src/`. Source living in `i18n/src/` (rather
  *      than flat under `i18n/`) leaves kapi free to write per-locale
@@ -22,7 +22,7 @@ import { dirname, join, relative } from "node:path";
 import { glob } from "node:fs/promises";
 
 import type { Document } from "@neokapi/kapi-format";
-import { marshalFile } from "@neokapi/kapi-format";
+import { Ext, marshalFile } from "@neokapi/kapi-format";
 
 import { createWarningCollector, extractDocument, formatWarning } from "../extract/index.ts";
 import type { PluginOptions } from "../types.ts";
@@ -293,11 +293,11 @@ function kbfFilename(doc: Document): string {
   // scanning the directory see a 1:1 reflection of the source tree.
   // Workspace sources outside the project root (e.g. --src
   // "../../packages/ui/src/**/*.tsx") carry leading "../" segments
-  // that would escape --out and scatter .kbf files into the library
-  // tree; strip them so every output lands inside the --out
+  // that would escape --out and scatter .kbf.json files into the
+  // library tree; strip them so every output lands inside the --out
   // directory. doc.path itself keeps the original relative path.
   const contained = doc.path.replace(/^(\.\.\/)+/, "");
-  return contained.replace(/\.(tsx|jsx|ts|js)$/, "") + ".kbf";
+  return contained.replace(/\.(tsx|jsx|ts|js)$/, "") + Ext;
 }
 
 function readPackageVersion(): string {
@@ -316,7 +316,7 @@ neokapi-i18n extract — scan JSX/TSX files and emit translatable blocks.
 Usage:
   neokapi-i18n extract [options]
 
-By default, writes one .kbf file per source document under --out.
+By default, writes one .kbf.json file per source document under --out.
 Pass --stream to emit NDJSON block records to stdout for piping.
 
 Options:
@@ -326,18 +326,19 @@ Options:
                           packages, e.g. --src "src/**/*.tsx" --src
                           "../../packages/ui/src/**/*.tsx"
   --ignore <glob>         Exclude pattern (repeatable). E.g. --ignore "src/stories/**"
-  --out <dir>             Output directory for .kbf files (default: "i18n").
+  --out <dir>             Output directory for .kbf.json files (default: "i18n").
                           Catalogs mirror the source tree, so the default
                           "src/**" glob writes them under "i18n/src/" —
                           leaving "i18n/{lang}/" free for kapi's per-locale
                           targets.
   --stream                Emit NDJSON block records on stdout instead
-                          of writing .kbf files. Reads NUL-separated
+                          of writing .kbf.json files. Reads NUL-separated
                           paths on stdin instead of expanding --src.
   --strict                Treat any recorded warning (e.g. unknown
                           component) as an error — exits non-zero.
   --config <path>         Config file with componentMap, rules, …
-  --project <id>          Project id stamped into .kbf.project (default: "app")
+  --project <id>          Project id stamped into the catalog's project
+                          field (default: "app")
   --source-locale <bcp>   Manifest source locale (default: "en")
   --target-locale <bcp>   Declared target locale (repeatable, informational)
 `;

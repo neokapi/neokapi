@@ -4,45 +4,45 @@ This directory holds the committed inputs for translating neokapi's own
 surfaces with kapi (the root `kapi.yaml` recipe). The `.kapi/` state
 directory is gitignored and rebuilt from these seeds with `make l10n-seed`.
 
-Seeds are committed in the **native Kapi-family forms** — deterministic,
+Seeds are committed in the **native bundle form** — deterministic,
 lossless JSON that preserves entry identity, so a wipe-and-reseed
-reproduces the content memory and terms state exactly (see `memory/kmb` and
-`terms/ktb`). TMX/CSV/TBX are the lossy interchange tier; emit
+reproduces the content memory and terms state exactly (`.memory.json` and
+`.terms.json`). TMX/CSV/TBX are the lossy interchange tier; emit
 disposable review views with `make l10n-review-export` (→ `l10n/review/`,
 gitignored).
 
 - `brand-voice.yaml` — the machine-readable encoding of
   [docs/internals/brand-communication.md](../docs/internals/brand-communication.md),
   bound project-wide via `defaults.brand_voice`. Keep the two in sync.
-- `terms.ktb` — terminology decisions per target locale (currently
+- `terms.json` — terminology decisions per target locale (currently
   Norwegian Bokmål, `nb`): concept per decision with `en` + `nb` terms,
   domain, definition/usage note, and status. Imported into
   `.kapi/termbase.db`.
-- `tm/<surface>-<lang>.kmb` — reviewed translations, one file per
-  surface and locale (e.g. `builtins-nb.kmb`). Imported into
+- `tm/<surface>-<lang>.memory.json` — reviewed translations, one file per
+  surface and locale (e.g. `builtins-nb.memory.json`). Imported into
   `.kapi/tm.db`; every target-locale output is produced from the content memory
   by `recycle`, so generated catalogs only ever contain reviewed strings.
-  The docs sites have one seed each: `docs-nb.kmb` for the kapi site
+  The docs sites have one seed each: `docs-nb.memory.json` for the kapi site
   (surface `docs`: `web/docs/**` → `web/i18n/nb/...`, `make l10n-docs`)
-  and `bowrain-docs-nb.kmb` for the bowrain site (surface
+  and `bowrain-docs-nb.memory.json` for the bowrain site (surface
   `docs-bowrain`: `bowrain/web/docs/docs/**` →
   `bowrain/web/docs/i18n/nb/...`, `make l10n-bowrain-docs`); the
   terms store is shared. The bowrain UIs have one seed per surface —
-  `bowrain-app-nb.kmb` (surface `bowrain-app-ui`: the shared SPA in
+  `bowrain-app-nb.memory.json` (surface `bowrain-app-ui`: the shared SPA in
   `bowrain/packages/{app,ui}` + web/desktop shells,
-  `make l10n-bowrain-app`), `bowrain-ctrl-nb.kmb` and
-  `bowrain-pulse-nb.kmb` (`make l10n-bowrain-{ctrl,pulse}`) — compiled
+  `make l10n-bowrain-app`), `bowrain-ctrl-nb.memory.json` and
+  `bowrain-pulse-nb.memory.json` (`make l10n-bowrain-{ctrl,pulse}`) — compiled
   into each shell's committed `public/translations/nb.json`.
-  `libraries-nb.kmb` covers the shared frontend libraries
+  `libraries-nb.memory.json` covers the shared frontend libraries
   (`packages/ui`, `packages/flow-editor`) whose strings reach the desktop
   app through the `kapi-desktop-ui` extraction — it has no Make target of
   its own; `l10n-desktop` leverages it. The transactional emails
   (surfaces `emails` + `email-subjects`: `bowrain/emails/src` templates
   and `bowrain/mailer/subjects/en.json` → per-locale renders under
-  `bowrain/mailer/`, `make l10n-emails`) use `emails-nb.kmb`; the
+  `bowrain/mailer/`, `make l10n-emails`) use `emails-nb.memory.json`; the
   bowrain landing page (surface `landing`: `bowrain/web/landing/src` →
   committed `bowrain/web/landing/translations/<lang>.json`,
-  `make l10n-landing`) uses `landing-nb.kmb`.
+  `make l10n-landing`) uses `landing-nb.memory.json`.
 
 Workflow for a new or changed surface string:
 
@@ -50,9 +50,9 @@ Workflow for a new or changed surface string:
    voice profile and terms are bound project-wide) and merge the pair
    into the surface's seed: import the seed plus the new pairs (any
    supported form, e.g. a small TMX) into a scratch content memory, then
-   `kapi memory export -o l10n/tm/<surface>-<lang>.kmb`. Small wording fixes
-   can also be edited directly in the `.kmb` JSON — it is the source of
-   truth.
+   `kapi memory export -o l10n/tm/<surface>-<lang>.memory.json`. Small wording
+   fixes can also be edited directly in the `.memory.json` bundle — it is the
+   source of truth.
 2. `make l10n-seed` to rebuild the content memory, then the surface target
    (e.g. `make l10n-builtins`, or `make l10n` for everything).
 3. `make l10n-builtins-check` runs the terminology gate
@@ -60,7 +60,8 @@ Workflow for a new or changed surface string:
 
 Review happens in the seeds — they are the human-owned artifact. For a
 reviewer-friendly view, `make l10n-review-export` writes TMX/CSV renderings
-under `l10n/review/`; corrections still land in the `.kmb`/`.ktb`.
+under `l10n/review/`; corrections still land in the `.memory.json`/`.terms.json`
+seeds.
 
 ## Seed authoring rules
 
@@ -138,8 +139,8 @@ Translation artifacts in git fall into three tiers; everything else is
 gitignored ephemera (`.kapi/` state, extraction batches, `i18n-*/`
 intermediates, `l10n/review/`).
 
-1. **Source — human-owned.** The seeds here (`tm/*.kmb`,
-   `terms.ktb`, `brand-voice.yaml`), the Docusaurus theme JSONs under
+1. **Source — human-owned.** The seeds here (`tm/*.memory.json`,
+   `terms.json`, `brand-voice.yaml`), the Docusaurus theme JSONs under
    `web/i18n/<locale>/`, and the English harness narration in
    `harness/demos/*/demo.yaml`. Tooling may have written the first
    draft, but humans own the content; nothing regenerates them.

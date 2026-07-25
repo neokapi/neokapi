@@ -77,7 +77,7 @@ different questions and must not be unified:
   code when an edit is stale or rejected so a fix loop re-inspects. It is the write
   half of the inspect/apply loop and never touches a target locale or absorbs into
   the memory as a side effect. (Adding a pair via an `apply` entry of kind `tm` is
-  itself a *reviewed* edit to the committed `.kmb` source, not the automatic
+  itself a *reviewed* edit to the committed `.memory.json` source, not the automatic
   merge-time absorb.)
 - `kapi merge` applies a **translator's returned targets** and, by default,
   **absorbs** every accepted target segment into the project's content memory

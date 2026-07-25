@@ -98,7 +98,7 @@ KBF and module-gated in XLIFF.
 
 **Stand-off annotations.** KBF annotations live in a companion `.overlays.jsonl`
 JSON-Lines file, anchored to blocks by `block` / `run` / `range` / `form`
-anchors. They never touch the `.kbf` content, so re-extracting source does not
+anchors. They never touch the `.kbf.json` content, so re-extracting source does not
 disturb them and a validator can detect orphaned anchors. XLIFF expresses
 annotations inline with `<mrk>`/`<sm>`/`<em>` and through the Metadata module,
 interleaved with the content.

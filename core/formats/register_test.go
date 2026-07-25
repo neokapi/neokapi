@@ -131,7 +131,7 @@ func TestKBFFormatIDAndJSXAlias(t *testing.T) {
 	assert.Equal(t, "kbf", w.Name())
 
 	// Detection by extension / MIME returns the canonical id.
-	byExt, err := reg.Detect(".kbf", registry.DetectOptions{ExtensionOnly: true})
+	byExt, err := reg.Detect(".kbf.json", registry.DetectOptions{ExtensionOnly: true})
 	require.NoError(t, err)
 	assert.Equal(t, registry.FormatID("kbf"), byExt)
 	assert.Equal(t, registry.FormatID("kbf"),
@@ -147,8 +147,48 @@ func TestKBFFormatIDAndJSXAlias(t *testing.T) {
 	require.Error(t, err, `--format klf must be rejected — the id is "kbf"`)
 	_, err = reg.Detect(".klf", registry.DetectOptions{ExtensionOnly: true})
 	require.Error(t, err, ".klf must not be a registered extension")
+	assert.Contains(t, err.Error(), ".kbf.json",
+		"a retired extension must name the convention that replaced it, not just fail")
 	assert.Empty(t, reg.ResolveFormat("application/vnd.neokapi.klf+json"),
 		"the pre-rename MIME type must not resolve")
+
+	// The bare ".kbf" is retired the same way: the bundle suffix is compound
+	// now, so an extension-only lookup must fail and say what to write instead.
+	_, err = reg.Detect(".kbf", registry.DetectOptions{ExtensionOnly: true})
+	require.Error(t, err, ".kbf must not be a registered extension on its own")
+	assert.Contains(t, err.Error(), ".kbf.json")
+}
+
+// TestDetectRealBundleFileIsNotPlainJSON covers the content-aware detection
+// path (a real file on disk, not an extension string), which is what every
+// actual run takes.
+//
+// This is the failure mode the compound suffix creates: path/filepath.Ext
+// reports ".json" for "app.kbf.json", so a bundle resolves to the plain JSON
+// reader and is read as a key/value document — every string value becomes a
+// block — instead of as a bundle. It fails silently, with plausible-looking
+// output, which is why it needs its own test rather than relying on the
+// extension-string lookup above.
+func TestDetectRealBundleFileIsNotPlainJSON(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+
+	dir := t.TempDir()
+	bundle := filepath.Join(dir, "app.kbf.json")
+	require.NoError(t, os.WriteFile(bundle, []byte(
+		`{"schemaVersion":"1.0","kind":"kapi-bundle","documents":[]}`), 0o644))
+
+	got, err := reg.Detect(bundle, registry.DetectOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, registry.FormatID("kbf"), got,
+		"a .kbf.json file must reach the bundle reader, not the plain JSON reader")
+
+	// The other half: an ordinary .json file must still be plain JSON.
+	plain := filepath.Join(dir, "messages.json")
+	require.NoError(t, os.WriteFile(plain, []byte(`{"greeting":"Hello"}`), 0o644))
+	got, err = reg.Detect(plain, registry.DetectOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, registry.FormatID("json"), got)
 }
 
 func TestRegistryCreateInstances(t *testing.T) {

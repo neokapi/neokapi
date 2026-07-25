@@ -1,12 +1,12 @@
 ---
 sidebar_position: 2
 title: Specification
-description: The normative schema for the Kapi Bundle Format (.kbf) — the file envelope, the run discriminated union, per-locale targets, validation rules, and the companion .overlays.jsonl annotation overlay.
+description: The normative schema for the Kapi Bundle Format (.kbf.json) — the file envelope, the run discriminated union, per-locale targets, validation rules, and the companion .overlays.jsonl annotation overlay.
 keywords:
   [
     KBF,
     kapi bundle format,
-    .kbf,
+    .kbf.json,
     content model,
     runs,
     blocks,
@@ -23,8 +23,10 @@ This is the normative schema for the **Kapi Bundle Format**. For what KBF
 is and the role it plays, start with the [overview](/reference/kbf/overview);
 for worked examples you can edit live, see [Examples](/reference/kbf/examples).
 
-A `.kbf` file is auto-detected by its extension and by sniffing the document for
-the magic string `"kapi-bundle"`. The format is implemented in Go
+A `.kbf.json` file is auto-detected by its extension and by sniffing the document
+for the magic string `"kapi-bundle"`. The compound suffix is deliberate: the file
+is JSON, so the `.json` tail lets `jq`, GitHub, and an editor treat it as JSON,
+while the `.kbf` segment still says which JSON it is. The format is implemented in Go
 at [`core/kbf`](https://github.com/neokapi/neokapi/tree/main/core/kbf) and
 mirrored in TypeScript as the
 [`@neokapi/kapi-format`](https://github.com/neokapi/neokapi/tree/main/packages/kapi-format)
@@ -54,7 +56,8 @@ not `kapi-bundle` and any `schemaVersion` whose major does not match
 the version the build speaks.
 
 `kind` was previously `kapi-localization-format` (and `kapi-tm-format` /
-`kapi-termbase-format` for `.kmb` / `.ktb`). Those values are **not** accepted:
+`kapi-termbase-format` for the content-memory and terms bundles). Those values
+are **not** accepted:
 reinterpreting a file written by an earlier release would make the envelope
 useless as a version marker. A stale file is still *detected* as the format it
 is, so the reader can name the rename and the command that rewrites it rather
@@ -63,7 +66,7 @@ than failing as an unknown format — regenerate it with `kapi extract`,
 
 ## File envelope
 
-The top-level `File` object is the `.kbf` document. Field order and shape are
+The top-level `File` object is the `.kbf.json` document. Field order and shape are
 normative — deterministic serialization is what keeps the content hash stable
 across the Go and TypeScript implementations.
 
@@ -416,7 +419,7 @@ on the [KBF Tests page](/kbf-tests).
 
 Stand-off annotations — review status, protected terms, MT confidence,
 terminology matches — live in a companion `.overlays.jsonl` file rather than
-inside the `.kbf` itself. A `.overlays.jsonl` file is **JSON-Lines**: each line
+inside the `.kbf.json` itself. A `.overlays.jsonl` file is **JSON-Lines**: each line
 is one compact JSON record (no indentation, LF-terminated), which keeps it
 grep- and diff-friendly. The first
 non-empty line is a header record (`"type": "header"`); every subsequent non-empty

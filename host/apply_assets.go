@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -70,12 +72,12 @@ func (a *App) resolveProjectRoot(cmd Command) (recipePath, root string, err erro
 }
 
 // ---------------------------------------------------------------------------
-// term → committed .ktb source → terms import compile into .kapi/termbase.db
+// term → committed .terms.json source → terms import compile into .kapi/termbase.db
 // ---------------------------------------------------------------------------
 
-// applyTermEntry upserts a glossary term. It edits the committed .ktb source
-// the recipe binds (creating l10n/termbase.ktb and binding it when none
-// exists), then re-imports the whole .ktb into the project terms store (.db)
+// applyTermEntry upserts a glossary term. It edits the committed .terms.json source
+// the recipe binds (creating l10n/terms.json and binding it when none
+// exists), then re-imports the whole .terms.json into the project terms store (.db)
 // cache so the SQLite store reflects the committed source — one write path.
 func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.Term}
@@ -130,9 +132,9 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 	return res
 }
 
-// ensureTermsSourceBinding returns the committed .ktb source path the
+// ensureTermsSourceBinding returns the committed .terms.json source path the
 // recipe binds via defaults.termbase_source, creating a default
-// (l10n/termbase.ktb) and writing the binding into the recipe when none is
+// (l10n/terms.json) and writing the binding into the recipe when none is
 // bound — so future runs are consistent.
 func (a *App) ensureTermsSourceBinding(recipePath, root string) (string, error) {
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
@@ -142,7 +144,7 @@ func (a *App) ensureTermsSourceBinding(recipePath, root string) (string, error) 
 	if bound := proj.Defaults.TermsSource; bound != "" {
 		return resolveUnder(root, bound), nil
 	}
-	rel := filepath.Join("l10n", "termbase.ktb")
+	rel := filepath.Join("l10n", ktb.ConventionalName)
 	proj.Defaults.TermsSource = rel
 	// Bind the compiled cache too, so term enforcement (resolveProjectTermsPath)
 	// reads the .db this source compiles into rather than an unrelated default.
@@ -155,7 +157,7 @@ func (a *App) ensureTermsSourceBinding(recipePath, root string) (string, error) 
 	return resolveUnder(root, rel), nil
 }
 
-// compileTermsSource re-imports the committed .ktb into the project
+// compileTermsSource re-imports the committed .terms.json into the project
 // terms (.db) cache — the single store-write path. The cache is the recipe's
 // bound terms, else the .kapi/termbase.db convention.
 func (a *App) compileTermsSource(ctx context.Context, root, srcPath string) error {
@@ -184,7 +186,7 @@ func (a *App) compileTermsSource(ctx context.Context, root, srcPath string) erro
 	return nil
 }
 
-// loadKTBConcepts reads the concepts from a .ktb source, returning an empty
+// loadKTBConcepts reads the concepts from a .terms.json source, returning an empty
 // slice when the file does not exist yet (the first term creates it).
 func loadKTBConcepts(path string) ([]terms.Concept, error) {
 	f, err := os.Open(path)
@@ -202,7 +204,7 @@ func loadKTBConcepts(path string) ([]terms.Concept, error) {
 	return file.Concepts, nil
 }
 
-// writeKTB serializes concepts to a deterministic .ktb document, creating
+// writeKTB serializes concepts to a deterministic .terms.json document, creating
 // parent directories. The deterministic marshal keeps `git diff` minimal.
 func writeKTB(path string, concepts []terms.Concept) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -278,7 +280,7 @@ func conceptID(text string, locale model.LocaleID) string {
 }
 
 // ---------------------------------------------------------------------------
-// tm → committed .kmb source → tm import compile into .kapi/tm.db
+// tm → committed .memory.json source → tm import compile into .kapi/tm.db
 // ---------------------------------------------------------------------------
 
 // applyReviewEntry records a review decision in the project STATE store via the
@@ -317,9 +319,9 @@ func (a *App) applyReviewEntry(ctx context.Context, cmd Command, e changeEntry) 
 	return res
 }
 
-// applyMemoryEntry adds a source→target content memory pair. It edits the committed .kmb
-// source the recipe binds (creating l10n/tm.kmb and binding it when none
-// exists), then re-imports the .kmb into the project content memory (.kapi/tm.db) cache.
+// applyMemoryEntry adds a source→target content memory pair. It edits the committed .memory.json
+// source the recipe binds (creating l10n/memory.json and binding it when none
+// exists), then re-imports the .memory.json into the project content memory (.kapi/tm.db) cache.
 func (a *App) applyMemoryEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.Source}
 
@@ -382,8 +384,15 @@ func (a *App) applyMemoryEntry(ctx context.Context, cmd Command, e changeEntry) 
 	return res
 }
 
-// ensureMemorySourceBinding returns the committed .kmb source path bound via
-// defaults.tm_source, creating l10n/tm.kmb and binding it when none is bound.
+// ensureMemorySourceBinding returns the committed bundle path bound via
+// defaults.tm_source, scaffolding and binding l10n/memory.json when none is
+// bound and the project holds no bundles yet.
+//
+// A project may keep many content-memory bundles — this repository commits one
+// per content surface — and nothing in an unbound recipe says which of them
+// reviewed edits belong in. Picking one silently would write approved content
+// into the wrong surface, so an unbound project that already has bundles is an
+// error naming the candidates rather than a guess.
 func (a *App) ensureMemorySourceBinding(recipePath, root string) (string, error) {
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
@@ -392,7 +401,13 @@ func (a *App) ensureMemorySourceBinding(recipePath, root string) (string, error)
 	if bound := proj.Defaults.MemorySource; bound != "" {
 		return resolveUnder(root, bound), nil
 	}
-	rel := filepath.Join("l10n", "tm.kmb")
+	if existing := findMemoryBundles(root); len(existing) > 0 {
+		return "", fmt.Errorf(
+			"no defaults.tm_source is bound and this project already has %d content-memory %s (%s); "+
+				"bind the one that reviewed edits belong in",
+			len(existing), pluralBundles(len(existing)), strings.Join(existing, ", "))
+	}
+	rel := filepath.Join("l10n", kmb.ConventionalName)
 	proj.Defaults.MemorySource = rel
 	if err := project.Save(recipePath, proj); err != nil {
 		return "", fmt.Errorf("bind tm source: %w", err)
@@ -400,7 +415,39 @@ func (a *App) ensureMemorySourceBinding(recipePath, root string) (string, error)
 	return resolveUnder(root, rel), nil
 }
 
-// compileMemorySource re-imports the committed .kmb into the project content memory cache
+// findMemoryBundles returns the project-relative paths of every content-memory
+// bundle committed under root, skipping kapi's own state directory.
+func findMemoryBundles(root string) []string {
+	var out []string
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil //nolint:nilerr // an unreadable subtree is not a binding conflict
+		}
+		if d.IsDir() {
+			if d.Name() == project.StateDirName || d.Name() == ".git" || d.Name() == "node_modules" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if kmb.IsBundlePath(path) {
+			if rel, rerr := filepath.Rel(root, path); rerr == nil {
+				out = append(out, filepath.ToSlash(rel))
+			}
+		}
+		return nil
+	})
+	sort.Strings(out)
+	return out
+}
+
+func pluralBundles(n int) string {
+	if n == 1 {
+		return "bundle"
+	}
+	return "bundles"
+}
+
+// compileMemorySource re-imports the committed .memory.json into the project content memory cache
 // (the conventional .kapi/tm.db, the same file kapi extract/merge use).
 func (a *App) compileMemorySource(ctx context.Context, root, srcPath string) error {
 	dbPath := filepath.Join(root, project.StateDirName, "tm.db")
@@ -421,7 +468,7 @@ func (a *App) compileMemorySource(ctx context.Context, root, srcPath string) err
 	return nil
 }
 
-// loadKMBEntries reads the entries from a .kmb source, returning an empty
+// loadKMBEntries reads the entries from a .memory.json source, returning an empty
 // slice when the file does not exist yet.
 func loadKMBEntries(path string) ([]memory.Entry, error) {
 	f, err := os.Open(path)
@@ -439,7 +486,7 @@ func loadKMBEntries(path string) ([]memory.Entry, error) {
 	return file.ModelEntries(), nil
 }
 
-// writeKMB serializes entries to a deterministic .kmb document.
+// writeKMB serializes entries to a deterministic .memory.json document.
 func writeKMB(path string, entries []memory.Entry) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("create source dir: %w", err)
@@ -457,7 +504,7 @@ func writeKMB(path string, entries []memory.Entry) error {
 // upsertMemoryPair adds a source→target pair as a bilingual entry, keyed by a
 // stable id so re-applying the same pair is idempotent. When the entry already
 // holds the same target text for the target locale, it returns changed=false.
-// upsertMemoryPair adds or updates a source→target correction in the .kmb entry
+// upsertMemoryPair adds or updates a source→target correction in the .memory.json entry
 // list. reviewState, when non-empty, is recorded on the entry's `review` property
 // (the carrier that distinguishes `reviewed` from `signed-off`); an empty
 // reviewState leaves the entry at the `reviewed` baseline. It returns changed =
@@ -506,7 +553,7 @@ func upsertMemoryPair(entries []memory.Entry, source, target string, srcLocale, 
 // setReviewProperty records the review state (signed-off; reviewed is the
 // property-absent baseline) on a content-memory entry, returning whether it changed. An empty
 // or `reviewed` state clears the property so the entry round-trips minimally.
-// reviewPropertyKey is the .kmb entry property `kapi apply` uses to tag a
+// reviewPropertyKey is the .memory.json entry property `kapi apply` uses to tag a
 // correction's review state in the content memory corpus. (Project review STATE now lives in
 // the state store, core/state; this is the content memory-side tag the apply path still sets.)
 const reviewPropertyKey = "review"

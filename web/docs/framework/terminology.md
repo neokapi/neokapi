@@ -134,7 +134,7 @@ resolved location.
 ```bash
 # Import terms (CSV or JSON)
 kapi terms import terms.csv --name project-terms --format csv -s en -t fr
-kapi terms import terms.json --format json
+kapi terms import glossary.json --format json
 
 # Export terms
 kapi terms export --name project-terms --format csv -o terms.csv -s en -t fr

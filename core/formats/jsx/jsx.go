@@ -1,5 +1,5 @@
 // Package jsx implements the DataFormatReader / DataFormatWriter
-// pair for the Kapi Bundle Format (.kbf single-document JSON).
+// pair for the Kapi Bundle Format (.kbf.json single-document JSON).
 //
 // The reader routes an input document through core/kbf and emits
 // one model.Block per canonical Block. The flattened source text
@@ -51,7 +51,11 @@ const FormatName = "kbf"
 const FormatAlias = "jsx"
 
 // Extensions this reader responds to.
-var Extensions = []string{".kbf"}
+//
+// [format.KBFExt] is a compound suffix (".kbf.json"), so the registry has to
+// resolve it with [format.Ext] rather than path/filepath.Ext — the latter sees
+// only ".json" and hands every bundle to the plain JSON reader.
+var Extensions = []string{format.KBFExt}
 
 // MimeTypes advertised for this format.
 var MimeTypes = []string{
@@ -65,9 +69,9 @@ var MimeTypes = []string{
 // itself. In Phase 1 this annotation is the handoff between reader,
 // tools, and writer.
 type KBFAnnotation struct {
-	// Source runs copied verbatim from the .kbf Block.
+	// Source runs copied verbatim from the .kbf.json Block.
 	Source []kbf.Run
-	// Targets maps locale → target runs copied verbatim from the .kbf
+	// Targets maps locale → target runs copied verbatim from the .kbf.json
 	// Block (nil-safe for blocks without targets). This is provenance —
 	// the targets *as read*. It is deliberately not what the writer
 	// emits: the model.Block's targets are, because only those carry
@@ -82,11 +86,11 @@ type KBFAnnotation struct {
 	Preview *kbf.BlockPreviewHints
 	// Type carries the BlockType (jsx:element or jsx:attribute).
 	Type kbf.BlockType
-	// Hash carries the content hash from the .kbf Block.
+	// Hash carries the content hash from the .kbf.json Block.
 	Hash string
-	// DocumentID is the enclosing Document.ID in the .kbf file.
+	// DocumentID is the enclosing Document.ID in the .kbf.json file.
 	DocumentID string
-	// DocumentPath is the enclosing Document.Path in the .kbf file.
+	// DocumentPath is the enclosing Document.Path in the .kbf.json file.
 	DocumentPath string
 }
 
@@ -99,7 +103,7 @@ func init() {
 	// docCache), which serializes each block's annotations and drops any whose
 	// type is unregistered on replay. Unregistered, a block served from cache
 	// silently loses its KBFAnnotation, and with it the block's content hash,
-	// placeholders, and preview — so a reconstructed .kbf target comes out with
+	// placeholders, and preview — so a reconstructed .kbf.json target comes out with
 	// empty hashes (breaking downstream identity, e.g. neokapi-i18n compile). This
 	// surfaced non-deterministically under `kapi up`, whose concurrent per-locale
 	// converge workers share the cache and race on the same cached source.
@@ -165,7 +169,7 @@ func flatten(out *strings.Builder, runs []kbf.Run) {
 
 // ───────── Reader ─────────
 
-// Reader implements format.DataFormatReader for .kbf.
+// Reader implements format.DataFormatReader for .kbf.json.
 type Reader struct {
 	format.BaseFormatReader
 }
@@ -182,7 +186,7 @@ func NewReader() *Reader {
 	}
 }
 
-// Signature returns detection metadata — .kbf files are JSON
+// Signature returns detection metadata — .kbf.json files are JSON
 // bearing the canonical `kapi-bundle` kind marker.
 //
 // Detection also matches the retired kind this one replaced, so a bundle written
@@ -343,7 +347,7 @@ func cloneTargets(in map[kbf.LocaleID][]kbf.Run) map[kbf.LocaleID][]kbf.Run {
 
 // ───────── Writer ─────────
 
-// Writer implements format.DataFormatWriter for .kbf.
+// Writer implements format.DataFormatWriter for .kbf.json.
 type Writer struct {
 	outPath string
 	out     io.Writer
@@ -400,7 +404,7 @@ func (w *Writer) SetOutputWriter(out io.Writer) error {
 // SetLocale sets the target locale.
 func (w *Writer) SetLocale(locale model.LocaleID) { w.locale = locale }
 
-// SetEncoding is a no-op — .kbf is always UTF-8.
+// SetEncoding is a no-op — .kbf.json is always UTF-8.
 func (w *Writer) SetEncoding(_ string) {}
 
 // Write consumes blocks from the channel and accumulates them.
@@ -500,7 +504,7 @@ func (w *Writer) materializeBlock(mb *model.Block) (kbf.Block, string, string) {
 }
 
 // targetsFromModel projects a model.Block's committed targets onto the
-// .kbf wire shape. Every locale the block carries is written, not just
+// .kbf.json wire shape. Every locale the block carries is written, not just
 // the writer's own: a flow that produced a target for a locale the
 // writer was not pointed at is still a target the file has to carry,
 // and the reader put every locale in the file on the block to begin
@@ -544,7 +548,7 @@ func runsFromModel(runs []model.Run) []kbf.Run {
 }
 
 // Close flushes the accumulated blocks to the configured output.
-// Emits .kbf (JSON) either to the configured io.Writer or the
+// Emits .kbf.json (JSON) either to the configured io.Writer or the
 // configured output path.
 func (w *Writer) Close() error {
 	file := w.buildKBF()

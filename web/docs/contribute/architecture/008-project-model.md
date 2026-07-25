@@ -58,6 +58,7 @@ Ownership zones at the project root:
 my-app/
 ├── kapi.yaml               ← RECIPE (user edits; a conventional YAML config file)
 ├── .kapi-state.json        ← STATE STORE (review decisions, committed like the recipe)
+├── terms.json              ← TERMS SOURCE (committed; conventional location, AD-010)
 ├── .kapi/                  ← WORKING STATE (kapi maintains)
 │   ├── manifest.yaml       ← bookkeeping: block counts, fingerprints, timestamps
 │   ├── tm.db               ← project content memory (AD-009) — authoritative
@@ -91,6 +92,14 @@ Ownership:
   GitLab code previews and diffs — applies YAML syntax highlighting with no
   custom file-type registration or plugin. Wide, zero-config recognition was
   chosen over a branded double-click-to-open document type.
+
+  The same reasoning governs every other committed artifact: each one ends in
+  the suffix of the serialization it actually is. Where a file also needs to say
+  *which* document of that serialization it is, the marker goes in a segment
+  ahead of the suffix — `.kbf.json`, `.memory.json`, `.terms.json`,
+  `.overlays.jsonl` — so `jq`, GitHub, and syntax highlighting keep working
+  while the name stays self-describing. Only `.kpz`, a binary zip nobody
+  hand-edits, keeps a dedicated extension.
 - **`.kapi-state.json`** — the project **state store** (`defaults.state`, the
   default path). The committed, git-tracked record of per-unit review decisions
   (the review ladder: approvals, sign-off, parking) that a plain target file
@@ -100,6 +109,13 @@ Ownership:
   project pushes this state to a remote instead. Distinct from the content
   memory (AD-009), which is recycle leverage, not a decision carrier. See
   [the project store](/kapi/project-store).
+- **`terms.json`** — the committed terms source ([AD-010](010-terminology.md)),
+  found here when the recipe binds no `defaults.termbase_source`, falling back to
+  `<root>/.kapi/terms.json` the way the brand voice profile does
+  ([AD-022](022-brand-voice.md)). There is no `memory.json` counterpart: a
+  project has one glossary but *many* content-memory bundles, one per content
+  surface ([AD-009](009-content-memory.md)), so a seed is always named rather
+  than guessed.
 - **`.kapi/`** — kapi's. Authoritative state — the content memory (`tm.db`), the
   terms store (`termbase.db`), and `manifest.yaml` — sits at the top level; all
   regenerable caches live under `.kapi/cache/` so users can blow them away

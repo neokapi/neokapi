@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"path/filepath"
 	"strings"
 	"sync"
 
@@ -85,7 +84,7 @@ func (d *Detector) Detect(path string, reader io.ReadSeeker, mimeType string) (s
 	// candidates so a 2.x file isn't silently read by the 1.x reader. A
 	// single-claimant extension still resolves without reading content.
 	if path != "" {
-		if ext := filepath.Ext(path); ext != "" {
+		if ext := Ext(path); ext != "" {
 			cands := d.extensionCandidates(ext)
 			if len(cands) > 1 && reader != nil {
 				if name, err := d.DetectByContent(reader); err == nil && cands[name] {

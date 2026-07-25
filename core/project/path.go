@@ -3,6 +3,8 @@ package project
 import (
 	"path/filepath"
 	"strings"
+
+	"github.com/neokapi/neokapi/core/format"
 )
 
 // ResolvePathPattern expands the `{lang}` placeholder in a path pattern.
@@ -85,7 +87,7 @@ func ResolveTargetPath(itemPath, base, target, source, lang string) string {
 	}
 
 	out = ExpandTemplate(out, rel)
-	name := strings.TrimSuffix(filepath.Base(rel), filepath.Ext(rel))
+	name := format.Stem(rel)
 	out = strings.ReplaceAll(out, "*", name)
 	return filepath.FromSlash(out)
 }
@@ -105,7 +107,7 @@ func isDirectoryTarget(target string) bool {
 	if strings.ContainsAny(last, "*?[{") {
 		return false // glob or token segment → filename template
 	}
-	return filepath.Ext(last) == ""
+	return format.Ext(last) == ""
 }
 
 // ExpandTemplate expands path-template tokens in `template` using `localPath`
@@ -114,7 +116,9 @@ func isDirectoryTarget(target string) bool {
 func ExpandTemplate(template, localPath string) string {
 	localPath = filepath.ToSlash(localPath)
 	filename := filepath.Base(localPath)
-	ext := filepath.Ext(filename)
+	// A compound suffix such as ".kbf.json" has to come off whole, or {name}
+	// keeps a stray ".kbf" and the expanded target gains a second suffix.
+	ext := format.Ext(filename)
 	name := strings.TrimSuffix(filename, ext)
 	dir := filepath.Dir(localPath)
 	if dir == "." {

@@ -1,4 +1,4 @@
-# core/formats/jsx/vocabulary.yaml — JSX (.kbf interchange) representation-
+# core/formats/jsx/vocabulary.yaml — JSX (.kbf.json interchange) representation-
 # fidelity matrix.
 #
 # Vocabulary maturity axis (docs/internals/format-maturity.md §2.2), scored
@@ -6,14 +6,14 @@
 # reader/writer code provably does, evidence-bound for the audit.
 #
 # NOTE: `jsx` is on the format-maturity NOT_A_FORMAT list (it has no
-# reader.go; it reads/writes the typed .kbf envelope, not raw .jsx source),
+# reader.go; it reads/writes the typed .kbf.json envelope, not raw .jsx source),
 # so audit-format.py skips it and this matrix is not scored. It is authored
 # for completeness because jsx is the canonical home of the rich-jsx pack
 # (core/model/vocabularies/rich-jsx.json: jsx:element, jsx:var, jsx:node).
 #
-# READER/WRITER (core/formats/jsx/jsx.go): the reader reads a .kbf envelope
+# READER/WRITER (core/formats/jsx/jsx.go): the reader reads a .kbf.json envelope
 # (DocumentTypeJSX) and passes its typed runs through to the model unchanged;
-# the writer serialises canonical runs back to .kbf without flattening
+# the writer serialises canonical runs back to .kbf.json without flattening
 # (TestWriterPreservesStructuredTargetRuns). Because the rich-jsx pack
 # extends common-formatting, jsx also carries the inherited fmt:*/link:*
 # styling constructs — its participation in vocab_equivalence_test validates
@@ -33,7 +33,7 @@ constructs:
     write:
       status: lossless
       evidence: [jsx.TestWriterRoundTripKBF]
-      notes: The writer serialises jsx:element runs back to .kbf faithfully.
+      notes: The writer serialises jsx:element runs back to .kbf.json faithfully.
 
   - construct: placeholder.named
     expressible: true
@@ -51,7 +51,7 @@ constructs:
       evidence: [jsx.TestWriterPreservesStructuredTargetRuns]
       notes: >-
         The writer preserves a jsx:var Ph target run (Equiv intact) rather
-        than flattening it to text — canonical-authoring back to .kbf.
+        than flattening it to text — canonical-authoring back to .kbf.json.
 
   - construct: inline.bold
     expressible: true
@@ -62,7 +62,7 @@ constructs:
     write:
       status: lossless
       evidence: [jsx.TestWriterRoundTripKBF]
-      notes: fmt:bold runs serialise back to .kbf unchanged.
+      notes: fmt:bold runs serialise back to .kbf.json unchanged.
 
   - construct: inline.italic
     expressible: true

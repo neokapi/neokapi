@@ -7,7 +7,7 @@ import { LabPageShell, LabFootnote } from "@site/src/components/Lab/LabPageShell
 
 // The KBF anatomy page: a linear reading of the Kapi Bundle Format.
 // First a static worked example — one realistic document, two panes: the
-// highlighted .kbf source on the left, the structured explanation of the
+// highlighted .kbf.json source on the left, the structured explanation of the
 // selected part on the right — then an interactive round-trip through the
 // real engine (core/kbf compiled to WebAssembly) behind the standard RunGate.
 // The conformance dashboard stays at /kbf-tests and is linked as results.
@@ -20,14 +20,14 @@ export default function KbfLabPage(): React.ReactElement {
   return (
     <Layout
       title="Anatomy of a KBF document"
-      description="A worked reading of the Kapi Bundle Format: one realistic .kbf document with every part — envelope, blocks, runs, targets, provenance — explained, and an interactive round-trip through the real engine."
+      description="A worked reading of the Kapi Bundle Format: one realistic .kbf.json document with every part — envelope, blocks, runs, targets, provenance — explained, and an interactive round-trip through the real engine."
     >
       <LabPageShell
         title="Anatomy of a KBF document"
         maxWidthClassName="max-w-[1160px]"
         lede={
           <>
-            The <Link to="/reference/kbf/spec">Kapi Bundle Format</Link> (<code>.kbf</code>)
+            The <Link to="/reference/kbf/spec">Kapi Bundle Format</Link> (<code>.kbf.json</code>)
             is the interchange format of the kapi toolchain: one deterministic JSON document that
             carries a source file&rsquo;s translatable content as blocks of runs, its per-locale
             targets, and the provenance of every string. It exists so that extraction, translation,

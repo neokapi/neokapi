@@ -47,6 +47,20 @@ func TestResolveTargetPath_NoDoubleExtension(t *testing.T) {
 	assert.Equal(t, "output/fr-FR/docs/api-reference.md", got)
 }
 
+// The same regression for a compound suffix, which is the harder case: the `*`
+// shorthand expands to the source stem, and path/filepath.Ext sees only ".json"
+// in "App.kbf.json" — so a stem taken with it leaves ".kbf" glued on and the
+// target comes out "App.kbf.kbf.json".
+func TestResolveTargetPath_NoDoubleExtension_CompoundSuffix(t *testing.T) {
+	got := ResolveTargetPath("i18n/src/*.kbf.json", "", "i18n/{lang}/*.kbf.json", "i18n/src/App.kbf.json", "fr")
+	assert.Equal(t, "i18n/fr/App.kbf.json", got)
+	assert.NotContains(t, got, ".kbf.kbf")
+
+	// {name} is the token form of the same shorthand and must agree.
+	got = ResolveTargetPath("i18n/src/*.kbf.json", "", "i18n/{lang}/{name}.kbf.json", "i18n/src/App.kbf.json", "fr")
+	assert.Equal(t, "i18n/fr/App.kbf.json", got)
+}
+
 // TestResolveTargetPath_NestedI18nLayout pins the clean nested convention the
 // neokapi-i18n framework preset scaffolds (core/preset.neokapiI18nPreset): a
 // source glob confined to i18n/src/ resolving to per-locale targets under
@@ -55,20 +69,20 @@ func TestResolveTargetPath_NoDoubleExtension(t *testing.T) {
 // i18n-<lang>/ sprawl. Kept in lockstep with the preset's mapping strings.
 func TestResolveTargetPath_NestedI18nLayout(t *testing.T) {
 	const (
-		glob   = "i18n/src/**/*.kbf"
-		target = "i18n/{lang}/{path}.kbf"
+		glob   = "i18n/src/**/*.kbf.json"
+		target = "i18n/{lang}/{path}.kbf.json"
 	)
 	cases := []struct {
 		src, lang, want string
 	}{
-		{"i18n/src/App.kbf", "de", "i18n/de/App.kbf"},
-		{"i18n/src/components/Button.kbf", "fr", "i18n/fr/components/Button.kbf"},
-		{"i18n/src/App.kbf", "nb", "i18n/nb/App.kbf"},
+		{"i18n/src/App.kbf.json", "de", "i18n/de/App.kbf.json"},
+		{"i18n/src/components/Button.kbf.json", "fr", "i18n/fr/components/Button.kbf.json"},
+		{"i18n/src/App.kbf.json", "nb", "i18n/nb/App.kbf.json"},
 	}
 	for _, c := range cases {
 		got := ResolveTargetPath(glob, "", target, c.src, c.lang)
 		assert.Equal(t, c.want, got, "src=%s lang=%s", c.src, c.lang)
-		assert.NotContains(t, got, ".kbf.kbf", "must not double the extension")
+		assert.NotContains(t, got, ".kbf.json.kbf.json", "must not double the extension")
 		assert.False(t, strings.HasPrefix(got, "i18n/src/"),
 			"target %q must not land inside the source subtree i18n/src/", got)
 	}

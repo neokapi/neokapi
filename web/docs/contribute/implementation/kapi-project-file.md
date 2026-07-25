@@ -104,10 +104,14 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
   key. Resolved relative to the project root, and used for project-scoped term
   enforcement with no `--termbase` flag.
 - `termbase_source` / `tm_source` (string) — committed, git-tracked native source
-  artifacts (`.ktb` / `.kmb`) the project's terms store and content memory are
+  bundles (`.terms.json` / `.memory.json`) the project's terms store and content
+  memory are
   compiled from. `kapi apply` edits the source and re-imports into the gitignored
   `.db` cache, so the SQLite store is written by exactly one path and `git diff`
-  is the review surface.
+  is the review surface. `termbase_source` left unset falls back to
+  `<root>/terms.json`, then `<root>/.kapi/terms.json`; `tm_source` has no such
+  fallback, because a project has one glossary but many memory bundles (one per
+  content surface), leaving nothing single for a convention to name.
 - `state` (string) — committed, git-tracked project state store (a
   kapi-project-state JSON document, `core/state`): the authoritative carrier of
   per-unit workflow decisions (review ladder, approvals, parking) that a plain

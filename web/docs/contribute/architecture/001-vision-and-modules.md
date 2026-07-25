@@ -199,7 +199,7 @@ core/
     graph/            Graph data structures
     i18n/             Per-locale component schemas and backend metadata
     its/              W3C ITS metadata
-    kbf/              Kapi Bundle Format (.kbf) block serialization
+    kbf/              Kapi Bundle Format (.kbf.json) block serialization
     redaction/        Span redaction/restoration
     ignore/           .kapiignore pattern matching
     httputil/         HTTP client helpers

@@ -170,6 +170,15 @@ Each format registers a `FormatMeta` record that declares the MIME types
 and extensions it claims, so the cascade is data-driven rather than
 hardcoded.
 
+kapi's own on-disk conventions use **compound suffixes** — `.kbf.json`,
+`.memory.json`, `.terms.json`, `.overlays.jsonl` — so the marker survives while
+the file still reads as the JSON it is. `path/filepath.Ext` reports `.json` for
+all of them, so extension-driven code goes through `format.Ext` / `TrimExt` /
+`Stem` instead, which return the most specific registered suffix. A retired
+extension (a file written by an earlier release) is still recognised well enough
+to name what replaced it and the command that rewrites it, rather than failing
+as an unknown format.
+
 ### Skeleton strategies
 
 Three interchangeable strategies preserve non-translatable content for

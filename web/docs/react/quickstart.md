@@ -89,10 +89,11 @@ Scanning 1 files...
 Extracted 3 blocks from 1 files → i18n/
 ```
 
-`i18n/` is a directory carrying one `.kbf` document per source file, mirroring
-your source tree (e.g. `i18n/src/App.kbf`). The three blocks are
-"Welcome to Acme", the paragraph, and "Get started". Each `.kbf` is plain JSON —
-human-readable and git-diffable.
+`i18n/` is a directory carrying one `.kbf.json` document per source file, mirroring
+your source tree (e.g. `i18n/src/App.kbf.json`). The three blocks are
+"Welcome to Acme", the paragraph, and "Get started". Each one is plain JSON, and
+the suffix says so — your editor, `jq`, and GitHub read it without any setup, so
+it stays human-readable and git-diffable.
 
 ## 5. Pseudo-translate with `kapi`
 

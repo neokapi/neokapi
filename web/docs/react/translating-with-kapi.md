@@ -171,19 +171,19 @@ defaults:
   # Brand vocabulary and voice are git-tracked sources under i18n/.
   brand_voice:
     profile_file: i18n/brand-voice.yaml
-  termbase_source: i18n/termbase.ktb
+  termbase_source: i18n/terms.json
 content:
-  - path: "i18n/src/**/*.kbf"
+  - path: "i18n/src/**/*.kbf.json"
     format: kbf
-    target: "i18n/{lang}/{path}.kbf"
+    target: "i18n/{lang}/{path}.kbf.json"
 ```
 
 ```
 i18n/
-├── src/               source KBF catalogs (from `neokapi-i18n extract`)
-├── de/ fr/ ja/ nb/    per-locale targets (from kapi)
-├── termbase.ktb     brand vocabulary (git source)
-└── brand-voice.yaml   brand voice profile (git source)
+├── src/                    source KBF catalogs (from `neokapi-i18n extract`)
+├── de/ fr/ ja/ nb/         per-locale targets (from kapi)
+├── terms.json     brand vocabulary (git source)
+└── brand-voice.yaml        brand voice profile (git source)
 ```
 
 Content memory and pseudo-locale output are rebuildable state, so they live

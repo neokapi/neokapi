@@ -49,7 +49,7 @@ import (
 //     link:hyperlink] sequence — openxml's reader already maps these, see
 //     core/formats/openxml/vocabulary.go + reader_test.go).
 //
-//   - jsx's native interchange is the typed .kbf envelope, so its reader
+//   - jsx's native interchange is the typed .kbf.json envelope, so its reader
 //     pass-through validates that canonical types carried in KBF survive
 //     unchanged rather than markup→type inference. It still produces the
 //     same canonical sequence and is a legitimate participant.
@@ -161,7 +161,7 @@ const xliff12Fixture = `<?xml version="1.0" encoding="UTF-8"?>
   </file>
 </xliff>`
 
-// jsxKBFFixture builds an in-memory .kbf (jsx's native interchange) whose
+// jsxKBFFixture builds an in-memory .kbf.json (jsx's native interchange) whose
 // single block carries bold/italic/link inline-code runs, then returns it
 // as a RawDocument for the jsx reader.
 func jsxKBFFixture(t *testing.T) *model.RawDocument {
@@ -200,5 +200,5 @@ func jsxKBFFixture(t *testing.T) *model.RawDocument {
 	}
 	data, err := kbf.Marshal(file)
 	require.NoError(t, err)
-	return &model.RawDocument{URI: "eq.kbf", Reader: io.NopCloser(bytes.NewReader(data))}
+	return &model.RawDocument{URI: "eq.kbf.json", Reader: io.NopCloser(bytes.NewReader(data))}
 }

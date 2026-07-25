@@ -14,7 +14,7 @@ import (
 
 // ProjectConvergence computes the convergence report for a project recipe,
 // deriving everything from the working tree (content × target files) and the
-// committed .kmb corrections — the same file-based derivation the CLI status
+// committed .memory.json corrections — the same file-based derivation the CLI status
 // and verify commands use, so an in-process caller (the desktop) agrees with
 // `kapi status` to the unit. sourceLang overrides the project's source language
 // when non-empty.
@@ -125,7 +125,7 @@ func (a *App) ApproveReviewUnit(ctx context.Context, projectPath, sourceLang, lo
 // translation it judges, so a later edit invalidates a stale decision. The unit
 // is addressed by (file, key, locale) as listed in the review queue; the method
 // re-reads the exact target text before recording. The decision is exported to
-// the committed state artifact (defaults.state) — distinct from the `.kmb`,
+// the committed state artifact (defaults.state) — distinct from the `.memory.json`,
 // which stays the recycle corpus.
 //
 // decision is one of ReviewDecisionApproved (→ reviewed), ReviewDecisionSignedOff
@@ -207,7 +207,7 @@ func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang
 // — the authoritative carrier of workflow state — keyed by unit identity + locale,
 // bound to the content hash of the translation it judges so a later edit drops
 // the decision (stale). The decision is transient until Export persists it to the
-// committed state artifact (the export sink). The content memory (.kmb) is no longer
+// committed state artifact (the export sink). The content memory (.memory.json) is no longer
 // touched here: it is the recycle corpus, not the state carrier. Advisory fields
 // already on the unit's record (origin, source status, a fresh AI pre-review
 // annotation) survive the decision write.

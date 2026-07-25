@@ -3,7 +3,7 @@
  *
  * Serves review payloads out of a local KBF tree (the output of
  * `neokapi-i18n extract`, translated in place by kapi) and writes
- * target edits back into the `.kbf` files — git-diffable review.
+ * target edits back into the `.kbf.json` files — git-diffable review.
  * Stand-off annotation files (`*.overlays.jsonl`, e.g. from `kapi run
  * term-check` / `qa`) found under the same tree are passed through
  * per block hash so the overlay can paint term/QA highlights.
@@ -76,7 +76,7 @@ export class ReviewStore {
     for (const fn of this.subscribers) fn(update);
   }
 
-  /** Rebuild the hash index when any .kbf/.overlays.jsonl file changed. */
+  /** Rebuild the hash index when any .kbf.json/.overlays.jsonl file changed. */
   private refresh(): void {
     if (!existsSync(this.kbfDir)) {
       this.index.clear();
@@ -179,7 +179,7 @@ export class ReviewStore {
   }
 
   /**
-   * Write a target edit back into the block's `.kbf` file. The
+   * Write a target edit back into the block's `.kbf.json` file. The
    * edited text is stored as a single text run — the same shape a
    * translator editing the file by hand produces; kapi's validators
    * and content memory treat it as any other unstructured target.

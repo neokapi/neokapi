@@ -71,7 +71,7 @@ func doKBF(reqJSON string) (out string) {
 	}
 }
 
-// kbfRoundtrip decodes a .kbf payload and re-marshals it to the canonical
+// kbfRoundtrip decodes a .kbf.json payload and re-marshals it to the canonical
 // deterministic form, returning the output text and its SHA-256. The docs
 // Tests page compares this against the TypeScript mirror's output to prove the
 // two implementations are byte-for-byte equivalent.

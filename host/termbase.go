@@ -46,44 +46,25 @@ func (a *App) ResolveTermsCmdPath(cmd Command) (string, error) {
 }
 
 // ResolveTermsFileFormat maps the --format flag to a terms store file format
-// name. An unset flag lets a native extension (.ktb bundle, .ktz archive) win
-// over the caller's default, so `kapi terms import seeds/termbase.ktb` needs
-// no --format.
+// name. An unset flag lets a native bundle path win over the caller's default,
+// so `kapi terms import seeds/terms.json` needs no --format.
 func ResolveTermsFileFormat(flag, path string, explicit bool) string {
 	if explicit {
 		return strings.ToLower(flag)
 	}
-	switch lower := strings.ToLower(path); {
-	case strings.HasSuffix(lower, ktb.Ext):
-		return "ktb"
-	case strings.HasSuffix(lower, ktb.ArchiveExt):
-		return "ktz"
+	if ktb.IsBundlePath(path) {
+		return "bundle"
 	}
 	return strings.ToLower(flag)
 }
 
-// ImportKTBFile imports a native .ktb document. Concepts keep their
+// ImportKTBFile imports a native .terms.json bundle. Concepts keep their
 // serialized identity (AddConcept upserts by concept ID), so a
-// wipe-and-reseed from a committed .ktb reproduces the terms store exactly.
+// wipe-and-reseed from a committed .terms.json reproduces the terms store exactly.
 func ImportKTBFile(ctx context.Context, tb terms.Terminology, r io.Reader) (int, error) {
 	file, err := ktb.Decode(r)
 	if err != nil {
 		return 0, fmt.Errorf("parse ktb: %w", err)
-	}
-	return addConcepts(ctx, tb, file)
-}
-
-// ImportKTZFile imports a .ktz archive — the compressed single-member container
-// around a .ktb bundle. Semantics are identical to ImportKTBFile. The container
-// needs random access, so the whole archive is read before decoding.
-func ImportKTZFile(ctx context.Context, tb terms.Terminology, r io.Reader) (int, error) {
-	data, err := io.ReadAll(r)
-	if err != nil {
-		return 0, fmt.Errorf("read ktz: %w", err)
-	}
-	file, err := ktb.UnmarshalArchive(data)
-	if err != nil {
-		return 0, fmt.Errorf("parse ktz: %w", err)
 	}
 	return addConcepts(ctx, tb, file)
 }
@@ -97,16 +78,10 @@ func addConcepts(ctx context.Context, tb terms.Terminology, file *ktb.File) (int
 	return len(file.Concepts), nil
 }
 
-// ExportKTB writes the whole terms as a deterministic, lossless .ktb
-// document — the native form for committing a terms store to git.
+// ExportKTB writes the whole terms as a deterministic, lossless .terms.json
+// bundle — the native form for committing a terms store to git.
 func ExportKTB(ctx context.Context, tb terms.Terminology, w io.Writer) error {
 	return exportTerms(ctx, tb, w, ktb.Marshal)
-}
-
-// ExportKTZ writes the whole terms as a .ktz archive: the same .ktb bytes
-// inside the compressed single-member container.
-func ExportKTZ(ctx context.Context, tb terms.Terminology, w io.Writer) error {
-	return exportTerms(ctx, tb, w, ktb.MarshalArchive)
 }
 
 func exportTerms(ctx context.Context, tb terms.Terminology, w io.Writer, marshal func(*ktb.File) ([]byte, error)) error {

@@ -1,6 +1,6 @@
 // Package bundlekind explains a rejected `kind` magic string.
 //
-// The three envelope kinds (.kbf documents, .kmb content memories, .ktb terms)
+// The three envelope kinds (.kbf.json documents, .memory.json content memories, .terms.json terms)
 // were renamed when the vocabulary moved off the Okapi-inherited "translation
 // memory / termbase" terms:
 //

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-25T14:36:34Z",
+  "generatedAt": "2026-07-25T17:22:17Z",
   "kind": "format",
   "entries": [
     {
@@ -2094,7 +2094,7 @@
       "kind": "format",
       "displayName": "Kapi Bundle Format (KBF)",
       "extensions": [
-        ".kbf"
+        ".kbf.json"
       ],
       "mimeTypes": [
         "application/vnd.neokapi.kbf+json"

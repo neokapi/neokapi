@@ -224,7 +224,8 @@ terms store ([AD-010](010-terminology.md)), which is *source*, the memory is
   backend"). One continuum, larger backend.
 - it is **rebuildable**, which makes it softer than Terraform state: the leverage
   reconstructs from the committed translations (the per-locale `i18n/{lang}/`
-  target catalogs) plus an optional human-curated, **read-only** committed `.kmb` *seed*
+  target catalogs) plus an optional human-curated, **read-only** committed
+  `.memory.json` *seed*
   bound by `defaults.tm_source`. A cold or clobbered cache is a performance hit,
   not data loss.
 - because it is additive and rebuildable it needs **no locking**: it tolerates
@@ -234,11 +235,21 @@ terms store ([AD-010](010-terminology.md)), which is *source*, the memory is
 Consequently **CI never commits the memory**: it restores the store from the
 cache, leverages and accumulates during the run, and saves it back to the cache —
 the translation *output* (`i18n/{lang}/`) is what gets committed to git. This is
-why "a new `.ktb` arrives while a memory is in play" is not a reconciliation
+why "a new `.terms.json` arrives while a memory is in play" is not a reconciliation
 problem: no store lives in git to conflict. Committing the binary SQLite would be
-git-hostile and defeat interchange in any case; the `.kmb` interchange form
+git-hostile and defeat interchange in any case; the `.memory.json` bundle
 remains for explicit human snapshot / seed / transfer (deterministic, lossless),
 not as an auto-grown git artifact.
+
+A project accumulates **many** memory bundles, not one — this repository's own
+dogfood commits a bundle per content surface under `l10n/tm/*.memory.json` — so
+the suffix, not the location, is what identifies a seed. This is why content
+memory has no conventional-location fallback where the terms store does
+([AD-010](010-terminology.md)): a project has exactly one glossary, so
+`<root>/terms.json` has a single obvious answer, while a conventional
+`memory.json` would force a project with a bundle per surface to nominate one of
+them arbitrarily. A seed is named by `defaults.tm_source` or by an explicit
+path; there is nothing sensible to guess.
 
 > **State, not source.** Contrast the terms store
 > ([AD-010](010-terminology.md)), which is *authored source* committed to git and

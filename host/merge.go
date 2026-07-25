@@ -610,7 +610,7 @@ func BoolFlag(cmd Command, name string) bool {
 func (a *App) mergeOne(ctx context.Context, task mergeTask) (mergeStats, error) {
 	var stats mergeStats
 
-	ext := strings.ToLower(filepath.Ext(task.input))
+	ext := format.Ext(task.input)
 	switch ext {
 	case ".xliff", ".xlf":
 		return a.mergeOneXLIFF(ctx, task)
@@ -1216,7 +1216,7 @@ func expandMergeInputs(inputs []string, root string) ([]string, error) {
 				return nil, fmt.Errorf("merge: %w", werr)
 			}
 			for _, p := range walked {
-				if bilingualReturnExts[strings.ToLower(filepath.Ext(p))] {
+				if bilingualReturnExts[format.Ext(p)] {
 					add(p)
 				}
 			}

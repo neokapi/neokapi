@@ -165,7 +165,7 @@ const shoppingCartExpectedHTML = `<kat-block id="shopping-cart-plural" data-type
 	`</kat-block>`
 
 // fixtureDocument bundles the three example blocks into a single
-// .kbf document for round-trip / archive tests.
+// .kbf.json document for round-trip / archive tests.
 func fixtureDocument() *File {
 	return &File{
 		SchemaVersion: SchemaVersion,

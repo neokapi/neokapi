@@ -3,7 +3,7 @@
  *
  *   JSX source
  *     → neokapi-i18n extract (walker emits PluralRun)
- *     → writes a .kbf file
+ *     → writes a .kbf.json file
  *     → neokapi-i18n compile (flattens target runs into runtime dict)
  *
  * We assert that the ICU template in the compiled dict matches what
@@ -44,7 +44,7 @@ function tempDir(prefix: string): string {
 }
 
 describe("plural round-trip", () => {
-  it("extracts ShoppingCart into a .kbf with a PluralRun, compiles it to an ICU runtime dict", async () => {
+  it("extracts ShoppingCart into a .kbf.json with a PluralRun, compiles it to an ICU runtime dict", async () => {
     // 1. Extract
     const doc = extractDocument(SHOPPING_CART, { filename: "ShoppingCart.tsx" });
     expect(doc).toBeTruthy();
@@ -76,11 +76,11 @@ describe("plural round-trip", () => {
     };
     block.targets = { qps: [targetPlural] };
 
-    // 3. Write to a .kbf file.
+    // 3. Write to a .kbf.json file.
     const dir = tempDir("plural-roundtrip");
     const kbfDir = join(dir, "i18n");
     mkdirSync(kbfDir, { recursive: true });
-    const kbfPath = join(kbfDir, "ShoppingCart.kbf");
+    const kbfPath = join(kbfDir, "ShoppingCart.kbf.json");
     writeFileSync(
       kbfPath,
       marshalFile(
@@ -92,7 +92,7 @@ describe("plural round-trip", () => {
       ),
     );
 
-    // 4. Compile the .kbf dir → runtime dict.
+    // 4. Compile the .kbf.json dir → runtime dict.
     const outDir = join(dir, "translations");
     await runCompile([kbfDir, "--locale", "qps", "--out", outDir]);
 

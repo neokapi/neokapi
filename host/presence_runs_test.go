@@ -21,10 +21,10 @@ import (
 // question: `kapi up` re-planned and re-translated it every pass, the loop checks
 // never checked it, and `kapi inspect` dropped it from its output entirely.
 //
-// The fixtures below are real .kbf bundles, so the placeholders are genuine Ph
+// The fixtures below are real .kbf.json bundles, so the placeholders are genuine Ph
 // runs and the blocks travel the same reader the CLI uses.
 
-// kbfDoc renders a .kbf document whose blocks are given as (id, source runs,
+// kbfDoc renders a .kbf.json document whose blocks are given as (id, source runs,
 // optional target runs) triples.
 func kbfDoc(t *testing.T, path, locale string, blocks []kbfBlock) {
 	t.Helper()
@@ -74,7 +74,7 @@ func ph(id, equiv string) model.Run {
 	}}
 }
 
-// presenceFixture writes a source and a fully-translated target .kbf holding one
+// presenceFixture writes a source and a fully-translated target .kbf.json holding one
 // ordinary block and one placeholder-only block, and returns the project root.
 func presenceFixture(t *testing.T) (root string, proj *project.KapiProject) {
 	t.Helper()
@@ -83,7 +83,7 @@ func presenceFixture(t *testing.T) (root string, proj *project.KapiProject) {
 		{id: "greeting", source: []model.Run{tx("Hello")}},
 		{id: "price", source: []model.Run{ph("1", "p.price")}},
 	}
-	kbfDoc(t, filepath.Join(root, "src", "en.kbf"), "", blocks)
+	kbfDoc(t, filepath.Join(root, "src", "en.kbf.json"), "", blocks)
 
 	translated := []kbfBlock{
 		{id: "greeting", source: []model.Run{tx("Hello")}, target: []model.Run{tx("Hei")}},
@@ -91,7 +91,7 @@ func presenceFixture(t *testing.T) (root string, proj *project.KapiProject) {
 		// but the placeholder, and it is carried across intact.
 		{id: "price", source: []model.Run{ph("1", "p.price")}, target: []model.Run{ph("1", "p.price")}},
 	}
-	kbfDoc(t, filepath.Join(root, "src", "nb.kbf"), "nb", translated)
+	kbfDoc(t, filepath.Join(root, "src", "nb.kbf.json"), "nb", translated)
 
 	proj = &project.KapiProject{
 		Version: project.CurrentVersion,
@@ -100,7 +100,7 @@ func presenceFixture(t *testing.T) (root string, proj *project.KapiProject) {
 			TargetLanguages: []model.LocaleID{"nb"},
 		},
 		Content: []project.ContentCollection{
-			{Name: "c", Path: "src/en.kbf", Target: "src/{lang}.kbf"},
+			{Name: "c", Path: "src/en.kbf.json", Target: "src/{lang}.kbf.json"},
 		},
 	}
 	return root, proj
@@ -140,10 +140,10 @@ func TestUpPlan_PlaceholderOnlyTargetIsAlreadyProduced(t *testing.T) {
 func TestLoopChecks_PlaceholderOnlyTargetIsCheckable(t *testing.T) {
 	root := t.TempDir()
 	source := []model.Run{ph("1", "p.price"), ph("2", "p.unit")}
-	kbfDoc(t, filepath.Join(root, "src", "en.kbf"), "", []kbfBlock{
+	kbfDoc(t, filepath.Join(root, "src", "en.kbf.json"), "", []kbfBlock{
 		{id: "price", source: source},
 	})
-	kbfDoc(t, filepath.Join(root, "src", "nb.kbf"), "nb", []kbfBlock{
+	kbfDoc(t, filepath.Join(root, "src", "nb.kbf.json"), "nb", []kbfBlock{
 		// The target kept one of the source's two placeholders and dropped the
 		// other — the #1456 loss, in a unit that is nothing but placeholders.
 		{id: "price", source: source, target: []model.Run{ph("1", "p.price")}},
@@ -155,7 +155,7 @@ func TestLoopChecks_PlaceholderOnlyTargetIsCheckable(t *testing.T) {
 			TargetLanguages: []model.LocaleID{"nb"},
 		},
 		Content: []project.ContentCollection{
-			{Name: "c", Path: "src/en.kbf", Target: "src/{lang}.kbf"},
+			{Name: "c", Path: "src/en.kbf.json", Target: "src/{lang}.kbf.json"},
 		},
 	}
 
@@ -176,7 +176,7 @@ func TestLoopChecks_PlaceholderOnlyTargetIsCheckable(t *testing.T) {
 // it can give — the block is there, and inspect says it is not.
 func TestInspect_PlaceholderOnlyBlockIsEmitted(t *testing.T) {
 	root := t.TempDir()
-	src := filepath.Join(root, "app.kbf")
+	src := filepath.Join(root, "app.kbf.json")
 	kbfDoc(t, src, "", []kbfBlock{
 		{id: "greeting", source: []model.Run{tx("Hello")}},
 		{id: "price", source: []model.Run{ph("1", "p.price")}},

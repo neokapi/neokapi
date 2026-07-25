@@ -21,13 +21,13 @@ render the same bytes.
   are keyed by `PluralForm` (`zero`/`one`/`two`/`few`/`many`/`other`).
 - `ExtractedDocument` (`Document`) — top-level wrapper with
   `schemaVersion`, `sourceLocale`, `file`, and `blocks[]`.
-- `File` — top-level `.kbf` JSON envelope.
+- `File` — top-level `.kbf.json` JSON envelope.
 
 ### JSON reader/writer
 
 ```go
-file, err := kbf.Unmarshal(data)        // parse .kbf JSON
-data, err := kbf.Marshal(file)          // deterministic .kbf JSON
+file, err := kbf.Unmarshal(data)        // parse .kbf.json JSON
+data, err := kbf.Marshal(file)          // deterministic .kbf.json JSON
 ```
 
 The writer is deterministic (2-space indent, no HTML escaping,

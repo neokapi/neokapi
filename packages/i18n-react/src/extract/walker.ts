@@ -1,6 +1,6 @@
 /**
  * File-level walker: parses one source file with SWC, walks its JSX
- * tree, and emits a `Document` ready to be serialised as a `.kbf`.
+ * tree, and emits a `Document` ready to be serialised as a `.kbf.json`.
  *
  * One Block per translatable JSX element plus one Block per
  * translatable attribute. Hashes match the plugin transform's output

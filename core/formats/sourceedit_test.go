@@ -474,7 +474,7 @@ func TestUneditedDocumentStaysByteIdentical(t *testing.T) {
 // The list is short because it was measured, not assumed: 26 of the 29 rows above
 // reproduce their input byte for byte on a no-op edit.
 var notByteExact = map[registry.FormatID]string{
-	// A .kbf is generated, not preserved: the writer stamps its own generator
+	// A .kbf.json is generated, not preserved: the writer stamps its own generator
 	// and project block and emits canonical JSON indentation, so the output of
 	// a bundle round-trip is a fresh bundle carrying the same content.
 	"kbf": "a bundle is generated, not preserved — the writer stamps its own generator/project block",

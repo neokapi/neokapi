@@ -133,8 +133,12 @@ const (
 	// or status, and safe to delete with no loss of work. Opt-in.
 	ContentTypeHistory = "history"
 
-	memoryPath = "tm.kmb"
-	termsPath  = "termbase.ktb"
+	// memoryPath and termsPath are the conventional bare bundle names, so
+	// unzipping a package by hand yields the same spelling the rest of the
+	// tooling teaches. Unpack routes members by their manifest ContentType,
+	// never by filename, so these names are presentation only.
+	memoryPath = kmb.ConventionalName
+	termsPath  = ktb.ConventionalName
 	// OverlaysPath is the single overlay-set member's archive path.
 	OverlaysPath = "overlays.json"
 	// HistoryPath is the advisory history log's archive path.
@@ -264,7 +268,7 @@ type GeneratorInfo struct {
 
 // BlockDoc is one KBF document member (blocks + targets).
 type BlockDoc struct {
-	Path string // archive path under blocks/, e.g. "blocks/app.kbf"
+	Path string // archive path under blocks/, e.g. "blocks/app.kbf.json"
 	File *kbf.File
 }
 

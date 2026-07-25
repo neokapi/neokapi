@@ -628,7 +628,7 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 		func() format.DataFormatReader { return jsx.NewReader() },
 		format.FormatSignature{
 			MIMETypes:  []string{"application/vnd.neokapi.kbf+json"},
-			Extensions: []string{".kbf"},
+			Extensions: []string{".kbf.json"},
 			Sniff: func(data []byte) bool {
 				// Also matches the retired kind, so a bundle from an earlier
 				// release reaches the KBF reader and gets its explanatory

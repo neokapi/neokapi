@@ -488,7 +488,7 @@ func overlaysForSource(overlays []kpz.OverlayDoc, sourcePath string) []kpz.Overl
 // <dir>/[<lang>/]<name>; the default is ./<lang>/<name>.
 func mergeOutputPath(layout, sourcePath, locale string, multiLocale bool) string {
 	base := filepath.Base(sourcePath)
-	ext := filepath.Ext(base)
+	ext := format.Ext(base)
 	name := strings.TrimSuffix(base, ext)
 	extNoDot := strings.TrimPrefix(ext, ".")
 

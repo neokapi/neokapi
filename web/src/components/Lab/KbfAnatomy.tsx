@@ -6,7 +6,7 @@ import { ANATOMY_LINES, ANATOMY_TEXT, TERMS, termById, type TermId } from "./kbf
 import styles from "./KbfAnatomy.module.css";
 
 // KbfAnatomy — the worked example on the KBF anatomy page: a two-pane reading
-// of one realistic .kbf document. The left pane is the highlighted source,
+// of one realistic .kbf.json document. The left pane is the highlighted source,
 // every line tagged with the anatomical part it belongs to; selecting a part
 // (by clicking a line, or a term in the right pane's list) highlights its
 // lines and shows the structured explanation. Static by construction: no
@@ -25,7 +25,7 @@ export default function KbfAnatomy(): React.ReactElement {
       <div
         className={`${styles.code} overflow-auto rounded-lg border bg-card`}
         style={{ maxHeight: "34rem" }}
-        aria-label="Annotated .kbf source; select a line to explain the part it belongs to"
+        aria-label="Annotated .kbf.json source; select a line to explain the part it belongs to"
       >
         <pre className="m-0 bg-transparent py-2 font-mono text-[0.78rem] leading-[1.55]">
           <code>

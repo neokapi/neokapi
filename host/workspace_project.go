@@ -2,6 +2,7 @@ package host
 
 import (
 	"fmt"
+	"github.com/neokapi/neokapi/core/format"
 	"io"
 	"os"
 	"path/filepath"
@@ -73,7 +74,7 @@ func (a *App) RunPack(cmd Command) error {
 		}
 		pkg.Overlays = storeToKpzOverlays(snap.Overlays)
 		if len(snap.Blocks) > 0 {
-			pkg.Blocks = []kpz.BlockDoc{{Path: "blocks/project.kbf", File: blocksToKBF(snap.Blocks, a.SourceLang)}}
+			pkg.Blocks = []kpz.BlockDoc{{Path: "blocks/project.kbf.json", File: blocksToKBF(snap.Blocks, a.SourceLang)}}
 		}
 	}
 
@@ -368,7 +369,7 @@ func restoreSources(pkg *kpz.Package, root string) error {
 // snapshot's base name) holding the kapi.yaml recipe.
 func reconstitutedProjectPath(snapshotPath string, pkg *kpz.Package) string {
 	dir := filepath.Dir(snapshotPath)
-	name := strings.TrimSuffix(filepath.Base(snapshotPath), filepath.Ext(snapshotPath))
+	name := format.Stem(snapshotPath)
 	if pkg != nil && pkg.Recipe != nil && pkg.Recipe.Name != "" {
 		name = pkg.Recipe.Name
 	}

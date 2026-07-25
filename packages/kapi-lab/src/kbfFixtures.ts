@@ -1,7 +1,7 @@
 // Shared KBF fixtures for the KBF Lab and the KBF conformance runner.
 //
 // These are authored as typed @neokapi/kapi-format objects (so they
-// type-check against the wire schema) and surfaced as pretty-printed `.kbf`
+// type-check against the wire schema) and surfaced as pretty-printed `.kbf.json`
 // text for the editable Lab panels. They mirror the golden fixtures shared
 // between Go (core/kbf) and TypeScript (@neokapi/kapi-format), plus two extra
 // shapes — a `select` construct and a `sub` (subblock) reference — that round
@@ -309,7 +309,7 @@ export function kbfSampleById(id: string): KbfSample {
   return KBF_SAMPLES.find((s) => s.id === id) ?? KBF_SAMPLES[0];
 }
 
-/** Pretty-print a File as editable `.kbf` text (2-space indent, trailing LF). */
+/** Pretty-print a File as editable `.kbf.json` text (2-space indent, trailing LF). */
 export function kbfText(file: File): string {
   return `${JSON.stringify(file, null, 2)}\n`;
 }

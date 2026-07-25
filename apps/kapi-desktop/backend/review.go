@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/neokapi/neokapi/core/format"
 	"math"
 	"os"
 	"path/filepath"
@@ -71,7 +72,7 @@ type ReviewUnitDetail struct {
 // to the root), so the desktop must expand identically to find the unit again.
 func expandReviewTargetPath(tmpl, sourceRel, locale, root string) string {
 	out := strings.ReplaceAll(tmpl, "{lang}", locale)
-	base := strings.TrimSuffix(filepath.Base(sourceRel), filepath.Ext(sourceRel))
+	base := format.Stem(sourceRel)
 	out = strings.ReplaceAll(out, "*", base)
 	if !filepath.IsAbs(out) {
 		out = filepath.Join(root, out)

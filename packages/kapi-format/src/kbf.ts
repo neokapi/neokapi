@@ -1,5 +1,5 @@
 /**
- * @neokapi/kapi-format — deterministic .kbf JSON serialization.
+ * @neokapi/kapi-format — deterministic .kbf.json serialization.
  *
  * Produces the same bytes `core/kbf.Marshal` produces in Go: 2-space
  * indent, no HTML escaping, trailing newline, fields emitted in the
@@ -23,7 +23,7 @@ import type {
 import { Kind, SchemaVersion } from "./block.ts";
 
 /**
- * Serialize a .kbf File to UTF-8 bytes. Deterministic: identical
+ * Serialize a .kbf.json File to UTF-8 bytes. Deterministic: identical
  * input yields identical bytes across runs, machines, and language
  * implementations.
  */

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-25T14:36:34Z",
+  "generatedAt": "2026-07-25T17:22:17Z",
   "commands": [
     {
       "id": "add",
@@ -5795,8 +5795,8 @@
         "export"
       ],
       "use": "export",
-      "short": "Export content memory to TMX, .kmb, or .kmz",
-      "long": "Export the content memory to TMX 1.4 (default) or the native .kmb / .kmz form.\n\nTMX: each entry is written as a single \u003ctu\u003e with one \u003ctuv\u003e per language\nvariant present (or the subset requested via --locales). Inline markup is\npreserved as TMX \u003cph\u003e/\u003cbpt\u003e/\u003cept\u003e/\u003cit\u003e/\u003chi\u003e. TMX is the lossy interchange\ntier — entity mappings, provenance origins, properties, and notes are\ndropped.\n\nkmb (--format kmb, or a -o path ending in .kmb): the deterministic,\nlossless native serialization — the right form for committing a content memory to git\nand for seeding a fresh content memory exactly. --locales does not apply.\n\nkmz (--format kmz, or a -o path ending in .kmz): the same bundle inside a\ncompressed single-member container — the at-rest/handoff form for a large content memory.",
+      "short": "Export content memory to TMX or a native .memory.json bundle",
+      "long": "Export the content memory to TMX 1.4 (default) or the native\n.memory.json bundle.\n\nTMX: each entry is written as a single \u003ctu\u003e with one \u003ctuv\u003e per language\nvariant present (or the subset requested via --locales). Inline markup is\npreserved as TMX \u003cph\u003e/\u003cbpt\u003e/\u003cept\u003e/\u003cit\u003e/\u003chi\u003e. TMX is the lossy interchange\ntier — entity mappings, provenance origins, properties, and notes are\ndropped.\n\nbundle (--format bundle, or a -o path ending in .memory.json): the\ndeterministic, lossless native serialization — the right form for committing a\ncontent memory to git and for seeding a fresh content memory exactly. It stays\nplain JSON, so it reviews line by line in a diff. --locales does not apply.",
       "flags": [
         {
           "name": "file",
@@ -5805,7 +5805,7 @@
         },
         {
           "name": "format",
-          "usage": "output format (auto, tmx, kmb, kmz); auto selects by the -o extension",
+          "usage": "output format (auto, tmx, bundle); auto selects by the -o extension",
           "default": "auto",
           "type": "string"
         },
@@ -5843,8 +5843,8 @@
         "import"
       ],
       "use": "import [file]",
-      "short": "Import a TMX, .kmb, or .kmz file into content memory",
-      "long": "Import a single TMX file (plain or .gz), a native .kmb bundle, or a\n.kmz archive into the content memory.\n\nkmb (Kapi Memory Bundle) is the native content-memory form: a deterministic, lossless JSON\nserialization that round-trips every Entry field (entity mappings,\nprovenance origins, properties, notes) that TMX drops. Importing a .kmb\npreserves entry identity verbatim, so re-seeding a content memory from committed .kmb\nfiles is fully reproducible. A .kmz (Kapi Memory Archive) is the same bundle\ninside a compressed single-member container. The format is selected by file\nextension; --format overrides.\n\nBy default, imports entries matching the given --source-locale and --target-locale.\nUse --all-pairs to emit entries for every (src, tgt) language pair present in\neach TU — useful for multilingual TMX files (e.g. EUR-Lex Euramis exports where\na single TU may contain 24+ languages). Combine with --locales to restrict the\npair set (e.g. --all-pairs --locales en-GB,fr,de).\n\nThe importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work\nwithout pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV\n\u003cprop type=\"source-document\"\u003e URL is recorded as Origin.Reference.",
+      "short": "Import a TMX file or a native .memory.json bundle into content memory",
+      "long": "Import a single TMX file (plain or .gz) or a native .memory.json\nbundle into the content memory.\n\nThe bundle is the native content-memory form: a deterministic, lossless JSON\nserialization that round-trips every Entry field (entity mappings, provenance\norigins, properties, notes) that TMX drops. Importing one preserves entry\nidentity verbatim, so re-seeding a content memory from committed bundles is\nfully reproducible. The format is selected by file extension; --format\noverrides.\n\nBy default, imports entries matching the given --source-locale and --target-locale.\nUse --all-pairs to emit entries for every (src, tgt) language pair present in\neach TU — useful for multilingual TMX files (e.g. EUR-Lex Euramis exports where\na single TU may contain 24+ languages). Combine with --locales to restrict the\npair set (e.g. --all-pairs --locales en-GB,fr,de).\n\nThe importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work\nwithout pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV\n\u003cprop type=\"source-document\"\u003e URL is recorded as Origin.Reference.",
       "flags": [
         {
           "name": "all-pairs",
@@ -5859,7 +5859,7 @@
         },
         {
           "name": "format",
-          "usage": "input format (auto, tmx, kmb, kmz); auto selects by file extension",
+          "usage": "input format (auto, tmx, bundle); auto selects by file extension",
           "default": "auto",
           "type": "string"
         },
@@ -5896,7 +5896,7 @@
       "examples": [
         "kapi memory import corpus.tmx -s en -t fr",
         "kapi memory import corpus.tmx --all-pairs --locales en,fr,de --name my-tm",
-        "kapi memory import seeds/builtins-nb.kmb"
+        "kapi memory import seeds/builtins-nb.memory.json"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -7363,7 +7363,7 @@
         "export"
       ],
       "use": "export",
-      "short": "Export terms to CSV, JSON, TBX, or a native .ktb / .ktz bundle",
+      "short": "Export terms to CSV, JSON, TBX, or a native .terms.json bundle",
       "flags": [
         {
           "name": "export-name",
@@ -7377,7 +7377,7 @@
         },
         {
           "name": "format",
-          "usage": "export format (csv, json, tbx, ktb, ktz); a .ktb / .ktz -o path is detected automatically",
+          "usage": "export format (csv, json, tbx, bundle); a .terms.json -o path is detected automatically",
           "default": "json",
           "type": "string"
         },
@@ -7423,7 +7423,7 @@
         "import"
       ],
       "use": "import [file]",
-      "short": "Import terms from CSV, JSON, TBX, or a native .ktb / .ktz bundle",
+      "short": "Import terms from CSV, JSON, TBX, or a native .terms.json bundle",
       "flags": [
         {
           "name": "delimiter",
@@ -7442,7 +7442,7 @@
         },
         {
           "name": "format",
-          "usage": "import format (csv, tsv, json, tbx, ktb, ktz); a .ktb / .ktz input is detected automatically",
+          "usage": "import format (csv, tsv, json, tbx, bundle); a .terms.json input is detected automatically",
           "default": "csv",
           "type": "string"
         },
@@ -7487,8 +7487,7 @@
         "kapi terms import glossary.csv -s en -t fr --header",
         "kapi terms import vocab.csv -s en --monolingual --header",
         "kapi terms import terms.tbx --format tbx",
-        "kapi terms import seeds/termbase.ktb",
-        "kapi terms import seeds/terms.ktz"
+        "kapi terms import seeds/terms.json"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,

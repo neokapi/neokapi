@@ -12,7 +12,7 @@ import (
 )
 
 // writeReviewProject writes a project with a fully-translated nb target and a
-// gate that needs 50% reviewed, plus a bound (initially absent) .kmb source.
+// gate that needs 50% reviewed, plus a bound (initially absent) .memory.json source.
 func writeReviewProject(t *testing.T) string {
 	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "")
@@ -22,7 +22,7 @@ name: rev
 defaults:
   source_language: en
   target_languages: [nb]
-  tm_source: tm.kmb
+  tm_source: memory.json
 content:
   - path: en.json
     target: "{lang}.json"
@@ -40,7 +40,7 @@ ship_gate: { translated: 100, reviewed: 50 }
 // through the real state-store approval path — ApproveReviewUnit records the
 // decision in the project state store, the authoritative carrier of review state.
 // The target argument is ignored: approval blesses the translation already in the
-// file. (Named for historical continuity with the prior .kmb-based helper.)
+// file. (Named for historical continuity with the prior .memory.json-based helper.)
 func writeReviewedCorrection(t *testing.T, root, srcText, _ string) {
 	t.Helper()
 	a := &App{}
@@ -115,7 +115,7 @@ func TestReview_QueueListsUnreviewedUnits(t *testing.T) {
 }
 
 // TestReview_ApplyMemoryCorrectionIsRecycleNotReview drives the real `kapi apply` verb
-// and asserts the migrated boundary: a tm correction lands in the .kmb as
+// and asserts the migrated boundary: a tm correction lands in the .memory.json as
 // RECYCLE leverage — it does NOT promote review coverage. Review state lives in
 // the project state store now (set by ApproveReviewUnit), not the content memory.
 func TestReview_ApplyMemoryCorrectionIsRecycleNotReview(t *testing.T) {
@@ -149,7 +149,7 @@ func TestReview_EmptyQueueWhenNothingTranslated(t *testing.T) {
 }
 
 // TestReview_EditAfterApprovalInvalidatesReview proves the state model's upgrade
-// over the old content-keyed .kmb: an approval is bound to the targetHash of the
+// over the old content-keyed .memory.json: an approval is bound to the targetHash of the
 // translation it blessed, so editing that translation drops the unit back below
 // the reviewed rung — something the content-keyed content memory index could not express.
 func TestReview_EditAfterApprovalInvalidatesReview(t *testing.T) {

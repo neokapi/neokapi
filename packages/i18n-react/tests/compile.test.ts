@@ -67,7 +67,7 @@ describe("runCompile", () => {
     const kbfDir = join(dir, "i18n");
     const outDir = join(dir, "out");
     mkdirSync(kbfDir, { recursive: true });
-    writeFileSync(join(kbfDir, "App.kbf"), marshalFile(translatedFile()));
+    writeFileSync(join(kbfDir, "App.kbf.json"), marshalFile(translatedFile()));
 
     await runCompile([kbfDir, "--out", outDir]);
 
@@ -86,7 +86,7 @@ describe("runCompile", () => {
     const kbfDir = join(dir, "i18n");
     const outDir = join(dir, "out");
     mkdirSync(kbfDir, { recursive: true });
-    writeFileSync(join(kbfDir, "App.kbf"), marshalFile(translatedFile()));
+    writeFileSync(join(kbfDir, "App.kbf.json"), marshalFile(translatedFile()));
 
     await runCompile([kbfDir, "--locale", "qps", "--out", outDir]);
 
@@ -94,9 +94,9 @@ describe("runCompile", () => {
     expect(written).toEqual(["qps.json"]);
   });
 
-  it("compiles from a single .kbf file", async () => {
+  it("compiles from a single .kbf.json file", async () => {
     const dir = tempDir("compile-single");
-    const kbfPath = join(dir, "App.kbf");
+    const kbfPath = join(dir, "App.kbf.json");
     const outDir = join(dir, "out");
     writeFileSync(kbfPath, marshalFile(translatedFile()));
 

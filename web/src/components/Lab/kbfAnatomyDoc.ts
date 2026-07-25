@@ -1,6 +1,6 @@
 // The worked example behind the KBF anatomy page (/kbf-lab): one realistic
 // extracted source file, serialized field-by-field so every line of the
-// resulting `.kbf` text is tagged with the anatomical part it belongs to
+// resulting `.kbf.json` text is tagged with the anatomical part it belongs to
 // (envelope, generator, project, document, block, run, targets, placeholders,
 // provenance). The page renders the lines as a highlighted source pane and
 // uses the region tags to drive the explanation pane.
@@ -219,7 +219,7 @@ export const TERMS: AnatomyTerm[] = [
     title: "File envelope",
     spec: "/reference/kbf/spec#file-envelope",
     body: [
-      "The top-level object of a .kbf file. kind is the magic string readers sniff to detect the format; schemaVersion carries the MAJOR.MINOR wire contract — a consumer must reject an unrecognized major version and should accept unknown minors, ignoring fields it does not recognize.",
+      "The top-level object of a .kbf.json file. kind is the magic string readers sniff to detect the format; schemaVersion carries the MAJOR.MINOR wire contract — a consumer must reject an unrecognized major version and should accept unknown minors, ignoring fields it does not recognize.",
       "Serialization is deterministic: 2-space indent, fields in the pinned order shown here, all map keys sorted, trailing newline. Determinism is what keeps a file's content hash stable across runs, machines, and the two reference implementations.",
     ],
   },
@@ -252,7 +252,7 @@ export const TERMS: AnatomyTerm[] = [
     title: "Document",
     spec: "/reference/kbf/spec#document",
     body: [
-      "One extracted source file: its path, its documentType, and the blocks extracted from it. A .kbf file wraps one or more documents. A document may also carry a sourceHash and a skeleton — the opaque payload a merge step consumes to reconstruct the original file with translated content spliced back in (omitted in this example).",
+      "One extracted source file: its path, its documentType, and the blocks extracted from it. A .kbf.json file wraps one or more documents. A document may also carry a sourceHash and a skeleton — the opaque payload a merge step consumes to reconstruct the original file with translated content spliced back in (omitted in this example).",
     ],
   },
   {
@@ -428,5 +428,5 @@ function buildLines(f: File): AnatomyLine[] {
 
 export const ANATOMY_LINES: AnatomyLine[] = buildLines(ANATOMY_FILE);
 
-/** The example as plain `.kbf` text (used for tokenization and copy). */
+/** The example as plain `.kbf.json` text (used for tokenization and copy). */
 export const ANATOMY_TEXT: string = ANATOMY_LINES.map((l) => l.text).join("\n") + "\n";
