@@ -3,6 +3,12 @@ name: Docs — Verify Snippets
 # CI gate: every <RunnableSnippet> (auto-run) and scene smoke_contract must
 # exit zero in the browser wasm. A broken example fails this job before it
 # ever reaches the reader.
+#
+# The job also hosts the wasm-backed smoke tests that share this build: the
+# .kpz/.kapi workspace lifecycle, the KBF Go↔TS parity mirror, the review →
+# approve loop, and the browser command surface. One `make web-wasm-cli` is
+# amortized across all of them, so a smoke test belongs here rather than in a
+# job that would build the wasm again.
 
 on:
   workflow_dispatch:
@@ -21,6 +27,10 @@ on:
       # change to either can break a command call the surface smoke replays.
       - "packages/kapi-lab/**"
       - "packages/engine/**"
+      # The TypeScript half of the KBF parity smoke. The Go half is covered by
+      # core/**/*.go (core/kbf/, core/formats/jsx/); without this entry a
+      # TS-only change to the mirror would skip the only Go↔TS parity signal.
+      - "packages/kapi-format/**"
       - ".github/workflows/docs-verify-snippets.yml"
   pull_request:
     paths:
@@ -36,6 +46,10 @@ on:
       # change to either can break a command call the surface smoke replays.
       - "packages/kapi-lab/**"
       - "packages/engine/**"
+      # The TypeScript half of the KBF parity smoke. The Go half is covered by
+      # core/**/*.go (core/kbf/, core/formats/jsx/); without this entry a
+      # TS-only change to the mirror would skip the only Go↔TS parity signal.
+      - "packages/kapi-format/**"
       - ".github/workflows/docs-verify-snippets.yml"
 
 # Cancel superseded PR runs; never cancel a push to main.
@@ -70,6 +84,17 @@ jobs:
 
       - name: Verify .kpz + .kapi workflows in wasm (JSON + Office)
         run: GOROOT="$(go env GOROOT)" node --experimental-strip-types scripts/kpz-wasm-smoke.ts
+
+      # KBF Go(wasm)↔TS parity: canonical serialization SHA, HTML preview,
+      # anchor resolution and target validation, comparing core/kbf against the
+      # @neokapi/kapi-format mirror. The KBF format's Go suite has no testdata/
+      # corpus, so this is the only signal that a change to one side of the
+      # mirror (a renamed field, a reordered map, a retagged wrapper element)
+      # has not silently desynced the other. Runs `make kbf-smoke`'s body
+      # directly rather than the target itself: `kbf-smoke` depends on the
+      # phony `web-wasm-cli`, which would rebuild the 76M wasm a second time.
+      - name: Verify KBF Go↔TS parity in wasm
+        run: node --experimental-strip-types scripts/verify-snippets/kbf-smoke.ts
 
       - name: Verify the review → approve loop in wasm (status, apply, state store)
         run: node --experimental-strip-types scripts/verify-snippets/review-smoke.ts
