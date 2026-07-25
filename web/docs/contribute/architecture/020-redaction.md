@@ -164,9 +164,9 @@ defaults:
     placeholder: "[REDACTED:{category}]"
 ```
 
-On `kapi extract`, redaction runs **before** TM pre-fill, so the translation
+On `kapi extract`, redaction runs **before** memory pre-fill, so the content
 memory is queried with — and pre-fills targets from — redacted text; no
-sensitive value reaches the emitted file by way of a TM match. On `kapi merge`,
+sensitive value reaches the emitted file by way of a memory match. On `kapi merge`,
 the incoming source is always restored (so per-block staleness compares
 original-to-original against the re-read source file); the target is restored
 unless `--no-restore` is set.

@@ -21,7 +21,7 @@ The `kapi` binary contains **zero bowrain code**. It discovers the
 installed plugin at runtime by reading its `manifest.json`, then dispatches
 `kapi push`, `kapi pull`, … to `kapi-bowrain` as a subprocess. The
 discovery and dispatch mechanics are the framework's unified plugin model —
-see [AD-framework-007: Plugin System](https://neokapi.github.io/web/neokapi/contribute/architecture/007-plugin-system).
+see [AD-framework-007: Plugin System](https://neokapi.github.io/contribute/architecture/007-plugin-system).
 The legacy standalone `bowrain` binary, the build-time blank-import of
 `bowrain/plugin` into `kapi`, and the `-tags pure` / `kapi-pure` split are
 all retired: there is one user-facing CLI, `kapi`, and bowrain is something
@@ -43,7 +43,7 @@ the `kapi-bowrain` binary.
 
 ## Context
 
-Developer-facing localization pipelines live inside source repositories.
+Developer-facing content pipelines live inside source repositories.
 They need a first-class command surface that:
 
 - tracks which files feed a bowrain-server project,
@@ -52,7 +52,7 @@ They need a first-class command surface that:
 - stores its own configuration alongside the code it describes.
 
 The framework's `kapi.yaml` recipe model
-([AD-framework-008: Kapi Project Model](https://neokapi.github.io/web/neokapi/contribute/architecture/008-project-model))
+([AD-framework-008: Kapi Project Model](https://neokapi.github.io/contribute/architecture/008-project-model))
 already provides a portable, gitignore-aware project layout with stateless
 recipe + sibling state directory. Bowrain extends it with a `server:`
 block and a few top-level lifecycle/governance fields.
@@ -118,7 +118,7 @@ brew install neokapi/tap/bowrain-cli  # Homebrew (depends on the kapi formula)
 
 Discovery and dispatch are not bowrain-specific — they are the framework's
 unified plugin model, shared with okapi-bridge and any other plugin. See
-[AD-framework-007: Plugin System](https://neokapi.github.io/web/neokapi/contribute/architecture/007-plugin-system)
+[AD-framework-007: Plugin System](https://neokapi.github.io/contribute/architecture/007-plugin-system)
 for the manifest schema, discovery precedence, and the A/B/C transport
 modes referenced below.
 
@@ -132,7 +132,7 @@ With the plugin installed, `kapi` exposes:
 
 - Framework commands (built into `kapi`): `up`, `run`, `extract`, `merge`,
   `add`, `rm`, `ls`, `flows`, `exec`, `tools`, `formats`, `plugin`,
-  `termbase`, `tm`, `credentials`, `mcp`, `version`. The
+  `terms`, `memory`, `credentials`, `mcp`, `version`. The
   local project-content commands `add`/`rm`/`ls` are core — they edit and
   list the `kapi.yaml` recipe's content, which is local configuration, not a
   server concern (a server-connected project just declares `requires: bowrain`).
@@ -145,7 +145,8 @@ With the plugin installed, `kapi` exposes:
   there is one `kapi config` verb, and the plugin extends it by claiming
   the `bowrain.*` key namespace in its manifest
   (`capabilities.config_namespaces`), which kapi routes to
-  `~/.config/bowrain/bowrain.yaml`. Recipe keys stay positional
+  `bowrain/bowrain.yaml` under the user config directory. Recipe keys stay
+  positional
   (`kapi config server.url …`). Participation in core verbs happens
   through a command contribution (`kapi init --server …`) and hidden
   dispatch plumbing (`server-status`, merged into `kapi status`;
@@ -197,8 +198,8 @@ my-app/
 ├── kapi.yaml           # the recipe (committed) — fixed, conventional filename
 ├── .kapi/              # state (gitignored)
 │   ├── manifest.yaml
-│   ├── tm.db           # authoritative project TM
-│   ├── termbase.db     # authoritative project termbase
+│   ├── tm.db           # authoritative project content memory
+│   ├── termbase.db     # authoritative project terms store
 │   ├── flows/          # optional file-per-flow definitions
 │   │   └── pseudo.yaml
 │   └── cache/          # all regenerable caches under one roof
@@ -220,14 +221,15 @@ Ownership:
   YAML syntax highlighting to diffs and previews with no configuration. This is
   a breaking change introduced in kapi 1.2 — earlier builds named the recipe
   after the project directory (`<dir-name>.kapi`). See
-  [AD-framework-008](https://neokapi.github.io/web/neokapi/contribute/architecture/008-project-model)
+  [AD-framework-008](https://neokapi.github.io/contribute/architecture/008-project-model)
   for the full rationale.
 - **`.kapi/cache/`** — CLI-owned, gitignored. Contains everything that's
   cheaply regenerable: the block store, the kapi sync cache, extraction
   intermediates, overlay layers.
 - **`.kapi/tm.db`, `.kapi/termbase.db`, `.kapi/manifest.yaml`** — kapi-owned,
-  authoritative. Gitignored by default; opt in to commit the TM/termbase
-  when cross-clone reproducibility matters.
+  authoritative. The first two are the project's content memory and terms
+  store. Gitignored by default; opt in to commit them when cross-clone
+  reproducibility matters.
 - **`.kapi/flows/*.yaml`** — optional file-per-flow definitions, hand-edited,
   committed. Bowrain reads these in addition to inline `flows:` declared
   on the recipe.
@@ -283,7 +285,7 @@ automations:
     trigger: run-parked
     actions:
       - type: slack
-        config: { channel: "#localization" }
+        config: { channel: "#translation" }
 
 # Top-level governance / asset policy:
 assets:
@@ -344,8 +346,9 @@ server URL (`bowrain-auth:<server-url>` for the access token,
 `bowrain-refresh:<server-url>` for the refresh token), so multiple
 bowrain instances coexist without collision.
 
-Non-secret metadata (server URL, user info, expiry) lives at
-`~/.config/bowrain/auth.json`. The file format is JSON; the access /
+Non-secret metadata (server URL, user info, expiry) lives in `auth.json` in
+the bowrain config directory (`~/.config/bowrain` on Linux,
+`~/Library/Application Support/bowrain` on macOS). The file format is JSON; the access /
 refresh token fields are intentionally absent on disk — they're loaded
 from the keychain by `bowrain.auth.LoadAuth()`.
 
@@ -360,7 +363,7 @@ rather than user-scoped.
 
 ```bash
 kapi init                # create kapi.yaml + .kapi/, populate server: block
-kapi auth login          # OAuth login → tokens to keychain, metadata to ~/.config/bowrain/auth.json
+kapi auth login          # OAuth login → tokens to keychain, metadata to the bowrain config dir
 kapi status              # show standing: coverage, gates, and what's pending push / pull
 kapi push [--dry-run]    # transport: scan local files, diff against cache, upload changed blocks
 kapi pull [--locale fr]  # transport: fetch translations from server, write to local files
@@ -401,8 +404,8 @@ commands run). No `.bowrain/` directory is ever created.
 
 ## Related
 
-- [AD-framework-007: Plugin System](https://neokapi.github.io/web/neokapi/contribute/architecture/007-plugin-system) — the manifest discovery and A/B/C dispatch model that loads `kapi-bowrain`
-- [AD-framework-008: Kapi Project Model](https://neokapi.github.io/web/neokapi/contribute/architecture/008-project-model) — the recipe schema this AD layers `server:` onto
+- [AD-framework-007: Plugin System](https://neokapi.github.io/contribute/architecture/007-plugin-system) — the manifest discovery and A/B/C dispatch model that loads `kapi-bowrain`
+- [AD-framework-008: Kapi Project Model](https://neokapi.github.io/contribute/architecture/008-project-model) — the recipe schema this AD layers `server:` onto
 - [AD-009: Sync Protocol](009-sync-protocol) — the on-the-wire contract used by push/pull
 - [AD-011: REST API](011-rest-api) — the bowrain-server endpoints consumed by the source connector
 - [AD-013: Automation Engine](013-automation-engine) — server-side automation paired with local `hooks` / `automations`

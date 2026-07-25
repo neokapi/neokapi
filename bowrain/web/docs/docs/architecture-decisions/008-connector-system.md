@@ -9,16 +9,16 @@ title: "AD-008: Connector System"
 ## Summary
 
 Connectors are Bowrain's primary integration mechanism. They reach into live
-systems — CMS, design tools, code repositories, marketing platforms, TMS
-tools, and file systems — and move content bidirectionally into and out of
+systems — CMS, design tools, code repositories, marketing platforms, and
+file systems — and move content bidirectionally into and out of
 the ContentStore. Server-side connectors implement `IntegrationConnector`
 (Fetch/Publish). Client-side connectors implement `SourceConnector`
-(Push/Pull). The bowrain CLI is itself a File connector, managing local
-files and syncing with the server via REST.
+(Push/Pull). The kapi CLI with the bowrain plugin is itself a File
+connector, managing local files and syncing with the server via REST.
 
 ## Context
 
-A localization platform is only as useful as the systems it integrates
+A content platform is only as useful as the systems it integrates
 with. Treating file formats as the primary integration mechanism produces
 export/import workflows that are brittle, manual, and disconnected from
 the source system. Changes in the CMS require re-export; translations sit
@@ -33,8 +33,8 @@ instead of living in exchange files that drift out of sync.
 Two concerns need separate interfaces:
 
 1. **Server-side connectors** reach outward from Bowrain into external
-   systems. Fetch content from Contentful; publish translations back to
-   Contentful. The terminology is Bowrain's perspective.
+   systems. Fetch content from WordPress; publish translations back to
+   WordPress. The terminology is Bowrain's perspective.
 2. **Client-side connectors** act from a source system's perspective.
    Push source files to Bowrain; pull translated files back. This is
    what the bowrain CLI does for local files, and what other source
@@ -100,11 +100,11 @@ The category enum classifies the integration space:
 type Category string
 
 const (
-    CategoryFile      Category = "file"      // Filesystem (bowrain CLI)
-    CategoryCode      Category = "code"      // Git repositories, i18n resource bundles
-    CategoryCMS       Category = "cms"       // Contentful, Strapi, WordPress
-    CategoryDesign    Category = "design"    // Figma, Sketch
-    CategoryMarketing Category = "marketing" // HubSpot, Marketo
+    CategoryFile      Category = "file"      // Filesystem — the kapi CLI, server-hosted directories
+    CategoryCode      Category = "code"      // Git repositories and forges
+    CategoryCMS       Category = "cms"       // Content management systems
+    CategoryDesign    Category = "design"    // Design tools
+    CategoryMarketing Category = "marketing" // Marketing platforms
     CategoryTMS       Category = "tms"       // External TMS integrations (reserved)
 )
 ```
@@ -276,13 +276,13 @@ into the same Part stream that flows through the rest of the system.
 └────┼────────┼─────────┼─────────┼─────────┼─────┘
      │        │         │         │         │
      ▼        ▼         ▼         ▼         ▼
-Contentful Figma     GitHub   HubSpot    bowrain CLI
+WordPress  Figma     GitHub   HubSpot    kapi CLI
    CMS      Design     Repo    Marketing  (.kapi project)
 ```
 
 Content from any connector flows into the same ContentStore and the same
-streaming pipeline. Tools, TM, terminology, AI translation, and review
-all operate identically regardless of origin.
+streaming pipeline. Tools, content memory, terminology, AI translation, and
+review all operate identically regardless of origin.
 
 ### Registry
 
@@ -309,7 +309,7 @@ func (r *Registry) List() []Info
 
 Built-in connectors register via `init()`. Plugin connectors register at
 runtime via gRPC discovery — see
-[AD-framework-007: Plugin System](https://neokapi.github.io/web/neokapi/contribute/architecture/007-plugin-system).
+[AD-framework-007: Plugin System](https://neokapi.github.io/contribute/architecture/007-plugin-system).
 
 The bowrain CLI does not interact with the server-side registry. It is
 a file-based `SourceConnector` that syncs via REST.
@@ -353,7 +353,7 @@ The connector management panel in `bowrain/apps/bowrain/` and
 
 Both server-side and client-side connectors use the framework's
 three-tier format system — see
-[AD-framework-005: Formats](https://neokapi.github.io/web/neokapi/contribute/architecture/005-format-system):
+[AD-framework-005: Formats](https://neokapi.github.io/contribute/architecture/005-format-system):
 
 1. **Native formats** (Go): built-in implementations — HTML, XML,
    XLIFF, XLIFF 2, JSON, YAML, PO, Properties, Markdown, CSV, SRT, VTT,
@@ -396,7 +396,8 @@ translation experience within native tools.
   single connector category (File), not the whole story.
 - The connector interface uses streaming Parts, the same unit used
   throughout the pipeline — any connector's output feeds directly into
-  tools, TM, terminology, and AI processing without adaptation layers.
+  tools, content memory, terminology, and AI processing without adaptation
+  layers.
 - Credentials are workspace-scoped, encrypted at rest, and subject to
   step-up prompts for high-privilege operations.
 
@@ -407,5 +408,5 @@ translation experience within native tools.
 - [AD-004: Content Store and Versioning](004-content-store.md)
 - [AD-007: Media and Blob Storage](007-media-and-blob-storage.md)
 - [AD-009: Sync Protocol](009-sync-protocol.md)
-- [AD-framework-005: Formats](https://neokapi.github.io/web/neokapi/contribute/architecture/005-format-system)
-- [AD-framework-007: Plugin System](https://neokapi.github.io/web/neokapi/contribute/architecture/007-plugin-system)
+- [AD-framework-005: Formats](https://neokapi.github.io/contribute/architecture/005-format-system)
+- [AD-framework-007: Plugin System](https://neokapi.github.io/contribute/architecture/007-plugin-system)

@@ -7,7 +7,7 @@ import "./curated.css";
 //
 // Given a bundled fixture name (or an inline {name, content}), it boots the
 // shared kapi runtime, calls the kit's KapiRuntime.preview(path) API, and
-// renders the resulting content model — the translatable blocks, their ids, and
+// renders the resulting content model — the extracted blocks, their ids, and
 // their source text — in a clean table. This is the single best framework demo:
 // "here's how kapi *sees* your file," with no terminal in sight.
 //
@@ -211,7 +211,7 @@ const LazyBlockPreview = React.lazy(async () => {
                     </tbody>
                   </table>
                 ) : (
-                  <p className="kapi-cur-meta">No translatable blocks found.</p>
+                  <p className="kapi-cur-meta">No blocks found.</p>
                 )}
                 {data.total !== undefined && data.blocks && data.total > data.blocks.length && (
                   <p className="kapi-cur-meta">

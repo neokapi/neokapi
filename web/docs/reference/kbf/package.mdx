@@ -1,15 +1,15 @@
 ---
 sidebar_position: 5
 title: The Kapi format family & .kpz package
-description: The Kapi format family of native lossless formats (blocks, translation memory, termbase) and the .kpz package that bundles a project's authoritative content — distinct from the lossy interchange formats (XLIFF/PO, TMX, TBX).
-keywords: [KBF, kmb, ktb, kpz, package, translation memory, termbase, TMX, TBX, lossless, interchange, pack, unpack]
+description: The Kapi format family of native lossless formats (blocks, content memory, terms) and the .kpz package that bundles a project's authoritative content — distinct from the lossy interchange formats (XLIFF/PO, TMX, TBX).
+keywords: [KBF, kmb, ktb, kpz, package, content memory, terms store, TMX, TBX, lossless, interchange, pack, unpack]
 ---
 
 # The Kapi format family & the `.kpz` package
 
 KBF is the native serialization of one content atom — the translatable
 [block](/reference/kbf/spec#block). A project owns more than blocks, though: a
-translation memory and a termbase, plus stand-off annotations and media. The
+content memory and a terms store, plus stand-off annotations and media. The
 **Kapi format family** gives each of those atoms a native, deterministic, *lossless*
 format, and the **`.kpz` package** bundles them into one portable artifact.
 
@@ -22,8 +22,8 @@ XLIFF play for blocks (see [KBF vs XLIFF](/reference/kbf/vs-xliff)):
 | --- | --- | --- |
 | blocks + targets | **KBF** — Kapi Bundle Format, `.kbf` | XLIFF / PO |
 | stand-off annotations | **KBF annotations** — `.overlays.jsonl` | — |
-| translation memory | **KMB** — Kapi Memory Bundle, `.kmb` | TMX |
-| termbase | **KTB** — Kapi Term Bundle, `.ktb` | TBX |
+| content memory | **KMB** — Kapi Memory Bundle, `.kmb` | TMX |
+| terms store | **KTB** — Kapi Term Bundle, `.ktb` | TBX |
 | whole project | **KPZ** — Kapi Project Archive, `.kpz` | — |
 
 The native forms round-trip **every** field of the internal model. The
@@ -31,8 +31,8 @@ interchange forms map only the standard, industry-portable subset — which is
 exactly why they cannot be used to pack a project losslessly:
 
 - **TMX drops** the entity mappings (including the `conceptId` cross-link from a
-  TM entity to a termbase concept), provenance origins and import sessions,
-  per-entry properties, and notes.
+  content-memory entity to a terms concept), provenance origins and import
+  sessions, per-entry properties, and notes.
 - **TBX drops** the term `source` (terminology vs `brand_vocabulary`), the
   `competitorTerm` flag, and the extensible properties.
 
@@ -51,24 +51,25 @@ Each store-shaped native form has two spellings of the same content — a
 
 | Store | Bundle (readable, git-diffable) | Archive (compressed, at-rest / handoff) |
 | --- | --- | --- |
-| translation memory | `.kmb` — Kapi Memory Bundle | `.kmz` — Kapi Memory Archive |
-| termbase | `.ktb` — Kapi Term Bundle | `.ktz` — Kapi Term Archive |
+| content memory | `.kmb` — Kapi Memory Bundle | `.kmz` — Kapi Memory Archive |
+| terms store | `.ktb` — Kapi Term Bundle | `.ktz` — Kapi Term Archive |
 | whole project | — | `.kpz` — Kapi Project Archive |
 
 An archive is a zip holding exactly one member — `tm.kmb` for a `.kmz`,
 `termbase.ktb` for a `.ktz` — so unzipping one by hand yields the bundle
-unchanged. `kapi tm export` / `kapi tm import` and `kapi termbase export` /
-`kapi termbase import` pick the tier from the file extension:
+unchanged. `kapi memory export` / `kapi memory import` and `kapi terms export` /
+`kapi terms import` pick the tier from the file extension:
 
 ```bash
-kapi tm export -o l10n/tm/cli-nb.kmb        # bundle: commit this
-kapi tm export -o snapshots/tm.kmz          # archive: hand this off
-kapi termbase import seeds/termbase.ktz     # detected from the extension
+kapi memory export -o l10n/tm/cli-nb.kmb    # bundle: commit this
+kapi memory export -o snapshots/tm.kmz      # archive: hand this off
+kapi terms import seeds/termbase.ktz        # detected from the extension
 ```
 
 Commit bundles; ship archives. A bundle diffs line by line in git, which is what
-makes a reviewed TM or termbase reviewable at all; an archive exists for size,
-and a large TM compresses by roughly an order of magnitude.
+makes a reviewed content memory or terms store reviewable at all; an archive
+exists for size, and a large content memory compresses by roughly an order of
+magnitude.
 
 ## The `.kpz` package
 
@@ -81,7 +82,7 @@ project.kpz
 ├── manifest.json          inventory: per-member sha256 + Merkle rootHash
 ├── blocks/<id>.kbf        KBF              (blocks + targets)
 ├── annotations/<id>.overlays.jsonl  KBF annotations  (stand-off overlays)
-├── tm.kmb               KMB           (translation memory)
+├── tm.kmb               KMB           (content memory)
 ├── termbase.ktb         KTB           (terminology)
 ├── media/<name>           opaque blobs
 │
@@ -97,19 +98,19 @@ project in a file*. Side-effecting recipe like `server:`/`hooks:` travels inert.
 
 The same container serves **two profiles**, set by the manifest `kind`:
 
-- `kind: kapi-project` — the whole project (all locales, full recipe, TM,
-  termbase, overlays, source identity + skeletons). The snapshot / transport
+- `kind: kapi-project` — the whole project (all locales, full recipe, content
+  memory, terms, overlays, source identity + skeletons). The snapshot / transport
   parcel, moved by `pack` / `unpack`.
 - `kind: kapi-interchange` — a task-scoped **bilingual** slice for one locale
-  pair (blocks, inline codes, segmentation, skeleton, TM/term context). This is
-  neokapi's interchange format, sent to a translator/reviewer by `extract` and
-  ingested by `merge` (see [KBF vs XLIFF](/reference/kbf/vs-xliff)).
+  pair (blocks, inline codes, segmentation, skeleton, memory and term context).
+  This is neokapi's interchange format, sent to a translator/reviewer by
+  `extract` and ingested by `merge` (see [KBF vs XLIFF](/reference/kbf/vs-xliff)).
 
 Both are *parcels*, not workspaces: day-to-day work happens in the ambient `.kapi`
 project ([AD-025](/contribute/architecture/025-kbf-package) §7).
 
 Because every member is a native lossless format, the whole package is lossless:
-unpacking can seed a fresh translation memory, termbase, and block store, and the
+unpacking can seed a fresh content memory, terms store, and block store, and the
 project's regenerable caches (the block-store cache, sync hashes) rebuild
 faithfully from it. The manifest's per-member SHA-256 and Merkle `rootHash` give
 the package — and each member — a stable content identity; unpacking verifies
@@ -157,8 +158,9 @@ where it left off. There are two routes, and neither needs per-step CLI verbs:
   recomputing it, and each document's work stays isolated.
 
 - **Project snapshot (`pack` / `unpack`).** Inside a `.kapi` project the working
-  state also includes the project TM and termbase. `kapi pack` snapshots all of
-  it; `kapi unpack` rehydrates it into another machine's `.kapi/` state dir.
+  state also includes the project's content memory and terms store. `kapi pack`
+  snapshots all of it; `kapi unpack` rehydrates it into another machine's
+  `.kapi/` state dir.
   Within a project, re-running a flow also reuses the project's persistent cache
   (`.kapi/cache/blocks.db`), so resume there is simply running again.
 
@@ -197,7 +199,7 @@ Use a `.kpz` to move a whole project losslessly: backup and archival, seeding a
 fresh server or an offline desktop working copy, transferring a project between
 machines without a server, or building a deterministic test fixture. Use the
 **interchange** formats (XLIFF/PO, TMX, TBX) instead when content crosses into
-the wider localization industry — a translation vendor, an external CAT tool, or
+the wider translation industry — a translation vendor, an external CAT tool, or
 a TMS — and the lossy, standards-based subset is what the other side expects.
 
 ## See also
@@ -205,4 +207,4 @@ a TMS — and the lossy, standards-based subset is what the other side expects.
 - [AD-025: KBF Family and the .kpz Package](/contribute/architecture/025-kbf-package) — the decision and rationale.
 - [Specification](/reference/kbf/spec) — the KBF block format the family is built around.
 - [KBF vs XLIFF](/reference/kbf/vs-xliff) — the native-vs-interchange split for blocks.
-- Reference implementations: [`sievepen/kmb`](https://github.com/neokapi/neokapi/tree/main/sievepen/kmb) (KMB), [`termbase/ktb`](https://github.com/neokapi/neokapi/tree/main/termbase/ktb) (KTB), [`kpz`](https://github.com/neokapi/neokapi/tree/main/kpz) (the package container).
+- Reference implementations: [`memory/kmb`](https://github.com/neokapi/neokapi/tree/main/memory/kmb) (KMB), [`terms/ktb`](https://github.com/neokapi/neokapi/tree/main/terms/ktb) (KTB), [`kpz`](https://github.com/neokapi/neokapi/tree/main/kpz) (the package container).

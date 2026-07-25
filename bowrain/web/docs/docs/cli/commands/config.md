@@ -16,7 +16,13 @@ Two scopes share the verb, split by shape:
 | Shape | Scope | Stored in |
 | --- | --- | --- |
 | `kapi config <key> [value]` (positional) | the project recipe | `kapi.yaml`, committed |
-| `kapi config set/get/unset <key> [value]` | per-machine app config | `~/.config/kapi/kapi.yaml`, or a plugin's own file for a namespaced key |
+| `kapi config set/get/unset <key> [value]` | per-machine app config | `kapi.yaml` in the user config directory, or a plugin's own file for a namespaced key |
+
+The user config directory is `~/.config/kapi` on Linux and
+`~/Library/Application Support/kapi` on macOS. A hand-written file at
+`$HOME/.config/kapi/kapi.yaml` keeps working on either platform — it is read as
+a lower-precedence legacy layer — and `kapi config path` prints the location
+that is actually in force.
 
 ## Per-machine bowrain defaults
 
@@ -24,7 +30,7 @@ Two scopes share the verb, split by shape:
 kapi config get bowrain.server.url        # Read the default server URL
 kapi config set bowrain.server.url https://app.bowrain.cloud
 kapi config unset bowrain.server.url      # Restore the built-in default
-kapi config path bowrain                  # ~/.config/bowrain/bowrain.yaml
+kapi config path bowrain                  # bowrain/bowrain.yaml under the user config directory
 ```
 
 `kapi config list` shows every namespace at once, kapi's own keys alongside

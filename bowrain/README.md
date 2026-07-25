@@ -46,7 +46,7 @@ bowrain/
 ├── emails/          Email templates
 ├── web/
 │   ├── landing/     bowrain.cloud landing site (Vite + React)
-│   └── docs/        Docusaurus docs site → /web/bowrain/docs/
+│   └── docs/        Docusaurus docs site → bowrain.cloud/docs/
 └── deploy/          Deployment configs
 ```
 
@@ -54,9 +54,9 @@ bowrain/
 
 | Module          | Path          | Purpose                                                   |
 | --------------- | ------------- | --------------------------------------------------------- |
-| **Bowrain Core**| `core/`       | Shared types — used by both bowrain CLI and server        |
-| **Bowrain CLI** | `cli/`        | `bowrain` binary — project sync companion                 |
-| **Bowrain**     | `.`           | Server, worker, desktop app, REST/gRPC handlers           |
+| **Bowrain Core**  | `core/`       | Shared types — used by both the plugin and the server   |
+| **Bowrain Plugin**| `plugin/`     | `kapi-bowrain` plugin binary — project sync companion   |
+| **Bowrain**       | `.`           | Server, worker, desktop app, REST/gRPC handlers         |
 
 Coordinated via the root `go.work`.
 
@@ -67,7 +67,7 @@ Coordinated via the root `go.work`.
 make -C .. build-all
 
 # Or piecewise
-cd .. && make build-bowrain-cli      # bin/bowrain CLI
+cd .. && make build-bowrain-plugin   # bin/kapi-bowrain plugin
 cd .. && make build-server           # bin/bowrain-server
 cd apps/bowrain && wails3 build      # native desktop app
 ```
@@ -176,8 +176,8 @@ Most are also reachable from the repo root as `make -C bowrain <target>`.
 
 ## Documentation
 
-- **[bowrain docs](https://neokapi.github.io/web/bowrain/docs/)** — published Docusaurus site
-- **[bowrain landing](https://neokapi.github.io/web/bowrain/)** — marketing/intro site
+- **[bowrain docs](https://bowrain.cloud/docs/)** — published Docusaurus site
+- **[bowrain landing](https://bowrain.cloud/)** — marketing/intro site
 - **[Architecture decisions](web/docs/docs/architecture-decisions/)** — bowrain-specific ADs
 - **[Server reference](web/docs/docs/server/)**, **[CLI reference](web/docs/docs/cli/)**, **[Desktop reference](web/docs/docs/desktop/)**
 

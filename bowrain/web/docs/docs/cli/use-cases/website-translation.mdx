@@ -10,7 +10,7 @@ This guide walks through a complete workflow for translating website content usi
 ## Overview
 
 1. **CLI**: Initialize a Bowrain project and configure file mappings
-2. **CLI**: Run translation flows (AI, TM, QA)
+2. **CLI**: Run translation flows (AI, content memory, QA)
 3. **Bowrain**: Open local project in visual editor for manual review
 4. **CLI**: Push to Bowrain Server for team collaboration (optional)
 
@@ -80,7 +80,7 @@ kapi run translate-website
 kapi tools and flows are composable pipelines that run on your local files:
 
 - **`kapi translate`**: Use LLMs (Anthropic, OpenAI, Ollama) for machine translation
-- **`kapi exec recycle`**: Pre-fill translations from translation memory
+- **`kapi exec recycle`**: Pre-fill translations from content memory
 - **`kapi exec qa`**: Rule-based quality checks (whitespace, punctuation, placeholders)
 - **`kapi run <flow>`**: Execute a composed or custom multi-tool flow
 
@@ -106,7 +106,7 @@ Bowrain's editor offers two views for different translation tasks:
 
 ### Using Terminology
 
-1. Import a termbase (TBX, CSV, JSON) — it's stored in the project termbase
+1. Import terms (TBX, CSV, JSON) — they are stored in the project terms store
 2. Add `term-lookup` to your flow to show terminology suggestions
 3. Add `term-enforce` to validate required terms are used correctly
 4. The Context panel in Bowrain shows matched terms per block
@@ -144,8 +144,8 @@ kapi uses content-addressed blocks for efficient incremental sync — only chang
 
 - **Initialize projects with `kapi init`** to write a `kapi.yaml` recipe and `.kapi/` state directory
 - **Define custom flows** in `.kapi/flows/` for your specific translation workflow
-- **Use `kapi exec recycle`** to auto-fill translations from translation memory
-- **Import terminology** into the project termbase and add `term-lookup` to your flow
+- **Use `kapi exec recycle`** to auto-fill translations from content memory
+- **Import terminology** into the project terms store and add `term-lookup` to your flow
 - **Run `kapi pseudo-translate`** first to identify potential UI truncation issues
 - **Use pre-push hooks** to enforce quality gates before pushing to server
 - **Commit `kapi.yaml`** to git; the whole `.kapi/` state directory is gitignored by default

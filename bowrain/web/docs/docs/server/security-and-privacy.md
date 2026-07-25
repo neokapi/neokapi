@@ -38,7 +38,7 @@ does not compromise the others:
 | ------------ | ------------------------------------------------------------------------- |
 | Web app      | HttpOnly, Secure, SameSite cookies — JavaScript in the page cannot read them |
 | Desktop app  | The operating-system keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service) |
-| CLI (kapi)   | `~/.config/bowrain/auth.json`, scoped by file permissions                 |
+| CLI (kapi)   | The same operating-system keychain; only non-secret metadata is written to disk, scoped by file permissions |
 
 Clients communicate with the server over HTTPS.
 
@@ -144,9 +144,9 @@ events go to the EU ingestion host.
 
 ## Your content: ownership and export
 
-Bowrain stores your content, translation memory, and terminology so a team can
+Bowrain stores your content, content memory, and terminology so a team can
 share them; it does not lock them in. Content is held in the platform's content
-store and round-trips back to the source formats you brought it in as. Translation
+store and round-trips back to the source formats you brought it in as. Content
 memory and terminology export to open, standard interchange formats through the
 kapi CLI:
 
@@ -154,7 +154,7 @@ kapi CLI:
   interchange format).
 - `kapi terms export` writes **TBX**, **CSV**, or **JSON**.
 
-The web app's terminology view also exports the termbase as JSON. Combined with
+The web app's terminology view also exports the terms store as JSON. Combined with
 the non-destructive history above, this means your linguistic assets are portable
 at any time. If you leave, you take your content and your memory with you.
 

@@ -1,12 +1,12 @@
 ---
-id: glossary
-title: Glossary
-sidebar_label: Glossary
+id: concepts
+title: Concepts
+sidebar_label: Concepts
 sidebar_position: 2
 description: A one-line definition of every core neokapi term — Part, Layer, Block, Run, Target, Overlay, VariantKey, and the surrounding vocabulary — linked from first use across the framework docs.
 ---
 
-# Glossary
+# Concepts
 
 The framework has a small, precise vocabulary. This page defines each term once,
 in one place, so the concept pages can link here from first use instead of
@@ -90,12 +90,12 @@ make up the [content model](/framework/content-model).
 
 ## Knowledge stores
 
-- **Translation Memory (TM)** — a store of previously translated segments,
-  matched (exact or fuzzy) to leverage past work. See
-  [Translation Memory](/framework/translation-memory).
+- **Content memory** — a store of previously settled content: source segments
+  paired with the targets produced for them, matched exactly or fuzzily to reuse
+  past work. See [Content memory](/framework/content-memory).
 
-- **Termbase** — a store of approved terminology, used to enforce consistent
-  term translations. See [Terminology](/framework/terminology).
+- **Terms store** — a store of approved terminology, used to keep term
+  renderings consistent. See [Terminology](/framework/terminology).
 
 ## Checks
 

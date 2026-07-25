@@ -29,7 +29,7 @@ Ask the sizing question directly:
 
 > How big is translating `docs/` into French and Japanese — words, and a rough cost at $0.08/word?
 
-The assistant runs `kapi stats --json` over the content, multiplies out the rate you gave, and can subtract what the TM already covers ([leverage first](/kapi/recipes/pre-translate-with-tm)) so the estimate reflects only the work that remains.
+The assistant runs `kapi stats --json` over the content, multiplies out the rate you gave, and can subtract what the content memory already covers ([leverage first](/kapi/recipes/pre-translate-from-memory)) so the estimate reflects only the work that remains.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -49,5 +49,5 @@ For every flag and the field-by-field JSON output, see [`kapi stats`](/reference
 
 ## Next
 
-- [Reuse what you've translated](/kapi/recipes/pre-translate-with-tm) — shrink the job before pricing it.
+- [Reuse what you've translated](/kapi/recipes/pre-translate-from-memory) — shrink the job before pricing it.
 - [Hand off to translators](/kapi/bilingual-workflow) — extract, translate, merge back.

@@ -19,8 +19,8 @@ import styles from "./HeroKinetic.module.css";
 // PHASE 1 "The Content Loop" (one language): Shape → Write → Check → Ship.
 // PHASE 2 "Going Multilingual" (every language): Read · Prep · Recycle ·
 //   Translate · Check recede, then Ship resolves as stacked language forms
-//   出荷 / Versand / Envío; the asset gains a de·ja·fr switcher, one row localizes,
-//   and an "every language ✓" seal stamps.
+//   出荷 / Versand / Envío; the asset gains a de·ja·fr switcher, one row is
+//   translated, and an "every language ✓" seal stamps.
 //
 // Zero wasm on load: this is pure JS animation; the engine boots only when the
 // reader opens the modal (onOpen). SSR-safe: index.tsx guards this behind
@@ -87,7 +87,7 @@ const BODY_LINES = ["Acme keeps promises simple.", "Say what it does, plainly."]
 // Cycled asset-type chip label — a subtle nod to breadth (brand guide · deck ·
 // docs) while the concrete example stays a brand guide.
 const ASSET_TYPES = ["brand guide", "deck", "docs"];
-// The language switcher tabs shown in phase 2, and the localized row.
+// The language switcher tabs shown in phase 2, and the translated row.
 const LANG_TABS = ["de", "ja", "fr"];
 const LOCALIZED_VOICE = "selbstbewusst, klar"; // de of "confident, plain"
 

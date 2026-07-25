@@ -5,7 +5,7 @@ sidebar_position: 9
 
 # Workspaces
 
-A workspace is the top-level organizational unit in Bowrain. It groups projects, members, terminology, and translation memory together — similar to a GitHub organization or Slack workspace. Every project belongs to exactly one workspace.
+A workspace is the top-level organizational unit in Bowrain. It groups projects, members, terminology, and content memory together — similar to a GitHub organization or Slack workspace. Every project belongs to exactly one workspace.
 
 ## Concepts
 
@@ -13,7 +13,7 @@ A workspace is the top-level organizational unit in Bowrain. It groups projects,
 
 A workspace holds:
 
-- **Projects** — translation projects with content, translation memory, and terminology
+- **Projects** — translation projects with content, content memory, and terminology
 - **Members** — users with role-based access
 - **Connectors** — configured content sources shared across projects
 - **Settings** — workspace-level configuration

@@ -11,7 +11,7 @@ keywords:
     runs,
     blocks,
     exchange format,
-    localization,
+    multilingual content,
     .overlays.jsonl,
     annotations,
   ]
@@ -158,7 +158,7 @@ Provenance metadata describing where the block was extracted from.
 | `component` | string | Enclosing component name.                              |
 | `jsxPath`   | string | Path to the element within the component tree.         |
 | `element`   | string | The element tag the content was extracted from.        |
-| `locNote`   | string | Localization note for translators. Omitted when empty. |
+| `locNote`   | string | Translator note (ITS `locNote`). Omitted when empty.   |
 
 ### BlockPreviewHints
 
@@ -414,10 +414,11 @@ on the [KBF Tests page](/kbf-tests).
 
 ## Companion annotation file (`.overlays.jsonl`)
 
-Stand-off annotations — review status, protected terms, MT confidence, glossary
-matches — live in a companion `.overlays.jsonl` file rather than inside the `.kbf` itself.
-A `.overlays.jsonl` file is **JSON-Lines**: each line is one compact JSON record (no
-indentation, LF-terminated), which keeps it grep- and diff-friendly. The first
+Stand-off annotations — review status, protected terms, MT confidence,
+terminology matches — live in a companion `.overlays.jsonl` file rather than
+inside the `.kbf` itself. A `.overlays.jsonl` file is **JSON-Lines**: each line
+is one compact JSON record (no indentation, LF-terminated), which keeps it
+grep- and diff-friendly. The first
 non-empty line is a header record (`"type": "header"`); every subsequent non-empty
 line is an annotation record (`"type": "annotation"`).
 

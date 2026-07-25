@@ -121,8 +121,7 @@ const config: Config = {
   // DOCUSAURUS_CURRENT_LOCALE, so the policy can be expressed directly. English
   // stays strict: a broken link in the source IS a defect and should stop the
   // build.
-  onBrokenLinks:
-    (process.env.DOCUSAURUS_CURRENT_LOCALE ?? "en") === "en" ? "throw" : "warn",
+  onBrokenLinks: (process.env.DOCUSAURUS_CURRENT_LOCALE ?? "en") === "en" ? "throw" : "warn",
 
   i18n: {
     defaultLocale: "en",
@@ -198,6 +197,95 @@ const config: Config = {
           {
             from: "/contribute/notes-internal/plugin-bridge-protocol",
             to: "/contribute/notes-internal/plugin-protocol-v1",
+          },
+          // The product-vocabulary rename (translation memory → content memory,
+          // termbase/glossary → terms; #1462) and the de-localization of the
+          // framing (#1463). The published routes are indexed, so every retired
+          // page keeps a redirect. The "tm"/"termbase"/"localization" strings
+          // below are historical route names, not live vocabulary.
+          { from: "/framework/translation-memory", to: "/framework/content-memory" },
+          { from: "/framework/glossary", to: "/framework/concepts" },
+          {
+            from: "/kapi/recipes/tm-termbase-storage",
+            to: "/kapi/recipes/memory-and-terms-storage",
+          },
+          {
+            from: "/kapi/recipes/pre-translate-with-tm",
+            to: "/kapi/recipes/pre-translate-from-memory",
+          },
+          { from: "/kapi/recipes/localize-media", to: "/kapi/recipes/translate-media" },
+          {
+            from: "/kapi/recipes/gate-localization-in-ci",
+            to: "/kapi/recipes/ship-gates-and-ci",
+          },
+          {
+            from: "/contribute/architecture/009-translation-memory",
+            to: "/contribute/architecture/009-content-memory",
+          },
+          {
+            from: "/contribute/architecture/029-vision-and-image-localization",
+            to: "/contribute/architecture/029-vision-and-image-adaptation",
+          },
+          {
+            from: "/contribute/notes-internal/multimodal-localization",
+            to: "/contribute/notes-internal/multimodal-content",
+          },
+          {
+            from: "/contribute/notes-internal/tm-matching-algorithm",
+            to: "/contribute/notes-internal/memory-matching-algorithm",
+          },
+          // Generated command-reference pages retired with the `kapi tm` →
+          // `kapi memory` and `kapi termbase` → `kapi terms` verb rename
+          // (#1462, which renamed the pages without redirecting the old URLs).
+          { from: "/reference/commands/tm", to: "/reference/commands/memory" },
+          { from: "/reference/commands/tm-audit", to: "/reference/commands/memory-audit" },
+          { from: "/reference/commands/tm-export", to: "/reference/commands/memory-export" },
+          { from: "/reference/commands/tm-import", to: "/reference/commands/memory-import" },
+          {
+            from: "/reference/commands/tm-import-dir",
+            to: "/reference/commands/memory-import-dir",
+          },
+          { from: "/reference/commands/tm-list", to: "/reference/commands/memory-list" },
+          { from: "/reference/commands/tm-lookup", to: "/reference/commands/memory-lookup" },
+          { from: "/reference/commands/tm-search", to: "/reference/commands/memory-search" },
+          { from: "/reference/commands/tm-stats", to: "/reference/commands/memory-stats" },
+          {
+            from: "/reference/commands/tm-sessions",
+            to: "/reference/commands/memory-sessions",
+          },
+          {
+            from: "/reference/commands/tm-sessions-list",
+            to: "/reference/commands/memory-sessions-list",
+          },
+          {
+            from: "/reference/commands/tm-sessions-show",
+            to: "/reference/commands/memory-sessions-show",
+          },
+          {
+            from: "/reference/commands/tm-sessions-delete",
+            to: "/reference/commands/memory-sessions-delete",
+          },
+          { from: "/reference/commands/termbase", to: "/reference/commands/terms" },
+          {
+            from: "/reference/commands/termbase-export",
+            to: "/reference/commands/terms-export",
+          },
+          {
+            from: "/reference/commands/termbase-import",
+            to: "/reference/commands/terms-import",
+          },
+          { from: "/reference/commands/termbase-list", to: "/reference/commands/terms-list" },
+          {
+            from: "/reference/commands/termbase-lookup",
+            to: "/reference/commands/terms-lookup",
+          },
+          {
+            from: "/reference/commands/termbase-search",
+            to: "/reference/commands/terms-search",
+          },
+          {
+            from: "/reference/commands/termbase-stats",
+            to: "/reference/commands/terms-stats",
           },
         ],
       },

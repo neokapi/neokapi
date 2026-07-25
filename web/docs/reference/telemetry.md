@@ -33,7 +33,7 @@ Common properties on every event: `app_version` (the kapi version),
 Property values are restricted to fixed vocabularies:
 
 - **`command`** — the name of the command that ran, but only for kapi's
-  built-in verbs (for subcommands, the dotted path, e.g. `tm.import`).
+  built-in verbs (for subcommands, the dotted path, e.g. `memory.import`).
   A command contributed by a plugin is reported as the literal string
   `plugin`; a verb that matched nothing is reported as `other`; a bare
   `kapi` invocation is reported as `root`. Plugin and unknown verb names
@@ -43,10 +43,13 @@ Property values are restricted to fixed vocabularies:
 - **`exit_class`** — `ok`, `error`, or `usage`.
 
 Events are keyed by a single identifier: a random UUID generated on the
-machine the first time telemetry is eligible to run, stored in the kapi
-configuration file (`~/.config/kapi/kapi.yaml`, key `telemetry.machine_id`).
-It encodes nothing — not the hostname, not the username, not any hardware
-identifier — and deleting it simply causes a new random one to be generated.
+machine the first time telemetry is eligible to run, stored under the
+`telemetry.machine_id` key in the app configuration file — `kapi.yaml` in the
+user config directory (`~/.config/kapi` on Linux,
+`~/Library/Application Support/kapi` on macOS). `kapi config path` prints the
+resolved location. It encodes nothing — not the hostname, not the username, not
+any hardware identifier — and deleting it simply causes a new random one to be
+generated.
 
 `kapi telemetry status` prints the current state, the reason when disabled,
 and this payload shape.

@@ -1,7 +1,7 @@
 # Deep-dive D — Prior art + naming: an intuitive axis categorization and a Structure/Geometry ladder
 
 Read-only survey of the neokapi repo root (HEAD caught up to main).
-Anchors read in full: `core/model/structure.go`, `core/formats/docling/{schema.go,reader.go,spec.yaml}`, `core/formats/doclang/{reader.go,spec.yaml}`, `core/formats/image/reader.go`, `core/structure/analyze.go`, `web/docs/contribute/architecture/028-pdf-reader-plugin.md`, `web/docs/contribute/architecture/029-vision-and-image-localization.md`, `docs/internals/format-maturity.md`.
+Anchors read in full: `core/model/structure.go`, `core/formats/docling/{schema.go,reader.go,spec.yaml}`, `core/formats/doclang/{reader.go,spec.yaml}`, `core/formats/image/reader.go`, `core/structure/analyze.go`, `web/docs/contribute/architecture/028-pdf-reader-plugin.md`, `web/docs/contribute/architecture/029-vision-and-image-adaptation.md`, `docs/internals/format-maturity.md`.
 
 ---
 
@@ -117,7 +117,7 @@ Key insight for §4: **tier 1/2/3 is the *confidence/provenance* of where roles+
 
 ### 2.2 AD-029 — the representation-depth ladder (exactly the user's named ladder)
 
-`029-vision-and-image-localization.md` Context table (verbatim modes):
+`029-vision-and-image-adaptation.md` Context table (verbatim modes):
 
 | Mode | What it localizes |
 |---|---|
@@ -245,6 +245,6 @@ Fidelity = {Engine, Vocabulary, Structure/Geometry}; Trust = {Corpus, Security};
 - DocLang: `core/formats/doclang/reader.go` `blockRole` (39-47), `<layer>`/`<location>` (261-269), `geometryFrom` 512-grid (502-516), OTSL `otslCellTok` (72-79).
 - Image/vision ladder: `core/formats/image/reader.go` `Config{OCR,Layout}` (46-57), `ocrParts` tier-3→tier-2 (305-336).
 - Tier-2 engine: `core/structure/analyze.go` `Analyze` (61), `Gridify` (222), `ToParts` (351), `TableToParts` (375).
-- ADs: `web/docs/contribute/architecture/028-pdf-reader-plugin.md` (structure-tiers table, two extraction modes), `029-vision-and-image-localization.md` (Context modes table, ocr/layout toggles).
+- ADs: `web/docs/contribute/architecture/028-pdf-reader-plugin.md` (structure-tiers table, two extraction modes), `029-vision-and-image-adaptation.md` (Context modes table, ocr/layout toggles).
 - Rubric to extend: `docs/internals/format-maturity.md` axes table (99-106), Vocabulary precedent (160-217), `na` rule (112-117), min-over-gating (27), promise-vs-score (16-30).
 - Governance prior art (no axis-grouping written yet): `docs/internals/research/format-ops/followup-maturity-ladder-governance.md:73,96,112` (vector published, headline by min; promises aggregate by minimum).

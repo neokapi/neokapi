@@ -30,7 +30,7 @@ boundary clean in each context:
 
 The files in this directory carry the `KapiMart` name as the default instance.
 For BowMart, substitute the product name at record time (a single
-find-and-replace of `KapiMart`), since the strings, keys, locales, glossary, and
+find-and-replace of `KapiMart`), since the strings, keys, locales, terms, and
 content memory are identical by design. The terms list both names as
 do-not-translate so a check passes whichever instance is in use.
 
@@ -79,7 +79,7 @@ Plural categories follow CLDR per locale: French and German use `one`/`other`;
 Japanese uses `other` only. Partial locales leave the ICU strings empty where
 that key has not been translated yet.
 
-## Glossary and brand
+## Terms and brand
 
 `glossary.csv` maps each term to its French, German, and Japanese forms with a
 note column. Do-not-translate terms — the three product names and third-party
@@ -106,14 +106,14 @@ This sequence is the recurring story for BowMart correction-loop demos:
 
 1. The AI assistant suggests `tableau de bord` for the German string
    `account.title` — carrying a French term into German.
-2. **Maya** corrects the German to `Übersicht` (consistent with the glossary's
-   `Dashboard → de: Übersicht`).
+2. **Maya** corrects the German to `Übersicht` (consistent with the
+   `Dashboard → de: Übersicht` row in `glossary.csv`).
 3. The correction becomes a rule: "Dashboard in de is `Übersicht`, not
    `tableau de bord`," recorded as a project check.
 4. **Jonas** reviews and approves the rule.
 5. On the next locale and the next time the term appears, the check enforces the
    approved translation automatically, so the same mistake is not repeated.
 
-The glossary backs this loop: the rule that Maya's correction produces matches
-the `Dashboard` row, so the demo's "learned rule" and the committed glossary
-agree.
+The term list backs this loop: the rule that Maya's correction produces matches
+the `Dashboard` row, so the demo's "learned rule" and the committed
+`glossary.csv` agree.

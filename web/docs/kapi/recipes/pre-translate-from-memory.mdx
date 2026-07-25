@@ -1,0 +1,81 @@
+---
+id: pre-translate-from-memory
+title: "Reuse what you've translated"
+sidebar_label: "Pre-translate from memory"
+sidebar_position: 6
+description: "A deterministic pre-translation pass: leverage existing content memory, fill the misses, and pre-flag terminology — before any model or vendor sees the content. No API key."
+hide_table_of_contents: true
+---
+
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
+
+# Reuse what you've translated
+
+**Goal:** never re-translate a sentence you've already translated. When you ship an update, most text is unchanged — kapi brings back what it recognizes from earlier releases and sends only the new and changed parts forward, marking anything still untranslated so nothing slips out blank. Deterministic, seconds, no API key. Concepts: [Content memory](/framework/content-memory) and [Terminology](/framework/terminology); where each store lives: [Memory & terms storage](/kapi/recipes/memory-and-terms-storage).
+
+<Tabs groupId="surface" queryString>
+<TabItem value="desktop" label="Desktop" default>
+
+The **Content Memory** view is where the project's memory lives:
+
+1. **Import past work.** Import a TMX (or previous release's bilingual files) into the project's content memory; entries and language pairs are listed as they land.
+2. **Run the flow.** A project flow whose first step is `recycle` fills every exact and fuzzy match from memory before any translate step runs — **Bring up to date** applies it across locales, and only the misses go forward.
+3. **Watch leverage accumulate.** Every finished run absorbs its results, so the next release starts warmer.
+
+</TabItem>
+<TabItem value="agent" label="Agent (Claude)">
+
+Ask for the leverage pass:
+
+> Import `project.tmx` into the project's content memory, pre-translate the French catalog from it, and tell me what's left.
+
+The assistant runs `kapi memory import`, then `recycle`, and reports the residue — the blocks with no match — so you decide what goes to a model or a vendor. Approved sentence pairs it encounters along the way can be banked for the future with a `kind:"tm"` change-set entry through `kapi apply`.
+
+</TabItem>
+<TabItem value="cli" label="CLI">
+
+Three deterministic steps — leverage, make the gaps visible, pre-flag terms:
+
+```bash
+kapi memory import project.tmx -s en -t fr      # 1. load past work (see kapi memory stats)
+kapi exec recycle messages_en.json -o step1.json \
+  --source-lang en --target-lang fr             # 2. fill exact + fuzzy matches
+kapi pseudo-translate step1.json -o step2.json  # 3. mark what memory missed
+kapi exec term-check step2.json --source-lang en --target-lang fr \
+  --termbase product-terms                      # 4. pre-flag terminology drift
+```
+
+Tune matching with `--fuzzy-threshold` / `--fill-target-threshold` ([how matching works](/framework/content-memory)). To machine-translate the misses instead of pseudo-filling them, swap step 3 for [`kapi translate`](/reference/commands/translate) and keep `term-check` as the guardrail.
+
+**In a project**, declare it once as a flow and drop every flag:
+
+```yaml title="kapi.yaml"
+defaults:
+  source_language: en
+  target_languages: [fr]
+flows:
+  pretranslate:
+    steps:
+      - tool: recycle
+      - tool: pseudo-translate
+      - tool: term-check
+```
+
+`kapi run pretranslate` resolves the project's content memory, terms store, and languages automatically — and a `recycle` step at the head of the default flow gives [`kapi up`](/kapi/recipes/translate-content) the same leverage on every pass.
+
+</TabItem>
+</Tabs>
+
+## Try it
+
+The in-browser build pre-seeds a content memory and a terms store. The rail tops up the memory from `project.tmx`, then runs the pipeline — open the intermediate files to watch each step feed the next:
+
+<KapiGuidedEmbed id="kapi-terminology-pretranslation" />
+
+## Next
+
+- [Memory & terms storage](/kapi/recipes/memory-and-terms-storage) — loose file, named store, or project store.
+- [Keep terms consistent](/kapi/recipes/terminology-qa) — the validation side of the same terms store.
+- [`kapi memory`](/reference/commands/memory) and [`kapi exec recycle`](/reference/commands/exec-recycle) — command references.

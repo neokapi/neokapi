@@ -36,7 +36,7 @@ The loop has a gate before the target work: `kapi up` **settles your source and 
       kind: "phase",
       role: "translate",
       label: "translate the ready blocks",
-      steps: ["recycle (TM-first)", "AI remainder"],
+      steps: ["recycle (memory-first)", "AI remainder"],
     },
     { kind: "done", label: "caught up" },
   ]}
@@ -73,7 +73,7 @@ Then the person's half of the loop — promoting the translations themselves —
 The **Review** surface is a queue you work through, keyboard-first:
 
 1. **Enter from a gate cell.** Click a ship-gate cell on the project view (or open **Review** from the sidebar) — the queue narrows to that collection and locale, ordered findings-first so the risky units come up first.
-2. **Inspect.** Each unit shows source and target side by side, with its check findings, provenance, and TM match below.
+2. **Inspect.** Each unit shows source and target side by side, with its check findings, provenance, and memory match below.
 3. **Decide.** `a` approves, `r` rejects (with a note — the unit drops back to draft for the next `up` pass to redo), `s` signs off, `space` skips, `j`/`k` move. Edit the target text first when it needs a touch-up — save, then approve; the decision binds to the edited text.
 4. **Batch the clean ones.** **Approve clean** approves every unit in the current filter that has no findings — you read the exceptions, not the bulk.
 5. **Let the AI read first.** **AI pre-review…** scores the pending units with your model before you look; each unit then carries an AI review score, so you spend your attention where it disagrees. **Fix with AI** drafts a correction through the same save path as a manual edit.
@@ -122,6 +122,6 @@ This recipe's worklist lives in your checkout and its decisions in the committed
 
 ## Next
 
-- [Ship gates & CI](/kapi/recipes/gate-localization-in-ci) — the `reviewed` thresholds these decisions satisfy.
+- [Ship gates & CI](/kapi/recipes/ship-gates-and-ci) — the `reviewed` thresholds these decisions satisfy.
 - [The kapi loop](/kapi/convergence) — produce / promote / release, kept separate.
 - [The project store](/kapi/project-store) — why the state store is the one committed artifact.

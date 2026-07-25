@@ -35,7 +35,7 @@ everything works, nothing is automatic.
     multi-step and easy to skip; CI is what makes it real.
   - **Minimize the translatable surface** — the strong opinion: Go services
     should mostly emit codes/enums and let the UI edge (where real extraction
-    tooling exists) do the localizing. The best Go i18n is less Go i18n.
+    tooling exists) do the translating. The best Go i18n is less Go i18n.
 - **kapi:** no preset. Keep catalogs in JSON (goi18n supports
   `-format json`) — kapi has a JSON reader/writer but no TOML:
   ```bash
@@ -44,7 +44,7 @@ everything works, nothing is automatic.
   ```
 - **Footguns:** `goi18n extract` only sees `i18n.Message` struct literals —
   strings not written that way are invisible, and there is no template
-  extraction; per-request localizer plumbing through `context` is on you.
+  extraction; per-request `i18n.Localizer` plumbing through `context` is on you.
 
 ## JVM (ResourceBundle / Spring MessageSource) — T3, warn first
 
@@ -106,8 +106,9 @@ mode of a stock .NET app.
 
 ## Fluent (.ftl) — T3, warn before adopting
 
-The best *message syntax* ever designed — asymmetric localization, terms,
-attributes, per-locale variants — with best-in-class runtime correctness
+The best *message syntax* ever designed — structural divergence from the source
+(Fluent's own "asymmetric localization" model), terms, attributes, per-locale
+variants — with best-in-class runtime correctness
 (R=0). **But warn the user: ecosystem risk is the headline (E=3).**
 Maintainer energy has moved to Unicode MessageFormat 2 (whose design Fluent
 heavily informed); outside Mozilla, bindings are community-grade and PRs

@@ -55,7 +55,7 @@ steps:
     config:
       fuzzy_threshold: 85
 
-  # 2. Pre-fill from translation memory
+  # 2. Pre-fill from content memory
   - tool: recycle
     config:
       fuzzy_threshold: 70
@@ -167,7 +167,7 @@ Each tool has its own configuration options. Common patterns:
     skip_translated: true
 ```
 
-### TM Leverage
+### Reuse from content memory
 
 ```yaml
 - tool: recycle
@@ -189,7 +189,7 @@ Each tool has its own configuration options. Common patterns:
       - numbers # Number consistency
       - case # Uppercase/lowercase consistency
       - spelling # Spell check (requires hunspell)
-      - terminology # Term compliance (requires termbase)
+      - terminology # Term compliance (requires a bound terms store)
 ```
 
 ### Terminology
@@ -244,5 +244,5 @@ kapi run my-flow --verbose
 
 - [Flow Hooks](/cli/flows/hooks)
 - [Run Command](/cli/commands/run)
-- [Available Formats](https://neokapi.github.io/web/neokapi/formats)
-- [AI Translation](https://neokapi.github.io/web/neokapi/framework/translation)
+- [Available Formats](https://neokapi.github.io/formats)
+- [AI Translation](https://neokapi.github.io/framework/translation)

@@ -76,7 +76,7 @@ The third row is the one worth knowing about. An unreadable, empty, or malformed
 
 The wire shapes are Claude Code's, and Claude Code versions its own hook schema; kapi does not add a version of its own. What is stable here is the policy in the table: fail open, and never silently.
 
-The loop, whichever door: Claude pulls your brand guide and approved terms first (`kapi brand guide`, `kapi terms lookup`), writes through the one write verb (`kapi apply` — structure preserved, drift-guarded by content hash), then gates out with `kapi check` until green. Bind the profile and glossary in a [project](/kapi/get-started/first-project) and this happens automatically; your prompts stay short — "Set kapi up for this project", "Check `README.md` against our brand voice and fix what fails", "Translate the docs into French and German, then bring them to the ship gate".
+The loop, whichever door: Claude pulls your brand guide and approved terms first (`kapi brand guide`, `kapi terms lookup`), writes through the one write verb (`kapi apply` — structure preserved, drift-guarded by content hash), then gates out with `kapi check` until green. Bind the profile and the terms store in a [project](/kapi/get-started/first-project) and this happens automatically; your prompts stay short — "Set kapi up for this project", "Check `README.md` against our brand voice and fix what fails", "Translate the docs into French and German, then bring them to the ship gate".
 
 ## Let kapi run Claude
 
@@ -86,7 +86,7 @@ For unattended runs — `kapi up` across every locale, `kapi translate` without 
 kapi models setup     # detects the Claude Code CLI — "uses your Claude subscription" — one confirm, no key
 ```
 
-Setup verifies the choice with a small test call and writes the default provider to the global config, shared with Kapi Desktop — whose first-open **Connect your AI** card offers the same detected sign-in as a one-click button. `kapi models list` shows it under *Detected*, alongside Ollama models and any cloud keys. Subscription use is window-limited: a heavy run that exhausts your Claude usage window parks the remainder and reports when it resumes ("Claude subscription limit reached — resumes ~7pm"); the next `kapi up` picks up exactly the units still pending. For uninterrupted or CI runs use an API key instead — subscription auth is bound to your personal sign-in and its usage window, so **CI should always use a key** (a provider env var, or `kapi credentials add`). See [Ship gates & CI](/kapi/recipes/gate-localization-in-ci).
+Setup verifies the choice with a small test call and writes the default provider to the global config, shared with Kapi Desktop — whose first-open **Connect your AI** card offers the same detected sign-in as a one-click button. `kapi models list` shows it under *Detected*, alongside Ollama models and any cloud keys. Subscription use is window-limited: a heavy run that exhausts your Claude usage window parks the remainder and reports when it resumes ("Claude subscription limit reached — resumes ~7pm"); the next `kapi up` picks up exactly the units still pending. For uninterrupted or CI runs use an API key instead — subscription auth is bound to your personal sign-in and its usage window, so **CI should always use a key** (a provider env var, or `kapi credentials add`). See [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).
 
 ## Next
 

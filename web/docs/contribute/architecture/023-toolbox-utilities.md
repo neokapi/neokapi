@@ -203,7 +203,7 @@ shell scripts and skills can branch on toolbox results reliably.
   clean Markdown or HTML without its source packaging.
 - `kdiff` reuses the same projection to compare *content* rather than bytes:
   re-saving a `.docx` or reordering a catalog produces no diff, only genuine
-  prose changes do — and the localization-shaped changeset (added / removed /
+  prose changes do — and the block-shaped changeset (added / removed /
   changed / moved blocks, or a coverage report) is exactly what a re-translation
   pass consumes. It surfaces the same block-alignment the sync/diff machinery
   uses, as a local CLI verb.

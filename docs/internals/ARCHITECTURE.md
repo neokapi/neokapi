@@ -66,7 +66,7 @@ its own goroutine. Buffered channels provide backpressure. See
 
 The project is a **multi-module monorepo** with seven Go modules coordinated by
 `go.work`. The **framework** (`github.com/neokapi/neokapi`) at the repo root
-provides the localization engine and stays platform-agnostic. A shared **CLI**
+provides the content engine and stays platform-agnostic. A shared **CLI**
 base (`cli/`) is reused by both the **kapi** binary and bowrain. The **kapi
 desktop** app and the three **bowrain** modules (`bowrain`, `bowrain/core`,
 `bowrain/plugin`) build on top. The bowrain modules are
@@ -111,7 +111,7 @@ neokapi/
 │   ── CLI Module ──
 ├── cli/
 │   ├── go.mod                       # module github.com/neokapi/neokapi/cli (framework only)
-│   ├── config/                      # Viper-based app configuration (~/.config/kapi/)
+│   ├── config/                      # Viper-based app configuration (os.UserConfigDir + kapi)
 │   ├── pluginhost/                  # Manifest discovery + dispatch + Mode-C daemon pool
 │   ├── output/                      # Shared output formatting + types
 │   └── storage/                     # SQLite-backed terms and content memory for CLI workflows
@@ -154,8 +154,8 @@ neokapi/
 
 The format packages live in the framework module under `core/formats/` — one
 package (reader.go, writer.go, config.go) per format, all registered via
-`init()`. They span localization, document, data, subtitle, and office
-families. For the current set and their configuration options, see the
+`init()`. They span document, data, subtitle, office, and bilingual
+interchange families. For the current set and their configuration options, see the
 generated Format Reference rather than a hardcoded list.
 
 ## Content Model

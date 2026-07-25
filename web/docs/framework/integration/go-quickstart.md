@@ -32,7 +32,7 @@ go get github.com/neokapi/neokapi
 
 ## A complete program
 
-The program below reads a small JSON localization file, runs the built-in
+The program below reads a small JSON message catalog, runs the built-in
 `pseudo-translate` [tool](/framework/tools) to fill in a target, walks the
 resulting [Blocks](/framework/content-model), and writes the stream back out as
 bilingual XLIFF 2.x. Every symbol is part of the public framework surface.

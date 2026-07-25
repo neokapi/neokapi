@@ -1179,12 +1179,16 @@ kapi-i18n-pseudo-translate: kapi-i18n-generate bin/kapi ## Pseudo-translate buil
 
 kapi-i18n-translations: kapi-i18n-pseudo-translate ## Regenerate + pseudo-translate builtin metadata → MO
 
-# ── Dogfood localization (root recipe: kapi.yaml) ────────────────────────
+# ── Dogfood translation (root recipe: kapi.yaml) ─────────────────────────────
+# The `l10n-*` target names are retained spellings; the surface they drive is the
+# repo's own multilingual content.
+#
 # These targets ARE the dogfood workflow, so they deliberately run WITHOUT
 # $(KAPI_ISO_ENV): they bind to the repo-root project and its .kapi/ state.
-# Reviewed translations are committed as TMX under l10n/tm/; the project content memory
-# and terms are rebuilt from those seeds (l10n-seed), then each surface is
-# produced by content-memory leverage so output only ever contains reviewed strings.
+# Reviewed translations are committed as native .kmb bundles under l10n/tm/; the
+# project content memory and terms are rebuilt from those seeds (l10n-seed), then
+# each surface is produced by content-memory leverage, so output only ever
+# contains reviewed strings.
 L10N_LANGS := nb
 
 # Seeds are committed in the native Kapi-family forms (.kmb / .ktb):
@@ -1305,7 +1309,7 @@ l10n-bowrain-docs: l10n-seed ## bowrain docs site → bowrain/web/docs/i18n/<lan
 			-i "$$(find bowrain/web/docs/docs -type f \( -name '*.md' -o -name '*.mdx' \) | sort | paste -sd, -)" || exit 1; \
 	done
 
-l10n: l10n-builtins l10n-desktop l10n-cli l10n-demos l10n-docs l10n-bowrain-docs l10n-bowrain-app l10n-bowrain-ctrl l10n-bowrain-pulse l10n-emails l10n-landing ## Rebuild all dogfood localization outputs from the l10n/ seeds
+l10n: l10n-builtins l10n-desktop l10n-cli l10n-demos l10n-docs l10n-bowrain-docs l10n-bowrain-app l10n-bowrain-ctrl l10n-bowrain-pulse l10n-emails l10n-landing ## Rebuild every dogfood translation output from the l10n/ seeds
 
 # ── Transactional emails (bowrain/emails → bowrain/mailer) ──────────────────
 # neokapi-i18n extraction over the React Email templates; qps via pseudo, nb via
@@ -1384,8 +1388,6 @@ landing-l10n-verify: l10n-landing ## CI gate: landing runtime catalogs regenerat
 
 landing-build-nb: ## Build the nb landing variant → bowrain/web/landing/dist/nb (inline mode from committed translations)
 	cd $(LANDING_DIR) && vp run build:nb
-
-l10n: l10n-builtins l10n-desktop l10n-cli l10n-demos l10n-docs l10n-bowrain-docs l10n-emails l10n-landing ## Rebuild all dogfood localization outputs from the l10n/ seeds
 
 # Node-free gate (runs in the go-only l10n-drift CI job); the node-dependent
 # email/landing surfaces have their own gates (emails-l10n-verify,
@@ -1613,7 +1615,7 @@ endif
 
 # ── Context-adherence eval ───────────────────────────────────────────────────
 # The batch eval's sibling: measures whether a model *follows the context kapi
-# injects* — glossary, brand voice, instruction — as a differential (adherence
+# injects* — terms, brand voice, instruction — as a differential (adherence
 # with context minus adherence without = lift), scored per dimension with the
 # framework's own check tools over an engineered trap corpus. The headline is
 # lift per 1,000 context tokens: is the brand guide earning what it costs to

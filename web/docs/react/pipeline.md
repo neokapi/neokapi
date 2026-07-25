@@ -1,8 +1,8 @@
 ---
 sidebar_position: 7
 title: Extract, Translate, Compile Pipeline
-description: The three-phase neokapi-i18n pipeline — extract JSX to a KBF archive, translate it with kapi (AI, MT, or TM), compile locales back into runtime JSON. Includes an optional split phase for code-split apps.
-keywords: [extract, translate, compile, KBF, neokapi-i18n pipeline, code splitting, localization pipeline]
+description: The three-phase neokapi-i18n pipeline — extract JSX to a KBF archive, translate it with kapi (AI, MT, or content memory), compile locales back into runtime JSON. Includes an optional split phase for code-split apps.
+keywords: [extract, translate, compile, KBF, neokapi-i18n pipeline, code splitting, translation pipeline]
 ---
 
 import { PhaseFlow } from "@neokapi/docs-shared";

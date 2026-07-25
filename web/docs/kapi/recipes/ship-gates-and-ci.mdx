@@ -1,5 +1,5 @@
 ---
-id: gate-localization-in-ci
+id: ship-gates-and-ci
 title: "Ship gates & CI"
 sidebar_label: "Ship gates & CI"
 sidebar_position: 7
@@ -51,7 +51,7 @@ kapi check --ship --json          # structured result for a job summary
 
 In GitHub Actions, install the CLI with the companion [`setup-kapi`](https://github.com/neokapi/setup-kapi) action and run the gate:
 
-```yaml title=".github/workflows/localization.yml"
+```yaml title=".github/workflows/ship-gate.yml"
 name: Ship gate
 on:
   pull_request:

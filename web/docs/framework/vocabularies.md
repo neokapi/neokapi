@@ -2,7 +2,7 @@
 sidebar_position: 5
 title: Vocabularies
 description: Vocabularies are the semantic type system that classifies inline codes — mapping format-specific markup like HTML bold, Markdown emphasis, and DOCX bold to a common set of types so every tool treats them identically.
-keywords: [vocabularies, semantic types, inline codes, spans, fmt:bold, localization, format-independent]
+keywords: [vocabularies, semantic types, inline codes, spans, fmt:bold, multilingual content, format-independent]
 ---
 
 # Vocabularies
@@ -15,7 +15,7 @@ vocabulary entry says what the type means, how it should be rendered and labeled
 and what a translator is allowed to do with it. This is the layer that makes
 inline handling format-independent: `<b>` (HTML), `**` (Markdown), and `<w:b/>`
 (DOCX) all resolve to the same `fmt:bold` type, so everything downstream treats
-them identically. (See the [Glossary](/framework/glossary) for **Run**, **span**,
+them identically. (See [Concepts](/framework/concepts) for **Run**, **span**,
 and **semantic type** in one place.)
 
 ## What a semantic type carries
@@ -63,7 +63,7 @@ cover.
 
 Because every format reduces inline codes to the same semantic types, content
 becomes comparable across formats. The same vocabulary that drives editor
-rendering also feeds [translation-memory](/framework/translation-memory)
+rendering also feeds [content-memory](/framework/content-memory)
 matching: an entry created from an HTML source can match a Markdown source
 because both reduce to the same structural projection. One classification serves
 preview, validation, and reuse.

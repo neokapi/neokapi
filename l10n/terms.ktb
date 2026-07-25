@@ -5,16 +5,21 @@
     {
       "id": "term:01d30c44ec",
       "domain": "product",
-      "definition": "The built-in translation memory library. Never translate.",
+      "definition": "The built-in content memory package (memory/). Never translate.",
       "source": "terminology",
       "terms": [
         {
-          "text": "sievepen",
+          "text": "memory",
           "locale": "en",
           "status": "preferred"
         },
         {
           "text": "sievepen",
+          "locale": "en",
+          "status": "deprecated"
+        },
+        {
+          "text": "memory",
           "locale": "nb",
           "status": "preferred"
         }
@@ -381,18 +386,23 @@
     {
       "id": "term:3f5dcb46d4",
       "domain": "localization",
-      "definition": "Simple source-to-target term mapping fed to ai-translate.",
+      "definition": "Simple source-to-target term mapping fed to the translate prompt. The prompt section keeps its wire name `glossary`.",
       "source": "terminology",
       "terms": [
         {
-          "text": "glossary",
+          "text": "term list",
           "locale": "en",
           "status": "preferred"
         },
         {
+          "text": "glossary",
+          "locale": "en",
+          "status": "deprecated"
+        },
+        {
           "text": "ordliste",
           "locale": "nb",
-          "status": "preferred"
+          "status": "admitted"
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
@@ -459,18 +469,28 @@
     {
       "id": "term:5145f4d8e1",
       "domain": "localization",
-      "definition": "Terminology database. Established loan word in Norwegian localization practice; do not translate.",
+      "definition": "The store of approved terminology. Retired spelling: termbase.",
       "source": "terminology",
       "terms": [
         {
-          "text": "termbase",
+          "text": "terms store",
           "locale": "en",
           "status": "preferred"
         },
         {
+          "text": "terms",
+          "locale": "en",
+          "status": "admitted"
+        },
+        {
+          "text": "termbase",
+          "locale": "en",
+          "status": "deprecated"
+        },
+        {
           "text": "termbase",
           "locale": "nb",
-          "status": "preferred"
+          "status": "admitted"
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",
@@ -499,7 +519,7 @@
     {
       "id": "term:599f770354",
       "domain": "localization",
-      "definition": "A termbase entry for a concept in one locale.",
+      "definition": "A terms-store entry for a concept in one locale.",
       "source": "terminology",
       "terms": [
         {
@@ -873,18 +893,23 @@
     {
       "id": "term:c3def4a472",
       "domain": "localization",
-      "definition": "TM; the sievepen-backed store of source/target pairs.",
+      "definition": "The store of source/target pairs kapi reuses; backed by the memory/ package.",
       "source": "terminology",
       "terms": [
         {
-          "text": "translation memory",
+          "text": "content memory",
           "locale": "en",
           "status": "preferred"
         },
         {
+          "text": "translation memory",
+          "locale": "en",
+          "status": "deprecated"
+        },
+        {
           "text": "oversettelsesminne",
           "locale": "nb",
-          "status": "preferred"
+          "status": "admitted"
         }
       ],
       "created_at": "2026-06-11T06:47:18Z",

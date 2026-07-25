@@ -31,8 +31,8 @@ demand (progressive disclosure) — plus two Claude Code hooks. It covers the lo
   (Word, PowerPoint, JSON, XLIFF); no second model.
 - **Brand voice** — load a voice guide, score a draft (0–100 + findings), fix what
   drifts; brand vocabulary and terminology enforced at the gate.
-- **Localize** — translate, enforce terminology, and round-trip into other
-  languages and formats.
+- **Translate & publish** — translate, enforce terminology, and round-trip into
+  other languages and formats.
 - **i18n setup** — add i18n to a project.
 
 The hooks (`plugins/kapi/hooks/hooks.json`), both scoped to the `.kapi` project in

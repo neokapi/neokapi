@@ -11,8 +11,8 @@ import { LanesDiagram } from "@neokapi/docs-shared";
 Most users run `kapi up` and stop: it catches the whole project up to its
 ship gates, and the porcelain verbs around it — `status`, `check`, `apply`,
 `translate` — cover the daily work. This page is the layer underneath, for the
-localization engineer who wants to know what those verbs are made of, or needs
-to run one piece of the machinery on its own.
+engineer who wants to know what those verbs are made of, or needs to run one
+piece of the machinery on its own.
 
 The layers form one model, not separate features. At the bottom is a registry
 of **tools** — translate, recycle, qa, term-check, redact, and the rest (list
@@ -65,13 +65,13 @@ checks, and `kapi up` loops a flow until the project's gates are met.
 tool, one pass, no guardrails around it. These are the same tools a flow runs:
 `exec translate` is a bare AI translate with no content-memory pass before it and no checks
 after it; `exec term-check` runs just the terminology check; `exec recycle`
-runs just the TM leverage. Discover a tool's options with
+runs just the content-memory leverage. Discover a tool's options with
 `kapi tools schema <name>`.
 
 ```bash
-kapi exec translate app.json --target-lang fr    # bare translate, no TM, no checks
+kapi exec translate app.json --target-lang fr    # bare translate, no memory, no checks
 kapi exec term-check locales/fr.json --target-lang fr
-kapi exec recycle app.json --target-lang fr      # TM leverage only
+kapi exec recycle app.json --target-lang fr      # content-memory leverage only
 ```
 
 Reach for `exec` when you want exactly one tool's behavior — isolating a step
@@ -93,8 +93,8 @@ kapi run pseudo -p kapi.yaml                           # a project-defined flow
 ```
 
 A flow is also what `kapi up` loops: `defaults.flow` names the project's
-default, and without one `up` runs the built-in default — TM reuse (recycle)
-followed by AI translate. `run` executes the composition once and stops;
+default, and without one `up` runs the built-in default — content-memory reuse
+(recycle) followed by AI translate. `run` executes the composition once and stops;
 it re-derives no coverage and consults no gates. See the
 [`run` reference](/reference/commands/run).
 
@@ -103,19 +103,19 @@ it re-derives no coverage and consults no gates. See the
 Not every pass is a tool run. When a person does the translation, `kapi
 extract` emits one bilingual file per source → target pair — XLIFF 2.x or PO
 for a third-party CAT tool, a lossless `.kpz` for a recipient working in kapi —
-pre-filled from the project TM. `kapi merge` applies the returned file back
-onto the project, restoring the original formats through the skeleton captured
-at extract time and absorbing the corrections into the TM.
+pre-filled from the project's content memory. `kapi merge` applies the returned
+file back onto the project, restoring the original formats through the skeleton
+captured at extract time and absorbing the corrections into memory.
 
 ```bash
-kapi extract --target-lang fr          # → out/<name>.en-to-fr.xliff, TM pre-filled
+kapi extract --target-lang fr          # → out/<name>.en-to-fr.xliff, memory pre-filled
 kapi merge -i out/app.en-to-fr.xliff
 ```
 
 Extract and merge sit at the same altitude as `run`: they move work through an
 external pass instead of a tool pass, and the result lands in the same project
-state the porcelain re-derives. The workflow — carriers, TM provenance, vendor
-rounds — is covered in [Hand off to translators](/kapi/bilingual-workflow);
+state the porcelain re-derives. The workflow — carriers, memory provenance,
+vendor rounds — is covered in [Hand off to translators](/kapi/bilingual-workflow);
 the flags are in the [`extract`](/reference/commands/extract) and
 [`merge`](/reference/commands/merge) references.
 

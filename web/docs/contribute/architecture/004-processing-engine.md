@@ -25,9 +25,9 @@ both compiled to the same executable representation.
 ## Context
 
 Go's goroutines and channels make it natural to structure a pipeline as
-concurrent stages connected by typed channels. A localization pipeline has
+concurrent stages connected by typed channels. Such a pipeline has
 a mixture of CPU-bound (format parsing, QA checks) and IO-bound (AI
-translation, MT calls, TM lookups) stages. The same pipeline must also be
+translation, MT calls, memory lookups) stages. The same pipeline must also be
 driven at multiple scales: a single file on a laptop; hundreds of files in
 a batch; a long-lived project with many documents processed in parallel.
 
@@ -224,7 +224,7 @@ definitions include:
 | `translate-qa`     | Translation followed by QA validation                   |
 | `pseudo-translate` | Pseudo-translation for internationalization testing     |
 | `qa`               | Quality assurance checks on existing translations       |
-| `recycle`      | Translation memory leveraging from Memory TM          |
+| `recycle`          | Leveraging prior translations from content memory       |
 | `secure-translate` | Redact sensitive content, AI-translate, then restore the originals locally ([AD-020](020-redaction.md)) |
 
 `kapi flows` lists only the *composed* (multi-tool) built-in flows —

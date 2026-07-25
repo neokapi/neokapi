@@ -9,7 +9,7 @@ keywords:
     XLIFF 2.2,
     comparison,
     interchange,
-    localization,
+    multilingual content,
     exchange format,
   ]
 ---
@@ -17,7 +17,7 @@ keywords:
 # KBF vs XLIFF
 
 [XLIFF](https://docs.oasis-open.org/xliff/xliff-core/v2.2/xliff-core-v2.2-part1.html)
-is the OASIS standard for exchanging localizable content between tools. KBF
+is the OASIS standard for exchanging translatable content between tools. KBF
 serves the same purpose _inside_ the neokapi toolchain. The two formats model
 the same problem and most concepts map cleanly between them — but they make
 different choices about structure, segmentation, and serialization. This page
@@ -33,9 +33,10 @@ XLIFF 2.0 / 2.1 tools and some CAT tools support only a subset of the modules.
 
 The two are interchange formats for **different recipients**. A task-scoped
 **bilingual `.kpz`** (the `kind: kapi-interchange` profile of the package) is
-neokapi's *native* interchange format — lossless, with inline codes and TM/term
-context in one file — for a translator or reviewer working in kapi or the neokapi
-review tool. **XLIFF** is the *industry-interop* tier: neokapi reads and writes it
+neokapi's *native* interchange format — lossless, with inline codes plus
+content-memory and term context in one file — for a translator or reviewer
+working in kapi or the neokapi review tool. **XLIFF** is the *industry-interop*
+tier: neokapi reads and writes it
 so content can move to and from third-party CAT tools and TMS platforms that
 cannot read `.kpz`. Both travel through `kapi extract` / `kapi merge` (see the
 [bilingual workflow](/kapi/bilingual-workflow)); `--format` picks the carrier.
@@ -119,10 +120,10 @@ where it is the better tool:
   (`initial` → `translated` → `reviewed` → `final`) plus `subState` models the
   lifecycle of a translation through review. KBF has no notion of target state;
   it records committed content, not where it is in a workflow.
-- **Inline TM/MT match suggestions.** The **Translation Candidates** module
-  carries scored translation suggestions (`<mtc:matches>`) right next to the unit
-  they apply to. KBF has no inline match-candidate representation — matches live
-  in the separate TM, not in the exchange file.
+- **Inline memory and MT match suggestions.** The **Translation Candidates**
+  module carries scored translation suggestions (`<mtc:matches>`) right next to
+  the unit they apply to. KBF has no inline match-candidate representation —
+  matches live in the content memory, not in the exchange file.
 - **A rich, standardized module ecosystem.** XLIFF 2.2 Extended defines
   **Glossary**, **Format Style**, **Metadata**, **Resource Data**, **Size and
   Length Restriction** (enforce length limits on translations), **Validation**
@@ -140,7 +141,7 @@ where it is the better tool:
   source. KBF's skeleton is an opaque, neokapi-internal payload.
 
 In short: reach for **XLIFF** when content crosses an organizational boundary
-into the broader localization industry, or when you need translation-workflow
+into the broader translation industry, or when you need translation-workflow
 state, inline match candidates, or any of the Extended modules. Reach for
 **KBF** when content stays inside the neokapi/kapi pipeline and you want a
 deterministic, hashable, multi-target JSON representation that AI and
@@ -154,7 +155,7 @@ extractions, or carrying several target locales in one artifact. Its JSON shape
 and deterministic serialization make it the natural fit for programmatic and
 AI-driven workflows.
 
-Use **XLIFF** when you need to interoperate with the wider localization industry
+Use **XLIFF** when you need to interoperate with the wider translation industry
 — handing content to a translation vendor, or round-tripping through an external
 CAT tool or TMS — or when you need the workflow state, match candidates, or
 Extended modules described above. neokapi treats XLIFF as an interchange

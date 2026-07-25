@@ -16,23 +16,23 @@ Machine translation services (DeepL, Google, Microsoft, ModernMT, MyMemory)
 plug into the pipeline through an `MTProvider` interface in `providers/mt/`
 (package `mtprovider`) and an `MTTranslateTool` adapter. The interface is
 intentionally simpler than `LLMProvider` — MT services are stateless text-in,
-text-out transformations — and the adapter lets MT composes with TM leverage,
+text-out transformations — and the adapter lets MT compose with memory leverage,
 term enforcement, AI review, and other pipeline tools.
 
 ## Context
 
-Machine translation is a core localization capability with two common use
+Machine translation is a core capability with two common use
 cases:
 
 - **Lightweight alternative to LLM translation** — MT services are typically
   faster and cheaper for straightforward content where LLM-level quality or
   context awareness is not required.
-- **Gap-filling after TM leverage** — TM handles exact matches; MT handles
-  the remainder before optional AI refinement.
+- **Gap-filling after memory leverage** — the memory handles exact matches; MT
+  handles the remainder before optional AI refinement.
 
 MT and LLM providers share the same pipeline role (translate blocks) but
 have fundamentally different interfaces. LLMs are general-purpose language
-models with rich request context (glossary, format hints, surrounding
+models with rich request context (terminology, format hints, surrounding
 blocks). MT services are deterministic translation engines with a minimal
 surface: source text, source locale, target locale, translated text.
 Forcing both through `LLMProvider` would waste parameters on MT and
@@ -77,7 +77,7 @@ thing.
 | **DeepL**                | APIKey, Formality, BaseURL       | `DeepL-Auth-Key` header            | Formality control (more/less/prefer)      |
 | **Google Translate**     | APIKey, ProjectID, BaseURL       | `X-Goog-Api-Key` header            | Cloud Translation API v2                  |
 | **Microsoft Translator** | SubscriptionKey, Region, BaseURL | `Ocp-Apim-Subscription-Key` header | Optional region header                    |
-| **ModernMT**             | APIKey, Hints, BaseURL           | `MMT-ApiKey` header                | Memory hints bias translations toward TMs |
+| **ModernMT**             | APIKey, Hints, BaseURL           | `MMT-ApiKey` header                | Memory hints bias translations toward stored memories |
 | **MyMemory**             | Email, BaseURL                   | None (free tier)                   | Email unlocks higher rate limits          |
 
 Each provider:
@@ -146,8 +146,8 @@ Keys never appear in flow definitions or project files.
 On the CLI surface there are no per-engine commands; every MT engine is
 reached through the single `translate` command (and the matching `translate`
 tool in a flow) by selecting it with `--provider` — the same command that
-reaches the LLM providers. A typical production flow chains TM, MT, and AI
-refinement:
+reaches the LLM providers. A typical production flow chains the memory, MT, and
+AI refinement:
 
 <PipelineDiagram
   stages={[
@@ -163,7 +163,7 @@ refinement:
 - `recycle` fills exact and generalized matches at near-zero cost.
 - `translate --provider deepl` translates the remainder quickly and cheaply.
 - `review` (optional) annotates a review property on MT output using LLM
-  reasoning with glossary and TM context — it does not rewrite the target.
+  reasoning with term and memory context — it does not rewrite the target.
 - `qa` validates the result before writing.
 
 Switching providers is a configuration change: switch `--provider deepl`
@@ -179,7 +179,7 @@ The rest of the flow is unchanged.
 - The clean separation between provider (API client) and tool (pipeline
   adapter) enables testing providers without the pipeline and testing
   tools with mock providers.
-- MT slots naturally into TM-before-MT-before-AI pipelines, letting
+- MT slots naturally into memory-before-MT-before-AI pipelines, letting
   projects use the cheapest adequate engine per segment.
 - Provider-specific features (formality, memory hints, regions) are
   first-class via typed configs, not buried in a generic parameter map.
@@ -187,7 +187,7 @@ The rest of the flow is unchanged.
 ## Related
 
 - [AD-006: Tool System](006-tool-system.md) — Tool pattern and `BaseTool`
-- [AD-009: Translation Memory](009-translation-memory.md) — TM leverage
+- [AD-009: Content memory](009-content-memory.md) — memory leverage
   before MT
 - [AD-011: AI Providers](011-ai-providers.md) — richer provider interface
   for LLMs

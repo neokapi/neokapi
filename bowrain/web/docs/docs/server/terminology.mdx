@@ -12,7 +12,7 @@ hub: concept-oriented term management for maintaining consistent vocabulary acro
 locales. Each concept represents a single meaning with terms in multiple
 languages, lifecycle statuses, and domain classification.
 
-Terminology and translation memory are kept on the server, shared across every
+Terminology and content memory are kept on the server, shared across every
 project — one governed source of the team's approved wording.
 
 A concept is more than its terms. In the Brand hub each concept also carries typed
@@ -35,7 +35,7 @@ concept model with relations and governance around it.
 There are two ways to open the Terminology Explorer:
 
 1. **From a project** — click the **Terminology** button in the project view header. This opens the explorer with the project name displayed and source/target locales available for filtering.
-2. **From the sidebar** — click **Termbase** in the main sidebar to access the workspace-scoped explorer.
+2. **From the sidebar** — click **Brand** in the main sidebar, then **Concepts**, to reach the workspace-scoped explorer.
 
 ## Browsing Concepts
 
@@ -145,7 +145,7 @@ Click **Import JSON** and select a JSON file containing an array of concept obje
 
 ### Export to JSON
 
-Click **Export JSON** to download the entire termbase as a JSON file. This is useful for backup, sharing with other workspaces, or importing into external tools.
+Click **Export JSON** to download the whole terms store as a JSON file. This is useful for backup, sharing with other workspaces, or importing into external tools.
 
 ## Pagination
 
@@ -161,7 +161,7 @@ Terminology is also used within the translation editor:
 - **Context panel** — shows per-block term matches with source terms, target suggestions, status badges, and domain labels
 - **Term enforcement** — validates that target translations use the correct terminology
 
-When a block is selected in the editor, the context panel automatically looks up matching terms and displays them alongside TM matches.
+When a block is selected in the editor, the context panel automatically looks up matching terms and displays them alongside memory matches.
 
 See [Translation Editor](./translation-editor.mdx) for details on the context panel.
 
@@ -175,7 +175,7 @@ The terminology system is concept-oriented, inspired by the TBX (TermBase eXchan
 - Concepts are scoped to the workspace and shared across all projects
 
 The framework owns this concept and term model; for its architecture, see the
-[framework terminology reference](https://neokapi.github.io/web/neokapi/framework/terminology).
+[framework terminology reference](https://neokapi.github.io/framework/terminology).
 
 On the platform, the same concepts are the nodes of the [Brand](/server/brand)
 knowledge graph — with typed relations, per-market validity, observations,

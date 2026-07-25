@@ -17,7 +17,7 @@ kapi
 +-- init             # Initialize a new .kapi project (recipe + state dir)
 |   +-- --name, --source, --targets, --server, --project, --anonymous, --email, --preset
 +-- config           # The one config verb: recipe keys positionally (name, server.url, …)
-|   +-- get/set/unset/list/path  # per-machine app config; bowrain.* routes to ~/.config/bowrain/bowrain.yaml
+|   +-- get/set/unset/list/path  # per-machine app config; bowrain.* routes to bowrain/bowrain.yaml under the user config dir
 +-- ls               # List tracked files with optional stats
 |   +-- --stats/-s, --dirty/-d, [paths...]
 +-- add              # Add file patterns to track
@@ -46,7 +46,7 @@ kapi
 +-- tools            # List available tools
 +-- sync             # Sync operations (push + translate + pull)
 +-- ui               # Launch the Bowrain desktop app
-+-- termbase         # Terminology management
++-- terms            # Terminology management
 |   +-- list         # List terminology entries
 +-- formats          # Format listing
 |   +-- list         # List available formats (built-in + plugin)
@@ -73,7 +73,7 @@ kapi
 |   +-- list         # List installed plugins
 +-- presets          # Preset management
 |   +-- list         # List presets
-+-- termbase         # Terminology management
++-- terms            # Terminology management
 |   +-- list         # List terminology entries
 +-- version          # Show version info
 +-- mcp              # Start MCP server for AI agent integration
@@ -111,7 +111,7 @@ All paths support `--json` output for CI/CD integration.
 5. If the project is workspace-claimed, snapshot governed terminology: paginate
    `GET /api/v1/:ws/concepts`, fetch each concept's relations via
    `GET /api/v1/:ws/concepts/:cid/relations`, and write both into the project
-   termbase (`.kapi/termbase.db`) through `AddConcept`/`AddRelation`. Record a
+   terms store (`.kapi/termbase.db`) through `AddConcept`/`AddRelation`. Record a
    `ConceptBaseline` in the sync cache so a later `kapi push` can diff local
    terminology edits against it.
 6. Run `post-pull` hooks (if configured)
@@ -272,7 +272,7 @@ service EditorService {
     rpc LookupMemoryForBlock(MemoryLookupRequest) returns (MemoryLookupResponse);
     rpc LookupTermsForBlock(TermLookupRequest) returns (TermLookupResponse);
 
-    // TM and terminology CRUD
+    // Content memory and terminology CRUD
     rpc GetMemoryEntries(MemoryEntriesRequest) returns (MemoryEntriesResponse);
     rpc AddMemoryEntry(AddMemoryEntryRequest) returns (MemoryEntryResponse);
     rpc UpdateMemoryEntry(UpdateMemoryEntryRequest) returns (google.protobuf.Empty);

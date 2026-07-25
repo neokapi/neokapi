@@ -5,25 +5,25 @@ title: Overview
 
 # Flows
 
-A flow is a composable pipeline that processes localization files through a
+A flow is a composable pipeline that processes content files through a
 sequence of tools — AI translation, source QA, terminology enforcement, and
-more. Flows are a [neokapi engine](https://neokapi.github.io/web/neokapi/)
+more. Flows are a [neokapi engine](https://neokapi.github.io/)
 feature; this page covers how they behave inside a Bowrain project. For the
 mechanics of the streaming pipeline, the full tool catalog, and the supported
 formats, see the neokapi reference:
 
-- [Tool reference](https://neokapi.github.io/web/neokapi/tools) — every
+- [Tool reference](https://neokapi.github.io/tools) — every
   processing tool and its inputs and outputs.
-- [Format reference](https://neokapi.github.io/web/neokapi/formats) — every
+- [Format reference](https://neokapi.github.io/formats) — every
   format reader/writer and its configurable parameters.
-- [Flows](https://neokapi.github.io/web/neokapi/framework/flows) — the
+- [Flows](https://neokapi.github.io/framework/flows) — the
   streaming-pipeline model.
 
 ## Flows in a synced project
 
 In a Bowrain project, a flow reads the source files, streams their blocks through
 the tools in order, and — with no `-o` — commits the results to the project store
-as overlays (a *process-only* run); `kapi merge` then materializes the localized
+as overlays (a *process-only* run); `kapi merge` then materializes the target
 files (pass `-o` to write a file directly instead). You then
 [`kapi push`](/cli/commands/push) those changes to the server like any other
 edit. The flow itself runs locally — it does not touch the server until you push.
@@ -38,7 +38,7 @@ kapi ships a small set of composed flows you can run by name:
 | `translate-qa`  | AI translation followed by quality checks                         |
 | `pseudo-translate` | Generate pseudo-translations for UI testing                       |
 | `qa`         | Rule-based quality checks (whitespace, punctuation, placeholders) |
-| `recycle`      | Pre-fill translations from translation memory                     |
+| `recycle`      | Pre-fill translations from content memory                         |
 | `segmentation`     | Split source text into sentence segments                          |
 
 List what is available in your installation — including any tools and formats
@@ -93,7 +93,7 @@ steps:
 ```
 
 Run it with `kapi run translate-with-qa`. See [Custom flows](/cli/flows/custom-flows)
-for the full recipe, and the [tool reference](https://neokapi.github.io/web/neokapi/tools)
+for the full recipe, and the [tool reference](https://neokapi.github.io/tools)
 for each step's configurable parameters.
 
 ## Next steps

@@ -308,7 +308,7 @@ frameworks:
       buys:
         - "s: .gitattributes union merge driver + CI stale-count check"
         - "r: kapi pseudo-translate/translate-qa directly on .xcstrings"
-    watch: { repo: https://developer.apple.com/xcode/, latest_verified: "Xcode 27 (agentic localization); xcstrings v1.1 since Xcode 26", verified: 2026-07-10 }
+    watch: { repo: https://developer.apple.com/xcode/, latest_verified: "Xcode 27 (agent-driven translation); xcstrings v1.1 since Xcode 26", verified: 2026-07-10 }
     notes: "The add-and-forget reference point: compiler extraction on every build, stale-marking sync, typed symbols. Legacy .strings → migrate via Xcode."
 
   - id: android
@@ -456,7 +456,7 @@ frameworks:
         - "w: source-English-as-ID message convention"
         - "s: goi18n extract && merge enforced in CI (hash-based change detection)"
     watch: { repo: https://github.com/nicksnyder/go-i18n, latest_verified: "v2 active; x/text gotext still experimental", verified: 2026-07-10 }
-    notes: "Still comparatively painful. Prefer minimizing the translatable surface (emit codes; localize at the UI edge)."
+    notes: "Still comparatively painful. Prefer minimizing the translatable surface (emit codes; translate at the UI edge)."
 
   - id: jvm
     ecosystem: jvm

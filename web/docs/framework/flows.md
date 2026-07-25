@@ -2,7 +2,7 @@
 sidebar_position: 8
 title: Flows
 description: A flow is a named, ordered composition of tools. Flows are defined in YAML, can be embedded in a project file or stored separately, and run with a single kapi command.
-keywords: [flows, pipeline, YAML, tool composition, kapi run, localization workflow]
+keywords: [flows, pipeline, YAML, tool composition, kapi run, translation workflow]
 ---
 
 import { DualExample } from "@site/src/components/curated";
@@ -46,7 +46,7 @@ The `Builder` provides a fluent API for assembling one in Go:
 ```go
 f, err := flow.NewFlow("translate").
     AddTool(tools.NewMemoryLeverageTool(memoryCfg)).
-    AddTool(termbase.NewTermLookupTool(tb, termCfg)).
+    AddTool(terms.NewTermLookupTool(tb, termCfg)).
     AddTool(aitools.NewAITranslateTool(provider, translateCfg)).
     AddTool(tools.NewQACheckTool(qaCfg)).
     Build()
@@ -70,9 +70,9 @@ hand:
 ```yaml
 steps:
   - tool: recycle
-    label: Apply TM matches
+    label: Apply memory matches
     config:
-      threshold: 0.7
+      fuzzyThreshold: 70
   - tool: translate
     label: Translate the rest
     config:
@@ -238,10 +238,10 @@ look-alikes:
 
 The framework ships a set of built-in flows covering common workflows —
 AI translation, AI translation with a quality pass, pseudo-translation for
-layout testing, TM leverage, rule-based QA, a redact-translate-restore flow
+layout testing, memory leverage, rule-based QA, a redact-translate-restore flow
 for [sensitive content](/framework/redaction), and media-to-subtitles flows that
 turn audio and video into translated subtitle tracks (see
-[Localize audio &amp; video](/kapi/recipes/localize-media)). Rather than maintain a
+[Translate audio &amp; video](/kapi/recipes/translate-media)). Rather than maintain a
 list here, run `kapi flows` or see the [Command Reference](/commands), both
 generated from the live flow set.
 

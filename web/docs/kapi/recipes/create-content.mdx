@@ -20,7 +20,7 @@ import { PendingMedia } from "@neokapi/docs-shared";
 >
   A short walkthrough drafting a Markdown page, parsing it back with kapi
   inspect as the first check, running a brand-and-terminology gate, and landing
-  a content fix and the glossary term behind it in one kapi apply.
+  a content fix and the approved term behind it in one kapi apply.
 </PendingMedia>
 
 <Tabs groupId="surface" queryString>
@@ -40,7 +40,7 @@ With [kapi connected](/kapi/get-started/use-with-claude), the assistant is the a
 
 > Draft a release-notes page for the export feature — on brand, using our approved terms.
 
-It loads the voice and wording first (`kapi brand guide`, `kapi terms lookup`) so the first draft is already close, then loops `check_file` → revise until the gate is green. When a check flags a new term, it proposes the [close-the-loop change-set](#close-the-loop-fix-the-content-and-the-rule-together) — the content fix and the glossary rule in one `apply`.
+It loads the voice and wording first (`kapi brand guide`, `kapi terms lookup`) so the first draft is already close, then loops `check_file` → revise until the gate is green. When a check flags a new term, it proposes the [close-the-loop change-set](#close-the-loop-fix-the-content-and-the-rule-together) — the content fix and the term rule in one `apply`.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -85,7 +85,7 @@ When a check flags a term, the durable fix is two changes: correct **this draft*
 kapi apply changeset.jsonl
 ```
 
-The **content** entry rewrites the block through the faithful round-trip, drift-guarded by `content_hash`; the **term** entry is written into the committed termbase source (`.ktb`) and compiled into the `.kapi/termbase.db` cache. `git diff` shows the one new term; the next `kapi check` enforces it. `apply` is idempotent, and also accepts `tm`, `brand`, and `recipe` asset kinds — see [Keep source on brand](/kapi/recipes/keep-source-on-brand) for the `brand` entry.
+The **content** entry rewrites the block through the faithful round-trip, drift-guarded by `content_hash`; the **term** entry is written into the committed terms source the recipe binds with `defaults.termbase_source` (a `.ktb` document) and compiled into the project terms store (`.kapi/termbase.db`). `git diff` shows the one new term; the next `kapi check` enforces it. `apply` is idempotent, and also accepts `tm`, `brand`, and `recipe` asset kinds — see [Keep source on brand](/kapi/recipes/keep-source-on-brand) for the `brand` entry.
 
 ## Next
 

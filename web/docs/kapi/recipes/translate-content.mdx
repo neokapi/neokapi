@@ -39,7 +39,7 @@ With [kapi connected](/kapi/get-started/use-with-claude), ask:
 
 > Translate `src/locales/en.json` into French and German, keep the placeholders intact, and fix anything QA flags.
 
-The assistant routes the work **through kapi** so the guardrails apply — approved terms from the termbase, brand voice in the prompt, placeholder integrity checked after. In a project it simply runs `kapi up` and reads `kapi status` for what parked; for a single document it translates block by block and lands the result through the faithful round-trip. Either way it finishes by checking, and fixes what the gate flags before telling you it's done.
+The assistant routes the work **through kapi** so the guardrails apply — approved terms from the terms store, brand voice in the prompt, placeholder integrity checked after. In a project it simply runs `kapi up` and reads `kapi status` for what parked; for a single document it translates block by block and lands the result through the faithful round-trip. Either way it finishes by checking, and fixes what the gate flags before telling you it's done.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -52,7 +52,7 @@ kapi up --passes 1     # a single pass (the behavior of the bare 'kapi run')
 kapi status            # coverage per locale — informational, never fails
 ```
 
-`up` re-derives coverage from the working tree each pass and runs the flow only for the locales still short of their gate. The project store reuses what you've already translated, so a run only touches what changed — see [Reuse what you've translated](/kapi/recipes/pre-translate-with-tm).
+`up` re-derives coverage from the working tree each pass and runs the flow only for the locales still short of their gate. The project store reuses what you've already translated, so a run only touches what changed — see [Reuse what you've translated](/kapi/recipes/pre-translate-from-memory).
 
 **Ad-hoc** — one file, one language, flags for everything:
 
@@ -70,5 +70,5 @@ The default engine is an LLM; `kapi models setup` detects what you already have 
 
 - [Add languages](/kapi/get-started/add-languages) — the full on-ramp: locales → `up` → review → gates.
 - [Estimate a run's cost](/kapi/recipes/estimate-cost) — size the job first.
-- [Keep terms consistent](/kapi/recipes/terminology-qa) — enforce your glossary.
-- [Ship gates & CI](/kapi/recipes/gate-localization-in-ci) — `kapi check --ship` before a release.
+- [Keep terms consistent](/kapi/recipes/terminology-qa) — enforce your approved terms.
+- [Ship gates & CI](/kapi/recipes/ship-gates-and-ci) — `kapi check --ship` before a release.

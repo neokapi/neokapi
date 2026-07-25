@@ -14,7 +14,7 @@ interface LabEntry {
 }
 
 // Ordered as a suggested learning sequence: start with the content model, then
-// the localization machinery, then the format-specific and media labs.
+// the CLI and the segmentation engines, then the format-specific and media labs.
 const LABS: LabEntry[] = [
   {
     to: "/lab",

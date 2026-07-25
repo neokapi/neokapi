@@ -64,7 +64,7 @@ per-locale translate/review tasks the run was holding
 ([AD-013](/architecture-decisions/013-automation-engine)). A reviewer can also
 lower the bar — a project may set `source_gate: none` to opt out of the gate
 entirely — but the governed default is to settle first. The next run reads the
-cleared source and translates the now-approved content, TM-first.
+cleared source and translates the now-approved content, memory-first.
 
 ## Block list
 
@@ -85,7 +85,7 @@ Select blocks individually or use **Select all** to act on the whole filtered
 list at once:
 
 - **Mark reviewed** — approve every selected block.
-- **Apply exact TM** — fill selected blocks from exact (100%) translation-memory
+- **Apply exact Memory** — fill selected blocks from exact (100%) content-memory
   matches.
 
 ## QA findings

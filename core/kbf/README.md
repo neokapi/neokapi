@@ -1,7 +1,7 @@
 # core/kbf
 
 Go implementation of the canonical Block / Run model — the Kapi
-Localization Format. Paired with
+Bundle Format. Paired with
 [`packages/kapi-format/`](../../packages/kapi-format/) (`@neokapi/kapi-format`) —
 the TypeScript port — via shared golden fixtures so both languages
 render the same bytes.

@@ -10,7 +10,7 @@ title: "AD-015: Server-Side AI Operations"
 
 Three server-side AI subsystems run on top of the framework's
 `LLMProvider` interface
-([AD-framework-011: AI Providers](https://neokapi.github.io/web/neokapi/contribute/architecture/011-ai-providers)):
+([AD-framework-011: AI Providers](https://neokapi.github.io/contribute/architecture/011-ai-providers)):
 asynchronous **translation jobs** with per-workspace quotas, **entity
 and term extraction** combining LLM reasoning with NER detection, and
 **brand voice governance** with MQM-inspired scoring. All three surface
@@ -62,7 +62,7 @@ type TranslationJob struct {
     BatchSize        int      // blocks per LLM call (default 20)
     Concurrency      int      // parallel batch calls (default 5)
     TokensUsed       int
-    ViaMemory            int      // blocks recycled from the project TM (TM-first split)
+    ViaMemory        int      // blocks recycled from the content memory (memory-first split)
     ViaAI            int      // blocks sent to the AI translator
     Error            string
     StepID           string   // links to parent automation step (AD-013)
@@ -79,7 +79,7 @@ type TranslationJob struct {
 4. Mark status = "processing"
 5. Load project and blocks from ContentStore
 6. Resolve provider (see below)
-7. Recycle from the project TM first: fill blocks that match the TM
+7. Recycle from the project content memory first: fill blocks that match it
    (exact by default) and record ViaMemory; the remainder goes to AI
 8. Create AITranslateTool with batch/concurrency config
 9. Process the AI remainder in chunks of 50:
@@ -87,16 +87,16 @@ type TranslationJob struct {
    b. Record token usage in QuotaStore
    c. Update progress in JobStore and emit log lines
 10. Store translated blocks in ContentStore
-11. Record the TM-first split (ViaMemory/ViaAI) via UpdateJobMemorySplit
+11. Record the memory-first split (ViaMemory/ViaAI) via UpdateJobMemorySplit
 12. Mark status = "completed" with total token count
 ```
 
-**TM-first split.** Each job recycles TM matches before calling paid AI
-and records how many blocks were filled from the TM (`ViaMemory`) versus
+**Memory-first split.** Each job recycles memory matches before calling paid
+AI and records how many blocks were filled from memory (`ViaMemory`) versus
 sent to the translator (`ViaAI`). A server convergence run
 ([AD-022](022-convergence-as-a-service.md)) sums these across its jobs
 and `reconcileSplit` derives the AI share as the remainder, so the run
-reports a truthful `TM N · AI M` split server-side — the same split the
+reports a truthful `content memory N · AI M` split server-side — the same split the
 CLI reports locally — rather than attributing everything to AI.
 
 **Provider resolution.**
@@ -162,14 +162,14 @@ Changed blocks
   │
   ├─ Stage 2: LLM extraction
   │     → ChatStructured() produces term candidates + ambiguous entities,
-  │       dedup against existing termbase
+  │       dedup against the existing terms store
   │
   ├─ Stage 3: Merge & dedup
   │     → reconcile NER with LLM (prefer LLM classification),
   │       group identical terms across blocks
   │
   └─ Stage 4: Queue
-        → auto-approved → termbase / entity store directly
+        → auto-approved → terms store / entity store directly
         → pending → review queue (routed by locale/domain)
 ```
 
@@ -282,7 +282,7 @@ Severity weights: `neutral` = 0, `minor` = 1, `major` = 5,
 Overall score = 100 − total penalties across dimensions.
 
 **AI-powered compliance checking.** The `brand-voice-check` tool
-([AD-framework-011: AI Providers](https://neokapi.github.io/web/neokapi/contribute/architecture/011-ai-providers))
+([AD-framework-011: AI Providers](https://neokapi.github.io/contribute/architecture/011-ai-providers))
 uses `ChatStructured` with a JSON Schema specifying dimension,
 severity, message, and suggestion. Results become `BrandVoiceAnnotation`
 entries and `brand-voice-score` / `brand-voice-findings` block
@@ -305,7 +305,7 @@ call.
 
 **Terminology integration.** Brand vocabulary flows through the same
 pipeline as standard terminology
-([AD-framework-010: Terminology](https://neokapi.github.io/web/neokapi/contribute/architecture/010-terminology)).
+([AD-framework-010: Terminology](https://neokapi.github.io/contribute/architecture/010-terminology)).
 `TermSource` distinguishes `"terminology"` from `"brand_vocabulary"`.
 `CompetitorTerm` marks competitor brand terms. `SourceFilter` on
 `LookupOptions` filters lookups by source, so the same `term-lookup`
@@ -344,7 +344,7 @@ bowrain:
 - Azure Managed Identity removes API key management for the default
   deployment while keeping key-based providers available.
 - Extraction discovers terminology and entities as a side effect of
-  pushing content — translators start with a curated termbase.
+  pushing content — translators start with a curated terms store.
 - Hybrid LLM + NER keeps extraction cost predictable: NER handles
   obvious types cheaply, LLM handles domain classification.
 - Brand voice governance reuses the terminology pipeline rather than
@@ -354,8 +354,8 @@ bowrain:
 
 ## Related
 
-- [AD-framework-011: AI Providers](https://neokapi.github.io/web/neokapi/contribute/architecture/011-ai-providers) — `LLMProvider` interface
-- [AD-framework-010: Terminology](https://neokapi.github.io/web/neokapi/contribute/architecture/010-terminology) — terminology pipeline
+- [AD-framework-011: AI Providers](https://neokapi.github.io/contribute/architecture/011-ai-providers) — `LLMProvider` interface
+- [AD-framework-010: Terminology](https://neokapi.github.io/contribute/architecture/010-terminology) — terminology pipeline
 - [AD-013: Automation Engine](013-automation-engine.md) — triggers for translation and extraction
 - [AD-014: Translator Workflow](014-translator-workflow.md) — review queue, tasks, notifications
 - [AD-016: Bravo Agent](016-bravo-agent.md) — MCP consumer of brand voice and extraction tools

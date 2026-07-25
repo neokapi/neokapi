@@ -146,15 +146,15 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 ## Inline Code Handling
 
 Most document formats contain inline markup — bold, italic, links, images,
-line breaks, variables, placeholders. A localization framework must preserve
-this markup through the entire pipeline (extraction, TM lookup, MT, AI
+line breaks, variables, placeholders. The framework must preserve this markup
+through the entire pipeline (extraction, content-memory lookup, MT, AI
 translation, QA, reconstruction) without corruption.
 
 neokapi solves this with the **Run** model: a block's content is a flat
 `[]model.Run` sequence. Text travels as `TextRun`s; inline markup becomes
 inline-code runs (`PcOpen`/`PcClose` for paired tags, `Ph` for self-closing
 tokens) that carry the original markup in a `Data` field. This lets tools,
-translation engines, and TM matching project the runs to plain text, and the
+translation engines, and content-memory matching project the runs to plain text, and the
 writer reconstructs the original markup by re-emitting each run's `Data`.
 
 ### The Run Model

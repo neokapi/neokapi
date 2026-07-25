@@ -61,7 +61,7 @@ Redaction finds sensitive spans with one or both detectors:
   local model keeps detection on the machine; a cloud model trades that for
   broader coverage during the detection step. You don't run entity recognition as
   a separate task — it is the same detection that powers entity-generalized
-  [translation-memory](/framework/translation-memory) reuse, so entities
+  [content-memory](/framework/content-memory) reuse, so entities
   annotated once serve both.
 
   The `entity-extract` step selects the detector with `engine`: `llm` (the
@@ -179,5 +179,5 @@ content:
 Restoration matches placeholders back to originals by token where the format
 preserves inline structure (in-process pipelines and XLIFF), and by the unique
 visible token text where the format flattens placeholders to plain text (such
-as JSON). On `extract`, redaction runs before translation-memory pre-fill, so
-no sensitive value can reach the emitted file through a TM match.
+as JSON). On `extract`, redaction runs before content-memory pre-fill, so
+no sensitive value can reach the emitted file through a memory match.

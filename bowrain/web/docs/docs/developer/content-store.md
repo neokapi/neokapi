@@ -5,11 +5,11 @@ sidebar_position: 11
 
 # Content Store
 
-The Content Store provides versioned, content-addressable persistence for localization content. It serves as the central persistence layer for neokapi projects.
+The Content Store provides versioned, content-addressable persistence for content. It serves as the central persistence layer for neokapi projects.
 
 ## Architecture
 
-The store sits between connectors (which pull/push external content) and the processing pipeline (flows, tools, TM, terminology):
+The store sits between connectors (which pull/push external content) and the processing pipeline (flows, tools, content memory, terminology):
 
 ```
 Connectors → ContentStore ← → Flows/Tools
@@ -31,7 +31,7 @@ interfaces, one per concern. All content operations are **stream-scoped**: an
 empty stream name defaults to `"main"`, which every project implicitly has.
 
 ```go
-// ContentStore is the primary persistence interface for localization content,
+// ContentStore is the primary persistence interface for content,
 // the union of the role interfaces. All content operations are stream-scoped.
 type ContentStore interface {
     ProjectStore    // projects: create, get, list, update, delete

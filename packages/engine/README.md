@@ -1,7 +1,7 @@
 # @neokapi/engine
 
 The [kapi](https://github.com/neokapi/neokapi) content engine — format-aware
-parsing, processing flows, and localization tools — compiled to WebAssembly and
+parsing, processing flows, and pluggable tools — compiled to WebAssembly and
 wrapped as a typed, dependency-light npm package.
 
 The package owns:

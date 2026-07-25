@@ -2,7 +2,7 @@
 id: 005-format-system
 sidebar_position: 5
 title: "AD-005: Format System"
-description: "Architecture decision: formats are pluggable DataFormatReader/Writer pairs that convert between on-disk files and the Part stream. Built-in formats span localization, document, data, subtitle, and office families."
+description: "Architecture decision: formats are pluggable DataFormatReader/Writer pairs that convert between on-disk files and the Part stream. Built-in formats span message-catalog, document, data, subtitle, and office families."
 keywords: [format system, DataFormatReader, DataFormatWriter, pluggable formats, architecture decision, neokapi]
 ---
 
@@ -23,7 +23,7 @@ interchangeable skeleton strategies.
 
 ## Context
 
-A localization framework must read a large variety of file formats and
+The framework must read a large variety of file formats and
 write them back with byte-exact fidelity — every newline, every entity
 reference, every attribute quote style. Formats vary widely in structure:
 linear text (plain text, Markdown), tree-structured markup (HTML, XML,
@@ -101,7 +101,7 @@ The built-in formats under `core/formats/` span several families:
 
 - **Markup** — HTML, XML, Markdown / MDX, and structured-document formats.
 - **Translation exchange** — XLIFF 1.2 / 2.0, TMX, Gettext PO/MO.
-- **Structured data** — JSON, YAML, CSV, and design-token / app-localization
+- **Structured data** — JSON, YAML, CSV, and design-token / app message-catalog
   variants (`xcstrings`, `arb`, `i18next`, `resx`, Android strings, iOS
   strings, …).
 - **Office and publishing** — OpenXML (`.docx`, `.xlsx`, `.pptx`), ODF, IDML,
@@ -312,7 +312,7 @@ content-model route every writer shares.
 The skeleton is not the only home for non-translatable content. A reader
 classifies each fragment three ways, not two:
 
-- **Translatable** → a `Block` (`Translatable: true`) the pipeline localizes.
+- **Translatable** → a `Block` (`Translatable: true`) the pipeline processes.
 - **Pure structure** (delimiters, quoting, whitespace) → skeleton bytes.
 - **Non-translatable but meaningful context** (code, captions, alt-text,
   formulas, do-not-translate strings, config-excluded values, comments) →
@@ -331,7 +331,7 @@ the skeleton as before — which is the configuration parity pins
 The SkeletonStore also supports a **sub-skeleton**: verbatim segments of an
 otherwise-opaque payload interleaved with refs to translatable spans inside it.
 This is how translatable prose embedded in an opaque structure — the
-natural-language `<m:nor/>` text inside a Word equation — is localized while the
+natural-language `<m:nor/>` text inside a Word equation — is translated while the
 surrounding math is replayed byte-for-byte
 ([AD-032: Math and Equations](032-math-and-equations.md); see
 [Skeleton Store](/contribute/notes-internal/skeleton-store)).

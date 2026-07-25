@@ -6,7 +6,7 @@ import { AudioExplorer, VideoExplorer } from "@site/src/components/Lab";
 import { LabPageShell } from "@site/src/components/Lab/LabPageShell";
 import { readCdnConfig, cdnEnabled, cdnHref } from "@neokapi/docs-shared";
 
-// Audio & Video lab: the multimodal localization pipeline in your browser.
+// Audio & Video lab: the multimodal content pipeline in your browser.
 // Audio — Whisper speech recognition (onnxruntime-web, the kapi-asr model
 // family) turns speech into timing-anchored subtitle cues. Video — ffmpeg.wasm
 // (kapi-av) demuxes the clip into an audio track + sampled frames, Whisper
@@ -49,17 +49,17 @@ export default function MediaLabPage(): React.ReactElement {
   return (
     <Layout
       title="Audio & Video Lab"
-      description="Turn what people say and what appears on screen into time-stamped, translatable captions — ready to subtitle a clip in another language. Runs privately on your device; nothing is uploaded."
+      description="Turn what people say and what appears on screen into time-stamped captions — ready to subtitle a clip in another language. Runs privately on your device; nothing is uploaded."
     >
       <LabPageShell
         title="Audio & Video"
         lede={
           <>
-            Localize what people <em>say</em> and what appears <em>on screen</em>. Add an audio or
-            video file and neokapi turns the speech — and any on-screen text — into time-stamped
-            captions you can review, translate, and play back in sync. It runs entirely on your
-            device, so nothing is uploaded, and each tab only fetches what it needs the first time
-            you press play.
+            Caption and translate what people <em>say</em> and what appears <em>on screen</em>. Add
+            an audio or video file and neokapi turns the speech — and any on-screen text — into
+            time-stamped captions you can review, translate, and play back in sync. It runs entirely
+            on your device, so nothing is uploaded, and each tab only fetches what it needs the
+            first time you press play.
           </>
         }
         heroExtra={

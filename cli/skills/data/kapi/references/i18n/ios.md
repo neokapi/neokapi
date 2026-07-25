@@ -22,13 +22,13 @@ first-party replacement.
 
 - **Idiom:** source-as-key, single JSON file (`Localizable.xcstrings`)
   containing *all* languages, states, and plural/device variations. SwiftUI
-  literals are localizable by default — `Text("Welcome")` is a
+  literals go through the catalog by default — `Text("Welcome")` is a
   `LocalizedStringKey`, no wrapper needed. The compiler extracts on every
   build; removed strings are marked **stale** (not deleted), untranslated
   stale entries are pruned. Since Xcode 26, typed symbols
   (`Text(.welcomeMessage)`) via the "Generate String Catalog Symbols" build
-  setting — on by default in new projects. Xcode 27 adds agentic localization
-  (in-IDE "Generate Translations" per language).
+  setting — on by default in new projects. Xcode 27 adds agent-driven
+  translation in the IDE ("Generate Translations" per language).
 - **Marking discipline (the only code habit):** Foundation/UIKit strings need
   `String(localized: "…")` (or `NSLocalizedString`) — a bare literal is
   invisible. Strings built by **concatenation or interpolation outside those
@@ -78,7 +78,7 @@ first-party replacement.
 
 Warn the user: this is a migration target, not a place for new work — Xcode's
 one-click "Migrate to String Catalog" moves both files losslessly, and all
-new tooling investment (symbols, agentic localization) lands on `.xcstrings`
+new tooling investment (symbols, agent-driven translation) lands on `.xcstrings`
 only. Until the migration happens, kapi reads and writes both via
 `--format applestrings` (the flag is required — `.strings` alone doesn't
 identify the dialect):

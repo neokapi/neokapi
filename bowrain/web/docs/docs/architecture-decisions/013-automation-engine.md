@@ -18,7 +18,7 @@ structured logs, visible via REST and streamed over SSE.
 
 ## Context
 
-Localization pipelines fail silently when reactive behavior is absent:
+Content pipelines fail silently when reactive behavior is absent:
 content changes in a CMS but translations do not update; quality checks
 are forgotten; terminology violations accumulate. Polling-based
 schedulers react too slowly and over-consume resources. Event-driven
@@ -54,7 +54,7 @@ automations:
           flow: qa
       - type: notify
         config:
-          channel: "#localization"
+          channel: "#translation"
           on_failure: true
 ```
 

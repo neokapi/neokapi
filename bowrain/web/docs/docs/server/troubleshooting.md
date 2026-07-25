@@ -43,7 +43,7 @@ allowance, and every workspace receives a one-time grant of trial credits at
 creation. When the spendable balance is used up, only **AI operations** are
 blocked — AI translation and AI quality checks return an error indicating the
 quota is exhausted. Everything that does not call an AI provider keeps working:
-browsing content, editing translations by hand, running translation-memory
+browsing content, editing translations by hand, running content memory
 lookups, pushing, and pulling.
 
 You have three ways forward:

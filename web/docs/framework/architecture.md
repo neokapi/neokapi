@@ -2,7 +2,7 @@
 sidebar_position: 1
 title: Architecture
 description: An overview of the neokapi framework architecture — the streaming pipeline, content model, format readers and writers, composable tools, and the multi-module Go structure.
-keywords: [neokapi, architecture, streaming pipeline, content model, content engine, localization, go modules]
+keywords: [neokapi, architecture, streaming pipeline, content model, content engine, multilingual content, go modules]
 ---
 
 import { ArchitectureDiagram } from "@neokapi/docs-shared";
@@ -38,8 +38,8 @@ Between the edges runs a [flow](/framework/flows): a serial chain of
 [overlays and annotations](/framework/content-model#two-ways-to-annotate-a-block)
 (segmentation, terminology, entities, QA findings, analysis results),
 **translators** fill in targets, and **QA** tools check and enforce — while
-[translation memory](/framework/translation-memory) and the
-[termbase](/framework/terminology) feed the relevant stages.
+[content memory](/framework/content-memory) and the
+[terms store](/framework/terminology) feed the relevant stages.
 
 Concurrency runs at three levels at once: each stage is its own goroutine joined
 by channels with automatic backpressure; a block-handling stage such as
@@ -77,27 +77,28 @@ neokapi/
 │   ├── brand/                       # Brand voice profiles, scoring, starter packs
 │   ├── tools/                       # Utility tools (wordcount, pseudo, segmentation, …)
 │   ├── storage/                     # Shared SQLite infrastructure (Open, Migrate)
-│   ├── project/                     # .kapi project file format (Load, Save, Validate)
+│   ├── project/                     # kapi.yaml recipe format (Load, Save, Validate)
 │   ├── plugin/                      # Plugin system (gRPC, loader, bridge, registry)
-│   └── testutil/                    # Shared test helpers
+│   └── internal/testutil/           # Shared test helpers
 │
-├── memory/                        # Translation memory (interface, in-memory, SQLite)
-├── termbase/                        # Terminology (interface, in-memory, SQLite)
+├── memory/                          # Content memory (interface, in-memory, SQLite)
+├── terms/                           # Terminology (interface, in-memory, SQLite)
 ├── providers/
 │   ├── ai/                          # package aiprovider — LLM backends
 │   └── mt/                          # package mtprovider — MT backends
 │
-├── cli/                             # Shared CLI base (module: …/cli)
+├── host/                            # Cobra-free runtime + services (module: …/host)
+├── cli/                             # Thin Cobra shell over host (module: …/cli)
 ├── kapi/                            # Kapi standalone CLI (module: …/kapi)
-├── apps/kapi-desktop/          # Kapi Desktop (Wails v3; module: …/kapi-desktop)
+├── apps/kapi-desktop/               # Kapi Desktop (Wails v3; module: …/kapi-desktop)
 ├── packages/
 │   ├── ui/                          # @neokapi/ui-primitives — shared shadcn/ui primitives
 │   └── flow-editor/                 # @neokapi/flow-editor — shared React flow editor
-└── docs/                            # Architecture decisions, notes
+└── docs/                            # Repo internals (format ops, testing, runbooks)
 ```
 
 The framework module (repo root) stays platform-agnostic. `memory/`,
-`termbase/`, and `providers/` are top-level framework packages — not nested
+`terms/`, and `providers/` are top-level framework packages — not nested
 under `core/`. Front-ends such as the CLI and the desktop app, and any other
 consumer, attach through the plugin and extension registries rather than by
 direct imports, so the framework never depends on a particular platform.

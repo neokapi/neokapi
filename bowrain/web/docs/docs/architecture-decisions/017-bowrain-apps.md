@@ -47,7 +47,7 @@ design tool, a git repository, or the local filesystem.
 | **Table**  | Source + target columns, many blocks visible at once                  |
 
 The three per-file surfaces — Translate, Review, and Pre-process — share these
-views. The context panel shows TM matches, terminology highlights, display
+views. The context panel shows memory matches, terminology highlights, display
 hints, and ContentRef links alongside the current block.
 
 **Flow editor.** A drag-and-drop visual editor built on `@xyflow/react`
@@ -57,7 +57,7 @@ node types, validation, and template support.
 **Terminology management.** Faceted search, concept editing, TBX /
 CSV / JSON import and export, analytics, editor integration.
 
-**TM explorer.** Entry browsing with fuzzy match visualization, entity
+**Content memory explorer.** Entry browsing with fuzzy match visualization, entity
 mapping display, and TMX import/export.
 
 **Slack-like workspace rail.** A 60 px workspace rail plus a 220 px
@@ -93,7 +93,7 @@ surface.
 | **Projects**         | `ListEditorProjects`, `GetEditorProject`                                                                           |
 | **Blocks**           | `GetBlocks`, `UpdateBlockTarget`, `ReviewBlock`                                                                    |
 | **Context**          | `LookupMemoryForBlock`, `LookupTermsForBlock`                                                                           |
-| **TM CRUD**          | `GetMemoryEntries`, `GetMemoryCount`, `AddMemoryEntry`, `UpdateMemoryEntry`, `DeleteMemoryEntry`                                       |
+| **Memory CRUD**      | `GetMemoryEntries`, `GetMemoryCount`, `AddMemoryEntry`, `UpdateMemoryEntry`, `DeleteMemoryEntry`                                       |
 | **Terminology**      | `GetTerms`, `GetTermCount`, `AddConcept`, `UpdateConcept`, `DeleteConcept`, `ImportTermsCSV`, `ImportTermsJSON`, `ExportTermsJSON` |
 | **Change relay**     | `WatchProject` (server-streaming), `UpdatePresence` (legacy presence)                                              |
 
@@ -175,7 +175,7 @@ A public activity dashboard. Standalone Vite SPA, served by
 bowrain-server when the `Host` header matches `pulse.*`.
 
 **The surface ships dark.** The platform repositions on on-brand
-authoring, not l10n gamification, so the Pulse routes (and the SPA
+authoring, not contribution gamification, so the Pulse routes (and the SPA
 serving path) mount only when `BOWRAIN_PULSE_ENABLED=true`; the SPA
 deploy workflow is likewise gated on a repo variable
 (`PULSE_DEPLOY_ENABLED`). The code stays in the tree so the open-source
@@ -205,7 +205,7 @@ enumeration.
   counts, per-language breakdown. Community recognition is the default
   because open-source projects expect it.
 - **Terminology explorer** — opt-in filtering lets workspaces publish
-  glossary terms without exposing proprietary brand vocabulary.
+  approved terms without exposing proprietary brand vocabulary.
   `PulseTermSources` on the workspace controls which concept sources
   appear.
 - **Activity feed** — recent translation, review, push, and milestone
@@ -324,7 +324,7 @@ Door; the API base URL derives from the hostname
 - Offline-first desktop editing keeps translators productive on
   flights, in tunnels, and during server maintenance.
 - Pulse (when a deployment opts in) gives the open-source community the
-  visibility they expect from localization platforms without
+  visibility they expect from a public translation project without
   compromising private workspaces; by default the platform presents only
   its authoring surfaces.
 - Admin realm isolation keeps operator credentials out of the customer

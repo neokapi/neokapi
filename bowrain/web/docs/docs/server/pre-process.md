@@ -21,7 +21,7 @@ Generate accented, length-expanded placeholder translations for the whole file.
 Pseudo-translation surfaces truncation, layout, and encoding problems before any
 real translation is done — see also the framework's pseudo-translate tool.
 
-### Bulk TM leverage
+### Bulk reuse from memory
 
 Pre-fill targets from the [content memory](/server/translation-memory) across
 the whole file. Exact and high-confidence fuzzy matches land as drafts you can

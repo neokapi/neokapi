@@ -1,8 +1,8 @@
 ---
 sidebar_position: 6
 title: Formats
-description: neokapi formats are paired readers and writers that convert documents to and from the Part stream. Built-in formats span localization, document, data, subtitle, and office families; more are available through plugins.
-keywords: [formats, format reader, format writer, XLIFF, JSON, DOCX, Markdown, localization formats, format plugins]
+description: neokapi formats are paired readers and writers that convert documents to and from the Part stream. Built-in formats span message catalogs, documents, data, subtitles, office files, and bilingual interchange; more are available through plugins.
+keywords: [formats, format reader, format writer, XLIFF, JSON, DOCX, Markdown, message catalogs, format plugins]
 ---
 
 import { BlockPreview } from "@site/src/components/curated";
@@ -40,19 +40,19 @@ neokapi ships built-in readers and writers spanning several families:
   OpenDocument, EPUB, PDF.
 - **Data** — CSV/TSV, with column-role configuration.
 - **Subtitles & media** — SubRip (SRT), WebVTT; images, audio, and video as
-  localizable assets.
+  per-locale assets.
 - **Bilingual interchange** — XLIFF 1.2 and 2.x, PO, TMX, and the native
   [Kapi format family](/reference/kbf/overview) — the translator-handoff layer.
 - **Containers & archives** — ZIP, TAR, and gzip-compressed TAR, treated as a
   folder of sub-documents (see below).
 
-An **image** is read as a localizable asset: the picture itself is the unit a
-workflow can replace with a per-locale variant. With the `kapi-vision` plugin
+An **image** is read as an asset in its own right: the picture itself is the unit
+a workflow can replace with a per-locale variant. With the `kapi-vision` plugin
 installed (and the `ocr`/`layout` options on), the reader also extracts in-image
 text and document layout — regions, reading order, tables — turning a screenshot
 or scanned page into structured, translatable content. The design, and the full
-set of image-localization modes, are described in
-[AD-029](/contribute/architecture/029-vision-and-image-localization).
+set of image-adaptation modes, are described in
+[AD-029](/contribute/architecture/029-vision-and-image-adaptation).
 
 PDF is read by Google's PDFium rather than a built-in reader: on the desktop and
 CLI through the `kapi-pdfium` plugin, and in the browser through PDFium compiled
@@ -65,7 +65,7 @@ it on your own files in the [Structure & Layout lab](/lab/structure); the design
 An **archive** — a ZIP, TAR, or gzip-compressed TAR — is a *namespace* of inner
 documents rather than one document, so it is handled as a **container binding**
 ([AD-026](/contribute/architecture/026-flow-io-binding)) rather than a format
-with a writer. Pointed at an output-producing command, each entry is localized
+with a writer. Pointed at an output-producing command, each entry is processed
 as its **own file run** — through that entry's normal reader and writer with full
 skeleton round-trip — and the results are repacked over the original container,
 copying every other member byte-for-byte. Because each entry is a real,
@@ -73,8 +73,8 @@ standalone file run, a **packaged format such as a DOCX or EPUB *inside* the
 archive round-trips faithfully**, and each entry resolves its own format
 configuration. Binary assets, nested containers, and bilingual interchange files
 pass through unchanged. So `kapi pseudo-translate bundle.zip -o out.zip`
-localizes every recognised file inside it — including nested Office documents —
-in one pass. For inspection, a read-only `archive` reader surfaces each entry's
+pseudo-translates every recognised file inside it — including nested Office
+documents — in one pass. For inspection, a read-only `archive` reader surfaces each entry's
 content so `kapi inspect bundle.zip` shows what is inside.
 
 Each format exposes its own configuration (extraction rules, segmentation,

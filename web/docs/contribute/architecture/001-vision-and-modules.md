@@ -2,7 +2,7 @@
 id: 001-vision-and-modules
 sidebar_position: 1
 title: "AD-001: Vision and Module Architecture"
-description: "Architecture decision: neokapi is an open, AI-native Go localization framework distributed as four independent modules — framework, CLI, kapi CLI, and desktop — coordinated by a go.work workspace and enforced by GOWORK=off CI builds."
+description: "Architecture decision: neokapi is an open, AI-native Go content and language intelligence framework distributed as independent modules — framework, the cobra-free host runtime, the Cobra shell, the kapi CLI, and the desktop app — coordinated by a go.work workspace and enforced by GOWORK=off CI builds."
 keywords: [neokapi, architecture decision, Go modules, go.work, multi-module, Apache-2.0]
 ---
 
@@ -12,17 +12,18 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 
 ## Summary
 
-neokapi is an open, AI-native localization framework in Go, distributed under
-Apache-2.0. It ships as four independent Go modules — framework, shared CLI
-base, standalone CLI (kapi), and desktop app (kapi-desktop) — coordinated by a
-`go.work` file. Each module has an explicitly declared dependency footprint,
-enforced by CI with `GOWORK=off` builds.
+neokapi is an open, AI-native content and language intelligence framework in Go,
+distributed under Apache-2.0. It ships as independent Go modules — framework,
+the cobra-free host runtime, the thin Cobra shell, the standalone CLI (kapi), and
+the desktop app (kapi-desktop) — coordinated by a `go.work` file. Each module has
+an explicitly declared dependency footprint, enforced by CI with `GOWORK=off`
+builds plus `make audit-modules`.
 
 ## Context
 
-A localization framework has to serve several distinct deployment targets from
+The framework has to serve several distinct deployment targets from
 one codebase: a standalone file-processing CLI for engineers, a visual desktop
-app for localization specialists, and a library that larger platforms can
+app for content and language specialists, and a library that larger platforms can
 embed. Each target has a different dependency profile — Wails for the desktop
 app, keychain access for credentials, SQLite for local stores — and forcing
 every binary to pull every dependency produces slow builds and bloated
@@ -38,13 +39,13 @@ code never depends on separately-licensed platform code, and CI enforces it.
 
 ### Identity
 
-neokapi is an open-source localization framework in Go, licensed under
-Apache-2.0. It provides format-aware document parsing, a channel-based
-concurrent processing engine, and composable tools for translation, quality
-assurance, terminology management, and review. Everything is a library and a
-toolkit — no database, no server, no authentication. The framework is the
-primary vehicle for driving open localization innovation, including format
-support, processing tools, and AI integration.
+neokapi is an open-source content and language intelligence framework in Go,
+licensed under Apache-2.0. It provides format-aware document parsing into one
+content model, a channel-based concurrent processing engine, faithful
+write-back, and composable tools for translation, quality assurance, terminology
+management, and review. Everything is a library and a toolkit — no database, no
+server, no authentication. The framework is the primary vehicle for open
+innovation in format support, processing tools, and AI integration.
 
 Design principles:
 
@@ -68,30 +69,33 @@ Design principles:
 
 ### Framework Modules
 
-Four Go modules make up the framework, coordinated by a single `go.work` file
-at the repository root:
+These Go modules make up the framework side, coordinated by a single `go.work`
+file at the repository root:
 
 | Module       | Import path                               | Directory            | Role                                                                                  |
 | ------------ | ----------------------------------------- | -------------------- | ------------------------------------------------------------------------------------- |
-| Framework    | `github.com/neokapi/neokapi`              | `.` (repo root)      | Content model, formats, tools, pipeline, plugin system, TM, termbase, AI/MT providers |
-| CLI          | `github.com/neokapi/neokapi/cli`          | `cli/`               | Shared CLI base: App struct, command factories, output formatting, app config         |
+| Framework    | `github.com/neokapi/neokapi`              | `.` (repo root)      | Content model, formats, tools, pipeline, plugin system, content memory, terms, AI/MT providers |
+| Host         | `github.com/neokapi/neokapi/host`         | `host/`              | Cobra-free application runtime + services: app config, credentials, plugin host, flow/convergence/check services |
+| CLI          | `github.com/neokapi/neokapi/cli`          | `cli/`               | Thin Cobra shell over host: command factories, flag registration, dispatch            |
 | Kapi         | `github.com/neokapi/neokapi/kapi`         | `kapi/`              | Standalone CLI tool for local file processing                                         |
-| Kapi Desktop | `github.com/neokapi/neokapi/kapi-desktop` | `apps/kapi-desktop/` | Wails v3 desktop app for visual localization workflows                                |
+| Kapi Desktop | `github.com/neokapi/neokapi/kapi-desktop` | `apps/kapi-desktop/` | Wails v3 desktop app for visual content and translation workflows                     |
 
-The dependency graph is strictly hierarchical:
+The dependency graph is strictly hierarchical. Note that **kapi-desktop links
+neither the cli module nor Cobra** — it builds on host directly, which is why the
+runtime and the command shell are separate modules at all:
 
 <PipelineDiagram
   channelLabel=""
-  caption="kapi and kapi-desktop both build on framework + cli; kapi-desktop additionally blank-imports the Apache-2.0 bowrain recipe-schema. CI enforces the boundaries."
+  caption="kapi builds on framework + host + cli; kapi-desktop builds on framework + host and links no Cobra. Both blank-import the Apache-2.0 bowrain recipe-schema for recipe validation. CI enforces the boundaries."
   stages={[
     { label: "framework", sub: "core/ · no platform deps" },
-    { label: "cli", sub: "shared CLI base" },
+    { label: "host", sub: "runtime + services · no cobra" },
     {
       lanes: [
-        { label: "kapi", sub: "framework + cli" },
-        { label: "kapi-desktop", sub: "+ bowrain/plugin/schema (recipe validation)" },
+        { label: "kapi", sub: "framework + host + cli" },
+        { label: "kapi-desktop", sub: "framework + host · no cli, no cobra" },
       ],
-      parallelLabel: "build on framework + cli",
+      parallelLabel: "build on framework + host",
     },
   ]}
 />
@@ -102,28 +106,38 @@ The following invariants are enforced by CI:
 
 - **Framework** has zero platform dependencies. No SQLite, Wails, Echo, Cobra,
   Viper, OIDC, or keyring imports. The framework is pure library code.
-- **CLI** depends only on the framework. No Wails, Echo, OIDC, keyring. CLI
-  uses Cobra for command parsing and Viper for config.
-- **Kapi** depends on framework + CLI. No heavy dependencies (no Wails, no
-  keyring, no OIDC).
-- **Kapi Desktop** depends on framework + CLI, plus the Apache-2.0
-  `bowrain/plugin/schema` package, which it blank-imports to validate bowrain
-  recipes on open. The Wails v3 and keyring dependencies justify a separate
-  module so that Kapi CLI builds stay small.
-- **No framework engine module depends on any AGPL platform code.** core, cli,
-  kapi, and kapi-desktop are all Apache-2.0 end-to-end. `bowrain/plugin/schema`
-  is the recipe *vocabulary* (typed specs + YAML decoders, importing only the
-  framework) and is itself Apache-2.0, so Kapi Desktop's blank-import of it is
-  not an AGPL edge.
+- **Host** depends only on the framework, and **must not import Cobra**. Command
+  threading is the `host.Command` interface (context + `*pflag.FlagSet` + IO),
+  which `*cobra.Command` satisfies natively; embedded runs use `host.EnvCommand`.
+- **CLI** depends on framework + host. No Wails, Echo, or OIDC. CLI is where
+  Cobra lives.
+- **Kapi** depends on framework + host + CLI. No heavy dependencies (no Wails, no
+  OIDC).
+- **Kapi Desktop** depends on framework + host — **not** on the cli module and
+  **not** on Cobra — plus the Apache-2.0 `bowrain/plugin/schema` package, which it
+  blank-imports to validate bowrain recipes on open. The Wails v3 and keyring
+  dependencies justify a separate module so that Kapi CLI builds stay small.
+- **No framework engine module depends on any AGPL platform code.** core, host,
+  cli, kapi, and kapi-desktop are all Apache-2.0 end-to-end.
+  `bowrain/plugin/schema` is the recipe *vocabulary* (typed specs + YAML decoders,
+  importing only the framework) and is itself Apache-2.0, so Kapi Desktop's
+  blank-import of it is not an AGPL edge.
 
-These rules are verified in CI with `GOWORK=off` builds per module:
+These rules are verified in CI with `GOWORK=off` builds per module, wrapped up by
+`make audit-modules` (which also asserts `go mod tidy` is a no-op per module, and
+asserts via `go list -deps` that the desktop backend is Cobra-free):
 
 ```bash
-GOWORK=off go build ./...                                    # framework
-GOWORK=off bash -c "cd cli && go build ./..."                # cli
-GOWORK=off bash -c "cd kapi && go build ./..."               # kapi
-GOWORK=off bash -c "cd apps/kapi-desktop && go build ./..."  # kapi-desktop (+ Apache bowrain/plugin/schema)
+GOWORK=off go build ./...                                            # framework
+GOWORK=off bash -c "cd host && go build ./..."                       # host (no cobra)
+GOWORK=off bash -c "cd cli && go build ./..."                        # cli
+GOWORK=off bash -c "cd kapi && go build ./..."                       # kapi
+GOWORK=off bash -c "cd apps/kapi-desktop && go build ./backend/..."  # kapi-desktop
 ```
+
+The desktop build is scoped to `./backend/...` because the module's top-level
+package embeds `frontend/dist`, which does not exist until the frontend has been
+built — an unscoped `./...` fails on the missing embed before it ever typechecks.
 
 A successful `GOWORK=off` build per module proves that each module's imports
 resolve without the workspace — meaning every cross-module import is a real
@@ -183,17 +197,17 @@ core/
     segment/          Segmentation primitives and masking
     brand/            Brand-voice model
     graph/            Graph data structures
-    i18n/             Localization of component schemas and metadata
+    i18n/             Per-locale component schemas and backend metadata
     its/              W3C ITS metadata
-    kbf/              KBF localization exchange format
+    kbf/              Kapi Bundle Format (.kbf) block serialization
     redaction/        Span redaction/restoration
     ignore/           .kapiignore pattern matching
     httputil/         HTTP client helpers
     set/              Generic set container
     internal/
         testutil/     Shared test helpers
-memory/             Translation memory (interface + in-memory + SQLite + matching)
-termbase/             Terminology (interface + in-memory + SQLite + import)
+memory/               Content memory (interface + in-memory + SQLite + matching)
+terms/                Terminology (interface + in-memory + SQLite + import)
 providers/
     ai/               package aiprovider — LLM providers
     mt/               package mtprovider — MT providers
@@ -227,7 +241,7 @@ kapi, and kapi-desktop without publishing. `go mod tidy` does not respect
 pointing to `../` for the parent modules it depends on.
 
 Only the framework module is tagged today, using flat semver tags (`vX.Y.Z`).
-The child modules (`cli`, `kapi`, `kapi-desktop`, and the platform modules) are
+The child modules (`host`, `cli`, `kapi`, `kapi-desktop`, and the platform modules) are
 not independently tagged. Go's module-version conventions would allow
 per-module tags (e.g. `cli/v0.1.0`), but the workspace currently relies on
 `go.work` plus `replace` directives rather than published per-module versions.
@@ -243,7 +257,9 @@ config, with the following precedence (highest wins):
 1. **CLI flags** (via Cobra) — one-off overrides
 2. **Environment variables** (`KAPI_*` prefix) — CI/CD and Docker
 3. **Project config** (`kapi.yaml` project files) — workflow defaults
-4. **User config** (`~/.config/kapi/kapi.yaml`) — personal defaults
+4. **User config** (`kapi.yaml` in the user config directory — `~/.config/kapi`
+   on Linux, `~/Library/Application Support/kapi` on macOS; `kapi config path`
+   prints the resolved location) — personal defaults
 5. **Code defaults** — sensible zero-config behavior
 
 Both kapi and kapi-desktop use [Cobra](https://github.com/spf13/cobra) (kapi
@@ -267,8 +283,8 @@ func WellKnownLocales() []LocaleInfo
 
 BCP-47 validation delegates to `golang.org/x/text/language`, which handles
 subtag parsing, script inference, and canonicalization. All subsystems
-(format readers, TM entries, terminology, CLI flags) validate locale codes at
-their boundaries so invalid codes never propagate silently.
+(format readers, content-memory entries, terminology, CLI flags) validate locale
+codes at their boundaries so invalid codes never propagate silently.
 
 ## Consequences
 
@@ -276,7 +292,7 @@ their boundaries so invalid codes never propagate silently.
   it stays small and fast to build.
 - CLI module evolves independently of consumer modules — CLI changes do not
   force kapi or kapi-desktop rebuilds of unrelated code.
-- Framework packages are organized under `core/`, `memory/`, `termbase/`,
+- Framework packages are organized under `core/`, `memory/`, `terms/`,
   `providers/`, giving a clean separation of concerns at the directory level.
 - Four `go.mod` files need maintenance, but `go.work` resolves cross-module
   imports during daily development and the `release.yml` workflow handles

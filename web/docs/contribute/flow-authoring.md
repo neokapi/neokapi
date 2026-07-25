@@ -163,7 +163,7 @@ The resulting graph is what the `Executor` runs -- each node becomes a goroutine
 
 ### Translation pipeline
 
-A typical translation flow with TM leverage, AI translation for new blocks, and quality checks:
+A typical translation flow with content-memory leverage, AI translation for new blocks, and quality checks:
 
 ```yaml
 steps:
@@ -173,7 +173,7 @@ steps:
       copySource: false
 
   - tool: recycle
-    label: Apply TM matches
+    label: Apply memory matches
     config:
       targetLocale: fr
       fuzzyThreshold: 75

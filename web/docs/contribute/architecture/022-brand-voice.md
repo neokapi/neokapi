@@ -48,7 +48,7 @@ subsystem must satisfy several constraints:
 [AD-010](010-terminology.md) handles terminology consistency at the concept
 level; brand voice is the broader, prose-level guardrail. The two intersect at
 vocabulary rules, which the vocab check can optionally cross-reference against a
-termbase.
+terms store.
 
 ## Decision
 
@@ -108,7 +108,7 @@ flows and shares the tool schema/config machinery
 - **`brand-vocab-check`** (`core/tools`) — deterministic and offline. It scans
   source text for forbidden, competitor, and preferred-term violations and
   regex pattern hits, emitting findings with positions. It optionally takes a
-  termbase to filter by brand vocabulary. It is an `Annotate` tool (read-only;
+  terms store to filter by brand vocabulary. It is an `Annotate` tool (read-only;
   writes the annotation, not the content). This is the fast first pass.
 - **`brand-voice-check`** (`core/ai/tools`) — LLM-backed. It asks an AI provider
   ([AD-011](011-ai-providers.md)) to score the subjective dimensions (tone,
@@ -126,8 +126,8 @@ defer profile selection to runtime.
 resolved from one of three mutually exclusive sources:
 
 - `--profile <name>` — a profile in the local SQLite brand store (opened with
-  the standard `--name`/`--local`/`--file` resource flags, mirroring termbase
-  and TM);
+  the standard `--name`/`--local`/`--file` resource flags, mirroring the terms
+  store and the content memory);
 - `--profile-file <path>` — a standalone, git-shareable profile YAML;
 - `--pack <name>` — a built-in starter pack.
 
@@ -213,7 +213,7 @@ server ([AD-013](013-kapi-cli.md)) so non-CLI agents get parity:
 - `brand_rewrite` — substitute forbidden/competitor terms (deterministic).
 
 These are hand-authored because each wraps a *resource* — a brand profile, a
-termbase, or a TM file — rather than a single processing tool. The same file
+terms store, or a content-memory file — rather than a single processing tool. The same file
 also exposes `term_lookup` and `tm_search` so an agent can enforce terminology
 and reuse prior translations alongside the brand checks.
 

@@ -23,18 +23,18 @@ than the binary.
 
 ## Context
 
-Localization content is not only text. DOCX documents contain embedded
+Content is not only text. DOCX documents contain embedded
 images with captions that need translation; screenshots contain UI text
 that needs OCR; voiceover audio carries dialog that needs re-recording
 per locale; design exports carry alt text, chart labels, and
-culturally-specific imagery. A localization platform that cannot track,
-localize, and round-trip binary assets silently drops them.
+culturally-specific imagery. A content platform that cannot track,
+adapt, and round-trip binary assets silently drops them.
 
 Three concerns need addressing together:
 
 1. **Sync gap.** Embedded binaries should flow from client to server and
    back without being dropped on the floor.
-2. **Localization gap.** Logical assets have locale-specific variants
+2. **Locale gap.** Logical assets have locale-specific variants
    (translated screenshots, dubbed audio, regionalized imagery).
 3. **Processing gap.** Some binary assets (screenshots with text, charts
    with embedded labels) require processing the CLI cannot perform
@@ -282,7 +282,7 @@ CREATE TABLE asset_variants (
 ```
 
 Block-asset dependencies enable the "text changed → flag asset for
-re-localization" pattern:
+re-adaptation" pattern:
 
 ```sql
 CREATE TABLE block_asset_refs (
@@ -374,7 +374,7 @@ Pull algorithm extension:
 5.5 For each asset variant (status=approved):
       a. GET /assets/:id → includes SAS download URL per locale
       b. Download locale-specific binary from blob storage
-      c. Embed in localized output file (DOCX writer replaces image by source_id)
+      c. Embed in the target output file (DOCX writer replaces image by source_id)
 ```
 
 Sync cache tracks per-file asset hashes alongside block hashes so
@@ -382,7 +382,7 @@ unchanged binaries are skipped on subsequent syncs.
 
 ### Server-Side Processing
 
-When the CLI cannot extract localizable content from an asset (text in
+When the CLI cannot extract text from an asset (text in
 a screenshot, embedded chart labels), it pushes the raw binary tagged
 with a `processing_hint`:
 
@@ -483,4 +483,4 @@ limits.
 - [AD-004: Content Store and Versioning](004-content-store.md)
 - [AD-008: Connector System](008-connector-system.md)
 - [AD-009: Sync Protocol](009-sync-protocol.md)
-- [AD-framework-002: Content Model](https://neokapi.github.io/web/neokapi/contribute/architecture/002-content-model)
+- [AD-framework-002: Content Model](https://neokapi.github.io/contribute/architecture/002-content-model)

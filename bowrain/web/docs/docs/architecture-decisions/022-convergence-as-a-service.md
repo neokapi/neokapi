@@ -9,11 +9,11 @@ title: "AD-022: Convergence as a Service"
 ## Summary
 
 Convergence — the loop that reconciles a project's translations toward its ship
-gates ([AD-framework-033: Project State Model](https://neokapi.github.io/web/neokapi/contribute/architecture/033-project-state-model)) —
+gates ([AD-framework-033: Project State Model](https://neokapi.github.io/contribute/architecture/033-project-state-model)) —
 is a single verb, `kapi up`, that runs in one of two **venues**: the developer's
 machine or the Bowrain server. The server venue is *convergence as a service*:
 `kapi up` on a connected project dispatches the whole loop to bowrain-server,
-which converges on the organization's AI keys, its shared TM and terminology, and
+which converges on the organization's AI keys, its shared content memory and terminology, and
 its gate policy, records the run as a first-class **run** entity, streams progress
 back to the caller, and routes whatever parks into the team's review and
 assignment queue.
@@ -35,7 +35,7 @@ every language.
 
 Two things were true before this decision, and they conflicted:
 
-1. `kapi up` was a purely local loop. It re-extracted drift, recycled from TM,
+1. `kapi up` was a purely local loop. It re-extracted drift, recycled from content memory,
    called AI providers with the developer's keys, ran checks, and parked the
    remainder — all on the laptop, silent until done.
 2. The server already translated content, but through a *different* machine:
@@ -76,9 +76,9 @@ A run has two phases with a gate between them, not one fan-out. The **first
 pass settles the source** over the source locale only — source checks, source
 QA, and marking do-not-translate/protected terms so translation can never alter
 them — and stamps each unit's source status up the authoring ladder (*authored →
-checked → approved*, [AD-framework-033](https://neokapi.github.io/web/neokapi/contribute/architecture/033-project-state-model)).
+checked → approved*, [AD-framework-033](https://neokapi.github.io/contribute/architecture/033-project-state-model)).
 Only then does the produce step translate, and it translates only the *approved*
-source, TM-first (recycle before paid AI), so the run's `TM N · AI M` split is
+source, memory-first (recycle before paid AI), so the run's `content memory N · AI M` split is
 truthful.
 
 The gate between the phases is the project's **`source_gate`**
@@ -119,7 +119,7 @@ and PostgreSQL like the rest of the store. It exposes:
 - a provider-free **estimate** (`GET /projects/:id/convergence/estimate`) that a
   *Run now* consent flow reads before spending anything: it reports source
   readiness first (ready vs. held blocks against the gate), then the per-locale
-  `TM N · AI M` split and the credit/cost estimate for the ready source only.
+  `content memory N · AI M` split and the credit/cost estimate for the ready source only.
 
 One event protocol runs end to end: engine → in-process CLI renderer (local
 venue), and engine → SSE → the `kapi-bowrain` plugin → the same CLI renderer
@@ -199,7 +199,7 @@ new plugin transport is needed beyond the established subprocess dispatch
 
 ## Related
 
-- [AD-framework-033: Project State Model](https://neokapi.github.io/web/neokapi/contribute/architecture/033-project-state-model) — the derived state, ladders, gates, and parking the loop reconciles toward
+- [AD-framework-033: Project State Model](https://neokapi.github.io/contribute/architecture/033-project-state-model) — the derived state, ladders, gates, and parking the loop reconciles toward
 - [AD-010: Bowrain CLI and Project Model](010-bowrain-cli-and-project-model.md) — transport vs convergence vs venue; the `server.converge` policy; plugin dispatch
 - [AD-009: Sync Protocol](009-sync-protocol.md) — the wire contract that `push`/`pull` use for transport
 - [AD-013: Automation Engine](013-automation-engine.md) — the rule/run/SSE machinery the convergence run builds on

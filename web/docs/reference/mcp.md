@@ -2,7 +2,7 @@
 sidebar_position: 5
 title: MCP Server
 description: kapi exposes its format-aware content engine as an MCP server so AI tools — Claude, Cursor, GitHub Copilot, and other MCP-compatible agents — can parse files, count words, translate, check brand voice, and look up terminology. It is the content layer your AI assistant drives.
-keywords: [MCP, Model Context Protocol, kapi mcp, AI tools, Claude, Cursor, brand voice, localization agent]
+keywords: [MCP, Model Context Protocol, kapi mcp, AI tools, Claude, Cursor, brand voice, translation agent]
 ---
 
 # MCP server
@@ -133,7 +133,7 @@ Once connected, your AI assistant can call these tools:
 | `apply_edits`      | Apply a typed change-set (content + asset edits) — the write leg, no provider |
 | `stats`            | Content metrics per file and in total — blocks, words, characters, segments, by-role |
 | `run_flow`         | Run a processing flow (pseudo-translate, QA check, etc.)         |
-| `pseudo_translate` | Pseudo-translate a file for localization QA                      |
+| `pseudo_translate` | Pseudo-translate a file to test translation readiness             |
 | `list_flows`       | List available processing flows                                  |
 | `list_tools`       | List available processing tools                                  |
 | `brand_guide`      | Render a brand voice guide from a starter pack or profile YAML   |
@@ -141,8 +141,8 @@ Once connected, your AI assistant can call these tools:
 | `brand_rewrite`    | Rewrite text to fix forbidden/competitor terms                   |
 | `check_file`       | Verify a file's content against the checkset; returns a `kapi.check/v1` Report with per-block locations |
 | `check_text`       | Verify a text snippet against the content checkset; returns a `kapi.check/v1` Report |
-| `term_lookup`      | Look up a term in a local termbase                               |
-| `tm_search`        | Search a local translation memory                                |
+| `term_lookup`      | Look up a term in a local terms store                            |
+| `tm_search`        | Search a local content memory                                    |
 
 ## Example Conversations
 

@@ -2,7 +2,7 @@
 id: 024-agent-skills
 sidebar_position: 24
 title: "AD-024: Agent Skills"
-description: "Architecture decision: kapi ships an Agent Skill (a SKILL.md router with progressive-disclosure reference files) whose source lives in the monorepo, in lockstep with the CLI surface, and is distributed to AI coding assistants as a Claude Code plugin through the neokapi-plugins marketplace — teaching the assistant to drive the kapi CLI for editing, brand, terminology, and localization."
+description: "Architecture decision: kapi ships an Agent Skill (a SKILL.md router with progressive-disclosure reference files) whose source lives in the monorepo, in lockstep with the CLI surface, and is distributed to AI coding assistants as a Claude Code plugin through the neokapi-plugins marketplace — teaching the assistant to drive the kapi CLI for editing, brand, terminology, and translation."
 keywords: [agent skills, SKILL.md, Claude, .claude/skills, progressive disclosure, AI assistant, CLI, architecture decision, neokapi]
 ---
 
@@ -165,7 +165,7 @@ separate lifecycle mechanism that is validated but not executed (#1255); see
 ### kapi-* and bowrain-* skills
 
 The skill set is split by which surface a skill drives. **kapi-\*** skills drive
-the local, offline `kapi` CLI — brand checks, terminology, localization,
+the local, offline `kapi` CLI — brand checks, terminology, translation,
 internationalization, and the format-aware toolbox. **bowrain-\*** skills drive
 the governed Bowrain platform (project sync, automation). The framework module
 owns and embeds the kapi side; a bowrain skill is contributed by the bowrain
@@ -173,11 +173,12 @@ plugin, so the platform's how-tos ship with the platform rather than with the
 open framework.
 
 In the framework today the embedded set is a single `kapi` skill whose router
-covers editing, creating, brand, terminology, localization, i18n, the toolbox,
-and a project model, with one reference file per concern — edit (the read → edit →
-write → verify loop), create (the author → parse → check loop), brand, localize
-(translation and terminology), i18n, project, and the toolbox. Terminology folds
-into the brand and localize references rather than a standalone file. The i18n
+covers editing, creating, brand, terminology, translation, i18n, the toolbox,
+and a project model, with one reference file per concern — `edit.md` (the read →
+edit → write → verify loop), `create.md` (the author → parse → check loop),
+`brand.md`, `translate.md` (translation and terminology), `i18n.md`,
+`project.md`, `starter-pack.md`, and `toolbox.md`. Terminology folds into the
+brand and translate references rather than a standalone file. The i18n
 concern is itself a small tree: `references/i18n.md` routes by detected stack
 into per-ecosystem playbooks under `references/i18n/`, driven by a
 machine-readable framework registry (`references/i18n/frameworks.yaml`) that
@@ -219,8 +220,8 @@ through a single command, `kapi apply` (the write sibling of `kapi inspect`):
 | `kind` | What it edits | How it lands |
 |---|---|---|
 | `content` | a block's text in a named `file` | byte-faithful format round-trip, drift- and inline-code guarded |
-| `term` | a glossary term | committed `.ktb` source → termbase import → `.kapi/termbase.db` |
-| `tm` | a translation-memory pair | committed `.kmb` source → TM import → `.kapi/tm.db` |
+| `term` | a term | committed `.ktb` source → terms import → the terms store (`.kapi/termbase.db`) |
+| `tm` | a content-memory pair | committed `.kmb` source → memory import → the memory (`.kapi/tm.db`) |
 | `brand` | a brand vocabulary rule | committed brand profile YAML → brand-store import ([AD-022](022-brand-voice.md)) |
 | `recipe` | an allowlisted recipe field | the `kapi.yaml` recipe, via project load/save |
 
@@ -268,7 +269,7 @@ are resolved declaratively, without loading a plugin.
 The skills drive kapi through its **CLI**, not the MCP server. The CLI is the
 richer surface (it has the LLM-backed brand check, the credential store, the
 project resolution, the full toolbox), and an AI coding assistant already runs
-shell commands. The MCP brand/terminology/TM tools ([AD-022](022-brand-voice.md),
+shell commands. The MCP brand / terminology / content-memory tools ([AD-022](022-brand-voice.md),
 [AD-013](013-kapi-cli.md)) exist for parity with non-CLI agents (Cursor,
 generic MCP clients); the bundled skills themselves use the CLI.
 

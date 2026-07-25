@@ -69,7 +69,7 @@ built-in templates cannot be deleted, but custom ones can.
 A template is assembled from individual permissions grouped by area:
 
 - **Content** — view content, edit source, translate, review.
-- **Knowledge** — manage terminology, translation memory, brand voice, and assets.
+- **Knowledge** — manage terminology, content memory, brand voice, and assets.
 - **Operations** — run flows, manage files, manage streams, manage connectors, manage automation.
 - **Administration** — manage members, manage project.
 

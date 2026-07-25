@@ -66,7 +66,7 @@ export default function FormatReferencePage({ id }: Props) {
           <h2 className={styles.sectionHeading}>How kapi reads it</h2>
           <BlockPreview
             sample={sample}
-            caption={`How kapi parses a representative ${entry.displayName} file into translatable blocks.`}
+            caption={`How kapi parses a representative ${entry.displayName} file into blocks.`}
           />
         </section>
       )}

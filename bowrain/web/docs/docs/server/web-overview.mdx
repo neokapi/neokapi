@@ -7,7 +7,7 @@ import { ThemedImage, ThemedVideo } from "@neokapi/docs-shared";
 
 # Overview
 
-Bowrain is a governed, multi-user content platform served from one place — the Bowrain server. Everyone reaches the same workspace through two clients: a **browser** and a native **[desktop app](/server/desktop-app)**. They are equal real-time clients, so the editing experience, terminology, translation memory, presence, and reviews are shared across both. Writers and reviewers work here entirely; developers meet the same workspace through [the same server runs](/the-loop) — what a run parks arrives in the review queue, and what gets approved here feeds the next run. This section describes what the platform does, organized by what you do with it; client-specific differences are noted inline, and the [desktop app](/server/desktop-app) page covers what is different about the native client (offline editing).
+Bowrain is a governed, multi-user content platform served from one place — the Bowrain server. Everyone reaches the same workspace through two clients: a **browser** and a native **[desktop app](/server/desktop-app)**. They are equal real-time clients, so the editing experience, terminology, content memory, presence, and reviews are shared across both. Writers and reviewers work here entirely; developers meet the same workspace through [the same server runs](/the-loop) — what a run parks arrives in the review queue, and what gets approved here feeds the next run. This section describes what the platform does, organized by what you do with it; client-specific differences are noted inline, and the [desktop app](/server/desktop-app) page covers what is different about the native client (offline editing).
 
 ## A quick tour
 
@@ -15,7 +15,7 @@ The editor works on content from any [connector](/server/connectors) — a conte
 
 ### The translation editor
 
-Open a file and it becomes a side-by-side workbench: source and target, a live preview of the page, and — beside each block — the matches from the workspace translation memory and the approved terminology. One editor serves every target locale.
+Open a file and it becomes a side-by-side workbench: source and target, a live preview of the page, and — beside each block — the matches from the workspace content memory and the approved terminology. One editor serves every target locale.
 
 <ThemedVideo
   sources={{
@@ -27,7 +27,7 @@ Open a file and it becomes a side-by-side workbench: source and target, a live p
 
 ### Shared terminology and memory
 
-Terminology and a translation memory are often per-person files or spreadsheets. Bowrain keeps them on the server, shared across every project and every translator in the workspace — one governed source of the team's approved wording, searchable and versioned.
+Terminology and a content memory are often per-person files or spreadsheets. Bowrain keeps them on the server, shared across every project and every translator in the workspace — one governed source of the team's approved wording, searchable and versioned.
 
 <ThemedVideo
   sources={{
@@ -87,7 +87,7 @@ Bowrain authenticates through your identity provider. Depending on configuration
 
 ### Workspace Selector
 
-The workspace rail on the left lets you switch between workspaces. Each workspace is an isolated environment with its own projects, translation memory, and terminology.
+The workspace rail on the left lets you switch between workspaces. Each workspace is an isolated environment with its own projects, content memory, and terminology.
 
 <ThemedImage
   alt="Workspace rail with multiple workspaces"
@@ -123,7 +123,7 @@ The project view shows files in the selected project with format detection, word
 
 ### Content memory
 
-The [content memory](/server/translation-memory) browser provides full access to the workspace translation memory (TM). Browse, search, add, edit, and delete entries. Filter by source or target locale.
+The [content memory](/server/translation-memory) browser provides full access to the workspace content memory. Browse, search, add, edit, and delete entries. Filter by source or target locale.
 
 <ThemedImage
   alt="Content memory browser with search and filtering"
@@ -135,7 +135,7 @@ The [content memory](/server/translation-memory) browser provides full access to
 
 ### Terminology Explorer
 
-The terminology panel provides concept-oriented term management. Browse, search, add, edit, and delete concepts with multi-locale terms. Import from CSV or JSON, export the full termbase. Each term has a lifecycle status and domain classification.
+The terminology panel provides concept-oriented term management. Browse, search, add, edit, and delete concepts with multi-locale terms. Import from CSV or JSON, export the full terms store. Each term has a lifecycle status and domain classification.
 
 <ThemedImage
   alt="Terminology explorer with concept browser"
@@ -160,9 +160,9 @@ View workspace information including name, slug, description, and your role.
 ## Features
 
 - **Translation editor** with Visual and Table views, inline tag support, block status tracking, and keyboard navigation
-- **Context panel** with per-block TM matches and terminology suggestions, one-click apply
-- **Terminology management** with concept-oriented termbases, multi-locale terms, lifecycle statuses, CSV/JSON import/export
-- **Content memory** (TM) with content-aware tiered matching (generalized, structural, plain), fuzzy matching, and a browsable explorer
+- **Context panel** with per-block memory matches and terminology suggestions, one-click apply
+- **Terminology management** — concept-oriented, with multi-locale terms, lifecycle statuses, and CSV/JSON import/export
+- **Content memory** with content-aware tiered matching (generalized, structural, plain), fuzzy matching, and a browsable explorer
 - **AI translation** using configurable providers (Anthropic, OpenAI, Ollama)
 - **Machine translation** via DeepL, Google, Microsoft, ModernMT, or MyMemory
 - **Pseudo-translation** for layout testing and QA

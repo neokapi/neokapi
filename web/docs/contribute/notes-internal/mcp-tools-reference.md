@@ -171,7 +171,7 @@ Execute a processing flow on a file. The flow name is any built-in flow from `li
 
 ### `pseudo_translate`
 
-Shorthand for `run_flow` with `flow_name: "pseudo-translate"`. Pseudo-translates a file for localization QA testing.
+Shorthand for `run_flow` with `flow_name: "pseudo-translate"`. Pseudo-translates a file so QA can test it before real translations exist.
 
 **Input:**
 | Parameter | Type | Required | Description |
@@ -225,13 +225,13 @@ see the generated [Tool Reference](/reference/tools/translate)):
 }
 ```
 
-## Brand, terminology, and TM tools
+## Brand, terminology, and content-memory tools
 
-The shared CLI base (`cli/mcp_brand.go`) registers a further set of offline
-tools on the same `mcp` stdio server via `RegisterMCPToolFactory`, so any
-binary built on the CLI base (including kapi) exposes them, so non-Claude MCP
-clients get local parity with the brand tools. All run offline against local
-files and SQLite stores.
+The host runtime (`host/mcp_brand.go`) registers a further set of offline tools
+on the same `mcp` stdio server via `RegisterMCPToolFactory`, so any binary built
+on the shared base (including kapi) exposes them, and non-Claude MCP clients get
+local parity with the brand tools. All run offline against local files and
+SQLite stores.
 
 ### `brand_guide`
 
@@ -287,7 +287,7 @@ forbidden/competitor terms (deterministic, offline).
 
 ### `term_lookup`
 
-Look up a term in a local termbase to enforce consistent terminology.
+Look up a term in a local terms store to enforce consistent terminology.
 
 **Input:**
 | Parameter | Type | Required | Description |
@@ -295,7 +295,7 @@ Look up a term in a local termbase to enforce consistent terminology.
 | `term` | string | yes | The term to look up |
 | `source_lang` | string | no | Source locale (e.g. `en`) |
 | `target_lang` | string | no | Target locale (e.g. `fr`) |
-| `termbase` | string | no | Path to the termbase db (default: `termbase.db`) |
+| `termbase` | string | no | Path to the terms store db (default: `termbase.db`) |
 
 **Output:**
 | Field | Type | Description |
@@ -305,7 +305,7 @@ Look up a term in a local termbase to enforce consistent terminology.
 
 ### `tm_search`
 
-Search a local translation memory for prior translations of source text.
+Search a local content memory for prior translations of source text.
 
 **Input:**
 | Parameter | Type | Required | Description |
@@ -314,7 +314,7 @@ Search a local translation memory for prior translations of source text.
 | `source_lang` | string | yes | Source locale (e.g. `en`) |
 | `target_lang` | string | yes | Target locale (e.g. `fr`) |
 | `min_score` | number | no | Minimum match score 0–1 (default: `0.7`) |
-| `tm` | string | no | Path to the TM db (default: `tm.db`) |
+| `tm` | string | no | Path to the content memory db (default: `tm.db`) |
 
 **Output:**
 | Field | Type | Description |
@@ -329,7 +329,7 @@ Search a local translation memory for prior translations of source text.
 | File                              | Purpose                              |
 | --------------------------------- | ------------------------------------ |
 | `cli/mcp.go`                      | Shared `mcp` subcommand + server bootstrap (`NewMCPCmd`) |
-| `cli/mcp_brand.go`                | Shared brand/terminology/TM MCP tools registered via `RegisterMCPToolFactory` (`brand_guide`, `brand_check`, `brand_rewrite`, `term_lookup`, `tm_search`) + their input/output types |
+| `host/mcp_brand.go`               | Shared brand, terminology, and content-memory MCP tools registered via `RegisterMCPToolFactory` (`brand_guide`, `brand_check`, `brand_rewrite`, `term_lookup`, `tm_search`) + their input/output types |
 | `kapi/cmd/kapi/root.go`           | Wires the kapi root command, including `mcp`   |
 | `kapi/cmd/kapi/mcp_tools.go`      | kapi MCP tool handlers + input/output types (`list_formats`, `detect_format`, `extract_content`, `run_flow`, `list_flows`, `list_tools`, `pseudo_translate`) |
 | `kapi/cmd/kapi/mcp_tools_test.go` | Unit tests for kapi MCP handlers     |

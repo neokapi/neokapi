@@ -3,7 +3,7 @@ id: resumable-workspace
 title: "Pause & resume a big run"
 sidebar_label: "Workspace (.kpz)"
 sidebar_position: 6
-description: "A .kpz is a single-file, serverless localization workspace: extract sources into it, run tools on it in place, and merge the finished files out. Config travels with the file."
+description: "A .kpz is a single-file, serverless workspace: extract sources into it, run tools on it in place, and merge the finished files out. Config travels with the file."
 keywords: [kpz, workspace, extract, merge, transform, recipe, overlays, handoff]
 ---
 
@@ -19,7 +19,7 @@ import { WorkspaceExplorer } from "@site/src/components/Lab/WorkspaceExplorer";
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
-The `.kpz` workspace lifecycle is a CLI capability today — Kapi Desktop does not drive a parcel directly. Where Desktop meets it: a project you work on visually can be snapshotted from the CLI (`kapi pack`) for a colleague, and the localized files a `merge` emits open and preview in Desktop like any others. For pausing and resuming *project* work visually, the project store already persists between sessions — just reopen the project.
+The `.kpz` workspace lifecycle is a CLI capability today — Kapi Desktop does not drive a parcel directly. Where Desktop meets it: a project you work on visually can be snapshotted from the CLI (`kapi pack`) for a colleague, and the translated files a `merge` emits open and preview in Desktop like any others. For pausing and resuming *project* work visually, the project store already persists between sessions — just reopen the project.
 
 </TabItem>
 <TabItem value="agent" label="Agent (Claude)">

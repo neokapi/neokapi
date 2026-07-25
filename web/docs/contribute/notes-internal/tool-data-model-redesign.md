@@ -25,10 +25,10 @@ Read this note for the *why*; read the ADs for the authoritative *what*.
 ## The data that flows between tools
 
 A Block's content is its `Source []Run` and its variant-keyed `Targets`. The
-data that actually flows *between* tools in a localization pipeline is not the
-coarse Part type — almost every interesting tool operates on Blocks — it is the
-set of typed **interpretations** riding on each Block: its segmentation, term
-and entity spans, QA findings, alt-translations, TM-match scores, and the target
+data that actually flows *between* tools in the pipeline is not the coarse Part
+type — almost every interesting tool operates on Blocks — it is the set of typed
+**interpretations** riding on each Block: its segmentation, term and entity
+spans, QA findings, alt-translations, memory-match scores, and the target
 content itself. The model is shaped around making those interpretations
 first-class, typed, and declarable, because that is what lets the flow validator
 and the flow editor reason about a pipeline at all.
@@ -91,7 +91,7 @@ actually writes, and lets the IO contract (below) name a single source of truth
 for each datum.
 
 A committed `Target` stays its own first-class carrier: it is the *chosen*
-output, not an interpretation of content. Candidate proposals (TM/MT/AI) remain
+output, not an interpretation of content. Candidate proposals (memory/MT/AI) remain
 `alt-translation` annotations until one is committed as the Target.
 
 ## A typed IO contract over `IOPort`s

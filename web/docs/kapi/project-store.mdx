@@ -18,7 +18,7 @@ This page is about the third one. The guiding rule:
 
 > **Files are the source of truth. The store's caches are rebuildable. Your
 > authored decisions live in the committed state store — never only in a cache,
-> never in the translation memory.**
+> never in the content memory.**
 
 ## What's in the store
 
@@ -70,10 +70,10 @@ it **pushes** its state to a remote (`kapi push`) and **pulls** it back
 
 ## What the store is *not*
 
-- It is **not** the translation memory. The `.kmb` (`defaults.tm_source`) is a
+- It is **not** the content memory. The `.kmb` (`defaults.tm_source`) is a
   **recycle** corpus — `kapi apply` with `kind:"tm"` adds leverage for future
   translation; it does **not** record a review decision. Review state lives in the
-  state store. See [TM & termbase storage](/kapi/recipes/tm-termbase-storage).
+  state store. See [Memory & terms storage](/kapi/recipes/memory-and-terms-storage).
 - It is **not** authoritative for your translations — the **files** are. The store
   caches and stages; the deliverable is the source of truth.
 

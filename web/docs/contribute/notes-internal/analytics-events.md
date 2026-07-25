@@ -85,8 +85,9 @@ pieces make that answerable:
   enough; `estimated_credits_bucket` says *how much was asked for*, so the
   distribution of first-project demand can be read against a candidate grant
   size. `ai_units_bucket` and `tm_leverage_pct_bucket` explain the shape of
-  that demand — a corpus that recycles well costs nothing to converge, and TM
-  leverage is the strongest lever on how far a fixed grant stretches.
+  that demand — a corpus that recycles well costs nothing to converge, and
+  content-memory leverage is the strongest lever on how far a fixed grant
+  stretches.
 - **The cold-start cohort.** `first_run` is true when no convergence run
   precedes this one anywhere in the workspace — the workspace's very first
   project run. It is derived from a bounded existence probe over the
@@ -187,14 +188,14 @@ workspace group.
 | `connector_added` | the add-connector dialog's create call succeeds | `connector_type` (`wordpress` / `figma` / `hubspot`) |
 | `connector_publish_clicked` | the publish confirmation is confirmed (before the server round-trip; the server's `connector_published` reports the outcome) | `connector_category` |
 | `review_decision_clicked` | a per-block Approve/Reject (translate editor or review surface) or the bulk mark-reviewed action — client complement of the server's `review_approved` / `review_rejected` | `decision` (`approve` / `reject` / `clear`), `locale`, `bulk` (bulk action only) |
-| `translation_saved` | a block target save persists (editor save or TM-match apply) | `locale`, `method` (`editor` / `tm`) |
+| `translation_saved` | a block target save persists (editor save or memory-match apply) | `locale`, `method` (`editor` / `tm`) |
 | `settings_saved` | a workspace settings section persists a change (general/pulse visibility, governance SoD mode, role overrides) | `section` (`general` / `governance`) |
 | `member_invite_sent` | an invite is created in the members settings | `role` |
 | `locale_added` | a language is added in the workspace language settings | `locale` |
 | `brand_voice_saved` | a brand-voice profile create/update persists | `mode` (`created` / `updated`) |
 | `glossary_saved` | a concept term status change persists in the Brand · Concepts edit dialog | `status`, `locale` |
 | `locale_demand_connect_clicked` | the "Connect PostHog" / "Fix connection" affordance is clicked on the locale-demand page (AD-018 demand path) | `reconnect` |
-| `convergence_estimate_viewed` | the run-now consent dialog opens and the source-readiness-first pre-flight estimate is shown, before any run starts (epic 019) — the web-only impression complement of the server's `convergence_estimate_computed` | `source_held` (bool — any source blocks held on the gate), `covers_all_ai` (bool — balance covers the AI remainder), `estimated_credits_bucket` (credit bucket — what the AI remainder would cost), `ai_units_bucket` (count bucket — units left for paid AI after TM), `tm_leverage_pct_bucket` (percent band — TM's share of the pending work). The three buckets size the new-workspace grant — see [Sizing the new-workspace grant](#sizing-the-new-workspace-grant) |
+| `convergence_estimate_viewed` | the run-now consent dialog opens and the source-readiness-first pre-flight estimate is shown, before any run starts (epic 019) — the web-only impression complement of the server's `convergence_estimate_computed` | `source_held` (bool — any source blocks held on the gate), `covers_all_ai` (bool — balance covers the AI remainder), `estimated_credits_bucket` (credit bucket — what the AI remainder would cost), `ai_units_bucket` (count bucket — units left for paid AI after content-memory reuse), `tm_leverage_pct_bucket` (percent band — the content memory's share of the pending work). The three buckets size the new-workspace grant — see [Sizing the new-workspace grant](#sizing-the-new-workspace-grant) |
 | `convergence_run_started` | a convergence run is started from the run-now consent dialog after the user picks a scope and confirms (epic 019) — the web/client complement of the server's same-named event, distinguished by `surface` | `scope` (`all` / `ready-only` / `none`), `source_held` (bool) |
 | `github_setup_installation_missing` | the GitHub App setup page (`/github/setup`) loads from a GitHub redirect (`setup_action` present) but without an `installation_id` — the post-install/update handoff lost the id and the user sees the recovery card instead of the repo list | `setup_action` (`install` / `update`) |
 

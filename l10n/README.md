@@ -1,33 +1,33 @@
-# Dogfood localization seeds
+# Dogfood translation seeds
 
-This directory holds the committed inputs for localizing neokapi's own
+This directory holds the committed inputs for translating neokapi's own
 surfaces with kapi (the root `kapi.yaml` recipe). The `.kapi/` state
 directory is gitignored and rebuilt from these seeds with `make l10n-seed`.
 
 Seeds are committed in the **native Kapi-family forms** — deterministic,
 lossless JSON that preserves entry identity, so a wipe-and-reseed
-reproduces the content memory/termbase state exactly (see `sievepen/kmb` and
-`termbase/ktb`). TMX/CSV/TBX are the lossy interchange tier; emit
+reproduces the content memory and terms state exactly (see `memory/kmb` and
+`terms/ktb`). TMX/CSV/TBX are the lossy interchange tier; emit
 disposable review views with `make l10n-review-export` (→ `l10n/review/`,
 gitignored).
 
 - `brand-voice.yaml` — the machine-readable encoding of
   [docs/internals/brand-communication.md](../docs/internals/brand-communication.md),
   bound project-wide via `defaults.brand_voice`. Keep the two in sync.
-- `termbase.ktb` — terminology decisions per target locale (currently
+- `terms.ktb` — terminology decisions per target locale (currently
   Norwegian Bokmål, `nb`): concept per decision with `en` + `nb` terms,
   domain, definition/usage note, and status. Imported into
   `.kapi/termbase.db`.
 - `tm/<surface>-<lang>.kmb` — reviewed translations, one file per
   surface and locale (e.g. `builtins-nb.kmb`). Imported into
-  `.kapi/tm.db`; every localized output is produced from the content memory by
-  `recycle`, so generated catalogs only ever contain reviewed strings.
+  `.kapi/tm.db`; every target-locale output is produced from the content memory
+  by `recycle`, so generated catalogs only ever contain reviewed strings.
   The docs sites have one seed each: `docs-nb.kmb` for the kapi site
   (surface `docs`: `web/docs/**` → `web/i18n/nb/...`, `make l10n-docs`)
   and `bowrain-docs-nb.kmb` for the bowrain site (surface
   `docs-bowrain`: `bowrain/web/docs/docs/**` →
   `bowrain/web/docs/i18n/nb/...`, `make l10n-bowrain-docs`); the
-  terms is shared. The bowrain UIs have one seed per surface —
+  terms store is shared. The bowrain UIs have one seed per surface —
   `bowrain-app-nb.kmb` (surface `bowrain-app-ui`: the shared SPA in
   `bowrain/packages/{app,ui}` + web/desktop shells,
   `make l10n-bowrain-app`), `bowrain-ctrl-nb.kmb` and
@@ -50,13 +50,13 @@ Workflow for a new or changed surface string:
    voice profile and terms are bound project-wide) and merge the pair
    into the surface's seed: import the seed plus the new pairs (any
    supported form, e.g. a small TMX) into a scratch content memory, then
-   `kapi tm export -o l10n/tm/<surface>-<lang>.kmb`. Small wording fixes
+   `kapi memory export -o l10n/tm/<surface>-<lang>.kmb`. Small wording fixes
    can also be edited directly in the `.kmb` JSON — it is the source of
    truth.
 2. `make l10n-seed` to rebuild the content memory, then the surface target
    (e.g. `make l10n-builtins`, or `make l10n` for everything).
-3. `make l10n-builtins-check` runs the terminology gate (`kapi term-check`)
-   over the result.
+3. `make l10n-builtins-check` runs the terminology gate
+   (`kapi exec term-check`) over the result.
 
 Review happens in the seeds — they are the human-owned artifact. For a
 reviewer-friendly view, `make l10n-review-export` writes TMX/CSV renderings
@@ -84,7 +84,7 @@ surface, where `{count}` is just characters) is it literal text. Storing a
 lifted parameter as literal text produces exactly the asymmetry the next
 paragraph forbids.
 
-`kapi tm import` warns about entries whose variants disagree
+`kapi memory import` warns about entries whose variants disagree
 on their token sets — literal `{=mN}` markup **or** inline-code runs; a clean
 import (no warnings, `make l10n-seed`) is the gate. Where a plain-text
 surface legitimately shares the words with a token-bearing UI string, keep a
@@ -102,15 +102,16 @@ change, or new markup in the JSX), the seed entry stops matching structurally
 and the string falls back to English until the entry is re-anchored to the
 new source runs — visible as a coverage drop, never as a corrupted string.
 
-Why an asymmetric entry is *dangerous* rather than merely useless: TM leverage
-has a plain tier that keys on the **flattened** source, and inline codes
-contribute no characters to that flattening. So a code-free entry is a
+Why an asymmetric entry is *dangerous* rather than merely useless:
+content-memory leverage has a plain tier that keys on the **flattened** source,
+and inline codes contribute no characters to that flattening. So a code-free
+entry is a
 near-exact match for a code-bearing source — `[ph{documentedCount}]["
 documented formats"]` flattens to `" documented formats"` and matches a plain
 `"documented formats"` entry at ~100% — and filling it wrote a target with the
 placeholder simply gone. Nothing downstream objected: target-language drift
 never fails the build, so the corrupted string shipped and only the coverage
-number moved. Three layers now stop it — `kapi tm import` warns on the
+number moved. Three layers now stop it — `kapi memory import` warns on the
 asymmetric entry, `recycle` refuses the fill, and `placeholder-check` reports a
 critical finding if one ever reaches a target — all keyed off the one
 predicate, `model.DiffRunCodes`.
@@ -133,12 +134,12 @@ never a parallel gettext workflow (no committed `po/` tree, no msgmerge).
 
 ## What is committed where (and why)
 
-Localization artifacts in git fall into three tiers; everything else is
+Translation artifacts in git fall into three tiers; everything else is
 gitignored ephemera (`.kapi/` state, extraction batches, `i18n-*/`
 intermediates, `l10n/review/`).
 
 1. **Source — human-owned.** The seeds here (`tm/*.kmb`,
-   `termbase.ktb`, `brand-voice.yaml`), the Docusaurus theme JSONs under
+   `terms.ktb`, `brand-voice.yaml`), the Docusaurus theme JSONs under
    `web/i18n/<locale>/`, and the English harness narration in
    `harness/demos/*/demo.yaml`. Tooling may have written the first
    draft, but humans own the content; nothing regenerates them.

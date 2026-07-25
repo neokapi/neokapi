@@ -2,7 +2,7 @@
 sidebar_position: 1
 title: Introduction
 slug: /react/introduction
-description: neokapi-i18n is a zero-toil i18n library for React — no key strings, no wrapping calls. The Vite plugin extracts translatable JSX at build time; kapi translates the KBF archive with AI, MT, or TM.
+description: neokapi-i18n is a zero-toil i18n library for React — no key strings, no wrapping calls. The Vite plugin extracts translatable JSX at build time; kapi translates the KBF archive with AI, MT, or content memory.
 keywords: [neokapi-i18n, React i18n, internationalization, Vite plugin, JSX extraction, KBF, zero-toil]
 ---
 
@@ -12,7 +12,7 @@ Zero-toil internationalisation for React.
 
 ## The problem with traditional i18n
 
-Localising a React app usually means wrapping every user-visible string in a translation call:
+Translating a React app usually means wrapping every user-visible string in a translation call:
 
 ```tsx
 // The traditional way — call-based (a translation function wraps every string)
@@ -72,13 +72,13 @@ The source text is the identifier. When the copy changes, you change the JSX —
 
 - **Automatic JSX extraction** with W3C HTML5 translatability rules — headings, paragraphs, buttons, labels, options, `<span>`, `<strong>`, `<em>`, links, ARIA-backed attributes.
 - **Smart defaults for idiomatic React** — `<div>Label</div>`, `<section>...</section>`, and unmapped components like `<TabsTrigger>General</TabsTrigger>` auto-extract with a warning, not a silent drop.
-- **Translatable props** — the HTML+ARIA set (`alt`, `title`, `placeholder`, `aria-label`, …) on any element, plus React's prop-name conventions (`subtitle`, `description`, `label`, `helpText`, …) on your own components. `<PageHeader title="Translation Memories" />` just works.
+- **Translatable props** — the HTML+ARIA set (`alt`, `title`, `placeholder`, `aria-label`, …) on any element, plus React's prop-name conventions (`subtitle`, `description`, `label`, `helpText`, …) on your own components. `<PageHeader title="Content Memory" />` just works.
 - **`<Plural>` / `<Select>` authoring components** with CLDR-aware runtime resolution via `Intl.PluralRules`, and ICU number/date/time formatting through `Intl` — so a translator can write `{n, number}` or `{d, date, long}` into a target without a code change.
 - **`t()` escape hatch** for the small set of strings that genuinely belong in data.
 - **Two build modes** — inline (zero runtime, builds per locale) and runtime (single bundle, dict loaded OTA).
 - **[In-context review](./in-context-review) on the running app** — ALT+click any string to see its source, edit its translation, and write it straight back to the `.kbf`; terms and QA findings paint onto the live text.
 - **A proper exchange format** — KBF (see [AD-008](/contribute/architecture/008-project-model)) — that carries structural context, placeholders, plural forms, and annotation overlays. Not a flat key-value JSON.
-- **Full integration with `kapi`** for pseudo-translation, AI translation, QA, TM leverage, and terminology. The same toolchain that handles XLIFF, JSON, Markdown, HTML, and every other format kapi supports.
+- **Full integration with `kapi`** for pseudo-translation, AI translation, QA, content-memory leverage, and terminology. The same toolchain that handles XLIFF, JSON, Markdown, HTML, and every other format kapi supports.
 
 ## When neokapi-i18n isn't the right fit
 

@@ -28,7 +28,7 @@ Run quality checks directly on source files without any server connection:
 kapi exec qa -i src/locales/en/ --source-lang en
 
 # Check terminology consistency
-kapi exec term-check -i src/locales/en/ --termbase glossary.tbx
+kapi exec term-check -i src/locales/en/ --termbase terms.tbx
 
 # Validate XML/HTML structure in source strings
 kapi xml-validation -i src/locales/en/
@@ -98,7 +98,7 @@ Before starting a translation project, analyze the source content:
 # Content stats (blocks, words, characters) across all source files
 kapi stats src/locales/en/*.json
 
-# TM leverage, remaining work, and token estimate for the pending locales
+# Memory reuse, remaining work, and token estimate for the pending locales
 kapi up --plan
 ```
 
@@ -107,7 +107,7 @@ kapi up --plan
 `case-transform` normalizes the source; `whitespace-correct` tidies the target
 against it, so it runs after a target exists. Step config keys are camelCase —
 the same spelling as the tool's schema, which
-[the tool reference](https://neokapi.github.io/web/neokapi/reference/tools/whitespace-correct)
+[the tool reference](https://neokapi.github.io/reference/tools/whitespace-correct)
 lists.
 
 ```yaml
@@ -146,7 +146,7 @@ automations:
 
 ### GitHub Actions
 
-Run source QA on every pull request that modifies localization files:
+Run source QA on every pull request that modifies content files:
 
 ```yaml
 name: Source QA
@@ -178,6 +178,6 @@ This catches source-language issues at the PR stage, before they propagate to tr
 ## Related
 
 - [Translation Flows](/cli/flows/overview) — available tools and flow configuration
-- [Terminology](https://neokapi.github.io/web/neokapi/framework/terminology) — managing termbases
-- [QA Checks](https://neokapi.github.io/web/neokapi/framework/checks/qa-checks) — rule-based quality checks
+- [Terminology](https://neokapi.github.io/framework/terminology) — managing terms stores
+- [QA Checks](https://neokapi.github.io/framework/checks/qa-checks) — rule-based quality checks
 - [GitHub Actions](/cli/use-cases/github-actions) — CI/CD integration

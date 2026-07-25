@@ -2,7 +2,7 @@
 id: 032-math-and-equations
 sidebar_position: 32
 title: "AD-032: Math and Equations"
-description: "Architecture decision: equations are first-class localizable content. A cgo-free converter (core/math) parses OMML (ECMA-376 Part 1 §22.1) into a portable AST and renders Presentation MathML and LaTeX; the host format keeps the original OMML bytes verbatim for byte-exact round-trip and parity, carries the portable renderings on parity-safe placeholder fields (Ph.Equiv/Ph.Disp), surfaces standalone equations as non-translatable RoleFormula blocks for cross-format export (markdown $..$/$$..$$, DocLang <formula>), and makes the natural-language prose inside an equation (<m:nor/>) translatable through a skeleton sub-skeleton that splices translations back byte-exactly."
+description: "Architecture decision: equations are first-class content, not decoration. A cgo-free converter (core/math) parses OMML (ECMA-376 Part 1 §22.1) into a portable AST and renders Presentation MathML and LaTeX; the host format keeps the original OMML bytes verbatim for byte-exact round-trip and parity, carries the portable renderings on parity-safe placeholder fields (Ph.Equiv/Ph.Disp), surfaces standalone equations as non-translatable RoleFormula blocks for cross-format export (markdown $..$/$$..$$, DocLang <formula>), and makes the natural-language prose inside an equation (<m:nor/>) translatable through a skeleton sub-skeleton that splices translations back byte-exactly."
 keywords: [math, equations, OMML, OMath, ECMA-376, MathML, LaTeX, core/math, formula, RoleFormula, sub-skeleton, m:nor, nor splice, byte-exact, parity-safe, cross-format export, DocLang, markdown math, architecture decision, neokapi]
 ---
 
@@ -13,7 +13,7 @@ keywords: [math, equations, OMML, OMath, ECMA-376, MathML, LaTeX, core/math, for
 An equation in a document is content, not decoration. A Word display equation
 is context an ingestion pipeline (LLM/RAG) wants to read, and it can itself
 contain natural-language prose — "where", "otherwise", a unit — that must be
-translated. neokapi treats math as first-class localizable content without ever
+translated. neokapi treats math as first-class content without ever
 corrupting the authoritative source markup.
 
 The design rests on a separation of concerns:
@@ -51,7 +51,7 @@ context lost.
 text inside an equation with `<m:nor/>` — the "where" clauses, "otherwise"
 branches, and spelled-out units an author writes alongside the symbols. That
 prose is genuine translatable surface; the surrounding symbolic typography is
-not. Localizing the prose while leaving the structure exact is a sub-document
+not. Translating the prose while leaving the structure exact is a sub-document
 problem, not a whole-equation one.
 
 **Conversion is necessarily tolerant and lossy.** OMML → LaTeX is a projection
@@ -67,8 +67,8 @@ where no cgo is available, `core/math` is pure Go with no native dependency.
 
 The design is layered: a standalone converter that knows nothing about
 documents; the OpenXML host's capture-and-surface model; the carrier/parity
-contract; the sub-skeleton that localizes embedded prose; and cross-format
-rendering.
+contract; the sub-skeleton that makes embedded prose translatable; and
+cross-format rendering.
 
 ### The core/math converter
 
@@ -102,7 +102,7 @@ is wired but currently uncalled — reserved for a future HTML writer — and on
 `ToLaTeX` is consumed by the OpenXML host today. The known OMML coverage
 approximations live as a ledger in the paired note, not here.
 
-Localizing the embedded prose does not go through the AST at all. A separate,
+Translating the embedded prose does not go through the AST at all. A separate,
 byte-oriented engine works directly on the raw OMML so that every non-prose byte
 is preserved exactly:
 
@@ -180,7 +180,7 @@ otherwise the reader falls back to writing the equation verbatim. The
 sub-skeleton store mechanism itself is described in
 [AD-005](005-format-system.md) and the
 [Skeleton Store](/contribute/notes-internal/skeleton-store) note; this AD fixes
-only the contract that prose is localizable while the math is byte-exact.
+only the contract that prose is translatable while the math is byte-exact.
 
 ### Cross-format rendering
 
@@ -201,7 +201,7 @@ math authored in one format is recognizable to editors and preview in another.
 ## Related
 
 - [AD-002: Content Model](002-content-model.md) — the `Equiv`/`Disp` run fields, `SemanticRole` (`RoleFormula`), and the `fmt:math` inline vocabulary these carriers use
-- [AD-005: Format System](005-format-system.md) — the skeleton and the sub-skeleton mechanism that localizes `<m:nor/>` prose byte-exactly
+- [AD-005: Format System](005-format-system.md) — the skeleton and the sub-skeleton mechanism that round-trips translated `<m:nor/>` prose byte-exactly
 - [AD-018: Parity testing against Okapi](018-parity-testing.md) — why `Equiv`/`Disp`/`SemanticRole` are parity-safe carriers
 - [AD-023: Toolbox Utilities](023-toolbox-utilities.md) — `kconv` cross-format conversion that renders equations into each target's math idiom
 - [AD-031: Content-Fidelity Surfacing](031-content-fidelity-surfacing.md) — surfacing standalone equations is an instance of content-fidelity surfacing

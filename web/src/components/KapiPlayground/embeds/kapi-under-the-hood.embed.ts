@@ -23,12 +23,12 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi memory import project.tmx",
       narration:
-        "Seed the project TM so the plumbing has leverage to work with. up tops up the same store on every merge.",
+        "Seed the project content memory so the plumbing has leverage to work with. up tops up the same store on every merge.",
     },
     {
       command: "kapi exec recycle messages.json -o step1.json --source-lang en --target-lang fr",
       narration:
-        "exec runs exactly one registry tool, nothing around it. recycle is the TM step of up's default flow — exact and fuzzy matches fill the targets; the rest stay untranslated.",
+        "exec runs exactly one registry tool, nothing around it. recycle is the content memory step of up's default flow — exact and fuzzy matches fill the targets; the rest stay untranslated.",
     },
     {
       command: "kapi run leverage-check -i messages.json",
@@ -38,12 +38,12 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi extract --target-lang fr",
       narration:
-        "extract emits one bilingual XLIFF per source and target pair, pre-filled from the TM — the handoff a human translator works in.",
+        "extract emits one bilingual XLIFF per source and target pair, pre-filled from the content memory — the handoff a human translator works in.",
     },
     {
       command: "kapi merge -i out/messages.en-to-fr.xliff",
       narration:
-        "merge applies the returned file back onto the source and writes messages.fr.json. Applied targets also land in the TM, so the next pass starts further ahead.",
+        "merge applies the returned file back onto the source and writes messages.fr.json. Applied targets also land in the content memory, so the next pass starts further ahead.",
     },
   ],
 };

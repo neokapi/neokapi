@@ -93,7 +93,7 @@ const sidebars: SidebarsConfig = {
       items: [
         { type: "doc", id: "kapi/recipes/translate-content", label: "Translate with your AI" },
         { type: "doc", id: "kapi/recipes/review-and-approve", label: "Review & approve" },
-        { type: "doc", id: "kapi/recipes/gate-localization-in-ci", label: "Ship gates & CI" },
+        { type: "doc", id: "kapi/recipes/ship-gates-and-ci", label: "Ship gates & CI" },
         {
           type: "doc",
           id: "kapi/recipes/machine-ship-strategy",
@@ -103,16 +103,16 @@ const sidebars: SidebarsConfig = {
         { type: "doc", id: "kapi/recipes/estimate-cost", label: "Estimate a run's cost" },
         {
           type: "doc",
-          id: "kapi/recipes/pre-translate-with-tm",
+          id: "kapi/recipes/pre-translate-from-memory",
           label: "Reuse what you've translated",
         },
         { type: "doc", id: "kapi/recipes/terminology-qa", label: "Keep terms consistent" },
         { type: "doc", id: "kapi/recipes/pseudo-translate", label: "Preview before you ship" },
-        { type: "doc", id: "kapi/recipes/localize-media", label: "Translate audio & video" },
+        { type: "doc", id: "kapi/recipes/translate-media", label: "Translate audio & video" },
         { type: "doc", id: "kapi/recipes/resumable-workspace", label: "Pause & resume a big run" },
         {
           type: "doc",
-          id: "kapi/recipes/tm-termbase-storage",
+          id: "kapi/recipes/memory-and-terms-storage",
           label: "Where translations & terms live",
         },
         { type: "doc", id: "kapi/bilingual-workflow", label: "Hand off to translators" },

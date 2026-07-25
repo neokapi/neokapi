@@ -22,7 +22,7 @@ The hub is the front door. The deeper pages on
 their corners in detail; this page explains how they fit together and the
 governance that holds them. Starting from existing material rather than a blank
 hub, [brand scan](/server/brand-scan) reads a corpus and drafts a voice profile
-and glossary candidates to review.
+and term candidates to review.
 
 <ThemedVideo
   sources={{
@@ -65,7 +65,7 @@ concept is broader than, narrower than, or part of another), succession (one
 concept is replaced by another), guidance (use this one instead of that one),
 cross-scheme equivalence, and brand stance (this concept is a competitor's). The
 exact label set is defined by the framework's terminology model; see the
-[framework terminology reference](https://neokapi.github.io/web/neokapi/framework/terminology)
+[framework terminology reference](https://neokapi.github.io/framework/terminology)
 for the canonical list.
 
 <PhaseFlow
@@ -248,7 +248,7 @@ offline.
 
 Terminology also reaches a project's local files and CI through ordinary sync. A
 [`kapi pull`](/cli/commands/pull) snapshots the workspace's governed concepts and
-their relations into the project's local termbase, and
+their relations into the project's local terms store (`.kapi/termbase.db`), and
 [`kapi check --ship --terms`](/cli/use-cases/brand-terminology-ci) then gates offline
 against exactly the terminology the hub shows — the pattern documented in
 [Gate brand terminology in CI](/cli/use-cases/brand-terminology-ci). A

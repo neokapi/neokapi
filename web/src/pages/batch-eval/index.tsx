@@ -487,7 +487,7 @@ export default function BatchEval(): ReactElement {
           <strong>structural integrity</strong> — not wording. The failure that matters when
           batching is not clumsier phrasing; it is a segment that comes back{" "}
           <strong>dropped, merged, renumbered, or stripped of a placeholder or tag</strong>. In a
-          localization pipeline that is a correctness failure, because a translation missing its{" "}
+          translation pipeline that is a correctness failure, because a translation missing its{" "}
           <code>{"{0}"}</code> cannot be written back into the source file at all. Scoring structure
           needs no reference translation, so the same measurement works for any model in any
           language pair. Cost and throughput are recorded from the same runs.

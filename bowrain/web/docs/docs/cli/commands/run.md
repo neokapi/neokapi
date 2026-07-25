@@ -41,7 +41,7 @@ kapi pseudo-translate input.html -o output.html --target-lang fr
 # Process multiple files in parallel (top-level tool command)
 kapi translate -i file1.html -i file2.html --source-lang en --target-lang fr -j 4
 
-# Leverage translation memory (top-level tool command)
+# Reuse from content memory (top-level tool command)
 kapi exec recycle -i input.html -o output.html --source-lang en --target-lang fr
 
 # Run quality checks (top-level tool command)
@@ -100,11 +100,14 @@ steps:
         - punctuation
         - placeholders
 
-  - tool: term-enforce
+  - tool: term-check
     config:
-      termbase: project.tbx
-      required: true
+      caseSensitive: false
 ```
+
+The terminology step checks against the terms store bound on the recipe
+(`defaults.termbase`), not one configured per step; `--termbase` overrides it
+for a single run.
 
 Run with:
 
@@ -115,7 +118,7 @@ kapi run translate-review
 Project flows automatically use the recipe's content collections and locale defaults.
 No need to specify `--input`, `--output`, `--source-lang`, or `--target-lang`. A
 project run is process-only — results land in the project store; run
-`kapi merge` to write the localized files.
+`kapi merge` to write the target files.
 
 ## Built-in Composed Flows
 
@@ -141,7 +144,7 @@ Single tools run directly as top-level commands:
 | `kapi translate`     | Translate content using AI/LLM                |
 | `kapi pseudo-translate` | Generate pseudo-translations for testing      |
 | `kapi exec qa`         | Run rule-based quality checks on translations |
-| `kapi exec recycle`      | Pre-fill translations from translation memory |
+| `kapi exec recycle`      | Pre-fill translations from content memory |
 
 ## Listing Available Tools
 

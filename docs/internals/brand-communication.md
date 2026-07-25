@@ -6,13 +6,14 @@ site and landing home (`web`), the bowrain landing page
 and human contributors should follow it whenever they add or edit prose.
 
 The goal: an **academic, precise register** — explain what something is and what
-it does, and let the facts stand without selling. The reader is a developer or
-localization engineer, not a prospect.
+it does, and let the facts stand without selling. The reader is a developer or a
+content engineer, not a prospect.
 
 ## Voice
 
-- State capabilities plainly. "kapi reads and writes localization, document, and
-  data formats" — not "kapi delivers powerful, seamless format support."
+- State capabilities plainly. "kapi reads and writes document, data, and
+  bilingual interchange formats" — not "kapi delivers powerful, seamless format
+  support."
 - Lead with the problem and the mechanism, not adjectives. Prefer a
   problem→solution sentence over a brochure bullet list of buzzwords.
 - Be specific and verifiable. Every claim should be checkable against the code
@@ -23,7 +24,7 @@ localization engineer, not a prospect.
 
 - **Marketing superlatives and hype:** powerful, seamless, effortless, blazing,
   production-proven, game-changing, cutting-edge, revolutionary, supercharge,
-  unleash, magic, "just point and go", "localize at scale", "everything you
+  unleash, magic, "just point and go", "translate at scale", "everything you
   need". If a sentence still means the same thing with the adjective removed,
   remove it.
 - **Emoji** in documentation and committed prose.
@@ -32,20 +33,60 @@ localization engineer, not a prospect.
 - **Brochure framing.** Don't restate the same feature list as a hero, a card
   grid, and a bullet list. Say it once, in the right place.
 
-## Source work and localization — don't frame everything as translation
+## The vocabulary
 
-neokapi does two jobs: **source-language work** (brand guardrails, terminology,
-QA) and **localization** (translation across languages and formats). Wording
-that frames the shared engine as translation undersells the source-language
-half — the reader doing brand work shouldn't feel the docs are about something
-else.
+neokapi is a **content and language intelligence** framework: it parses any
+format into one content model, edits and checks the content inside it, and writes
+it back faithfully. Multilingual work is one of the things it does — it is not
+the frame. The vocabulary below is authoritative; use the right-hand column.
+
+| Don't write | Write |
+| --- | --- |
+| translation memory, TM | **content memory** |
+| termbase, glossary (the store) | **terms**, **terms store** |
+| localization, l10n, localisation | **multilingual content**, or **language** |
+| localize, localized, localizing, localizable | adapt, translate, or recast the sentence |
+| localization framework / engine | **content framework** / **content engine** |
+
+Words that are **not** jargon and stay: *translate*, *translation* (the act),
+*locale*, *language*, *terminology*, *parity*, *bilingual*, *i18n*.
+
+Recast rather than substitute. "The page being localized" becomes "the page being
+translated". "A localization pipeline" becomes "the pipeline", or "the
+translation pipeline" when the sentence is genuinely about translating. "A
+localization engineer" becomes "a content engineer" — or just "an engineer" when
+the qualifier carries nothing.
+
+Three things are **not** ours to rename, and must stay factual:
+
+- **TMX** is "Translation Memory eXchange" (LISA/OSCAR) and **TBX** is "TermBase
+  eXchange" (ISO 30042). Never rewrite those expansions.
+- **The Okapi Framework** is a localization framework, and the Java bridge wraps
+  it. Say so; accurate provenance is not something to sanitize. The Okapi
+  terminology mapping (Filter → DataFormat, Step → Tool, …) stays as recorded.
+- **Retained identifiers.** Recipe keys (`tm:`, `tm_source:`, `termbase:`,
+  `termbase_source:`, `noTM`), the `--termbase` flag, on-disk paths (`tm.db`,
+  `termbase.db`, `l10n/`, `~/.config/kapi/termbases/`), `l10n-*` make targets,
+  HTTP routes (`/translation-memory`, `/tm-matches`), proto fields (`tm_hash`,
+  `tm_entries`), migration tables (`sievepen_migrations`, `termbase_migrations`)
+  and analytics ids (`glossary_saved`) all keep their spelling — renaming them
+  breaks a wire, disk, or history boundary. Where prose documents one, describe
+  the **new concept** and quote the **old identifier** verbatim: "the project's
+  content memory (recipe key `tm:`)".
+
+## Don't frame the shared engine as translation
+
+Source-language work (brand guardrails, terminology, QA) and translation share
+one engine. Wording that frames the shared mechanism as translation undersells
+the source-language half — the reader doing brand work shouldn't feel the docs
+are about something else.
 
 - ✗ "the **translatable** text is segmented into blocks", "kapi extracts
   **translatable** text", "only the **translatable** text changes".
 - ✓ Use neutral terms for the shared mechanism — *text*, *content*, *block*,
   *extract*: "the text is **extracted** into blocks", "kapi extracts the text",
   "only the text changes".
-- Reserve *translatable* / *translation* for genuinely localization-specific
+- Reserve *translatable* / *translation* for genuinely translation-specific
   contexts (a translation-job estimate, a target-language round-trip, the Okapi
   heritage mapping).
 - **Extraction — not segmentation — produces blocks.** Reading a file
@@ -70,9 +111,9 @@ create a maintenance tax on every PR:
 
 - ✗ "42 built-in formats", "15+ formats", "40+ Okapi filters", "5 MT
   providers", "80+ tools", "~30 tools".
-- ✓ Name the *categories* ("localization, document, data, subtitle, and office
-  formats") and link to the live, generated reference (e.g. the `/formats`
-  page, built from `formats.json` via `make generate-format-docs`).
+- ✓ Name the *categories* ("document, data, subtitle, office, and bilingual
+  interchange formats") and link to the live, generated reference (e.g. the
+  `/formats` page, built from `formats.json` via `make generate-format-docs`).
 - If a count genuinely helps on an MDX page, derive it from the generated data
   at render time — never type the literal.
 
@@ -105,8 +146,15 @@ the source of truth. Specifics that have bitten us:
 - **`--target-lang` is single-valued** for `run` and tool commands; only
   `extract` accepts a comma-separated list. Don't show `--target-lang fr,de,ja`
   fanning out to multiple files.
-- **`kapi terms`** uses `-s`/`--source-locale` and `-t`/`--target-locale`
-  (not `--source-lang`).
+- **The store verbs are `kapi memory` and `kapi terms`** — `kapi tm` and
+  `kapi termbase` were retired with no aliases (#1462). Both take the locale with
+  `-s`/`--source-locale` and `-t`/`--target-locale`, not `--source-lang`.
+- **The user config home is platform-dependent.** kapi resolves
+  `os.UserConfigDir()`: `~/.config/kapi` on Linux, `~/Library/Application
+  Support/kapi` on macOS. Don't write `~/.config/kapi` unqualified — name both
+  platforms, or point at `kapi config path`. (`$HOME/.config/kapi/kapi.yaml` is
+  still read as a lower-precedence legacy layer everywhere, so an existing
+  hand-written file keeps working.)
 - **`--json`** is the output-format flag (a global persistent flag); `--format`
   / `-f` overrides *input* format detection — don't use `--format json` for
   output.
@@ -136,14 +184,18 @@ the source of truth. Specifics that have bitten us:
 ## Pre-publish checklist
 
 1. No superlatives or hype words; no emoji.
-2. Shared-mechanism wording is neutral (text/content/extract), not
+2. Vocabulary matches [The vocabulary](#the-vocabulary): no *translation memory*,
+   *termbase*, *glossary*, *localization*, *l10n* or *localize* in any inflection.
+   Check with `grep -niE 'localiz|localis|l10n|termbase|glossar|translation memor'`
+   — that pattern catches the inflections a noun-only search misses.
+3. Shared-mechanism wording is neutral (text/content/extract), not
    "translatable", unless the context is specifically about translation.
-3. No hardcoded format/tool/provider/filter/language counts.
-4. Each topic stated once; overlapping pages merged or cross-linked; redirects
+4. No hardcoded format/tool/provider/filter/language counts.
+5. Each topic stated once; overlapping pages merged or cross-linked; redirects
    added for moved URLs.
-5. Every command, flag, import path, and flow name verified against the code.
-6. Headings in sentence case; product names spelled per the list above.
-7. Build is clean — `tsc` and the site build pass with no new warnings.
+6. Every command, flag, import path, and flow name verified against the code.
+7. Headings in sentence case; product names spelled per the list above.
+8. Build is clean — `tsc` and the site build pass with no new warnings.
 
 > If machine enforcement is wanted later, this guideline can also be encoded as
 > a `core/brand` VoiceProfile (tone/style/vocabulary rules + examples) and run

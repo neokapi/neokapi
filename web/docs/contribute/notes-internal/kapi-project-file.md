@@ -34,7 +34,9 @@ type Defaults struct {
     ParallelBlocks  int              `yaml:"parallel_blocks,omitempty"`
     Encoding        string           `yaml:"encoding,omitempty"`
     // (also: locale_format, formats, exclude, merge, tm, segmentation,
-    //  redaction, brand_voice, termbase — see core/project/project.go)
+    //  redaction, brand_voice, termbase — see core/project/project.go.
+    //  The tm/termbase keys are the retained names for content memory
+    //  and the terms store.)
 }
 
 // ContentCollection is either a bare entry (path/format/target) or a named
@@ -82,12 +84,13 @@ through so platform per-item fields survive.
 can override. Beyond locales and the parallelism/encoding knobs shown above:
 
 - `merge` (`MergeDefaults.ConflictPolicy`) — how `kapi merge` resolves a
-  translator's target against an existing on-disk target or TM entry
+  translator's target against an existing on-disk target or content-memory entry
   (`translator-wins` default, `existing-wins`, `newest-wins`). See
   [AD-017](/contribute/architecture/017-bilingual-format-interop).
-- `tm` (`MemoryDefaults`) — `fuzzy_threshold` (TM pre-fill cutoff on `kapi extract`,
-  default 75) and `read` (additional read-only TM files; writes always go to the
-  project TM).
+- `tm` (`MemoryDefaults`) — the project's content memory, under its retained key:
+  `fuzzy_threshold` (pre-fill cutoff on `kapi extract`, default
+  `DefaultFuzzyThreshold` = 75) and `read` (additional read-only memory files
+  consulted during pre-fill; writes always go to the project's own store).
 - `segmentation` (`SegmentationDefaults`) — opt-in SRX sentence segmentation
   overlay on extract (`source`, optional `srx` rules file).
 - `redaction` (`*RedactionSpec`) — replace sensitive content with protected
@@ -97,14 +100,14 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
   `profile_file`, `profile`, or `pack`) as standing project context. This is the
   framework binding under `defaults:`, distinct from a platform's top-level
   `brand_voice` extension.
-- `termbase` (string) — path to a glossary/termbase, resolved relative to the
-  project root, used for project-scoped term enforcement with no `--termbase`
-  flag.
+- `termbase` (string) — path to the project's terms store, under its retained
+  key. Resolved relative to the project root, and used for project-scoped term
+  enforcement with no `--termbase` flag.
 - `termbase_source` / `tm_source` (string) — committed, git-tracked native source
-  artifacts (`.ktb` / `.kmb`) the project termbase and TM are compiled from.
-  `kapi apply` edits the source and re-imports into the gitignored `.db` cache, so
-  the SQLite store is written by exactly one path and `git diff` is the review
-  surface.
+  artifacts (`.ktb` / `.kmb`) the project's terms store and content memory are
+  compiled from. `kapi apply` edits the source and re-imports into the gitignored
+  `.db` cache, so the SQLite store is written by exactly one path and `git diff`
+  is the review surface.
 - `state` (string) — committed, git-tracked project state store (a
   kapi-project-state JSON document, `core/state`): the authoritative carrier of
   per-unit workflow decisions (review ladder, approvals, parking) that a plain
@@ -183,8 +186,10 @@ require it.
 
 The `kapi.yaml` recipe references AI providers by type (e.g., `provider: anthropic`), not by key. API keys are resolved at runtime:
 
-1. OS keychain via `cli/credentials.Store` (non-secret config at
-   `~/.config/kapi/providers.json`; keys under the keychain service `"kapi"`)
+1. OS keychain via `host/credentials.Store` (non-secret config at
+   `providers.json` under the user config directory — `~/.config/kapi` on Linux,
+   `~/Library/Application Support/kapi` on macOS; `kapi config path` prints the
+   resolved location. Keys live under the keychain service `"kapi"`)
 2. Environment variables (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) or the
    `--api-key` flag
 3. The `--provider` and `--model` CLI flags override project defaults
@@ -232,8 +237,10 @@ Kapi Desktop at `apps/kapi-desktop/`:
 - Resolves content patterns against the filesystem via `App.MatchContent(tabID)`,
   using the same `core/project` glob expansion the CLI relies on for `extract` /
   `merge` — pattern resolution is shared framework code, not a desktop-only feature
-- Stores recent files at `~/.config/kapi-desktop/recent.json`
-- Stores settings at `~/.config/kapi-desktop/settings.json`
+- Stores recent files (`recent.json`) and settings (`settings.json`) in its own
+  config root — `~/.config/kapi-desktop` on Linux,
+  `~/Library/Application Support/kapi-desktop` on macOS — overridable with
+  `KAPI_DESKTOP_CONFIG_DIR` (`apps/kapi-desktop/backend/paths.go`)
 
 ## Example Files
 
@@ -248,7 +255,7 @@ name: Quick Translate
 
 ```yaml
 version: v1
-name: Acme App Localization
+name: Acme App
 
 defaults:
   source_language: en
@@ -264,7 +271,7 @@ defaults:
     fuzzy_threshold: 75
   segmentation:
     source: true
-  termbase: glossary/termbase.db
+  termbase: terms/termbase.db
 
 content:
   # Bare entry — single glob, languages inherited from defaults.

@@ -2,7 +2,7 @@
 id: 003-identity
 sidebar_position: 3
 title: "AD-003: Identity"
-description: "Architecture decision: entity IDs are 8-character base62 strings from crypto/rand — short, URL-safe, and dependency-free. Blocks use a content-hash ID for TM stability; structural nodes use random IDs."
+description: "Architecture decision: entity IDs are 8-character base62 strings from crypto/rand — short, URL-safe, and dependency-free. Blocks use a content-hash ID so content-memory matches stay stable; structural nodes use random IDs."
 keywords: [entity ID, base62, crypto/rand, Block ID, content hash, architecture decision, neokapi]
 ---
 
@@ -137,7 +137,7 @@ persisted. (In the platform store this is `StoreBlocksForItem`, persisted in a
 `blocks` table whose internal ID is the primary key and whose
 `(scope, item, source_id)` triple is uniquely indexed.)
 
-**Re-save.** When blocks are stored after translation, TM leverage, or editor
+**Re-save.** When blocks are stored after translation, memory leverage, or editor
 edits, they already carry an internal ID from a previous read, so no source-ID
 remapping occurs.
 
@@ -155,7 +155,7 @@ against `tu1` would be ambiguous between the twenty candidates.
 
 Internal IDs solve this with a single store-unique identifier per block,
 regardless of which file it came from. Downstream consumers — REST API
-callers, the editor, the TM writer — use the internal ID exclusively. The
+callers, the editor, the memory writer — use the internal ID exclusively. The
 source ID only matters during export roundtrip, where the system must match
 re-parsed blocks back to stored translations by their original format-level
 identifier. This is the minimal structure that lets files with overlapping

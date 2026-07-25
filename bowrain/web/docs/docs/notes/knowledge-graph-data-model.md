@@ -8,12 +8,12 @@ title: "Note: Knowledge graph data model"
 Implementation reference for [AD-021](../architecture-decisions/021-brand-knowledge-graph.md).
 Schemas, Go types, REST routes, change-set op types, and permission mapping.
 
-## Framework layer (Apache, `termbase/`)
+## Framework layer (Apache, `terms/`)
 
 ### Persisted relations
 
 `ConceptRelation` gains identity, a note, and validity, and is persisted by
-every termbase backend:
+every terms backend:
 
 ```go
 type ConceptRelation struct {
@@ -36,7 +36,7 @@ RelationsOf(ctx, conceptID string, scope *graph.Scope) ([]ConceptRelation, error
 ListRelations(ctx, scope *graph.Scope) ([]ConceptRelation, error)
 ```
 
-SQLite baseline schema (framework `termbase/sqlite.go` — part of the base
+SQLite baseline schema (framework `terms/sqlite.go` — part of the base
 migration; the platform is not live, so the schema is authored as if designed
 this way from the start):
 
@@ -65,8 +65,8 @@ or of a status). Stored as three columns on `tb_terms`
 
 ### Status transition policy
 
-`termbase.ValidateTransition(from, to model.TermStatus) error` plus
-`termbase.IsGovernedTransition(from, to) bool`. Governed transitions (require a
+`terms.ValidateTransition(from, to model.TermStatus) error` plus
+`terms.IsGovernedTransition(from, to) bool`. Governed transitions (require a
 change-set on the platform): any transition **to** `forbidden` or `preferred`,
 and any transition **from** `forbidden`. Disallowed outright: none (history is
 the guard, not a trap), but `forbidden → preferred` must pass through a
@@ -79,9 +79,9 @@ deterministically (sorted by ID) under the existing schema version.
 
 ## Platform layer (AGPL)
 
-### PostgreSQL termbase parity
+### PostgreSQL terms parity
 
-`bowrain/termbase/postgres.go` carries the same relations table
+`bowrain/terms/postgres.go` carries the same relations table
 (workspace-scoped: `PRIMARY KEY (workspace_id, id)`) and validity columns on
 `tb_terms` as part of its baseline schema.
 
@@ -127,7 +127,7 @@ kg_comments (
 
 kg_concept_revisions (
   workspace_id TEXT, concept_id TEXT, rev BIGINT,
-  snapshot JSONB,                          -- termbase.Concept + relations delta
+  snapshot JSONB,                          -- terms.Concept + relations delta
   summary TEXT,                            -- human-readable change summary
   actor TEXT, changeset_id TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ,
@@ -171,7 +171,7 @@ kg_pilots (
 
 | op | payload |
 |---|---|
-| `concept.create` | full `termbase.Concept` |
+| `concept.create` | full `terms.Concept` |
 | `concept.update` | `{concept_id, domain?, definition?, properties?}` |
 | `concept.delete` | `{concept_id}` |
 | `term.add` | `{concept_id, term}` |
@@ -188,7 +188,7 @@ A change-set containing **any** governed op requires `in_review → approved`
 ops may merge directly from `draft` by its author.
 
 **Merge** applies ops in sequence inside one transaction per backend store:
-termbase ops via the workspace termbase, voice ops via the brand store
+terms ops via the workspace terms store, voice ops via the brand store
 (version-bumping profiles exactly like AD-019 promotion). Before applying, each
 op's `base_rev` is compared with the concept's current revision; a mismatch
 marks the op conflicted and blocks the merge with a per-op conflict report
@@ -196,7 +196,7 @@ marks the op conflicted and blocks the merge with a per-op conflict report
 per touched concept (`changeset_id` set), then deletes pilot shadows.
 
 **Pilot** copies the draft's resulting concepts into the project stream's
-termbase shadow (`AddConceptWithStream`) and, for voice ops, sets the stream's
+terms shadow (`AddConceptWithStream`) and, for voice ops, sets the stream's
 brand-voice binding property to a candidate profile built with
 `brand.CandidateWithRule` semantics. Abandon/merge removes shadows and restores
 stream properties.
@@ -299,11 +299,11 @@ commands. Governed terminology rides ordinary project transport instead
 
 - **`kapi pull`** paginates `GET /:ws/concepts`, fetches each concept's relations
   (`GET /:ws/concepts/:cid/relations`, bounded fan-out), writes both into the
-  project's bound termbase via the framework termbase API (`AddConcept` /
+  project's bound terms store via the framework terms API (`AddConcept` /
   `AddRelation`), and records a `ConceptBaseline` in the sync cache. The snapshot
-  is identical in shape to a local termbase, so `kapi check --ship --terms` then gates
+  is identical in shape to a local terms store, so `kapi check --ship --terms` then gates
   offline in CI against governed terminology.
-- **`kapi push`** diffs the local termbase against that baseline. Ordinary edits
+- **`kapi push`** diffs the local terms store against that baseline. Ordinary edits
   (definitions, notes, non-governed terms, non-`REPLACED_BY` relations) go up
   directly through the concept/relation endpoints; governed edits — a term
   transition where `IsGovernedTransition` holds, a forbidden-term removal, a new
@@ -320,7 +320,7 @@ MCP read tools remain: `concept_search`, `concept_story`, `experiment_status`.
 The per-concept surface is the framework package `@neokapi/concept-ui`
 (`packages/concept-ui`, Apache) — a data-source-agnostic concept browser and
 dashboard. It is driven through one small `ConceptDataSource` adapter:
-kapi-desktop binds it to a local SQLite termbase (core reads plus the
+kapi-desktop binds it to a local SQLite terms store (core reads plus the
 editable-core mutations), and bowrain binds it to the REST API (core plus the
 rich reads — named markets, observations, comments, the revision timeline,
 where-used). Components gate their sections on resolved capabilities
@@ -343,5 +343,5 @@ freshness is React Query's own refetch (per-hook `staleTime` + refetch-on-focus)
 plus the mutation-driven invalidation the brand hooks already do on every write;
 there are no dedicated `concept-changed` / `changeset-changed` Wails events.
 When a project *is* being watched, its existing `brand-voice-changed` /
-`termbase-changed` events invalidate the hub's query keys for cross-client
+`terms-changed` events invalidate the hub's query keys for cross-client
 freshness, so no new bindings (and no binding regen) are needed.

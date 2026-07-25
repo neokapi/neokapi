@@ -2,8 +2,8 @@
 sidebar_position: 2
 sidebar_label: Interchange
 title: Hand off to translators
-description: How kapi exchanges content with external TMS and CAT tools through standard bilingual formats — extract to XLIFF or PO, translate anywhere, and merge back byte-exactly while keeping translation memory and terminology in the loop.
-keywords: [interchange, XLIFF, PO, gettext, TMX, TBX, CAT tool, TMS, extract, merge, round-trip, translation memory, terminology]
+description: How kapi exchanges content with external TMS and CAT tools through standard bilingual formats — extract to XLIFF or PO, translate anywhere, and merge back byte-exactly while keeping content memory and terminology in the loop.
+keywords: [interchange, XLIFF, PO, gettext, TMX, TBX, CAT tool, TMS, extract, merge, round-trip, content memory, terminology]
 ---
 
 import { ThemedVideo } from "@neokapi/docs-shared";
@@ -14,9 +14,9 @@ import { ContentLab } from "@site/src/components/Lab";
 
 :::info Needs a .kapi project
 `kapi extract` and `kapi merge` read the recipe's content globs and target
-locales and use the project TM plus the extraction bookkeeping kapi records, so
-start with `kapi init` and run them inside the project. (Ad-hoc, one-way format
-_conversion_ needs no project — that is plain `kapi run -i <file>`.)
+locales and use the project's content memory plus the extraction bookkeeping kapi
+records, so start with `kapi init` and run them inside the project. (Ad-hoc,
+one-way format _conversion_ needs no project — that is plain `kapi run -i <file>`.)
 :::
 
 kapi can translate your content on its own. But when a person should do the
@@ -25,18 +25,18 @@ agency — you hand the work out and take it back: kapi produces a file the
 translator opens in whatever tool they already use, accepts the returned
 version, and rebuilds your original files byte-for-byte. An escape hatch, not a
 step in the normal path — and the corrections that come back are captured so
-they carry into the next run. For the TM model behind it (matching, fuzzy
+they carry into the next run. For the memory model behind it (matching, fuzzy
 thresholds, pre-fill/absorb), see
-[Translation Memory](/framework/translation-memory).
+[Content memory](/framework/content-memory).
 
 **Two carriers, chosen by recipient.** The native interchange format is the
 lossless **bilingual `.kpz`** (`kapi extract --format kpz`) — for a recipient
-working in kapi or the neokapi review tool; it carries inline codes, TM matches,
-and term context in one integrity-verified, diffable parcel. For a third-party
-CAT tool, `kapi extract` emits **XLIFF 2.x / PO** (the default), the interop
-tier this page focuses on. Both go out and come back through the same
-`extract` / `merge` verbs — see [KBF vs XLIFF](/reference/kbf/vs-xliff). (TM and
-terminology have their own interchange: `kapi memory import/export` for TMX,
+working in kapi or the neokapi review tool; it carries inline codes, memory
+matches, and term context in one integrity-verified, diffable parcel. For a
+third-party CAT tool, `kapi extract` emits **XLIFF 2.x / PO** (the default), the
+interop tier this page focuses on. Both go out and come back through the same
+`extract` / `merge` verbs — see [KBF vs XLIFF](/reference/kbf/vs-xliff). (Memory
+and terminology have their own interchange: `kapi memory import/export` for TMX,
 `kapi terms import/export` for TBX.)
 
 <ThemedVideo
@@ -48,9 +48,9 @@ terminology have their own interchange: `kapi memory import/export` for TMX,
   outdated="wording"
 />
 
-## TM in the loop
+## Content memory in the loop
 
-The translation memory participates on both sides of the round-trip:
+The content memory participates on both sides of the round-trip:
 
 <RoundTripDiagram
   forward={[
@@ -64,23 +64,23 @@ The translation memory participates on both sides of the round-trip:
     { label: "translated XLIFF / PO", role: "translate" },
     { label: "returned by translator" },
   ]}
-  hub={{ label: "project TM" }}
+  hub={{ label: "project memory" }}
   forwardLabel="pre-fill"
   backLabel="absorb"
 />
 
-- **TM pre-fill on extract** — every segment is looked up against the project TM
-  first. Exact matches land pre-filled as `state="translated"`; fuzzy matches
-  above the recipe's `tm.fuzzy_threshold` land as fuzzy.
-- **TM absorb on merge** — every accepted target becomes a TU in the project TM,
-  with provenance (batch id, source path, content hash, filename) that
-  `kapi memory audit --batch <id>` can trace back later.
+- **Memory pre-fill on extract** — every segment is looked up against the
+  project's memory first. Exact matches land pre-filled as `state="translated"`;
+  fuzzy matches above the recipe's `tm.fuzzy_threshold` land as fuzzy.
+- **Memory absorb on merge** — every accepted target becomes an entry in the
+  project's memory, with provenance (batch id, source path, content hash,
+  filename) that `kapi memory audit --batch <id>` can trace back later.
 
 Both are on by default; `--no-tm` and `--no-tm-update` disable them. Absorb is
 **recycle leverage**, not a review decision: whether a reviewer *approved* a
 target is a separate, content-hash-bound fact recorded in the project
 [state store](/kapi/project-store) by `kapi apply` (`kind:"review"`), not in
-the TM.
+the content memory.
 
 Run the engine behind the round-trip yourself — pick the bilingual XLIFF sample,
 run it through, and compare source with output; the same reader and writer back
@@ -107,8 +107,8 @@ content:
 ```
 
 The `merge`, `tm`, and (opt-in) `segmentation` sections are optional; details on
-the [project file reference](/reference/project-file). Seed the TM from existing
-memory if you have any: `kapi memory import ./corporate-en-fr.tmx`.
+the [project file reference](/reference/project-file). Seed the memory from an
+existing corpus if you have one: `kapi memory import ./corporate-en-fr.tmx`.
 
 ## Extract
 
@@ -123,13 +123,15 @@ kapi extract
 ```
 
 ```
-Extracting batch 6f2e8a1c... (format=xliff2, targets=[fr-FR de-DE es-ES], sources=1)
-  fr-FR: 1 files, 412 blocks, TM exact=108 fuzzy=67 new=237
-  de-DE: 1 files, 412 blocks, TM exact=0 fuzzy=0 new=412
-  es-ES: 1 files, 412 blocks, TM exact=0 fuzzy=0 new=412
+Extracting batch 6f2e8a1c (format=xliff2, targets=fr-FR, de-DE, es-ES, sources=1)
 
-Batch 6f2e8a1c... complete. 3 files written to out/
-Aggregate TM leverage: exact=108 fuzzy=67 new=1061 (total=1236)
+LOCALE  FILES  BLOCKS  EXACT  FUZZY  NEW
+fr-FR       1     412    108     67  237
+de-DE       1     412      0      0  412
+es-ES       1     412      0      0  412
+
+Batch 6f2e8a1c complete. Manifest: .kapi/cache/extractions/6f2e8a1c/manifest.yaml
+Aggregate content-memory leverage: exact=108 fuzzy=67 new=1061 (total=1236)
 ```
 
 Multi-target in one pass is the default. Common options: `--target-lang fr,de`
@@ -155,12 +157,12 @@ outcomes are reported and the exit code reflects any failure.
 
 - **Stale segments.** A block whose `<source>` drifted since extract (someone
   edited the file while it was out) is reported **stale** and skipped — neither
-  applied nor TM-absorbed. Re-extract and re-translate the drifted portion.
+  applied nor absorbed into memory. Re-extract and re-translate the drifted portion.
 - **Conflicts.** When a target already exists, `merge.conflict_policy` decides:
   `translator-wins` (default), `existing-wins`, or `newest-wins` (by
-  timestamp) — the same policy governs TM write-back. Never interactive.
-- **Audit.** `kapi memory audit --batch <merge-batch-id>` lists every TU the merge
-  wrote, with provenance.
+  timestamp) — the same policy governs memory write-back. Never interactive.
+- **Audit.** `kapi memory audit --batch <merge-batch-id>` lists every entry the
+  merge wrote, with provenance.
 
 After a merge, the gates say where you stand: `kapi status` re-derives coverage
 from the merged targets, and `kapi check --ship` enforces the ship gate before a
@@ -170,7 +172,7 @@ release — see [the kapi loop](/kapi/convergence).
 
 Same flow, different exchange format: `kapi extract --format po`, then
 `kapi merge -i …/*.po` — one entry per block, kapi's bookkeeping as extracted
-comments (`#. kapi-batch:`, `#. kapi-block:`), `#, fuzzy` on fuzzy TM pre-fills.
+comments (`#. kapi-batch:`, `#. kapi-block:`), `#, fuzzy` on fuzzy memory pre-fills.
 A single merge invocation can mix XLIFF and PO from the same batch. PO cannot
 carry sentence-level segmentation; projects with `segmentation.source: true`
 must emit XLIFF (the combination errors early).
@@ -179,8 +181,8 @@ must emit XLIFF (the combination errors early).
 
 The bilingual file carries one chosen target per locale, the source runs and
 inline codes, and — with the captured skeleton — enough to rebuild the original
-byte-for-byte. Everything else stays in project state: the TM, the termbase,
-and the stand-off overlays, variants, and per-target status the
+byte-for-byte. Everything else stays in project state: the content memory, the
+terms store, and the stand-off overlays, variants, and per-target status the
 [content model](/framework/content-model) records. The bilingual file is the
 lean, tool-neutral handoff; the project is the system of record — which is why
 merge needs the same project the extract ran in.
@@ -188,6 +190,6 @@ merge needs the same project the extract ran in.
 ## Related
 
 - [KBF vs XLIFF](/reference/kbf/vs-xliff) — when to use each interchange format.
-- [Pre-translate with TM](/kapi/recipes/pre-translate-with-tm) — leverage existing
+- [Pre-translate from memory](/kapi/recipes/pre-translate-from-memory) — leverage existing
   translations before sending anything out.
 - [Kapi CLI](/kapi/cli) — the full command reference.

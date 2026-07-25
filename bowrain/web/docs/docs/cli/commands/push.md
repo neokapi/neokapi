@@ -10,7 +10,7 @@ Send local file changes to Bowrain Server. Only transfers modified blocks
 
 When the project is claimed into a workspace and a baseline was pulled (see
 [`kapi pull`](/cli/commands/pull)), push also reconciles local terminology edits
-in the bound termbase against that baseline. Ordinary edits — definitions, notes,
+in the bound terms store against that baseline. Ordinary edits — definitions, notes,
 proposed terms, non-governed relations — apply directly through the concept
 endpoints. Governed edits — a term set to `forbidden` or `preferred`, an
 un-forbidding, a `replaced_by` relation, a concept delete — are bundled into a
@@ -131,7 +131,7 @@ Push to Bowrain Server to:
 - **Backup content** to the server
 - **Integrate with CI/CD** pipelines
 
-Think of it as `git push` for localization content.
+Think of it as `git push` for content.
 
 ## Best Practices
 

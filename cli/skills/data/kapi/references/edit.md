@@ -110,15 +110,15 @@ bilingual interchange format — this **includes binary office formats** (`.docx
 container safe. `round_trip` (shown as `faithful` in the table) means the writer
 reconstructs from a skeleton, so only your edited text changes and the rest is
 byte-for-byte preserved. A read-only format (PDF is extraction-only) is not
-editable — to localize it, extract to a bilingual format and merge (see
-[localize.md](localize.md)).
+editable — to translate it, extract to a bilingual format and merge (see
+[translate.md](translate.md)).
 
 Binary formats can be **edited in place but not authored from scratch**; to
 create new content, author in a generative format — see [create.md](create.md).
 
 ## Mixed change-sets
 
-A `content` edit and the asset change that justifies it (a glossary `term`, a
+A `content` edit and the asset change that justifies it (a `term` entry, a
 `brand` rule) can land **atomically in one `kapi apply`** — every reviewed
 change, content or asset, is one typed entry routed through the single write
 verb. See [create.md → close the loop](create.md) for the asset entry shapes;

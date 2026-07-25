@@ -2,14 +2,14 @@
 sidebar_position: 0
 title: Architecture Decisions Overview
 slug: index
-description: Index of Architecture Decisions for the neokapi open-source localization framework — covering the content model, processing engine, format and tool systems, plugin architecture, TM, terminology, AI providers, and more.
-keywords: [architecture decisions, neokapi, framework design, content model, plugin system, localization architecture]
+description: Index of Architecture Decisions for the neokapi open-source content and language intelligence framework — covering the content model, processing engine, format and tool systems, plugin architecture, content memory, terminology, AI providers, and more.
+keywords: [architecture decisions, neokapi, framework design, content model, plugin system, framework architecture]
 ---
 
 # Architecture Decisions — neokapi Framework
 
 This directory contains the Architecture Decisions for the **neokapi framework**
-— the open localization engine. All content here is Apache-2.0 licensed and
+— the open content and language engine. All content here is Apache-2.0 licensed and
 describes modules at the repository root (`github.com/neokapi/neokapi`), the
 shared CLI base (`github.com/neokapi/neokapi/cli`), the kapi CLI
 (`github.com/neokapi/neokapi/kapi`), and Kapi Desktop
@@ -38,7 +38,7 @@ pseudocode) are separated into [Implementation Notes](/contribute/notes-internal
 | [021](021-sat-segmenter-plugin.md) | SaT Segmenter Plugin | in-process ONNX SaT model, stdin/stdout protocol, native-stack isolation, `sat` engine |
 | [026](026-flow-io-binding.md)   | Flow I/O Binding  | source/sink bindings, file·store·kpz·import/export, process-only runs, ingest vs run transforms |
 | [028](028-pdf-reader-plugin.md) | PDF Reader & Structure Tiers | PDFium native plugin + browser WASM, geometry/glyphs, tagged + geometric structure tiers |
-| [029](029-vision-and-image-localization.md) | Vision & Image Localization | image as localizable asset; kapi-vision OCR (PP-OCRv5) + layout (PP-DocLayoutV3), path-based, localization modes |
+| [029](029-vision-and-image-adaptation.md) | Vision & Image Adaptation | image as adaptable asset; kapi-vision OCR (PP-OCRv5) + layout (PP-DocLayoutV3), path-based, adaptation modes |
 | [030](030-multimodal-extraction-and-llm-refinement.md) | Multimodal Extraction & LLM Refinement | confidence-gated escalation across image/audio/video; MediaAnchor + ExtractionProvenance overlays, multimodal aiprovider, generic media-refine Transform, kapi-asr/video symmetry |
 | [031](031-content-fidelity-surfacing.md) | Content-Fidelity Surfacing | readers surface non-translatable context (code/captions/formulas) as `Block{Translatable:false}` for LLM/RAG ingestion; default-ON `extractNonTranslatableContent` opt-out; byte-exact + parity-safe |
 | [032](032-math-and-equations.md) | Math & Equations | cgo-free OMML→AST→MathML/LaTeX converter (`core/math`), RoleFormula blocks + Equiv/Disp carriers, OMML sub-skeleton for translatable `<m:nor>` prose, markdown/doclang rendering |
@@ -53,7 +53,7 @@ pseudocode) are separated into [Implementation Notes](/contribute/notes-internal
 
 | AD                               | Title              | Scope                                                         |
 | -------------------------------- | ------------------ | ------------------------------------------------------------- |
-| [009](009-translation-memory.md) | Translation Memory | Memory, tiered matching, generalized matching with entities |
+| [009](009-content-memory.md) | Content Memory | `memory/` store, tiered matching, generalized matching with entities |
 | [010](010-terminology.md)        | Terminology        | Concept model, Terminology, tiered lookup                        |
 | [011](011-ai-providers.md)       | AI Providers       | LLMProvider, streaming, batching, worker pool                 |
 | [012](012-mt-providers.md)       | MT Providers       | MTProvider interface, built-in backends                       |

@@ -1,19 +1,19 @@
 ---
-id: 009-translation-memory
+id: 009-content-memory
 sidebar_position: 9
-title: "AD-009: Translation Memory (Memory)"
-description: "Architecture decision: Memory is neokapi's TM library — it stores multilingual entries as Run sequences with inline markup and matches in three tiers (plain, structural, source-entity) to return the highest-quality match first."
-keywords: [Memory, translation memory, runs, multilingual, matching tiers, SQLite, architecture decision, neokapi]
+title: "AD-009: Content memory"
+description: "Architecture decision: the content-memory library stores multilingual entries as Run sequences with inline markup and matches in three tiers (plain, structural, source-entity) to return the highest-quality match first."
+keywords: [content memory, runs, multilingual, matching tiers, SQLite, architecture decision, neokapi]
 ---
 
 import { PipelineDiagram } from "@neokapi/docs-shared";
 
-# AD-009: Translation Memory (Memory)
+# AD-009: Content memory
 
 ## Summary
 
-Memory is neokapi's built-in translation memory library, living in
-`memory/`. It stores multilingual entries as per-locale `[]model.Run`
+Content memory is neokapi's built-in reuse store, living in the `memory/`
+package. It stores multilingual entries as per-locale `[]model.Run`
 sequences — preserving inline markup and entity metadata — rather than flat
 strings, and uses a tiered matching pipeline (generalized exact, structural
 exact, plain exact, fuzzy) — complemented by semantic retrieval for paraphrase
@@ -21,19 +21,21 @@ exact, plain exact, fuzzy) — complemented by semantic retrieval for paraphrase
 PostgreSQL backend can be supplied by a platform layer behind the same
 interface.
 
-The TM is the project's **recycle** corpus: a pool of source→target pairs reused
-to pre-fill and leverage future translation. It is not the carrier of workflow
-**decisions** — whether a person has reviewed or signed off a particular target
-lives in the project **state store** ([AD-008](008-project-model.md),
-`defaults.state`), not here. Adding a pair to the TM (`kapi apply` with
-`kind:"tm"`) is recycle leverage; it does not promote a unit to *reviewed*.
+Content memory is the project's **recycle** corpus: a pool of source→target
+pairs reused to pre-fill and leverage future translation. It is not the carrier
+of workflow **decisions** — whether a person has reviewed or signed off a
+particular target lives in the project **state store**
+([AD-008](008-project-model.md), `defaults.state`), not here. Adding a pair to
+the memory (`kapi apply` with `kind:"tm"`) is recycle leverage; it does not
+promote a unit to *reviewed*.
 
 ## Context
 
-Translation memory is a core localization primitive: previously translated
-segments are reused to maintain consistency and reduce cost. Existing TM
-systems store flat source/target string pairs and match on string similarity
-alone, which loses information that matters to translators:
+Reuse of previously produced content is a core multilingual primitive:
+translated segments are recycled to maintain consistency and reduce cost.
+Conventional translation-memory systems store flat source/target string pairs
+and match on string similarity alone, which loses information that matters to
+translators:
 
 - **Inline codes** (bold, links, placeholders) are stripped before matching.
   A match is found but the codes do not transfer — the translator manually
@@ -45,7 +47,7 @@ alone, which loses information that matters to translators:
 - **Pipeline context** (entity annotations, term matches, QA results)
   produced earlier in the flow is discarded.
 
-A content-aware TM preserves Run sequences end-to-end, derives multiple
+A content-aware memory preserves Run sequences end-to-end, derives multiple
 matching keys from a single entry, and returns matches with entity adaptation
 information so translators receive pre-adapted targets.
 
@@ -53,9 +55,9 @@ information so translators receive pre-adapted targets.
 
 ### Content-aware, multilingual storage
 
-Memory stores per-locale `[]model.Run` sequences — the same inline-content
-representation used throughout the pipeline ([AD-002: Content
-Model](002-content-model.md)) — rather than strings. A TM entry is
+Content memory stores per-locale `[]model.Run` sequences — the same
+inline-content representation used throughout the pipeline ([AD-002: Content
+Model](002-content-model.md)) — rather than strings. An entry is
 **multilingual**: each language is a peer variant in a `Variants` map, with no
 authoritative "source" at the persistence layer. The lookup direction is
 supplied at the call site. Each variant preserves inline-code runs (markup
@@ -90,8 +92,8 @@ Each variant is indexed under three keys, derived from its Run sequence and
 pre-computed at write time:
 
 - **plain** — `model.FlattenRuns(runs)` with inline-code runs contributing
-  their text equivalents. Enables matching against legacy TMs and unanalyzed
-  content.
+  their text equivalents. Enables matching against legacy memories and
+  unanalyzed content.
 - **structural** — `model.RunsStructuralText(runs)`: inline-code runs rendered
   as numbered placeholders (`{1}`, `{/1}`). Preserves inline-code position
   awareness.
@@ -128,9 +130,9 @@ Two cross-cutting rules apply to the exact tiers:
   ambiguous — the pick doesn't matter.
 - **Deterministic ordering.** Results sort by score, then match-type
   priority, then entry ID. Before this, equal candidates inherited
-  incidental storage order — re-importing a TM could silently flip which
-  of two exact matches won (the failure mode that leaked a desktop UI
-  markup token into a docs page).
+  incidental storage order — re-importing a memory could silently flip
+  which of two exact matches won (the failure mode that leaked a desktop
+  UI markup token into a docs page).
 
 The first match at or above the configured score threshold wins. A
 generalized exact match (different entity values, identical structure) is
@@ -190,7 +192,7 @@ entries whose `Variants[sourceLocale]` exists and matches the source;
 
 `LookupSegment` keys on a single segment span — `segmentIdx` indexes the
 block's segmentation overlay ([AD-002](002-content-model.md)) — for the
-sentence-level TM leverage path used by `kapi extract` when the project's
+sentence-level leverage path used by `kapi extract` when the project's
 recipe sets `segmentation.source: true` (see
 [AD-017](017-bilingual-format-interop.md)).
 
@@ -198,7 +200,7 @@ recipe sets `segmentation.source: true` (see
 
 The framework provides two tiers:
 
-- **In-memory** (`memory/memory.go`) — fast, ephemeral; session-scoped
+- **In-memory** (`memory/inmemory.go`) — fast, ephemeral; session-scoped
   leverage during batch processing.
 - **SQLite** (`memory/sqlite.go`) — persistent file-based storage for CLI
   tools. Same matching algorithm as the in-memory tier, with FTS5 indexes
@@ -209,11 +211,11 @@ A PostgreSQL backend with workspace-scoped isolation and project scoping can
 be supplied by a platform layer, reusing the same matching algorithm behind
 the same `ContentMemory` interface.
 
-### The TM is derived state, not committed source
+### Content memory is derived state, not committed source
 
-The translation memory is **accumulated machine memory** — every translated
-segment becomes leverage for the next — not authored, reviewed content. So unlike
-the termbase ([AD-010](010-terminology.md)), which is *source*, the TM is
+Content memory is **accumulated machine memory** — every translated segment
+becomes leverage for the next — not authored, reviewed content. So unlike the
+terms store ([AD-010](010-terminology.md)), which is *source*, the memory is
 **state, kept out of git scope** — the same posture as Terraform state:
 
 - its home is a store **outside git**: `.kapi/cache/` locally, the CI job cache
@@ -229,19 +231,20 @@ the termbase ([AD-010](010-terminology.md)), which is *source*, the TM is
   last-write-wins or per-branch cache keys, unlike Terraform state, which must be
   locked because it is irreplaceable.
 
-Consequently **CI never commits the TM**: it restores the store from the cache,
-leverages and accumulates during the run, and saves it back to the cache — the
-translation *output* (`i18n/{lang}/`) is what gets committed to git. This is why
-"a new `.ktb` arrives while a TM is in play" is not a reconciliation problem:
-no store lives in git to conflict. Committing the binary SQLite would be
+Consequently **CI never commits the memory**: it restores the store from the
+cache, leverages and accumulates during the run, and saves it back to the cache —
+the translation *output* (`i18n/{lang}/`) is what gets committed to git. This is
+why "a new `.ktb` arrives while a memory is in play" is not a reconciliation
+problem: no store lives in git to conflict. Committing the binary SQLite would be
 git-hostile and defeat interchange in any case; the `.kmb` interchange form
 remains for explicit human snapshot / seed / transfer (deterministic, lossless),
 not as an auto-grown git artifact.
 
-> **State, not source.** Contrast the termbase ([AD-010](010-terminology.md)),
-> which is *authored source* committed to git and reviewed. The TM is *state* —
-> derived, out of git, rebuildable — and where an accumulating store must be
-> shared and authoritative across a team, that is the server's job, not git's.
+> **State, not source.** Contrast the terms store
+> ([AD-010](010-terminology.md)), which is *authored source* committed to git and
+> reviewed. Content memory is *state* — derived, out of git, rebuildable — and
+> where an accumulating store must be shared and authoritative across a team,
+> that is the server's job, not git's.
 
 ### Fuzzy candidate retrieval
 
@@ -287,8 +290,9 @@ Latin (e + combining acute vs. é).
 
 ### TMX import and export
 
-Memory imports and exports TMX files for interchange with external
-tooling. The element mapping (TMX inline element ↔ `model.Run` kind):
+Content memory imports and exports TMX (Translation Memory eXchange) files for
+interchange with external tooling. The element mapping (TMX inline element ↔
+`model.Run` kind):
 
 | TMX element | Run kind     |
 | ----------- | ------------ |
@@ -304,12 +308,12 @@ with no entity mappings; they participate in plain matching only.
 
 The `recycle` tool is a `Translate`-capability tool
 ([AD-006: Tool System](006-tool-system.md)): it reads each block's source,
-queries the TM (exact, then fuzzy above the configured threshold), and, when a
-match clears the fill threshold, writes the translated target via
+queries the memory (exact, then fuzzy above the configured threshold), and, when
+a match clears the fill threshold, writes the translated target via
 `SetTargetText`. It records the outcome on `Block.Properties` —
 `tm-match-score` (0–100) and `tm-match-type` (`exact` or `fuzzy`). Downstream
 tools — `translate`, UI review, QA — read those properties as context (for
-example, `translate` can skip blocks the TM already filled at a high
+example, `translate` can skip blocks the memory already filled at a high
 score).
 
 A typical flow:
@@ -319,34 +323,34 @@ A typical flow:
   stages={[
     { label: "Source", sub: "binding", role: "io" },
     { label: "entity-extract", sub: "LLM/NER", role: "annotate" },
-    { label: "recycle", sub: "TM", role: "translate" },
+    { label: "recycle", sub: "memory", role: "translate" },
     { label: "translate", sub: "LLM/MT provider", role: "translate" },
     { label: "qa", sub: "LLMProvider", role: "qa" },
     { label: "Sink", sub: "binding · optional", role: "io" },
   ]}
 />
 
-After translation (human or AI), Blocks are written to TM with their full Run
-representation and entity mappings. The save step extracts entity annotations
-and stores them as `EntityMapping` entries, so the TM accumulates richer data
-over time.
+After translation (human or AI), Blocks are written to the memory with their full
+Run representation and entity mappings. The save step extracts entity
+annotations and stores them as `EntityMapping` entries, so the memory
+accumulates richer data over time.
 
 ## Consequences
 
-- TM stores rich content (Run sequences with inline-code runs and entity
+- The memory stores rich content (Run sequences with inline-code runs and entity
   metadata), not flat strings.
 - Generalized matching turns entity variation from a fuzzy penalty into an
   exact match at the top tier.
 - Entity adaptation provides pre-adapted targets with the correct entity
   values, reducing manual editing.
-- Inline codes survive TM storage and matching, reducing manual tag
+- Inline codes survive storage and matching, reducing manual tag
   reinsertion.
 - The SQLite backend uses pure-Go `modernc.org/sqlite`, preserving cross-
   compilation and the single-binary distribution goal.
-- Matching on Blocks (not strings) makes TM a streaming pipeline stage that
-  composes naturally with other tools.
+- Matching on Blocks (not strings) makes the memory a streaming pipeline stage
+  that composes naturally with other tools.
 - Trigram candidate retrieval keeps fuzzy lookup fast even for 100K-entry
-  TMs.
+  memories.
 
 ## Related
 
@@ -354,5 +358,5 @@ over time.
   runs, entity annotations
 - [AD-006: Tool System](006-tool-system.md) — `recycle` tool
 - [AD-010: Terminology](010-terminology.md) — shares matching infrastructure
-- [TM Matching Algorithm](/contribute/notes-internal/tm-matching-algorithm) — trigram
+- [Memory matching algorithm](/contribute/notes-internal/memory-matching-algorithm) — trigram
   construction, performance table, TMX element mapping

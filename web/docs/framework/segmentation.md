@@ -1,8 +1,8 @@
 ---
 sidebar_position: 13
 title: Segmentation
-description: Segmentation is the means that makes translation-memory reuse work and lets translation and checks operate per sentence. neokapi records it as a run-anchored stand-off overlay produced by a pluggable engine (SRX, UAX-29, an LLM, or the SaT ML model) — never a destructive split.
-keywords: [segmentation, SRX, UAX-29, sentence boundary, SaT, wtpsplit, overlay, translation memory, localization]
+description: Segmentation is the means that makes content-memory reuse work and lets translation and checks operate per sentence. neokapi records it as a run-anchored stand-off overlay produced by a pluggable engine (SRX, UAX-29, an LLM, or the SaT ML model) — never a destructive split.
+keywords: [segmentation, SRX, UAX-29, sentence boundary, SaT, wtpsplit, overlay, content memory, reuse]
 ---
 
 import { StreamDiagram } from "@neokapi/docs-shared";
@@ -12,7 +12,7 @@ import { StreamDiagram } from "@neokapi/docs-shared";
 Segmentation is a **means, not an end**: authors don't set out "to segment," they
 want their past translations reused and each sentence translated and checked on
 its own. Segmentation is what makes both possible —
-[translation memory](/framework/translation-memory) is a store of *segment*
+[content memory](/framework/content-memory) is a store of *segment*
 pairs, so boundaries are what let prior sentences match, and per-segment
 translation and [checks](/framework/checks) keep each unit small and a finding
 pinned to the sentence that broke. This page is the engine reference for the
@@ -39,8 +39,8 @@ the unsegmented block exactly.
 Because segmentation is an overlay rather than an edit, it is a [check-like
 annotation](/framework/content-model): it is produced after any
 [transformers](/framework/flows#transformers) have settled the source, so
-every boundary is anchored to the canonical runs that translation and TM will
-also see. If a later transformer does rewrite the source, the framework
+every boundary is anchored to the canonical runs that translation and content
+memory will also see. If a later transformer does rewrite the source, the framework
 applier rebases the boundaries onto the new runs.
 
 ## Why stand-off
@@ -50,7 +50,7 @@ segments to recover the original paragraph is fiddly, and inline markup that
 straddles a boundary has to be duplicated. An overlay avoids both. The same
 block can hold:
 
-- a **sentence** layer for translation and TM lookup,
+- a **sentence** layer for translation and memory lookup,
 - a coarser **clause** or **chunk** layer for an LLM that prefers larger units,
 
 and a tool that ignores segmentation still sees a clean, whole block. Bilingual
@@ -66,7 +66,7 @@ what they cost to run.
 
 | Engine | Boundary source | Needs | Use it when |
 | --- | --- | --- | --- |
-| `srx` (default) | SRX 2.0 rules — the full ruleset over a UAX-29 base where ICU is linked, a reduced pure-Go ruleset otherwise | nothing (pure Go); uses ICU when present | You want deterministic, language-tunable sentence boundaries — the localization-industry standard. |
+| `srx` (default) | SRX 2.0 rules — the full ruleset over a UAX-29 base where ICU is linked, a reduced pure-Go ruleset otherwise | nothing (pure Go); uses ICU when present | You want deterministic, language-tunable sentence boundaries — the industry-standard rule format. |
 | `uax29` | Unicode UAX-29 sentence rules (ICU) | cgo + ICU | You want the bare Unicode baseline with no exception rules and ICU is available. |
 | `llm` | An LLM asked to chunk semantically | an [LLM provider](/framework/translation) | You want meaning-aware chunks (long-form prose, mixed content) rather than sentence boundaries. |
 | `sat` | The wtpsplit *Segment any Text* ONNX model | the `kapi-sat` plugin | You need robust multilingual or unpunctuated-text segmentation that rules handle poorly. |
@@ -152,7 +152,7 @@ Useful flags: `--segment-source` (default true) / `--segment-target` to choose
 which side to segment, and `--overwrite-segmentation` to re-segment blocks that
 already carry an overlay. Each segment is **trimmed of leading/trailing
 whitespace by default** — so a segment is the clean sentence and the
-inter-sentence whitespace is left uncovered (keeping TM keys stable, regardless
+inter-sentence whitespace is left uncovered (keeping memory keys stable, regardless
 of which engine ran); pass `--trim-leading-whitespace=false` /
 `--trim-trailing-whitespace=false` to keep the raw surrounding whitespace.
 `kapi stats` reports segment totals without changing the content; for per-block
@@ -162,7 +162,7 @@ segment detail, use `kapi inspect`. For every flag, see the
 ## In a flow and a recipe
 
 Segmentation is a normal annotation stage. Put it ahead of translation so each
-segment translates as its own unit and TM lookup keys on sentences:
+segment translates as its own unit and memory lookup keys on sentences:
 
 ```yaml
 steps:
@@ -173,21 +173,21 @@ steps:
   - tool: translate          # translate the remainder
 ```
 
-In a [`.kapi` project](/reference/project-file) the same stage lives in a named
+In a [`kapi.yaml` project](/reference/project-file) the same stage lives in a named
 flow, so every run segments consistently and the boundaries feed the
-project-local TM.
+project's content memory.
 
 ## How segmentation feeds the rest of the pipeline
 
-- **Translation memory** — TM is a store of *segment* pairs, so segmentation is
+- **Content memory** — memory is a store of *segment* pairs, so segmentation is
   what makes prior sentence translations reusable. Segment, then
-  [`recycle`](/framework/translation-memory) matches **sentence by sentence**:
+  [`recycle`](/framework/content-memory) matches **sentence by sentence**:
   when a block carries a multi-segment overlay, each sentence is looked up
-  against the TM and the block target is assembled from the per-segment matches —
+  against memory and the block target is assembled from the per-segment matches —
   so a paragraph whose sentences were translated before is leveraged even though
-  the paragraph as a whole was never a TM entry.
+  the paragraph as a whole was never a single entry.
 - **AI / MT translation** — translating per segment keeps each unit small and
-  self-contained, which improves consistency and lets partial TM matches and
+  self-contained, which improves consistency and lets partial matches and
   full-segment matches coexist in one block.
 - **Checks** — length, consistency, and other [QA checks](/framework/checks)
   operate per segment when an overlay is present, so a finding points at the

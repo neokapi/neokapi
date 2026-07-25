@@ -1,8 +1,8 @@
 ---
 title: Brand scan
 sidebar_label: Brand scan
-description: Brand scan reads a corpus of existing brand material — pasted text, web pages, uploaded documents, or a public git repository — and drafts a brand voice profile and glossary candidates for review before you adopt them.
-keywords: [brand scan, onboarding, brand voice, voice profile, glossary, terminology, corpus, inference, bowrain]
+description: Brand scan reads a corpus of existing brand material — pasted text, web pages, uploaded documents, or a public git repository — and drafts a brand voice profile and candidate terms for review before you adopt them.
+keywords: [brand scan, onboarding, brand voice, voice profile, terms, terminology, corpus, inference, bowrain]
 ---
 
 import { PhaseFlow, SwimlaneDiagram } from "@neokapi/docs-shared";
@@ -12,7 +12,7 @@ import { PhaseFlow, SwimlaneDiagram } from "@neokapi/docs-shared";
 Adopting a brand voice from scratch means transcribing rules a team already
 follows but has rarely written down. **Brand scan** shortens that first step: it
 reads a corpus of existing brand material and drafts a
-[brand voice profile](/server/brand-voice) and candidate glossary terms, which
+[brand voice profile](/server/brand-voice) and candidate terms, which
 you review and edit before saving. It is an onboarding aid, not an authority —
 nothing it produces is enforced until you adopt it through the ordinary brand
 surfaces.
@@ -24,7 +24,7 @@ the job as it runs.
 ## The flow
 
 A scan reads the sources you give it, assembles them into one corpus, drafts a
-voice profile from that corpus, and extracts glossary candidates — then hands
+voice profile from that corpus, and extracts term candidates — then hands
 back a draft for review.
 
 <PhaseFlow
@@ -32,10 +32,10 @@ back a draft for review.
     { label: "Sources", sub: "paste, URL, upload, git repo" },
     { label: "Corpus", sub: "assembled + source-tagged", edge: "read sources" },
     { label: "Voice profile draft", sub: "tone, style, vocabulary, examples", edge: "infer" },
-    { label: "Glossary candidates", sub: "term + definition + domain", edge: "extract terms" },
+    { label: "Term candidates", sub: "term + definition + domain", edge: "extract terms" },
     { label: "Review", sub: "edit, test, then adopt", edge: "return draft" },
   ]}
-  caption="A scan reads sources into one corpus, infers a voice profile, extracts glossary candidates, and returns a draft to review. Nothing is saved to the brand until you adopt it."
+  caption="A scan reads sources into one corpus, infers a voice profile, extracts term candidates, and returns a draft to review. Nothing is saved to the brand until you adopt it."
 />
 
 The scan runs asynchronously. Creating one returns a job id; poll the scan until
@@ -86,9 +86,9 @@ so a reviewer can weigh each section rather than accept the whole profile
 blindly. It is a review aid, kept separate from the profile itself, so the
 profile still round-trips through the ordinary profile format.
 
-### Glossary candidates
+### Term candidates
 
-Alongside the voice profile, the scan extracts **glossary candidates** — terms
+Alongside the voice profile, the scan extracts **term candidates** — terms
 found in the corpus, each with an optional definition and domain, deduplicated
 and merged with the profile's preferred terms. These are candidates for the
 [terminology](/server/terminology) hub, not governed concepts; adopting them is
@@ -113,7 +113,7 @@ governance](/server/brand#tiered-governance) holds from the very first profile.
     { from: 0, to: 1, label: "test edited draft against sample text", detail: "no AI cost" },
     { from: 0, to: 2, label: "adopt: save profile, promote terms" },
   ]}
-  caption="A scan returns a draft you review; adopting it saves a voice profile and promotes glossary candidates through the ordinary brand surfaces."
+  caption="A scan returns a draft you review; adopting it saves a voice profile and promotes term candidates through the ordinary brand surfaces."
 />
 
 While reviewing, you can **test a draft** against a sample of your own text: the
@@ -123,7 +123,7 @@ the draft and see the effect before committing to it.
 
 When the draft is ready, you adopt it through the ordinary surfaces: the edited
 voice profile is saved as a [brand voice profile](/server/brand-voice), and the
-glossary candidates are promoted through [terminology](/server/terminology). The
+term candidates are promoted through [terminology](/server/terminology). The
 scan itself creates neither — it only hands you a draft to carry forward.
 
 ## Credits and quota

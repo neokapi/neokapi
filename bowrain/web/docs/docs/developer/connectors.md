@@ -68,7 +68,7 @@ Connectors are organized by category:
 
 ### FileConnector
 
-Wraps the `FormatRegistry` to read/write localization files:
+Wraps the `FormatRegistry` to read/write content files:
 
 ```go
 config := map[string]string{

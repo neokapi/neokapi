@@ -106,7 +106,7 @@ Given text blocks, identify:
 
 2. Terminology candidates: domain-specific terms that should be translated consistently
    across the project. These are words/phrases that carry specific meaning in this context
-   and would benefit from a termbase entry. Exclude common words.
+   and would benefit from a terms entry. Exclude common words.
    - "dnt" = never translate (brand names, acronyms that stay in source language)
    - "consistent" = translate, but the same way everywhere
    - "free" = translate naturally, no consistency requirement
@@ -166,7 +166,7 @@ Batch: up to 25 documents per request, 5120 characters each.
 
 ### spaCy (via Plugin Bridge)
 
-Uses the Java/Python plugin bridge ([Framework AD-007](https://neokapi.github.io/web/neokapi/contribute/architecture/007-plugin-system)). spaCy NER models output:
+Uses the Java/Python plugin bridge ([Framework AD-007](https://neokapi.github.io/contribute/architecture/007-plugin-system)). spaCy NER models output:
 
 | spaCy Label                          | model.EntityType   |
 | ------------------------------------ | ------------------ |
@@ -255,7 +255,7 @@ Worker picks up job
     │   ├─ Concurrent calls (configurable, default 4)
     │   ├─ Exclude blocks fully covered by NER (optimization)
     │   ├─ Parse structured response → TermCandidateAnnotation + EntityAnnotation
-    │   ├─ Dedup: skip terms already in termbase or rejected list
+    │   ├─ Dedup: skip terms already in the terms store or rejected list
     │   └─ Apply confidence threshold: high → normal queue, low → low-confidence queue
     │
     ├─ 5. Merge
@@ -436,7 +436,7 @@ Dark mode variants shift to lower lightness with higher saturation.
 5. Review queue store in `bowrain/store/` (SQLite schema + CRUD)
 6. Review queue API endpoints in `bowrain/server/`
 7. Extraction automation rule + worker in `bowrain/event/`
-8. Approval → termbase creation logic in `bowrain/service/`
+8. Approval → terms-store creation logic in `bowrain/service/`
 
 ### Track 2: Backend — Editor Entity Support
 

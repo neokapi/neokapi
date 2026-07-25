@@ -7,7 +7,7 @@ keywords: [kapi project, kapi.yaml, project file, YAML recipe, flows, defaults, 
 
 # Project file
 
-A Kapi project is a portable `kapi.yaml` recipe at a project's root that captures a localization workflow: source and target languages, content file patterns, tool pipelines (flows), plugin requirements, and processing defaults. It carries no credentials or state, so it is always safe to commit. For when to use a project versus an ad-hoc run, see [Projects](/kapi/projects).
+A Kapi project is a portable `kapi.yaml` recipe at a project's root that captures a content workflow: source and target languages, content file patterns, tool pipelines (flows), plugin requirements, and processing defaults. It carries no credentials or state, so it is always safe to commit. For when to use a project versus an ad-hoc run, see [Projects](/kapi/projects).
 
 ## Discovery
 
@@ -17,7 +17,7 @@ Like git, `kapi` walks up the directory tree from where you run it and uses the 
 
 ```yaml
 version: v1
-name: My App Localization
+name: My App
 
 content:
   - path: "src/locales/en/*.json"
@@ -65,7 +65,7 @@ defaults:
     fuzzy_threshold: 75
   segmentation:
     source: true
-  termbase: glossary/terms.db
+  termbase: terms/product.db
 ```
 
 ## Fields
@@ -172,14 +172,14 @@ content:
 | `encoding`         | string              | Input file encoding (default: `utf-8`)                                                                                   |
 | `exclude`          | string[]            | Glob patterns skipped during content scanning (e.g. `**/*.generated.json`)                                               |
 | `formats`          | map                 | Per-format `preset`, `config`, and detection `priority` overrides (see [formats](#formats))                              |
-| `merge`            | MergeDefaults       | How `kapi merge` resolves a translator's target against an existing target or TM entry (see [merge](#merge))             |
-| `tm`               | TMDefaults          | TM pre-fill on `kapi extract` and write-back on `kapi merge` (see [tm](#tm))                                             |
+| `merge`            | MergeDefaults       | How `kapi merge` resolves a translator's target against an existing target or content-memory entry (see [merge](#merge)) |
+| `tm`               | MemoryDefaults      | Content-memory pre-fill on `kapi extract` and write-back on `kapi merge` (see [tm](#tm))                                 |
 | `segmentation`     | SegmentationDefaults | Opt-in sentence-level segmentation overlay applied on extract (see [segmentation](#segmentation))                       |
 | `redaction`        | RedactionSpec       | Replace sensitive content with protected placeholders before processing and restore it afterwards (see [redaction](#redaction)) |
 | `brand_voice`      | BrandVoiceBinding   | Bind a brand voice profile as standing project context (see [brand_voice](#brand_voice))                                |
-| `termbase`         | string              | Path to a glossary/termbase, resolved relative to the project root; used for project-scoped term enforcement with no `--termbase` flag |
-| `termbase_source`  | string              | Committed, git-tracked native source artifact (a `.ktb`) the project termbase is compiled from; `kapi apply` edits it and re-imports into the gitignored termbase cache, so `git diff` is the review surface |
-| `tm_source`        | string              | Committed, git-tracked native source artifact (a `.kmb`) the project translation memory is compiled from — the TM analogue of `termbase_source` |
+| `termbase`         | string              | Path to a terms store, resolved relative to the project root; used for project-scoped term enforcement with no `--termbase` flag |
+| `termbase_source`  | string              | Committed, git-tracked native source artifact (a `.ktb`) the project terms store is compiled from; `kapi apply` edits it and re-imports into the gitignored terms cache, so `git diff` is the review surface |
+| `tm_source`        | string              | Committed, git-tracked native source artifact (a `.kmb`) the project content memory is compiled from — the content-memory analogue of `termbase_source` |
 | `state`            | string              | Committed, git-tracked [project state store](/kapi/project-store) (a kapi-project-state JSON document) — the authoritative carrier of per-unit workflow decisions (review ladder, approvals, parking) a plain target file can't hold. Empty defaults to `.kapi-state.json`; a server-backed project pushes state to a remote instead |
 | `flow`             | string              | The project's default flow — the composed flow `kapi up` runs to catch up every locale. A built-in name (e.g. `translate`) or a key in `flows:`. Empty runs the built-in default (recycle → translate) |
 | `jobs`             | int                 | How many target languages one `kapi up` pass runs concurrently. `0` (default) leaves it to the runner (4); `--jobs` overrides per run |
@@ -269,7 +269,7 @@ source.
 | Field             | Type     | Description                                                                                            |
 | ----------------- | -------- | ----------------------------------------------------------------------------------------------------- |
 | `fuzzy_threshold` | int      | Minimum fuzzy match score (0–100) to pre-fill the target on extract (default: `75`)                   |
-| `read`            | string[] | Additional read-only TM files consulted during pre-fill; writes always go to the project TM           |
+| `read`            | string[] | Additional read-only content-memory files consulted during pre-fill; writes always go to the project content memory |
 
 #### segmentation
 
@@ -328,7 +328,7 @@ flows:
 
 ## Ship gates
 
-Ship gates decide when localized content is *shippable*: coverage thresholds
+Ship gates decide when translated content is *shippable*: coverage thresholds
 over the target lifecycle ladder (`draft` → `translated` → `reviewed` →
 `signed-off`), enforced by [`kapi check --ship`](/reference/commands/check) and
 driven toward by [`kapi up`](/reference/commands/up). The model — ladders,

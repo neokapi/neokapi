@@ -1,27 +1,27 @@
 ---
 sidebar_position: 4
-title: "TM Matching Algorithm"
-description: Implementation note for AD-009 — the three derived matching keys (plain, structural, generalized), how they are indexed in SQLite, and the fuzzy match scoring and adaptation pipeline in Memory.
-keywords: [TM matching, fuzzy match, Memory, plain key, structural key, generalized key, implementation note, neokapi]
+title: "Content Memory Matching Algorithm"
+description: Implementation note for AD-009 — the three derived matching keys (plain, structural, generalized), how they are indexed in SQLite, and the fuzzy match scoring and adaptation pipeline in the memory package.
+keywords: [content memory matching, fuzzy match, memory, plain key, structural key, generalized key, implementation note, neokapi]
 ---
 
-# TM Matching Algorithm
+# Content Memory Matching Algorithm
 
-This note provides implementation details for [AD-009](/contribute/architecture/009-translation-memory).
+This note provides implementation details for [AD-009](/contribute/architecture/009-content-memory).
 
 ## Derived matching keys
 
-Each TM entry stores its variants as `[]model.Run` sequences (AD-002). Several
-matching representations are derived from those runs at storage time and indexed
-for fast lookup. Memory computes them with the framework's projection helpers
-in `core/model`:
+Each content-memory entry stores its variants as `[]model.Run` sequences
+(AD-002). Several matching representations are derived from those runs at storage
+time and indexed for fast lookup. The `memory` package computes them with the
+framework's projection helpers in `core/model`:
 
 - **plain**: `model.FlattenRuns(runs)` (normalized via `NormalizeText`) -- keeps
   `Text` runs verbatim, renders `Ph` placeholders as `\{equiv\}` and `Sub` runs
   as `[equiv]`, emits paired-code (`PcOpen`/`PcClose`) inner content but not the
   wrappers, and takes the 'other' branch of plural/select constructs (or the
-  first form if 'other' is absent). Enables matching against legacy TMs and
-  unanalyzed content.
+  first form if 'other' is absent). Enables matching against memories imported
+  from legacy tools, and against unanalyzed content.
 - **structural**: `model.RunsStructuralText(runs)` -- renders inline-code runs as
   positional placeholders: `PcOpen` as `\{1\}`, `PcClose` as `\{/1\}`, and `Ph`
   as `\{1/\}`. Enables matching with inline-code position awareness.
@@ -113,7 +113,7 @@ Falls back to length-based pre-filtering if pg_trgm is unavailable.
 2. **SQLite** (via `modernc.org/sqlite`): persistent; matching keys are pre-computed and indexed. FTS5 trigram indexes for fuzzy candidate retrieval; FTS5 unicode61 for ranked UI search. Pure Go with no CGo dependencies.
 3. **PostgreSQL**: persistent; same matching logic with pg_trgm GIN indexes for fuzzy candidate retrieval and tsvector/tsquery for ranked UI search. Workspace-scoped isolation via `workspace_id` column.
 
-Generalized and structural exact matching is an indexed lookup -- fast even for large TMs. Fuzzy matching uses trigram candidate retrieval to narrow the search space, then Levenshtein scoring on ~200 candidates.
+Generalized and structural exact matching is an indexed lookup -- fast even for large memories. Fuzzy matching uses trigram candidate retrieval to narrow the search space, then Levenshtein scoring on ~200 candidates.
 
 ## TMX element mapping
 

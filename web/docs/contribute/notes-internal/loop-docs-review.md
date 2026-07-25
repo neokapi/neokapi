@@ -9,7 +9,7 @@ Internal note. This reviews the existing documentation about **convergence** —
 the kapi loop, `kapi up`, source readiness, and the translation flow — across
 both docs sites, and checks each page against (a) the code and (b) the
 **source-first** model in roadmap epic **019** (settle the source → source
-ship-gate → translate the approved source per locale, TM-first → target
+ship-gate → translate the approved source per locale, memory-first → target
 ship-gate → converged; a gate that is not met *holds*, it does not ship).
 
 The verb is `kapi up`; the model is *Shape → Ship*, and specifically
@@ -31,7 +31,7 @@ The claims below were checked against source. Confirmed unless noted.
   (5); `--jobs` falls back to `defaults.jobs`.
 - **Default flow** when `defaults.flow` is absent is the built-in `translate`
   flow: `recycle → translate → qa` (`host/flowdef/builtin.go`). So `kapi up` is
-  TM-first by construction on the CLI.
+  memory-first by construction on the CLI.
 - **`kapi status` / `--review`**, **`kapi check --ship`**, **`kapi apply`**
   (`kind: "review"` and `kind: "tm"`) all present
   (`cli/status.go`, `cli/check.go`, `cli/apply.go`).
@@ -60,9 +60,10 @@ actually shipped, verified against code:
   `verifySourceGate`, not the local fan-out). So kapi-OSS pages describe the
   source-hold conceptually + via `check --ship`; the *hold on push* is a Bowrain
   (server) behaviour.
-- **Server convergence is TM-first with a truthful split.** `recycleBlocks`
+- **Server convergence is memory-first with a truthful split.** `recycleBlocks`
   recycles before AI and `reconcileSplit` (`convergence_orchestrator.go`) makes
-  `ViaMemory + ViaAI = Done`, so the `TM N · AI M` report is truthful server-side.
+  `ViaMemory + ViaAI = Done`, so the `content memory N · AI M` report is truthful
+  server-side.
 - **Stall reasons** now include `source_not_ready` (`core/convergence/events.go`
   `StallSourceNotReady`); the run row carries a `blocked_on_source` count
   (`bowrain/store/convergence_run.go`). (`needs_source_review` was never added as
@@ -75,7 +76,7 @@ actually shipped, verified against code:
   (`bowrain/jobs/worker.go`, `Properties["dnt_terms"]`).
 - **Estimate endpoint** `GET /projects/:id/convergence/estimate`
   (`bowrain/server/server.go`, `handlers_convergence_estimate.go`) returns source
-  readiness first, then per-locale TM/AI split + credit estimate; the
+  readiness first, then a per-locale memory/AI split + credit estimate; the
   `ConvergenceRunNowDialog` (`bowrain/packages/ui`) is the source-readiness-first
   consent flow.
 
@@ -87,7 +88,7 @@ actually shipped, verified against code:
   `computeSourceReadiness` for `kapi status` **reporting only**
   (`host/coverage.go`), never by the derive/produce step. Convergence does not
   hold the fan-out on an under-ready source today.
-- **Server convergence is not yet source-first, and its TM split is not
+- **Server convergence is not yet source-first, and its memory split is not
   truthful.** PR #1312 added a recycle stage server-side (`recycleBlocks`,
   `bowrain/jobs/worker.go`), but `produceFunc` still attributes produced units
   to AI (`ViaMemory` unknown server-side, `convergence_orchestrator.go`). The
@@ -99,10 +100,10 @@ actually shipped, verified against code:
   `needs_ai_key`, `rate_limited`, `no_progress`, `checks_failing`.
   `source_not_ready` / `needs_source_review` are **not** present yet (epic 019
   phase E).
-- **Protected/DNT terms are prompted, not enforced.** The glossary is rendered
-  into the translate prompt (`core/ai/prompt/translate.go`); `termcheck` is an
-  annotation tool (`core/tools/termcheck.go`); DNT spans are not enforced in the
-  AI path.
+- **Protected/DNT terms are prompted, not enforced.** The project's terms are
+  rendered into the translate prompt as its `Glossary` block
+  (`core/ai/prompt/translate.go`); `termcheck` is an annotation tool
+  (`core/tools/termcheck.go`); DNT spans are not enforced in the AI path.
 
 </details>
 
@@ -116,13 +117,13 @@ Bowrain funnel.
 |---|---|---|---|
 | `kapi/convergence.mdx` (The kapi loop) | Updated | Had both ladders and named `source_gate`, but framed the source as merely "the first half" — it did **not** show the source gate *holding* the fan-out, i.e. the source-first shape. | **Done in this PR:** added the [Source first](/kapi/convergence#source-first) section with `GatedLoopDiagram` (visual ship-gates + held branches). Kept at model level; no Bowrain funnel. |
 | `kapi/convergence-in-ci.mdx` (The kapi loop in CI) | **Done** | Stated the ship gate "includes the source gates" but had no source-first *hold* framing. | **Done in the follow-up PR:** added a "Source first: settle before you fan out" note — `kapi check --ship` enforces `source_gate`, and the loop holds under it (`source_not_ready`). Bowrain-free; links to the model. |
-| `kapi/recipes/gate-localization-in-ci.mdx` (Ship gates & CI) | Correct | `kapi check --ship`, exit-non-zero, `ship_gates:` all verified. Source gate mentioned in passing. | Cross-link the source-first section for the "why settle first" rationale. Low priority. |
+| `kapi/recipes/ship-gates-and-ci.mdx` (Ship gates & CI) | Correct | `kapi check --ship`, exit-non-zero, `ship_gates:` all verified. Source gate mentioned in passing. | Cross-link the source-first section for the "why settle first" rationale. Low priority. |
 | `kapi/recipes/keep-source-on-brand.mdx` (Keep source on brand) | Correct | The source-settle recipe (brand check/rewrite, source QA) — the phase-1 tools. Does not connect to the gate/hold. | Add a closing cross-link: settling source is *phase 1* of the loop → the source ship-gate. Low priority. |
 | `kapi/recipes/translate-content.mdx` (Translate with your AI) | **Done** | No mention that the source must be settled first. | **Done in the follow-up PR:** added one line + link to source-first (source below `source_gate` holds `source_not_ready`, fixed once not once per locale). |
 | `kapi/recipes/review-and-approve.mdx` (Review & approve) | Correct | Target-language review only (`kapi status --review`, `kapi apply kind:review`). | **Done (neokapi#1325):** CLI source-gate parity landed; the page documents the local source-settle loop (hold on `source_not_ready` → settle → re-run). |
-| `kapi/recipes/pre-translate-with-tm.mdx` (Reuse translations) | Correct | TM recycle = phase-2 engine. Accurate. | No change. Optionally note recycle only ever runs on approved source. |
+| `kapi/recipes/pre-translate-from-memory.mdx` (Reuse what you've translated) | Correct | Content-memory recycle = phase-2 engine. Accurate. | No change. Optionally note recycle only ever runs on approved source. |
 | `kapi/recipes/machine-ship-strategy.mdx` (Tier gates per market) | Correct | Per-market target tiers, approver classes. Verified against `gates:` registry. | No change. |
-| `kapi/recipes/tm-termbase-storage.mdx` (Where translations & terms live) | Correct | `kind:tm` vs `kind:review`, `defaults.tm_source`/`state`. Accurate. | No change. |
+| `kapi/recipes/memory-and-terms-storage.mdx` (Where translations & terms live) | Correct | `kind:tm` vs `kind:review`, `defaults.tm_source`/`state`. Accurate. | No change. |
 | `kapi/project-store.mdx` (The project store) | Correct | `.kapi-state.json`, derived state vs decisions. Accurate. | No change. |
 | `kapi/projects.mdx` (Projects) | Correct | Uses `PipelineDiagram`; loop mechanics accurate. | No change. |
 | `kapi/direct-execution-layer.mdx` (CLI layers) | Correct | Direct / flow / convergence layers; `kapi up` vs `kapi run` vs `kapi exec`. Accurate. | No change. |
@@ -148,9 +149,9 @@ loop pages.
 | `architecture-decisions/022-convergence-as-a-service.md` (AD-022) | **Done** | Predated source-first: no source-settle phase, no `source_not_ready` stall. | **Done in the follow-up PR:** added decision *1a* (settle → gate → translate approved source), `source_not_ready` + `blocked_on_source` on the run entity, and the estimate endpoint. |
 | `architecture-decisions/014-translator-workflow.md` (AD-014) | **Done** | Documented the source-review gate as an *optional*/bypassed automation option. | **Done in the follow-up PR:** reconciled with AD-022 — the source gate is convergence-enforced (one story); `TaskSourceReview` is the human half of the `source_not_ready` hold. |
 | `architecture-decisions/013-automation-engine.md` (AD-013) | **Done** | `fan-out-after-source-review` default rule; defers to AD-014. | **Done in the follow-up PR:** reframed the rule as "resume a held run"; the on-push note now describes the source-first hold. |
-| `architecture-decisions/015-server-ai-operations.md` (AD-015) | Correct | Translation jobs, extraction, brand voice. | **Done (neokapi#1323):** the produce/worker description now includes the TM-first recycle step and truthful `ViaMemory`/`ViaAI` split. |
+| `architecture-decisions/015-server-ai-operations.md` (AD-015) | Correct | Translation jobs, extraction, brand voice. | **Done (neokapi#1323):** the produce/worker description now includes the memory-first recycle step and truthful `ViaMemory`/`ViaAI` split. |
 | `notes/translator-workflow.md` | Accurate | Implementation detail for AD-014 (events, tasks, tracker). | No change; update alongside AD-022 reconciliation. |
-| `notes/translation-job-queue.md` | Correct | Job model, quotas, worker algorithm. | **Done (neokapi#1323):** the TM-first split section reflects `recycleBlocks` + `reconcileSplit`. |
+| `notes/translation-job-queue.md` | Correct | Job model, quotas, worker algorithm. | **Done (neokapi#1323):** the memory-first split section reflects `recycleBlocks` + `reconcileSplit`. |
 
 **ASCII diagrams:** none found on the bowrain docs either — flow visuals use the
 diagram kit (`PhaseFlow`, `LanesDiagram`, `PipelineDiagram`, `SwimlaneDiagram`).
@@ -161,7 +162,7 @@ No conversions needed.
 > **Resolved (2026-07-18, follow-up PR):** items 1 and 3 are done — the bowrain
 > venue framing (the-loop.mdx) and the source-review worklist (review.mdx) now
 > exist, and the AD/reference source-gate story is reconciled. Item 2 (server
-> TM-split) is now truthful in code (`reconcileSplit`) — the remaining doc caveat
+> memory split) is now truthful in code (`reconcileSplit`) — the remaining doc caveat
 > is a deferred AD-015 / job-queue note. Item 4 is closed: `source_not_ready`
 > exists in `core/convergence/events.go`. Retained below for history.
 
@@ -170,8 +171,9 @@ No conversions needed.
    **holding** the fan-out — the whole point of source-first. Fixed on the kapi
    site in this PR (the explainer + `GatedLoopDiagram`); the bowrain venue
    framing is a follow-up gated on phase E.
-2. **Server TM-first is over-claimed.** Docs imply a truthful `TM N · AI M`
-   server-side; `produceFunc` still attributes to AI (`ViaMemory` unknown). Soften
+2. **Server memory-first is over-claimed.** Docs imply a truthful
+   `content memory N · AI M` server-side; `produceFunc` still attributes to AI
+   (`ViaMemory` unknown). Soften
    until #1312's split is real, or scope the truthful-split claim to the CLI.
 3. **Source-review as a first-class surface is undocumented on the user side.**
    The machinery exists (`create_source_review`, `TaskSourceReview`) but no
@@ -190,7 +192,7 @@ walkthrough-video re-records, which remain open.
 - ✅ **`bowrain/getting-started/the-loop.mdx`** — added the "Source first"
   section (the source-gate / governed-review framing the kapi site omits),
   reusing `GatedLoopDiagram`: settle source → source gate (hold → source
-  review) → translate approved source TM-first → target ship-gate.
+  review) → translate approved source memory-first → target ship-gate.
 - ✅ **`bowrain/.../022-convergence-as-a-service.md`** — added decision *1a.
   Settle the source, then translate*: the source-settle pass, the
   `source_not_ready` hold, `blocked_on_source`, and the estimate endpoint;
@@ -218,9 +220,9 @@ walkthrough-video re-records, which remain open.
   `checked` (owner decision), `none` to draft freely. The page documents the
   local source-settle loop (hold → `kapi check --ship` / fix terms·brand·source
   → `kapi apply` → re-run).
-- ✅ **AD-015 / `notes/translation-job-queue.md`** — TM-split caveats dropped
-  (neokapi#1323): both now describe the truthful server `TM N · AI M`
-  (`reconcileSplit` + the job-pipeline recycle step).
+- ✅ **AD-015 / `notes/translation-job-queue.md`** — memory-split caveats dropped
+  (neokapi#1323): both now describe the truthful server
+  `content memory N · AI M` (`reconcileSplit` + the job-pipeline recycle step).
 
 **Open — walkthrough videos to re-record** (out of scope for the docs PR; per
 CLAUDE.md, CLI/UI surface changes):

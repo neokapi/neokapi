@@ -31,7 +31,7 @@ JSON Schema enables reliable batch translation and other structured-output tasks
 
 Modern LLMs are capable translators, reviewers, and terminology extractors.
 Treating them as a separate service loses the composability of the streaming
-pipeline: AI tools should sit alongside TM leverage, term enforcement, and
+pipeline: AI tools should sit alongside memory leverage, term enforcement, and
 QA in the same flow.
 
 AI APIs come with practical constraints: rate limits, cost per token,
@@ -311,7 +311,7 @@ Because AI tools are ordinary Tools, they compose naturally:
 <PipelineDiagram
   stages={[
     { label: "source", sub: "binding", role: "io" },
-    { label: "recycle", sub: "TM", role: "translate" },
+    { label: "recycle", sub: "memory", role: "translate" },
     { label: "term-lookup", role: "annotate" },
     { label: "translate", sub: "LLMProvider", role: "translate" },
     { label: "term-enforce", role: "annotate" },
@@ -329,7 +329,7 @@ AI tools receive terminology context from upstream stages:
 - **Entity annotations** — when `entity-extract` has run, identified
   entities (with DNT flags and locale formatting hints) appear in the
   prompt context.
-- **Glossary constraints** — a dedicated glossary section lists
+- **Term constraints** — a dedicated terminology section lists
   preferred and forbidden terms applicable to the current Block's
   domain, product, and market.
 
@@ -353,7 +353,7 @@ via `ParseRunsPlaceholderText`, so inline markup survives the round trip.
 Prompt templates live in `core/ai/prompt/` as versioned Go files
 using `text/template`:
 
-- `translate.go` — translation prompts with glossary and context (single
+- `translate.go` — translation prompts with terminology and context (single
   and batched)
 - `qa.go` — quality assurance check prompts
 
@@ -362,7 +362,7 @@ package (e.g. the review prompt) are built inline in their tool, such as
 `core/ai/tools/review.go`.
 
 Templates are context-aware: they include surrounding Blocks for document
-context, glossary constraints from term lookup, TM matches from
+context, term constraints from term lookup, memory matches from
 leveraging, and format metadata (HTML tag handling instructions, CDATA
 boundaries, etc.).
 
@@ -422,7 +422,7 @@ these framework primitives.
 
 - AI translation is a pipeline tool, not a separate system. It composes
   with all other tools without special orchestration.
-- Ordering is meaningful: TM leverage before AI translation avoids
+- Ordering is meaningful: memory leverage before AI translation avoids
   re-translating exact matches, reducing cost.
 - Terminology context flows through the pipeline via annotations,
   enabling AI tools to produce terminology-consistent translations from
@@ -449,7 +449,7 @@ these framework primitives.
 - [AD-004: Processing Engine](004-processing-engine.md) — flow execution
   and `ParallelBlockTool`
 - [AD-006: Tool System](006-tool-system.md) — Tool pattern
-- [AD-009: Translation Memory](009-translation-memory.md) — `recycle`
+- [AD-009: Content memory](009-content-memory.md) — `recycle`
   feeds context to AI tools
 - [AD-010: Terminology](010-terminology.md) — term annotations feed
   context to AI tools

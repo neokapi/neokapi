@@ -59,7 +59,7 @@ The project opens in the project view.
 2. The server auto-detects the file format (HTML, XML, JSON, YAML, PO, Markdown, XLIFF, and more)
 3. Files appear in the file list with format icon, block count, and word count
 
-Supported formats include all formats registered in the neokapi format registry. See [Formats](https://neokapi.github.io/web/neokapi/formats) for the complete list.
+Supported formats include all formats registered in the neokapi format registry. See [Formats](https://neokapi.github.io/formats) for the complete list.
 
 ## Opening the Editor
 
@@ -85,11 +85,17 @@ Click any file name in the project view to open it in the translation editor. Th
 2. Select the provider from the toolbar dropdown
 3. Click **AI Translate** to translate the file using the selected MT engine
 
-### TM Leverage
+### Reuse from content memory
 
-1. If translation memory entries exist, click **TM Lookup** in the toolbar
-2. The system matches source blocks against the TM and fills in matches
-3. High-confidence matches are applied automatically; review others in the context panel
+1. In [Pre-process](/server/pre-process), choose **Recycle from memory** to
+   pre-fill targets across the whole file
+2. Exact and high-confidence fuzzy matches land as drafts; the editor's context
+   panel shows the per-block matches with their scores
+3. In [Review](/server/review), **Apply exact Memory** fills the selected blocks
+   from exact matches only
+
+See [Content memory](/server/translation-memory) for the entry browser and how
+matching works.
 
 ### Pseudo-Translation
 
@@ -156,6 +162,6 @@ the server, preserving all files and translations.
 ## What's Next
 
 - [Translation Editor](./translation-editor.mdx) — Visual and Table views, toolbar, keyboard shortcuts, context panel
-- [Content memory](./translation-memory.mdx) — browse, search, and edit the workspace TM entries
+- [Content memory](./translation-memory.mdx) — browse, search, and edit the workspace's memory entries
 - [Terminology](./terminology.mdx) — term management and enforcement
 - [Walkthroughs](./walkthroughs.md) — step-by-step workflows

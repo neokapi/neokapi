@@ -2,7 +2,7 @@
 sidebar_position: 16
 title: OMML Math Conversion
 description: Implementation note for AD-032 — the cgo-free core/math converter from Office Math Markup Language (OMML) to portable LaTeX/MathML via a texmath-shaped Exp AST, the namespace-wrapping token-stream reader, the operator dictionary that separates math typography from m:nor prose, the byte-offset nor-splice algorithm the OpenXML sub-skeleton consumes, the public API surface, and a coverage-gap ledger of the documented OMML approximations.
-keywords: [OMML, Office Math, MathML, LaTeX, equation localization, m:nor, texmath, Exp AST, byte-exact splice, sub-skeleton, core/math, implementation note, neokapi]
+keywords: [OMML, Office Math, MathML, LaTeX, equation translation, m:nor, texmath, Exp AST, byte-exact splice, sub-skeleton, core/math, implementation note, neokapi]
 ---
 
 # OMML Math Conversion

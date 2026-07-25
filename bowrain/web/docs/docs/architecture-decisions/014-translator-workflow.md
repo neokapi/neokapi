@@ -23,7 +23,7 @@ once per locale.
 
 ## Context
 
-Localization is collaborative. Automation can translate, extract
+Translation is collaborative. Automation can translate, extract
 entities, and enforce quality gates, but humans still review,
 translate, and sign off. The gap to close is between "automation has
 produced content" and "a human sees it in their inbox and acts on it".

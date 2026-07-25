@@ -63,7 +63,7 @@ func NewUppercaseTool() *tool.BaseTool {
 | Category      | Responsibility                  | Examples                                      |
 | ------------- | ------------------------------- | --------------------------------------------- |
 | **Transform** | Modify content in-place         | case change, search/replace, redaction        |
-| **Enrich**    | Add metadata or overlays        | segmentation, TM leveraging, AI translation, terminology |
+| **Enrich**    | Add metadata or overlays        | segmentation, content-memory leveraging, AI translation, terminology |
 | **Validate**  | Check quality without modifying | QA checks, word count, spell check            |
 | **Convert**   | Transform representations       | Encoding conversion, line break normalization |
 
@@ -146,7 +146,7 @@ segTool := tools.NewSegmentationTool(&tools.SegmentationConfig{})
 // QA check — configured via per-rule flags on QACheckConfig
 qaTool := tools.NewQACheckTool(tools.NewQACheckConfig(model.LocaleID("fr")))
 
-// TM leverage with a custom fuzzy threshold and a TM provider
+// Content-memory leverage with a custom fuzzy threshold and a memory provider
 memoryTool := tools.NewMemoryLeverageTool(&tools.MemoryLeverageConfig{
     TargetLocale:   "fr",
     FuzzyThreshold: 80, // 0-100
@@ -154,20 +154,20 @@ memoryTool := tools.NewMemoryLeverageTool(&tools.MemoryLeverageConfig{
 })
 ```
 
-The terminology tools live in the `termbase` package and take a `Terminology`
+The terminology tools live in the `terms` package and take a `Terminology`
 alongside their config:
 
 ```go
 import "github.com/neokapi/neokapi/terms"
 
 // Term lookup — scans source text and attaches terminology annotations
-termLookupTool := termbase.NewTermLookupTool(tb, termbase.TermLookupConfig{
+termLookupTool := terms.NewTermLookupTool(tb, terms.TermLookupConfig{
     SourceLocale: "en",
     TargetLocale: "fr",
 })
 
 // Term enforce — verifies translations use the preferred terminology
-termEnforceTool := termbase.NewTermEnforceTool(tb, termbase.TermEnforceConfig{
+termEnforceTool := terms.NewTermEnforceTool(tb, terms.TermEnforceConfig{
     SourceLocale: "en",
     TargetLocale: "fr",
 })
