@@ -123,8 +123,13 @@ func legacyConfigPaths() []string {
 }
 
 // Load reads the configuration file, then merges any legacy location underneath
-// it (the pinned file wins key by key). A missing file is not an error — an
-// unconfigured kapi runs on its built-in defaults.
+// it. A missing file is not an error — an unconfigured kapi runs on its built-in
+// defaults.
+//
+// Precedence is per **top-level block**, not per leaf: if the pinned file
+// mentions `ai:` at all, the legacy file's whole `ai:` block is ignored rather
+// than merged leaf by leaf. Deliberate — a half-merged block is the harder thing
+// to reason about, and the file kapi writes always writes a complete block.
 func (c *AppConfig) Load() error {
 	if err := c.v.ReadInConfig(); err != nil {
 		var notFound viper.ConfigFileNotFoundError
@@ -138,10 +143,11 @@ func (c *AppConfig) Load() error {
 	return nil
 }
 
-// mergeLegacyLayers folds each legacy config file into the file layer, without
-// overriding what the pinned file already set. Best-effort: a legacy file that
-// cannot be parsed is reported and skipped rather than failing the run, since it
-// is not the file kapi writes.
+// mergeLegacyLayers folds each legacy config file into the defaults layer,
+// skipping any top-level block the pinned file already declares (see Load on why
+// the granularity is the block). Best-effort: a legacy file that cannot be parsed
+// is reported and skipped rather than failing the run, since it is not the file
+// kapi writes.
 func (c *AppConfig) mergeLegacyLayers() {
 	for _, path := range legacyConfigPaths() {
 		if _, err := os.Stat(path); err != nil {

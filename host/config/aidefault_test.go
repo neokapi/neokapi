@@ -143,6 +143,38 @@ func TestPinnedConfigBeatsLegacyLocation(t *testing.T) {
 	assert.Equal(t, "gemma4:e2b", def.Model)
 }
 
+// TestLegacyMergeGranularityIsTheBlock pins the merge rule as a contract rather
+// than an accident: the pinned file wins per top-level block, so a legacy `ai:`
+// block is ignored entirely once kapi has written one — not merged leaf by leaf,
+// which would leave a provider and a model from two different files.
+func TestLegacyMergeGranularityIsTheBlock(t *testing.T) {
+	home := isolateRealConfigHome(t)
+	t.Chdir(t.TempDir())
+
+	legacy := filepath.Join(home, ".config", "kapi", "kapi.yaml")
+	if GlobalConfigFilePath() == legacy {
+		t.Skip("this platform pins the legacy path itself (Linux/XDG); nothing to layer")
+	}
+	require.NoError(t, os.MkdirAll(filepath.Dir(legacy), 0o755))
+	require.NoError(t, os.WriteFile(legacy,
+		[]byte("ai:\n    model: from-legacy\nplugins:\n    directory: /legacy/plugins\n"), 0o644))
+
+	// kapi writes a provider and no model.
+	require.NoError(t, SetGlobalConfig(KeyAIProvider, "ollama"))
+
+	cfg := NewAppConfig()
+	require.NoError(t, cfg.Load())
+
+	def := ResolveAIDefault(cfg)
+	assert.Equal(t, "ollama", def.Provider)
+	assert.Empty(t, def.Model,
+		"the legacy ai: block is skipped whole, so its model must not attach to the pinned provider")
+
+	// A block the pinned file says nothing about still comes through.
+	assert.Equal(t, "/legacy/plugins", cfg.GetString(KeyPluginsDirectory),
+		"an untouched legacy block must still be read")
+}
+
 // TestProjectRecipeIsNeverAppConfig states the rule directly: a recipe in the
 // working directory contributes nothing to app configuration, whatever it says.
 func TestProjectRecipeIsNeverAppConfig(t *testing.T) {
