@@ -1,14 +1,14 @@
 ---
-sidebar_position: 5
-title: The Kapi format family & .kpz package
-description: The Kapi format family of native lossless formats (blocks, content memory, terms) and the .kpz package that bundles a project's authoritative content — distinct from the lossy interchange formats (XLIFF/PO, TMX, TBX).
+sidebar_position: 6
+title: Project archive
+description: The .kpz project archive — the manifest, its members and content types, the two package kinds, the Merkle root hash, and what the archive deliberately excludes.
 keywords: [KBF, memory bundle, terms bundle, kpz, package, content memory, terms store, TMX, TBX, lossless, interchange, pack, unpack]
 ---
 
 # The Kapi format family & the `.kpz` package
 
 KBF is the native serialization of one content atom — the translatable
-[block](/reference/kbf/spec#block). A project owns more than blocks, though: a
+[block](/reference/serialization/content-bundle#block). A project owns more than blocks, though: a
 content memory and a terms store, plus stand-off annotations and media. The
 **Kapi format family** gives each of those atoms a native, deterministic, *lossless*
 format, and the **`.kpz` package** bundles them into one portable artifact.
@@ -16,7 +16,7 @@ format, and the **`.kpz` package** bundles them into one portable artifact.
 ## Two tiers: native vs interchange
 
 For every atom there are two serializations, playing the same two roles KBF and
-XLIFF play for blocks (see [KBF vs XLIFF](/reference/kbf/vs-xliff)):
+XLIFF play for blocks (see [KBF vs XLIFF](/reference/serialization/choosing)):
 
 | Atom | **Native** (lossless — pack, cache, hash) | **Interchange** (lossy — industry handoff) |
 | --- | --- | --- |
@@ -44,7 +44,7 @@ exactly why they cannot be used to pack a project losslessly:
 
 The bundles preserve all of these. They share the KBF discipline: a `kind`
 magic string, a `MAJOR.MINOR` `schemaVersion` with the same forward-compatibility
-contract as [KBF](/reference/kbf/spec#versioning), and a deterministic serializer
+contract as [KBF](/reference/serialization/content-bundle#versioning), and a deterministic serializer
 (sorted records, no HTML escaping, trailing newline) so the bytes are stable for
 content hashing and git diffing. The content-memory bundle reuses the same `Run`
 model as KBF blocks for its variant content, so inline codes, placeholders, and
@@ -134,7 +134,7 @@ The same container serves **two profiles**, set by the manifest `kind`:
 - `kind: kapi-interchange` — a task-scoped **bilingual** slice for one locale
   pair (blocks, inline codes, segmentation, skeleton, memory and term context).
   This is neokapi's interchange format, sent to a translator/reviewer by
-  `extract` and ingested by `merge` (see [KBF vs XLIFF](/reference/kbf/vs-xliff)).
+  `extract` and ingested by `merge` (see [KBF vs XLIFF](/reference/serialization/choosing)).
 
 Both are *parcels*, not workspaces: day-to-day work happens in the ambient `.kapi`
 project ([AD-025](/contribute/architecture/025-kbf-package) §7).
@@ -235,6 +235,6 @@ a TMS — and the lossy, standards-based subset is what the other side expects.
 ## See also
 
 - [AD-025: KBF Family and the .kpz Package](/contribute/architecture/025-kbf-package) — the decision and rationale.
-- [Specification](/reference/kbf/spec) — the KBF block format the family is built around.
-- [KBF vs XLIFF](/reference/kbf/vs-xliff) — the native-vs-interchange split for blocks.
+- [Specification](/reference/serialization/content-bundle) — the KBF block format the family is built around.
+- [KBF vs XLIFF](/reference/serialization/choosing) — the native-vs-interchange split for blocks.
 - Reference implementations: [`memory/kmb`](https://github.com/neokapi/neokapi/tree/main/memory/kmb) (the content-memory bundle), [`terms/ktb`](https://github.com/neokapi/neokapi/tree/main/terms/ktb) (the terms bundle), [`kpz`](https://github.com/neokapi/neokapi/tree/main/kpz) (the package container).

@@ -175,11 +175,23 @@ const config: Config = {
           // the *format* is a hard rename with no back-compat, but the
           // published doc URLs are indexed, so the old routes redirect. These
           // "klf" strings are historical route names, not live vocabulary.
-          { from: "/reference/klf/overview", to: "/reference/kbf/overview" },
-          { from: "/reference/klf/spec", to: "/reference/kbf/spec" },
-          { from: "/reference/klf/examples", to: "/reference/kbf/examples" },
-          { from: "/reference/klf/vs-xliff", to: "/reference/kbf/vs-xliff" },
-          { from: "/reference/klf/package", to: "/reference/kbf/package" },
+          // Both the .klf-era routes and the /reference/kbf/* routes that
+          // replaced them now land in /reference/serialization/*, which covers
+          // the whole format family rather than the content bundle alone.
+          // Redirected straight to the final target rather than chained, so an
+          // old inbound link costs one hop.
+          { from: "/reference/klf/overview", to: "/reference/serialization/overview" },
+          { from: "/reference/klf/spec", to: "/reference/serialization/content-bundle" },
+          { from: "/reference/klf/examples", to: "/reference/serialization/content-bundle" },
+          { from: "/reference/klf/vs-xliff", to: "/reference/serialization/choosing" },
+          { from: "/reference/klf/package", to: "/reference/serialization/project-archive" },
+          { from: "/reference/kbf/overview", to: "/reference/serialization/overview" },
+          // spec and examples merge: the schema page now carries the worked
+          // example, per "spec + annotated example" on one page.
+          { from: "/reference/kbf/spec", to: "/reference/serialization/content-bundle" },
+          { from: "/reference/kbf/examples", to: "/reference/serialization/content-bundle" },
+          { from: "/reference/kbf/vs-xliff", to: "/reference/serialization/choosing" },
+          { from: "/reference/kbf/package", to: "/reference/serialization/project-archive" },
           { from: "/reference/formats/klf", to: "/reference/formats/kbf" },
           { from: "/klf-lab", to: "/kbf-lab" },
           { from: "/klf-tests", to: "/kbf-tests" },
@@ -642,7 +654,7 @@ const config: Config = {
             { label: "Tools", to: "/tools" },
             { label: "AI Models", to: "/models" },
             { label: "Project file", to: "/reference/project-file" },
-            { label: "KBF format", to: "/reference/kbf/overview" },
+            { label: "kapi serialization formats", to: "/reference/serialization/overview" },
             { label: "MCP Server", to: "/reference/mcp" },
             { label: "Scripting & JSON contract", to: "/reference/cli-contract" },
             { label: "Engine service (gRPC)", to: "/reference/engine-service" },

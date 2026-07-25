@@ -358,4 +358,4 @@ Both profiles are parcels — neither is a workspace.
   history-chain round-trip and tamper detection; the exporter store round-trip),
   the `kapi/e2e` suite (pack/unpack round-trip, cached-resume byte-equality,
   pack determinism, provenance log), and the `make kpz-smoke` headless gate.
-- Reference: [Kapi format family & the .kpz package](/reference/kbf/package).
+- Reference: [Kapi format family & the .kpz package](/reference/serialization/project-archive).

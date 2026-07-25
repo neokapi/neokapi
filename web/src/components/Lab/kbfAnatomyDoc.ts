@@ -7,7 +7,7 @@
 //
 // The document is authored as typed @neokapi/kapi-format objects so it
 // type-checks against the wire schema, and the emitter follows the normative
-// field order of the spec (/reference/kbf/spec): envelope fields in struct
+// field order of the spec (/reference/serialization/content-bundle): envelope fields in struct
 // order, block fields id → hash → translatable → type → source → targets →
 // placeholders → properties, and target locales sorted.
 
@@ -217,7 +217,7 @@ export const TERMS: AnatomyTerm[] = [
   {
     id: "envelope",
     title: "File envelope",
-    spec: "/reference/kbf/spec#file-envelope",
+    spec: "/reference/serialization/content-bundle#file-envelope",
     body: [
       "The top-level object of a .kbf.json file. kind is the magic string readers sniff to detect the format; schemaVersion carries the MAJOR.MINOR wire contract — a consumer must reject an unrecognized major version and should accept unknown minors, ignoring fields it does not recognize.",
       "Serialization is deterministic: 2-space indent, fields in the pinned order shown here, all map keys sorted, trailing newline. Determinism is what keeps a file's content hash stable across runs, machines, and the two reference implementations.",
@@ -226,7 +226,7 @@ export const TERMS: AnatomyTerm[] = [
   {
     id: "generator",
     title: "GeneratorInfo",
-    spec: "/reference/kbf/spec#generatorinfo",
+    spec: "/reference/serialization/content-bundle#generatorinfo",
     body: [
       "Extraction provenance at the file level: the extractor that produced this file, its version, and its declared capabilities. Together with each block's properties, this forms the chain from any translated string back to the tool and the source location that produced it.",
     ],
@@ -234,7 +234,7 @@ export const TERMS: AnatomyTerm[] = [
   {
     id: "project",
     title: "ProjectInfo",
-    spec: "/reference/kbf/spec#projectinfo",
+    spec: "/reference/serialization/content-bundle#projectinfo",
     body: [
       "The project this file belongs to, and the BCP-47 locale of every source run sequence in it. Target locales are not declared here — they appear per block, as keys of the targets map.",
     ],
@@ -242,7 +242,7 @@ export const TERMS: AnatomyTerm[] = [
   {
     id: "vocabulary",
     title: "Vocabulary",
-    spec: "/reference/kbf/spec#vocabulary",
+    spec: "/reference/serialization/content-bundle#vocabulary",
     body: [
       "The vocabulary packs whose span-type entries this file's runs reference — the packs a consumer is expected to have loaded to interpret run types such as jsx:element or jsx:var.",
     ],
@@ -250,7 +250,7 @@ export const TERMS: AnatomyTerm[] = [
   {
     id: "document",
     title: "Document",
-    spec: "/reference/kbf/spec#document",
+    spec: "/reference/serialization/content-bundle#document",
     body: [
       "One extracted source file: its path, its documentType, and the blocks extracted from it. A .kbf.json file wraps one or more documents. A document may also carry a sourceHash and a skeleton — the opaque payload a merge step consumes to reconstruct the original file with translated content spliced back in (omitted in this example).",
     ],
@@ -258,7 +258,7 @@ export const TERMS: AnatomyTerm[] = [
   {
     id: "block",
     title: "Block",
-    spec: "/reference/kbf/spec#block",
+    spec: "/reference/serialization/content-bundle#block",
     body: [
       "The unit of translation tracking — typically one JSX element, one HTML paragraph, one Markdown heading, or one attribute value. Content memory, targets, review status, and annotations are all keyed on the block.",
       "hash is a content hash over the source runs. Re-extractions match blocks by hash, which is how tracking survives edits to the surrounding file: an unchanged block keeps its identity, a changed one is flagged for retranslation.",
@@ -267,7 +267,7 @@ export const TERMS: AnatomyTerm[] = [
   {
     id: "source",
     title: "Source runs",
-    spec: "/reference/kbf/spec#the-run-model",
+    spec: "/reference/serialization/content-bundle#the-run-model",
     body: [
       "The source content as a flat sequence of runs. Inline markup lives in runs, not in the text — there is no marked-up string for a consumer to re-parse, and a translator's tool can present each run as an atomic token.",
     ],
@@ -275,7 +275,7 @@ export const TERMS: AnatomyTerm[] = [
   {
     id: "run-text",
     title: "Run — text",
-    spec: "/reference/kbf/spec#text--a-plain-text-chunk",
+    spec: "/reference/serialization/content-bundle#text--a-plain-text-chunk",
     body: [
       "A plain text chunk: the only run kind that carries translatable characters. Everything else in the sequence is structure.",
     ],
@@ -283,7 +283,7 @@ export const TERMS: AnatomyTerm[] = [
   {
     id: "run-pc",
     title: "Run — pcOpen / pcClose",
-    spec: "/reference/kbf/spec#pcopen--pcclose--paired-codes",
+    spec: "/reference/serialization/content-bundle#pcopen--pcclose--paired-codes",
     body: [
       "A paired code: an inline element that opens and closes around translatable content, split into two runs so the enclosed text stays part of the flat sequence. The shared id pairs them; equiv is the stable name a target uses to reference the pair; data preserves the original markup for write-back.",
     ],
@@ -291,7 +291,7 @@ export const TERMS: AnatomyTerm[] = [
   {
     id: "run-ph",
     title: "Run — ph",
-    spec: "/reference/kbf/spec#ph--a-self-closing-placeholder",
+    spec: "/reference/serialization/content-bundle#ph--a-self-closing-placeholder",
     body: [
       "A self-closing placeholder: a variable or void element that contributes no translatable text of its own. equiv names it, disp is a display hint for editors, and data preserves the source expression for write-back. Validation rejects a target that drops a required placeholder.",
     ],
@@ -299,7 +299,7 @@ export const TERMS: AnatomyTerm[] = [
   {
     id: "run-plural",
     title: "Run — plural",
-    spec: "/reference/kbf/spec#plural--a-structured-plural-construct",
+    spec: "/reference/serialization/content-bundle#plural--a-structured-plural-construct",
     body: [
       "A structured plural construct: each CLDR plural form holds its own run sequence, keyed by the pivot placeholder that selects the form at render time. Plurals are structured data, not flattened strings — a target language supplies exactly the forms its plural rules require.",
     ],
@@ -307,7 +307,7 @@ export const TERMS: AnatomyTerm[] = [
   {
     id: "targets",
     title: "Targets",
-    spec: "/reference/kbf/spec#targets",
+    spec: "/reference/serialization/content-bundle#targets",
     body: [
       "Per-locale translations. Each key is a BCP-47 locale (sorted in canonical output) and each value is that locale's own run sequence, validated against the source: every required placeholder must be preserved.",
       "A block with no entry for a locale is simply untranslated there — pending work, not an error. The second block in this example carries no targets yet.",
@@ -316,7 +316,7 @@ export const TERMS: AnatomyTerm[] = [
   {
     id: "placeholders",
     title: "Placeholders",
-    spec: "/reference/kbf/spec#placeholder",
+    spec: "/reference/serialization/content-bundle#placeholder",
     body: [
       "Every variable and element token referenced by the block's runs, enumerated once — including those inside plural and select forms — so validators and CAT tools can examine them without walking the run tree. Metadata that does not fit on a run (jsType, sourceExpr, optionality) lives here.",
     ],
@@ -324,7 +324,7 @@ export const TERMS: AnatomyTerm[] = [
   {
     id: "provenance",
     title: "Provenance — BlockProperties",
-    spec: "/reference/kbf/spec#blockproperties",
+    spec: "/reference/serialization/content-bundle#blockproperties",
     body: [
       "Where the block came from: the source file and line, the component, the JSX path, and the element that produced it, plus an optional note for translators (locNote). With the file-level generator, this is the full provenance of the string: which tool extracted it, from which file, at which position.",
     ],

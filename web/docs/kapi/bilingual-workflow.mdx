@@ -35,7 +35,7 @@ working in kapi or the neokapi review tool; it carries inline codes, memory
 matches, and term context in one integrity-verified, diffable parcel. For a
 third-party CAT tool, `kapi extract` emits **XLIFF 2.x / PO** (the default), the
 interop tier this page focuses on. Both go out and come back through the same
-`extract` / `merge` verbs — see [KBF vs XLIFF](/reference/kbf/vs-xliff). (Memory
+`extract` / `merge` verbs — see [KBF vs XLIFF](/reference/serialization/choosing). (Memory
 and terminology have their own interchange: `kapi memory import/export` for TMX,
 `kapi terms import/export` for TBX.)
 
@@ -189,7 +189,7 @@ merge needs the same project the extract ran in.
 
 ## Related
 
-- [KBF vs XLIFF](/reference/kbf/vs-xliff) — when to use each interchange format.
+- [KBF vs XLIFF](/reference/serialization/choosing) — when to use each interchange format.
 - [Pre-translate from memory](/kapi/recipes/pre-translate-from-memory) — leverage existing
   translations before sending anything out.
 - [Kapi CLI](/kapi/cli) — the full command reference.

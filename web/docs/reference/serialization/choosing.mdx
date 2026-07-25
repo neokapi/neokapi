@@ -1,12 +1,15 @@
 ---
-sidebar_position: 4
-title: KBF vs XLIFF
-description: How the Kapi Bundle Format maps onto XLIFF 2.2, where the two formats differ in philosophy, where XLIFF is the stronger choice, and when to reach for each.
+sidebar_position: 9
+title: Choosing a format
+description: Which kapi serialization format to reach for — the native versus lossy interchange decision, bundle versus project archive, and how the content bundle maps onto XLIFF 2.2.
 keywords:
   [
+    choosing a format,
     KBF,
     XLIFF,
     XLIFF 2.2,
+    TMX,
+    TBX,
     comparison,
     interchange,
     multilingual content,
@@ -14,7 +17,59 @@ keywords:
   ]
 ---
 
-# KBF vs XLIFF
+# Choosing a format
+
+Most of the time the answer follows from one question: **is this file staying
+inside kapi, or leaving it?**
+
+## Native or interchange
+
+kapi's own formats are lossless. The industry interchange formats it also reads
+and writes — XLIFF and PO for content, TMX for content memory, TBX for terms —
+are a **deliberately lossy tier**. They drop the fields that make kapi's data
+useful inside kapi: entity and concept cross-links, per-entry provenance,
+brand and competitor flags, and free-form properties.
+
+That is why the native tier is spelled `bundle` rather than `json` on the
+command line. `kapi terms export --format json` also produces JSON, but it
+carries **no relations at all** and has no `kind` marker, so it cannot even be
+identified by sniffing. Two JSON outputs, very different guarantees — the
+format name is the thing that tells them apart.
+
+| You are… | Reach for |
+| --- | --- |
+| Moving content between kapi commands | The native bundle |
+| Committing terminology for review | [`.terms.json`](/reference/serialization/terms) at the project root |
+| Handing one task to a translator | A `kapi-interchange` [`.kpz`](/reference/serialization/project-archive) |
+| Archiving or transferring a whole project | A `kapi-project` [`.kpz`](/reference/serialization/project-archive) |
+| Feeding a third-party CAT tool or TMS | XLIFF |
+| Feeding a third-party memory or terminology tool | TMX or TBX |
+| Loading strings in a running application | Neither — compile to a runtime catalog |
+
+Use an interchange format when the recipient is outside this project, and
+accept the loss knowingly. Use a native format everywhere else.
+
+## Bundle or project archive
+
+Both are native and lossless, so the boundary is not size — it is **whether the
+recipient already shares your project context**.
+
+A [content bundle](/reference/serialization/content-bundle) is one document's
+blocks and targets. A [project archive](/reference/serialization/project-archive)
+is a manifest plus one member per content type, so it additionally carries the
+content memory, the terms, the skeletons, the source bytes, and a Merkle root
+hash over all of it.
+
+- Reach for a **bundle** when the recipient already has the same memory and
+  terms — another step in your own pipeline, say.
+- Reach for a **`.kpz`** when they do not: a handoff, an archive, or a
+  resumable run.
+
+The code enforces the consequence. Unpacking a `.kpz` can seed a fresh content
+memory, terms store and block store, and the regenerable caches rebuild
+faithfully. A bundle cannot do that, because the context was never in it.
+
+## Content bundle versus XLIFF
 
 [XLIFF](https://docs.oasis-open.org/xliff/xliff-core/v2.2/xliff-core-v2.2-part1.html)
 is the OASIS standard for exchanging translatable content between tools. KBF
@@ -164,7 +219,7 @@ move between KBF and XLIFF through the toolchain rather than choosing one foreve
 
 ## See also
 
-- [Specification](/reference/kbf/spec) — the normative KBF schema.
+- [Specification](/reference/serialization/content-bundle) — the normative KBF schema.
 - [Bilingual workflow](/kapi/bilingual-workflow) — extracting to and merging from interchange formats.
 - [Format reference](/formats) — the full grid of format readers and writers, including XLIFF.
 - [XLIFF 2.2 Core (Part 1)](https://docs.oasis-open.org/xliff/xliff-core/v2.2/xliff-core-v2.2-part1.html) and [Extended (Part 2)](https://docs.oasis-open.org/xliff/xliff-core/v2.2/xliff-extended-v2.2-part2.html) — the OASIS specification.

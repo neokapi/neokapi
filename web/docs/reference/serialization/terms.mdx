@@ -1,0 +1,137 @@
+---
+sidebar_position: 4
+title: Terms
+description: The .terms.json terminology bundle — envelope, concepts and relations, the root-first lookup ladder and why it is ordered that way, and how it differs from the lossy JSON and TBX exports.
+keywords:
+  [
+    terms,
+    .terms.json,
+    kapi-terms,
+    terminology,
+    concepts,
+    relations,
+    TBX,
+    bundle,
+  ]
+---
+
+# Terms bundle (`.terms.json`)
+
+A terms bundle is the portable, lossless serialization of a project's
+terminology: the concepts a project has agreed on, their terms per locale, and
+the relations between them.
+
+Unlike content memory, a terms bundle is normally a **committed, git-tracked
+file**. It is the review surface — the artifact a person reads in a pull
+request when a term changes. The SQLite store (`.kapi/termbase.db`) is the
+gitignored cache the bundle compiles into, not the other way round.
+
+Implemented in Go at
+[`terms/ktb`](https://github.com/neokapi/neokapi/tree/main/terms/ktb).
+
+## When kapi writes one
+
+- `kapi terms export --format bundle` — the explicit export.
+- `kapi pack` — as the `terms.json` member inside a
+  [`.kpz`](/reference/serialization/project-archive).
+
+`kapi terms import` accepts `csv`, `tsv`, `json`, `tbx`, or `bundle`. Only
+`bundle` is lossless; the rest are covered under
+[what the other formats drop](#what-the-other-formats-drop).
+
+## The lookup ladder
+
+When a flow needs a project's terms and the recipe does not bind one
+explicitly, kapi looks for a conventional bundle in this order:
+
+1. `<project-root>/terms.json`
+2. `<project-root>/.kapi/terms.json`
+
+**Root first, and the reason matters.** `.kapi/` is gitignored. A terms bundle kept
+there would never appear in a diff, never be reviewed, and never survive a
+fresh clone — which is the opposite of what a terminology file is for. Putting
+the root location first means the conventional home for committed terms is
+the one that gets reviewed, and the `.kapi/` rung exists only for the case where
+a project genuinely wants a local, uncommitted one.
+
+The recipe binding wins over both. Setting `termbase_source` in `kapi.yaml`
+names the file explicitly and skips the ladder entirely.
+
+## Content memory has no equivalent ladder — deliberately
+
+A project has one terms bundle, so a single conventional filename is
+meaningful. Content memory is plural: this repository's own dogfood recipe
+keeps a separate memory bundle per surface. A single well-known
+`memory.json` at the project root would force every project into one bundle,
+and a ladder that resolved to "whichever one is first" would silently pick the
+wrong one.
+
+So terms gets a ladder and content memory does not. This asymmetry is
+intentional; please do not add a matching ladder for memory without changing
+that reasoning first.
+
+## Envelope
+
+```json
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-terms",
+  "created": "2026-07-26T09:12:04Z",
+  "generator": { "id": "kapi", "version": "1.2.3" },
+  "concepts": [],
+  "relations": []
+}
+```
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `schemaVersion` | string | `MAJOR.MINOR`. Unknown major rejected; unknown minor of a known major accepted. |
+| `kind` | string | Always `kapi-terms`. |
+| `created` | string | RFC 3339. Optional. |
+| `generator` | object | `{id, version}`. Optional. |
+| `concepts` | array | The concepts. Always present. |
+| `relations` | array | Relations between concepts. Omitted entirely when there are none. |
+
+`concepts` and `relations` reuse the terms store's own types directly rather
+than a parallel wire struct, so the serialization cannot drift from the model
+it serializes.
+
+## Determinism
+
+`Marshal` produces byte-stable output: concepts and relations sorted by id,
+terms within a concept sorted, timestamps normalized to UTC, HTML escaping off,
+two-space indent, trailing newline. Two exports of the same store are the same
+bytes, so a bundle diffs cleanly and can be hashed as a unit — which is what
+lets it sit inside a [`.kpz`](/reference/serialization/project-archive) under
+the package's Merkle root.
+
+## What the other formats drop
+
+`kapi terms export` also emits `csv`, `tsv`, `json`, and `tbx`. All four are
+lossy, and the JSON one is the easiest to mistake for the bundle because both
+are JSON:
+
+- **`--format json`** writes `{name, version, concepts}` and nothing else. It
+  carries **no relations at all**, and its envelope has no `kind` marker — so
+  it cannot be sniffed, and a reader cannot tell which schema it is holding. It
+  is a convenience export for spreadsheets and scripts.
+- **`--format tbx`** is the industry interchange format. It has no
+  representation for the cross-links that make a kapi concept useful inside
+  kapi — most notably the entity cross-references content memory uses.
+- **`--format csv` / `--format tsv`** are flat: one row per term, no concept
+  structure and no relations.
+
+Reach for `bundle` whenever the file is staying inside kapi.
+
+## What is deliberately not in it
+
+- **The compiled SQLite store.** `.kapi/termbase.db` is derived from the bundle
+  and rebuilt on import.
+- **Match state.** Which blocks a term was found in is a check result, not a
+  property of the terminology.
+
+## See also
+
+- [Overview](/reference/serialization/overview) — store, bundle, and committed state.
+- [Content memory](/reference/serialization/content-memory) — the peer bundle, and why it has no ladder.
+- [Choosing a format](/reference/serialization/choosing) — native versus interchange.

@@ -14,7 +14,7 @@ import { WorkspaceExplorer } from "@site/src/components/Lab/WorkspaceExplorer";
 
 # Pause & resume a big run
 
-**Goal:** a big run that doesn't have to finish in one sitting. A `.kpz` is a single file holding an entire run in progress — pull sources into it, work as far as you get, set it down, and resume exactly where you left off, later or on another machine. Its configuration (languages, output layout) rides inside the file: no project, no server. The parcel model sits inside the [Projects](/kapi/projects) concept; the package format is in the [KBF reference](/reference/kbf/package).
+**Goal:** a big run that doesn't have to finish in one sitting. A `.kpz` is a single file holding an entire run in progress — pull sources into it, work as far as you get, set it down, and resume exactly where you left off, later or on another machine. Its configuration (languages, output layout) rides inside the file: no project, no server. The parcel model sits inside the [Projects](/kapi/projects) concept; the package format is in the [KBF reference](/reference/serialization/project-archive).
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
@@ -69,5 +69,5 @@ Then do it yourself — work, **pack**, reopen on a fresh path (a stand-in for a
 
 ## Next
 
-- [The Kapi format family & `.kpz` package](/reference/kbf/package) — the package format and its working-state members.
+- [The Kapi format family & `.kpz` package](/reference/serialization/project-archive) — the package format and its working-state members.
 - [Hand off to translators](/kapi/bilingual-workflow) — the bilingual interchange profile of the same round-trip.
