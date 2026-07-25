@@ -27,10 +27,6 @@ import (
 // daemon prints one JSON line on stdout, then keeps stdout open for logs.
 const HandshakeTypeStdio = "stdio-handshake"
 
-// defaultStartupTimeout matches the host's default wait for the handshake line
-// when a manifest does not set daemon.startup_timeout_seconds.
-const defaultStartupTimeout = 30 * time.Second
-
 // maxGRPCMsgSize matches the host's per-message ceiling. Mode-C plugins stream
 // whole documents inline, so the 4 MB gRPC default is too small.
 const maxGRPCMsgSize = 256 << 20
@@ -58,7 +54,8 @@ func modeCChecks() []registryEntry {
 				Required: true,
 				Why:      "the host reads exactly one line to learn where to dial; without it the daemon is unreachable and the spawn times out.",
 			},
-			run: checkModeCHandshake,
+			run:           checkModeCHandshake,
+			lifecycleWait: (*runner).startupTimeout,
 		},
 		{
 			Check: Check{
@@ -128,7 +125,8 @@ func modeCChecks() []registryEntry {
 				Required: false,
 				Why:      "graceful shutdown lets the host reclaim a daemon without signalling; the host falls back to SIGTERM, so this is advisory.",
 			},
-			run: checkModeCShutdownRPC,
+			run:           checkModeCShutdownRPC,
+			lifecycleWait: (*runner).shutdownGrace,
 		},
 		{
 			Check: Check{
@@ -138,7 +136,8 @@ func modeCChecks() []registryEntry {
 				Required: true,
 				Why:      "the host's pool tears daemons down with SIGTERM on eviction, idle timeout, and exit; a daemon that ignores it is killed and may leak its socket.",
 			},
-			run: checkModeCSigtermExit,
+			run:           checkModeCSigtermExit,
+			lifecycleWait: (*runner).shutdownGrace,
 		},
 	}
 }
@@ -252,17 +251,23 @@ func (d *daemonSession) close() {
 	}
 }
 
-// startupTimeout resolves the handshake budget from the manifest, falling back
-// to the host's default, and never exceeds the per-check budget.
+// startupTimeout resolves the handshake budget: an explicit Suite.StartupTimeout
+// first, then whatever the manifest asked for, then the host's default.
+//
+// It is deliberately not clamped by Suite.Timeout. Startup is a wait on the
+// plugin's own process, not work the suite does, and clamping it made the
+// per-check budget double as the startup budget: a caller who shortened Timeout
+// for an unrelated reason silently starved startup, and on a loaded machine
+// every negative Mode-C case then reported "no handshake line" instead of the
+// protocol violation it was written to catch.
 func (r *runner) startupTimeout() time.Duration {
-	d := defaultStartupTimeout
+	if d := r.suite.StartupTimeout; d > 0 {
+		return d
+	}
 	if r.man != nil && r.man.Daemon != nil && r.man.Daemon.StartupTimeoutSeconds > 0 {
-		d = time.Duration(r.man.Daemon.StartupTimeoutSeconds) * time.Second
+		return time.Duration(r.man.Daemon.StartupTimeoutSeconds) * time.Second
 	}
-	if budget := r.suite.timeout(); d > budget {
-		d = budget
-	}
-	return d
+	return DefaultStartupTimeout
 }
 
 func (r *runner) requireModeC() (Status, string, error) {
@@ -285,6 +290,10 @@ func (r *runner) requireDaemon() (Status, string, error) {
 		return st, d, err
 	}
 	if r.daemon == nil {
+		if budget := r.startupBudgetExpired; budget > 0 {
+			return Skip, fmt.Sprintf(
+				"the daemon printed no handshake within the %s startup budget — see modeC.handshake", budget), nil
+		}
 		return Skip, "the daemon did not start — see modeC.handshake", nil
 	}
 	return "", "", nil
@@ -357,10 +366,12 @@ func checkModeCHandshake(ctx context.Context, r *runner) (Status, string, error)
 		ch <- hsResult{line: line, hs: hs, br: br}
 	}()
 
-	// The handshake budget and the per-check context can expire together (the
-	// budget is capped by the check budget), so a deadline on either is
-	// reported as the same thing: the daemon did not announce itself in time.
-	// Only a genuine cancellation is reported as cancellation.
+	// The startup budget is the authority on how long a daemon may take to
+	// announce itself, and the per-check deadline is that budget plus
+	// Suite.Timeout — so this timer always fires first and the failure is always
+	// attributed to the budget that actually governs it. A ctx deadline can still
+	// arrive first if the *caller* bounded the whole run; that is the run running
+	// out of time, not a statement about the daemon, so it is reported as itself.
 	budget := r.startupTimeout()
 	timer := time.NewTimer(budget)
 	defer timer.Stop()
@@ -369,11 +380,13 @@ func checkModeCHandshake(ctx context.Context, r *runner) (Status, string, error)
 	select {
 	case <-timer.C:
 		sess.close()
-		return Fail, timeoutDetail(budget, sess), nil
+		return r.startupTimedOut(budget, sess)
 	case <-ctx.Done():
 		sess.close()
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return Fail, timeoutDetail(budget, sess), nil
+			return Fail, withDiagnostics(fmt.Sprintf(
+				"the run's own deadline expired while waiting for the handshake; the %s startup budget had not run out",
+				budget), sess), ctx.Err()
 		}
 		return Fail, fmt.Sprintf("cancelled waiting for the handshake: %v", ctx.Err()), ctx.Err()
 	case got = <-ch:
@@ -425,12 +438,26 @@ func checkModeCHandshake(ctx context.Context, r *runner) (Status, string, error)
 		sess.hs.Socket, sess.hs.Version, budget), nil
 }
 
-// timeoutDetail explains a handshake timeout, quoting whatever the daemon did
-// manage to say so the author is not left guessing.
-func timeoutDetail(budget time.Duration, sess *daemonSession) string {
-	detail := fmt.Sprintf("no handshake line within %s", budget)
+// startupTimedOut records and explains a handshake timeout, quoting whatever the
+// daemon did manage to say so the author is not left guessing.
+//
+// It names the *startup budget* rather than reporting an anonymous deadline, and
+// wraps [ErrStartupTimeout] so the one Mode-C outcome a slow machine can
+// manufacture stays distinguishable from a protocol violation. The flag it sets
+// is what lets the dependent checks skip with that same distinction instead of a
+// flat "the daemon did not start".
+func (r *runner) startupTimedOut(budget time.Duration, sess *daemonSession) (Status, string, error) {
+	r.startupBudgetExpired = budget
+	detail := withDiagnostics(
+		fmt.Sprintf("no handshake line within the %s startup budget", budget), sess)
+	return Fail, detail, fmt.Errorf("%w (%s)", ErrStartupTimeout, budget)
+}
+
+// withDiagnostics appends whatever the daemon said on either stream to a failure
+// detail, so the author is not left guessing.
+func withDiagnostics(detail string, sess *daemonSession) string {
 	if diag := sess.diagnostics(); diag != "" {
-		detail = fmt.Sprintf("%s (%s)", detail, diag)
+		return fmt.Sprintf("%s (%s)", detail, diag)
 	}
 	return detail
 }
@@ -744,15 +771,11 @@ func declaresSegmenter(r *runner, name string) bool {
 }
 
 // shutdownGrace bounds how long the daemon may take to exit after Shutdown or
-// SIGTERM. It mirrors the host's own grace period, widened a little because a
-// JVM-hosted daemon unwinds more slowly than a Go one.
-func (r *runner) shutdownGrace() time.Duration {
-	grace := 5 * time.Second
-	if budget := r.suite.timeout(); grace > budget {
-		grace = budget
-	}
-	return grace
-}
+// SIGTERM. Like the startup budget it is independent of Suite.Timeout, so a
+// caller can shorten the teardown wait — the one wait a well-behaved plugin
+// never uses in full — without touching how patiently the suite waits for a
+// daemon to start.
+func (r *runner) shutdownGrace() time.Duration { return r.suite.shutdownGrace() }
 
 func checkModeCShutdownRPC(ctx context.Context, r *runner) (Status, string, error) {
 	if st, d, err := r.requireDaemon(); st != "" {

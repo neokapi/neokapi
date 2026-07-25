@@ -576,10 +576,35 @@ conformance.Suite{
 ```
 
 `Suite` also carries `Env` (extra environment for every spawned process),
-`Timeout` (the per-check budget), `Only` / `Skip` (check IDs or group names), and
-`Logf` (a trace line per check). `Only` restricts which checks are *reported*; it
-does not disable the suite's own setup, so `Only: []string{"modeC"}` still
-resolves the manifest those checks need.
+`Only` / `Skip` (check IDs or group names), and `Logf` (a trace line per check).
+`Only` restricts which checks are *reported*; it does not disable the suite's own
+setup, so `Only: []string{"modeC"}` still resolves the manifest those checks
+need.
+
+### Three budgets, not one
+
+A run has three independent budgets, because the suite spends time in three
+different ways and one knob cannot govern them all:
+
+| Field | Bounds | Default |
+| --- | --- | --- |
+| `Timeout` | the work a single check does | `DefaultTimeout` (60s) |
+| `StartupTimeout` | how long a Mode-C daemon may take to print its handshake | the manifest's `daemon.startup_timeout_seconds`, else `DefaultStartupTimeout` (30s) |
+| `ShutdownGrace` | how long a daemon may take to exit after `Shutdown` or SIGTERM | `DefaultShutdownGrace` (5s) |
+
+The two daemon-lifecycle budgets are waits on the *plugin's* process, not work
+the suite does, so neither is clamped by `Timeout`; a check that owns one is
+given its `Timeout` plus that wait. Keeping them separate is what lets a caller
+shorten the one wait a healthy plugin never uses in full — the teardown grace, on
+a case written to prove a daemon ignores SIGTERM — without also starving startup.
+Collapsing them makes a loaded machine report every negative Mode-C case as the
+same startup timeout instead of the protocol violation it was written to catch.
+
+A startup timeout is reported as its own failure mode: the detail names the
+startup budget, the dependent checks skip citing it rather than a generic "the
+daemon did not start", and `Result.Err` wraps `ErrStartupTimeout`. It is the one
+Mode-C outcome an overloaded machine can produce on its own, so it is worth
+telling apart from a protocol violation — which is a claim about the plugin.
 
 ### The reference plugins
 

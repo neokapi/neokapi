@@ -67,10 +67,32 @@ import (
 const ProtocolVersion = "1"
 
 // DefaultTimeout is the per-check budget applied when [Suite.Timeout] is zero.
-// It is generous on purpose: a JVM or Python daemon can take seconds to reach
-// its handshake, and a failing check should report a real failure rather than
-// an impatient one.
+// It is generous on purpose: a failing check should report a real failure rather
+// than an impatient one.
 const DefaultTimeout = 60 * time.Second
+
+// DefaultStartupTimeout is the handshake budget applied when neither
+// [Suite.StartupTimeout] nor the manifest's daemon.startup_timeout_seconds says
+// otherwise. It matches the host's own default wait, and is generous on purpose:
+// a JVM or Python daemon can take seconds to reach its handshake.
+const DefaultStartupTimeout = 30 * time.Second
+
+// DefaultShutdownGrace is the post-teardown budget applied when
+// [Suite.ShutdownGrace] is zero. It mirrors the host's own grace period, widened
+// a little because a JVM-hosted daemon unwinds more slowly than a Go one.
+const DefaultShutdownGrace = 5 * time.Second
+
+// ErrStartupTimeout is the cause reported by modeC.handshake when a daemon did
+// not print its handshake line inside the startup budget.
+//
+// It is a distinct failure mode on purpose. "The daemon never announced itself"
+// says nothing about whether the plugin speaks the protocol — it is the one
+// Mode-C outcome that a slow or heavily loaded machine can produce on its own —
+// whereas every other handshake failure is a real protocol violation the plugin
+// committed. A caller that must tell them apart (a flaky-CI triage, a retry
+// policy) does so with errors.Is(res.Err, conformance.ErrStartupTimeout);
+// conformance itself is unaffected, since either way the required check failed.
+var ErrStartupTimeout = errors.New("the daemon printed no handshake line within the startup budget")
 
 // Mode identifies a plugin transport mode as defined by the protocol.
 type Mode string
@@ -237,8 +259,33 @@ type Suite struct {
 	// KAPI_PLUGIN_* variables.
 	Env []string
 
-	// Timeout bounds each individual check. Zero means DefaultTimeout.
+	// Timeout bounds the work each individual check does. Zero means
+	// DefaultTimeout.
+	//
+	// It does not bound the two waits the suite spends on the daemon's own
+	// lifecycle — for its handshake at startup, and for its exit at teardown.
+	// Those have their own budgets, StartupTimeout and ShutdownGrace, and a
+	// check that owns one is given its Timeout *plus* that wait. Folding all
+	// three into one knob means shortening either wait starves the other: a
+	// caller trimming Timeout to shorten a deliberate teardown wait would also
+	// cut the startup budget, and every negative case would then collapse into
+	// a startup timeout on a loaded machine instead of reporting the protocol
+	// violation it was written to catch.
 	Timeout time.Duration
+
+	// StartupTimeout bounds how long a Mode-C daemon may take to print its
+	// handshake line. Zero means the manifest's
+	// daemon.startup_timeout_seconds, or DefaultStartupTimeout when the
+	// manifest does not declare one.
+	//
+	// Shorten it only to wait out a daemon that is expected never to announce
+	// itself; a plugin that announces something invalid does so promptly, so it
+	// wants the generous default however impatient the rest of the run is.
+	StartupTimeout time.Duration
+
+	// ShutdownGrace bounds how long a daemon may take to exit after the
+	// Shutdown RPC or SIGTERM. Zero means DefaultShutdownGrace.
+	ShutdownGrace time.Duration
 
 	// Only, when non-empty, restricts the run to checks whose ID or group
 	// appears in the list. Everything else is omitted from the report
@@ -266,6 +313,17 @@ func (s Suite) timeout() time.Duration {
 		return s.Timeout
 	}
 	return DefaultTimeout
+}
+
+// shutdownGrace resolves the teardown budget. Unlike the startup budget it does
+// not consult the manifest: the protocol lets a plugin declare how long it needs
+// to *start*, not how long it may take to stop when the host wants its process
+// back.
+func (s Suite) shutdownGrace() time.Duration {
+	if s.ShutdownGrace > 0 {
+		return s.ShutdownGrace
+	}
+	return DefaultShutdownGrace
 }
 
 func (s Suite) logf(format string, args ...any) {
@@ -447,6 +505,14 @@ func Run(ctx context.Context, s Suite) (*Report, error) {
 type registryEntry struct {
 	Check
 	run func(ctx context.Context, r *runner) (Status, string, error)
+
+	// lifecycleWait, when set, is how long the check spends waiting on the
+	// daemon's own lifecycle rather than doing work of its own — waiting for the
+	// handshake, or for the process to exit. The per-check deadline is
+	// Suite.Timeout plus this, so the check's own budget stays authoritative:
+	// whichever of the two waits expires, the reported reason is the specific
+	// one and not a generic per-check timeout.
+	lifecycleWait func(r *runner) time.Duration
 }
 
 // checkRegistry returns every check in execution order. Order is load-bearing:
@@ -504,6 +570,12 @@ type runner struct {
 
 	// daemon is the Mode-C session, nil until modeC.handshake succeeds.
 	daemon *daemonSession
+
+	// startupBudgetExpired is the startup budget that ran out, set only when
+	// modeC.handshake failed because the daemon never announced itself. It lets
+	// the dependent checks skip with that specific cause instead of a generic
+	// "the daemon did not start", which reads as a protocol failure.
+	startupBudgetExpired time.Duration
 }
 
 // resolve reads and decodes the manifest and locates the plugin binary. It
@@ -584,7 +656,7 @@ func (r *runner) exec(ctx context.Context, e registryEntry) (res Result) {
 		}
 	}()
 
-	cctx, cancel := context.WithTimeout(ctx, r.suite.timeout())
+	cctx, cancel := context.WithTimeout(ctx, r.budget(e))
 	defer cancel()
 
 	status, detail, err := e.run(cctx, r)
@@ -593,6 +665,18 @@ func (r *runner) exec(ctx context.Context, e registryEntry) (res Result) {
 		res.Detail = res.Err.Error()
 	}
 	return res
+}
+
+// budget is the wall-clock deadline for one check: the per-check working budget
+// plus whichever daemon-lifecycle wait the check owns. The sum is what keeps the
+// two independent — a check that must sit through a 30-second handshake is not
+// also asked to do its own work inside that window.
+func (r *runner) budget(e registryEntry) time.Duration {
+	d := r.suite.timeout()
+	if e.lifecycleWait != nil {
+		d += e.lifecycleWait(r)
+	}
+	return d
 }
 
 // cleanup tears down anything a check left running.
