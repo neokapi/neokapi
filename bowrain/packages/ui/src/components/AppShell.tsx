@@ -68,17 +68,25 @@ function SecondaryPanel({
       )}
       style={{ width: open ? 208 : 0 }}
     >
-      <div className="flex flex-col h-full w-52">
-        <div className="px-4 py-3">
+      <div className="flex flex-col h-full min-h-0 w-52">
+        <div className="shrink-0 px-4 py-3">
           <h2 className="text-sm font-medium whitespace-nowrap">{title}</h2>
         </div>
-        <nav className="flex-1 px-2 pb-2">
+        {/*
+          The list must be the scroll container, not just a flex child. `flex-1`
+          alone lets it shrink below its content height, and the panel above
+          clips overflow — so on a short window the last entries (Settings has
+          twelve) were simply unreachable. `min-h-0` allows the shrink and
+          `overflow-y-auto` gives the user a way to reach the rest.
+        */}
+        <nav className="flex-1 min-h-0 overflow-y-auto px-2 pb-2">
           <ul className="flex flex-col gap-0.5">
             {items.map((item) => (
               <li key={item.id}>
                 <button
                   onClick={() => onSelect(item.id)}
                   tabIndex={open ? 0 : -1}
+                  data-testid={`subnav-${item.id}`}
                   className={cn(
                     "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors outline-none border-none cursor-pointer bg-transparent whitespace-nowrap",
                     activeId === item.id

@@ -239,13 +239,23 @@ function AppInner() {
               "--wails-draggable": "drag",
             }}
           />
-          <ServerConnect
-            info={connection.info}
-            onConnect={handleServerConnect}
-            onStartLogin={connection.startLogin}
-            onWaitForLogin={connection.waitForLogin}
-            onCancelLogin={connection.cancelLogin}
-          />
+          {/*
+            The pre-shell states are centred cards, and a centred card that
+            outgrows its box is clipped at BOTH ends — the top becomes as
+            unreachable as the bottom. In a desktop window the user can make
+            short at will (and once the "Advanced" section is expanded), that
+            hid the form. Give the card a bounded scroll region so it centres
+            when it fits and scrolls when it does not.
+          */}
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <ServerConnect
+              info={connection.info}
+              onConnect={handleServerConnect}
+              onStartLogin={connection.startLogin}
+              onWaitForLogin={connection.waitForLogin}
+              onCancelLogin={connection.cancelLogin}
+            />
+          </div>
         </div>
       </ThemeProvider>
     );
@@ -262,11 +272,13 @@ function AppInner() {
               "--wails-draggable": "drag",
             }}
           />
-          <OfflineLaunch
-            serverURL={connection.info.server_url || ""}
-            onRetry={handleOfflineRetry}
-            onUseDifferentServer={handleUseDifferentServer}
-          />
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <OfflineLaunch
+              serverURL={connection.info.server_url || ""}
+              onRetry={handleOfflineRetry}
+              onUseDifferentServer={handleUseDifferentServer}
+            />
+          </div>
         </div>
       </ThemeProvider>
     );

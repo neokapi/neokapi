@@ -12,6 +12,7 @@ export default defineConfig({
     "editor-happy-path.spec.ts",
     "open-in-desktop.spec.ts",
     "routing.spec.ts",
+    "layout-scroll.spec.ts",
   ],
   timeout: 60_000,
   expect: { timeout: 10_000 },
