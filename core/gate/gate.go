@@ -41,6 +41,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"math"
 	"slices"
 	"sort"
 
@@ -390,6 +391,42 @@ type Shortfall struct {
 type Result struct {
 	Pass       bool        `json:"pass"`
 	Shortfalls []Shortfall `json:"shortfalls,omitempty"`
+	// Progress is how far the scope has come toward the gate, in [0,100]: the
+	// mean fractional attainment of the gate's required thresholds, each capped
+	// at its requirement. See [Progress].
+	Progress int `json:"progress"`
+	// Blocking names the lowest unmet rung — the one gate to clear next. Empty
+	// when the gate passes.
+	Blocking string `json:"blocking,omitempty"`
+}
+
+// Progress reports how far a coverage has come toward a gate, in [0,100].
+//
+// It is the mean, over the gate's required thresholds, of each threshold's
+// fractional attainment capped at 1 (exceeding a requirement does not
+// compensate for missing another). So a gate of {translated: 100, reviewed:
+// 100} against fully translated, unreviewed content reads 50%: half the bar
+// cleared. A gate with no requirements is vacuously complete at 100.
+//
+// This is a *distance to the gate*, deliberately not a lifecycle percentage:
+// the per-rung percentages are already reported separately, and a single number
+// that mixes "how translated" with "how reviewed" would mean nothing. Here the
+// number answers exactly one question — how much of the ship bar is left.
+func Progress(g Gate, c Coverage, l Ladder) int {
+	required := 0
+	var sum float64
+	for state, th := range g {
+		if th.Pct <= 0 {
+			continue
+		}
+		required++
+		actual := c.AtLeastPctBy(l, state, th.By)
+		sum += min(actual/float64(th.Pct), 1)
+	}
+	if required == 0 {
+		return 100
+	}
+	return int(math.Round(100 * sum / float64(required)))
 }
 
 // Evaluate reports whether the coverage satisfies the gate. A threshold of 0 is
@@ -414,5 +451,13 @@ func Evaluate(g Gate, c Coverage, l Ladder) Result {
 	sort.Slice(res.Shortfalls, func(i, j int) bool {
 		return l.rank(res.Shortfalls[i].State) < l.rank(res.Shortfalls[j].State)
 	})
+	res.Progress = Progress(g, c, l)
+	// Shortfalls are ladder-ordered, so the first is the lowest unmet rung: the
+	// gate to clear next, and the one a verdict should name. Blocking on
+	// "reviewed" while "translated" is also short would send someone to the
+	// wrong work.
+	if len(res.Shortfalls) > 0 {
+		res.Blocking = res.Shortfalls[0].State
+	}
 	return res
 }

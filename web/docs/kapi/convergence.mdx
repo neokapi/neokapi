@@ -225,11 +225,13 @@ standing against its gate, recomputed on every run:
 
 ```bash
 kapi status
-# source: 2 units  authored 100%  checked 0%  approved 0%
+# source  2 units · authored 100% · checked 0% · approved 0%
 #
-# scope    units   draft  translated  reviewed  signed-off  ship
-# de          42    100%        100%       80%         0%  ✓ shippable
-# nb          42    100%         60%        0%         0%  pending (translated 60%<100%)
+# scope  units  draft  translated  reviewed  signed-off  pipeline         ship
+# de        42   100%        100%       80%         0%   ██████████ 100%  ready
+# nb        42   100%         60%        0%         0%   ███░░░░░░░  30%  blocked: translate
+#
+# 1 of 2 scopes ready to ship
 ```
 
 `kapi check --ship` is the enforcing counterpart — the pre-release bar. It runs
@@ -309,7 +311,7 @@ pass 1/5
   fr-FR   ████████████░░░░░░  62/96   TM 18 · AI 44        2 checks ✗
   de-DE   █████░░░░░░░░░░░░░  27/96   TM 18 · AI 9
   ja-JP   queued
-  nb-NO   ✓ shippable         96/96
+  nb-NO   ready               96/96
 
 Up to date in 2 passes · 3 locales shippable · de-DE parked: 2 units need review
   → kapi status --review
@@ -348,8 +350,8 @@ step. Take a German scope fully caught up under
 
 ```bash
 kapi status
-# scope    units   draft  translated  reviewed  signed-off  ship
-# de          42    100%        100%      100%         0%  ✓ shippable
+# scope  units  draft  translated  reviewed  signed-off  pipeline         ship
+# de        42   100%        100%      100%         0%   ██████████ 100%  ready
 ```
 
 Edit one source string. Nothing flags the change and no state is written — the
@@ -359,8 +361,8 @@ the approval bound to the old pair no longer applies:
 
 ```bash
 kapi status
-# scope    units   draft  translated  reviewed  signed-off  ship
-# de          42    100%         98%       98%         0%  pending (translated 98%<100%)
+# scope  units  draft  translated  reviewed  signed-off  pipeline         ship
+# de        42   100%         98%       98%         0%   █████████░  99%  blocked: translate
 ```
 
 One pass closes what a machine can close — the changed unit is re-translated,
@@ -369,8 +371,8 @@ TM first, then AI:
 ```bash
 kapi up --passes 1
 kapi status
-# scope    units   draft  translated  reviewed  signed-off  ship
-# de          42    100%        100%       98%         0%  ✓ shippable
+# scope  units  draft  translated  reviewed  signed-off  pipeline         ship
+# de        42   100%        100%       98%         0%   ██████████ 100%  ready
 ```
 
 *Translated* recovers to 100% and the scope clears its gate again — the 80%

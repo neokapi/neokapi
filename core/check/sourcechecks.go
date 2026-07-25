@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/set"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -31,15 +32,37 @@ func NewContentLintTool() *tool.BaseTool {
 		if !v.Translatable() {
 			return nil
 		}
-		Annotate(v, "content-lint", contentLintFindings(v.SourceText()))
+		Annotate(v, "content-lint", contentLintFindings(HygieneText(v.SourceRuns())))
 		return nil
 	}
 	return t
 }
 
+// HygieneText is the flattening every content-*shape* rule must inspect: the
+// block's runs with each inline-code run standing as one sentinel rune
+// (model.RunsHygieneText).
+//
+// A shape rule asks where the content begins and ends, what sits next to what,
+// and whether there is anything there at all. `SourceText()` cannot answer any
+// of those, because it drops inline code and so silently changes the shape:
+//
+//	[ph{p.price}][text " each"]  →  " each"   →  "leading whitespace" (false)
+//
+// The space there separates a placeholder from a word. It is not whitespace on
+// the content's leading edge — the placeholder is. Evaluating against run-aware
+// boundaries, where a leading or trailing placeholder counts as content, is what
+// makes that distinction expressible at all.
+func HygieneText(runs []model.Run) string {
+	return model.RunsHygieneText(runs)
+}
+
 // contentLintFindings runs the single-text hygiene heuristics over text and
 // returns one Finding per issue. Empty/whitespace-only content is the single
 // major issue (and short-circuits the rest); the remaining nits are minor.
+//
+// text must be a [HygieneText] flattening, not a plain SourceText: every
+// predicate here is a judgement about the content's shape, which dropped
+// inline-code runs distort.
 func contentLintFindings(text string) []Finding {
 	if strings.TrimSpace(text) == "" {
 		return []Finding{{

@@ -75,7 +75,11 @@ func NewSourceReadinessTool(blockSeverity string) (*tool.BaseTool, error) {
 		ToolDescription: "Marks source content checked once it clears its brand/terminology checks",
 	}
 	t.Annotate = func(v tool.BlockView) error {
-		if !v.Translatable() || strings.TrimSpace(v.SourceText()) == "" {
+		// The emptiness guard reads the shape flattening, so a block that is
+		// only a placeholder still gets a readiness stamp. Under SourceText() it
+		// flattened to "" and was skipped, so it never reached `checked` and the
+		// source gate held it out of translation forever.
+		if !v.Translatable() || strings.TrimSpace(HygieneText(v.SourceRuns())) == "" {
 			return nil
 		}
 

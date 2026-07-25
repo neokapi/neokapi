@@ -267,3 +267,134 @@ func TestThreshold_JSONRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"reviewed": 100, "signed-off": {"pct": 50, "by": "any"}}`, string(data))
 }
+
+// TestProgress pins the distance-to-gate derivation: the mean fractional
+// attainment of the gate's required thresholds, each capped at its requirement.
+// It is what the `kapi status` pipeline column renders, so the numbers matter.
+func TestProgress(t *testing.T) {
+	ladder := TargetLadder()
+
+	cov := func(states ...string) Coverage {
+		return NewCoverage(states)
+	}
+	const (
+		none       = ""
+		translated = "translated"
+		reviewed   = "reviewed"
+		signedOff  = "signed-off"
+	)
+
+	tests := []struct {
+		name string
+		gate Gate
+		cov  Coverage
+		want int
+	}{
+		{
+			name: "nothing required is vacuously complete",
+			gate: Gate{},
+			cov:  cov(none),
+			want: 100,
+		},
+		{
+			name: "zero-percent thresholds do not count as requirements",
+			gate: Gate{translated: {Pct: 0}},
+			cov:  cov(none),
+			want: 100,
+		},
+		{
+			name: "gate met",
+			gate: Gate{translated: {Pct: 100}},
+			cov:  cov(translated, translated),
+			want: 100,
+		},
+		{
+			name: "nothing done",
+			gate: Gate{translated: {Pct: 100}},
+			cov:  cov(none, none),
+			want: 0,
+		},
+		{
+			name: "half the units translated against a single 100% bar",
+			gate: Gate{translated: {Pct: 100}},
+			cov:  cov(translated, none),
+			want: 50,
+		},
+		{
+			name: "fully translated, unreviewed, two equal bars: half the gate",
+			gate: Gate{translated: {Pct: 100}, reviewed: {Pct: 100}},
+			cov:  cov(translated, translated),
+			want: 50,
+		},
+		{
+			name: "fully reviewed clears both bars",
+			gate: Gate{translated: {Pct: 100}, reviewed: {Pct: 100}},
+			cov:  cov(reviewed, reviewed),
+			want: 100,
+		},
+		{
+			name: "exceeding one bar never compensates for missing another",
+			gate: Gate{translated: {Pct: 50}, reviewed: {Pct: 100}},
+			cov:  cov(translated, translated),
+			want: 50,
+		},
+		{
+			name: "three bars, the top one 40% attained",
+			gate: Gate{translated: {Pct: 100}, reviewed: {Pct: 100}, signedOff: {Pct: 100}},
+			cov:  cov(reviewed, reviewed, reviewed, reviewed, reviewed, signedOff, signedOff, signedOff, signedOff, reviewed),
+			want: 80,
+		},
+		{
+			name: "a vacuous scope satisfies every bar",
+			gate: Gate{translated: {Pct: 100}, reviewed: {Pct: 100}},
+			cov:  Coverage{},
+			want: 100,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, Progress(tt.gate, tt.cov, ladder))
+			// Evaluate must agree: the status view reads Progress off the Result.
+			assert.Equal(t, tt.want, Evaluate(tt.gate, tt.cov, ladder).Progress)
+		})
+	}
+}
+
+// TestEvaluateBlockingIsTheLowestUnmetRung: a ship verdict names the gate to
+// clear next, so it must be the lowest unmet rung — pointing at "sign-off"
+// while translation is also short would send someone to the wrong work.
+func TestEvaluateBlockingIsTheLowestUnmetRung(t *testing.T) {
+	ladder := TargetLadder()
+	g := Gate{"translated": {Pct: 100}, "reviewed": {Pct: 100}, "signed-off": {Pct: 100}}
+
+	res := Evaluate(g, NewCoverage([]string{"", "translated"}), ladder)
+	assert.False(t, res.Pass)
+	assert.Equal(t, "translated", res.Blocking, "translation is short, so it blocks first")
+
+	res = Evaluate(g, NewCoverage([]string{"reviewed", "reviewed"}), ladder)
+	assert.False(t, res.Pass)
+	assert.Equal(t, "signed-off", res.Blocking, "only the top rung is left")
+
+	res = Evaluate(g, NewCoverage([]string{"signed-off"}), ladder)
+	assert.True(t, res.Pass)
+	assert.Empty(t, res.Blocking, "a passing gate blocks on nothing")
+}
+
+// TestProgressWithApproverClass: an AI-promoted unit does not advance a
+// human-class bar, so progress must read it at its baseline too — the number and
+// the verdict cannot disagree.
+func TestProgressWithApproverClass(t *testing.T) {
+	ladder := TargetLadder()
+	var cov Coverage
+	cov.AddAIDecided("reviewed", "translated")
+	cov.AddAIDecided("reviewed", "translated")
+
+	human := Gate{"translated": {Pct: 100}, "reviewed": {Pct: 100, By: ByHuman}}
+	assert.Equal(t, 50, Progress(human, cov, ladder),
+		"AI review does not advance a human-class bar")
+
+	any := Gate{"translated": {Pct: 100}, "reviewed": {Pct: 100, By: ByAny}}
+	assert.Equal(t, 100, Progress(any, cov, ladder),
+		"`by: any` admits the AI decision")
+}

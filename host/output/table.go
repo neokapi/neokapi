@@ -217,7 +217,13 @@ func indent(s, prefix string) string {
 // termWidth returns the terminal width of w, or 0 when w is not a terminal (a
 // pipe, a test buffer, the wasm CLI). Returning 0 leaves the table unbounded,
 // which is what a consumer reading piped output wants.
-func termWidth(w io.Writer) int {
+func termWidth(w io.Writer) int { return TerminalWidth(w) }
+
+// TerminalWidth reports w's column count, or 0 when w is not a terminal (a
+// pipe, a test buffer, the wasm CLI). It is exported so a renderer outside this
+// package can make the same width decisions the tables do — a bar that would be
+// squeezed to noise in a narrow terminal, say.
+func TerminalWidth(w io.Writer) int {
 	if !isTerminal(w) {
 		return 0
 	}

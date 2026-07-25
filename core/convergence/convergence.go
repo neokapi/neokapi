@@ -38,6 +38,15 @@ type LocaleCoverage struct {
 	Gated      bool             `json:"gated"`             // a ship gate applies to this scope
 	Shippable  bool             `json:"shippable"`         // ship gate satisfied (or no ship gate)
 	Pending    []gate.Shortfall `json:"pending,omitempty"` // unmet ship-gate thresholds
+	// ShipProgress is how far the scope has come toward its ship gate, in
+	// [0,100] — gate.Progress: the mean fractional attainment of the gate's
+	// required thresholds. It is a distance to the bar, not a lifecycle
+	// percentage (those are in Pct), so it answers exactly one question: how
+	// much of the ship gate is left. 100 for an ungated scope.
+	ShipProgress int `json:"shipProgress"`
+	// Blocking names the lowest unmet rung of the ship gate — the one gate to
+	// clear next. Empty when the scope ships.
+	Blocking string `json:"blocking,omitempty"`
 	// Verified reports whether the scope clears its verified gate — the second,
 	// independent bar meaning a person reviewed or signed off the content. It is
 	// evaluated exactly like Shippable but against the recipe's verified gate.
