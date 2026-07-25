@@ -65,6 +65,10 @@ matches() {
 
 echo ""
 
+# ── Repo hygiene (never gated: an absolute home path can land in any file) ──
+
+run_check "Absolute home paths" ./scripts/check-abs-paths.sh
+
 # ── Go checks ──────────────────────────────────────────────────────────────
 
 if matches '^core/' '^go\.(mod|sum)$' '^cli/' '^kapi/' '^go\.work'; then

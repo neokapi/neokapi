@@ -1,6 +1,6 @@
 # Editor-embedding integrations inventory (neokapi repo)
 
-Repo root: `/Users/asgeirf/src/neokapi/neokapi/.claude/worktrees/format-process` (all paths below relative to it unless absolute).
+All paths below are relative to the neokapi repo root unless absolute.
 
 **Scope caveat (load-bearing):** the workspace add-ins and the google-workspace/microsoft365 connectors are **NOT on main/HEAD**. They live on open **PR #776** (`feat(bowrain): Google Workspace + Microsoft 365 workspace add-ons`, branch `origin/worktree-google-ms-addon`, head commit `3967be87b`; feature commits `0efa504c9` + `681f6228b`). `git merge-base --is-ancestor 0efa504c9 origin/main` → NOT in main. Everything labeled **[PR #776]** below was read via `git show origin/worktree-google-ms-addon:<path>`. Everything else is on HEAD.
 

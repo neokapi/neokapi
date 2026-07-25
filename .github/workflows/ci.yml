@@ -827,15 +827,18 @@ jobs:
 
   # ── Docs stay bowrain-clean (always-on, cheap) ───────────────────────────
   docs-guard:
-    name: Docs bowrain-clean
+    name: Repo guards
     runs-on: ubuntu-latest
-    # No path gate and no toolchain: the guard is a ~seconds bash script, so
-    # running it on every PR is cheap belt-and-suspenders — a stray bowrain
-    # reference (or a stale guard) can't merge and surface only post-merge.
+    # No path gate and no toolchain: these guards are ~seconds of bash, so
+    # running them on every PR is cheap belt-and-suspenders — a stray bowrain
+    # reference or absolute home path (or a stale guard) can't merge and
+    # surface only post-merge.
     steps:
       - uses: actions/checkout@v7
       - name: Guard — neokapi docs must stay bowrain-clean
         run: ./scripts/check-docs-bowrain-clean.sh
+      - name: Guard — no absolute home paths in tracked files
+        run: ./scripts/check-abs-paths.sh
 
   # ── GitHub Actions Lint ──────────────────────────────────────────────────
   gha-lint:

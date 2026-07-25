@@ -1,6 +1,6 @@
 # Deep-dive D — Prior art + naming: an intuitive axis categorization and a Structure/Geometry ladder
 
-Read-only survey. Repo: `/Users/asgeirf/src/neokapi/neokapi/.claude/worktrees/format-process` (HEAD caught up to main).
+Read-only survey of the neokapi repo root (HEAD caught up to main).
 Anchors read in full: `core/model/structure.go`, `core/formats/docling/{schema.go,reader.go,spec.yaml}`, `core/formats/doclang/{reader.go,spec.yaml}`, `core/formats/image/reader.go`, `core/structure/analyze.go`, `web/docs/contribute/architecture/028-pdf-reader-plugin.md`, `web/docs/contribute/architecture/029-vision-and-image-localization.md`, `docs/internals/format-maturity.md`.
 
 ---

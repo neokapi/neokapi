@@ -1,6 +1,6 @@
 # Format-maturity multi-axis upgrade — engineering change surface
 
-Scope: extend the single-ladder Engine L0–L4 maturity system with four new axes — **Vocabulary V0–V3, Editor E0–E3, Knowledge K0–K3, Corpus C0–C3** — across the triage workflow, the deterministic audit, the repro harness, the dashboard, and the Go guardrails. All paths relative to the worktree root `/Users/asgeirf/src/neokapi/neokapi/.claude/worktrees/format-process/`.
+Scope: extend the single-ladder Engine L0–L4 maturity system with four new axes — **Vocabulary V0–V3, Editor E0–E3, Knowledge K0–K3, Corpus C0–C3** — across the triage workflow, the deterministic audit, the repro harness, the dashboard, and the Go guardrails. All paths relative to the neokapi repo root.
 
 ---
 

@@ -5,11 +5,16 @@
 # worktree, so we search a few known locations. Run from anywhere.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-# Candidate okapi-apps locations: this tree, then the primary neokapi checkout.
+# shellcheck source-path=SCRIPTDIR source=../lib/workspace.sh
+. "$ROOT/scripts/lib/workspace.sh"
+neokapi_init_workspace "$ROOT"
+# Candidate okapi-apps locations: this tree, then the enclosing checkout (this
+# tree may be a git worktree under .claude/worktrees/<name>/), then the primary
+# neokapi checkout in the workspace.
 CANDS=(
   "$ROOT/bench/pseudobench/okapi-apps"
   "$(cd "$ROOT/../../../.." 2>/dev/null && pwd)/bench/pseudobench/okapi-apps"
-  "$HOME/src/neokapi/neokapi/bench/pseudobench/okapi-apps"
+  "$NEOKAPI_WORKSPACE_DIR/neokapi/bench/pseudobench/okapi-apps"
 )
 OKAPI=""
 for c in "${CANDS[@]}"; do [ -d "$c/lib" ] && OKAPI="$c" && break; done

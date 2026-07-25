@@ -1,6 +1,6 @@
 # Vocabulary Reality — how richly format semantics map into the shared content model
 
-Scope: worktree `/Users/asgeirf/src/neokapi/neokapi/.claude/worktrees/format-process` (branch lab-ux-846).
+Scope: the neokapi repo root (branch lab-ux-846).
 Headline: **a canonical cross-format inline vocabulary already exists and is load-bearing** (registry + 4 embedded JSON packs + semantic-HTML projection + editor chips), but only **5 of ~49 native formats emit it**, block-level semantics are free-form strings, and there is **no per-format mapping artifact, no coverage test, and live Go↔TS vocabulary drift**.
 
 ---

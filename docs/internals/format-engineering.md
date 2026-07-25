@@ -217,7 +217,7 @@ regressions never fail CI unless a per-format `MinTier` is set.**
 ```bash
 make parity-sandbox        # builds .parity sandbox: kapi + okapi-bridge plugin
                            # needs a JRE + the okapi clone at OKAPI_VERSION=1.48.0
-                           # (/Users/asgeirf/src/okapi/Okapi)
+                           # ($NEOKAPI_OKAPI_DIR)
 cd cli && KAPI_PARITY_SANDBOX=<p> KAPI_PARITY_REPORT=<p> \
   go test -tags parity -count=1 -run TestParityHtmlSpec ./parity/formats/
 ```
@@ -239,7 +239,9 @@ byte-stable while the tier moved means native regressed; dump via
 
 ## 6. Okapi mapping
 
-Okapi (Java) lives at `/Users/asgeirf/src/okapi/Okapi/okapi/filters/` — one Maven
+Okapi (Java) lives at `$NEOKAPI_OKAPI_DIR/okapi/filters/` (default
+`<checkouts>/okapi/Okapi` — see
+[workspace paths](../../web/docs/contribute/workspace-paths.md)) — one Maven
 module per filter, v1.48.0. The filter id is `okf_<format>` from `getName()`.
 
 A filter module contains: `<Format>Filter.java` (an `IFilter` event pull-parser:

@@ -38345,1792 +38345,1792 @@
                 "durationMs": 7010
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1009-1.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1009-1.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1009-2.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1009-2.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1010-slide1-hidden-slide2-hidden.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1010-slide1-hidden-slide2-hidden.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1010-slide1-visible-slide2-hidden.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1010-slide1-visible-slide2-hidden.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1011-slide1-visible-slide2-hidden.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1011-slide1-visible-slide2-hidden.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1046.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1046.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1051-cross-sheets-references.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1051-cross-sheets-references.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1051-cross-sheets-table-references-2-hidden.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1051-cross-sheets-table-references-2-hidden.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1051-cross-sheets-table-references-2.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1051-cross-sheets-table-references-2.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1051-cross-sheets-table-references.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1051-cross-sheets-table-references.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1058.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1058.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1059.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1059.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1060.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1060.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1062-1.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1062-1.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1062-2.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1062-2.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1080-1.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1080-1.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1080-2.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1080-2.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1080-3.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1080-3.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1080-4.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1080-4.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1083-date-and-hyperlink-instructions.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1083-date-and-hyperlink-instructions.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1083-empty-and-hyperlink-instructions.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1083-empty-and-hyperlink-instructions.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1083-hyperlink-and-date-instructions.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1083-hyperlink-and-date-instructions.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1083-hyperlink-and-empty-instructions.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1083-hyperlink-and-empty-instructions.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1085.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1085.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1095.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1095.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1096.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1096.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1102.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1102.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1108-1.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1108-1.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1108-2.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1108-2.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1108-3.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1108-3.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1116.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1116.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1127-1.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1127-1.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1127-2.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1127-2.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1129-1.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1129-1.pptx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1129-2.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1129-2.pptx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1129-3.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1129-3.pptx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1129-4.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1129-4.pptx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1141.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1141.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1143.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1143.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1144.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1144.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1145-colors-aggressive.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1145-colors-aggressive.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1145-colors.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1145-colors.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1154.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1154.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1157.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1157.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1172.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1172.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1174.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1174.pptx",
                 "status": "pass",
                 "durationMs": 30
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1199-inline-strings.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1199-inline-strings.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1200-1.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1200-1.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1200-2.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1200-2.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1200-3.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1200-3.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1200-4.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1200-4.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1200-5.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1200-5.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1306.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1306.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1311.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1311.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1312-fonts-info-2.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1312-fonts-info-2.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1312-fonts-info.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1312-fonts-info.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1312-fonts-info.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1312-fonts-info.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1312-fonts-info.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1312-fonts-info.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1313-numbering-1.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1313-numbering-1.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1313-numbering-2.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1313-numbering-2.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1313-numbering-3.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1313-numbering-3.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1314.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1314.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1325-rows-and-columns-identification.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1325-rows-and-columns-identification.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1329-styles-clarification.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1329-styles-clarification.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1333-same-strings-in-different-cells.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1333-same-strings-in-different-cells.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1334-source-and-target-columns.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1334-source-and-target-columns.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1335-doc-properties.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1335-doc-properties.docx",
                 "status": "pass",
                 "durationMs": 80
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1341-textbox-with-a-hyperlink.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1341-textbox-with-a-hyperlink.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1344.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1344.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1346.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1346.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1352-numbering-apache-poi.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1352-numbering-apache-poi.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1363-cell-and-inline-styles.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1363-cell-and-inline-styles.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1364-style-optimisation.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1364-style-optimisation.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1367-table-header-special-xml-characters.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1367-table-header-special-xml-characters.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1370-same-nested-revisions.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1370-same-nested-revisions.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1371-worksheet-exclusions-1.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1371-worksheet-exclusions-1.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1371-worksheet-exclusions-2.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1371-worksheet-exclusions-2.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1372-target-column-styles.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1372-target-column-styles.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1373-line-break.pptx",
-                "status": "pass",
-                "durationMs": 10
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1378-color-with-tint.xlsx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1380-graphic-metadata.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1373-line-break.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1385-whitespace-styles.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1378-color-with-tint.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1386-styled-and-plain-strings.xlsx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1394-highlights.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1394-styles.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1399-source-and-target-joined.xlsx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1405-chart-strings-unsynced-2.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1380-graphic-metadata.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1405-chart-strings-unsynced.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1385-whitespace-styles.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1386-styled-and-plain-strings.xlsx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1394-highlights.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1394-styles.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1399-source-and-target-joined.xlsx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1405-chart-strings-unsynced-2.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1406-code-finding.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1405-chart-strings-unsynced.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1406-code-finding.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1406-code-finding.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1406-code-finding.xlsx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1411-mergable-runs.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1413-notes.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1406-code-finding.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1419-cell-with-omitted-value.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1406-code-finding.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1420-worksheets.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1411-mergable-runs.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1421-line-break.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1421-line-break.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1413-notes.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1428-excluded-colors-in-source-columns.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1419-cell-with-omitted-value.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1429-explicit-cells.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1420-worksheets.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1430-source-column-style-for-exclusion.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1421-line-break.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1431-graphic-21.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1421-line-break.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1433-text-for-masking.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1428-excluded-colors-in-source-columns.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1433-text-for-masking.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1429-explicit-cells.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1435-text-for-masking.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1430-source-column-style-for-exclusion.xlsx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1431-graphic-21.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1437-color-exclusion.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1433-text-for-masking.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1433-text-for-masking.xlsx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1435-text-for-masking.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1440-default-formatting.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/727.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/736.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1437-color-exclusion.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/768-2.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/1440-default-formatting.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/768.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/727.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/794.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/736.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/798.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/768-2.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/768.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/794.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/830-1.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/830-2.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/830-3.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/830-4.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/830-5.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/830-6.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/830-7.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/798.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/834.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/830-1.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/830-2.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/830-3.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/830-4.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/830-5.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/830-6.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/830-7.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/835-2.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/834.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/835.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/835-2.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/843-1.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/843-2.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/843-31.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/843-32.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/843-33.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/843-34.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/847-1.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/847-2.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/847-3.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/835.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/848-nested-tables-with-revisions.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/843-1.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/848-nested-tables.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/843-2.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/848.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/843-31.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/850.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/843-32.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/851.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/843-33.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/853-all-common.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/843-34.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/858.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/847-1.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/859.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/847-2.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/847-3.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/859.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/848-nested-tables-with-revisions.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/859.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/848-nested-tables.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/882.pptx",
-                "status": "pass",
-                "durationMs": 10
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/884.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/848.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/887.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/850.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/888.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/851.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/894-empty-cells-and-rows.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/853-all-common.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/899.docx",
-                "status": "pass",
-                "durationMs": 10
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-bodypr-rtlcol-0.pptx",
-                "status": "pass",
-                "durationMs": 10
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-bodypr-rtlcol-1.pptx",
-                "status": "pass",
-                "durationMs": 10
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-p-ppr-rtl-0.pptx",
-                "status": "pass",
-                "durationMs": 10
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-p-ppr-rtl-1.pptx",
-                "status": "pass",
-                "durationMs": 10
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-p-ppr-rtl.pptx",
-                "status": "pass",
-                "durationMs": 10
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-presentation-rtl-0.pptx",
-                "status": "pass",
-                "durationMs": 10
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-presentation-rtl-1.pptx",
-                "status": "pass",
-                "durationMs": 10
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-r-rpr-no-rtl.pptx",
-                "status": "pass",
-                "durationMs": 10
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-r-rpr-rtl.pptx",
-                "status": "pass",
-                "durationMs": 10
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-tblpr-rtl-0.pptx",
-                "status": "pass",
-                "durationMs": 10
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-tblpr-rtl-1.pptx",
-                "status": "pass",
-                "durationMs": 10
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/930.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/858.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/937-1.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/937-2.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/947-cs.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/947-non-cs-and-cs.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/947-non-cs.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/948-1.docx",
-                "status": "pass",
-                "durationMs": 0
-              },
-              {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/948-2.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/859.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/948-3.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/859.pptx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/952-1.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/859.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/952-2.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/882.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/952-3.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/884.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/887.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/888.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/894-empty-cells-and-rows.xlsx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/899.docx",
+                "status": "pass",
+                "durationMs": 10
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-bodypr-rtlcol-0.pptx",
+                "status": "pass",
+                "durationMs": 10
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-bodypr-rtlcol-1.pptx",
+                "status": "pass",
+                "durationMs": 10
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-p-ppr-rtl-0.pptx",
+                "status": "pass",
+                "durationMs": 10
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-p-ppr-rtl-1.pptx",
+                "status": "pass",
+                "durationMs": 10
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-p-ppr-rtl.pptx",
+                "status": "pass",
+                "durationMs": 10
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-presentation-rtl-0.pptx",
+                "status": "pass",
+                "durationMs": 10
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-presentation-rtl-1.pptx",
+                "status": "pass",
+                "durationMs": 10
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-r-rpr-no-rtl.pptx",
+                "status": "pass",
+                "durationMs": 10
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-r-rpr-rtl.pptx",
+                "status": "pass",
+                "durationMs": 10
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-tblpr-rtl-0.pptx",
+                "status": "pass",
+                "durationMs": 10
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/927-tblpr-rtl-1.pptx",
+                "status": "pass",
+                "durationMs": 10
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/930.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/937-1.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/937-2.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/947-cs.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/947-non-cs-and-cs.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/947-non-cs.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/948-1.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/948-2.pptx",
+                "status": "pass",
+                "durationMs": 10
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/948-3.xlsx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/952-1.docx",
+                "status": "pass",
+                "durationMs": 0
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/952-2.docx",
+                "status": "pass",
+                "durationMs": 10
+              },
+              {
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/952-3.docx",
                 "status": "pass",
                 "durationMs": 40
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/956.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/956.docx",
                 "status": "pass",
                 "durationMs": 30
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/958-1.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/958-1.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/958-2.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/958-2.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/958-3.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/958-3.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/958-4.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/958-4.pptx",
                 "status": "pass",
                 "durationMs": 20
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/972-shared-strings-and-comments.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/972-shared-strings-and-comments.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/972-styles.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/972-styles.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/977.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/977.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/982-1.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/982-1.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/982-2.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/982-2.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/983-1a.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/983-1a.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/983-2a.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/983-2a.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/983-3.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/983-3.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/992.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/992.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/999-slide-layout-title-lst-style-override.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/999-slide-layout-title-lst-style-override.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/999-slide-layout-title-lst-style.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/999-slide-layout-title-lst-style.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/999-slide-master-body-style-override.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/999-slide-master-body-style-override.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/999-slide-master-body-style.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/999-slide-master-body-style.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/999-slide-master-lst-style-override.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/999-slide-master-lst-style-override.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/999-slide-master-lst-style.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/999-slide-master-lst-style.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/999-slide-master-title-style-override.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/999-slide-master-title-style-override.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/999-slide-master-title-style.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/999-slide-master-title-style.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/999.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/999.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Addcomments.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Addcomments.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/AltContentEscaping.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/AltContentEscaping.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/AlternateContent.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/AlternateContent.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/AlternateContentTest.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/AlternateContentTest.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/BoldWorld.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/BoldWorld.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Comments.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Comments.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/ComplexTextfield.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/ComplexTextfield.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Deli.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Deli.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/DocProperties.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/DocProperties.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/DocProperties.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/DocProperties.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-custom-tabs.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-custom-tabs.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-formula-and-tabs.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-formula-and-tabs.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-soft-linebreaks.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-soft-linebreaks.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-soft-linebreaks.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-soft-linebreaks.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-tab-09.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-tab-09.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-tabs-2.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-tabs-2.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-tabs-3.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-tabs-3.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-tabs-4.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-tabs-4.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-tabs-5.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-tabs-5.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-tabs-at-EOL.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-tabs-at-EOL.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-tabs.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-tabs.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-tabs.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Document-with-tabs.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/DrawingML_Test.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/DrawingML_Test.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/EndGroup.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/EndGroup.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Endpara.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Endpara.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Escapades.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Escapades.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/ExcelColors.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/ExcelColors.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/FontThemeOverFont.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/FontThemeOverFont.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/FormattedHyperlink.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/FormattedHyperlink.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Formattings.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Formattings.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/GraphicInTextBox.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/GraphicInTextBox.docx",
                 "status": "pass",
                 "durationMs": 40
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Hangs.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Hangs.docx",
                 "status": "pass",
                 "durationMs": 60
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/HelloWorld.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/HelloWorld.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/HiddenExcluded.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/HiddenExcluded.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/HiddenMergeCells.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/HiddenMergeCells.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/HiddenTablesApachePoi.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/HiddenTablesApachePoi.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Hidden_Textbox.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Hidden_Textbox.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/InsertText.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/InsertText.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Link-to-movie.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Link-to-movie.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Mauris.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Mauris.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/MissingPara.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/MissingPara.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/N_001_Auswertung_Part2.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/N_001_Auswertung_Part2.docx",
                 "status": "pass",
                 "durationMs": 20
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/N_001_Auswertung_Part3.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/N_001_Auswertung_Part3.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/N_001_Auswertung_Part4.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/N_001_Auswertung_Part4.docx",
                 "status": "pass",
                 "durationMs": 30
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/NoStylesXml.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/NoStylesXml.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Okapi-325.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Okapi-325.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/OkapiMarkers.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/OkapiMarkers.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/OkapiMarkers.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/OkapiMarkers.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/OkapiMarkers.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/OkapiMarkers.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/OpenXML_text_reference_v1_2.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/OpenXML_text_reference_v1_2.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/OpenXmlRoundtripSoftLineBreaksDoNotTranslateTestCharacterStyle.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/OpenXmlRoundtripSoftLineBreaksDoNotTranslateTestCharacterStyle.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/OpenXmlRoundtripSoftLineBreaksDoNotTranslateTestParagraphStyle.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/OpenXmlRoundtripSoftLineBreaksDoNotTranslateTestParagraphStyle.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/OpenXmlRoundtripTabDoNotTranslateTestCharacterStyle.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/OpenXmlRoundtripTabDoNotTranslateTestCharacterStyle.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/OpenXmlRoundtripTabDoNotTranslateTestParagraphStyle.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/OpenXmlRoundtripTabDoNotTranslateTestParagraphStyle.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/OutOfTheTextBox.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/OutOfTheTextBox.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/PageBreak.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/PageBreak.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Practice2.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Practice2.docx",
                 "status": "pass",
                 "durationMs": 20
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/SampleRuby.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/SampleRuby.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/SheetNameHidden.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/SheetNameHidden.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/SmartArt.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/SmartArt.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/SmartArt3Sheets.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/SmartArt3Sheets.xlsx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/StartsWithLineSeparator.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/StartsWithLineSeparator.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/TabAtEnd.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/TabAtEnd.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/TabAtEndAfterNewRun.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/TabAtEndAfterNewRun.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/TestDako2.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/TestDako2.docx",
                 "status": "pass",
                 "durationMs": 40
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/TestLTinsideBoxFails.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/TestLTinsideBoxFails.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/TextBoxes.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/TextBoxes.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/TextboxNumber.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/TextboxNumber.docx",
                 "status": "pass",
                 "durationMs": 20
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Textfeld3Sheets.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Textfeld3Sheets.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Textfield.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/Textfield.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/The_tomato_is_formatted.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/The_tomato_is_formatted.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/UTF8.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/UTF8.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/apissue.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/apissue.docx",
                 "status": "pass",
                 "durationMs": 20
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/baseline-on-master.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/baseline-on-master.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/bookmarkgoback.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/bookmarkgoback.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/br.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/br.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/br2.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/br2.docx",
                 "status": "pass",
                 "durationMs": 50
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/cell_styling.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/cell_styling.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/chartAmpersand.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/chartAmpersand.docx",
                 "status": "pass",
                 "durationMs": 120
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/chartEx_with_cache.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/chartEx_with_cache.pptx",
                 "status": "pass",
                 "durationMs": 60
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/chart_content.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/chart_content.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/clarifiable-part-ar.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/clarifiable-part-ar.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/clarifiable-part-ar.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/clarifiable-part-ar.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/clarifiable-part-en.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/clarifiable-part-en.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/clarifiable-part-en.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/clarifiable-part-en.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/colors.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/colors.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/columns.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/columns.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/commentTable.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/commentTable.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/content_category_test.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/content_category_test.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/delTextAmp.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/delTextAmp.docx",
                 "status": "pass",
                 "durationMs": 20
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/diagrams.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/diagrams.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/document-revision-information-stripping.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/document-revision-information-stripping.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/document-style-definitions.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/document-style-definitions.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/document-with-run-fonts-variations.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/document-with-run-fonts-variations.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/docxsegtest.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/docxsegtest.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/docxtest.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/docxtest.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/emptyStringItem.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/emptyStringItem.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/equation.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/equation.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/external_hyperlink.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/external_hyperlink.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/external_hyperlink.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/external_hyperlink.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/external_hyperlink.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/external_hyperlink.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/formulas.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/formulas.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/gettysburg_en.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/gettysburg_en.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/graphicdata.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/graphicdata.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/hidden_cells.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/hidden_cells.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/hidden_stuff.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/hidden_stuff.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/hidden_table.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/hidden_table.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/hidden_table_with_formula.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/hidden_table_with_formula.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/highlight_in_style.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/highlight_in_style.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/highlights.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/highlights.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/highlights_block.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/highlights_block.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/hyperlink.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/hyperlink.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/include-slides-w-chart.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/include-slides-w-chart.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/include-slides-w-smartart.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/include-slides-w-smartart.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/include-slides.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/include-slides.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/issue536.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/issue536.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/japanese_phonetic_run_property.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/japanese_phonetic_run_property.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/lang.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/lang.docx",
                 "status": "pass",
                 "durationMs": 30
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/large-attribute.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/large-attribute.docx",
                 "status": "pass",
                 "durationMs": 70
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/large.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/large.xlsx",
                 "status": "pass",
                 "durationMs": 4550
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/leading_line_breaks.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/leading_line_breaks.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/missing_fillId.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/missing_fillId.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/multiline_formula.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/multiline_formula.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/multiple_tabs.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/multiple_tabs.docx",
                 "status": "pass",
                 "durationMs": 50
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/neverendingloop.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/neverendingloop.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/numbering-revisions.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/numbering-revisions.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/ordering.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/ordering.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/picture.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/picture.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/pokemon.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/pokemon.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/reordered-zip.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/reordered-zip.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/sample.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/sample.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/sample.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/sample.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/sample.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/sample.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/sampleMore.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/sampleMore.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/sampleMore.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/sampleMore.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/shape_with_text.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/shape_with_text.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/shared_string_in_two_columns.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/shared_string_in_two_columns.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/sharedstring_entities.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/sharedstring_entities.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/sheet_names.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/sheet_names.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/simple_chart.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/simple_chart.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/simple_chart.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/simple_chart.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/slide-with-note-and-baseline.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/slide-with-note-and-baseline.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/slideLayouts.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/slideLayouts.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/smart_art.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/smart_art.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/smartart.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/smartart.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/smartquotes.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/smartquotes.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/spacing.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/spacing.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/special-chars-and-linebreaks.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/special-chars-and-linebreaks.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/spelling.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/spelling.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/standard-colors-2013.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/standard-colors-2013.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/standardcolors.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/standardcolors.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/styled_cells.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/styled_cells.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/styles.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/styles.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/styles_color.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/styles_color.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/table-grid-revisions.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/table-grid-revisions.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/table_description.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/table_description.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/table_of_contents_-_automatic.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/table_of_contents_-_automatic.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/table_truncation.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/table_truncation.docx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/tabstyles.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/tabstyles.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/textarea.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/textarea.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/textbox-on-master.pptx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/textbox-on-master.pptx",
                 "status": "pass",
                 "durationMs": 10
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/textfield.xlsx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/textfield.xlsx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/vertAlign.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/vertAlign.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/watermark.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/watermark.docx",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestValidity_XMLWellFormed//Users/asgeirf/src/neokapi/neokapi/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/word_art.docx",
+                "name": "TestValidity_XMLWellFormed/okapi-testdata/1.48.0-v4/okapi/filters/openxml/src/test/resources/word_art.docx",
                 "status": "pass",
                 "durationMs": 0
               },

@@ -34,7 +34,15 @@ Use this skill to create a brand-new format package. Do **not** use it to:
 
 ## Step 0 — Port or harvest?
 
-`grep`/`ls /Users/asgeirf/src/okapi/Okapi/okapi/filters/` for a matching
+Resolve the upstream Okapi clone once (it lives outside this repo, so it is
+named by environment variable, never by an absolute path — see
+[workspace paths](../../web/docs/contribute/workspace-paths.md)):
+
+```bash
+. scripts/lib/workspace.sh && neokapi_init_workspace "$PWD"
+```
+
+Then `grep`/`ls "$NEOKAPI_OKAPI_DIR/okapi/filters/"` for a matching
 `okf_<format>` filter.
 
 - **Found → port.** `spec.yaml` + parity are **mandatory**. The Okapi filter is

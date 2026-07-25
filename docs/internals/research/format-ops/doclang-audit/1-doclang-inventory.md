@@ -1,6 +1,6 @@
 # DocLang Capability Inventory (Task 1 — completeness yardstick)
 
-Source: `/Users/asgeirf/src/doclang-project/doclang/spec.md` (v0.6, 3734 lines, read in full).
+Source: `$NEOKAPI_DOCLANG_DIR/spec.md` (v0.6, 3734 lines, read in full).
 Purpose: exhaustive enumeration of everything DocLang can express, so the gap analysis (vs neokapi `core/model/structure.go`, 276 lines) and the **Structure & Geometry G0–G4** ladder can be measured against a complete list. Line refs are `spec.md` line numbers. "FUTURE" = Appendix C (planned, non-normative for v0.6 body but published in the spec).
 
 DocLang is XML (UTF-8 default; XML prolog may override; entities or CDATA for reserved chars; §Content Encoding L134–140). Namespace `https://www.doclang.ai/ns/v0`, root `<doclang version="0.6">` (L1965–1994). Design intent: a *controlled, token-efficient* vocabulary for LLM/VLM generation (≤~1000 syntax tokens, L62–73), AI-native (semantics + geometry), supporting lossless round-trip of **content** (L40–49). Differentiator vs OCR formats (PageXML/ALTO/hOCR): adds native semantic roles + rich table structure, not just bbox (L88–93).

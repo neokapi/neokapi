@@ -3,8 +3,7 @@
 Survey of what structural + geometric information the neokapi content model can
 now represent, at what granularity, and whether each thing is first-class,
 overlay, or absent. This is the substrate a new "Structure/Geometry" maturity
-axis would measure against. All paths relative to repo root
-`/Users/asgeirf/src/neokapi/neokapi/.claude/worktrees/format-process`.
+axis would measure against. All paths relative to the neokapi repo root.
 
 ---
 

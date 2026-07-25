@@ -151,6 +151,38 @@ Where this is already wired:
 When adding a new in-repo kapi invocation, follow this contract or it may
 silently bind to (and act on) the dogfood project.
 
+## Never commit an absolute home path
+
+A path like `/Users/<name>/src/...` resolves on exactly one laptop. Locations
+outside this repository are named by environment variable with a repo-relative
+default, so a fresh clone in the conventional layout needs no environment at
+all:
+
+| Variable | Default | What it names |
+| --- | --- | --- |
+| `NEOKAPI_WORKSPACE_DIR` | the parent of this repo | The multi-repo workspace — this repo plus `okapi-bridge/`, `registry/`, … |
+| `NEOKAPI_CHECKOUTS_DIR` | the parent of the workspace | Where unrelated reference checkouts live |
+| `NEOKAPI_OKAPI_DIR` | `$NEOKAPI_CHECKOUTS_DIR/okapi/Okapi` | The upstream Okapi Framework (Java) clone — parity, contract audit, fixture harvesting |
+| `NEOKAPI_DOCLANG_DIR` | `$NEOKAPI_CHECKOUTS_DIR/doclang-project/doclang` | The DocLang specification checkout |
+
+The root `Makefile` defines and exports all four; `make workspace-paths` prints
+what they resolve to. Shell scripts source the shared resolver
+(`. scripts/lib/workspace.sh && neokapi_init_workspace "$root"`), never
+`$HOME/src/...`. Both are worktree-aware: the workspace is the parent of the
+**main** checkout (via `git rev-parse --git-common-dir`), because inside
+`.claude/worktrees/<name>/` the parent directory is not a workspace. Prose
+names the variable, not a resolved path. Historical `OKAPI_REPO` /
+`OKAPI_BRIDGE_REPO` overrides still work; they now default off these variables.
+
+`scripts/check-abs-paths.sh` scans every tracked file for `/Users/<name>`,
+`/home/<name>/` and `C:\Users\<name>`, and runs in `make lint`, `make
+pre-push`, and the *Repo guards* CI job. Its allowlist (documentation
+placeholder names, fixed system paths, a few vendored/generated files) is small
+and commented — extend it only with the same specificity. Watch generated
+artefacts too: a Go subtest named after an absolute fixture path put 358 home
+paths into the committed contract-audit dataset. See
+[Workspace Paths](web/docs/contribute/workspace-paths.md).
+
 ## Target-language drift must never block the build
 
 A **source-language** change must never hard-fail a build (or kapi itself)

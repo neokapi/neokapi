@@ -1,6 +1,6 @@
 # Corpus reality + release-asset publish/fetch pattern (neokapi)
 
-Repo root analyzed: `/Users/asgeirf/src/neokapi/neokapi/.claude/worktrees/format-process`
+Analyzed at the neokapi repo root.
 (all paths below are relative to that root unless absolute).
 
 ---
@@ -310,7 +310,7 @@ them here."* `docs-bowrain.yml:45-60` is symmetric.
 ## 4. `make regen-okapi-fixtures` end-to-end (`Makefile:540-572`)
 
 1. **Inputs:** a local clone of upstream Okapi Java at `OKAPI_REPO`
-   (default `/Users/asgeirf/src/okapi/Okapi`, `Makefile:598`); guard:
+   (default `$NEOKAPI_OKAPI_DIR`, `Makefile:598`); guard:
    `@[ -d "$(OKAPI_REPO)/okapi/filters" ] || { echo "OKAPI_REPO not found…"; exit 1; }`.
 2. **Spec table:** `OKAPI_FIXTURE_SPECS` (`Makefile:547-559`) maps 12 formats to Java
    test classes, e.g. `html=HtmlConfigurationSupportTest,HtmlEventTest,HtmlSnippetsTest,…`

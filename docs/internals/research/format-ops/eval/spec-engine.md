@@ -1,6 +1,6 @@
 # Deep-dive: the executable spec engine (`spec.yaml`)
 
-Worktree root: `/Users/asgeirf/src/neokapi/neokapi/.claude/worktrees/format-process`
+Analyzed at the neokapi repo root.
 All paths below are relative to that root unless absolute.
 
 ## 1. Where spec.yaml is parsed and executed
