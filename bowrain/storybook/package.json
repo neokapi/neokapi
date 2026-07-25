@@ -12,12 +12,12 @@
     "@neokapi/storybook-config": "*",
     "@neokapi/ui": "*",
     "@neokapi/ui-primitives": "*",
-    "@storybook/addon-docs": "^10.5.0",
-    "@storybook/addon-themes": "^10.5.0",
-    "@storybook/react-vite": "^10.5.0",
-    "@tailwindcss/vite": "^4.3.2",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "storybook": "^10.5.0"
+    "@storybook/addon-docs": "^10.5.4",
+    "@storybook/addon-themes": "^10.5.4",
+    "@storybook/react-vite": "^10.5.4",
+    "@tailwindcss/vite": "^4.3.3",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "storybook": "^10.5.4"
   }
 }

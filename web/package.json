@@ -36,8 +36,8 @@
     "icu": "2.2.1",
     "motion": "^12.40.0",
     "prism-react-renderer": "^2.4.1",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1"
   },
@@ -45,8 +45,8 @@
     "@docusaurus/module-type-aliases": "^3.10.2",
     "@docusaurus/tsconfig": "^3.10.2",
     "@docusaurus/types": "^3.10.2",
-    "@tailwindcss/postcss": "^4.3.2",
-    "tailwindcss": "^4.3.2",
+    "@tailwindcss/postcss": "^4.3.3",
+    "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2"
   },
   "browserslist": {
