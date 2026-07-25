@@ -45,8 +45,8 @@ func KapiCommandSet(a *App) []*cobra.Command {
 	cmds = append(cmds, NewExtractCmd(a, ExtractCmdOptions{}))
 	cmds = append(cmds, NewMergeCmd(a, MergeCmdOptions{}))
 
-	// .klz project snapshot hand-off (AD-025 §5): pack the working state
-	// into a portable .klz and rehydrate it elsewhere.
+	// .kpz project snapshot hand-off (AD-025 §5): pack the working state
+	// into a portable .kpz and rehydrate it elsewhere.
 	cmds = append(cmds, NewPackCmd(a), NewUnpackCmd(a), NewInfoCmd(a))
 
 	// Toolbox: format-aware cat / grep / sed, registered as hidden proxies

@@ -25,12 +25,12 @@ import (
 	"errors"
 	"iter"
 
-	"github.com/neokapi/neokapi/core/klf"
+	"github.com/neokapi/neokapi/core/kbf"
 )
 
-// Block is the unit of translation tracking. Aliased from core/klf
+// Block is the unit of translation tracking. Aliased from core/kbf
 // so the store speaks the same type extractors produce.
-type Block = klf.Block
+type Block = kbf.Block
 
 // Capabilities advertises what a provider supports. Tools that need
 // more than bare streaming probe this at Session.Capabilities() and

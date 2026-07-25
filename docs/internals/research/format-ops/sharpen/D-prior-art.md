@@ -71,7 +71,7 @@ DocLang is "the standardized XML serialization of Docling's structured output: s
 
 ### 1.4 The neokapi substrate that holds all of it (`core/model/structure.go`) — the rung material for §4
 
-Design note (`structure.go:3-18`): structure is two block-scoped **stand-off payloads** on the annotation registry, *strictly additive* (no protobuf/KLF schema change), serialized over every annotation-aware path. Vocabulary alignment is deliberate (`structure.go:30-33`): *"an open but normalized vocabulary … aligned with the DocLang taxonomy so a reader, the editor, an exporter, and a DocLang writer all speak the same role names."*
+Design note (`structure.go:3-18`): structure is two block-scoped **stand-off payloads** on the annotation registry, *strictly additive* (no protobuf/KBF schema change), serialized over every annotation-aware path. Vocabulary alignment is deliberate (`structure.go:30-33`): *"an open but normalized vocabulary … aligned with the DocLang taxonomy so a reader, the editor, an exporter, and a DocLang writer all speak the same role names."*
 
 - Keys: `AnnoStructure="structure"`, `AnnoGeometry="geometry"`, `AnnoRelations="relations"` (`structure.go:21-29`).
 - **`StructureAnnotation`** (`structure.go:93-107`): `Role`, `Layer`, `Visibility`, `Level int`, `ReadingOrder int`.

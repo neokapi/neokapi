@@ -40,7 +40,7 @@ contract must accommodate this recursion without special cases.
 
 These interfaces implement the `file` *source* and *sink* binding in
 [AD-026: Flow I/O Binding](026-flow-io-binding.md). Other bindings — the project
-store, a `.klz` workspace, interchange import/export — feed and drain the same
+store, a `.kpz` workspace, interchange import/export — feed and drain the same
 `Part` stream without a reader or writer, so a flow is agnostic to where its
 content enters and leaves.
 
@@ -271,7 +271,7 @@ These compose into three writer classes:
   plain text, and the data/catalog formats behave the same. **These are the
   `convert` targets.**
 - **Bilingual interchange writers** (`generative` **and** `interchange`). XLIFF,
-  PO, TMX, MO, and KLF are generative *files*, but they belong to the
+  PO, TMX, MO, and KBF are generative *files*, but they belong to the
   extract→translate→merge loop, not to document conversion: `kapi extract`
   captures the source skeleton (in the project/batch cache, with a batch-id note
   in the file) so `kapi merge` can round-trip translations back into the
@@ -391,7 +391,7 @@ preferred skeleton strategy details.
 - [AD-002: Content Model](002-content-model.md) — Parts that readers produce and writers consume; the Run model that drives roundtrip fidelity
 - [AD-004: Processing Engine](004-processing-engine.md) — how readers and writers plug into the pipeline
 - [AD-006: Tool System](006-tool-system.md) — the tools that sit between reader and writer
-- [AD-026: Flow I/O Binding](026-flow-io-binding.md) — readers/writers as the `file` binding; other bindings (store, `.klz`, interchange) feed the same stream
+- [AD-026: Flow I/O Binding](026-flow-io-binding.md) — readers/writers as the `file` binding; other bindings (store, `.kpz`, interchange) feed the same stream
 - [AD-007: Plugin System and Okapi Bridge](007-plugin-system.md) — how plugin and bridge formats register
 - [AD-031: Content-Fidelity Surfacing](031-content-fidelity-surfacing.md) — surfacing non-translatable context as content for ingestion; the `extractNonTranslatableContent` opt-out
 - [AD-032: Math and Equations](032-math-and-equations.md) — the OMML sub-skeleton extension to the skeleton strategies

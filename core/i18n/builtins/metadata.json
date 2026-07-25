@@ -1408,13 +1408,13 @@
         }
       }
     },
-    "klf": {
-      "displayName": "Kapi Localization Format (KLF)",
+    "kbf": {
+      "displayName": "Kapi Bundle Format (KBF)",
       "extensions": [
-        ".klf"
+        ".kbf"
       ],
       "mimeTypes": [
-        "application/vnd.neokapi.klf+json"
+        "application/vnd.neokapi.kbf+json"
       ]
     },
     "markdown": {

@@ -60,7 +60,7 @@ func bindingProvidedPorts(source string) map[string]bool {
 		return map[string]bool{}
 	case "none":
 		return map[string]bool{}
-	case "store", "klz":
+	case "store", "kpz":
 		// The content store / archive carries the source plus every persisted
 		// port, including tool-computed ones.
 		m := sourceDerivablePorts()

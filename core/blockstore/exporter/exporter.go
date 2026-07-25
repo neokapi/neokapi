@@ -1,8 +1,8 @@
 // Package exporter is the inverse of core/blockstore/importer: it reads a
 // block store's full contents — every block and every overlay — out into
 // plain values, and loads such values back into a store. It is the engine
-// behind serializing a resumable .klz workspace (AD-025 §5): export a
-// project/working store to a Snapshot, hand the Snapshot to the klz
+// behind serializing a resumable .kpz workspace (AD-025 §5): export a
+// project/working store to a Snapshot, hand the Snapshot to the kpz
 // packer, and on unpack, Load it into a fresh store.
 //
 // Export is deliberately content-only and timestamp-free: a workspace's
@@ -113,7 +113,7 @@ func LoadOverlays(ctx context.Context, store blockstore.Store, overlays []blocks
 
 // blockCollection returns the collection a block reports via its
 // properties. The block store keys blocks by hash and tracks collection
-// separately; klf.Block carries no collection field, so a re-loaded block
+// separately; kbf.Block carries no collection field, so a re-loaded block
 // lands in the default (empty) collection unless the caller tracked it.
 func blockCollection(b *blockstore.Block) string {
 	return ""

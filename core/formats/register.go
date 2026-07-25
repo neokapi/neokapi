@@ -617,20 +617,20 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 		format.FormatSignature{},
 		"Exec (subprocess extractor)")
 
-	// KLF — Kapi Localization Format. Registered under the canonical
-	// id "klf" (jsx.FormatName); the legacy id "jsx" stays a name-only
+	// KBF — Kapi Bundle Format. Registered under the canonical
+	// id "kbf" (jsx.FormatName); the legacy id "jsx" stays a name-only
 	// back-compat alias so `--format jsx` keeps resolving. The alias
 	// carries no detection signature and no FormatInfo, so detection
-	// and `kapi formats` always surface "klf".
+	// and `kapi formats` always surface "kbf".
 	reg.RegisterReader(registry.FormatID(jsx.FormatName),
 		func() format.DataFormatReader { return jsx.NewReader() },
 		format.FormatSignature{
-			MIMETypes:  []string{"application/vnd.neokapi.klf+json"},
-			Extensions: []string{".klf"},
+			MIMETypes:  []string{"application/vnd.neokapi.kbf+json"},
+			Extensions: []string{".kbf"},
 			Sniff: func(data []byte) bool {
 				return bytes.Contains(data, []byte(`"kapi-localization-format"`))
 			},
-		}, "Kapi Localization Format (KLF)")
+		}, "Kapi Bundle Format (KBF)")
 	reg.RegisterWriter(registry.FormatID(jsx.FormatName), func() format.DataFormatWriter { return jsx.NewWriter() })
 	reg.RegisterAlias(registry.FormatID(jsx.FormatAlias), registry.FormatID(jsx.FormatName))
 

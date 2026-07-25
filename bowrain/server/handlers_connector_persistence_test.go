@@ -297,7 +297,9 @@ func (l *listingConnector) Fetch(context.Context, platconn.FetchOptions) ([]*pla
 func (l *listingConnector) Publish(context.Context, []*platconn.ContentItem, platconn.PublishOptions) error {
 	return nil
 }
-func (l *listingConnector) List(context.Context) ([]*platconn.ContentItem, error) { return l.items, nil }
+func (l *listingConnector) List(context.Context) ([]*platconn.ContentItem, error) {
+	return l.items, nil
+}
 func (l *listingConnector) Status(context.Context) (*platconn.SyncStatus, error) {
 	return &platconn.SyncStatus{ConnectorID: l.id}, nil
 }

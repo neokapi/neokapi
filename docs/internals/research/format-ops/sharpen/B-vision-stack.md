@@ -13,7 +13,7 @@ A new Structure/Geometry axis should **measure the richness ladder** and **carry
 
 ## 1. The content-model carriers (where "depth" is physically stored)
 
-All structural depth rides three **block-scoped standoff annotations** registered on the existing payload registry — additive, no proto/KLF schema change (`core/model/structure.go:1-18`):
+All structural depth rides three **block-scoped standoff annotations** registered on the existing payload registry — additive, no proto/KBF schema change (`core/model/structure.go:1-18`):
 
 - `AnnoStructure = "structure"`, `AnnoGeometry = "geometry"`, `AnnoRelations = "relations"` (`structure.go:21-29`).
 - `StructureAnnotation{Role, Layer, Visibility, Level, ReadingOrder}` (`structure.go:93-107`).

@@ -1,8 +1,8 @@
 /**
  * Static review-manifest builder (Node side).
  *
- * Reads a KLF tree — the source catalog plus its `i18n-<locale>` siblings, and
- * any `.klfl` stand-off annotation files — and produces one JSON manifest keyed
+ * Reads a KBF tree — the source catalog plus its `i18n-<locale>` siblings, and
+ * any `.overlays.jsonl` stand-off annotation files — and produces one JSON manifest keyed
  * by block hash: source text, per-locale targets, translator properties, and
  * term/QA annotations. It is the read-only, deploy-time counterpart to the dev
  * review middleware (`review/store.ts`): the hosted overlay (`review/hosted.ts`)
@@ -11,10 +11,10 @@
  */
 
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
-import { extname, join } from "node:path";
+import { join } from "node:path";
 
-import type { File as KLFFile, Run } from "@neokapi/kapi-format";
-import { flattenRuns } from "@neokapi/kapi-format";
+import type { File as KBFFile, Run } from "@neokapi/kapi-format";
+import { flattenRuns, isAnnotationPath, isKbfPath } from "@neokapi/kapi-format";
 
 /** One block's review data, flattened to display-ready strings. */
 export interface ReviewManifestEntry {
@@ -38,7 +38,7 @@ export interface ReviewManifestEntry {
 export type ReviewManifest = Record<string, ReviewManifestEntry>;
 
 /**
- * Build a review manifest from one or more `.klf`/`.klfl` files or directories.
+ * Build a review manifest from one or more `.kbf`/`.overlays.jsonl` files or directories.
  * Blocks are merged by hash across inputs, so passing the source catalog and
  * every `i18n-<locale>` directory yields a single entry per block carrying all
  * of its locales' targets.
@@ -54,10 +54,10 @@ export function buildReviewManifest(paths: string[]): ReviewManifest {
   // Blocks first so annotation records (which reference a block hash) land on
   // an existing entry.
   for (const path of files) {
-    if (extname(path) === ".klf") indexBlocks(path, manifest);
+    if (isKbfPath(path)) indexBlocks(path, manifest);
   }
   for (const path of files) {
-    if (extname(path) === ".klfl") indexAnnotations(path, manifest);
+    if (isAnnotationPath(path)) indexAnnotations(path, manifest);
   }
   return manifest;
 }
@@ -67,9 +67,9 @@ function entryFor(manifest: ReviewManifest, hash: string): ReviewManifestEntry {
 }
 
 function indexBlocks(path: string, manifest: ReviewManifest): void {
-  let file: KLFFile;
+  let file: KBFFile;
   try {
-    file = JSON.parse(readFileSync(path, "utf-8")) as KLFFile;
+    file = JSON.parse(readFileSync(path, "utf-8")) as KBFFile;
   } catch {
     return; // unparseable — extract will rewrite it
   }
@@ -147,9 +147,6 @@ function walkFiles(dir: string, out: string[]): void {
   for (const ent of readdirSync(dir, { withFileTypes: true })) {
     const path = join(dir, ent.name);
     if (ent.isDirectory()) walkFiles(path, out);
-    else if (ent.isFile()) {
-      const ext = extname(path);
-      if (ext === ".klf" || ext === ".klfl") out.push(path);
-    }
+    else if (ent.isFile() && (isKbfPath(path) || isAnnotationPath(path))) out.push(path);
   }
 }

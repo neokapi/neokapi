@@ -185,7 +185,7 @@ core/
     graph/            Graph data structures
     i18n/             Localization of component schemas and metadata
     its/              W3C ITS metadata
-    klf/              KLF localization exchange format
+    kbf/              KBF localization exchange format
     redaction/        Span redaction/restoration
     ignore/           .kapiignore pattern matching
     httputil/         HTTP client helpers

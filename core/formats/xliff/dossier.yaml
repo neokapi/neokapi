@@ -22,7 +22,7 @@ learning_materials:
   - scripts/gen-refs/nativedocs/formats/xliff.yaml
   - web/docs/kapi/bilingual-workflow.mdx
   - web/docs/contribute/architecture/017-bilingual-format-interop.md
-  - web/docs/reference/klf/vs-xliff.mdx
+  - web/docs/reference/kbf/vs-xliff.mdx
   - docs/internals/research/xliff-okapi-compat-quirks.md
 divergences:
   - core/formats/xliff/parity-annotations.yaml

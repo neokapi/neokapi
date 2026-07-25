@@ -21,12 +21,12 @@ func TestScaffoldRecipe_NeokapiI18nCleanLayout(t *testing.T) {
 	content, err := FrameworkContent(preset.NeokapiI18nPresetName)
 	require.NoError(t, err)
 	require.Len(t, content, 1)
-	assert.Equal(t, "i18n/src/**/*.klf", content[0].Path)
-	assert.Equal(t, "i18n/{lang}/{path}.klf", content[0].Target)
+	assert.Equal(t, "i18n/src/**/*.kbf", content[0].Path)
+	assert.Equal(t, "i18n/{lang}/{path}.kbf", content[0].Target)
 
 	brandVoiceProfile, termbaseSource := FrameworkBindings(preset.NeokapiI18nPresetName)
 	assert.Equal(t, "i18n/brand-voice.yaml", brandVoiceProfile)
-	assert.Equal(t, "i18n/termbase.klftb", termbaseSource)
+	assert.Equal(t, "i18n/termbase.ktb", termbaseSource)
 
 	yaml := ScaffoldRecipe("MyApp", "en", []string{"de", "fr", "nb"}, content, brandVoiceProfile, termbaseSource)
 
@@ -39,10 +39,10 @@ func TestScaffoldRecipe_NeokapiI18nCleanLayout(t *testing.T) {
 	require.NoError(t, err, "scaffolded recipe must load + validate:\n%s", yaml)
 
 	require.Len(t, proj.Content, 1)
-	assert.Equal(t, "i18n/src/**/*.klf", proj.Content[0].Path)
-	assert.Equal(t, "i18n/{lang}/{path}.klf", proj.Content[0].Target)
+	assert.Equal(t, "i18n/src/**/*.kbf", proj.Content[0].Path)
+	assert.Equal(t, "i18n/{lang}/{path}.kbf", proj.Content[0].Target)
 
 	require.NotNil(t, proj.Defaults.BrandVoice)
 	assert.Equal(t, "i18n/brand-voice.yaml", proj.Defaults.BrandVoice.ProfileFile)
-	assert.Equal(t, "i18n/termbase.klftb", proj.Defaults.TermbaseSource)
+	assert.Equal(t, "i18n/termbase.ktb", proj.Defaults.TermbaseSource)
 }

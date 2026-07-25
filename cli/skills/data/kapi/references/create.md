@@ -91,7 +91,7 @@ kapi apply changeset.jsonl
 
 - The **content** entry rewrites the block through the faithful round-trip.
 - The **term** entry upserts the glossary term: it is written into the project's
-  committed termbase source (`.klftb`) and the existing import compiles it into
+  committed termbase source (`.ktb`) and the existing import compiles it into
   the `.kapi/termbase.db` cache. `git diff` shows the one new term; the next
   `kapi check --ship` enforces it.
 

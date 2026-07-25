@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-25T03:09:00Z",
+  "generatedAt": "2026-07-25T04:10:52Z",
   "commands": [
     {
       "id": "add",
@@ -1157,7 +1157,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -1298,7 +1298,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -1438,7 +1438,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -1565,7 +1565,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -1665,7 +1665,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -1809,7 +1809,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -1930,7 +1930,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -2062,7 +2062,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -2401,7 +2401,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -2588,7 +2588,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -2714,7 +2714,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -2850,7 +2850,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -2982,7 +2982,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -3122,7 +3122,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -3302,7 +3302,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -3458,7 +3458,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -3564,7 +3564,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -3693,7 +3693,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -3864,7 +3864,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -3981,7 +3981,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -4031,7 +4031,7 @@
         "extract"
       ],
       "use": "extract",
-      "short": "Emit a bilingual file for a translator — native .klz or XLIFF/PO",
+      "short": "Emit a bilingual file for a translator — native .kpz or XLIFF/PO",
       "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target locale\ndeclared in a kapi project, pre-filled from the project's translation\nmemory.\n\nEach invocation writes one batch of outputs under .kapi/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").",
       "groupID": "advanced",
       "flags": [
@@ -4043,7 +4043,7 @@
         },
         {
           "name": "format",
-          "usage": "bilingual output format (xliff2 | po | klz)",
+          "usage": "bilingual output format (xliff2 | po | kpz)",
           "default": "xliff2",
           "type": "string"
         },
@@ -4060,7 +4060,7 @@
         },
         {
           "name": "out",
-          "usage": "merge-time output layout recorded in the .klz (e.g. 'l10n/{lang}/{name}.{ext}')",
+          "usage": "merge-time output layout recorded in the .kpz (e.g. 'l10n/{lang}/{name}.{ext}')",
           "type": "string"
         },
         {
@@ -4072,7 +4072,7 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "write an ad-hoc .klz workspace from the given source files",
+          "usage": "write an ad-hoc .kpz workspace from the given source files",
           "type": "string"
         },
         {
@@ -4109,7 +4109,7 @@
         },
         {
           "name": "with-source",
-          "usage": "embed raw source bytes in the .klz (default: identity + skeleton only)",
+          "usage": "embed raw source bytes in the .kpz (default: identity + skeleton only)",
           "default": "false",
           "type": "bool"
         },
@@ -4123,7 +4123,7 @@
         "kapi extract -p kapi.yaml --no-tm",
         "kapi extract -p kapi.yaml --target-lang fr",
         "kapi extract -p kapi.yaml --target-lang fr,de,es",
-        "kapi extract src/*.json -o work.klz --target-lang fr,qps   # ad-hoc .klz workspace"
+        "kapi extract src/*.json -o work.kpz --target-lang fr,qps   # ad-hoc .kpz workspace"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -4226,8 +4226,8 @@
       "path": [
         "info"
       ],
-      "use": "info \u003cwork.klz\u003e",
-      "short": "Show a .klz workspace's state (dirty?)",
+      "use": "info \u003cwork.kpz\u003e",
+      "short": "Show a .kpz workspace's state (dirty?)",
       "groupID": "advanced",
       "flags": [
         {
@@ -4260,7 +4260,7 @@
         }
       ],
       "examples": [
-        "kapi info work.klz"
+        "kapi info work.kpz"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -4451,7 +4451,7 @@
         "merge"
       ],
       "use": "merge",
-      "short": "Apply a returned bilingual file (.klz/XLIFF/PO) back onto the project source",
+      "short": "Apply a returned bilingual file (.kpz/XLIFF/PO) back onto the project source",
       "long": "Materialize localized files for a project, or apply bilingual files\nreturned by a translator back onto the project's source locales.\n\nWith no -i in a project, merge writes the localized files from the\nproject block store: a process-only \"kapi run\" (in a project, no -o)\ncommits its work as targets/\u003clocale\u003e overlays, and merge is the matching\nsink — it reads each source, applies the stored overlays, and writes the\nlocalized file via the source format's skeleton round-trip.\n\nWith -i, merge applies one or more bilingual files returned by a\ntranslator back onto the project's source locales, using the skeleton\ncaptured by kapi extract. Each input carries the extraction\nbatch id in a file-level \u003cnote\u003e, so merge finds the right extraction\nmanifest without guessing from the filename. Mixed target locales in one\nbatch are fine — merge handles each input independently.",
       "groupID": "advanced",
       "flags": [
@@ -4477,7 +4477,7 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output directory or template when merging a .klz workspace",
+          "usage": "output directory or template when merging a .kpz workspace",
           "type": "string"
         },
         {
@@ -4497,7 +4497,7 @@
         "kapi merge -i out/app.en-US-to-fr-FR.xliff",
         "kapi merge -i file1.xliff -i file2.xliff",
         "kapi merge -i vendor-return/ --no-tm-update",
-        "kapi merge work.klz -o l10n/   # emit localized files from a .klz workspace"
+        "kapi merge work.kpz -o l10n/   # emit localized files from a .kpz workspace"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -4683,9 +4683,9 @@
       "path": [
         "pack"
       ],
-      "use": "pack -o \u003csnapshot.klz\u003e",
-      "short": "Snapshot a kapi project's working state into a .klz",
-      "long": "Snapshot a kapi project's working state — the block-store overlays, the\nauthoritative translation memory, and the termbase — into a portable .klz.\nRegenerable caches and secrets are excluded. Move the snapshot to another\nmachine and \"kapi unpack\" it to resume work there.",
+      "use": "pack -o \u003csnapshot.kpz\u003e",
+      "short": "Snapshot a kapi project's working state into a .kpz",
+      "long": "Snapshot a kapi project's working state — the block-store overlays, the\nauthoritative translation memory, and the termbase — into a portable .kpz.\nRegenerable caches and secrets are excluded. Move the snapshot to another\nmachine and \"kapi unpack\" it to resume work there.",
       "groupID": "advanced",
       "flags": [
         {
@@ -4697,7 +4697,7 @@
         {
           "name": "output",
           "shorthand": "o",
-          "usage": "output .klz snapshot path",
+          "usage": "output .kpz snapshot path",
           "type": "string"
         },
         {
@@ -4708,14 +4708,14 @@
         },
         {
           "name": "with-source",
-          "usage": "embed raw source bytes in the .klz (default: identity + skeleton only)",
+          "usage": "embed raw source bytes in the .kpz (default: identity + skeleton only)",
           "default": "false",
           "type": "bool"
         }
       ],
       "examples": [
-        "kapi pack -o snapshot.klz   # a kapi project",
-        "kapi pack work.klz         # eject a .klz workspace's cache"
+        "kapi pack -o snapshot.kpz   # a kapi project",
+        "kapi pack work.kpz         # eject a .kpz workspace's cache"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -5081,7 +5081,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -5279,7 +5279,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -5517,7 +5517,7 @@
         "export"
       ],
       "use": "export",
-      "short": "Export termbase to CSV, JSON, TBX, or native .klftb",
+      "short": "Export termbase to CSV, JSON, TBX, or a native .ktb / .ktz bundle",
       "flags": [
         {
           "name": "export-name",
@@ -5531,7 +5531,7 @@
         },
         {
           "name": "format",
-          "usage": "export format (csv, json, tbx, klftb); a .klftb -o path is detected automatically",
+          "usage": "export format (csv, json, tbx, ktb, ktz); a .ktb / .ktz -o path is detected automatically",
           "default": "json",
           "type": "string"
         },
@@ -5577,7 +5577,7 @@
         "import"
       ],
       "use": "import [file]",
-      "short": "Import terms from CSV, JSON, TBX, or native .klftb into a termbase",
+      "short": "Import terms from CSV, JSON, TBX, or a native .ktb / .ktz bundle",
       "flags": [
         {
           "name": "delimiter",
@@ -5596,7 +5596,7 @@
         },
         {
           "name": "format",
-          "usage": "import format (csv, tsv, json, tbx, klftb); a .klftb input is detected automatically",
+          "usage": "import format (csv, tsv, json, tbx, ktb, ktz); a .ktb / .ktz input is detected automatically",
           "default": "csv",
           "type": "string"
         },
@@ -5641,7 +5641,8 @@
         "kapi termbase import glossary.csv -s en -t fr --header",
         "kapi termbase import vocab.csv -s en --monolingual --header",
         "kapi termbase import terms.tbx --format tbx",
-        "kapi termbase import seeds/termbase.klftb"
+        "kapi termbase import seeds/termbase.ktb",
+        "kapi termbase import seeds/termbase.ktz"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -5870,8 +5871,8 @@
         "export"
       ],
       "use": "export",
-      "short": "Export translation memory to TMX or .klftm",
-      "long": "Export the TM to TMX 1.4 (default) or the native .klftm form.\n\nTMX: each entry is written as a single \u003ctu\u003e with one \u003ctuv\u003e per language\nvariant present (or the subset requested via --locales). Inline markup is\npreserved as TMX \u003cph\u003e/\u003cbpt\u003e/\u003cept\u003e/\u003cit\u003e/\u003chi\u003e. TMX is the lossy interchange\ntier — entity mappings, provenance origins, properties, and notes are\ndropped.\n\nklftm (--format klftm, or a -o path ending in .klftm): the deterministic,\nlossless native serialization — the right form for committing a TM to git\nand for seeding a fresh TM exactly. --locales does not apply.",
+      "short": "Export translation memory to TMX, .kmb, or .kmz",
+      "long": "Export the TM to TMX 1.4 (default) or the native .kmb / .kmz form.\n\nTMX: each entry is written as a single \u003ctu\u003e with one \u003ctuv\u003e per language\nvariant present (or the subset requested via --locales). Inline markup is\npreserved as TMX \u003cph\u003e/\u003cbpt\u003e/\u003cept\u003e/\u003cit\u003e/\u003chi\u003e. TMX is the lossy interchange\ntier — entity mappings, provenance origins, properties, and notes are\ndropped.\n\nkmb (--format kmb, or a -o path ending in .kmb): the deterministic,\nlossless native serialization — the right form for committing a TM to git\nand for seeding a fresh TM exactly. --locales does not apply.\n\nkmz (--format kmz, or a -o path ending in .kmz): the same bundle inside a\ncompressed single-member container — the at-rest/handoff form for a large TM.",
       "flags": [
         {
           "name": "file",
@@ -5880,7 +5881,7 @@
         },
         {
           "name": "format",
-          "usage": "output format (auto, tmx, klftm); auto selects by the -o extension",
+          "usage": "output format (auto, tmx, kmb, kmz); auto selects by the -o extension",
           "default": "auto",
           "type": "string"
         },
@@ -5918,8 +5919,8 @@
         "import"
       ],
       "use": "import [file]",
-      "short": "Import a TMX or .klftm file into translation memory",
-      "long": "Import a single TMX file (plain or .gz) or a native .klftm file into the TM.\n\nklftm is the KLF-family native TM form: a deterministic, lossless JSON\nserialization that round-trips every TMEntry field (entity mappings,\nprovenance origins, properties, notes) that TMX drops. Importing a .klftm\npreserves entry identity verbatim, so re-seeding a TM from committed .klftm\nfiles is fully reproducible. The format is selected by file extension;\n--format overrides.\n\nBy default, imports entries matching the given --source-locale and --target-locale.\nUse --all-pairs to emit entries for every (src, tgt) language pair present in\neach TU — useful for multilingual TMX files (e.g. EUR-Lex Euramis exports where\na single TU may contain 24+ languages). Combine with --locales to restrict the\npair set (e.g. --all-pairs --locales en-GB,fr-FR,de-DE).\n\nThe importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work\nwithout pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV\n\u003cprop type=\"source-document\"\u003e URL is recorded as Origin.Reference.",
+      "short": "Import a TMX, .kmb, or .kmz file into translation memory",
+      "long": "Import a single TMX file (plain or .gz), a native .kmb bundle, or a\n.kmz archive into the TM.\n\nkmb (Kapi Memory Bundle) is the native TM form: a deterministic, lossless JSON\nserialization that round-trips every TMEntry field (entity mappings,\nprovenance origins, properties, notes) that TMX drops. Importing a .kmb\npreserves entry identity verbatim, so re-seeding a TM from committed .kmb\nfiles is fully reproducible. A .kmz (Kapi Memory Archive) is the same bundle\ninside a compressed single-member container. The format is selected by file\nextension; --format overrides.\n\nBy default, imports entries matching the given --source-locale and --target-locale.\nUse --all-pairs to emit entries for every (src, tgt) language pair present in\neach TU — useful for multilingual TMX files (e.g. EUR-Lex Euramis exports where\na single TU may contain 24+ languages). Combine with --locales to restrict the\npair set (e.g. --all-pairs --locales en-GB,fr-FR,de-DE).\n\nThe importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work\nwithout pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV\n\u003cprop type=\"source-document\"\u003e URL is recorded as Origin.Reference.",
       "flags": [
         {
           "name": "all-pairs",
@@ -5934,7 +5935,7 @@
         },
         {
           "name": "format",
-          "usage": "input format (auto, tmx, klftm); auto selects by file extension",
+          "usage": "input format (auto, tmx, kmb, kmz); auto selects by file extension",
           "default": "auto",
           "type": "string"
         },
@@ -5971,7 +5972,7 @@
       "examples": [
         "kapi tm import corpus.tmx -s en -t fr",
         "kapi tm import corpus.tmx --all-pairs --locales en,fr,de --name my-tm",
-        "kapi tm import seeds/builtins-nb.klftm"
+        "kapi tm import seeds/builtins-nb.kmb"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -6436,7 +6437,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },
@@ -6510,8 +6511,8 @@
       "path": [
         "unpack"
       ],
-      "use": "unpack \u003csnapshot.klz\u003e",
-      "short": "Rehydrate a project's working state from a .klz snapshot",
+      "use": "unpack \u003csnapshot.kpz\u003e",
+      "short": "Rehydrate a project's working state from a .kpz snapshot",
       "groupID": "advanced",
       "flags": [
         {
@@ -6522,7 +6523,7 @@
         }
       ],
       "examples": [
-        "kapi unpack snapshot.klz"
+        "kapi unpack snapshot.kpz"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -6645,7 +6646,7 @@
         },
         {
           "name": "pack",
-          "usage": "when transforming a .klz, also eject the result to the .klz (auto-pack)",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
           "type": "bool"
         },

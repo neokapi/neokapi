@@ -11,7 +11,7 @@ The package owns:
   once the engine signals ready. Idempotent; one warm instance per page.
 - **`KapiRuntime`** — the facade over the engine's global function set:
   `run` (any browser-safe kapi CLI command), `preview`, `inspect`,
-  `inspectAnnotated`, `klf`, `segment`, `segmentEngines`, `runWithTrace`,
+  `inspectAnnotated`, `kbf`, `segment`, `segmentEngines`, `runWithTrace`,
   plus the in-memory volume (`vol`), `cwd`/`chdir`, and `setSinks` for
   stdout/stderr routing.
 - **Versioned ABI** — `engineABI()` reads the engine's `kapiEngineABI()`

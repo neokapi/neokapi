@@ -3,8 +3,8 @@
  *
  * Accepts any of three input shapes:
  *
- *   1. A single `.klf` file.
- *   2. A directory of `.klf` files (the default output of
+ *   1. A single `.kbf` file.
+ *   2. A directory of `.kbf` files (the default output of
  *      `neokapi-i18n extract`).
  *   3. NDJSON block records on stdin (pass `-` as input) — for
  *      one-shot pipelines.
@@ -45,7 +45,7 @@ export async function runCompile(args: string[]) {
   }
 
   if (inputs.length === 0) {
-    console.error("error: missing input (.klf file, .klf directory, or - for stdin)\n");
+    console.error("error: missing input (.kbf file, .kbf directory, or - for stdin)\n");
     console.log(usage);
     process.exit(1);
   }
@@ -114,11 +114,11 @@ async function loadBlocks(input: string): Promise<{
 }> {
   if (input === "-") return loadBlocksFromStdin();
   const stat = statSync(input);
-  if (stat.isDirectory()) return loadBlocksFromKLFDir(input);
-  return loadBlocksFromKLF(input);
+  if (stat.isDirectory()) return loadBlocksFromKBFDir(input);
+  return loadBlocksFromKBF(input);
 }
 
-function loadBlocksFromKLF(path: string): {
+function loadBlocksFromKBF(path: string): {
   blocks: BlockRecord[];
   declaredTargets: string[];
 } {
@@ -128,30 +128,30 @@ function loadBlocksFromKLF(path: string): {
   for (const doc of file.documents ?? []) {
     for (const block of doc.blocks ?? []) blocks.push({ block });
   }
-  // KLF's Project doesn't declare target locales explicitly — infer
+  // KBF's Project doesn't declare target locales explicitly — infer
   // from block.targets below.
   return { blocks, declaredTargets: [] };
 }
 
-function loadBlocksFromKLFDir(dir: string): {
+function loadBlocksFromKBFDir(dir: string): {
   blocks: BlockRecord[];
   declaredTargets: string[];
 } {
   const blocks: BlockRecord[] = [];
   const declared = new Set<string>();
-  walkKLFs(dir, (path) => {
-    const res = loadBlocksFromKLF(path);
+  walkKBFs(dir, (path) => {
+    const res = loadBlocksFromKBF(path);
     blocks.push(...res.blocks);
     for (const l of res.declaredTargets) declared.add(l);
   });
   return { blocks, declaredTargets: Array.from(declared) };
 }
 
-function walkKLFs(dir: string, visit: (path: string) => void) {
+function walkKBFs(dir: string, visit: (path: string) => void) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
-    if (entry.isDirectory()) walkKLFs(path, visit);
-    else if (entry.isFile() && extname(path).toLowerCase() === ".klf") visit(path);
+    if (entry.isDirectory()) walkKBFs(path, visit);
+    else if (entry.isFile() && extname(path).toLowerCase() === ".kbf") visit(path);
   }
 }
 
@@ -183,8 +183,8 @@ Usage:
   neokapi-i18n compile <input>... [--locale <lang>]... [--out <dir>] [--review]
 
 <input> can be (one or more):
-  <dir/>               a directory of .klf files (recursive)
-  <file.klf>           a single .klf file
+  <dir/>               a directory of .kbf files (recursive)
+  <file.kbf>           a single .kbf file
   -                    NDJSON block records on stdin
 
 Options:

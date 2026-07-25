@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Document, File, Skeleton } from "../src/index.ts";
 import { Kind, marshalFile, SchemaVersion } from "../src/index.ts";
 
-// The KLF Skeleton shape is canonicalized in Go (core/klf.Skeleton =
+// The KBF Skeleton shape is canonicalized in Go (core/kbf.Skeleton =
 // { ref, inline }). The TypeScript mirror must agree on the field
 // names — issue #717 fixed a drift where TS carried { ref, digest? }.
 // These tests pin the canonical shape so the drift can't recur.

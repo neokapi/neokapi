@@ -10,19 +10,19 @@ import (
 
 	"github.com/neokapi/neokapi/core/blockstore/exporter"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
-	"github.com/neokapi/neokapi/core/klf"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host/output"
-	"github.com/neokapi/neokapi/klz"
+	"github.com/neokapi/neokapi/kpz"
 	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/sievepen/klftm"
+	"github.com/neokapi/neokapi/sievepen/kmb"
 	"github.com/neokapi/neokapi/termbase"
-	"github.com/neokapi/neokapi/termbase/klftb"
+	"github.com/neokapi/neokapi/termbase/ktb"
 )
 
 // RunPack snapshots a .kapi project's working state — block-store overlays
 // (and any blocks), the authoritative TM, and the termbase — into a
-// portable .klz. Regenerable caches and secrets are excluded (AD-025 §4).
+// portable .kpz. Regenerable caches and secrets are excluded (AD-025 §4).
 func (a *App) RunPack(cmd Command) error {
 	projectPath, err := RequireProjectPath(cmd)
 	if err != nil {
@@ -42,13 +42,13 @@ func (a *App) RunPack(cmd Command) error {
 	}
 	ctx := cmd.Context()
 	withSource, _ := cmd.Flags().GetBool("with-source")
-	pkg := &klz.Package{Kind: klz.KindProject, Generator: &klz.GeneratorInfo{ID: "kapi"}}
+	pkg := &kpz.Package{Kind: kpz.KindProject, Generator: &kpz.GeneratorInfo{ID: "kapi"}}
 
 	// Full project recipe — the one source of truth for intent (AD-025 §6).
 	// Side-effecting Extras (server/hooks/automations) are stripped so they
 	// travel inert; secrets never live in a recipe (keychain).
 	if recipe, lerr := project.Load(projectPath); lerr == nil {
-		pkg.Recipe = klz.SanitizeRecipe(recipe)
+		pkg.Recipe = kpz.SanitizeRecipe(recipe)
 	} else {
 		fmt.Fprintf(os.Stderr, "Warning: pack: load recipe %s: %v (packing content only)\n", projectPath, lerr)
 	}
@@ -71,9 +71,9 @@ func (a *App) RunPack(cmd Command) error {
 		if err != nil {
 			return fmt.Errorf("export block store: %w", err)
 		}
-		pkg.Overlays = storeToKlzOverlays(snap.Overlays)
+		pkg.Overlays = storeToKpzOverlays(snap.Overlays)
 		if len(snap.Blocks) > 0 {
-			pkg.Blocks = []klz.BlockDoc{{Path: "blocks/project.klf", File: blocksToKLF(snap.Blocks, a.SourceLang)}}
+			pkg.Blocks = []kpz.BlockDoc{{Path: "blocks/project.kbf", File: blocksToKBF(snap.Blocks, a.SourceLang)}}
 		}
 	}
 
@@ -89,7 +89,7 @@ func (a *App) RunPack(cmd Command) error {
 			return fmt.Errorf("read project TM: %w", err)
 		}
 		if len(entries) > 0 {
-			pkg.TM = klftm.FromModel(entries, nil)
+			pkg.TM = kmb.FromModel(entries, nil)
 		}
 	}
 
@@ -105,7 +105,7 @@ func (a *App) RunPack(cmd Command) error {
 			return fmt.Errorf("read project termbase: %w", err)
 		}
 		if len(concepts) > 0 {
-			pkg.Termbase = klftb.FromConcepts(concepts)
+			pkg.Termbase = ktb.FromConcepts(concepts)
 		}
 	}
 
@@ -113,7 +113,7 @@ func (a *App) RunPack(cmd Command) error {
 	// pack. Advisory and content-subordinate — excluded from the package
 	// rootHash, never read to decide anything, safe to delete (AD-025 §5).
 	if logIt, _ := cmd.Flags().GetBool("log"); logIt {
-		pkg.History = klz.AppendHistory(pkg.History, klz.HistoryEvent{
+		pkg.History = kpz.AppendHistory(pkg.History, kpz.HistoryEvent{
 			Timestamp: time.Now().UTC().Format(time.RFC3339),
 			Event:     "pack",
 			Note:      filepath.Base(projectPath),
@@ -123,7 +123,7 @@ func (a *App) RunPack(cmd Command) error {
 	// Refuse to write a content-less snapshot — the way `git bundle` refuses an
 	// empty bundle. A project with no extracted content, TM, or terminology has
 	// nothing worth packing; its intent is the .kapi recipe, which is shared via
-	// git, not a .klz.
+	// git, not a .kpz.
 	if !pkg.HasContent() {
 		return fmt.Errorf("pack: nothing to pack — %s has no extracted content, translation memory, or terminology yet; run `kapi extract` (and translate) first, or share the kapi.yaml recipe directly", filepath.Base(projectPath))
 	}
@@ -142,7 +142,7 @@ func (a *App) RunPack(cmd Command) error {
 // (AD-025 §6). The skeleton (the derived extract template) always travels;
 // raw source bytes ride only with withSource. Sources whose format had no
 // skeleton emitter at extract time contribute identity only.
-func (a *App) collectProjectSources(pkg *klz.Package, layout project.Layout, projectPath string, withSource bool) error {
+func (a *App) collectProjectSources(pkg *kpz.Package, layout project.Layout, projectPath string, withSource bool) error {
 	manifests, err := project.ListExtractionManifests(layout)
 	if err != nil {
 		return err
@@ -155,7 +155,7 @@ func (a *App) collectProjectSources(pkg *klz.Package, layout project.Layout, pro
 					continue
 				}
 				seen[ef.Source] = true
-				si := klz.SourceIdentity{
+				si := kpz.SourceIdentity{
 					SourcePath:  ef.Source,
 					FormatID:    ef.Format,
 					ContentHash: ef.SourceHash,
@@ -166,10 +166,10 @@ func (a *App) collectProjectSources(pkg *klz.Package, layout project.Layout, pro
 				if ef.Skeleton != "" {
 					skelPath := filepath.Join(project.ExtractionDir(layout, m.BatchID), ef.Skeleton)
 					if _, serr := os.Stat(skelPath); serr == nil {
-						member := klz.SkeletonDir + ef.Source
-						pkg.Skeletons = append(pkg.Skeletons, klz.SkeletonDoc{
+						member := kpz.SkeletonDir + ef.Source
+						pkg.Skeletons = append(pkg.Skeletons, kpz.SkeletonDoc{
 							Path: member, SourcePath: ef.Source, FormatID: ef.Format,
-							ContentHash: ef.SourceHash, Content: klz.FileContent(skelPath),
+							ContentHash: ef.SourceHash, Content: kpz.FileContent(skelPath),
 						})
 						si.SkeletonPath = member
 					}
@@ -179,7 +179,7 @@ func (a *App) collectProjectSources(pkg *klz.Package, layout project.Layout, pro
 				if withSource {
 					srcAbs := filepath.Join(layout.Root, ef.Source)
 					if _, serr := os.Stat(srcAbs); serr == nil {
-						pkg.Source = append(pkg.Source, klz.SourceDoc{Path: "source/" + ef.Source, Content: klz.FileContent(srcAbs)})
+						pkg.Source = append(pkg.Source, kpz.SourceDoc{Path: "source/" + ef.Source, Content: kpz.FileContent(srcAbs)})
 						si.HasRawSource = true
 					}
 				}
@@ -190,20 +190,20 @@ func (a *App) collectProjectSources(pkg *klz.Package, layout project.Layout, pro
 	return nil
 }
 
-// RunUnpack rehydrates a project's working state from a .klz snapshot into
+// RunUnpack rehydrates a project's working state from a .kpz snapshot into
 // the local .kapi/ state dir, recreating the block store, TM, and termbase.
-// A workspace .klz (one carrying a Recipe) instead rebuilds its shadow cache.
+// A workspace .kpz (one carrying a Recipe) instead rebuilds its shadow cache.
 func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 	pkg, err := LoadWorkspace(snapshotPath)
 	if err != nil {
 		return err
 	}
 	if isWorkspacePackage(pkg) {
-		return a.unpackKlz(cmd.Context(), snapshotPath)
+		return a.unpackKpz(cmd.Context(), snapshotPath)
 	}
 
 	// Resolve the destination project. When one is in scope use it; otherwise
-	// reconstitute a fresh <name>.kapi from the snapshot beside the .klz, since
+	// reconstitute a fresh <name>.kapi from the snapshot beside the .kpz, since
 	// a project snapshot carries the full recipe (AD-025 §6) and can rebuild a
 	// complete project in a file.
 	projectPath, err := ResolveProjectPath(cmd)
@@ -234,7 +234,7 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 	// Verify the advisory provenance chain if present. It is advisory, so a
 	// broken chain warns rather than blocks — the content is what matters.
 	if len(pkg.History) > 0 {
-		if verr := klz.VerifyHistory(pkg.History); verr != nil {
+		if verr := kpz.VerifyHistory(pkg.History); verr != nil {
 			fmt.Fprintf(os.Stderr, "Warning: snapshot provenance log is broken: %v\n", verr)
 		}
 	}
@@ -246,7 +246,7 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 		if err != nil {
 			return fmt.Errorf("open block store: %w", err)
 		}
-		snap := &exporter.Snapshot{Overlays: klzToStoreOverlays(pkg.Overlays), Blocks: klfToBlocks(pkg.Blocks)}
+		snap := &exporter.Snapshot{Overlays: kpzToStoreOverlays(pkg.Overlays), Blocks: kbfToBlocks(pkg.Blocks)}
 		err = exporter.Load(ctx, store, snap)
 		_ = store.Close()
 		if err != nil {
@@ -316,7 +316,7 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 // is fixed, so the project's identity is carried by its folder: a fresh
 // <name>/ directory beside the snapshot (named from the recipe, else the
 // snapshot's base name) holding the kapi.yaml recipe.
-func reconstitutedProjectPath(snapshotPath string, pkg *klz.Package) string {
+func reconstitutedProjectPath(snapshotPath string, pkg *kpz.Package) string {
 	dir := filepath.Dir(snapshotPath)
 	name := strings.TrimSuffix(filepath.Base(snapshotPath), filepath.Ext(snapshotPath))
 	if pkg != nil && pkg.Recipe != nil && pkg.Recipe.Name != "" {
@@ -325,29 +325,29 @@ func reconstitutedProjectPath(snapshotPath string, pkg *klz.Package) string {
 	return filepath.Join(dir, name, project.RecipeFileName)
 }
 
-// blocksToKLF wraps exported block-store blocks into a single klf.File
+// blocksToKBF wraps exported block-store blocks into a single kbf.File
 // document so they ride as a blocks/ member.
-func blocksToKLF(entries []exporter.BlockEntry, sourceLocale string) *klf.File {
-	blocks := make([]klf.Block, 0, len(entries))
+func blocksToKBF(entries []exporter.BlockEntry, sourceLocale string) *kbf.File {
+	blocks := make([]kbf.Block, 0, len(entries))
 	for _, e := range entries {
 		blocks = append(blocks, e.Block)
 	}
-	return &klf.File{
-		SchemaVersion: klf.SchemaVersion,
-		Kind:          klf.Kind,
-		Generator:     klf.GeneratorInfo{ID: "kapi", Version: "1"},
-		Project:       klf.ProjectInfo{ID: "project", SourceLocale: sourceLocale},
-		Documents: []klf.Document{{
+	return &kbf.File{
+		SchemaVersion: kbf.SchemaVersion,
+		Kind:          kbf.Kind,
+		Generator:     kbf.GeneratorInfo{ID: "kapi", Version: "1"},
+		Project:       kbf.ProjectInfo{ID: "project", SourceLocale: sourceLocale},
+		Documents: []kbf.Document{{
 			ID:           "project",
-			DocumentType: klf.DocumentTypeJSX,
+			DocumentType: kbf.DocumentTypeJSX,
 			Path:         "project",
 			Blocks:       blocks,
 		}},
 	}
 }
 
-// klfToBlocks flattens block-member documents back into store entries.
-func klfToBlocks(docs []klz.BlockDoc) []exporter.BlockEntry {
+// kbfToBlocks flattens block-member documents back into store entries.
+func kbfToBlocks(docs []kpz.BlockDoc) []exporter.BlockEntry {
 	var out []exporter.BlockEntry
 	for _, d := range docs {
 		if d.File == nil {

@@ -13,7 +13,7 @@ import (
 // TestBulkAdd_PreservesVariantTextVerbatim is the regression test for the
 // bulk fast path storing NormalizeText-collapsed text as the variant
 // CONTENT: multi-line targets (CLI Long help, docs paragraphs) came back as
-// a single line after any bulk import (TMX, klftm). Normalization is for
+// a single line after any bulk import (TMX, kmb). Normalization is for
 // the derived matching keys only — the stored text must round-trip
 // verbatim, exactly like the non-bulk AddWithStream path.
 func TestBulkAdd_PreservesVariantTextVerbatim(t *testing.T) {

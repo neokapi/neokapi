@@ -1,0 +1,113 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-localization-format",
+  "generator": {
+    "id": "neokapi",
+    "version": "1.0"
+  },
+  "project": {
+    "id": "neokapi-output",
+    "sourceLocale": "en"
+  },
+  "documents": [
+    {
+      "id": "src/components/ArchiveEntries.tsx",
+      "documentType": "jsx",
+      "path": "src/components/ArchiveEntries.tsx",
+      "blocks": [
+        {
+          "id": "src/components/ArchiveEntries.tsx:65:0",
+          "hash": "k53pbACm9yC",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "ph": {
+                "id": "1",
+                "type": "jsx:element",
+                "subType": "Loader2",
+                "data": "<Loader2 className=\"size-3 animate-spin\" />",
+                "equiv": "=m0"
+              }
+            },
+            {
+              "text": " Listing entries…"
+            }
+          ],
+          "placeholders": [
+            {
+              "name": "=m0",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "<Loader2 className=\"size-3 animate-spin\" />"
+            }
+          ],
+          "properties": {
+            "file": "src/components/ArchiveEntries.tsx",
+            "line": 65,
+            "component": "ArchiveEntries",
+            "jsxPath": "div",
+            "element": "div"
+          }
+        },
+        {
+          "id": "src/components/ArchiveEntries.tsx:80:1",
+          "hash": "4tnwfvPyPdn",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "No entries."
+            }
+          ],
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/ArchiveEntries.tsx",
+            "line": 80,
+            "component": "ArchiveEntries",
+            "jsxPath": "div",
+            "element": "div"
+          }
+        },
+        {
+          "id": "src/components/ArchiveEntries.tsx:86:aria-label",
+          "hash": "7ACzcWiL8HS",
+          "translatable": true,
+          "type": "jsx:attribute",
+          "source": [
+            {
+              "text": "Archive entries"
+            }
+          ],
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/ArchiveEntries.tsx",
+            "line": 86,
+            "component": "ArchiveEntries",
+            "jsxPath": "ul[aria-label]",
+            "element": "ul"
+          }
+        },
+        {
+          "id": "src/components/ArchiveEntries.tsx:116:hint",
+          "hash": "7RGB1IrfAIj",
+          "translatable": true,
+          "type": "jsx:attribute",
+          "source": [
+            {
+              "text": "Extract the archive to browse all of its entries."
+            }
+          ],
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/ArchiveEntries.tsx",
+            "line": 116,
+            "component": "ArchiveEntries",
+            "jsxPath": "ListCapRow[hint]",
+            "element": "ListCapRow"
+          }
+        }
+      ]
+    }
+  ]
+}

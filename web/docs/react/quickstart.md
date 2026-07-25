@@ -17,7 +17,7 @@ npm install -D @neokapi/i18n-react
 
 The package ships a build plugin (Vite, Rollup, webpack, Rspack, esbuild), the `extract` / `compile` / `split` / `explain` CLI subcommands, and the tiny runtime (~2 kB). No peer dependencies beyond React 18+.
 
-The [`kapi` CLI](/kapi/cli) is the translation pipeline that produces pseudo-translations from the KLF directory neokapi-i18n extracts. Install it too:
+The [`kapi` CLI](/kapi/cli) is the translation pipeline that produces pseudo-translations from the KBF directory neokapi-i18n extracts. Install it too:
 
 ```bash
 # macOS / Linux
@@ -63,7 +63,7 @@ export default function App() {
 
 No `t(...)` calls, no keys. The plugin walks the JSX at build time and rewrites each translatable site to a hash-based lookup.
 
-## 4. Extract to a KLF directory
+## 4. Extract to a KBF directory
 
 Wire the extractor + pack into your package scripts:
 
@@ -89,9 +89,9 @@ Scanning 1 files...
 Extracted 3 blocks from 1 files → i18n/
 ```
 
-`i18n/` is a directory carrying one `.klf` document per source file, mirroring
-your source tree (e.g. `i18n/src/App.klf`). The three blocks are
-"Welcome to Acme", the paragraph, and "Get started". Each `.klf` is plain JSON —
+`i18n/` is a directory carrying one `.kbf` document per source file, mirroring
+your source tree (e.g. `i18n/src/App.kbf`). The three blocks are
+"Welcome to Acme", the paragraph, and "Get started". Each `.kbf` is plain JSON —
 human-readable and git-diffable.
 
 ## 5. Pseudo-translate with `kapi`
@@ -104,7 +104,7 @@ kapi pseudo-translate i18n/
 
 ## 6. Compile to a runtime dict
 
-`neokapi-i18n compile` turns the translated KLF into a `{locale}.json` file per locale:
+`neokapi-i18n compile` turns the translated KBF into a `{locale}.json` file per locale:
 
 ```bash
 npm run compile
@@ -168,8 +168,8 @@ export function LocaleSwitcher() {
 
 - **Zero wrappers** — you wrote normal JSX.
 - **Plugin extracted** every translatable element at build time, computed stable hashes, and rewrote the JSX to look them up at render time.
-- **kapi pseudo-translated** the KLF → another KLF with `qps` targets populated.
-- **neokapi-i18n compiled** that KLF to a JSON dict your app loads.
+- **kapi pseudo-translated** the KBF → another KBF with `qps` targets populated.
+- **neokapi-i18n compiled** that KBF to a JSON dict your app loads.
 - **The runtime** resolved each hash on render; unknown hashes fall back to the JSX source text, so the app never shows raw identifiers.
 
 ## Next steps

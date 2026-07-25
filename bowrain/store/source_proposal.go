@@ -40,16 +40,16 @@ const (
 // ProposedSourceChange is a reviewer's proposal to change a block's source. It is
 // created open, then resolved to approved (applied + fanned out) or rejected.
 type ProposedSourceChange struct {
-	ID             string               `json:"id"`
-	WorkspaceID    string               `json:"workspace_id"`
-	ProjectID      string               `json:"project_id"`
-	Stream         string               `json:"stream,omitempty"`
-	ItemName       string               `json:"item_name,omitempty"`
-	BlockID        string               `json:"block_id"`
-	Kind           SourceProposalKind   `json:"kind"`
-	OriginalSource string               `json:"original_source"`
-	ProposedSource string               `json:"proposed_source"`
-	Rationale      string               `json:"rationale,omitempty"`
+	ID             string             `json:"id"`
+	WorkspaceID    string             `json:"workspace_id"`
+	ProjectID      string             `json:"project_id"`
+	Stream         string             `json:"stream,omitempty"`
+	ItemName       string             `json:"item_name,omitempty"`
+	BlockID        string             `json:"block_id"`
+	Kind           SourceProposalKind `json:"kind"`
+	OriginalSource string             `json:"original_source"`
+	ProposedSource string             `json:"proposed_source"`
+	Rationale      string             `json:"rationale,omitempty"`
 	// FoundInLocale is the target locale the finder was reviewing when they caught
 	// the source problem — the attribution "found while reviewing fr".
 	FoundInLocale  string               `json:"found_in_locale,omitempty"`

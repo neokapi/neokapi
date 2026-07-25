@@ -2,8 +2,8 @@
 id: 035-in-context-review
 sidebar_position: 35
 title: "AD-035: In-Context Review"
-description: "Architecture decision: review translations on the running app — build-time DOM stamping maps pixels to block hashes, a dev-server middleware serves and writes back the local KLF tree, and a framework-free overlay paints terminology and QA findings with the CSS Custom Highlight API."
-keywords: [in-context review, live editing, DOM stamping, CSS Custom Highlight API, KLF write-back, terminology, QA, SSE, neokapi-i18n, architecture decision, neokapi]
+description: "Architecture decision: review translations on the running app — build-time DOM stamping maps pixels to block hashes, a dev-server middleware serves and writes back the local KBF tree, and a framework-free overlay paints terminology and QA findings with the CSS Custom Highlight API."
+keywords: [in-context review, live editing, DOM stamping, CSS Custom Highlight API, KBF write-back, terminology, QA, SSE, neokapi-i18n, architecture decision, neokapi]
 ---
 
 # AD-035: In-Context Review
@@ -12,10 +12,10 @@ keywords: [in-context review, live editing, DOM stamping, CSS Custom Highlight A
 
 Translations are reviewed **on the running app**, not in a file. A
 build-time transform stamps each extracted element with its block hash;
-a dev-server middleware serves and writes the local KLF tree; a
+a dev-server middleware serves and writes the local KBF tree; a
 framework-free browser overlay maps a click back to a block, edits its
-target, and writes it into the `.klf` on disk. Terminology and QA
-findings from stand-off `*.klfl` files are painted onto the live text
+target, and writes it into the `.kbf` on disk. Terminology and QA
+findings from stand-off `*.overlays.jsonl` files are painted onto the live text
 with the CSS Custom Highlight API — no DOM mutation.
 
 ## Context
@@ -92,33 +92,33 @@ As it applies the string, the hook registers `{ kind, hash, source }`
 in a small framework-free registry the overlay reads. The overlay lists
 the page's head translatables in a panel and edits them through the
 identical `PUT /{hash}` write-back a body string uses — the block exists
-in the KLF tree, so the store keys on it with no new protocol. Nothing
+in the KBF tree, so the store keys on it with no new protocol. Nothing
 scrapes arbitrary head markup: only strings the pipeline translated
 register, and a page with none shows no panel.
 
-### The dev server serves the KLF tree
+### The dev server serves the KBF tree
 
 `/__kapi/review` (mounted by the Vite plugin, plain Node `http` so it
-ports to any dev server) over the local KLF directory:
+ports to any dev server) over the local KBF directory:
 
 | Route              | Purpose                                       |
 | ------------------ | --------------------------------------------- |
 | `GET /{hash}`      | block payload — source runs, targets, notes   |
-| `PUT /{hash}`      | write a target back into the `.klf`           |
+| `PUT /{hash}`      | write a target back into the `.kbf`           |
 | `GET /annotations` | stand-off findings, keyed by block hash       |
 | `GET /events`      | SSE — updates broadcast to every open tab     |
 
-The index is rebuilt whenever any `.klf` / `.klfl` mtime drifts, so an
+The index is rebuilt whenever any `.kbf` / `.overlays.jsonl` mtime drifts, so an
 out-of-band `kapi translate` or `kapi exec qa` shows up without a
 restart.
 
-### Write back to the `.klf`, not to a database
+### Write back to the `.kbf`, not to a database
 
-A reviewed target is written into the block's `.klf` file as a target
+A reviewed target is written into the block's `.kbf` file as a target
 run. The obvious alternative — a review database with comments,
 states, and an approve button — was rejected.
 
-The `.klf` tree is *already* the contract between developers and
+The `.kbf` tree is *already* the contract between developers and
 translators: `extract` produces it, `kapi translate` fills it, QA reads
 it, `compile` ships it. Writing a reviewed target into it makes the
 review a **git diff** — reviewable in a PR, revertable, attributable,
@@ -157,11 +157,11 @@ text-only, so blocks with inline codes or ICU plurals save to the store
 but are not repainted live — giving live in-context editing even on a
 page with no runtime dictionary to repaint through. Richer manifests
 (every locale, term/QA annotations) still come from
-`neokapi-i18n compile --review` over the whole KLF tree.
+`neokapi-i18n compile --review` over the whole KBF tree.
 
 ### Paint findings with the CSS Custom Highlight API
 
-Terminology and QA results are stand-off annotations (`*.klfl`)
+Terminology and QA results are stand-off annotations (`*.overlays.jsonl`)
 anchored to run-index ranges — the framework's existing overlay model
 ([AD-002](002-content-model.md)). The browser renders them via
 [`CSS.highlights`](https://developer.mozilla.org/en-US/docs/Web/API/CSS_Custom_Highlight_API):
@@ -190,7 +190,7 @@ are offsets into the same flat text the block already carries.
   are about — which is the only form in which a reviewer will act on
   them.
 - **The stamp is the seam.** The same `data-kapi-id` that lets the
-  local overlay find a `.klf` block lets a staging overlay find a
+  local overlay find a `.kbf` block lets a staging overlay find a
   platform block. The Tier-2 (Bowrain) surface is a different backend
   behind the same client contract, not a different feature.
 - **Render-mode-independent.** Because the id is a content hash, the
@@ -206,8 +206,8 @@ are offsets into the same flat text the block already carries.
 ## Related
 
 - [AD-019: neokapi-i18n extraction model](019-i18n-react.md) — the block
-  hashes, the transform, and the KLF the review tier reads and writes
+  hashes, the transform, and the KBF the review tier reads and writes
 - [AD-002: Content Model](002-content-model.md) — stand-off overlays
   and run-anchored ranges, the shape the annotations arrive in
 - [AD-008: Project Model](008-project-model.md) — the `kapi.yaml` recipe and
-  the KLF interchange the review writes into
+  the KBF interchange the review writes into

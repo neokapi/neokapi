@@ -10,7 +10,7 @@ import (
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/blockstore"
-	"github.com/neokapi/neokapi/core/klf"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -172,7 +172,7 @@ func (s *session) Blocks(filter blockstore.BlockFilter) iter.Seq2[*blockstore.Bl
 					return
 				}
 				for _, sb := range rows {
-					kb := toKLF(sb)
+					kb := toKBF(sb)
 					if kb == nil {
 						continue
 					}
@@ -189,7 +189,7 @@ func (s *session) Blocks(filter blockstore.BlockFilter) iter.Seq2[*blockstore.Bl
 			return
 		}
 		for _, sb := range rows {
-			kb := toKLF(sb)
+			kb := toKBF(sb)
 			if kb == nil {
 				continue
 			}
@@ -223,7 +223,7 @@ func (s *session) GetBlock(hash string) (*blockstore.Block, error) {
 	if len(rows) == 0 {
 		return nil, blockstore.ErrNotFound
 	}
-	return toKLF(rows[0]), nil
+	return toKBF(rows[0]), nil
 }
 
 func (s *session) PutBlock(collection string, b *blockstore.Block) error {
@@ -233,7 +233,7 @@ func (s *session) PutBlock(collection string, b *blockstore.Block) error {
 	if b == nil {
 		return errors.New("bowrain/blockstore: PutBlock: nil block")
 	}
-	mb := fromKLF(b)
+	mb := fromKBF(b)
 	// When a collection is supplied, route the block through
 	// StoreBlocksForItem so items-within-collection bookkeeping stays
 	// consistent — the collection is created on first use. Empty
@@ -625,6 +625,6 @@ func parseTimestamp(s string) int64 {
 	return 0
 }
 
-// Unused import guard — klf is referenced via the aliased Block in
+// Unused import guard — kbf is referenced via the aliased Block in
 // convert.go; Go's unused-import rule for this file is satisfied.
-var _ = klf.SchemaVersion
+var _ = kbf.SchemaVersion

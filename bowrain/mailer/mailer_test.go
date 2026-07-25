@@ -542,7 +542,7 @@ func TestRenderAllTemplatesAllLocales(t *testing.T) {
 				// Every Go template token must have been executed.
 				assert.NotContains(t, msg.Subject, "{{")
 				assert.NotContains(t, msg.Body, "{{.")
-				// No KLF inline-markup tokens may leak from a stale catalog.
+				// No KBF inline-markup tokens may leak from a stale catalog.
 				assert.NotContains(t, msg.Body, "{=m")
 			})
 		}

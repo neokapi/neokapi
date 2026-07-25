@@ -23,11 +23,11 @@ import (
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/host/output"
-	"github.com/neokapi/neokapi/klz"
+	"github.com/neokapi/neokapi/kpz"
 	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/sievepen/klftm"
+	"github.com/neokapi/neokapi/sievepen/kmb"
 	"github.com/neokapi/neokapi/termbase"
-	"github.com/neokapi/neokapi/termbase/klftb"
+	"github.com/neokapi/neokapi/termbase/ktb"
 )
 
 // ExtractCmdOptions lets callers (like the bowrain binary) inject extra
@@ -75,10 +75,10 @@ func resolveRedaction(cmd Command, ctx *project.ProjectContext, rootDir string) 
 const (
 	ExtractFormatXLIFF2 = project.ExtractionFormatXLIFF2
 	extractFormatPO     = project.ExtractionFormatPO
-	// ExtractFormatKLZ selects the bilingual interchange .klz output
+	// ExtractFormatKPZ selects the bilingual interchange .kpz output
 	// (kind=kapi-interchange) — neokapi's lossless interchange format for a
 	// translator or reviewer (AD-025 §7).
-	ExtractFormatKLZ = "klz"
+	ExtractFormatKPZ = "kpz"
 )
 
 func (a *App) RunExtract(cmd Command) error {
@@ -776,8 +776,8 @@ func bilingualOutputName(src project.ResolvedFile, source, target model.LocaleID
 	switch ext {
 	case extractFormatPO:
 		return out + ".po"
-	case ExtractFormatKLZ:
-		return out + ".klz"
+	case ExtractFormatKPZ:
+		return out + ".kpz"
 	default:
 		return out + ".xliff"
 	}
@@ -915,18 +915,18 @@ func effectiveXLIFFVersion(flag string) string {
 	return xliff2.DefaultXLIFFVersion
 }
 
-// ─── bilingual interchange .klz (kind=kapi-interchange) ─────────
+// ─── bilingual interchange .kpz (kind=kapi-interchange) ─────────
 //
-// `kapi extract --format klz` emits one task-scoped .klz per source→target
+// `kapi extract --format kpz` emits one task-scoped .kpz per source→target
 // pair (AD-025 §7): the source blocks' targets pre-filled from TM (as
 // `targets/<locale>` overlays, hydrated by `kapi merge` exactly like the
 // workspace flow), the per-source round-trip skeleton, a minimal recipe
 // carrying the locale pair, and the relevant TM/termbase context subset. It is
 // neokapi's lossless interchange format for a translator or reviewer.
 
-// RunExtractKlz drives the bilingual-interchange extract over a project's
-// content × target locales, writing one <slug>.<src>-to-<tgt>.klz per pair.
-func (a *App) RunExtractKlz(cmd Command) error {
+// RunExtractKpz drives the bilingual-interchange extract over a project's
+// content × target locales, writing one <slug>.<src>-to-<tgt>.kpz per pair.
+func (a *App) RunExtractKpz(cmd Command) error {
 	projectPath, err := RequireProjectPath(cmd)
 	if err != nil {
 		return err
@@ -997,9 +997,9 @@ func (a *App) RunExtractKlz(cmd Command) error {
 	written := 0
 	for _, tgt := range targets {
 		for _, src := range files {
-			outName := bilingualOutputName(src, pctx.SourceLocale, tgt, ExtractFormatKLZ)
+			outName := bilingualOutputName(src, pctx.SourceLocale, tgt, ExtractFormatKPZ)
 			outPath := filepath.Join(absOut, outName)
-			if err := a.extractOneKlz(cmd.Context(), klzInterchangeTask{
+			if err := a.extractOneKpz(cmd.Context(), kpzInterchangeTask{
 				ctx: pctx, source: src, targetLocale: tgt, outputPath: outPath, tm: tm, tb: tb,
 			}); err != nil {
 				return fmt.Errorf("extract: %s → %s: %w", src.Relative, tgt, err)
@@ -1012,7 +1012,7 @@ func (a *App) RunExtractKlz(cmd Command) error {
 	return nil
 }
 
-type klzInterchangeTask struct {
+type kpzInterchangeTask struct {
 	ctx          *project.ProjectContext
 	source       project.ResolvedFile
 	targetLocale model.LocaleID
@@ -1021,11 +1021,11 @@ type klzInterchangeTask struct {
 	tb           termbase.TermBase
 }
 
-// extractOneKlz assembles a KindInterchange package for one (source, target)
+// extractOneKpz assembles a KindInterchange package for one (source, target)
 // pair: reads the source blocks (capturing the skeleton), TM-pre-fills the
 // target as a `targets/<locale>` overlay per block, attaches the relevant
-// TM/termbase context, and writes the .klz.
-func (a *App) extractOneKlz(ctx context.Context, task klzInterchangeTask) error {
+// TM/termbase context, and writes the .kpz.
+func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error {
 	srcAbs := task.source.Path
 	data, err := os.ReadFile(srcAbs)
 	if err != nil {
@@ -1041,13 +1041,13 @@ func (a *App) extractOneKlz(ctx context.Context, task klzInterchangeTask) error 
 	}
 
 	// Capture the round-trip skeleton (best effort).
-	var skeletons []klz.SkeletonDoc
+	var skeletons []kpz.SkeletonDoc
 	skelMember := ""
 	if skel, serr := captureSkeletonBytes(ctx, a.FormatReg, formatID, srcAbs, data, task.ctx.SourceLocale); serr == nil && len(skel) > 0 {
-		skelMember = klz.SkeletonDir + filepath.Base(task.source.Relative)
-		skeletons = append(skeletons, klz.SkeletonDoc{
+		skelMember = kpz.SkeletonDir + filepath.Base(task.source.Relative)
+		skeletons = append(skeletons, kpz.SkeletonDoc{
 			Path: skelMember, SourcePath: task.source.Relative, FormatID: task.source.Format,
-			ContentHash: sourceHash, Content: klz.BytesContent(skel),
+			ContentHash: sourceHash, Content: kpz.BytesContent(skel),
 		})
 	}
 
@@ -1056,7 +1056,7 @@ func (a *App) extractOneKlz(ctx context.Context, task klzInterchangeTask) error 
 	// does). Also gather the TM entries actually consulted as inline context.
 	threshold := float64(task.ctx.Project.Defaults.TM.ResolvedFuzzyThreshold()) / 100.0
 	srcArchive := "source/" + filepath.Base(task.source.Relative)
-	var overlays []klz.OverlayDoc
+	var overlays []kpz.OverlayDoc
 	contextEntries := map[string]sievepen.TMEntry{}
 	for _, b := range blocks {
 		if !b.Translatable || b.ID == "" {
@@ -1072,7 +1072,7 @@ func (a *App) extractOneKlz(ctx context.Context, task klzInterchangeTask) error 
 						"text":   text,
 						"status": string(model.TargetStatusDraft),
 					})
-					overlays = append(overlays, klz.OverlayDoc{
+					overlays = append(overlays, kpz.OverlayDoc{
 						Kind: "targets/" + string(task.targetLocale), BlockHash: b.ID, Payload: payload, Source: srcArchive,
 					})
 				}
@@ -1083,39 +1083,39 @@ func (a *App) extractOneKlz(ctx context.Context, task klzInterchangeTask) error 
 
 	// TM context subset (the consulted entries) so the package is
 	// self-contained for offline review.
-	var tmFile *klftm.File
+	var tmFile *kmb.File
 	if len(contextEntries) > 0 {
 		entries := make([]sievepen.TMEntry, 0, len(contextEntries))
 		for _, e := range contextEntries {
 			entries = append(entries, e)
 		}
-		tmFile = klftm.FromModel(entries, nil)
+		tmFile = kmb.FromModel(entries, nil)
 	}
 
 	// Termbase context: the whole bound termbase (terms are small and the
 	// reviewer needs the glossary).
-	var tbFile *klftb.File
+	var tbFile *ktb.File
 	if task.tb != nil {
 		if concepts, cerr := task.tb.Concepts(ctx); cerr == nil && len(concepts) > 0 {
-			tbFile = klftb.FromConcepts(concepts)
+			tbFile = ktb.FromConcepts(concepts)
 		}
 	}
 
 	recipe := newInterchangeRecipe(string(task.ctx.SourceLocale), string(task.targetLocale))
 
-	pkg := &klz.Package{
-		Kind:      klz.KindInterchange,
-		Generator: &klz.GeneratorInfo{ID: "kapi", Version: version.Version},
+	pkg := &kpz.Package{
+		Kind:      kpz.KindInterchange,
+		Generator: &kpz.GeneratorInfo{ID: "kapi", Version: version.Version},
 		Recipe:    recipe,
 		Skeletons: skeletons,
 		Overlays:  overlays,
 		TM:        tmFile,
 		Termbase:  tbFile,
-		Sources: []klz.SourceIdentity{{
+		Sources: []kpz.SourceIdentity{{
 			SourcePath: task.source.Relative, FormatID: task.source.Format,
 			ContentHash: sourceHash, SkeletonPath: skelMember,
 		}},
-		InterchangeTask: &klz.InterchangeTask{
+		InterchangeTask: &kpz.InterchangeTask{
 			SourceLocale: string(task.ctx.SourceLocale),
 			TargetLocale: string(task.targetLocale),
 			SourceFiles:  []string{task.source.Relative},

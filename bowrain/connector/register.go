@@ -1,8 +1,8 @@
 package connector
 
 import (
-	"github.com/neokapi/neokapi/bowrain/forge"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
+	"github.com/neokapi/neokapi/bowrain/forge"
 	"github.com/neokapi/neokapi/core/registry"
 )
 

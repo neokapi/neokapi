@@ -10,11 +10,11 @@
  * content correctly.
  *
  * Annotations live as overlay files on disk under
- * `.kapi/collections/<name>/annotations/<producer-namespace>.klfl`
+ * `.kapi/collections/<name>/annotations/<producer-namespace>.overlays.jsonl`
  * (inside a kapi project) or as Session.PutOverlay calls keyed by
  * (kind, blockHash) when running through a BlockStore session.
  *
- * Each `.klfl` file is JSON Lines. The first line is a header
+ * Each `.overlays.jsonl` file is JSON Lines. The first line is a header
  * record; the rest are annotation records. Multiple annotation
  * files can coexist without coordination — different producers own
  * different files.
@@ -27,7 +27,7 @@
  *      no cross-file merge semantics.
  *   3. Annotations are derivable. Losing an annotation file costs
  *      only regeneration; the authoritative content in the
- *      `.klf` blocks is unchanged.
+ *      `.kbf` blocks is unchanged.
  *   4. Annotations can become stale when blocks change. Validators
  *      detect orphans (anchors that no longer resolve) and flag
  *      them. Producers re-run to refresh.
@@ -44,7 +44,7 @@ import type { Block, PluralForm, Run } from "./block.ts";
 // ─── Annotation file shape ────────────────────────────────────────
 
 /**
- * The top-level structure of an `annotations/*.klfl` file after
+ * The top-level structure of an `annotations/*.overlays.jsonl` file after
  * all lines have been parsed. On disk, `header` is the first line
  * of the file and every line after it is one `Annotation`.
  */
@@ -54,7 +54,7 @@ export interface AnnotationFile {
 }
 
 /**
- * The header record (first line of the .klfl file). Identifies the
+ * The header record (first line of the .overlays.jsonl file). Identifies the
  * annotation type, versions it, and records which archive state it
  * was produced against.
  */
@@ -84,7 +84,7 @@ export interface AnnotationFileHeader {
 }
 
 /**
- * One annotation record. Subsequent lines in the .klfl file.
+ * One annotation record. Subsequent lines in the .overlays.jsonl file.
  */
 export interface Annotation {
   type: "annotation";

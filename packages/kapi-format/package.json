@@ -2,7 +2,7 @@
   "name": "@neokapi/kapi-format",
   "version": "1.0.1",
   "private": false,
-  "description": "Canonical TypeScript schema for the Kapi Localization Format (KLF). Block/Run content model, reference Level-1 preview renderer, target validator, annotation overlay resolver. Mirrors core/klf in Go byte-for-byte against shared golden fixtures.",
+  "description": "Canonical TypeScript schema for the Kapi Bundle Format (KBF). Block/Run content model, reference Level-1 preview renderer, target validator, annotation overlay resolver. Mirrors core/kbf in Go byte-for-byte against shared golden fixtures.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/neokapi/neokapi.git",
@@ -18,7 +18,7 @@
     "./vocabulary": "./src/vocabulary.ts",
     "./preview": "./src/preview.ts",
     "./annotation": "./src/annotation.ts",
-    "./klf": "./src/klf.ts",
+    "./kbf": "./src/kbf.ts",
     "./target-plural": "./src/target-plural.ts",
     "./package.json": "./package.json"
   },
@@ -46,9 +46,9 @@
         "types": "./dist/annotation.d.ts",
         "default": "./dist/annotation.js"
       },
-      "./klf": {
-        "types": "./dist/klf.d.ts",
-        "default": "./dist/klf.js"
+      "./kbf": {
+        "types": "./dist/kbf.d.ts",
+        "default": "./dist/kbf.js"
       },
       "./target-plural": {
         "types": "./dist/target-plural.d.ts",

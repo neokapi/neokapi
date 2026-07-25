@@ -11,7 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/neokapi/neokapi/termbase"
-	"github.com/neokapi/neokapi/termbase/klftb"
+	"github.com/neokapi/neokapi/termbase/ktb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -57,18 +57,18 @@ func TestApplyTermEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	res := a.applyAssetEntry(ctx, cmd, e)
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
 
-	// 1. The committed .klftb source was written and bound in the recipe.
-	srcPath := filepath.Join(root, "l10n", "termbase.klftb")
+	// 1. The committed .ktb source was written and bound in the recipe.
+	srcPath := filepath.Join(root, "l10n", "termbase.ktb")
 	require.FileExists(t, srcPath)
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	require.Equal(t, filepath.Join("l10n", "termbase.klftb"), proj.Defaults.TermbaseSource)
+	require.Equal(t, filepath.Join("l10n", "termbase.ktb"), proj.Defaults.TermbaseSource)
 	require.NotEmpty(t, proj.Defaults.Termbase, "the compiled cache should be bound too")
 
 	data, err := os.ReadFile(srcPath)
 	require.NoError(t, err)
-	file, err := klftb.Unmarshal(data)
+	file, err := ktb.Unmarshal(data)
 	require.NoError(t, err)
 	require.Len(t, file.Concepts, 1)
 	require.Len(t, file.Concepts[0].Terms, 1)
@@ -101,7 +101,7 @@ func TestApplyTermEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	require.Equal(t, "applied", res3.Status, "detail: %s", res3.Detail)
 	data, err = os.ReadFile(srcPath)
 	require.NoError(t, err)
-	file, err = klftb.Unmarshal(data)
+	file, err = ktb.Unmarshal(data)
 	require.NoError(t, err)
 	assert.Len(t, file.Concepts, 2)
 }
@@ -122,12 +122,12 @@ func TestApplyTMEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	res := a.applyAssetEntry(ctx, cmd, e)
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
 
-	srcPath := filepath.Join(root, "l10n", "tm.klftm")
+	srcPath := filepath.Join(root, "l10n", "tm.kmb")
 	require.FileExists(t, srcPath)
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	require.Equal(t, filepath.Join("l10n", "tm.klftm"), proj.Defaults.TMSource)
+	require.Equal(t, filepath.Join("l10n", "tm.kmb"), proj.Defaults.TMSource)
 
 	// Cache compiled, contains the pair.
 	dbPath := filepath.Join(root, project.StateDirName, "tm.db")

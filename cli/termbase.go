@@ -52,8 +52,8 @@ Default (no flag): same as --local (uses ./termbase.db).`,
 func newTermbaseImportCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "import [file]",
-		Short:   "Import terms from CSV, JSON, TBX, or native .klftb into a termbase",
-		Example: "  kapi termbase import glossary.csv -s en -t fr --header\n  kapi termbase import vocab.csv -s en --monolingual --header\n  kapi termbase import terms.tbx --format tbx\n  kapi termbase import seeds/termbase.klftb",
+		Short:   "Import terms from CSV, JSON, TBX, or a native .ktb / .ktz bundle",
+		Example: "  kapi termbase import glossary.csv -s en -t fr --header\n  kapi termbase import vocab.csv -s en --monolingual --header\n  kapi termbase import terms.tbx --format tbx\n  kapi termbase import seeds/termbase.ktb\n  kapi termbase import seeds/termbase.ktz",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, _ := cmd.Flags().GetString("format")
@@ -63,11 +63,9 @@ func newTermbaseImportCmd(a *App) *cobra.Command {
 			hasHeader, _ := cmd.Flags().GetBool("header")
 			delimiter, _ := cmd.Flags().GetString("delimiter")
 			monolingual, _ := cmd.Flags().GetBool("monolingual")
-			// The native extension wins over the csv default when the user
-			// did not ask for a format explicitly.
-			if !cmd.Flags().Changed("format") && strings.HasSuffix(strings.ToLower(args[0]), ".klftb") {
-				format = "klftb"
-			}
+			// A native extension wins over the csv default when the user did
+			// not ask for a format explicitly.
+			format = ResolveTermbaseFileFormat(format, args[0], cmd.Flags().Changed("format"))
 
 			tb, dbPath, err := a.OpenTermbaseSQLite(cmd)
 			if err != nil {
@@ -103,10 +101,12 @@ func newTermbaseImportCmd(a *App) *cobra.Command {
 				count, err = termbase.ImportTBX(cmd.Context(), tb, f, termbase.TBXImportOptions{
 					Domain: domain,
 				})
-			case "klftb":
-				count, err = ImportKLFTBFile(cmd.Context(), tb, f)
+			case "ktb":
+				count, err = ImportKTBFile(cmd.Context(), tb, f)
+			case "ktz":
+				count, err = ImportKTZFile(cmd.Context(), tb, f)
 			default:
-				return fmt.Errorf("unsupported format: %s (use csv, tsv, json, tbx, or klftb)", format)
+				return fmt.Errorf("unsupported format: %s (use csv, tsv, json, tbx, ktb, or ktz)", format)
 			}
 
 			if err != nil {
@@ -128,7 +128,7 @@ func newTermbaseImportCmd(a *App) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String("format", "csv", "import format (csv, tsv, json, tbx, klftb); a .klftb input is detected automatically")
+	cmd.Flags().String("format", "csv", "import format (csv, tsv, json, tbx, ktb, ktz); a .ktb / .ktz input is detected automatically")
 	cmd.Flags().StringP("source-locale", "s", "en", "source locale for CSV import")
 	cmd.Flags().StringP("target-locale", "t", "", "target locale for CSV import")
 	cmd.Flags().String("domain", "", "domain to assign to imported concepts")
@@ -142,7 +142,7 @@ func newTermbaseImportCmd(a *App) *cobra.Command {
 func newTermbaseExportCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export",
-		Short: "Export termbase to CSV, JSON, TBX, or native .klftb",
+		Short: "Export termbase to CSV, JSON, TBX, or a native .ktb / .ktz bundle",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, _ := cmd.Flags().GetString("format")
 			outputPath, _ := cmd.Flags().GetString("output")
@@ -165,9 +165,7 @@ func newTermbaseExportCmd(a *App) *cobra.Command {
 				defer w.Close()
 			}
 
-			if !cmd.Flags().Changed("format") && strings.HasSuffix(strings.ToLower(outputPath), ".klftb") {
-				format = "klftb"
-			}
+			format = ResolveTermbaseFileFormat(format, outputPath, cmd.Flags().Changed("format"))
 			switch strings.ToLower(format) {
 			case "csv":
 				err = termbase.ExportCSV(cmd.Context(), tb, w, model.LocaleID(srcLocale), model.LocaleID(tgtLocale), true)
@@ -180,10 +178,12 @@ func newTermbaseExportCmd(a *App) *cobra.Command {
 				err = termbase.ExportTBX(cmd.Context(), tb, w, termbase.TBXExportOptions{
 					SourceLocale: model.LocaleID(srcLocale),
 				})
-			case "klftb":
-				err = ExportKLFTB(cmd.Context(), tb, w)
+			case "ktb":
+				err = ExportKTB(cmd.Context(), tb, w)
+			case "ktz":
+				err = ExportKTZ(cmd.Context(), tb, w)
 			default:
-				return fmt.Errorf("unsupported format: %s (use csv, json, tbx, or klftb)", format)
+				return fmt.Errorf("unsupported format: %s (use csv, json, tbx, ktb, or ktz)", format)
 			}
 
 			if err != nil {
@@ -205,7 +205,7 @@ func newTermbaseExportCmd(a *App) *cobra.Command {
 	}
 
 	cmd.Flags().StringP("output", "o", "", "output file (default: stdout)")
-	cmd.Flags().String("format", "json", "export format (csv, json, tbx, klftb); a .klftb -o path is detected automatically")
+	cmd.Flags().String("format", "json", "export format (csv, json, tbx, ktb, ktz); a .ktb / .ktz -o path is detected automatically")
 	cmd.Flags().StringP("source-locale", "s", "en", "source locale for CSV export")
 	cmd.Flags().StringP("target-locale", "t", "", "target locale for CSV export")
 	cmd.Flags().String("export-name", "", "termbase name for JSON export")

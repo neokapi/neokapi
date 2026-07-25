@@ -19,14 +19,14 @@ import (
 // TestUnitsFromProject_ExpandsPathToken guards that verify/coverage resolve a
 // content item's target template with the SAME token set as the write path
 // (project.ResolveTargetPath), not just {lang}. A recipe like
-// `target: i18n-{lang}/{path}.klf` over a `**` glob writes i18n-fr/sub/a.klf via
+// `target: i18n-{lang}/{path}.kbf` over a `**` glob writes i18n-fr/sub/a.kbf via
 // `kapi up`; when verify only expanded {lang} it looked for the literal
-// i18n-fr/{path}.klf and reported every target "missing" — the bug behind
+// i18n-fr/{path}.kbf and reported every target "missing" — the bug behind
 // check --ship / coverage failing on any glob-source + templated-target project.
 func TestUnitsFromProject_ExpandsPathToken(t *testing.T) {
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "i18n", "sub"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "i18n", "sub", "a.klf"),
+	require.NoError(t, os.WriteFile(filepath.Join(root, "i18n", "sub", "a.kbf"),
 		[]byte(`{"kind":"kapi-localization-format"}`), 0o644))
 
 	proj := &project.KapiProject{
@@ -36,7 +36,7 @@ func TestUnitsFromProject_ExpandsPathToken(t *testing.T) {
 			TargetLanguages: []model.LocaleID{"fr"},
 		},
 		Content: []project.ContentCollection{
-			{Name: "c", Path: "i18n/**/*.klf", Target: "i18n-{lang}/{path}.klf"},
+			{Name: "c", Path: "i18n/**/*.kbf", Target: "i18n-{lang}/{path}.kbf"},
 		},
 	}
 
@@ -48,7 +48,7 @@ func TestUnitsFromProject_ExpandsPathToken(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, units, 1)
 	// {path} = source relative to the glob's fixed prefix (i18n/), without ext.
-	want := filepath.Join(root, "i18n-fr", "sub", "a.klf")
+	want := filepath.Join(root, "i18n-fr", "sub", "a.kbf")
 	assert.Equal(t, want, units[0].TargetPath,
 		"{path} must expand like the write path (ResolveTargetPath), not stay literal")
 }

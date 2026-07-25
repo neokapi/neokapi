@@ -1,22 +1,22 @@
 ---
 sidebar_position: 7
 title: Extract, Translate, Compile Pipeline
-description: The three-phase neokapi-i18n pipeline — extract JSX to a KLF archive, translate it with kapi (AI, MT, or TM), compile locales back into runtime JSON. Includes an optional split phase for code-split apps.
-keywords: [extract, translate, compile, KLF, neokapi-i18n pipeline, code splitting, localization pipeline]
+description: The three-phase neokapi-i18n pipeline — extract JSX to a KBF archive, translate it with kapi (AI, MT, or TM), compile locales back into runtime JSON. Includes an optional split phase for code-split apps.
+keywords: [extract, translate, compile, KBF, neokapi-i18n pipeline, code splitting, localization pipeline]
 ---
 
 import { PhaseFlow } from "@neokapi/docs-shared";
 
 # The extract → translate → compile pipeline
 
-Three phases, one contract: the KLF directory archive. A fourth optional phase — **split** — slices the compiled output along bundler chunk lines so code-split apps can lazy-load translations per route.
+Three phases, one contract: the KBF directory archive. A fourth optional phase — **split** — slices the compiled output along bundler chunk lines so code-split apps can lazy-load translations per route.
 
 <PhaseFlow
   nodes={[
     { label: "Your source code" },
     {
       label: "i18n/",
-      sub: "KLF archive",
+      sub: "KBF archive",
       role: "io",
       edge: "neokapi-i18n extract",
       loop: ["kapi translate / pseudo-translate / qa / review", "accumulate target locales in place"],
@@ -36,7 +36,7 @@ Three phases, one contract: the KLF directory archive. A fourth optional phase �
 
 The same `i18n/` is the source-of-truth artifact through the whole round-trip. Translation tools read it, append the target locale they're producing, and write back to the same file — so you accumulate locales rather than juggling per-run output files. One file in the repo, one file to ship to translators, one file to compile.
 
-Each phase has a single tool; none of them are coupled to the others. You can swap out the translator step for any process that preserves the KLF contract — human translators working in a CAT tool, AI translation, pre-existing TMS.
+Each phase has a single tool; none of them are coupled to the others. You can swap out the translator step for any process that preserves the KBF contract — human translators working in a CAT tool, AI translation, pre-existing TMS.
 
 ## Phase 0: explain (optional)
 
@@ -60,11 +60,11 @@ Each line is the element's W3C ITS classification, the gate that decided its fat
 
 The extractor walks every `.jsx` / `.tsx` file in your project and produces translatable blocks. Two output modes:
 
-- **Default** — per-file `.klf` under `--out` (default `i18n/`). Human-readable, git-diffable.
+- **Default** — per-file `.kbf` under `--out` (default `i18n/`). Human-readable, git-diffable.
 - **`--stream`** — NDJSON block records on stdout. File discovery happens via `--src` glob when stdin is a terminal; kapi's exec format can pipe NUL-separated paths to stdin for batch-controlled extraction.
 
 ```bash
-# Default: write .klf files for inspection / commit.
+# Default: write .kbf files for inspection / commit.
 vp neokapi-i18n extract \
   --src "src/**/*.{tsx,jsx}" \
   --out i18n \
@@ -82,12 +82,12 @@ Flags:
 | Flag              | Default              | Purpose                                                     |
 | ----------------- | -------------------- | ----------------------------------------------------------- |
 | `--src`           | `src/**/*.{tsx,jsx}` | Glob of source files to scan.                               |
-| `--out`           | `i18n`               | Output directory for `.klf` files.                          |
-| `--stream`        | off                  | Emit NDJSON blocks on stdout instead of writing `.klf`.     |
+| `--out`           | `i18n`               | Output directory for `.kbf` files.                          |
+| `--stream`        | off                  | Emit NDJSON blocks on stdout instead of writing `.kbf`.     |
 | `--ignore`        | —                    | Glob to exclude (repeatable) — fixtures, stories, tests.    |
 | `--strict`        | off                  | Exit non-zero if any warning was recorded (CI enforcement). |
 | `--config`        | —                    | Path to a JSON config file (componentMap, rules).           |
-| `--project`       | `app`                | Project id stamped into `.klf.project`.                     |
+| `--project`       | `app`                | Project id stamped into `.kbf.project`.                     |
 | `--source-locale` | `en`                 | Source locale in file metadata.                             |
 | `--target-locale` | —                    | Declared target locale (repeatable).                        |
 
@@ -113,10 +113,10 @@ Wire it into your package scripts and CI:
 
 For full authoring-time coverage, pair this with [`@neokapi/i18n-react-lint`](./linting) — editor squigglies for `t(variable)`, `<img alt={'Logo ' + x} />`, and the other patterns the build-time transform can't catch.
 
-### What's in the KLF directory
+### What's in the KBF directory
 
-A directory of per-file `.klf` JSON documents, mirroring your source tree
-(e.g. `src/App.tsx` → `i18n/src/App.klf`). Each `.klf` is a self-contained KLF
+A directory of per-file `.kbf` JSON documents, mirroring your source tree
+(e.g. `src/App.tsx` → `i18n/src/App.kbf`). Each `.kbf` is a self-contained KBF
 `File` carrying:
 
 - `project` — id, source locale, declared target locales.
@@ -141,7 +141,7 @@ Each block carries:
 
 ## Phase 2: translate
 
-The `.klf` is the translator's deliverable. Three common paths:
+The `.kbf` is the translator's deliverable. Three common paths:
 
 ### Path A: AI translation
 
@@ -153,7 +153,7 @@ kapi translate i18n/ --target-lang de
 kapi translate i18n/ --target-lang ja
 ```
 
-Each run **accumulates** a target locale into the same `.klf`. The writer is locale-additive by design — existing targets stay put, the requested locale is added or updated in place. No `-o` needed unless you want to redirect output.
+Each run **accumulates** a target locale into the same `.kbf`. The writer is locale-additive by design — existing targets stay put, the requested locale is added or updated in place. No `-o` needed unless you want to redirect output.
 
 `kapi` supports Anthropic, OpenAI, Azure OpenAI, Google Gemini, and Ollama. It preserves placeholders, inline element tokens, and plural/select structure — AI providers that mangle them are automatically wrapped with recovery logic.
 
@@ -169,9 +169,9 @@ kapi pseudo-translate i18n/
 
 ### Path C: CAT tools / TMS / human translators
 
-The `.klf` is the exchange format. A translator's workflow might be:
+The `.kbf` is the exchange format. A translator's workflow might be:
 
-1. Open the `i18n/` archive (or the individual `.klf` files) in their CAT tool.
+1. Open the `i18n/` archive (or the individual `.kbf` files) in their CAT tool.
 2. Translate every block, leveraging their existing TM.
 3. Save back to the same `i18n/`.
 
@@ -179,16 +179,16 @@ The context a block carries (its file and line, its element, the translator note
 
 ### In-place default vs. explicit redirect
 
-`kapi` tool commands default to in-place for KLF inputs — `kapi pseudo-translate i18n/` reads and writes the same files, since the KLF writer is locale-additive (it adds or updates the requested locale, leaving the others intact). Pass `-o other-dir/` to redirect without touching the originals.
+`kapi` tool commands default to in-place for KBF inputs — `kapi pseudo-translate i18n/` reads and writes the same files, since the KBF writer is locale-additive (it adds or updates the requested locale, leaving the others intact). Pass `-o other-dir/` to redirect without touching the originals.
 
-Non-KLF formats (JSON, XLIFF, …) aren't locale-additive, so they write a new file in a locale-aware location: if the input path carries the source locale it is swapped for the target (`src/locales/en/app.json → src/locales/fr/app.json`), otherwise the output lands under a `{lang}/` directory beside the input (`messages.json → fr/messages.json`). Use `-o` for an explicit path or template, or `--output-dir DIR` to root outputs at `DIR/{lang}/`.
+Non-KBF formats (JSON, XLIFF, …) aren't locale-additive, so they write a new file in a locale-aware location: if the input path carries the source locale it is swapped for the target (`src/locales/en/app.json → src/locales/fr/app.json`), otherwise the output lands under a `{lang}/` directory beside the input (`messages.json → fr/messages.json`). Use `-o` for an explicit path or template, or `--output-dir DIR` to root outputs at `DIR/{lang}/`.
 
 ### Layout: one tree, or a subdir per locale
 
 Two layouts, both clean:
 
 - **Locale-additive** — one `i18n/` tree where each block carries every target locale, filled in place (the default for `kapi translate i18n/ --target-lang …`). Simplest to version; all translations stay together.
-- **Recipe-driven per-locale files** — the source catalogs live under `i18n/src/` and kapi writes a separate file per locale under `i18n/{lang}/`, mapped by a `kapi.yaml` content entry (`path: i18n/src/**/*.klf` → `target: i18n/{lang}/{path}.klf`). This is what `kapi init --framework neokapi-i18n` scaffolds.
+- **Recipe-driven per-locale files** — the source catalogs live under `i18n/src/` and kapi writes a separate file per locale under `i18n/{lang}/`, mapped by a `kapi.yaml` content entry (`path: i18n/src/**/*.kbf` → `target: i18n/{lang}/{path}.kbf`). This is what `kapi init --framework neokapi-i18n` scaffolds.
 
 Both keep everything under one `i18n/` directory. Because the source lives under `i18n/src/`, the source glob never matches the generated `i18n/{lang}/` targets — so there is no need for sibling `i18n-<lang>/` trees. See [AD-008](/contribute/architecture/008-project-model) for the project model and [Drive it from a project](./translating-with-kapi#drive-it-from-a-project) for the recipe.
 
@@ -234,11 +234,11 @@ kapi pseudo-translate i18n/
 vp neokapi-i18n compile i18n/ --out public/translations
 ```
 
-Same underlying wire format (NDJSON on the extract stage, KLF from there on) — the declarative `kapi.yaml` form just factors the pipe into the project file.
+Same underlying wire format (NDJSON on the extract stage, KBF from there on) — the declarative `kapi.yaml` form just factors the pipe into the project file.
 
 ## Phase 3: compile
 
-`neokapi-i18n compile` reads the translated `.klf` and emits one JSON dict per locale:
+`neokapi-i18n compile` reads the translated `.kbf` and emits one JSON dict per locale:
 
 ```bash
 neokapi-i18n compile i18n/ \
@@ -360,7 +360,7 @@ For apps with a translation backend, you'd instead push the archive to that back
 
 ## Incremental extracts
 
-The extractor is stateless — it always produces the same `.klf` for the same source + config. For an incremental pipeline (only translate what changed), diff two archives on the translation side. Each block's hash tells you whether its source shifted.
+The extractor is stateless — it always produces the same `.kbf` for the same source + config. For an incremental pipeline (only translate what changed), diff two archives on the translation side. Each block's hash tells you whether its source shifted.
 
 ## Next
 

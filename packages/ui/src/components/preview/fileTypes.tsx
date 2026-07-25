@@ -100,7 +100,7 @@ const TABLE: Record<string, Spec> = {
   tbx: { label: "TBX", group: "bilingual", lang: "xml", icon: Languages },
   po: { label: "Gettext PO", group: "bilingual", lang: "po", icon: Languages },
   pot: { label: "Gettext POT", group: "bilingual", lang: "po", icon: Languages },
-  klf: { label: "KLF", group: "bilingual", lang: "json", icon: Languages },
+  kbf: { label: "KBF", group: "bilingual", lang: "json", icon: Languages },
 
   // platform string catalogs
   resx: { label: "RESX", group: "catalog", lang: "xml", icon: FileCode },
@@ -115,7 +115,7 @@ const TABLE: Record<string, Spec> = {
   pptx: { label: "PowerPoint", group: "doc", lang: "text", icon: FileType, binary: true },
   pdf: { label: "PDF", group: "doc", lang: "text", icon: FileType, binary: true },
   zip: { label: "ZIP", group: "doc", lang: "text", icon: FileArchive, binary: true },
-  klz: { label: "KLZ workspace", group: "doc", lang: "text", icon: FileArchive, binary: true },
+  kpz: { label: "KPZ workspace", group: "doc", lang: "text", icon: FileArchive, binary: true },
 
   // images
   png: { label: "PNG", group: "image", lang: "text", icon: FileImage, binary: true },

@@ -154,6 +154,22 @@ const config: Config = {
           // APIs, not neokapi functionality); provider setup lives in the
           // Use-with-Claude/models docs, and /labs maps the remaining labs.
           { from: "/lab/models", to: "/labs" },
+          // The file-format vocabulary rename (.klf → .kbf, .klz → .kpz):
+          // the *format* is a hard rename with no back-compat, but the
+          // published doc URLs are indexed, so the old routes redirect. These
+          // "klf" strings are historical route names, not live vocabulary.
+          { from: "/reference/klf/overview", to: "/reference/kbf/overview" },
+          { from: "/reference/klf/spec", to: "/reference/kbf/spec" },
+          { from: "/reference/klf/examples", to: "/reference/kbf/examples" },
+          { from: "/reference/klf/vs-xliff", to: "/reference/kbf/vs-xliff" },
+          { from: "/reference/klf/package", to: "/reference/kbf/package" },
+          { from: "/reference/formats/klf", to: "/reference/formats/kbf" },
+          { from: "/klf-lab", to: "/kbf-lab" },
+          { from: "/klf-tests", to: "/kbf-tests" },
+          {
+            from: "/contribute/architecture/025-klf-package",
+            to: "/contribute/architecture/025-kbf-package",
+          },
         ],
       },
     ],
@@ -447,7 +463,7 @@ const config: Config = {
             { label: "Vision", to: "/lab/vision" },
             { label: "Audio & Video", to: "/lab/media" },
             { label: "CLI Playground", to: "/playground-cli" },
-            { label: "KLF Anatomy", to: "/klf-lab" },
+            { label: "KBF Anatomy", to: "/kbf-lab" },
           ],
         },
         {
@@ -465,7 +481,7 @@ const config: Config = {
             { label: "Tools", to: "/tools" },
             { label: "AI Models", to: "/models" },
             { label: "Project file", to: "/reference/project-file" },
-            { label: "KLF format", to: "/reference/klf/overview" },
+            { label: "KBF format", to: "/reference/kbf/overview" },
             { label: "MCP Server", to: "/reference/mcp" },
             { label: "Scripting & JSON contract", to: "/reference/cli-contract" },
             { label: "Engine service (gRPC)", to: "/reference/engine-service" },

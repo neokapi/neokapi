@@ -2,7 +2,7 @@
  * Runtime pseudo-translation — accent + expand every string that
  * flows through the neokapi-i18n runtime, without touching a catalog.
  *
- * Unlike the CLI tool (`kapi pseudo-translate`) which builds a .klf
+ * Unlike the CLI tool (`kapi pseudo-translate`) which builds a .kbf
  * ahead of time, this module hooks directly into the runtime and
  * transforms strings on the fly. No build step; toggle on/off from
  * the browser console; tune the algorithm (markers, expansion,

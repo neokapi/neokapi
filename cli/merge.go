@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/neokapi/neokapi/klz"
+	"github.com/neokapi/neokapi/kpz"
 	"github.com/spf13/cobra"
 )
 
@@ -12,7 +12,7 @@ import (
 func NewMergeCmd(a *App, _ MergeCmdOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "merge",
-		Short:   "Apply a returned bilingual file (.klz/XLIFF/PO) back onto the project source",
+		Short:   "Apply a returned bilingual file (.kpz/XLIFF/PO) back onto the project source",
 		GroupID: "advanced",
 		Long: `Materialize localized files for a project, or apply bilingual files
 returned by a translator back onto the project's source locales.
@@ -33,17 +33,17 @@ batch are fine — merge handles each input independently.`,
   kapi merge -i out/app.en-US-to-fr-FR.xliff
   kapi merge -i file1.xliff -i file2.xliff
   kapi merge -i vendor-return/ --no-tm-update
-  kapi merge work.klz -o l10n/   # emit localized files from a .klz workspace`,
+  kapi merge work.kpz -o l10n/   # emit localized files from a .kpz workspace`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// A single .klz positional arg is either a bilingual interchange
+			// A single .kpz positional arg is either a bilingual interchange
 			// file (kind=kapi-interchange — ingest the translator's targets) or
 			// an ad-hoc workspace (emit its localized files).
-			if len(args) == 1 && IsKlzPath(args[0]) {
+			if len(args) == 1 && IsKpzPath(args[0]) {
 				out, _ := cmd.Flags().GetString("output")
-				if pkg, err := LoadWorkspace(args[0]); err == nil && pkg.Kind == klz.KindInterchange {
-					return a.MergeOneKlz(cmd, args[0])
+				if pkg, err := LoadWorkspace(args[0]); err == nil && pkg.Kind == kpz.KindInterchange {
+					return a.MergeOneKpz(cmd, args[0])
 				}
-				return a.MergeFromKlz(cmd.Context(), args[0], out)
+				return a.MergeFromKpz(cmd.Context(), args[0], out)
 			}
 			// In a project with no -i input, materialize the localized files
 			// from the project block store: a process-only `kapi run` lands its
@@ -57,7 +57,7 @@ batch are fine — merge handles each input independently.`,
 	}
 	AddProjectFlag(cmd)
 	cmd.Flags().StringArrayP("input", "i", nil, "input XLIFF file, glob, or directory (repeatable)")
-	cmd.Flags().StringP("output", "o", "", "output directory or template when merging a .klz workspace")
+	cmd.Flags().StringP("output", "o", "", "output directory or template when merging a .kpz workspace")
 	cmd.Flags().Bool("no-tm-update", false, "skip TM write-back")
 	cmd.Flags().Bool("no-restore", false, "skip restoring redacted originals from the batch vault")
 	AddProgressFlag(cmd)

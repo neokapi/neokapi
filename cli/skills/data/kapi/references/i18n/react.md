@@ -75,14 +75,14 @@ app; add them as config and don't block translation on them.
    ```
    After this pass every user-facing string is either plain JSX (auto-extracted)
    or `t()`-wrapped. Keep the linter on in CI — it is what holds the W=0 grade.
-5. Translate the extracted KLF with the `kapi` CLI:
+5. Translate the extracted KBF with the `kapi` CLI:
    ```bash
-   npm run extract                                   # JSX + t() calls → source KLF in i18n/
+   npm run extract                                   # JSX + t() calls → source KBF in i18n/
    kapi pseudo-translate i18n/ --target-lang qps     # readiness check first
-   kapi translate i18n/ --target-lang fr             # translated KLF → out/ (brand-aware if a profile is bound)
+   kapi translate i18n/ --target-lang fr             # translated KBF → out/ (brand-aware if a profile is bound)
    npm run compile                                   # compile out/ → public/translations
    ```
-   `kapi translate <dir>` writes translated `.klf` to `out/`, so `compile`
+   `kapi translate <dir>` writes translated `.kbf` to `out/`, so `compile`
    reads `out/`, not the source `i18n/`.
 6. Load at runtime: in Vite,
    `await loadTranslations("fr", "/translations/fr.json")` in `main.tsx`

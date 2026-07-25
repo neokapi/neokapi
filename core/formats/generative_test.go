@@ -22,7 +22,7 @@ func TestWriterGenerativeCapability(t *testing.T) {
 	// Generative: document / interchange / catalog writers that build standalone.
 	generative := []string{
 		"doclang", "markdown", "html", "asciidoc", "plaintext",
-		"xliff", "xliff2", "po", "tmx", "klf", "json", "yaml",
+		"xliff", "xliff2", "po", "tmx", "kbf", "json", "yaml",
 	}
 
 	for _, id := range skeletonBound {
@@ -48,7 +48,7 @@ func TestWriterGenerativeCapability(t *testing.T) {
 
 	// Bilingual interchange formats: generative-capable, but flagged Interchange
 	// so `convert` excludes them (the extract→translate→merge loop owns them).
-	interchange := []string{"xliff", "xliff2", "po", "tmx", "mo", "klf"}
+	interchange := []string{"xliff", "xliff2", "po", "tmx", "mo", "kbf"}
 	for _, id := range interchange {
 		info := reg.FormatInfo(registry.FormatID(id))
 		if info == nil || !info.HasWriter {

@@ -441,7 +441,7 @@ func unboundGate(gate, binding, flag string) verifyGateResult {
 // projectTermbaseBound reports whether the terminology gate has a termbase to
 // enforce against: a --termbase flag, a defaults.termbase binding, the
 // convention .kapi/termbase.db, or a committed defaults.termbase_source
-// (.klftb) resolved directly at check time. It mirrors the resolution the gate
+// (.ktb) resolved directly at check time. It mirrors the resolution the gate
 // itself uses (resolveProjectTermbasePath / resolveProjectTermbaseSourcePath),
 // so "bound" means the same thing here and there.
 func (a *App) projectTermbaseBound(cmd Command) (bool, error) {

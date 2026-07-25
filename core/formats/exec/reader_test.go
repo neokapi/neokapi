@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neokapi/neokapi/core/klf"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -37,7 +37,7 @@ printf '{"type":"block","document":"b.tsx","block":{"id":"b2","hash":"H2","trans
 
 	assert.Equal(t, "block", records[0].Type)
 	assert.Equal(t, "a.tsx", records[0].Document)
-	assert.Equal(t, klf.BlockType("jsx:element"), records[0].Block.Type)
+	assert.Equal(t, kbf.BlockType("jsx:element"), records[0].Block.Type)
 	assert.Equal(t, "H1", records[0].Block.Hash)
 
 	assert.Equal(t, "b.tsx", records[1].Document)

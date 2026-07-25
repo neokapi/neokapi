@@ -158,7 +158,7 @@ export function makeMockRuntime(text: string, tree: ContentTree): LabRuntime {
     trace: async () => ({ ok: false }),
     run: async () => 0,
     runCapture: async () => ({ code: 0, output: "" }),
-    klf: () => ({ ok: false }),
+    kbf: () => ({ ok: false }),
   };
   return rt as LabRuntime;
 }

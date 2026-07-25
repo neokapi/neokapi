@@ -18,7 +18,7 @@ The incumbent. Uses developer-authored keys and a `t(key)` / `<Trans>` runtime.
 | Source identifier | Developer-invented key (natural-language keys also supported) | Source text + own element tag                               |
 | JSX wrapping      | `t("key")` or `<Trans i18nKey="...">` | Plain JSX                                                   |
 | Extraction        | `i18next-cli` / `i18next-parser`, or manual | Plugin during normal build                            |
-| Format            | JSON (nested or flat); XLIFF via external conversion | KLF with structural context, placeholders, plural forms |
+| Format            | JSON (nested or flat); XLIFF via external conversion | KBF with structural context, placeholders, plural forms |
 | Runtime cost      | Ships the i18next runtime (interpolation, plural resolution, resource store); dict loaded at runtime | Inline mode: zero runtime (~2 kB if you use ICU/plurals); runtime mode: one dict lookup |
 
 Migrating from react-i18next typically means dropping the `t()` / `<Trans>` wrappers and re-running the extract against the bare JSX. Existing translations can be loaded as-is if you key them by the same source text; otherwise it's a one-time re-translation pass through your TM.
@@ -46,7 +46,7 @@ The closest in philosophy — Lingui uses macros (`<Trans>`, `t` tagged template
 | Source identifier | Source text (Babel macro; experimental SWC plugin) | Source text + own element tag (via SWC plugin)              |
 | JSX wrapping      | `<Trans>Hello</Trans>`, `t\`...\`` macro | Plain JSX                                                   |
 | Extraction        | `lingui extract`                         | Plugin during normal build                                  |
-| Format            | PO (default), JSON, CSV                   | KLF with structural context, placeholders, plural forms |
+| Format            | PO (default), JSON, CSV                   | KBF with structural context, placeholders, plural forms |
 | Runtime cost      | Small `@lingui/core` runtime + compiled catalogs; dict lookup | Inline mode: zero runtime (~2 kB if you use ICU/plurals); runtime mode: one dict lookup |
 
 Lingui and neokapi-i18n agree on "source text as key". The core difference: Lingui asks you to opt every string into the macro (`<Trans>`, `` t`...` ``); neokapi-i18n opts in by default. `t()` in neokapi-i18n is a small escape hatch for non-JSX strings, not the normal authoring pattern.
@@ -61,7 +61,7 @@ The modern continuation of Meta's `fbt` (Meta archived `fbt` in late 2024). fbte
 | JSX wrapping      | `<fbt desc="...">`, `fbt()` / `fbs()`                  | Plain JSX                                                |
 | Plurals / gender  | `<fbt:plural>`, `<fbt:pronoun>`, `<fbt:enum>`          | `<Plural>` / `<Select>` authoring components             |
 | Extraction        | `fbtee collect` → `prepare-translations` → `translate` | Plugin during normal build                               |
-| Format            | JSON (`source_strings.json` + per-locale files)        | KLF with structural context, placeholders, plural forms |
+| Format            | JSON (`source_strings.json` + per-locale files)        | KBF with structural context, placeholders, plural forms |
 | Runtime cost      | Ships the fbt runtime to resolve params/plural/pronoun at render; translations loaded | Inline mode: zero runtime (~2 kB if you use ICU/plurals); runtime mode: one dict lookup |
 
 fbtee shares neokapi-i18n's "source text as key" philosophy, but takes the opposite stance on wrapping: it deliberately requires an `<fbt>` marker (with a `desc`) around every translatable string so the Babel / SWC compiler and ESLint plugin can statically analyse, type-check, and extract it. That buys compile-time guarantees and declarative inline plural / gender handling, at the cost of wrapping ceremony on every string — the same wrapping tax neokapi-i18n removes by extracting plain JSX automatically.
@@ -84,7 +84,7 @@ Paraglide's typed-function model gives strong refactoring support but requires t
 Two properties are worth calling out because they follow from choices the table above doesn't capture:
 
 - **Keys survive refactoring.** The key is derived from the source text *and the element's own tag*, and deliberately not from its ancestors. Wrapping a section in a new `<div>`, moving a paragraph into a `<Card>`, restructuring the page around it — none of these change a key, so none of them orphan a translation. The element is still enough to keep a button's "Open" distinct from a menu item's; where it isn't, you disambiguate explicitly with a note.
-- **[Review happens on the running app](./in-context-review).** ALT+click a string to see its source and edit its target, with terminology and QA findings painted onto the live text, and the edit written straight back to the `.klf` as a git diff. Review needs no account and no network — the strings are files in your repository, so a reviewer with a checkout is a reviewer.
+- **[Review happens on the running app](./in-context-review).** ALT+click a string to see its source and edit its target, with terminology and QA findings painted onto the live text, and the edit written straight back to the `.kbf` as a git diff. Review needs no account and no network — the strings are files in your repository, so a reviewer with a checkout is a reviewer.
 
 ## Which to pick
 

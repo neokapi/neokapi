@@ -11,7 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/klz"
+	"github.com/neokapi/neokapi/kpz"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -128,12 +128,12 @@ func TestExtract_MultiTargetWritesOneOutputPerPair(t *testing.T) {
 	}
 }
 
-// TestExtractMergeKlzInterchangeRoundTrip exercises the bilingual interchange
-// profile (AD-025 §7): `kapi extract --format klz` writes a
+// TestExtractMergeKpzInterchangeRoundTrip exercises the bilingual interchange
+// profile (AD-025 §7): `kapi extract --format kpz` writes a
 // kind=kapi-interchange package with TM-pre-filled target overlays + skeleton,
-// and `kapi merge <file.klz>` hydrates those targets and writes translated
+// and `kapi merge <file.kpz>` hydrates those targets and writes translated
 // output.
-func TestExtractMergeKlzInterchangeRoundTrip(t *testing.T) {
+func TestExtractMergeKpzInterchangeRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	real, err := filepath.EvalSymlinks(dir)
 	require.NoError(t, err)
@@ -152,35 +152,35 @@ func TestExtractMergeKlzInterchangeRoundTrip(t *testing.T) {
 		},
 	}))
 
-	// Extract --format klz.
+	// Extract --format kpz.
 	ea := newExtractApp(t)
 	ea.TMBackend = tm
 	ecmd := NewExtractCmd(ea, ExtractCmdOptions{})
 	var eout bytes.Buffer
 	ecmd.SetOut(&eout)
 	ecmd.SetErr(&eout)
-	ecmd.SetArgs([]string{"--project", recipe, "--format", "klz"})
+	ecmd.SetArgs([]string{"--project", recipe, "--format", "kpz"})
 	require.NoError(t, ecmd.Execute(), "extract output: %s", eout.String())
 
-	klzPath := filepath.Join(real, "out", "src-locales-en-messages.en-US-to-fr-FR.klz")
-	data, err := os.ReadFile(klzPath)
-	require.NoError(t, err, "extract did not write the interchange .klz")
-	pkg, err := klz.Unmarshal(data)
+	kpzPath := filepath.Join(real, "out", "src-locales-en-messages.en-US-to-fr-FR.kpz")
+	data, err := os.ReadFile(kpzPath)
+	require.NoError(t, err, "extract did not write the interchange .kpz")
+	pkg, err := kpz.Unmarshal(data)
 	require.NoError(t, err)
-	assert.Equal(t, klz.KindInterchange, pkg.Kind)
+	assert.Equal(t, kpz.KindInterchange, pkg.Kind)
 	require.NotNil(t, pkg.InterchangeTask)
 	assert.Equal(t, "fr-FR", pkg.InterchangeTask.TargetLocale)
 	require.NotEmpty(t, pkg.Skeletons, "interchange package must carry a skeleton")
 	require.NotEmpty(t, pkg.Overlays, "interchange package must carry TM-prefilled target overlays")
 
-	// Merge the interchange .klz back.
+	// Merge the interchange .kpz back.
 	ma := newExtractApp(t)
 	ma.TMBackend = tm
 	mcmd := NewMergeCmd(ma, MergeCmdOptions{})
 	var mout bytes.Buffer
 	mcmd.SetOut(&mout)
 	mcmd.SetErr(&mout)
-	mcmd.SetArgs([]string{"--project", recipe, klzPath})
+	mcmd.SetArgs([]string{"--project", recipe, kpzPath})
 	require.NoError(t, mcmd.Execute(), "merge output: %s", mout.String())
 	assert.Contains(t, mout.String(), "applied=1")
 

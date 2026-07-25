@@ -55,13 +55,13 @@ dist/
 # Extraction artifacts — regenerated via `make kapi-desktop-translations`.
 # The per-locale runtime dictionaries under public/translations/ are
 # committed so the app ships with translations; the intermediate
-# per-file .klf extract output is ephemeral and gitignored.
+# per-file .kbf extract output is ephemeral and gitignored.
 apps/kapi-desktop/frontend/i18n/
 apps/kapi-desktop/frontend/i18n-qps/
 apps/kapi-desktop/frontend/i18n-nb/
 
 # Same policy for the bowrain UI surfaces (make bowrain-{app,ctrl,pulse}-translations):
-# compiled public/translations/ dictionaries are committed, .klf intermediates are not.
+# compiled public/translations/ dictionaries are committed, .kbf intermediates are not.
 bowrain/packages/app/i18n/
 bowrain/packages/app/i18n-qps/
 bowrain/packages/app/i18n-nb/
@@ -75,7 +75,7 @@ bowrain/apps/pulse/i18n-nb/
 # Same policy for the transactional emails (make l10n-emails): the committed
 # artifacts are the rendered per-locale templates under
 # bowrain/mailer/templates/ and subject catalogs under bowrain/mailer/subjects/;
-# the KLF extraction, per-locale intermediates, compiled catalogs, and the
+# the KBF extraction, per-locale intermediates, compiled catalogs, and the
 # per-locale esbuild render bundles are ephemeral.
 bowrain/emails/i18n/
 bowrain/emails/i18n-qps/
@@ -85,7 +85,7 @@ bowrain/emails/.render/
 
 # Landing page (make l10n-landing): the compiled runtime catalogs under
 # bowrain/web/landing/translations/ are committed (web-landing.yml builds the
-# nb variant from them); the KLF extraction intermediates are ephemeral.
+# nb variant from them); the KBF extraction intermediates are ephemeral.
 bowrain/web/landing/i18n/
 bowrain/web/landing/i18n-qps/
 bowrain/web/landing/i18n-nb/

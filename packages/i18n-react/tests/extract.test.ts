@@ -3,7 +3,7 @@
  * Block / Run sequences per Framework AD-002. The flat-string extraction
  * that used to live alongside has been removed; the runtime
  * dictionary is produced by `neokapi-i18n compile` from a translated
- * klf writer, not directly by extract.
+ * kbf writer, not directly by extract.
  */
 
 import { describe, expect, it } from "vitest";

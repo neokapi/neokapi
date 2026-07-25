@@ -433,7 +433,7 @@ Measures how much of the document's logical and spatial structure the reader
 recovers and the model represents — block roles, reading order, table grids,
 cross-block relations, and page geometry. It is the comprehension-depth ladder
 the vision / OCR / structure stack populates, riding the standoff payloads in
-`core/model/structure.go` (additive — no proto/KLF schema change). It is the
+`core/model/structure.go` (additive — no proto/KBF schema change). It is the
 third **Comprehension** axis, at coarser resolution than Engine (serialization
 round-trip) and Vocabulary (inline run-level meaning): block-level, cross-block,
 and spatial structure.

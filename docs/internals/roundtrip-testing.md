@@ -405,7 +405,7 @@ Formats intentionally **omitted** from coverage:
   - `txml`, `rtf`, `epub` — upstream Okapi can't produce a usable
     reference (txml NPE on merge, rtf only ships as `okf_tradosrtf`,
     no `okf_epub` in this distribution).
-  - `jsx-klf`, `versifiedtext`, `messageformat` — neokapi-only
+  - `jsx-kbf`, `versifiedtext`, `messageformat` — neokapi-only
     formats with no upstream Okapi peer to compare against.
   - `srt` — needs SRT-specific regex rules loaded as a sizable
     `.fprm` against the bridge's `okf_regex` filter; wire that in

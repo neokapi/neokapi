@@ -126,7 +126,7 @@ module.exports = {
 vp neokapi-i18n extract
 ```
 
-This scans your `src/` directory and produces one `.klf` file per
+This scans your `src/` directory and produces one `.kbf` file per
 source document under `i18n/` (override with `--out <dir>`). Each
 translatable JSX element becomes a `Block` with structured `Run[]`
 that preserves inline markup, variable tokens, and conditional
@@ -135,16 +135,16 @@ placeholders:
 ```
 i18n/
   src/
-    App.klf         # one .klf per source file, Block[] with typed Runs
-    Sidebar.klf
+    App.kbf         # one .kbf per source file, Block[] with typed Runs
+    Sidebar.kbf
 ```
 
-Each `.klf` is plain JSON — `jq . i18n/src/App.klf` to inspect any
+Each `.kbf` is plain JSON — `jq . i18n/src/App.kbf` to inspect any
 block.
 
 ### 3. Translate (or pseudo-translate for testing)
 
-Kapi reads the KLF directory directly; every command appends or
+Kapi reads the KBF directory directly; every command appends or
 updates a target locale on each block in place:
 
 ```bash
@@ -156,10 +156,10 @@ kapi translate i18n/ --target-lang fr
 kapi translate i18n/ --target-lang de
 
 # Or hand off to your TMS / translators → they update block.targets
-# in each .klf. Commit the directory and you're done.
+# in each .kbf. Commit the directory and you're done.
 ```
 
-The KLF tree in `i18n/` carries source + every target through the
+The KBF tree in `i18n/` carries source + every target through the
 whole round-trip. It's git-diffable, review-friendly, and the shape
 translators can open in any editor.
 
@@ -360,7 +360,7 @@ export const routes = [
 # 1. Build app — plugin emits dist/translations-manifest.json alongside JS chunks.
 vite build
 
-# 2. Compile translated .klf files into master {locale}.json dicts.
+# 2. Compile translated .kbf files into master {locale}.json dicts.
 neokapi-i18n compile i18n/ --out public/translations
 
 # 3. Slice master dicts into per-chunk subsets matching the manifest.
@@ -778,7 +778,7 @@ type PluginOptions = {
   communityManifestDir?: string; // Path to library i18n manifests
   warnUnmapped?: boolean; // Warn about unmapped components (default: true in dev)
   review?: boolean; // In-context review mode (or KAPI_REVIEW=1) — dev/staging only
-  reviewKlfDir?: string; // KLF tree review serves + writes back to (default: "i18n")
+  reviewKbfDir?: string; // KBF tree review serves + writes back to (default: "i18n")
 };
 ```
 
@@ -797,18 +797,18 @@ neokapi({ mode: "runtime", review: true });
 - **⌥/Alt+hover** outlines any translated element; **⌥/Alt+click**
   opens the review panel: source text, translator note, and an
   editable target for the active locale.
-- **Saving writes straight into the local `.klf` file** — your
+- **Saving writes straight into the local `.kbf` file** — your
   review is a git diff — and the live UI repaints in place (no
   reload).
 - **terms/QA** in the floating toolbar paints terminology matches
-  and QA findings from stand-off annotation files (`*.klfl`, e.g.
+  and QA findings from stand-off annotation files (`*.overlays.jsonl`, e.g.
   produced by `kapi run term-check` / `qa` over `i18n/`) onto the
   live page via the CSS Custom Highlight API — zero DOM mutation,
   no layout shift.
 - Edits broadcast over SSE, so every open browser window of the dev
   server repaints together.
 
-The middleware serves the KLF tree at `reviewKlfDir` (default:
+The middleware serves the KBF tree at `reviewKbfDir` (default:
 `i18n`). Review mode needs `mode: "runtime"` for live repaint;
 production builds ignore the review flag unless you set it
 explicitly — don't.
@@ -816,7 +816,7 @@ explicitly — don't.
 ### Hosted read-only review (on a deployed site)
 
 The overlay above is for local development (it needs the Vite middleware
-and writes to your `.klf` files). To let someone review translations
+and writes to your `.kbf` files). To let someone review translations
 **in context on the deployed site** — click a unit in your TMS or review
 tool and land on the live page with that string highlighted — use the
 read-only hosted variant. It needs no server: it reads a static
@@ -906,14 +906,14 @@ vpx neokapi-i18n extract [options]
 
 Options:
   --src <glob>            Source files to scan (default: "src/**/*.{tsx,jsx}")
-  --out <dir>             Output directory for .klf files (default: "i18n")
+  --out <dir>             Output directory for .kbf files (default: "i18n")
   --stream                Emit NDJSON block records on stdout instead of
-                          writing .klf files. File discovery uses --src
+                          writing .kbf files. File discovery uses --src
                           by default; reads NUL-separated paths on stdin
                           when stdin is piped (kapi's exec format does
                           this automatically).
   --config <path>         Config file with componentMap, rules, …
-  --project <id>          Project id stamped into .klf.project
+  --project <id>          Project id stamped into .kbf.project
   --source-locale <bcp>   Source locale (default: "en")
   --target-locale <bcp>   Declared target locale (repeat for multiple)
 
@@ -932,15 +932,15 @@ vpx neokapi-i18n explain <file-or-glob>... [--extracted]
   the hash it received — the audit trail for the zero-config claims.
 ```
 
-The boundary is: `neokapi-i18n` emits extracted blocks (as KLF files
-or an NDJSON stream) and compiles translated KLFs back to the
+The boundary is: `neokapi-i18n` emits extracted blocks (as KBF files
+or an NDJSON stream) and compiles translated KBFs back to the
 runtime dictionary. Everything in between — pseudo-translate, AI
 translate, TM matching, QA, review — goes through the `kapi` CLI.
 
 ### Two output modes for extract
 
-- **Default: per-file KLF under `--out`.**
-  `vp neokapi-i18n extract` writes one `.klf` per source file into
+- **Default: per-file KBF under `--out`.**
+  `vp neokapi-i18n extract` writes one `.kbf` per source file into
   `./i18n/` (override with `--out <dir>`). Human-readable,
   git-diffable, inspectable with `cat` or `jq`. Every kapi CLI
   command reads this layout directly.
@@ -956,8 +956,8 @@ Both modes share the SWC walker — same hashes, same block content.
 
 ### Compile accepts three inputs
 
-- `vp neokapi-i18n compile i18n/` — a directory of `.klf` files.
-- `vp neokapi-i18n compile i18n/src/App.klf` — a single `.klf` file.
+- `vp neokapi-i18n compile i18n/` — a directory of `.kbf` files.
+- `vp neokapi-i18n compile i18n/src/App.kbf` — a single `.kbf` file.
 - `vp neokapi-i18n compile -` — NDJSON block records on stdin.
 
 Pick whichever is convenient at the hand-off point.
@@ -968,10 +968,10 @@ Test your UI with pseudo-translated text to catch truncation, layout
 issues, and hardcoded strings:
 
 ```bash
-# 1. Extract to i18n/ as per-file .klf
+# 1. Extract to i18n/ as per-file .kbf
 vp neokapi-i18n extract --target-locale qps
 
-# 2. Pseudo-translate in place — every .klf gains a qps target
+# 2. Pseudo-translate in place — every .kbf gains a qps target
 kapi pseudo-translate i18n/ --target-lang qps
 
 # 3. Compile to public/translations/qps.json

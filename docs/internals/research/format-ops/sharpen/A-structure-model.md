@@ -17,7 +17,7 @@ axis would measure against. All paths relative to the neokapi repo root.
 > payloads, NOT as new top-level Block fields**. This keeps the addition strictly
 > additive: both ride the existing payload registry (annotation_registry.go), so
 > they serialize over every annotation-aware path (the gRPC bridge, the store)
-> with no protobuf or KLF schema change."
+> with no protobuf or KBF schema change."
 
 There are **three** structural payload keys (`core/model/structure.go:21-29`):
 
@@ -199,7 +199,7 @@ The `Payload` interface (`annotation_registry.go:10-13`) requires only
 `TypeName() string`; `NewPayload(typeName)` (`:51-61`) rehydrates the concrete
 type from its name. `structure_test.go:90-103` asserts all three rehydrate.
 This is *why* structure/geometry/relations ride every annotation-aware path
-(gRPC bridge, store, KLF) with zero protobuf/KLF schema work.
+(gRPC bridge, store, KBF) with zero protobuf/KBF schema work.
 
 ---
 

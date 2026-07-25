@@ -139,11 +139,11 @@ func TestInitCmd_frameworkNeokapiI18nScaffoldsCleanLayout(t *testing.T) {
 	recipe, err := project.Load(filepath.Join(dir, project.RecipeFileName))
 	require.NoError(t, err)
 	require.Len(t, recipe.Content, 1)
-	assert.Equal(t, "i18n/src/**/*.klf", recipe.Content[0].Path)
-	assert.Equal(t, "i18n/{lang}/{path}.klf", recipe.Content[0].Target)
+	assert.Equal(t, "i18n/src/**/*.kbf", recipe.Content[0].Path)
+	assert.Equal(t, "i18n/{lang}/{path}.kbf", recipe.Content[0].Target)
 	require.NotNil(t, recipe.Defaults.BrandVoice)
 	assert.Equal(t, "i18n/brand-voice.yaml", recipe.Defaults.BrandVoice.ProfileFile)
-	assert.Equal(t, "i18n/termbase.klftb", recipe.Defaults.TermbaseSource)
+	assert.Equal(t, "i18n/termbase.ktb", recipe.Defaults.TermbaseSource)
 }
 
 func TestInitCmd_frameworkUnknown(t *testing.T) {

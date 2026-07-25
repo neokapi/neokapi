@@ -89,7 +89,7 @@ func TestDumpBlockEvents_Deterministic(t *testing.T) {
 }
 
 // TestDumpBlockEvents_NoHTMLEscape confirms `<`, `>`, `&` survive literally
-// (matching model.Run.MarshalJSON and the KLF wire form). JSON-mandated
+// (matching model.Run.MarshalJSON and the KBF wire form). JSON-mandated
 // escaping of `"` inside a string still applies. The expected line is
 // asserted exactly so an accidental json.Marshal (which HTML-escapes) is
 // caught.

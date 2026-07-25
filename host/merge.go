@@ -23,7 +23,7 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host/output"
-	"github.com/neokapi/neokapi/klz"
+	"github.com/neokapi/neokapi/kpz"
 	"github.com/neokapi/neokapi/sievepen"
 )
 
@@ -316,7 +316,7 @@ func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, pr
 			written++
 
 			// Absorb the materialized targets into the project TM with merge
-			// provenance, mirroring the XLIFF/PO/.klz merge paths.
+			// provenance, mirroring the XLIFF/PO/.kpz merge paths.
 			if tm != nil {
 				if added, updated, aerr := absorbStoreTargets(fileCtx, a.FormatReg, srcFormat, f.Path, pctx.SourceLocale, locale, store, tm, f.Relative); aerr == nil {
 					_ = added
@@ -390,23 +390,23 @@ func (s *mergeStats) accumulate(o mergeStats) {
 	s.TMUpdated += o.TMUpdated
 }
 
-// MergeOneKlz ingests a bilingual interchange .klz returned by a translator
+// MergeOneKpz ingests a bilingual interchange .kpz returned by a translator
 // (kind=kapi-interchange, AD-025 §7): it validates the profile, hydrates the
 // target overlays onto the current source blocks (matched by id), staleness-
 // checks each block against the current source, applies the project conflict
 // policy, writes the merged target via the package's inline skeleton, and
 // absorbs accepted targets into the project TM.
-func (a *App) MergeOneKlz(cmd Command, klzInput string) error {
+func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 	ctx := cmd.Context()
-	pkg, err := LoadWorkspace(klzInput)
+	pkg, err := LoadWorkspace(kpzInput)
 	if err != nil {
 		return err
 	}
-	if pkg.Kind != klz.KindInterchange {
-		return fmt.Errorf("merge: %s is not a bilingual interchange .klz (kind=%q)", filepath.Base(klzInput), pkg.Kind)
+	if pkg.Kind != kpz.KindInterchange {
+		return fmt.Errorf("merge: %s is not a bilingual interchange .kpz (kind=%q)", filepath.Base(kpzInput), pkg.Kind)
 	}
 	if pkg.InterchangeTask == nil {
-		return fmt.Errorf("merge: %s has no interchange task metadata", filepath.Base(klzInput))
+		return fmt.Errorf("merge: %s has no interchange task metadata", filepath.Base(kpzInput))
 	}
 
 	projectPath, err := RequireProjectPath(cmd)
@@ -491,8 +491,8 @@ func (a *App) MergeOneKlz(cmd Command, klzInput string) error {
 			case project.ConflictPolicyNewestWins:
 				if hasExisting {
 					srcInfo, _ := os.Stat(sourceAbs)
-					klzInfo, _ := os.Stat(klzInput)
-					if srcInfo != nil && klzInfo != nil && !klzInfo.ModTime().After(srcInfo.ModTime()) {
+					kpzInfo, _ := os.Stat(kpzInput)
+					if srcInfo != nil && kpzInfo != nil && !kpzInfo.ModTime().After(srcInfo.ModTime()) {
 						apply = false
 					}
 				}
@@ -508,7 +508,7 @@ func (a *App) MergeOneKlz(cmd Command, klzInput string) error {
 			}
 			stats.Applied++
 			if tm != nil {
-				added, updated := absorbBlockIntoTM(ctx, tm, b, pctx.SourceLocale, targetLocale, "klz", srcRel, klzInput)
+				added, updated := absorbBlockIntoTM(ctx, tm, b, pctx.SourceLocale, targetLocale, "kpz", srcRel, kpzInput)
 				stats.TMNew += added
 				stats.TMUpdated += updated
 			}
@@ -520,7 +520,7 @@ func (a *App) MergeOneKlz(cmd Command, klzInput string) error {
 		var skelBytes []byte
 		for _, s := range pkg.Skeletons {
 			if s.SourcePath == srcRel {
-				b, rerr := klz.ReadAll(s.Content)
+				b, rerr := kpz.ReadAll(s.Content)
 				if rerr != nil {
 					return fmt.Errorf("read skeleton for %s: %w", srcRel, rerr)
 				}
@@ -537,7 +537,7 @@ func (a *App) MergeOneKlz(cmd Command, klzInput string) error {
 
 	fmt.Fprintf(cmd.OutOrStdout(),
 		"Merged %s → %s: applied=%d skipped=%d tm_new=%d tm_updated=%d (conflict_policy=%s)\n",
-		filepath.Base(klzInput), targetLocale, stats.Applied, stats.Skipped, stats.TMNew, stats.TMUpdated, policy)
+		filepath.Base(kpzInput), targetLocale, stats.Applied, stats.Skipped, stats.TMNew, stats.TMUpdated, policy)
 	return nil
 }
 
@@ -976,7 +976,7 @@ func writeMergedSource(ctx context.Context, reg *registry.FormatRegistry, format
 
 // writeMergedSourceWithSkeleton is the underlying writer that takes the
 // skeleton as either a file path (skelPath, for the XLIFF/PO extraction flow)
-// or raw bytes (skelBytes, for a bilingual interchange .klz that carries the
+// or raw bytes (skelBytes, for a bilingual interchange .kpz that carries the
 // skeleton inline). When both are empty the writer re-serializes from its parse
 // tree (lower fidelity). skelBytes takes precedence.
 func writeMergedSourceWithSkeleton(ctx context.Context, reg *registry.FormatRegistry, formatName, sourceAbs, targetPath string, locale model.LocaleID, blocks []*model.Block, skelPath string, skelBytes []byte, outputCfg map[string]any) error {
@@ -998,7 +998,7 @@ func writeMergedSourceWithSkeleton(ctx context.Context, reg *registry.FormatRegi
 	if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
 		switch {
 		case len(skelBytes) > 0:
-			// Inline skeleton (from a .klz): read-mode store over the bytes.
+			// Inline skeleton (from a .kpz): read-mode store over the bytes.
 			store := format.NewSkeletonStoreFromBytes(skelBytes)
 			consumer.SetSkeletonStore(store)
 			defer store.Close()

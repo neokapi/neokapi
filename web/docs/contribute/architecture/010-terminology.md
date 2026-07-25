@@ -129,22 +129,22 @@ decisions belong in review and version control alongside the recipe and the
 brand-voice profile ([AD-022](022-brand-voice.md)). So the split is source vs.
 cache, not a two-way sync:
 
-- the committed **`.klftb` is the source** — a diff-friendly, reviewable,
+- the committed **`.ktb` is the source** — a diff-friendly, reviewable,
   mergeable text document bound by `defaults.termbase_source`, edited directly
   (the `kapi termbase add` path writes the file first), reviewed in a PR, and
   versioned with the code.
 - the **`.kapi/termbase.db` is a rebuildable read-cache** over it, under the
-  gitignored cache, rebuilt when the committed `.klftb` changes (content-hash
-  guarded). Discard it, rebuild from the `.klftb`, lose nothing — **nothing
+  gitignored cache, rebuilt when the committed `.ktb` changes (content-hash
+  guarded). Discard it, rebuild from the `.ktb`, lose nothing — **nothing
   authoritative ever lives only in the db**. Committing the binary SQLite would
   be git-hostile (opaque, conflict-prone) and would defeat interchange.
 
-Read-only consumers read the committed `.klftb` directly — the terminology check
+Read-only consumers read the committed `.ktb` directly — the terminology check
 gate decodes it without materializing the cache, which is why it holds on a fresh
 CI checkout where the gitignored `.db` is absent. The cache earns its keep only
 for the heavy indexed lookups (fuzzy, FTS) during translation. **CI reads the
 termbase; it never writes it back** — humans author it through git; a pulled new
-`.klftb` just rebuilds the read-cache, so there is nothing to reconcile.
+`.ktb` just rebuilds the read-cache, so there is nothing to reconcile.
 
 In bowrain (server mode) the termbase is managed in the platform database and
 edited through the app; git is not in the loop.

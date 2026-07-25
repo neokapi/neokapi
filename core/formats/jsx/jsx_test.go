@@ -8,32 +8,32 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/klf"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestFlattenRuns(t *testing.T) {
-	runs := []klf.Run{
-		{Text: &klf.TextRun{Text: "Files "}},
-		{PcOpen: &klf.PcOpenRun{ID: "1", Type: "jsx:element", SubType: "span", Equiv: "muted"}},
-		{Text: &klf.TextRun{Text: "("}},
-		{Ph: &klf.PlaceholderRun{ID: "2", Type: "jsx:var", Equiv: "count"}},
-		{Text: &klf.TextRun{Text: " matched)"}},
-		{PcClose: &klf.PcCloseRun{ID: "1", Type: "jsx:element", SubType: "span"}},
+	runs := []kbf.Run{
+		{Text: &kbf.TextRun{Text: "Files "}},
+		{PcOpen: &kbf.PcOpenRun{ID: "1", Type: "jsx:element", SubType: "span", Equiv: "muted"}},
+		{Text: &kbf.TextRun{Text: "("}},
+		{Ph: &kbf.PlaceholderRun{ID: "2", Type: "jsx:var", Equiv: "count"}},
+		{Text: &kbf.TextRun{Text: " matched)"}},
+		{PcClose: &kbf.PcCloseRun{ID: "1", Type: "jsx:element", SubType: "span"}},
 	}
 	got := FlattenRuns(runs)
 	assert.Equal(t, "Files ({count} matched)", got)
 }
 
 func TestFlattenRunsPlural(t *testing.T) {
-	runs := []klf.Run{
-		{Plural: &klf.PluralRun{
+	runs := []kbf.Run{
+		{Plural: &kbf.PluralRun{
 			Pivot: "count",
-			Forms: map[klf.PluralForm][]klf.Run{
-				klf.PluralOne:   {{Text: &klf.TextRun{Text: "1 item"}}},
-				klf.PluralOther: {{Text: &klf.TextRun{Text: "many items"}}},
+			Forms: map[kbf.PluralForm][]kbf.Run{
+				kbf.PluralOne:   {{Text: &kbf.TextRun{Text: "1 item"}}},
+				kbf.PluralOther: {{Text: &kbf.TextRun{Text: "many items"}}},
 			},
 		}},
 	}
@@ -41,15 +41,15 @@ func TestFlattenRunsPlural(t *testing.T) {
 	assert.Equal(t, "many items", got, "plural flattens to the 'other' branch")
 }
 
-func TestReaderReadsKLF(t *testing.T) {
-	// Build a .klf in memory and feed it through the reader.
-	doc := makeKLFFile()
-	buf, err := klf.Marshal(doc)
+func TestReaderReadsKBF(t *testing.T) {
+	// Build a .kbf in memory and feed it through the reader.
+	doc := makeKBFFile()
+	buf, err := kbf.Marshal(doc)
 	require.NoError(t, err)
 
 	r := NewReader()
 	raw := &model.RawDocument{
-		URI:    "inline.klf",
+		URI:    "inline.kbf",
 		Reader: io.NopCloser(bytes.NewReader(buf)),
 	}
 	require.NoError(t, r.Open(context.Background(), raw))
@@ -57,22 +57,22 @@ func TestReaderReadsKLF(t *testing.T) {
 	blocks := collectBlocks(t, r)
 	require.Len(t, blocks, 3)
 
-	// The first block has a KLFAnnotation carrying structured runs.
-	ann, ok := model.AnnoAs[*KLFAnnotation](blocks[0], AnnotationType)
+	// The first block has a KBFAnnotation carrying structured runs.
+	ann, ok := model.AnnoAs[*KBFAnnotation](blocks[0], AnnotationType)
 	require.True(t, ok)
 	assert.NotEmpty(t, ann.Source)
 	assert.Equal(t, "files-heading", blocks[0].ID)
 }
 
-func TestWriterRoundTripKLF(t *testing.T) {
+func TestWriterRoundTripKBF(t *testing.T) {
 	// Build → read → write → read again; all three blocks must be
-	// present with their KLFAnnotations intact after the round trip.
-	inDoc := makeKLFFile()
-	inBuf, err := klf.Marshal(inDoc)
+	// present with their KBFAnnotations intact after the round trip.
+	inDoc := makeKBFFile()
+	inBuf, err := kbf.Marshal(inDoc)
 	require.NoError(t, err)
 
 	r := NewReader()
-	require.NoError(t, r.Open(context.Background(), &model.RawDocument{URI: "in.klf", Reader: io.NopCloser(bytes.NewReader(inBuf))}))
+	require.NoError(t, r.Open(context.Background(), &model.RawDocument{URI: "in.kbf", Reader: io.NopCloser(bytes.NewReader(inBuf))}))
 	blocks := collectBlocks(t, r)
 	require.Len(t, blocks, 3)
 
@@ -90,7 +90,7 @@ func TestWriterRoundTripKLF(t *testing.T) {
 	require.NoError(t, w.Close())
 
 	// Re-parse the emitted JSON.
-	roundTrip, err := klf.Unmarshal(sink.Bytes())
+	roundTrip, err := kbf.Unmarshal(sink.Bytes())
 	require.NoError(t, err)
 	require.Len(t, roundTrip.Documents, 1)
 	require.Len(t, roundTrip.Documents[0].Blocks, 3)
@@ -98,7 +98,7 @@ func TestWriterRoundTripKLF(t *testing.T) {
 	// Structured content preserved.
 	assert.Equal(t, "files-heading", roundTrip.Documents[0].Blocks[0].ID)
 	assert.NotEmpty(t, roundTrip.Documents[0].Blocks[0].Source)
-	assert.Equal(t, klf.BlockTypeJSXElement, roundTrip.Documents[0].Blocks[0].Type)
+	assert.Equal(t, kbf.BlockTypeJSXElement, roundTrip.Documents[0].Blocks[0].Type)
 }
 
 func TestWriterPreservesStructuredTargetRuns(t *testing.T) {
@@ -107,13 +107,13 @@ func TestWriterPreservesStructuredTargetRuns(t *testing.T) {
 	// every Ph / PcOpen / PcClose run a tool had placed via
 	// `SetTargetRuns`. A tag-chip target with three Ph runs plus
 	// two Text separators must round-trip with all five runs intact.
-	inDoc := makeKLFFile()
-	inBuf, err := klf.Marshal(inDoc)
+	inDoc := makeKBFFile()
+	inBuf, err := kbf.Marshal(inDoc)
 	require.NoError(t, err)
 
 	r := NewReader()
 	require.NoError(t, r.Open(context.Background(), &model.RawDocument{
-		URI:    "in.klf",
+		URI:    "in.kbf",
 		Reader: io.NopCloser(bytes.NewReader(inBuf)),
 	}))
 	blocks := collectBlocks(t, r)
@@ -128,7 +128,7 @@ func TestWriterPreservesStructuredTargetRuns(t *testing.T) {
 		})
 	}
 
-	outPath := filepath.Join(t.TempDir(), "with-targets.klf")
+	outPath := filepath.Join(t.TempDir(), "with-targets.kbf")
 	w := NewWriter()
 	w.SetLocale("qps")
 	require.NoError(t, w.SetOutput(outPath))
@@ -142,7 +142,7 @@ func TestWriterPreservesStructuredTargetRuns(t *testing.T) {
 
 	data, err := os.ReadFile(outPath)
 	require.NoError(t, err)
-	file, err := klf.Unmarshal(data)
+	file, err := kbf.Unmarshal(data)
 	require.NoError(t, err)
 	require.NotEmpty(t, file.Documents)
 	for _, d := range file.Documents {
@@ -157,12 +157,12 @@ func TestWriterPreservesStructuredTargetRuns(t *testing.T) {
 }
 
 func TestPreviewBuilder(t *testing.T) {
-	doc := makeKLFFile()
-	buf, err := klf.Marshal(doc)
+	doc := makeKBFFile()
+	buf, err := kbf.Marshal(doc)
 	require.NoError(t, err)
 
 	r := NewReader()
-	require.NoError(t, r.Open(context.Background(), &model.RawDocument{URI: "inline.klf", Reader: io.NopCloser(bytes.NewReader(buf))}))
+	require.NoError(t, r.Open(context.Background(), &model.RawDocument{URI: "inline.kbf", Reader: io.NopCloser(bytes.NewReader(buf))}))
 	blocks := collectBlocks(t, r)
 
 	pb := NewPreviewBuilder()
@@ -171,11 +171,11 @@ func TestPreviewBuilder(t *testing.T) {
 	assert.Contains(t, preview, "Files ")
 }
 
-func TestReaderSniffsKLFEnvelope(t *testing.T) {
+func TestReaderSniffsKBFEnvelope(t *testing.T) {
 	r := NewReader()
 	sig := r.Signature()
 	require.NotNil(t, sig.Sniff)
-	// A .klf envelope.
+	// A .kbf envelope.
 	assert.True(t, sig.Sniff([]byte(`{"schemaVersion":"1.0","kind":"kapi-localization-format"}`)))
 	// Random JSON isn't a match.
 	assert.False(t, sig.Sniff([]byte(`{"foo":1}`)))
@@ -199,21 +199,21 @@ func collectBlocks(t *testing.T, r *Reader) []*model.Block {
 	return blocks
 }
 
-// makeKLFFile builds an in-memory .klf with the three canonical
+// makeKBFFile builds an in-memory .kbf with the three canonical
 // example blocks. This is the Go-side mirror of the TS fixtures in
 // packages/kapi-format/examples.
-func makeKLFFile() *klf.File {
-	return &klf.File{
-		SchemaVersion: klf.SchemaVersion,
-		Kind:          klf.Kind,
-		Generator:     klf.GeneratorInfo{ID: "@neokapi/kapi-format-examples", Version: "0.0.1"},
-		Project:       klf.ProjectInfo{ID: "neokapi-kapi-format-examples", SourceLocale: "en"},
-		Documents: []klf.Document{
+func makeKBFFile() *kbf.File {
+	return &kbf.File{
+		SchemaVersion: kbf.SchemaVersion,
+		Kind:          kbf.Kind,
+		Generator:     kbf.GeneratorInfo{ID: "@neokapi/kapi-format-examples", Version: "0.0.1"},
+		Project:       kbf.ProjectInfo{ID: "neokapi-kapi-format-examples", SourceLocale: "en"},
+		Documents: []kbf.Document{
 			{
 				ID:           "examples",
-				DocumentType: klf.DocumentTypeJSX,
+				DocumentType: kbf.DocumentTypeJSX,
 				Path:         "examples/all.tsx",
-				Blocks: []klf.Block{
+				Blocks: []kbf.Block{
 					*filesHeading(),
 					*tagChip(),
 					*shoppingCart(),
@@ -227,73 +227,73 @@ func makeKLFFile() *klf.File {
 // file so every package can assert against the same canonical
 // shape without cross-package dependencies) ─────────
 
-func filesHeading() *klf.Block {
-	return &klf.Block{
+func filesHeading() *kbf.Block {
+	return &kbf.Block{
 		ID: "files-heading", Hash: "2xykvb", Translatable: true,
-		Type: klf.BlockTypeJSXElement,
-		Source: []klf.Run{
-			{Text: &klf.TextRun{Text: "Files "}},
-			{PcOpen: &klf.PcOpenRun{
+		Type: kbf.BlockTypeJSXElement,
+		Source: []kbf.Run{
+			{Text: &kbf.TextRun{Text: "Files "}},
+			{PcOpen: &kbf.PcOpenRun{
 				ID: "1", Type: "jsx:element", SubType: "span",
 				Data:  `<span className="muted">`,
 				Equiv: "muted", Disp: "span",
 			}},
-			{Text: &klf.TextRun{Text: "("}},
-			{Ph: &klf.PlaceholderRun{
+			{Text: &kbf.TextRun{Text: "("}},
+			{Ph: &kbf.PlaceholderRun{
 				ID: "2", Type: "jsx:var", SubType: "number",
 				Data: "{count}", Equiv: "count", Disp: "count",
 			}},
-			{Text: &klf.TextRun{Text: " matched)"}},
-			{PcClose: &klf.PcCloseRun{
+			{Text: &kbf.TextRun{Text: " matched)"}},
+			{PcClose: &kbf.PcCloseRun{
 				ID: "1", Type: "jsx:element", SubType: "span",
 				Data: "</span>", Equiv: "muted",
 			}},
 		},
-		Placeholders: []klf.Placeholder{
-			{Name: "muted", Kind: klf.PlaceholderElement,
+		Placeholders: []kbf.Placeholder{
+			{Name: "muted", Kind: kbf.PlaceholderElement,
 				SourceExpr: `<span className="muted">...</span>`, JSType: "ReactNode"},
-			{Name: "count", Kind: klf.PlaceholderVariable,
+			{Name: "count", Kind: kbf.PlaceholderVariable,
 				SourceExpr: "count", JSType: "number"},
 		},
-		Properties: klf.BlockProperties{
+		Properties: kbf.BlockProperties{
 			File: "src/FilesHeading.tsx", Line: 4,
 			Component: "FilesHeading", JSXPath: "FilesHeading > h2", Element: "h2",
 		},
 	}
 }
 
-func tagChip() *klf.Block {
-	return &klf.Block{
+func tagChip() *kbf.Block {
+	return &kbf.Block{
 		ID: "tag-chip", Hash: "2GcSuQ", Translatable: true,
-		Type: klf.BlockTypeJSXElement,
-		Source: []klf.Run{
-			{Ph: &klf.PlaceholderRun{
+		Type: kbf.BlockTypeJSXElement,
+		Source: []kbf.Run{
+			{Ph: &kbf.PlaceholderRun{
 				ID: "1", Type: "jsx:node", SubType: "logical-and",
 				Data:  `index !== undefined && <span className="badge">{index}</span>`,
 				Equiv: "badge", Disp: "⟨badge⟩",
 			}},
-			{Text: &klf.TextRun{Text: " "}},
-			{Ph: &klf.PlaceholderRun{
+			{Text: &kbf.TextRun{Text: " "}},
+			{Ph: &kbf.PlaceholderRun{
 				ID: "2", Type: "jsx:var", SubType: "string",
 				Data: "{label}", Equiv: "label", Disp: "label",
 			}},
-			{Text: &klf.TextRun{Text: " "}},
-			{Ph: &klf.PlaceholderRun{
+			{Text: &kbf.TextRun{Text: " "}},
+			{Ph: &kbf.PlaceholderRun{
 				ID: "3", Type: "jsx:node", SubType: "logical-and",
 				Data:  `!deletable && <span className="required">*</span>`,
 				Equiv: "required", Disp: "⟨required⟩",
 			}},
 		},
-		Placeholders: []klf.Placeholder{
-			{Name: "badge", Kind: klf.PlaceholderNode,
+		Placeholders: []kbf.Placeholder{
+			{Name: "badge", Kind: kbf.PlaceholderNode,
 				SourceExpr: `index !== undefined && <span className="badge">{index}</span>`,
 				JSType:     "ReactNode", Optional: true},
-			{Name: "label", Kind: klf.PlaceholderVariable, SourceExpr: "label", JSType: "string"},
-			{Name: "required", Kind: klf.PlaceholderNode,
+			{Name: "label", Kind: kbf.PlaceholderVariable, SourceExpr: "label", JSType: "string"},
+			{Name: "required", Kind: kbf.PlaceholderNode,
 				SourceExpr: `!deletable && <span className="required">*</span>`,
 				JSType:     "ReactNode", Optional: true},
 		},
-		Properties: klf.BlockProperties{
+		Properties: kbf.BlockProperties{
 			File: "src/TagChip.tsx", Line: 3,
 			Component: "TagChip", JSXPath: "TagChip > span[data-tag-chip]", Element: "span",
 			LocNote: "Tag chip shown in the sidebar list of filters.",
@@ -301,31 +301,31 @@ func tagChip() *klf.Block {
 	}
 }
 
-func shoppingCart() *klf.Block {
-	return &klf.Block{
+func shoppingCart() *kbf.Block {
+	return &kbf.Block{
 		ID: "shopping-cart-plural", Hash: "9QpZ11", Translatable: true,
-		Type: klf.BlockTypeJSXElement,
-		Source: []klf.Run{
-			{Plural: &klf.PluralRun{
+		Type: kbf.BlockTypeJSXElement,
+		Source: []kbf.Run{
+			{Plural: &kbf.PluralRun{
 				Pivot: "count",
-				Forms: map[klf.PluralForm][]klf.Run{
-					klf.PluralZero: {{Text: &klf.TextRun{Text: "Your cart is empty"}}},
-					klf.PluralOne:  {{Text: &klf.TextRun{Text: "1 item in your cart"}}},
-					klf.PluralOther: {
-						{Ph: &klf.PlaceholderRun{
+				Forms: map[kbf.PluralForm][]kbf.Run{
+					kbf.PluralZero: {{Text: &kbf.TextRun{Text: "Your cart is empty"}}},
+					kbf.PluralOne:  {{Text: &kbf.TextRun{Text: "1 item in your cart"}}},
+					kbf.PluralOther: {
+						{Ph: &kbf.PlaceholderRun{
 							ID: "1", Type: "jsx:var", SubType: "number",
 							Data: "{count}", Equiv: "count", Disp: "count",
 						}},
-						{Text: &klf.TextRun{Text: " items in your cart"}},
+						{Text: &kbf.TextRun{Text: " items in your cart"}},
 					},
 				},
 			}},
 		},
-		Placeholders: []klf.Placeholder{
-			{Name: "count", Kind: klf.PlaceholderICUPivot,
+		Placeholders: []kbf.Placeholder{
+			{Name: "count", Kind: kbf.PlaceholderICUPivot,
 				SourceExpr: "items", JSType: "number"},
 		},
-		Properties: klf.BlockProperties{
+		Properties: kbf.BlockProperties{
 			File: "src/ShoppingCart.tsx", Line: 4,
 			Component: "ShoppingCart", JSXPath: "ShoppingCart > p > Plural", Element: "Plural",
 		},

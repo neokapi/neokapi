@@ -95,7 +95,7 @@ This is in-*Bowrain*-editor, not in-native-editor, but it is the platform's embe
 
 ## 7. Docs lab explorers (`packages/kapi-lab/`, `web/src/`) (HEAD)
 
-Teaching/sandbox surfaces running the real engine in WASM (`kapi/cmd/kapi-wasm-cli/lab.go`); read-only or sandbox-edit, not integrations into third-party editors: `AnatomyExplorer`, `PipelineExplorer`, `ToolLab`, `RoundTripExplorer`, `FlowBuilderRunner`, `FlowTracePlayer`, `KlfExplorer`/`KlfConformance`, `WorkspaceExplorer`, `ProjectExplorer`, `ScriptLab` (+`ScriptCodeEditor` — a code editor for kapi scripts, not content) — exports in `packages/kapi-lab/src/index.ts:11-52`. **`@neokapi/i18n-react` is NOT an editor embed** — it is build-time i18n for React JSX extracting KLF (`packages/i18n-react/package.json:5`).
+Teaching/sandbox surfaces running the real engine in WASM (`kapi/cmd/kapi-wasm-cli/lab.go`); read-only or sandbox-edit, not integrations into third-party editors: `AnatomyExplorer`, `PipelineExplorer`, `ToolLab`, `RoundTripExplorer`, `FlowBuilderRunner`, `FlowTracePlayer`, `KbfExplorer`/`KbfConformance`, `WorkspaceExplorer`, `ProjectExplorer`, `ScriptLab` (+`ScriptCodeEditor` — a code editor for kapi scripts, not content) — exports in `packages/kapi-lab/src/index.ts:11-52`. **`@neokapi/i18n-react` is NOT an editor embed** — it is build-time i18n for React JSX extracting KBF (`packages/i18n-react/package.json:5`).
 
 ---
 

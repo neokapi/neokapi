@@ -33,10 +33,10 @@ func TestRegisterBuiltinsFrameworkPresets(t *testing.T) {
 	}
 }
 
-func TestNeokapiI18nPresetUsesKLF(t *testing.T) {
+func TestNeokapiI18nPresetUsesKBF(t *testing.T) {
 	p := neokapiI18nPreset()
-	if p.Mappings[0].Format != "klf" {
-		t.Errorf("neokapi-i18n should extract to klf, got %q", p.Mappings[0].Format)
+	if p.Mappings[0].Format != "kbf" {
+		t.Errorf("neokapi-i18n should extract to kbf, got %q", p.Mappings[0].Format)
 	}
 	if p.Detect[0] != "package.json:@neokapi/i18n-react" {
 		t.Errorf("neokapi-i18n detect = %q", p.Detect[0])
@@ -50,17 +50,17 @@ func TestNeokapiI18nPresetUsesKLF(t *testing.T) {
 func TestNeokapiI18nPresetCleanNestedLayout(t *testing.T) {
 	p := neokapiI18nPreset()
 	m := p.Mappings[0]
-	if m.Local != "i18n/src/**/*.klf" {
-		t.Errorf("source glob = %q, want i18n/src/**/*.klf", m.Local)
+	if m.Local != "i18n/src/**/*.kbf" {
+		t.Errorf("source glob = %q, want i18n/src/**/*.kbf", m.Local)
 	}
-	if m.TargetPath != "i18n/{lang}/{path}.klf" {
-		t.Errorf("target template = %q, want i18n/{lang}/{path}.klf", m.TargetPath)
+	if m.TargetPath != "i18n/{lang}/{path}.kbf" {
+		t.Errorf("target template = %q, want i18n/{lang}/{path}.kbf", m.TargetPath)
 	}
 	if p.BrandVoiceProfile != "i18n/brand-voice.yaml" {
 		t.Errorf("brand voice profile = %q, want i18n/brand-voice.yaml", p.BrandVoiceProfile)
 	}
-	if p.TermbaseSource != "i18n/termbase.klftb" {
-		t.Errorf("termbase source = %q, want i18n/termbase.klftb", p.TermbaseSource)
+	if p.TermbaseSource != "i18n/termbase.ktb" {
+		t.Errorf("termbase source = %q, want i18n/termbase.ktb", p.TermbaseSource)
 	}
 }
 

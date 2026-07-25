@@ -233,7 +233,7 @@ the ports it provides as a source or accepts as a sink.
 | Binding | As source: provides | As sink: accepts |
 | --- | --- | --- |
 | `file` | `source` content (one locale, or bilingual for interchange) | requires materializable `target` |
-| `store` / `klz` | existing `source` + any persisted overlays (segmentation, terms, …) | accepts any port (commits overlays) |
+| `store` / `kpz` | existing `source` + any persisted overlays (segmentation, terms, …) | accepts any port (commits overlays) |
 | `import` / `export` | `source` + `target` + `segmentation` + `alignment` (AD-017) | emits interchange; requires `target` |
 | `none` | — | accepts anything (discards) |
 

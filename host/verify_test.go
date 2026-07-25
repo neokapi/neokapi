@@ -9,7 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/termbase"
-	"github.com/neokapi/neokapi/termbase/klftb"
+	"github.com/neokapi/neokapi/termbase/ktb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -265,7 +265,7 @@ func TestVerify_GateSelection(t *testing.T) {
 }
 
 // writeTermbaseSourceProject creates a project that binds a committed
-// termbase_source (a .klftb) but NO compiled .kapi/termbase.db, so the check
+// termbase_source (a .ktb) but NO compiled .kapi/termbase.db, so the check
 // path must resolve the glossary straight from the source. The termbase carries
 // two concepts: a do-not-translate brand term (KapiMart, identical in en/fr) and
 // a translated term (Save -> Enregistrer). The fr target keeps the brand term
@@ -283,7 +283,7 @@ name: verifysrc
 defaults:
   source_language: en
   target_languages: [fr]
-  termbase_source: l10n/termbase.klftb
+  termbase_source: l10n/termbase.ktb
 content:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
@@ -304,7 +304,7 @@ content:
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "fr", "app.json"), []byte(target), 0o644))
 
-	file := klftb.FromConcepts([]termbase.Concept{
+	file := ktb.FromConcepts([]termbase.Concept{
 		{
 			ID: "brand",
 			Terms: []termbase.Term{
@@ -320,9 +320,9 @@ content:
 			},
 		},
 	})
-	data, err := klftb.Marshal(file)
+	data, err := ktb.Marshal(file)
 	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(filepath.Join(root, "l10n", "termbase.klftb"), data, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "l10n", "termbase.ktb"), data, 0o644))
 
 	// Assert the fallback path is the one under test: no compiled db exists.
 	_, statErr := os.Stat(filepath.Join(root, ".kapi", "termbase.db"))
@@ -332,7 +332,7 @@ content:
 }
 
 // TestVerify_GlossaryFromTermbaseSource asserts the terminology gate resolves
-// the project glossary directly from the committed termbase_source (.klftb) when
+// the project glossary directly from the committed termbase_source (.ktb) when
 // the compiled .kapi/termbase.db is absent — the common case at check time in
 // CI. The gate must run and fail on the mistranslated "Save".
 func TestVerify_GlossaryFromTermbaseSource(t *testing.T) {
@@ -348,7 +348,7 @@ func TestVerify_GlossaryFromTermbaseSource(t *testing.T) {
 	assert.False(t, terms.Pass, "terminology gate must fail on Save -> Sauvegarder")
 	require.NotEmpty(t, terms.Findings)
 	assert.Contains(t, terms.Findings[0].Message, "Enregistrer",
-		"the finding must name the preferred term resolved from the .klftb source")
+		"the finding must name the preferred term resolved from the .ktb source")
 }
 
 // TestVerify_DoNotTranslateNotFlagged asserts that a do-not-translate glossary

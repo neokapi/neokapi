@@ -11,17 +11,17 @@ import (
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
-// AllKLF returns true when every positional input path carries the
-// `.klf` extension. Used to decide whether a tool run defaults to
-// in-place output (the KLF writer is locale-additive — accumulates
+// AllKBF returns true when every positional input path carries the
+// `.kbf` extension. Used to decide whether a tool run defaults to
+// in-place output (the KBF writer is locale-additive — accumulates
 // target translations on each block) or the sibling `./out/...`
 // template (every other format).
-func AllKLF(paths []string) bool {
+func AllKBF(paths []string) bool {
 	if len(paths) == 0 {
 		return false
 	}
 	for _, p := range paths {
-		if !strings.EqualFold(filepath.Ext(p), ".klf") {
+		if !strings.EqualFold(filepath.Ext(p), ".kbf") {
 			return false
 		}
 	}

@@ -8,7 +8,7 @@ on:
       - "web/**"
       - "packages/docs-shared/**"
       - "packages/reference-data/**"
-      # The docs site bundles these packages (the Lab + KLF Lab/Tests + the
+      # The docs site bundles these packages (the Lab + KBF Lab/Tests + the
       # playground), so a change to them must rebuild and redeploy the site.
       - "packages/kapi-lab/**"
       - "packages/kapi-format/**"

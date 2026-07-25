@@ -10,7 +10,7 @@ import "./diagram.css";
 
       <PhaseFlow nodes={[
         { label: "Your source code" },
-        { label: "i18n/", sub: "KLF archive", edge: "neokapi-i18n extract",
+        { label: "i18n/", sub: "KBF archive", edge: "neokapi-i18n extract",
           loop: ["kapi translate / pseudo / qa", "accumulate locales in place"] },
         { label: "public/translations/{locale}.json", edge: "neokapi-i18n compile" },
       ]} />

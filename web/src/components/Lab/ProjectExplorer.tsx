@@ -4,7 +4,7 @@ import { useKapiPlaygroundConfig } from "../KapiPlayground/config";
 
 // Docusaurus adapter for the @neokapi/kapi-lab ProjectExplorer — the live
 // .kapi project lab (recipe + run a declared flow, contrasted with the
-// single-file .klz workspace). Client-only and code-split.
+// single-file .kpz workspace). Client-only and code-split.
 
 const Loading = (): React.ReactElement => (
   <div

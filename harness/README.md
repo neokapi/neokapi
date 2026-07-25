@@ -109,7 +109,7 @@ captions (and title/subtitle) onto the English master by scene `id`; sidecar
 entries still identical to the English text are TM misses (pending
 translation) and simply fall back to English. Never hand-edit a sidecar or
 author an inline `locales:` block (the loader rejects it) — corrections go
-into the TM seed `l10n/tm/demo-narration-<lang>.klftm`, then regenerate.
+into the TM seed `l10n/tm/demo-narration-<lang>.kmb`, then regenerate.
 Freshness is CI-gated by `make l10n-verify`.
 
 Scenes without a translated override fall back to English — except for

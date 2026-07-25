@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/neokapi/neokapi/core/format"
-	"github.com/neokapi/neokapi/core/klf"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -102,11 +102,11 @@ func (s *formatReaderStore) load(ctx context.Context) {
 
 // blockKey returns the model.Block ID as the addressing key. Format
 // readers populate ID with whatever deterministic identifier their
-// wire format carries (klf.Document.Blocks[].id, xliff trans-unit
+// wire format carries (kbf.Document.Blocks[].id, xliff trans-unit
 // id, etc.). When no ID is present the block is skipped.
 func blockKey(b *model.Block) string { return b.ID }
 
-// liftBlock converts a model.Block into the klf.Block shape the
+// liftBlock converts a model.Block into the kbf.Block shape the
 // BlockStore exposes. Only the fields the session's readers care
 // about are copied; the rest of model.Block's rich state stays on
 // the original reader output. ID doubles as Hash — callers address
@@ -218,5 +218,5 @@ func (s *formatReaderSession) Close() error {
 	return nil
 }
 
-// Silence unused-import when klf is only transitively used via Block.
-var _ = klf.SchemaVersion
+// Silence unused-import when kbf is only transitively used via Block.
+var _ = kbf.SchemaVersion

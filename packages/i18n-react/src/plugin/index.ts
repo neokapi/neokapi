@@ -34,7 +34,7 @@ const MANIFEST_FILENAME = "translations-manifest.json";
  * build is self-sufficient: stamps + this file → `initKapiReviewHosted`
  * works with no dev server and no app i18n runtime (AD-035). Richer
  * manifests (all locales, term/QA annotations) still come from
- * `neokapi-i18n compile --review`, which reads the whole KLF tree.
+ * `neokapi-i18n compile --review`, which reads the whole KBF tree.
  */
 const REVIEW_FILENAME = "translations/review.json";
 
@@ -143,7 +143,7 @@ export const unpluginFactory = (rawOptions: PluginOptions = {}) => {
       async configureServer(server: any) {
         if (!reviewEnabled(options)) return;
         const { ReviewStore, handleReviewRequest } = await import("../review/store.ts");
-        const store = new ReviewStore(options.reviewKlfDir ?? "i18n");
+        const store = new ReviewStore(options.reviewKbfDir ?? "i18n");
         const base = "/__kapi/review";
         server.middlewares.use(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

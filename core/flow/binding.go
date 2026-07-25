@@ -7,7 +7,7 @@
 // (tm:, termbase:, srx: in resolve.go):
 //
 //	file       a DataFormat reader/writer over file bytes (the default)
-//	store/klz  a persistent block store — the project store or a .klz workspace
+//	store/kpz  a persistent block store — the project store or a .kpz workspace
 //	xliff/po/tmx/tbx   an interchange file (bilingual round-trip or asset exchange)
 //	none       discard (sink only — analysis / checks)
 //
@@ -30,10 +30,10 @@ const (
 	// BindingFile reads/writes file bytes through a DataFormat reader/writer.
 	BindingFile BindingKind = "file"
 	// BindingStore reads/commits blocks + overlays in a persistent block store
-	// (the project store or a .klz workspace).
+	// (the project store or a .kpz workspace).
 	BindingStore BindingKind = "store"
 	// BindingInterchange imports from / exports to an interchange file
-	// (bilingual .klz, XLIFF, PO, TMX, TBX).
+	// (bilingual .kpz, XLIFF, PO, TMX, TBX).
 	BindingInterchange BindingKind = "interchange"
 	// BindingNone discards output (a sink that materializes nothing).
 	BindingNone BindingKind = "none"
@@ -43,7 +43,7 @@ const (
 const (
 	SchemeFile  = "file"
 	SchemeStore = "store"
-	SchemeKLZ   = "klz"
+	SchemeKPZ   = "kpz"
 	SchemeXLIFF = "xliff"
 	SchemePO    = "po"
 	SchemeTMX   = "tmx"
@@ -57,7 +57,7 @@ const (
 var knownSchemes = map[string]bool{
 	SchemeFile:  true,
 	SchemeStore: true,
-	SchemeKLZ:   true,
+	SchemeKPZ:   true,
 	SchemeXLIFF: true,
 	SchemePO:    true,
 	SchemeTMX:   true,
@@ -85,7 +85,7 @@ type Locator struct {
 }
 
 // ParseLocator splits a locator into its scheme and path. A recognized
-// "scheme:" prefix is honored (the CLI locator form, e.g. "store:work.klz"); a
+// "scheme:" prefix is honored (the CLI locator form, e.g. "store:work.kpz"); a
 // bare known-scheme word with no path is that binding kind (the flow-intent
 // form, e.g. "store", "none", "xliff"); anything else is a bare path that is
 // bound by detection.
@@ -105,13 +105,13 @@ func ParseLocator(s string) Locator {
 }
 
 // Kind classifies the locator into a binding kind. An explicit scheme wins;
-// otherwise the path's extension decides (.klz → store, an interchange extension
+// otherwise the path's extension decides (.kpz → store, an interchange extension
 // → interchange, anything else → file).
 func (l Locator) Kind() BindingKind {
 	switch l.Scheme {
 	case SchemeNone:
 		return BindingNone
-	case SchemeStore, SchemeKLZ:
+	case SchemeStore, SchemeKPZ:
 		return BindingStore
 	case SchemeXLIFF, SchemePO, SchemeTMX, SchemeTBX:
 		return BindingInterchange
@@ -119,7 +119,7 @@ func (l Locator) Kind() BindingKind {
 		return BindingFile
 	}
 	switch ext := strings.ToLower(filepath.Ext(l.Path)); {
-	case ext == ".klz":
+	case ext == ".kpz":
 		return BindingStore
 	case interchangeExts[ext]:
 		return BindingInterchange
@@ -146,7 +146,7 @@ func (l Locator) Format() string {
 }
 
 // Explain renders the resolved binding for `kapi run --explain`, e.g.
-// "file(a.json)", "store(work.klz)", "interchange(hand.xliff)", or "none".
+// "file(a.json)", "store(work.kpz)", "interchange(hand.xliff)", or "none".
 func (l Locator) Explain() string {
 	k := l.Kind()
 	if k == BindingNone {

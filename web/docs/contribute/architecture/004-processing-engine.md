@@ -55,7 +55,7 @@ Content flows through a channel-based concurrent pipeline:
 Content enters through a **source** binding and leaves through a **sink** binding
 ([AD-026](026-flow-io-binding.md)). For the default `file` binding these are a
 DataFormat reader and writer ([AD-005](005-format-system.md)); a project store, a
-`.klz`, or an interchange file bind the same stream with no reader or writer.
+`.kpz`, or an interchange file bind the same stream with no reader or writer.
 Between the ends, each tool runs in its own goroutine. Buffered channels (default
 size 64) provide backpressure. `errgroup.Group` coordinates error handling across
 goroutines. Context cancellation propagates to all stages.
@@ -204,7 +204,7 @@ Each `FlowNode` has:
 - **Position** — x/y coordinates for visual layout in the flow editor
 
 > **Bindings ([AD-026](026-flow-io-binding.md)).** A flow's source and sink are
-> bindings resolved from invocation context — file, the project store, a `.klz`,
+> bindings resolved from invocation context — file, the project store, a `.kpz`,
 > interchange import/export, or none — so the same flow runs over any origin. The
 > graph is composition; a single tool is invoked directly, not wrapped in a
 > one-tool flow.
@@ -264,7 +264,7 @@ nodes+edges via `StepsToGraph()`. Both formats produce the same runnable
 executor.
 
 The steps carry only the composition. A flow's source and sink are bindings
-resolved at invocation — file, the project store, a `.klz`, interchange, or none
+resolved at invocation — file, the project store, a `.kpz`, interchange, or none
 ([AD-026: Flow I/O Binding](026-flow-io-binding.md)) — not fields of the flow
 document.
 

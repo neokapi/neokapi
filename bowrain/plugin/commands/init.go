@@ -671,7 +671,7 @@ func finishInit(cwd string, recipe *project.Recipe) (*output.InitOutput, error) 
 // regenerable contents are excluded from version control: the cache root, plus
 // the rebuildable SQLite stores (translation memory, termbase, block store) and
 // their WAL sidecars. These are derived state — rebuilt from committed source
-// (recipe, target catalogs, the .klftb/.klftm sources) — never source of truth,
+// (recipe, target catalogs, the .ktb/.kmb sources) — never source of truth,
 // so they stay out of git. Committed state (manifest.yaml, flows/) is not
 // matched by these patterns.
 func writeStateGitignore(proj *project.Project) error {

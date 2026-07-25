@@ -268,7 +268,7 @@ A common pattern is to inline the primary locale at build time (so the default m
 neokapi({ mode: "inline", locale: "en" });
 
 // Secondary locales still get an OTA dict loaded via loadTranslations
-// when the user switches, compiled from the same KLF directory.
+// when the user switches, compiled from the same KBF directory.
 ```
 
 Mixing modes within a single build is not supported — you pick one per deploy.
@@ -286,7 +286,7 @@ Mixing modes within a single build is not supported — you pick one per deploy.
 
 ## What doesn't change between modes
 
-- The extractor (`neokapi-i18n extract`) produces the same `.klf` regardless of mode.
+- The extractor (`neokapi-i18n extract`) produces the same `.kbf` regardless of mode.
 - Hashes are mode-independent.
 - `<Plural>` / `<Select>` / `t()` all work the same in authoring.
 - Unmapped-component warnings fire identically.

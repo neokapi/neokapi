@@ -18,7 +18,7 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats"
-	"github.com/neokapi/neokapi/core/klf"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
@@ -110,7 +110,7 @@ func TestFileRunner_BufferedOutputFlushesFully(t *testing.T) {
 	assert.NotEqual(t, "Value number 0 here", got["key00000"], "value should be pseudo-translated")
 }
 
-// TestFileRunner_EmitOnCloseWriterFlushes covers writers (like the KLF
+// TestFileRunner_EmitOnCloseWriterFlushes covers writers (like the KBF
 // jsx writer) that emit their entire payload in Close() rather than
 // Write(). The filerunner must close the writer before flushing the
 // output buffer, otherwise the file would be empty.
@@ -189,28 +189,28 @@ func TestFileRunner_EmitOnCloseWriterFlushes(t *testing.T) {
 	formats.RegisterAll(reg)
 
 	dir := t.TempDir()
-	inputPath := filepath.Join(dir, "input.klf")
-	klfFile := &klf.File{
-		SchemaVersion: klf.SchemaVersion,
-		Kind:          klf.Kind,
-		Generator:     klf.GeneratorInfo{ID: "test", Version: "0"},
-		Project:       klf.ProjectInfo{ID: "p", SourceLocale: "en-US"},
-		Documents: []klf.Document{{
+	inputPath := filepath.Join(dir, "input.kbf")
+	kbfFile := &kbf.File{
+		SchemaVersion: kbf.SchemaVersion,
+		Kind:          kbf.Kind,
+		Generator:     kbf.GeneratorInfo{ID: "test", Version: "0"},
+		Project:       kbf.ProjectInfo{ID: "p", SourceLocale: "en-US"},
+		Documents: []kbf.Document{{
 			ID:           "doc1",
-			DocumentType: klf.DocumentTypeJSX,
+			DocumentType: kbf.DocumentTypeJSX,
 			Path:         "a.json",
-			Blocks: []klf.Block{{
+			Blocks: []kbf.Block{{
 				ID:           "b1",
 				Translatable: true,
-				Source:       []klf.Run{{Text: &klf.TextRun{Text: "Hello World"}}},
+				Source:       []kbf.Run{{Text: &kbf.TextRun{Text: "Hello World"}}},
 			}},
 		}},
 	}
-	klfBytes, err := klf.Marshal(klfFile)
+	kbfBytes, err := kbf.Marshal(kbfFile)
 	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(inputPath, klfBytes, 0o644))
+	require.NoError(t, os.WriteFile(inputPath, kbfBytes, 0o644))
 
-	outputPath := filepath.Join(dir, "out", "input.klf")
+	outputPath := filepath.Join(dir, "out", "input.kbf")
 
 	pseudoTool, err := tools.NewPseudoTranslateFromConfig(map[string]any{
 		"target_locale": "qps",
@@ -227,7 +227,7 @@ func TestFileRunner_EmitOnCloseWriterFlushes(t *testing.T) {
 	output, err := os.ReadFile(outputPath)
 	require.NoError(t, err)
 	assert.NotEmpty(t, output, "emit-on-Close writer output must be flushed, not truncated to empty")
-	assert.Contains(t, string(output), "documents", "KLF payload must be present in the flushed file")
+	assert.Contains(t, string(output), "documents", "KBF payload must be present in the flushed file")
 }
 
 // TestFileRunner_RunFileProcessOnly_CommitsOverlaysNoFile verifies the

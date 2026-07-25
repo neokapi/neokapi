@@ -40,16 +40,16 @@ describe("buildReviewManifest", () => {
     const dir = tempDir("review");
     // Source catalog: source only, carries the properties.
     mkdirSync(join(dir, "i18n"), { recursive: true });
-    writeFileSync(join(dir, "i18n", "App.klf"), marshalFile(fileWith(block())));
+    writeFileSync(join(dir, "i18n", "App.kbf"), marshalFile(fileWith(block())));
     // Two locale trees, each with just its own target.
     mkdirSync(join(dir, "i18n-de"), { recursive: true });
     writeFileSync(
-      join(dir, "i18n-de", "App.klf"),
+      join(dir, "i18n-de", "App.kbf"),
       marshalFile(fileWith(block({ targets: { de: [{ text: "Willkommen" }] } }))),
     );
     mkdirSync(join(dir, "i18n-fr"), { recursive: true });
     writeFileSync(
-      join(dir, "i18n-fr", "App.klf"),
+      join(dir, "i18n-fr", "App.kbf"),
       marshalFile(fileWith(block({ targets: { fr: [{ text: "Bienvenue" }] } }))),
     );
 
@@ -67,12 +67,12 @@ describe("buildReviewManifest", () => {
     });
   });
 
-  it("attaches .klfl term/QA annotations to the matching block", () => {
+  it("attaches .overlays.jsonl term/QA annotations to the matching block", () => {
     const dir = tempDir("review-ann");
     mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, "App.klf"), marshalFile(fileWith(block())));
+    writeFileSync(join(dir, "App.kbf"), marshalFile(fileWith(block())));
     // A stand-off annotation file referencing the block hash.
-    const klfl =
+    const kbfl =
       JSON.stringify({ type: "header", annotationType: "kapi/term" }) +
       "\n" +
       JSON.stringify({
@@ -82,7 +82,7 @@ describe("buildReviewManifest", () => {
         data: { term: "Welcome", message: "keep on brand" },
       }) +
       "\n";
-    writeFileSync(join(dir, "App.klfl"), klfl);
+    writeFileSync(join(dir, "App.overlays.jsonl"), kbfl);
 
     const manifest = buildReviewManifest([dir]);
     expect(manifest["h-welcome"].annotations).toEqual([{ type: "term", summary: "keep on brand" }]);
@@ -94,10 +94,10 @@ describe("runCompile --review", () => {
     const dir = tempDir("compile-review");
     const outDir = join(dir, "out");
     mkdirSync(join(dir, "i18n"), { recursive: true });
-    writeFileSync(join(dir, "i18n", "App.klf"), marshalFile(fileWith(block())));
+    writeFileSync(join(dir, "i18n", "App.kbf"), marshalFile(fileWith(block())));
     mkdirSync(join(dir, "i18n-de"), { recursive: true });
     writeFileSync(
-      join(dir, "i18n-de", "App.klf"),
+      join(dir, "i18n-de", "App.kbf"),
       marshalFile(fileWith(block({ targets: { de: [{ text: "Willkommen" }] } }))),
     );
 

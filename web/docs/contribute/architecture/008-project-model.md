@@ -42,10 +42,10 @@ The project folder is the **day-to-day working unit** and the default unit users
 share, back up, and commit — discovered by a git-style upward walk, never named
 on a command. Sharing a project usually means sharing the folder (via `git`). When
 a folder cannot travel — emailing a translator, an archive, an air-gapped transfer
-— the single-file `.klz` *parcel* carries the same state losslessly
-([AD-025](025-klf-package.md) §7), and a task-scoped *bilingual* `.klz` is what
+— the single-file `.kpz` *parcel* carries the same state losslessly
+([AD-025](025-kbf-package.md) §7), and a task-scoped *bilingual* `.kpz` is what
 goes to a translator or reviewer ([AD-017](017-bilingual-format-interop.md)). The
-`.klz` is a parcel for boundaries, not a competing working model: you open it into
+`.kpz` is a parcel for boundaries, not a competing working model: you open it into
 a project, work in the folder, and pack to ship.
 
 ## Decision

@@ -1,13 +1,13 @@
 ---
 sidebar_position: 9
 title: Translating neokapi-i18n Projects with kapi
-description: How to use the kapi CLI to translate a neokapi-i18n KLF archive — pseudo-translation for QA, AI translation with Claude or GPT-4, and review and QA flows that write results back to the archive in place.
-keywords: [kapi, translate, KLF, pseudo-translate, AI translation, neokapi-i18n, localization workflow]
+description: How to use the kapi CLI to translate a neokapi-i18n KBF archive — pseudo-translation for QA, AI translation with Claude or GPT-4, and review and QA flows that write results back to the archive in place.
+keywords: [kapi, translate, KBF, pseudo-translate, AI translation, neokapi-i18n, localization workflow]
 ---
 
 # Translating with `kapi`
 
-`neokapi-i18n` produces a KLF directory archive. The `kapi` CLI translates it. This page walks through the three most useful flows.
+`neokapi-i18n` produces a KBF directory archive. The `kapi` CLI translates it. This page walks through the three most useful flows.
 
 ## Pseudo-translation for UI QA
 
@@ -17,7 +17,7 @@ Pseudo-translation is the fastest way to see what's been picked up for translati
 kapi pseudo-translate i18n/
 ```
 
-No `-o` — the default for KLF inputs is in-place: the `qps` target is added to the same archive. Run again with `--target-lang fr` to add another locale; the writer is locale-additive and existing targets stay put.
+No `-o` — the default for KBF inputs is in-place: the `qps` target is added to the same archive. Run again with `--target-lang fr` to add another locale; the writer is locale-additive and existing targets stay put.
 
 Source `Welcome to Acme` becomes `[Ŵéḷçőḿé tő Âçmé]`:
 
@@ -46,7 +46,7 @@ Add it to CI as a UI-layout smoke test:
 
 ## AI translation
 
-For actual translations, `kapi translate` feeds the KLF directory through an LLM. It preserves placeholders, inline element tokens, and plural / select structure:
+For actual translations, `kapi translate` feeds the KBF directory through an LLM. It preserves placeholders, inline element tokens, and plural / select structure:
 
 ```bash
 kapi translate i18n/ --target-lang fr
@@ -68,7 +68,7 @@ See [Translation](/framework/translation) for the full provider and configuratio
 
 ### Context carries through
 
-Every block in the KLF directory carries its element (`"button"`, `"p"`, …), its file and line, its component name, and any `data-i18n-note` annotation. The AI translator gets that context as part of the prompt — so a `<button>Close</button>` gets a different translation than an `<a>Close</a>` in a list-item's delete action.
+Every block in the KBF directory carries its element (`"button"`, `"p"`, …), its file and line, its component name, and any `data-i18n-note` annotation. The AI translator gets that context as part of the prompt — so a `<button>Close</button>` gets a different translation than an `<a>Close</a>` in a list-item's delete action.
 
 Where the element alone isn't enough to disambiguate — two buttons both reading "Open", one a verb and one a state — add the note explicitly with `data-i18n-note` or `t(text, context)`. That note is part of the key, so the two strings separate for the translator and stay separate.
 
@@ -171,18 +171,18 @@ defaults:
   # Brand vocabulary and voice are git-tracked sources under i18n/.
   brand_voice:
     profile_file: i18n/brand-voice.yaml
-  termbase_source: i18n/termbase.klftb
+  termbase_source: i18n/termbase.ktb
 content:
-  - path: "i18n/src/**/*.klf"
-    format: klf
-    target: "i18n/{lang}/{path}.klf"
+  - path: "i18n/src/**/*.kbf"
+    format: kbf
+    target: "i18n/{lang}/{path}.kbf"
 ```
 
 ```
 i18n/
-├── src/               source KLF catalogs (from `neokapi-i18n extract`)
+├── src/               source KBF catalogs (from `neokapi-i18n extract`)
 ├── de/ fr/ ja/ nb/    per-locale targets (from kapi)
-├── termbase.klftb     brand vocabulary (git source)
+├── termbase.ktb     brand vocabulary (git source)
 └── brand-voice.yaml   brand voice profile (git source)
 ```
 
@@ -206,7 +206,7 @@ in the recipe (for example `recycle` → `translate` → `qa`), then:
 
 The same flows run from your AI assistant. With the [kapi MCP server](/reference/mcp)
 connected, point Claude at your extracted strings and ask it to translate and check
-them — it calls `kapi` to translate the KLF archive, runs the QA checks, and fixes
+them — it calls `kapi` to translate the KBF archive, runs the QA checks, and fixes
 anything that breaks, the same author → check → revise loop you'd run by hand:
 
 > "Translate the strings in `i18n/` to French and German — keep the placeholders and

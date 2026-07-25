@@ -31,7 +31,7 @@ content enters and leaves. The default, shown above, is the **file binding**: a
 [reader](/framework/formats) turns source files of any format into a stream of
 [Parts](/framework/content-model) and a [writer](/framework/formats) turns the
 stream back into files, byte-for-byte. The same flow can instead bind to the project
-store, a `.klz` workspace, or an interchange file — with no reader or writer
+store, a `.kpz` workspace, or an interchange file — with no reader or writer
 ([flows: source and sink](/framework/flows#source-and-sink-the-flows-ends)).
 Between the edges runs a [flow](/framework/flows): a serial chain of
 [tools](/framework/tools) connected by buffered channels of Parts. The tools divide by capability — **annotators** attach stand-off

@@ -11,7 +11,7 @@ fetched at runtime rather than needed to render a page:
 
 | Family | Approx. size | Where it's used |
 |---|---|---|
-| Playground WASM (`kapi-cli.wasm` + `.gz`, `kapi.wasm`, `pdfium.wasm`, `wasm_exec.js`) | ~125 MB | The Lab / KLF playground, PDF Lab |
+| Playground WASM (`kapi-cli.wasm` + `.gz`, `kapi.wasm`, `pdfium.wasm`, `wasm_exec.js`) | ~125 MB | The Lab / KBF playground, PDF Lab |
 | Vision ONNX models (PP-OCRv5 + PP-DocLayoutV3) | ~155 MB | The Vision Lab |
 | Walkthrough videos (`.webm` light/dark + `.jpg` posters) | ~85 MB kapi / ~55 MB bowrain | `ThemedVideo` embeds |
 

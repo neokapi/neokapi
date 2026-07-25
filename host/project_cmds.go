@@ -31,7 +31,7 @@ func PrintPresetList(cmd Command) error {
 
 // FrameworkContent resolves a framework preset's catalog mappings into scaffold
 // content entries. Returns nil for an empty framework. The neokapi-i18n stack
-// scaffolds the clean nested layout — source KLF catalogs under i18n/src/,
+// scaffolds the clean nested layout — source KBF catalogs under i18n/src/,
 // per-locale targets under i18n/{lang}/ — the same mapping the preset carries.
 func FrameworkContent(framework string) ([]scaffoldContent, error) {
 	if framework == "" {

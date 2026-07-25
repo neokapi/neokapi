@@ -1,0 +1,151 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-localization-format",
+  "generator": {
+    "id": "neokapi",
+    "version": "1.0"
+  },
+  "project": {
+    "id": "neokapi-output",
+    "sourceLocale": "en"
+  },
+  "documents": [
+    {
+      "id": "src/components/UnsavedDialog.tsx",
+      "documentType": "jsx",
+      "path": "src/components/UnsavedDialog.tsx",
+      "blocks": [
+        {
+          "id": "src/components/UnsavedDialog.tsx:27:0",
+          "hash": "1aexYywfYh6",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "Unsaved Changes"
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "Ulagrede endringer"
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/UnsavedDialog.tsx",
+            "line": 27,
+            "component": "UnsavedDialog",
+            "jsxPath": "h2",
+            "element": "DialogTitle"
+          }
+        },
+        {
+          "id": "src/components/UnsavedDialog.tsx:28:1",
+          "hash": "hxlefrVlpyR",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "Do you want to save changes before closing?"
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "Vil du lagre endringene før du lukker?"
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/UnsavedDialog.tsx",
+            "line": 28,
+            "component": "UnsavedDialog",
+            "jsxPath": "p",
+            "element": "DialogDescription"
+          }
+        },
+        {
+          "id": "src/components/UnsavedDialog.tsx:31:2",
+          "hash": "a2IV8G5PNUA",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "Don't Save"
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "Ikke lagre"
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/UnsavedDialog.tsx",
+            "line": 31,
+            "component": "UnsavedDialog",
+            "jsxPath": "button",
+            "element": "Button"
+          }
+        },
+        {
+          "id": "src/components/UnsavedDialog.tsx:34:3",
+          "hash": "hVp3F6mmOo9",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "Cancel"
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "Avbryt"
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/UnsavedDialog.tsx",
+            "line": 34,
+            "component": "UnsavedDialog",
+            "jsxPath": "button",
+            "element": "Button"
+          }
+        },
+        {
+          "id": "src/components/UnsavedDialog.tsx:37:4",
+          "hash": "71rdpbpBoz4",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "Save"
+            }
+          ],
+          "targets": {
+            "nb": [
+              {
+                "text": "Lagre"
+              }
+            ]
+          },
+          "placeholders": null,
+          "properties": {
+            "file": "src/components/UnsavedDialog.tsx",
+            "line": 37,
+            "component": "UnsavedDialog",
+            "jsxPath": "button",
+            "element": "Button"
+          }
+        }
+      ]
+    }
+  ]
+}

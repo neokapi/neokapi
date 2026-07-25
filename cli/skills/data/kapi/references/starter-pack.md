@@ -96,10 +96,10 @@ content:
 Materialize the terminology seed, now that the project exists:
 
 ```bash
-# preferred: term entries — maintains the committed l10n/termbase.klftb source
+# preferred: term entries — maintains the committed l10n/termbase.ktb source
 # and compiles the .kapi/termbase.db cache in one verb
 kapi apply terms.jsonl
-# bulk path for a handed-over glossary file (csv, tsv, json, tbx, klftb):
+# bulk path for a handed-over glossary file (csv, tsv, json, tbx, ktb):
 kapi termbase import glossary.csv -s en -t fr --header
 kapi termbase import vocab.csv -s en --monolingual --header
 ```

@@ -64,12 +64,12 @@ function translatedFile(): File {
 describe("runCompile", () => {
   it("emits one JSON per locale with hash→flattened-text entries", async () => {
     const dir = tempDir("compile");
-    const klfDir = join(dir, "i18n");
+    const kbfDir = join(dir, "i18n");
     const outDir = join(dir, "out");
-    mkdirSync(klfDir, { recursive: true });
-    writeFileSync(join(klfDir, "App.klf"), marshalFile(translatedFile()));
+    mkdirSync(kbfDir, { recursive: true });
+    writeFileSync(join(kbfDir, "App.kbf"), marshalFile(translatedFile()));
 
-    await runCompile([klfDir, "--out", outDir]);
+    await runCompile([kbfDir, "--out", outDir]);
 
     const written = readdirSync(outDir).sort();
     expect(written).toEqual(["de.json", "qps.json"]);
@@ -83,24 +83,24 @@ describe("runCompile", () => {
 
   it("honors --locale filter", async () => {
     const dir = tempDir("compile");
-    const klfDir = join(dir, "i18n");
+    const kbfDir = join(dir, "i18n");
     const outDir = join(dir, "out");
-    mkdirSync(klfDir, { recursive: true });
-    writeFileSync(join(klfDir, "App.klf"), marshalFile(translatedFile()));
+    mkdirSync(kbfDir, { recursive: true });
+    writeFileSync(join(kbfDir, "App.kbf"), marshalFile(translatedFile()));
 
-    await runCompile([klfDir, "--locale", "qps", "--out", outDir]);
+    await runCompile([kbfDir, "--locale", "qps", "--out", outDir]);
 
     const written = readdirSync(outDir);
     expect(written).toEqual(["qps.json"]);
   });
 
-  it("compiles from a single .klf file", async () => {
+  it("compiles from a single .kbf file", async () => {
     const dir = tempDir("compile-single");
-    const klfPath = join(dir, "App.klf");
+    const kbfPath = join(dir, "App.kbf");
     const outDir = join(dir, "out");
-    writeFileSync(klfPath, marshalFile(translatedFile()));
+    writeFileSync(kbfPath, marshalFile(translatedFile()));
 
-    await runCompile([klfPath, "--out", outDir]);
+    await runCompile([kbfPath, "--out", outDir]);
 
     const written = readdirSync(outDir).sort();
     expect(written).toEqual(["de.json", "qps.json"]);

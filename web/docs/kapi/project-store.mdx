@@ -70,7 +70,7 @@ it **pushes** its state to a remote (`kapi push`) and **pulls** it back
 
 ## What the store is *not*
 
-- It is **not** the translation memory. The `.klftm` (`defaults.tm_source`) is a
+- It is **not** the translation memory. The `.kmb` (`defaults.tm_source`) is a
   **recycle** corpus — `kapi apply` with `kind:"tm"` adds leverage for future
   translation; it does **not** record a review decision. Review state lives in the
   state store. See [TM & termbase storage](/kapi/recipes/tm-termbase-storage).

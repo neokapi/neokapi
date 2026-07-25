@@ -432,8 +432,8 @@ export class Defaults {
         if (/** @type {any} */(false)) {
             /**
              * TermbaseSource binds the committed, git-tracked native source artifact
-             * (a .klftb document) the project termbase is compiled from. This is the
-             * authored, reviewable form: `kapi apply` edits the .klftb here and then
+             * (a .ktb document) the project termbase is compiled from. This is the
+             * authored, reviewable form: `kapi apply` edits the .ktb here and then
              * re-imports it into the gitignored Termbase (.db) cache, so the SQLite
              * store is written by exactly one path and `git diff` is the review
              * surface. The path resolves relative to the project root. Empty means no
@@ -446,8 +446,8 @@ export class Defaults {
         if (/** @type {any} */(false)) {
             /**
              * TMSource binds the committed, git-tracked native source artifact (a
-             * .klftm document) the project translation memory is compiled from, the TM
-             * analogue of TermbaseSource. `kapi apply` edits the .klftm here and
+             * .kmb document) the project translation memory is compiled from, the TM
+             * analogue of TermbaseSource. `kapi apply` edits the .kmb here and
              * re-imports it into the gitignored .kapi/tm.db cache. The path resolves
              * relative to the project root. Empty means no bound TM source.
              * @member

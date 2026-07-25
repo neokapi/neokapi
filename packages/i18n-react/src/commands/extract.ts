@@ -2,7 +2,7 @@
  * neokapi-i18n extract — walk every matched JSX/TSX file and emit
  * translatable content in one of two shapes:
  *
- *   1. Default: per-file .klf JSON under --out (default `./i18n/`),
+ *   1. Default: per-file .kbf JSON under --out (default `./i18n/`),
  *      mirroring the source tree — so the default `src/**` glob lands
  *      catalogs under `i18n/src/`. Source living in `i18n/src/` (rather
  *      than flat under `i18n/`) leaves kapi free to write per-locale
@@ -93,15 +93,15 @@ export async function runExtract(args: string[], io: RunExtractIO = {}): Promise
     return;
   }
 
-  // Per-file KLF under --out. One file per source document — the
+  // Per-file KBF under --out. One file per source document — the
   // human-readable, git-diffable on-disk shape. Kapi reads these
   // directly for translation / compile / QA flows.
   mkdirSync(opts.outDir, { recursive: true });
   for (const doc of documents) {
-    const klf = buildKLF(doc, opts);
-    const path = join(opts.outDir, klfFilename(doc));
+    const kbf = buildKBF(doc, opts);
+    const path = join(opts.outDir, kbfFilename(doc));
     mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, marshalFile(klf));
+    writeFileSync(path, marshalFile(kbf));
   }
   const blockCount = documents.reduce((n, d) => n + d.blocks.length, 0);
   console.log(`Extracted ${blockCount} blocks from ${documents.length} files → ${opts.outDir}/`);
@@ -274,7 +274,7 @@ function extractAllDocuments(
   return out;
 }
 
-function buildKLF(doc: Document, opts: ExtractArgs) {
+function buildKBF(doc: Document, opts: ExtractArgs) {
   return {
     schemaVersion: "1.0" as const,
     kind: "kapi-localization-format" as const,
@@ -288,16 +288,16 @@ function buildKLF(doc: Document, opts: ExtractArgs) {
   };
 }
 
-function klfFilename(doc: Document): string {
+function kbfFilename(doc: Document): string {
   // Keep the source file's path shape inside --out so translators
   // scanning the directory see a 1:1 reflection of the source tree.
   // Workspace sources outside the project root (e.g. --src
   // "../../packages/ui/src/**/*.tsx") carry leading "../" segments
-  // that would escape --out and scatter .klf files into the library
+  // that would escape --out and scatter .kbf files into the library
   // tree; strip them so every output lands inside the --out
   // directory. doc.path itself keeps the original relative path.
   const contained = doc.path.replace(/^(\.\.\/)+/, "");
-  return contained.replace(/\.(tsx|jsx|ts|js)$/, "") + ".klf";
+  return contained.replace(/\.(tsx|jsx|ts|js)$/, "") + ".kbf";
 }
 
 function readPackageVersion(): string {
@@ -316,7 +316,7 @@ neokapi-i18n extract — scan JSX/TSX files and emit translatable blocks.
 Usage:
   neokapi-i18n extract [options]
 
-By default, writes one .klf file per source document under --out.
+By default, writes one .kbf file per source document under --out.
 Pass --stream to emit NDJSON block records to stdout for piping.
 
 Options:
@@ -326,18 +326,18 @@ Options:
                           packages, e.g. --src "src/**/*.tsx" --src
                           "../../packages/ui/src/**/*.tsx"
   --ignore <glob>         Exclude pattern (repeatable). E.g. --ignore "src/stories/**"
-  --out <dir>             Output directory for .klf files (default: "i18n").
+  --out <dir>             Output directory for .kbf files (default: "i18n").
                           Catalogs mirror the source tree, so the default
                           "src/**" glob writes them under "i18n/src/" —
                           leaving "i18n/{lang}/" free for kapi's per-locale
                           targets.
   --stream                Emit NDJSON block records on stdout instead
-                          of writing .klf files. Reads NUL-separated
+                          of writing .kbf files. Reads NUL-separated
                           paths on stdin instead of expanding --src.
   --strict                Treat any recorded warning (e.g. unknown
                           component) as an error — exits non-zero.
   --config <path>         Config file with componentMap, rules, …
-  --project <id>          Project id stamped into .klf.project (default: "app")
+  --project <id>          Project id stamped into .kbf.project (default: "app")
   --source-locale <bcp>   Manifest source locale (default: "en")
   --target-locale <bcp>   Declared target locale (repeatable, informational)
 `;

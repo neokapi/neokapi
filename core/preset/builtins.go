@@ -6,7 +6,7 @@ const sourceBuiltIn = "built-in"
 
 // NeokapiI18nPresetName is the framework preset for projects using the
 // @neokapi/i18n-react stack. The bundler plugin (`neokapi-i18n extract`) writes
-// KLF source catalogs under i18n/src/; kapi reads those and writes per-locale
+// KBF source catalogs under i18n/src/; kapi reads those and writes per-locale
 // targets under i18n/{lang}/. `kapi init --framework neokapi-i18n` scaffolds
 // that content mapping.
 const NeokapiI18nPresetName = "neokapi-i18n"
@@ -26,18 +26,18 @@ func RegisterBuiltins(reg *PresetRegistry) {
 }
 
 // neokapiI18nPreset represents a React project using the @neokapi/i18n-react
-// stack. The bundler plugin (`neokapi-i18n extract`) writes one KLF catalog per
+// stack. The bundler plugin (`neokapi-i18n extract`) writes one KBF catalog per
 // source file under i18n/src/ (mirroring the src/ tree); kapi reads those and
 // writes per-locale targets under i18n/{lang}/. Everything the stack authors
 // lives under one i18n/ directory:
 //
 //	i18n/
-//	├── src/               source KLF catalogs (bundler output)
+//	├── src/               source KBF catalogs (bundler output)
 //	├── de/ fr/ ja/ nb/    per-locale targets (kapi output)
-//	├── termbase.klftb     brand vocabulary (git source)
+//	├── termbase.ktb     brand vocabulary (git source)
 //	└── brand-voice.yaml   brand voice profile (git source)
 //
-// Source lives in i18n/src/ so the source glob (i18n/src/**/*.klf) never matches
+// Source lives in i18n/src/ so the source glob (i18n/src/**/*.kbf) never matches
 // the per-locale target dirs — the collision that otherwise forces sibling
 // i18n-<lang>/ trees. Translation memory and pseudo-locale output are
 // rebuildable state and live under .kapi/ (gitignored), never committed
@@ -45,14 +45,14 @@ func RegisterBuiltins(reg *PresetRegistry) {
 func neokapiI18nPreset() *FrameworkPreset {
 	return &FrameworkPreset{
 		Name:        NeokapiI18nPresetName,
-		Description: "React with the @neokapi/i18n-react stack (zero-wrapper, KLF extraction)",
+		Description: "React with the @neokapi/i18n-react stack (zero-wrapper, KBF extraction)",
 		Detect:      []string{"package.json:@neokapi/i18n-react"},
 		Mappings: []MappingTemplate{
-			{Local: "i18n/src/**/*.klf", Format: "klf", TargetPath: "i18n/{lang}/{path}.klf"},
+			{Local: "i18n/src/**/*.kbf", Format: "kbf", TargetPath: "i18n/{lang}/{path}.kbf"},
 		},
 		Exclude:           []string{"node_modules/**", "dist/**", "build/**"},
 		BrandVoiceProfile: "i18n/brand-voice.yaml",
-		TermbaseSource:    "i18n/termbase.klftb",
+		TermbaseSource:    "i18n/termbase.ktb",
 		Source:            sourceBuiltIn,
 	}
 }

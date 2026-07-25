@@ -10,7 +10,7 @@ import "strconv"
 // stand-off payloads, NOT as new top-level Block fields. This keeps the
 // addition strictly additive: both ride the existing payload registry
 // (annotation_registry.go), so they serialize over every annotation-aware path
-// (the gRPC bridge, the store) with no protobuf or KLF schema change. Readers
+// (the gRPC bridge, the store) with no protobuf or KBF schema change. Readers
 // populate them natively where the format carries the information (WS2); the
 // Docling/DocLang ingestion path populates them from the model's structure +
 // provenance (WS4/WS7); writers and the visual editor consume them (WS5/WS6).

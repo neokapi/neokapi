@@ -1,4 +1,4 @@
-// Workspace demo fixtures for the .klz WorkspaceExplorer / ProjectExplorer.
+// Workspace demo fixtures for the .kpz WorkspaceExplorer / ProjectExplorer.
 //
 // The sample data (JSON + Office OOXML packages + their per-sample en→fr TMX)
 // now lives in the single source of truth at

@@ -194,9 +194,9 @@ ok(
 );
 
 // WorkspaceExplorer (packages/kapi-lab/src/WorkspaceExplorer.tsx).
-const ws = await run("extract", "/project/article.md", "-o", "/project/w.klz", "--target-lang", "qps");
+const ws = await run("extract", "/project/article.md", "-o", "/project/w.kpz", "--target-lang", "qps");
 ok("WorkspaceExplorer: `extract` to a workspace exits 0", ws.code === 0, ws.out.trim());
-const info = await run("info", "/project/w.klz", "--json");
+const info = await run("info", "/project/w.kpz", "--json");
 ok("WorkspaceExplorer: `info --json` exits 0", info.code === 0, info.out.trim());
 
 // TryNeokapi modal (web/src/components/TryNeokapi/ModalBody.tsx).
