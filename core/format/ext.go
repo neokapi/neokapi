@@ -3,6 +3,7 @@ package format
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -57,13 +58,7 @@ func Ext(path string) string {
 
 // IsCompoundExt reports whether ext is one of the compound suffixes.
 func IsCompoundExt(ext string) bool {
-	lower := strings.ToLower(ext)
-	for _, e := range compoundExts {
-		if lower == e {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(compoundExts, strings.ToLower(ext))
 }
 
 // TrimExt returns path with its format-significant extension removed, so

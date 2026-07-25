@@ -157,7 +157,7 @@ func TestErrorWithRetiredExtHint(t *testing.T) {
 
 	wrapped := format.ErrorWithRetiredExtHint(base, "seeds/cli-nb.kmb")
 	require.Error(t, wrapped)
-	assert.ErrorIs(t, wrapped, base, "the original error must stay inspectable")
+	require.ErrorIs(t, wrapped, base, "the original error must stay inspectable")
 	assert.Contains(t, wrapped.Error(), ".memory.json")
 
 	assert.Equal(t, base, format.ErrorWithRetiredExtHint(base, "seeds/cli-nb.memory.json"),
