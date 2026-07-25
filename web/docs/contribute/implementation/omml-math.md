@@ -14,7 +14,7 @@ package name `math`) is a **cgo-free, WASM-safe** converter between ECMA-376
 Part 1 §22.1 Office Math Markup Language (OMML) and two portable notations —
 Presentation MathML and LaTeX — by way of a small intermediate AST. The host
 format reader keeps the original OMML bytes verbatim for the byte-exact
-round-trip (see [Skeleton Store](/contribute/notes-internal/skeleton-store));
+round-trip (see [Skeleton Store](/contribute/implementation/skeleton-store));
 this package only produces the *additional* portable renderings that
 cross-format writers (markdown, DocLang, a future HTML writer) emit, and the
 nor-prose splice that writes equation prose translations back into the original
@@ -266,4 +266,4 @@ the verbatim OMML round-trip (which the host keeps independently).
 - [AD-032 Math and Equations](../architecture/032-math-and-equations.md) — the decision this note implements
 - [AD-002 Content Model](../architecture/002-content-model.md) — `Block`, `Run`, `Ph` (placeholder `Equiv`/`Disp`), and `SemanticRole`
 - [AD-018 Parity testing against Okapi](../architecture/018-parity-testing.md) — why `Ph.Equiv`/`Ph.Disp` and `SemanticRole` are parity-safe carriers
-- [Skeleton Store and Streaming HTML](/contribute/notes-internal/skeleton-store) — the skeleton mechanism the OMML sub-skeleton rides on
+- [Skeleton Store and Streaming HTML](/contribute/implementation/skeleton-store) — the skeleton mechanism the OMML sub-skeleton rides on

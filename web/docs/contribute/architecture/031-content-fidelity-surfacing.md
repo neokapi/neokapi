@@ -177,7 +177,7 @@ formats expose the flag, and exactly what each surfaces, is generated into the
 format reference — see the [Format Reference](/formats) — rather than
 enumerated here. The tactical ledger (per-format finding, carrier, skeleton
 strategy, and the deliberately deferred edge cases) lives in the internal note,
-[content-fidelity](/contribute/notes-internal/content-fidelity).
+[content-fidelity](/contribute/implementation/content-fidelity).
 
 ## Related
 
@@ -187,6 +187,6 @@ strategy, and the deliberately deferred edge cases) lives in the internal note,
 - [AD-018 Parity testing against Okapi](018-parity-testing.md) — the "same semantic config → same results" contract, the parity-safe carriers, and the runner hook that forces the flag off
 - [AD-030 Multimodal Extraction and LLM Refinement](030-multimodal-extraction-and-llm-refinement.md) — extraction from non-text media likewise produces non-translatable, role-tagged Blocks for ingestion
 - [AD-032 Math and Equations](032-math-and-equations.md) — equation surfacing (`RoleFormula` blocks, sub-skeleton `<m:nor/>` write-back) is an instance of this convention
-- [content-fidelity](/contribute/notes-internal/content-fidelity) — the per-format finding/carrier ledger and deferred edge cases (issue [#928])
+- [content-fidelity](/contribute/implementation/content-fidelity) — the per-format finding/carrier ledger and deferred edge cases (issue [#928])
 
 [#928]: https://github.com/neokapi/neokapi/issues/928

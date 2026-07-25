@@ -129,7 +129,7 @@ web/
 │   ├── reference/           # generated command/format/tool reference
 │   └── contribute/
 │       ├── architecture/    # framework ADs (this document)
-│       └── notes-internal/  # implementation notes
+│       └── implementation/  # schemas, protocols, algorithms
 ├── walkthroughs/            # authored prompts: {id}.md + {id}.scene.yaml
 ├── scenes/                  # per-walkthrough WASM-embed fixtures: {id}/ (seeded in-browser)
 └── static/
@@ -144,12 +144,12 @@ top-level section rather than by separate plugin instances:
 - **User-facing docs** — `kapi/` (CLI, desktop, get-started, guides, and
   walkthrough MDX), `framework/`, `react/`, `toolbox/`, `reference/`.
 - **Contributor docs** — `contribute/architecture/` (framework ADs,
-  Apache-2.0 scope) and `contribute/notes-internal/` (implementation
+  Apache-2.0 scope) and `contribute/implementation/` (implementation
   notes extracted from ADs).
 
 ADs are organized by architectural concern and updated in place as
 subsystems evolve, rather than appended chronologically. Implementation
-notes live in `contribute/notes-internal/` for tactical details (schemas,
+notes live in `contribute/implementation/` for tactical details (schemas,
 algorithms, API routes) that would otherwise bloat the decision documents.
 
 Production is hosted on GitHub Pages, deployed via GitHub Actions on push to
@@ -157,7 +157,7 @@ Production is hosted on GitHub Pages, deployed via GitHub Actions on push to
 served from an S3 + CloudFront CDN, and per-PR previews from a sibling S3 +
 CloudFront host, rather than committed to the Pages repo — a delivery/operational
 detail intentionally left out of this decision and documented in
-[cdn-assets.md](../notes-internal/cdn-assets.md) (previews specifically in
+[cdn-assets.md](../implementation/cdn-assets.md) (previews specifically in
 [deploy/preview-site/README.md](https://github.com/neokapi/neokapi/blob/main/deploy/preview-site/README.md)).
 
 ### Walkthrough/embed engine

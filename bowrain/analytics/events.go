@@ -10,7 +10,7 @@ import "time"
 // property is present, the PostHog "workspace" group association.
 //
 // Every constant defined here MUST be listed in the generated reference doc
-// web/docs/contribute/notes-internal/analytics-events.md — the drift gate in
+// web/docs/contribute/implementation/analytics-events.md — the drift gate in
 // events_test.go fails otherwise. Events never carry content, file paths, or
 // source text.
 const (

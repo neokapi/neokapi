@@ -17,7 +17,7 @@ export interface ToolDocViewerProps {
  * Content is fullDoc markdown from the docs extraction pipeline, rendered
  * through the shared typeset {@link Markdown} primitive (react-markdown +
  * remark-gfm) — the same renderer used everywhere else markdown metadata is
- * displayed. See `web/docs/contribute/notes-internal/markdown-in-ui.md`.
+ * displayed. See `web/docs/contribute/implementation/markdown-in-ui.md`.
  */
 export function ToolDocViewer({ content, wikiUrl, title, className }: ToolDocViewerProps) {
   return (

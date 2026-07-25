@@ -73,7 +73,7 @@ Conformance is the load-bearing cross-repo contract: it is what makes a
 plugin repository able to answer "do I still work with kapi?" on its own,
 without a checkout of this repository and without this repository running
 its tests. See
-[Plugin protocol v1](../notes-internal/plugin-protocol-v1.md) and
+[Plugin protocol v1](../implementation/plugin-protocol-v1.md) and
 [AD-007](007-plugin-system.md).
 
 Parity is the narrower question, and it points the other way: it is about
@@ -293,4 +293,4 @@ repositories to share a build. Tracked in
 - PR: [#447 — Retire core/plugin/bridge](https://github.com/neokapi/neokapi/pull/447) (the deletion that #448 reverses on top of Mode-C dispatch)
 - Bridge proto sync: [#450](https://github.com/neokapi/neokapi/issues/450) — closed by okapi-bridge `b0ee4d5`
 - Short-id resolution: [#451](https://github.com/neokapi/neokapi/issues/451) — closed by okapi-bridge `b0ee4d5`
-- [Plugin protocol v1](../notes-internal/plugin-protocol-v1.md) — the contract the two repositories share
+- [Plugin protocol v1](../implementation/plugin-protocol-v1.md) — the contract the two repositories share

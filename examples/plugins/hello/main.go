@@ -1,7 +1,7 @@
 // Command kapi-hello is a minimal reference plugin demonstrating the
 // kapi plugin protocol v1. It declares one Mode-A command and one
 // Mode-B MCP tool. The full specification is
-// web/docs/contribute/notes-internal/plugin-protocol-v1.md, and
+// web/docs/contribute/implementation/plugin-protocol-v1.md, and
 // core/plugin/conformance asserts this plugin satisfies it.
 //
 // Run from the repo root:

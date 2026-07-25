@@ -258,7 +258,7 @@ without `requires:` loads in any binary; the extras pass through.
 
 Implementation details — including the `Scope` enum, decoder helpers, and
 a worked example — live in
-[Note: Plugin model](../notes-internal/plugin-model).
+[Note: Plugin model](../implementation/plugin-model).
 
 ### Example: a platform "connected project" extension
 
@@ -601,5 +601,5 @@ its folder (which contains `kapi.yaml`) and operates on it.
 - [AD-006: Tool System](006-tool-system.md) — Tool and SessionTool interfaces
 - [AD-013: Kapi CLI](013-kapi-cli.md) — CLI use of projects
 - [AD-014: Kapi Desktop](014-kapi-desktop.md) — desktop app use of projects
-- [Flow Steps Format](/contribute/notes-internal/flow-steps-format) — shared flow syntax
-- [kapi.yaml Project File](/contribute/notes-internal/kapi-project-file) — schema reference
+- [Flow Steps Format](/contribute/implementation/flow-steps-format) — shared flow syntax
+- [kapi.yaml Project File](/contribute/implementation/kapi-project-file) — schema reference

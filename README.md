@@ -82,7 +82,7 @@ make kapi-storybook           # Storybook on :6007
 
 - **[kapi docs](https://neokapi.github.io/)** — published Docusaurus site
 - **[Architecture](web/docs/contribute/architecture/)** — ADs, one per architectural concern
-- **[Implementation notes](web/docs/contribute/notes-internal/)** — schemas, protocols, algorithms
+- **[Implementation notes](web/docs/contribute/implementation/)** — schemas, protocols, algorithms
 - **[Internals (root)](docs/internals/)** — repo-wide testing, interfaces, release process
 
 ## Make targets

@@ -14,7 +14,7 @@ formats — ships as a separate binary that kapi discovers on disk and dispatche
 to at runtime.
 
 This page is the developer-facing overview. [AD-007: Plugin System](/contribute/architecture/007-plugin-system)
-holds the full design rationale; the [Plugin model note](/contribute/notes-internal/plugin-model)
+holds the full design rationale; the [Plugin model note](/contribute/implementation/plugin-model)
 covers the complementary in-process side — how the Go code _inside_ a plugin
 binary wires its features into the shared `cli.App`.
 
@@ -211,5 +211,5 @@ leaves downloaded model caches and configuration alone.
 ## See also
 
 - [AD-007: Plugin System](/contribute/architecture/007-plugin-system) — full design rationale and the registry/signing model
-- [Plugin model note](/contribute/notes-internal/plugin-model) — the in-process registry contract a plugin binary uses to wire features into `cli.App`
+- [Plugin model note](/contribute/implementation/plugin-model) — the in-process registry contract a plugin binary uses to wire features into `cli.App`
 - [Okapi Bridge](/contribute/java-bridge) — the canonical Mode-C bridge plugin

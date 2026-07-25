@@ -5,7 +5,7 @@
  * scattered string literals. Names are `snake_case` `domain_action`, matching
  * the server-side taxonomy in `bowrain/analytics/events.go`. Every event
  * defined here MUST be listed in the reference doc
- * `web/docs/contribute/notes-internal/analytics-events.md`; the drift test in
+ * `web/docs/contribute/implementation/analytics-events.md`; the drift test in
  * `src/__tests__/analytics-events.test.ts` fails otherwise (the client-side
  * mirror of the Go drift gate).
  *

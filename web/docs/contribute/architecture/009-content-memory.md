@@ -358,5 +358,5 @@ accumulates richer data over time.
   runs, entity annotations
 - [AD-006: Tool System](006-tool-system.md) — `recycle` tool
 - [AD-010: Terminology](010-terminology.md) — shares matching infrastructure
-- [Memory matching algorithm](/contribute/notes-internal/memory-matching-algorithm) — trigram
+- [Memory matching algorithm](/contribute/implementation/memory-matching-algorithm) — trigram
   construction, performance table, TMX element mapping

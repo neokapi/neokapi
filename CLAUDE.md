@@ -45,7 +45,7 @@ Non-obvious constraints:
   sat, …) are discovered at runtime via the unified manifest model and
   dispatched as subprocesses. `bowrain/plugin/*` is blank-imported into
   `kapi-bowrain`, not into `kapi`. See
-  [Note: Plugin model](web/docs/contribute/notes-internal/plugin-model.md).
+  [Note: Plugin model](web/docs/contribute/implementation/plugin-model.md).
 
 ## Build
 
@@ -145,7 +145,7 @@ Remotion into light + dark `.webm`. Two things are easy to get wrong:
 - **Assets are not in git and not in GitHub releases.** They live only on the
   S3 + CloudFront CDN (`$DOCS_CDN_URL`) and are referenced by URL via
   `ThemedVideo` / `ThemedImage`; docs CI references them rather than recording.
-  See [CDN assets](web/docs/contribute/notes-internal/cdn-assets.md).
+  See [CDN assets](web/docs/contribute/implementation/cdn-assets.md).
 
 Recordings and screenshots run against **real** neokapi infrastructure — real
 Keycloak OIDC via `compose.yaml`, the real `bowrain-server` binary, a real
@@ -189,7 +189,7 @@ and flow name against the code before publishing.
   subsystem. When a subsystem evolves, **update the existing AD in place**
   rather than appending a new one. Create a new AD only for a genuinely new
   concern.
-- **Implementation notes** — `web/docs/contribute/notes-internal/`. Tactical
+- **Implementation notes** — `web/docs/contribute/implementation/`. Tactical
   detail (SQL schemas, API routes, pseudocode) kept out of the ADs.
 - **Contributor guides** — `web/docs/contribute/`: `formats.md`,
   `tool-authoring.md`, `flow-authoring.md`, `plugins.md`, `testing.md`,

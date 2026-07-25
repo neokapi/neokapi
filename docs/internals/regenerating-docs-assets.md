@@ -14,7 +14,7 @@ unless a screenshot in `public/` is replaced. Everything below is about the two
 Docusaurus docs sites, whose video/image assets are **gitignored** and published
 to the Cloudflare R2 CDN (served at `$DOCS_CDN_URL`); the sites reference them by
 URL via `ThemedVideo` / `ThemedImage` / the Vision Lab (CI never records, never
-stages — see `web/docs/contribute/notes-internal/cdn-assets.md`).
+stages — see `web/docs/contribute/implementation/cdn-assets.md`).
 
 ## 0. One-time setup
 

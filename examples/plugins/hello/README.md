@@ -1,7 +1,7 @@
 # `hello` — kapi plugin reference example
 
 A minimal Go plugin demonstrating the kapi plugin protocol v1
-([spec](../../../web/docs/contribute/notes-internal/plugin-protocol-v1.md)).
+([spec](../../../web/docs/contribute/implementation/plugin-protocol-v1.md)).
 
 This plugin is not just an illustration: `core/plugin/conformance`'s own test
 suite stages it and asserts it passes every required check, so the reference

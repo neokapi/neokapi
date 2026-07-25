@@ -23,7 +23,7 @@ import (
 //
 // The invariant this protects: a Block kapi has locally survives
 // push (BlockToProto) → wire → decode (ProtoToBlock) losslessly. See
-// web/docs/contribute/notes-internal/content-parity.md.
+// web/docs/contribute/implementation/content-parity.md.
 
 // TestKitchenSinkRoundTrip is the parity gate: model → proto → model must be
 // deep-equal to the original for a Block with every field, run kind, and overlay

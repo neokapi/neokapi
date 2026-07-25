@@ -63,7 +63,7 @@ import (
 
 // ProtocolVersion is the plugin-protocol revision this suite validates.
 // It tracks the spec published at
-// web/docs/contribute/notes-internal/plugin-protocol-v1.md.
+// web/docs/contribute/implementation/plugin-protocol-v1.md.
 const ProtocolVersion = "1"
 
 // DefaultTimeout is the per-check budget applied when [Suite.Timeout] is zero.

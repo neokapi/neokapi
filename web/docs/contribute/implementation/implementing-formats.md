@@ -392,7 +392,7 @@ documents. The reader writes skeleton entries as it parses; the writer reads
 them to reconstruct the output. Tools in between only see blocks — they never
 touch the skeleton.
 
-See [Skeleton Store](/contribute/notes-internal/skeleton-store) for binary format and API
+See [Skeleton Store](/contribute/implementation/skeleton-store) for binary format and API
 details.
 
 ### Reader Side: Coalescing Buffer Pattern
@@ -453,10 +453,10 @@ the writer re-emits it from the (non-translatable) block; MT skips it because
 `Translatable` is false. With the flag off, these rows collapse back to plain
 skeleton `Text` — the configuration parity pins
 ([AD-018](/contribute/architecture/018-parity-testing)). See
-[Content-Fidelity Surfacing](/contribute/notes-internal/content-fidelity) for the
+[Content-Fidelity Surfacing](/contribute/implementation/content-fidelity) for the
 implementation recipe. Translatable prose embedded *inside* an opaque payload
 (e.g. `<m:nor/>` text in a Word equation) uses the **sub-skeleton** pattern
-([Skeleton Store](/contribute/notes-internal/skeleton-store)).
+([Skeleton Store](/contribute/implementation/skeleton-store)).
 
 The skeleton ref replaces the **entire encoded value** (e.g., including JSON
 quotes), and the writer is responsible for re-encoding the block text in the

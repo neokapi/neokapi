@@ -372,5 +372,5 @@ implementation.
 - [AD-011: AI Providers](011-ai-providers.md) — provider credentials
 - [AD-014: Kapi Desktop](014-kapi-desktop.md) — GUI companion
   command tree with flags
-- [MCP Tools Reference](/contribute/notes-internal/mcp-tools-reference) — MCP tool
+- [MCP Tools Reference](/contribute/implementation/mcp-tools-reference) — MCP tool
   input/output schemas

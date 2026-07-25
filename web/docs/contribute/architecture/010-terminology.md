@@ -331,5 +331,5 @@ relations, term status, and context fields.
   matching infrastructure, entity annotation input
 - [AD-011: AI Providers](011-ai-providers.md) — LLM-based term extraction
   and entity annotation
-- [Terminology Data Model](/contribute/notes-internal/terminology-data-model) — full Go
+- [Terminology Data Model](/contribute/implementation/terminology-data-model) — full Go
   struct definitions, pipeline tool catalog, relations
