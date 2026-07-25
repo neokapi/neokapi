@@ -269,6 +269,12 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 // when the block target is filled it is committed as a real Target carrying
 // `tm` provenance, the score, and draft status — not an opaque string. The
 // summary properties remain for quick gating and backward compatibility.
+//
+// The text path keys on the *flattened* source (inline codes contribute no
+// characters), so a code-bearing block can match a legacy entry that was stored
+// without codes. Its translation is a bare text run, so filling it would drop
+// every placeholder the source carries. Such a match is recorded as a candidate
+// for review but never filled — see fillWouldDropCodes.
 func recordWholeBlockMatch(v tool.VariantView, conf *TMLeverageConfig, translation string, score int, mt model.MatchType, propType string) {
 	targetRuns := []model.Run{{Text: &model.TextRun{Text: translation}}}
 	v.AddAltTranslation(&model.AltTranslation{
@@ -280,7 +286,7 @@ func recordWholeBlockMatch(v tool.VariantView, conf *TMLeverageConfig, translati
 		MatchType: mt,
 		ToolID:    "recycle",
 	})
-	if shouldFillTarget(conf, v, score) {
+	if shouldFillTarget(conf, v, score) && !fillWouldDropCodes(v, targetRuns) {
 		v.SetTarget(conf.TargetLocale, &model.Target{
 			Runs:   targetRuns,
 			Status: model.TargetStatusDraft,
@@ -291,12 +297,25 @@ func recordWholeBlockMatch(v tool.VariantView, conf *TMLeverageConfig, translati
 	v.Annotate(string(model.AnnoTMMatch), &TMMatchAnnotation{Score: score, Type: propType})
 }
 
+// fillWouldDropCodes reports whether committing candidate as v's target would
+// lose inline codes the source carries — a dropped `{count}`, `{name}` or icon
+// placeholder.
+//
+// A recycled target whose placeholder set does not match its source's is not a
+// translation, it is content loss: the string renders with a hole where a
+// number or a filename belongs, and nothing downstream signals it. Leaving the
+// block untranslated (so the locale falls back to source) is the honest
+// outcome, so every leverage fill is gated on this.
+func fillWouldDropCodes(v tool.VariantView, candidate []model.Run) bool {
+	return model.DiffRunCodes(v.SourceRuns(), candidate).Lossy()
+}
+
 // leverageBlockRuns performs the structure-aware whole-block leverage. It
 // returns true when it has handled the block — the match was filled, or
 // it was Ambiguous (recorded but deliberately not filled) — so the caller
 // must not run the text-based path on top of it. It returns false when
 // the provider has no block-level match, when the matched target's inline
-// codes cannot be mapped onto the block's source codes, or when the match
+// codes do not line up with the block's source codes, or when the match
 // scored below the fill policy: the flattened text path keys differently
 // (inline codes and placeholders drop out of its query), so it can still
 // recover legacy entries whose source text was authored without them. A
@@ -311,6 +330,9 @@ func recordWholeBlockMatch(v tool.VariantView, conf *TMLeverageConfig, translati
 //     filled, regardless of fillTargetThreshold — unattended leverage must
 //     not turn an arbitrary pick into published content. The text path is
 //     skipped too: it would resolve the same tie by arbitrary pick.
+//
+// Every candidate is recorded as an alt-translation before the fill decision,
+// so a rejected match is visible to a reviewer instead of vanishing.
 func leverageBlockRuns(conf *TMLeverageConfig, v tool.VariantView, bp BlockTMProvider) bool {
 	block := &model.Block{
 		ID:           v.ID(),
@@ -324,12 +346,6 @@ func leverageBlockRuns(conf *TMLeverageConfig, v tool.VariantView, bp BlockTMPro
 
 	m, found := bp.LookupBlock(block, conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold)
 	if !found || len(m.TargetRuns) == 0 {
-		return false
-	}
-	if !targetCodesCompatible(v.SourceRuns(), m.TargetRuns) {
-		// The entry's target carries inline codes the block's source does
-		// not have — filling its runs would inject foreign markup. Leave
-		// the block to the text path (which flattens codes away).
 		return false
 	}
 
@@ -347,6 +363,18 @@ func leverageBlockRuns(conf *TMLeverageConfig, v tool.VariantView, bp BlockTMPro
 		MatchType: matchType,
 		ToolID:    "recycle",
 	})
+	if !model.DiffRunCodes(v.SourceRuns(), targetRuns).Balanced() {
+		// The entry's inline codes do not line up with the block's source.
+		// Either direction disqualifies the fill: extra codes would inject
+		// foreign markup, missing codes would silently drop a placeholder the
+		// reader needs (the plain tier matches on flattened text, so an entry
+		// stored without codes matches a code-bearing source at near-exact
+		// score). The candidate stays recorded above so a reviewer can repair
+		// it; the block itself falls through to the text path, which keys
+		// differently and may recover a legacy entry — under the same guard.
+		v.Annotate(string(model.AnnoTMMatch), &TMMatchAnnotation{Score: m.Score, Type: propType})
+		return false
+	}
 	if m.Ambiguous {
 		// Recorded as a candidate only. Handled: the text path would
 		// resolve the same tie by arbitrary pick.
@@ -368,50 +396,6 @@ func leverageBlockRuns(conf *TMLeverageConfig, v tool.VariantView, bp BlockTMPro
 	})
 	v.Annotate(string(model.AnnoTMMatch), &TMMatchAnnotation{Score: m.Score, Type: propType})
 	return true
-}
-
-// targetCodesCompatible reports whether every inline code in the candidate
-// target runs has a counterpart in the source runs, so splicing the target
-// into the block cannot introduce markup the source does not carry. Paired
-// codes match by ID, placeholders by Equiv (falling back to ID), subblock
-// references by ID. Text / plural / select runs are not constrained.
-func targetCodesCompatible(source, target []model.Run) bool {
-	avail := map[string]int{}
-	for _, r := range source {
-		if sig, ok := runCodeSignature(r); ok {
-			avail[sig]++
-		}
-	}
-	for _, r := range target {
-		sig, ok := runCodeSignature(r)
-		if !ok {
-			continue
-		}
-		if avail[sig] == 0 {
-			return false
-		}
-		avail[sig]--
-	}
-	return true
-}
-
-// runCodeSignature returns a comparable identity for an inline-code run,
-// or ok=false for non-code runs (text, plural, select).
-func runCodeSignature(r model.Run) (string, bool) {
-	switch {
-	case r.PcOpen != nil:
-		return "pc-open:" + r.PcOpen.ID, true
-	case r.PcClose != nil:
-		return "pc-close:" + r.PcClose.ID, true
-	case r.Ph != nil:
-		if r.Ph.Equiv != "" {
-			return "ph:" + r.Ph.Equiv, true
-		}
-		return "ph:" + r.Ph.ID, true
-	case r.Sub != nil:
-		return "sub:" + r.Sub.ID, true
-	}
-	return "", false
 }
 
 // cloneRuns deep-copies a Run sequence so a TM entry's stored runs are
@@ -570,12 +554,17 @@ func leverageSegments(conf *TMLeverageConfig, v tool.VariantView) bool {
 	if allExact {
 		matchType = "segmented-exact"
 	}
-	if shouldFillTarget(conf, v, minScore) {
+	assembled := []model.Run{{Text: &model.TextRun{Text: strings.Join(translations, "")}}}
+	// The per-segment TM lookups key on flattened segment text, so the
+	// assembled target is plain text: it cannot carry any inline code the
+	// source has. Filling it would drop them (see fillWouldDropCodes); the
+	// segment matches stay recorded as alt-translations either way.
+	if shouldFillTarget(conf, v, minScore) && !fillWouldDropCodes(v, assembled) {
 		// Commit a real Target carrying provenance and score, not an opaque
 		// string: a TM pre-fill is a reviewable draft assembled from segment
 		// matches, so a reviewer/tool can see it came from TM and at what score.
 		v.SetTarget(conf.TargetLocale, &model.Target{
-			Runs:   []model.Run{{Text: &model.TextRun{Text: strings.Join(translations, "")}}},
+			Runs:   assembled,
 			Status: model.TargetStatusDraft,
 			Origin: model.Origin{Kind: "tm", Tool: "recycle"},
 			Score:  float64(minScore) / 100,

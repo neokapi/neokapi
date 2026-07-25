@@ -458,6 +458,14 @@ func iconBlock(id string) *model.Block {
 	return b
 }
 
+// plainBlock builds a code-free block, for the cases that are about match
+// tiers rather than inline-code integrity.
+func plainBlock(id, text string) *model.Block {
+	b := model.NewBlock(id, "")
+	b.Source = []model.Run{{Text: &model.TextRun{Text: text}}}
+	return b
+}
+
 func iconTargetRuns() []model.Run {
 	return []model.Run{
 		{Ph: &model.PlaceholderRun{ID: "1", Type: "jsx:element", Data: "{=m0}", Equiv: "=m0"}},
@@ -523,19 +531,19 @@ func TestTMLeverageBlockAwareAmbiguousSkips(t *testing.T) {
 
 // TestTMLeverageBlockAwareSubThresholdFallsThrough: a block match below
 // the fill threshold is recorded, then the differently-keyed text path
-// still runs and can fill from a legacy plain-text entry.
+// still runs and can fill from a legacy plain-text entry. The block is
+// code-free, so the text path's flat fill loses nothing.
 func TestTMLeverageBlockAwareSubThresholdFallsThrough(t *testing.T) {
 	t.Parallel()
 	provider := &mockBlockTMProvider{
-		// Text path keys on the text-only source (" Install" → codes drop).
-		mockTMProvider: mockTMProvider{exact: map[string]string{" Install": "Installer"}},
-		match:          tools.TMBlockMatch{TargetRuns: iconTargetRuns(), Score: 80, Exact: false},
+		mockTMProvider: mockTMProvider{exact: map[string]string{"Install": "Installer"}},
+		match:          tools.TMBlockMatch{TargetRuns: []model.Run{{Text: &model.TextRun{Text: "Installation"}}}, Score: 80, Exact: false},
 		found:          true,
 	}
 	cfg := &tools.TMLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, FillTarget: true, FillTargetThreshold: 95, Provider: provider}
 	tl := tools.NewTMLeverageTool(cfg)
 
-	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: iconBlock("tu1")})
+	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: plainBlock("tu1", "Install")})
 	rb := result.Resource.(*model.Block)
 
 	assert.Equal(t, 1, provider.calls)
@@ -559,20 +567,150 @@ func TestTMLeverageBlockAwareIncompatibleCodes(t *testing.T) {
 		{PcClose: &model.PcCloseRun{ID: "9", Type: "jsx:element", Data: "{/=m9}", Equiv: "=m9"}},
 	}
 	provider := &mockBlockTMProvider{
-		mockTMProvider: mockTMProvider{exact: map[string]string{" Install": "Installer"}},
+		mockTMProvider: mockTMProvider{exact: map[string]string{"Install": "Installer"}},
 		match:          tools.TMBlockMatch{TargetRuns: foreign, Score: 100, Exact: true},
 		found:          true,
 	}
 	cfg := &tools.TMLeverageConfig{TargetLocale: model.LocaleFrench, SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Provider: provider}
 	tl := tools.NewTMLeverageTool(cfg)
 
-	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: iconBlock("tu1")})
+	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: plainBlock("tu1", "Install")})
 	rb := result.Resource.(*model.Block)
 
 	tgt := rb.Target(model.LocaleFrench)
 	require.NotNil(t, tgt, "text path filled instead")
 	require.Len(t, tgt.Runs, 1)
 	assert.Equal(t, "Installer", tgt.Runs[0].Text.Text)
+}
+
+// --- placeholder integrity: a recycled target must carry its source's codes ---
+
+// TestTMLeverageNeverFillsLossyMatch is the regression guard for the defect
+// this suite used to encode: the plain tier matches on *flattened* text, so a
+// legacy TM entry stored without inline codes is an exact/near-exact match for
+// a code-bearing source. Filling it dropped the placeholder, and the UI
+// rendered a sentence with a hole where the count belonged.
+//
+// The table walks both fill paths (structure-aware LookupBlock and the
+// flattened text fallback) against both outcomes: a candidate that lost a code
+// must never be filled, and a candidate that carries the source's codes must
+// still fill exactly as before.
+func TestTMLeverageNeverFillsLossyMatch(t *testing.T) {
+	t.Parallel()
+
+	// A count placeholder followed by text — the FormatsPage.tsx shape:
+	// `{documentedCount} documented formats`.
+	countBlock := func(id string) *model.Block {
+		b := model.NewBlock(id, "")
+		b.Source = []model.Run{
+			{Ph: &model.PlaceholderRun{ID: "1", Type: "jsx:var", Data: "{documentedCount}", Equiv: "documentedCount"}},
+			{Text: &model.TextRun{Text: " documented formats"}},
+		}
+		return b
+	}
+	faithfulRuns := []model.Run{
+		{Ph: &model.PlaceholderRun{ID: "1", Type: "jsx:var", Data: "{documentedCount}", Equiv: "documentedCount"}},
+		{Text: &model.TextRun{Text: " dokumenterte formater"}},
+	}
+	lossyRuns := []model.Run{{Text: &model.TextRun{Text: " dokumenterte formater"}}}
+
+	tests := []struct {
+		name string
+		// blockMatch, when non-nil, is served by the structure-aware path.
+		blockMatch []model.Run
+		// exactText, when non-empty, is served by the flattened text path.
+		exactText string
+		wantText  string
+		// wantPlaceholder asserts the filled target keeps the source's Ph run.
+		wantPlaceholder bool
+	}{
+		{
+			name:            "structure-aware match keeping the placeholder fills",
+			blockMatch:      faithfulRuns,
+			wantText:        " dokumenterte formater",
+			wantPlaceholder: true,
+		},
+		{
+			name:       "structure-aware match that dropped the placeholder is rejected",
+			blockMatch: lossyRuns,
+		},
+		{
+			name:      "text-path match is rejected because it cannot carry the placeholder",
+			exactText: " dokumenterte formater",
+		},
+		{
+			name:       "lossy block match does not let the text path fill either",
+			blockMatch: lossyRuns,
+			exactText:  " dokumenterte formater",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			provider := &mockBlockTMProvider{}
+			if tc.exactText != "" {
+				provider.mockTMProvider = mockTMProvider{exact: map[string]string{" documented formats": tc.exactText}}
+			}
+			if tc.blockMatch != nil {
+				provider.match = tools.TMBlockMatch{TargetRuns: tc.blockMatch, Score: 99, Exact: true}
+				provider.found = true
+			}
+			cfg := &tools.TMLeverageConfig{
+				TargetLocale:        model.LocaleID("nb"),
+				SourceLocale:        model.LocaleEnglish,
+				FuzzyThreshold:      70,
+				FillTarget:          true,
+				FillTargetThreshold: 95,
+				Provider:            provider,
+			}
+			tl := tools.NewTMLeverageTool(cfg)
+
+			result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: countBlock("tu1")})
+			rb := result.Resource.(*model.Block)
+
+			if tc.wantText == "" {
+				assert.False(t, rb.HasTarget(model.LocaleID("nb")),
+					"a candidate missing the source's placeholder must not be filled — the locale falls back to source")
+				require.NotEmpty(t, rb.AltTranslations(),
+					"the rejected candidate is still recorded for review")
+				return
+			}
+
+			tgt := rb.Target(model.LocaleID("nb"))
+			require.NotNil(t, tgt)
+			assert.Equal(t, tc.wantText, model.RunsText(tgt.Runs))
+			if tc.wantPlaceholder {
+				require.NotNil(t, tgt.Runs[0].Ph, "placeholder run preserved")
+				assert.Equal(t, "documentedCount", tgt.Runs[0].Ph.Equiv)
+			}
+		})
+	}
+}
+
+// TestTMLeverageSegmentedFillRejectsCodeLoss: the segment path assembles a
+// plain-text target from per-segment TM hits, so it cannot carry an inline
+// code the block's source holds. The segment matches stay on record, but the
+// lossy assembly is never committed as the block target.
+func TestTMLeverageSegmentedFillRejectsCodeLoss(t *testing.T) {
+	t.Parallel()
+	provider := &mockTMProvider{exact: map[string]string{
+		seg1Src:    "Hei verden. ",
+		"Goodbye.": "Farvel.",
+	}}
+	cfg := &tools.TMLeverageConfig{TargetLocale: model.LocaleID("nb"), SourceLocale: model.LocaleEnglish, FuzzyThreshold: 70, Provider: provider}
+	tl := tools.NewTMLeverageTool(cfg)
+
+	block := segBlock("tu1", seg1Src, "Goodbye.")
+	// Append an icon placeholder to the source: the segment overlay still
+	// covers the text, but the assembled plain target would drop the code.
+	block.Source = append(block.Source, model.Run{Ph: &model.PlaceholderRun{ID: "1", Type: "jsx:element", Data: "{=m0}", Equiv: "=m0"}})
+
+	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
+	rb := result.Resource.(*model.Block)
+
+	assert.False(t, rb.HasTarget(model.LocaleID("nb")), "lossy segment assembly must not fill")
+	assert.NotNil(t, segAlt(rb, 0), "segment matches stay recorded for review")
 }
 
 // TestTMLeverageBlockAwareCloneIsolation: the filled target runs are

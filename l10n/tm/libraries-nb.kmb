@@ -1783,6 +1783,78 @@
       "updated": "2026-06-11T08:02:59Z"
     },
     {
+      "id": "libraries-nb:2a30e4e76e",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{nodeName}",
+              "equiv": "nodeName"
+            }
+          },
+          {
+            "text": " — "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{relevantParts.length}",
+              "equiv": "relevantParts.length"
+            }
+          },
+          {
+            "text": " block"
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{nodeName}",
+              "equiv": "nodeName"
+            }
+          },
+          {
+            "text": " — "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{relevantParts.length}",
+              "equiv": "relevantParts.length"
+            }
+          },
+          {
+            "text": " blokk"
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
+    },
+    {
       "id": "libraries-nb:2a666d7cde",
       "hintSrcLang": "en",
       "variants": {
@@ -2705,6 +2777,40 @@
       "updated": "2026-06-11T08:02:59Z"
     },
     {
+      "id": "libraries-nb:3b9569720e",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{format}",
+              "equiv": "format"
+            }
+          },
+          {
+            "text": " reader"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{format}",
+              "equiv": "format"
+            }
+          },
+          {
+            "text": "-leser"
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
+    },
+    {
       "id": "libraries-nb:3ba65998d0",
       "hintSrcLang": "en",
       "variants": {
@@ -2793,6 +2899,90 @@
       },
       "created": "2026-06-11T08:02:59Z",
       "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb:3e83cb78c7",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Convert text patterns to named entities across "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{selectedCount}",
+              "equiv": "selectedCount"
+            }
+          },
+          {
+            "text": " selected"
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{value_2}",
+              "equiv": "value_2"
+            }
+          },
+          {
+            "text": "."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Konverter tekstmønstre til navngitte entiteter i "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{selectedCount}",
+              "equiv": "selectedCount"
+            }
+          },
+          {
+            "text": " valgte"
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{value_2}",
+              "equiv": "value_2"
+            }
+          },
+          {
+            "text": "."
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
     },
     {
       "id": "libraries-nb:3f14c678d7",
@@ -3497,6 +3687,40 @@
       "updated": "2026-06-11T08:02:59Z"
     },
     {
+      "id": "libraries-nb:5265edf094",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{importedCount}",
+              "equiv": "importedCount"
+            }
+          },
+          {
+            "text": " entries imported"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{importedCount}",
+              "equiv": "importedCount"
+            }
+          },
+          {
+            "text": " oppføringer importert"
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
+    },
+    {
       "id": "libraries-nb:52d3cb5523",
       "hintSrcLang": "en",
       "variants": {
@@ -3531,6 +3755,40 @@
       },
       "created": "2026-06-11T08:02:59Z",
       "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb:535b0493fd",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{pct}",
+              "equiv": "pct"
+            }
+          },
+          {
+            "text": "%"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{pct}",
+              "equiv": "pct"
+            }
+          },
+          {
+            "text": "%"
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
     },
     {
       "id": "libraries-nb:546ebb8eb9",
@@ -3675,6 +3933,56 @@
       },
       "created": "2026-06-11T08:02:59Z",
       "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb:588e470660",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " / "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{totalPages}",
+              "equiv": "totalPages"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " / "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{totalPages}",
+              "equiv": "totalPages"
+            }
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
     },
     {
       "id": "libraries-nb:58b552f74c",
@@ -7166,6 +7474,46 @@
       "updated": "2026-06-11T08:02:59Z"
     },
     {
+      "id": "libraries-nb:9aefc328a4",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "("
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{hiddenSelected}",
+              "equiv": "hiddenSelected"
+            }
+          },
+          {
+            "text": " selected)"
+          }
+        ],
+        "nb": [
+          {
+            "text": "("
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{hiddenSelected}",
+              "equiv": "hiddenSelected"
+            }
+          },
+          {
+            "text": " valgt)"
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
+    },
+    {
       "id": "libraries-nb:9bae918add",
       "hintSrcLang": "en",
       "variants": {
@@ -7365,6 +7713,108 @@
       },
       "created": "2026-06-11T08:02:59Z",
       "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb:a19a3857c7",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{selectedCount}",
+              "equiv": "selectedCount"
+            }
+          },
+          {
+            "text": " selected"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{selectedCount}",
+              "equiv": "selectedCount"
+            }
+          },
+          {
+            "text": " valgt"
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
+    },
+    {
+      "id": "libraries-nb:a1ef19eb28",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "⚡ "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{se}",
+              "equiv": "se"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "text": "⚡ "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{se}",
+              "equiv": "se"
+            }
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
+    },
+    {
+      "id": "libraries-nb:a235cb3910",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "layer:"
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{overlay.layer}",
+              "equiv": "overlay.layer"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "text": "lag:"
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{overlay.layer}",
+              "equiv": "overlay.layer"
+            }
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
     },
     {
       "id": "libraries-nb:a27cff51a2",
@@ -9014,6 +9464,78 @@
       "updated": "2026-06-11T08:02:59Z"
     },
     {
+      "id": "libraries-nb:b6b43d25dd",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{from}",
+              "equiv": "from"
+            }
+          },
+          {
+            "text": "–"
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{to}",
+              "equiv": "to"
+            }
+          },
+          {
+            "text": " of "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{totalCount}",
+              "equiv": "totalCount"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{from}",
+              "equiv": "from"
+            }
+          },
+          {
+            "text": "–"
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{to}",
+              "equiv": "to"
+            }
+          },
+          {
+            "text": " av "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{totalCount}",
+              "equiv": "totalCount"
+            }
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
+    },
+    {
       "id": "libraries-nb:b6bbaae856",
       "hintSrcLang": "en",
       "variants": {
@@ -9634,6 +10156,134 @@
       "updated": "2026-06-11T08:02:59Z"
     },
     {
+      "id": "libraries-nb:c235814ab0",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Updated "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{result.entries_updated}",
+              "equiv": "result.entries_updated"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": ","
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{value_2}",
+              "equiv": "value_2"
+            }
+          },
+          {
+            "text": " added "
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{result.entities_added}",
+              "equiv": "result.entities_added"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:var",
+              "data": "{value_3}",
+              "equiv": "value_3"
+            }
+          },
+          {
+            "text": "."
+          }
+        ],
+        "nb": [
+          {
+            "text": "Oppdaterte "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{result.entries_updated}",
+              "equiv": "result.entries_updated"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": ","
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{value_2}",
+              "equiv": "value_2"
+            }
+          },
+          {
+            "text": " la til "
+          },
+          {
+            "ph": {
+              "id": "4",
+              "type": "jsx:var",
+              "data": "{result.entities_added}",
+              "equiv": "result.entities_added"
+            }
+          },
+          {
+            "text": " "
+          },
+          {
+            "ph": {
+              "id": "5",
+              "type": "jsx:var",
+              "data": "{value_3}",
+              "equiv": "value_3"
+            }
+          },
+          {
+            "text": "."
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
+    },
+    {
       "id": "libraries-nb:c2477520dd",
       "hintSrcLang": "en",
       "variants": {
@@ -10175,6 +10825,40 @@
       "updated": "2026-06-11T08:02:59Z"
     },
     {
+      "id": "libraries-nb:cd69bd821f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "by "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{o.added_by}",
+              "equiv": "o.added_by"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "text": "av "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{o.added_by}",
+              "equiv": "o.added_by"
+            }
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
+    },
+    {
       "id": "libraries-nb:cd7d4242e9",
       "hintSrcLang": "en",
       "variants": {
@@ -10413,6 +11097,40 @@
       "updated": "2026-06-11T08:02:59Z"
     },
     {
+      "id": "libraries-nb:d220f183c6",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Total: "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{formatDuration}",
+              "equiv": "formatDuration"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "text": "Totalt: "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{formatDuration}",
+              "equiv": "formatDuration"
+            }
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
+    },
+    {
       "id": "libraries-nb:d2851834b0",
       "hintSrcLang": "en",
       "variants": {
@@ -10594,6 +11312,40 @@
       },
       "created": "2026-06-11T08:02:59Z",
       "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb:d6b60a4e5b",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "default: "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{toolInfo.default_locale}",
+              "equiv": "toolInfo.default_locale"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "text": "standard: "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{toolInfo.default_locale}",
+              "equiv": "toolInfo.default_locale"
+            }
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
     },
     {
       "id": "libraries-nb:d6dc6b5ebe",
@@ -10828,6 +11580,40 @@
       },
       "created": "2026-06-11T08:02:59Z",
       "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb:dd41dabb35",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Confirm delete "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{selectedCount}",
+              "equiv": "selectedCount"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "text": "Bekreft sletting "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{selectedCount}",
+              "equiv": "selectedCount"
+            }
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
     },
     {
       "id": "libraries-nb:de06b2284d",
@@ -11236,6 +12022,80 @@
       "updated": "2026-06-11T08:02:59Z"
     },
     {
+      "id": "libraries-nb:e63a0dd140",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "("
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{term.note}",
+              "equiv": "term.note"
+            }
+          },
+          {
+            "text": ")"
+          }
+        ],
+        "nb": [
+          {
+            "text": "("
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{term.note}",
+              "equiv": "term.note"
+            }
+          },
+          {
+            "text": ")"
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
+    },
+    {
+      "id": "libraries-nb:e6bfd8ac7a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{s.partsProcessed}",
+              "equiv": "s.partsProcessed"
+            }
+          },
+          {
+            "text": " parts"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{s.partsProcessed}",
+              "equiv": "s.partsProcessed"
+            }
+          },
+          {
+            "text": " parts"
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
+    },
+    {
       "id": "libraries-nb:e6f1498206",
       "hintSrcLang": "en",
       "variants": {
@@ -11363,6 +12223,46 @@
       },
       "created": "2026-06-11T08:02:59Z",
       "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb:ea1395526f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "“"
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{s.text}",
+              "equiv": "s.text"
+            }
+          },
+          {
+            "text": "”"
+          }
+        ],
+        "nb": [
+          {
+            "text": "«"
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{s.text}",
+              "equiv": "s.text"
+            }
+          },
+          {
+            "text": "»"
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
     },
     {
       "id": "libraries-nb:ea9f98c545",
@@ -11655,6 +12555,56 @@
       },
       "created": "2026-06-11T08:02:59Z",
       "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "libraries-nb:f0f057803f",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{k}",
+              "equiv": "k"
+            }
+          },
+          {
+            "text": "="
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{v}",
+              "equiv": "v"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{k}",
+              "equiv": "k"
+            }
+          },
+          {
+            "text": "="
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{v}",
+              "equiv": "v"
+            }
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
     },
     {
       "id": "libraries-nb:f0fb8cec45",

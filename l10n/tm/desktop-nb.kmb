@@ -75,6 +75,46 @@
       "updated": "2026-06-11T08:02:59Z"
     },
     {
+      "id": "desktop-nb:0468677068",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "All ("
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{tools.length}",
+              "equiv": "tools.length"
+            }
+          },
+          {
+            "text": ")"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Alle ("
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{tools.length}",
+              "equiv": "tools.length"
+            }
+          },
+          {
+            "text": ")"
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
+    },
+    {
       "id": "desktop-nb:04e2a9728a",
       "hintSrcLang": "en",
       "variants": {
@@ -307,6 +347,62 @@
       },
       "created": "2026-06-11T08:02:59Z",
       "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb:0ac7f0af6d",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "requires "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{issue.required}",
+              "equiv": "issue.required"
+            }
+          },
+          {
+            "text": ", installed "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{issue.installed_version}",
+              "equiv": "issue.installed_version"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "text": "krever "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{issue.required}",
+              "equiv": "issue.required"
+            }
+          },
+          {
+            "text": ", installert "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{issue.installed_version}",
+              "equiv": "issue.installed_version"
+            }
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
     },
     {
       "id": "desktop-nb:0c4b1ff690",
@@ -3467,6 +3563,78 @@
       "updated": "2026-06-11T08:02:59Z"
     },
     {
+      "id": "desktop-nb:572c45a590",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " active, "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{hiddenCount}",
+              "equiv": "hiddenCount"
+            }
+          },
+          {
+            "text": " hidden "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{value_2}",
+              "equiv": "value_2"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " aktive, "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{hiddenCount}",
+              "equiv": "hiddenCount"
+            }
+          },
+          {
+            "text": " skjulte "
+          },
+          {
+            "ph": {
+              "id": "3",
+              "type": "jsx:var",
+              "data": "{value_2}",
+              "equiv": "value_2"
+            }
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
+    },
+    {
       "id": "desktop-nb:57a4da01b5",
       "hintSrcLang": "en",
       "variants": {
@@ -3537,6 +3705,62 @@
       },
       "created": "2026-06-11T08:02:59Z",
       "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb:5b05bdc2ca",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "requires "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{issue.required}",
+              "equiv": "issue.required"
+            }
+          },
+          {
+            "text": ", have "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{issue.installed_version}",
+              "equiv": "issue.installed_version"
+            }
+          }
+        ],
+        "nb": [
+          {
+            "text": "krever "
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{issue.required}",
+              "equiv": "issue.required"
+            }
+          },
+          {
+            "text": ", har "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{issue.installed_version}",
+              "equiv": "issue.installed_version"
+            }
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
     },
     {
       "id": "desktop-nb:5c73a5c73d",
@@ -5056,6 +5280,62 @@
       "updated": "2026-06-11T08:02:59Z"
     },
     {
+      "id": "desktop-nb:88abd47107",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{tools.length}",
+              "equiv": "tools.length"
+            }
+          },
+          {
+            "text": " tools available across "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{categories.size}",
+              "equiv": "categories.size"
+            }
+          },
+          {
+            "text": " categories"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{tools.length}",
+              "equiv": "tools.length"
+            }
+          },
+          {
+            "text": " verktøy tilgjengelig i "
+          },
+          {
+            "ph": {
+              "id": "2",
+              "type": "jsx:var",
+              "data": "{categories.size}",
+              "equiv": "categories.size"
+            }
+          },
+          {
+            "text": " kategorier"
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
+    },
+    {
       "id": "desktop-nb:8908224a2a",
       "hintSrcLang": "en",
       "variants": {
@@ -6384,6 +6664,46 @@
       "updated": "2026-06-11T08:02:59Z"
     },
     {
+      "id": "desktop-nb:ad0892819a",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "+"
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " more"
+          }
+        ],
+        "nb": [
+          {
+            "text": "+"
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{value}",
+              "equiv": "value"
+            }
+          },
+          {
+            "text": " til"
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
+    },
+    {
       "id": "desktop-nb:add8271b70",
       "hintSrcLang": "en",
       "variants": {
@@ -7148,6 +7468,40 @@
       },
       "created": "2026-06-11T08:02:59Z",
       "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb:c038b524f8",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{job.fileCount}",
+              "equiv": "job.fileCount"
+            }
+          },
+          {
+            "text": " files"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{job.fileCount}",
+              "equiv": "job.fileCount"
+            }
+          },
+          {
+            "text": " filer"
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
     },
     {
       "id": "desktop-nb:c10be6b34a",
@@ -8603,6 +8957,40 @@
       "updated": "2026-06-11T08:02:59Z"
     },
     {
+      "id": "desktop-nb:dbc31815e3",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{documentedCount}",
+              "equiv": "documentedCount"
+            }
+          },
+          {
+            "text": " documented formats"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{documentedCount}",
+              "equiv": "documentedCount"
+            }
+          },
+          {
+            "text": " dokumenterte formater"
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
+    },
+    {
       "id": "desktop-nb:dbcd5e7bb7",
       "hintSrcLang": "en",
       "variants": {
@@ -8957,6 +9345,46 @@
       },
       "created": "2026-06-11T08:02:59Z",
       "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb:e331ff7327",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Installed ("
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{plugins.length}",
+              "equiv": "plugins.length"
+            }
+          },
+          {
+            "text": ")"
+          }
+        ],
+        "nb": [
+          {
+            "text": "Installert ("
+          },
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{plugins.length}",
+              "equiv": "plugins.length"
+            }
+          },
+          {
+            "text": ")"
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
     },
     {
       "id": "desktop-nb:e3d261daf9",
@@ -9517,6 +9945,40 @@
       },
       "created": "2026-06-11T08:02:59Z",
       "updated": "2026-06-11T08:02:59Z"
+    },
+    {
+      "id": "desktop-nb:f118c4b5d6",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{collection.blockCount}",
+              "equiv": "collection.blockCount"
+            }
+          },
+          {
+            "text": " blocks"
+          }
+        ],
+        "nb": [
+          {
+            "ph": {
+              "id": "1",
+              "type": "jsx:var",
+              "data": "{collection.blockCount}",
+              "equiv": "collection.blockCount"
+            }
+          },
+          {
+            "text": " blokker"
+          }
+        ]
+      },
+      "created": "2026-07-25T05:10:02Z",
+      "updated": "2026-07-25T05:10:02Z"
     },
     {
       "id": "desktop-nb:f2863cb902",

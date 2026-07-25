@@ -93,10 +93,19 @@ func (t *TMLeverageTool) translate(v tool.VariantView) error {
 		return nil
 	}
 
-	// For exact matches (any tier), apply the target directly.
+	// For exact matches (any tier), apply the target directly — but only when
+	// the entry's inline codes line up with this block's source. The plain tier
+	// matches on flattened text (codes contribute no characters), so an entry
+	// stored without placeholders is an "exact" match for a source that has
+	// them; applying its runs would silently drop every one. Missing codes are
+	// content loss, extra codes are foreign markup: neither may be committed
+	// unattended. The match is still recorded as an AltTranslation below, so a
+	// reviewer sees the candidate and can repair it.
 	if best.MatchType.IsExact() {
 		adapted := applyEntityAdaptations(targetVariant, best.EntityAdaptations)
-		v.SetTargetRuns(t.cfg.TargetLocale, adapted)
+		if model.DiffRunCodes(v.SourceRuns(), adapted).Balanced() {
+			v.SetTargetRuns(t.cfg.TargetLocale, adapted)
+		}
 	}
 
 	// Add the best match as an AltTranslation annotation.

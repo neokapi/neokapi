@@ -66,6 +66,13 @@ func NewPlaceholderCheckFromConfig(config map[string]any, targetLang string) (to
 // placeholder in the source survives, by count, into the target: a dropped
 // `{count}` or unbalanced `<0>` is the kind of break that crashes a localized
 // app at runtime. Read-only (Annotate) over core/check.
+//
+// Two representations are checked, because a placeholder can arrive either way:
+// literal tokens inside the text (`{count}`, `%s`, `<0>`), and inline-code Runs
+// (a Ph / PcOpen / PcClose / Sub the reader lifted out of the text). The text
+// projection contributes no characters for inline-code runs, so a text-only
+// check is blind to a target that dropped them — which is exactly how a lossy
+// recycled translation used to pass through the pipeline unnoticed.
 func NewPlaceholderCheckTool(cfg *PlaceholderCheckConfig) *tool.BaseTool {
 	t := &tool.BaseTool{
 		ToolName:        "placeholder-check",
@@ -84,12 +91,32 @@ func NewPlaceholderCheckTool(cfg *PlaceholderCheckConfig) *tool.BaseTool {
 		source := v.SourceText()
 		target := v.TargetText(conf.TargetLocale)
 		srcCounts := placeholderCounts(source)
-		if len(srcCounts) == 0 && !conf.FlagExtra {
+		codeDiff := model.DiffRunCodes(v.SourceRuns(), v.TargetRuns(conf.TargetLocale))
+		if len(srcCounts) == 0 && codeDiff.Balanced() && !conf.FlagExtra {
 			return nil
 		}
 		tgtCounts := placeholderCounts(target)
 
 		var findings []check.Finding
+		for _, code := range codeDiff.MissingCodes() {
+			findings = append(findings, check.Finding{
+				Category:     "placeholder",
+				Severity:     check.SeverityCritical,
+				Message:      fmt.Sprintf("Inline code %s is missing from the %s target (dropped %d×)", code, conf.TargetLocale, codeDiff.Missing[code]),
+				Suggestion:   fmt.Sprintf("Keep %s in the target", code),
+				OriginalText: code,
+			})
+		}
+		if conf.FlagExtra {
+			for _, code := range codeDiff.ExtraCodes() {
+				findings = append(findings, check.Finding{
+					Category:     "placeholder",
+					Severity:     check.SeverityMajor,
+					Message:      fmt.Sprintf("Inline code %s appears in the %s target but not the source", code, conf.TargetLocale),
+					OriginalText: code,
+				})
+			}
+		}
 		for _, tok := range sortedKeys(srcCounts) {
 			if tgtCounts[tok] < srcCounts[tok] {
 				findings = append(findings, check.Finding{
