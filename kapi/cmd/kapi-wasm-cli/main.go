@@ -7,10 +7,13 @@
 // standard error flow through os.Stdout/os.Stderr (i.e. globalThis.fs) so the
 // page can route them to the terminal exactly as a real shell would.
 //
-// The browser-safe command subset is wired here. Commands that need a
-// subprocess (plugins) or the OS keychain (credentials) are omitted.
-// tm and termbase are included: they use the in-memory backends seeded
-// from embedded fixtures (see wasm_backends.go) — no cgo or SQLite needed.
+// The command surface comes from cli.BrowserCommandSet, which mirrors the
+// native binary's cli.KapiCommandSet verb for verb: browser-safe commands are
+// built for real, and the ones needing a subprocess (plugins), the OS keychain
+// (credentials), the network (models, update) or a socket (engine, mcp) report
+// that limitation instead of going missing. tm and termbase run against the
+// in-memory backends seeded from embedded fixtures (see wasm_backends.go) — no
+// cgo or SQLite needed.
 package main
 
 import (
@@ -218,57 +221,15 @@ func buildRoot() *cobra.Command {
 	cli.AddPersistentFlags(app, root)
 	cli.AddCommandGroups(app, root)
 
-	runCmd := cli.NewRunCmd(app, cli.RunCmdOptions{})
-	runCmd.GroupID = "advanced"
-	root.AddCommand(runCmd)
-	root.AddCommand(cli.NewExtractCmd(app, cli.ExtractCmdOptions{}))
-	root.AddCommand(cli.NewMergeCmd(app, cli.MergeCmdOptions{}))
-	// .klz workspace verbs (AD-025 §5): pack/unpack the working cache and info
-	// to show its dirty state. The cache is the wasm session-persistent
-	// in-memory store (core/blockstore/cache_wasm.go).
-	root.AddCommand(cli.NewPackCmd(app))
-	root.AddCommand(cli.NewUnpackCmd(app))
-	root.AddCommand(cli.NewInfoCmd(app))
-	// init scaffolds a .kapi project (recipe + state dir) with pure local file
-	// writes, so it runs in the browser against the in-memory filesystem.
-	root.AddCommand(cli.NewInitCmd(app))
-	root.AddCommand(cli.NewAddCmd(app))
-	root.AddCommand(cli.NewRmCmd(app))
-	root.AddCommand(cli.NewLsCmd(app))
-	// status derives project coverage from the files plus the committed state
-	// store, and apply writes a review decision into that state store
-	// (.kapi-state.json) — both pure local-filesystem + JSON, no SQLite/cgo, so
-	// the review→approve loop runs against the in-memory filesystem in the
-	// browser. (apply's tm/term kinds, which compile a SQLite cache, are not
-	// exercised in the browser; the review kind is.)
-	root.AddCommand(cli.NewStatusCmd(app))
-	root.AddCommand(cli.NewApplyCmd(app))
-	root.AddCommand(cli.NewFlowsCmd(app, cli.FlowCmdOptions{}))
-	root.AddCommand(cli.NewToolsCmd(app))
-	root.AddCommand(cli.NewFormatsCmd(app))
-	root.AddCommand(cli.NewPresetsCmd(app))
-	root.AddCommand(cli.NewTranslateCmd(app))
-	root.AddCommand(cli.NewPseudoTranslateCmd(app))
-	// stats sizes content (blocks/words/chars/segments) — pure reader-side
-	// aggregation, so the docs snippet verifier can run `kapi stats` in the
-	// browser playground.
-	root.AddCommand(cli.NewStatsCmd(app))
-	root.AddCommand(cli.NewVersionCmd(app, "kapi"))
-
-	// TM and termbase commands backed by the in-memory fixture data
-	// seeded in main() — no SQLite / cgo required in the browser build.
-	root.AddCommand(cli.NewTMCmd(app))
-	root.AddCommand(cli.NewTermbaseCmd(app))
-
-	// Top-level tool commands (pseudo-translate, term-check, …).
-	for _, c := range cli.NewToolCommands(app) {
-		root.AddCommand(c)
-	}
-
-	// Format-aware toolbox utilities (grep/sed/cat/convert). `convert` (kconv)
-	// powers the in-browser Conversion Lab — read any format, re-express it as a
-	// generative target (markdown/html/doclang/xliff/…) via the content model.
-	for _, c := range cli.NewToolboxProxies(app) {
+	// One command surface, declared once. cli.BrowserCommandSet mirrors
+	// cli.KapiCommandSet (the native binary's surface) verb for verb: every
+	// browser-safe command is constructed by its real factory, and the handful
+	// that need a subprocess, the OS keychain, the network, or a socket
+	// register a command that says so. cli.TestBrowserCommandSurface fails the
+	// build if the two sets ever diverge, so a verb added or renamed natively
+	// can no longer go missing here and surface to a lab user as cobra's
+	// `unknown command`.
+	for _, c := range cli.BrowserCommandSet(app) {
 		root.AddCommand(c)
 	}
 

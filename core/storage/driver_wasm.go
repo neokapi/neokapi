@@ -2,7 +2,10 @@
 
 package storage
 
-import "strings"
+import (
+	"errors"
+	"strings"
+)
 
 // On wasm (GOOS=js / wasip1) there is no SQLite driver: modernc.org/sqlite
 // depends on modernc.org/libc, which has no wasm support, and the cgo mattn
@@ -14,6 +17,16 @@ import "strings"
 
 // sqliteDriver names the (unregistered) driver; declared for build parity.
 const sqliteDriver = "sqlite"
+
+// driverUnavailable reports that this build has no SQLite driver at all. Open
+// checks it first so a browser caller reading a store-backed asset gets the
+// actual explanation instead of database/sql's `unknown driver "sqlite"
+// (forgotten import?)`, which reads like a missing blank import in kapi rather
+// than a deliberate property of the browser build.
+func driverUnavailable() error {
+	return errors.New("a file-backed SQLite database is not available in the browser build; " +
+		"the browser runs against the in-memory translation memory and termbase seeded from the lab fixtures")
+}
 
 // FTSWordTokenizer is unused on wasm (no SQLite); declared for build parity
 // with the cgo / no-cgo drivers so sievepen and termbase compile.

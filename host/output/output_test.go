@@ -212,3 +212,44 @@ type fakeCommand struct{ flags *pflag.FlagSet }
 func (f fakeCommand) Flags() *pflag.FlagSet  { return f.flags }
 func (f fakeCommand) OutOrStdout() io.Writer { return io.Discard }
 func (f fakeCommand) ErrOrStderr() io.Writer { return io.Discard }
+
+// TestColorizeEnv covers the JSON path's colour decision, which — unlike the
+// text path (termenv) — is hand-rolled here. CLICOLOR_FORCE=0 is the
+// documented way to turn colour off; treating any set value as force-on turned
+// it on instead, and ANSI-coloured JSON is not parseable by the callers that
+// asked for --json (the browser lab reads `formats list --json` this way).
+func TestColorizeEnv(t *testing.T) {
+	tests := []struct {
+		name     string
+		env      map[string]string
+		colorArg string
+		want     bool
+	}{
+		{name: "no env, non-terminal writer", want: false},
+		{name: "CLICOLOR_FORCE=1 forces colour", env: map[string]string{"CLICOLOR_FORCE": "1"}, want: true},
+		{name: "CLICOLOR_FORCE=0 does not force colour", env: map[string]string{"CLICOLOR_FORCE": "0"}, want: false},
+		{name: "NO_COLOR wins over CLICOLOR_FORCE", env: map[string]string{"NO_COLOR": "1", "CLICOLOR_FORCE": "1"}, want: false},
+		{
+			name:     "--color=never wins over CLICOLOR_FORCE",
+			env:      map[string]string{"CLICOLOR_FORCE": "1"},
+			colorArg: "never",
+			want:     false,
+		},
+		{name: "--color=always wins over NO_COLOR", env: map[string]string{"NO_COLOR": "1"}, colorArg: "always", want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("NO_COLOR", "")
+			t.Setenv("CLICOLOR_FORCE", "")
+			for k, v := range tt.env {
+				t.Setenv(k, v)
+			}
+			cmd := fakeCommand{flags: pflag.NewFlagSet("test", pflag.ContinueOnError)}
+			AddFlags(cmd.flags)
+			if tt.colorArg != "" {
+				require.NoError(t, cmd.flags.Set("color", tt.colorArg))
+			}
+			assert.Equal(t, tt.want, Colorize(cmd, &bytes.Buffer{}))
+		})
+	}
+}

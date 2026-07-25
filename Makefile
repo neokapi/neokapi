@@ -1915,6 +1915,9 @@ klz-smoke: build ## Verify the resumable .klz workspace lifecycle (open→step�
 klz-wasm-smoke: web-wasm-cli ## Verify .klz workspace + .kapi project run in the browser WASM engine (JSON + Office)
 	GOROOT="$$($(GO) env GOROOT)" node --experimental-strip-types scripts/klz-wasm-smoke.ts
 
+wasm-surface-smoke: web-wasm-cli ## Verify no browser verb answers "unknown command", gaps explain themselves, and the labs' own argv still runs
+	node --experimental-strip-types scripts/verify-snippets/command-surface-smoke.ts
+
 # ── Pages publishing (local) ──────────────────────────────────────────────────
 #
 # Local equivalents of the docs-kapi.yml / docs-bowrain.yml / web-landing.yml +
@@ -2124,6 +2127,7 @@ help: ## Show this help
         generate-format-docs generate-reference-docs check-reference-docs generate-reference-pages \
         generate-contract-types check-contract-types \
         docs-deps docs-dev docs-wasm docs-build docs-serve docs-verify-snippets \
+        klf-smoke klz-smoke klz-wasm-smoke wasm-surface-smoke \
         landing-build landing-build-nb docs-build-prod bowrain-docs-build-prod publish-landing publish-website \
         emails-frontend-deps emails-extract emails-pseudo-translate l10n-emails emails-l10n-verify \
         landing-frontend-deps landing-extract landing-pseudo-translate l10n-landing landing-l10n-verify \
