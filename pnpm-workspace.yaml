@@ -46,6 +46,31 @@ shamefullyHoist: true
 # web' prebuild → gen-reference still fire automatically.
 enablePrePostScripts: true
 
+# Where the *package manager itself* is downloaded from, so the
+# package.json#packageManager pin resolves the same way on every machine.
+#
+# pnpm 11.13+ hardened its self-install: before switching to the pinned version
+# it resolves pnpm + @pnpm/exe and requires each resolution to be
+# integrity-only, i.e. the advertised tarball URL must be canonical for the
+# registry it resolved against. That holds on npmjs, but not through a mirror:
+# registry.yarnpkg.com (and Artifactory/Verdaccio proxies) serve npm's packument
+# verbatim, so `dist.tarball` still points at registry.npmjs.org, which is not
+# canonical for the mirror. The resolution then keeps its `tarball:` field, the
+# integrity-only assertion rejects it, and *every* pnpm invocation fails with
+# "The packageManager dependency ... must use a registry package path and an
+# integrity-only resolution" — a message that names pnpm-lock.yaml but has
+# nothing to do with it (it reproduces in an empty directory holding only a
+# package.json).
+#
+# pnpm deliberately ignores .npmrc and `registry=` for this decision (a
+# committed file must not be able to redirect where the package manager binary
+# comes from), so this setting is the supported way to state it. It only governs
+# the package-manager bootstrap; ordinary dependency resolution still follows
+# .npmrc, including the @neokapi scope. On a machine whose default registry is
+# already npmjs — every CI runner — this changes nothing.
+packageManagerRegistries:
+  default: https://registry.npmjs.org/
+
 # vite-plus 0.2.x ships its own vendored vite/rolldown build as
 # @voidzero-dev/vite-plus-core. The canonical vite-plus monorepo setup aliases the
 # bare `vite` package to that build (via a catalog entry referenced from overrides)
