@@ -154,9 +154,59 @@ updates:
       default-days: 3
       semver-major-days: 7
     labels: [dependencies, npm]
-    open-pull-requests-limit: 10
+    # Raised from 10 because the single group below became many. Each npm PR
+    # touches the one workspace pnpm-lock.yaml, so concurrent npm PRs serially
+    # conflict on it — dependabot-pnpm-relock.yml exists to absorb exactly that.
+    open-pull-requests-limit: 15
     groups:
-      npm-minor-patch:
+      # A single `update-types: [minor, patch]` group collapsed every npm update
+      # into one PR — #1439 carried 38 packages and failed 11 checks across
+      # builds, Frontend, both desktops and the l10n gate. A 38-package bump
+      # failing six suites has several independent causes, none of which can be
+      # isolated or reverted separately, and it re-conflicted on every merge to
+      # main. Closed unmerged.
+      #
+      # These groups are keyed to families rather than sliced arbitrarily,
+      # because several MUST move in lockstep — react/react-dom, storybook and
+      # its addons, tailwind and its plugins, lexical and its react binding,
+      # react-hook-form and its resolvers all break in a mixed state. Grouping
+      # by family keeps each PR individually revertable without ever producing
+      # a broken intermediate.
+      #
+      # Anything not matched here gets its own PR, which is the point.
+      npm-react:
+        patterns: ["react", "react-dom", "@vitejs/plugin-react", "@types/react", "@types/react-dom"]
+        update-types: [minor, patch]
+      npm-storybook:
+        patterns: ["storybook", "@storybook/*"]
+        update-types: [minor, patch]
+      npm-tailwind:
+        patterns: ["tailwindcss", "@tailwindcss/*"]
+        update-types: [minor, patch]
+      npm-radix-ui:
+        patterns: ["radix-ui", "@radix-ui/*", "shadcn", "lucide-react"]
+        update-types: [minor, patch]
+      npm-tanstack:
+        patterns: ["@tanstack/*"]
+        update-types: [minor, patch]
+      npm-lexical:
+        patterns: ["lexical", "@lexical/*"]
+        update-types: [minor, patch]
+      npm-forms:
+        patterns: ["react-hook-form", "@hookform/*"]
+        update-types: [minor, patch]
+      # Low risk, high count: a dozen font packages should never crowd out a
+      # PR that needs reading.
+      npm-fonts:
+        patterns: ["@fontsource*"]
+        update-types: [minor, patch]
+      # react/react-dom types are excluded so they travel with npm-react.
+      npm-types:
+        patterns: ["@types/*"]
+        exclude-patterns: ["@types/react", "@types/react-dom"]
+        update-types: [minor, patch]
+      npm-toolchain:
+        patterns: ["vite-plus", "@swc/*", "eslint", "@oxlint/*", "@playwright/test", "typescript"]
         update-types: [minor, patch]
 
   # ── Docker base images ─────────────────────────────────────────────────────
