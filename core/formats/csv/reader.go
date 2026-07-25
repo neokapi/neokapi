@@ -23,6 +23,14 @@ const (
 	headerRowGroupID = "trh"
 )
 
+// propExistingTarget names the capture of a bilingual row's target cell as it
+// stood in the file. The writer re-emits it for a cell nothing produced a
+// translation for, which is what keeps an untouched table byte-exact; it is
+// paired with the slot's locale (format.RecordVerbatimSlotLocale) so a writer
+// with no active locale can tell "nobody translated this" from "the pipeline
+// carries a target for this column's locale".
+const propExistingTarget = "existing-target"
+
 // Reader implements DataFormatReader for CSV files.
 type Reader struct {
 	format.BaseFormatReader
@@ -734,7 +742,14 @@ func (r *Reader) newBilingualBlock(row []string, rowNum int, blockCounter *int) 
 	// writer must never render source text there, falling back to the
 	// original target cell content instead.
 	block.Properties["target-cell"] = "true"
-	block.Properties["existing-target"] = tgt
+	block.Properties[propExistingTarget] = tgt
+	// Record which locale the target column belongs to, even when the cell is
+	// empty. It is what lets the writer reproduce the column when it has no
+	// active locale of its own: without it, "no write locale" and "nothing to
+	// write here" are the same fact, and an edit to this locale's target is
+	// discarded in favour of the captured cell (#1482). See
+	// format.VerbatimSlotLocale.
+	format.RecordVerbatimSlotLocale(block, propExistingTarget, r.Doc.TargetLocale)
 	if tgt != "" && !r.Doc.TargetLocale.IsEmpty() {
 		block.SetTargetText(r.Doc.TargetLocale, tgt)
 	}

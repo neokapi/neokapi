@@ -173,6 +173,18 @@ const (
 	skelPartEndPrefix   = "@@SKEL_PART_END@@"
 )
 
+// propXHTMLText names the capture under which the reader records a block's text
+// exactly as it stood in the original XHTML. Only the witness is recorded (via
+// format.RecordVerbatimText) — there are no separate verbatim bytes, because the
+// bytes the writer preserves are the surrounding XHTML entry, not the block.
+//
+// The package-rewrite write path (Writer.writeEPUB, taken when no skeleton store
+// was wired) locates the span to replace by matching text against the original
+// entry. That needle must be this witness, not the block's live source: keyed on
+// the live source the match is tautological and an edited block silently fails to
+// match anything (#1482). See format.VerbatimText.
+const propXHTMLText = "epub.xhtml"
+
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	locale := r.Doc.SourceLocale
 	if locale.IsEmpty() {
@@ -709,6 +721,7 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 				block := model.NewBlock(blockID, text)
 				block.Name = itemPath
 				block.Properties["entry"] = itemPath
+				format.RecordVerbatimText(block, propXHTMLText, text)
 
 				if r.skeletonStore != nil {
 					// Write skeleton: open tags from pending tokens, ref, close tags
@@ -843,6 +856,7 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 			block.PreserveWhitespace = true
 			block.SetSemanticRole(model.RoleCode, 0)
 			block.Properties["entry"] = itemPath
+			format.RecordVerbatimText(block, propXHTMLText, body.String())
 
 			if r.skeletonStore != nil {
 				for _, c := range opens {

@@ -82,6 +82,70 @@ func RecordVerbatimText(block *model.Block, prop, text string) {
 	block.Properties[VerbatimTextProp(prop)] = text
 }
 
+// A captured value that stands in a TARGET slot — a bilingual .csv's target
+// column, a PO entry's msgstr — belongs to a locale: the one the reader attached
+// its content to the block under. A writer that is not pointed at that locale
+// still has to reproduce the slot, and what it must reproduce is the block's
+// target for the slot's own locale, not the bytes captured before the pipeline
+// ran. Without the locale recorded, "this writer has no active locale" is
+// indistinguishable from "there is nothing to write for this slot" — which is how
+// a tool's edit to an existing translation came to be discarded, and, in PO's
+// case, how a translation the file already carried came to be blanked while the
+// command exited 0 (#1482, the non-write-locale form of #1471).
+
+// VerbatimSlotLocaleProp names the companion property under which a reader
+// records the locale a captured target slot belongs to. Derived from the capture
+// property's own name, like VerbatimTextProp.
+func VerbatimSlotLocaleProp(prop string) string { return prop + ".locale" }
+
+// RecordVerbatimSlotLocale records that the value captured under prop occupies a
+// target slot belonging to locale. A reader calls this whenever it knows which
+// locale the slot is for — including when the slot is empty, so a target a tool
+// ADDS is written into it rather than ignored.
+func RecordVerbatimSlotLocale(block *model.Block, prop string, locale model.LocaleID) {
+	if block == nil || prop == "" || locale.IsEmpty() {
+		return
+	}
+	if block.Properties == nil {
+		block.Properties = make(map[string]string, 1)
+	}
+	block.Properties[VerbatimSlotLocaleProp(prop)] = string(locale)
+}
+
+// VerbatimSlotLocale returns the locale the target slot captured under prop
+// belongs to. It reports false when the reader did not know one — in which case
+// the capture is the only statement of the slot's content, and re-emitting it is
+// the writer's only faithful move.
+func VerbatimSlotLocale(block *model.Block, prop string) (model.LocaleID, bool) {
+	if block == nil || len(block.Properties) == 0 || prop == "" {
+		return "", false
+	}
+	loc, ok := block.Properties[VerbatimSlotLocaleProp(prop)]
+	if !ok || loc == "" {
+		return "", false
+	}
+	return model.LocaleID(loc), true
+}
+
+// VerbatimText returns the text a reader recorded for prop at read time — the
+// witness itself, as a value, rather than a comparison against it.
+//
+// A writer needs the witness as a value when it does not splice by position but
+// *locates* what to replace by matching the text it read. EPUB's package rewrite
+// does exactly that: it walks the original XHTML and replaces the body of the
+// element whose text matches. Keying that lookup on the block's current source
+// makes it tautological in the same way the shortcut above was — after a source
+// edit the needle is the new text, nothing in the original file matches it, and
+// the replacement silently no-ops while the write reports success (#1482). The
+// needle has to be the text as read; the replacement is the block's current text.
+func VerbatimText(block *model.Block, prop string) (string, bool) {
+	if block == nil || len(block.Properties) == 0 || prop == "" {
+		return "", false
+	}
+	text, ok := block.Properties[VerbatimTextProp(prop)]
+	return text, ok
+}
+
 // VerbatimCurrent reports whether the text recorded for prop at read time still
 // equals emitted, i.e. whether the original bytes may stand. A block with no
 // recorded witness reports false: unprovable is treated as changed, so the

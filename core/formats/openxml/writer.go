@@ -1096,8 +1096,9 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 		return w.writeFromSkeleton(origZR, zw, info, blocks)
 	}
 
-	// Fallback: copy original unchanged
-	return w.writeFromReparse(origZR, zw, blocks)
+	// No store was wired. Derive one from the original package rather than
+	// copying it (#1482) — see writeFromReparse.
+	return w.writeFromReparse(ctx, origZR, zw, info, blocks)
 }
 
 // writeFromSkeleton reconstructs translatable XML parts using the skeleton store.
@@ -1475,23 +1476,96 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 	return zw.Close()
 }
 
-// writeFromReparse copies the original ZIP, substituting locale-variant media (Bowrain AD-007).
-func (w *Writer) writeFromReparse(origZR *zip.Reader, zw *zip.Writer,
-	blocks map[string]*model.Block) error {
+// writeFromReparse is the write path for a caller that wired no skeleton store:
+// it reparses the original package to obtain one, then reconstructs through
+// writeFromSkeleton exactly as a wired round-trip does.
+//
+// It used to copy every ZIP entry through verbatim and substitute only media
+// (Bowrain AD-007), which meant every text edit and every translation in the
+// Part stream was dropped while the write reported success (#1482). The writer
+// declares RequiresSkeleton — it cannot serialize WordprocessingML from the
+// content model alone — but it does hold the original package, and a skeleton is
+// a deterministic function of those bytes and the extraction config. So there is
+// no need to guess and no need to fail: the missing scaffolding can be rebuilt
+// from what the writer already has. Callers on this path are the ones that never
+// had a reader to wire (the engine's Merge RPC, which receives a Part stream and
+// the original document over gRPC, and the spec runner's round-trip view).
+//
+// The Part stream is the authority for every block it carries. A ref the caller
+// did not send keeps the block as reparsed, so a partial stream reproduces the
+// original text for the parts it omitted instead of deleting them.
+func (w *Writer) writeFromReparse(ctx context.Context, origZR *zip.Reader, zw *zip.Writer,
+	info *containerInfo, blocks map[string]*model.Block) error {
 
-	for _, f := range origZR.File {
-		if replacement, ok := w.mediaReplacements[f.Name]; ok {
-			if err := writeMediaReplacement(zw, f, replacement); err != nil {
-				return err
-			}
-		} else {
-			if err := zw.Copy(f); err != nil {
-				return err
-			}
-		}
+	store, merged, err := w.reparseSkeleton(ctx, blocks)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+
+	w.skeletonStore = store
+	defer func() { w.skeletonStore = nil }()
+	w.blocks = merged
+
+	if err := store.Flush(); err != nil {
+		return fmt.Errorf("openxml: skeleton flush: %w", err)
+	}
+	return w.writeFromSkeleton(origZR, zw, info, merged)
+}
+
+// reparseSkeleton runs a fresh reader over the writer's original package bytes
+// with the writer's own extraction config, capturing the skeleton it emits. It
+// returns that store plus the block index the writer should render: the
+// reparsed blocks, overlaid by the ones the caller streamed in.
+//
+// Sharing the config is what makes the block refs line up — the reader's ids are
+// positional (`tu1`, `tu2`, …), so the same bytes plus the same extraction
+// decisions produce the same ids the caller's stream was numbered with.
+func (w *Writer) reparseSkeleton(ctx context.Context, blocks map[string]*model.Block) (*format.SkeletonStore, map[string]*model.Block, error) {
+	store, err := format.NewSkeletonStore()
+	if err != nil {
+		return nil, nil, fmt.Errorf("openxml: no skeleton store was wired and one could not be created to reparse the original package: %w", err)
 	}
 
-	return zw.Close()
+	r := NewReader()
+	*r.cfg = *w.cfg
+	r.SetSkeletonStore(store)
+
+	sourceLocale := w.sourceLocale
+	if sourceLocale.IsEmpty() {
+		sourceLocale = model.LocaleEnglish
+	}
+	doc := &model.RawDocument{
+		URI:          "openxml-reparse",
+		SourceLocale: sourceLocale,
+		Encoding:     "UTF-8",
+		Reader:       io.NopCloser(bytes.NewReader(w.originalContent)),
+	}
+	if err := r.Open(ctx, doc); err != nil {
+		store.Close()
+		return nil, nil, fmt.Errorf("openxml: reparsing the original package: %w", err)
+	}
+
+	merged := make(map[string]*model.Block, len(blocks))
+	for res := range r.Read(ctx) {
+		if res.Error != nil {
+			r.Close()
+			store.Close()
+			return nil, nil, fmt.Errorf("openxml: reparsing the original package: %w", res.Error)
+		}
+		if res.Part == nil {
+			continue
+		}
+		if b, ok := res.Part.Resource.(*model.Block); ok {
+			merged[b.ID] = b
+		}
+	}
+	if err := r.Close(); err != nil {
+		store.Close()
+		return nil, nil, fmt.Errorf("openxml: reparsing the original package: %w", err)
+	}
+	maps.Copy(merged, blocks)
+	return store, merged, nil
 }
 
 // renderBlock converts a block's content back to the appropriate XML dialect.

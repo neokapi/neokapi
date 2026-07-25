@@ -22,6 +22,18 @@ import (
 // docs: a singular form and a plural form).
 const defaultNPlurals = 2
 
+// propRawMsgstr names the capture of an entry's msgstr field exactly as it stood
+// in the file — keyword, quoting and continuation lines included — so an entry
+// nothing touched round-trips byte for byte.
+//
+// It is paired with the slot's locale (format.RecordVerbatimSlotLocale). A PO
+// msgstr is a target slot, and a writer with no active locale still has to
+// reproduce it: without the locale recorded, "this writer was given no locale"
+// read as "this entry has no translation", so every msgstr was rewritten empty
+// and a translated catalog came back blank from `kapi apply` / `kapi ksed -i`
+// (#1482). See Writer.msgstrText.
+const propRawMsgstr = "raw-msgstr"
+
 // Reader implements DataFormatReader for PO (gettext) files.
 type Reader struct {
 	format.BaseFormatReader
@@ -294,6 +306,9 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 			if entry.msgctxt != "" {
 				block.Properties["context"] = entry.msgctxt
 			}
+			if r.cfg.BilingualMode {
+				format.RecordVerbatimSlotLocale(block, propRawMsgstr, targetLocale)
+			}
 			if target != "" && !targetLocale.IsEmpty() {
 				block.SetTargetText(targetLocale, target)
 			}
@@ -402,6 +417,12 @@ func (r *Reader) newPluralBlock(entry *poEntry, pf pluralForm, targetLocale mode
 		block.Properties["context"] = entry.msgctxt
 	}
 	block.Properties["plural-form"] = pf.formName
+	// The msgstr[N] slot belongs to targetLocale. Recorded even when the form is
+	// untranslated, so a target a tool ADDS lands in it — see
+	// format.VerbatimSlotLocale and Writer.msgstrText.
+	if r.cfg.BilingualMode {
+		format.RecordVerbatimSlotLocale(block, propRawMsgstr, targetLocale)
+	}
 	if entry.msgstrPlurals != nil {
 		if val, ok := entry.msgstrPlurals[pf.index]; ok && val != "" && !targetLocale.IsEmpty() {
 			block.SetTargetText(targetLocale, val)
@@ -859,7 +880,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			// nplurals (default 2), matching Okapi's testThreePlurals.
 			for _, pf := range r.pluralForms(entry, entryBlockID) {
 				block := r.newPluralBlock(entry, pf, targetLocale)
-				block.Properties["raw-msgstr"] = buildRawMsgstr(pf.index)
+				block.Properties[propRawMsgstr] = buildRawMsgstr(pf.index)
 				// The msgid line is form 0's source; the single msgid_plural
 				// line is the source every form ≥ 1 shares, so form 1 owns it
 				// (a file has exactly one msgid_plural, so an edit to a
@@ -895,7 +916,13 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			if entry.msgctxt != "" {
 				block.Properties["context"] = entry.msgctxt
 			}
-			block.Properties["raw-msgstr"] = buildRawMsgstr(-1)
+			block.Properties[propRawMsgstr] = buildRawMsgstr(-1)
+			// The msgstr slot belongs to targetLocale. Recorded even for an
+			// untranslated entry, so a target a tool ADDS lands in it — see
+			// format.VerbatimSlotLocale and Writer.msgstrText.
+			if r.cfg.BilingualMode {
+				format.RecordVerbatimSlotLocale(block, propRawMsgstr, targetLocale)
+			}
 			if emitMsgidRefs {
 				format.RecordVerbatim(block, "raw-msgid", buildRawMsgid(fieldMsgid), entry.msgid)
 			}
