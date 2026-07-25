@@ -34,7 +34,7 @@ parameters:
     help: |
       The locale whose translation is validated when target checking is enabled.
       Required when `checkTarget` is on; ignored otherwise.
-    values: "BCP-47 locale (e.g. `fr-FR`)"
+    values: "BCP-47 locale (e.g. `fr`)"
     dependsOn:
       - property: checkTarget
         condition: only used when target checking is enabled
@@ -60,4 +60,4 @@ examples:
     description: Also validate the French translation, treating each block as a fragment.
     config: |
       checkTarget: true
-      locale: fr-FR
+      locale: fr

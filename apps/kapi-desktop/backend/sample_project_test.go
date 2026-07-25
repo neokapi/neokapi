@@ -177,8 +177,8 @@ func TestSampleProjectFilesExist(t *testing.T) {
 	// Verify all expected files.
 	for _, path := range []string{
 		"kapi.yaml",
-		"src/en-US/store-ui.json",
-		"web/en-US/getting-started.md",
+		"src/en/store-ui.json",
+		"web/en/getting-started.md",
 		".kapi/tm.db",
 		".kapi/termbase.db",
 	} {

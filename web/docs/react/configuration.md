@@ -322,8 +322,8 @@ A globe icon appears in the Storybook toolbar; switching locale re-renders every
 ```html
 <!-- before -->
 <html lang="en" dir="ltr">
-  <!-- after loadTranslations("ar-SA", …) -->
-  <html lang="ar-SA" dir="rtl"></html>
+  <!-- after loadTranslations("ar", …) -->
+  <html lang="ar" dir="rtl"></html>
 </html>
 ```
 
@@ -340,9 +340,9 @@ If your app manages `<html lang>` itself (SSR with preset lang, framework-owned 
 ```ts
 import { setTranslations } from "@neokapi/i18n-react/runtime";
 
-setTranslations("ja-JP", dict, { syncDocumentLocale: false });
+setTranslations("ja", dict, { syncDocumentLocale: false });
 // or:
-await loadTranslations("ja-JP", "/translations/ja-JP.json", {
+await loadTranslations("ja", "/translations/ja.json", {
   syncDocumentLocale: false,
 });
 ```
@@ -356,7 +356,7 @@ When you need to push locale state without swapping the dict (e.g. your app has 
 ```ts
 import { syncDocumentLocale } from "@neokapi/i18n-react/runtime";
 
-syncDocumentLocale("fr-FR");
+syncDocumentLocale("fr");
 ```
 
 ### Custom RTL detection

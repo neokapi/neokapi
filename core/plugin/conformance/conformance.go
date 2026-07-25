@@ -220,7 +220,7 @@ type FormatProbe struct {
 	Filename string
 
 	// SourceLocale is the BCP-47 source locale sent in the process header.
-	// Defaults to "en-US".
+	// Defaults to "en".
 	SourceLocale string
 
 	// MinBlocks is the minimum number of translatable blocks the read must
@@ -237,7 +237,7 @@ type SegmentProbe struct {
 	// Text is the text to segment.
 	Text string
 
-	// Locale is the BCP-47 locale. Defaults to "en-US".
+	// Locale is the BCP-47 locale. Defaults to "en".
 	Locale string
 
 	// Params are engine-specific parameters.

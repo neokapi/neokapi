@@ -28,7 +28,7 @@ Du hast {count, number} ungelesene Nachrichten.
 
 Now `1234` renders as `1.234` in German and `1,234` in English, and nobody touched the JSX. The supported formats:
 
-| Format                    | Example input | `en-US`      | `de-DE`      |
+| Format                    | Example input | `en`         | `de`         |
 | ------------------------- | ------------- | ------------ | ------------ |
 | `{n, number}`             | `1234.5`      | `1,234.5`    | `1.234,5`    |
 | `{n, number, integer}`    | `1234.5`      | `1,235`      | `1.235`      |

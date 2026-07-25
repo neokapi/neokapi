@@ -491,7 +491,7 @@ function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null })
                     type="text"
                     value={targetLang}
                     onChange={(e) => setTargetLang(e.target.value)}
-                    placeholder="e.g. fr-FR"
+                    placeholder="e.g. fr"
                     disabled
                     className="w-48"
                   />

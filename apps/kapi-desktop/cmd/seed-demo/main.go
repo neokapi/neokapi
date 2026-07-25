@@ -88,67 +88,67 @@ func seedTerms(path string) {
 		{
 			Domain: "Billing", Definition: "A paid licence assigned to one member of a workspace.",
 			Terms: []terms.Term{
-				{Text: "seat", Locale: "en-US", Status: model.TermPreferred},
-				{Text: "siège", Locale: "fr-FR", Status: model.TermApproved},
-				{Text: "licence", Locale: "fr-FR", Status: model.TermDeprecated, Note: "Use 'siège'."},
-				{Text: "Sitzplatz", Locale: "de-DE", Status: model.TermApproved},
+				{Text: "seat", Locale: "en", Status: model.TermPreferred},
+				{Text: "siège", Locale: "fr", Status: model.TermApproved},
+				{Text: "licence", Locale: "fr", Status: model.TermDeprecated, Note: "Use 'siège'."},
+				{Text: "Sitzplatz", Locale: "de", Status: model.TermApproved},
 			},
 		},
 		{
 			Domain: "Product", Definition: "The landing screen summarising a workspace's key metrics.",
 			Terms: []terms.Term{
-				{Text: "dashboard", Locale: "en-US", Status: model.TermPreferred, PartOfSpeech: "noun"},
-				{Text: "tableau de bord", Locale: "fr-FR", Status: model.TermApproved},
-				{Text: "Dashboard", Locale: "de-DE", Status: model.TermApproved},
-				{Text: "ダッシュボード", Locale: "ja-JP", Status: model.TermApproved},
+				{Text: "dashboard", Locale: "en", Status: model.TermPreferred, PartOfSpeech: "noun"},
+				{Text: "tableau de bord", Locale: "fr", Status: model.TermApproved},
+				{Text: "Dashboard", Locale: "de", Status: model.TermApproved},
+				{Text: "ダッシュボード", Locale: "ja", Status: model.TermApproved},
 			},
 		},
 		{
 			Domain: "Product", Definition: "A container that groups projects, members and billing.",
 			Terms: []terms.Term{
-				{Text: "workspace", Locale: "en-US", Status: model.TermPreferred},
-				{Text: "espace de travail", Locale: "fr-FR", Status: model.TermApproved},
-				{Text: "Arbeitsbereich", Locale: "de-DE", Status: model.TermApproved},
+				{Text: "workspace", Locale: "en", Status: model.TermPreferred},
+				{Text: "espace de travail", Locale: "fr", Status: model.TermApproved},
+				{Text: "Arbeitsbereich", Locale: "de", Status: model.TermApproved},
 			},
 		},
 		{
 			Domain: "Marketing", Definition: "The guided first-run experience for new members.",
 			Terms: []terms.Term{
-				{Text: "onboarding", Locale: "en-US", Status: model.TermPreferred},
-				{Text: "intégration", Locale: "fr-FR", Status: model.TermApproved},
-				{Text: "Einarbeitung", Locale: "de-DE", Status: model.TermProposed},
+				{Text: "onboarding", Locale: "en", Status: model.TermPreferred},
+				{Text: "intégration", Locale: "fr", Status: model.TermApproved},
+				{Text: "Einarbeitung", Locale: "de", Status: model.TermProposed},
 			},
 		},
 		{
 			Domain: "Engineering", Definition: "An HTTP callback fired when an event occurs.",
 			Terms: []terms.Term{
-				{Text: "webhook", Locale: "en-US", Status: model.TermPreferred},
-				{Text: "webhook", Locale: "fr-FR", Status: model.TermApproved, Note: "Keep in English."},
-				{Text: "Webhook", Locale: "de-DE", Status: model.TermApproved},
+				{Text: "webhook", Locale: "en", Status: model.TermPreferred},
+				{Text: "webhook", Locale: "fr", Status: model.TermApproved, Note: "Keep in English."},
+				{Text: "Webhook", Locale: "de", Status: model.TermApproved},
 			},
 		},
 		{
 			Domain: "Analytics", Definition: "The share of users who return over a period.",
 			Terms: []terms.Term{
-				{Text: "retention", Locale: "en-US", Status: model.TermPreferred},
-				{Text: "rétention", Locale: "fr-FR", Status: model.TermApproved},
-				{Text: "Bindung", Locale: "de-DE", Status: model.TermApproved},
+				{Text: "retention", Locale: "en", Status: model.TermPreferred},
+				{Text: "rétention", Locale: "fr", Status: model.TermApproved},
+				{Text: "Bindung", Locale: "de", Status: model.TermApproved},
 			},
 		},
 		{
 			Domain: "Billing", Definition: "A document itemising charges for a billing period.",
 			Terms: []terms.Term{
-				{Text: "invoice", Locale: "en-US", Status: model.TermPreferred},
-				{Text: "facture", Locale: "fr-FR", Status: model.TermApproved},
-				{Text: "Rechnung", Locale: "de-DE", Status: model.TermApproved},
+				{Text: "invoice", Locale: "en", Status: model.TermPreferred},
+				{Text: "facture", Locale: "fr", Status: model.TermApproved},
+				{Text: "Rechnung", Locale: "de", Status: model.TermApproved},
 			},
 		},
 		{
 			Domain: "Product", Definition: "Downloading data out of the app in a portable format.",
 			Terms: []terms.Term{
-				{Text: "export", Locale: "en-US", Status: model.TermPreferred},
-				{Text: "exporter", Locale: "fr-FR", Status: model.TermApproved, PartOfSpeech: "verb"},
-				{Text: "Export", Locale: "de-DE", Status: model.TermApproved},
+				{Text: "export", Locale: "en", Status: model.TermPreferred},
+				{Text: "exporter", Locale: "fr", Status: model.TermApproved, PartOfSpeech: "verb"},
+				{Text: "Export", Locale: "de", Status: model.TermApproved},
 			},
 		},
 	}
@@ -169,11 +169,11 @@ func seedSecondaryTerms(path string) {
 	must(err)
 	concepts := []terms.Concept{
 		{Domain: "Brand", Definition: "The product name — never translated.", Terms: []terms.Term{
-			{Text: "Acme", Locale: "en-US", Status: model.TermPreferred},
-			{Text: "Acme", Locale: "fr-FR", Status: model.TermForbidden, Note: "Do not translate."},
+			{Text: "Acme", Locale: "en", Status: model.TermPreferred},
+			{Text: "Acme", Locale: "fr", Status: model.TermForbidden, Note: "Do not translate."},
 		}},
 		{Domain: "Brand", Definition: "The tone we use with customers.", Terms: []terms.Term{
-			{Text: "friendly", Locale: "en-US", Status: model.TermPreferred},
+			{Text: "friendly", Locale: "en", Status: model.TermPreferred},
 		}},
 	}
 	for i, c := range concepts {
@@ -194,42 +194,42 @@ func seedMemory(path string) {
 	// "invite" string the memory search lands on.
 	variants := []map[model.LocaleID][]model.Run{
 		{
-			"en-US": {text("Welcome back")},
-			"fr-FR": {text("Bon retour")},
-			"de-DE": {text("Willkommen zurück")},
+			"en": {text("Welcome back")},
+			"fr": {text("Bon retour")},
+			"de": {text("Willkommen zurück")},
 		},
 		{
-			"en-US": {text("Click "), bOpen(), text("here"), bClose(), text(" to continue")},
-			"fr-FR": {text("Cliquez "), bOpen(), text("ici"), bClose(), text(" pour continuer")},
+			"en": {text("Click "), bOpen(), text("here"), bClose(), text(" to continue")},
+			"fr": {text("Cliquez "), bOpen(), text("ici"), bClose(), text(" pour continuer")},
 		},
 		{
-			"en-US": {text("Hi "), person("Bob"), text(", your report is ready")},
-			"fr-FR": {text("Bonjour "), person("Bob"), text(", votre rapport est prêt")},
+			"en": {text("Hi "), person("Bob"), text(", your report is ready")},
+			"fr": {text("Bonjour "), person("Bob"), text(", votre rapport est prêt")},
 		},
 		{
-			"en-US": {text("Invite teammates to your workspace")},
-			"fr-FR": {text("Invitez des collègues dans votre espace de travail")},
-			"de-DE": {text("Laden Sie Teammitglieder in Ihren Arbeitsbereich ein")},
+			"en": {text("Invite teammates to your workspace")},
+			"fr": {text("Invitez des collègues dans votre espace de travail")},
+			"de": {text("Laden Sie Teammitglieder in Ihren Arbeitsbereich ein")},
 		},
 		{
-			"en-US": {text("Your invoice is ready")},
-			"fr-FR": {text("Votre facture est prête")},
+			"en": {text("Your invoice is ready")},
+			"fr": {text("Votre facture est prête")},
 		},
 		{
-			"en-US": {text("Settings saved")},
-			"fr-FR": {text("Paramètres enregistrés")},
-			"de-DE": {text("Einstellungen gespeichert")},
+			"en": {text("Settings saved")},
+			"fr": {text("Paramètres enregistrés")},
+			"de": {text("Einstellungen gespeichert")},
 		},
 		{
-			"en-US": {text("Export your data")},
-			"fr-FR": {text("Exportez vos données")},
+			"en": {text("Export your data")},
+			"fr": {text("Exportez vos données")},
 		},
 	}
 	for i, v := range variants {
 		must(tm.Add(context.Background(), memory.Entry{
 			ID:          fmt.Sprintf("tm-%02d", i+1),
 			Variants:    v,
-			HintSrcLang: "en-US",
+			HintSrcLang: "en",
 			// Spread created_at across ~2 weeks for the Activity chart; updated_at
 			// stays near-now to drive display order.
 			CreatedAt: hoursAgo(i*50 + 18),
@@ -244,8 +244,8 @@ func seedSecondaryMemory(path string) {
 	must(err)
 	must(tm.Add(context.Background(), memory.Entry{
 		ID:          "g-01",
-		Variants:    map[model.LocaleID][]model.Run{"en-US": {text("Save changes")}, "fr-FR": {text("Enregistrer les modifications")}},
-		HintSrcLang: "en-US",
+		Variants:    map[model.LocaleID][]model.Run{"en": {text("Save changes")}, "fr": {text("Enregistrer les modifications")}},
+		HintSrcLang: "en",
 		CreatedAt:   hoursAgo(72),
 		UpdatedAt:   hoursAgo(72),
 	}))

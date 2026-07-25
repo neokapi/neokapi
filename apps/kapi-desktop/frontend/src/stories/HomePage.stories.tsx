@@ -45,8 +45,8 @@ export const Default: Story = {
       version: "v1",
       name: "Acme App Localization",
       defaults: {
-        source_language: "en-US",
-        target_languages: ["fr-FR", "de-DE", "ja-JP"],
+        source_language: "en",
+        target_languages: ["fr", "de", "ja"],
       },
       plugins: {
         okapi: { framework_version: "^1.47.0", format_priority: 200 },
@@ -82,8 +82,8 @@ export const NoFlows: Story = {
       version: "v1",
       name: "Starter Project",
       defaults: {
-        source_language: "en-US",
-        target_languages: ["fr-FR"],
+        source_language: "en",
+        target_languages: ["fr"],
       },
       content: [{ path: "src/locales/en.json", format: { name: "json" } }],
     },
@@ -100,31 +100,29 @@ export const WithCoverage: Story = {
       version: "v1",
       name: "KapiMart",
       defaults: {
-        source_language: "en-US",
-        target_languages: ["de-DE", "fr-FR", "ja-JP", "nb-NO", "ar-SA"],
+        source_language: "en",
+        target_languages: ["de", "fr", "ja", "nb", "ar"],
       },
       content: [
         {
           name: "Website",
-          base: "web/en-US",
-          items: [
-            { path: "web/en-US/**/*.md", target: "web/{lang}", format: { name: "markdown" } },
-          ],
+          base: "web/en",
+          items: [{ path: "web/en/**/*.md", target: "web/{lang}", format: { name: "markdown" } }],
         },
         {
           name: "Online Store",
-          base: "src/en-US",
-          items: [{ path: "src/en-US/*.{json,yaml,properties,html}", target: "src/{lang}" }],
+          base: "src/en",
+          items: [{ path: "src/en/*.{json,yaml,properties,html}", target: "src/{lang}" }],
         },
         {
           name: "Contracts",
-          base: "legal/en-US",
-          items: [{ path: "legal/en-US/*.{docx,xlsx}", target: "legal/{lang}" }],
+          base: "legal/en",
+          items: [{ path: "legal/en/*.{docx,xlsx}", target: "legal/{lang}" }],
         },
         {
           name: "Templates",
-          base: "marketing/en-US",
-          items: [{ path: "marketing/en-US/*.{pptx,docx}", target: "marketing/{lang}" }],
+          base: "marketing/en",
+          items: [{ path: "marketing/en/*.{pptx,docx}", target: "marketing/{lang}" }],
         },
       ],
       flows: {
@@ -140,26 +138,26 @@ export const WithCoverage: Story = {
         {
           name: "Website",
           blockCount: 245,
-          coverage: { "de-DE": 245, "fr-FR": 191, "ja-JP": 110, "nb-NO": 100, "ar-SA": 0 },
-          targetLanguages: ["de-DE", "fr-FR", "ja-JP", "nb-NO", "ar-SA"],
+          coverage: { de: 245, fr: 191, ja: 110, nb: 100, ar: 0 },
+          targetLanguages: ["de", "fr", "ja", "nb", "ar"],
         },
         {
           name: "Online Store",
           blockCount: 349,
-          coverage: { "de-DE": 349, "fr-FR": 349, "ja-JP": 175, "nb-NO": 175, "ar-SA": 0 },
-          targetLanguages: ["de-DE", "fr-FR", "ja-JP", "nb-NO", "ar-SA"],
+          coverage: { de: 349, fr: 349, ja: 175, nb: 175, ar: 0 },
+          targetLanguages: ["de", "fr", "ja", "nb", "ar"],
         },
         {
           name: "Contracts",
           blockCount: 80,
-          coverage: { "de-DE": 80, "fr-FR": 0, "ja-JP": 0, "nb-NO": 0, "ar-SA": 0 },
-          targetLanguages: ["de-DE", "fr-FR", "ja-JP", "nb-NO", "ar-SA"],
+          coverage: { de: 80, fr: 0, ja: 0, nb: 0, ar: 0 },
+          targetLanguages: ["de", "fr", "ja", "nb", "ar"],
         },
         {
           name: "Templates",
           blockCount: 25,
-          coverage: { "de-DE": 25, "fr-FR": 12, "ja-JP": 0, "nb-NO": 0, "ar-SA": 0 },
-          targetLanguages: ["de-DE", "fr-FR", "ja-JP", "nb-NO", "ar-SA"],
+          coverage: { de: 25, fr: 12, ja: 0, nb: 0, ar: 0 },
+          targetLanguages: ["de", "fr", "ja", "nb", "ar"],
         },
       ],
     },
@@ -167,10 +165,10 @@ export const WithCoverage: Story = {
       project: "KapiMart",
       review: [],
       locales: [
-        // de-DE: fully shippable across every collection.
+        // de: fully shippable across every collection.
         {
           collection: "Website",
-          locale: "de-DE",
+          locale: "de",
           total: 245,
           pct: { translated: 100, reviewed: 100 },
           gated: true,
@@ -178,7 +176,7 @@ export const WithCoverage: Story = {
         },
         {
           collection: "Online Store",
-          locale: "de-DE",
+          locale: "de",
           total: 349,
           pct: { translated: 100, reviewed: 100 },
           gated: true,
@@ -186,7 +184,7 @@ export const WithCoverage: Story = {
         },
         {
           collection: "Contracts",
-          locale: "de-DE",
+          locale: "de",
           total: 80,
           pct: { translated: 100, reviewed: 100 },
           gated: true,
@@ -194,16 +192,16 @@ export const WithCoverage: Story = {
         },
         {
           collection: "Templates",
-          locale: "de-DE",
+          locale: "de",
           total: 25,
           pct: { translated: 100, reviewed: 100 },
           gated: true,
           shippable: true,
         },
-        // fr-FR: high coverage, partly reviewed → in review.
+        // fr: high coverage, partly reviewed → in review.
         {
           collection: "Website",
-          locale: "fr-FR",
+          locale: "fr",
           total: 245,
           pct: { translated: 78, reviewed: 30 },
           gated: true,
@@ -211,7 +209,7 @@ export const WithCoverage: Story = {
         },
         {
           collection: "Online Store",
-          locale: "fr-FR",
+          locale: "fr",
           total: 349,
           pct: { translated: 100, reviewed: 60 },
           gated: true,
@@ -219,7 +217,7 @@ export const WithCoverage: Story = {
         },
         {
           collection: "Contracts",
-          locale: "fr-FR",
+          locale: "fr",
           total: 80,
           pct: {},
           gated: true,
@@ -227,16 +225,16 @@ export const WithCoverage: Story = {
         },
         {
           collection: "Templates",
-          locale: "fr-FR",
+          locale: "fr",
           total: 25,
           pct: { translated: 48 },
           gated: true,
           shippable: false,
         },
-        // ja-JP / nb-NO: translated only, no review yet.
+        // ja / nb: translated only, no review yet.
         {
           collection: "Website",
-          locale: "ja-JP",
+          locale: "ja",
           total: 245,
           pct: { translated: 45 },
           gated: true,
@@ -244,7 +242,7 @@ export const WithCoverage: Story = {
         },
         {
           collection: "Online Store",
-          locale: "ja-JP",
+          locale: "ja",
           total: 349,
           pct: { translated: 50 },
           gated: true,
@@ -252,7 +250,7 @@ export const WithCoverage: Story = {
         },
         {
           collection: "Website",
-          locale: "nb-NO",
+          locale: "nb",
           total: 245,
           pct: { translated: 41 },
           gated: true,
@@ -260,16 +258,16 @@ export const WithCoverage: Story = {
         },
         {
           collection: "Online Store",
-          locale: "nb-NO",
+          locale: "nb",
           total: 349,
           pct: { translated: 50 },
           gated: true,
           shippable: false,
         },
-        // ar-SA: not started.
+        // ar: not started.
         {
           collection: "Website",
-          locale: "ar-SA",
+          locale: "ar",
           total: 245,
           pct: {},
           gated: true,
@@ -288,7 +286,7 @@ export const ThreeLanguages: Story = {
     project: {
       version: "v1",
       name: "Acme App Localization",
-      defaults: { source_language: "en-US", target_languages: ["fr-FR", "de-DE", "ja-JP"] },
+      defaults: { source_language: "en", target_languages: ["fr", "de", "ja"] },
       content: [
         { name: "Website", items: [{ path: "docs/**/*.md", format: { name: "markdown" } }] },
         { name: "UI Strings", items: [{ path: "src/i18n/en/*.json" }] },
@@ -304,20 +302,20 @@ export const ThreeLanguages: Story = {
         {
           name: "Website",
           blockCount: 245,
-          coverage: { "fr-FR": 245, "de-DE": 191, "ja-JP": 110 },
-          targetLanguages: ["fr-FR", "de-DE", "ja-JP"],
+          coverage: { fr: 245, de: 191, ja: 110 },
+          targetLanguages: ["fr", "de", "ja"],
         },
         {
           name: "UI Strings",
           blockCount: 88,
-          coverage: { "fr-FR": 88, "de-DE": 40, "ja-JP": 0 },
-          targetLanguages: ["fr-FR", "de-DE", "ja-JP"],
+          coverage: { fr: 88, de: 40, ja: 0 },
+          targetLanguages: ["fr", "de", "ja"],
         },
         {
           name: "Emails",
           blockCount: 32,
-          coverage: { "fr-FR": 16, "de-DE": 0, "ja-JP": 0 },
-          targetLanguages: ["fr-FR", "de-DE", "ja-JP"],
+          coverage: { fr: 16, de: 0, ja: 0 },
+          targetLanguages: ["fr", "de", "ja"],
         },
       ],
     },
@@ -336,7 +334,7 @@ export const WithShipGates: Story = {
       locales: [
         {
           collection: "Website",
-          locale: "fr-FR",
+          locale: "fr",
           total: 245,
           pct: { translated: 100, reviewed: 100, "signed-off": 100 },
           gated: true,
@@ -344,7 +342,7 @@ export const WithShipGates: Story = {
         },
         {
           collection: "Website",
-          locale: "de-DE",
+          locale: "de",
           total: 245,
           pct: { translated: 78, reviewed: 40 },
           gated: true,
@@ -352,7 +350,7 @@ export const WithShipGates: Story = {
         },
         {
           collection: "Website",
-          locale: "ja-JP",
+          locale: "ja",
           total: 245,
           pct: { translated: 45 },
           gated: true,
@@ -360,7 +358,7 @@ export const WithShipGates: Story = {
         },
         {
           collection: "UI Strings",
-          locale: "fr-FR",
+          locale: "fr",
           total: 88,
           pct: { translated: 100, reviewed: 100 },
           gated: true,
@@ -368,7 +366,7 @@ export const WithShipGates: Story = {
         },
         {
           collection: "UI Strings",
-          locale: "de-DE",
+          locale: "de",
           total: 88,
           pct: { translated: 45 },
           gated: true,
@@ -376,7 +374,7 @@ export const WithShipGates: Story = {
         },
         {
           collection: "UI Strings",
-          locale: "ja-JP",
+          locale: "ja",
           total: 88,
           pct: {},
           gated: true,
@@ -384,7 +382,7 @@ export const WithShipGates: Story = {
         },
         {
           collection: "Emails",
-          locale: "fr-FR",
+          locale: "fr",
           total: 32,
           pct: { translated: 50 },
           gated: true,
@@ -392,7 +390,7 @@ export const WithShipGates: Story = {
         },
         {
           collection: "Emails",
-          locale: "de-DE",
+          locale: "de",
           total: 32,
           pct: {},
           gated: true,
@@ -400,7 +398,7 @@ export const WithShipGates: Story = {
         },
         {
           collection: "Emails",
-          locale: "ja-JP",
+          locale: "ja",
           total: 32,
           pct: {},
           gated: true,

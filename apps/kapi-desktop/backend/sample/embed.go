@@ -41,7 +41,7 @@ func Scaffold(name, targetDir string) error {
 		return fmt.Errorf("unknown sample project %q", name)
 	}
 
-	// Copy source files: natural per-area layout (source under <area>/en-US/,
+	// Copy source files: natural per-area layout (source under <area>/en/,
 	// localized files beside it under sibling locale dirs — no separate
 	// output/ tree).
 	for _, area := range []string{"web", "src", "legal", "marketing"} {
@@ -86,7 +86,7 @@ func Scaffold(name, targetDir string) error {
 
 // --- KapiMart seed functions ---
 
-var v2Targets = []model.LocaleID{"de-DE", "fr-FR", "ja-JP", "nb-NO", "ar-SA"}
+var v2Targets = []model.LocaleID{"de", "fr", "ja", "nb", "ar"}
 
 func seedTMv2(dbPath string) error {
 	tmxData, err := assetsFS.ReadFile("kapimart/tm-seed.tmx")
@@ -139,9 +139,9 @@ func seedTermsv2(dbPath string) error {
 // --- Enriched content-memory entries (structural + entity) ---
 
 // enrichedEntry defines a content-memory entry with inline codes and/or entity placeholders.
-// The source is always in en-US; targets maps each supported locale to a
+// The source is always in en; targets maps each supported locale to a
 // Run-sequence factory. Entities, when set, carry the placeholder ID, type,
-// and the en-US value; per-locale entity values are not defined separately
+// and the en value; per-locale entity values are not defined separately
 // for sample data.
 type enrichedEntry struct {
 	source   func() []model.Run
@@ -150,8 +150,8 @@ type enrichedEntry struct {
 }
 
 // enrichedEntity is the sample-file shape for an entity mapping — just
-// the placeholder ID, type, and the en-US value. At seed time we expand
-// this into a memory.EntityMapping with a Values map keyed by en-US.
+// the placeholder ID, type, and the en value. At seed time we expand
+// this into a memory.EntityMapping with a Values map keyed by en.
 type enrichedEntity struct {
 	PlaceholderID string
 	Type          model.EntityType
@@ -160,14 +160,14 @@ type enrichedEntity struct {
 
 // seedEnrichedEntries adds multilingual content-memory entries with structural markup
 // and entity annotations that exercise all 6 match tiers. Each definition
-// produces exactly one entry with en-US as the canonical source and all
+// produces exactly one entry with en as the canonical source and all
 // v2Targets as peer variants.
 func seedEnrichedEntries(tm *memory.SQLiteStore) error {
 	entries := enrichedEntryDefs()
 	now := time.Now()
 	for i, def := range entries {
 		variants := map[model.LocaleID][]model.Run{
-			"en-US": def.source(),
+			"en": def.source(),
 		}
 		for _, tgt := range v2Targets {
 			if fn, ok := def.targets[tgt]; ok {
@@ -180,14 +180,14 @@ func seedEnrichedEntries(tm *memory.SQLiteStore) error {
 				PlaceholderID: e.PlaceholderID,
 				Type:          e.Type,
 				Values: map[model.LocaleID]memory.EntityValue{
-					"en-US": {Text: e.SourceValue},
+					"en": {Text: e.SourceValue},
 				},
 			})
 		}
 		entry := memory.Entry{
 			ID:          id.New(),
 			Variants:    variants,
-			HintSrcLang: "en-US",
+			HintSrcLang: "en",
 			Entities:    entity,
 			Origins: []memory.Origin{
 				{
@@ -284,122 +284,122 @@ func enrichedEntryDefs() []enrichedEntry {
 		{
 			source: boldF("Click ", "here", " to view your order."),
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": boldF("Klicken Sie ", "hier", ", um Ihre Bestellung anzuzeigen."),
-				"fr-FR": boldF("Cliquez ", "ici", " pour voir votre commande."),
-				"ja-JP": boldF("注文を表示するには", "こちら", "をクリックしてください。"),
-				"nb-NO": boldF("Klikk ", "her", " for å se bestillingen din."),
-				"ar-SA": boldF("انقر ", "هنا", " لعرض طلبك."),
+				"de": boldF("Klicken Sie ", "hier", ", um Ihre Bestellung anzuzeigen."),
+				"fr": boldF("Cliquez ", "ici", " pour voir votre commande."),
+				"ja": boldF("注文を表示するには", "こちら", "をクリックしてください。"),
+				"nb": boldF("Klikk ", "her", " for å se bestillingen din."),
+				"ar": boldF("انقر ", "هنا", " لعرض طلبك."),
 			},
 		},
 		{
 			source: boldF("Your ", "payment", " has been processed successfully."),
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": boldF("Ihre ", "Zahlung", " wurde erfolgreich verarbeitet."),
-				"fr-FR": boldF("Votre ", "paiement", " a été traité avec succès."),
-				"ja-JP": boldF("お", "支払い", "は正常に処理されました。"),
-				"nb-NO": boldF("Din ", "betaling", " er behandlet."),
-				"ar-SA": boldF("تمت معالجة ", "الدفع", " بنجاح."),
+				"de": boldF("Ihre ", "Zahlung", " wurde erfolgreich verarbeitet."),
+				"fr": boldF("Votre ", "paiement", " a été traité avec succès."),
+				"ja": boldF("お", "支払い", "は正常に処理されました。"),
+				"nb": boldF("Din ", "betaling", " er behandlet."),
+				"ar": boldF("تمت معالجة ", "الدفع", " بنجاح."),
 			},
 		},
 		{
 			source: boldF("Free shipping", "", " on all orders over $50!"),
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": boldF("Kostenloser Versand", "", " für alle Bestellungen über 50 $!"),
-				"fr-FR": boldF("Livraison gratuite", "", " pour toutes les commandes de plus de 50 $ !"),
-				"ja-JP": boldF("送料無料", "", " — 50ドル以上のご注文が対象です！"),
-				"nb-NO": boldF("Gratis frakt", "", " på alle bestillinger over 50 $!"),
-				"ar-SA": boldF("شحن مجاني", "", " على جميع الطلبات التي تزيد عن 50 دولار!"),
+				"de": boldF("Kostenloser Versand", "", " für alle Bestellungen über 50 $!"),
+				"fr": boldF("Livraison gratuite", "", " pour toutes les commandes de plus de 50 $ !"),
+				"ja": boldF("送料無料", "", " — 50ドル以上のご注文が対象です！"),
+				"nb": boldF("Gratis frakt", "", " på alle bestillinger over 50 $!"),
+				"ar": boldF("شحن مجاني", "", " على جميع الطلبات التي تزيد عن 50 دولار!"),
 			},
 		},
 		{
 			source: boldF("Important:", " ", "Your account will be deactivated in 30 days."),
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": boldF("Wichtig:", " ", "Ihr Konto wird in 30 Tagen deaktiviert."),
-				"fr-FR": boldF("Important :", " ", "Votre compte sera désactivé dans 30 jours."),
-				"ja-JP": boldF("重要：", "", "アカウントは30日後に無効になります。"),
-				"nb-NO": boldF("Viktig:", " ", "Kontoen din deaktiveres om 30 dager."),
-				"ar-SA": boldF("مهم:", " ", "سيتم إلغاء تفعيل حسابك خلال 30 يومًا."),
+				"de": boldF("Wichtig:", " ", "Ihr Konto wird in 30 Tagen deaktiviert."),
+				"fr": boldF("Important :", " ", "Votre compte sera désactivé dans 30 jours."),
+				"ja": boldF("重要：", "", "アカウントは30日後に無効になります。"),
+				"nb": boldF("Viktig:", " ", "Kontoen din deaktiveres om 30 dager."),
+				"ar": boldF("مهم:", " ", "سيتم إلغاء تفعيل حسابك خلال 30 يومًا."),
 			},
 		},
 		{
 			source: boldF("New!", " ", "Check out our summer collection."),
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": boldF("Neu!", " ", "Entdecken Sie unsere Sommerkollektion."),
-				"fr-FR": boldF("Nouveau !", " ", "Découvrez notre collection d'été."),
-				"ja-JP": boldF("新着！", "", "サマーコレクションをご覧ください。"),
-				"nb-NO": boldF("Nytt!", " ", "Sjekk ut sommersamlingen vår."),
-				"ar-SA": boldF("جديد!", " ", "اطلع على مجموعة الصيف."),
+				"de": boldF("Neu!", " ", "Entdecken Sie unsere Sommerkollektion."),
+				"fr": boldF("Nouveau !", " ", "Découvrez notre collection d'été."),
+				"ja": boldF("新着！", "", "サマーコレクションをご覧ください。"),
+				"nb": boldF("Nytt!", " ", "Sjekk ut sommersamlingen vår."),
+				"ar": boldF("جديد!", " ", "اطلع على مجموعة الصيف."),
 			},
 		},
 		{
 			source: boldF("Save 20%", "", " when you subscribe to our newsletter."),
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": boldF("Sparen Sie 20 %", "", ", wenn Sie unseren Newsletter abonnieren."),
-				"fr-FR": boldF("Économisez 20 %", "", " en vous abonnant à notre newsletter."),
-				"ja-JP": boldF("20% 割引", "", " — ニュースレターに登録するとお得です。"),
-				"nb-NO": boldF("Spar 20 %", "", " når du abonnerer på nyhetsbrevet vårt."),
-				"ar-SA": boldF("وفر 20%", "", " عند الاشتراك في النشرة الإخبارية."),
+				"de": boldF("Sparen Sie 20 %", "", ", wenn Sie unseren Newsletter abonnieren."),
+				"fr": boldF("Économisez 20 %", "", " en vous abonnant à notre newsletter."),
+				"ja": boldF("20% 割引", "", " — ニュースレターに登録するとお得です。"),
+				"nb": boldF("Spar 20 %", "", " når du abonnerer på nyhetsbrevet vårt."),
+				"ar": boldF("وفر 20%", "", " عند الاشتراك في النشرة الإخبارية."),
 			},
 		},
 		{
 			source: boldF("Warning:", " ", "This action cannot be undone."),
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": boldF("Warnung:", " ", "Diese Aktion kann nicht rückgängig gemacht werden."),
-				"fr-FR": boldF("Attention :", " ", "Cette action est irréversible."),
-				"ja-JP": boldF("警告：", "", "この操作は元に戻せません。"),
-				"nb-NO": boldF("Advarsel:", " ", "Denne handlingen kan ikke angres."),
-				"ar-SA": boldF("تحذير:", " ", "لا يمكن التراجع عن هذا الإجراء."),
+				"de": boldF("Warnung:", " ", "Diese Aktion kann nicht rückgängig gemacht werden."),
+				"fr": boldF("Attention :", " ", "Cette action est irréversible."),
+				"ja": boldF("警告：", "", "この操作は元に戻せません。"),
+				"nb": boldF("Advarsel:", " ", "Denne handlingen kan ikke angres."),
+				"ar": boldF("تحذير:", " ", "لا يمكن التراجع عن هذا الإجراء."),
 			},
 		},
 		{
 			source: boldF("Your order ", "#12345", " has been confirmed."),
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": boldF("Ihre Bestellung ", "#12345", " wurde bestätigt."),
-				"fr-FR": boldF("Votre commande ", "#12345", " a été confirmée."),
-				"ja-JP": boldF("ご注文 ", "#12345", " が確認されました。"),
-				"nb-NO": boldF("Bestillingen din ", "#12345", " er bekreftet."),
-				"ar-SA": boldF("تم تأكيد طلبك ", "#12345", "."),
+				"de": boldF("Ihre Bestellung ", "#12345", " wurde bestätigt."),
+				"fr": boldF("Votre commande ", "#12345", " a été confirmée."),
+				"ja": boldF("ご注文 ", "#12345", " が確認されました。"),
+				"nb": boldF("Bestillingen din ", "#12345", " er bekreftet."),
+				"ar": boldF("تم تأكيد طلبك ", "#12345", "."),
 			},
 		},
 		// --- Structural entries (links) ---
 		{
 			source: linkF("Visit our ", "Help Center", " for more information."),
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": linkF("Besuchen Sie unser ", "Hilfezentrum", " für weitere Informationen."),
-				"fr-FR": linkF("Visitez notre ", "Centre d'aide", " pour plus d'informations."),
-				"ja-JP": linkF("詳しくは", "ヘルプセンター", "をご覧ください。"),
-				"nb-NO": linkF("Besøk ", "hjelpesenteret", " vårt for mer informasjon."),
-				"ar-SA": linkF("قم بزيارة ", "مركز المساعدة", " لمزيد من المعلومات."),
+				"de": linkF("Besuchen Sie unser ", "Hilfezentrum", " für weitere Informationen."),
+				"fr": linkF("Visitez notre ", "Centre d'aide", " pour plus d'informations."),
+				"ja": linkF("詳しくは", "ヘルプセンター", "をご覧ください。"),
+				"nb": linkF("Besøk ", "hjelpesenteret", " vårt for mer informasjon."),
+				"ar": linkF("قم بزيارة ", "مركز المساعدة", " لمزيد من المعلومات."),
 			},
 		},
 		{
 			source: linkF("Read our ", "Terms of Service", " before continuing."),
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": linkF("Lesen Sie unsere ", "Nutzungsbedingungen", ", bevor Sie fortfahren."),
-				"fr-FR": linkF("Lisez nos ", "Conditions d'utilisation", " avant de continuer."),
-				"ja-JP": linkF("続行する前に", "利用規約", "をお読みください。"),
-				"nb-NO": linkF("Les ", "vilkårene for bruk", " før du fortsetter."),
-				"ar-SA": linkF("اقرأ ", "شروط الخدمة", " قبل المتابعة."),
+				"de": linkF("Lesen Sie unsere ", "Nutzungsbedingungen", ", bevor Sie fortfahren."),
+				"fr": linkF("Lisez nos ", "Conditions d'utilisation", " avant de continuer."),
+				"ja": linkF("続行する前に", "利用規約", "をお読みください。"),
+				"nb": linkF("Les ", "vilkårene for bruk", " før du fortsetter."),
+				"ar": linkF("اقرأ ", "شروط الخدمة", " قبل المتابعة."),
 			},
 		},
 		{
 			source: linkF("Contact ", "Customer Support", " if you need assistance."),
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": linkF("Kontaktieren Sie den ", "Kundendienst", ", wenn Sie Hilfe benötigen."),
-				"fr-FR": linkF("Contactez le ", "Service client", " si vous avez besoin d'aide."),
-				"ja-JP": linkF("サポートが必要な場合は", "カスタマーサポート", "にお問い合わせください。"),
-				"nb-NO": linkF("Kontakt ", "kundestøtte", " hvis du trenger hjelp."),
-				"ar-SA": linkF("تواصل مع ", "دعم العملاء", " إذا كنت بحاجة إلى مساعدة."),
+				"de": linkF("Kontaktieren Sie den ", "Kundendienst", ", wenn Sie Hilfe benötigen."),
+				"fr": linkF("Contactez le ", "Service client", " si vous avez besoin d'aide."),
+				"ja": linkF("サポートが必要な場合は", "カスタマーサポート", "にお問い合わせください。"),
+				"nb": linkF("Kontakt ", "kundestøtte", " hvis du trenger hjelp."),
+				"ar": linkF("تواصل مع ", "دعم العملاء", " إذا كنت بحاجة إلى مساعدة."),
 			},
 		},
 		{
 			source: linkF("Download the ", "SDK documentation", " to get started."),
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": linkF("Laden Sie die ", "SDK-Dokumentation", " herunter, um zu beginnen."),
-				"fr-FR": linkF("Téléchargez la ", "documentation du SDK", " pour commencer."),
-				"ja-JP": linkF("開始するには", "SDKドキュメント", "をダウンロードしてください。"),
-				"nb-NO": linkF("Last ned ", "SDK-dokumentasjonen", " for å komme i gang."),
-				"ar-SA": linkF("قم بتنزيل ", "وثائق SDK", " للبدء."),
+				"de": linkF("Laden Sie die ", "SDK-Dokumentation", " herunter, um zu beginnen."),
+				"fr": linkF("Téléchargez la ", "documentation du SDK", " pour commencer."),
+				"ja": linkF("開始するには", "SDKドキュメント", "をダウンロードしてください。"),
+				"nb": linkF("Last ned ", "SDK-dokumentasjonen", " for å komme i gang."),
+				"ar": linkF("قم بتنزيل ", "وثائق SDK", " للبدء."),
 			},
 		},
 		// --- Entity entries (person) ---
@@ -407,33 +407,33 @@ func enrichedEntryDefs() []enrichedEntry {
 			source:   entityF("Dear ", "person", "John", ", your order has shipped."),
 			entities: []enrichedEntity{{PlaceholderID: "1", Type: model.EntityPerson, SourceValue: "John"}},
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": entityF("Sehr geehrte/r ", "person", "John", ", Ihre Bestellung wurde versandt."),
-				"fr-FR": entityF("Cher/Chère ", "person", "John", ", votre commande a été expédiée."),
-				"ja-JP": entityF("", "person", "John", " 様、ご注文が発送されました。"),
-				"nb-NO": entityF("Kjære ", "person", "John", ", bestillingen din er sendt."),
-				"ar-SA": entityF("عزيزي ", "person", "John", "، تم شحن طلبك."),
+				"de": entityF("Sehr geehrte/r ", "person", "John", ", Ihre Bestellung wurde versandt."),
+				"fr": entityF("Cher/Chère ", "person", "John", ", votre commande a été expédiée."),
+				"ja": entityF("", "person", "John", " 様、ご注文が発送されました。"),
+				"nb": entityF("Kjære ", "person", "John", ", bestillingen din er sendt."),
+				"ar": entityF("عزيزي ", "person", "John", "، تم شحن طلبك."),
 			},
 		},
 		{
 			source:   entityF("Hi ", "person", "Sarah", ", welcome to KapiMart!"),
 			entities: []enrichedEntity{{PlaceholderID: "1", Type: model.EntityPerson, SourceValue: "Sarah"}},
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": entityF("Hallo ", "person", "Sarah", ", willkommen bei KapiMart!"),
-				"fr-FR": entityF("Bonjour ", "person", "Sarah", ", bienvenue sur KapiMart !"),
-				"ja-JP": entityF("こんにちは ", "person", "Sarah", " さん、KapiMartへようこそ！"),
-				"nb-NO": entityF("Hei ", "person", "Sarah", ", velkommen til KapiMart!"),
-				"ar-SA": entityF("مرحبًا ", "person", "Sarah", "، مرحبًا بك في KapiMart!"),
+				"de": entityF("Hallo ", "person", "Sarah", ", willkommen bei KapiMart!"),
+				"fr": entityF("Bonjour ", "person", "Sarah", ", bienvenue sur KapiMart !"),
+				"ja": entityF("こんにちは ", "person", "Sarah", " さん、KapiMartへようこそ！"),
+				"nb": entityF("Hei ", "person", "Sarah", ", velkommen til KapiMart!"),
+				"ar": entityF("مرحبًا ", "person", "Sarah", "، مرحبًا بك في KapiMart!"),
 			},
 		},
 		{
 			source:   entityF("Thank you, ", "person", "Alex", ". Your review has been submitted."),
 			entities: []enrichedEntity{{PlaceholderID: "1", Type: model.EntityPerson, SourceValue: "Alex"}},
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": entityF("Vielen Dank, ", "person", "Alex", ". Ihre Bewertung wurde eingereicht."),
-				"fr-FR": entityF("Merci, ", "person", "Alex", ". Votre avis a été soumis."),
-				"ja-JP": entityF("ありがとうございます、", "person", "Alex", " さん。レビューが送信されました。"),
-				"nb-NO": entityF("Takk, ", "person", "Alex", ". Anmeldelsen din er sendt inn."),
-				"ar-SA": entityF("شكرًا لك، ", "person", "Alex", ". تم تقديم تقييمك."),
+				"de": entityF("Vielen Dank, ", "person", "Alex", ". Ihre Bewertung wurde eingereicht."),
+				"fr": entityF("Merci, ", "person", "Alex", ". Votre avis a été soumis."),
+				"ja": entityF("ありがとうございます、", "person", "Alex", " さん。レビューが送信されました。"),
+				"nb": entityF("Takk, ", "person", "Alex", ". Anmeldelsen din er sendt inn."),
+				"ar": entityF("شكرًا لك، ", "person", "Alex", ". تم تقديم تقييمك."),
 			},
 		},
 		// --- Entity entries (product) ---
@@ -441,22 +441,22 @@ func enrichedEntryDefs() []enrichedEntry {
 			source:   entityF("The ", "product", "Wireless Headphones", " are now back in stock."),
 			entities: []enrichedEntity{{PlaceholderID: "1", Type: model.EntityProduct, SourceValue: "Wireless Headphones"}},
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": entityF("Die ", "product", "Kabellose Kopfhörer", " sind wieder verfügbar."),
-				"fr-FR": entityF("Les ", "product", "Écouteurs sans fil", " sont de nouveau en stock."),
-				"ja-JP": entityF("", "product", "ワイヤレスヘッドフォン", " の在庫が補充されました。"),
-				"nb-NO": entityF("", "product", "Trådløse hodetelefoner", " er igjen på lager."),
-				"ar-SA": entityF("عاد ", "product", "سماعات لاسلكية", " إلى المخزون."),
+				"de": entityF("Die ", "product", "Kabellose Kopfhörer", " sind wieder verfügbar."),
+				"fr": entityF("Les ", "product", "Écouteurs sans fil", " sont de nouveau en stock."),
+				"ja": entityF("", "product", "ワイヤレスヘッドフォン", " の在庫が補充されました。"),
+				"nb": entityF("", "product", "Trådløse hodetelefoner", " er igjen på lager."),
+				"ar": entityF("عاد ", "product", "سماعات لاسلكية", " إلى المخزون."),
 			},
 		},
 		{
 			source:   entityF("You saved $20 on ", "product", "Smart Home Hub", "!"),
 			entities: []enrichedEntity{{PlaceholderID: "1", Type: model.EntityProduct, SourceValue: "Smart Home Hub"}},
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": entityF("Sie haben 20 $ beim ", "product", "Smart Home Hub", " gespart!"),
-				"fr-FR": entityF("Vous avez économisé 20 $ sur le ", "product", "Hub domotique", " !"),
-				"ja-JP": entityF("", "product", "スマートホームハブ", " で20ドルお得です！"),
-				"nb-NO": entityF("Du sparte 20 $ på ", "product", "Smart Home Hub", "!"),
-				"ar-SA": entityF("وفرت 20 دولارًا على ", "product", "Smart Home Hub", "!"),
+				"de": entityF("Sie haben 20 $ beim ", "product", "Smart Home Hub", " gespart!"),
+				"fr": entityF("Vous avez économisé 20 $ sur le ", "product", "Hub domotique", " !"),
+				"ja": entityF("", "product", "スマートホームハブ", " で20ドルお得です！"),
+				"nb": entityF("Du sparte 20 $ på ", "product", "Smart Home Hub", "!"),
+				"ar": entityF("وفرت 20 دولارًا على ", "product", "Smart Home Hub", "!"),
 			},
 		},
 		// --- Entity entries (organization) ---
@@ -464,11 +464,11 @@ func enrichedEntryDefs() []enrichedEntry {
 			source:   entityF("Shipped by ", "organization", "FastPost", " via express delivery."),
 			entities: []enrichedEntity{{PlaceholderID: "1", Type: model.EntityOrganization, SourceValue: "FastPost"}},
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": entityF("Versandt durch ", "organization", "FastPost", " per Expresslieferung."),
-				"fr-FR": entityF("Expédié par ", "organization", "FastPost", " en livraison express."),
-				"ja-JP": entityF("", "organization", "FastPost", " による速達便で発送されました。"),
-				"nb-NO": entityF("Sendt av ", "organization", "FastPost", " via ekspresslevering."),
-				"ar-SA": entityF("تم الشحن بواسطة ", "organization", "FastPost", " عبر التوصيل السريع."),
+				"de": entityF("Versandt durch ", "organization", "FastPost", " per Expresslieferung."),
+				"fr": entityF("Expédié par ", "organization", "FastPost", " en livraison express."),
+				"ja": entityF("", "organization", "FastPost", " による速達便で発送されました。"),
+				"nb": entityF("Sendt av ", "organization", "FastPost", " via ekspresslevering."),
+				"ar": entityF("تم الشحن بواسطة ", "organization", "FastPost", " عبر التوصيل السريع."),
 			},
 		},
 		// --- Entity entries (currency) ---
@@ -476,11 +476,11 @@ func enrichedEntryDefs() []enrichedEntry {
 			source:   entityF("Your refund of ", "currency", "$49.99", " has been processed."),
 			entities: []enrichedEntity{{PlaceholderID: "1", Type: model.EntityCurrency, SourceValue: "$49.99"}},
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": entityF("Ihre Erstattung von ", "currency", "49,99 $", " wurde verarbeitet."),
-				"fr-FR": entityF("Votre remboursement de ", "currency", "49,99 $", " a été traité."),
-				"ja-JP": entityF("", "currency", "49.99ドル", " の返金が処理されました。"),
-				"nb-NO": entityF("Refusjonen din på ", "currency", "49,99 $", " er behandlet."),
-				"ar-SA": entityF("تمت معالجة استرداد ", "currency", "49.99 دولار", "."),
+				"de": entityF("Ihre Erstattung von ", "currency", "49,99 $", " wurde verarbeitet."),
+				"fr": entityF("Votre remboursement de ", "currency", "49,99 $", " a été traité."),
+				"ja": entityF("", "currency", "49.99ドル", " の返金が処理されました。"),
+				"nb": entityF("Refusjonen din på ", "currency", "49,99 $", " er behandlet."),
+				"ar": entityF("تمت معالجة استرداد ", "currency", "49.99 دولار", "."),
 			},
 		},
 		// --- Combined: bold + entity ---
@@ -488,44 +488,44 @@ func enrichedEntryDefs() []enrichedEntry {
 			source:   boldEntityF("Hi ", "there", "! Your ", "product", "Travel Backpack", " is on its way."),
 			entities: []enrichedEntity{{PlaceholderID: "2", Type: model.EntityProduct, SourceValue: "Travel Backpack"}},
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": boldEntityF("Hallo", "", "! Ihr ", "product", "Reiserucksack", " ist unterwegs."),
-				"fr-FR": boldEntityF("Bonjour", "", " ! Votre ", "product", "Sac à dos de voyage", " est en route."),
-				"ja-JP": boldEntityF("こんにちは", "", "！ご注文の", "product", "トラベルバックパック", "は配送中です。"),
-				"nb-NO": boldEntityF("Hei", "", "! Din ", "product", "Reiseryggsekk", " er på vei."),
-				"ar-SA": boldEntityF("مرحبًا", "", "! منتج ", "product", "حقيبة سفر", " في الطريق إليك."),
+				"de": boldEntityF("Hallo", "", "! Ihr ", "product", "Reiserucksack", " ist unterwegs."),
+				"fr": boldEntityF("Bonjour", "", " ! Votre ", "product", "Sac à dos de voyage", " est en route."),
+				"ja": boldEntityF("こんにちは", "", "！ご注文の", "product", "トラベルバックパック", "は配送中です。"),
+				"nb": boldEntityF("Hei", "", "! Din ", "product", "Reiseryggsekk", " er på vei."),
+				"ar": boldEntityF("مرحبًا", "", "! منتج ", "product", "حقيبة سفر", " في الطريق إليك."),
 			},
 		},
 		{
 			source:   boldEntityF("Dear ", "Customer", ", ", "organization", "KapiMart", " values your feedback."),
 			entities: []enrichedEntity{{PlaceholderID: "2", Type: model.EntityOrganization, SourceValue: "KapiMart"}},
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": boldEntityF("Sehr geehrter ", "Kunde", ", ", "organization", "KapiMart", " schätzt Ihr Feedback."),
-				"fr-FR": boldEntityF("Cher ", "Client", ", ", "organization", "KapiMart", " apprécie vos commentaires."),
-				"ja-JP": boldEntityF("お客様", "各位", "、", "organization", "KapiMart", " はお客様のご意見を大切にしています。"),
-				"nb-NO": boldEntityF("Kjære ", "kunde", ", ", "organization", "KapiMart", " setter pris på tilbakemeldingene dine."),
-				"ar-SA": boldEntityF("عزيزي ", "العميل", "، ", "organization", "KapiMart", " تقدر ملاحظاتك."),
+				"de": boldEntityF("Sehr geehrter ", "Kunde", ", ", "organization", "KapiMart", " schätzt Ihr Feedback."),
+				"fr": boldEntityF("Cher ", "Client", ", ", "organization", "KapiMart", " apprécie vos commentaires."),
+				"ja": boldEntityF("お客様", "各位", "、", "organization", "KapiMart", " はお客様のご意見を大切にしています。"),
+				"nb": boldEntityF("Kjære ", "kunde", ", ", "organization", "KapiMart", " setter pris på tilbakemeldingene dine."),
+				"ar": boldEntityF("عزيزي ", "العميل", "، ", "organization", "KapiMart", " تقدر ملاحظاتك."),
 			},
 		},
 		{
 			source:   boldEntityF("Order ", "confirmed", " for ", "person", "Emily", ". Check your email for details."),
 			entities: []enrichedEntity{{PlaceholderID: "2", Type: model.EntityPerson, SourceValue: "Emily"}},
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": boldEntityF("Bestellung ", "bestätigt", " für ", "person", "Emily", ". Details finden Sie in Ihrer E-Mail."),
-				"fr-FR": boldEntityF("Commande ", "confirmée", " pour ", "person", "Emily", ". Consultez votre e-mail pour les détails."),
-				"ja-JP": boldEntityF("注文", "確認済み", " — ", "person", "Emily", " さん、詳細はメールをご確認ください。"),
-				"nb-NO": boldEntityF("Bestilling ", "bekreftet", " for ", "person", "Emily", ". Sjekk e-posten din for detaljer."),
-				"ar-SA": boldEntityF("تم ", "تأكيد الطلب", " لـ ", "person", "Emily", ". تحقق من بريدك الإلكتروني للتفاصيل."),
+				"de": boldEntityF("Bestellung ", "bestätigt", " für ", "person", "Emily", ". Details finden Sie in Ihrer E-Mail."),
+				"fr": boldEntityF("Commande ", "confirmée", " pour ", "person", "Emily", ". Consultez votre e-mail pour les détails."),
+				"ja": boldEntityF("注文", "確認済み", " — ", "person", "Emily", " さん、詳細はメールをご確認ください。"),
+				"nb": boldEntityF("Bestilling ", "bekreftet", " for ", "person", "Emily", ". Sjekk e-posten din for detaljer."),
+				"ar": boldEntityF("تم ", "تأكيد الطلب", " لـ ", "person", "Emily", ". تحقق من بريدك الإلكتروني للتفاصيل."),
 			},
 		},
 		{
 			source:   boldEntityF("", "Flash Sale", ": Save big on ", "product", "Fitness Tracker Watch", " today!"),
 			entities: []enrichedEntity{{PlaceholderID: "2", Type: model.EntityProduct, SourceValue: "Fitness Tracker Watch"}},
 			targets: map[model.LocaleID]func() []model.Run{
-				"de-DE": boldEntityF("", "Blitzangebot", ": Sparen Sie heute beim ", "product", "Fitness-Tracker", "!"),
-				"fr-FR": boldEntityF("", "Vente flash", " : Profitez de la ", "product", "Montre connectée", " aujourd'hui !"),
-				"ja-JP": boldEntityF("", "タイムセール", "：本日の", "product", "フィットネストラッカー", "がお買い得！"),
-				"nb-NO": boldEntityF("", "Lynkupp", ": Spar stort på ", "product", "Aktivitetsmåler", " i dag!"),
-				"ar-SA": boldEntityF("", "تخفيضات خاطفة", ": وفر على ", "product", "ساعة تتبع اللياقة", " اليوم!"),
+				"de": boldEntityF("", "Blitzangebot", ": Sparen Sie heute beim ", "product", "Fitness-Tracker", "!"),
+				"fr": boldEntityF("", "Vente flash", " : Profitez de la ", "product", "Montre connectée", " aujourd'hui !"),
+				"ja": boldEntityF("", "タイムセール", "：本日の", "product", "フィットネストラッカー", "がお買い得！"),
+				"nb": boldEntityF("", "Lynkupp", ": Spar stort på ", "product", "Aktivitetsmåler", " i dag!"),
+				"ar": boldEntityF("", "تخفيضات خاطفة", ": وفر على ", "product", "ساعة تتبع اللياقة", " اليوم!"),
 			},
 		},
 	}

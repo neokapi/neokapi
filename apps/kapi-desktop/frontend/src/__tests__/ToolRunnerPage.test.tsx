@@ -158,7 +158,7 @@ describe("ToolRunnerPage", () => {
 
     // The target-language field is itself disabled, and the Run button stays
     // disabled — there is no working execution path to enable.
-    const targetLang = screen.getByPlaceholderText("e.g. fr-FR");
+    const targetLang = screen.getByPlaceholderText("e.g. fr");
     expect(targetLang).toBeDisabled();
 
     const runButton = screen.getByText(/Run translate/).closest("button");

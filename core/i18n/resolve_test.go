@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestResolve_FlagBeatsEverything(t *testing.T) {
@@ -58,6 +59,90 @@ func TestResolve_DefaultsToEnglish(t *testing.T) {
 	assert.Equal(t, "en", string(tr.Locale()))
 	_, isNoop := tr.(NoopTranslator)
 	assert.True(t, isNoop, "English defaults to NoopTranslator — no lookup needed")
+}
+
+// nbScope / nbSource name a string that is genuinely translated in the
+// committed nb catalog. Asserting a *changed* value keeps the fallback tests
+// from passing vacuously against a catalog miss.
+const (
+	nbScope  = Scope("formats.androidxml.displayName")
+	nbSource = "Android String Resources"
+)
+
+// TestResolve_RegionalTagFindsMinimalCatalog is the compatibility guarantee: a
+// project or user config that still writes the region-bearing "nb-NO" must
+// resolve the same catalog as the CLDR-minimal "nb".
+func TestResolve_RegionalTagFindsMinimalCatalog(t *testing.T) {
+	t.Setenv("KAPI_LANG", "")
+	t.Setenv("LC_ALL", "")
+	t.Setenv("LC_MESSAGES", "")
+	t.Setenv("LANG", "")
+
+	minimal := Resolve(ResolveOptions{Flag: "nb"})
+	translated := minimal.T(nbScope, nbSource)
+	assert.NotEqual(t, nbSource, translated,
+		"the nb catalog must actually translate %q — otherwise the fallback assertions below are vacuous", nbSource)
+
+	for _, tag := range []string{"nb-NO", "NB-no", "nb_NO"} {
+		t.Run(tag, func(t *testing.T) {
+			tr := Resolve(ResolveOptions{Flag: tag})
+			assert.Equal(t, tag, string(tr.Locale()),
+				"the tag the user asked for is reported back verbatim")
+			assert.Equal(t, translated, tr.T(nbScope, nbSource),
+				"%q must resolve the nb catalog", tag)
+		})
+	}
+}
+
+// TestResolve_POSIXRegionalEnvFindsMinimalCatalog covers the same guarantee
+// coming in through the POSIX environment rather than a flag.
+func TestResolve_POSIXRegionalEnvFindsMinimalCatalog(t *testing.T) {
+	t.Setenv("KAPI_LANG", "")
+	t.Setenv("LC_ALL", "nb_NO.UTF-8")
+	t.Setenv("LC_MESSAGES", "")
+	t.Setenv("LANG", "")
+
+	tr := Resolve(ResolveOptions{})
+	want := Resolve(ResolveOptions{Flag: "nb"}).T(nbScope, nbSource)
+	require.NotEqual(t, nbSource, want)
+	assert.Equal(t, want, tr.T(nbScope, nbSource))
+}
+
+// TestResolve_FallbackDoesNotCrossLanguages guards the blast radius: the
+// fallback chain walks a tag's own subtags, it never reaches sideways to a
+// different language or to a differently-scripted sibling.
+func TestResolve_FallbackDoesNotCrossLanguages(t *testing.T) {
+	t.Setenv("KAPI_LANG", "")
+	t.Setenv("LC_ALL", "")
+	t.Setenv("LC_MESSAGES", "")
+	t.Setenv("LANG", "")
+
+	// nn (Nynorsk) shares the NO region with nb but is a different language:
+	// it must not pick up the nb catalog.
+	tr := Resolve(ResolveOptions{Flag: "nn-NO"})
+	assert.Equal(t, nbSource, tr.T(nbScope, nbSource),
+		"nn-NO must not fall back to the nb catalog")
+}
+
+// TestResolve_EnglishVariants pins which English tags short-circuit to the
+// no-op translator: only those whose minimal form is exactly "en".
+func TestResolve_EnglishVariants(t *testing.T) {
+	t.Setenv("KAPI_LANG", "")
+	t.Setenv("LC_ALL", "")
+	t.Setenv("LC_MESSAGES", "")
+	t.Setenv("LANG", "")
+
+	for _, tag := range []string{"en", "en-US", "EN-us"} {
+		tr := Resolve(ResolveOptions{Flag: tag})
+		_, isNoop := tr.(NoopTranslator)
+		assert.True(t, isNoop, "%q is source English — no catalog lookup needed", tag)
+	}
+
+	tr := Resolve(ResolveOptions{Flag: "en-GB"})
+	_, isNoop := tr.(NoopTranslator)
+	assert.False(t, isNoop,
+		"en-GB is a distinct written variant — it must stay eligible for a catalog")
+	assert.Equal(t, "en-GB", string(tr.Locale()))
 }
 
 func TestNormalizePOSIXLocale(t *testing.T) {

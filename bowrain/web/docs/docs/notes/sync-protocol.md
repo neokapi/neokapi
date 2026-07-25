@@ -15,8 +15,8 @@ name: my-app
 
 # Project-wide defaults for language and organization.
 defaults:
-  source_language: en-US
-  target_languages: [fr-FR, de-DE, ja-JP]
+  source_language: en
+  target_languages: [fr, de, ja]
   collection: ui/strings
 
 # Content collections: which files to track.
@@ -66,7 +66,7 @@ flows:
 
 - **`server.url`** -- Compound URL encoding server, workspace, and project ID. Parsed on demand via `ParseProjectURL()`. Accessor methods: `ServerURL()`, `ProjectID()`, `Workspace()`, `HasServer()`. Claim tokens for anonymous projects are stored in `.kapi/cache/sync-cache.json` (gitignored), not in the URL.
 - **`server.stream`** -- Content stream name. Defaults to `$auto` (auto-detect from git branch or CI environment variables). Set to a specific name like `v2.0` to pin the stream. See [AD-005](/architecture-decisions/005-streams) for full stream design.
-- **`defaults.source_language`** -- BCP-47 tag for the project's default source language (e.g., `en-US`)
+- **`defaults.source_language`** -- BCP-47 tag for the project's default source language (e.g., `en`)
 - **`defaults.target_languages`** -- Array of BCP-47 tags for target languages. When empty, the CLI falls back to server-side target locales (cached in the sync cache).
 - **`defaults.collection`** -- Default collection for organizing content on the server
 - **`content`** -- Array of content collections defining which files to track (see below)
@@ -148,7 +148,7 @@ Collections are sent with each block during push via the `collection` field in `
   "last_sync": "2026-02-15T10:30:00Z",
   "claim_token": "clm_abc123",
   "files": {
-    "src/locales/en-US.json": {
+    "src/locales/en.json": {
       "mtime": "2026-02-15T10:25:00Z",
       "size": 4096,
       "blocks": {
@@ -158,7 +158,7 @@ Collections are sent with each block during push via the `collection` field in `
     }
   },
   "server_meta": {
-    "target_locales": ["fr-FR", "de-DE", "ja-JP"],
+    "target_locales": ["fr", "de", "ja"],
     "fetched_at": "2026-02-15T10:30:00Z"
   }
 }
@@ -202,7 +202,7 @@ Collections are sent with each block during push via the `collection` field in `
 1. Fetch project metadata from server -> cache target locales
 2. Resolve target locales: CLI flags > config > server cache
 3. Read sync_cursor from .kapi/cache/sync-cache.json
-4. Query server: GET /projects/:id/sync/pull?cursor=X&locales=fr-FR
+4. Query server: GET /projects/:id/sync/pull?cursor=X&locales=fr
    - X-Bowrain-Stream header sent for non-main streams
 5. Server returns only changes since cursor (O(changes), not O(total))
 6. For each changed item, fetch blocks and write translated files
@@ -264,7 +264,7 @@ Workspace-scoped equivalents are also available at `/api/v1/workspaces/:ws/proje
 1. GET /api/v1/projects/:id -> cache server metadata (target_locales)
 2. Resolve target locales: CLI flags > config > server cache
 3. Read sync_cursor from .kapi/cache/sync-cache.json
-4. GET /api/v1/projects/:id/sync/pull?cursor=X&locales=fr-FR,de-DE
+4. GET /api/v1/projects/:id/sync/pull?cursor=X&locales=fr,de
    -> Response: { changes: [...], new_cursor: Y, has_more: bool }
    -> Paginated: follow has_more until all changes consumed
 5. For each item with changes:

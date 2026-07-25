@@ -1,37 +1,37 @@
 version: v1
 name: KapiMart
 defaults:
-  source_language: en-US
+  source_language: en
   target_languages:
-    - de-DE
-    - fr-FR
-    - ja-JP
-    - nb-NO
-    - ar-SA
+    - de
+    - fr
+    - ja
+    - nb
+    - ar
 content:
-  # Natural per-area layout: each area keeps its source under <area>/en-US/, and
+  # Natural per-area layout: each area keeps its source under <area>/en/, and
   # localized files land beside it under sibling locale dirs (<area>/{lang}/) —
-  # e.g. web/en-US/getting-started.md → web/de-DE/getting-started.md. Format is
+  # e.g. web/en/getting-started.md → web/de/getting-started.md. Format is
   # auto-detected per file.
   - name: Website
-    base: web/en-US
+    base: web/en
     items:
-      - path: "web/en-US/**/*.md"
+      - path: "web/en/**/*.md"
         target: "web/{lang}"
   - name: Online Store
-    base: src/en-US
+    base: src/en
     items:
-      - path: "src/en-US/*.{json,yaml,properties,html}"
+      - path: "src/en/*.{json,yaml,properties,html}"
         target: "src/{lang}"
   - name: Contracts
-    base: legal/en-US
+    base: legal/en
     items:
-      - path: "legal/en-US/*.{docx,xlsx}"
+      - path: "legal/en/*.{docx,xlsx}"
         target: "legal/{lang}"
   - name: Templates
-    base: marketing/en-US
+    base: marketing/en
     items:
-      - path: "marketing/en-US/*.{pptx,docx}"
+      - path: "marketing/en/*.{pptx,docx}"
         target: "marketing/{lang}"
 flows:
   translate:

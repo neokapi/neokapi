@@ -30,7 +30,7 @@ batch id in a file-level <note>, so merge finds the right extraction
 manifest without guessing from the filename. Mixed target locales in one
 batch are fine — merge handles each input independently.`,
 		Example: `  kapi merge                     # materialize localized files from the project store
-  kapi merge -i out/app.en-US-to-fr-FR.xliff
+  kapi merge -i out/app.en-to-fr.xliff
   kapi merge -i file1.xliff -i file2.xliff
   kapi merge -i vendor-return/ --no-tm-update
   kapi merge work.kpz -o l10n/   # emit localized files from a .kpz workspace`,

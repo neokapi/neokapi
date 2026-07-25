@@ -75,7 +75,7 @@ examples:
     description: Analyse source blocks one at a time with an Anthropic model.
     config: |
       provider: anthropic
-      locale: en-US
+      locale: en
   - title: Batched extraction
     description: Analyse blocks in batches of 20, four batches at a time.
     config: |

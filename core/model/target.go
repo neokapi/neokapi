@@ -26,7 +26,7 @@ func Variant(locale LocaleID) VariantKey { return VariantKey{Locale: locale} }
 func (k VariantKey) IsZero() bool { return k == VariantKey{} }
 
 // MarshalText encodes a VariantKey as text so it can serve as a JSON/YAML map
-// key. A locale-only key encodes as the bare locale ("fr-FR"); optional
+// key. A locale-only key encodes as the bare locale ("fr"); optional
 // dimensions append as ";tone=…" / ";channel=…".
 func (k VariantKey) MarshalText() ([]byte, error) {
 	s := string(k.Locale)

@@ -50,7 +50,7 @@ kapi config server.stream '$auto'
 | Key | Description | Example |
 | --- | --- | --- |
 | `name` | Project name | `My App` |
-| `defaults.source_language` | Source locale (BCP 47) | `en-US` |
+| `defaults.source_language` | Source locale (BCP 47) | `en` |
 | `defaults.target_languages` | Target locales (list) | `[fr, de]` |
 | `server.url` | Compound server URL (encodes server / workspace / project) | `https://app.bowrain.cloud/my-team/proj_abc123` |
 | `server.stream` | Server stream (`$auto` for auto-detect) | `$auto` |

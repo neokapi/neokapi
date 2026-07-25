@@ -71,7 +71,7 @@ By default, imports entries matching the given --source-locale and --target-loca
 Use --all-pairs to emit entries for every (src, tgt) language pair present in
 each TU — useful for multilingual TMX files (e.g. EUR-Lex Euramis exports where
 a single TU may contain 24+ languages). Combine with --locales to restrict the
-pair set (e.g. --all-pairs --locales en-GB,fr-FR,de-DE).
+pair set (e.g. --all-pairs --locales en-GB,fr,de).
 
 The importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work
 without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
@@ -155,7 +155,7 @@ emit the full language cross-product from multilingual files.
 
 Examples:
   kapi memory import-dir ./tmx --name corpus --source-locale en --target-locale nb --pattern "*en-nb*"
-  kapi memory import-dir ./eurlex --name corpus --all-pairs --locales en-GB,fr-FR,de-DE`,
+  kapi memory import-dir ./eurlex --name corpus --all-pairs --locales en-GB,fr,de`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			srcLocale, _ := cmd.Flags().GetString("source-locale")

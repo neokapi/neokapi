@@ -155,8 +155,8 @@ flows:
       - tool: qa
 
 defaults:
-  source_language: en-US
-  target_languages: [fr-FR, de-DE, ja-JP]
+  source_language: en
+  target_languages: [fr, de, ja]
   concurrency: 4
   parallel_blocks: 3
   encoding: utf-8
@@ -208,7 +208,7 @@ file's path is made relative to; it defaults to the glob's fixed prefix.
 **directory-mirror**: when the target names a directory (it ends with `/`, or its
 last segment has no extension and no token), the source path relative to `base`
 is reproduced under it, so `target: output/{lang}` mirrors the tree —
-`input/docs/api.md` → `output/fr-FR/docs/api.md`. For custom layouts, tokens
+`input/docs/api.md` → `output/fr/docs/api.md`. For custom layouts, tokens
 (`{lang}`, `{relpath}`, `{path}`, `{dir}`, `{filename}`, `{name}`/`{basename}`,
 `{ext}`) reshape the path explicitly. The resolver is `core/project.ResolveTargetPath`;
 the full token reference lives in the [project file reference](/reference/project-file#source-and-target-paths).

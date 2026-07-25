@@ -85,7 +85,7 @@ type MyToolConfig struct {
 | `min`         | `min=0`                     | Minimum numeric value            |
 | `max`         | `max=100`                   | Maximum numeric value            |
 | `widget`      | `widget=regexBuilder`       | UI widget hint                   |
-| `placeholder` | `placeholder=en-US`         | Input placeholder text           |
+| `placeholder` | `placeholder=en`            | Input placeholder text           |
 | `group`       | `group=validation`          | Parameter group ID               |
 
 ### Go type to JSON Schema type mapping
@@ -186,7 +186,7 @@ import (
 type WrapTextConfig struct {
     Prefix       string `json:"prefix"       schema:"description=Text prepended to each block,default=["`
     Suffix       string `json:"suffix"       schema:"description=Text appended to each block,default=]"`
-    TargetLocale string `json:"targetLocale" schema:"description=Target locale,placeholder=en-US"`
+    TargetLocale string `json:"targetLocale" schema:"description=Target locale,placeholder=en"`
     SourceOnly   bool   `json:"sourceOnly"   schema:"description=Wrap source text only,default=false"`
 }
 

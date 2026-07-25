@@ -39,11 +39,11 @@ import { IconSidebar } from "../components/IconSidebar";
 
 // ── Locale list (nicer language names in the browsers) ──────────────────────
 const LOCALES = [
-  { code: "en-US", displayName: "English (United States)" },
-  { code: "fr-FR", displayName: "French (France)" },
-  { code: "de-DE", displayName: "German (Germany)" },
-  { code: "ja-JP", displayName: "Japanese (Japan)" },
-  { code: "es-ES", displayName: "Spanish (Spain)" },
+  { code: "en", displayName: "English (United States)" },
+  { code: "fr", displayName: "French (France)" },
+  { code: "de", displayName: "German (Germany)" },
+  { code: "ja", displayName: "Japanese (Japan)" },
+  { code: "es", displayName: "Spanish (Spain)" },
 ];
 
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
@@ -59,13 +59,13 @@ const CONCEPTS: ConceptDTO[] = [
     terms: [
       {
         text: "dashboard",
-        locale: "en-US",
+        locale: "en",
         status: "preferred",
         part_of_speech: "noun",
       },
-      { text: "tableau de bord", locale: "fr-FR", status: "approved" },
-      { text: "Dashboard", locale: "de-DE", status: "approved" },
-      { text: "ダッシュボード", locale: "ja-JP", status: "approved" },
+      { text: "tableau de bord", locale: "fr", status: "approved" },
+      { text: "Dashboard", locale: "de", status: "approved" },
+      { text: "ダッシュボード", locale: "ja", status: "approved" },
     ],
     created_at: hoursAgo(40),
     updated_at: hoursAgo(2),
@@ -77,9 +77,9 @@ const CONCEPTS: ConceptDTO[] = [
     definition: "A container that groups projects, members and billing.",
     source: "terminology",
     terms: [
-      { text: "workspace", locale: "en-US", status: "preferred" },
-      { text: "espace de travail", locale: "fr-FR", status: "approved" },
-      { text: "Arbeitsbereich", locale: "de-DE", status: "approved" },
+      { text: "workspace", locale: "en", status: "preferred" },
+      { text: "espace de travail", locale: "fr", status: "approved" },
+      { text: "Arbeitsbereich", locale: "de", status: "approved" },
     ],
     created_at: hoursAgo(60),
     updated_at: hoursAgo(8),
@@ -91,15 +91,15 @@ const CONCEPTS: ConceptDTO[] = [
     definition: "A paid licence assigned to one member of a workspace.",
     source: "terminology",
     terms: [
-      { text: "seat", locale: "en-US", status: "preferred" },
-      { text: "siège", locale: "fr-FR", status: "approved" },
+      { text: "seat", locale: "en", status: "preferred" },
+      { text: "siège", locale: "fr", status: "approved" },
       {
         text: "licence",
-        locale: "fr-FR",
+        locale: "fr",
         status: "deprecated",
         note: "Use 'siège'.",
       },
-      { text: "Sitzplatz", locale: "de-DE", status: "approved" },
+      { text: "Sitzplatz", locale: "de", status: "approved" },
     ],
     created_at: hoursAgo(90),
     updated_at: hoursAgo(30),
@@ -111,14 +111,14 @@ const CONCEPTS: ConceptDTO[] = [
     definition: "An HTTP callback fired when an event occurs.",
     source: "terminology",
     terms: [
-      { text: "webhook", locale: "en-US", status: "preferred" },
+      { text: "webhook", locale: "en", status: "preferred" },
       {
         text: "webhook",
-        locale: "fr-FR",
+        locale: "fr",
         status: "approved",
         note: "Keep in English.",
       },
-      { text: "Webhook", locale: "de-DE", status: "approved" },
+      { text: "Webhook", locale: "de", status: "approved" },
     ],
     created_at: hoursAgo(120),
     updated_at: hoursAgo(120),
@@ -130,9 +130,9 @@ const CONCEPTS: ConceptDTO[] = [
     definition: "The guided first-run experience for new members.",
     source: "terminology",
     terms: [
-      { text: "onboarding", locale: "en-US", status: "preferred" },
-      { text: "intégration", locale: "fr-FR", status: "approved" },
-      { text: "Einarbeitung", locale: "de-DE", status: "proposed" },
+      { text: "onboarding", locale: "en", status: "preferred" },
+      { text: "intégration", locale: "fr", status: "approved" },
+      { text: "Einarbeitung", locale: "de", status: "proposed" },
     ],
     created_at: hoursAgo(150),
     updated_at: hoursAgo(150),
@@ -144,9 +144,9 @@ const CONCEPTS: ConceptDTO[] = [
     definition: "The share of users who return over a period.",
     source: "terminology",
     terms: [
-      { text: "retention", locale: "en-US", status: "preferred" },
-      { text: "rétention", locale: "fr-FR", status: "approved" },
-      { text: "Bindung", locale: "de-DE", status: "approved" },
+      { text: "retention", locale: "en", status: "preferred" },
+      { text: "rétention", locale: "fr", status: "approved" },
+      { text: "Bindung", locale: "de", status: "approved" },
     ],
     created_at: hoursAgo(180),
     updated_at: hoursAgo(170),
@@ -158,9 +158,9 @@ const CONCEPTS: ConceptDTO[] = [
     definition: "A document itemising charges for a billing period.",
     source: "terminology",
     terms: [
-      { text: "invoice", locale: "en-US", status: "preferred" },
-      { text: "facture", locale: "fr-FR", status: "approved" },
-      { text: "Rechnung", locale: "de-DE", status: "approved" },
+      { text: "invoice", locale: "en", status: "preferred" },
+      { text: "facture", locale: "fr", status: "approved" },
+      { text: "Rechnung", locale: "de", status: "approved" },
     ],
     created_at: hoursAgo(210),
     updated_at: hoursAgo(200),
@@ -172,14 +172,14 @@ const CONCEPTS: ConceptDTO[] = [
     definition: "Downloading data out of the app in a portable format.",
     source: "terminology",
     terms: [
-      { text: "export", locale: "en-US", status: "preferred" },
+      { text: "export", locale: "en", status: "preferred" },
       {
         text: "exporter",
-        locale: "fr-FR",
+        locale: "fr",
         status: "approved",
         part_of_speech: "verb",
       },
-      { text: "Export", locale: "de-DE", status: "approved" },
+      { text: "Export", locale: "de", status: "approved" },
     ],
     created_at: hoursAgo(240),
     updated_at: hoursAgo(220),
@@ -191,20 +191,20 @@ const MEMORY_ENTRIES: MemoryEntryDTO[] = [
   {
     id: "tm-1",
     project_id: "",
-    hint_src_lang: "en-US",
+    hint_src_lang: "en",
     variants: {
-      "en-US": {
-        locale: "en-US",
+      en: {
+        locale: "en",
         text: "Welcome back",
         runs: [{ text: "Welcome back" }],
       },
-      "fr-FR": {
-        locale: "fr-FR",
+      fr: {
+        locale: "fr",
         text: "Bon retour",
         runs: [{ text: "Bon retour" }],
       },
-      "de-DE": {
-        locale: "de-DE",
+      de: {
+        locale: "de",
         text: "Willkommen zurück",
         runs: [{ text: "Willkommen zurück" }],
       },
@@ -215,10 +215,10 @@ const MEMORY_ENTRIES: MemoryEntryDTO[] = [
   {
     id: "tm-2",
     project_id: "",
-    hint_src_lang: "en-US",
+    hint_src_lang: "en",
     variants: {
-      "en-US": {
-        locale: "en-US",
+      en: {
+        locale: "en",
         text: "Click here to continue",
         runs: [
           { text: "Click " },
@@ -228,8 +228,8 @@ const MEMORY_ENTRIES: MemoryEntryDTO[] = [
           { text: " to continue" },
         ],
       },
-      "fr-FR": {
-        locale: "fr-FR",
+      fr: {
+        locale: "fr",
         text: "Cliquez ici pour continuer",
         runs: [
           { text: "Cliquez " },
@@ -246,20 +246,20 @@ const MEMORY_ENTRIES: MemoryEntryDTO[] = [
   {
     id: "tm-3",
     project_id: "",
-    hint_src_lang: "en-US",
+    hint_src_lang: "en",
     variants: {
-      "en-US": {
-        locale: "en-US",
+      en: {
+        locale: "en",
         text: "Invite teammates to your workspace",
         runs: [{ text: "Invite teammates to your workspace" }],
       },
-      "fr-FR": {
-        locale: "fr-FR",
+      fr: {
+        locale: "fr",
         text: "Invitez des collègues dans votre espace de travail",
         runs: [{ text: "Invitez des collègues dans votre espace de travail" }],
       },
-      "de-DE": {
-        locale: "de-DE",
+      de: {
+        locale: "de",
         text: "Laden Sie Teammitglieder in Ihren Arbeitsbereich ein",
         runs: [{ text: "Laden Sie Teammitglieder in Ihren Arbeitsbereich ein" }],
       },
@@ -270,15 +270,15 @@ const MEMORY_ENTRIES: MemoryEntryDTO[] = [
   {
     id: "tm-4",
     project_id: "",
-    hint_src_lang: "en-US",
+    hint_src_lang: "en",
     variants: {
-      "en-US": {
-        locale: "en-US",
+      en: {
+        locale: "en",
         text: "Your invoice is ready",
         runs: [{ text: "Your invoice is ready" }],
       },
-      "fr-FR": {
-        locale: "fr-FR",
+      fr: {
+        locale: "fr",
         text: "Votre facture est prête",
         runs: [{ text: "Votre facture est prête" }],
       },
@@ -289,10 +289,10 @@ const MEMORY_ENTRIES: MemoryEntryDTO[] = [
   {
     id: "tm-5",
     project_id: "",
-    hint_src_lang: "en-US",
+    hint_src_lang: "en",
     variants: {
-      "en-US": {
-        locale: "en-US",
+      en: {
+        locale: "en",
         text: "Hi Bob, your report is ready",
         runs: [
           { text: "Hi " },
@@ -302,8 +302,8 @@ const MEMORY_ENTRIES: MemoryEntryDTO[] = [
           { text: ", your report is ready" },
         ],
       },
-      "fr-FR": {
-        locale: "fr-FR",
+      fr: {
+        locale: "fr",
         text: "Bonjour Bob, votre rapport est prêt",
         runs: [
           { text: "Bonjour " },
@@ -320,20 +320,20 @@ const MEMORY_ENTRIES: MemoryEntryDTO[] = [
   {
     id: "tm-6",
     project_id: "",
-    hint_src_lang: "en-US",
+    hint_src_lang: "en",
     variants: {
-      "en-US": {
-        locale: "en-US",
+      en: {
+        locale: "en",
         text: "Settings saved",
         runs: [{ text: "Settings saved" }],
       },
-      "fr-FR": {
-        locale: "fr-FR",
+      fr: {
+        locale: "fr",
         text: "Paramètres enregistrés",
         runs: [{ text: "Paramètres enregistrés" }],
       },
-      "de-DE": {
-        locale: "de-DE",
+      de: {
+        locale: "de",
         text: "Einstellungen gespeichert",
         runs: [{ text: "Einstellungen gespeichert" }],
       },
@@ -344,15 +344,15 @@ const MEMORY_ENTRIES: MemoryEntryDTO[] = [
   {
     id: "tm-7",
     project_id: "",
-    hint_src_lang: "en-US",
+    hint_src_lang: "en",
     variants: {
-      "en-US": {
-        locale: "en-US",
+      en: {
+        locale: "en",
         text: "Export your data",
         runs: [{ text: "Export your data" }],
       },
-      "fr-FR": {
-        locale: "fr-FR",
+      fr: {
+        locale: "fr",
         text: "Exportez vos données",
         runs: [{ text: "Exportez vos données" }],
       },
@@ -591,8 +591,8 @@ function MemoriesView() {
         <MemoryBrowser
           adapter={adapter}
           locales={LOCALES}
-          sourceLocale="en-US"
-          targetLocales={["fr-FR", "de-DE"]}
+          sourceLocale="en"
+          targetLocales={["fr", "de"]}
         />
       </div>
     );

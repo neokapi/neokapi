@@ -244,16 +244,16 @@ DELETE /api/v1/projects/:id/assets/:aid
 
 ```
 POST   /api/v1/projects/:id/assets/:aid/variants/upload-url
-  Request:  { "locale": "fr-FR", "blob_key": "sha256hex", "content_type": "image/png" }
+  Request:  { "locale": "fr", "blob_key": "sha256hex", "content_type": "image/png" }
   Response: { "upload_url": "https://...?sig=..." }
 
 POST   /api/v1/projects/:id/assets/:aid/variants
-  Request:  { "locale": "fr-FR", "blob_key": "sha256hex", "mime_type": "image/png",
+  Request:  { "locale": "fr", "blob_key": "sha256hex", "mime_type": "image/png",
               "size_bytes": 98304, "status": "draft" }
-  Response: { "asset_id": "ast_xxx", "locale": "fr-FR", ... }
+  Response: { "asset_id": "ast_xxx", "locale": "fr", ... }
 
 GET    /api/v1/projects/:id/assets/:aid/variants
-  Response: { "variants": [{ "locale": "fr-FR", "status": "approved", "download_url": "..." }] }
+  Response: { "variants": [{ "locale": "fr", "status": "approved", "download_url": "..." }] }
 ```
 
 ### Sync Integration
@@ -261,12 +261,12 @@ GET    /api/v1/projects/:id/assets/:aid/variants
 Asset changes appear in the existing change log. The pull endpoint includes asset changes:
 
 ```
-GET /api/v1/projects/:id/sync/pull?cursor=X&locales=fr-FR
+GET /api/v1/projects/:id/sync/pull?cursor=X&locales=fr
   Response: {
     "changes": [ ... block changes ... ],
     "asset_changes": [
       { "seq": 4822, "asset_id": "ast_xxx", "change_type": "variant_added",
-        "locale": "fr-FR", "blob_key": "sha256hex" }
+        "locale": "fr", "blob_key": "sha256hex" }
     ],
     "new_cursor": 4825,
     "has_more": false
@@ -344,5 +344,5 @@ PartBlock (Block with Span{Type:"media:image", Data:"ref:media:img1"})
     ↓ (linked via source_id)
 Asset (metadata in ContentStore, binary in BlobStore)
     ↓ (has variants)
-AssetVariant (locale="fr-FR", blob_key="sha256:def...", status="approved")
+AssetVariant (locale="fr", blob_key="sha256:def...", status="approved")
 ```

@@ -16,7 +16,7 @@ parameters:
     description: The locale to create a target for.
     help: |
       The BCP-47 locale identifier for the target to create (for example
-      `fr-FR`). On the CLI and in flows this is typically supplied by the
+      `fr`). On the CLI and in flows this is typically supplied by the
       `--target-lang` value.
     values: "BCP-47 locale (required)"
   copySource:
@@ -46,9 +46,9 @@ examples:
   - title: Create empty targets for a locale
     description: Prepare empty target containers ready for translation.
     config: |
-      targetLocale: fr-FR
+      targetLocale: fr
   - title: Pre-fill targets with the source
     description: Seed targets with source text as a starting draft.
     config: |
-      targetLocale: de-DE
+      targetLocale: de
       copySource: true

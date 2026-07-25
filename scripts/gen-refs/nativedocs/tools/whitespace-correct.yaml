@@ -86,10 +86,10 @@ examples:
   - title: Normalize spacing for a locale
     description: Apply the default whitespace cleanup to a target.
     config: |
-      targetLocale: fr-FR
+      targetLocale: fr
   - title: Tidy CJK punctuation spacing
     description: Remove spaces after punctuation for a non-space-delimited target.
     config: |
-      targetLocale: zh-CN
+      targetLocale: zh-Hans
       correctFullStop: true
       correctComma: true

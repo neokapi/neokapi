@@ -56,10 +56,10 @@ examples:
     description: Produce plain target text for a locale.
     config: |
       applyTarget: true
-      targetLocale: fr-FR
+      targetLocale: fr
   - title: Keep word boundaries at line breaks
     description: Replace line-break codes with a space when stripping.
     config: |
       applyTarget: true
-      targetLocale: fr-FR
+      targetLocale: fr
       replaceWithSpace: true

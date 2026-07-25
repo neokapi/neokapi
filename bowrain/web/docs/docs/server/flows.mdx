@@ -43,7 +43,7 @@ Example: automatically translate content when it arrives from a connector push:
     "type": "run_flow",
     "config": {
       "flow": "translate",
-      "target_locales": ["fr-FR", "de-DE", "ja-JP"]
+      "target_locales": ["fr", "de", "ja"]
     }
   }
 }
@@ -61,7 +61,7 @@ curl -X POST https://app.bowrain.cloud/api/v1/projects/:id/flows/run \
   -d '{
     "flow": "translate",
     "config": {
-      "target_locales": ["fr-FR"],
+      "target_locales": ["fr"],
       "provider": "anthropic",
       "model": "claude-sonnet-4.5"
     }

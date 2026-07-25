@@ -13,7 +13,7 @@ func AddPersistentFlags(a *App, cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVarP(&a.Quiet, "quiet", "q", false, "suppress output")
 	cmd.PersistentFlags().BoolVarP(&a.AssumeYes, "yes", "y", false, "assume yes for confirmation prompts (e.g. plugin auto-install)")
 	cmd.PersistentFlags().StringVar(&a.PluginDir, "plugin-dir", "", "plugin directory")
-	cmd.PersistentFlags().StringVar(&a.Lang, "lang", "", "UI locale for tool/format/plugin metadata (BCP-47, e.g. fr-FR); falls back to KAPI_LANG / LC_ALL / LANG")
+	cmd.PersistentFlags().StringVar(&a.Lang, "lang", "", "UI locale for tool/format/plugin metadata (BCP-47, e.g. fr); falls back to KAPI_LANG / LC_ALL / LANG")
 
 	// --explain-prompts shows exactly what kapi sends to the LLM on your behalf:
 	// the rendered prompt (including the brand voice and glossary it wove in),

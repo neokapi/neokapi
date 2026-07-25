@@ -8,6 +8,7 @@ import (
 
 	"github.com/leonelquinteros/gotext"
 
+	loc "github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -36,9 +37,16 @@ type ResolveOptions struct {
 // matching MO catalog (because no one has translated the app into it yet),
 // the Translator degrades to NoopTranslator and every lookup returns the
 // English source.
+//
+// Catalog lookup follows the locale's fallback chain (locale.Fallbacks), so a
+// request for "nb-NO" or LANG=nb_NO.UTF-8 finds the "nb" catalog rather than
+// silently degrading to English.
 func Resolve(opts ResolveOptions) Translator {
 	locale := resolveLocale(opts)
-	if locale.IsEmpty() || locale == "en" {
+	// English needs no catalog: the message IDs *are* the English source.
+	// Compare in minimal form so "en-US" and "en_US.UTF-8" short-circuit too,
+	// while a genuinely distinct "en-GB" still gets a catalog lookup.
+	if locale.IsEmpty() || loc.Minimal(locale) == "en" {
 		return NoopTranslator{}
 	}
 
@@ -92,17 +100,21 @@ func normalizePOSIXLocale(v string) string {
 	return strings.ReplaceAll(v, "_", "-")
 }
 
-// loadEmbeddedCatalog returns the Mo for the given locale from the
-// embedded builtin catalogs, or nil if no catalog exists.
+// loadEmbeddedCatalog returns the Mo for the given locale from the embedded
+// builtin catalogs, or nil if no catalog exists for the locale or any of its
+// fallbacks. The exact tag is tried first, so a future "nb-NO" catalog would
+// win over the "nb" one.
 func loadEmbeddedCatalog(locale model.LocaleID) *gotext.Mo {
-	name := string(locale) + ".mo"
-	data, err := builtinFS.ReadFile("catalogs/" + name)
-	if err != nil {
-		return nil
+	for _, cand := range loc.Fallbacks(locale) {
+		data, err := builtinFS.ReadFile("catalogs/" + string(cand) + ".mo")
+		if err != nil {
+			continue
+		}
+		mo := gotext.NewMo()
+		mo.Parse(data)
+		return mo
 	}
-	mo := gotext.NewMo()
-	mo.Parse(data)
-	return mo
+	return nil
 }
 
 // LoadPluginCatalog loads a plugin-provided MO catalog from disk. Returns
@@ -122,13 +134,23 @@ func LoadPluginCatalog(path string) (*gotext.Mo, error) {
 	return mo, nil
 }
 
-// PluginCatalogPath returns the conventional path for a plugin's MO
-// catalog given the plugin's version directory and the target locale.
+// PluginCatalogPath returns the conventional path for a plugin's MO catalog
+// given the plugin's version directory and the target locale. It returns the
+// first path in the locale's fallback chain that exists on disk, falling back
+// to the exact-tag path when none does (so the caller's "not found" handling
+// reports the tag the user asked for).
 func PluginCatalogPath(pluginVersionDir string, locale model.LocaleID, i18nDir string) string {
 	if i18nDir == "" {
 		i18nDir = "i18n"
 	}
-	return filepath.Join(pluginVersionDir, i18nDir, string(locale)+".mo")
+	exact := filepath.Join(pluginVersionDir, i18nDir, string(locale)+".mo")
+	for _, cand := range loc.Fallbacks(locale) {
+		p := filepath.Join(pluginVersionDir, i18nDir, string(cand)+".mo")
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return exact
 }
 
 // Ensure fs.FS interface compatibility — keeps the go:embed declaration

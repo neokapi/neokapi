@@ -619,7 +619,7 @@ func checkModeCFormatProbe(ctx context.Context, r *runner) (Status, string, erro
 
 	sourceLocale := probe.SourceLocale
 	if sourceLocale == "" {
-		sourceLocale = "en-US"
+		sourceLocale = "en"
 	}
 	minBlocks := max(probe.MinBlocks, 1)
 
@@ -712,7 +712,7 @@ func checkModeCSegmentRPC(ctx context.Context, r *runner) (Status, string, error
 	probe := r.suite.SegmentProbe
 	engine := r.man.Capabilities.Segmenters[0].Name
 	text := "One sentence. And a second one."
-	locale := "en-US"
+	locale := "en"
 	minBoundaries := 0 // Reachability only, unless a probe asks for more.
 	var params map[string]string
 

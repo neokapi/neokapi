@@ -77,6 +77,146 @@ func TestNormalize(t *testing.T) {
 	}
 }
 
+func TestMinimal(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		// Region is the CLDR likely region → dropped.
+		{"norwegian bokmal", "nb-NO", "nb"},
+		{"french", "fr-FR", "fr"},
+		{"german", "de-DE", "de"},
+		{"japanese", "ja-JP", "ja"},
+		{"italian", "it-IT", "it"},
+		{"dutch", "nl-NL", "nl"},
+		{"spanish", "es-ES", "es"},
+		{"korean", "ko-KR", "ko"},
+		{"finnish", "fi-FI", "fi"},
+		{"swedish", "sv-SE", "sv"},
+		{"english", "en-US", "en"},
+		{"serbian implies cyrillic", "sr-RS", "sr"},
+		{"casing normalized first", "NB-no", "nb"},
+
+		// Region carries a real distinction → kept.
+		{"british english", "en-GB", "en-GB"},
+		{"canadian french", "fr-CA", "fr-CA"},
+		{"latin american spanish", "es-419", "es-419"},
+		{"mexican spanish", "es-MX", "es-MX"},
+		{"austrian german", "de-AT", "de-AT"},
+		{"nynorsk keeps nothing to drop", "nn", "nn"},
+
+		// Portuguese always writes its region.
+		{"brazilian portuguese", "pt-BR", "pt-BR"},
+		{"european portuguese", "pt-PT", "pt-PT"},
+
+		// Script subtags are never dropped.
+		{"simplified chinese", "zh-Hans", "zh-Hans"},
+		{"traditional chinese", "zh-Hant", "zh-Hant"},
+		{"latin serbian", "sr-Latn", "sr-Latn"},
+		{"redundant region after script", "zh-Hant-TW", "zh-Hant"},
+		{"redundant region after script hans", "zh-Hans-CN", "zh-Hans"},
+		{"redundant region after latin script", "sr-Latn-RS", "sr-Latn"},
+
+		// Chinese region forms become script forms.
+		{"mainland chinese", "zh-CN", "zh-Hans"},
+		{"taiwan chinese", "zh-TW", "zh-Hant"},
+		{"hong kong chinese kept", "zh-HK", "zh-HK"},
+		{"singapore chinese kept", "zh-SG", "zh-SG"},
+		{"bare chinese", "zh", "zh"},
+
+		// Variants and extensions are left alone.
+		{"variant", "ca-ES-valencia", "ca-ES-valencia"},
+		{"extension", "en-US-u-ca-gregory", "en-US-u-ca-gregory"},
+
+		// Degenerate input.
+		{"empty", "", ""},
+		{"unparseable", "!!!", "!!!"},
+		{"posix C", "C", "C"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, string(Minimal(model.LocaleID(tt.input))))
+		})
+	}
+}
+
+// TestMinimalIsIdempotent guards the property callers rely on when they write
+// a minimal tag back into configuration: minimizing an already-minimal tag
+// must be a no-op, for every tag in the curated well-known list.
+func TestMinimalIsIdempotent(t *testing.T) {
+	t.Parallel()
+	for _, w := range WellKnownLocales() {
+		id := model.LocaleID(w.Code)
+		once := Minimal(id)
+		assert.Equal(t, string(once), string(Minimal(once)), "minimizing %q twice must be stable", w.Code)
+	}
+}
+
+// TestWellKnownLocalesAreMinimal asserts the curated dropdown list is already
+// in CLDR-minimal form, so the tag kapi suggests never carries a redundant
+// region.
+func TestWellKnownLocalesAreMinimal(t *testing.T) {
+	t.Parallel()
+	for _, w := range WellKnownLocales() {
+		id := model.LocaleID(w.Code)
+		assert.Equal(t, w.Code, string(Minimal(id)), "well-known locale %q is not CLDR-minimal", w.Code)
+	}
+}
+
+func TestFallbacks(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{"already minimal", "nb", []string{"nb"}},
+		{"redundant region", "nb-NO", []string{"nb-NO", "nb"}},
+		{"distinct region", "en-GB", []string{"en-GB", "en"}},
+		{"source english", "en-US", []string{"en-US", "en"}},
+		{"portuguese keeps region then falls back", "pt-BR", []string{"pt-BR", "pt"}},
+		{"script form", "zh-Hant", []string{"zh-Hant", "zh"}},
+		{"script plus region", "zh-Hant-TW", []string{"zh-Hant-TW", "zh-Hant", "zh"}},
+		{"region promoted to script", "zh-CN", []string{"zh-CN", "zh-Hans", "zh"}},
+		{"region kept then script then base", "zh-HK", []string{"zh-HK", "zh"}},
+		{"un-normalized input", "NB-no", []string{"nb-NO", "nb"}},
+		{"empty", "", nil},
+		{"unparseable", "!!!", []string{"!!!"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := Fallbacks(model.LocaleID(tt.input))
+			as := make([]string, 0, len(got))
+			for _, g := range got {
+				as = append(as, string(g))
+			}
+			if tt.want == nil {
+				assert.Empty(t, as)
+				return
+			}
+			assert.Equal(t, tt.want, as)
+		})
+	}
+}
+
+// TestFallbacksStartsWithCanonicalTag pins the exact-first contract: whatever
+// the caller wrote is tried verbatim (canonicalized) before any fallback, so a
+// resource keyed by the specific tag always wins.
+func TestFallbacksStartsWithCanonicalTag(t *testing.T) {
+	t.Parallel()
+	for _, in := range []string{"nb-NO", "en-GB", "pt-BR", "zh-Hant-TW", "fr"} {
+		got := Fallbacks(model.LocaleID(in))
+		require.NotEmpty(t, got)
+		assert.Equal(t, string(Normalize(model.LocaleID(in))), string(got[0]))
+	}
+}
+
 func TestDisplayName(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

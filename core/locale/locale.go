@@ -58,6 +58,168 @@ func Normalize(id model.LocaleID) model.LocaleID {
 	return id
 }
 
+// hanRegionScript maps the two Chinese region subtags whose written variant
+// CLDR expresses as a script to that script. Minimal rewrites "zh-CN" to
+// "zh-Hans" and "zh-TW" to "zh-Hant" so the Simplified/Traditional
+// distinction — the thing that actually differs — is carried by the script
+// subtag rather than by a region that only implies it. Other Chinese regions
+// (HK, MO, SG) are left as written: they are requested as distinct locales in
+// their own right, and folding them into a script tag would lose that.
+var hanRegionScript = map[string]string{"CN": "Hans", "TW": "Hant"}
+
+// regionAlwaysWritten lists base languages whose region subtag is kept even
+// when CLDR would call it redundant. Portuguese is the case that matters:
+// CLDR's likely region for "pt" is BR, so a mechanical minimization would
+// rewrite "pt-BR" to "pt" — but pt-BR and pt-PT are both in active use as
+// separate written variants and a bare "pt" is ambiguous in practice.
+var regionAlwaysWritten = map[string]bool{"pt": true}
+
+// Minimal returns the CLDR-minimal form of id: the shortest tag that still
+// names the same written variant. A region subtag is dropped when it is the
+// CLDR likely region for the language ("nb-NO" → "nb", "fr-FR" → "fr",
+// "en-US" → "en"); a region that carries a real distinction is kept
+// ("en-GB", "fr-CA", "es-419", "pt-PT"). Unparseable or empty input is
+// returned unchanged.
+//
+// Three deliberate departures from a mechanical CLDR minimization:
+//
+//   - Script subtags are never dropped. "zh-Hans" stays "zh-Hans" even though
+//     Hans is the likely script for "zh", because the script is exactly what
+//     distinguishes it from "zh-Hant".
+//   - "zh-CN" → "zh-Hans" and "zh-TW" → "zh-Hant" (see hanRegionScript).
+//   - Portuguese keeps its region (see regionAlwaysWritten).
+//
+// Tags carrying variants, extensions or private use ("ca-ES-valencia",
+// "en-US-u-ca-gregory") are canonicalized but otherwise returned untouched —
+// minimizing them would risk dropping the very subtag the caller cares about.
+//
+// Minimal changes granularity and is therefore a *display* and *default*
+// helper: use it when choosing the tag to write into new configuration or to
+// show a user. Do not use it at a storage or lookup boundary where an
+// existing tag is the key — Normalize is the tool for that, and Fallbacks is
+// the tool for accepting both granularities on lookup.
+func Minimal(id model.LocaleID) model.LocaleID {
+	if id == "" {
+		return id
+	}
+	tag, err := language.Parse(string(id))
+	if err != nil {
+		return id
+	}
+	canon := model.LocaleID(tag.String())
+
+	base, rawScript, rawRegion := tag.Raw()
+	b := base.String()
+	script := scriptOrEmpty(rawScript)
+	region := regionOrEmpty(rawRegion)
+
+	// Only plain base[-script][-region] tags are minimized.
+	if compose(b, script, region) != string(canon) {
+		return canon
+	}
+	if region == "" || regionAlwaysWritten[b] {
+		return canon
+	}
+
+	// A region-only Chinese tag states its written variant as a script.
+	if script == "" {
+		if s, ok := hanRegionScript[region]; ok && b == "zh" {
+			return model.LocaleID(compose(b, s, ""))
+		}
+	}
+
+	// Drop the region when it is the likely region for the language (plus
+	// script, when one is written).
+	if likelyRegion(compose(b, script, "")) == region {
+		return model.LocaleID(compose(b, script, ""))
+	}
+	return canon
+}
+
+// Fallbacks returns id's lookup chain, most specific first: the canonical
+// tag, then its minimal form, then the language+script stem, then the bare
+// language. Duplicates are collapsed, so "nb" yields just ["nb"] and "nb-NO"
+// yields ["nb-NO", "nb"].
+//
+// Use it wherever a locale keys an optional resource — a message catalog, a
+// per-locale asset — so a project that writes "nb-NO" finds the "nb" resource
+// instead of silently getting nothing. Lookups stay exact-first, so a tag
+// written verbatim always wins over its fallbacks.
+func Fallbacks(id model.LocaleID) []model.LocaleID {
+	if id == "" {
+		return nil
+	}
+	tag, err := language.Parse(string(id))
+	if err != nil {
+		return []model.LocaleID{id}
+	}
+
+	candidates := []model.LocaleID{model.LocaleID(tag.String()), Minimal(id)}
+
+	base, rawScript, _ := tag.Raw()
+	b := base.String()
+	if script := scriptOrEmpty(rawScript); script != "" {
+		candidates = append(candidates, model.LocaleID(compose(b, script, "")))
+	}
+	// A minimal form may have introduced a script ("zh-CN" → "zh-Hans").
+	if mBase, mScript, _ := language.Make(string(Minimal(id))).Raw(); scriptOrEmpty(mScript) != "" {
+		candidates = append(candidates, model.LocaleID(compose(mBase.String(), scriptOrEmpty(mScript), "")))
+	}
+	candidates = append(candidates, model.LocaleID(b))
+
+	out := make([]model.LocaleID, 0, len(candidates))
+	seen := make(map[model.LocaleID]bool, len(candidates))
+	for _, c := range candidates {
+		if c == "" || seen[c] {
+			continue
+		}
+		seen[c] = true
+		out = append(out, c)
+	}
+	return out
+}
+
+// scriptOrEmpty returns the script subtag, or "" when it is the "unknown"
+// placeholder x/text reports for an absent script.
+func scriptOrEmpty(s language.Script) string {
+	if str := s.String(); str != "Zzzz" {
+		return str
+	}
+	return ""
+}
+
+// regionOrEmpty returns the region subtag, or "" when it is the "unknown"
+// placeholder x/text reports for an absent region.
+func regionOrEmpty(r language.Region) string {
+	if str := r.String(); str != "ZZ" {
+		return str
+	}
+	return ""
+}
+
+// compose joins the base, script and region subtags present into a BCP-47
+// tag. Empty components are skipped.
+func compose(base, script, region string) string {
+	parts := make([]string, 0, 3)
+	for _, p := range []string{base, script, region} {
+		if p != "" {
+			parts = append(parts, p)
+		}
+	}
+	return strings.Join(parts, "-")
+}
+
+// likelyRegion returns the CLDR likely region for a base[-script] stem, or ""
+// when the stem does not parse.
+func likelyRegion(stem string) string {
+	tag, err := language.Parse(stem)
+	if err != nil {
+		return ""
+	}
+	r, _ := tag.Region()
+	return regionOrEmpty(r)
+}
+
 // DisplayName returns the English display name for a locale ID.
 // For example, "fr" returns "French", "de" returns "German".
 // Falls back to the raw code for unrecognized tags.
