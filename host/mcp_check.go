@@ -117,7 +117,11 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 			return nil, check.Report{}, ferr
 		}
 		diags = fd
-		diags = append(diags, a.collectBilingualDiagnostics(ctx, blocks, in.File, model.LocaleID(lang), in.DNT)...)
+		biDiags, bderr := a.collectBilingualDiagnostics(ctx, blocks, in.File, model.LocaleID(lang), in.DNT)
+		if bderr != nil {
+			return nil, check.Report{}, bderr
+		}
+		diags = append(diags, biDiags...)
 	} else {
 		validateMode, verr := parseValidationMode(in.Validate)
 		if verr != nil {

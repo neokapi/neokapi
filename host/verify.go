@@ -493,7 +493,10 @@ func (a *App) verifyBrand(cmd Command, proj *project.KapiProject, root string, a
 		}
 		vocab := coretools.NewBrandVocabCheckTool(profile, nil)
 		for _, b := range blocks {
-			findings := runBrandVocabOnBlock(ctx, vocab, b)
+			findings, verr := runBrandVocabOnBlock(ctx, vocab, b)
+			if verr != nil {
+				return nil, fmt.Errorf("brand: %s: %w", f, verr)
+			}
 			for _, fd := range findings {
 				gate.Findings = append(gate.Findings, brandFindingToVerify(f, fd))
 			}
@@ -517,32 +520,28 @@ func (a *App) verifyBrand(cmd Command, proj *project.KapiProject, root string, a
 
 // runBrandVocabOnBlock runs the brand vocab check tool over a single block and
 // returns the findings it recorded on the block's annotation/properties.
-func runBrandVocabOnBlock(ctx context.Context, vocab *coretools.BrandVocabCheckTool, b *model.Block) []brand.BrandVoiceFinding {
-	part := &model.Part{Type: model.PartBlock, Resource: b}
-	in := make(chan *model.Part, 1)
-	out := make(chan *model.Part, 1)
-	in <- part
-	close(in)
-	errc := make(chan error, 1)
-	go func() {
-		defer close(out)
-		errc <- vocab.Process(ctx, in, out)
-	}()
-	for range out { //nolint:revive // drain
-	}
-	if err := <-errc; err != nil {
-		return nil
+//
+// Both failure modes are RETURNED rather than folded into "no findings". The
+// caller feeds these into brand.CalculateScore, so a checker that errored on
+// every block used to produce an empty finding set, a perfect score, and
+// `brand: PASS` — the brand gate silently disabled while CI went green. It
+// shares RunCheckTool's driver rather than re-deriving it, so the two cannot
+// drift on error handling again.
+func runBrandVocabOnBlock(ctx context.Context, vocab *coretools.BrandVocabCheckTool, b *model.Block) ([]brand.BrandVoiceFinding, error) {
+	if err := RunCheckTool(ctx, vocab, b); err != nil {
+		return nil, err
 	}
 	if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
-		return ann.Findings
+		return ann.Findings, nil
 	}
 	if raw := b.Properties["brand-vocab-findings"]; raw != "" {
 		var fs []brand.BrandVoiceFinding
-		if json.Unmarshal([]byte(raw), &fs) == nil {
-			return fs
+		if err := json.Unmarshal([]byte(raw), &fs); err != nil {
+			return nil, fmt.Errorf("decode brand vocabulary findings for %q: %w", blockKey(b), err)
 		}
+		return fs, nil
 	}
-	return nil
+	return nil, nil
 }
 
 func brandFindingToVerify(file string, f brand.BrandVoiceFinding) verifyFinding {
@@ -793,7 +792,9 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResu
 		}
 		tc := coretools.NewTermCheckTool(cfg)
 		for _, b := range blocks {
-			RunCheckTool(ctx, tc, b)
+			if cerr := RunCheckTool(ctx, tc, b); cerr != nil {
+				return gate, fmt.Errorf("terminology gate %s (%s): %w", u.DisplayPath, u.Locale, cerr)
+			}
 			if b.Properties[coretools.PropTermCheckPassed] == "false" {
 				gate.Pass = false
 				msg := b.Properties[coretools.PropTermCheckErrors]
@@ -877,7 +878,9 @@ func (a *App) verifyQA(cmd Command, units []VerifyUnit) (verifyGateResult, error
 		cfg.Patterns = append(cfg.Patterns, defaultPlaceholderPatterns()...)
 		qa := coretools.NewQACheckTool(cfg)
 		for _, b := range blocks {
-			RunCheckTool(ctx, qa, b)
+			if cerr := RunCheckTool(ctx, qa, b); cerr != nil {
+				return gate, fmt.Errorf("qa gate %s (%s): %w", u.DisplayPath, u.Locale, cerr)
+			}
 			for _, f := range check.Findings(tool.NewBlockViewWithContext(ctx, b)) {
 				// A do-not-translate term legitimately stays identical to the
 				// source, so don't flag it as untranslated.
@@ -1158,6 +1161,34 @@ func (a *App) recordAndCollectBlocks(ctx context.Context, path, fmtName, configK
 	}
 
 	rec := a.docCache.RecordDocument(path, configKey, fmtName)
+	return streamIntoRecorder(ctx, reader, rec, path)
+}
+
+// streamIntoRecorder drains the reader once, appending every part to rec (when
+// there is one) and collecting the translatable blocks. rec may be nil — no cache
+// configured, or another worker already recording this document — in which case
+// it is a plain collecting read.
+//
+// The recorder's errors are HANDLED, never discarded:
+//
+//   - A dropped Add error was a *persistent* correctness fault, not a missed
+//     optimization. The part never reached the append log, yet Commit still wrote
+//     the index row — so every later read of this (path, config) replayed a SHORT
+//     document as if it were complete. Coverage's denominator is that block count,
+//     so the vanished units simply stopped existing and the locale's percentage
+//     climbed, sticky until the source changed or `.kapi/cache` was deleted. A
+//     document that cannot be fully recorded is therefore not recorded at all:
+//     Abort, stop recording, and let the next read re-parse the file. This is the
+//     handling core/flow's recordDocument has always had; the asymmetry was the bug.
+//
+//   - Commit's own failure is safe to degrade on (it aborts internally, so no index
+//     row is written and the next read is an honest miss).
+//
+// Both are still REPORTED. The read itself is unaffected — blocks come straight
+// from the reader, not from the recorder — so neither fails the command; but a
+// cache that silently never fills presents as nothing except an inexplicably slow
+// project, which is its own kind of swallowed error.
+func streamIntoRecorder(ctx context.Context, reader format.DataFormatReader, rec flow.DocumentRecorder, path string) ([]*model.Block, error) {
 	var blocks []*model.Block
 	for result := range reader.Read(ctx) {
 		if result.Error != nil {
@@ -1170,14 +1201,20 @@ func (a *App) recordAndCollectBlocks(ctx context.Context, path, fmtName, configK
 			continue
 		}
 		if rec != nil {
-			_ = rec.Add(result.Part)
+			if err := rec.Add(result.Part); err != nil {
+				rec.Abort()
+				rec = nil
+				warnf(nil, "Warning: not caching %s: %v\n", DisplayName(path), err)
+			}
 		}
 		if b, ok := result.Part.Resource.(*model.Block); ok && b.Translatable {
 			blocks = append(blocks, b)
 		}
 	}
 	if rec != nil {
-		_ = rec.Commit()
+		if err := rec.Commit(); err != nil {
+			warnf(nil, "Warning: not caching %s: %v\n", DisplayName(path), err)
+		}
 	}
 	return blocks, nil
 }

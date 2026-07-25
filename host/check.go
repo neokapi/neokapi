@@ -231,7 +231,11 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 			return check.Report{}, ferr
 		}
 		diags = append(diags, fileDiags...)
-		diags = append(diags, a.collectBilingualDiagnostics(ctx, blocks, sourcePath, model.LocaleID(targetLang), dnt)...)
+		biDiags, berr := a.collectBilingualDiagnostics(ctx, blocks, sourcePath, model.LocaleID(targetLang), dnt)
+		if berr != nil {
+			return check.Report{}, berr
+		}
+		diags = append(diags, biDiags...)
 	} else {
 		// Content-first generic mode: each positional file is a source, checked
 		// independently. With --validate (Reader Validation-Mode) the format
@@ -362,7 +366,9 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 	seen := make([]int, len(blocks)) // per-block count of findings already mapped
 
 	// Hygiene — always on, no configuration needed.
-	a.runFamily(ctx, blocks, check.NewContentLintTool())
+	if err := a.runFamily(ctx, blocks, check.NewContentLintTool()); err != nil {
+		return nil, fmt.Errorf("hygiene check %s: %w", DisplayName(file), err)
+	}
 	diags = append(diags, mapBlockDeltas(blocks, seen, "hygiene", file)...)
 
 	// Length — only when a limit is set.
@@ -371,7 +377,9 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 		if err != nil {
 			return nil, err
 		}
-		a.runFamily(ctx, blocks, lengthTool)
+		if err := a.runFamily(ctx, blocks, lengthTool); err != nil {
+			return nil, fmt.Errorf("length check %s: %w", DisplayName(file), err)
+		}
 		diags = append(diags, mapBlockDeltas(blocks, seen, "length", file)...)
 	}
 
@@ -381,7 +389,9 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 		if err != nil {
 			return nil, err
 		}
-		a.runFamily(ctx, blocks, patternTool)
+		if err := a.runFamily(ctx, blocks, patternTool); err != nil {
+			return nil, fmt.Errorf("pattern check %s: %w", DisplayName(file), err)
+		}
 		diags = append(diags, mapBlockDeltas(blocks, seen, "pattern", file)...)
 	}
 
@@ -389,7 +399,9 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 	if opts.profile != nil {
 		vocab := coretools.NewBrandVocabCheckTool(opts.profile, nil)
 		for _, b := range blocks {
-			RunCheckTool(ctx, vocab, b)
+			if err := RunCheckTool(ctx, vocab, b); err != nil {
+				return nil, fmt.Errorf("brand vocabulary check %s: %w", DisplayName(file), err)
+			}
 			if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
 				loc := check.Location{File: DisplayName(file), Block: blockKey(b)}
 				for _, f := range ann.Findings {
@@ -424,7 +436,10 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 
 // collectBilingualDiagnostics runs the target-gated localization checks
 // (placeholder integrity, do-not-translate) over a source/target block set.
-func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.Block, file string, loc model.LocaleID, dntTerms []string) []check.Diagnostic {
+// A checker that could not run is an error, not an empty finding set: a silent
+// skip would report the file as passing placeholder integrity it was never
+// measured against.
+func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.Block, file string, loc model.LocaleID, dntTerms []string) ([]check.Diagnostic, error) {
 	var diags []check.Diagnostic
 	// Seed the per-block delta counts from the findings already on each block:
 	// in bilingual mode the source checks (collectFileDiagnostics) ran first, so
@@ -435,26 +450,35 @@ func (a *App) collectBilingualDiagnostics(ctx context.Context, blocks []*model.B
 		seen[i] = len(FindingsFromBlock(b, false))
 	}
 
-	a.runFamily(ctx, blocks, coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(loc)))
+	if err := a.runFamily(ctx, blocks, coretools.NewPlaceholderCheckTool(coretools.NewPlaceholderCheckConfig(loc))); err != nil {
+		return nil, fmt.Errorf("placeholder check %s (%s): %w", DisplayName(file), loc, err)
+	}
 	diags = append(diags, mapBlockDeltas(blocks, seen, "placeholder", file)...)
 
 	if len(dntTerms) > 0 {
 		dntCfg := coretools.NewDNTCheckConfig(loc)
 		dntCfg.Terms = dntTerms
-		a.runFamily(ctx, blocks, coretools.NewDNTCheckTool(dntCfg))
+		if err := a.runFamily(ctx, blocks, coretools.NewDNTCheckTool(dntCfg)); err != nil {
+			return nil, fmt.Errorf("do-not-translate check %s (%s): %w", DisplayName(file), loc, err)
+		}
 		diags = append(diags, mapBlockDeltas(blocks, seen, "dnt", file)...)
 	}
-	return diags
+	return diags, nil
 }
 
 // runFamily runs one checker family's tool(s) over every block. Findings
 // accumulate on each block's unified annotation; the caller reads the delta.
-func (a *App) runFamily(ctx context.Context, blocks []*model.Block, tools ...BlockProcessor) {
+// A checker that fails aborts the family: its blocks carry no annotation, so
+// continuing would report the remainder as a complete, clean result.
+func (a *App) runFamily(ctx context.Context, blocks []*model.Block, tools ...BlockProcessor) error {
 	for _, b := range blocks {
 		for _, t := range tools {
-			RunCheckTool(ctx, t, b)
+			if err := RunCheckTool(ctx, t, b); err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
 // mapBlockDeltas maps the findings each block gained since the last family (the

@@ -108,9 +108,17 @@ func (a *App) ExtractToKpz(ctx context.Context, sources []string, outKpz, target
 			ContentHash:  project.HashBytes(data),
 			HasRawSource: withSource,
 		}
-		// Capture the round-trip skeleton (default source-retention).
+		// Capture the round-trip skeleton (default source-retention). As in
+		// extractOneKpz: genuine absence is (nil, nil), so an error means the
+		// skeleton exists and could not be taken — a workspace built without it
+		// writes back re-serialized, lower-fidelity files while reporting
+		// success. Fail rather than degrade silently.
 		if formatID != "" {
-			if skel, serr := captureSkeletonBytes(ctx, a.FormatReg, registry.FormatID(formatID), f, data, model.LocaleID(a.SourceLang)); serr == nil && len(skel) > 0 {
+			skel, serr := captureSkeletonBytes(ctx, a.FormatReg, registry.FormatID(formatID), f, data, model.LocaleID(a.SourceLang))
+			if serr != nil {
+				return fmt.Errorf("capture round-trip skeleton for %s: %w", base, serr)
+			}
+			if len(skel) > 0 {
 				skelPath := kpz.SkeletonDir + base
 				full.Skeletons = append(full.Skeletons, kpz.SkeletonDoc{
 					Path: skelPath, SourcePath: base, FormatID: formatID,

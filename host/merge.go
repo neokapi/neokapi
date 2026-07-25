@@ -369,10 +369,25 @@ func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFo
 			continue
 		}
 		o, oerr := sess.GetOverlay(kind, blockstore.OverlayKey(ctx, b.ID, b.SourceText()))
-		if oerr != nil || len(o.Payload) == 0 {
-			continue
+		if oerr != nil {
+			// "No target overlay for this block" and "the block store could not
+			// be read" are DIFFERENT outcomes and must not share a branch: the
+			// first is ordinary pending work, the second loses translations that
+			// exist. Conflating them made every absorb report a short count as
+			// success — the same shape as #1449, one layer up. ErrNotFound is the
+			// documented absence sentinel (core/blockstore); anything else is a
+			// read failure and fails the absorb.
+			if errors.Is(oerr, blockstore.ErrNotFound) {
+				continue
+			}
+			return newCount, updatedCount, fmt.Errorf("read %s overlay for block %s of %s: %w", kind, blockKey(b), sourceRel, oerr)
 		}
-		applyTargetOverlay(b, target, o.Payload)
+		if len(o.Payload) == 0 {
+			continue // recorded but empty — nothing to absorb
+		}
+		if oaerr := applyTargetOverlay(b, target, o.Payload); oaerr != nil {
+			return newCount, updatedCount, oaerr
+		}
 		n, u, aerr := absorbBlockIntoTM(ctx, tm, b, source, target, "store", sourceRel, sourceAbs)
 		if aerr != nil {
 			return newCount, updatedCount, aerr
@@ -452,7 +467,14 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 
 	var tm *sievepen.SQLiteTM
 	if !BoolFlag(cmd, "no-tm-update") {
-		if loaded, lerr := sievepen.NewSQLiteTM(filepath.Join(layout.StateDir, "tm.db")); lerr == nil {
+		// Warned, like the two sibling merge paths above: a TM that failed to
+		// open reported `tm_new=0 tm_updated=0`, which reads as "nothing new to
+		// learn" rather than "the TM was never opened" — so the leverage is lost
+		// for this bundle with no way to tell.
+		tmPath := filepath.Join(layout.StateDir, "tm.db")
+		if loaded, lerr := sievepen.NewSQLiteTM(tmPath); lerr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: merge: open project TM at %s: %v (continuing without TM write-back)\n", tmPath, lerr)
+		} else {
 			defer loaded.Close()
 			tm = loaded
 		}
@@ -526,7 +548,9 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 				stats.Skipped++
 				continue
 			}
-			applyTargetOverlay(b, targetLocale, payload)
+			if aerr := applyTargetOverlay(b, targetLocale, payload); aerr != nil {
+				return aerr
+			}
 			if b.Target(targetLocale) == nil {
 				stats.Skipped++
 				continue

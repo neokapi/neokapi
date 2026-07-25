@@ -3,6 +3,7 @@ package host
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -123,10 +124,18 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, units
 			if strings.TrimSpace(b.TargetText(model.LocaleID(u.Locale))) == "" {
 				continue
 			}
-			RunCheckTool(ctx, qa, b)
+			// A checker that could not run must not read as a checker that
+			// passed: this exclusion set feeds the ship gate, so swallowing the
+			// error would readmit a failing unit as shippable — "the operation
+			// failed and the system reports success" applied to the gate itself.
+			if err := RunCheckTool(ctx, qa, b); err != nil {
+				return nil, fmt.Errorf("qa check %s (%s): %w", u.DisplayPath, u.Locale, err)
+			}
 			fails := slices.ContainsFunc(check.Findings(tool.NewBlockViewWithContext(ctx, b)), qaFindingFails)
 			if !fails && termTool != nil {
-				RunCheckTool(ctx, termTool, b)
+				if err := RunCheckTool(ctx, termTool, b); err != nil {
+					return nil, fmt.Errorf("terminology check %s (%s): %w", u.DisplayPath, u.Locale, err)
+				}
 				if b.Properties[coretools.PropTermCheckPassed] == "false" {
 					fails = true
 				}

@@ -471,7 +471,9 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 			detected, _ := a.FormatReg.Detect(inputPath, registry.DetectOptions{ExtensionOnly: true})
 			detectedFmt = string(detected)
 		}
-		a.writeTraceFile(tracePath, flowName, detectedFmt, inputPath, outputPath, recorder, stepNames)
+		if err := a.writeTraceFile(tracePath, flowName, detectedFmt, inputPath, outputPath, recorder, stepNames); err != nil {
+			return err
+		}
 	}
 
 	if !a.Quiet {
@@ -488,7 +490,12 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 // writeTraceFile serializes a trace to JSON and writes it to disk. toolNames is
 // the ordered list of tool names (one per "tool-N" node) used to label the
 // graph nodes — without it the nodes would fall back to their bare "tool-N" ids.
-func (a *App) writeTraceFile(tracePath, flowName, fmtName, inputPath, outputPath string, recorder *flow.TraceRecorder, toolNames []string) {
+//
+// Every failure is RETURNED: `--trace` is an explicit request for a file, so a
+// run that writes none must not exit 0 (the user would open a visualizer on
+// nothing). The batch path (runMultipleFiles) has always propagated these three;
+// the single-file path discarding them was the asymmetry.
+func (a *App) writeTraceFile(tracePath, flowName, fmtName, inputPath, outputPath string, recorder *flow.TraceRecorder, toolNames []string) error {
 	inputContent, _ := os.ReadFile(inputPath)
 	inputPreview := string(inputContent)
 	if len(inputPreview) > 2000 {
@@ -526,10 +533,15 @@ func (a *App) writeTraceFile(tracePath, flowName, fmtName, inputPath, outputPath
 
 	traceJSON, err := json.MarshalIndent(trace, "", "  ")
 	if err != nil {
-		return
+		return fmt.Errorf("marshal trace: %w", err)
 	}
-	_ = os.MkdirAll(filepath.Dir(tracePath), 0o755)
-	_ = os.WriteFile(tracePath, traceJSON, 0o644)
+	if err := os.MkdirAll(filepath.Dir(tracePath), 0o755); err != nil {
+		return fmt.Errorf("create trace dir %s: %w", filepath.Dir(tracePath), err)
+	}
+	if err := os.WriteFile(tracePath, traceJSON, 0o644); err != nil {
+		return fmt.Errorf("write trace %s: %w", tracePath, err)
+	}
+	return nil
 }
 
 func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string, inputPaths []string, concurrency int, outputTemplate string) error {
