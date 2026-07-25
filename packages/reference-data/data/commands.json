@@ -1,6 +1,119 @@
 {
-  "generatedAt": "2026-07-25T03:20:18Z",
+  "generatedAt": "2026-07-25T04:10:52Z",
   "commands": [
+    {
+      "id": "add",
+      "path": [
+        "add"
+      ],
+      "use": "add \u003cpattern\u003e [pattern...]",
+      "short": "Add file patterns to the project's content",
+      "long": "Add file patterns to this project's content so kapi knows which files to\nprocess. Patterns support ** for recursive matching. Format is auto-detected\nfrom the extension unless --format is given.\n\n  kapi add \"src/**/*.html\"\n  kapi add \"locales/*.json\" --format json\n  kapi add \"src/**/*.html\" \"content/**/*.md\"",
+      "groupID": "work",
+      "flags": [
+        {
+          "name": "color",
+          "usage": "colorize output: auto, always, never",
+          "default": "auto",
+          "type": "string"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "file format (e.g. html, json); auto-detected if omitted",
+          "type": "string"
+        },
+        {
+          "name": "jq",
+          "usage": "filter JSON output through a jq expression (implies --json)",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "Output in JSON format",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "output-format",
+          "usage": "Output format: json, text",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "text",
+          "usage": "Output in text format (default)",
+          "default": "false",
+          "type": "bool"
+        }
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "apply",
+      "path": [
+        "apply"
+      ],
+      "use": "apply [flags] [CHANGESET]",
+      "short": "Apply a typed change-set (content + asset edits) — the one write verb",
+      "long": "Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is\none reviewed change — a content edit, an asset edit (glossary term, TM pair,\nbrand rule, recipe field), or a review decision (kind:\"review\"). Content edits\nland through the same byte-faithful round-trip the engine's writers use (structure and\ninline codes preserved), drift-guarded by content_hash; asset edits are written\ninto their committed source artifact and the existing import compiles them into\nthe cache; a review decision is recorded in the project state store.\n\nA TM pair (kind:\"tm\") is recycle leverage for future translation — it does not\npromote a unit to reviewed. To approve a translated unit, use a kind:\"review\"\nentry addressed by its file/id/locale (as 'kapi status --review' lists it), with\nstatus \"reviewed\" (default) or \"signed-off\"; the decision lands in the project\nstate store (defaults.state, default .kapi-state.json) and is bound to the\ntranslation's content hash, so a later edit drops the unit back below reviewed.\n\nThe change-set is JSONL (one entry per line), read from CHANGESET or, with no\nargument or \"-\", from standard input. Content entries name their own file, so\napply writes those files in place; --diff previews the content changes and\nwrites nothing. No AI provider is required.",
+      "groupID": "work",
+      "flags": [
+        {
+          "name": "diff",
+          "usage": "preview content changes as a unified diff and write nothing",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "encoding",
+          "usage": "input/output encoding",
+          "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "input/output format for content files (default: auto-detect)",
+          "type": "string"
+        },
+        {
+          "name": "in-place",
+          "shorthand": "i",
+          "usage": "keep a backup of edited content files with --in-place=.bak",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "print the apply report as JSON",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US)",
+          "default": "en",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi inspect report.docx --jsonl | edit-the-text | kapi apply",
+        "kapi apply changeset.jsonl",
+        "kapi apply changeset.jsonl --diff",
+        "kapi status --review --json | approve-units | kapi apply",
+        "kapi apply changeset.jsonl --in-place=.bak"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
     {
       "id": "brand",
       "path": [
@@ -10,8 +123,8 @@
       "short": "Keep AI-generated content on brand (voice, tone, terminology)",
       "long": "Check, rewrite, and govern content against a brand voice profile.\n\nProfile source (mutually exclusive):\n  --profile \u003cname\u003e       Profile in the local brand store (see 'kapi brand profiles')\n  --profile-file \u003cpath\u003e  Standalone profile YAML (git-shareable, no store needed)\n  --pack \u003cname\u003e          Built-in starter pack (professional-b2b, friendly-dtc,\n                         technical-docs, marketing-blog, customer-support)\n\nText input for check/rewrite is read from --text, or from stdin when --text is\nomitted or set to \"-\".",
       "groupID": "assets",
-      "offlineCapable": false,
-      "runnableInBrowser": false,
+      "offlineCapable": true,
+      "runnableInBrowser": true,
       "demoMode": false
     },
     {
@@ -115,8 +228,8 @@
         }
       ],
       "offlineCapable": false,
-      "runnableInBrowser": false,
-      "demoMode": false
+      "runnableInBrowser": true,
+      "demoMode": true
     },
     {
       "id": "brand.guide",
@@ -208,8 +321,8 @@
           "type": "bool"
         }
       ],
-      "offlineCapable": false,
-      "runnableInBrowser": false,
+      "offlineCapable": true,
+      "runnableInBrowser": true,
       "demoMode": false
     },
     {
@@ -266,8 +379,8 @@
           "type": "bool"
         }
       ],
-      "offlineCapable": false,
-      "runnableInBrowser": false,
+      "offlineCapable": true,
+      "runnableInBrowser": true,
       "demoMode": false
     },
     {
@@ -292,8 +405,8 @@
           "type": "string"
         }
       ],
-      "offlineCapable": false,
-      "runnableInBrowser": false,
+      "offlineCapable": true,
+      "runnableInBrowser": true,
       "demoMode": false
     },
     {
@@ -350,8 +463,8 @@
           "type": "bool"
         }
       ],
-      "offlineCapable": false,
-      "runnableInBrowser": false,
+      "offlineCapable": true,
+      "runnableInBrowser": true,
       "demoMode": false
     },
     {
@@ -408,8 +521,8 @@
           "type": "bool"
         }
       ],
-      "offlineCapable": false,
-      "runnableInBrowser": false,
+      "offlineCapable": true,
+      "runnableInBrowser": true,
       "demoMode": false
     },
     {
@@ -487,8 +600,8 @@
         }
       ],
       "offlineCapable": false,
-      "runnableInBrowser": false,
-      "demoMode": false
+      "runnableInBrowser": true,
+      "demoMode": true
     },
     {
       "id": "brand.show",
@@ -580,8 +693,8 @@
           "type": "bool"
         }
       ],
-      "offlineCapable": false,
-      "runnableInBrowser": false,
+      "offlineCapable": true,
+      "runnableInBrowser": true,
       "demoMode": false
     },
     {
@@ -623,8 +736,8 @@
           "type": "bool"
         }
       ],
-      "offlineCapable": false,
-      "runnableInBrowser": false,
+      "offlineCapable": true,
+      "runnableInBrowser": true,
       "demoMode": false
     },
     {
@@ -782,7 +895,7 @@
         }
       ],
       "offlineCapable": true,
-      "runnableInBrowser": false,
+      "runnableInBrowser": true,
       "demoMode": false
     },
     {
@@ -793,6 +906,83 @@
       "use": "completion [bash|zsh|fish|powershell]",
       "short": "Generate shell completion script",
       "long": "Generate a shell completion script for the specified shell.\n\nTo load completions:\n\nBash:\n  $ source \u003c(kapi completion bash)\n  # Or install permanently:\n  $ kapi completion bash \u003e /etc/bash_completion.d/kapi\n\nZsh:\n  $ source \u003c(kapi completion zsh)\n  # Or install permanently:\n  $ kapi completion zsh \u003e \"${fpath[1]}/_kapi\"\n\nFish:\n  $ kapi completion fish | source\n  # Or install permanently:\n  $ kapi completion fish \u003e ~/.config/fish/completions/kapi.fish\n\nPowerShell:\n  PS\u003e kapi completion powershell | Out-String | Invoke-Expression",
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "config",
+      "path": [
+        "config"
+      ],
+      "use": "config [key] [value]",
+      "short": "Get or set kapi configuration (app config subcommands, recipe keys positionally)",
+      "long": "Read and write configuration.\n\nApp configuration (the global config file, typically ~/.config/kapi/kapi.yaml)\nuses the subcommands. Common keys:\n  ai.provider   default AI provider for translate / qa / brand-voice-check / flows\n                (e.g. `ollama` to default to a free, on-device local model)\n  ai.model      default model for the AI provider\n\nAn explicit --provider/--model flag, inline config, or project recipe default always overrides these.\n\nProject recipe fields use the positional form: with one argument the key is\nprinted, with two it is set and the recipe saved. Core keys: name,\nsource_language, preset. Dotted keys edit a registered recipe block\n(e.g. server.url, server.stream on a connected project).",
+      "groupID": "advanced",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi config set ai.provider ollama   # app config",
+        "kapi config get ai.provider",
+        "kapi config list",
+        "kapi config name                     # recipe: print the project name",
+        "kapi config name \"My Project\"        # recipe: set the project name",
+        "kapi config server.url https://bowrain.example/acme/app"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "config.get",
+      "path": [
+        "config",
+        "get"
+      ],
+      "use": "get \u003ckey\u003e",
+      "short": "Print a single config value",
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "config.list",
+      "path": [
+        "config",
+        "list"
+      ],
+      "use": "list",
+      "short": "List all configured values",
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "config.path",
+      "path": [
+        "config",
+        "path"
+      ],
+      "use": "path",
+      "short": "Print the global config file path",
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "config.set",
+      "path": [
+        "config",
+        "set"
+      ],
+      "use": "set \u003ckey\u003e \u003cvalue\u003e",
+      "short": "Set a config value (persists to the global config file)",
       "offlineCapable": true,
       "runnableInBrowser": true,
       "demoMode": false
@@ -880,49 +1070,6 @@
       "use": "test \u003cname\u003e",
       "short": "Test that a credential's API key is accessible",
       "offlineCapable": false,
-      "runnableInBrowser": false,
-      "demoMode": false
-    },
-    {
-      "id": "engine",
-      "path": [
-        "engine"
-      ],
-      "use": "engine",
-      "short": "Serve the content engine as a local gRPC API",
-      "groupID": "advanced",
-      "offlineCapable": true,
-      "runnableInBrowser": false,
-      "demoMode": false
-    },
-    {
-      "id": "engine.serve",
-      "path": [
-        "engine",
-        "serve"
-      ],
-      "use": "serve",
-      "short": "Serve the EngineService gRPC API on a local Unix socket or stdio",
-      "long": "Serve the neokapi content engine as a gRPC service (EngineService,\ncore/proto/engine/v1) on a local Unix socket, so any gRPC-capable language\ncan extract documents into the canonical content model, process the part\nstream through tools or flows, and merge it back to document bytes.\n\nOn startup the command prints a one-line JSON handshake on stdout —\n{\"socket\": \"\u003cpath\u003e\", \"version\": \"\u003ckapi version\u003e\", \"pid\": \u003cpid\u003e} — mirroring\nthe plugin daemon convention, then serves until interrupted.\n\nWith --stdio the server instead serves exactly ONE gRPC connection over\nstdin/stdout — spawn-per-session callers (an editor extension, a language\nSDK that execs kapi) skip socket management entirely. In this mode stdout\ncarries nothing but the gRPC byte stream: the handshake and all logging go\nto stderr, and the server exits cleanly when stdin reaches EOF. --stdio and\n--socket are mutually exclusive.\n\nTrust model: the service is for TRUSTED LOCAL PEERS ONLY. There is no\nauthentication in v1; the socket (created inside a 0700 directory) or the\nprocess pipes are the security boundary, exactly like kapi's plugin daemon\nsockets. Do not expose the socket over the network or place it in a shared\ndirectory.",
-      "flags": [
-        {
-          "name": "socket",
-          "usage": "Unix socket path to listen on (default: $XDG_RUNTIME_DIR/kapi/engine-\u003cpid\u003e.sock, falling back to the user cache dir)",
-          "type": "string"
-        },
-        {
-          "name": "stdio",
-          "usage": "serve a single gRPC connection over stdin/stdout instead of a socket (handshake and logs go to stderr; exits on stdin EOF)",
-          "default": "false",
-          "type": "bool"
-        }
-      ],
-      "examples": [
-        "kapi engine serve",
-        "kapi engine serve --socket /tmp/my-engine.sock",
-        "kapi engine serve --stdio"
-      ],
-      "offlineCapable": true,
       "runnableInBrowser": false,
       "demoMode": false
     },
@@ -4075,6 +4222,51 @@
       "demoMode": false
     },
     {
+      "id": "info",
+      "path": [
+        "info"
+      ],
+      "use": "info \u003cwork.kpz\u003e",
+      "short": "Show a .kpz workspace's state (dirty?)",
+      "groupID": "advanced",
+      "flags": [
+        {
+          "name": "color",
+          "usage": "colorize output: auto, always, never",
+          "default": "auto",
+          "type": "string"
+        },
+        {
+          "name": "jq",
+          "usage": "filter JSON output through a jq expression (implies --json)",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "Output in JSON format",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "output-format",
+          "usage": "Output format: json, text",
+          "type": "string"
+        },
+        {
+          "name": "text",
+          "usage": "Output in text format (default)",
+          "default": "false",
+          "type": "bool"
+        }
+      ],
+      "examples": [
+        "kapi info work.kpz"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
       "id": "init",
       "path": [
         "init"
@@ -4121,6 +4313,120 @@
           "usage": "Target locale (repeatable)",
           "default": "[]",
           "type": "stringSlice"
+        }
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "inspect",
+      "path": [
+        "inspect"
+      ],
+      "use": "inspect [flags] [FILE...]",
+      "short": "Parse any format into anchored, structured content blocks",
+      "long": "Parse each file into one record per content block: the text, a stable\ncontent-hash anchor, and the block's structural role (heading, list-item,\ntable-cell, …) and nesting level. Any format — a Word document, a JSON catalog,\nMarkdown, HTML — yields the same shape, so an AI agent or RAG pipeline can read\ncontent, retrieve against the anchors, and write edits back to the same blocks.\n\nPrints a JSON array by default; --jsonl streams one JSON object per line (JSONL)\nfor piping into an ingestion pipeline; --yaml emits a YAML sequence.\nWith no FILE, or when FILE is \"-\", standard input is read.",
+      "groupID": "advanced",
+      "flags": [
+        {
+          "name": "encoding",
+          "usage": "input encoding",
+          "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "input format (default: auto-detect by extension/content)",
+          "type": "string"
+        },
+        {
+          "name": "jsonl",
+          "usage": "stream one JSON object per line (JSONL) instead of a JSON array",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "project",
+          "usage": "also render each block to these target formats (html, markdown, asciidoc) under \"projected\"",
+          "default": "[]",
+          "type": "stringSlice"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US)",
+          "default": "en",
+          "type": "string"
+        },
+        {
+          "name": "yaml",
+          "usage": "emit a YAML sequence instead of a JSON array",
+          "default": "false",
+          "type": "bool"
+        }
+      ],
+      "examples": [
+        "kapi inspect report.docx",
+        "kapi inspect --jsonl docs/*.md | jq .content_hash",
+        "kapi inspect --yaml report.dclg.xml",
+        "kapi inspect report.docx --project html,markdown   # each block rendered per format",
+        "cat page.html | kapi inspect -f html"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "ls",
+      "path": [
+        "ls"
+      ],
+      "use": "ls [path...]",
+      "short": "List the files the project's content tracks",
+      "long": "List the files matched by the project's content collections (honoring the\nexclude list). With --stats, also show per-file block and word counts.\n\nIn a server-connected project (a recipe with a server: block, with the\nbowrain plugin installed) a SYNC column reports each file's pending-push\nstanding (\"2 to push\" / \"synced\"), derived from the sync cache.\n\n  kapi ls\n  kapi ls src/\n  kapi ls --stats",
+      "groupID": "work",
+      "flags": [
+        {
+          "name": "color",
+          "usage": "colorize output: auto, always, never",
+          "default": "auto",
+          "type": "string"
+        },
+        {
+          "name": "jq",
+          "usage": "filter JSON output through a jq expression (implies --json)",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "Output in JSON format",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "output-format",
+          "usage": "Output format: json, text",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "stats",
+          "shorthand": "s",
+          "usage": "show per-file block and word counts",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "text",
+          "usage": "Output in text format (default)",
+          "default": "false",
+          "type": "bool"
         }
       ],
       "offlineCapable": true,
@@ -4352,7 +4658,7 @@
       "use": "pull \u003cmodel\u003e",
       "short": "Download a model (Ollama model, or a plugin asset)",
       "long": "Install a model so kapi can translate with it. A bare reference defaults to an\nOllama model (e.g. llama3.2:3b, qwen3:1.7b) and is pulled into the local Ollama\nruntime. A plugin model id (e.g. sat-3l-sm), a plugin name, or plugin/model fetches\nthat plugin's host-owned asset instead.",
-      "offlineCapable": true,
+      "offlineCapable": false,
       "runnableInBrowser": false,
       "demoMode": false
     },
@@ -4370,6 +4676,49 @@
       ],
       "offlineCapable": true,
       "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
+      "id": "pack",
+      "path": [
+        "pack"
+      ],
+      "use": "pack -o \u003csnapshot.kpz\u003e",
+      "short": "Snapshot a kapi project's working state into a .kpz",
+      "long": "Snapshot a kapi project's working state — the block-store overlays, the\nauthoritative translation memory, and the termbase — into a portable .kpz.\nRegenerable caches and secrets are excluded. Move the snapshot to another\nmachine and \"kapi unpack\" it to resume work there.",
+      "groupID": "advanced",
+      "flags": [
+        {
+          "name": "log",
+          "usage": "stamp a tamper-evident provenance line into the snapshot's advisory history",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "output",
+          "shorthand": "o",
+          "usage": "output .kpz snapshot path",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "with-source",
+          "usage": "embed raw source bytes in the .kpz (default: identity + skeleton only)",
+          "default": "false",
+          "type": "bool"
+        }
+      ],
+      "examples": [
+        "kapi pack -o snapshot.kpz   # a kapi project",
+        "kapi pack work.kpz         # eject a .kpz workspace's cache"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
       "demoMode": false
     },
     {
@@ -4503,7 +4852,7 @@
       ],
       "use": "registry",
       "short": "Manage plugin registries",
-      "offlineCapable": true,
+      "offlineCapable": false,
       "runnableInBrowser": false,
       "demoMode": false
     },
@@ -4523,7 +4872,7 @@
           "type": "string"
         }
       ],
-      "offlineCapable": true,
+      "offlineCapable": false,
       "runnableInBrowser": false,
       "demoMode": false
     },
@@ -4536,7 +4885,7 @@
       ],
       "use": "list",
       "short": "List configured registries",
-      "offlineCapable": true,
+      "offlineCapable": false,
       "runnableInBrowser": false,
       "demoMode": false
     },
@@ -4549,7 +4898,7 @@
       ],
       "use": "remove \u003cname\u003e",
       "short": "Remove a registry from global config",
-      "offlineCapable": true,
+      "offlineCapable": false,
       "runnableInBrowser": false,
       "demoMode": false
     },
@@ -4796,8 +5145,57 @@
         "kapi pseudo-translate messages.json",
         "kapi pseudo-translate src/locales/en.json -o src/locales/qps.json"
       ],
-      "offlineCapable": false,
-      "runnableInBrowser": false,
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "rm",
+      "path": [
+        "rm"
+      ],
+      "use": "rm \u003cpattern\u003e [pattern...]",
+      "short": "Remove file patterns from the project's content",
+      "long": "Stop tracking files matching the given patterns.\n\nIf a pattern matches one added with 'kapi add', the mapping is removed.\nOtherwise the pattern is added to the exclude list so those files are skipped.\n\n  kapi rm \"src/**/*.html\"       # remove the mapping\n  kapi rm \"src/legacy/*.html\"   # exclude matching files",
+      "groupID": "work",
+      "flags": [
+        {
+          "name": "color",
+          "usage": "colorize output: auto, always, never",
+          "default": "auto",
+          "type": "string"
+        },
+        {
+          "name": "jq",
+          "usage": "filter JSON output through a jq expression (implies --json)",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "Output in JSON format",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "output-format",
+          "usage": "Output format: json, text",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "text",
+          "usage": "Output in text format (default)",
+          "default": "false",
+          "type": "bool"
+        }
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
       "demoMode": false
     },
     {
@@ -4984,6 +5382,112 @@
         "kapi stats --json docs/*.md | jq '.total.words'",
         "cat page.html | kapi stats -f html"
       ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "status",
+      "path": [
+        "status"
+      ],
+      "use": "status",
+      "short": "Show per-locale translation coverage and ship-gate standing",
+      "long": "Show, per target locale, how much of the project's tracked content is\ntranslated and whether it clears its ship gate — a derived dashboard, like\ngit status. Coverage is recomputed from the content × target files on every run;\nnothing is tracked as state.\n\nThis is the informational counterpart to 'kapi check --ship' (the quality gate). It\nnever fails: a locale that is behind is reported as pending, not an error —\ntarget-language drift is normal, expected work, not a build break.",
+      "groupID": "work",
+      "flags": [
+        {
+          "name": "emit",
+          "usage": "with --ship, write the manifest to this path (e.g. ship.json) instead of stdout",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "output the structured result as JSON",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "locale",
+          "usage": "limit to a single target locale",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
+          "name": "review",
+          "usage": "list translated units not yet approved in the project state store (the review worklist), instead of the coverage grid; approve a unit with `kapi apply` (kind:\"review\")",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "ship",
+          "usage": "emit the minimal ship.json picker manifest (locale → {shippable, verified}) instead of the coverage grid — the shape a language picker consumes to hide un-shippable locales and badge unverified ones AI",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (overrides the project's source_language)",
+          "type": "string"
+        }
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "telemetry",
+      "path": [
+        "telemetry"
+      ],
+      "use": "telemetry",
+      "short": "Show or change anonymous usage telemetry (status, on, off)",
+      "long": "kapi collects anonymous usage telemetry to guide development: the name of the\nbuilt-in command that ran, a coarse duration bucket, the exit class, the kapi\nversion, and the operating system and architecture, keyed by a random\nanonymous ID. It never collects arguments, flag values, file paths, file\ncontents, or project names.\n\nTelemetry is disabled by any of: 'kapi telemetry off', KAPI_TELEMETRY=0,\nDO_NOT_TRACK=1, a CI environment, a build made with -tags notelemetry, or a\nbuild without a telemetry key (any build you compile yourself).\n\nSee https://neokapi.github.io/reference/telemetry for the full event list.",
+      "examples": [
+        "kapi telemetry status",
+        "kapi telemetry off"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
+      "id": "telemetry.off",
+      "path": [
+        "telemetry",
+        "off"
+      ],
+      "use": "off",
+      "short": "Disable anonymous usage telemetry (persists to the global config file)",
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
+      "id": "telemetry.on",
+      "path": [
+        "telemetry",
+        "on"
+      ],
+      "use": "on",
+      "short": "Enable anonymous usage telemetry (persists to the global config file)",
+      "offlineCapable": true,
+      "runnableInBrowser": false,
+      "demoMode": false
+    },
+    {
+      "id": "telemetry.status",
+      "path": [
+        "telemetry",
+        "status"
+      ],
+      "use": "status",
+      "short": "Show whether telemetry is enabled, why, and the exact payload shape",
       "offlineCapable": true,
       "runnableInBrowser": false,
       "demoMode": false
@@ -5999,7 +6503,30 @@
         "kapi translate app.xliff --target-lang ja --provider ollama"
       ],
       "offlineCapable": false,
-      "runnableInBrowser": false,
+      "runnableInBrowser": true,
+      "demoMode": true
+    },
+    {
+      "id": "unpack",
+      "path": [
+        "unpack"
+      ],
+      "use": "unpack \u003csnapshot.kpz\u003e",
+      "short": "Rehydrate a project's working state from a .kpz snapshot",
+      "groupID": "advanced",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi unpack snapshot.kpz"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
       "demoMode": false
     },
     {
@@ -6205,6 +6732,40 @@
         "kapi up --materialize  # also write localized files for the shippable locales",
         "kapi up --local        # connected project: run the loop on this machine, then push the results",
         "kapi up -p kapi.yaml   # bring an explicit project recipe up to date"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "update",
+      "path": [
+        "update"
+      ],
+      "use": "update",
+      "short": "Update kapi to the latest release",
+      "long": "Update the kapi binary itself.\n\nIf kapi was installed via a package manager (Homebrew, winget, apt, …), this\nprints the exact upgrade command — pass --run to execute it for you. If kapi was\ninstalled by direct download, it downloads the latest release, verifies its\nSHA-256 and cosign signature, and replaces the binary in place.\n\n  kapi update            # check and update (or print the upgrade command)\n  kapi update --check    # only report whether an update is available\n  kapi update --run      # on a managed install, run the package manager for me",
+      "flags": [
+        {
+          "name": "channel",
+          "usage": "release channel (stable, beta); defaults to update.channel config",
+          "type": "string"
+        },
+        {
+          "name": "check",
+          "usage": "only report whether an update is available",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "run",
+          "usage": "on a managed install, run the package-manager upgrade for me",
+          "default": "false",
+          "type": "bool"
+        }
+      ],
+      "examples": [
+        "kapi update"
       ],
       "offlineCapable": false,
       "runnableInBrowser": false,

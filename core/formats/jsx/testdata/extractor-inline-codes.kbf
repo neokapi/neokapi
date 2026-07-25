@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-localization-format",
+  "generator": {
+    "id": "@neokapi/i18n-react",
+    "version": "1.2.3"
+  },
+  "project": {
+    "id": "app",
+    "sourceLocale": "en"
+  },
+  "documents": [
+    {
+      "id": "../../../packages/ui/src/components/ui/breadcrumb.tsx",
+      "documentType": "jsx",
+      "path": "../../../packages/ui/src/components/ui/breadcrumb.tsx",
+      "blocks": [
+        {
+          "id": "../../../packages/ui/src/components/ui/breadcrumb.tsx:9:aria-label",
+          "hash": "10oWFzAUsVr",
+          "translatable": true,
+          "type": "jsx:attribute",
+          "source": [
+            {
+              "text": "breadcrumb"
+            }
+          ],
+          "placeholders": [],
+          "properties": {
+            "file": "../../../packages/ui/src/components/ui/breadcrumb.tsx",
+            "line": 9,
+            "component": "Breadcrumb",
+            "jsxPath": "nav[aria-label]",
+            "element": "nav"
+          }
+        },
+        {
+          "id": "../../../packages/ui/src/components/ui/breadcrumb.tsx:83:1",
+          "hash": "49O8tNxewof",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "ph": {
+                "id": "1",
+                "type": "jsx:element",
+                "subType": "MoreHorizontalIcon",
+                "data": "<MoreHorizontalIcon />",
+                "equiv": "=m0"
+              }
+            },
+            {
+              "text": " "
+            },
+            {
+              "pcOpen": {
+                "id": "1",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "<span className=\"sr-only\">",
+                "equiv": "=m1"
+              }
+            },
+            {
+              "text": "More"
+            },
+            {
+              "pcClose": {
+                "id": "1",
+                "type": "jsx:element",
+                "subType": "span",
+                "data": "</span>",
+                "equiv": "=m1"
+              }
+            }
+          ],
+          "placeholders": [
+            {
+              "name": "=m0",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "<MoreHorizontalIcon />"
+            },
+            {
+              "name": "=m1",
+              "kind": "element",
+              "jsType": "ReactNode",
+              "sourceExpr": "<span className=\"sr-only\">More</span>"
+            }
+          ],
+          "properties": {
+            "file": "../../../packages/ui/src/components/ui/breadcrumb.tsx",
+            "line": 83,
+            "component": "BreadcrumbEllipsis",
+            "jsxPath": "span",
+            "element": "span"
+          }
+        }
+      ]
+    }
+  ]
+}

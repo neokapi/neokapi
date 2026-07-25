@@ -136,6 +136,19 @@ func TestKBFFormatIDAndJSXAlias(t *testing.T) {
 	assert.Equal(t, registry.FormatID("kbf"), byExt)
 	assert.Equal(t, registry.FormatID("kbf"),
 		reg.ResolveFormat("application/vnd.neokapi.kbf+json"))
+
+	// The pre-rename vocabulary is gone: no alias, no extension, no MIME
+	// type. (A .klf file whose bytes still carry the KBF envelope is
+	// content-sniffed like any other misnamed file — that is the engine's
+	// general behaviour, not a compatibility shim.)
+	_, err = reg.NewReader("klf")
+	require.Error(t, err, `--format klf must be rejected — the id is "kbf"`)
+	_, err = reg.NewWriter("klf")
+	require.Error(t, err, `--format klf must be rejected — the id is "kbf"`)
+	_, err = reg.Detect(".klf", registry.DetectOptions{ExtensionOnly: true})
+	require.Error(t, err, ".klf must not be a registered extension")
+	assert.Empty(t, reg.ResolveFormat("application/vnd.neokapi.klf+json"),
+		"the pre-rename MIME type must not resolve")
 }
 
 func TestRegistryCreateInstances(t *testing.T) {

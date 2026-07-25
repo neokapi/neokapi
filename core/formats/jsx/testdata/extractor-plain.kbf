@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-localization-format",
+  "generator": {
+    "id": "@neokapi/i18n-react",
+    "version": "1.2.3"
+  },
+  "project": {
+    "id": "app",
+    "sourceLocale": "en"
+  },
+  "documents": [
+    {
+      "id": "src/components/ToolboxPage.tsx",
+      "documentType": "jsx",
+      "path": "src/components/ToolboxPage.tsx",
+      "blocks": [
+        {
+          "id": "src/components/ToolboxPage.tsx:26:0",
+          "hash": "6WBMLmfsj4N",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "Tools"
+            }
+          ],
+          "placeholders": [],
+          "properties": {
+            "file": "src/components/ToolboxPage.tsx",
+            "line": 26,
+            "component": "ToolboxPage",
+            "jsxPath": "TabButton",
+            "element": "TabButton"
+          }
+        },
+        {
+          "id": "src/components/ToolboxPage.tsx:29:1",
+          "hash": "8wO7SmrGFFF",
+          "translatable": true,
+          "type": "jsx:element",
+          "source": [
+            {
+              "text": "Flows"
+            }
+          ],
+          "placeholders": [],
+          "properties": {
+            "file": "src/components/ToolboxPage.tsx",
+            "line": 29,
+            "component": "ToolboxPage",
+            "jsxPath": "TabButton",
+            "element": "TabButton"
+          }
+        }
+      ]
+    }
+  ]
+}
