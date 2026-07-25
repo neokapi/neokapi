@@ -200,10 +200,16 @@ func (s *Server) HandleDeviceAuthPoll(c echo.Context) error {
 // InsecureIssuerURLContext so the provider accepts the issuer mismatch,
 // and injects a custom HTTP client that rewrites public-URL requests to
 // the internal Docker hostname.
+// It also guarantees that whatever client ends up on the context is bounded by a
+// timeout and guarded by the identity circuit breaker. That matters beyond
+// discovery: oauth2Cfg.Exchange reads its HTTP client straight off this context,
+// so without the wrap the token exchange would fall back to http.DefaultClient
+// (no timeout at all) and an unresponsive IdP could hold sign-in goroutines open
+// indefinitely.
 func (s *Server) oidcContext(ctx context.Context) context.Context {
 	publicURL := s.Config.OIDCPublicURL
 	if publicURL == "" || publicURL == s.Config.OIDCIssuerURL {
-		return ctx
+		return auth.IdentityContext(ctx)
 	}
 	ctx = oidc.InsecureIssuerURLContext(ctx, publicURL)
 	transport := &urlRewriteTransport{
@@ -211,7 +217,10 @@ func (s *Server) oidcContext(ctx context.Context) context.Context {
 		from: publicURL,
 		to:   s.Config.OIDCIssuerURL,
 	}
-	return context.WithValue(ctx, oauth2.HTTPClient, &http.Client{Transport: transport})
+	// Seed the rewriting client first; IdentityContext preserves it and adds the
+	// timeout and the breaker on top.
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, &http.Client{Transport: transport})
+	return auth.IdentityContext(ctx)
 }
 
 // urlRewriteTransport rewrites request URLs so OIDC HTTP requests
