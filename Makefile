@@ -1074,12 +1074,23 @@ kapi-desktop-test: ## Run Kapi Desktop Go backend tests
 # notices: the shipped app gets fresh bindings while local dev, `wails3 dev` and
 # the CI typecheck all build against the committed copy.
 #
-# The flags below mirror those release steps verbatim, so the committed copy is
-# byte-identical to what ships. Bindings are a static analysis of the service
-# API, and the output is invariant to both the -ldflags content and CGO_ENABLED
-# (verified byte-identical either way) — so no version stamp is threaded here.
+# These targets are the single definition of that invocation — the release
+# workflows call them too, so the shipped bindings and the gated committed copy
+# cannot drift apart through two hand-maintained command lines.
+#
+# Bindings are a static analysis of the service API, so the output is invariant
+# to both the -ldflags content and CGO_ENABLED (verified byte-identical either
+# way, on both apps). Hence no version stamp is threaded here, and cgo is off:
+# with it on, the ICU cgo packages compile during the analysis, which is what got
+# the kapi-desktop generator SIGTERM'd on a CI runner (852 packages, ~46s cold vs
+# ~6s). release.yml already ran bindings with CGO_ENABLED=0 on Windows for the
+# same reason, noting the surface is cgo-independent; this just applies that
+# everywhere. If the two modes ever did diverge, the byte gate fails loudly
+# rather than shipping something unnoticed.
+#
 # Unlike the release steps this deliberately does NOT run `go mod tidy`, which
 # would mutate go.mod/go.sum and collide with the `tidy-check` gate.
+WAILS_BINDINGS_ENV   := CGO_ENABLED=0
 WAILS_BINDINGS_FLAGS := -f "-tags production,fts5 -trimpath -buildvcs=false -ldflags=\"\"" -clean=true
 BOWRAIN_DESKTOP_DIR  := bowrain/apps/bowrain
 
@@ -1106,11 +1117,11 @@ wails3-cli: ## Install the wails3 CLI pinned to the wails version both desktop a
 	$(GO) install github.com/wailsapp/wails/v3/cmd/wails3@$$kv
 
 kapi-desktop-bindings: ## Regenerate the committed Kapi Desktop Wails bindings + wbridge id map
-	cd $(KAPI_DESKTOP_DIR) && wails3 generate bindings $(WAILS_BINDINGS_FLAGS)
+	cd $(KAPI_DESKTOP_DIR) && $(WAILS_BINDINGS_ENV) wails3 generate bindings $(WAILS_BINDINGS_FLAGS)
 	cd $(KAPI_DESKTOP_DIR)/frontend && node scripts/gen-wails-id-map.mjs
 
 bowrain-desktop-bindings: ## Regenerate the committed Bowrain Desktop Wails bindings + wbridge id map
-	cd $(BOWRAIN_DESKTOP_DIR) && wails3 generate bindings $(WAILS_BINDINGS_FLAGS)
+	cd $(BOWRAIN_DESKTOP_DIR) && $(WAILS_BINDINGS_ENV) wails3 generate bindings $(WAILS_BINDINGS_FLAGS)
 	cd $(BOWRAIN_DESKTOP_DIR)/frontend && node scripts/gen-wails-id-map.mjs
 
 wails-bindings: kapi-desktop-bindings bowrain-desktop-bindings ## Regenerate both desktop apps' committed Wails bindings

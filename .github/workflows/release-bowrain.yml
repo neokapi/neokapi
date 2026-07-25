@@ -721,23 +721,29 @@ jobs:
 
       # Build frontend and assets manually to avoid Wails Taskfile running
       # `npm install` which conflicts with the workspace npm ci above.
+      # `make bowrain-desktop-bindings` is the single definition of this
+      # invocation, shared with the drift gate (make
+      # check-bowrain-desktop-bindings) so the shipped bindings and the committed
+      # copy cannot diverge through two hand-maintained command lines. It also
+      # refreshes the wbridge id map, which this step used to leave stale.
+      #
+      # It runs cgo-off on every OS. Bindings reflect the service API, which is
+      # cgo-independent (verified byte-identical either way) — this step already
+      # did exactly that on Windows, where the mingw toolchain isn't on PATH; the
+      # final Windows build step (msys2) does the cgo + static-ICU compile. No
+      # -ldflags version stamp is threaded because the output is invariant to it.
+      #
+      # The sed is kept as-is. It patches an older wails codegen shape and
+      # currently matches nothing, so it is a no-op rather than a behaviour
+      # change — retained deliberately instead of dropped on that basis alone.
       - name: Generate Wails bindings
-        working-directory: bowrain/apps/bowrain
         shell: bash
-        env:
-          # On macOS/Linux the icu cgo packages compile during bindings analysis
-          # (toolchain + static .pc are present), so keep cgo on. On Windows the
-          # mingw toolchain isn't on this shell's PATH; bindings reflect the
-          # service API (cgo-independent), so build them with cgo off — the final
-          # Windows build step (msys2) does the cgo + static-ICU compile.
-          CGO_ENABLED: ${{ runner.os == 'Windows' && '0' || '1' }}
-          BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
-          go mod tidy
-          wails3 generate bindings -f "-tags production,fts5 -trimpath -buildvcs=false -ldflags=\"${BUILD_LDFLAGS}\"" -clean=true
+          (cd bowrain/apps/bowrain && go mod tidy)
+          make bowrain-desktop-bindings
           # shellcheck disable=SC2016
-          sed -i.bak 's/= $0\./= store$0./g' frontend/bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js
-          rm -f frontend/bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js.bak
+          sed -i.bak 's/= $0\./= store$0./g' bowrain/apps/bowrain/frontend/bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js
+          rm -f bowrain/apps/bowrain/frontend/bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js.bak
 
       # The bowrain frontend bundles @neokapi/flow-editor, which imports
       # @neokapi/i18n-react/runtime — a built ./dist subpath export (not

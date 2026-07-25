@@ -863,20 +863,22 @@ jobs:
       - name: Install wails3 CLI (pinned to the app's wails module)
         run: make wails3-cli
 
+      # `make kapi-desktop-bindings` is the single definition of this invocation,
+      # shared with the drift gate (make check-kapi-desktop-bindings) so the
+      # shipped bindings and the committed copy cannot diverge through two
+      # hand-maintained command lines. It also refreshes the wbridge id map,
+      # which this step used to leave stale.
+      #
+      # It runs cgo-off on every OS. Bindings reflect the service API, which is
+      # cgo-independent (verified byte-identical either way) — this step already
+      # did exactly that on Windows, where the mingw toolchain isn't on PATH; the
+      # final Windows build step (msys2) does the cgo + static-ICU compile. No
+      # -ldflags version stamp is threaded because the output is invariant to it.
       - name: Generate Wails bindings
-        working-directory: apps/kapi-desktop
         shell: bash
-        env:
-          # On macOS/Linux the icu cgo packages compile during bindings analysis
-          # (toolchain + static .pc are present), so keep cgo on. On Windows the
-          # mingw toolchain isn't on this shell's PATH; bindings reflect the
-          # service API (cgo-independent), so build them with cgo off — the final
-          # Windows build step (msys2) does the cgo + static-ICU compile.
-          CGO_ENABLED: ${{ runner.os == 'Windows' && '0' || '1' }}
-          BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
         run: |
-          go mod tidy
-          wails3 generate bindings -f "-tags production,fts5 -trimpath -buildvcs=false -ldflags=\"${BUILD_LDFLAGS}\"" -clean=true
+          (cd apps/kapi-desktop && go mod tidy)
+          make kapi-desktop-bindings
 
       # The kapi-desktop frontend's vite.config.ts imports
       # @neokapi/i18n-react/vite, whose entry resolves to dist/plugin/vite.js.
