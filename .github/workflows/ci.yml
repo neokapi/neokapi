@@ -109,6 +109,14 @@ jobs:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref || '' }}
       - uses: ./.github/actions/setup-node-ui
 
+      # The committed lockfile must be exactly what the pinned pnpm produces.
+      # setup-node-ui above already ran `vp install --frozen-lockfile`, which
+      # proves the lockfile agrees with package.json but not that it was written
+      # by our pinned resolver. Runs before the heavy checks so a resolver-skewed
+      # lockfile (typically a Dependabot npm PR) fails fast.
+      - name: Guard — lockfile is what the pinned pnpm produces
+        run: ./scripts/check-lockfile-idempotent.sh
+
       # Job body lives in `make ci-frontend` (single source of truth, runnable
       # locally). See the "CI job bodies (thin-CI)" section of the Makefile.
       - name: Check + test + build the bowrain web frontends
@@ -838,8 +846,6 @@ jobs:
         run: ./scripts/check-docs-bowrain-clean.sh
       - name: Guard — no absolute home paths in tracked files
         run: ./scripts/check-abs-paths.sh
-      - name: Guard — pnpm lockfile keeps its registry provenance
-        run: ./scripts/check-lockfile-provenance.sh
 
       # gofmt needs a toolchain, but no modules — gofmt is purely syntactic, so
       # this is a bare setup-go with the cache off and adds ~10s.
