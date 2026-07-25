@@ -552,6 +552,7 @@ export type RunErrorKind =
   | "ambiguous-credential"
   | "missing-credential"
   | "canceled"
+  | "blocked-target-path"
   | "unknown";
 
 /**

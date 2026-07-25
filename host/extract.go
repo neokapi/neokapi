@@ -470,8 +470,15 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 			}
 		}
 	}
+	// The success path: Close is where the skeleton's deferred write error and
+	// its buffered flush surface (the extract path never calls Flush/Bytes), so
+	// checking it is what stops a TRUNCATED skeleton being recorded in the
+	// manifest as if it were whole. A later `kapi merge` would otherwise splice
+	// the short skeleton and write a truncated deliverable, reporting success.
 	if skelStore != nil {
-		_ = skelStore.Close()
+		if err := skelStore.Close(); err != nil {
+			return project.ExtractionFile{}, fmt.Errorf("capture skeleton for %s: %w", task.source.Relative, err)
+		}
 	}
 
 	// Redaction: replace sensitive source spans with protected placeholders

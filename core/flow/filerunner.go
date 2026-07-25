@@ -159,9 +159,14 @@ type PartCache interface {
 type CachedDocument interface {
 	// Feed streams the document's parts to inCh one at a time and closes inCh.
 	Feed(ctx context.Context, inCh chan<- *model.Part) error
-	// OpenSkeleton opens the reconstruction skeleton (streamed from its file) for a
-	// writer, or nil when the document has none. The caller closes it.
-	OpenSkeleton() *format.SkeletonStore
+	// OpenSkeleton opens the reconstruction skeleton (streamed from its file) for
+	// a writer. A nil store with a nil error means the document genuinely has
+	// none (a generative format) and the writer reconstructs from the content
+	// model alone. A non-nil error means the entry PROMISED a skeleton it cannot
+	// deliver — the two must not be conflated, because writing without a
+	// skeleton the source needs silently degrades the output. The caller closes
+	// the store.
+	OpenSkeleton() (*format.SkeletonStore, error)
 	Close() error
 }
 
@@ -379,8 +384,19 @@ func (r *FileRunner) cachedSource(ctx context.Context, reader format.DataFormatR
 // skeleton work and writes no skeleton file. The reader is consumed and closed.
 func (r *FileRunner) recordDocument(ctx context.Context, reader format.DataFormatReader, inputPath, targetLang string, rec DocumentRecorder, captureSkeleton bool) error {
 	if captureSkeleton {
-		if emitter, ok := reader.(format.SkeletonStoreEmitter); ok && rec.SkeletonStore() != nil {
-			emitter.SetSkeletonStore(rec.SkeletonStore())
+		if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
+			// The reader HAS structure to capture. If the recorder cannot give it
+			// somewhere to go, recording anyway commits a skeleton-less entry that
+			// every later run replays into a re-serialized (lower-fidelity) file —
+			// silently, and permanently until the cache is deleted. Decline to
+			// record instead: errCacheUnavailable leaves the reader open and the
+			// live path below produces a faithful file.
+			store := rec.SkeletonStore()
+			if store == nil {
+				rec.Abort()
+				return errCacheUnavailable
+			}
+			emitter.SetSkeletonStore(store)
 		}
 	}
 	source, err := openBudgetedFile(inputPath)
@@ -461,7 +477,17 @@ func (r *FileRunner) cachedFileWrite(ctx context.Context, flowName string, tools
 	// the content model alone and never touches it.
 	var skel *format.SkeletonStore
 	if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
-		if s := doc.OpenSkeleton(); s != nil {
+		s, serr := doc.OpenSkeleton()
+		if serr != nil {
+			// The cached entry promised a skeleton it cannot produce. Writing
+			// anyway would re-serialize the document from the content model and
+			// quietly lose the source's exact formatting — the same silent
+			// degradation-reported-as-success as #1449. The cache is rebuildable,
+			// so say so rather than shipping a lesser file.
+			return fmt.Errorf("%s: cached parse is unusable: %w (delete the project's .kapi/cache to rebuild it)",
+				filepath.Base(inputPath), serr)
+		}
+		if s != nil {
 			skel = s
 			consumer.SetSkeletonStore(skel)
 		}
@@ -1017,10 +1043,21 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 		defer skeletonStore.Close()
 	}
 	label := filepath.Base(outputPath)
+	outputDir := filepath.Dir(outputPath)
+
+	// Refuse a blocked destination BEFORE running the pipeline (#1449). A
+	// directory (or a device, or an unwritable directory) standing where the
+	// writer needs a file used to surface only at the closing rename — as a
+	// bare "file exists" — after the tools had already run and, for an AI flow,
+	// already been paid for. Checking first makes the failure actionable and
+	// free.
+	if err := CheckOutputPath(outputPath); err != nil {
+		return err
+	}
 
 	// Ensure output directory exists.
-	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
-		return fmt.Errorf("create output dir: %w", err)
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+		return ClassifyOutputPathError(outputPath, outputDir, err)
 	}
 
 	// Open the output file here and hand the writer a buffered io.Writer
@@ -1037,9 +1074,9 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 	// tool/writer error could leave a partial file at outputPath; the
 	// temp-then-rename keeps the destination all-or-nothing, matching the
 	// pre-S1 contract where a tool error produced no output file at all.
-	tmpFile, err := os.CreateTemp(filepath.Dir(outputPath), ".kapi-out-*")
+	tmpFile, err := os.CreateTemp(outputDir, ".kapi-out-*")
 	if err != nil {
-		return fmt.Errorf("set output: %w", err)
+		return ClassifyOutputPathError(outputPath, outputDir, err)
 	}
 	tmpPath := tmpFile.Name()
 	failTmp := func(format string, args ...any) error {
@@ -1075,7 +1112,10 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 	}
 	if rerr := os.Rename(tmpPath, outputPath); rerr != nil {
 		_ = os.Remove(tmpPath)
-		return fmt.Errorf("finalize %q: %w", label, rerr)
+		// The pre-flight cleared this path, so a failure here is a race (or a
+		// condition stat cannot see). Classify it the same way rather than
+		// leaking the raw errno.
+		return ClassifyOutputPathError(outputPath, outputDir, rerr)
 	}
 	return nil
 }

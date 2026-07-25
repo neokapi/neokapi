@@ -846,14 +846,24 @@ func (a *App) verifyQA(cmd Command, units []VerifyUnit) (verifyGateResult, error
 			return gate, err
 		}
 		if missing {
+			// Distinguish "not written yet" from "cannot be written": a blocked
+			// path (a directory occupying it, say) is not pending translation
+			// work — it is an obstruction the user must clear, and saying
+			// "translate the source content" would send them the wrong way.
+			message := "target file is missing — content is untranslated"
+			suggestion := "translate the source content for this locale"
+			if berr := blockedTargetPath(u.TargetPath); berr != nil {
+				message = berr.Error()
+				suggestion = "clear the obstruction at the target path, then re-run"
+			}
 			gate.Pass = false
 			gate.Findings = append(gate.Findings, verifyFinding{
 				Gate:       gateQA,
 				File:       u.DisplayPath,
 				Locale:     u.Locale,
 				Severity:   "error",
-				Message:    "target file is missing — content is untranslated",
-				Suggestion: "translate the source content for this locale",
+				Message:    message,
+				Suggestion: suggestion,
 			})
 			continue
 		}
@@ -998,14 +1008,28 @@ func defaultPlaceholderPatterns() []coretools.QAPattern {
 // source block as the unit's target locale. Blocks are paired by Name (the
 // format's stable key, e.g. the JSON key path), falling back to ID. Source
 // blocks with no matching target keep an empty target so QA flags them as
-// untranslated. Returns missing=true when the target file does not exist.
+// untranslated. Returns missing=true when the target file does not exist — or
+// when the path is BLOCKED (see below), which is the same thing as far as
+// measurement is concerned.
 // errTargetUnreadable signals that a unit's target file exists but its format
 // cannot be read back to measure it (a write-only compiled catalog like .mo).
 // Coverage treats such a target as present (file-presence); quality and review
 // paths skip the unit. Test with errors.Is.
 var errTargetUnreadable = errors.New("target format is not readable")
 
+// A blocked target path (see host/targetpath.go) is deliberately NOT
+// errTargetUnreadable: the file-presence fallback exists for a real, written
+// target that merely cannot be parsed back (a compiled catalog), and counting an
+// obstruction as a complete translation is what #1449 was.
 func (a *App) bilingualBlocks(ctx context.Context, u VerifyUnit) ([]*model.Block, bool, error) {
+	// A blocked path holds no translation, whatever it holds. Report it as
+	// missing so every measurement path (coverage, plan, checks, review) treats
+	// the locale as untranslated. The reason is not lost: it is reported where a
+	// person can act on it — the QA gate's finding (qaGate) and the run that
+	// refuses to write the path (core/flow.OutputPathError).
+	if blockedTargetPath(u.TargetPath) != nil {
+		return nil, true, nil
+	}
 	if _, err := os.Stat(u.TargetPath); err != nil {
 		if os.IsNotExist(err) {
 			return nil, true, nil

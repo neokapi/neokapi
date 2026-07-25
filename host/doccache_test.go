@@ -53,7 +53,8 @@ func TestDocCache_StreamingRoundTrip(t *testing.T) {
 	assert.Equal(t, []string{"Apple", "Banana"}, got, "parts replay in order from the streamed log")
 
 	// The skeleton is a real file, opened lazily and streamed entry-by-entry.
-	skel := doc.OpenSkeleton()
+	skel, serr := doc.OpenSkeleton()
+	require.NoError(t, serr)
 	require.NotNil(t, skel, "a recorded skeleton is available to a writer")
 	defer skel.Close()
 	refs := 0
@@ -71,6 +72,68 @@ func TestDocCache_StreamingRoundTrip(t *testing.T) {
 	// Staleness: change the source → miss (re-parse).
 	require.NoError(t, os.WriteFile(src, []byte(`{"a":"Cherry"}`), 0o644))
 	assert.Nil(t, c.OpenDocument(src, "k"), "a changed source is a miss")
+}
+
+// #1449 (same family). A recorded-but-missing skeleton is an ERROR, not "this
+// document has no skeleton". Conflating the two made a run reconstruct the file
+// from the content model alone — losing the source's exact formatting — and
+// report success.
+func TestDocCache_RecordedSkeletonMissing_IsAnError(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "m.json")
+	require.NoError(t, os.WriteFile(src, []byte(`{"a":"Apple"}`), 0o644))
+
+	c, err := OpenDocCache(filepath.Join(dir, "cache"))
+	require.NoError(t, err)
+	defer c.Close()
+
+	rec := c.RecordDocument(src, "k", "json")
+	require.NotNil(t, rec)
+	rec.SkeletonStore().WriteText([]byte("{"))
+	require.NoError(t, rec.Add(&model.Part{Type: model.PartBlock, Resource: mkBlock("a", "Apple")}))
+	rec.SkeletonStore().WriteRef("a")
+	require.NoError(t, rec.Commit())
+
+	doc := c.OpenDocument(src, "k")
+	require.NotNil(t, doc)
+	defer doc.Close()
+
+	// Delete the skeleton the index promised.
+	cd, ok := doc.(*cachedDocument)
+	require.True(t, ok)
+	require.NotEmpty(t, cd.skeletonPath, "the entry must have recorded a skeleton for this to be meaningful")
+	require.NoError(t, os.Remove(cd.skeletonPath))
+
+	skel, serr := doc.OpenSkeleton()
+	require.Error(t, serr, "a promised-but-absent skeleton must not read as 'no skeleton'")
+	assert.Nil(t, skel)
+	assert.Contains(t, serr.Error(), cd.skeletonPath)
+}
+
+// The other half: a document that recorded NO skeleton (a generative format)
+// still reports (nil, nil) — the guard refuses faults, not skeleton-less formats.
+func TestDocCache_NoSkeletonRecorded_IsNotAnError(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "m.json")
+	require.NoError(t, os.WriteFile(src, []byte(`{"a":"Apple"}`), 0o644))
+
+	c, err := OpenDocCache(filepath.Join(dir, "cache"))
+	require.NoError(t, err)
+	defer c.Close()
+
+	rec := c.RecordDocument(src, "k", "json")
+	require.NotNil(t, rec)
+	// No SkeletonStore() calls at all — a lean, skeleton-less recording.
+	require.NoError(t, rec.Add(&model.Part{Type: model.PartBlock, Resource: mkBlock("a", "Apple")}))
+	require.NoError(t, rec.Commit())
+
+	doc := c.OpenDocument(src, "k")
+	require.NotNil(t, doc)
+	defer doc.Close()
+
+	skel, serr := doc.OpenSkeleton()
+	require.NoError(t, serr)
+	assert.Nil(t, skel)
 }
 
 // TestDocCache_PreservesBlockAnnotations guards a real corruption bug: the
