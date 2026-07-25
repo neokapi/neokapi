@@ -78,6 +78,10 @@ func newPartialFailureProject(t *testing.T, app *App) (*TabInfo, string) {
 }
 
 func TestBringUpToDate_PartialFailure_StateReflectsPartial(t *testing.T) {
+	// Isolate the app config: this test runs a real converge, and reading the
+	// developer's ~/.config/kapi would make the outcome depend on whichever
+	// provider they happen to have configured (the dogfood isolation contract).
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
 	app := NewApp()
 	tab, root := newPartialFailureProject(t, app)
 
@@ -161,6 +165,7 @@ func TestBringUpToDate_PartialFailure_StateReflectsPartial(t *testing.T) {
 }
 
 func TestBringUpToDate_SuccessClearsARecordedFailure(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
 	app := NewApp()
 	tab, _ := newConvergenceProject(t, app)
 
