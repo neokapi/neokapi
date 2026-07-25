@@ -256,6 +256,16 @@ check-framework: _fw-fmt _fw-vet _fw-lint ## Framework-only quality checks
 check-bowrain: ## Bowrain-only quality checks
 	@$(MAKE) -C bowrain check
 
+# The docs playground compiles the CLI to js/wasm, so any dependency added to
+# core/, host/, cli/ or kapi/ has to build for that target too — and plenty do
+# not (a TTY, signals, cgo, the system clipboard). CI has always built it, but
+# only in the docs workflows, so the failure arrived minutes after a push that
+# `make pre-push` had passed. Compile only: no link, no gzip, ~1s warm.
+check-wasm: ## Compile-check the in-browser CLI for js/wasm (the docs playground target)
+	@cd kapi && GOOS=js GOARCH=wasm $(GO) build -o /dev/null ./cmd/kapi-wasm-cli
+	@GOOS=js GOARCH=wasm $(GO) build -o /dev/null ./cmd/kapi-wasm
+	@echo "✓ js/wasm builds (kapi-wasm-cli, kapi-wasm)"
+
 test-parallel: ## Run all tests in parallel
 	@$(MAKE) --no-print-directory _fw-test & $(MAKE) -C bowrain test & wait
 

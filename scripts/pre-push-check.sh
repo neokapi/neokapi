@@ -85,6 +85,14 @@ if matches '^bowrain/core/' '^bowrain/plugin/' '^bowrain/go\.(mod|sum)$'; then
     run_check "Go lint (bowrain)" make check-bowrain
 fi
 
+# The docs playground compiles the CLI to js/wasm. CI builds it, but only in the
+# docs workflows — so a dependency that cannot target js/wasm (a TTY, signals,
+# cgo, the clipboard) passed every local check and failed CI minutes later.
+# Compile only, ~1s warm.
+if matches '^core/' '^host/' '^cli/' '^kapi/' '^go\.work' '^go\.(mod|sum)$' '/go\.(mod|sum)$'; then
+    run_check "js/wasm build (docs playground)" make check-wasm
+fi
+
 # ── go mod tidy drift check ───────────────────────────────────────────────
 
 if matches '^go\.(mod|sum)$' '/go\.(mod|sum)$'; then

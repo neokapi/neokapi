@@ -1,3 +1,5 @@
+//go:build !js
+
 package cli
 
 import (
@@ -23,6 +25,15 @@ import (
 // the ordered choices, the live round-trip and persistence, and stays free of a
 // TUI dependency — which matters because Kapi Desktop links host too and has no
 // use for a terminal form.
+//
+// # Why the build tag
+//
+// This module also compiles to js/wasm — `kapi/cmd/kapi-wasm-cli` is the CLI
+// behind the docs playground — and bubbletea does not build for that target (it
+// reaches for a TTY, terminal resize signals, and the system clipboard, none of
+// which exist there). The tag is not a workaround for that: a browser has no
+// terminal, so a terminal form is meaningless in the wasm build, and excluding it
+// also keeps huh out of a payload users download. See aisetupform_js.go.
 
 // formPrompter renders the wizard's questions as huh forms.
 type formPrompter struct{}
