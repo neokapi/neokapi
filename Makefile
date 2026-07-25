@@ -1308,7 +1308,7 @@ l10n-seed: bin/kapi ## Rebuild .kapi/ terms + content memory from the committed 
 	@# The state filenames stay tm.db / termbase.db — that is what the Go code
 	@# opens, and existing projects already have them.
 	@rm -f .kapi/termbase.db .kapi/tm.db
-	./bin/kapi terms import l10n/terms.terms.json
+	./bin/kapi terms import l10n/terms.json
 	@for f in l10n/tm/*.memory.json; do \
 		[ -e "$$f" ] || continue; \
 		./bin/kapi memory import "$$f"; \

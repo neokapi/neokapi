@@ -320,7 +320,7 @@ func (a *App) applyReviewEntry(ctx context.Context, cmd Command, e changeEntry) 
 }
 
 // applyMemoryEntry adds a source→target content memory pair. It edits the committed .memory.json
-// source the recipe binds (creating l10n/tm.memory.json and binding it when none
+// source the recipe binds (creating l10n/memory.json and binding it when none
 // exists), then re-imports the .memory.json into the project content memory (.kapi/tm.db) cache.
 func (a *App) applyMemoryEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.Source}
