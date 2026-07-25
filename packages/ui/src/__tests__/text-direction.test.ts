@@ -21,6 +21,16 @@ describe("localeDirection", () => {
     expect(localeDirection("fa-AF")).toBe("rtl");
   });
 
+  it("does not mistake a Unicode extension value for a script subtag", () => {
+    // `-u-nu-arab` asks for Arabic *numerals*; the language is still English.
+    // BCP-47 puts the script immediately after the language, so only that
+    // position may be read as one.
+    expect(localeDirection("en-US-u-nu-arab")).toBe("ltr");
+    expect(localeDirection("de-u-ca-hebr")).toBe("ltr");
+    // …while a real script subtag in its proper position still decides.
+    expect(localeDirection("az-Arab-IR-u-nu-latn")).toBe("rtl");
+  });
+
   it("lets an explicit script subtag decide", () => {
     expect(localeDirection("az-Arab")).toBe("rtl");
     expect(localeDirection("az-Latn")).toBe("ltr");

@@ -126,10 +126,14 @@ function subtags(locale: string): { language: string; script?: string } {
     .filter((p) => p !== "");
   if (parts.length === 0) return { language: "" };
   const language = parts[0].toLowerCase();
-  // A script subtag is exactly four alphabetic characters; a region is two
-  // letters or three digits, and a variant is longer or digit-led.
-  const script = parts.slice(1).find((p) => /^[A-Za-z]{4}$/.test(p));
-  return script ? { language, script: script.toLowerCase() } : { language };
+  // BCP-47 is positional: language[-script][-region][-variant…][-extension…],
+  // so the script — four alphabetic characters — can only be the subtag
+  // immediately after the language. Searching the whole tag instead would let a
+  // Unicode extension value masquerade as a script: `en-US-u-nu-arab` asks for
+  // Arabic *numerals* in English, and would otherwise resolve as right-to-left.
+  const next = parts[1];
+  const script = next !== undefined && /^[A-Za-z]{4}$/.test(next) ? next.toLowerCase() : undefined;
+  return script ? { language, script } : { language };
 }
 
 /**
