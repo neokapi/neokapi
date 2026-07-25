@@ -60,7 +60,7 @@ in a repository, driving content in and out from where they already are.
       steps: ["kapi push / kapi up", "converge on the server", "results land in the tree"],
     },
   ]}
-  caption="Four peer routes into the same workspace. The first three run server-side with no checkout; the fourth is the developer and CI path."
+  caption="Peer routes into the same workspace. The server-side routes need no checkout at all; the last is the developer and CI path."
 />
 
 ## What a connector does
@@ -117,8 +117,8 @@ authenticates as the developer and connects a project from the command line.
 
 ## Choosing a route for a repository
 
-Two connectors cover source files in a repository, and they suit different
-teams:
+Source files in a repository can arrive either way, and the choice is about who
+drives:
 
 - **[GitHub / GitLab](/server/connectors/github)** when nobody wants a
   pipeline. A push webhook triggers the server, and results arrive as one open

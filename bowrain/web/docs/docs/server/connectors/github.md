@@ -16,7 +16,7 @@ This is the route for a team that wants a repository governed without anyone
 running a command. There is no pipeline in the repository, no CLI on anyone's
 machine, and no scheduled job. The alternative for a repository is the
 [kapi connector](/server/connectors/kapi), which puts the same work under a
-developer's own hand; the two can run side by side against one project.
+developer's own hand. Both can run side by side against one project.
 
 :::note
 
