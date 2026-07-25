@@ -1,12 +1,12 @@
 ---
 id: 007-plugin-system
 sidebar_position: 7
-title: "AD-007: Plugin System and Okapi Bridge"
-description: "Architecture decision: plugins are manifest-driven, signed, out-of-process executables — discovered via manifest.json, dispatched as subprocesses over gRPC. The Okapi bridge is the canonical bundle plugin providing Java filter access."
-keywords: [plugin system, manifest, gRPC, Okapi bridge, out-of-process, architecture decision, neokapi]
+title: "AD-007: Plugin System"
+description: "Architecture decision: plugins are manifest-driven, signed, out-of-process executables — discovered via manifest.json, dispatched as subprocesses over gRPC. The contract is a versioned protocol with a conformance suite an out-of-tree plugin repository can run against a released kapi."
+keywords: [plugin system, manifest, gRPC, protocol v1, conformance, out-of-process, architecture decision, neokapi]
 ---
 
-# AD-007: Plugin System and Okapi Bridge
+# AD-007: Plugin System
 
 ## Summary
 
@@ -26,9 +26,16 @@ not by `$PATH`. Each capability picks its transport:
 
 Plugin tarballs are cosign-signed via Sigstore keyless OIDC; `kapi
 plugin install` verifies SHA-256 + Sigstore JSON bundle against a
-registry-pinned cert identity before unpacking. The Okapi bridge and
-any third-party plugin all use the same model. The default `kapi`
-binary is Apache-2.0 and ships zero vendor-plugin code.
+registry-pinned cert identity before unpacking. First-party and
+third-party plugins all use the same model. The default `kapi` binary is
+Apache-2.0 and ships zero vendor-plugin code.
+
+The contract is **versioned** and **independently verifiable**: protocol
+v1 is specified in
+[Plugin protocol v1](../notes-internal/plugin-protocol-v1.md), and
+`core/plugin/conformance` is that specification in executable form — a
+consumable Go package a plugin repository imports from a released kapi to
+self-report conformance in its own CI.
 
 ## Context
 
@@ -49,14 +56,22 @@ to evolve independently of the framework. Key requirements:
   attacks. This is supply-chain signing (cosign / Sigstore), distinct
   from OS code signing / notarization — see
   [Plugin signing vs. OS notarization](#plugin-signing-vs-os-notarization).
-- **Performance for format-heavy workloads.** Okapi bridge processes
-  large IDML / TMX / Word files at high throughput. JVM startup is
-  hundreds of ms; the model must support long-lived daemons with
-  multiplexed concurrent requests so the JVM only starts once per
-  kapi session.
-- **Polyglot from day one.** kapi publishes a language-neutral
-  protocol spec; plugin authors implement against it in any language.
-  A minimal Go reference plugin ships in `examples/plugins/hello/`.
+- **Performance for format-heavy workloads.** A format plugin may
+  process large binary documents at high throughput while paying a
+  runtime startup cost of hundreds of milliseconds (a JVM, a Python
+  interpreter, a model load). The model must support long-lived daemons
+  with multiplexed concurrent requests, so that cost is paid once per
+  kapi session rather than once per document.
+- **Polyglot from day one.** kapi publishes a language-neutral,
+  versioned protocol spec; plugin authors implement against it in any
+  language. A minimal Go reference plugin ships in
+  `examples/plugins/hello/`.
+- **Verifiable from outside the repository.** A plugin is not obliged to
+  live here to be trusted. The contract must be checkable by a plugin
+  repository that only depends on a *released* kapi — otherwise "does
+  this plugin still work?" is answerable only by tests inside this
+  repository, which re-couples every plugin to this repository's release
+  cycle.
 
 ## Decision
 
@@ -91,10 +106,12 @@ provides under one or more sections:
 ```
 
 The `daemon` block is present only for plugins that declare any
-formats, tools, or source connectors (Mode C). The full schema is
-embedded at `core/plugin/manifest/schema.json`; canonical Go types
-live in `core/plugin/manifest/manifest.go`. The protocol is described
-in detail at [`docs/internals/plugin-protocol-v1.md`](https://github.com/neokapi/neokapi/blob/main/docs/internals/plugin-protocol-v1.md).
+formats, tools, segmenters, or source connectors (Mode C). The full
+schema is embedded at `core/plugin/manifest/schema.json`; canonical Go
+types live in `core/plugin/manifest/manifest.go`. The wire contract —
+every manifest rule, all three transports, the Mode-C gRPC surface, and
+the conformance suite — is specified in
+[Plugin protocol v1](../notes-internal/plugin-protocol-v1.md).
 
 ### Discovery
 
@@ -194,9 +211,9 @@ requests. The daemon stays alive until kapi exits or hits its
 idle timeout (per-manifest, default 5 min). Concurrent daemons are
 capped via `KAPI_MAX_DAEMONS` (default 8) with LRU eviction. The
 daemon transport is a Unix-domain socket, dialed by kapi as a gRPC
-client over `unix`. Each plugin supplies its own socket server: the
-reference Okapi bridge serves it with Netty's native transports —
-kqueue on macOS, epoll on Linux — and is POSIX-only today.
+client over `unix`, and is POSIX-only today. Each plugin supplies its
+own socket server — the out-of-tree okapi-bridge, for instance, serves
+it with Netty's native transports (kqueue on macOS, epoll on Linux).
 
 ### Lifecycle commands
 
@@ -300,8 +317,9 @@ Developer-ID-signed + notarized (macOS) and Authenticode-signed
 so they arrive quarantined and must clear Gatekeeper / SmartScreen on
 first launch.
 
-The okapi-bridge is a `jpackage` app-image — a native launcher plus a
-bundled JRE, i.e. genuine native code — yet the same reasoning holds:
+The out-of-tree okapi-bridge plugin is a `jpackage` app-image — a native
+launcher plus a bundled JRE, i.e. genuine native code — yet the same
+reasoning holds:
 installed unquarantined via `kapi plugin install` and verified by
 cosign + SHA-256, it runs without OS-level signing. Deep-signing and
 notarizing it (the launcher plus every bundled-JRE dylib, across each
@@ -329,6 +347,52 @@ decoder validates the YAML payload against the compiled schema.
 Failures render with the recipe path prefix and the JSON Schema
 constraint that failed.
 
+### Protocol versioning and conformance
+
+The protocol is versioned as a whole, independently of any kapi release.
+`conformance.ProtocolVersion` names the revision this repository
+implements; `manifest.SupportedVersions` names the manifest-document
+revisions a kapi binary accepts. Within a version the rules are
+**additive**: capabilities, manifest fields, and conformance checks may
+be added, but an existing rule does not change and a check ID is never
+renamed or repurposed. A change that would break a conforming plugin is
+a new protocol version.
+
+There is deliberately **no protocol-version handshake on the wire**. The
+manifest is read from disk before any process is launched, so
+incompatibility is detected structurally rather than negotiated at
+runtime — which is also what keeps discovery free of subprocess launches.
+
+`core/plugin/conformance` is the specification in executable form: a
+black-box driver that exercises the manifest rules, the standard verbs,
+and whichever transports a manifest declares, against an installed plugin
+directory. Three properties make it usable from outside this repository,
+and each one is a constraint on where it may live:
+
+- **Framework-layer, so it is cheap to import.** It sits in the
+  framework module and depends only on `core/plugin/manifest`,
+  `core/plugin/proto/v2`, and gRPC — no host module, no CLI, no cobra
+  tree, nothing under a copyleft licence. A plugin repository adds one
+  `require` on a released `github.com/neokapi/neokapi`.
+- **Black-box, so it is language-neutral.** It reads no plugin source and
+  spawns the plugin exactly as the host does, so the JVM bridge and a Go
+  plugin are checked by the same code.
+- **Side-effect-free by default.** It runs only the read-only standard
+  verbs plus deliberately invalid arguments that prove a plugin rejects
+  them. Invoking a declared command, reading a document through a
+  declared format, or calling a segmenter is opt-in, because only the
+  plugin author knows which capabilities are safe to exercise unattended.
+
+Checks are `required` or `advisory`: an advisory failure is reported but
+does not clear conformance, naming something the host tolerates today
+that a plugin should still fix. A check that does not apply is skipped,
+never failed. The authoritative check list is `conformance.Checks()`.
+
+This is what lets a plugin repository own its own tests. The bridge repo
+runs the suite against released kapi versions on a schedule and reports
+its own conformance; nothing about it builds, tests, or gates anything
+here.
+
 ### Standard plugins
 
 - **A platform plugin** — cloud-server sync (push/pull/auth),
@@ -336,10 +400,6 @@ constraint that failed.
   a separately-licensed plugin attaches over the manifest model without
   re-licensing `kapi`: installed via its own brew formula (depends on
   `kapi`, drops its binary into `share/kapi/plugins/<plugin>/`).
-- **okapi-bridge** — Java bridge exposing 57+ Okapi Framework filters.
-  Built with `jpackage` (no Go shim): produces a native launcher
-  - bundled JRE per platform. Cosign-signed via GitHub Actions
-    keyless OIDC.
 - **kapi-pdfium** (`plugins/pdfium/`) — first-party Mode-C format plugin
   providing a high-fidelity `pdf` reader backed by Google's PDFium
   (go-pdfium, cgo). It extracts correct text (including CID/Type0 fonts and
@@ -350,7 +410,7 @@ constraint that failed.
   instead. **Bundled with both the kapi-cli distribution and the kapi-desktop
   app**: the CLI installs it into the shared `share/kapi/plugins/pdfium/` root,
   and the desktop installs it on demand the first time a PDF is opened, both
-  hosting it over the same `cli/pluginhost` discovery + daemon pool — one
+  hosting it over the same `host/pluginhost` discovery + daemon pool — one
   engine, not one per host. PDFium ships as a bundled shared library beside the
   binary (found via rpath), not statically linked. The full PDF subsystem —
   extraction modes, the geometry model, and the tagged/geometric structure
@@ -361,30 +421,40 @@ Mode A + B with no third-party deps.
 
 ## Status
 
-Implemented and merged in #438 (phases 1-9). The legacy v1 plugin
-runtime — `core/plugin/{loader,host,server,shared,registry,cache}/`
-plus the `kapi plugins` (plural) command tree — has been deleted.
-`core/plugin/{manifest,proto,protoconvert}/` are kept: `manifest`
-for the manifest types and embedded JSON Schema, `proto` for the gRPC
-service definitions consumed by Mode-C daemons, and `protoconvert`
-for Part↔proto translation. The host-side runtime — discovery,
-dispatch, the daemon pool, the registry client, cosign verification,
-and the bridge format client — lives in `cli/pluginhost/`.
+Implemented and merged in #438 (phases 1-9); protocol v1 was tagged and
+the conformance suite extracted in #1073. The legacy v1 plugin runtime —
+`core/plugin/{loader,host,server,shared,registry,cache}/` plus the `kapi
+plugins` (plural) command tree — has been deleted.
+
+The framework module keeps the parts a plugin author needs:
+`core/plugin/manifest` (manifest types + embedded JSON Schema),
+`core/plugin/proto` (the gRPC service definitions a Mode-C daemon
+implements), `core/plugin/protoconvert` (Part↔proto translation), and
+`core/plugin/conformance` (the protocol conformance suite). Those four
+are deliberately importable on their own: an out-of-tree plugin
+repository depends on a released framework module and nothing else.
+
+The host-side runtime — discovery, dispatch, the daemon pool, the
+registry client, cosign verification, and the Mode-C format client —
+lives in `host/pluginhost/`.
 
 Native binaries ship for `linux/amd64`, `linux/arm64`,
 `darwin/arm64`, and `windows/amd64`. `darwin/amd64` (Intel Mac) is
 intentionally not in the release matrix — Apple has dropped Intel
 from new product lines and macos-13 runners on GitHub Actions are
-scarce. Intel users can run the JAR directly with their own JRE 17+
-or use Rosetta on the arm64 binary.
+scarce. Intel users can use Rosetta on the arm64 binary.
 
 ## References
 
 - Issue [#438](https://github.com/neokapi/neokapi/issues/438) —
   unified plugin model design + delivery
-- [`docs/internals/plugin-protocol-v1.md`](https://github.com/neokapi/neokapi/blob/main/docs/internals/plugin-protocol-v1.md) — language-neutral protocol spec
+- Issue [#1073](https://github.com/neokapi/neokapi/issues/1073) —
+  decoupling okapi-bridge; protocol v1 + the conformance suite
+- [Plugin protocol v1](../notes-internal/plugin-protocol-v1.md) — the
+  versioned, language-neutral specification
 - [`core/plugin/manifest/`](https://github.com/neokapi/neokapi/tree/main/core/plugin/manifest) — Go types and embedded JSON Schema
-- [`cli/pluginhost/`](https://github.com/neokapi/neokapi/tree/main/cli/pluginhost) — host-side runtime (discovery, dispatch, daemon pool, registry, cosign)
+- [`host/pluginhost/`](https://github.com/neokapi/neokapi/tree/main/host/pluginhost) — host-side runtime (discovery, dispatch, daemon pool, registry, cosign)
 - [`examples/plugins/hello/`](https://github.com/neokapi/neokapi/tree/main/examples/plugins/hello) — minimal Go reference plugin
-- [neokapi/okapi-bridge](https://github.com/neokapi/okapi-bridge) — Java filter bridge
+- [`core/plugin/conformance/`](https://github.com/neokapi/neokapi/tree/main/core/plugin/conformance) — the protocol conformance suite, importable from a released kapi
+- [neokapi/okapi-bridge](https://github.com/neokapi/okapi-bridge) — the reference implementation of a third-party plugin in a non-Go language (a JVM Mode-C daemon exposing the Okapi Framework's filters); it consumes released kapi versions and reports conformance on its own schedule
 - [neokapi/registry](https://github.com/neokapi/registry) — published `manifest-plugins.json`

@@ -980,7 +980,7 @@ The host translates between neokapi Parts and Okapi Events via
 `core/plugin/protoconvert`. The Okapi Java bridge implementation lives in the
 separate [okapi-bridge](https://github.com/neokapi/okapi-bridge) repository;
 its wire protocol, batching, and daemon lifecycle are documented in the
-[bridge protocol](../../web/docs/contribute/notes-internal/plugin-bridge-protocol.md)
+[plugin protocol](../../web/docs/contribute/notes-internal/plugin-protocol-v1.md)
 note.
 
 ---
