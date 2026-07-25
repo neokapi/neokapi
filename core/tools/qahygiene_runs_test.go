@@ -121,6 +121,28 @@ func TestQACheck_RunAwareShapeRules(t *testing.T) {
 			want:   []string{"doubled-word"},
 		},
 		{
+			// Two adjacent text runs have nothing between them: the join is
+			// real text, so a defect spanning it is real. Both rules read the
+			// same shared scanners as the source-side family (check.HygieneOverlay
+			// / check.DoubledWord), so the two venues cannot diverge.
+			name:   "a double space spanning two adjacent target text runs fires",
+			source: []model.Run{qaTx("Hello world")},
+			target: []model.Run{qaTx("Bonjour "), qaTx(" monde")},
+			want:   []string{"double-spaces"},
+		},
+		{
+			name:   "a doubled word spanning two adjacent target text runs fires",
+			source: []model.Run{qaTx("the end")},
+			target: []model.Run{qaTx("le "), qaTx("le fin")},
+			want:   []string{"doubled-word"},
+		},
+		{
+			name:   "a placeholder glued to the first of two identical target words does not hide the double",
+			source: []model.Run{qaPh("1", "x"), qaTx("the end")},
+			target: []model.Run{qaPh("1", "x"), qaTx("le le fin")},
+			want:   []string{"doubled-word"},
+		},
+		{
 			name:   "an identical target still reads as same-as-source",
 			source: []model.Run{qaPh("1", "x"), qaTx(" Hello")},
 			target: []model.Run{qaPh("1", "x"), qaTx(" Hello")},

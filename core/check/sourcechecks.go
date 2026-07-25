@@ -7,8 +7,6 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/set"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -38,24 +36,6 @@ func NewContentLintTool() *tool.BaseTool {
 	return t
 }
 
-// HygieneText is the flattening every content-*shape* rule must inspect: the
-// block's runs with each inline-code run standing as one sentinel rune
-// (model.RunsHygieneText).
-//
-// A shape rule asks where the content begins and ends, what sits next to what,
-// and whether there is anything there at all. `SourceText()` cannot answer any
-// of those, because it drops inline code and so silently changes the shape:
-//
-//	[ph{p.price}][text " each"]  →  " each"   →  "leading whitespace" (false)
-//
-// The space there separates a placeholder from a word. It is not whitespace on
-// the content's leading edge — the placeholder is. Evaluating against run-aware
-// boundaries, where a leading or trailing placeholder counts as content, is what
-// makes that distinction expressible at all.
-func HygieneText(runs []model.Run) string {
-	return model.RunsHygieneText(runs)
-}
-
 // contentLintFindings runs the single-text hygiene heuristics over text and
 // returns one Finding per issue. Empty/whitespace-only content is the single
 // major issue (and short-circuits the rest); the remaining nits are minor.
@@ -74,7 +54,7 @@ func contentLintFindings(text string) []Finding {
 
 	var findings []Finding
 
-	if leadingWhitespace(text) != "" {
+	if LeadingWhitespace(text) != "" {
 		findings = append(findings, Finding{
 			Category: "leading-whitespace",
 			Severity: SeverityMinor,
@@ -82,7 +62,7 @@ func contentLintFindings(text string) []Finding {
 		})
 	}
 
-	if trailingWhitespace(text) != "" {
+	if TrailingWhitespace(text) != "" {
 		findings = append(findings, Finding{
 			Category: "trailing-whitespace",
 			Severity: SeverityMinor,
@@ -90,7 +70,7 @@ func contentLintFindings(text string) []Finding {
 		})
 	}
 
-	if strings.Contains(text, "  ") {
+	if DoubleSpaces(text) {
 		findings = append(findings, Finding{
 			Category: "double-spaces",
 			Severity: SeverityMinor,
@@ -98,7 +78,7 @@ func contentLintFindings(text string) []Finding {
 		})
 	}
 
-	if word := findDoubledWord(text, ""); word != "" {
+	if word := DoubledWord(text, ""); word != "" {
 		findings = append(findings, Finding{
 			Category:     "doubled-word",
 			Severity:     SeverityMinor,
@@ -248,42 +228,6 @@ func countWords(text string) int {
 		return 0
 	}
 	return len(strings.Fields(text))
-}
-
-// leadingWhitespace returns the leading whitespace characters of a string.
-func leadingWhitespace(s string) string {
-	trimmed := strings.TrimLeft(s, " \t\n\r")
-	return s[:len(s)-len(trimmed)]
-}
-
-// trailingWhitespace returns the trailing whitespace characters of a string.
-func trailingWhitespace(s string) string {
-	trimmed := strings.TrimRight(s, " \t\n\r")
-	return s[len(trimmed):]
-}
-
-// findDoubledWord checks for consecutive repeated words in text.
-// Returns the first doubled word found, or "" if none.
-// Exceptions is a semicolon-separated list of words to allow.
-func findDoubledWord(text, exceptions string) string {
-	excSet := set.New[string]()
-	if exceptions != "" {
-		for w := range strings.SplitSeq(exceptions, ";") {
-			w = strings.TrimSpace(w)
-			if w != "" {
-				excSet.Add(strings.ToLower(w))
-			}
-		}
-	}
-	words := strings.Fields(text)
-	for i := 1; i < len(words); i++ {
-		prev := strings.ToLower(words[i-1])
-		curr := strings.ToLower(words[i])
-		if prev == curr && !excSet.Contains(curr) {
-			return words[i]
-		}
-	}
-	return ""
 }
 
 // firstControlChar returns the first non-whitespace control character in s.

@@ -96,6 +96,16 @@ func TestContentLint_RunAwareBoundaries(t *testing.T) {
 			wantNot: []string{"doubled-word"},
 		},
 		{
+			name:    "the same word either side of a placeholder, unspaced",
+			runs:    []model.Run{hygTx("the "), hygJSXVar("1", "{x}", "x"), hygTx("the end")},
+			wantNot: []string{"doubled-word"},
+		},
+		{
+			name:    "two adjacent placeholders are not a doubled word",
+			runs:    []model.Run{hygJSXVar("1", "{a}", "a"), hygJSXVar("2", "{b}", "b")},
+			wantNot: []string{"doubled-word"},
+		},
+		{
 			name:    "a placeholder is not a control character",
 			runs:    []model.Run{hygJSXVar("1", "{x}", "x"), hygTx("ok")},
 			wantNot: []string{"control-char"},
@@ -128,8 +138,27 @@ func TestContentLint_RunAwareBoundaries(t *testing.T) {
 			want: []string{"double-spaces"},
 		},
 		{
+			// Two adjacent *text* runs have nothing between them, so they
+			// flatten to one stretch of text and the join is real content.
+			name: "a double space spanning two adjacent text runs fires",
+			runs: []model.Run{hygTx("foo "), hygTx(" bar")},
+			want: []string{"double-spaces"},
+		},
+		{
 			name: "a genuinely doubled word still fires",
 			runs: []model.Run{hygJSXVar("1", "{x}", "x"), hygTx(" the the end")},
+			want: []string{"doubled-word"},
+		},
+		{
+			name: "a doubled word spanning two adjacent text runs fires",
+			runs: []model.Run{hygTx("the "), hygTx("the cat")},
+			want: []string{"doubled-word"},
+		},
+		{
+			// The code is a token of its own, so it neither joins nor hides the
+			// word beside it: rendered, this reads "Bobthe the cat".
+			name: "a placeholder glued to the first of two identical words does not hide the double",
+			runs: []model.Run{hygJSXVar("1", "{name}", "name"), hygTx("the the cat")},
 			want: []string{"doubled-word"},
 		},
 		{
