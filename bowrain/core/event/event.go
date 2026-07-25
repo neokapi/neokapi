@@ -87,7 +87,7 @@ const (
 	// The forge delivery tier subscribes to it to publish produced
 	// translations as a pull/merge request.
 	EventConvergenceRunCompleted EventType = "convergence.run.completed"
-	EventSyncCompleted EventType = "connector.sync.completed"
+	EventSyncCompleted           EventType = "connector.sync.completed"
 
 	// Flow events
 	EventFlowStarted   EventType = "flow.started"

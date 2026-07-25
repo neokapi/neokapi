@@ -52,7 +52,7 @@ rungs a decision writes here are load-bearing, not informational.
 The model already expresses these facts (`model.TargetStatus`,
 `model.SourceStatus`, `model.Origin`). What was missing was a *persistence* for
 them that is independent of the deliverable format. The danger is to overload an
-existing store — in particular the `.klftm` translation memory, which is
+existing store — in particular the `.kmb` translation memory, which is
 content-keyed leverage, not project state. Conflating "have we ever translated
 this string?" (recycle, content-keyed) with "is *this* unit signed off, by whom?"
 (decision, unit-keyed) is a category error: the two have different keys and
@@ -75,7 +75,7 @@ Every decision's durable home is the committed state store.
 
 ### The TM is recycle, not the state carrier
 
-The `.klftm` translation memory ([AD-009](009-translation-memory.md)) is the
+The `.kmb` translation memory ([AD-009](009-translation-memory.md)) is the
 **recycle corpus** — a content-keyed pool of source→target pairs reused to
 pre-fill and leverage future translation. It does **not** record review
 decisions. Adding a pair to the TM (`kapi apply` with `kind:"tm"`) is recycle
@@ -91,7 +91,7 @@ State has two representations, and conflating them is the trap to avoid:
    document (`kind: kapi-project-state`, schema-versioned JSON) committed to git:
    mergeable, reviewable in a `git diff`, exchangeable to XLIFF
    (`<target state=…>`, notes, phase/owner — [AD-017](017-bilingual-format-interop.md)),
-   carried by a `.klz` parcel's bilingual profile. This is what a clone or
+   carried by a `.kpz` parcel's bilingual profile. This is what a clone or
    checkout restores from.
 2. **Working set — a transient in-memory store** (`core/state.FileStore`), the
    fast random-access model for a session. **Derived** from #1; rebuilt by
@@ -132,7 +132,7 @@ binding is the unification of the file and server worlds:
 
 - **git mode** — export writes the committed state file (`defaults.state`,
   default `.kapi-state.json`, beside the recipe), mirroring how `tm_source` binds
-  the committed `.klftm`. CI (or the user) commits it.
+  the committed `.kmb`. CI (or the user) commits it.
 - **server mode** — export is `kapi push`; `kapi pull` imports server state into
   the working set.
 
@@ -175,7 +175,7 @@ project model relies on elsewhere.
 - **Coverage derives from the state store + target files**, never from TM
   properties. The TM is recycle-only.
 - **Exchange and parcels carry state.** The committed serialization maps to XLIFF
-  for third-party exchange and rides inside a `.klz` parcel's bilingual profile
+  for third-party exchange and rides inside a `.kpz` parcel's bilingual profile
   for hand-off ([AD-017](017-bilingual-format-interop.md)).
 - **The recipe stays clean.** The recipe carries no state; it *binds* the state
   artifact via `defaults.state`, just as it binds `tm_source` / `termbase_source`
@@ -188,6 +188,6 @@ project model relies on elsewhere.
 - [AD-009: Translation Memory](009-translation-memory.md) — the recycle corpus
   this state store is deliberately *not*.
 - [AD-017: Bilingual Format Interop](017-bilingual-format-interop.md) — XLIFF /
-  `.klz` exchange that carries state across a hand-off.
+  `.kpz` exchange that carries state across a hand-off.
 - [Convergence](/kapi/convergence) and [the project store](/kapi/project-store) —
   the end-user model derived from this state.

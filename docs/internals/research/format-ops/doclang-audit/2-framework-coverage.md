@@ -18,7 +18,7 @@ payloads, markers, checkboxes, and span continuations.
 ### 1.1 `core/model/structure.go` (the WS1 structural layer) — quoted
 
 Three block-scoped **stand-off** payloads (positionless; ride
-`Block.Annotations` via the payload registry, no proto/KLF change — `structure.go:3-18`).
+`Block.Annotations` via the payload registry, no proto/KBF change — `structure.go:3-18`).
 Annotation keys (`structure.go:21-29`): `AnnoStructure="structure"`,
 `AnnoGeometry="geometry"`, `AnnoRelations="relations"`.
 

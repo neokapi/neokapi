@@ -34,7 +34,7 @@ channels for the connections, and `errgroup` for coordination.
 
 The reader and writer shown here are the **file binding** — the default way
 content enters and leaves the pipeline. The same tool stream can instead be bound
-to a project store, a `.klz` workspace, or an interchange file, with no reader or
+to a project store, a `.kpz` workspace, or an interchange file, with no reader or
 writer ([flows: source and sink](/framework/flows#source-and-sink-the-flows-ends)).
 
 :::tip Watch it run, step by step

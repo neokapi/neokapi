@@ -13,12 +13,12 @@
 // matched file path on stdin and streams the emitted blocks through
 // the rest of the pipeline. The protocol is transparent to debug
 // (plain JSON), trivial to write in any language, and carries no
-// kapi-specific schema beyond the klf.Block shape the subprocess
+// kapi-specific schema beyond the kbf.Block shape the subprocess
 // emits.
 //
 // Records look like:
 //
-//	{"type":"block","document":"<path>","block":{ ...klf.Block... }}
+//	{"type":"block","document":"<path>","block":{ ...kbf.Block... }}
 //
 // Per-line. Other lines on stdout are ignored. Non-zero exit status
 // surfaces as an error with captured stderr attached.
@@ -36,7 +36,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neokapi/neokapi/core/klf"
+	"github.com/neokapi/neokapi/core/kbf"
 )
 
 // FormatName is the name under which this format is declared in a
@@ -67,7 +67,7 @@ type Spec struct {
 type Record struct {
 	Type     string    `json:"type"`
 	Document string    `json:"document,omitempty"`
-	Block    klf.Block `json:"block,omitzero"`
+	Block    kbf.Block `json:"block,omitzero"`
 }
 
 // Run invokes an extractor subprocess, feeds it `paths` as NUL-

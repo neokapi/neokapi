@@ -56,8 +56,8 @@ overlays are reconstructed on demand.
 
 The content model ([AD-002](002-content-model.md)), the format system and its
 byte-faithful skeleton ([AD-005](005-format-system.md)), the tool system and its
-capability-typed immutability ([AD-006](006-tool-system.md)), and the KLF
-interchange family ([AD-025](025-klf-package.md)) each have an Architecture
+capability-typed immutability ([AD-006](006-tool-system.md)), and the KBF
+interchange family ([AD-025](025-kbf-package.md)) each have an Architecture
 Decision. The **visual editor does not** — its data representation, render
 contract, and round-trip path lived only in component code and Storybook.
 [AD-014](014-kapi-desktop.md) documents the desktop *application* shell (Wails,
@@ -212,7 +212,7 @@ The canonical way to commit a target edit is on the content model itself:
 (with `SetTargetText` / `SetText` for the plain-text path —
 [AD-006](006-tool-system.md)). How a host application transports an edit to the
 model and persists the result — the project **`BlockStore`**
-([AD-008](008-project-model.md)), **KLF** files ([AD-025](025-klf-package.md)), a
+([AD-008](008-project-model.md)), **KBF** files ([AD-025](025-kbf-package.md)), a
 database — is the application's concern and outside this AD.
 
 The **round-trip** to byte-faithful output is a framework mechanism, independent
@@ -240,13 +240,13 @@ round-trip is the `extract` / `merge` workflow
 
 ### Persistence: what round-trips, what is reconstructed
 
-Within the content model and its KLF interchange ([AD-025](025-klf-package.md)):
+Within the content model and its KBF interchange ([AD-025](025-kbf-package.md)):
 
 - **Targets** are first-class records — runs plus `Status`, `Origin`, `Score`
   ([AD-002](002-content-model.md)).
 - **Annotations** are the block-scoped typed carrier
-  ([AD-002](002-content-model.md)); `.klf` carries blocks, targets, and
-  properties, and the `.klfl` JSON-Lines sidecar carries annotation overlays
+  ([AD-002](002-content-model.md)); `.kbf` carries blocks, targets, and
+  properties, and the `.overlays.jsonl` JSON-Lines sidecar carries annotation overlays
   (anchor kinds `block` / `run` / `range` / `form`).
 - **Skeleton** is the binary `SkeletonStore` ([AD-005](005-format-system.md)).
 
@@ -276,7 +276,7 @@ outside the framework.
 - Overlays are **ephemeral** in the live preview: durable interpretations must be
   stored as annotations (or re-derived by re-running the producing tool). A
   feature that needs persistent positional overlays would adopt the defined
-  `.klfl` sidecar rather than inventing a new store.
+  `.overlays.jsonl` sidecar rather than inventing a new store.
 - `BlockIndex.UpdateTarget` is a test helper; relying on it as a commit path would
   be a mistake — `model.Block.SetTargetRuns` is the canonical target-edit
   operation.
@@ -284,7 +284,7 @@ outside the framework.
 ## Open questions / known divergences
 
 - **Overlay persistence.** There is no persistence layer for positional overlays
-  in the framework today; the `.klfl` sidecar ([AD-025](025-klf-package.md)) is
+  in the framework today; the `.overlays.jsonl` sidecar ([AD-025](025-kbf-package.md)) is
   defined but not yet read or written by the preview kit. Whether term/entity/QA
   overlays should persist (vs. always re-derive) is unsettled.
 - **`BlockIndex` lifecycle on edit.** Whether a frontend holds its own
@@ -308,4 +308,4 @@ outside the framework.
 - [AD-008: Project Model](008-project-model.md) — the `BlockStore` that a host persists edits through
 - [AD-014: Kapi Desktop](014-kapi-desktop.md) — the desktop application that hosts the preview kit
 - [AD-017: Bilingual Format Interop](017-bilingual-format-interop.md) — the standalone-kapi `extract`/`merge` faithful round-trip
-- [AD-025: KLF Family and `.klz` Package](025-klf-package.md) — `.klf` blocks and the `.klfl` annotation sidecar
+- [AD-025: KBF Family and `.kpz` Package](025-kbf-package.md) — `.kbf` blocks and the `.overlays.jsonl` annotation sidecar

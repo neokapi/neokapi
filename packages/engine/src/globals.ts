@@ -49,9 +49,9 @@ declare global {
   /** List the segmentation engines registered in this wasm build. */
   // eslint-disable-next-line no-var
   var labSegmentEngines: (() => string[]) | undefined;
-  /** KLF spec operations (JSON string in → JSON string out). Synchronous. */
+  /** KBF spec operations (JSON string in → JSON string out). Synchronous. */
   // eslint-disable-next-line no-var
-  var klf: ((reqJSON: string) => string) | undefined;
+  var kbf: ((reqJSON: string) => string) | undefined;
   /** ABI descriptor for feature detection; absent on pre-ABI builds. */
   // eslint-disable-next-line no-var
   var kapiEngineABI: (() => EngineABI) | undefined;

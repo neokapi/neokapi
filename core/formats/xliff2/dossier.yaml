@@ -33,7 +33,7 @@ learning_materials:
   - scripts/gen-refs/nativedocs/formats/xliff2.yaml
   - web/docs/kapi/bilingual-workflow.mdx
   - web/docs/contribute/architecture/017-bilingual-format-interop.md
-  - web/docs/reference/klf/vs-xliff.mdx
+  - web/docs/reference/kbf/vs-xliff.mdx
   - docs/internals/research/xliff2-design.md
 divergences:
   - "#560 — normalizing DOM writer byte-equal divergence (faithful-class; cited in docs/internals/format-maturity.md §6)"

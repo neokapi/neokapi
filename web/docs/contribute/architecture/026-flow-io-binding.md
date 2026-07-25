@@ -2,8 +2,8 @@
 id: 026-flow-io-binding
 sidebar_position: 26
 title: "AD-026: Flow I/O Binding — Source → Flow → Sink"
-description: "Architecture decision: a flow is a pure transformation over a stream of Blocks backed by a block-store session; where content enters (the source binding) and where results go (the sink binding) are resolved from invocation context rather than baked into the flow graph. The same flow runs over a file, a .klz workspace, the project block store, or an imported interchange file, and a sink is optional — a process-only run lands its work as overlays in the project/.klz and defers materialization to a later merge/export."
-keywords: [flow, source, sink, binding, block store, klz, process-only, transformer, redaction, segmentation, reader, writer, pipeline, architecture decision]
+description: "Architecture decision: a flow is a pure transformation over a stream of Blocks backed by a block-store session; where content enters (the source binding) and where results go (the sink binding) are resolved from invocation context rather than baked into the flow graph. The same flow runs over a file, a .kpz workspace, the project block store, or an imported interchange file, and a sink is optional — a process-only run lands its work as overlays in the project/.kpz and defers materialization to a later merge/export."
+keywords: [flow, source, sink, binding, block store, kpz, process-only, transformer, redaction, segmentation, reader, writer, pipeline, architecture decision]
 ---
 
 # AD-026: Flow I/O Binding — Source → Flow → Sink
@@ -17,13 +17,13 @@ Blocks** backed by a block-store session: it owns no I/O, and a single tool is
 not a flow. *Where content enters* (the **source binding**) and *where results
 go* (the **sink binding**) are resolved from invocation context, not encoded in
 the flow graph. The same flow definition runs whether its content comes from a
-file, the `.klz` workspace cache, the project block store, or an imported
+file, the `.kpz` workspace cache, the project block store, or an imported
 interchange file — and whether its results are written to a file, committed as
 overlays to the store, or both.
 
 A sink is **optional**. A *process-only* run lands its work as overlays in the
-project / `.klz` and emits no file; materialization is a separate, later sink
-operation (`merge` / `export` / `pack`). This gives the `.klz` lifecycle a
+project / `.kpz` and emits no file; materialization is a separate, later sink
+operation (`merge` / `export` / `pack`). This gives the `.kpz` lifecycle a
 first-class shape: `extract` (source → store), `run` / transform (store → store),
 `merge` (store → file).
 
@@ -41,7 +41,7 @@ source/sink wiring.
 
 Bindings are named by one scheme vocabulary across the CLI, the flow document,
 and the existing resource URIs. A concrete binding resolves by precedence —
-explicit flag, then project / `.klz` context, then the flow's intent, then
+explicit flag, then project / `.kpz` context, then the flow's intent, then
 auto-detection — and `kapi run --explain` always shows the resolved
 `source → sink` so nothing is hidden. A flow declares only *intrinsic intent*
 (`sink: none` for an analysis flow), never a path.
@@ -50,7 +50,7 @@ auto-detection — and `kapi run --explain` always shows the resolved
 
 A localization pipeline runs at many origins and destinations. The same
 translation flow processes a loose file on a laptop, the blocks already held in a
-project's store, a `.klz` workspace, or content imported from an interchange
+project's store, a `.kpz` workspace, or content imported from an interchange
 file; and its results land in a translated file, as overlays committed to the
 store, or in an interchange file bound for a translator. The work the flow does —
 leverage, translate, check — is the same in every case; only where the content
@@ -96,8 +96,8 @@ carrying the four things a flat list of tool names cannot:
   project). A project's `flows:` block is its vocabulary of named operations,
   versioned with the recipe and shared like any other artifact. A flow is
   portable, declarative intent and owns no I/O, so it travels in a project's
-  portable twin — the `.klz` package — like any other recipe field
-  ([AD-025](025-klf-package.md) §6).
+  portable twin — the `.kpz` package — like any other recipe field
+  ([AD-025](025-kbf-package.md) §6).
 - **Transformer roles** — ingest-time settlers and the round-trip brackets (§4)
   are distinct transformer roles, validated by the placement pass
   ([AD-006](006-tool-system.md)), not a flat run of tools.
@@ -115,12 +115,12 @@ a small, separate **binding** vocabulary, resolved from invocation context:
 | --- | --- | --- |
 | `file` | `DataFormatReader` over file bytes | `DataFormatWriter` + skeleton round-trip ([AD-005](005-format-system.md)) |
 | `container` | a ZIP/TAR namespace fanned out to one `file` source per inner entry (§6) | a *barrier* sink that repacks — replaced entries spliced in, every other member copied byte-for-byte |
-| `store` / `klz` | existing blocks + overlays from a persistent store | commit overlays — no materialization |
-| `import` / `export` | overlays landed from an interchange file ([AD-017](017-bilingual-format-interop.md)) | emit interchange (bilingual `.klz`, XLIFF / PO / TMX / TBX) |
+| `store` / `kpz` | existing blocks + overlays from a persistent store | commit overlays — no materialization |
+| `import` / `export` | overlays landed from an interchange file ([AD-017](017-bilingual-format-interop.md)) | emit interchange (bilingual `.kpz`, XLIFF / PO / TMX / TBX) |
 | `none` | — | discard (observation/metrics only) |
 
 The defining property: **a flow definition is identical across bindings.** The
-same `translate-qa` flow runs in the file CLI, against a `.klz` workspace, and
+same `translate-qa` flow runs in the file CLI, against a `.kpz` workspace, and
 against a project — only the binding differs.
 
 Each binding also advertises the **ports** it provides ([AD-002](002-content-model.md),
@@ -139,7 +139,7 @@ The flow document carries only its steps. Where content enters and leaves is a
 top-level `source:` / `sink:` spec, not a node in the tool graph. The `file`
 binding is the default, so an unqualified
 `kapi run flow -i file.json -o out.json` is `source: file`, `sink: file`. A
-`.klz` workspace is `source: store`; `merge` is `source: store` with
+`.kpz` workspace is `source: store`; `merge` is `source: store` with
 `sink: file`. A single binder interface backs them all, so the engine never
 special-cases an origin.
 
@@ -149,7 +149,7 @@ kind: FlowDefinition
 metadata:
   name: Production Pipeline
 spec:
-  source: file        # default; or `store`, `klz`, `import:xliff`
+  source: file        # default; or `store`, `kpz`, `import:xliff`
   sink: store         # process-only: commit overlays, emit nothing
   steps:
     - tool: recycle
@@ -160,9 +160,9 @@ spec:
 ### 3. Sink is optional → process-only runs
 
 A run whose `sink` is `store` (or absent) commits its overlays to the project /
-`.klz` block store and **emits no file**. Materialization is a distinct sink
+`.kpz` block store and **emits no file**. Materialization is a distinct sink
 operation — `merge` (store → file via skeleton), `export` (store → interchange),
-or `pack` (store → `.klz`). This separates *doing the work* from *handing it
+or `pack` (store → `.kpz`). This separates *doing the work* from *handing it
 out*, and gives the workspace lifecycle its natural grain:
 
 | Command | Source | Sink | |
@@ -173,7 +173,7 @@ out*, and gives the workspace lifecycle its natural grain:
 
 Because the block store is append-only and content-addressed, a process-only run
 is **idempotent and resumable**: re-running skips work whose overlay already
-exists, anchored to the current block hashes ([AD-025](025-klf-package.md) §5).
+exists, anchored to the current block hashes ([AD-025](025-kbf-package.md) §5).
 The store *is* the workspace.
 
 ### 4. Transformers: settlers and brackets
@@ -210,13 +210,13 @@ conventions a user already knows: *detect-by-extension with an explicit override
 tools).
 
 **Precedence.** A concrete binding resolves from the first source that names one,
-in order: an explicit CLI flag, the project / `.klz` context, the flow's declared
+in order: an explicit CLI flag, the project / `.kpz` context, the flow's declared
 intent, then auto-detection. `kapi run --explain` prints the resolved
 `source → sink` and executes nothing, so the chosen binding is always visible.
 
 **The CLI carries the locator; bare paths are detected, schemes are explicit.**
 `-i` / `-o` accept either a plain path or a `scheme:` locator. A plain path is
-bound by detection — its extension or kind decides it (`.klz` → the workspace
+bound by detection — its extension or kind decides it (`.kpz` → the workspace
 store, `.xliff` / `.po` → interchange, a plain document → `file`, a directory
 inside a project → the project store). A `scheme:` locator forces the binding and
 removes any ambiguity: `-o store:` is the block store, while `-o l10n/` is a
@@ -226,11 +226,11 @@ Each example shows the resolved `source → sink`:
 ```bash
 kapi run translate -i a.json -o b.json          # file(a.json)    → file(b.json)
 kapi run translate -i a.json                     # file(a.json)    → store        (in a project: process-only)
-kapi run translate -i work.klz                   # store(work.klz) → store        (.klz transformed in place)
-kapi run translate -i work.klz --pack            # store(work.klz) → store, then ejected to the .klz
+kapi run translate -i work.kpz                   # store(work.kpz) → store        (.kpz transformed in place)
+kapi run translate -i work.kpz --pack            # store(work.kpz) → store, then ejected to the .kpz
 kapi run translate -i store: -o xliff:hand.xliff # store           → interchange(hand.xliff)
 kapi run qa  -i a.json -o none             # file(a.json)    → none         (analysis; report only)
-kapi extract src/*.json -o work.klz              # file(glob)      → store(work.klz)
+kapi extract src/*.json -o work.kpz              # file(glob)      → store(work.kpz)
 kapi merge -o l10n/{lang}/{name}.{ext}           # store           → file(template)
 ```
 
@@ -263,7 +263,7 @@ spec:
 ```
 
 A flow's only binding is intrinsic intent, so there is no per-flow output path to
-surprise a reader; the same flow document runs over a loose file, a `.klz`
+surprise a reader; the same flow document runs over a loose file, a `.kpz`
 workspace, or a project, and `--explain` shows where a given run's content lands.
 
 **In a project, a run lands in the store.** When a `kapi.yaml` recipe is in scope, a
@@ -271,7 +271,7 @@ run with no explicit sink commits its work as overlays to the project block stor
 and emits no document. Materializing the localized files is a separate, explicit
 step (`kapi merge`). The store is the working copy: a re-run reuses the overlays
 already present and recomputes only what changed
-([AD-025](025-klf-package.md) §5).
+([AD-025](025-kbf-package.md) §5).
 
 ### 6. Container bindings: a source that fans out, a sink that repacks
 
@@ -282,7 +282,7 @@ container is a *binding*: it decides where content enters and leaves, and it
 expands to many `file` bindings.
 
 This is the same shape AD-026 already endorses for `kapi extract src/*.json -o
-work.klz` — `file(glob) → store`, a source that fans out to N documents. A
+work.kpz` — `file(glob) → store`, a source that fans out to N documents. A
 container source is that pattern with the namespace *inside* a container instead
 of on the filesystem. The decisive property follows for free: **each inner entry
 is a real, standalone `file` run**, so it inherits the whole file machinery —
@@ -389,7 +389,7 @@ binding contract:
 2. **Identity is provider-defined and must support resume.** An archive entry is
    addressed by path; a remote item by a stable id + revision/etag. This is
    exactly what the `store` binding already wants — content-addressed,
-   resumable, process-only overlays ([AD-025](025-klf-package.md) §5) — so the
+   resumable, process-only overlays ([AD-025](025-kbf-package.md) §5) — so the
    natural pattern is **provider source → store** (extract once, resumable) and a
    later **store → provider** publish, mirroring `extract` / `merge` for files.
 
@@ -405,9 +405,9 @@ API write-back.
 ## Consequences
 
 - A flow definition is portable across origins: the same flow runs in the file
-  CLI, a `.klz` workspace, and a project, because it only ever sees a session of
+  CLI, a `.kpz` workspace, and a project, because it only ever sees a session of
   Blocks.
-- A `.klz` workspace, `extract`, and `merge` are ordinary `source` / `sink`
+- A `.kpz` workspace, `extract`, and `merge` are ordinary `source` / `sink`
   bindings, not special cases.
 - Process-only runs make incremental, resumable workflows the default; a file is
   materialized only when a sink asks for it.
@@ -450,7 +450,7 @@ API write-back.
   binding's implementation; skeleton round-trip is a sink concern.
 - [AD-008: Project Model](008-project-model.md) — the project block store as a
   source and sink.
-- [AD-025: KLF Family and the .klz Package](025-klf-package.md) — the `.klz`
+- [AD-025: KBF Family and the .kpz Package](025-kbf-package.md) — the `.kpz`
   workspace; process-only = the `store` sink; content-derived cached resume.
 - [AD-020: Content Redaction](020-redaction.md) — redact/unredact as run brackets
   rather than ingest settlers.

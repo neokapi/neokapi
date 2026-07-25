@@ -178,19 +178,19 @@ flow that runs.
 
 A flow processes a stream of blocks; *where that stream comes from and where the
 result goes* are its **source** and **sink** bindings. The same flow runs over a
-loose file, the blocks already in a project, a `.klz` workspace, or content
+loose file, the blocks already in a project, a `.kpz` workspace, or content
 imported from an interchange file — only the binding changes:
 
 | Binding | As source | As sink |
 | --- | --- | --- |
 | `file` (default) | read + parse a file | write a file (round-trip via skeleton) |
-| `store` / `klz` | existing blocks + overlays | commit overlays — no file |
-| interchange | import from XLIFF / PO / a bilingual `.klz` | emit interchange for a translator |
+| `store` / `kpz` | existing blocks + overlays | commit overlays — no file |
+| interchange | import from XLIFF / PO / a bilingual `.kpz` | emit interchange for a translator |
 | `none` | — | discard (analysis / checks only) |
 
 Bindings are resolved when you run the flow, by precedence: an explicit `-i` / `-o`
-flag, then the project or `.klz` you're in, then the flow's own intent, then
-auto-detection from the path. A plain path is detected (`.klz` → workspace,
+flag, then the project or `.kpz` you're in, then the flow's own intent, then
+auto-detection from the path. A plain path is detected (`.kpz` → workspace,
 `.xliff` → interchange, a document → `file`); a `scheme:` is explicit
 (`-o store:`, `-o xliff:hand.xliff`). `kapi run <flow> --explain` prints the
 resolved `source → sink` without running anything.

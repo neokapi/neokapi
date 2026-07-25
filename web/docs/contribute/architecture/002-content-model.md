@@ -670,7 +670,7 @@ The framework provides:
 
 | Projection                     | Surface                          | Consumer                                                                  |
 | ------------------------------ | -------------------------------- | ------------------------------------------------------------------------- |
-| `Run[]` (no projection)        | `Block.Source` / `Targets`, KLF wire | Pipeline tools, store, format readers/writers                         |
+| `Run[]` (no projection)        | `Block.Source` / `Targets`, KBF wire | Pipeline tools, store, format readers/writers                         |
 | `RenderRunsWithData(runs)`     | native source markup             | Format writers (HTML, Markdown, XLIFF fallback) — replays `Data` verbatim |
 | `RunsStructuralText(runs)`     | `Click {1}here{/1} for info`     | TM matching (structural tier) — cross-format leverage                     |
 | `RunsGeneralizedText(runs)`    | structural + entity placeholders | TM matching (generalized tier)                                            |

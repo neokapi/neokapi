@@ -12,42 +12,42 @@ import (
 // alias to the canonical format's factory.
 func TestRegisterAlias_ReaderResolves(t *testing.T) {
 	reg := NewFormatRegistry()
-	regStubSig(reg, "klf", "Kapi Localization Format (KLF)",
-		[]string{"application/vnd.neokapi.klf+json"}, []string{".klf"})
-	reg.RegisterAlias("jsx", "klf")
+	regStubSig(reg, "kbf", "Kapi Bundle Format (KBF)",
+		[]string{"application/vnd.neokapi.kbf+json"}, []string{".kbf"})
+	reg.RegisterAlias("jsx", "kbf")
 
 	// Canonical id resolves.
-	r, err := reg.NewReader("klf")
+	r, err := reg.NewReader("kbf")
 	require.NoError(t, err)
-	assert.Equal(t, "klf", r.Name())
+	assert.Equal(t, "kbf", r.Name())
 
 	// Alias resolves to the same canonical factory.
 	ra, err := reg.NewReader("jsx")
 	require.NoError(t, err)
-	assert.Equal(t, "klf", ra.Name(), "--format jsx must resolve to the klf reader")
+	assert.Equal(t, "kbf", ra.Name(), "--format jsx must resolve to the kbf reader")
 }
 
 func TestRegisterAlias_WriterResolves(t *testing.T) {
 	reg := NewFormatRegistry()
-	regStubSig(reg, "klf", "Kapi Localization Format (KLF)",
-		[]string{"application/vnd.neokapi.klf+json"}, []string{".klf"})
-	reg.RegisterWriter("klf", func() format.DataFormatWriter { return newStubWriter("klf") })
-	reg.RegisterAlias("jsx", "klf")
+	regStubSig(reg, "kbf", "Kapi Bundle Format (KBF)",
+		[]string{"application/vnd.neokapi.kbf+json"}, []string{".kbf"})
+	reg.RegisterWriter("kbf", func() format.DataFormatWriter { return newStubWriter("kbf") })
+	reg.RegisterAlias("jsx", "kbf")
 
 	w, err := reg.NewWriter("jsx")
 	require.NoError(t, err)
-	assert.Equal(t, "klf", w.Name(), "--format jsx must resolve to the klf writer")
+	assert.Equal(t, "kbf", w.Name(), "--format jsx must resolve to the kbf writer")
 }
 
 func TestRegisterAlias_HasReaderHasWriter(t *testing.T) {
 	reg := NewFormatRegistry()
-	regStub(reg, "klf")
-	reg.RegisterWriter("klf", func() format.DataFormatWriter { return newStubWriter("klf") })
-	reg.RegisterAlias("jsx", "klf")
+	regStub(reg, "kbf")
+	reg.RegisterWriter("kbf", func() format.DataFormatWriter { return newStubWriter("kbf") })
+	reg.RegisterAlias("jsx", "kbf")
 
-	assert.True(t, reg.HasReader("klf"))
+	assert.True(t, reg.HasReader("kbf"))
 	assert.True(t, reg.HasReader("jsx"), "alias should report a reader")
-	assert.True(t, reg.HasWriter("klf"))
+	assert.True(t, reg.HasWriter("kbf"))
 	assert.True(t, reg.HasWriter("jsx"), "alias should report a writer")
 
 	assert.False(t, reg.HasReader("nope"))
@@ -55,41 +55,41 @@ func TestRegisterAlias_HasReaderHasWriter(t *testing.T) {
 
 func TestRegisterAlias_ResolveReaderWriter(t *testing.T) {
 	reg := NewFormatRegistry()
-	regStub(reg, "klf")
-	reg.RegisterWriter("klf", func() format.DataFormatWriter { return newStubWriter("klf") })
-	reg.RegisterAlias("jsx", "klf")
+	regStub(reg, "kbf")
+	reg.RegisterWriter("kbf", func() format.DataFormatWriter { return newStubWriter("kbf") })
+	reg.RegisterAlias("jsx", "kbf")
 
 	// SubfilterResolver entry points also resolve aliases.
 	r, err := reg.ResolveReader("jsx")
 	require.NoError(t, err)
-	assert.Equal(t, "klf", r.Name())
+	assert.Equal(t, "kbf", r.Name())
 
 	w, err := reg.ResolveWriter("jsx")
 	require.NoError(t, err)
-	assert.Equal(t, "klf", w.Name())
+	assert.Equal(t, "kbf", w.Name())
 }
 
 // TestRegisterAlias_NotListed verifies the alias never appears in the
 // format listing or detection — only the canonical id does. A user
-// searching "klf" finds the format; the alias stays an implementation
+// searching "kbf" finds the format; the alias stays an implementation
 // detail of name resolution.
 func TestRegisterAlias_NotListed(t *testing.T) {
 	reg := NewFormatRegistry()
-	regStubSig(reg, "klf", "Kapi Localization Format (KLF)",
-		[]string{"application/vnd.neokapi.klf+json"}, []string{".klf"})
-	reg.RegisterAlias("jsx", "klf")
+	regStubSig(reg, "kbf", "Kapi Bundle Format (KBF)",
+		[]string{"application/vnd.neokapi.kbf+json"}, []string{".kbf"})
+	reg.RegisterAlias("jsx", "kbf")
 
 	infos := reg.FormatInfos()
 	names := map[string]bool{}
 	for _, info := range infos {
 		names[string(info.Name)] = true
 	}
-	assert.True(t, names["klf"], "klf must be listed")
+	assert.True(t, names["kbf"], "kbf must be listed")
 	assert.False(t, names["jsx"], "the alias must not appear in the format listing")
 
 	// FormatInfo for the alias is nil (no metadata entry).
 	assert.Nil(t, reg.FormatInfo("jsx"))
-	assert.NotNil(t, reg.FormatInfo("klf"))
+	assert.NotNil(t, reg.FormatInfo("kbf"))
 }
 
 // TestRegisterAlias_DetectionReturnsCanonical verifies that detection
@@ -97,28 +97,28 @@ func TestRegisterAlias_NotListed(t *testing.T) {
 // because the alias registers no signature.
 func TestRegisterAlias_DetectionReturnsCanonical(t *testing.T) {
 	reg := NewFormatRegistry()
-	regStubSig(reg, "klf", "Kapi Localization Format (KLF)",
-		[]string{"application/vnd.neokapi.klf+json"}, []string{".klf"})
-	reg.RegisterAlias("jsx", "klf")
+	regStubSig(reg, "kbf", "Kapi Bundle Format (KBF)",
+		[]string{"application/vnd.neokapi.kbf+json"}, []string{".kbf"})
+	reg.RegisterAlias("jsx", "kbf")
 
-	byExt, err := reg.DetectByExtension(".klf")
+	byExt, err := reg.DetectByExtension(".kbf")
 	require.NoError(t, err)
-	assert.Equal(t, FormatID("klf"), byExt)
+	assert.Equal(t, FormatID("kbf"), byExt)
 
-	byMime := reg.ResolveFormat("application/vnd.neokapi.klf+json")
-	assert.Equal(t, FormatID("klf"), byMime)
+	byMime := reg.ResolveFormat("application/vnd.neokapi.kbf+json")
+	assert.Equal(t, FormatID("kbf"), byMime)
 }
 
 func TestRegisterAlias_AliasTarget(t *testing.T) {
 	reg := NewFormatRegistry()
-	regStub(reg, "klf")
-	reg.RegisterAlias("jsx", "klf")
+	regStub(reg, "kbf")
+	reg.RegisterAlias("jsx", "kbf")
 
 	target, ok := reg.AliasTarget("jsx")
 	require.True(t, ok)
-	assert.Equal(t, FormatID("klf"), target)
+	assert.Equal(t, FormatID("kbf"), target)
 
-	_, ok = reg.AliasTarget("klf")
+	_, ok = reg.AliasTarget("kbf")
 	assert.False(t, ok, "canonical id is not itself an alias")
 }
 
@@ -126,11 +126,11 @@ func TestRegisterAlias_AliasTarget(t *testing.T) {
 // the canonical id (or an empty alias) does nothing.
 func TestRegisterAlias_SelfIsNoop(t *testing.T) {
 	reg := NewFormatRegistry()
-	regStub(reg, "klf")
-	reg.RegisterAlias("klf", "klf")
-	reg.RegisterAlias("", "klf")
+	regStub(reg, "kbf")
+	reg.RegisterAlias("kbf", "kbf")
+	reg.RegisterAlias("", "kbf")
 
-	_, ok := reg.AliasTarget("klf")
+	_, ok := reg.AliasTarget("kbf")
 	assert.False(t, ok)
 	_, ok = reg.AliasTarget("")
 	assert.False(t, ok)
@@ -142,7 +142,7 @@ func TestRegisterAlias_SelfIsNoop(t *testing.T) {
 // factory).
 func TestRegisterAlias_UnknownAliasStillUnknown(t *testing.T) {
 	reg := NewFormatRegistry()
-	reg.RegisterAlias("jsx", "klf") // klf never registered
+	reg.RegisterAlias("jsx", "kbf") // kbf never registered
 
 	_, err := reg.NewReader("jsx")
 	require.Error(t, err)

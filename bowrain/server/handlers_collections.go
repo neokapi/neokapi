@@ -34,10 +34,10 @@ type CollectionResponse struct {
 	// uploads/edits/deletes are allowed). Editable is the derived gate the UI
 	// reads to hide/disable source-mutation affordances. Both fold in the
 	// project-level source-connector signal (see annotateProjectOrigin).
-	Origin     string `json:"origin"`
-	Editable   bool   `json:"editable"`
-	CreatedAt  string `json:"created_at"`
-	UpdatedAt  string `json:"updated_at"`
+	Origin    string `json:"origin"`
+	Editable  bool   `json:"editable"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
 }
 
 // CreateCollectionRequest is the request body for creating a collection.

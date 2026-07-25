@@ -7,7 +7,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
-	"github.com/neokapi/neokapi/core/klf"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +29,7 @@ func runStoreSuite(t *testing.T, makeStore func() blockstore.Store) {
 			ID:           "abc",
 			Hash:         "h-abc",
 			Translatable: true,
-			Type:         klf.BlockTypeJSXElement,
+			Type:         kbf.BlockTypeJSXElement,
 		}
 		require.NoError(t, sess.PutBlock("ui", b))
 		require.NoError(t, sess.Commit())

@@ -12,7 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats/markdown"
 	"github.com/neokapi/neokapi/core/formats/xliff"
 	"github.com/neokapi/neokapi/core/internal/testutil"
-	"github.com/neokapi/neokapi/core/klf"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,8 +49,8 @@ import (
 //     link:hyperlink] sequence — openxml's reader already maps these, see
 //     core/formats/openxml/vocabulary.go + reader_test.go).
 //
-//   - jsx's native interchange is the typed .klf envelope, so its reader
-//     pass-through validates that canonical types carried in KLF survive
+//   - jsx's native interchange is the typed .kbf envelope, so its reader
+//     pass-through validates that canonical types carried in KBF survive
 //     unchanged rather than markup→type inference. It still produces the
 //     same canonical sequence and is a legitimate participant.
 func TestVocabEquivalence(t *testing.T) {
@@ -88,7 +88,7 @@ func TestVocabEquivalence(t *testing.T) {
 		{
 			format: "jsx",
 			runs: func(t *testing.T) []model.Run {
-				return firstBlockRuns(t, jsx.NewReader(), jsxKLFFixture(t))
+				return firstBlockRuns(t, jsx.NewReader(), jsxKBFFixture(t))
 			},
 		},
 	}
@@ -161,44 +161,44 @@ const xliff12Fixture = `<?xml version="1.0" encoding="UTF-8"?>
   </file>
 </xliff>`
 
-// jsxKLFFixture builds an in-memory .klf (jsx's native interchange) whose
+// jsxKBFFixture builds an in-memory .kbf (jsx's native interchange) whose
 // single block carries bold/italic/link inline-code runs, then returns it
 // as a RawDocument for the jsx reader.
-func jsxKLFFixture(t *testing.T) *model.RawDocument {
+func jsxKBFFixture(t *testing.T) *model.RawDocument {
 	t.Helper()
-	file := &klf.File{
-		SchemaVersion: klf.SchemaVersion,
-		Kind:          klf.Kind,
-		Generator:     klf.GeneratorInfo{ID: "vocab-equivalence", Version: "0.0.1"},
-		Project:       klf.ProjectInfo{ID: "vocab-equivalence", SourceLocale: "en"},
-		Documents: []klf.Document{{
+	file := &kbf.File{
+		SchemaVersion: kbf.SchemaVersion,
+		Kind:          kbf.Kind,
+		Generator:     kbf.GeneratorInfo{ID: "vocab-equivalence", Version: "0.0.1"},
+		Project:       kbf.ProjectInfo{ID: "vocab-equivalence", SourceLocale: "en"},
+		Documents: []kbf.Document{{
 			ID:           "eq",
-			DocumentType: klf.DocumentTypeJSX,
+			DocumentType: kbf.DocumentTypeJSX,
 			Path:         "eq.tsx",
-			Blocks: []klf.Block{{
+			Blocks: []kbf.Block{{
 				ID:           "eq-1",
 				Hash:         "eq0001",
 				Translatable: true,
-				Type:         klf.BlockTypeJSXElement,
-				Source: []klf.Run{
-					{Text: &klf.TextRun{Text: "A "}},
-					{PcOpen: &klf.PcOpenRun{ID: "1", Type: "fmt:bold", Data: "<b>"}},
-					{Text: &klf.TextRun{Text: "bold"}},
-					{PcClose: &klf.PcCloseRun{ID: "1", Type: "fmt:bold", Data: "</b>"}},
-					{Text: &klf.TextRun{Text: " b "}},
-					{PcOpen: &klf.PcOpenRun{ID: "2", Type: "fmt:italic", Data: "<i>"}},
-					{Text: &klf.TextRun{Text: "italic"}},
-					{PcClose: &klf.PcCloseRun{ID: "2", Type: "fmt:italic", Data: "</i>"}},
-					{Text: &klf.TextRun{Text: " c "}},
-					{PcOpen: &klf.PcOpenRun{ID: "3", Type: "link:hyperlink", Data: `<a href="https://example.com">`}},
-					{Text: &klf.TextRun{Text: "link"}},
-					{PcClose: &klf.PcCloseRun{ID: "3", Type: "link:hyperlink", Data: "</a>"}},
-					{Text: &klf.TextRun{Text: " d"}},
+				Type:         kbf.BlockTypeJSXElement,
+				Source: []kbf.Run{
+					{Text: &kbf.TextRun{Text: "A "}},
+					{PcOpen: &kbf.PcOpenRun{ID: "1", Type: "fmt:bold", Data: "<b>"}},
+					{Text: &kbf.TextRun{Text: "bold"}},
+					{PcClose: &kbf.PcCloseRun{ID: "1", Type: "fmt:bold", Data: "</b>"}},
+					{Text: &kbf.TextRun{Text: " b "}},
+					{PcOpen: &kbf.PcOpenRun{ID: "2", Type: "fmt:italic", Data: "<i>"}},
+					{Text: &kbf.TextRun{Text: "italic"}},
+					{PcClose: &kbf.PcCloseRun{ID: "2", Type: "fmt:italic", Data: "</i>"}},
+					{Text: &kbf.TextRun{Text: " c "}},
+					{PcOpen: &kbf.PcOpenRun{ID: "3", Type: "link:hyperlink", Data: `<a href="https://example.com">`}},
+					{Text: &kbf.TextRun{Text: "link"}},
+					{PcClose: &kbf.PcCloseRun{ID: "3", Type: "link:hyperlink", Data: "</a>"}},
+					{Text: &kbf.TextRun{Text: " d"}},
 				},
 			}},
 		}},
 	}
-	data, err := klf.Marshal(file)
+	data, err := kbf.Marshal(file)
 	require.NoError(t, err)
-	return &model.RawDocument{URI: "eq.klf", Reader: io.NopCloser(bytes.NewReader(data))}
+	return &model.RawDocument{URI: "eq.kbf", Reader: io.NopCloser(bytes.NewReader(data))}
 }

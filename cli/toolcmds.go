@@ -137,8 +137,8 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 					// Root outputs under DIR using a locale-dir layout
 					// (DIR/{lang}/<file>), mirroring tsc/babel --out-dir.
 					outputTmpl = filepath.Join(outputDir, "{lang}") + string(filepath.Separator)
-				case AllKLF(args):
-					// KLF writers are locale-additive: reading and writing
+				case AllKBF(args):
+					// KBF writers are locale-additive: reading and writing
 					// back to the same file accumulates translations, so the
 					// natural default is in-place.
 					inPlace = true
@@ -300,7 +300,7 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 	cmd.Flags().Bool("strict", false, "alias for --fail-on-unknown")
 	cmd.Flags().Bool("no-warn", false, "suppress warnings for skipped files")
 	cmd.Flags().BoolP("progress", "p", false, "show progress bar")
-	cmd.Flags().Bool("pack", false, "when transforming a .klz, also eject the result to the .klz (auto-pack)")
+	cmd.Flags().Bool("pack", false, "when transforming a .kpz, also eject the result to the .kpz (auto-pack)")
 	if info.WritesOutput {
 		cmd.Flags().StringP("output", "o", "", "output path template (variables: {dir}, {name}, {ext}, {lang})")
 		cmd.Flags().String("output-dir", "", "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)")

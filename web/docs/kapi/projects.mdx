@@ -2,7 +2,7 @@
 title: Projects
 slug: /kapi/projects
 description: The one working model behind every Kapi surface — run ad-hoc on loose files when nothing needs remembering, or set up a .kapi project whose store accumulates your work. The mechanics underneath are a single source → flow → sink binding model.
-keywords: [kapi, project, ad-hoc, store, binding, source, sink, .kapi, .klz, pack, translation memory]
+keywords: [kapi, project, ad-hoc, store, binding, source, sink, .kapi, .kpz, pack, translation memory]
 ---
 
 import { PipelineDiagram } from "@neokapi/docs-shared";
@@ -53,7 +53,7 @@ Kapi doesn't have separate "ad-hoc commands" and "project commands" — it has o
 | --- | --- | --- |
 | `file` (default) | read + parse a file | write the file back (round-trip via skeleton) |
 | `store` | the project store (blocks + overlays) | commit overlays — **no file** |
-| interchange | import XLIFF / PO / a bilingual `.klz` | emit one for a translator |
+| interchange | import XLIFF / PO / a bilingual `.kpz` | emit one for a translator |
 | `none` | — | discard (checks/analysis only) |
 
 - **Ad-hoc** = the `file` binding — you name `-i`/`-o`.
@@ -80,7 +80,7 @@ kapi run translate-qa -i app.json --explain          # inside a project
   channelLabel=""
   stages={[
     { label: "kapi extract", sub: "TM pre-fill", role: "io" },
-    { label: "bilingual file", sub: "XLIFF / PO / .klz", role: "io" },
+    { label: "bilingual file", sub: "XLIFF / PO / .kpz", role: "io" },
     { label: "translate elsewhere", role: "translate" },
     { label: "kapi merge", sub: "+ TM absorb", role: "io" },
     { label: "localized files", role: "io" },
@@ -88,28 +88,28 @@ kapi run translate-qa -i app.json --explain          # inside a project
 />
 
 ```bash
-kapi extract --target-lang fr,de     # → out/*.xliff (or --format klz)
+kapi extract --target-lang fr,de     # → out/*.xliff (or --format kpz)
 #   …translate the bilingual files…
 kapi merge -i out/                   # apply back onto sources, absorb into TM
 ```
 
 See the [bilingual workflow](/kapi/bilingual-workflow) for the interchange loop in depth.
 
-## The `.klz` parcel: move work without a server
+## The `.kpz` parcel: move work without a server
 
-A `.klz` is a portable, single-file carrier — how you hand work between machines or people without a server. Two profiles:
+A `.kpz` is a portable, single-file carrier — how you hand work between machines or people without a server. Two profiles:
 
 ```bash
 # Whole-project snapshot — a runnable "project in a file"
-kapi pack -o snapshot.klz        # recipe + content + TM/termbase
-kapi unpack snapshot.klz         # rehydrate elsewhere
+kapi pack -o snapshot.kpz        # recipe + content + TM/termbase
+kapi unpack snapshot.kpz         # rehydrate elsewhere
 
 # Bilingual interchange — for a kapi-equipped reviewer
-kapi extract --format klz --target-lang fr
-kapi merge bundle.fr.klz
+kapi extract --format kpz --target-lang fr
+kapi merge bundle.fr.kpz
 ```
 
-Source travels as identity + a round-trip skeleton by default; `--with-source` embeds the raw originals. [Pause & resume a big run](/kapi/recipes/resumable-workspace) walks the `.klz` workspace lifecycle.
+Source travels as identity + a round-trip skeleton by default; `--with-source` embeds the raw originals. [Pause & resume a big run](/kapi/recipes/resumable-workspace) walks the `.kpz` workspace lifecycle.
 
 ## Do the modes mix?
 
@@ -119,9 +119,9 @@ Yes — same commands, different bindings:
 | --- | --- |
 | A throwaway job on one file | **ad-hoc** (`kapi <tool>` or `run -i -o`) |
 | A repo you work on repeatedly (accumulating TM) | **project** (`add` / `up` / `merge`) |
-| To move work between machines/people | **`.klz` parcel** (`pack` or `extract --format klz`) |
+| To move work between machines/people | **`.kpz` parcel** (`pack` or `extract --format kpz`) |
 
-A tool run *inside* a project (`kapi translate src/app.json`) still picks up the project's defaults and TM while working on one file. The one thing to avoid: two stateful stores over the same content — an ad-hoc `.klz` workspace *and* a `.kapi` project for the same files. And inside a project, an explicit `-o` writes a file and skips the store — intentional; `--explain` shows which you got.
+A tool run *inside* a project (`kapi translate src/app.json`) still picks up the project's defaults and TM while working on one file. The one thing to avoid: two stateful stores over the same content — an ad-hoc `.kpz` workspace *and* a `.kapi` project for the same files. And inside a project, an explicit `-o` writes a file and skips the store — intentional; `--explain` shows which you got.
 
 ## See also
 

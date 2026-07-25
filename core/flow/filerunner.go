@@ -115,7 +115,7 @@ type FileRunnerConfig struct {
 	// Store, when non-nil, is the block store the executor runs the tool
 	// chain against. A persistent store (e.g. a workspace's blocks.db) makes
 	// SessionTools cache per-block work as overlays and skip already-done
-	// steps on a later run — the substrate of resumable .klz workspaces
+	// steps on a later run — the substrate of resumable .kpz workspaces
 	// (AD-025 §5). nil (the default) uses an ephemeral in-memory store, so
 	// one-shot runs are unchanged.
 	Store blockstore.Store
@@ -817,7 +817,7 @@ func isStreamingPair(reader format.DataFormatReader, writer format.DataFormatWri
 }
 
 // RunSkeletonReconstruct runs the tool chain when the raw source is absent but
-// a round-trip skeleton is present — the skeleton-only .klz handoff case
+// a round-trip skeleton is present — the skeleton-only .kpz handoff case
 // (AD-025 §6). The source's blocks are rebuilt from the skeleton's block refs
 // (so their identities match the cached overlays and the merge hydrate step),
 // the tool chain runs against the configured Store, and a writer of the given
@@ -1028,7 +1028,7 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 	// driven writers emit one (often tiny) write per skeleton entry; an
 	// unbuffered *os.File turns each into a syscall. A 64 KiB buffer
 	// coalesces them. The buffer is flushed AFTER writer.Close() returns —
-	// some writers (e.g. the KLF writer) only emit their payload in Close,
+	// some writers (e.g. the KBF writer) only emit their payload in Close,
 	// so the buffer must outlive Close. Output bytes are unchanged.
 	//
 	// Write into a sibling temp file and rename on success (#608, S1).
@@ -1059,7 +1059,7 @@ func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, t
 		return err
 	}
 
-	// Close the writer first (lets writers that emit on Close, like KLF,
+	// Close the writer first (lets writers that emit on Close, like KBF,
 	// finish writing into the buffer), then flush the buffer to the file,
 	// then close the file, then rename into place. Any error removes the
 	// temp file so outputPath is never left partial.

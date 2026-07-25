@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-18T02:19:16Z",
+  "generatedAt": "2026-07-25T03:20:18Z",
   "summary": {
     "built-in/format/description": 3,
     "built-in/format/doc.examples": 3,
@@ -34,14 +34,14 @@
     {
       "kind": "format",
       "source": "built-in",
-      "id": "klf",
+      "id": "kbf",
       "field": "description",
       "detail": "no description or overview"
     },
     {
       "kind": "format",
       "source": "built-in",
-      "id": "klf",
+      "id": "kbf",
       "field": "doc.overview",
       "detail": "no overview / rich documentation"
     },

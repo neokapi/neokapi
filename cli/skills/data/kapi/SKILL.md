@@ -110,6 +110,6 @@ custom pipeline; the layer model is
   unattended translation (`kapi translate`) or the optional `--ai` checks. The
   rule-based brand and terminology checks need no credential.
 
-In kapi's own stacks (neokapi-i18n, KLF) the English source text is always the
+In kapi's own stacks (neokapi-i18n, KBF) the English source text is always the
 key — don't introduce message IDs. When plugging into another stack's catalogs,
 follow that stack's key idiom instead (see references/i18n.md).

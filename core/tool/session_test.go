@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore"
-	"github.com/neokapi/neokapi/core/klf"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/stretchr/testify/assert"
@@ -139,8 +139,8 @@ func TestRunWithSession_dispatchesSessionToolWhenAvailable(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, sc.Payload)
 
-	// Klz just to touch the klf Block type so goimports stays sensible.
-	assert.NotNil(t, klf.Block{})
+	// Kpz just to touch the kbf Block type so goimports stays sensible.
+	assert.NotNil(t, kbf.Block{})
 }
 
 // runWithSession is what the flow executor will call; if the tool

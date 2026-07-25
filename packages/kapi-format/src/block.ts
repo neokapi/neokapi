@@ -317,18 +317,59 @@ export type PlaceholderKind =
 // ─── Document + File envelope ─────────────────────────────────────
 
 /**
- * The .klf file envelope version. Incremented on non-backward-
+ * The .kbf file envelope version. Incremented on non-backward-
  * compatible schema changes. Consumers MUST reject unknown major
  * versions and SHOULD accept unknown minor versions of their major.
  */
 export const SchemaVersion = "1.0" as const;
 
 /**
- * The .klf file kind discriminator. Lets a consumer confirm a JSON
- * blob is a KLF document before parsing, rather than a same-shaped
+ * The .kbf file kind discriminator. Lets a consumer confirm a JSON
+ * blob is a KBF document before parsing, rather than a same-shaped
  * structure from a different producer.
  */
 export const Kind = "kapi-localization-format" as const;
+
+/** Canonical file extension of a Kapi Bundle Format document. */
+export const Ext = ".kbf" as const;
+
+/**
+ * Compound suffix of the JSON-Lines stand-off annotation overlay
+ * sidecar that accompanies a `.kbf` document. It is a *compound*
+ * suffix: `foo.overlays.jsonl`, not a bare `.jsonl`, so plain
+ * `path.extname()` never identifies one — use {@link isAnnotationPath}.
+ */
+export const AnnotationExt = ".overlays.jsonl" as const;
+
+/**
+ * Compound suffix of the JSON overlay-set sidecar (in-progress
+ * targets/annotations/segmentation keyed by kind + block hash). Same
+ * compound-suffix caveat as {@link AnnotationExt}.
+ */
+export const OverlaySetExt = ".overlays.json" as const;
+
+/** Reports whether `path` names a `.kbf` document. */
+export function isKbfPath(path: string): boolean {
+  return path.toLowerCase().endsWith(Ext);
+}
+
+/**
+ * Reports whether `path` names a `.overlays.jsonl` annotation overlay
+ * sidecar. Matches the whole compound suffix, so an unrelated
+ * `messages.jsonl` is not mistaken for one.
+ */
+export function isAnnotationPath(path: string): boolean {
+  return path.toLowerCase().endsWith(AnnotationExt);
+}
+
+/**
+ * Reports whether `path` names a `.overlays.json` overlay-set sidecar.
+ * Matches the whole compound suffix, so an unrelated `data.json` is not
+ * mistaken for one (and a `.overlays.jsonl` file is not either).
+ */
+export function isOverlaySetPath(path: string): boolean {
+  return path.toLowerCase().endsWith(OverlaySetExt);
+}
 
 /** Format of an extracted document's source. */
 export type DocumentType = "jsx" | "html" | "markdown" | "generic";
@@ -336,7 +377,7 @@ export type DocumentType = "jsx" | "html" | "markdown" | "generic";
 /**
  * Reference to the opaque skeleton payload a merge step consumes to
  * reconstruct the original source file with translated content spliced
- * back in. Mirrors Go `core/klf.Skeleton` (the canonical
+ * back in. Mirrors Go `core/kbf.Skeleton` (the canonical
  * implementation): a `ref` to an external payload and/or an `inline`
  * payload. Both are optional; at least one is present in practice.
  * Both serialize with omit-when-empty semantics on the Go side, so the
@@ -350,7 +391,7 @@ export interface Skeleton {
 }
 
 /**
- * One extracted source file, with its blocks. A .klf File wraps
+ * One extracted source file, with its blocks. A .kbf File wraps
  * one or more Documents.
  */
 export interface Document {
@@ -362,14 +403,14 @@ export interface Document {
   blocks: Block[];
 }
 
-/** Identifies the extractor that produced a .klf. */
+/** Identifies the extractor that produced a .kbf. */
 export interface Generator {
   id: string;
   version: string;
   capabilities?: string[];
 }
 
-/** Identifies the project a .klf belongs to. */
+/** Identifies the project a .kbf belongs to. */
 export interface Project {
   id: string;
   sourceLocale: LocaleID;
@@ -384,8 +425,8 @@ export interface Vocabulary {
 }
 
 /**
- * Top-level .klf JSON envelope. This is what `marshalFile` emits
- * and what `core/klf.Unmarshal` parses on the Go side. Field order
+ * Top-level .kbf JSON envelope. This is what `marshalFile` emits
+ * and what `core/kbf.Unmarshal` parses on the Go side. Field order
  * and shape are normative; deterministic serialization is what
  * makes the manifest SHA-256 stable across languages.
  */

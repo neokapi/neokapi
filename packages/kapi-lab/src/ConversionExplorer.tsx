@@ -41,7 +41,7 @@ export interface ConversionTarget {
 // `kapi formats list --json` (the declared capability — no hardcoding, no plugin
 // load). It is also the SSR/not-ready fallback.
 // convert is for document/data projection. Bilingual interchange formats
-// (XLIFF, PO, TMX, KLF) are deliberately absent — they belong to the
+// (XLIFF, PO, TMX, KBF) are deliberately absent — they belong to the
 // extract→translate→merge loop (a converted interchange file carries no
 // skeleton and cannot be merged back); see AD-005.
 export const GENERATIVE_TARGETS: ConversionTarget[] = [
@@ -60,7 +60,7 @@ const TARGET_LANG: Record<string, Lang> = {
   markdown: "markdown",
   html: "xml",
   json: "json",
-  klf: "json",
+  kbf: "json",
   yaml: "yaml",
   po: "po",
   properties: "properties",

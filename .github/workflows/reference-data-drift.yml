@@ -148,7 +148,7 @@ jobs:
       # Regenerate the builtin metadata inventory, the CLI command inventory,
       # the embedded MO catalogs, and the demo-narration sidecars from the
       # committed l10n/ seeds (the regen prerequisites of l10n-verify). Seeds
-      # are native .klftm/.klftb (deterministic, identity-preserving), so this
+      # are native .kmb/.ktb (deterministic, identity-preserving), so this
       # is byte-stable — which makes drift pure toil: on same-repo PRs the
       # script commits the regenerated files back to the PR branch and passes
       # (a rerun on the bot commit finds no diff, so this cannot loop; the
@@ -188,7 +188,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
 
       # A clean seed import is itself a gate: `kapi tm import` fails on a
-      # malformed .klftm, so a corrupted seed stops here. (The l10n-* targets
+      # malformed .kmb, so a corrupted seed stops here. (The l10n-* targets
       # depend on l10n-seed anyway; running it explicitly keeps the failure
       # attributable to the seeds rather than to a docs surface.)
       - name: Seed the dogfood TM/termbase from l10n/

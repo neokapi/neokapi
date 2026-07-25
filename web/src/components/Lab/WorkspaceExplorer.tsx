@@ -3,7 +3,7 @@ import BrowserOnly from "@docusaurus/BrowserOnly";
 import { useKapiPlaygroundConfig } from "../KapiPlayground/config";
 
 // Docusaurus adapter for the @neokapi/kapi-lab WorkspaceExplorer — the live
-// .klz workspace lab (extract → transform → pack → merge, inspecting the
+// .kpz workspace lab (extract → transform → pack → merge, inspecting the
 // recipe / overlays / dirty state). Client-only (the WASM engine boots in the
 // browser) and code-split so the lab chunk loads only where embedded.
 
@@ -15,7 +15,7 @@ const Loading = (): React.ReactElement => (
       fontStyle: "italic",
     }}
   >
-    Loading the interactive .klz workspace lab…
+    Loading the interactive .kpz workspace lab…
   </div>
 );
 

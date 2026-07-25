@@ -72,7 +72,7 @@ and any transition **from** `forbidden`. Disallowed outright: none (history is
 the guard, not a trap), but `forbidden → preferred` must pass through a
 governed change-set even on the platform's direct-edit path.
 
-### klftb
+### ktb
 
 The file carries a `relations` array alongside `concepts`, emitted
 deterministically (sorted by ID) under the existing schema version.

@@ -191,7 +191,7 @@ Field contracts, grounded in `core/model`:
 The dump is canonical or it is useless as an oracle: object keys in fixed
 schema order; map-valued fields (`properties`, `targets`, plural `forms`,
 select `cases`) sorted by key; empty/zero fields omitted; HTML escaping
-disabled (matching `Run.MarshalJSON` and the KLF wire form, so `<b>` stays
+disabled (matching `Run.MarshalJSON` and the KBF wire form, so `<b>` stays
 literal and content hashes are implementation-independent); UTF-8, LF
 separators, no trailing whitespace. Excluded by design: `Skeleton`,
 `Identity`, `ContentRef`, `DisplayHint`, `Annotations`, `IsReferent` — engine

@@ -34,7 +34,7 @@ import (
 	"github.com/neokapi/neokapi/host/output"
 	sqltm "github.com/neokapi/neokapi/sievepen"
 	sqltb "github.com/neokapi/neokapi/termbase"
-	"github.com/neokapi/neokapi/termbase/klftb"
+	"github.com/neokapi/neokapi/termbase/ktb"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -71,16 +71,16 @@ func (a *App) RunFlow(ctx context.Context, cmd Command, flowName string, opts Fl
 
 	if len(inputPaths) > 0 {
 		outputFlag, _ := cmd.Flags().GetString("output")
-		// Running a flow on a .klz transforms the workspace IN PLACE
+		// Running a flow on a .kpz transforms the workspace IN PLACE
 		// (appends overlays); output files come later from `kapi merge`. The
 		// target locale may come from the workspace recipe, so this runs
 		// before the --target-lang requirement below.
-		if klzWorkspaceInput(inputPaths) {
+		if kpzWorkspaceInput(inputPaths) {
 			if outputFlag != "" {
-				return errKlzTransformOutput
+				return errKpzTransformOutput
 			}
 			doPack, _ := cmd.Flags().GetBool("pack")
-			return a.transformKlzInPlace(ctx, inputPaths[0], flowName, func() ([]tool.Tool, func(), error) { //nolint:contextcheck // buildFlowTools resolves project bindings; ctx flows via the Command (CmdContext), not a detached context
+			return a.transformKpzInPlace(ctx, inputPaths[0], flowName, func() ([]tool.Tool, func(), error) { //nolint:contextcheck // buildFlowTools resolves project bindings; ctx flows via the Command (CmdContext), not a detached context
 				return a.buildFlowTools(flowName, cmd)
 			}, a.TargetLang, "", doPack)
 		}
@@ -92,8 +92,8 @@ func (a *App) RunFlow(ctx context.Context, cmd Command, flowName string, opts Fl
 				return errors.New("--target-lang is required")
 			}
 		}
-		if IsKlzPath(outputFlag) {
-			return errKlzCreateWithExtract
+		if IsKpzPath(outputFlag) {
+			return errKpzCreateWithExtract
 		}
 		if len(inputPaths) == 1 {
 			return a.RunSingleFile(ctx, cmd, flowName, inputPaths[0])
@@ -135,7 +135,7 @@ func (a *App) addFlowRunFlags(cmd Command) {
 	cmd.Flags().String("context", "", "what the model is told about a block besides the block: none, key (default), neighbours")
 	cmd.Flags().String("batching", "", "how many blocks share one LLM call: auto (default), single")
 	cmd.Flags().String("trace", "", "write flow trace JSON to file (for flow visualization)")
-	cmd.Flags().Bool("pack", false, "when transforming a .klz, also eject the result to the .klz (auto-pack)")
+	cmd.Flags().Bool("pack", false, "when transforming a .kpz, also eject the result to the .kpz (auto-pack)")
 	cmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
 	cmd.Flags().String("tm", "", "named TM for recycle flow (resolves from KAPI_HOME)")
 	cmd.Flags().String("termbase", "", "named termbase for term-lookup/enforce (resolves from KAPI_HOME)")
@@ -802,7 +802,7 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 
 	// Writer format defaults to the reader's format (same-in / same-out
 	// round-trip) but a different output extension selects a different
-	// writer. This is how "convert file.json → file.klf → file.mo" works
+	// writer. This is how "convert file.json → file.kbf → file.mo" works
 	// without a dedicated --writer flag — the output path is already the
 	// user's intent declaration.
 	writerFormatName := registryName
@@ -978,7 +978,7 @@ func ensureParentDir(p string) {
 
 // expandOutputTemplate replaces {name}, {lang}, {ext}, and {dir} placeholders
 // in a path template. ext should be without the leading dot. Retained for the
-// .klz workspace merge path (klzworkspace.go); flow/tool runs now route their
+// .kpz workspace merge path (kpzworkspace.go); flow/tool runs now route their
 // explicit-template expansion through expandAdhocOutputTemplate.
 func expandOutputTemplate(tmpl, name, lang, ext, dir string) string {
 	r := strings.NewReplacer(
@@ -1572,7 +1572,7 @@ func (a *App) resolveProjectTermbasePath(cmd Command) (string, error) {
 
 // ResolveProjectGlossary builds a source→target glossary from the project's
 // termbase, for the active source and target locales. It reads the committed
-// .klftb serialization — the termbase's durable form (AD-010) — directly, so the
+// .ktb serialization — the termbase's durable form (AD-010) — directly, so the
 // terminology gate validates the committed state and works at check time in CI,
 // where the gitignored working-store .db doesn't exist (see projectConcepts for
 // the full precedence). Returns nil when no termbase is in scope or it has
@@ -1610,7 +1610,7 @@ func (a *App) ResolveProjectGlossary(cmd Command, targetLang string) ([]coretool
 }
 
 // projectConcepts loads the project's termbase concepts for the read-only check
-// gates. Per the termbase model (AD-010), the committed .klftb is the authored
+// gates. Per the termbase model (AD-010), the committed .ktb is the authored
 // source and the SQLite .db is only a rebuildable read-cache over it — so a ship
 // gate validates the *committed* source: when the recipe binds a termbase_source
 // we decode it directly, no cache required. That is also why the terminology
@@ -1627,14 +1627,14 @@ func (a *App) projectConcepts(cmd Command) ([]sqltb.Concept, error) {
 		}
 	}
 
-	// Source of truth: the committed .klftb serialization.
+	// Source of truth: the committed .ktb serialization.
 	if !explicitStore {
 		srcPath, err := a.resolveProjectTermbaseSourcePath(cmd)
 		if err != nil {
 			return nil, err
 		}
 		if srcPath != "" {
-			return conceptsFromKLFTB(srcPath)
+			return conceptsFromKTB(srcPath)
 		}
 	}
 
@@ -1662,16 +1662,16 @@ func (a *App) projectConcepts(cmd Command) ([]sqltb.Concept, error) {
 	return nil, nil
 }
 
-// conceptsFromKLFTB decodes the committed .klftb termbase serialization into
+// conceptsFromKTB decodes the committed .ktb termbase serialization into
 // concepts — the read-only fast path a check gate uses to validate the
 // committed source of truth without materializing the SQLite working index.
-func conceptsFromKLFTB(path string) ([]sqltb.Concept, error) {
+func conceptsFromKTB(path string) ([]sqltb.Concept, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open termbase source %q: %w", path, err)
 	}
 	defer f.Close()
-	file, err := klftb.Decode(f)
+	file, err := ktb.Decode(f)
 	if err != nil {
 		return nil, fmt.Errorf("decode termbase source %q: %w", path, err)
 	}
@@ -1679,7 +1679,7 @@ func conceptsFromKLFTB(path string) ([]sqltb.Concept, error) {
 }
 
 // resolveProjectTermbaseSourcePath returns the absolute path of the project's
-// committed termbase_source (a .klftb document), or "" when none is bound or the
+// committed termbase_source (a .ktb document), or "" when none is bound or the
 // bound file is missing.
 func (a *App) resolveProjectTermbaseSourcePath(cmd Command) (string, error) {
 	projectPath, err := ResolveProjectPath(cmd)
@@ -1694,11 +1694,11 @@ func (a *App) resolveProjectTermbaseSourcePath(cmd Command) (string, error) {
 	if src == "" {
 		return "", nil
 	}
-	// Only the canonical .klftb termbase document is resolved live at check
+	// Only the canonical .ktb termbase document is resolved live at check
 	// time. Lossy interchange sources (CSV, TBX) are import formats: they're
 	// compiled into .kapi/termbase.db by up/apply and read from there, so we
 	// don't try to decode them here.
-	if !strings.EqualFold(filepath.Ext(src), ".klftb") {
+	if !strings.EqualFold(filepath.Ext(src), ".ktb") {
 		return "", nil
 	}
 	if !filepath.IsAbs(src) {

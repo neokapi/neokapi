@@ -10,7 +10,7 @@
  *   - RangeAnchor: a glossary match inside a text run.
  *
  * The file shape mirrors what an actual
- * `annotations/example.klfl` file would look like after
+ * `annotations/example.overlays.jsonl` file would look like after
  * JSON-Lines parsing: one header record, N annotation records.
  */
 

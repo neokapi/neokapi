@@ -2,7 +2,7 @@
 id: 017-bilingual-format-interop
 sidebar_position: 17
 title: "AD-017: Bilingual Format Interop"
-description: "Architecture decision: kapi supports a full bilingual round-trip — extract emits a bilingual file for a translator or reviewer, merge applies their changes back, and TM is updated on every merge for compounding leverage. neokapi's native interchange format is the lossless bilingual .klz (for kapi-equipped recipients); XLIFF 2.x / PO is the industry-interop tier for third-party CAT tools."
+description: "Architecture decision: kapi supports a full bilingual round-trip — extract emits a bilingual file for a translator or reviewer, merge applies their changes back, and TM is updated on every merge for compounding leverage. neokapi's native interchange format is the lossless bilingual .kpz (for kapi-equipped recipients); XLIFF 2.x / PO is the industry-interop tier for third-party CAT tools."
 keywords: [bilingual format, XLIFF, PO, CAT tool, extract, merge, TM, architecture decision, neokapi]
 ---
 
@@ -14,7 +14,7 @@ Kapi ships an end-to-end bilingual round-trip — `kapi extract` emits a
 bilingual file for a translator or reviewer, `kapi merge` applies the
 returned file back onto the source — with the project TM participating
 on both sides of the loop (pre-fill on extract, absorb on merge).
-neokapi's **native interchange format is the lossless bilingual `.klz`**
+neokapi's **native interchange format is the lossless bilingual `.kpz`**
 (for recipients working in kapi or the standalone neokapi review tool);
 **XLIFF 2.x / PO** is the industry-interop tier for third-party CAT
 tools. Block identity is the merge key; segmentation is an opt-in
@@ -40,7 +40,7 @@ Every data exchange kapi touches falls into one of six categories:
 | --- | ---------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------- |
 | 1   | Authored source        | In                       | JSON, YAML, HTML, .strings, .properties, .docx, .xml, .md, …                                         |
 | 2   | Translated output      | Out                      | Same as #1                                                                                           |
-| 3   | **Bilingual exchange** | Out/In                   | **Bilingual `.klz`** (neokapi-native, lossless — for a kapi-equipped translator/reviewer); **XLIFF 2.x, PO** (industry interop); XLIFF 1.2, Qt TS, XLSX-bilingual, SRT, TTML as format support |
+| 3   | **Bilingual exchange** | Out/In                   | **Bilingual `.kpz`** (neokapi-native, lossless — for a kapi-equipped translator/reviewer); **XLIFF 2.x, PO** (industry interop); XLIFF 1.2, Qt TS, XLSX-bilingual, SRT, TTML as format support |
 | 4   | **Translation memory** | In (loop) / Out/In (TMX) | Project TM (`sievepen/`), TMX for interop                                                            |
 | 5   | Terminology            | In (loop) / Out/In       | Project termbase (`termbase/`), TBX/CSV/JSON                                                         |
 | 6   | Project portability    | Out/In                   | project folder (`kapi.yaml` recipe + `.kapi/` state)                                                 |
@@ -77,7 +77,7 @@ different questions and must not be unified:
   edit is stale or rejected so a fix loop re-inspects. It is the write half of the
   inspect/apply loop and never touches a target locale or absorbs TM as a
   side effect. (Adding a TM pair via an `apply` `tm` entry is itself a *reviewed*
-  edit to the committed `.klftm` source, not the automatic merge-time absorb.)
+  edit to the committed `.kmb` source, not the automatic merge-time absorb.)
 - `kapi merge` applies a **translator's returned targets** and, by default,
   **absorbs** every accepted target segment into the project TM (TM-out, below).
   That accretion is the point of merge and the engine of compounding leverage; it
@@ -149,8 +149,8 @@ The helper lives in `cli/` once and is reused by `run`, `extract`,
 
 Interchange has two tiers, chosen by **who receives the file**:
 
-- **neokapi-native — the bilingual `.klz`.** A task-scoped profile of the `.klz`
-  container ([AD-025](025-klf-package.md) §7): one source→target pair, the blocks
+- **neokapi-native — the bilingual `.kpz`.** A task-scoped profile of the `.kpz`
+  container ([AD-025](025-kbf-package.md) §7): one source→target pair, the blocks
   with faithful inline codes, the segmentation/alignment overlays, the per-source
   skeleton for round-trip, and the relevant TM-match + termbase context — one
   lossless, deterministic, content-addressed file. This is the format kapi
@@ -167,9 +167,9 @@ Interchange has two tiers, chosen by **who receives the file**:
   XLIFF, only offer something better alongside it.
 
 Both tiers flow through the same `extract` / `merge` verbs; `--format` selects the
-carrier (`klz` native, `xliff` / `po` interop). `kapi extract` emits **XLIFF 2.2
-by default** for safe interop with any recipient; the bilingual `.klz` is selected
-with `--format klz` for recipients working in kapi or the neokapi review tool.
+carrier (`kpz` native, `xliff` / `po` interop). `kapi extract` emits **XLIFF 2.2
+by default** for safe interop with any recipient; the bilingual `.kpz` is selected
+with `--format kpz` for recipients working in kapi or the neokapi review tool.
 
 **XLIFF 2.x** is the default *industry-interop* carrier. The reader accepts all
 three 2.x namespaces as a compatible family (`…:2.0`, `…:2.1`,

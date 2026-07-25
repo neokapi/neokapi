@@ -121,13 +121,13 @@ func TestBrandRollup_AggregatesAndIsolates(t *testing.T) {
 
 	storeScore := func(projectID string, s int, at time.Time, dims ...corebrand.DimensionScore) {
 		require.NoError(t, srv.BrandStore.StoreScore(ctx, &corebrand.StoredScore{
-			ProjectID: projectID,
-			BlockID:   id.New(),
-			ProfileID: "vp-1",
-			Locale:    "",
-			Score:     s,
+			ProjectID:  projectID,
+			BlockID:    id.New(),
+			ProfileID:  "vp-1",
+			Locale:     "",
+			Score:      s,
 			Dimensions: dims,
-			CheckedAt: at,
+			CheckedAt:  at,
 		}))
 	}
 	now := time.Now().UTC()

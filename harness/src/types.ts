@@ -94,7 +94,7 @@ export interface DemoManifest {
    * sidecar files — `demo.<locale>.yaml` next to demo.yaml, produced by the
    * dogfood l10n pipeline (`make l10n-demos`, TM-driven; see the
    * demo-narration entry in the root kapi.yaml). Never hand-edit a
-   * sidecar: fix the TM seed (l10n/tm/demo-narration-<lang>.klftm) and
+   * sidecar: fix the TM seed (l10n/tm/demo-narration-<lang>.kmb) and
    * regenerate.
    *
    * The `narration` array in demo.yaml is the English (en) master and stays

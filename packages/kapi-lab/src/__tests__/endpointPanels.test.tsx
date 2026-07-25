@@ -24,7 +24,7 @@ function fakeRuntime(overrides: Partial<LabRuntime> = {}): LabRuntime {
     runCapture: vi.fn(async () => ({ code: 0, output: "" })),
     readFile: vi.fn(() => null),
     readBytes: vi.fn(() => null),
-    klf: vi.fn(() => ({ ok: false, error: "unused" })),
+    kbf: vi.fn(() => ({ ok: false, error: "unused" })),
     segment: vi.fn(() => ({ ok: false, error: "unused" })),
     segmentEngines: vi.fn(() => []),
     ...overrides,

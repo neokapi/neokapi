@@ -15,7 +15,7 @@ const ENGINE_GLOBALS = [
   "labInspectAnnotated",
   "labSegment",
   "labSegmentEngines",
-  "klf",
+  "kbf",
   "kapiEngineABI",
 ] as const;
 
@@ -109,18 +109,18 @@ describe("makeRuntime", () => {
     });
   });
 
-  it("klf round-trips JSON strings and degrades when the endpoint is absent", () => {
+  it("kbf round-trips JSON strings and degrades when the endpoint is absent", () => {
     installCoreGlobals();
     const rt = makeRuntime(createMemFS());
-    expect(rt.klf({ op: "roundtrip" }).ok).toBe(false);
+    expect(rt.kbf({ op: "roundtrip" }).ok).toBe(false);
 
-    globalThis.klf = vi.fn((reqJSON: string) => {
+    globalThis.kbf = vi.fn((reqJSON: string) => {
       const req = JSON.parse(reqJSON) as { op: string };
       return JSON.stringify({ ok: true, op: req.op });
     });
     const rt2 = makeRuntime(createMemFS());
-    expect(rt2.klf({ op: "renderHtml" })).toEqual({ ok: true, op: "renderHtml" });
-    expect(globalThis.klf).toHaveBeenCalledWith(`{"op":"renderHtml"}`);
+    expect(rt2.kbf({ op: "renderHtml" })).toEqual({ ok: true, op: "renderHtml" });
+    expect(globalThis.kbf).toHaveBeenCalledWith(`{"op":"renderHtml"}`);
   });
 
   it("segment maps the wire segments and reports the engine that ran", () => {

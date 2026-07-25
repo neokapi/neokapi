@@ -11,7 +11,7 @@ package main
 //     Oneof-only messages (RunMessage, ContentRef) render as discriminated
 //     unions.
 //  2. Projection shapes: the model.Run JSON (RFC 0001 — the run form used
-//     inside ContentTree, KLF, and flow traces) and the core/editor
+//     inside ContentTree, KBF, and flow traces) and the core/editor
 //     ContentTree family, reflected from the Go structs like the IO-contract
 //     atoms in emit.go.
 
@@ -147,7 +147,7 @@ func emitModelRun() string {
  * discriminator key. Text runs serialize flat — ` + "`" + `{"text":"literal"}` + "`" + ` — per
  * Framework AD-002; every other kind nests its payload struct.
  * Mirrors model.Run.MarshalJSON. This is the run form used by ContentTree,
- * KLF, and flow traces; the wire form is the RunMessage union above.
+ * KBF, and flow traces; the wire form is the RunMessage union above.
  */
 export type Run =
   | { text: string }

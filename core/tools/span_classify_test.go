@@ -97,7 +97,7 @@ func TestSpanClassifyFromData(t *testing.T) {
 	assert.Equal(t, "[B]", open.Disp)
 	// PcClose runs don't carry Disp per RFC 0001 §Block model; the
 	// closing tag's display string is derived from the vocabulary at
-	// render time (see klf.RenderBlockHTML).
+	// render time (see kbf.RenderBlockHTML).
 }
 
 func TestSpanClassifyFromSubType(t *testing.T) {

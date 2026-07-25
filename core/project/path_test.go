@@ -55,20 +55,20 @@ func TestResolveTargetPath_NoDoubleExtension(t *testing.T) {
 // i18n-<lang>/ sprawl. Kept in lockstep with the preset's mapping strings.
 func TestResolveTargetPath_NestedI18nLayout(t *testing.T) {
 	const (
-		glob   = "i18n/src/**/*.klf"
-		target = "i18n/{lang}/{path}.klf"
+		glob   = "i18n/src/**/*.kbf"
+		target = "i18n/{lang}/{path}.kbf"
 	)
 	cases := []struct {
 		src, lang, want string
 	}{
-		{"i18n/src/App.klf", "de", "i18n/de/App.klf"},
-		{"i18n/src/components/Button.klf", "fr", "i18n/fr/components/Button.klf"},
-		{"i18n/src/App.klf", "nb", "i18n/nb/App.klf"},
+		{"i18n/src/App.kbf", "de", "i18n/de/App.kbf"},
+		{"i18n/src/components/Button.kbf", "fr", "i18n/fr/components/Button.kbf"},
+		{"i18n/src/App.kbf", "nb", "i18n/nb/App.kbf"},
 	}
 	for _, c := range cases {
 		got := ResolveTargetPath(glob, "", target, c.src, c.lang)
 		assert.Equal(t, c.want, got, "src=%s lang=%s", c.src, c.lang)
-		assert.NotContains(t, got, ".klf.klf", "must not double the extension")
+		assert.NotContains(t, got, ".kbf.kbf", "must not double the extension")
 		assert.False(t, strings.HasPrefix(got, "i18n/src/"),
 			"target %q must not land inside the source subtree i18n/src/", got)
 	}

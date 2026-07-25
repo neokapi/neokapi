@@ -447,7 +447,7 @@ func (m *mockBlockTMProvider) LookupBlock(_ *model.Block, _, _ model.LocaleID, _
 	return m.match, m.found
 }
 
-// iconBlock builds a block shaped like a KLF icon button: a standalone
+// iconBlock builds a block shaped like a KBF icon button: a standalone
 // placeholder run followed by text.
 func iconBlock(id string) *model.Block {
 	b := model.NewBlock(id, "")

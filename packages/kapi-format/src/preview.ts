@@ -71,7 +71,7 @@ export function renderRuns(runs: Run[], vocab: VocabularyLookup): string {
   return out;
 }
 
-// CLDR plural-form order, mirroring core/klf.pluralOrder, so the Go and
+// CLDR plural-form order, mirroring core/kbf.pluralOrder, so the Go and
 // TypeScript renderers emit forms in the same sequence regardless of the
 // order they were authored in.
 const PLURAL_ORDER = ["zero", "one", "two", "few", "many", "other"];
@@ -84,7 +84,7 @@ function orderedPluralForms(forms: Partial<Record<string, Run[]>>): string[] {
   return [...ordered, ...extras];
 }
 
-// Select-case order, mirroring core/klf.orderedSelectKeys: the keys sorted
+// Select-case order, mirroring core/kbf.orderedSelectKeys: the keys sorted
 // alphabetically, with `other` last.
 function orderedSelectKeys(cases: Record<string, Run[]>): string[] {
   const keys = Object.keys(cases)

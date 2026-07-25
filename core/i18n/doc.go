@@ -2,7 +2,7 @@
 // DisplayName, Description, parameter titles/descriptions, enum labels,
 // group labels) at API boundaries. Catalogs are gettext MO files compiled
 // from the l10n pipeline described in docs/ad/*-i18n-for-go-surfaces.md —
-// KLF is the exchange format in-pipeline; nothing KLF-shaped reaches the
+// KBF is the exchange format in-pipeline; nothing KBF-shaped reaches the
 // runtime binary.
 //
 // The package exposes:

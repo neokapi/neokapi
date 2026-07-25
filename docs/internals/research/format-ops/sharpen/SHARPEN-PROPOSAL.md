@@ -74,7 +74,7 @@ Comprehension/Assurance/Enablement › Fidelity/Trust/Reach › Understanding/Ro
 This is the ladder the user named ("metadata / OCR-to-text / OCR+structure +
 geometry") and the only thing the vision/OCR/structure stack (#900–#912) does
 that no current axis scores (C §2; D §0). It rides the standoff payloads in
-`core/model/structure.go` — additive, no proto/KLF schema change
+`core/model/structure.go` — additive, no proto/KBF schema change
 (`structure.go:1-18`).
 
 ### The ladder (cumulative; each rung = one richer standoff payload, in value order)

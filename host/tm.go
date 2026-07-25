@@ -14,7 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/sievepen/klftm"
+	"github.com/neokapi/neokapi/sievepen/kmb"
 )
 
 func (a *App) OpenTMSQLite(cmd Command) (sievepen.TMStore, string, error) {
@@ -70,13 +70,16 @@ func (a *App) resolveProjectTMPath(cmd Command) (string, error) {
 }
 
 // ResolveTMFileFormat maps the --format flag (or, for "auto", the file
-// extension) to a TM file format name. Anything that is not .klftm is
-// treated as TMX, matching the historical default.
+// extension) to a TM file format name. Anything that is neither .kmb nor .kmz
+// is treated as TMX, matching the historical default.
 func ResolveTMFileFormat(flag, path string) string {
 	switch strings.ToLower(flag) {
 	case "", "auto":
-		if strings.HasSuffix(strings.ToLower(path), ".klftm") {
-			return "klftm"
+		switch {
+		case strings.HasSuffix(strings.ToLower(path), kmb.Ext):
+			return "kmb"
+		case strings.HasSuffix(strings.ToLower(path), kmb.ArchiveExt):
+			return "kmz"
 		}
 		return "tmx"
 	default:
@@ -84,22 +87,39 @@ func ResolveTMFileFormat(flag, path string) string {
 	}
 }
 
-// ImportKLFTMFile imports a native .klftm document. Entries keep their
+// ImportKMBFile imports a native .kmb document. Entries keep their
 // serialized identity (BulkAddWithStream upserts by entry ID), and any
 // import sessions recorded in the file are recreated when absent, so a
 // wipe-and-reseed produces a byte-identical TM state.
-func ImportKLFTMFile(ctx context.Context, tm sievepen.TMStore, path string) (int, error) {
+func ImportKMBFile(ctx context.Context, tm sievepen.TMStore, path string) (int, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return 0, fmt.Errorf("open %s: %w", path, err)
 	}
 	defer f.Close()
 
-	file, err := klftm.Decode(f)
+	file, err := kmb.Decode(f)
 	if err != nil {
 		return 0, fmt.Errorf("parse %s: %w", path, err)
 	}
+	return importKMB(ctx, tm, path, file)
+}
 
+// ImportKMZFile imports a .kmz archive — the compressed single-member container
+// around a .kmb bundle. Semantics are identical to ImportKMBFile.
+func ImportKMZFile(ctx context.Context, tm sievepen.TMStore, path string) (int, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0, fmt.Errorf("open %s: %w", path, err)
+	}
+	file, err := kmb.UnmarshalArchive(data)
+	if err != nil {
+		return 0, fmt.Errorf("parse %s: %w", path, err)
+	}
+	return importKMB(ctx, tm, path, file)
+}
+
+func importKMB(ctx context.Context, tm sievepen.TMStore, path string, file *kmb.File) (int, error) {
 	entries := file.ModelEntries()
 	if len(entries) > 0 {
 		if bulk, ok := tm.(sievepen.BulkAdder); ok {
@@ -122,6 +142,37 @@ func ImportKLFTMFile(ctx context.Context, tm sievepen.TMStore, path string) (int
 		}
 	}
 	return len(entries), nil
+}
+
+// ExportKMB writes the whole TM as a deterministic, lossless .kmb document —
+// the native form for committing a TM to git and for re-seeding one exactly.
+func ExportKMB(ctx context.Context, tm sievepen.TMStore, w io.Writer) error {
+	return exportTM(ctx, tm, w, kmb.Marshal)
+}
+
+// ExportKMZ writes the whole TM as a .kmz archive: the same .kmb bytes inside
+// the compressed single-member container.
+func ExportKMZ(ctx context.Context, tm sievepen.TMStore, w io.Writer) error {
+	return exportTM(ctx, tm, w, kmb.MarshalArchive)
+}
+
+func exportTM(ctx context.Context, tm sievepen.TMStore, w io.Writer, marshal func(*kmb.File) ([]byte, error)) error {
+	entries, err := tm.Entries(ctx)
+	if err != nil {
+		return fmt.Errorf("list TM entries: %w", err)
+	}
+	sessions, err := tm.ListImportSessions(ctx)
+	if err != nil {
+		return fmt.Errorf("list import sessions: %w", err)
+	}
+	data, err := marshal(kmb.FromModel(entries, sessions))
+	if err != nil {
+		return fmt.Errorf("marshal TM bundle: %w", err)
+	}
+	if _, err := w.Write(data); err != nil {
+		return fmt.Errorf("write TM bundle: %w", err)
+	}
+	return nil
 }
 
 // ParseLocaleList parses a comma-separated locale list, trimming whitespace.
@@ -244,7 +295,7 @@ func TruncateID(id string, max int) string {
 	return id[:max]
 }
 
-// markupTokenRe matches KLF runtime-projection markup tokens ({=m0},
+// markupTokenRe matches KBF runtime-projection markup tokens ({=m0},
 // {/=m0}) serialized as literal text.
 var markupTokenRe = regexp.MustCompile(`\{/?=m\d+\}`)
 

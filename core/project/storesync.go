@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/blockstore"
-	"github.com/neokapi/neokapi/core/klf"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/registry"
 )
 
@@ -260,7 +260,7 @@ func ExtractToBlockStore(
 			// Key the block globally-unique per (source file, in-file id) so
 			// blocks from different files/collections don't collide in the
 			// hash-keyed store.
-			kb := &klf.Block{
+			kb := &kbf.Block{
 				ID:           b.ID,
 				Hash:         BlockStoreHash(rf.Relative, b.ID, b.SourceText()),
 				Translatable: b.Translatable,

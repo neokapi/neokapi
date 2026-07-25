@@ -353,7 +353,7 @@ func discoverCompanions(t *testing.T, inputAbs string) map[string][]byte {
 
 // coverageScans defines one scan per format. The set mirrors what the
 // upstream Okapi RoundTrip<X>IT.java suite covers: same directories,
-// same files. Formats with no upstream roundtrip suite (jsx, klf,
+// same files. Formats with no upstream roundtrip suite (jsx, kbf,
 // versifiedtext, messageformat — neokapi-only) and formats where the
 // upstream Okapi pipeline itself can't produce a reference (txml NPE
 // on merge, rtf has only tradosrtf, epub has no okf_epub) are

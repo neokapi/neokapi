@@ -20,7 +20,7 @@ import (
 //   - map-valued fields (properties, targets, plural forms, select cases)
 //     are sorted by key (encoding/json sorts string/TextMarshaler map keys);
 //   - empty/zero fields are omitted (omitempty);
-//   - HTML escaping is disabled, matching model.Run.MarshalJSON and the KLF
+//   - HTML escaping is disabled, matching model.Run.MarshalJSON and the KBF
 //     wire form, so `<b>` stays literal and content hashes stay
 //     implementation-independent;
 //   - UTF-8, one event per line, LF separators, trailing newline, no

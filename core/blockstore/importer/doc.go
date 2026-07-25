@@ -1,12 +1,12 @@
 // Package importer lands external translations (from TMX, TBX, XLIFF,
-// PO, KLF files, or HTTP webhook payloads) as target overlays on
+// PO, KBF files, or HTTP webhook payloads) as target overlays on
 // existing blocks in a blockstore.Store — without going through the
 // full kapi-extract pipeline.
 //
 // Two entry points:
 //
 //   - ImportFromFormat wraps any `format.DataFormatReader` (every
-//     built-in format — TMX, TBX, XLIFF, PO, KLF, JSON, markdown, …
+//     built-in format — TMX, TBX, XLIFF, PO, KBF, JSON, markdown, …
 //     works out of the box). Each incoming block's source text is
 //     hashed and matched against existing source blocks in the
 //     target store; for every matched block + locale pair, a

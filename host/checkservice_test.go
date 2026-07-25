@@ -86,10 +86,10 @@ func TestOverlayTargets(t *testing.T) {
 	assert.Empty(t, src[1].TargetText("fr"), "unmatched unit keeps an empty target")
 }
 
-// TestOverlayTargets_Bilingual covers a bilingual target file — kapi's own .klf
+// TestOverlayTargets_Bilingual covers a bilingual target file — kapi's own .kbf
 // interchange, where the source stays in place and the translation lives under
 // targets.<locale>. OverlayTargets must lift the target-locale runs, not the
-// block's source runs; lifting the source made every .klf target read as
+// block's source runs; lifting the source made every .kbf target read as
 // identical to the source (the bug behind check --ship flagging every bilingual
 // target "untranslated"). A monolingual target (translation in source position,
 // e.g. fr-FR.json) still works via the source-runs fallback.
@@ -98,7 +98,7 @@ func TestOverlayTargets_Bilingual(t *testing.T) {
 	src[0].SetSourceText("Home")
 
 	// Bilingual target block: English still in the source slot, the translation
-	// carried as the nb target — exactly what the .klf reader produces.
+	// carried as the nb target — exactly what the .kbf reader produces.
 	tgt := []*model.Block{{ID: "1", Name: "a", Translatable: true}}
 	tgt[0].SetSourceText("Home")
 	tgt[0].SetTargetText("nb", "Hjem")

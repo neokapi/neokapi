@@ -20,7 +20,7 @@ describe("GENERATIVE_TARGETS", () => {
       expect(ids).not.toContain(id);
     }
     // Bilingual interchange belongs to the extract/merge loop, not convert.
-    for (const id of ["xliff", "xliff2", "po", "tmx", "klf"]) {
+    for (const id of ["xliff", "xliff2", "po", "tmx", "kbf"]) {
       expect(ids).not.toContain(id);
     }
   });

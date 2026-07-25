@@ -8,14 +8,14 @@ rmSync("dist", { recursive: true, force: true });
 
 // Every source file is an entry point: bundle:false transpiles each in place so
 // the published package keeps the same module graph (the subpath exports —
-// ./block, ./klf, … — resolve to their own dist files).
+// ./block, ./kbf, … — resolve to their own dist files).
 const entryPoints = [
   "src/index.ts",
   "src/block.ts",
   "src/vocabulary.ts",
   "src/preview.ts",
   "src/annotation.ts",
-  "src/klf.ts",
+  "src/kbf.ts",
   "src/target-plural.ts",
   "src/runs.ts",
   "src/runs-validate.ts",

@@ -1061,7 +1061,7 @@ KAPI_DESKTOP_EXTRACT_SRC := --src "src/**/*.{tsx,jsx}" --src "../../../packages/
 i18n-react-build: ## Build @neokapi/i18n-react (runtime + vite plugin + CLI) into dist/
 	cd packages/i18n-react && vp run build
 
-kapi-desktop-extract: kapi-desktop-frontend-deps i18n-react-build ## Extract translatable blocks to i18n/ (per-file .klf)
+kapi-desktop-extract: kapi-desktop-frontend-deps i18n-react-build ## Extract translatable blocks to i18n/ (per-file .kbf)
 	cd $(KAPI_DESKTOP_DIR)/frontend && $(NEOKAPI_I18N_CLI) extract --out i18n/ --target-locale qps $(KAPI_DESKTOP_EXTRACT_SRC)
 
 kapi-desktop-pseudo-translate: kapi-desktop-extract bin/kapi ## Pseudo-translate i18n/ → i18n-qps/
@@ -1089,7 +1089,7 @@ BOWRAIN_APP_DIR := bowrain/packages/app
 BOWRAIN_UI_IGNORES := --ignore "**/*.stories.tsx" --ignore "**/*.test.tsx" --ignore "**/__tests__/**" --ignore "**/stories/**" --ignore "**/demo/**"
 BOWRAIN_APP_EXTRACT_SRC := --src "src/**/*.{tsx,jsx}" --src "../ui/src/**/*.tsx" --src "../../apps/web/src/**/*.tsx" --src "../../apps/bowrain/frontend/src/**/*.tsx" $(BOWRAIN_UI_IGNORES)
 
-bowrain-app-extract: i18n-react-build ## Extract bowrain app+ui+shell strings to bowrain/packages/app/i18n/ (per-file .klf)
+bowrain-app-extract: i18n-react-build ## Extract bowrain app+ui+shell strings to bowrain/packages/app/i18n/ (per-file .kbf)
 	cd $(BOWRAIN_APP_DIR) && $(NEOKAPI_I18N_CLI) extract --config neokapi-i18n.config.json --out i18n/ --target-locale qps $(BOWRAIN_APP_EXTRACT_SRC)
 
 bowrain-app-pseudo-translate: bowrain-app-extract bin/kapi ## Pseudo-translate bowrain app i18n/ → i18n-qps/
@@ -1163,15 +1163,15 @@ kapi-i18n-translations: kapi-i18n-pseudo-translate ## Regenerate + pseudo-transl
 # produced by TM leverage so output only ever contains reviewed strings.
 L10N_LANGS := nb
 
-# Seeds are committed in the native KLF-family forms (.klftm / .klftb):
+# Seeds are committed in the native Kapi-family forms (.kmb / .ktb):
 # deterministic, lossless, and identity-preserving, so wipe-and-reseed
 # reproduces the TM/termbase state exactly. TMX/CSV are the lossy
 # interchange tier — emit them on demand with l10n-review-export.
 l10n-seed: bin/kapi ## Rebuild .kapi/ termbase + TM from the committed l10n/ seeds
 	@mkdir -p .kapi/cache
 	@rm -f .kapi/termbase.db .kapi/tm.db
-	./bin/kapi termbase import l10n/termbase.klftb
-	@for f in l10n/tm/*.klftm; do \
+	./bin/kapi termbase import l10n/termbase.ktb
+	@for f in l10n/tm/*.kmb; do \
 		[ -e "$$f" ] || continue; \
 		./bin/kapi tm import "$$f"; \
 	done
@@ -1180,7 +1180,7 @@ l10n-review-export: l10n-seed ## Emit disposable TMX/CSV review views of the nat
 	@mkdir -p l10n/review
 	./bin/kapi tm export --format tmx -o l10n/review/tm-all.tmx
 	./bin/kapi termbase export --format csv -s en -t nb -o l10n/review/termbase-en-nb.csv
-	@echo "Review views written to l10n/review/ (gitignored; the .klftm/.klftb seeds are the source of truth)"
+	@echo "Review views written to l10n/review/ (gitignored; the .kmb/.ktb seeds are the source of truth)"
 
 l10n-builtins: l10n-seed kapi-i18n-generate ## Builtin tool/format metadata → core/i18n/catalogs/<lang>.mo (TM-driven)
 	@for lang in $(L10N_LANGS); do \
@@ -1246,7 +1246,7 @@ l10n-cli: l10n-seed kapi-cli-i18n-generate ## CLI help + output chrome → host/
 # so the yaml keyPathPatterns in kapi.yaml bind (only narration/caption/
 # title/subtitle are translatable — never ids, beats, commands, or timings).
 # Sidecars are generated only for the demos listed here — the ones with
-# reviewed nb narration in the TM (l10n/tm/demo-narration-nb.klftm); add a
+# reviewed nb narration in the TM (l10n/tm/demo-narration-nb.kmb); add a
 # demo dir once its narration has been translated.
 L10N_DEMO_DIRS := 05-ai-checks-guardrail 09-toolbox-find-replace \
 	kapi-bilingual-workflow kapi-desktop-config kapi-desktop-content \
@@ -1283,7 +1283,7 @@ l10n: l10n-builtins l10n-desktop l10n-cli l10n-demos l10n-docs l10n-bowrain-docs
 
 # ── Transactional emails (bowrain/emails → bowrain/mailer) ──────────────────
 # neokapi-i18n extraction over the React Email templates; qps via pseudo, nb via
-# TM recycle from l10n/tm/emails-nb.klftm; compiled catalogs are inlined into
+# TM recycle from l10n/tm/emails-nb.kmb; compiled catalogs are inlined into
 # per-locale template renders (bowrain/mailer/templates/<lang>/*.html) and the
 # subject catalogs (bowrain/mailer/subjects/<lang>.json) — both committed and
 # embedded into the server binary, so they are drift-gated (emails-l10n-verify).
@@ -1293,7 +1293,7 @@ KAPI_EMAILS_EXTRACT_SRC := --src "src/*.tsx" --ignore "src/*.stories.tsx" --igno
 emails-frontend-deps: ## Install email template dependencies
 	cd $(EMAILS_DIR) && vp install
 
-emails-extract: emails-frontend-deps i18n-react-build ## Extract translatable email blocks → bowrain/emails/i18n/ (per-file .klf)
+emails-extract: emails-frontend-deps i18n-react-build ## Extract translatable email blocks → bowrain/emails/i18n/ (per-file .kbf)
 	cd $(EMAILS_DIR) && $(NEOKAPI_I18N_CLI) extract --config neokapi-i18n.config.json --out i18n/ --target-locale qps $(KAPI_EMAILS_EXTRACT_SRC)
 
 emails-pseudo-translate: emails-extract bin/kapi ## Pseudo-translate email strings + subjects → qps
@@ -1906,14 +1906,14 @@ docs-wasm:
 docs-verify-snippets: web-wasm-cli ## Verify every RunnableSnippet + scene smoke_contract runs green in wasm
 	node --experimental-strip-types scripts/verify-snippets/harness.ts
 
-klf-smoke: web-wasm-cli ## Verify KLF Go(wasm)↔TS parity for the docs Tests page (serialization, preview, anchors, validation)
-	node --experimental-strip-types scripts/verify-snippets/klf-smoke.ts
+kbf-smoke: web-wasm-cli ## Verify KBF Go(wasm)↔TS parity for the docs Tests page (serialization, preview, anchors, validation)
+	node --experimental-strip-types scripts/verify-snippets/kbf-smoke.ts
 
-klz-smoke: build ## Verify the resumable .klz workspace lifecycle (open→step→finish == one-shot; pack stable)
-	bash scripts/klz-smoke.sh $(BIN_DIR)/kapi
+kpz-smoke: build ## Verify the resumable .kpz workspace lifecycle (open→step→finish == one-shot; pack stable)
+	bash scripts/kpz-smoke.sh $(BIN_DIR)/kapi
 
-klz-wasm-smoke: web-wasm-cli ## Verify .klz workspace + .kapi project run in the browser WASM engine (JSON + Office)
-	GOROOT="$$($(GO) env GOROOT)" node --experimental-strip-types scripts/klz-wasm-smoke.ts
+kpz-wasm-smoke: web-wasm-cli ## Verify .kpz workspace + .kapi project run in the browser WASM engine (JSON + Office)
+	GOROOT="$$($(GO) env GOROOT)" node --experimental-strip-types scripts/kpz-wasm-smoke.ts
 
 wasm-surface-smoke: web-wasm-cli ## Verify no browser verb answers "unknown command", gaps explain themselves, and the labs' own argv still runs
 	node --experimental-strip-types scripts/verify-snippets/command-surface-smoke.ts
@@ -2127,7 +2127,7 @@ help: ## Show this help
         generate-format-docs generate-reference-docs check-reference-docs generate-reference-pages \
         generate-contract-types check-contract-types \
         docs-deps docs-dev docs-wasm docs-build docs-serve docs-verify-snippets \
-        klf-smoke klz-smoke klz-wasm-smoke wasm-surface-smoke \
+        kbf-smoke kpz-smoke kpz-wasm-smoke wasm-surface-smoke \
         landing-build landing-build-nb docs-build-prod bowrain-docs-build-prod publish-landing publish-website \
         emails-frontend-deps emails-extract emails-pseudo-translate l10n-emails emails-l10n-verify \
         landing-frontend-deps landing-extract landing-pseudo-translate l10n-landing landing-l10n-verify \

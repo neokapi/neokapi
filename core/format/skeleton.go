@@ -143,7 +143,7 @@ func (s *SkeletonStore) EntriesWritten() int { return s.entries }
 // WriteText/WriteRef/WriteLang without a separate Flush. For a file-backed
 // store the bytes are read back from the backing file; for a memory-backed
 // store they come straight from the buffer. The returned slice is a copy the
-// caller owns, so embedding it (e.g. as a .klz skeleton member) is safe even
+// caller owns, so embedding it (e.g. as a .kpz skeleton member) is safe even
 // after the store is closed. Used by kapi to capture a source's skeleton into
 // a portable package (AD-025 §6).
 func (s *SkeletonStore) Bytes() ([]byte, error) {
@@ -227,7 +227,7 @@ func NewSkeletonStoreAt(path string) (*SkeletonStore, error) {
 // NewSkeletonStoreFromBytes returns a read-mode skeleton store backed by the
 // given serialized stream (the bytes a prior Bytes() call produced). Use it to
 // consume a skeleton carried inline rather than on the filesystem — e.g. a
-// .klz package that embeds the round-trip skeleton as a member (AD-025 §6).
+// .kpz package that embeds the round-trip skeleton as a member (AD-025 §6).
 // The store is ready to read via Next(); Close() is a no-op (no backing file).
 func NewSkeletonStoreFromBytes(data []byte) *SkeletonStore {
 	buf := bytes.NewBuffer(append([]byte(nil), data...))

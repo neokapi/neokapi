@@ -74,7 +74,7 @@ switch and for released okapi-bridge JARs).
 
 Note that the model's in-process Run JSON (`model.Run.MarshalJSON`, RFC 0001 —
 flat `{"text":"literal"}` text runs) is a distinct, stable encoding used
-*inside* projections (ContentTree, KLF, flow traces); the wire form nests the
+*inside* projections (ContentTree, KBF, flow traces); the wire form nests the
 text payload (`{"text":{"text":"literal"}}`).
 
 ## Generated artifacts

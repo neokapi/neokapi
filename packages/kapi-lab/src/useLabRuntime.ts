@@ -10,8 +10,8 @@ import type {
   BootProgress,
   InspectResult,
   KapiRuntime,
-  KlfRequest,
-  KlfResponse,
+  KbfRequest,
+  KbfResponse,
   SegmentResult,
   TraceRunResult,
 } from "@neokapi/kapi-playground/runtime";
@@ -103,8 +103,8 @@ export interface LabRuntime {
   /** Read raw bytes from the in-memory filesystem, or null (for binary
    *  outputs like .docx — used to confirm a valid OOXML zip was produced). */
   readBytes: (path: string) => Uint8Array | null;
-  /** Run a KLF spec operation against the canonical Go engine (synchronous). */
-  klf: (req: KlfRequest) => KlfResponse;
+  /** Run a KBF spec operation against the canonical Go engine (synchronous). */
+  kbf: (req: KbfRequest) => KbfResponse;
   /** Segment raw text with a named engine + locale (synchronous). */
   segment: (text: string, engine: string, locale: string) => SegmentResult;
   /** Segmentation engine names registered in this wasm build. */
@@ -303,18 +303,18 @@ export function useLabRuntime(
     }
   }, []);
 
-  const klf = useCallback((req: KlfRequest): KlfResponse => {
+  const kbf = useCallback((req: KbfRequest): KbfResponse => {
     const rt = runtimeRef.current;
     if (!rt) return { ok: false, error: "runtime not ready" };
-    // The klf endpoint is pure CPU work over an in-memory JSON payload (no fs,
+    // The kbf endpoint is pure CPU work over an in-memory JSON payload (no fs,
     // no shared stdout), so it needs no serialization against the run chain.
-    return rt.klf(req);
+    return rt.kbf(req);
   }, []);
 
   const segment = useCallback((text: string, engine: string, locale: string): SegmentResult => {
     const rt = runtimeRef.current;
     if (!rt) return { ok: false, error: "runtime not ready" };
-    // Like klf: pure CPU (plus, for uax29, one re-entrant ICU4X JS call) over an
+    // Like kbf: pure CPU (plus, for uax29, one re-entrant ICU4X JS call) over an
     // in-memory string, no fs or shared stdout — no run-chain serialization.
     return rt.segment(text, engine, locale);
   }, []);
@@ -345,7 +345,7 @@ export function useLabRuntime(
       runCapture,
       readFile,
       readBytes,
-      klf,
+      kbf,
       segment,
       segmentEngines,
     }),
@@ -363,7 +363,7 @@ export function useLabRuntime(
       runCapture,
       readFile,
       readBytes,
-      klf,
+      kbf,
       segment,
       segmentEngines,
     ],

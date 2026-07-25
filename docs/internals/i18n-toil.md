@@ -179,7 +179,7 @@ inside the skill so the agent can consult it). Schema per entry:
     deps: [react-i18next, i18next]     # package manifests (package.json, pubspec.yaml, gemfile, go.mod, csproj…)
     files: [public/locales/*/]         # marker files/dirs/globs
   catalog:
-    format: json               # kapi format id that reads it (json|po|arb|xcstrings|androidxml|applestrings|xliff|properties|resx|yaml|klf)
+    format: json               # kapi format id that reads it (json|po|arb|xcstrings|androidxml|applestrings|xliff|properties|resx|yaml|kbf)
     layout: public/locales/{lang}/*.json
   kapi:
     preset: react-i18next      # kapi init --framework id, or null

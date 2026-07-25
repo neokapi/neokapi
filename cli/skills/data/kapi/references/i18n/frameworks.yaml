@@ -19,8 +19,8 @@ frameworks:
     status: recommended
     detect:
       deps: ["@neokapi/i18n-react"]
-      files: ["i18n/*.klf"]
-    catalog: { format: klf, layout: "i18n/{lang}.klf" }
+      files: ["i18n/*.kbf"]
+    catalog: { format: kbf, layout: "i18n/{lang}.kbf" }
     kapi: { preset: neokapi-i18n, flags: null }   # preset is detection-only; adoption is the bundler workflow (Path A)
     toil:
       stock:       { w: 1, x: 0, s: 1, r: 1, e: 1 }

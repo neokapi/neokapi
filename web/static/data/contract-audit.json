@@ -18168,12 +18168,12 @@
                 "durationMs": 0
               },
               {
-                "name": "TestReaderReadsKLF",
+                "name": "TestReaderReadsKBF",
                 "status": "pass",
                 "durationMs": 0
               },
               {
-                "name": "TestReaderSniffsKLFEnvelope",
+                "name": "TestReaderSniffsKBFEnvelope",
                 "status": "pass",
                 "durationMs": 0
               },
@@ -18228,7 +18228,7 @@
                 "durationMs": 0
               },
               {
-                "name": "TestWriterRoundTripKLF",
+                "name": "TestWriterRoundTripKBF",
                 "status": "pass",
                 "durationMs": 0
               }

@@ -62,7 +62,7 @@ func TestSetupTrial_WritesDeadline(t *testing.T) {
 }
 
 // Two workspaces must both get a trial. The schema once declared
-// stripe_customer_id as NOT NULL UNIQUE while SetupTrial inserted '', so the
+// stripe_customer_id as NOT NULL UNIQUE while SetupTrial inserted ”, so the
 // second workspace's insert collided — and SetupTrial only logs, so the second
 // workspace silently got no subscription at all. Migration v2 fixed the schema
 // (partial unique index); this pins it, because the failure is invisible.

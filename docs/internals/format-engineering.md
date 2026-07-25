@@ -78,7 +78,7 @@ writer: if `w.Locale` is set **and** `block.HasTarget(w.Locale)` →
 ## 2. Canonical file layout
 
 Minimum: `reader.go`, `writer.go`, `config.go` (name == id). Of 52 dirs, ~49 are
-real formats — `exec`, `jsx` (klf-rename alias stub), and `memorytest` are
+real formats — `exec`, `jsx` (kbf-rename alias stub), and `memorytest` are
 thin/internal.
 
 | File | Responsibility |
@@ -328,7 +328,7 @@ Issue numbers are embedded in source comments and fixture names
 - **Harvest recipe** (no Okapi counterpart): byte-faithful like json + generated
   reference-data; the test ladder is corpus + invariants + tool-gated
   acceptance; detection is native-first; registered writers, not scripts;
-  configure the JSON/YAML readers rather than fork; KLF is exchange-only;
+  configure the JSON/YAML readers rather than fork; KBF is exchange-only;
   `//go:generate`, not runtime export.
 - **Never gloss a FAIL as "pre-existing."** Tracked-open: pdf #617, xliff2 #560
   (~21 byte-equal fails), archive #504, openxml RunFonts. The 42% dashboard was

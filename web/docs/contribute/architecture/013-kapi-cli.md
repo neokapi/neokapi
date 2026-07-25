@@ -67,7 +67,7 @@ subcommands:
 kapi
 ├── <tool>                   # run a tool directly (pseudo-translate, translate, …)
 ├── run FLOW                 # execute a composed flow
-├── extract                  # emit a bilingual file for a translator/reviewer — native .klz or XLIFF/PO (AD-017)
+├── extract                  # emit a bilingual file for a translator/reviewer — native .kpz or XLIFF/PO (AD-017)
 ├── merge                    # apply a translator's returned bilingual file (AD-017)
 ├── init                     # scaffold a new .kapi project
 ├── add                      # add file patterns to the project's content

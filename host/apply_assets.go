@@ -14,9 +14,9 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/sievepen/klftm"
+	"github.com/neokapi/neokapi/sievepen/kmb"
 	"github.com/neokapi/neokapi/termbase"
-	"github.com/neokapi/neokapi/termbase/klftb"
+	"github.com/neokapi/neokapi/termbase/ktb"
 	"gopkg.in/yaml.v3"
 )
 
@@ -70,12 +70,12 @@ func (a *App) resolveProjectRoot(cmd Command) (recipePath, root string, err erro
 }
 
 // ---------------------------------------------------------------------------
-// term → committed .klftb source → termbase import compile into .kapi/termbase.db
+// term → committed .ktb source → termbase import compile into .kapi/termbase.db
 // ---------------------------------------------------------------------------
 
-// applyTermEntry upserts a glossary term. It edits the committed .klftb source
-// the recipe binds (creating l10n/termbase.klftb and binding it when none
-// exists), then re-imports the whole .klftb into the project termbase (.db)
+// applyTermEntry upserts a glossary term. It edits the committed .ktb source
+// the recipe binds (creating l10n/termbase.ktb and binding it when none
+// exists), then re-imports the whole .ktb into the project termbase (.db)
 // cache so the SQLite store reflects the committed source — one write path.
 func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.Term}
@@ -97,7 +97,7 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 		return errResult(res, err.Error())
 	}
 
-	concepts, err := loadKLFTBConcepts(srcPath)
+	concepts, err := loadKTBConcepts(srcPath)
 	if err != nil {
 		return errResult(res, err.Error())
 	}
@@ -118,7 +118,7 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 		return res
 	}
 
-	if err := writeKLFTB(srcPath, concepts); err != nil {
+	if err := writeKTB(srcPath, concepts); err != nil {
 		return errResult(res, err.Error())
 	}
 	if err := a.compileTermbaseSource(ctx, root, srcPath); err != nil {
@@ -130,9 +130,9 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 	return res
 }
 
-// ensureTermbaseSourceBinding returns the committed .klftb source path the
+// ensureTermbaseSourceBinding returns the committed .ktb source path the
 // recipe binds via defaults.termbase_source, creating a default
-// (l10n/termbase.klftb) and writing the binding into the recipe when none is
+// (l10n/termbase.ktb) and writing the binding into the recipe when none is
 // bound — so future runs are consistent.
 func (a *App) ensureTermbaseSourceBinding(recipePath, root string) (string, error) {
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
@@ -142,7 +142,7 @@ func (a *App) ensureTermbaseSourceBinding(recipePath, root string) (string, erro
 	if bound := proj.Defaults.TermbaseSource; bound != "" {
 		return resolveUnder(root, bound), nil
 	}
-	rel := filepath.Join("l10n", "termbase.klftb")
+	rel := filepath.Join("l10n", "termbase.ktb")
 	proj.Defaults.TermbaseSource = rel
 	// Bind the compiled cache too, so term enforcement (resolveProjectTermbasePath)
 	// reads the .db this source compiles into rather than an unrelated default.
@@ -155,7 +155,7 @@ func (a *App) ensureTermbaseSourceBinding(recipePath, root string) (string, erro
 	return resolveUnder(root, rel), nil
 }
 
-// compileTermbaseSource re-imports the committed .klftb into the project
+// compileTermbaseSource re-imports the committed .ktb into the project
 // termbase (.db) cache — the single store-write path. The cache is the recipe's
 // bound termbase, else the .kapi/termbase.db convention.
 func (a *App) compileTermbaseSource(ctx context.Context, root, srcPath string) error {
@@ -178,15 +178,15 @@ func (a *App) compileTermbaseSource(ctx context.Context, root, srcPath string) e
 		return fmt.Errorf("open termbase source: %w", err)
 	}
 	defer f.Close()
-	if _, err := ImportKLFTBFile(ctx, tb, f); err != nil {
+	if _, err := ImportKTBFile(ctx, tb, f); err != nil {
 		return fmt.Errorf("compile termbase: %w", err)
 	}
 	return nil
 }
 
-// loadKLFTBConcepts reads the concepts from a .klftb source, returning an empty
+// loadKTBConcepts reads the concepts from a .ktb source, returning an empty
 // slice when the file does not exist yet (the first term creates it).
-func loadKLFTBConcepts(path string) ([]termbase.Concept, error) {
+func loadKTBConcepts(path string) ([]termbase.Concept, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -195,20 +195,20 @@ func loadKLFTBConcepts(path string) ([]termbase.Concept, error) {
 		return nil, fmt.Errorf("open termbase source: %w", err)
 	}
 	defer f.Close()
-	file, err := klftb.Decode(f)
+	file, err := ktb.Decode(f)
 	if err != nil {
 		return nil, fmt.Errorf("parse termbase source: %w", err)
 	}
 	return file.Concepts, nil
 }
 
-// writeKLFTB serializes concepts to a deterministic .klftb document, creating
+// writeKTB serializes concepts to a deterministic .ktb document, creating
 // parent directories. The deterministic marshal keeps `git diff` minimal.
-func writeKLFTB(path string, concepts []termbase.Concept) error {
+func writeKTB(path string, concepts []termbase.Concept) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("create source dir: %w", err)
 	}
-	data, err := klftb.Marshal(klftb.FromConcepts(concepts))
+	data, err := ktb.Marshal(ktb.FromConcepts(concepts))
 	if err != nil {
 		return fmt.Errorf("marshal termbase source: %w", err)
 	}
@@ -262,7 +262,7 @@ func upsertTerm(concepts []termbase.Concept, text string, locale model.LocaleID,
 }
 
 // replacementNote folds a forbidden term's suggested replacement into the
-// term note (klftb's Term has no dedicated replacement field), so the guidance
+// term note (ktb's Term has no dedicated replacement field), so the guidance
 // survives the round-trip.
 func replacementNote(replacement string) string {
 	if replacement == "" {
@@ -278,7 +278,7 @@ func conceptID(text string, locale model.LocaleID) string {
 }
 
 // ---------------------------------------------------------------------------
-// tm → committed .klftm source → tm import compile into .kapi/tm.db
+// tm → committed .kmb source → tm import compile into .kapi/tm.db
 // ---------------------------------------------------------------------------
 
 // applyReviewEntry records a review decision in the project STATE store via the
@@ -317,9 +317,9 @@ func (a *App) applyReviewEntry(ctx context.Context, cmd Command, e changeEntry) 
 	return res
 }
 
-// applyTMEntry adds a source→target TM pair. It edits the committed .klftm
-// source the recipe binds (creating l10n/tm.klftm and binding it when none
-// exists), then re-imports the .klftm into the project TM (.kapi/tm.db) cache.
+// applyTMEntry adds a source→target TM pair. It edits the committed .kmb
+// source the recipe binds (creating l10n/tm.kmb and binding it when none
+// exists), then re-imports the .kmb into the project TM (.kapi/tm.db) cache.
 func (a *App) applyTMEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.Source}
 
@@ -340,7 +340,7 @@ func (a *App) applyTMEntry(ctx context.Context, cmd Command, e changeEntry) asse
 		return errResult(res, err.Error())
 	}
 
-	entries, err := loadKLFTMEntries(srcPath)
+	entries, err := loadKMBEntries(srcPath)
 	if err != nil {
 		return errResult(res, err.Error())
 	}
@@ -370,7 +370,7 @@ func (a *App) applyTMEntry(ctx context.Context, cmd Command, e changeEntry) asse
 		return res
 	}
 
-	if err := writeKLFTM(srcPath, entries); err != nil {
+	if err := writeKMB(srcPath, entries); err != nil {
 		return errResult(res, err.Error())
 	}
 	if err := a.compileTMSource(ctx, root, srcPath); err != nil {
@@ -382,8 +382,8 @@ func (a *App) applyTMEntry(ctx context.Context, cmd Command, e changeEntry) asse
 	return res
 }
 
-// ensureTMSourceBinding returns the committed .klftm source path bound via
-// defaults.tm_source, creating l10n/tm.klftm and binding it when none is bound.
+// ensureTMSourceBinding returns the committed .kmb source path bound via
+// defaults.tm_source, creating l10n/tm.kmb and binding it when none is bound.
 func (a *App) ensureTMSourceBinding(recipePath, root string) (string, error) {
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
@@ -392,7 +392,7 @@ func (a *App) ensureTMSourceBinding(recipePath, root string) (string, error) {
 	if bound := proj.Defaults.TMSource; bound != "" {
 		return resolveUnder(root, bound), nil
 	}
-	rel := filepath.Join("l10n", "tm.klftm")
+	rel := filepath.Join("l10n", "tm.kmb")
 	proj.Defaults.TMSource = rel
 	if err := project.Save(recipePath, proj); err != nil {
 		return "", fmt.Errorf("bind tm source: %w", err)
@@ -400,7 +400,7 @@ func (a *App) ensureTMSourceBinding(recipePath, root string) (string, error) {
 	return resolveUnder(root, rel), nil
 }
 
-// compileTMSource re-imports the committed .klftm into the project TM cache
+// compileTMSource re-imports the committed .kmb into the project TM cache
 // (the conventional .kapi/tm.db, the same file kapi extract/merge use).
 func (a *App) compileTMSource(ctx context.Context, root, srcPath string) error {
 	dbPath := filepath.Join(root, project.StateDirName, "tm.db")
@@ -414,16 +414,16 @@ func (a *App) compileTMSource(ctx context.Context, root, srcPath string) error {
 	}
 	defer tm.Close()
 
-	if _, err := ImportKLFTMFile(ctx, tm, srcPath); err != nil {
+	if _, err := ImportKMBFile(ctx, tm, srcPath); err != nil {
 		return fmt.Errorf("compile tm: %w", err)
 	}
 	a.RebuildTMSearchIndexes(tm)
 	return nil
 }
 
-// loadKLFTMEntries reads the entries from a .klftm source, returning an empty
+// loadKMBEntries reads the entries from a .kmb source, returning an empty
 // slice when the file does not exist yet.
-func loadKLFTMEntries(path string) ([]sievepen.TMEntry, error) {
+func loadKMBEntries(path string) ([]sievepen.TMEntry, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -432,19 +432,19 @@ func loadKLFTMEntries(path string) ([]sievepen.TMEntry, error) {
 		return nil, fmt.Errorf("open tm source: %w", err)
 	}
 	defer f.Close()
-	file, err := klftm.Decode(f)
+	file, err := kmb.Decode(f)
 	if err != nil {
 		return nil, fmt.Errorf("parse tm source: %w", err)
 	}
 	return file.ModelEntries(), nil
 }
 
-// writeKLFTM serializes entries to a deterministic .klftm document.
-func writeKLFTM(path string, entries []sievepen.TMEntry) error {
+// writeKMB serializes entries to a deterministic .kmb document.
+func writeKMB(path string, entries []sievepen.TMEntry) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("create source dir: %w", err)
 	}
-	data, err := klftm.Marshal(klftm.FromModel(entries, nil))
+	data, err := kmb.Marshal(kmb.FromModel(entries, nil))
 	if err != nil {
 		return fmt.Errorf("marshal tm source: %w", err)
 	}
@@ -457,7 +457,7 @@ func writeKLFTM(path string, entries []sievepen.TMEntry) error {
 // upsertTMPair adds a source→target pair as a bilingual entry, keyed by a
 // stable id so re-applying the same pair is idempotent. When the entry already
 // holds the same target text for the target locale, it returns changed=false.
-// upsertTMPair adds or updates a source→target correction in the .klftm entry
+// upsertTMPair adds or updates a source→target correction in the .kmb entry
 // list. reviewState, when non-empty, is recorded on the entry's `review` property
 // (the carrier that distinguishes `reviewed` from `signed-off`); an empty
 // reviewState leaves the entry at the `reviewed` baseline. It returns changed =
@@ -506,7 +506,7 @@ func upsertTMPair(entries []sievepen.TMEntry, source, target string, srcLocale, 
 // setReviewProperty records the review state (signed-off; reviewed is the
 // property-absent baseline) on a TM entry, returning whether it changed. An empty
 // or `reviewed` state clears the property so the entry round-trips minimally.
-// reviewPropertyKey is the .klftm entry property `kapi apply` uses to tag a
+// reviewPropertyKey is the .kmb entry property `kapi apply` uses to tag a
 // correction's review state in the TM corpus. (Project review STATE now lives in
 // the state store, core/state; this is the TM-side tag the apply path still sets.)
 const reviewPropertyKey = "review"

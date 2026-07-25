@@ -68,18 +68,18 @@ export interface TraceRunResult {
 }
 
 /**
- * A KLF spec operation routed to the canonical Go engine (core/klf) via the
- * `klf` wasm endpoint. The shape is op-specific; see the KLF docs Lab/Tests
+ * A KBF spec operation routed to the canonical Go engine (core/kbf) via the
+ * `kbf` wasm endpoint. The shape is op-specific; see the KBF docs Lab/Tests
  * pages for the per-op payloads (roundtrip, validateBlock, validateTarget,
  * resolveAnchor, renderHtml).
  */
-export interface KlfRequest {
+export interface KbfRequest {
   op: "roundtrip" | "validateBlock" | "validateTarget" | "resolveAnchor" | "renderHtml";
   [key: string]: unknown;
 }
 
-/** Generic KLF endpoint response; always carries `ok`. */
-export interface KlfResponse {
+/** Generic KBF endpoint response; always carries `ok`. */
+export interface KbfResponse {
   ok: boolean;
   error?: string;
   [key: string]: unknown;
@@ -113,11 +113,11 @@ export interface KapiRuntime {
    */
   inspectAnnotated(path: string, opts?: AnnotateOptions): Promise<InspectResult>;
   /**
-   * Run a KLF spec operation against the canonical Go engine. Synchronous: the
+   * Run a KBF spec operation against the canonical Go engine. Synchronous: the
    * wasm endpoint does pure in-memory work over the JSON payload (no fs), so it
    * returns the parsed response directly rather than a Promise.
    */
-  klf(req: KlfRequest): KlfResponse;
+  kbf(req: KbfRequest): KbfResponse;
   /**
    * Segment raw text with a named engine ("" = default srx) and locale.
    * Synchronous: pure in-memory work (the "uax29"/ICU4X path makes one
@@ -319,15 +319,15 @@ export function makeRuntime(mem: MemFS): KapiRuntime {
       const res = await (opts ? fn(path, JSON.stringify(opts)) : fn(path));
       return parseInspect(res);
     },
-    klf: (req: KlfRequest): KlfResponse => {
-      const fn = globalThis.klf;
+    kbf: (req: KbfRequest): KbfResponse => {
+      const fn = globalThis.kbf;
       if (typeof fn !== "function") {
-        return { ok: false, error: "klf endpoint unavailable in this wasm build" };
+        return { ok: false, error: "kbf endpoint unavailable in this wasm build" };
       }
       try {
-        return JSON.parse(fn(JSON.stringify(req))) as KlfResponse;
+        return JSON.parse(fn(JSON.stringify(req))) as KbfResponse;
       } catch (e) {
-        return { ok: false, error: `klf request failed: ${(e as Error).message}` };
+        return { ok: false, error: `kbf request failed: ${(e as Error).message}` };
       }
     },
     segment: (text: string, engine: string, locale: string): SegmentResult => {

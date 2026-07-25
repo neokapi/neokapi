@@ -92,7 +92,7 @@ ${FLOWS.map((f) => f.yaml).join("\n")}
 // store) → merge (materialize the localized file). The translation is genuine
 // TM leverage — no LLM, no network — so the merged output is a real fr file,
 // never a pseudo/qps test artifact. It is the multi-file, team/server
-// counterpart to the single-file .klz workspace (AD-026 / AD-025 §5). In the
+// counterpart to the single-file .kpz workspace (AD-026 / AD-025 §5). In the
 // browser the state dir is an in-memory store, so it is shown as regenerable
 // state rather than files.
 export default function ProjectExplorer({
@@ -367,7 +367,7 @@ export default function ProjectExplorer({
         A <strong>project</strong> keeps config in a committed <code>.kapi</code> recipe and its
         working state in a <code>.kapi/</code> dir — built for teams and servers. A run is{" "}
         <strong>process-only</strong>: it commits to the project store, then <code>merge</code>{" "}
-        writes the files. A <strong>.klz workspace</strong> folds the same content + work into one
+        writes the files. A <strong>.kpz workspace</strong> folds the same content + work into one
         portable file — built for ad-hoc, single-file hand-off. Same engine underneath.
       </p>
       <p style={{ fontSize: "0.85rem", opacity: 0.8, marginTop: "0.4rem" }}>

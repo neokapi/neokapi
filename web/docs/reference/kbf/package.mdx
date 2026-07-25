@@ -1,0 +1,208 @@
+---
+sidebar_position: 5
+title: The Kapi format family & .kpz package
+description: The Kapi format family of native lossless formats (blocks, translation memory, termbase) and the .kpz package that bundles a project's authoritative content — distinct from the lossy interchange formats (XLIFF/PO, TMX, TBX).
+keywords: [KBF, kmb, ktb, kpz, package, translation memory, termbase, TMX, TBX, lossless, interchange, pack, unpack]
+---
+
+# The Kapi format family & the `.kpz` package
+
+KBF is the native serialization of one content atom — the translatable
+[block](/reference/kbf/spec#block). A project owns more than blocks, though: a
+translation memory and a termbase, plus stand-off annotations and media. The
+**Kapi format family** gives each of those atoms a native, deterministic, *lossless*
+format, and the **`.kpz` package** bundles them into one portable artifact.
+
+## Two tiers: native vs interchange
+
+For every atom there are two serializations, playing the same two roles KBF and
+XLIFF play for blocks (see [KBF vs XLIFF](/reference/kbf/vs-xliff)):
+
+| Atom | **Native** (lossless — pack, cache, hash) | **Interchange** (lossy — industry handoff) |
+| --- | --- | --- |
+| blocks + targets | **KBF** — Kapi Bundle Format, `.kbf` | XLIFF / PO |
+| stand-off annotations | **KBF annotations** — `.overlays.jsonl` | — |
+| translation memory | **KMB** — Kapi Memory Bundle, `.kmb` | TMX |
+| termbase | **KTB** — Kapi Term Bundle, `.ktb` | TBX |
+| whole project | **KPZ** — Kapi Project Archive, `.kpz` | — |
+
+The native forms round-trip **every** field of the internal model. The
+interchange forms map only the standard, industry-portable subset — which is
+exactly why they cannot be used to pack a project losslessly:
+
+- **TMX drops** the entity mappings (including the `conceptId` cross-link from a
+  TM entity to a termbase concept), provenance origins and import sessions,
+  per-entry properties, and notes.
+- **TBX drops** the term `source` (terminology vs `brand_vocabulary`), the
+  `competitorTerm` flag, and the extensible properties.
+
+KMB and KTB preserve all of these. They share the KBF discipline: a `kind`
+magic string, a `MAJOR.MINOR` `schemaVersion` with the same forward-compatibility
+contract as [KBF](/reference/kbf/spec#versioning), and a deterministic serializer
+(sorted records, no HTML escaping, trailing newline) so the bytes are stable for
+content hashing and git diffing. KMB even reuses the same `Run` model as KBF
+blocks for its variant content, so inline codes, placeholders, and plural/select
+constructs serialize identically.
+
+## Bundle vs archive
+
+Each store-shaped native form has two spellings of the same content — a
+**bundle** and an **archive**:
+
+| Store | Bundle (readable, git-diffable) | Archive (compressed, at-rest / handoff) |
+| --- | --- | --- |
+| translation memory | `.kmb` — Kapi Memory Bundle | `.kmz` — Kapi Memory Archive |
+| termbase | `.ktb` — Kapi Term Bundle | `.ktz` — Kapi Term Archive |
+| whole project | — | `.kpz` — Kapi Project Archive |
+
+An archive is a zip holding exactly one member — `tm.kmb` for a `.kmz`,
+`termbase.ktb` for a `.ktz` — so unzipping one by hand yields the bundle
+unchanged. `kapi tm export` / `kapi tm import` and `kapi termbase export` /
+`kapi termbase import` pick the tier from the file extension:
+
+```bash
+kapi tm export -o l10n/tm/cli-nb.kmb        # bundle: commit this
+kapi tm export -o snapshots/tm.kmz          # archive: hand this off
+kapi termbase import seeds/termbase.ktz     # detected from the extension
+```
+
+Commit bundles; ship archives. A bundle diffs line by line in git, which is what
+makes a reviewed TM or termbase reviewable at all; an archive exists for size,
+and a large TM compresses by roughly an order of magnitude.
+
+## The `.kpz` package
+
+A `.kpz` is a deterministic zip bundling a project's **authoritative** content,
+one member per content type — the same content-type set the
+[sync protocol](/contribute/architecture/025-kbf-package) moves over the wire:
+
+```
+project.kpz
+├── manifest.json          inventory: per-member sha256 + Merkle rootHash
+├── blocks/<id>.kbf        KBF              (blocks + targets)
+├── annotations/<id>.overlays.jsonl  KBF annotations  (stand-off overlays)
+├── tm.kmb               KMB           (translation memory)
+├── termbase.ktb         KTB           (terminology)
+├── media/<name>           opaque blobs
+│
+│   ── working-state members (AD-025 §5) ──
+├── source/<name>          ingested source document(s)
+├── overlays.json          in-progress overlays  (targets, annotations, …)
+└── history.jsonl          advisory provenance log (opt-in; excluded from rootHash)
+```
+
+(A `.kpz` also carries the project **recipe** in `manifest.json` — flows, plugins,
+defaults, content — kept out of the `rootHash`, so the package is a *runnable
+project in a file*. Side-effecting recipe like `server:`/`hooks:` travels inert.)
+
+The same container serves **two profiles**, set by the manifest `kind`:
+
+- `kind: kapi-project` — the whole project (all locales, full recipe, TM,
+  termbase, overlays, source identity + skeletons). The snapshot / transport
+  parcel, moved by `pack` / `unpack`.
+- `kind: kapi-interchange` — a task-scoped **bilingual** slice for one locale
+  pair (blocks, inline codes, segmentation, skeleton, TM/term context). This is
+  neokapi's interchange format, sent to a translator/reviewer by `extract` and
+  ingested by `merge` (see [KBF vs XLIFF](/reference/kbf/vs-xliff)).
+
+Both are *parcels*, not workspaces: day-to-day work happens in the ambient `.kapi`
+project ([AD-025](/contribute/architecture/025-kbf-package) §7).
+
+Because every member is a native lossless format, the whole package is lossless:
+unpacking can seed a fresh translation memory, termbase, and block store, and the
+project's regenerable caches (the block-store cache, sync hashes) rebuild
+faithfully from it. The manifest's per-member SHA-256 and Merkle `rootHash` give
+the package — and each member — a stable content identity; unpacking verifies
+both before trusting the contents.
+
+### What a package deliberately excludes
+
+A `.kpz` packs the **source of truth**, not the regenerable caches. It excludes
+the block-store cache (`blocks.db`) and the sync hash cache, which rebuild on
+demand, and it excludes secrets (the sync claim token). This is what makes the
+package the at-rest twin of the sync wire format: packing is the sync converters
+writing files instead of protobuf, and unpacking is the inverse.
+
+Raw source bytes are also excluded by default: a `.kpz` carries each source's
+**identity (path, format, content hash) + round-trip skeleton** — enough to merge —
+but not the originals, so it doesn't duplicate git-tracked source. Pass
+`--with-source` to `kapi extract` / `kapi pack` to embed the raw bytes too (needed
+to re-extract offline). And `kapi pack` **refuses to write a content-less `.kpz`**
+(a project with nothing extracted/translated yet) — like `git bundle` refusing an
+empty bundle; share the `kapi.yaml` recipe via git instead.
+
+## Working state: hand-off and resume
+
+A `.kpz` is not only an at-rest snapshot of finished content — it can also carry
+**in-progress working state**, so work can stop, move between machines, and resume
+where it left off. There are two routes, and neither needs per-step CLI verbs:
+
+- **`.kpz` as an ad-hoc workspace (`extract` / transform / `merge`).** No project
+  required. The `.kpz` is a portable *bundle*; the runtime is a persistent shadow
+  cache keyed to the file, so transforms are fast and incremental and the `.kpz`
+  is rewritten only when you **`pack`** (or pass `--pack`). `extract` ingests
+  sources (+ a recipe), running a tool/flow on the `.kpz` transforms it in place,
+  and `merge` emits the finished files. `info` shows whether the cache is dirty.
+
+  ```bash
+  kapi extract src/*.json -o work.kpz --target-lang fr,qps   # ingest
+  kapi translate work.kpz --target-lang fr                # transform (cache)
+  kapi info  work.kpz                                         # dirty?
+  kapi pack  work.kpz                                         # eject for sharing
+  kapi merge work.kpz -o l10n/                                # emit → l10n/<lang>/<name>
+  ```
+
+  A small **recipe** (target locales + output layout) travels with the file, so
+  `merge` needs no flags. Transforming reuses work already done instead of
+  recomputing it, and each document's work stays isolated.
+
+- **Project snapshot (`pack` / `unpack`).** Inside a `.kapi` project the working
+  state also includes the project TM and termbase. `kapi pack` snapshots all of
+  it; `kapi unpack` rehydrates it into another machine's `.kapi/` state dir.
+  Within a project, re-running a flow also reuses the project's persistent cache
+  (`.kapi/cache/blocks.db`), so resume there is simply running again.
+
+  ```bash
+  kapi pack   -o snapshot.kpz   # snapshot the project's working state
+  kapi unpack snapshot.kpz      # rehydrate elsewhere, then run to resume
+  ```
+
+The working-state members are `source/<name>` (the ingested documents) and
+`overlays.json` (the in-progress overlays — `targets/<locale>`,
+`annotations/<name>`, segmentation, … keyed by `(kind, blockHash)`). Overlays in a
+multi-document package are scoped per source, since block ids are only unique
+within one document. A `recipe` block in the manifest (not a content member, so
+out of the `rootHash`) carries the workspace's target locales and output layout.
+
+### Progress is derived from content, not a journal
+
+Because the block store is append-only and content-addressed, *"has step X run?"*
+is a pure function of the content: does X's overlay exist for the current block
+hashes? That is what makes cached resume correct — re-running is a no-op where
+the overlay is already present, and a source change re-hashes its block so only
+the affected work recomputes. There is **no authoritative progress journal** — it
+would be a second source of truth that could drift from the content (the
+dual-state footgun this codebase avoids).
+
+The one optional log is **advisory provenance**: `kapi pack --log` stamps a
+hash-chained line into `history.jsonl` recording the pack (tamper-evident custody
+for hand-off; `unpack` verifies the chain and warns if broken). It is strictly
+subordinate to content — excluded from the package `rootHash`, never read to
+decide anything, and safe to delete with no loss of work. A default `pack` (no
+`--log`) is byte-deterministic.
+
+## When to use it
+
+Use a `.kpz` to move a whole project losslessly: backup and archival, seeding a
+fresh server or an offline desktop working copy, transferring a project between
+machines without a server, or building a deterministic test fixture. Use the
+**interchange** formats (XLIFF/PO, TMX, TBX) instead when content crosses into
+the wider localization industry — a translation vendor, an external CAT tool, or
+a TMS — and the lossy, standards-based subset is what the other side expects.
+
+## See also
+
+- [AD-025: KBF Family and the .kpz Package](/contribute/architecture/025-kbf-package) — the decision and rationale.
+- [Specification](/reference/kbf/spec) — the KBF block format the family is built around.
+- [KBF vs XLIFF](/reference/kbf/vs-xliff) — the native-vs-interchange split for blocks.
+- Reference implementations: [`sievepen/kmb`](https://github.com/neokapi/neokapi/tree/main/sievepen/kmb) (KMB), [`termbase/ktb`](https://github.com/neokapi/neokapi/tree/main/termbase/ktb) (KTB), [`kpz`](https://github.com/neokapi/neokapi/tree/main/kpz) (the package container).

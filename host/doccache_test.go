@@ -77,14 +77,14 @@ func TestDocCache_StreamingRoundTrip(t *testing.T) {
 // streaming cache serializes each block's stand-off annotations and, on replay,
 // drops any whose payload type is not registered (see fromCachedAnnotations). A
 // block served from cache must come back with its annotations intact. The
-// jsx/.klf reader stashes the block's content hash (plus placeholders and
-// preview) in a KLFAnnotation; if that type isn't registered, cache replay
-// silently strips it and reconstructed .klf targets lose their hashes — which
+// jsx/.kbf reader stashes the block's content hash (plus placeholders and
+// preview) in a KBFAnnotation; if that type isn't registered, cache replay
+// silently strips it and reconstructed .kbf targets lose their hashes — which
 // broke `kapi up` non-deterministically, since its concurrent per-locale
 // converge workers share the cache and race on the same cached source document.
 func TestDocCache_PreservesBlockAnnotations(t *testing.T) {
 	dir := t.TempDir()
-	src := filepath.Join(dir, "App.klf")
+	src := filepath.Join(dir, "App.kbf")
 	require.NoError(t, os.WriteFile(src, []byte(`{"schemaVersion":"1.0"}`), 0o644))
 
 	c, err := OpenDocCache(filepath.Join(dir, "cache"))
@@ -92,12 +92,12 @@ func TestDocCache_PreservesBlockAnnotations(t *testing.T) {
 	defer c.Close()
 
 	block := mkBlock("src/App.tsx:38:0", "Home")
-	block.SetAnno(jsx.AnnotationType, &jsx.KLFAnnotation{
+	block.SetAnno(jsx.AnnotationType, &jsx.KBFAnnotation{
 		Hash: "kRS4Hxwnmv9", DocumentID: "src/App.tsx", DocumentPath: "src/App.tsx",
 	})
 
 	require.Nil(t, c.OpenDocument(src, "k"), "cold cache is a miss")
-	rec := c.RecordDocument(src, "k", "klf")
+	rec := c.RecordDocument(src, "k", "kbf")
 	require.NotNil(t, rec)
 	require.NoError(t, rec.Add(&model.Part{Type: model.PartBlock, Resource: block}))
 	require.NoError(t, rec.Commit())
@@ -116,9 +116,9 @@ func TestDocCache_PreservesBlockAnnotations(t *testing.T) {
 	require.NotNil(t, got, "the block replays from cache")
 
 	raw, ok := got.Anno(jsx.AnnotationType)
-	require.True(t, ok, "the KLFAnnotation must survive the cache round-trip (payload type must be registered)")
-	ann, ok := raw.(*jsx.KLFAnnotation)
-	require.True(t, ok, "the rehydrated annotation is a *KLFAnnotation")
+	require.True(t, ok, "the KBFAnnotation must survive the cache round-trip (payload type must be registered)")
+	ann, ok := raw.(*jsx.KBFAnnotation)
+	require.True(t, ok, "the rehydrated annotation is a *KBFAnnotation")
 	assert.Equal(t, "kRS4Hxwnmv9", ann.Hash, "the block content hash must survive cache replay")
 }
 

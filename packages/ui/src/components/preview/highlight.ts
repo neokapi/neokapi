@@ -37,7 +37,7 @@ export function detectLang(filename: string): Lang {
     case "json5":
     case "arb":
     case "xcstrings":
-    case "klf":
+    case "kbf":
       return "json";
     case "xml":
     case "html":

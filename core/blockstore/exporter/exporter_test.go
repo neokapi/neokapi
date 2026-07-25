@@ -8,7 +8,7 @@ import (
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/exporter"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
-	"github.com/neokapi/neokapi/core/klf"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,8 +18,8 @@ func seed(t *testing.T, store blockstore.Store) {
 	ctx := context.Background()
 	sess, err := store.Begin(ctx)
 	require.NoError(t, err)
-	require.NoError(t, sess.PutBlock("default", &klf.Block{Hash: "h1", ID: "b1", Translatable: true, Source: []klf.Run{{Text: &klf.TextRun{Text: "Hello"}}}}))
-	require.NoError(t, sess.PutBlock("default", &klf.Block{Hash: "h2", ID: "b2", Translatable: true, Source: []klf.Run{{Text: &klf.TextRun{Text: "World"}}}}))
+	require.NoError(t, sess.PutBlock("default", &kbf.Block{Hash: "h1", ID: "b1", Translatable: true, Source: []kbf.Run{{Text: &kbf.TextRun{Text: "Hello"}}}}))
+	require.NoError(t, sess.PutBlock("default", &kbf.Block{Hash: "h2", ID: "b2", Translatable: true, Source: []kbf.Run{{Text: &kbf.TextRun{Text: "World"}}}}))
 	require.NoError(t, sess.PutOverlay(blockstore.Overlay{Kind: "targets/fr", BlockHash: "b1", Payload: []byte(`{"text":"Bonjour"}`)}))
 	require.NoError(t, sess.PutOverlay(blockstore.Overlay{Kind: "targets/fr", BlockHash: "b2", Payload: []byte(`{"text":"Monde"}`)}))
 	require.NoError(t, sess.PutOverlay(blockstore.Overlay{Kind: "annotations/qa", BlockHash: "b1", Payload: []byte(`{"ok":true}`)}))

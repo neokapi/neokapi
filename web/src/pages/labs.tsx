@@ -54,10 +54,10 @@ const LABS: LabEntry[] = [
     teaches: "Transcribe audio and pull text out of video, the first step toward subtitles.",
   },
   {
-    to: "/klf-lab",
-    name: "KLF Anatomy",
+    to: "/kbf-lab",
+    name: "KBF Anatomy",
     teaches:
-      "A worked reading of the Kapi Localization Format — envelope, blocks, runs, targets, provenance — with a live round-trip through the engine.",
+      "A worked reading of the Kapi Bundle Format — envelope, blocks, runs, targets, provenance — with a live round-trip through the engine.",
   },
 ];
 

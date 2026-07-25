@@ -10,7 +10,7 @@ spec_sources:
     watch: https://savannah.gnu.org/news/?group=gettext
     notes: >-
       GNU gettext MO — the compiled binary catalog (magic 0x950412de, string
-      and translation offset tables). KLF treats MO as a runtime catalog, not
+      and translation offset tables). KBF treats MO as a runtime catalog, not
       an exchange format (feedback_klf_exchange_only); PO is the editable side.
 implementations:
   - name: GNU gettext (msgfmt/msgunfmt)

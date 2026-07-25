@@ -48,7 +48,7 @@ Run `kapi formats list` for the full set, or try the
 
 **Not conversion targets:**
 
-- **Bilingual interchange** — XLIFF, PO, TMX, KLF — use
+- **Bilingual interchange** — XLIFF, PO, TMX, KBF — use
   [`kapi extract`](/kapi/cli) instead. Extract captures the source skeleton so
   [`kapi merge`](/kapi/cli) can round-trip translations back into the original
   file; a converted interchange file has no skeleton and cannot be merged back.

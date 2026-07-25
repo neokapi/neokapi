@@ -26,7 +26,7 @@ steps:
 ### Source and sink
 
 A flow carries only its steps. Where content enters and leaves are **bindings**
-resolved when the flow runs — a file, the project store, a `.klz` workspace, an
+resolved when the flow runs — a file, the project store, a `.kpz` workspace, an
 interchange import/export, or `none` — not fields of the flow document. A flow
 declares a binding only when it is intrinsic to the flow (e.g. a check flow that
 produces no document sets `sink: none`), and never a path:
@@ -38,7 +38,7 @@ steps:
 ```
 
 At the CLI the binding comes from `-i` / `-o` (a plain path is detected, a
-`scheme:` is explicit), the project / `.klz` you are in, or auto-detection;
+`scheme:` is explicit), the project / `.kpz` you are in, or auto-detection;
 `kapi run <flow> --explain` shows the resolved `source → sink`. See
 [AD-026: Flow I/O Binding](architecture/026-flow-io-binding).
 

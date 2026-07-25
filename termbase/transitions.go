@@ -27,7 +27,7 @@ func KnownTermStatus(s model.TermStatus) bool {
 // statuses on either side. A no-op transition (same → same) is valid.
 //
 // ValidateTransition applies to *transitions*: a term whose status changes
-// from one lifecycle state to another. Imports (TBX, CSV, JSON, klftb) and
+// from one lifecycle state to another. Imports (TBX, CSV, JSON, ktb) and
 // AddConcept set state directly without passing through this policy — an
 // import reproduces an externally authored termbase as-is rather than
 // re-deriving its history, so AddConcept only checks that each status is a

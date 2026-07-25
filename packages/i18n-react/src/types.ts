@@ -63,7 +63,7 @@ export type PluginOptions = {
    * `data-kapi-attr` (attribute-block hashes) so the review overlay
    * (`@neokapi/i18n-react/review`) can map DOM → block. In the Vite
    * dev server this also mounts the review middleware at
-   * `/__kapi/review` (payloads from the KLF tree, write-back, SSE)
+   * `/__kapi/review` (payloads from the KBF tree, write-back, SSE)
    * and auto-injects the overlay into index.html. Enable explicitly
    * or via the KAPI_REVIEW=1 environment variable. Never enable for
    * production builds you ship.
@@ -71,10 +71,10 @@ export type PluginOptions = {
   review?: boolean;
 
   /**
-   * KLF tree the review middleware serves and writes back to.
+   * KBF tree the review middleware serves and writes back to.
    * Default: "i18n" (the extract default).
    */
-  reviewKlfDir?: string;
+  reviewKbfDir?: string;
 
   /**
    * Promote extraction-time warnings (e.g. `unknown-component`) to

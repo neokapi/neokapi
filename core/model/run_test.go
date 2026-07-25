@@ -36,16 +36,16 @@ func TestRunMarshalUnmarshalRoundTrip(t *testing.T) {
 	}
 }
 
-// TestRunMarshalDoesNotHTMLEscape guards the KLF "no HTML escaping" wire
+// TestRunMarshalDoesNotHTMLEscape guards the KBF "no HTML escaping" wire
 // contract: a run's data/text routinely holds markup like `<span>` or an `&&`
 // expression, and the bytes Run.MarshalJSON emits must keep those literal so a
-// non-escaping encoder (core/klf.Marshal) yields output matching the TypeScript
+// non-escaping encoder (core/kbf.Marshal) yields output matching the TypeScript
 // mirror (@neokapi/kapi-format, which uses JSON.stringify) and the content hash
 // stays implementation-independent.
 //
 // Note: the assertion calls MarshalJSON directly rather than the package-level
 // json.Marshal, because json.Marshal re-escapes a Marshaler's output during
-// compaction (escapeHTML defaults on) — the klf path deliberately encodes with
+// compaction (escapeHTML defaults on) — the kbf path deliberately encodes with
 // SetEscapeHTML(false), which preserves these literal bytes.
 func TestRunMarshalDoesNotHTMLEscape(t *testing.T) {
 	for _, tc := range []struct {

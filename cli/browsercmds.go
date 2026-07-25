@@ -171,7 +171,7 @@ func BrowserCommandSet(a *App) []*cobra.Command {
 	cmds = append(cmds, NewExtractCmd(a, ExtractCmdOptions{}))
 	cmds = append(cmds, NewMergeCmd(a, MergeCmdOptions{}))
 
-	// .klz workspace verbs (AD-025 §5): the working cache is the wasm
+	// .kpz workspace verbs (AD-025 §5): the working cache is the wasm
 	// session-persistent in-memory store (core/blockstore/cache_wasm.go).
 	cmds = append(cmds, NewPackCmd(a), NewUnpackCmd(a), NewInfoCmd(a))
 

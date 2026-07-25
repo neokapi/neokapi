@@ -27,7 +27,7 @@ foreign skeleton), the valid `--to` targets are exactly the **generative,
 non-interchange** writers — the declared writer capabilities defined in
 [AD-005: Writer output modes](005-format-system.md). Skeleton-bound formats
 (`.docx`, ODF, IDML, EPUB) can be converted *from* but not *to*; bilingual
-interchange formats (XLIFF, PO, TMX, KLF) are reached via `kapi extract`/`merge`
+interchange formats (XLIFF, PO, TMX, KBF) are reached via `kapi extract`/`merge`
 ([AD-017](017-bilingual-format-interop.md)), not `convert`. They ship as
 **busybox-style multi-call binaries**: the names are symlinks to the single
 `kapi` binary, which dispatches on `argv[0]`. One binary, the extra names, no

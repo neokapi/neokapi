@@ -346,8 +346,8 @@ func (r *Run) UnmarshalJSON(data []byte) error {
 // emitting JSON.
 //
 // HTML escaping is disabled: a run's `data`/`text` routinely holds
-// source markup like `<span>` or an `&&` expression, and the KLF wire
-// form is "no HTML escaping" (see core/klf.Marshal). The package-level
+// source markup like `<span>` or an `&&` expression, and the KBF wire
+// form is "no HTML escaping" (see core/kbf.Marshal). The package-level
 // json.Marshal would escape `<`, `>`, and `&` into `<` etc.;
 // encoding through marshalRunNoEscapeHTML keeps the literal bytes so the
 // Go output matches the TypeScript mirror (@neokapi/kapi-format) and the
@@ -416,7 +416,7 @@ type Placeholder struct {
 	Optional   bool            `json:"optional,omitempty"`
 }
 
-// BlockProperties mirrors klf.BlockProperties for use on Block.
+// BlockProperties mirrors kbf.BlockProperties for use on Block.
 type BlockProperties struct {
 	File      string `json:"file"`
 	Line      int    `json:"line"`
@@ -426,7 +426,7 @@ type BlockProperties struct {
 	LocNote   string `json:"locNote,omitempty"`
 }
 
-// BlockPreviewHints mirrors klf.BlockPreviewHints.
+// BlockPreviewHints mirrors kbf.BlockPreviewHints.
 type BlockPreviewHints struct {
 	StoryID      string         `json:"storyId,omitempty"`
 	SnapshotPath string         `json:"snapshotPath,omitempty"`

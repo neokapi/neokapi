@@ -12,7 +12,7 @@ import (
 // TestProjectConvergence_Composes verifies the exported entry point bundles the
 // same coverage, source-readiness, and review-queue derivations the CLI uses.
 func TestProjectConvergence_Composes(t *testing.T) {
-	root := writeReviewProject(t) // fully-translated nb, reviewed:50 gate, .klftm bound
+	root := writeReviewProject(t) // fully-translated nb, reviewed:50 gate, .kmb bound
 
 	a := &App{}
 	report, err := a.ProjectConvergence(context.Background(), filepath.Join(root, "kapi.yaml"), "en")

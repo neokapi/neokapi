@@ -1,7 +1,7 @@
 # @neokapi/kapi-format — canonical Block/Run schema
 
-TypeScript port of the **Kapi Localization Format (KLF)** content
-model. Paired with `core/klf` in Go so both languages round-trip the
+TypeScript port of the **Kapi Bundle Format (KBF)** content
+model. Paired with `core/kbf` in Go so both languages round-trip the
 same bytes through the same shared golden fixtures (`examples/`).
 
 This package is the home of:
@@ -27,20 +27,20 @@ expected output, runs four content-validator scenarios
 and resolves eight annotation anchors (four real + four synthetic
 orphans). Exits non-zero on any mismatch.
 
-The Go side — `core/klf` — loads the same fixtures via
-`go:embed` in `core/klf/fixtures_test.go` and renders them through
+The Go side — `core/kbf` — loads the same fixtures via
+`go:embed` in `core/kbf/fixtures_test.go` and renders them through
 `RenderBlockHTML`. The byte output of both implementations must
 match.
 
-## Relationship to `core/klf` (Go)
+## Relationship to `core/kbf` (Go)
 
-| Layer            | TypeScript (this package)                     | Go (`core/klf`)                                                 |
+| Layer            | TypeScript (this package)                     | Go (`core/kbf`)                                                 |
 | ---------------- | --------------------------------------------- | --------------------------------------------------------------- |
-| Types            | `src/block.ts`                                | `core/klf/schema.go`                                            |
-| Vocabulary       | `src/vocabulary.ts`                           | `core/model/vocabularies/rich-jsx.json` + `core/klf/preview.go` |
-| Preview renderer | `src/preview.ts::renderBlockHtml`             | `core/klf/preview.go::RenderBlockHTML`                          |
-| Validator        | `src/preview.ts::validateTargetAgainstSource` | `core/klf/validator.go`                                         |
-| Annotations      | `src/annotation.ts`                           | `core/klf/annotation.go`                                        |
+| Types            | `src/block.ts`                                | `core/kbf/schema.go`                                            |
+| Vocabulary       | `src/vocabulary.ts`                           | `core/model/vocabularies/rich-jsx.json` + `core/kbf/preview.go` |
+| Preview renderer | `src/preview.ts::renderBlockHtml`             | `core/kbf/preview.go::RenderBlockHTML`                          |
+| Validator        | `src/preview.ts::validateTargetAgainstSource` | `core/kbf/validator.go`                                         |
+| Annotations      | `src/annotation.ts`                           | `core/kbf/annotation.go`                                        |
 
 Any schema change must land in both languages in the same PR, with
 the golden fixtures in `examples/` updated accordingly. The fixtures

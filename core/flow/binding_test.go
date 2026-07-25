@@ -14,7 +14,7 @@ func TestParseLocator(t *testing.T) {
 		{"store", SchemeStore, ""}, // bare scheme word (flow-intent form)
 		{"file", SchemeFile, ""},   // bare scheme word
 		{"xliff", SchemeXLIFF, ""}, // bare scheme word
-		{"klz:work.klz", SchemeKLZ, "work.klz"},
+		{"kpz:work.kpz", SchemeKPZ, "work.kpz"},
 		{"xliff:hand.xliff", SchemeXLIFF, "hand.xliff"},
 		{"file:store:", SchemeFile, "store:"}, // file: forces a path that reads as a scheme
 		{"none", SchemeNone, ""},
@@ -40,7 +40,7 @@ func TestLocatorKind(t *testing.T) {
 		// bare-path detection
 		{"a.json", BindingFile},
 		{"messages.yaml", BindingFile},
-		{"work.klz", BindingStore},
+		{"work.kpz", BindingStore},
 		{"hand.xliff", BindingInterchange},
 		{"vendor.xlf", BindingInterchange},
 		{"catalog.po", BindingInterchange},
@@ -53,9 +53,9 @@ func TestLocatorKind(t *testing.T) {
 		{"none", BindingNone},
 		// explicit schemes override detection
 		{"store:", BindingStore},
-		{"klz:work.klz", BindingStore},
+		{"kpz:work.kpz", BindingStore},
 		{"xliff:anything", BindingInterchange},
-		{"file:work.klz", BindingFile}, // force file even though .klz would detect as store
+		{"file:work.kpz", BindingFile}, // force file even though .kpz would detect as store
 		{"none", BindingNone},
 	}
 	for _, tt := range tests {
@@ -91,7 +91,7 @@ func TestLocatorExplain(t *testing.T) {
 		want string
 	}{
 		{"a.json", "file(a.json)"},
-		{"work.klz", "store(work.klz)"},
+		{"work.kpz", "store(work.kpz)"},
 		{"hand.xliff", "interchange(hand.xliff)"},
 		{"store:", "store"},
 		{"xliff:hand.xliff", "interchange(hand.xliff)"},

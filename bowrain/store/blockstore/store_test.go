@@ -10,7 +10,7 @@ import (
 	bwblockstore "github.com/neokapi/neokapi/bowrain/store/blockstore"
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/core/blockstore"
-	"github.com/neokapi/neokapi/core/klf"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -71,8 +71,8 @@ func TestSession_PutGetBlock(t *testing.T) {
 	block := &blockstore.Block{
 		ID:           "hello",
 		Translatable: true,
-		Type:         klf.BlockTypeJSXElement,
-		Source:       []klf.Run{{Text: &klf.TextRun{Text: "Hello"}}},
+		Type:         kbf.BlockTypeJSXElement,
+		Source:       []kbf.Run{{Text: &kbf.TextRun{Text: "Hello"}}},
 	}
 	// Empty collection = project-level write; collection-scoped
 	// writes route through StoreBlocksForItem and get a generated
@@ -349,7 +349,7 @@ func TestSession_PutBlock_CollectionScoped(t *testing.T) {
 	want := &blockstore.Block{
 		ID:           "src-1",
 		Translatable: true,
-		Source:       []klf.Run{{Text: &klf.TextRun{Text: "Scoped"}}},
+		Source:       []kbf.Run{{Text: &kbf.TextRun{Text: "Scoped"}}},
 	}
 	if err := sess.PutBlock("greetings", want); err != nil {
 		t.Fatalf("put block in collection: %v", err)

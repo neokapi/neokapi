@@ -503,7 +503,7 @@ type fixturesJSON struct {
 //     sdlpackage, pensieve, …) where neokapi hasn't
 //     built a native reader/writer.
 //   - "native-only"    — Go port exists, no bridge filter. neokapi-only
-//     formats (jsx, klf, versifiedtext, messageformat) —
+//     formats (jsx, kbf, versifiedtext, messageformat) —
 //     no Okapi reference to compare against.
 type coverageMapEntry struct {
 	ID                string `json:"id"`

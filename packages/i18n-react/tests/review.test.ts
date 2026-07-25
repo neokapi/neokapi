@@ -1,5 +1,5 @@
 /**
- * In-context review Tier 1: transform stamping, the KLF-backed
+ * In-context review Tier 1: transform stamping, the KBF-backed
  * review store, and the HTTP handler round-trip.
  */
 
@@ -72,13 +72,13 @@ describe("review-mode stamping", () => {
 
 const SOURCE = "<h1>Welcome back</h1>";
 
-function seedKlfTree(dir: string): string {
+function seedKbfTree(dir: string): string {
   const doc = extractDocument(SOURCE, { filename: "src/Page.tsx" })!;
   const hash = doc.blocks[0].hash;
   doc.blocks[0].targets = { de: [{ text: "Willkommen zurück" }] } as never;
   mkdirSync(join(dir, "i18n", "src"), { recursive: true });
   writeFileSync(
-    join(dir, "i18n", "src", "Page.klf"),
+    join(dir, "i18n", "src", "Page.kbf"),
     JSON.stringify({
       schemaVersion: "1.0",
       kind: "kapi-localization-format",
@@ -89,7 +89,7 @@ function seedKlfTree(dir: string): string {
   );
   // A stand-off term annotation, as kapi term-check would produce.
   writeFileSync(
-    join(dir, "i18n", "term-check.klfl"),
+    join(dir, "i18n", "term-check.overlays.jsonl"),
     [
       JSON.stringify({
         type: "header",
@@ -113,7 +113,7 @@ function seedKlfTree(dir: string): string {
 describe("ReviewStore", () => {
   it("serves payloads with flattened source/targets and annotations", () => {
     const dir = scratch();
-    const hash = seedKlfTree(dir);
+    const hash = seedKbfTree(dir);
     const store = new ReviewStore(join(dir, "i18n"));
 
     const payload = store.get(hash)!;
@@ -124,9 +124,9 @@ describe("ReviewStore", () => {
     expect(payload.annotations[0].annotationType).toBe("@neokapi/term-detector");
   });
 
-  it("writes target edits back into the .klf and broadcasts", () => {
+  it("writes target edits back into the .kbf and broadcasts", () => {
     const dir = scratch();
-    const hash = seedKlfTree(dir);
+    const hash = seedKbfTree(dir);
     const store = new ReviewStore(join(dir, "i18n"));
     const events: unknown[] = [];
     store.subscribe((u) => events.push(u));
@@ -135,26 +135,26 @@ describe("ReviewStore", () => {
     expect(updated.targets.de.text).toBe("Willkommen zurück!");
     expect(events).toEqual([{ hash, locale: "de", text: "Willkommen zurück!" }]);
 
-    const onDisk = JSON.parse(readFileSync(join(dir, "i18n", "src", "Page.klf"), "utf-8"));
+    const onDisk = JSON.parse(readFileSync(join(dir, "i18n", "src", "Page.kbf"), "utf-8"));
     expect(onDisk.documents[0].blocks[0].targets.de[0].text).toBe("Willkommen zurück!");
   });
 
   it("returns null for unknown hashes", () => {
     const dir = scratch();
-    seedKlfTree(dir);
+    seedKbfTree(dir);
     const store = new ReviewStore(join(dir, "i18n"));
     expect(store.get("nope")).toBeNull();
     expect(store.put("nope", "de", "x")).toBeNull();
   });
 
-  it("picks up external .klf edits via mtime refresh", async () => {
+  it("picks up external .kbf edits via mtime refresh", async () => {
     const dir = scratch();
-    const hash = seedKlfTree(dir);
+    const hash = seedKbfTree(dir);
     const store = new ReviewStore(join(dir, "i18n"));
     expect(store.get(hash)!.targets.de.text).toBe("Willkommen zurück");
 
     // Simulate `kapi translate` rewriting the file.
-    const path = join(dir, "i18n", "src", "Page.klf");
+    const path = join(dir, "i18n", "src", "Page.kbf");
     const raw = JSON.parse(readFileSync(path, "utf-8"));
     raw.documents[0].blocks[0].targets.de = [{ text: "extern" }];
     await new Promise((r) => setTimeout(r, 5)); // ensure mtime moves
@@ -188,7 +188,7 @@ describe("handleReviewRequest", () => {
 
   it("GET {hash} returns the payload; unmatched routes fall through", () => {
     const dir = scratch();
-    const hash = seedKlfTree(dir);
+    const hash = seedKbfTree(dir);
     const store = new ReviewStore(join(dir, "i18n"));
 
     const res = fakeRes();
@@ -210,7 +210,7 @@ describe("handleReviewRequest", () => {
 
   it("GET annotations returns the by-hash map", () => {
     const dir = scratch();
-    const hash = seedKlfTree(dir);
+    const hash = seedKbfTree(dir);
     const store = new ReviewStore(join(dir, "i18n"));
     const res = fakeRes();
     handleReviewRequest(store, { method: "GET" } as never, res as never, "/annotations");

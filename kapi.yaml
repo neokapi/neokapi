@@ -8,7 +8,7 @@
 # Surfaces:
 #   framework-data   — generated tool/format metadata → gettext MO catalogs
 #                      embedded in the kapi binary (core/i18n)
-#   kapi-desktop-ui  — KLF catalogs extracted from the React frontend by
+#   kapi-desktop-ui  — KBF catalogs extracted from the React frontend by
 #                      @neokapi/i18n-react → public/translations/<locale>.json
 #   bowrain-app-ui   — the shared bowrain SPA (bowrain/packages/{app,ui} + the
 #                      web and desktop shells), same neokapi-i18n pipeline →
@@ -20,13 +20,13 @@
 #                      bowrain/web/docs/i18n/<locale>/ tree
 #   demo-narration   — harness demo scripts → generated demo.<lang>.yaml
 #                      sidecars (harness/demos/<id>/, overlaid at load time)
-#   emails           — KLF catalogs extracted from the React Email templates
+#   emails           — KBF catalogs extracted from the React Email templates
 #                      (bowrain/emails/src) by @neokapi/i18n-react → per-locale
 #                      template renders under bowrain/mailer/templates/<lang>/
 #                      (make l10n-emails)
 #   email-subjects   — transactional-email subject lines
 #                      (bowrain/mailer/subjects/en.json) → subjects/<lang>.json
-#   landing          — KLF catalogs extracted from the bowrain landing SPA
+#   landing          — KBF catalogs extracted from the bowrain landing SPA
 #                      (bowrain/web/landing/src) → committed runtime catalogs
 #                      bowrain/web/landing/translations/<lang>.json
 #                      (make l10n-landing)
@@ -43,7 +43,7 @@ defaults:
   # termbase_source is the committed, git-tracked glossary (the review surface
   # `kapi apply` term-edits write to); termbase is the gitignored cache the
   # source compiles into. Source of truth lives in git, never in the cache.
-  termbase_source: l10n/termbase.klftb
+  termbase_source: l10n/termbase.ktb
   termbase: .kapi/termbase.db
   tm:
     fuzzy_threshold: 75
@@ -96,19 +96,19 @@ content:
         target: core/i18n/catalogs/{lang}.mo
   - name: kapi-desktop-ui
     items:
-      - path: apps/kapi-desktop/frontend/i18n/**/*.klf
+      - path: apps/kapi-desktop/frontend/i18n/**/*.kbf
         target: apps/kapi-desktop/frontend/i18n-{lang}/{filename}
   - name: bowrain-app-ui
     items:
-      - path: bowrain/packages/app/i18n/**/*.klf
+      - path: bowrain/packages/app/i18n/**/*.kbf
         target: bowrain/packages/app/i18n-{lang}/{filename}
   - name: bowrain-ctrl-ui
     items:
-      - path: bowrain/apps/ctrl/i18n/**/*.klf
+      - path: bowrain/apps/ctrl/i18n/**/*.kbf
         target: bowrain/apps/ctrl/i18n-{lang}/{filename}
   - name: bowrain-pulse-ui
     items:
-      - path: bowrain/apps/pulse/i18n/**/*.klf
+      - path: bowrain/apps/pulse/i18n/**/*.kbf
         target: bowrain/apps/pulse/i18n-{lang}/{filename}
   - name: docs
     items:
@@ -144,7 +144,7 @@ content:
         target: bowrain/web/docs/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
   - name: emails
     items:
-      - path: bowrain/emails/i18n/**/*.klf
+      - path: bowrain/emails/i18n/**/*.kbf
         target: bowrain/emails/i18n-{lang}/{filename}
   - name: email-subjects
     items:
@@ -154,7 +154,7 @@ content:
         target: bowrain/mailer/subjects/{lang}.json
   - name: landing
     items:
-      - path: bowrain/web/landing/i18n/**/*.klf
+      - path: bowrain/web/landing/i18n/**/*.kbf
         target: bowrain/web/landing/i18n-{lang}/{filename}
   - name: demo-narration
     items:
@@ -162,7 +162,7 @@ content:
       # localized narration is GENERATED into committed demo.<lang>.yaml
       # sidecars (make l10n-demos, TM-driven) that the harness overlays at
       # load time. Never hand-edit a sidecar — fix the TM seed instead
-      # (l10n/tm/demo-narration-<lang>.klftm). Translatable keys are
+      # (l10n/tm/demo-narration-<lang>.kmb). Translatable keys are
       # selected by defaults.formats.yaml.config.keyPathPatterns above.
       - path: harness/demos/*/demo.yaml
         format:
@@ -211,7 +211,7 @@ flows:
 #
 # neokapi is the first real workspace on Bowrain. `kapi push` sends every surface
 # above to the project below; nb drafts land in the governed review queue and
-# approved segments round-trip back into l10n/tm/*.klftm.
+# approved segments round-trip back into l10n/tm/*.kmb.
 #
 # converge: manual — a push moves content but does NOT auto-start a server AI
 # convergence run. The first on-push run (2026-07-17) tried to AI-draft the whole

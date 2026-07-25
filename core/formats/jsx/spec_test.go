@@ -9,7 +9,7 @@ import (
 )
 
 // TestSpec drives every Feature × Example in spec.yaml through the
-// native KLF (jsx) reader.
+// native KBF (jsx) reader.
 func TestSpec(t *testing.T) {
 	s, err := spec.Load("spec.yaml")
 	if err != nil {

@@ -11,7 +11,7 @@ keywords: [metadata i18n, Go surfaces, localization, format metadata, tool schem
 ## Context
 
 The frontend packages ([AD-014](014-kapi-desktop.md)) are localized
-through the KLF pipeline: extract translatable blocks from source, run
+through the KBF pipeline: extract translatable blocks from source, run
 them through `kapi pseudo-translate` / `kapi translate`, and compile
 per-locale runtime catalogs. The Go backends serving those frontends emit
 a metadata surface (tool / format / plugin `displayName`, `description`,
@@ -54,15 +54,15 @@ The generated document is object-keyed (`tools.<id>`, `formats.<id>`),
 not capability-array-keyed, so block names produced by the JSON filter
 stay stable when tools are added or removed.
 
-### 3. KLF is the authoring format; gettext MO is the runtime format
+### 3. KBF is the authoring format; gettext MO is the runtime format
 
-KLF is the platform's authoring / exchange format — rich, placeholder-
+KBF is the platform's authoring / exchange format — rich, placeholder-
 aware, and segment-oriented. It is the wrong shape for runtime lookup.
 MO's binary hash-indexed catalog with `msgctxt` for disambiguation
 maps directly onto the `(scope, source)` lookup, and
 [`github.com/leonelquinteros/gotext`](https://github.com/leonelquinteros/gotext)
 is a mature pure-Go loader. The `core/formats/mo/` format writer
-consumes `klf.Block` streams and emits MO; `DetectByExtension(".mo")`
+consumes `kbf.Block` streams and emits MO; `DetectByExtension(".mo")`
 picks it up when the output path's extension says `.mo`.
 
 ### 4. Localize at the API boundary, not per-call-site
@@ -128,7 +128,7 @@ kapi pseudo-translate builtins/metadata.json \
     -o core/i18n/catalogs/qps.mo          # JSON reader → pseudo-translate → MO writer
 ```
 
-One conversion, no KLF intermediate on disk — `core/klf/` blocks flow
+One conversion, no KBF intermediate on disk — `core/kbf/` blocks flow
 through the in-process pipeline and the MO writer flattens them at the
 sink.
 

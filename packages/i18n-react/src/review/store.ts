@@ -1,10 +1,10 @@
 /**
  * In-context review store + HTTP handler (Node side).
  *
- * Serves review payloads out of a local KLF tree (the output of
+ * Serves review payloads out of a local KBF tree (the output of
  * `neokapi-i18n extract`, translated in place by kapi) and writes
- * target edits back into the `.klf` files — git-diffable review.
- * Stand-off annotation files (`*.klfl`, e.g. from `kapi run
+ * target edits back into the `.kbf` files — git-diffable review.
+ * Stand-off annotation files (`*.overlays.jsonl`, e.g. from `kapi run
  * term-check` / `qa`) found under the same tree are passed through
  * per block hash so the overlay can paint term/QA highlights.
  *
@@ -20,11 +20,11 @@
  */
 
 import { readFileSync, readdirSync, statSync, writeFileSync, existsSync } from "node:fs";
-import { extname, join } from "node:path";
+import { join } from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import type { Block, File as KLFFile, Run } from "@neokapi/kapi-format";
-import { flattenRuns, marshalFile } from "@neokapi/kapi-format";
+import type { Block, File as KBFFile, Run } from "@neokapi/kapi-format";
+import { flattenRuns, isAnnotationPath, isKbfPath, marshalFile } from "@neokapi/kapi-format";
 
 interface BlockLocation {
   path: string;
@@ -56,15 +56,15 @@ export interface ReviewUpdate {
 }
 
 export class ReviewStore {
-  private readonly klfDir: string;
+  private readonly kbfDir: string;
   private index = new Map<string, BlockLocation>();
   private annotations = new Map<string, AnnotationRecord[]>();
   /** mtimeMs per indexed file — index rebuilds when anything drifts. */
   private mtimes = new Map<string, number>();
   private readonly subscribers = new Set<(update: ReviewUpdate) => void>();
 
-  constructor(klfDir: string) {
-    this.klfDir = klfDir;
+  constructor(kbfDir: string) {
+    this.kbfDir = kbfDir;
   }
 
   subscribe(fn: (update: ReviewUpdate) => void): () => void {
@@ -76,15 +76,15 @@ export class ReviewStore {
     for (const fn of this.subscribers) fn(update);
   }
 
-  /** Rebuild the hash index when any .klf/.klfl file changed. */
+  /** Rebuild the hash index when any .kbf/.overlays.jsonl file changed. */
   private refresh(): void {
-    if (!existsSync(this.klfDir)) {
+    if (!existsSync(this.kbfDir)) {
       this.index.clear();
       this.annotations.clear();
       return;
     }
     const files: string[] = [];
-    walkFiles(this.klfDir, files);
+    walkFiles(this.kbfDir, files);
     let dirty = files.length !== this.mtimes.size;
     if (!dirty) {
       for (const f of files) {
@@ -102,14 +102,14 @@ export class ReviewStore {
     this.mtimes.clear();
     for (const path of files) {
       this.mtimes.set(path, statSync(path).mtimeMs);
-      if (extname(path) === ".klf") this.indexKLF(path);
-      else this.indexKLFL(path);
+      if (isKbfPath(path)) this.indexKBF(path);
+      else this.indexAnnotations(path);
     }
   }
 
-  private indexKLF(path: string): void {
+  private indexKBF(path: string): void {
     try {
-      const file = JSON.parse(readFileSync(path, "utf-8")) as KLFFile;
+      const file = JSON.parse(readFileSync(path, "utf-8")) as KBFFile;
       (file.documents ?? []).forEach((doc, docIndex) => {
         (doc.blocks ?? []).forEach((block, blockIndex) => {
           if (block.hash && !this.index.has(block.hash)) {
@@ -122,7 +122,7 @@ export class ReviewStore {
     }
   }
 
-  private indexKLFL(path: string): void {
+  private indexAnnotations(path: string): void {
     try {
       const lines = readFileSync(path, "utf-8").split("\n");
       let annotationType = "unknown";
@@ -155,7 +155,7 @@ export class ReviewStore {
     this.refresh();
     const loc = this.index.get(hash);
     if (!loc) return null;
-    const file = JSON.parse(readFileSync(loc.path, "utf-8")) as KLFFile;
+    const file = JSON.parse(readFileSync(loc.path, "utf-8")) as KBFFile;
     const block = file.documents?.[loc.docIndex]?.blocks?.[loc.blockIndex];
     if (!block) return null;
     const targets: ReviewPayload["targets"] = {};
@@ -179,7 +179,7 @@ export class ReviewStore {
   }
 
   /**
-   * Write a target edit back into the block's `.klf` file. The
+   * Write a target edit back into the block's `.kbf` file. The
    * edited text is stored as a single text run — the same shape a
    * translator editing the file by hand produces; kapi's validators
    * and TM treat it as any other unstructured target.
@@ -188,7 +188,7 @@ export class ReviewStore {
     this.refresh();
     const loc = this.index.get(hash);
     if (!loc) return null;
-    const file = JSON.parse(readFileSync(loc.path, "utf-8")) as KLFFile;
+    const file = JSON.parse(readFileSync(loc.path, "utf-8")) as KBFFile;
     const block = file.documents?.[loc.docIndex]?.blocks?.[loc.blockIndex];
     if (!block) return null;
     block.targets = { ...block.targets, [locale]: [{ text }] as Run[] };
@@ -196,7 +196,7 @@ export class ReviewStore {
     try {
       serialized = marshalFile(file);
     } catch {
-      // Hand-made or partial KLF (missing generator/project envelope)
+      // Hand-made or partial KBF (missing generator/project envelope)
       // — keep it valid JSON rather than refusing the edit.
       serialized = JSON.stringify(file, null, 2) + "\n";
     }
@@ -211,10 +211,7 @@ function walkFiles(dir: string, out: string[]): void {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) walkFiles(path, out);
-    else if (entry.isFile()) {
-      const ext = extname(path);
-      if (ext === ".klf" || ext === ".klfl") out.push(path);
-    }
+    else if (entry.isFile() && (isKbfPath(path) || isAnnotationPath(path))) out.push(path);
   }
 }
 

@@ -1,0 +1,85 @@
+---
+sidebar_position: 1
+title: Overview
+description: What the Kapi Bundle Format (.kbf) is, the role it plays in the localization pipeline, and how the canonical Go engine and the TypeScript mirror relate.
+keywords:
+  [
+    KBF,
+    kapi bundle format,
+    .kbf,
+    exchange format,
+    content model,
+    localization,
+  ]
+---
+
+# Kapi Bundle Format (KBF)
+
+The **Kapi Bundle Format** is the JSON wire serialization of neokapi's
+[content model](/framework/content-model). Where the in-memory model carries the
+full runtime `Block` — skeleton, overlays, annotations, identity — KBF is the
+on-disk, language-neutral form of the same data: a set of `Document`s, each
+holding `Block`s whose translatable content is a flat sequence of `Run`s, with
+optional per-locale `targets`. It plays the role XLIFF plays in other
+toolchains: a structured exchange format that moves extracted content between an
+extractor, a translation step, and a merge step without losing inline markup,
+placeholders, or plural/select structure.
+
+KBF files use the `.kbf` extension and the MIME type
+`application/vnd.neokapi.kbf+json`. Stand-off annotations live in a companion
+`.overlays.jsonl` overlay file.
+
+## What it is for
+
+Use KBF when you need a faithful, diff-friendly, hashable representation of
+translatable content:
+
+- feeding extracted blocks to an AI or MT translation step,
+- exchanging content between tools,
+- persisting an extraction for later merge.
+
+The serializer is deterministic — 2-space indent, no HTML escaping, sorted map
+keys, trailing newline — so the byte output is stable for content hashing and
+for reviewing changes in git.
+
+## What it is not for
+
+KBF is an **authoring and exchange** format, not a runtime catalog. It is
+intentionally heavy: it carries the data shape that lets translators work, that
+tools like `kapi pseudo-translate` round-trip, and that a review platform can
+persist. That richness is waste at runtime, where the only operation is
+`(scope, source) → translated`. Compile KBF down to an established runtime
+catalog format (gettext MO, compact per-locale JSON, ICU) for the running
+application; keep KBF on the pipeline side.
+
+## Two implementations, one format
+
+KBF has two reference implementations kept byte-for-byte equivalent by shared
+golden fixtures:
+
+- **Go — canonical.** [`core/kbf`](https://github.com/neokapi/neokapi/tree/main/core/kbf)
+  in the framework module. Where the two sides differ, the Go source governs.
+- **TypeScript — mirror.** The
+  [`@neokapi/kapi-format`](https://github.com/neokapi/neokapi/tree/main/packages/kapi-format)
+  package, used by the React extractor and the in-browser tooling.
+
+You can watch the two engines agree, live, on the
+[KBF conformance page](/kbf-tests) — it runs the spec conformance suite against
+both implementations in your browser.
+
+## In this section
+
+- **[Specification](/reference/kbf/spec)** — the normative schema: the file
+  envelope, the run discriminated union, per-locale targets, validation rules,
+  and the `.overlays.jsonl` annotation overlay.
+- **[Examples](/reference/kbf/examples)** — worked examples of every run kind,
+  a full `.kbf` + `.overlays.jsonl` pair, and an embedded lab to edit them live.
+- **[KBF vs XLIFF](/reference/kbf/vs-xliff)** — how KBF maps onto XLIFF 2.x, and
+  where the two formats differ in philosophy.
+- **[The Kapi format family & .kpz package](/reference/kbf/package)** — the native
+  lossless formats for translation memory and termbase, and the `.kpz` package
+  that bundles a whole project — versus the lossy interchange formats
+  (XLIFF/PO, TMX, TBX).
+- **[KBF anatomy](/kbf-lab)** — a worked reading of one realistic `.kbf`
+  document, part by part, with a live round-trip through the real engine.
+- **[KBF Tests](/kbf-tests)** — the cross-engine conformance suite.

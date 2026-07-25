@@ -10,12 +10,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neokapi/neokapi/klz"
+	"github.com/neokapi/neokapi/kpz"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// .klz project snapshot hand-off + cached resume (AD-025 §5 / #787). These
+// .kpz project snapshot hand-off + cached resume (AD-025 §5 / #787). These
 // run the real binary using the deterministic pseudo-translate flow so
 // results are reproducible.
 
@@ -43,7 +43,7 @@ func newProject(t *testing.T) (string, string) {
 	return recipe, src
 }
 
-// TestPackUnpackRoundTrip verifies a project's working state packs to a .klz
+// TestPackUnpackRoundTrip verifies a project's working state packs to a .kpz
 // and rehydrates into a fresh project's .kapi/ state dir.
 func TestPackUnpackRoundTrip(t *testing.T) {
 	recipe, src := newProject(t)
@@ -53,7 +53,7 @@ func TestPackUnpackRoundTrip(t *testing.T) {
 	kapi(t, "run", "pseudo", "-p", recipe, "-i", src, "-o", filepath.Join(dir, "out.json"), "--target-lang", "fr-FR")
 	assert.FileExists(t, filepath.Join(dir, ".kapi", "cache", "blocks.db"))
 
-	snap := filepath.Join(dir, "snap.klz")
+	snap := filepath.Join(dir, "snap.kpz")
 	kapi(t, "pack", "-p", recipe, "-o", snap)
 	info, err := os.Stat(snap)
 	require.NoError(t, err)
@@ -92,7 +92,7 @@ func TestPackProvenanceLog(t *testing.T) {
 	dir := filepath.Dir(recipe)
 	kapi(t, "run", "pseudo", "-p", recipe, "-i", src, "-o", filepath.Join(dir, "out.json"), "--target-lang", "fr-FR")
 
-	snap := filepath.Join(dir, "snap.klz")
+	snap := filepath.Join(dir, "snap.kpz")
 	kapi(t, "pack", "-p", recipe, "-o", snap, "--log")
 	// pack --log a second time chains another provenance line.
 	kapi(t, "pack", "-p", recipe, "-o", snap, "--log")
@@ -110,20 +110,20 @@ func TestPackDeterministicWithoutLog(t *testing.T) {
 	dir := filepath.Dir(recipe)
 	kapi(t, "run", "pseudo", "-p", recipe, "-i", src, "-o", filepath.Join(dir, "out.json"), "--target-lang", "fr-FR")
 
-	a := filepath.Join(dir, "a.klz")
-	b := filepath.Join(dir, "b.klz")
+	a := filepath.Join(dir, "a.kpz")
+	b := filepath.Join(dir, "b.kpz")
 	kapi(t, "pack", "-p", recipe, "-o", a)
 	kapi(t, "pack", "-p", recipe, "-o", b)
 	assert.Equal(t, readFileBytes(t, a), readFileBytes(t, b),
 		"packs of the same state must be byte-identical without --log")
 }
 
-// .klz workspace: extract → transform-in-place → merge (AD-025 §5). The
+// .kpz workspace: extract → transform-in-place → merge (AD-025 §5). The
 // deterministic pseudo-translate tool keeps results reproducible.
 
-// TestKlzExtractTransformMerge verifies the full ad-hoc workspace flow with
+// TestKpzExtractTransformMerge verifies the full ad-hoc workspace flow with
 // no project, and that merged output equals a one-shot run per document.
-func TestKlzExtractTransformMerge(t *testing.T) {
+func TestKpzExtractTransformMerge(t *testing.T) {
 	dir := t.TempDir()
 	a := writeWS(t, dir, "a.json", `{"greeting":"Hello world"}`)
 	b := writeWS(t, dir, "b.json", `{"x":"Another string"}`)
@@ -133,7 +133,7 @@ func TestKlzExtractTransformMerge(t *testing.T) {
 	kapi(t, "pseudo-translate", a, "-o", aExp, "--target-lang", "qps")
 	kapi(t, "pseudo-translate", b, "-o", bExp, "--target-lang", "qps")
 
-	work := filepath.Join(dir, "work.klz")
+	work := filepath.Join(dir, "work.kpz")
 	out := kapi(t, "extract", a, b, "-o", work, "--target-lang", "qps")
 	assert.Contains(t, out, "Extracted 2")
 
@@ -145,12 +145,12 @@ func TestKlzExtractTransformMerge(t *testing.T) {
 		"each document's targets must stay isolated through the workspace")
 }
 
-// TestKlzMultiLocaleAccumulates verifies transforms accumulate locales and
+// TestKpzMultiLocaleAccumulates verifies transforms accumulate locales and
 // merge emits one file per source × locale under <out>/<lang>/.
-func TestKlzMultiLocaleAccumulates(t *testing.T) {
+func TestKpzMultiLocaleAccumulates(t *testing.T) {
 	dir := t.TempDir()
 	src := writeWS(t, dir, "app.json", `{"greeting":"Hello world"}`)
-	work := filepath.Join(dir, "work.klz")
+	work := filepath.Join(dir, "work.kpz")
 	kapi(t, "extract", src, "-o", work, "--target-lang", "qps")
 
 	kapi(t, "pseudo-translate", work, "--target-lang", "fr")
@@ -161,12 +161,12 @@ func TestKlzMultiLocaleAccumulates(t *testing.T) {
 	assert.FileExists(t, filepath.Join(dir, "l10n", "qps", "app.json"))
 }
 
-// TestKlzRecipeRemembersOutput verifies the recipe (locales + out layout)
-// travels with the .klz, so `merge` needs no flags.
-func TestKlzRecipeRemembersOutput(t *testing.T) {
+// TestKpzRecipeRemembersOutput verifies the recipe (locales + out layout)
+// travels with the .kpz, so `merge` needs no flags.
+func TestKpzRecipeRemembersOutput(t *testing.T) {
 	dir := t.TempDir()
 	src := writeWS(t, dir, "app.json", `{"greeting":"Hello world"}`)
-	work := filepath.Join(dir, "work.klz")
+	work := filepath.Join(dir, "work.kpz")
 	kapi(t, "extract", src, "-o", work, "--target-lang", "fr,qps",
 		"--out", filepath.Join(dir, "l10n", "{lang}", "{name}.{ext}"))
 
@@ -178,71 +178,71 @@ func TestKlzRecipeRemembersOutput(t *testing.T) {
 	assert.FileExists(t, filepath.Join(dir, "l10n", "qps", "app.json"))
 }
 
-// TestKlzCacheDirtyAndPack verifies the git-bundle model: a transform touches
-// only the cache (the .klz bytes are unchanged and `info` reports dirty);
-// `pack` ejects the cache into the .klz and `info` goes clean.
-func TestKlzCacheDirtyAndPack(t *testing.T) {
+// TestKpzCacheDirtyAndPack verifies the git-bundle model: a transform touches
+// only the cache (the .kpz bytes are unchanged and `info` reports dirty);
+// `pack` ejects the cache into the .kpz and `info` goes clean.
+func TestKpzCacheDirtyAndPack(t *testing.T) {
 	dir := t.TempDir()
 	src := writeWS(t, dir, "app.json", `{"a":"Hello world"}`)
-	work := filepath.Join(dir, "work.klz")
+	work := filepath.Join(dir, "work.kpz")
 	kapi(t, "extract", src, "-o", work, "--target-lang", "qps")
 	assert.Contains(t, kapi(t, "info", work), "clean")
 
 	before := readFileBytes(t, work)
 	kapi(t, "pseudo-translate", work) // cache only
-	assert.Equal(t, before, readFileBytes(t, work), "a transform must not rewrite the .klz")
+	assert.Equal(t, before, readFileBytes(t, work), "a transform must not rewrite the .kpz")
 	assert.Contains(t, kapi(t, "info", work), "dirty")
 
 	kapi(t, "pack", work)
-	assert.NotEqual(t, before, readFileBytes(t, work), "pack must rewrite the .klz")
+	assert.NotEqual(t, before, readFileBytes(t, work), "pack must rewrite the .kpz")
 	assert.Contains(t, kapi(t, "info", work), "clean")
 }
 
-// TestKlzAutoPack verifies --pack ejects to the .klz as part of the transform.
-func TestKlzAutoPack(t *testing.T) {
+// TestKpzAutoPack verifies --pack ejects to the .kpz as part of the transform.
+func TestKpzAutoPack(t *testing.T) {
 	dir := t.TempDir()
 	src := writeWS(t, dir, "app.json", `{"a":"Hello world"}`)
-	work := filepath.Join(dir, "work.klz")
+	work := filepath.Join(dir, "work.kpz")
 	kapi(t, "extract", src, "-o", work, "--target-lang", "qps")
 	kapi(t, "pseudo-translate", work, "--pack")
 	assert.Contains(t, kapi(t, "info", work), "clean", "--pack must leave the workspace clean")
 }
 
-// TestKlzHandoff verifies a packed .klz at a new path rebuilds its cache from
+// TestKpzHandoff verifies a packed .kpz at a new path rebuilds its cache from
 // the file and resumes correctly (the "another machine" case).
-func TestKlzHandoff(t *testing.T) {
+func TestKpzHandoff(t *testing.T) {
 	dir := t.TempDir()
 	src := writeWS(t, dir, "app.json", `{"a":"Hello world"}`)
 	exp := filepath.Join(dir, "exp.json")
 	kapi(t, "pseudo-translate", src, "-o", exp, "--target-lang", "qps")
 
-	work := filepath.Join(dir, "work.klz")
+	work := filepath.Join(dir, "work.kpz")
 	kapi(t, "extract", src, "-o", work, "--target-lang", "qps")
 	kapi(t, "pseudo-translate", work)
 	kapi(t, "pack", work)
 
-	// "Ship" the .klz to a new path → a fresh cache key, rebuilt from the file.
-	shipped := filepath.Join(t.TempDir(), "shipped.klz")
+	// "Ship" the .kpz to a new path → a fresh cache key, rebuilt from the file.
+	shipped := filepath.Join(t.TempDir(), "shipped.kpz")
 	require.NoError(t, os.WriteFile(shipped, readFileBytes(t, work), 0o644))
 	kapi(t, "merge", shipped, "-o", filepath.Join(dir, "out"))
 	assert.Equal(t, readFile(t, exp), readFile(t, filepath.Join(dir, "out", "app.json")))
 }
 
-// TestKlzTransformReusesCache pins the caching guarantee: the overlays in a
-// .klz ARE the cache, so a second transform hydrates them instead of
+// TestKpzTransformReusesCache pins the caching guarantee: the overlays in a
+// .kpz ARE the cache, so a second transform hydrates them instead of
 // recomputing. We tamper a cached target overlay to a sentinel; if the
 // second transform recomputed it would overwrite the sentinel — it must not.
-func TestKlzTransformReusesCache(t *testing.T) {
+func TestKpzTransformReusesCache(t *testing.T) {
 	dir := t.TempDir()
 	src := writeWS(t, dir, "app.json", `{"a":"Hello world"}`)
-	work := filepath.Join(dir, "work.klz")
+	work := filepath.Join(dir, "work.kpz")
 	kapi(t, "extract", src, "-o", work, "--target-lang", "qps")
 	kapi(t, "pseudo-translate", work) // first transform: computes + caches
 	kapi(t, "pack", work)             // eject so the cache is clean and re-syncs
 
 	// Tamper the packed target overlay to a sentinel. The cache is clean, so
-	// the next command rebuilds the cache from this (tampered) .klz.
-	pkg, err := klz.Unmarshal(readFileBytes(t, work))
+	// the next command rebuilds the cache from this (tampered) .kpz.
+	pkg, err := kpz.Unmarshal(readFileBytes(t, work))
 	require.NoError(t, err)
 	tampered := false
 	for i := range pkg.Overlays {
@@ -263,18 +263,18 @@ func TestKlzTransformReusesCache(t *testing.T) {
 		"a second transform must hydrate the cached overlay, not recompute it")
 }
 
-// TestKlzTransformGuards verifies the model's guards: creating a .klz needs
+// TestKpzTransformGuards verifies the model's guards: creating a .kpz needs
 // extract; emitting needs merge.
-func TestKlzTransformGuards(t *testing.T) {
+func TestKpzTransformGuards(t *testing.T) {
 	dir := t.TempDir()
 	src := writeWS(t, dir, "app.json", wsSource)
 
-	// A tool can't write a .klz directly — that's extract's job.
-	_, err := kapiAllowFail(t, "pseudo-translate", src, "-o", filepath.Join(dir, "x.klz"), "--target-lang", "qps")
+	// A tool can't write a .kpz directly — that's extract's job.
+	_, err := kapiAllowFail(t, "pseudo-translate", src, "-o", filepath.Join(dir, "x.kpz"), "--target-lang", "qps")
 	require.Error(t, err)
 
-	// A tool on a .klz with -o is rejected (transform is in place; use merge).
-	work := filepath.Join(dir, "work.klz")
+	// A tool on a .kpz with -o is rejected (transform is in place; use merge).
+	work := filepath.Join(dir, "work.kpz")
 	kapi(t, "extract", src, "-o", work, "--target-lang", "qps")
 	_, err = kapiAllowFail(t, "pseudo-translate", work, "-o", filepath.Join(dir, "out.json"))
 	require.Error(t, err)

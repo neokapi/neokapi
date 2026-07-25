@@ -77,8 +77,8 @@ type ToolRunConfig struct {
 	Progress       bool
 	OutputTemplate string
 	// InPlace: write back to the input file path instead of expanding
-	// OutputTemplate. Enabled automatically when all inputs are KLF
-	// files and -o was omitted — KLF writers are locale-additive,
+	// OutputTemplate. Enabled automatically when all inputs are KBF
+	// files and -o was omitted — KBF writers are locale-additive,
 	// so in-place accumulates translations rather than clobbering.
 	InPlace bool
 	// DefaultLayout: no -o/--output-dir was given, so resolve each output
@@ -86,8 +86,8 @@ type ToolRunConfig struct {
 	// if present, else write under a {lang}/ directory beside the input.
 	DefaultLayout bool
 	TargetLang    string
-	// Pack: when the input is a .klz workspace, auto-eject the transform to
-	// the .klz (the --pack flag); otherwise the cache is left dirty.
+	// Pack: when the input is a .kpz workspace, auto-eject the transform to
+	// the .kpz (the --pack flag); otherwise the cache is left dirty.
 	Pack           bool
 	TracePath      string // write flow trace JSON to this file
 	ParallelBlocks int    // fan out block processing across N goroutines (0 = off)
@@ -99,13 +99,13 @@ type ToolRunConfig struct {
 // RunToolOnFiles processes each file through a single-tool flow and
 // aggregates results via the collector. Files are processed in parallel.
 func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
-	// A tool run on a single .klz transforms the workspace IN PLACE; output
+	// A tool run on a single .kpz transforms the workspace IN PLACE; output
 	// files come later from `kapi merge`.
-	if klzWorkspaceInput(cfg.Files) {
+	if kpzWorkspaceInput(cfg.Files) {
 		if cfg.OutputTemplate != "" {
-			return errKlzTransformOutput
+			return errKpzTransformOutput
 		}
-		return a.transformKlzInPlace(ctx, cfg.Files[0], cfg.ToolName, func() ([]tool.Tool, func(), error) {
+		return a.transformKpzInPlace(ctx, cfg.Files[0], cfg.ToolName, func() ([]tool.Tool, func(), error) {
 			t, terr := cfg.NewTool()
 			if terr != nil {
 				return nil, nil, terr
@@ -113,8 +113,8 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 			return []tool.Tool{t}, nil, nil
 		}, cfg.TargetLang, a.toolDefaultLocale(cfg.ToolName), cfg.Pack)
 	}
-	if IsKlzPath(cfg.OutputTemplate) {
-		return errKlzCreateWithExtract
+	if IsKpzPath(cfg.OutputTemplate) {
+		return errKpzCreateWithExtract
 	}
 
 	files, err := resolveFiles(cfg.Files)
@@ -398,7 +398,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	// Create writer early so we can wire skeleton store before reading.
 	// Writer format defaults to the reader's format (same-in / same-out
 	// round-trip) but a different output extension selects a different
-	// writer — that's how "convert .json → .klf → .mo" works without a
+	// writer — that's how "convert .json → .kbf → .mo" works without a
 	// dedicated --writer flag. The output path's extension IS the user's
 	// intent declaration.
 	var writer format.DataFormatWriter

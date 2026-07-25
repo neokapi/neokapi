@@ -9,7 +9,7 @@
  *   - Hold ⌥/Alt: hovering a translated element outlines it.
  *   - ⌥/Alt+click: opens the review panel — source text, editable
  *     target for the active locale, translator note, term/QA
- *     annotations. Saving writes back into the local `.klf` file
+ *     annotations. Saving writes back into the local `.kbf` file
  *     (git-diffable review) and repaints the live UI in place.
  *   - "Highlight terms & QA": paints run-level term matches and QA
  *     findings onto the live page via the CSS Custom Highlight API —
@@ -206,7 +206,7 @@ async function openPanel(endpoint: string, hash: string, el: Element): Promise<v
     if (!res.ok) throw new Error(`${res.status}`);
     payload = (await res.json()) as ReviewPayload;
   } catch {
-    showToast("kapi review: block not found in the KLF tree — run extract first");
+    showToast("kapi review: block not found in the KBF tree — run extract first");
     return;
   }
 
@@ -229,7 +229,7 @@ async function openPanel(endpoint: string, hash: string, el: Element): Promise<v
     <textarea id="kapi-review-target">${escapeHTML(target)}</textarea>
     ${renderAnnotations(payload.annotations)}
     <div class="kapi-row">
-      <button class="kapi-primary" id="kapi-review-save">Save to .klf</button>
+      <button class="kapi-primary" id="kapi-review-save">Save to .kbf</button>
       <span class="kapi-status" id="kapi-review-status"></span>
     </div>
   `;
@@ -509,7 +509,7 @@ function renderHeadEntry(entry: HeadTranslatable, locale: string): string {
       <div class="kapi-label">Target <span class="kapi-locale">(${escapeHTML(locale || "set a locale")})</span></div>
       <textarea class="kapi-head-target">${escapeHTML(target)}</textarea>
       <div class="kapi-row">
-        <button class="kapi-primary kapi-head-save">Save to .klf</button>
+        <button class="kapi-primary kapi-head-save">Save to .kbf</button>
         <span class="kapi-status kapi-head-status"></span>
       </div>
     </div>`;

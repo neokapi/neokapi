@@ -101,7 +101,7 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
   project root, used for project-scoped term enforcement with no `--termbase`
   flag.
 - `termbase_source` / `tm_source` (string) — committed, git-tracked native source
-  artifacts (`.klftb` / `.klftm`) the project termbase and TM are compiled from.
+  artifacts (`.ktb` / `.kmb`) the project termbase and TM are compiled from.
   `kapi apply` edits the source and re-imports into the gitignored `.db` cache, so
   the SQLite store is written by exactly one path and `git diff` is the review
   surface.

@@ -8,7 +8,6 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/sievepen/klftm"
 	"github.com/spf13/cobra"
 )
 
@@ -56,15 +55,17 @@ Default (no flag): same as --local (uses ./tm.db).`,
 func newTMImportCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "import [file]",
-		Short: "Import a TMX or .klftm file into translation memory",
-		Long: `Import a single TMX file (plain or .gz) or a native .klftm file into the TM.
+		Short: "Import a TMX, .kmb, or .kmz file into translation memory",
+		Long: `Import a single TMX file (plain or .gz), a native .kmb bundle, or a
+.kmz archive into the TM.
 
-klftm is the KLF-family native TM form: a deterministic, lossless JSON
+kmb (Kapi Memory Bundle) is the native TM form: a deterministic, lossless JSON
 serialization that round-trips every TMEntry field (entity mappings,
-provenance origins, properties, notes) that TMX drops. Importing a .klftm
-preserves entry identity verbatim, so re-seeding a TM from committed .klftm
-files is fully reproducible. The format is selected by file extension;
---format overrides.
+provenance origins, properties, notes) that TMX drops. Importing a .kmb
+preserves entry identity verbatim, so re-seeding a TM from committed .kmb
+files is fully reproducible. A .kmz (Kapi Memory Archive) is the same bundle
+inside a compressed single-member container. The format is selected by file
+extension; --format overrides.
 
 By default, imports entries matching the given --source-locale and --target-locale.
 Use --all-pairs to emit entries for every (src, tgt) language pair present in
@@ -77,7 +78,7 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 <prop type="source-document"> URL is recorded as Origin.Reference.`,
 		Example: `  kapi tm import corpus.tmx -s en -t fr
   kapi tm import corpus.tmx --all-pairs --locales en,fr,de --name my-tm
-  kapi tm import seeds/builtins-nb.klftm`,
+  kapi tm import seeds/builtins-nb.kmb`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			srcLocale, _ := cmd.Flags().GetString("source-locale")
@@ -94,12 +95,14 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 
 			var count int
 			switch ResolveTMFileFormat(format, args[0]) {
-			case "klftm":
-				count, err = ImportKLFTMFile(cmd.Context(), tm, args[0])
+			case "kmb":
+				count, err = ImportKMBFile(cmd.Context(), tm, args[0])
+			case "kmz":
+				count, err = ImportKMZFile(cmd.Context(), tm, args[0])
 			case "tmx":
 				count, err = ImportTMXFile(cmd.Context(), tm, args[0], srcLocale, tgtLocale, allPairs, ParseLocaleList(localesRaw))
 			default:
-				return fmt.Errorf("unsupported format: %s (use tmx or klftm)", format)
+				return fmt.Errorf("unsupported format: %s (use tmx, kmb, or kmz)", format)
 			}
 			if err != nil {
 				return err
@@ -131,7 +134,7 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 	cmd.Flags().StringP("target-locale", "t", "", "target locale")
 	cmd.Flags().Bool("all-pairs", false, "emit entries for every (src,tgt) pair present in each TU (multilingual TMX)")
 	cmd.Flags().String("locales", "", "comma-separated locale subset for --all-pairs (empty = all languages in file)")
-	cmd.Flags().String("format", "auto", "input format (auto, tmx, klftm); auto selects by file extension")
+	cmd.Flags().String("format", "auto", "input format (auto, tmx, kmb, kmz); auto selects by file extension")
 
 	return cmd
 }
@@ -245,8 +248,8 @@ Examples:
 func newTMExportCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export",
-		Short: "Export translation memory to TMX or .klftm",
-		Long: `Export the TM to TMX 1.4 (default) or the native .klftm form.
+		Short: "Export translation memory to TMX, .kmb, or .kmz",
+		Long: `Export the TM to TMX 1.4 (default) or the native .kmb / .kmz form.
 
 TMX: each entry is written as a single <tu> with one <tuv> per language
 variant present (or the subset requested via --locales). Inline markup is
@@ -254,9 +257,12 @@ preserved as TMX <ph>/<bpt>/<ept>/<it>/<hi>. TMX is the lossy interchange
 tier — entity mappings, provenance origins, properties, and notes are
 dropped.
 
-klftm (--format klftm, or a -o path ending in .klftm): the deterministic,
+kmb (--format kmb, or a -o path ending in .kmb): the deterministic,
 lossless native serialization — the right form for committing a TM to git
-and for seeding a fresh TM exactly. --locales does not apply.`,
+and for seeding a fresh TM exactly. --locales does not apply.
+
+kmz (--format kmz, or a -o path ending in .kmz): the same bundle inside a
+compressed single-member container — the at-rest/handoff form for a large TM.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputPath, _ := cmd.Flags().GetString("output")
 			localesRaw, _ := cmd.Flags().GetString("locales")
@@ -278,21 +284,13 @@ and for seeding a fresh TM exactly. --locales does not apply.`,
 			}
 
 			switch ResolveTMFileFormat(format, outputPath) {
-			case "klftm":
-				entries, err := tm.Entries(cmd.Context())
-				if err != nil {
-					return fmt.Errorf("list TM entries: %w", err)
+			case "kmb":
+				if err := ExportKMB(cmd.Context(), tm, w); err != nil {
+					return err
 				}
-				sessions, err := tm.ListImportSessions(cmd.Context())
-				if err != nil {
-					return fmt.Errorf("list import sessions: %w", err)
-				}
-				data, err := klftm.Marshal(klftm.FromModel(entries, sessions))
-				if err != nil {
-					return fmt.Errorf("marshal klftm: %w", err)
-				}
-				if _, err := w.Write(data); err != nil {
-					return fmt.Errorf("write klftm: %w", err)
+			case "kmz":
+				if err := ExportKMZ(cmd.Context(), tm, w); err != nil {
+					return err
 				}
 			case "tmx":
 				locales := ParseLocaleList(localesRaw)
@@ -300,7 +298,7 @@ and for seeding a fresh TM exactly. --locales does not apply.`,
 					return fmt.Errorf("export TMX: %w", err)
 				}
 			default:
-				return fmt.Errorf("unsupported format: %s (use tmx or klftm)", format)
+				return fmt.Errorf("unsupported format: %s (use tmx, kmb, or kmz)", format)
 			}
 
 			if !a.Quiet && outputPath != "" {
@@ -319,7 +317,7 @@ and for seeding a fresh TM exactly. --locales does not apply.`,
 
 	cmd.Flags().StringP("output", "o", "", "output file (default: stdout)")
 	cmd.Flags().String("locales", "", "comma-separated locale subset (default: all variants present)")
-	cmd.Flags().String("format", "auto", "output format (auto, tmx, klftm); auto selects by the -o extension")
+	cmd.Flags().String("format", "auto", "output format (auto, tmx, kmb, kmz); auto selects by the -o extension")
 
 	return cmd
 }

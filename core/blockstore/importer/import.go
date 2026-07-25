@@ -316,7 +316,7 @@ func hashSource(text string) string {
 	return hex.EncodeToString(h[:])
 }
 
-// plainBlockSourceText extracts the flat text from a klf.Block's
+// plainBlockSourceText extracts the flat text from a kbf.Block's
 // source runs (the type blockstore.Session returns).
 func plainBlockSourceText(b *blockstore.Block) string {
 	if b == nil {

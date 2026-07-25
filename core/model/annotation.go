@@ -41,7 +41,7 @@ type AltTranslation struct {
 // UnmarshalJSON decodes an AltTranslation, accepting the legacy snake_case
 // key spellings alongside the canonical camelCase ones. Legacy producers are
 // (a) payloads persisted before the camelCase switch (sync annotations_json,
-// server annotation rows, blockstore caches, .klz parcels) and (b) released
+// server annotation rows, blockstore caches, .kpz parcels) and (b) released
 // okapi-bridge JARs, whose AnnotationExtractor emits snake_case keys. When a
 // document carries both spellings of a key, camelCase wins. The snake_case
 // accepts are scheduled for removal one release after the switch — except the

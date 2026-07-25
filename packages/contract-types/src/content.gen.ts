@@ -332,7 +332,7 @@ export type ContentRef =
  * discriminator key. Text runs serialize flat — `{"text":"literal"}` — per
  * Framework AD-002; every other kind nests its payload struct.
  * Mirrors model.Run.MarshalJSON. This is the run form used by ContentTree,
- * KLF, and flow traces; the wire form is the RunMessage union above.
+ * KBF, and flow traces; the wire form is the RunMessage union above.
  */
 export type Run =
   | { text: string }
