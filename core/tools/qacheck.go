@@ -244,7 +244,7 @@ func compileQAPatterns(patterns []QAPattern) []compiledQAPattern {
 // placeholder-only target as empty. sourceText / targetText stay available for
 // the judgements that are genuinely about characters (see corruptionFindings,
 // which must not see a sentinel).
-func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, targetText, srcShape, tgtShape string) []check.Finding {
+func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, v tool.BlockView, sourceText, targetText, srcShape, tgtShape string) []check.Finding {
 	var findings []check.Finding
 
 	// Check: empty target (target segments exist but text is empty).
@@ -315,7 +315,10 @@ func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, target
 	// Check: target same as source. The comparison is on the shapes, so a target
 	// that merely moved a placeholder is not "identical"; the word/number
 	// heuristics below stay on the plain text, which is what they are about.
-	if conf.CheckTargetSameAsSource && tgtShape != "" && srcShape != "" && tgtShape == srcShape {
+	// Whether the *codes* count too is TargetSameAsSourceWithCodes — see
+	// sameAsSource.
+	if conf.CheckTargetSameAsSource && tgtShape != "" && srcShape != "" &&
+		sameAsSource(conf, srcShape, tgtShape, v.SourceRuns(), v.TargetRuns(conf.TargetLocale)) {
 		if containsWordChar(sourceText) {
 			if conf.TargetSameAsSourceWithNumbers || !isNumberOnly(sourceText) {
 				findings = append(findings, check.Finding{
@@ -333,6 +336,38 @@ func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, target
 	}
 
 	return findings
+}
+
+// sameAsSource decides whether a target counts as identical to its source for
+// the `target-same-as-source` rule, honouring TargetSameAsSourceWithCodes.
+//
+// The shapes settle the text and where the codes sit: they are check.HygieneText
+// flattenings, so each inline code stands as one sentinel and a target that
+// merely moved a placeholder is already not identical. That is Okapi's
+// IGNORE_CODE comparison — "ignore difference in codes; markers are still
+// considered" — and it is the `withCodes = false` reading.
+//
+// With TargetSameAsSourceWithCodes set (the default, and Okapi's), *which* codes
+// they are counts too, so the target must additionally carry exactly the source's
+// inline codes — model.DiffRunCodes, the same predicate every stage that commits
+// a machine-selected target keys off. This is Okapi's CODE_DATA_ONLY: text equal
+// AND codes equal. A target with the source's words but a different placeholder
+// is then not "identical to source", which is right — swapping {name} for {count}
+// is a change, and reporting it as untranslated points a reviewer at the wrong
+// defect (the code difference is separately reported as `missing-code` /
+// `extra-code`).
+//
+// The knob was declared, documented and defaulted true but read by nothing, so
+// every comparison silently took the `false` branch (#1463). It is Okapi's
+// targetSameAsSourceWithCodes, and this is what it means.
+func sameAsSource(conf *QACheckConfig, srcShape, tgtShape string, sourceRuns, targetRuns []model.Run) bool {
+	if srcShape != tgtShape {
+		return false
+	}
+	if !conf.TargetSameAsSourceWithCodes {
+		return true
+	}
+	return model.DiffRunCodes(sourceRuns, targetRuns).Balanced()
 }
 
 // checkCharacterIssues runs the character rules ported from the retired
@@ -586,7 +621,7 @@ func NewQACheckTool(cfg *QACheckConfig) *tool.BaseTool {
 		tgtShape := check.HygieneText(v.TargetRuns(conf.TargetLocale))
 
 		var findings []check.Finding
-		findings = append(findings, h.checkTextIssues(conf, sourceText, targetText, srcShape, tgtShape)...)
+		findings = append(findings, h.checkTextIssues(conf, v, sourceText, targetText, srcShape, tgtShape)...)
 		findings = append(findings, h.checkCharacterIssues(conf, sourceText, targetText)...)
 		findings = append(findings, h.checkLengthIssues(conf, sourceText, targetText)...)
 		findings = append(findings, h.checkPatternAndCodeIssues(conf, v, sourceText, targetText)...)

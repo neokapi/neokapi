@@ -162,6 +162,46 @@ func TestHygieneViewRangeAnchorsTheOffendingText(t *testing.T) {
 	}
 }
 
+// RunsHaveContent is the one presence predicate every gate that asks "is there
+// content here?" calls. It has to say yes to a block whose only run is an inline
+// code: under RunsText that block flattened to "" and read as unauthored,
+// untranslated, unproduced and uncheckable everywhere at once.
+func TestRunsHaveContent(t *testing.T) {
+	tests := []struct {
+		name string
+		runs []model.Run
+		want bool
+	}{
+		{name: "no runs", runs: nil, want: false},
+		{name: "empty text run", runs: []model.Run{hvTx("")}, want: false},
+		{name: "whitespace only", runs: []model.Run{hvTx("  \t\n")}, want: false},
+		{name: "text", runs: []model.Run{hvTx("Hello")}, want: true},
+		{
+			name: "placeholder only — the case RunsText answered wrongly",
+			runs: []model.Run{hvPh("1")},
+			want: true,
+		},
+		{
+			name: "placeholder with whitespace around it is still content",
+			runs: []model.Run{hvTx(" "), hvPh("1"), hvTx(" ")},
+			want: true,
+		},
+		{
+			name: "a paired code alone is content",
+			runs: []model.Run{
+				{PcOpen: &model.PcOpenRun{ID: "1", Type: "html:br"}},
+				{PcClose: &model.PcCloseRun{ID: "1"}},
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, model.RunsHaveContent(tt.runs))
+		})
+	}
+}
+
 func indexOf(t *testing.T, s, sub string) int {
 	t.Helper()
 	for i := 0; i+len(sub) <= len(s); i++ {

@@ -43,6 +43,29 @@ func RunsHygieneText(runs []Run) string {
 	return NewHygieneView(runs).Text()
 }
 
+// RunsHaveContent reports whether a Run sequence holds content: text beyond
+// whitespace, or an inline code. It is the one presence predicate — "is there
+// anything here?" — that every gate asking it must call.
+//
+// Presence is a *shape* question, so it reads the [RunsHygieneText] flattening.
+// [RunsText] drops inline code, which answers it wrongly for a block whose only
+// run is a placeholder:
+//
+//	[ph{p.price}]   RunsText → ""    → "nothing here"
+//	                hygiene  → "￼"   → a placeholder, which is content
+//
+// That wrong answer is not a cosmetic one wherever a gate keys off it: a
+// placeholder-only unit reads as unauthored and untranslated, so it never
+// reaches a rung of either ladder and can never ship; the same unit reads as
+// missing to `kapi up`, which re-translates it every pass; and as unproduced to
+// the guardrails, which then never check it.
+//
+// A rule that wants the string, not the verdict, reads [RunsHygieneText]
+// directly; one that reports a range needs [NewHygieneView].
+func RunsHaveContent(runs []Run) bool {
+	return strings.TrimSpace(RunsHygieneText(runs)) != ""
+}
+
 // HygieneView is the run-aware view of a Run sequence that content-shape rules
 // inspect: the [RunsHygieneText] flattening, plus the mapping from offsets in it
 // back to [RunsText] coordinates — the space every stand-off overlay, content

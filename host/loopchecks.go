@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/gate"
@@ -120,8 +119,11 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, units
 				continue
 			}
 			// Only produced units are checkable: an empty target is pending
-			// work, not a guardrail failure.
-			if strings.TrimSpace(b.TargetText(model.LocaleID(u.Locale))) == "" {
+			// work, not a guardrail failure. Presence is the shared run-aware
+			// predicate — under TargetText() a target whose only run is an inline
+			// code read as empty, so the guardrails silently never saw it and it
+			// reached the ship gate unchecked.
+			if !model.RunsHaveContent(b.TargetRuns(model.LocaleID(u.Locale))) {
 				continue
 			}
 			// A checker that could not run must not read as a checker that

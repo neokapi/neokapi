@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -238,7 +237,12 @@ func (a *App) computeUpPlan(ctx context.Context, tm sievepen.TranslationMemory, 
 			if !b.Translatable {
 				continue
 			}
-			if !missing && strings.TrimSpace(b.TargetText(target)) != "" {
+			// "Already produced" is the shared run-aware presence question
+			// (model.RunsHaveContent). Under TargetText() a target whose only run
+			// is an inline code flattened to "" and counted as missing, so every
+			// `kapi up` pass re-planned and re-translated a unit that was already
+			// done — billed AI work on content that needed none.
+			if !missing && model.RunsHaveContent(b.TargetRuns(target)) {
 				continue // already produced
 			}
 			s.MissingTarget++

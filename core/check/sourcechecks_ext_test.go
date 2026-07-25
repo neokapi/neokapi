@@ -288,6 +288,28 @@ func TestSourceReadiness_NonTranslatableUntouched(t *testing.T) {
 	assert.Empty(t, result.Resource.(*model.Block).SourceStatus, "non-translatable source must not be stamped")
 }
 
+// The readiness gate's emptiness guard is the shared run-aware presence
+// predicate (model.RunsHaveContent). Through SourceText() a block whose only run
+// is a placeholder flattened to "" and was skipped, so it never reached `checked`
+// and the source gate held it out of translation forever — fixed in #1455 but
+// never pinned. It is pinned here, on the predicate every gate now shares.
+func TestSourceReadiness_PlaceholderOnlySourceIsStamped(t *testing.T) {
+	t.Parallel()
+	block := &model.Block{ID: "price", Translatable: true, Source: []model.Run{
+		{Ph: &model.PlaceholderRun{ID: "1", Type: "jsx:var", Data: "{p.price}", Equiv: "p.price"}},
+	}}
+	tl, err := check.NewSourceReadinessTool("")
+	require.NoError(t, err)
+	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
+	assert.Equal(t, model.SourceStatusChecked, result.Resource.(*model.Block).SourceStatus,
+		"a placeholder-only source is authored content and must be able to reach `checked`")
+
+	// The boundary holds: a genuinely empty source is still not stamped.
+	empty := &model.Block{ID: "e", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: "  "}}}}
+	result = processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: empty})
+	assert.Empty(t, result.Resource.(*model.Block).SourceStatus)
+}
+
 func TestSourceReadiness_InvalidSeverityRejected(t *testing.T) {
 	t.Parallel()
 	_, err := check.NewSourceReadinessTool("nonsense")
