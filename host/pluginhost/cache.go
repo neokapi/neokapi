@@ -10,9 +10,17 @@ import (
 	"github.com/neokapi/neokapi/core/plugin/manifest"
 )
 
-// cacheVersion bumps when the cache file shape changes incompatibly.
-// On version mismatch, kapi discards the cache and rescans.
-const cacheVersion = "1"
+// cacheVersion bumps when the cache file shape changes incompatibly, or when a
+// scanner fix makes previously-written contents wrong. On version mismatch,
+// kapi discards the cache and rescans.
+//
+// 2: discovery used to skip symlinked plugin directories, so every cache a
+// pre-fix kapi wrote omits the package-manager-installed plugins (Homebrew
+// links its kegs into the shared root). Freshness is judged by root mtimes
+// alone, which do not change when kapi is upgraded — without this bump those
+// plugins would stay invisible after the fix until something happened to touch
+// a root.
+const cacheVersion = "2"
 
 // Cache is the on-disk dispatch cache. It is built as a side effect of
 // install/update/remove and consumed at startup when no discovery root

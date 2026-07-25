@@ -125,8 +125,10 @@ translation-coverage bar is an optional top-level `ship_gate:` (see
 
 ## 5. Push to Bowrain
 
-Bowrain commands come from the `kapi-bowrain` plugin. If `kapi push` is an
-unknown command, install it first:
+Bowrain commands come from the `kapi-bowrain` plugin. Once the recipe declares
+a `server:` block, running one of its verbs without the plugin installed offers
+the install rather than failing — on a terminal it prompts, and `--yes` accepts
+without asking. To install it up front instead:
 
 ```bash
 kapi plugins list

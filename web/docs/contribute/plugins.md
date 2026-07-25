@@ -66,8 +66,12 @@ Plugins are discovered structurally by location, in precedence order:
 | 2           | `$XDG_DATA_HOME/kapi/plugins/` (`~/.local/share/kapi/plugins/`) | `kapi plugin install` target  |
 | 3           | system roots (`/opt/homebrew/share/kapi/plugins/`, `/usr/local/share/kapi/plugins/`, `/usr/share/kapi/plugins/`) | OS package managers |
 
-Within each location, every direct subdirectory containing a `manifest.json` is a
-plugin. First-match-wins on plugin name. Two different plugins declaring the same
+Within each location, every direct entry that resolves to a directory containing
+a `manifest.json` is a plugin — a symlink counts, which is what makes the system
+roots work: a package manager stages the plugin inside its own package prefix
+and links it into the shared root (Homebrew links
+`/opt/homebrew/share/kapi/plugins/<plugin>` to the formula's keg).
+First-match-wins on plugin name. Two different plugins declaring the same
 capability is an error — kapi prints both manifests and refuses to dispatch the
 conflicting capability. A consolidated dispatch cache at
 `$XDG_CACHE_HOME/kapi/plugins-cache.json` skips manifest parsing when no
@@ -119,6 +123,14 @@ requires:
 Loading the recipe fails if a named plugin is not registered. On a TTY, kapi
 offers to install it and retries; in CI it prints an actionable error pointing at
 `kapi plugin install`.
+
+A recipe can also imply a plugin without naming it: declaring a top-level key
+that a plugin's `schema_extensions` own (`server:`, from the platform plugin) is
+the declaration. Typing one of that plugin's verbs without it installed gets the
+same offer rather than an unknown-command error — prompt on a terminal, install
+under `--yes`, then run the verb; both install routes plus exit code 2 in CI or
+under `--quiet`. A mistyped verb is left alone, keeping cobra's suggestions. See
+[AD-007](/contribute/architecture/007-plugin-system#missing-plugin-verbs).
 
 ## Lifecycle commands
 

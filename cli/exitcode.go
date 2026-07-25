@@ -50,6 +50,20 @@ func Run(cmd *cobra.Command, cleanup ...func()) {
 	// error envelope below needs. The root's own flag set would not.
 	start := time.Now()
 	executed, err := cmd.ExecuteContextC(ctx)
+
+	// An unknown verb may not be a mistake — it may be a verb whose plugin is
+	// not installed. Give the handler a chance to say so, or to install the
+	// plugin and run the command, before this becomes a bare error. This runs
+	// before stop(), which cancels the signal context: the handler may install
+	// a plugin and then run the user's command, and that work must stay
+	// interruptible rather than starting out already cancelled.
+	if err != nil && unknownCommandHandler != nil {
+		if verb, ok := unknownCommandVerb(err); ok {
+			if handled, herr := unknownCommandHandler(cmd, verb, argsAfterVerb(os.Args[1:], verb)); handled {
+				err = herr
+			}
+		}
+	}
 	duration := time.Since(start)
 
 	stop()

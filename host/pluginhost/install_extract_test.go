@@ -169,6 +169,50 @@ func TestExtractTarGzSecurity(t *testing.T) {
 				b, err = os.ReadFile(filepath.Join(target, plugin, "lib", "libfoo.so"))
 				require.NoError(t, err)
 				assert.Equal(t, "so", string(b))
+				// The binary is named "kapi-<plugin>" — the same string as the
+				// staged-dir wrapper. It is a file, so it must be written, not
+				// mistaken for a wrapper and dropped.
+				b, err = os.ReadFile(filepath.Join(target, plugin, "kapi-"+plugin))
+				require.NoError(t, err, "the plugin binary must survive extraction")
+				assert.Equal(t, "binary", string(b))
+			},
+		},
+		{
+			// The bowrain layout: everything under a single "<plugin>/" dir,
+			// where stripping the wrapper leaves the binary named exactly
+			// "kapi-<plugin>". Regression for an install that produced a
+			// manifest with no binary beside it, failing at first dispatch
+			// with "fork/exec .../kapi-myplugin: no such file or directory".
+			name: "<plugin>/-wrapped tarball keeps the kapi-<plugin> binary",
+			entries: []tarEntry{
+				{name: plugin + "/", typeflag: tar.TypeDir},
+				{name: plugin + "/manifest.json", typeflag: tar.TypeReg, body: `{"plugin":"myplugin"}`},
+				{name: plugin + "/kapi-" + plugin, typeflag: tar.TypeReg, body: "binary", mode: 0o755},
+			},
+			verify: func(t *testing.T, target string) {
+				b, err := os.ReadFile(filepath.Join(target, plugin, "manifest.json"))
+				require.NoError(t, err)
+				assert.Equal(t, `{"plugin":"myplugin"}`, string(b))
+				b, err = os.ReadFile(filepath.Join(target, plugin, "kapi-"+plugin))
+				require.NoError(t, err, "the plugin binary must survive wrapper stripping")
+				assert.Equal(t, "binary", string(b))
+				fi, err := os.Stat(filepath.Join(target, plugin, "kapi-"+plugin))
+				require.NoError(t, err)
+				assert.NotZero(t, fi.Mode()&0o100, "the binary must stay executable")
+			},
+		},
+		{
+			// A directory genuinely named "kapi-<plugin>/" is still a wrapper
+			// and still gets stripped — the file/dir distinction is the whole
+			// fix, so pin both sides of it.
+			name: "kapi-<plugin>/ dir wrapper is still stripped",
+			entries: []tarEntry{
+				{name: "kapi-" + plugin + "/", typeflag: tar.TypeDir},
+				{name: "kapi-" + plugin + "/manifest.json", typeflag: tar.TypeReg, body: `{"plugin":"myplugin"}`},
+			},
+			verify: func(t *testing.T, target string) {
+				assert.FileExists(t, filepath.Join(target, plugin, "manifest.json"))
+				assert.NoDirExists(t, filepath.Join(target, plugin, "kapi-"+plugin))
 			},
 		},
 		{

@@ -111,8 +111,14 @@ written=()
 if [ "$which" = both ] || [ "$which" = kapi ]; then
 {
   echo "class ${kapi_class} < Formula"
-  echo '  desc "AI-native localization framework — format-aware parsing, concurrent pipelines, and pluggable tools"'
+  # Keep under 80 characters — `brew audit --strict` rejects longer descriptions.
+  echo '  desc "AI-native localization framework — format-aware parsing and pluggable tools"'
   echo '  homepage "https://github.com/neokapi/neokapi"'
+  # Declared explicitly, never inferred: Homebrew's Version.detect on a release
+  # URL like .../v1.1.0/kapi_1.1.0_darwin_arm64.tar.gz returns "64" (it latches
+  # onto `arm64`). `brew audit --strict` calls the declaration redundant for
+  # prerelease versions, whose `-rcN` suffix happens to defeat that heuristic —
+  # ignore it; dropping the line would ship a formula versioned 64.
   echo "  version \"${version}\""
   echo '  license "Apache-2.0"'
   echo
@@ -120,10 +126,15 @@ if [ "$which" = both ] || [ "$which" = kapi ]; then
   # plugin formula drops into the shared kapi plugins root; no cycle since
   # kapi-pdfium does not depend on kapi-cli.
   echo '  depends_on "neokapi/tap/kapi-pdfium"'
-  # The stable and beta channels install the same `kapi` binary — only one at a time.
-  echo "  conflicts_with \"${kapi_conflict}\", because: \"both install the kapi binary\""
   echo
   platform_block "kapi-cli"
+  echo
+  # The stable and beta channels install the same `kapi` binary — only one at a
+  # time. Both sides declare it: `brew audit` requires the conflict to be
+  # symmetric, and Homebrew only consults the conflicts of the formula being
+  # installed. Emitted after the on_macos/on_linux blocks — the component order
+  # `brew audit --strict` enforces.
+  echo "  conflicts_with \"${kapi_conflict}\", because: \"both install the kapi binary\""
   cat <<'RUBY'
 
   # Install kapi plus its multi-call toolbox aliases. kgrep / ksed / kcat /
@@ -164,34 +175,46 @@ if [ "$which" = both ] || [ "$which" = bowrain ]; then
   echo "class ${bowrain_class} < Formula"
   echo '  desc "Bowrain plugin for kapi — sync .kapi projects with Bowrain Server"'
   echo '  homepage "https://github.com/neokapi/neokapi"'
+  # See the kapi-cli block: the version is declared, never inferred from the URL.
   echo "  version \"${version}\""
   echo '  license "Apache-2.0"'
   echo
   echo "  depends_on \"${kapi_dep}\""
-  echo "  conflicts_with \"${bowrain_conflict}\", because: \"both install the bowrain plugin\""
   echo
   platform_block "kapi-bowrain"
+  echo
+  echo "  conflicts_with \"${bowrain_conflict}\", because: \"both install the bowrain plugin\""
   cat <<'RUBY'
 
+  # Plugin layout: kapi-bowrain binary + manifest.json, under a single `bowrain/`
+  # top-level directory. Homebrew chdirs into that directory before `install`
+  # runs, so the staged tree is flat — glob "*", not "bowrain/*" (which matches
+  # nothing and installs an empty array). Install the whole tree under the keg's
+  # own share/kapi/plugins/bowrain; Homebrew then links it to
+  # HOMEBREW_PREFIX/share/kapi/plugins/bowrain, the shared kapi plugins root
+  # `kapi` discovers. Installing into the keg (rather than symlinking into
+  # HOMEBREW_PREFIX, which the install sandbox denies with EPERM because that
+  # path belongs to another formula) keeps the install sandbox-safe and lets
+  # `brew uninstall` clean up.
   def install
-    plugin_dir = pkgshare/"plugins/bowrain"
-    plugin_dir.mkpath
-    plugin_dir.install Dir["bowrain/*"]
-    # Symlink so HOMEBREW_PREFIX/share/kapi/plugins/bowrain/ resolves
-    # to this formula's pkgshare/plugins/bowrain/.
-    kapi_share = HOMEBREW_PREFIX/"share/kapi/plugins"
-    kapi_share.mkpath
-    ln_sf plugin_dir, kapi_share/"bowrain"
+    (share/"kapi/plugins/bowrain").install Dir["*"]
   end
 
   # Absorb macOS Gatekeeper's one-time first-exec assessment of the plugin
   # binary at install time instead of stalling the first bowrain command.
+  # Best-effort: a failure just means the first real exec pays it instead.
   def post_install
-    system pkgshare/"plugins/bowrain/kapi-bowrain", "version"
+    system share/"kapi/plugins/bowrain/kapi-bowrain", "version"
+  rescue
+    nil
   end
 
   test do
-    system HOMEBREW_PREFIX/"share/kapi/plugins/bowrain/kapi-bowrain", "version"
+    # The plugin binary reports the version it was built at; this also proves the
+    # tree actually landed in the shared kapi plugins root rather than being a
+    # silently-empty install.
+    assert_match version.to_s,
+      shell_output("#{share}/kapi/plugins/bowrain/kapi-bowrain version 2>&1")
   end
 end
 RUBY
