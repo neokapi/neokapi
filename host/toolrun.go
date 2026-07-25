@@ -447,18 +447,22 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	// different-format writer (a cross-format conversion like DocLang → .md)
 	// would make the writer emit foreign markup, or fail outright. For a
 	// conversion we leave it unwired so the writer reconstructs from the content
-	// model + structural layer (role-driven semantic export). Mirrors the
-	// guard in core/flow.FileRunner.RunFileWithReaderWriter.
-	if writer != nil && reader.Name() == writer.Name() {
-		if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
-			if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
-				store, err := format.NewSkeletonStore()
-				if err == nil {
-					defer store.Close()
-					emitter.SetSkeletonStore(store)
-					consumer.SetSkeletonStore(store)
-				}
-			}
+	// model + structural layer (role-driven semantic export). The same-format
+	// gate lives in format.NewWiredSkeleton, shared with
+	// core/flow.FileRunner.RunFileWithReaderWriter.
+	//
+	// A store that cannot be created fails the file. `--fail-on-unknown` governs
+	// *unreadable* input, not a fault in our own scaffolding: a skeleton we
+	// promised and cannot deliver would silently reconstruct the document from
+	// the content model, so it is never skipped or warned past.
+	if writer != nil {
+		store, skelErr := format.NewWiredSkeleton(reader, writer)
+		if skelErr != nil {
+			reader.Close()
+			return fmt.Errorf("cannot process %s: %w", filePath, skelErr)
+		}
+		if store != nil {
+			defer store.Close()
 		}
 	}
 

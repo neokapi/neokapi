@@ -391,17 +391,16 @@ func (a *App) rewriteFile(ctx context.Context, filePath, fmtName, sourceLang str
 	defer writer.Close()
 
 	// Wire skeleton store when both sides support it so the writer reproduces
-	// the original structure (whitespace, key order, untouched values).
-	var skeletonStore *format.SkeletonStore
-	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
-		if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
-			if store, serr := format.NewSkeletonStore(); serr == nil {
-				skeletonStore = store
-				emitter.SetSkeletonStore(store)
-				consumer.SetSkeletonStore(store)
-				defer skeletonStore.Close()
-			}
-		}
+	// the original structure (whitespace, key order, untouched values). A store
+	// that cannot be created fails the rewrite: this replaces the user's file, so
+	// degrading silently would reformat every untouched value in it while the UI
+	// reported the fix applied.
+	skeletonStore, skelErr := format.NewWiredSkeleton(reader, writer)
+	if skelErr != nil {
+		return fmt.Errorf("cannot rewrite %s: %w", filepath.Base(filePath), skelErr)
+	}
+	if skeletonStore != nil {
+		defer skeletonStore.Close()
 	}
 
 	content, err := os.ReadFile(filePath)

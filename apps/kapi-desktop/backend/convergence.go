@@ -113,15 +113,22 @@ func (a *App) GetConvergePlan(tabID string) (*ConvergePlan, error) {
 	out := &ConvergePlan{Plan: *plan}
 
 	// Drift summary via the shared core detection (`kapi up`'s pre-pass check).
+	// A resolution failure is propagated, not skipped: DetectStoreDrift over a
+	// short (or empty) file list reports "0 changed, 0 removed", which the plan
+	// panel renders as "nothing has drifted" — the wrong number, not an error.
+	// Strictness costs nothing here: UpPlan above resolves the same recipe
+	// through UnitsFromProject and has already hard-failed on it.
 	if storePath, ok := a.projectBlockStorePath(op); ok {
 		pctx := project.NewProjectContext(op.Project, op.Path)
-		if resolved, rerr := pctx.ResolveContent(a.formatReg); rerr == nil {
-			drift := project.DetectStoreDrift(storePath, resolved)
-			out.ChangedFiles = len(drift.Changed)
-			out.RemovedFiles = len(drift.Removed)
-			out.StoreMissing = drift.StoreMissing
-			out.VersionStale = drift.VersionStale
+		resolved, rerr := pctx.ResolveContent(a.formatReg)
+		if rerr != nil {
+			return nil, rerr
 		}
+		drift := project.DetectStoreDrift(storePath, resolved)
+		out.ChangedFiles = len(drift.Changed)
+		out.RemovedFiles = len(drift.Removed)
+		out.StoreMissing = drift.StoreMissing
+		out.VersionStale = drift.VersionStale
 	}
 	return out, nil
 }

@@ -716,21 +716,22 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 	// is a concurrent (channel-backed) store so a streaming round-trip stays
 	// bounded-memory; otherwise the file-backed store (the writer buffers the
 	// block map). Output is byte-identical either way.
+	//
+	// A store that cannot be created fails the run. It used to be discarded, so
+	// the writer silently re-serialized the document from the content model and
+	// reported success — the same class of silent degradation writeMergedSource-
+	// WithSkeleton refuses for a skeleton that will not open (#1449).
 	var skeletonStore *format.SkeletonStore
 	if sameFormat {
-		if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
-			if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
-				if isStreamingPair(reader, writer) {
-					skeletonStore = format.NewStreamingSkeletonStore()
-				} else if store, storeErr := format.NewSkeletonStore(); storeErr == nil {
-					skeletonStore = store
-				}
-				if skeletonStore != nil {
-					skeletonStore.SetOriginFormat(reader.Name())
-					emitter.SetSkeletonStore(skeletonStore)
-					consumer.SetSkeletonStore(skeletonStore)
-				}
+		if isStreamingPair(reader, writer) {
+			skeletonStore = format.NewWiredStreamingSkeleton(reader, writer)
+		} else {
+			store, storeErr := format.NewWiredSkeleton(reader, writer)
+			if storeErr != nil {
+				reader.Close()
+				return fmt.Errorf("cannot process %s: %w", filepath.Base(inputPath), storeErr)
 			}
+			skeletonStore = store
 		}
 	}
 
@@ -1153,21 +1154,18 @@ func (r *FileRunner) RunStream(ctx context.Context, flowName string, tools []too
 	}
 
 	// Same format in and out (a container round-trips each entry), so wire a
-	// skeleton exactly as the file path does — streaming when both ends opt in.
+	// skeleton exactly as the file path does — streaming when both ends opt in,
+	// and failing the entry rather than repacking a reconstruction of it.
 	var skeletonStore *format.SkeletonStore
-	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
-		if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
-			if isStreamingPair(reader, writer) {
-				skeletonStore = format.NewStreamingSkeletonStore()
-			} else if store, serr := format.NewSkeletonStore(); serr == nil {
-				skeletonStore = store
-			}
-			if skeletonStore != nil {
-				skeletonStore.SetOriginFormat(reader.Name())
-				emitter.SetSkeletonStore(skeletonStore)
-				consumer.SetSkeletonStore(skeletonStore)
-			}
+	if isStreamingPair(reader, writer) {
+		skeletonStore = format.NewWiredStreamingSkeleton(reader, writer)
+	} else {
+		store, skelErr := format.NewWiredSkeleton(reader, writer)
+		if skelErr != nil {
+			reader.Close()
+			return fmt.Errorf("cannot process %s: %w", srcURI, skelErr)
 		}
+		skeletonStore = store
 	}
 	if skeletonStore != nil {
 		defer skeletonStore.Close()
