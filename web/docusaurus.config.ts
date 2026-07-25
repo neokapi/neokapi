@@ -170,6 +170,11 @@ const config: Config = {
             from: "/contribute/architecture/025-klf-package",
             to: "/contribute/architecture/025-kbf-package",
           },
+          // The Okapi-parity dashboard was retired with the bridge's product
+          // surface (#1073). /format-maturity carries the quality story now, so
+          // external inbound links land there instead of 404ing.
+          { from: "/parity", to: "/format-maturity" },
+          { from: "/parity/fixtures", to: "/format-maturity" },
         ],
       },
     ],

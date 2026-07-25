@@ -284,8 +284,6 @@ const sidebars: SidebarsConfig = {
       ],
     },
     {
-      // The Okapi-parity dashboard still exists at /parity but is telemetry for
-      // maintainers, not a reader concept — deliberately not linked here.
       type: "category",
       label: "Project status",
       collapsible: false,

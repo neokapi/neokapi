@@ -17,23 +17,22 @@ write it — that realism is the point. Note that the restrained prose guideline
 in `docs/internals/brand-communication.md` governs documentation _about_ this
 sample (including this README), not the in-fiction product copy itself.
 
-## Three instances, one design
+## Two instances, one design
 
-Three brand instances share the same source strings, structure, glossary, and
-TM design. Only the product name differs per surface, which keeps the product
+Two brand instances share the same source strings, structure, glossary, and TM
+design. Only the product name differs per surface, which keeps the product
 boundary clean in each context:
 
 | Instance | Use it for | Product name in copy |
 | --- | --- | --- |
 | KapiMart | kapi and framework examples — CLI recipes, Claude videos, framework WASM embeds, the neokapi landing page | `KapiMart` |
-| OkapiMart | okapi-bridge, parity, and Okapi-vs-neokapi comparison examples | `OkapiMart` |
 | BowMart | bowrain examples — adds the multi-user cast and the collaboration / correction-loop history | `BowMart` |
 
 The files in this directory carry the `KapiMart` name as the default instance.
-For OkapiMart or BowMart, substitute the product name at record time (a single
+For BowMart, substitute the product name at record time (a single
 find-and-replace of `KapiMart`), since the strings, keys, locales, glossary, and
-TM are identical by design. The glossary lists all three names as
-do-not-translate so a check passes whichever instance is in use.
+TM are identical by design. The glossary lists both names as do-not-translate so
+a check passes whichever instance is in use.
 
 ## File layout
 

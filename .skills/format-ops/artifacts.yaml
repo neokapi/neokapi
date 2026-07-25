@@ -144,9 +144,15 @@ artifacts:
     owner: triage-score
     notes: append-only; mutation is remove-today-then-append, keyed on generated_at
   - id: parity-report
-    path: web/static/data/parity-report.json
+    path: .parity/parity-report.json
     freshness_field: generated_at
     owner: parity-publish
+    notes: |
+      Local maintainer artifact under the (gitignored) parity sandbox — it is no
+      longer published to the docs site, since /parity was retired with the
+      bridge's product surface (#1073). Absent on a fresh checkout until
+      `make parity-publish` runs, so the watermark reads null and the ritual
+      reports due.
   - id: contract-audit-report
     path: web/static/data/contract-audit.json
     freshness_field: generatedAt

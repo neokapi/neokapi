@@ -654,19 +654,17 @@ parity-test: parity-sandbox ## Run the full parity test suite (#448)
 	    $(GOTEST) -tags parity -count=1 -timeout 60m ./parity/...
 	@echo "Parity report: $(PARITY_REPORT)"
 
-PARITY_DASHBOARD := $(ROOT_DIR)/web/static/data/parity-report.json
-PARITY_FIXTURES_JSON := $(ROOT_DIR)/web/static/data/parity-fixtures.json
+# Parity output stays inside the sandbox. It used to be published to
+# web/static/data/ to back the /parity page; that page was retired with the
+# bridge's product surface (#1073), so the summary is a local maintainer
+# artifact now — nothing parity-related reaches the docs site.
+PARITY_SUMMARY := $(PARITY_DIR)/parity-report.json
 
-parity-publish: parity-test ## Run the parity suite and publish dashboard JSON to the docs site
+parity-publish: parity-test ## Run the parity suite and write the per-filter summary to .parity/
 	@cd $(ROOT_DIR) && go run ./scripts/testcompare \
 	    -in $(PARITY_REPORT) \
-	    -out $(PARITY_DASHBOARD)
-	@echo "Dashboard JSON: $(PARITY_DASHBOARD)"
-
-parity-fixtures: ## Run the round-trip coverage suite and emit per-fixture JSON for /parity/fixtures
-	@cd $(ROOT_DIR) && PARITY_FIXTURES_JSON=$(PARITY_FIXTURES_JSON) \
-	    $(GOTEST) -tags parity -count=1 -timeout 30m -run TestRoundTrip_Coverage ./cli/parity/roundtrip/
-	@echo "Fixtures JSON: $(PARITY_FIXTURES_JSON)"
+	    -out $(PARITY_SUMMARY)
+	@echo "Parity summary: $(PARITY_SUMMARY)"
 
 parity-clean: ## Remove the parity sandbox to force a fresh build next run
 	rm -rf $(PARITY_DIR)
@@ -2093,7 +2091,7 @@ help: ## Show this help
 	@echo ""
 
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
-        parity-sandbox parity-test parity-publish parity-clean parity-fixtures regen-okapi-fixtures check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
+        parity-sandbox parity-test parity-publish parity-clean regen-okapi-fixtures check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
         fmt vet lint check check-framework check-bowrain check-abs-paths check-lockfile-provenance workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \

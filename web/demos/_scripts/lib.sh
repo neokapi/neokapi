@@ -34,10 +34,10 @@ print(json.dumps({
 PY
 }
 
-# okapi_installed  → 0 if the okapi-bridge plugin provides okf_* formats.
+# plugin_installed <name>  → 0 if the named plugin contributes formats.
 # (Capture first to avoid a SIGPIPE/pipefail false negative from grep -q.)
-okapi_installed() {
+plugin_installed() {
   local out
   out=$("$KAPI" formats list 2>/dev/null || true)
-  printf '%s' "$out" | grep -q "okapi-bridge"
+  printf '%s' "$out" | grep -q "$1"
 }

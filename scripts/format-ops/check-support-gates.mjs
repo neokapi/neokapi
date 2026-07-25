@@ -42,7 +42,7 @@
 // mechanism now exists here.
 //
 // Given the latest parity report (`.parity/test-comparison.json` raw array OR
-// the published `web/static/data/parity-report.json` object — both shapes are
+// the narrower `.parity/parity-report.json` summary object — both shapes are
 // accepted) and, optionally, a format-acceptance results JSON, it:
 //   1. Builds an Okapi-id → neokapi-format map from each format's spec.yaml
 //      `format:` field (the canonical key a Supported format's head-to-head

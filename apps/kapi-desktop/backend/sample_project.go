@@ -11,7 +11,7 @@ import (
 )
 
 // CreateSampleProject scaffolds a sample project and opens it as a tab.
-// name must be "kapimart" or "okapimart".
+// name must be one of sample.List() — currently "kapimart".
 // If the project already exists on disk, it is opened without re-scaffolding.
 func (a *App) CreateSampleProject(name string) (*TabInfo, error) {
 	displayName, ok := sample.DisplayName[name]

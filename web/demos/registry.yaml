@@ -15,16 +15,6 @@ demos:
     status: done
     delta: 25 # brand compliance 70 → 95
 
-  - id: formats-native-vs-okapi
-    kind: formats
-    asset_type: html
-    loop_stage: multilingual-publish
-    domain: technical-docs
-    reader: both
-    signal: high
-    status: done
-    note: both readers round-trip the asset and localize all visible text (18 words each, including the button/anchor labels). Normalized native↔okapi parity is the cli/parity suite.
-
   # ── Planned cells (fan out one agent per row) ──────────────────────────────
   - {
       id: pptx-brandrewrite-marketing,
@@ -112,17 +102,7 @@ demos:
       asset_type: properties,
       loop_stage: multilingual-publish,
       domain: technical-docs,
-      reader: okapi,
-      signal: medium,
-      status: planned,
-    }
-  - {
-      id: idml-multilingual-marketing,
-      kind: translate,
-      asset_type: idml,
-      loop_stage: multilingual-publish,
-      domain: marketing,
-      reader: okapi,
+      reader: native,
       signal: medium,
       status: planned,
     }

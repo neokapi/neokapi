@@ -1,9 +1,12 @@
 // Command testcompare reads .parity/test-comparison.json (the raw
-// parity report written by the cli/parity/ test packages) and emits
-// the docs-site shape at web/static/data/parity-report.json.
+// parity report written by the cli/parity/ test packages) and emits a
+// narrower per-filter summary at .parity/parity-report.json.
 //
-// The published shape is intentionally narrower than the raw report —
-// it includes only what the /parity dashboard page renders:
+// The summary is a local maintainer artifact. It used to be published to
+// web/static/data/ to back the /parity dashboard; that page was retired
+// when the bridge left the product surface (#1073), so nothing
+// parity-related reaches the documentation site any more. The shape is
+// unchanged — one row per filter or step, plus totals:
 //
 //	{
 //	  "generated_at": "2026-04-29T...",
@@ -17,15 +20,11 @@
 //	  ]
 //	}
 //
-// The output path is deliberately separate from the legacy
-// /test-comparison page's data file so the two dashboards can coexist
-// during the transition.
-//
 // Usage:
 //
 //	go run ./scripts/testcompare \
 //	    -in .parity/test-comparison.json \
-//	    -out web/static/data/parity-report.json
+//	    -out .parity/parity-report.json
 package main
 
 import (
@@ -74,7 +73,7 @@ type published struct {
 
 func main() {
 	in := flag.String("in", ".parity/test-comparison.json", "input parity report path")
-	out := flag.String("out", "web/static/data/parity-report.json", "output dashboard JSON path")
+	out := flag.String("out", ".parity/parity-report.json", "output summary JSON path")
 	flag.Parse()
 
 	data, err := os.ReadFile(*in)
