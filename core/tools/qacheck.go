@@ -12,7 +12,6 @@ import (
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
-	"github.com/neokapi/neokapi/core/set"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -268,8 +267,8 @@ func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, target
 
 	// Check: leading whitespace mismatch.
 	if conf.CheckLeadingWhitespace && tgtShape != "" {
-		srcLeading := leadingWhitespace(srcShape)
-		tgtLeading := leadingWhitespace(tgtShape)
+		srcLeading := check.LeadingWhitespace(srcShape)
+		tgtLeading := check.LeadingWhitespace(tgtShape)
 		if srcLeading != tgtLeading {
 			findings = append(findings, check.Finding{
 				Category: "leading-whitespace",
@@ -281,8 +280,8 @@ func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, target
 
 	// Check: trailing whitespace mismatch.
 	if conf.CheckTrailingWhitespace && tgtShape != "" {
-		srcTrailing := trailingWhitespace(srcShape)
-		tgtTrailing := trailingWhitespace(tgtShape)
+		srcTrailing := check.TrailingWhitespace(srcShape)
+		tgtTrailing := check.TrailingWhitespace(tgtShape)
 		if srcTrailing != tgtTrailing {
 			findings = append(findings, check.Finding{
 				Category: "trailing-whitespace",
@@ -293,7 +292,7 @@ func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, target
 	}
 
 	// Check: double spaces in target.
-	if conf.CheckDoubleSpaces && strings.Contains(tgtShape, "  ") {
+	if conf.CheckDoubleSpaces && check.DoubleSpaces(tgtShape) {
 		findings = append(findings, check.Finding{
 			Category: "double-spaces",
 			Severity: check.SeverityMinor,
@@ -303,7 +302,7 @@ func (h *qaCheckHandler) checkTextIssues(conf *QACheckConfig, sourceText, target
 
 	// Check: doubled words in target.
 	if conf.CheckDoubledWord && tgtShape != "" {
-		if word := findDoubledWord(tgtShape, conf.DoubledWordExceptions); word != "" {
+		if word := check.DoubledWord(tgtShape, conf.DoubledWordExceptions); word != "" {
 			findings = append(findings, check.Finding{
 				Category:     "doubled-word",
 				Severity:     check.SeverityMinor,
@@ -785,42 +784,6 @@ func mapKindToSpanName(kind string) string {
 		return "Sub"
 	}
 	return kind
-}
-
-// leadingWhitespace returns the leading whitespace characters of a string.
-func leadingWhitespace(s string) string {
-	trimmed := strings.TrimLeft(s, " \t\n\r")
-	return s[:len(s)-len(trimmed)]
-}
-
-// trailingWhitespace returns the trailing whitespace characters of a string.
-func trailingWhitespace(s string) string {
-	trimmed := strings.TrimRight(s, " \t\n\r")
-	return s[len(trimmed):]
-}
-
-// findDoubledWord checks for consecutive repeated words in text.
-// Returns the first doubled word found, or "" if none.
-// Exceptions is a semicolon-separated list of words to allow.
-func findDoubledWord(text, exceptions string) string {
-	excSet := set.New[string]()
-	if exceptions != "" {
-		for w := range strings.SplitSeq(exceptions, ";") {
-			w = strings.TrimSpace(w)
-			if w != "" {
-				excSet.Add(strings.ToLower(w))
-			}
-		}
-	}
-	words := strings.Fields(text)
-	for i := 1; i < len(words); i++ {
-		prev := strings.ToLower(words[i-1])
-		curr := strings.ToLower(words[i])
-		if prev == curr && !excSet.Contains(curr) {
-			return words[i]
-		}
-	}
-	return ""
 }
 
 // containsWordChar returns true if s contains at least one Unicode letter or digit.

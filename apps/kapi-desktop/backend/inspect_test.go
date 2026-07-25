@@ -160,6 +160,108 @@ func TestInspectFileAnnotatedPopulatesOverlays(t *testing.T) {
 	assert.True(t, sawDoubledWord, "expected a doubled-word QA overlay (\"the the\")")
 }
 
+// kbfShapeFixture is a Kapi Bundle Format document whose blocks carry real
+// placeholder runs — the shape the desktop preview actually annotates, and the
+// shape the reported false positives came from. Each block is named for what it
+// must (not) report.
+const kbfShapeFixture = `{
+  "schemaVersion": "1.0",
+  "kind": "kapi-localization-format",
+  "project": { "id": "app", "sourceLocale": "en" },
+  "documents": [
+    {
+      "id": "App.tsx",
+      "documentType": "jsx",
+      "path": "App.tsx",
+      "blocks": [
+        {
+          "id": "sep-space", "translatable": true, "type": "jsx:element",
+          "source": [
+            { "text": "Hello " },
+            { "ph": { "id": "1", "type": "jsx:var", "data": "{name}", "equiv": "name" } },
+            { "text": " world" }
+          ]
+        },
+        {
+          "id": "sep-word", "translatable": true, "type": "jsx:element",
+          "source": [
+            { "text": "the " },
+            { "ph": { "id": "1", "type": "jsx:var", "data": "{name}", "equiv": "name" } },
+            { "text": " the end" }
+          ]
+        },
+        {
+          "id": "real-double-space", "translatable": true, "type": "jsx:element",
+          "source": [
+            { "ph": { "id": "1", "type": "jsx:var", "data": "{p.price}", "equiv": "p.price" } },
+            { "text": " two  spaces" }
+          ]
+        },
+        {
+          "id": "real-doubled-word", "translatable": true, "type": "jsx:element",
+          "source": [
+            { "ph": { "id": "1", "type": "jsx:var", "data": "{p.price}", "equiv": "p.price" } },
+            { "text": " the the end" }
+          ]
+        }
+      ]
+    }
+  ]
+}`
+
+// TestInspectFileAnnotatedShapeOverlaysAreRunAware is the desktop end of #1441:
+// the preview's shape overlays must judge the run-aware flattening, and the span
+// they report must still land on the offending text after the projection back
+// into RunsText coordinates — the coordinate space the tree's ranges live in.
+func TestInspectFileAnnotatedShapeOverlaysAreRunAware(t *testing.T) {
+	app := NewApp()
+	tabID, src := setupInspectProject(t, app, `{"greeting":"Hello world"}`, "")
+
+	kbfPath := filepath.Join(filepath.Dir(src), "App.kbf")
+	require.NoError(t, os.WriteFile(kbfPath, []byte(kbfShapeFixture), 0o644))
+
+	out, err := app.InspectFileAnnotated(tabID, kbfPath)
+	require.NoError(t, err)
+
+	var tree editor.ContentTree
+	require.NoError(t, json.Unmarshal([]byte(out), &tree))
+
+	// Collect, per block, the shape categories reported and the text each span
+	// covers (read back through the run range).
+	type hit struct{ category, covers string }
+	hits := map[string][]hit{}
+	var walk func(n *editor.ContentNode)
+	walk = func(n *editor.ContentNode) {
+		if n.Kind == "block" {
+			plain := model.RunsText(n.Source)
+			for _, ov := range n.Overlays {
+				for _, sp := range ov.Spans {
+					cat := sp.Props["category"]
+					if cat != "double-spaces" && cat != "doubled-word" {
+						continue
+					}
+					bs, be := sp.Range.ByteSpan(n.Source)
+					require.LessOrEqual(t, be, len(plain))
+					hits[n.ID] = append(hits[n.ID], hit{cat, plain[bs:be]})
+				}
+			}
+		}
+		for _, c := range n.Children {
+			walk(c)
+		}
+	}
+	for _, n := range tree.Root {
+		walk(n)
+	}
+
+	assert.Empty(t, hits["sep-space"],
+		"a space either side of a placeholder is not a double space")
+	assert.Empty(t, hits["sep-word"],
+		"the same word either side of a placeholder is not a doubled word")
+	assert.Equal(t, []hit{{"double-spaces", "  "}}, hits["real-double-space"])
+	assert.Equal(t, []hit{{"doubled-word", "the"}}, hits["real-doubled-word"])
+}
+
 func TestInspectFileIncludesProjectTargets(t *testing.T) {
 	app := NewApp()
 	tabID, src := setupInspectProject(t, app,

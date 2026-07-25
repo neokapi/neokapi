@@ -14,6 +14,7 @@ import (
 	"syscall/js"
 
 	"github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
@@ -30,7 +31,8 @@ import (
 // The annotators are deterministic and offline: term overlays come from the
 // seeded in-memory termbase (LookupAll over the source text), brand overlays
 // from brand.MatchVocabulary against the seeded brand profile (wasm_backends.go),
-// and QA overlays from source-only heuristics (double spaces, doubled words).
+// and QA overlays from the shared source-only shape rules (double spaces, doubled
+// words — check.HygieneOverlay).
 // Each is a source-anchored overlay (Variant nil) carrying its matched span text
 // and type-specific props, picked up by the existing OverlayView serializer.
 //
@@ -172,7 +174,11 @@ func annotateParts(ctx context.Context, parts []*model.Part, opts annotateOption
 			}
 		}
 		if opts.QA {
-			if ov := qaOverlay(runs, source); ov != nil {
+			// Shape QA (double spaces, doubled words) comes from the shared
+			// check.HygieneOverlay, which judges the run-aware flattening and
+			// maps its ranges back onto the runs — the same rules, and the same
+			// verdicts, as the `hygiene.*` findings `kapi check` reports.
+			if ov := check.HygieneOverlay(runs); ov != nil {
 				b.Overlays = append(b.Overlays, *ov)
 			}
 		}
@@ -274,83 +280,4 @@ func brandOverlay(runs []model.Run, source string) *model.Overlay {
 		})
 	}
 	return &model.Overlay{Type: model.OverlayQA, Spans: spans}
-}
-
-// qaOverlay builds an OverlayQA over the source runs from source-only QA
-// heuristics that don't need a target (the streaming qa needs a committed
-// target, which a freshly-parsed source document has none of). Today it flags
-// double spaces and consecutive doubled words. Returns nil when the source is
-// clean.
-func qaOverlay(runs []model.Run, source string) *model.Overlay {
-	var spans []model.Span
-
-	// Double spaces: each run of >=2 spaces is one finding.
-	for i := 0; i+1 < len(source); {
-		if source[i] == ' ' && source[i+1] == ' ' {
-			start := i
-			for i < len(source) && source[i] == ' ' {
-				i++
-			}
-			spans = append(spans, model.Span{
-				Range: model.RunRangeForBytes(runs, start, i),
-				Props: map[string]string{
-					"category": "double-spaces",
-					"severity": "minor",
-					"message":  "Source contains double spaces",
-				},
-			})
-			continue
-		}
-		i++
-	}
-
-	// Doubled words: a word immediately repeated (case-insensitive).
-	for _, fr := range doubledWordRanges(source) {
-		spans = append(spans, model.Span{
-			Range: model.RunRangeForBytes(runs, fr[0], fr[1]),
-			Props: map[string]string{
-				"category": "doubled-word",
-				"severity": "minor",
-				"message":  fmt.Sprintf("Doubled word: %q", source[fr[0]:fr[1]]),
-			},
-		})
-	}
-
-	if len(spans) == 0 {
-		return nil
-	}
-	return &model.Overlay{Type: model.OverlayQA, Spans: spans}
-}
-
-// doubledWordRanges returns the byte range of the *second* occurrence of each
-// immediately-repeated word (case-insensitive, whitespace-separated). The range
-// covers just the repeated word so the overlay highlights the redundant token.
-func doubledWordRanges(s string) [][2]int {
-	type word struct {
-		text       string
-		start, end int
-	}
-	isSpace := func(c byte) bool { return c == ' ' || c == '\t' || c == '\n' || c == '\r' }
-	var words []word
-	i := 0
-	for i < len(s) {
-		for i < len(s) && isSpace(s[i]) {
-			i++
-		}
-		if i >= len(s) {
-			break
-		}
-		start := i
-		for i < len(s) && !isSpace(s[i]) {
-			i++
-		}
-		words = append(words, word{text: s[start:i], start: start, end: i})
-	}
-	var out [][2]int
-	for j := 1; j < len(words); j++ {
-		if strings.EqualFold(words[j].text, words[j-1].text) {
-			out = append(out, [2]int{words[j].start, words[j].end})
-		}
-	}
-	return out
 }

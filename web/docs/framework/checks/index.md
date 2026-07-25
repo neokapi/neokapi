@@ -81,6 +81,14 @@ checkset):
   `{price} each` has no leading whitespace, `Hello {name} world` has no double
   space, and a block that is only a placeholder is not empty. Genuine
   whitespace — ` {price} each` — still reports.
+
+  An inline code is likewise a real **boundary** for the adjacency rules: it
+  separates what sits either side of it, so `the {name} the cat` holds no doubled
+  word. It is a token of its own rather than part of the word beside it, so it
+  cannot hide one either — `{name}the the cat` reports. Nothing separates two
+  *adjacent text runs*, so a defect spanning their join — `the ` + `the cat` — is
+  real and reports. The editor's highlights come from these same rules, so a
+  preview and a `kapi check` finding cannot disagree.
 - **Length** — flag content over a character or word budget (`--max-chars`/
   `--max-words`).
 - **Patterns** — regex that must not appear (`--forbid`) or must appear

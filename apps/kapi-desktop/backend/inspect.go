@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -45,8 +46,8 @@ func (a *App) InspectFile(tabID, filePath string) (string, error) {
 //   - brand-vocabulary overlays (type "qa", props.category="brand-vocabulary")
 //     from the project's resolved brand profile (resolveProjectBrandProfile via
 //     brand.MatchVocabulary);
-//   - rule-based QA overlays (type "qa") from source-only heuristics (double
-//     spaces, doubled words).
+//   - rule-based QA overlays (type "qa") from the shared source-only shape rules
+//     (double spaces, doubled words — check.HygieneOverlay).
 //
 // These mirror the overlay shapes the docs "Anatomy" explorer produces in
 // kapi/cmd/kapi-wasm-cli/lab_annotate.go, but use the project's real resources
@@ -219,7 +220,7 @@ func blocksFromParts(parts []*model.Part) []*model.Block {
 // annotateParts walks the part stream and writes source-anchored stand-off
 // overlays onto every translatable Block, in place, using the project's real
 // resources: its termbase (term overlays), its brand profile (brand-vocabulary
-// QA overlays) and source-only QA heuristics (rule-based QA overlays). It mirrors
+// QA overlays) and the shared source-only shape rules (check.HygieneOverlay). It mirrors
 // the wasm "Anatomy" annotator (kapi/cmd/kapi-wasm-cli/lab_annotate.go) so the
 // content tree's `overlays` view is populated identically, but sources its term
 // and brand data from the open project rather than a seeded demo set.
@@ -262,7 +263,11 @@ func (a *App) annotateParts(ctx context.Context, op *openProject, parts []*model
 				b.Overlays = append(b.Overlays, *ov)
 			}
 		}
-		if ov := qaOverlay(runs, source); ov != nil {
+		// Shape QA (double spaces, doubled words) comes from the shared
+		// check.HygieneOverlay, which judges the run-aware flattening and maps
+		// its ranges back onto the runs. A preview highlight and a `kapi check`
+		// finding therefore agree by construction rather than by coincidence.
+		if ov := check.HygieneOverlay(runs); ov != nil {
 			b.Overlays = append(b.Overlays, *ov)
 		}
 	}
@@ -341,81 +346,4 @@ func brandOverlay(profile *brand.VoiceProfile, runs []model.Run, source string) 
 		})
 	}
 	return &model.Overlay{Type: model.OverlayQA, Spans: spans}
-}
-
-// qaOverlay builds an OverlayQA over the source runs from source-only QA
-// heuristics that need no target: double spaces and consecutive doubled words.
-// Returns nil when the source is clean.
-func qaOverlay(runs []model.Run, source string) *model.Overlay {
-	var spans []model.Span
-
-	// Double spaces: each run of >=2 spaces is one finding.
-	for i := 0; i+1 < len(source); {
-		if source[i] == ' ' && source[i+1] == ' ' {
-			start := i
-			for i < len(source) && source[i] == ' ' {
-				i++
-			}
-			spans = append(spans, model.Span{
-				Range: model.RunRangeForBytes(runs, start, i),
-				Props: map[string]string{
-					"category": "double-spaces",
-					"severity": "minor",
-					"message":  "Source contains double spaces",
-				},
-			})
-			continue
-		}
-		i++
-	}
-
-	// Doubled words: a word immediately repeated (case-insensitive).
-	for _, fr := range doubledWordRanges(source) {
-		spans = append(spans, model.Span{
-			Range: model.RunRangeForBytes(runs, fr[0], fr[1]),
-			Props: map[string]string{
-				"category": "doubled-word",
-				"severity": "minor",
-				"message":  fmt.Sprintf("Doubled word: %q", source[fr[0]:fr[1]]),
-			},
-		})
-	}
-
-	if len(spans) == 0 {
-		return nil
-	}
-	return &model.Overlay{Type: model.OverlayQA, Spans: spans}
-}
-
-// doubledWordRanges returns the byte range of the *second* occurrence of each
-// immediately-repeated word (case-insensitive, whitespace-separated). The range
-// covers just the repeated word so the overlay highlights the redundant token.
-func doubledWordRanges(s string) [][2]int {
-	type word struct {
-		text       string
-		start, end int
-	}
-	isSpace := func(c byte) bool { return c == ' ' || c == '\t' || c == '\n' || c == '\r' }
-	var words []word
-	i := 0
-	for i < len(s) {
-		for i < len(s) && isSpace(s[i]) {
-			i++
-		}
-		if i >= len(s) {
-			break
-		}
-		start := i
-		for i < len(s) && !isSpace(s[i]) {
-			i++
-		}
-		words = append(words, word{text: s[start:i], start: start, end: i})
-	}
-	var out [][2]int
-	for j := 1; j < len(words); j++ {
-		if strings.EqualFold(words[j].text, words[j-1].text) {
-			out = append(out, [2]int{words[j].start, words[j].end})
-		}
-	}
-	return out
 }
