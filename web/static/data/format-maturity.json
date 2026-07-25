@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-19",
+  "generated_at": "2026-07-25",
   "target_level": "L4",
   "source": "format-ops bootstrap-publish (deterministic per-axis floor; no quality demotions)",
   "scorer_version": 4,
@@ -44,60 +44,60 @@
     "golden_passed": true
   },
   "summary": {
-    "total": 55,
+    "total": 36,
     "by_level": {
-      "L0": 5,
-      "L1": 12,
-      "L2": 30,
-      "L3": 8,
+      "L0": 6,
+      "L1": 10,
+      "L2": 15,
+      "L3": 5,
       "L4": 0
     },
     "by_axis": {
       "engine": {
-        "L0": 5,
-        "L1": 12,
-        "L2": 30,
-        "L3": 8,
+        "L0": 6,
+        "L1": 10,
+        "L2": 15,
+        "L3": 5,
         "L4": 0
       },
       "vocabulary": {
-        "V0": 50,
+        "V0": 31,
         "V1": 5,
         "V2": 0,
         "V3": 0
       },
       "editor": {
-        "E0": 52,
+        "E0": 33,
         "E1": 3,
         "E2": 0,
         "E3": 0,
         "E4": 0
       },
       "knowledge": {
-        "K0": 6,
-        "K1": 36,
+        "K0": 7,
+        "K1": 16,
         "K2": 13,
         "K3": 0
       },
       "corpus": {
-        "C0": 26,
-        "C1": 29,
+        "C0": 23,
+        "C1": 13,
         "C2": 0,
         "C3": 0
       },
       "security": {
-        "S0": 39,
-        "S1": 14,
-        "S2": 2,
+        "S0": 6,
+        "S1": 27,
+        "S2": 3,
         "S3": 0,
         "S4": 0
       },
       "structure": {
-        "G0": 41,
+        "G0": 22,
         "G1": 1,
-        "G2": 7,
-        "G3": 4,
-        "G4": 2
+        "G2": 5,
+        "G3": 5,
+        "G4": 3
       }
     }
   },
@@ -347,7 +347,7 @@
         "editor": "E0",
         "knowledge": "K2",
         "corpus": "C0",
-        "security": "S0",
+        "security": "S1",
         "structure": "G0"
       },
       "next": {
@@ -356,7 +356,7 @@
         "editor": "E1",
         "knowledge": "K3",
         "corpus": "C1",
-        "security": "S1",
+        "security": "S2",
         "structure": "G1"
       },
       "okapi_counterpart": "",
@@ -387,7 +387,7 @@
         "fetchwiring": "partial",
         "acceptance": "partial",
         "sweep": "none",
-        "safeio": "none",
+        "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
         "sustained": "none",
@@ -469,15 +469,14 @@
           ]
         },
         "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
@@ -520,7 +519,7 @@
         "editor": "E0",
         "knowledge": "K2",
         "corpus": "C0",
-        "security": "S0",
+        "security": "S1",
         "structure": "G0"
       },
       "next": {
@@ -529,7 +528,7 @@
         "editor": "E1",
         "knowledge": "K3",
         "corpus": "C1",
-        "security": "S1",
+        "security": "S2",
         "structure": "G1"
       },
       "okapi_counterpart": "",
@@ -560,7 +559,7 @@
         "fetchwiring": "partial",
         "acceptance": "partial",
         "sweep": "none",
-        "safeio": "none",
+        "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
         "sustained": "none",
@@ -642,15 +641,14 @@
           ]
         },
         "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
@@ -693,7 +691,7 @@
         "editor": "E0",
         "knowledge": "K2",
         "corpus": "C0",
-        "security": "S0",
+        "security": "S1",
         "structure": "G0"
       },
       "next": {
@@ -702,7 +700,7 @@
         "editor": "E1",
         "knowledge": "K3",
         "corpus": "C1",
-        "security": "S1",
+        "security": "S2",
         "structure": "G1"
       },
       "okapi_counterpart": "",
@@ -733,7 +731,7 @@
         "fetchwiring": "partial",
         "acceptance": "partial",
         "sweep": "none",
-        "safeio": "none",
+        "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
         "sustained": "none",
@@ -813,15 +811,14 @@
           ]
         },
         "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
@@ -848,6 +845,185 @@
         "gates": []
       },
       "blocking_gaps": [],
+      "top_risk": "",
+      "confidence": "floor"
+    },
+    {
+      "id": "archive",
+      "type": "parity",
+      "level": "L0",
+      "next_level": "L1",
+      "levels": {
+        "engine": "L0",
+        "vocabulary": "V0",
+        "editor": "E0",
+        "knowledge": "K0",
+        "corpus": "C0",
+        "security": "S1",
+        "structure": "G0"
+      },
+      "next": {
+        "engine": "L1",
+        "vocabulary": "V1",
+        "editor": "E1",
+        "knowledge": "K1",
+        "corpus": "C1",
+        "security": "S2",
+        "structure": "G1"
+      },
+      "okapi_counterpart": "okf_archive",
+      "dimensions": {
+        "reader": "complete",
+        "writer": "none",
+        "config": "complete",
+        "spec": "none",
+        "parity": "none",
+        "malformed": "none",
+        "corpus": "none",
+        "detection": "complete",
+        "docs": "complete",
+        "vocabmap": "none",
+        "vocabtypes": "none",
+        "writecells": "none",
+        "equivalence": "none",
+        "preview": "none",
+        "identity": "none",
+        "embedded": "none",
+        "events": "none",
+        "dossier": "none",
+        "sidecar": "complete",
+        "refs": "none",
+        "citations": "none",
+        "contextpack": "none",
+        "corpusmanifest": "none",
+        "fetchwiring": "partial",
+        "acceptance": "none",
+        "sweep": "none",
+        "safeio": "complete",
+        "fuzz": "none",
+        "sweepclean": "none",
+        "sustained": "none",
+        "metaplane": "none",
+        "readingorder": "none",
+        "roles": "none",
+        "geometry": "none"
+      },
+      "evidence": {},
+      "floor": "L0",
+      "ceiling": "L0",
+      "derived_from": "dimensions",
+      "delta": null,
+      "agreement": 1,
+      "samples": 1,
+      "axes": {
+        "engine": {
+          "level": "L0",
+          "next": "L1",
+          "floor": "L0",
+          "ceiling": "L0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add malformed_test.go",
+            "add spec.yaml + spec_test.go",
+            "add cli/parity spec_test"
+          ]
+        },
+        "vocabulary": {
+          "level": "V0",
+          "next": "V1",
+          "floor": "V0",
+          "ceiling": "V0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add vocabulary.yaml with evidenced read cells",
+            "emit canonical run types in the reader",
+            "evidence write cells (author-from-canonical)"
+          ]
+        },
+        "editor": {
+          "level": "E0",
+          "next": "E1",
+          "floor": "E0",
+          "ceiling": "E0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "implement format.PreviewBuilder",
+            "add an identity-binding round-trip test",
+            "ship a committed add-in/connector manifest"
+          ]
+        },
+        "knowledge": {
+          "level": "K0",
+          "next": "K1",
+          "floor": "K0",
+          "ceiling": "K0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add dossier.yaml with a catalog-registered spec source",
+            "populate spec_refs/native_refs + divergence_kind"
+          ]
+        },
+        "corpus": {
+          "level": "C0",
+          "next": "C1",
+          "floor": "C0",
+          "ceiling": "C0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add corpus.yaml covering testdata",
+            "wire Tier B (corpus: scheme / make fetch-corpus)",
+            "replace synthetic corpus with real files"
+          ]
+        },
+        "security": {
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "add a Fuzz* target + testdata/fuzz seed (S2)",
+            "record a clean corpus-sweep in the ledger (S3)"
+          ]
+        },
+        "structure": {
+          "level": "G0",
+          "next": "G1",
+          "floor": "G0",
+          "ceiling": "G0",
+          "derived_from": "dimensions",
+          "delta": null,
+          "agreement": 1,
+          "blocking_gaps": [
+            "classify metadata-plane / caption text (G1)",
+            "emit grouped body text in reading order (G2)",
+            "set SetSemanticRole + tables/relations + a roles test (G3)"
+          ]
+        }
+      },
+      "tier": {
+        "declared": "available",
+        "since": "2026-06-26",
+        "last_certified": "2026-06-26",
+        "gates": []
+      },
+      "blocking_gaps": [
+        "add malformed_test.go",
+        "add spec.yaml + spec_test.go",
+        "add cli/parity spec_test"
+      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -1041,7 +1217,7 @@
       "okapi_counterpart": "",
       "dimensions": {
         "reader": "complete",
-        "writer": "none",
+        "writer": "complete",
         "config": "none",
         "spec": "na",
         "parity": "na",
@@ -1204,7 +1380,7 @@
         "vocabulary": "V0",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1",
+        "corpus": "C0",
         "security": "S1",
         "structure": "G3"
       },
@@ -1213,7 +1389,7 @@
         "vocabulary": "V1",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2",
+        "corpus": "C1",
         "security": "S2",
         "structure": "G4"
       },
@@ -1241,7 +1417,7 @@
         "refs": "partial",
         "citations": "none",
         "contextpack": "none",
-        "corpusmanifest": "complete",
+        "corpusmanifest": "partial",
         "fetchwiring": "partial",
         "acceptance": "none",
         "sweep": "none",
@@ -1313,14 +1489,15 @@
           ]
         },
         "corpus": {
-          "level": "C1",
-          "next": "C2",
-          "floor": "C1",
-          "ceiling": "C1",
+          "level": "C0",
+          "next": "C1",
+          "floor": "C0",
+          "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
+            "add corpus.yaml covering testdata",
             "wire Tier B (corpus: scheme / make fetch-corpus)",
             "wire an external acceptance validator"
           ]
@@ -1372,7 +1549,7 @@
         "editor": "E0",
         "knowledge": "K2",
         "corpus": "C0",
-        "security": "S0",
+        "security": "S1",
         "structure": "G0"
       },
       "next": {
@@ -1381,7 +1558,7 @@
         "editor": "E1",
         "knowledge": "K3",
         "corpus": "C1",
-        "security": "S1",
+        "security": "S2",
         "structure": "G1"
       },
       "okapi_counterpart": "",
@@ -1412,7 +1589,7 @@
         "fetchwiring": "partial",
         "acceptance": "partial",
         "sweep": "none",
-        "safeio": "none",
+        "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
         "sustained": "none",
@@ -1494,15 +1671,14 @@
           ]
         },
         "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
@@ -1545,7 +1721,7 @@
         "editor": "E0",
         "knowledge": "K0",
         "corpus": "C0",
-        "security": "S0",
+        "security": "S1",
         "structure": "G4"
       },
       "next": {
@@ -1554,7 +1730,7 @@
         "editor": "E1",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S1",
+        "security": "S2",
         "structure": "—"
       },
       "okapi_counterpart": "",
@@ -1577,7 +1753,7 @@
         "embedded": "none",
         "events": "none",
         "dossier": "none",
-        "sidecar": "none",
+        "sidecar": "complete",
         "refs": "complete",
         "citations": "none",
         "contextpack": "none",
@@ -1585,7 +1761,7 @@
         "fetchwiring": "partial",
         "acceptance": "none",
         "sweep": "none",
-        "safeio": "none",
+        "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
         "sustained": "none",
@@ -1651,8 +1827,7 @@
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "add dossier.yaml with a catalog-registered spec source",
-            "wire the nativedocs sidecar"
+            "add dossier.yaml with a catalog-registered spec source"
           ]
         },
         "corpus": {
@@ -1670,15 +1845,14 @@
           ]
         },
         "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
@@ -1717,7 +1891,7 @@
         "editor": "E0",
         "knowledge": "K0",
         "corpus": "C0",
-        "security": "S0",
+        "security": "S1",
         "structure": "G4"
       },
       "next": {
@@ -1726,7 +1900,7 @@
         "editor": "E1",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S1",
+        "security": "S2",
         "structure": "—"
       },
       "okapi_counterpart": "",
@@ -1749,7 +1923,7 @@
         "embedded": "none",
         "events": "none",
         "dossier": "none",
-        "sidecar": "none",
+        "sidecar": "complete",
         "refs": "complete",
         "citations": "none",
         "contextpack": "none",
@@ -1757,7 +1931,7 @@
         "fetchwiring": "partial",
         "acceptance": "none",
         "sweep": "none",
-        "safeio": "none",
+        "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
         "sustained": "none",
@@ -1823,8 +1997,7 @@
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "add dossier.yaml with a catalog-registered spec source",
-            "wire the nativedocs sidecar"
+            "add dossier.yaml with a catalog-registered spec source"
           ]
         },
         "corpus": {
@@ -1842,15 +2015,14 @@
           ]
         },
         "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
@@ -1874,356 +2046,6 @@
       },
       "blocking_gaps": [
         "add cli/parity spec_test"
-      ],
-      "top_risk": "",
-      "confidence": "floor"
-    },
-    {
-      "id": "doxygen",
-      "type": "parity",
-      "level": "L2",
-      "next_level": "L3",
-      "levels": {
-        "engine": "L2",
-        "vocabulary": "V0",
-        "editor": "E0",
-        "knowledge": "K1",
-        "corpus": "C1",
-        "security": "S0",
-        "structure": "G0"
-      },
-      "next": {
-        "engine": "L3",
-        "vocabulary": "V1",
-        "editor": "E1",
-        "knowledge": "K2",
-        "corpus": "C2",
-        "security": "S1",
-        "structure": "G1"
-      },
-      "okapi_counterpart": "okf_doxygen",
-      "dimensions": {
-        "reader": "complete",
-        "writer": "complete",
-        "config": "complete",
-        "spec": "complete",
-        "parity": "complete",
-        "malformed": "complete",
-        "corpus": "partial",
-        "detection": "complete",
-        "docs": "complete",
-        "vocabmap": "none",
-        "vocabtypes": "none",
-        "writecells": "none",
-        "equivalence": "none",
-        "preview": "none",
-        "identity": "none",
-        "embedded": "none",
-        "events": "none",
-        "dossier": "complete",
-        "sidecar": "complete",
-        "refs": "partial",
-        "citations": "none",
-        "contextpack": "none",
-        "corpusmanifest": "complete",
-        "fetchwiring": "partial",
-        "acceptance": "none",
-        "sweep": "none",
-        "safeio": "none",
-        "fuzz": "none",
-        "sweepclean": "none",
-        "sustained": "none",
-        "metaplane": "none",
-        "readingorder": "none",
-        "roles": "none",
-        "geometry": "none"
-      },
-      "evidence": {},
-      "floor": "L2",
-      "ceiling": "L2",
-      "derived_from": "dimensions",
-      "delta": null,
-      "agreement": 1,
-      "samples": 1,
-      "axes": {
-        "engine": {
-          "level": "L2",
-          "next": "L3",
-          "floor": "L2",
-          "ceiling": "L2",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add a corpus/upstream test"
-          ]
-        },
-        "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
-          ]
-        },
-        "editor": {
-          "level": "E0",
-          "next": "E1",
-          "floor": "E0",
-          "ceiling": "E0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
-          ]
-        },
-        "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
-          ]
-        },
-        "corpus": {
-          "level": "C1",
-          "next": "C2",
-          "floor": "C1",
-          "ceiling": "C1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
-          ]
-        },
-        "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
-          ]
-        },
-        "structure": {
-          "level": "G0",
-          "next": "G1",
-          "floor": "G0",
-          "ceiling": "G0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
-          ]
-        }
-      },
-      "tier": {
-        "declared": "maintained",
-        "since": "2026-06-12",
-        "last_certified": "2026-06-19",
-        "gates": []
-      },
-      "blocking_gaps": [
-        "add a corpus/upstream test"
-      ],
-      "top_risk": "",
-      "confidence": "floor"
-    },
-    {
-      "id": "dtd",
-      "type": "parity",
-      "level": "L2",
-      "next_level": "L3",
-      "levels": {
-        "engine": "L2",
-        "vocabulary": "V0",
-        "editor": "E0",
-        "knowledge": "K1",
-        "corpus": "C1",
-        "security": "S0",
-        "structure": "G0"
-      },
-      "next": {
-        "engine": "L3",
-        "vocabulary": "V1",
-        "editor": "E1",
-        "knowledge": "K2",
-        "corpus": "C2",
-        "security": "S1",
-        "structure": "G1"
-      },
-      "okapi_counterpart": "okf_dtd",
-      "dimensions": {
-        "reader": "complete",
-        "writer": "complete",
-        "config": "complete",
-        "spec": "complete",
-        "parity": "complete",
-        "malformed": "complete",
-        "corpus": "partial",
-        "detection": "complete",
-        "docs": "complete",
-        "vocabmap": "none",
-        "vocabtypes": "none",
-        "writecells": "none",
-        "equivalence": "none",
-        "preview": "none",
-        "identity": "none",
-        "embedded": "none",
-        "events": "none",
-        "dossier": "complete",
-        "sidecar": "complete",
-        "refs": "partial",
-        "citations": "none",
-        "contextpack": "none",
-        "corpusmanifest": "complete",
-        "fetchwiring": "partial",
-        "acceptance": "none",
-        "sweep": "none",
-        "safeio": "none",
-        "fuzz": "none",
-        "sweepclean": "none",
-        "sustained": "none",
-        "metaplane": "none",
-        "readingorder": "none",
-        "roles": "none",
-        "geometry": "none"
-      },
-      "evidence": {},
-      "floor": "L2",
-      "ceiling": "L2",
-      "derived_from": "dimensions",
-      "delta": null,
-      "agreement": 1,
-      "samples": 1,
-      "axes": {
-        "engine": {
-          "level": "L2",
-          "next": "L3",
-          "floor": "L2",
-          "ceiling": "L2",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add a corpus/upstream test"
-          ]
-        },
-        "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
-          ]
-        },
-        "editor": {
-          "level": "E0",
-          "next": "E1",
-          "floor": "E0",
-          "ceiling": "E0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
-          ]
-        },
-        "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
-          ]
-        },
-        "corpus": {
-          "level": "C1",
-          "next": "C2",
-          "floor": "C1",
-          "ceiling": "C1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
-          ]
-        },
-        "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
-          ]
-        },
-        "structure": {
-          "level": "G0",
-          "next": "G1",
-          "floor": "G0",
-          "ceiling": "G0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
-          ]
-        }
-      },
-      "tier": {
-        "declared": "maintained",
-        "since": "2026-06-12",
-        "last_certified": "2026-06-19",
-        "gates": []
-      },
-      "blocking_gaps": [
-        "add a corpus/upstream test"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -2392,181 +2214,6 @@
       },
       "tier": {
         "declared": "available",
-        "since": "2026-06-12",
-        "last_certified": "2026-06-19",
-        "gates": []
-      },
-      "blocking_gaps": [
-        "add a corpus/upstream test"
-      ],
-      "top_risk": "",
-      "confidence": "floor"
-    },
-    {
-      "id": "fixedwidth",
-      "type": "parity",
-      "level": "L2",
-      "next_level": "L3",
-      "levels": {
-        "engine": "L2",
-        "vocabulary": "V0",
-        "editor": "E0",
-        "knowledge": "K1",
-        "corpus": "C1",
-        "security": "S0",
-        "structure": "G0"
-      },
-      "next": {
-        "engine": "L3",
-        "vocabulary": "V1",
-        "editor": "E1",
-        "knowledge": "K2",
-        "corpus": "C2",
-        "security": "S1",
-        "structure": "G1"
-      },
-      "okapi_counterpart": "okf_table (via alias 'table')",
-      "dimensions": {
-        "reader": "complete",
-        "writer": "complete",
-        "config": "complete",
-        "spec": "complete",
-        "parity": "complete",
-        "malformed": "complete",
-        "corpus": "partial",
-        "detection": "complete",
-        "docs": "complete",
-        "vocabmap": "none",
-        "vocabtypes": "none",
-        "writecells": "none",
-        "equivalence": "none",
-        "preview": "none",
-        "identity": "none",
-        "embedded": "none",
-        "events": "none",
-        "dossier": "complete",
-        "sidecar": "complete",
-        "refs": "partial",
-        "citations": "none",
-        "contextpack": "none",
-        "corpusmanifest": "complete",
-        "fetchwiring": "partial",
-        "acceptance": "none",
-        "sweep": "none",
-        "safeio": "none",
-        "fuzz": "none",
-        "sweepclean": "none",
-        "sustained": "none",
-        "metaplane": "none",
-        "readingorder": "none",
-        "roles": "none",
-        "geometry": "none"
-      },
-      "evidence": {},
-      "floor": "L2",
-      "ceiling": "L2",
-      "derived_from": "dimensions",
-      "delta": null,
-      "agreement": 1,
-      "samples": 1,
-      "axes": {
-        "engine": {
-          "level": "L2",
-          "next": "L3",
-          "floor": "L2",
-          "ceiling": "L2",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add a corpus/upstream test"
-          ]
-        },
-        "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
-          ]
-        },
-        "editor": {
-          "level": "E0",
-          "next": "E1",
-          "floor": "E0",
-          "ceiling": "E0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
-          ]
-        },
-        "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
-          ]
-        },
-        "corpus": {
-          "level": "C1",
-          "next": "C2",
-          "floor": "C1",
-          "ceiling": "C1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
-          ]
-        },
-        "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
-          ]
-        },
-        "structure": {
-          "level": "G0",
-          "next": "G1",
-          "floor": "G0",
-          "ceiling": "G0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
-          ]
-        }
-      },
-      "tier": {
-        "declared": "maintained",
         "since": "2026-06-12",
         "last_certified": "2026-06-19",
         "gates": []
@@ -2920,344 +2567,6 @@
       "confidence": "floor"
     },
     {
-      "id": "icml",
-      "type": "parity",
-      "level": "L3",
-      "next_level": "L4",
-      "levels": {
-        "engine": "L3",
-        "vocabulary": "V0",
-        "editor": "E0",
-        "knowledge": "K1",
-        "corpus": "C1",
-        "security": "S0",
-        "structure": "G0"
-      },
-      "next": {
-        "engine": "L4",
-        "vocabulary": "V1",
-        "editor": "E1",
-        "knowledge": "K2",
-        "corpus": "C2",
-        "security": "S1",
-        "structure": "G1"
-      },
-      "okapi_counterpart": "okf_icml",
-      "dimensions": {
-        "reader": "complete",
-        "writer": "complete",
-        "config": "complete",
-        "spec": "complete",
-        "parity": "complete",
-        "malformed": "complete",
-        "corpus": "complete",
-        "detection": "complete",
-        "docs": "complete",
-        "vocabmap": "none",
-        "vocabtypes": "none",
-        "writecells": "none",
-        "equivalence": "none",
-        "preview": "none",
-        "identity": "none",
-        "embedded": "none",
-        "events": "none",
-        "dossier": "complete",
-        "sidecar": "complete",
-        "refs": "partial",
-        "citations": "none",
-        "contextpack": "none",
-        "corpusmanifest": "complete",
-        "fetchwiring": "partial",
-        "acceptance": "none",
-        "sweep": "none",
-        "safeio": "none",
-        "fuzz": "none",
-        "sweepclean": "none",
-        "sustained": "none",
-        "metaplane": "none",
-        "readingorder": "none",
-        "roles": "none",
-        "geometry": "none"
-      },
-      "evidence": {},
-      "floor": "L3",
-      "ceiling": "L3",
-      "derived_from": "dimensions",
-      "delta": null,
-      "agreement": 1,
-      "samples": 1,
-      "axes": {
-        "engine": {
-          "level": "L3",
-          "next": "L4",
-          "floor": "L3",
-          "ceiling": "L3",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
-        },
-        "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
-          ]
-        },
-        "editor": {
-          "level": "E0",
-          "next": "E1",
-          "floor": "E0",
-          "ceiling": "E0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
-          ]
-        },
-        "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
-          ]
-        },
-        "corpus": {
-          "level": "C1",
-          "next": "C2",
-          "floor": "C1",
-          "ceiling": "C1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "wire an external acceptance validator"
-          ]
-        },
-        "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
-          ]
-        },
-        "structure": {
-          "level": "G0",
-          "next": "G1",
-          "floor": "G0",
-          "ceiling": "G0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
-          ]
-        }
-      },
-      "tier": {
-        "declared": "maintained",
-        "since": "2026-06-12",
-        "last_certified": "2026-06-19",
-        "gates": []
-      },
-      "blocking_gaps": [],
-      "top_risk": "",
-      "confidence": "floor"
-    },
-    {
-      "id": "idml",
-      "type": "parity",
-      "level": "L3",
-      "next_level": "L4",
-      "levels": {
-        "engine": "L3",
-        "vocabulary": "V0",
-        "editor": "E0",
-        "knowledge": "K1",
-        "corpus": "C0",
-        "security": "S1",
-        "structure": "G2"
-      },
-      "next": {
-        "engine": "L4",
-        "vocabulary": "V1",
-        "editor": "E1",
-        "knowledge": "K2",
-        "corpus": "C1",
-        "security": "S2",
-        "structure": "G3"
-      },
-      "okapi_counterpart": "okf_idml",
-      "dimensions": {
-        "reader": "complete",
-        "writer": "complete",
-        "config": "complete",
-        "spec": "complete",
-        "parity": "complete",
-        "malformed": "complete",
-        "corpus": "complete",
-        "detection": "complete",
-        "docs": "complete",
-        "vocabmap": "none",
-        "vocabtypes": "none",
-        "writecells": "none",
-        "equivalence": "none",
-        "preview": "none",
-        "identity": "none",
-        "embedded": "none",
-        "events": "none",
-        "dossier": "complete",
-        "sidecar": "complete",
-        "refs": "partial",
-        "citations": "none",
-        "contextpack": "none",
-        "corpusmanifest": "partial",
-        "fetchwiring": "partial",
-        "acceptance": "none",
-        "sweep": "none",
-        "safeio": "complete",
-        "fuzz": "none",
-        "sweepclean": "none",
-        "sustained": "none",
-        "metaplane": "complete",
-        "readingorder": "complete",
-        "roles": "none",
-        "geometry": "complete"
-      },
-      "evidence": {},
-      "floor": "L3",
-      "ceiling": "L3",
-      "derived_from": "dimensions",
-      "delta": null,
-      "agreement": 1,
-      "samples": 1,
-      "axes": {
-        "engine": {
-          "level": "L3",
-          "next": "L4",
-          "floor": "L3",
-          "ceiling": "L3",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
-        },
-        "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
-          ]
-        },
-        "editor": {
-          "level": "E0",
-          "next": "E1",
-          "floor": "E0",
-          "ceiling": "E0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
-          ]
-        },
-        "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
-          ]
-        },
-        "corpus": {
-          "level": "C0",
-          "next": "C1",
-          "floor": "C0",
-          "ceiling": "C0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "wire an external acceptance validator"
-          ]
-        },
-        "security": {
-          "level": "S1",
-          "next": "S2",
-          "floor": "S1",
-          "ceiling": "S1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
-          ]
-        },
-        "structure": {
-          "level": "G2",
-          "next": "G3",
-          "floor": "G2",
-          "ceiling": "G2",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
-          ]
-        }
-      },
-      "tier": {
-        "declared": "available",
-        "since": "2026-06-12",
-        "last_certified": "2026-06-19",
-        "gates": []
-      },
-      "blocking_gaps": [],
-      "top_risk": "",
-      "confidence": "floor"
-    },
-    {
       "id": "image",
       "type": "harvest",
       "level": "L1",
@@ -3300,7 +2609,7 @@
         "embedded": "none",
         "events": "none",
         "dossier": "none",
-        "sidecar": "none",
+        "sidecar": "complete",
         "refs": "none",
         "citations": "none",
         "contextpack": "none",
@@ -3376,7 +2685,6 @@
           "agreement": 1,
           "blocking_gaps": [
             "add dossier.yaml with a catalog-registered spec source",
-            "wire the nativedocs sidecar",
             "populate spec_refs/native_refs + divergence_kind"
           ]
         },
@@ -3412,7 +2720,7 @@
           "level": "G1",
           "next": "G2",
           "floor": "G1",
-          "ceiling": "G1",
+          "ceiling": "G4",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
@@ -3643,7 +2951,7 @@
         "docs": "complete",
         "vocabmap": "complete",
         "vocabtypes": "complete",
-        "writecells": "none",
+        "writecells": "partial",
         "equivalence": "complete",
         "preview": "complete",
         "identity": "complete",
@@ -3787,7 +3095,7 @@
         "knowledge": "K2",
         "corpus": "C0",
         "security": "S1",
-        "structure": "G0"
+        "structure": "G3"
       },
       "next": {
         "engine": "L2",
@@ -3796,7 +3104,7 @@
         "knowledge": "K3",
         "corpus": "C1",
         "security": "S2",
-        "structure": "G1"
+        "structure": "G4"
       },
       "okapi_counterpart": "",
       "dimensions": {
@@ -3830,9 +3138,9 @@
         "fuzz": "none",
         "sweepclean": "none",
         "sustained": "none",
-        "metaplane": "none",
-        "readingorder": "none",
-        "roles": "none",
+        "metaplane": "complete",
+        "readingorder": "complete",
+        "roles": "complete",
         "geometry": "none"
       },
       "evidence": {},
@@ -3920,17 +3228,15 @@
           ]
         },
         "structure": {
-          "level": "G0",
-          "next": "G1",
-          "floor": "G0",
-          "ceiling": "G0",
+          "level": "G3",
+          "next": "G4",
+          "floor": "G3",
+          "ceiling": "G3",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
+            "set SetGeometry + a geometry test (G4)"
           ]
         }
       },
@@ -3957,7 +3263,7 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S0",
+        "security": "S1",
         "structure": "G0"
       },
       "next": {
@@ -3966,7 +3272,7 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S1",
+        "security": "S2",
         "structure": "G1"
       },
       "okapi_counterpart": "okf_messageformat",
@@ -3997,7 +3303,7 @@
         "fetchwiring": "partial",
         "acceptance": "none",
         "sweep": "none",
-        "safeio": "none",
+        "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
         "sustained": "none",
@@ -4081,15 +3387,14 @@
           ]
         },
         "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
@@ -4118,177 +3423,6 @@
       "blocking_gaps": [
         "add a corpus/upstream test"
       ],
-      "top_risk": "",
-      "confidence": "floor"
-    },
-    {
-      "id": "mif",
-      "type": "parity",
-      "level": "L3",
-      "next_level": "L4",
-      "levels": {
-        "engine": "L3",
-        "vocabulary": "V0",
-        "editor": "E0",
-        "knowledge": "K1",
-        "corpus": "C0",
-        "security": "S0",
-        "structure": "G0"
-      },
-      "next": {
-        "engine": "L4",
-        "vocabulary": "V1",
-        "editor": "E1",
-        "knowledge": "K2",
-        "corpus": "C1",
-        "security": "S1",
-        "structure": "G1"
-      },
-      "okapi_counterpart": "okf_mif",
-      "dimensions": {
-        "reader": "complete",
-        "writer": "complete",
-        "config": "complete",
-        "spec": "complete",
-        "parity": "complete",
-        "malformed": "complete",
-        "corpus": "complete",
-        "detection": "complete",
-        "docs": "complete",
-        "vocabmap": "none",
-        "vocabtypes": "none",
-        "writecells": "none",
-        "equivalence": "none",
-        "preview": "none",
-        "identity": "none",
-        "embedded": "none",
-        "events": "none",
-        "dossier": "complete",
-        "sidecar": "complete",
-        "refs": "partial",
-        "citations": "none",
-        "contextpack": "none",
-        "corpusmanifest": "partial",
-        "fetchwiring": "partial",
-        "acceptance": "none",
-        "sweep": "none",
-        "safeio": "none",
-        "fuzz": "none",
-        "sweepclean": "none",
-        "sustained": "none",
-        "metaplane": "none",
-        "readingorder": "none",
-        "roles": "none",
-        "geometry": "none"
-      },
-      "evidence": {},
-      "floor": "L3",
-      "ceiling": "L3",
-      "derived_from": "dimensions",
-      "delta": null,
-      "agreement": 1,
-      "samples": 1,
-      "axes": {
-        "engine": {
-          "level": "L3",
-          "next": "L4",
-          "floor": "L3",
-          "ceiling": "L3",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
-        },
-        "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
-          ]
-        },
-        "editor": {
-          "level": "E0",
-          "next": "E1",
-          "floor": "E0",
-          "ceiling": "E0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
-          ]
-        },
-        "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
-          ]
-        },
-        "corpus": {
-          "level": "C0",
-          "next": "C1",
-          "floor": "C0",
-          "ceiling": "C0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "wire an external acceptance validator"
-          ]
-        },
-        "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
-          ]
-        },
-        "structure": {
-          "level": "G0",
-          "next": "G1",
-          "floor": "G0",
-          "ceiling": "G0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
-          ]
-        }
-      },
-      "tier": {
-        "declared": "maintained",
-        "since": "2026-06-12",
-        "last_certified": "2026-06-19",
-        "gates": []
-      },
-      "blocking_gaps": [],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -4468,179 +3602,6 @@
       "confidence": "floor"
     },
     {
-      "id": "mosestext",
-      "type": "parity",
-      "level": "L2",
-      "next_level": "L3",
-      "levels": {
-        "engine": "L2",
-        "vocabulary": "V0",
-        "editor": "E0",
-        "knowledge": "K1",
-        "corpus": "C1",
-        "security": "S0",
-        "structure": "G0"
-      },
-      "next": {
-        "engine": "L3",
-        "vocabulary": "V1",
-        "editor": "E1",
-        "knowledge": "K2",
-        "corpus": "C2",
-        "security": "S1",
-        "structure": "G1"
-      },
-      "okapi_counterpart": "okf_mosestext",
-      "dimensions": {
-        "reader": "complete",
-        "writer": "complete",
-        "config": "complete",
-        "spec": "complete",
-        "parity": "complete",
-        "malformed": "complete",
-        "corpus": "partial",
-        "detection": "complete",
-        "docs": "complete",
-        "vocabmap": "none",
-        "vocabtypes": "none",
-        "writecells": "none",
-        "equivalence": "none",
-        "preview": "none",
-        "identity": "none",
-        "embedded": "none",
-        "events": "none",
-        "dossier": "complete",
-        "sidecar": "complete",
-        "refs": "complete",
-        "citations": "none",
-        "contextpack": "none",
-        "corpusmanifest": "complete",
-        "fetchwiring": "partial",
-        "acceptance": "none",
-        "sweep": "none",
-        "safeio": "none",
-        "fuzz": "none",
-        "sweepclean": "none",
-        "sustained": "none",
-        "metaplane": "none",
-        "readingorder": "none",
-        "roles": "none",
-        "geometry": "none"
-      },
-      "evidence": {},
-      "floor": "L2",
-      "ceiling": "L2",
-      "derived_from": "dimensions",
-      "delta": null,
-      "agreement": 1,
-      "samples": 1,
-      "axes": {
-        "engine": {
-          "level": "L2",
-          "next": "L3",
-          "floor": "L2",
-          "ceiling": "L2",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add a corpus/upstream test"
-          ]
-        },
-        "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
-          ]
-        },
-        "editor": {
-          "level": "E0",
-          "next": "E1",
-          "floor": "E0",
-          "ceiling": "E0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
-          ]
-        },
-        "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
-        },
-        "corpus": {
-          "level": "C1",
-          "next": "C2",
-          "floor": "C1",
-          "ceiling": "C1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
-          ]
-        },
-        "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
-          ]
-        },
-        "structure": {
-          "level": "G0",
-          "next": "G1",
-          "floor": "G0",
-          "ceiling": "G0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
-          ]
-        }
-      },
-      "tier": {
-        "declared": "maintained",
-        "since": "2026-06-12",
-        "last_certified": "2026-06-19",
-        "gates": []
-      },
-      "blocking_gaps": [
-        "add a corpus/upstream test"
-      ],
-      "top_risk": "",
-      "confidence": "floor"
-    },
-    {
       "id": "odf",
       "type": "harvest",
       "level": "L1",
@@ -4649,7 +3610,7 @@
         "engine": "L1",
         "vocabulary": "V0",
         "editor": "E0",
-        "knowledge": "K1",
+        "knowledge": "K2",
         "corpus": "C0",
         "security": "S1",
         "structure": "G2"
@@ -4658,7 +3619,7 @@
         "engine": "L2",
         "vocabulary": "V1",
         "editor": "E1",
-        "knowledge": "K2",
+        "knowledge": "K3",
         "corpus": "C1",
         "security": "S2",
         "structure": "G3"
@@ -4747,10 +3708,10 @@
           ]
         },
         "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
+          "level": "K2",
+          "next": "K3",
+          "floor": "K2",
+          "ceiling": "K2",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
@@ -4816,18 +3777,18 @@
         "vocabulary": "V1",
         "editor": "E0",
         "knowledge": "K1",
-        "corpus": "C1",
+        "corpus": "C0",
         "security": "S1",
-        "structure": "G2"
+        "structure": "G4"
       },
       "next": {
         "engine": "L3",
         "vocabulary": "V2",
         "editor": "E1",
         "knowledge": "K2",
-        "corpus": "C2",
+        "corpus": "C1",
         "security": "S2",
-        "structure": "G3"
+        "structure": "—"
       },
       "okapi_counterpart": "okf_openxml",
       "dimensions": {
@@ -4853,7 +3814,7 @@
         "refs": "partial",
         "citations": "none",
         "contextpack": "none",
-        "corpusmanifest": "complete",
+        "corpusmanifest": "partial",
         "fetchwiring": "partial",
         "acceptance": "none",
         "sweep": "none",
@@ -4863,7 +3824,7 @@
         "sustained": "none",
         "metaplane": "complete",
         "readingorder": "complete",
-        "roles": "none",
+        "roles": "complete",
         "geometry": "complete"
       },
       "evidence": {},
@@ -4925,17 +3886,17 @@
           ]
         },
         "corpus": {
-          "level": "C1",
-          "next": "C2",
-          "floor": "C1",
-          "ceiling": "C1",
+          "level": "C0",
+          "next": "C1",
+          "floor": "C0",
+          "ceiling": "C0",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
+            "add corpus.yaml covering testdata",
             "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
+            "replace synthetic corpus with real files"
           ]
         },
         "security": {
@@ -4952,188 +3913,14 @@
           ]
         },
         "structure": {
-          "level": "G2",
-          "next": "G3",
-          "floor": "G2",
-          "ceiling": "G2",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
-          ]
-        }
-      },
-      "tier": {
-        "declared": "maintained",
-        "since": "2026-06-12",
-        "last_certified": "2026-06-19",
-        "gates": []
-      },
-      "blocking_gaps": [
-        "add a corpus/upstream test"
-      ],
-      "top_risk": "",
-      "confidence": "floor"
-    },
-    {
-      "id": "paraplaintext",
-      "type": "parity",
-      "level": "L2",
-      "next_level": "L3",
-      "levels": {
-        "engine": "L2",
-        "vocabulary": "V0",
-        "editor": "E0",
-        "knowledge": "K1",
-        "corpus": "C1",
-        "security": "S1",
-        "structure": "G0"
-      },
-      "next": {
-        "engine": "L3",
-        "vocabulary": "V1",
-        "editor": "E1",
-        "knowledge": "K2",
-        "corpus": "C2",
-        "security": "S2",
-        "structure": "G1"
-      },
-      "okapi_counterpart": "okf_plaintext (via alias 'plaintext')",
-      "dimensions": {
-        "reader": "complete",
-        "writer": "complete",
-        "config": "complete",
-        "spec": "complete",
-        "parity": "complete",
-        "malformed": "complete",
-        "corpus": "partial",
-        "detection": "complete",
-        "docs": "complete",
-        "vocabmap": "none",
-        "vocabtypes": "none",
-        "writecells": "none",
-        "equivalence": "none",
-        "preview": "none",
-        "identity": "none",
-        "embedded": "none",
-        "events": "none",
-        "dossier": "complete",
-        "sidecar": "complete",
-        "refs": "complete",
-        "citations": "none",
-        "contextpack": "none",
-        "corpusmanifest": "complete",
-        "fetchwiring": "partial",
-        "acceptance": "none",
-        "sweep": "none",
-        "safeio": "complete",
-        "fuzz": "none",
-        "sweepclean": "none",
-        "sustained": "none",
-        "metaplane": "none",
-        "readingorder": "none",
-        "roles": "none",
-        "geometry": "none"
-      },
-      "evidence": {},
-      "floor": "L2",
-      "ceiling": "L2",
-      "derived_from": "dimensions",
-      "delta": null,
-      "agreement": 1,
-      "samples": 1,
-      "axes": {
-        "engine": {
-          "level": "L2",
-          "next": "L3",
-          "floor": "L2",
-          "ceiling": "L2",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add a corpus/upstream test"
-          ]
-        },
-        "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
-          ]
-        },
-        "editor": {
-          "level": "E0",
-          "next": "E1",
-          "floor": "E0",
-          "ceiling": "E0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
-          ]
-        },
-        "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
+          "level": "G4",
+          "next": "—",
+          "floor": "G4",
+          "ceiling": "G4",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": []
-        },
-        "corpus": {
-          "level": "C1",
-          "next": "C2",
-          "floor": "C1",
-          "ceiling": "C1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
-          ]
-        },
-        "security": {
-          "level": "S1",
-          "next": "S2",
-          "floor": "S1",
-          "ceiling": "S1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
-          ]
-        },
-        "structure": {
-          "level": "G0",
-          "next": "G1",
-          "floor": "G0",
-          "ceiling": "G0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
-          ]
         }
       },
       "tier": {
@@ -5159,7 +3946,7 @@
         "editor": "E0",
         "knowledge": "K0",
         "corpus": "C0",
-        "security": "S0",
+        "security": "S1",
         "structure": "G0"
       },
       "next": {
@@ -5168,7 +3955,7 @@
         "editor": "E1",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S1",
+        "security": "S2",
         "structure": "G1"
       },
       "okapi_counterpart": "okf_pdf",
@@ -5199,7 +3986,7 @@
         "fetchwiring": "partial",
         "acceptance": "none",
         "sweep": "none",
-        "safeio": "none",
+        "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
         "sustained": "none",
@@ -5287,15 +4074,14 @@
           ]
         },
         "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
@@ -5304,7 +4090,7 @@
           "level": "G0",
           "next": "G1",
           "floor": "G0",
-          "ceiling": "G0",
+          "ceiling": "G4",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
@@ -5325,183 +4111,6 @@
         "add malformed_test.go",
         "add spec.yaml + spec_test.go",
         "add cli/parity spec_test"
-      ],
-      "top_risk": "",
-      "confidence": "floor"
-    },
-    {
-      "id": "phpcontent",
-      "type": "parity",
-      "level": "L2",
-      "next_level": "L3",
-      "levels": {
-        "engine": "L2",
-        "vocabulary": "V0",
-        "editor": "E0",
-        "knowledge": "K1",
-        "corpus": "C1",
-        "security": "S0",
-        "structure": "G0"
-      },
-      "next": {
-        "engine": "L3",
-        "vocabulary": "V1",
-        "editor": "E1",
-        "knowledge": "K2",
-        "corpus": "C2",
-        "security": "S1",
-        "structure": "G1"
-      },
-      "okapi_counterpart": "okf_php (via alias 'php')",
-      "dimensions": {
-        "reader": "complete",
-        "writer": "complete",
-        "config": "complete",
-        "spec": "complete",
-        "parity": "none",
-        "malformed": "complete",
-        "corpus": "partial",
-        "detection": "complete",
-        "docs": "complete",
-        "vocabmap": "none",
-        "vocabtypes": "none",
-        "writecells": "none",
-        "equivalence": "none",
-        "preview": "none",
-        "identity": "none",
-        "embedded": "none",
-        "events": "none",
-        "dossier": "complete",
-        "sidecar": "complete",
-        "refs": "partial",
-        "citations": "none",
-        "contextpack": "none",
-        "corpusmanifest": "complete",
-        "fetchwiring": "partial",
-        "acceptance": "none",
-        "sweep": "none",
-        "safeio": "none",
-        "fuzz": "none",
-        "sweepclean": "none",
-        "sustained": "none",
-        "metaplane": "none",
-        "readingorder": "none",
-        "roles": "none",
-        "geometry": "none"
-      },
-      "evidence": {},
-      "floor": "L2",
-      "ceiling": "L2",
-      "derived_from": "dimensions",
-      "delta": null,
-      "agreement": 1,
-      "samples": 1,
-      "axes": {
-        "engine": {
-          "level": "L2",
-          "next": "L3",
-          "floor": "L2",
-          "ceiling": "L2",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add cli/parity spec_test",
-            "add a corpus/upstream test"
-          ]
-        },
-        "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
-          ]
-        },
-        "editor": {
-          "level": "E0",
-          "next": "E1",
-          "floor": "E0",
-          "ceiling": "E0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
-          ]
-        },
-        "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
-          ]
-        },
-        "corpus": {
-          "level": "C1",
-          "next": "C2",
-          "floor": "C1",
-          "ceiling": "C1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
-          ]
-        },
-        "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
-          ]
-        },
-        "structure": {
-          "level": "G0",
-          "next": "G1",
-          "floor": "G0",
-          "ceiling": "G0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
-          ]
-        }
-      },
-      "tier": {
-        "declared": "maintained",
-        "since": "2026-06-12",
-        "last_certified": "2026-06-19",
-        "gates": []
-      },
-      "blocking_gaps": [
-        "add cli/parity spec_test",
-        "add a corpus/upstream test"
       ],
       "top_risk": "",
       "confidence": "floor"
@@ -6028,179 +4637,6 @@
       "confidence": "floor"
     },
     {
-      "id": "regex",
-      "type": "parity",
-      "level": "L2",
-      "next_level": "L3",
-      "levels": {
-        "engine": "L2",
-        "vocabulary": "V0",
-        "editor": "E0",
-        "knowledge": "K1",
-        "corpus": "C1",
-        "security": "S0",
-        "structure": "G0"
-      },
-      "next": {
-        "engine": "L3",
-        "vocabulary": "V1",
-        "editor": "E1",
-        "knowledge": "K2",
-        "corpus": "C2",
-        "security": "S1",
-        "structure": "G1"
-      },
-      "okapi_counterpart": "okf_regex",
-      "dimensions": {
-        "reader": "complete",
-        "writer": "complete",
-        "config": "complete",
-        "spec": "complete",
-        "parity": "complete",
-        "malformed": "complete",
-        "corpus": "partial",
-        "detection": "complete",
-        "docs": "complete",
-        "vocabmap": "none",
-        "vocabtypes": "none",
-        "writecells": "none",
-        "equivalence": "none",
-        "preview": "none",
-        "identity": "none",
-        "embedded": "none",
-        "events": "none",
-        "dossier": "complete",
-        "sidecar": "complete",
-        "refs": "complete",
-        "citations": "none",
-        "contextpack": "none",
-        "corpusmanifest": "complete",
-        "fetchwiring": "partial",
-        "acceptance": "none",
-        "sweep": "none",
-        "safeio": "none",
-        "fuzz": "none",
-        "sweepclean": "none",
-        "sustained": "none",
-        "metaplane": "none",
-        "readingorder": "none",
-        "roles": "none",
-        "geometry": "none"
-      },
-      "evidence": {},
-      "floor": "L2",
-      "ceiling": "L2",
-      "derived_from": "dimensions",
-      "delta": null,
-      "agreement": 1,
-      "samples": 1,
-      "axes": {
-        "engine": {
-          "level": "L2",
-          "next": "L3",
-          "floor": "L2",
-          "ceiling": "L2",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add a corpus/upstream test"
-          ]
-        },
-        "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
-          ]
-        },
-        "editor": {
-          "level": "E0",
-          "next": "E1",
-          "floor": "E0",
-          "ceiling": "E0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
-          ]
-        },
-        "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
-        },
-        "corpus": {
-          "level": "C1",
-          "next": "C2",
-          "floor": "C1",
-          "ceiling": "C1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
-          ]
-        },
-        "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
-          ]
-        },
-        "structure": {
-          "level": "G0",
-          "next": "G1",
-          "floor": "G0",
-          "ceiling": "G0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
-          ]
-        }
-      },
-      "tier": {
-        "declared": "maintained",
-        "since": "2026-06-12",
-        "last_certified": "2026-06-19",
-        "gates": []
-      },
-      "blocking_gaps": [
-        "add a corpus/upstream test"
-      ],
-      "top_risk": "",
-      "confidence": "floor"
-    },
-    {
       "id": "resx",
       "type": "harvest",
       "level": "L3",
@@ -6211,7 +4647,7 @@
         "editor": "E0",
         "knowledge": "K2",
         "corpus": "C0",
-        "security": "S0",
+        "security": "S1",
         "structure": "G0"
       },
       "next": {
@@ -6220,7 +4656,7 @@
         "editor": "E1",
         "knowledge": "K3",
         "corpus": "C1",
-        "security": "S1",
+        "security": "S2",
         "structure": "G1"
       },
       "okapi_counterpart": "",
@@ -6251,7 +4687,7 @@
         "fetchwiring": "partial",
         "acceptance": "partial",
         "sweep": "none",
-        "safeio": "none",
+        "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
         "sustained": "none",
@@ -6331,15 +4767,14 @@
           ]
         },
         "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
@@ -6366,356 +4801,6 @@
         "gates": []
       },
       "blocking_gaps": [],
-      "top_risk": "",
-      "confidence": "floor"
-    },
-    {
-      "id": "rtf",
-      "type": "parity",
-      "level": "L2",
-      "next_level": "L3",
-      "levels": {
-        "engine": "L2",
-        "vocabulary": "V0",
-        "editor": "E0",
-        "knowledge": "K1",
-        "corpus": "C1",
-        "security": "S0",
-        "structure": "G0"
-      },
-      "next": {
-        "engine": "L3",
-        "vocabulary": "V1",
-        "editor": "E1",
-        "knowledge": "K2",
-        "corpus": "C2",
-        "security": "S1",
-        "structure": "G1"
-      },
-      "okapi_counterpart": "okf_rtf",
-      "dimensions": {
-        "reader": "complete",
-        "writer": "complete",
-        "config": "complete",
-        "spec": "complete",
-        "parity": "complete",
-        "malformed": "complete",
-        "corpus": "partial",
-        "detection": "complete",
-        "docs": "complete",
-        "vocabmap": "none",
-        "vocabtypes": "none",
-        "writecells": "none",
-        "equivalence": "none",
-        "preview": "none",
-        "identity": "none",
-        "embedded": "none",
-        "events": "none",
-        "dossier": "complete",
-        "sidecar": "complete",
-        "refs": "partial",
-        "citations": "none",
-        "contextpack": "none",
-        "corpusmanifest": "complete",
-        "fetchwiring": "partial",
-        "acceptance": "none",
-        "sweep": "none",
-        "safeio": "none",
-        "fuzz": "none",
-        "sweepclean": "none",
-        "sustained": "none",
-        "metaplane": "none",
-        "readingorder": "none",
-        "roles": "none",
-        "geometry": "none"
-      },
-      "evidence": {},
-      "floor": "L2",
-      "ceiling": "L2",
-      "derived_from": "dimensions",
-      "delta": null,
-      "agreement": 1,
-      "samples": 1,
-      "axes": {
-        "engine": {
-          "level": "L2",
-          "next": "L3",
-          "floor": "L2",
-          "ceiling": "L2",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add a corpus/upstream test"
-          ]
-        },
-        "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
-          ]
-        },
-        "editor": {
-          "level": "E0",
-          "next": "E1",
-          "floor": "E0",
-          "ceiling": "E0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
-          ]
-        },
-        "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
-          ]
-        },
-        "corpus": {
-          "level": "C1",
-          "next": "C2",
-          "floor": "C1",
-          "ceiling": "C1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
-          ]
-        },
-        "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
-          ]
-        },
-        "structure": {
-          "level": "G0",
-          "next": "G1",
-          "floor": "G0",
-          "ceiling": "G0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
-          ]
-        }
-      },
-      "tier": {
-        "declared": "maintained",
-        "since": "2026-06-12",
-        "last_certified": "2026-06-19",
-        "gates": []
-      },
-      "blocking_gaps": [
-        "add a corpus/upstream test"
-      ],
-      "top_risk": "",
-      "confidence": "floor"
-    },
-    {
-      "id": "splicedlines",
-      "type": "internal",
-      "level": "L1",
-      "next_level": "L2",
-      "levels": {
-        "engine": "L1",
-        "vocabulary": "V0",
-        "editor": "E0",
-        "knowledge": "K1",
-        "corpus": "C1",
-        "security": "S0",
-        "structure": "G0"
-      },
-      "next": {
-        "engine": "L2",
-        "vocabulary": "V1",
-        "editor": "E1",
-        "knowledge": "K2",
-        "corpus": "C2",
-        "security": "S1",
-        "structure": "G1"
-      },
-      "okapi_counterpart": "",
-      "dimensions": {
-        "reader": "complete",
-        "writer": "complete",
-        "config": "complete",
-        "spec": "complete",
-        "parity": "complete",
-        "malformed": "complete",
-        "corpus": "partial",
-        "detection": "complete",
-        "docs": "complete",
-        "vocabmap": "none",
-        "vocabtypes": "none",
-        "writecells": "none",
-        "equivalence": "none",
-        "preview": "none",
-        "identity": "none",
-        "embedded": "none",
-        "events": "none",
-        "dossier": "complete",
-        "sidecar": "complete",
-        "refs": "partial",
-        "citations": "none",
-        "contextpack": "none",
-        "corpusmanifest": "complete",
-        "fetchwiring": "partial",
-        "acceptance": "none",
-        "sweep": "none",
-        "safeio": "none",
-        "fuzz": "none",
-        "sweepclean": "none",
-        "sustained": "none",
-        "metaplane": "none",
-        "readingorder": "none",
-        "roles": "none",
-        "geometry": "none"
-      },
-      "evidence": {},
-      "floor": "L1",
-      "ceiling": "L1",
-      "derived_from": "dimensions",
-      "delta": null,
-      "agreement": 1,
-      "samples": 1,
-      "axes": {
-        "engine": {
-          "level": "L1",
-          "next": "L2",
-          "floor": "L1",
-          "ceiling": "L1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add a corpus/upstream test"
-          ]
-        },
-        "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
-          ]
-        },
-        "editor": {
-          "level": "E0",
-          "next": "E1",
-          "floor": "E0",
-          "ceiling": "E0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
-          ]
-        },
-        "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
-          ]
-        },
-        "corpus": {
-          "level": "C1",
-          "next": "C2",
-          "floor": "C1",
-          "ceiling": "C1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
-          ]
-        },
-        "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
-          ]
-        },
-        "structure": {
-          "level": "G0",
-          "next": "G1",
-          "floor": "G0",
-          "ceiling": "G0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
-          ]
-        }
-      },
-      "tier": {
-        "declared": "available",
-        "since": "2026-06-12",
-        "last_certified": "2026-06-19",
-        "gates": []
-      },
-      "blocking_gaps": [
-        "add a corpus/upstream test"
-      ],
       "top_risk": "",
       "confidence": "floor"
     },
@@ -6897,181 +4982,6 @@
       "confidence": "floor"
     },
     {
-      "id": "tex",
-      "type": "parity",
-      "level": "L2",
-      "next_level": "L3",
-      "levels": {
-        "engine": "L2",
-        "vocabulary": "V0",
-        "editor": "E0",
-        "knowledge": "K1",
-        "corpus": "C1",
-        "security": "S0",
-        "structure": "G0"
-      },
-      "next": {
-        "engine": "L3",
-        "vocabulary": "V1",
-        "editor": "E1",
-        "knowledge": "K2",
-        "corpus": "C2",
-        "security": "S1",
-        "structure": "G1"
-      },
-      "okapi_counterpart": "okf_tex",
-      "dimensions": {
-        "reader": "complete",
-        "writer": "complete",
-        "config": "complete",
-        "spec": "complete",
-        "parity": "complete",
-        "malformed": "complete",
-        "corpus": "partial",
-        "detection": "complete",
-        "docs": "complete",
-        "vocabmap": "none",
-        "vocabtypes": "none",
-        "writecells": "none",
-        "equivalence": "none",
-        "preview": "none",
-        "identity": "none",
-        "embedded": "none",
-        "events": "none",
-        "dossier": "complete",
-        "sidecar": "complete",
-        "refs": "partial",
-        "citations": "none",
-        "contextpack": "none",
-        "corpusmanifest": "complete",
-        "fetchwiring": "partial",
-        "acceptance": "none",
-        "sweep": "none",
-        "safeio": "none",
-        "fuzz": "none",
-        "sweepclean": "none",
-        "sustained": "none",
-        "metaplane": "none",
-        "readingorder": "none",
-        "roles": "none",
-        "geometry": "none"
-      },
-      "evidence": {},
-      "floor": "L2",
-      "ceiling": "L2",
-      "derived_from": "dimensions",
-      "delta": null,
-      "agreement": 1,
-      "samples": 1,
-      "axes": {
-        "engine": {
-          "level": "L2",
-          "next": "L3",
-          "floor": "L2",
-          "ceiling": "L2",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add a corpus/upstream test"
-          ]
-        },
-        "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
-          ]
-        },
-        "editor": {
-          "level": "E0",
-          "next": "E1",
-          "floor": "E0",
-          "ceiling": "E0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
-          ]
-        },
-        "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
-          ]
-        },
-        "corpus": {
-          "level": "C1",
-          "next": "C2",
-          "floor": "C1",
-          "ceiling": "C1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
-          ]
-        },
-        "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
-          ]
-        },
-        "structure": {
-          "level": "G0",
-          "next": "G1",
-          "floor": "G0",
-          "ceiling": "G0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
-          ]
-        }
-      },
-      "tier": {
-        "declared": "maintained",
-        "since": "2026-06-12",
-        "last_certified": "2026-06-19",
-        "gates": []
-      },
-      "blocking_gaps": [
-        "add a corpus/upstream test"
-      ],
-      "top_risk": "",
-      "confidence": "floor"
-    },
-    {
       "id": "tmx",
       "type": "parity",
       "level": "L2",
@@ -7082,7 +4992,7 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S0",
+        "security": "S1",
         "structure": "G0"
       },
       "next": {
@@ -7091,7 +5001,7 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S1",
+        "security": "S2",
         "structure": "G1"
       },
       "okapi_counterpart": "okf_tmx",
@@ -7122,7 +5032,7 @@
         "fetchwiring": "partial",
         "acceptance": "none",
         "sweep": "none",
-        "safeio": "none",
+        "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
         "sustained": "none",
@@ -7206,188 +5116,14 @@
           ]
         },
         "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
-          ]
-        },
-        "structure": {
-          "level": "G0",
-          "next": "G1",
-          "floor": "G0",
-          "ceiling": "G0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
-          ]
-        }
-      },
-      "tier": {
-        "declared": "maintained",
-        "since": "2026-06-12",
-        "last_certified": "2026-06-19",
-        "gates": []
-      },
-      "blocking_gaps": [
-        "add a corpus/upstream test"
-      ],
-      "top_risk": "",
-      "confidence": "floor"
-    },
-    {
-      "id": "transtable",
-      "type": "parity",
-      "level": "L2",
-      "next_level": "L3",
-      "levels": {
-        "engine": "L2",
-        "vocabulary": "V0",
-        "editor": "E0",
-        "knowledge": "K1",
-        "corpus": "C0",
-        "security": "S0",
-        "structure": "G0"
-      },
-      "next": {
-        "engine": "L3",
-        "vocabulary": "V1",
-        "editor": "E1",
-        "knowledge": "K2",
-        "corpus": "C1",
-        "security": "S1",
-        "structure": "G1"
-      },
-      "okapi_counterpart": "okf_transtable",
-      "dimensions": {
-        "reader": "complete",
-        "writer": "complete",
-        "config": "complete",
-        "spec": "complete",
-        "parity": "complete",
-        "malformed": "complete",
-        "corpus": "none",
-        "detection": "complete",
-        "docs": "complete",
-        "vocabmap": "none",
-        "vocabtypes": "none",
-        "writecells": "none",
-        "equivalence": "none",
-        "preview": "none",
-        "identity": "none",
-        "embedded": "none",
-        "events": "none",
-        "dossier": "complete",
-        "sidecar": "complete",
-        "refs": "complete",
-        "citations": "none",
-        "contextpack": "none",
-        "corpusmanifest": "none",
-        "fetchwiring": "partial",
-        "acceptance": "none",
-        "sweep": "none",
-        "safeio": "none",
-        "fuzz": "none",
-        "sweepclean": "none",
-        "sustained": "none",
-        "metaplane": "none",
-        "readingorder": "none",
-        "roles": "none",
-        "geometry": "none"
-      },
-      "evidence": {},
-      "floor": "L2",
-      "ceiling": "L2",
-      "derived_from": "dimensions",
-      "delta": null,
-      "agreement": 1,
-      "samples": 1,
-      "axes": {
-        "engine": {
-          "level": "L2",
-          "next": "L3",
-          "floor": "L2",
-          "ceiling": "L2",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add a corpus/upstream test"
-          ]
-        },
-        "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
-          ]
-        },
-        "editor": {
-          "level": "E0",
-          "next": "E1",
-          "floor": "E0",
-          "ceiling": "E0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
-          ]
-        },
-        "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
-        },
-        "corpus": {
-          "level": "C0",
-          "next": "C1",
-          "floor": "C0",
-          "ceiling": "C0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files"
-          ]
-        },
-        "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
@@ -7430,7 +5166,7 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S0",
+        "security": "S1",
         "structure": "G2"
       },
       "next": {
@@ -7439,7 +5175,7 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S1",
+        "security": "S2",
         "structure": "G3"
       },
       "okapi_counterpart": "okf_ts",
@@ -7470,7 +5206,7 @@
         "fetchwiring": "partial",
         "acceptance": "none",
         "sweep": "none",
-        "safeio": "none",
+        "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
         "sustained": "none",
@@ -7554,15 +5290,14 @@
           ]
         },
         "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
@@ -7583,702 +5318,6 @@
       },
       "tier": {
         "declared": "maintained",
-        "since": "2026-06-12",
-        "last_certified": "2026-06-19",
-        "gates": []
-      },
-      "blocking_gaps": [
-        "add a corpus/upstream test"
-      ],
-      "top_risk": "",
-      "confidence": "floor"
-    },
-    {
-      "id": "ttml",
-      "type": "parity",
-      "level": "L2",
-      "next_level": "L3",
-      "levels": {
-        "engine": "L2",
-        "vocabulary": "V0",
-        "editor": "E0",
-        "knowledge": "K1",
-        "corpus": "C1",
-        "security": "S0",
-        "structure": "G0"
-      },
-      "next": {
-        "engine": "L3",
-        "vocabulary": "V1",
-        "editor": "E1",
-        "knowledge": "K2",
-        "corpus": "C2",
-        "security": "S1",
-        "structure": "G1"
-      },
-      "okapi_counterpart": "okf_subtitles (via alias 'subtitles')",
-      "dimensions": {
-        "reader": "complete",
-        "writer": "complete",
-        "config": "complete",
-        "spec": "complete",
-        "parity": "complete",
-        "malformed": "complete",
-        "corpus": "partial",
-        "detection": "complete",
-        "docs": "complete",
-        "vocabmap": "none",
-        "vocabtypes": "none",
-        "writecells": "none",
-        "equivalence": "none",
-        "preview": "none",
-        "identity": "none",
-        "embedded": "none",
-        "events": "none",
-        "dossier": "complete",
-        "sidecar": "complete",
-        "refs": "partial",
-        "citations": "none",
-        "contextpack": "none",
-        "corpusmanifest": "complete",
-        "fetchwiring": "partial",
-        "acceptance": "none",
-        "sweep": "none",
-        "safeio": "none",
-        "fuzz": "none",
-        "sweepclean": "none",
-        "sustained": "none",
-        "metaplane": "none",
-        "readingorder": "none",
-        "roles": "none",
-        "geometry": "none"
-      },
-      "evidence": {},
-      "floor": "L2",
-      "ceiling": "L2",
-      "derived_from": "dimensions",
-      "delta": null,
-      "agreement": 1,
-      "samples": 1,
-      "axes": {
-        "engine": {
-          "level": "L2",
-          "next": "L3",
-          "floor": "L2",
-          "ceiling": "L2",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add a corpus/upstream test"
-          ]
-        },
-        "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
-          ]
-        },
-        "editor": {
-          "level": "E0",
-          "next": "E1",
-          "floor": "E0",
-          "ceiling": "E0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
-          ]
-        },
-        "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
-          ]
-        },
-        "corpus": {
-          "level": "C1",
-          "next": "C2",
-          "floor": "C1",
-          "ceiling": "C1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
-          ]
-        },
-        "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
-          ]
-        },
-        "structure": {
-          "level": "G0",
-          "next": "G1",
-          "floor": "G0",
-          "ceiling": "G0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
-          ]
-        }
-      },
-      "tier": {
-        "declared": "maintained",
-        "since": "2026-06-12",
-        "last_certified": "2026-06-19",
-        "gates": []
-      },
-      "blocking_gaps": [
-        "add a corpus/upstream test"
-      ],
-      "top_risk": "",
-      "confidence": "floor"
-    },
-    {
-      "id": "ttx",
-      "type": "parity",
-      "level": "L2",
-      "next_level": "L3",
-      "levels": {
-        "engine": "L2",
-        "vocabulary": "V0",
-        "editor": "E0",
-        "knowledge": "K1",
-        "corpus": "C0",
-        "security": "S0",
-        "structure": "G0"
-      },
-      "next": {
-        "engine": "L3",
-        "vocabulary": "V1",
-        "editor": "E1",
-        "knowledge": "K2",
-        "corpus": "C1",
-        "security": "S1",
-        "structure": "G1"
-      },
-      "okapi_counterpart": "okf_ttx",
-      "dimensions": {
-        "reader": "complete",
-        "writer": "complete",
-        "config": "complete",
-        "spec": "complete",
-        "parity": "complete",
-        "malformed": "complete",
-        "corpus": "none",
-        "detection": "complete",
-        "docs": "complete",
-        "vocabmap": "none",
-        "vocabtypes": "none",
-        "writecells": "none",
-        "equivalence": "none",
-        "preview": "none",
-        "identity": "none",
-        "embedded": "none",
-        "events": "none",
-        "dossier": "complete",
-        "sidecar": "complete",
-        "refs": "partial",
-        "citations": "none",
-        "contextpack": "none",
-        "corpusmanifest": "none",
-        "fetchwiring": "partial",
-        "acceptance": "none",
-        "sweep": "none",
-        "safeio": "none",
-        "fuzz": "none",
-        "sweepclean": "none",
-        "sustained": "none",
-        "metaplane": "none",
-        "readingorder": "none",
-        "roles": "none",
-        "geometry": "none"
-      },
-      "evidence": {},
-      "floor": "L2",
-      "ceiling": "L2",
-      "derived_from": "dimensions",
-      "delta": null,
-      "agreement": 1,
-      "samples": 1,
-      "axes": {
-        "engine": {
-          "level": "L2",
-          "next": "L3",
-          "floor": "L2",
-          "ceiling": "L2",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add a corpus/upstream test"
-          ]
-        },
-        "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
-          ]
-        },
-        "editor": {
-          "level": "E0",
-          "next": "E1",
-          "floor": "E0",
-          "ceiling": "E0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
-          ]
-        },
-        "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
-          ]
-        },
-        "corpus": {
-          "level": "C0",
-          "next": "C1",
-          "floor": "C0",
-          "ceiling": "C0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files"
-          ]
-        },
-        "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
-          ]
-        },
-        "structure": {
-          "level": "G0",
-          "next": "G1",
-          "floor": "G0",
-          "ceiling": "G0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
-          ]
-        }
-      },
-      "tier": {
-        "declared": "maintained",
-        "since": "2026-06-12",
-        "last_certified": "2026-06-19",
-        "gates": []
-      },
-      "blocking_gaps": [
-        "add a corpus/upstream test"
-      ],
-      "top_risk": "",
-      "confidence": "floor"
-    },
-    {
-      "id": "txml",
-      "type": "parity",
-      "level": "L2",
-      "next_level": "L3",
-      "levels": {
-        "engine": "L2",
-        "vocabulary": "V0",
-        "editor": "E0",
-        "knowledge": "K1",
-        "corpus": "C0",
-        "security": "S0",
-        "structure": "G0"
-      },
-      "next": {
-        "engine": "L3",
-        "vocabulary": "V1",
-        "editor": "E1",
-        "knowledge": "K2",
-        "corpus": "C1",
-        "security": "S1",
-        "structure": "G1"
-      },
-      "okapi_counterpart": "okf_txml",
-      "dimensions": {
-        "reader": "complete",
-        "writer": "complete",
-        "config": "complete",
-        "spec": "complete",
-        "parity": "complete",
-        "malformed": "complete",
-        "corpus": "none",
-        "detection": "complete",
-        "docs": "complete",
-        "vocabmap": "none",
-        "vocabtypes": "none",
-        "writecells": "none",
-        "equivalence": "none",
-        "preview": "none",
-        "identity": "none",
-        "embedded": "none",
-        "events": "none",
-        "dossier": "complete",
-        "sidecar": "complete",
-        "refs": "complete",
-        "citations": "none",
-        "contextpack": "none",
-        "corpusmanifest": "none",
-        "fetchwiring": "partial",
-        "acceptance": "none",
-        "sweep": "none",
-        "safeio": "none",
-        "fuzz": "none",
-        "sweepclean": "none",
-        "sustained": "none",
-        "metaplane": "none",
-        "readingorder": "none",
-        "roles": "none",
-        "geometry": "none"
-      },
-      "evidence": {},
-      "floor": "L2",
-      "ceiling": "L2",
-      "derived_from": "dimensions",
-      "delta": null,
-      "agreement": 1,
-      "samples": 1,
-      "axes": {
-        "engine": {
-          "level": "L2",
-          "next": "L3",
-          "floor": "L2",
-          "ceiling": "L2",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add a corpus/upstream test"
-          ]
-        },
-        "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
-          ]
-        },
-        "editor": {
-          "level": "E0",
-          "next": "E1",
-          "floor": "E0",
-          "ceiling": "E0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
-          ]
-        },
-        "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
-        },
-        "corpus": {
-          "level": "C0",
-          "next": "C1",
-          "floor": "C0",
-          "ceiling": "C0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files"
-          ]
-        },
-        "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
-          ]
-        },
-        "structure": {
-          "level": "G0",
-          "next": "G1",
-          "floor": "G0",
-          "ceiling": "G0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
-          ]
-        }
-      },
-      "tier": {
-        "declared": "maintained",
-        "since": "2026-06-12",
-        "last_certified": "2026-06-19",
-        "gates": []
-      },
-      "blocking_gaps": [
-        "add a corpus/upstream test"
-      ],
-      "top_risk": "",
-      "confidence": "floor"
-    },
-    {
-      "id": "versifiedtext",
-      "type": "harvest",
-      "level": "L1",
-      "next_level": "L2",
-      "levels": {
-        "engine": "L1",
-        "vocabulary": "V0",
-        "editor": "E0",
-        "knowledge": "K1",
-        "corpus": "C1",
-        "security": "S0",
-        "structure": "G0"
-      },
-      "next": {
-        "engine": "L2",
-        "vocabulary": "V1",
-        "editor": "E1",
-        "knowledge": "K2",
-        "corpus": "C2",
-        "security": "S1",
-        "structure": "G1"
-      },
-      "okapi_counterpart": "",
-      "dimensions": {
-        "reader": "complete",
-        "writer": "complete",
-        "config": "complete",
-        "spec": "na",
-        "parity": "na",
-        "malformed": "complete",
-        "corpus": "partial",
-        "detection": "complete",
-        "docs": "complete",
-        "vocabmap": "none",
-        "vocabtypes": "none",
-        "writecells": "none",
-        "equivalence": "none",
-        "preview": "none",
-        "identity": "none",
-        "embedded": "none",
-        "events": "none",
-        "dossier": "complete",
-        "sidecar": "complete",
-        "refs": "complete",
-        "citations": "none",
-        "contextpack": "none",
-        "corpusmanifest": "complete",
-        "fetchwiring": "partial",
-        "acceptance": "none",
-        "sweep": "none",
-        "safeio": "none",
-        "fuzz": "none",
-        "sweepclean": "none",
-        "sustained": "none",
-        "metaplane": "none",
-        "readingorder": "none",
-        "roles": "none",
-        "geometry": "none"
-      },
-      "evidence": {},
-      "floor": "L1",
-      "ceiling": "L1",
-      "derived_from": "dimensions",
-      "delta": null,
-      "agreement": 1,
-      "samples": 1,
-      "axes": {
-        "engine": {
-          "level": "L1",
-          "next": "L2",
-          "floor": "L1",
-          "ceiling": "L1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add a corpus/upstream test"
-          ]
-        },
-        "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
-          ]
-        },
-        "editor": {
-          "level": "E0",
-          "next": "E1",
-          "floor": "E0",
-          "ceiling": "E0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
-          ]
-        },
-        "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
-        },
-        "corpus": {
-          "level": "C1",
-          "next": "C2",
-          "floor": "C1",
-          "ceiling": "C1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
-          ]
-        },
-        "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
-          ]
-        },
-        "structure": {
-          "level": "G0",
-          "next": "G1",
-          "floor": "G0",
-          "ceiling": "G0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
-          ]
-        }
-      },
-      "tier": {
-        "declared": "available",
         "since": "2026-06-12",
         "last_certified": "2026-06-19",
         "gates": []
@@ -8315,7 +5354,7 @@
       "okapi_counterpart": "",
       "dimensions": {
         "reader": "complete",
-        "writer": "none",
+        "writer": "complete",
         "config": "none",
         "spec": "na",
         "parity": "na",
@@ -8469,181 +5508,6 @@
       "confidence": "floor"
     },
     {
-      "id": "vignette",
-      "type": "parity",
-      "level": "L2",
-      "next_level": "L3",
-      "levels": {
-        "engine": "L2",
-        "vocabulary": "V0",
-        "editor": "E0",
-        "knowledge": "K1",
-        "corpus": "C0",
-        "security": "S0",
-        "structure": "G0"
-      },
-      "next": {
-        "engine": "L3",
-        "vocabulary": "V1",
-        "editor": "E1",
-        "knowledge": "K2",
-        "corpus": "C1",
-        "security": "S1",
-        "structure": "G1"
-      },
-      "okapi_counterpart": "okf_vignette",
-      "dimensions": {
-        "reader": "complete",
-        "writer": "complete",
-        "config": "complete",
-        "spec": "complete",
-        "parity": "complete",
-        "malformed": "complete",
-        "corpus": "none",
-        "detection": "complete",
-        "docs": "complete",
-        "vocabmap": "none",
-        "vocabtypes": "none",
-        "writecells": "none",
-        "equivalence": "none",
-        "preview": "none",
-        "identity": "none",
-        "embedded": "none",
-        "events": "none",
-        "dossier": "complete",
-        "sidecar": "complete",
-        "refs": "partial",
-        "citations": "none",
-        "contextpack": "none",
-        "corpusmanifest": "none",
-        "fetchwiring": "partial",
-        "acceptance": "none",
-        "sweep": "none",
-        "safeio": "none",
-        "fuzz": "none",
-        "sweepclean": "none",
-        "sustained": "none",
-        "metaplane": "none",
-        "readingorder": "none",
-        "roles": "none",
-        "geometry": "none"
-      },
-      "evidence": {},
-      "floor": "L2",
-      "ceiling": "L2",
-      "derived_from": "dimensions",
-      "delta": null,
-      "agreement": 1,
-      "samples": 1,
-      "axes": {
-        "engine": {
-          "level": "L2",
-          "next": "L3",
-          "floor": "L2",
-          "ceiling": "L2",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add a corpus/upstream test"
-          ]
-        },
-        "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
-          ]
-        },
-        "editor": {
-          "level": "E0",
-          "next": "E1",
-          "floor": "E0",
-          "ceiling": "E0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
-          ]
-        },
-        "knowledge": {
-          "level": "K1",
-          "next": "K2",
-          "floor": "K1",
-          "ceiling": "K1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "populate spec_refs/native_refs + divergence_kind"
-          ]
-        },
-        "corpus": {
-          "level": "C0",
-          "next": "C1",
-          "floor": "C0",
-          "ceiling": "C0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add corpus.yaml covering testdata",
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files"
-          ]
-        },
-        "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
-          ]
-        },
-        "structure": {
-          "level": "G0",
-          "next": "G1",
-          "floor": "G0",
-          "ceiling": "G0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
-          ]
-        }
-      },
-      "tier": {
-        "declared": "maintained",
-        "since": "2026-06-12",
-        "last_certified": "2026-06-19",
-        "gates": []
-      },
-      "blocking_gaps": [
-        "add a corpus/upstream test"
-      ],
-      "top_risk": "",
-      "confidence": "floor"
-    },
-    {
       "id": "vtt",
       "type": "parity",
       "level": "L2",
@@ -8654,7 +5518,7 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C1",
-        "security": "S0",
+        "security": "S1",
         "structure": "G0"
       },
       "next": {
@@ -8663,7 +5527,7 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C2",
-        "security": "S1",
+        "security": "S2",
         "structure": "G1"
       },
       "okapi_counterpart": "okf_subtitles (via alias 'subtitles')",
@@ -8694,7 +5558,7 @@
         "fetchwiring": "partial",
         "acceptance": "none",
         "sweep": "none",
-        "safeio": "none",
+        "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
         "sustained": "none",
@@ -8778,188 +5642,14 @@
           ]
         },
         "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
-            "add a Fuzz* target + testdata/fuzz seed (S2)",
-            "record a clean corpus-sweep in the ledger (S3)"
-          ]
-        },
-        "structure": {
-          "level": "G0",
-          "next": "G1",
-          "floor": "G0",
-          "ceiling": "G0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "classify metadata-plane / caption text (G1)",
-            "emit grouped body text in reading order (G2)",
-            "set SetSemanticRole + tables/relations + a roles test (G3)"
-          ]
-        }
-      },
-      "tier": {
-        "declared": "maintained",
-        "since": "2026-06-12",
-        "last_certified": "2026-06-19",
-        "gates": []
-      },
-      "blocking_gaps": [
-        "add a corpus/upstream test"
-      ],
-      "top_risk": "",
-      "confidence": "floor"
-    },
-    {
-      "id": "wiki",
-      "type": "parity",
-      "level": "L2",
-      "next_level": "L3",
-      "levels": {
-        "engine": "L2",
-        "vocabulary": "V0",
-        "editor": "E0",
-        "knowledge": "K2",
-        "corpus": "C1",
-        "security": "S0",
-        "structure": "G0"
-      },
-      "next": {
-        "engine": "L3",
-        "vocabulary": "V1",
-        "editor": "E1",
-        "knowledge": "K3",
-        "corpus": "C2",
-        "security": "S1",
-        "structure": "G1"
-      },
-      "okapi_counterpart": "okf_wiki",
-      "dimensions": {
-        "reader": "complete",
-        "writer": "complete",
-        "config": "complete",
-        "spec": "complete",
-        "parity": "complete",
-        "malformed": "complete",
-        "corpus": "partial",
-        "detection": "complete",
-        "docs": "complete",
-        "vocabmap": "none",
-        "vocabtypes": "none",
-        "writecells": "none",
-        "equivalence": "none",
-        "preview": "none",
-        "identity": "none",
-        "embedded": "none",
-        "events": "none",
-        "dossier": "complete",
-        "sidecar": "complete",
-        "refs": "complete",
-        "citations": "none",
-        "contextpack": "none",
-        "corpusmanifest": "complete",
-        "fetchwiring": "partial",
-        "acceptance": "none",
-        "sweep": "none",
-        "safeio": "none",
-        "fuzz": "none",
-        "sweepclean": "none",
-        "sustained": "none",
-        "metaplane": "none",
-        "readingorder": "none",
-        "roles": "none",
-        "geometry": "none"
-      },
-      "evidence": {},
-      "floor": "L2",
-      "ceiling": "L2",
-      "derived_from": "dimensions",
-      "delta": null,
-      "agreement": 1,
-      "samples": 1,
-      "axes": {
-        "engine": {
-          "level": "L2",
-          "next": "L3",
-          "floor": "L2",
-          "ceiling": "L2",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add a corpus/upstream test"
-          ]
-        },
-        "vocabulary": {
-          "level": "V0",
-          "next": "V1",
-          "floor": "V0",
-          "ceiling": "V0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "add vocabulary.yaml with evidenced read cells",
-            "emit canonical run types in the reader",
-            "evidence write cells (author-from-canonical)"
-          ]
-        },
-        "editor": {
-          "level": "E0",
-          "next": "E1",
-          "floor": "E0",
-          "ceiling": "E0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "implement format.PreviewBuilder",
-            "add an identity-binding round-trip test",
-            "ship a committed add-in/connector manifest"
-          ]
-        },
-        "knowledge": {
-          "level": "K2",
-          "next": "K3",
-          "floor": "K2",
-          "ceiling": "K2",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": []
-        },
-        "corpus": {
-          "level": "C1",
-          "next": "C2",
-          "floor": "C1",
-          "ceiling": "C1",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire Tier B (corpus: scheme / make fetch-corpus)",
-            "replace synthetic corpus with real files",
-            "wire an external acceptance validator"
-          ]
-        },
-        "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
-          "derived_from": "dimensions",
-          "delta": null,
-          "agreement": 1,
-          "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
@@ -9002,7 +5692,7 @@
         "editor": "E0",
         "knowledge": "K2",
         "corpus": "C0",
-        "security": "S0",
+        "security": "S1",
         "structure": "G0"
       },
       "next": {
@@ -9011,7 +5701,7 @@
         "editor": "E1",
         "knowledge": "K3",
         "corpus": "C1",
-        "security": "S1",
+        "security": "S2",
         "structure": "G1"
       },
       "okapi_counterpart": "",
@@ -9042,7 +5732,7 @@
         "fetchwiring": "partial",
         "acceptance": "partial",
         "sweep": "none",
-        "safeio": "none",
+        "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
         "sustained": "none",
@@ -9122,15 +5812,14 @@
           ]
         },
         "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
@@ -9171,7 +5860,7 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C0",
-        "security": "S0",
+        "security": "S2",
         "structure": "G2"
       },
       "next": {
@@ -9180,7 +5869,7 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C1",
-        "security": "S1",
+        "security": "S3",
         "structure": "G3"
       },
       "okapi_counterpart": "okf_xliff",
@@ -9211,7 +5900,7 @@
         "fetchwiring": "partial",
         "acceptance": "none",
         "sweep": "none",
-        "safeio": "none",
+        "safeio": "complete",
         "fuzz": "complete",
         "sweepclean": "none",
         "sustained": "none",
@@ -9293,15 +5982,14 @@
           ]
         },
         "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
+          "level": "S2",
+          "next": "S3",
+          "floor": "S2",
+          "ceiling": "S2",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]
         },
@@ -9342,7 +6030,7 @@
         "editor": "E0",
         "knowledge": "K1",
         "corpus": "C0",
-        "security": "S0",
+        "security": "S1",
         "structure": "G2"
       },
       "next": {
@@ -9351,7 +6039,7 @@
         "editor": "E1",
         "knowledge": "K2",
         "corpus": "C1",
-        "security": "S1",
+        "security": "S2",
         "structure": "G3"
       },
       "okapi_counterpart": "okf_xliff2",
@@ -9382,7 +6070,7 @@
         "fetchwiring": "partial",
         "acceptance": "none",
         "sweep": "none",
-        "safeio": "none",
+        "safeio": "complete",
         "fuzz": "none",
         "sweepclean": "none",
         "sustained": "none",
@@ -9466,15 +6154,14 @@
           ]
         },
         "security": {
-          "level": "S0",
-          "next": "S1",
-          "floor": "S0",
-          "ceiling": "S0",
+          "level": "S1",
+          "next": "S2",
+          "floor": "S1",
+          "ceiling": "S1",
           "derived_from": "dimensions",
           "delta": null,
           "agreement": 1,
           "blocking_gaps": [
-            "wire core/safeio budgets into the reader (S1)",
             "add a Fuzz* target + testdata/fuzz seed (S2)",
             "record a clean corpus-sweep in the ledger (S3)"
           ]

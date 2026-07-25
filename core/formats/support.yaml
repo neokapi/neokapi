@@ -18,35 +18,35 @@ formats:
   androidxml:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/format-acceptance.yml
   applestrings:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/format-acceptance.yml
   arb:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/format-acceptance.yml
   archive:
     tier: available
     tier_since: "2026-06-26"
-    last_certified: "2026-06-26"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/format-acceptance.yml
   asciidoc:
     tier: available
     tier_since: "2026-06-19"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     notes: "AsciiDoc (.adoc) reader + writer (harvest cohort — no Okapi counterpart); awaits first multi-axis certification."
     gates:
@@ -54,20 +54,21 @@ formats:
   csv:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   designtokens:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/format-acceptance.yml
   doclang:
     tier: available
     tier_since: "2026-06-14"
+    last_certified: "2026-07-25"
     grandfathered: true
     notes: "DocLang v0.6 reader + writer (LF AI & Data standard); awaits first multi-axis certification."
     gates:
@@ -75,6 +76,7 @@ formats:
   docling:
     tier: available
     tier_since: "2026-06-14"
+    last_certified: "2026-07-25"
     grandfathered: true
     notes: "DoclingDocument JSON reader (read-only consume-Docling boundary); awaits first multi-axis certification."
     gates:
@@ -82,6 +84,7 @@ formats:
   image:
     tier: available
     tier_since: "2026-06-18"
+    last_certified: "2026-07-25"
     grandfathered: true
     notes: "PNG/JPEG reader (read-only OCR boundary); text + structure via the kapi-vision plugin. Awaits first multi-axis certification."
     gates:
@@ -89,6 +92,7 @@ formats:
   audio:
     tier: available
     tier_since: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     notes: "Audio reader (read-only ASR boundary); speech → timing-anchored text via the kapi-asr plugin, else the audio as Media. Awaits first multi-axis certification."
     gates:
@@ -96,6 +100,7 @@ formats:
   video:
     tier: available
     tier_since: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     notes: "Video reader (read-only); ffmpeg demux → audio track (kapi-asr) + sampled frames (kapi-vision OCR). Awaits first multi-axis certification."
     gates:
@@ -103,56 +108,56 @@ formats:
   epub:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   html:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   i18next:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/format-acceptance.yml
   json:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   markdown:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   mdx:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/format-acceptance.yml
   messageformat:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   mo:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - make test
@@ -163,20 +168,21 @@ formats:
   odf:
     tier: available
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   openxml:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   pdf:
     tier: available
     tier_since: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     notes: >-
       Plugin-provided, out-of-core: the native reader is the kapi-pdfium plugin
@@ -189,35 +195,35 @@ formats:
   plaintext:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   po:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   properties:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   resx:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/format-acceptance.yml
   srt:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - make test
@@ -227,49 +233,49 @@ formats:
   tmx:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   ts:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   vtt:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   xcstrings:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/format-acceptance.yml
   xliff:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   xliff2:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
   xml:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml
@@ -279,7 +285,7 @@ formats:
   yaml:
     tier: maintained
     tier_since: "2026-06-12"
-    last_certified: "2026-06-19"
+    last_certified: "2026-07-25"
     grandfathered: true
     gates:
       - .github/workflows/parity.yml

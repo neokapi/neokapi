@@ -236,17 +236,41 @@ function renderDocsBlock() {
 }
 
 // ── support.yaml: refresh last_certified only (line-edit; preserve the rest) ─
+// Every id in the dataset was certified by this run, so every id gets the date —
+// including one whose entry carries no last_certified key yet (a format added to
+// support.yaml after the previous publish). Replacing only existing keys would
+// leave such a format permanently uncertified no matter how often the ritual
+// runs. Nothing else in the file is touched: tier / tier_since / gates / notes /
+// grandfathered belong to the tier-review ritual (format-maturity.md §1).
 if (existsSync(P.support)) {
   const ids = new Set(rows.map((r) => r.id))
   const lines = readFileSync(P.support, 'utf8').split('\n')
+  const CERT = (indent) => `${indent}last_certified: "${TODAY}"`
   let cur = null
-  for (let i = 0; i < lines.length; i++) {
-    let m
-    if ((m = lines[i].match(/^  ([A-Za-z0-9_.-]+):\s*$/))) { cur = m[1]; continue }
-    if (cur && ids.has(cur) && /^    last_certified:/.test(lines[i])) {
-      lines[i] = `    last_certified: "${TODAY}"`
+  let anchor = -1 // line index of the current id's tier_since (insert point)
+  let seen = false
+  const inserts = [] // {at, text} — applied last-first so indices stay valid
+  const flush = () => {
+    if (cur && ids.has(cur) && !seen && anchor >= 0) {
+      inserts.push({ at: anchor + 1, text: CERT(lines[anchor].match(/^(\s*)/)[1]) })
     }
   }
+  for (let i = 0; i < lines.length; i++) {
+    let m
+    if ((m = lines[i].match(/^  ([A-Za-z0-9_.-]+):\s*$/))) {
+      flush()
+      cur = m[1]; anchor = -1; seen = false
+      continue
+    }
+    if (!cur) continue
+    if (/^    tier_since:/.test(lines[i])) anchor = i
+    if (ids.has(cur) && /^    last_certified:/.test(lines[i])) {
+      lines[i] = CERT(lines[i].match(/^(\s*)/)[1])
+      seen = true
+    }
+  }
+  flush()
+  for (const ins of inserts.sort((a, b) => b.at - a.at)) lines.splice(ins.at, 0, ins.text)
   writeFileSync(P.support, lines.join('\n'))
 }
 
@@ -270,9 +294,12 @@ if (existsSync(P.ledger)) {
   const dist = dataset.summary.by_level
   ledger.runs.push({
     date: TODAY, ritual: 'triage-score', commit: 'pending', model_id: 'deterministic',
-    outcome: `bootstrap floor publish: engine ${S.AXES.engine.map((g) => `${g}:${dist[g]}`).join(' ')}; ${rows.length} formats; first multi-axis snapshot`,
+    // No "first snapshot" claim: this path re-runs, so the outcome names the
+    // scoring MODE (deterministic floor, no LLM scoring) rather than asserting
+    // a novelty that is false on every run after the first.
+    outcome: `deterministic floor publish (no LLM scoring): engine ${S.AXES.engine.map((g) => `${g}:${dist[g]}`).join(' ')}; ${rows.length} formats`,
     evidence: [{ check: 'audit-format.py --all --json', exit: 0, output_sha: auditSha }],
-    followups: ['vocabulary.yaml backfill (#issue)', 'corpus C2 fetch wiring'],
+    followups: ['vocabulary.yaml backfill (#859)', 'corpus C2 fetch wiring (#859 D)'],
   })
   writeFileSync(P.ledger, JSON.stringify(ledger, null, 2) + '\n')
 }
