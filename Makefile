@@ -1138,11 +1138,12 @@ wails-bindings: kapi-desktop-bindings bowrain-desktop-bindings ## Regenerate bot
 check-wails-bindings: ## Gate: Wails wrapper/id pairing, id maps, and call-name reachability (both desktop apps)
 	node scripts/check-wails-bindings.mjs
 
-# Byte-drift gates: regenerate and fail if the committed copy differs. Needs the
-# Go toolchain (and, on Linux, libicu-dev) for the bindings analysis, so these
-# run in the path-gated desktop jobs that already set that up. `git diff` alone
-# misses a *new* generated file, so untracked output under bindings/ fails too —
-# that is exactly how the memory/ + terms/ package rename surfaced.
+# Byte-drift gates: regenerate and fail if the committed copy differs. These need
+# the Go toolchain and the wails3 CLI (see wails3-cli), so they run in the
+# path-gated desktop jobs that already set Go up — no C toolchain or libicu-dev,
+# since generation is cgo-off. `git diff` alone misses a *new* generated file, so
+# untracked output under bindings/ fails too — that is exactly how the memory/ +
+# terms/ package rename slipped through in the first place.
 check-kapi-desktop-bindings: kapi-desktop-bindings ## Drift gate: committed Kapi Desktop bindings regenerate identically
 	git diff --exit-code $(KAPI_DESKTOP_DIR)/frontend/bindings \
 		$(KAPI_DESKTOP_DIR)/frontend/src/demo/wails-id-map.generated.json
