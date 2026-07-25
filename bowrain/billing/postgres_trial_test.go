@@ -62,10 +62,17 @@ func TestSetupTrial_WritesDeadline(t *testing.T) {
 }
 
 // Two workspaces must both get a trial. The schema once declared
-// stripe_customer_id as NOT NULL UNIQUE while SetupTrial inserted ”, so the
-// second workspace's insert collided — and SetupTrial only logs, so the second
-// workspace silently got no subscription at all. Migration v2 fixed the schema
-// (partial unique index); this pins it, because the failure is invisible.
+// stripe_customer_id as NOT NULL UNIQUE while SetupTrial inserted an empty
+// string, so the second workspace's insert collided — and SetupTrial only
+// logs, so the second workspace silently got no subscription at all.
+// Migration v2 fixed the schema (partial unique index); this pins it, because
+// the failure is invisible.
+//
+// Phrasing note: "an empty string" is deliberate — do not rewrite it as the
+// bare SQL literal (two apostrophes). gofmt's doc-comment canonicalizer reads
+// that sequence as a TeX-style closing quote and silently replaces it with a
+// single curly quote, which is how this sentence was corrupted once already
+// (#1444). See scripts/check-gofmt.sh.
 func TestSetupTrial_TwoWorkspacesBothGetTrials(t *testing.T) {
 	store := newTrialTestStore(t)
 	ctx := t.Context()
