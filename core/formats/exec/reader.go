@@ -18,7 +18,7 @@
 //
 // Records look like:
 //
-//	{"type":"block","document":"<path>","block":{ ...kbf.json.Block... }}
+//	{"type":"block","document":"<path>","block":{ ...kbf.Block... }}
 //
 // Per-line. Other lines on stdout are ignored. Non-zero exit status
 // surfaces as an error with captured stderr attached.
