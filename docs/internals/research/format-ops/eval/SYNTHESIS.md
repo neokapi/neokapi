@@ -1,8 +1,8 @@
 # SYNTHESIS — multi-axis format framework upgrade (decision-ready)
 
 Inputs: `spec-engine.md`, `triage-contract.md`, `vocabulary-reality.md`, `editor-integrations.md`,
-`corpus-and-assets.md`, `gap-review.md` (all in `/tmp/neokapi-format-ops/eval/`). Repo root:
-`/Users/asgeirf/src/neokapi/neokapi/.claude/worktrees/format-process/`. Format universe: 49 scored ids
+`corpus-and-assets.md`, `gap-review.md`. All paths relative to the neokapi repo root.
+Format universe: 49 scored ids
 (`format-triage.js:33-41`), 52 dirs under `core/formats/` minus `{exec,jsx,memorytest}` non-formats
 (`audit-format.py:46`).
 
@@ -43,7 +43,7 @@ Inputs: `spec-engine.md`, `triage-contract.md`, `vocabulary-reality.md`, `editor
 
 ### Corpus (C0–C3) — three storage idioms proven, no manifest, single-laptop riser
 **Measurable today:** 207 files / 3.0 MB across `core/formats/*/testdata` (corpus-and-assets.md §1); **10 real-corpus formats** with provenance-pinned `testdata/corpus/SOURCES.md` (commit-pinned re-fetch cmds, SPDX licenses — arb/idml exemplars); `corpus_test.go` ×10, `upstream_test.go` ×4; fetched external corpus `okapi-testdata` (versioned tag `okapi-testdata-1.48.0` on okapi-bridge, `scripts/fetch-okapi-testdata.sh`, resolver `core/format/spec/helpers.go:60-90`, `okapi:` scheme :42-49, skip-not-fail); 8 acceptance suites against real validators (`make format-acceptance`, Makefile:141; `.github/workflows/format-acceptance.yml`); merge-never-drop publish pattern (`scripts/publish-corpus.sh`). **Rollup: 10 real-corpus / 17 some-real / 21 synthetic-only / 4 none** (corpus-and-assets.md §6).
-**But:** no sha256 anywhere ("byte-identical by assertion only"); no machine-readable manifest; Okapi clone hard-pinned to `/Users/asgeirf/src/okapi/Okapi` (load-bearing for 15 specs + parity + fixtures regen — gap-review.md G4.1); no fuzz targets (`grep 'func Fuzz' core/formats` → empty), no malicious-input corpus (G4.4); no generation leg for formats lacking real corpora (G4.3).
+**But:** no sha256 anywhere ("byte-identical by assertion only"); no machine-readable manifest; Okapi clone hard-pinned to `$NEOKAPI_OKAPI_DIR` (load-bearing for 15 specs + parity + fixtures regen — gap-review.md G4.1); no fuzz targets (`grep 'func Fuzz' core/formats` → empty), no malicious-input corpus (G4.4); no generation leg for formats lacking real corpora (G4.3).
 
 ---
 
@@ -72,7 +72,7 @@ Inputs: `spec-engine.md`, `triage-contract.md`, `vocabulary-reality.md`, `editor
 16. Legacy `formatSpecs` table coexists with spec runners; per-row knowledge (NewWriter, Tikal, Skip ledgers) has no spec.yaml home (spec-engine §3; Open question 3).
 
 **G4 — Reference-file harvesting/storage/generation**
-17. Single-machine corpus dependency (`/Users/asgeirf/src/okapi/Okapi` in Makefile :598, docs, both skills, `format-triage.js:48`) (G4.1).
+17. Single-machine corpus dependency (`$NEOKAPI_OKAPI_DIR` in Makefile :598, docs, both skills, `format-triage.js:48`) (G4.1).
 18. No corpus manifest (source/license/sha256/feature-coverage); real-vs-synthetic re-judged by LLM each run (G4.2; corpus-and-assets §5.4).
 19. No generation pipeline for missing corpora (headless Word/LibreOffice, xcstrings-tool, pandoc) (G4.3).
 20. No malicious-input corpus, no fuzz targets (G4.4).

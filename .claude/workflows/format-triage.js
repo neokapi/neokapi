@@ -52,7 +52,14 @@ let FORMATS = (Array.isArray(cfg.formats) && cfg.formats.length) ? cfg.formats :
 // triggered from). Paths are repo-relative so the audit script + dashboard the
 // agents read are the SAME tree the workflow edits — no cross-worktree drift.
 const REPO = 'the neokapi repo root (your current working directory)'
-const OKAPI = '/Users/asgeirf/src/okapi/Okapi/okapi/filters'
+// The upstream Okapi Framework (Java) clone lives outside this repo and its
+// location is per-developer, so it is named by environment variable, never by
+// an absolute home path. scripts/lib/workspace.sh is the single source of
+// truth for the default (<checkouts>/okapi/Okapi) and is worktree-aware; the
+// value below is a shell expression the agent can paste into a bash command.
+// See web/docs/contribute/workspace-paths.md, or run `make workspace-paths`.
+const OKAPI =
+  '"$(. scripts/lib/workspace.sh && neokapi_init_workspace "$PWD" && echo "$NEOKAPI_OKAPI_DIR")/okapi/filters"'
 const ICU = 'export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c@78/lib/pkgconfig:$PKG_CONFIG_PATH";'
 const AUDIT = 'python3 .skills/refresh-format-maturity/scripts/audit-format.py'
 
@@ -683,7 +690,7 @@ function parseSupportYaml(text) {
 function scorePrompt(fmt, floor, priors) {
   const floorStr = floor ? JSON.stringify(floor) : '(none)'
   const priorStr = AXIS_IDS.map((a) => `${a}: ${(priors && priors[a]) || '(none — first scoring)'}`).join(' | ')
-  return `Score the neokapi format "${fmt}" against the multi-axis rubric in docs/internals/format-maturity.md (§2–§3, §5). cwd = ${REPO}. Okapi Java filters: ${OKAPI}/.
+  return `Score the neokapi format "${fmt}" against the multi-axis rubric in docs/internals/format-maturity.md (§2–§3, §5). cwd = ${REPO}. Okapi Java filters live under the shell path ${OKAPI} (skip Okapi-sourced evidence if that directory does not exist).
 
 DETERMINISTIC FILE FLOOR (already computed by audit-format.py — TRUST IT, do not recompute file presence; per-axis bands + signals are under "axes"):
 ${floorStr}

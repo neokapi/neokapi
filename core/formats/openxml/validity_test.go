@@ -36,7 +36,7 @@ func TestValidity_XMLWellFormed(t *testing.T) {
 	}
 
 	for _, f := range files {
-		name := f
+		name := fixtureName(f)
 		t.Run(name, func(t *testing.T) {
 			original, err := os.ReadFile(f)
 			require.NoError(t, err)
@@ -45,6 +45,20 @@ func TestValidity_XMLWellFormed(t *testing.T) {
 			assertAllXMLWellFormed(t, output)
 		})
 	}
+}
+
+// fixtureName renders a fixture path as a stable, machine-independent subtest
+// name. testdataDir resolves okapi-testdata/ from an absolute repo root, so the
+// raw path carries the developer's home directory — and `go test -json` output
+// feeds the contract-audit dashboard dataset, which is committed. Reporting the
+// path from okapi-testdata/ onwards keeps the fixture identifiable without
+// baking anyone's checkout location into a tracked artefact.
+func fixtureName(path string) string {
+	const marker = "okapi-testdata/"
+	if i := strings.Index(path, marker); i >= 0 {
+		return path[i:]
+	}
+	return path
 }
 
 // TestValidity_NamespacePrefixes verifies that every element and attribute

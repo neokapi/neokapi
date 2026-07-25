@@ -190,6 +190,11 @@ website/videos/output/
 website/videos/public/raw/
 .java-version
 .claude/worktrees/
+# Per-developer Claude Code settings: the permission allowlist records absolute
+# paths from whoever generated it, so it must never be committed (see
+# web/docs/contribute/workspace-paths.md). Previously only a contributor's
+# global gitignore kept it out.
+.claude/settings.local.json
 .env
 .env.local
 platform/docker/traefik/certs

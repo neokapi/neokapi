@@ -58,6 +58,51 @@ GOFMT   := gofmt
 BIN_DIR := $(ROOT_DIR)/bin
 COVER_DIR := coverage
 
+# ── Workspace layout (no absolute home paths, ever) ──────────────────────────
+# Some targets reach outside this repo: sibling repos in the multi-repo
+# workspace (okapi-bridge, registry, …) and unrelated reference checkouts (the
+# upstream Okapi Framework Java tree, the DocLang spec). Those locations are
+# per-developer, so they are named by environment variable with a
+# repo-relative default — never by an absolute home path. A fresh clone in the
+# conventional layout needs no environment at all; anything else sets the one
+# variable it needs.
+#
+# Conventional layout the defaults assume:
+#
+#   <checkouts>/                      $(NEOKAPI_CHECKOUTS_DIR)
+#   ├── neokapi/                      $(NEOKAPI_WORKSPACE_DIR)
+#   │   ├── neokapi/                  this repo ($(ROOT_DIR))
+#   │   ├── okapi-bridge/
+#   │   └── registry/ …
+#   ├── okapi/Okapi/                  $(NEOKAPI_OKAPI_DIR)
+#   └── doclang-project/doclang/      $(NEOKAPI_DOCLANG_DIR)
+#
+# `make check-abs-paths` (part of `make lint`) keeps absolute home paths from
+# creeping back in. See web/docs/contribute/workspace-paths.md.
+#
+# The workspace is the parent of the MAIN checkout, not of $(CURDIR): in a
+# linked git worktree (.claude/worktrees/<name>/) $(CURDIR)/.. is
+# .claude/worktrees. git's common dir points at the main checkout's .git in
+# both cases, so derive from that and fall back to $(CURDIR)/.. outside git
+# (e.g. a source tarball).
+_NEOKAPI_GIT_COMMON := $(shell git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+ifeq ($(strip $(_NEOKAPI_GIT_COMMON)),)
+NEOKAPI_WORKSPACE_DIR ?= $(abspath $(CURDIR)/..)
+else
+NEOKAPI_WORKSPACE_DIR ?= $(abspath $(dir $(_NEOKAPI_GIT_COMMON))..)
+endif
+NEOKAPI_CHECKOUTS_DIR ?= $(abspath $(NEOKAPI_WORKSPACE_DIR)/..)
+NEOKAPI_OKAPI_DIR     ?= $(NEOKAPI_CHECKOUTS_DIR)/okapi/Okapi
+NEOKAPI_DOCLANG_DIR   ?= $(NEOKAPI_CHECKOUTS_DIR)/doclang-project/doclang
+export NEOKAPI_WORKSPACE_DIR NEOKAPI_CHECKOUTS_DIR NEOKAPI_OKAPI_DIR NEOKAPI_DOCLANG_DIR
+
+# Historical override name for the upstream Okapi clone, kept because CI and
+# muscle memory pass it. Defined here rather than beside the contract-audit
+# block so TIKAL_JAR_GLOB (an immediate `:=`, defined earlier in the file) sees
+# a resolved value instead of the empty string.
+OKAPI_REPO ?= $(NEOKAPI_OKAPI_DIR)
+export OKAPI_REPO
+
 # ── kapi dogfood isolation ────────────────────────────────────────────────
 # This repo dogfoods kapi: a *.kapi recipe sits at the repo root, which kapi
 # auto-discovers via a git-style upward walk from any in-repo cwd. Every
@@ -183,9 +228,18 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
 	@$(MAKE) -C bowrain vet
 
-lint: ## Run golangci-lint (all modules)
+lint: check-abs-paths ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) -C bowrain lint
+
+check-abs-paths: ## Guard: no absolute home path (/Users/…, /home/…, C:\Users\…) in tracked files
+	@./scripts/check-abs-paths.sh
+
+workspace-paths: ## Print the resolved locations outside this repo (see web/docs/contribute/workspace-paths.md)
+	@echo "NEOKAPI_WORKSPACE_DIR = $(NEOKAPI_WORKSPACE_DIR)"
+	@echo "NEOKAPI_CHECKOUTS_DIR = $(NEOKAPI_CHECKOUTS_DIR)"
+	@echo "NEOKAPI_OKAPI_DIR     = $(NEOKAPI_OKAPI_DIR)"
+	@echo "NEOKAPI_DOCLANG_DIR   = $(NEOKAPI_DOCLANG_DIR)"
 
 check: fmt vet lint ## Run all code quality checks
 
@@ -663,19 +717,19 @@ regen-srx-parity-golden: ## Regenerate SRX parity golden from the real Okapi (ok
 # scans for `// okapi: ClassName#methodName` annotations next to Go
 # tests, and emits the JSON the /contract-audit dashboard renders.
 #
-# Set OKAPI_REPO if your Okapi clone is not at /Users/asgeirf/src/okapi/Okapi.
+# Set NEOKAPI_OKAPI_DIR (or OKAPI_REPO) if your Okapi clone is not at the
+# conventional $(NEOKAPI_CHECKOUTS_DIR)/okapi/Okapi.
 # Set CONTRACT_FILTER to scope to a single filter (default: html).
 #
-# Canonical Okapi clone is ~/src/okapi/Okapi (cleanly tagged v1.48.0, matching
-# the okapi-bridge framework_version). The older ~/src/okapi/okapi-java clone
-# is stuck on a stale `v1.4.8` tag and mislabels the dashboard version — do not
+# The canonical Okapi clone is the `Okapi` repository, cleanly tagged v1.48.0,
+# matching the okapi-bridge framework_version. A sibling `okapi-java` clone is
+# stuck on a stale `v1.4.8` tag and mislabels the dashboard version — do not
 # use it for the contract audit (#611).
 
 CONTRACT_DIR             := $(ROOT_DIR)/.contract-audit
 CONTRACT_REPORT          := $(ROOT_DIR)/web/static/data/contract-audit.json
 CONTRACT_FILTER          ?= html
-OKAPI_REPO               ?= /Users/asgeirf/src/okapi/Okapi
-BRIDGE_SCHEMAS           ?= $(ROOT_DIR)/../okapi-bridge/schemas
+BRIDGE_SCHEMAS           ?= $(NEOKAPI_WORKSPACE_DIR)/okapi-bridge/schemas
 PARITY_REPORT            ?= $(ROOT_DIR)/.parity/test-comparison.json
 # Maven Failsafe reports for Okapi's *IT integration tests (roundtrip /
 # xliff-compare per filter), generated by `mvn verify` in the
@@ -1742,7 +1796,7 @@ harness-videos-staged: ## Full fresh pass: stack up → seed → record, then na
 # okapi-bridge plugin dir feeding the reference dataset. Override with
 # BRIDGE_PLUGIN=/path. Falls back to built-in-only when the dir is absent
 # (the generator warns rather than fails).
-BRIDGE_PLUGIN ?= $(ROOT_DIR)/../okapi-bridge/dist/plugin
+BRIDGE_PLUGIN ?= $(NEOKAPI_WORKSPACE_DIR)/okapi-bridge/dist/plugin
 
 generate-reference-docs: ## Generate the unified format + tool reference dataset (built-in + okapi-bridge) → packages/reference-data/data
 	$(GO) run ./scripts/gen-refs $(if $(wildcard $(BRIDGE_PLUGIN)),-bridge $(BRIDGE_PLUGIN),)
@@ -2035,7 +2089,7 @@ help: ## Show this help
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
         parity-sandbox parity-test parity-publish parity-clean parity-fixtures regen-okapi-fixtures check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
-        fmt vet lint check check-framework check-bowrain test-parallel \
+        fmt vet lint check check-framework check-bowrain check-abs-paths workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
         bowrain-desktop-test \
         ci-test-framework ci-test-cli ci-test-kapi ci-test-platform \

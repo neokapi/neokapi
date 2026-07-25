@@ -25,7 +25,8 @@ function isNeokapiCheckout(dir: string): boolean {
  * Resolution order:
  *   1. `NEOKAPI_REPO` env var (escape hatch for a standalone harness checkout)
  *   2. the enclosing `<checkout>/harness/` parent (the normal case)
- *   3. default `~/src/neokapi/neokapi`
+ *   3. `$NEOKAPI_WORKSPACE_DIR/neokapi` — the primary checkout in the multi-repo
+ *      workspace, whose default is the parent of the enclosing checkout
  *
  * Note: NEOKAPI_REPO is intentionally NOT read from `harness/.env` — the current
  * tree IS the repo, and pinning a path in .env broke worktrees (every worktree got
@@ -35,7 +36,10 @@ function resolveRepoRoot(): string {
   if (process.env.NEOKAPI_REPO) return path.resolve(process.env.NEOKAPI_REPO);
   const parent = path.resolve(HARNESS_ROOT, "..");
   if (isNeokapiCheckout(parent)) return parent;
-  return path.join(os.homedir(), "src", "neokapi", "neokapi");
+  const workspace = process.env.NEOKAPI_WORKSPACE_DIR
+    ? path.resolve(process.env.NEOKAPI_WORKSPACE_DIR)
+    : path.resolve(parent, "..");
+  return path.join(workspace, "neokapi");
 }
 export const REPO_ROOT = resolveRepoRoot();
 

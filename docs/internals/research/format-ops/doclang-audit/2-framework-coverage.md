@@ -2,9 +2,8 @@
 
 Read-only inventory of what the neokapi **content model + maturity axes + the
 `doclang` format** can MEASURE/REPRESENT today, so a later gap analysis can diff
-against the DocLang spec (`/Users/asgeirf/src/doclang-project/doclang/spec.md`,
-v0.6, 3734 lines). All neokapi paths are repo-relative to
-`/Users/asgeirf/src/neokapi/neokapi/.claude/worktrees/format-process`.
+against the DocLang spec (`$NEOKAPI_DOCLANG_DIR/spec.md`,
+v0.6, 3734 lines). All neokapi paths are relative to the neokapi repo root.
 
 Headline: the model already carries the full role+plane+geometry+relations
 standoff layer; the **G0–G4 axis is design-only** (proposal, not wired); the

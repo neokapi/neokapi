@@ -31,7 +31,11 @@ Flags:
                       signals report 'unknown' and floors stay conservative.
 
 Env:
-    OKAPI_SRC   path to the Okapi clone (default: ~/src/okapi/Okapi)
+    NEOKAPI_OKAPI_DIR   path to the upstream Okapi Framework (Java) clone.
+                        Defaults to <checkouts>/okapi/Okapi, i.e. two levels
+                        above this repo plus okapi/Okapi — the conventional
+                        multi-repo layout. OKAPI_SRC is accepted as a legacy
+                        alias. See web/docs/contribute/workspace-paths.md.
 """
 from __future__ import annotations
 
@@ -49,7 +53,35 @@ except Exception:  # pragma: no cover
 # repo root = three levels up from this script (.skills/<skill>/scripts/)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
-OKAPI = os.environ.get("OKAPI_SRC", os.path.expanduser("~/src/okapi/Okapi"))
+
+def _main_checkout(repo: str) -> str:
+    """The main working tree, even when `repo` is a linked git worktree.
+
+    In .claude/worktrees/<name>/ the parent directory is .claude/worktrees, not
+    the workspace. git's common dir points at the main checkout's .git in both
+    cases. Mirrors scripts/lib/workspace.sh and the root Makefile.
+    """
+    try:
+        common = subprocess.run(
+            ["git", "-C", repo, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            capture_output=True, text=True, check=True, timeout=10,
+        ).stdout.strip()
+    except Exception:
+        return repo
+    return os.path.dirname(common) if os.path.isdir(common) else repo
+
+
+# The upstream Okapi clone lives outside this repo; its location is
+# per-developer, so it is resolved from the environment with a repo-relative
+# default — never from an absolute home path.
+# See web/docs/contribute/workspace-paths.md.
+_WORKSPACE = os.environ.get("NEOKAPI_WORKSPACE_DIR") or os.path.dirname(_main_checkout(REPO))
+_CHECKOUTS = os.environ.get("NEOKAPI_CHECKOUTS_DIR") or os.path.dirname(_WORKSPACE)
+OKAPI = os.path.abspath(
+    os.environ.get("NEOKAPI_OKAPI_DIR")
+    or os.environ.get("OKAPI_SRC")  # legacy alias
+    or os.path.join(_CHECKOUTS, "okapi", "Okapi")
+)
 OKAPI_FILTERS = os.path.join(OKAPI, "okapi", "filters")
 GITLAB_PROJECT = "62298414"  # okapiframework/Okapi
 
@@ -141,7 +173,7 @@ def okapi_counterpart(fmt: str) -> str:
     if fmt in KNOWN_HARVEST:
         return "none (harvest cohort)"
     if not os.path.isdir(OKAPI_FILTERS):
-        return f"unknown (Okapi clone not found at {OKAPI}; set OKAPI_SRC)"
+        return f"unknown (Okapi clone not found at {OKAPI}; set NEOKAPI_OKAPI_DIR)"
     dirs = {d for d in os.listdir(OKAPI_FILTERS)
             if os.path.isdir(os.path.join(OKAPI_FILTERS, d))}
     cand = OKAPI_ALIAS.get(fmt, fmt)

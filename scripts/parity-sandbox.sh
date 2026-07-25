@@ -13,7 +13,10 @@
 #   └── plugins/okapi-bridge/        — locally built v2 plugin tarball, unpacked
 #
 # Inputs (env):
-#   OKAPI_BRIDGE_REPO   Path to okapi-bridge repo. Defaults to ../okapi-bridge.
+#   NEOKAPI_WORKSPACE_DIR  Multi-repo workspace root. Defaults to the parent of
+#                       this repo.
+#   OKAPI_BRIDGE_REPO   Path to okapi-bridge repo. Defaults to
+#                       $NEOKAPI_WORKSPACE_DIR/okapi-bridge.
 #   OKAPI_VERSION       Okapi Framework version to build. Default 1.48.0.
 #   PARITY_FORCE        When set, rebuild even if the sandbox exists.
 #
@@ -31,7 +34,11 @@ plugins_dir="${sandbox}/plugins"
 bin_dir="${sandbox}/bin"
 bridge_install_dir="${plugins_dir}/okapi-bridge"
 
-okapi_bridge_repo="${OKAPI_BRIDGE_REPO:-${repo_root}/../okapi-bridge}"
+# shellcheck source-path=SCRIPTDIR source=lib/workspace.sh
+. "${repo_root}/scripts/lib/workspace.sh"
+neokapi_init_workspace "$repo_root"
+
+okapi_bridge_repo="${OKAPI_BRIDGE_REPO:-${NEOKAPI_WORKSPACE_DIR}/okapi-bridge}"
 okapi_version="${OKAPI_VERSION:-1.48.0}"
 
 if [ ! -d "$okapi_bridge_repo" ]; then

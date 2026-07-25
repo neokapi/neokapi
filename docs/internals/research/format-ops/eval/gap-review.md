@@ -1,7 +1,7 @@
 # Adversarial gap review — neokapi format-ops framework (worktree `format-process`)
 
-Reviewed against the maintainer's 7 goals. All paths relative to
-`/Users/asgeirf/src/neokapi/neokapi/.claude/worktrees/format-process/` unless absolute.
+Reviewed against the maintainer's 7 goals. All paths relative to the
+neokapi repo root unless absolute.
 
 ## 0. Inventory — what exists today
 
@@ -16,7 +16,7 @@ Reviewed against the maintainer's 7 goals. All paths relative to
 | Dashboards (pages) | `web/src/pages/{format-maturity,parity,contract-audit,test-comparison,formats,...}` ; format-maturity renders trend from history (`index.tsx:4` imports `format-maturity-history.json`) | Live |
 | Dashboard data (committed caches) | `web/static/data/format-maturity.json` (generated_at **2026-05-31**), `format-maturity-history.json` (**1 entry**), `parity-report.json` (**2026-05-20T15:34:08Z**), `contract-audit.json` (**2026-05-21**, okapiTag v1.48.0, goCommitSHA a98fe30f) | All stale vs HEAD |
 | CI | `.github/workflows/parity.yml` (push to main + PR + dispatch), `contract-audit.yml` (**cron weekly Mon 06:00 UTC**, comment: "catches new Okapi tests within ~7 days of an upstream tag"), `format-acceptance.yml`, `nightly.yml` (daily 03:00), `reference-data-drift.yml` | No workflow writes `web/static/data/*.json` back — dashboards are manual-publish caches |
-| Fixture harvest | `scripts/okapi-test-scan/main.go`, `make regen-okapi-fixtures` (Makefile :561, manual), `spec.yaml input_file: okapi:` indirection (15 of 41 spec.yaml) | Okapi clone hard-pinned: `OKAPI_VERSION ?= 1.48.0` (Makefile :1004), absolute path `/Users/asgeirf/src/okapi/Okapi` baked into docs/skills/workflow (`format-triage.js:48`) |
+| Fixture harvest | `scripts/okapi-test-scan/main.go`, `make regen-okapi-fixtures` (Makefile :561, manual), `spec.yaml input_file: okapi:` indirection (15 of 41 spec.yaml) | Okapi clone hard-pinned: `OKAPI_VERSION ?= 1.48.0` (Makefile :1004), an absolute path baked into docs/skills/workflow (`format-triage.js:48`) |
 
 Ground truth drifted under the docs since the snapshots: commit `b7201a9f5`
 (**2026-06-04**, "test(formats): malformed-input robustness across 38 formats; fix 4
@@ -134,7 +134,7 @@ test_passed=false rather than papering over it").
 3. **Metric self-gaming** — file-presence floor + AI-authored artifacts, with the Malformed dimension exempt from quality judgment (G1).
 4. **Licensing/provenance of everything harvested** — fixtures, quoted spec text, other frameworks' tests; no NOTICE/manifest anywhere under core/formats (G3/G4).
 5. **Format retirement lifecycle** — maturity is monotonic by construction; sticky anchoring even resists downgrades (G5).
-6. **Single-laptop corpus** — `/Users/asgeirf/src/okapi/Okapi` is load-bearing for 15 specs, parity, contract-audit, fixtures regen (G4).
+6. **Single-laptop corpus** — `$NEOKAPI_OKAPI_DIR` is load-bearing for 15 specs, parity, contract-audit, fixtures regen (G4).
 7. **Vocabulary dimension missing** and `Run.Type` free-form (G2) — blocks the editor-embedding and cross-format-tooling goals downstream.
 8. **WASM/browser maturity invisible** — formats have a second runtime with different capabilities; not scored (G2).
 9. **Issue linkage is prose, not data** — #560/#617/#504/openxml-RunFonts live in markdown sentences; no run can mechanically notice one closed (feeds the ledger below).

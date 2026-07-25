@@ -143,7 +143,8 @@ curl -s "https://gitlab.com/api/v4/projects/62298414/issues?labels=bug&state=ope
 ```
 
 Cross-reference: issue numbers are embedded in the Okapi checkout's comments and
-fixture names (`grep -rn "issue_" /Users/asgeirf/src/okapi/Okapi/okapi/filters/<format>`),
+fixture names (`. scripts/lib/workspace.sh && neokapi_init_workspace "$PWD";
+grep -rn "issue_" "$NEOKAPI_OKAPI_DIR/okapi/filters/<format>"`),
 and in this repo's annotations. Report: any `okapi-bug` xfail now fixed upstream
 (candidate to un-xfail), and new `@Test` cases worth porting (harvest them with
 `scripts/okapi-test-scan`). If offline, say so and report from the local clone
