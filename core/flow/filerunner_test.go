@@ -550,6 +550,9 @@ type memDoc struct {
 	parts   []*model.Part
 	skel    []byte
 	hasSkel bool
+	// skelErr makes OpenSkeleton fail — the entry PROMISED a skeleton it cannot
+	// deliver, which must never be confused with having none.
+	skelErr error
 }
 
 func newMemPartCache() *memPartCache { return &memPartCache{docs: map[string]*memDoc{}} }
@@ -587,11 +590,14 @@ func (m *memCachedDoc) Feed(ctx context.Context, inCh chan<- *model.Part) error 
 	return nil
 }
 
-func (m *memCachedDoc) OpenSkeleton() *format.SkeletonStore {
-	if !m.d.hasSkel {
-		return nil
+func (m *memCachedDoc) OpenSkeleton() (*format.SkeletonStore, error) {
+	if m.d.skelErr != nil {
+		return nil, m.d.skelErr
 	}
-	return format.NewSkeletonStoreFromBytes(m.d.skel)
+	if !m.d.hasSkel {
+		return nil, nil // this format genuinely emits no skeleton
+	}
+	return format.NewSkeletonStoreFromBytes(m.d.skel), nil
 }
 
 func (m *memCachedDoc) Close() error { return nil }
@@ -748,4 +754,64 @@ func TestFileRunner_CachedWrite_ByteIdenticalToLive(t *testing.T) {
 			require.Len(t, cache.docs, 1, "exactly one document cached")
 		})
 	}
+}
+
+// #1449 (same family). A cached entry that PROMISED a skeleton but cannot open
+// it must fail the run, not silently reconstruct the document from the content
+// model alone: that loses the source's exact formatting and reports success.
+// Faithful write-back is the contract, and the cache is rebuildable — so the
+// error names the file and says how to clear it.
+func TestFileRunner_CachedWrite_UnreadableSkeletonFailsTheRun(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+
+	dir := t.TempDir()
+	src := filepath.Join(dir, "m.md")
+	require.NoError(t, os.WriteFile(src, []byte("# Title\n\nHello World and more text.\n"), 0o644))
+	pt, err := tools.NewPseudoTranslateFromConfig(map[string]any{"target_locale": "qps"}, "qps")
+	require.NoError(t, err)
+
+	cache := newMemPartCache()
+	r := flow.NewFileRunner(flow.FileRunnerConfig{
+		FormatReg: reg, SourceLocale: "en-US", PartCache: cache, PartCacheKey: "k",
+	})
+	// Populate the cache normally, then corrupt the recorded entry's skeleton.
+	out := filepath.Join(dir, "first.md")
+	require.NoError(t, r.RunFile(context.Background(), "pseudo-translate", []tool.Tool{pt}, src, out, "qps"))
+	require.Len(t, cache.docs, 1)
+	for _, d := range cache.docs {
+		require.True(t, d.hasSkel, "markdown records a skeleton, so this test is not vacuous")
+		d.skelErr = errors.New("skeleton file vanished")
+	}
+
+	second := filepath.Join(dir, "second.md")
+	err = r.RunFile(context.Background(), "pseudo-translate", []tool.Tool{pt}, src, second, "qps")
+
+	require.Error(t, err, "an unusable cached skeleton must fail the run, not degrade the output")
+	assert.Contains(t, err.Error(), "skeleton file vanished")
+	assert.Contains(t, err.Error(), ".kapi/cache", "the message must say how to recover")
+	assert.NoFileExists(t, second, "no degraded file may be left behind")
+}
+
+// A format that genuinely emits no skeleton (nil store, nil error) still runs:
+// the guard refuses unusable skeletons, not skeleton-less formats.
+func TestFileRunner_CachedWrite_NoSkeletonIsNotAnError(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+
+	dir := t.TempDir()
+	src := filepath.Join(dir, "m.md")
+	require.NoError(t, os.WriteFile(src, []byte("# Title\n\nHello World.\n"), 0o644))
+	pt, err := tools.NewPseudoTranslateFromConfig(map[string]any{"target_locale": "qps"}, "qps")
+	require.NoError(t, err)
+
+	cache := newMemPartCache()
+	r := flow.NewFileRunner(flow.FileRunnerConfig{
+		FormatReg: reg, SourceLocale: "en-US", PartCache: cache, PartCacheKey: "k",
+	})
+	require.NoError(t, r.RunFile(context.Background(), "pseudo-translate", []tool.Tool{pt}, src, filepath.Join(dir, "a.md"), "qps"))
+	for _, d := range cache.docs {
+		d.hasSkel = false // as a generative format's entry would be
+	}
+	assert.NoError(t, r.RunFile(context.Background(), "pseudo-translate", []tool.Tool{pt}, src, filepath.Join(dir, "b.md"), "qps"))
 }

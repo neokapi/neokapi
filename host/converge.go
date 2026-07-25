@@ -315,6 +315,27 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		}
 	}
 
+	// Admission: every destination this run would write must be writable
+	// (#1449). A blocked path — most often a directory standing where the writer
+	// needs a file — is an operational fault, not target-language drift, and a
+	// run that cannot write its outputs must not start: the locale would either
+	// fail mid-pass (throwing away the other locales' in-flight work and the AI
+	// spend behind it) or, before the measurement fix, be counted as fully
+	// translated by file-presence and reported "up to date".
+	//
+	// The resolve error is PROPAGATED, not skipped: swallowing it is the very
+	// shape of defect this change closes, and it costs nothing to be strict —
+	// UnitsFromProject is a pure re-resolution of the recipe's content patterns,
+	// and the loop's own Derive (deriveCoverage) calls it identically and hard-
+	// fails a moment later. Failing here just names it sooner.
+	admissionUnits, err := a.UnitsFromProject(proj, root, "")
+	if err != nil {
+		return fmt.Errorf("resolve project content: %w", err)
+	}
+	if berr := CheckTargetPathsWritable(admissionUnits); berr != nil {
+		return berr
+	}
+
 	// Share one parse cache across every pass: unchanged source files parse once,
 	// not once per pass; only the targets a pass rewrites re-parse.
 	return a.withParseCache(root, func() error {

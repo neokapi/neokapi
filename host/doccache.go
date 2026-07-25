@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -246,20 +247,26 @@ func (d *cachedDocument) Feed(ctx context.Context, inCh chan<- *model.Part) erro
 }
 
 // OpenSkeleton opens the reconstruction skeleton for a writer, streamed from its
-// file. Returns nil when the document has no skeleton (e.g. a generative format)
+// file. (nil, nil) means the document has no skeleton (e.g. a generative format)
 // — the writer then reconstructs from the content model alone. Caller closes it.
-func (d *cachedDocument) OpenSkeleton() *format.SkeletonStore {
+//
+// A recorded-but-unreadable skeleton is an ERROR, not "no skeleton": the two used
+// to be conflated, so a missing or unopenable cache file made the run
+// re-serialize the document — losing the source's exact formatting — and report
+// success. Faithful write-back is the contract; the cache is rebuildable, so a
+// fault here is worth failing over.
+func (d *cachedDocument) OpenSkeleton() (*format.SkeletonStore, error) {
 	if d.skeletonPath == "" {
-		return nil
+		return nil, nil
 	}
 	if _, err := os.Stat(d.skeletonPath); err != nil {
-		return nil
+		return nil, fmt.Errorf("recorded skeleton %s is not readable: %w", d.skeletonPath, err)
 	}
 	s, err := format.OpenSkeletonStore(d.skeletonPath)
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	return s
+	return s, nil
 }
 
 func (d *cachedDocument) Close() error { return nil }

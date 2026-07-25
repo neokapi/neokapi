@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/credentials"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -136,6 +138,47 @@ func TestClassifyRunError_UnknownKeepsMessageAndNeverSwallows(t *testing.T) {
 
 func TestClassifyRunError_Nil(t *testing.T) {
 	assert.Nil(t, classifyRunError(nil))
+}
+
+// #1449 / #1442 consistency: a destination the filesystem refuses must reach the
+// UI as a first-class, remediable failure — not as RunErrUnknown, and never as
+// pending translation work. Classification is by TYPE through the convergence
+// engine's wrapping, not by matching the sentence.
+func TestClassifyRunError_BlockedTargetPath(t *testing.T) {
+	blocked := filepath.Join(t.TempDir(), "locales", "fr-FR.json")
+	cause := &flow.OutputPathError{Kind: flow.OutputPathIsDir, Path: blocked}
+
+	re := classifyRunError(fmt.Errorf("converge fr-FR: materialize: %w", cause))
+
+	require.NotNil(t, re)
+	assert.Equal(t, RunErrBlockedTargetPath, re.Kind)
+	assert.Equal(t, "A directory occupies fr-FR.json", re.Headline)
+	assert.Equal(t, blocked, re.File, "the full path is what the user has to clear")
+	assert.Equal(t, "fr-FR", re.Locale)
+	assert.NotEmpty(t, re.Remediation)
+	assert.NotEmpty(t, re.Actions)
+	assert.Contains(t, re.Raw, "a directory occupies that path")
+}
+
+// Every blocked-path kind gets its own headline, and none of them degrades to
+// the raw error prose.
+func TestClassifyRunError_BlockedTargetPathKinds(t *testing.T) {
+	for _, tc := range []struct {
+		kind     flow.OutputPathErrorKind
+		headline string
+	}{
+		{flow.OutputPathIsDir, "A directory occupies fr.json"},
+		{flow.OutputPathIrregular, "fr.json is not a regular file"},
+		{flow.OutputPathParentNotDir, "fr.json cannot be created: its folder is blocked"},
+		{flow.OutputPathPermission, "No permission to write fr.json"},
+		{flow.OutputPathReadOnly, "fr.json is on a read-only filesystem"},
+		{flow.OutputPathOther, "fr.json could not be written"},
+	} {
+		re := classifyRunError(&flow.OutputPathError{Kind: tc.kind, Path: "/p/fr.json"})
+		require.NotNil(t, re)
+		assert.Equal(t, RunErrBlockedTargetPath, re.Kind)
+		assert.Equal(t, tc.headline, re.Headline)
+	}
 }
 
 func TestRunErrorScope_DesktopFlowRunnerShape(t *testing.T) {

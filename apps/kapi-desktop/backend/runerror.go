@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 
+	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/credentials"
 )
@@ -44,6 +46,11 @@ const (
 	RunErrMissingCredential RunErrorKind = "missing-credential"
 	// RunErrCanceled — the user stopped the run.
 	RunErrCanceled RunErrorKind = "canceled"
+	// RunErrBlockedTargetPath — a target path cannot be written (a directory
+	// occupies it, the directory denies writing, the filesystem is read-only).
+	// It is an obstruction to clear on disk, not a translation problem, so it
+	// must never be presented as pending target-language work (#1449).
+	RunErrBlockedTargetPath RunErrorKind = "blocked-target-path"
 	// RunErrUnknown — no confident classification; headline is the raw message.
 	RunErrUnknown RunErrorKind = "unknown"
 )
@@ -106,6 +113,23 @@ func classifyRunError(err error) *RunError {
 	if errors.Is(err, context.Canceled) {
 		re.Kind = RunErrCanceled
 		re.Headline = "Run canceled"
+		return re
+	}
+
+	// A destination the filesystem refuses (#1449). Classified BEFORE the
+	// provider errors because it is not a translation failure at all: the run
+	// never got as far as producing content, and the remedy is on disk. #1442
+	// made a reported failure accurate; this makes it legible — without it the
+	// blocked path lands in RunErrUnknown and the UI has no remedy to offer.
+	var ope *flow.OutputPathError
+	if errors.As(err, &ope) {
+		re.Kind = RunErrBlockedTargetPath
+		re.File = ope.Path
+		re.Headline = blockedPathHeadline(ope)
+		re.Remediation = "Clear whatever occupies the path (or point the collection's target at a different one), then run again."
+		re.Actions = []RunErrorAction{
+			{Kind: ActionOpenSettings, Label: "Open project settings", Target: "settings"},
+		}
 		return re
 	}
 
@@ -176,6 +200,28 @@ func classifyRunError(err error) *RunError {
 
 	re.Headline = firstLine(err.Error())
 	return re
+}
+
+// blockedPathHeadline is the one-line headline for a refused destination. It
+// switches on the typed Kind, never on the error's prose, and names the file
+// rather than the whole path so the headline stays one short sentence (the full
+// path rides in File, and the full chain in Raw).
+func blockedPathHeadline(ope *flow.OutputPathError) string {
+	name := filepath.Base(ope.Path)
+	switch ope.Kind {
+	case flow.OutputPathIsDir:
+		return fmt.Sprintf("A directory occupies %s", name)
+	case flow.OutputPathIrregular:
+		return fmt.Sprintf("%s is not a regular file", name)
+	case flow.OutputPathParentNotDir:
+		return fmt.Sprintf("%s cannot be created: its folder is blocked", name)
+	case flow.OutputPathPermission:
+		return fmt.Sprintf("No permission to write %s", name)
+	case flow.OutputPathReadOnly:
+		return fmt.Sprintf("%s is on a read-only filesystem", name)
+	default:
+		return fmt.Sprintf("%s could not be written", name)
+	}
 }
 
 // isMissingCredentialMessage reports the "no saved credentials" family the

@@ -389,10 +389,18 @@ func (s *SkeletonStore) Next() (SkeletonEntry, error) {
 	}, nil
 }
 
-// Close flushes any pending writes and closes the backing file. For
-// stores created with NewSkeletonStore the temp file is removed; stores
-// created with NewSkeletonStoreAt / OpenSkeletonStore leave the file in
-// place for later reuse.
+// Close flushes any pending writes and closes the backing file, reporting a
+// deferred write error or a failed flush as well as a failed close. For stores
+// created with NewSkeletonStore the temp file is removed; stores created with
+// NewSkeletonStoreAt / OpenSkeletonStore leave the file in place for later
+// reuse. It always closes the file, even when it returns an error.
+//
+// Close is a surfacing point for s.writeErr, not just Flush/Bytes: the
+// *persistent* producers (kapi extract, the project document cache) only ever
+// call Close, so dropping the deferred write error here left a TRUNCATED
+// skeleton file that stats clean. A later replay then stops at the short record
+// boundary and reads it as end-of-document — a truncated deliverable reported as
+// success, the same family of defect as #1449.
 func (s *SkeletonStore) Close() error {
 	if s.stream != nil {
 		// Unblock any reader still parked in Next so the pipeline can unwind on
@@ -400,17 +408,27 @@ func (s *SkeletonStore) Close() error {
 		s.CloseWrite()
 		return nil
 	}
+	var writeErr error
+	if s.writeErr != nil {
+		writeErr = fmt.Errorf("skeleton store: deferred write: %w", s.writeErr)
+	}
 	if s.writer != nil {
-		_ = s.writer.Flush()
+		if ferr := s.writer.Flush(); ferr != nil && writeErr == nil {
+			writeErr = fmt.Errorf("skeleton store: flush: %w", ferr)
+		}
 	}
 	if s.buf != nil {
 		// Memory-backed: no file to close or remove.
-		return nil
+		return writeErr
 	}
 	name := s.file.Name()
 	err := s.file.Close()
 	if !s.persistent {
 		_ = os.Remove(name)
+	}
+	// The write failure is the root cause; a close error is secondary noise.
+	if writeErr != nil {
+		return writeErr
 	}
 	return err
 }

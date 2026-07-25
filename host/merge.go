@@ -172,10 +172,17 @@ func (a *App) RunMerge(cmd Command) error {
 	res.TMNew, res.TMUpdated = totals.TMNew, totals.TMUpdated
 	res.Failures = failures
 
+	// The complete event closes the stream whatever happened (errors travel as
+	// the returned error, per the FlowRunEvent contract) — but its message must
+	// not read like an unqualified success when inputs failed.
+	message := fmt.Sprintf("Merged %d file(s)", len(expanded)-failures)
+	if failures > 0 {
+		message = fmt.Sprintf("Merged %d file(s), %d failed", len(expanded)-failures, failures)
+	}
 	emit(FlowRunEvent{
 		Type:       FlowEventComplete,
 		DurationMs: time.Since(start).Milliseconds(), FilesProcessed: len(expanded) - failures,
-		Message: fmt.Sprintf("Merged %d file(s)", len(expanded)-failures),
+		Message: message,
 	})
 
 	if err := output.Print(cmd, res); err != nil {
@@ -259,6 +266,13 @@ func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, pr
 		return 0, errors.New("merge: project has no source files to materialize (check content patterns)")
 	}
 
+	// Admission: refuse the whole materialize pass when any destination is
+	// blocked (#1449), rather than writing some locales and then failing —
+	// nothing is written yet, and every blocked path is named at once.
+	if berr := checkMaterializeTargetsWritable(proj, layout.Root, files, locales); berr != nil {
+		return 0, fmt.Errorf("merge: %w", berr)
+	}
+
 	var tm *sievepen.SQLiteTM
 	// Browser/seeded build (a.TMBackend set): no SQLite driver / on-disk TM —
 	// skip write-back silently. Native CLI opens the project SQLite TM as before.
@@ -316,11 +330,15 @@ func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, pr
 			written++
 
 			// Absorb the materialized targets into the project TM with merge
-			// provenance, mirroring the XLIFF/PO/.kpz merge paths.
+			// provenance, mirroring the XLIFF/PO/.kpz merge paths. TM write-back
+			// is best-effort — the localized file is already on disk and is the
+			// deliverable — but a failure is REPORTED rather than dropped: the
+			// TM is how the next run recycles this work, and a silent failure to
+			// record it looks like the translation never happened.
 			if tm != nil {
-				if added, updated, aerr := absorbStoreTargets(fileCtx, a.FormatReg, srcFormat, f.Path, pctx.SourceLocale, locale, store, tm, f.Relative); aerr == nil {
-					_ = added
-					_ = updated
+				if _, _, aerr := absorbStoreTargets(fileCtx, a.FormatReg, srcFormat, f.Path, pctx.SourceLocale, locale, store, tm, f.Relative); aerr != nil {
+					fmt.Fprintf(os.Stderr, "Warning: merge: record %s → %s in the project TM: %v (the localized file was written)\n",
+						f.Relative, locale, aerr)
 				}
 			}
 
@@ -355,7 +373,10 @@ func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFo
 			continue
 		}
 		applyTargetOverlay(b, target, o.Payload)
-		n, u := absorbBlockIntoTM(ctx, tm, b, source, target, "store", sourceRel, sourceAbs)
+		n, u, aerr := absorbBlockIntoTM(ctx, tm, b, source, target, "store", sourceRel, sourceAbs)
+		if aerr != nil {
+			return newCount, updatedCount, aerr
+		}
 		newCount += n
 		updatedCount += u
 	}
@@ -446,6 +467,10 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 	}
 
 	var stats mergeStats
+	// TM write-back is best-effort here (the merged file is the deliverable),
+	// but the FIRST failure is kept and reported once at the end rather than
+	// discarded per block.
+	var tmErr error
 	for _, si := range pkg.Sources {
 		srcRel := si.SourcePath
 		sourceAbs := filepath.Join(layout.Root, srcRel)
@@ -508,7 +533,10 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 			}
 			stats.Applied++
 			if tm != nil {
-				added, updated := absorbBlockIntoTM(ctx, tm, b, pctx.SourceLocale, targetLocale, "kpz", srcRel, kpzInput)
+				added, updated, aerr := absorbBlockIntoTM(ctx, tm, b, pctx.SourceLocale, targetLocale, "kpz", srcRel, kpzInput)
+				if aerr != nil && tmErr == nil {
+					tmErr = aerr
+				}
 				stats.TMNew += added
 				stats.TMUpdated += updated
 			}
@@ -535,6 +563,10 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 		}
 	}
 
+	if tmErr != nil {
+		fmt.Fprintf(os.Stderr, "Warning: merge: record %s in the project TM: %v (the merged files were written)\n",
+			filepath.Base(kpzInput), tmErr)
+	}
 	fmt.Fprintf(cmd.OutOrStdout(),
 		"Merged %s → %s: applied=%d skipped=%d tm_new=%d tm_updated=%d (conflict_policy=%s)\n",
 		filepath.Base(kpzInput), targetLocale, stats.Applied, stats.Skipped, stats.TMNew, stats.TMUpdated, policy)
@@ -566,6 +598,7 @@ func (a *App) mergeOne(ctx context.Context, task mergeTask) (mergeStats, error) 
 // mergeOne so the dispatch is a cheap switch on the extension.
 func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, error) {
 	var stats mergeStats
+	var tmErr error
 
 	// 1. Read the incoming XLIFF — blocks + layer metadata.
 	reader := xliff2.NewReader()
@@ -727,12 +760,20 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 		srcBlock.SetTarget(targetLocale, target)
 		stats.Applied++
 
-		// TM absorb with provenance.
+		// TM absorb with provenance. Best-effort, but reported: see
+		// absorbBlockIntoTM.
 		if task.tm != nil {
-			added, updated := absorbBlockIntoTM(ctx, task.tm, srcBlock, task.ctx.SourceLocale, targetLocale, batchID, entry.Source, task.input)
+			added, updated, aerr := absorbBlockIntoTM(ctx, task.tm, srcBlock, task.ctx.SourceLocale, targetLocale, batchID, entry.Source, task.input)
+			if aerr != nil && tmErr == nil {
+				tmErr = aerr
+			}
 			stats.TMNew += added
 			stats.TMUpdated += updated
 		}
+	}
+	if tmErr != nil {
+		fmt.Fprintf(os.Stderr, "Warning: merge: record %s in the project TM: %v (the merged file was written)\n",
+			filepath.Base(task.input), tmErr)
 	}
 
 	// 6. Write the merged target file via the project's writer + skeleton.
@@ -751,6 +792,7 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 // from the extraction manifest via the pair that named the PO output).
 func (a *App) mergeOnePO(ctx context.Context, task mergeTask) (mergeStats, error) {
 	var stats mergeStats
+	var tmErr error
 
 	po, err := ReadPOForMerge(task.input)
 	if err != nil {
@@ -842,10 +884,17 @@ func (a *App) mergeOnePO(ctx context.Context, task mergeTask) (mergeStats, error
 		stats.Applied++
 
 		if task.tm != nil {
-			added, updated := absorbBlockIntoTM(ctx, task.tm, srcBlock, task.ctx.SourceLocale, targetLocale, po.BatchID, entry.Source, task.input)
+			added, updated, aerr := absorbBlockIntoTM(ctx, task.tm, srcBlock, task.ctx.SourceLocale, targetLocale, po.BatchID, entry.Source, task.input)
+			if aerr != nil && tmErr == nil {
+				tmErr = aerr
+			}
 			stats.TMNew += added
 			stats.TMUpdated += updated
 		}
+	}
+	if tmErr != nil {
+		fmt.Fprintf(os.Stderr, "Warning: merge: record %s in the project TM: %v (the merged file was written)\n",
+			filepath.Base(task.input), tmErr)
 	}
 
 	// Write merged target via source format writer + captured skeleton.
@@ -988,11 +1037,17 @@ func writeMergedSourceWithSkeleton(ctx context.Context, reg *registry.FormatRegi
 	if err := applyWriterOutputConfig(writer, outputCfg); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+	// Refuse a blocked destination before opening anything (#1449), so a merge
+	// onto an occupied path reports what is in the way rather than a bare
+	// "is a directory" from the writer's open.
+	if err := flow.CheckOutputPath(targetPath); err != nil {
 		return err
 	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		return flow.ClassifyOutputPathError(targetPath, filepath.Dir(targetPath), err)
+	}
 	if err := writer.SetOutput(targetPath); err != nil {
-		return err
+		return flow.ClassifyOutputPathError(targetPath, filepath.Dir(targetPath), err)
 	}
 
 	if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
@@ -1003,11 +1058,20 @@ func writeMergedSourceWithSkeleton(ctx context.Context, reg *registry.FormatRegi
 			consumer.SetSkeletonStore(store)
 			defer store.Close()
 		case skelPath != "":
+			// A skeleton that is NOT there is the documented lower-fidelity
+			// fallback (the extraction state dir is regenerable). A skeleton that
+			// is there but will not open is a fault, and its error used to be
+			// discarded — the merge then wrote a re-serialized file, losing the
+			// source's exact formatting, and reported success. Faithful
+			// write-back is the point; fail instead of degrading silently.
 			if _, statErr := os.Stat(skelPath); statErr == nil {
-				if store, oerr := format.OpenSkeletonStore(skelPath); oerr == nil {
-					consumer.SetSkeletonStore(store)
-					defer store.Close()
+				store, oerr := format.OpenSkeletonStore(skelPath)
+				if oerr != nil {
+					return fmt.Errorf("cannot write %s: its skeleton %s exists but could not be opened, so the source's exact formatting cannot be restored — re-run `kapi extract`: %w",
+						targetPath, skelPath, oerr)
 				}
+				consumer.SetSkeletonStore(store)
+				defer store.Close()
 			}
 		}
 	}
@@ -1036,11 +1100,17 @@ func writeMergedSourceWithSkeleton(ctx context.Context, reg *registry.FormatRegi
 // with kapi-merge provenance. Returns (new, updated) counts. Today both
 // are 1-or-0 since we write one entry per block; tracking them separately
 // matters once we widen to per-segment.
-func absorbBlockIntoTM(ctx context.Context, tm *sievepen.SQLiteTM, block *model.Block, source, target model.LocaleID, batchID, sourceRel, xliffPath string) (newCount, updatedCount int) {
+//
+// A write failure is RETURNED, not swallowed. It used to be discarded (an
+// errored Add read as "0 new, 0 updated"), so a project TM that had gone
+// read-only, or run out of disk, absorbed nothing while every merge reported
+// success. Callers treat it as non-fatal — the merged file is the deliverable —
+// but they report it.
+func absorbBlockIntoTM(ctx context.Context, tm *sievepen.SQLiteTM, block *model.Block, source, target model.LocaleID, batchID, sourceRel, xliffPath string) (newCount, updatedCount int, err error) {
 	srcText := block.SourceText()
 	tgtText := block.TargetText(target)
 	if srcText == "" || tgtText == "" {
-		return 0, 0
+		return 0, 0, nil
 	}
 	// block.Identity can be nil on blocks built by readers that don't
 	// compute content hashes eagerly; fall back to hashing the source
@@ -1074,16 +1144,17 @@ func absorbBlockIntoTM(ctx context.Context, tm *sievepen.SQLiteTM, block *model.
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	if _, existed, _ := tm.GetEntry(ctx, entry.ID); existed {
-		if err := tm.Add(ctx, entry); err == nil {
-			return 0, 1
-		}
-		return 0, 0
+	_, existed, gerr := tm.GetEntry(ctx, entry.ID)
+	if gerr != nil {
+		return 0, 0, fmt.Errorf("read TM entry %s: %w", entry.ID, gerr)
 	}
-	if err := tm.Add(ctx, entry); err == nil {
-		return 1, 0
+	if aerr := tm.Add(ctx, entry); aerr != nil {
+		return 0, 0, fmt.Errorf("write TM entry %s: %w", entry.ID, aerr)
 	}
-	return 0, 0
+	if existed {
+		return 0, 1, nil
+	}
+	return 1, 0, nil
 }
 
 // bilingualReturnExts are the bilingual file extensions a directory argument
