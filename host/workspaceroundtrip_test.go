@@ -15,6 +15,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/kpz"
 	"github.com/neokapi/neokapi/sievepen"
 )
 
@@ -323,6 +324,53 @@ func TestUnpackWithoutSourceLeavesSourcesAlone(t *testing.T) {
 	// The state it does carry still lands.
 	assert.Equal(t, tmEntries(t, src), tmEntries(t, dst),
 		"the content memory travels with or without --with-source")
+}
+
+// TestRestoreSourcesRefusesToEscapeTheProject: an archive arrives from somewhere
+// else, so a source member must never be able to name a path outside the
+// directory it is unpacked into. Refused, not silently skipped — a snapshot that
+// asks for this is not one to half-apply.
+func TestRestoreSourcesRefusesToEscapeTheProject(t *testing.T) {
+	root := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "victim.txt")
+
+	for _, tc := range []struct {
+		name, member, wantErr string
+	}{
+		{"parent traversal", kpz.SourceDir + "../../victim.txt", "escapes the project root"},
+		{"absolute path", kpz.SourceDir + "/etc/victim.txt", "no usable relative path"},
+		{"empty path", kpz.SourceDir, "no usable relative path"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			pkg := &kpz.Package{Source: []kpz.SourceDoc{{
+				Path: tc.member, Content: kpz.BytesContent([]byte("PWNED")),
+			}}}
+			err := restoreSources(pkg, root)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantErr)
+			assert.NoFileExists(t, outside)
+		})
+	}
+}
+
+// TestRestoreSourcesKeepsAnExistingFile: the working tree is authoritative on its
+// own sources, so unpack must not overwrite one that is already there.
+func TestRestoreSourcesKeepsAnExistingFile(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "src"), 0o755))
+	existing := filepath.Join(root, "src", "en.json")
+	require.NoError(t, os.WriteFile(existing, []byte(`{"local":"wins"}`), 0o644))
+
+	pkg := &kpz.Package{Source: []kpz.SourceDoc{
+		{Path: kpz.SourceDir + "src/en.json", Content: kpz.BytesContent([]byte(`{"archive":"loses"}`))},
+		{Path: kpz.SourceDir + "src/nested/de.json", Content: kpz.BytesContent([]byte(`{"new":"lands"}`))},
+	}}
+	require.NoError(t, restoreSources(pkg, root))
+
+	assert.JSONEq(t, `{"local":"wins"}`, string(mustRead(t, existing)),
+		"an existing source must not be overwritten")
+	assert.JSONEq(t, `{"new":"lands"}`, string(mustRead(t, filepath.Join(root, "src", "nested", "de.json"))),
+		"a missing source must be restored, creating its directory")
 }
 
 // addOutputFlags registers the --json/--output-format surface output.Print reads.

@@ -338,8 +338,11 @@ func restoreSources(pkg *kpz.Package, root string) error {
 	}
 	for _, doc := range pkg.Source {
 		rel := strings.TrimPrefix(doc.Path, kpz.SourceDir)
-		if rel == "" || rel == doc.Path && strings.HasPrefix(doc.Path, "/") {
-			return fmt.Errorf("unpack: source member %q has no usable path", doc.Path)
+		if rel == "" || strings.HasPrefix(rel, "/") {
+			// An absolute member path would be silently reinterpreted as
+			// project-relative by filepath.Join. Refusing beats writing
+			// somewhere the archive did not name.
+			return fmt.Errorf("unpack: source member %q has no usable relative path", doc.Path)
 		}
 		dst := filepath.Join(absRoot, filepath.FromSlash(rel))
 		if !strings.HasPrefix(dst, absRoot+string(os.PathSeparator)) {
