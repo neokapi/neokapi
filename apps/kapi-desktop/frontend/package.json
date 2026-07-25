@@ -48,7 +48,7 @@
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.3.2",
-    "travels": "^1.4.0",
+    "travels": "^2.1.0",
     "use-travel": "^1.9.0",
     "zod": "^4.4.3"
   },
