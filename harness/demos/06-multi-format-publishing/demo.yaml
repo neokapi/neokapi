@@ -86,5 +86,5 @@ narration:
   - id: outro
     kind: outro
     text: >
-      kapi reads and writes localization, document, and data formats, so a translation request
-      doesn't turn into a pile of conversion scripts.
+      kapi reads and writes the formats content actually ships in — catalogs, documents,
+      and data — so a translation request doesn't turn into a pile of conversion scripts.

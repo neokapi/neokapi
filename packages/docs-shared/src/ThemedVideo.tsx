@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import useBaseUrl from "@docusaurus/useBaseUrl";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import { readCdnConfig, cdnEnabled, cdnHref } from "./cdn";
+import OutdatedNotice, { type OutdatedKind } from "./OutdatedNotice";
 import "./ThemedVideo.css";
 
 interface ThemedVideoProps {
@@ -10,6 +11,16 @@ interface ThemedVideoProps {
     dark: string;
   };
   maxWidth?: string;
+  /**
+   * Marks the recording as no longer matching the current release, rendering a
+   * banner above the player while the player keeps working. Opt-in per embed:
+   * the page decides, because only the page knows which release its prose
+   * describes. `"interface"` when the recorded screens no longer exist;
+   * `"wording"` when only the narration's terminology is retired.
+   */
+  outdated?: OutdatedKind;
+  /** An optional sentence naming the specific drift, appended to the banner. */
+  outdatedNote?: string;
 }
 
 // Localized asset name for a docs locale: the harness publishes locale variants
@@ -49,9 +60,24 @@ function localizeAsset(p: string, locale: string): string {
 // handler swaps back to the English asset (the `key` forces the <video> to
 // re-evaluate its source). The English locale takes the original path
 // untouched — exactly the previous behavior.
-export default function ThemedVideo({ sources, maxWidth = "800px" }: ThemedVideoProps) {
+export default function ThemedVideo({
+  sources,
+  maxWidth = "800px",
+  outdated,
+  outdatedNote,
+}: ThemedVideoProps) {
   const { i18n, siteConfig } = useDocusaurusContext();
   const locale = i18n?.currentLocale ?? "en";
+  // Ties each <video> to the banner text via aria-describedby, so the reason
+  // the recording is stale is announced with the player and not only as loose
+  // prose that precedes it.
+  const noticeId = `${useId()}-outdated`;
+  const describedBy = outdated ? noticeId : undefined;
+  const notice = outdated ? (
+    <div className="themed-video__notice" style={{ maxWidth }}>
+      <OutdatedNotice kind={outdated} note={outdatedNote} textId={noticeId} />
+    </div>
+  ) : null;
   const [useLocalized, setUseLocalized] = useState(locale !== "en");
   const pick = (p: string) => (useLocalized ? localizeAsset(p, locale) : p);
   // Resolve each source against the site base URL, or — when a CDN origin is
@@ -69,22 +95,27 @@ export default function ThemedVideo({ sources, maxWidth = "800px" }: ThemedVideo
 
   if (light === dark) {
     return (
-      <video
-        key={light}
-        controls
-        width="100%"
-        style={{ maxWidth }}
-        poster={posterLight}
-        preload="metadata"
-      >
-        <source src={light} type="video/webm" onError={onSourceError} />
-        Your browser does not support the video tag.
-      </video>
+      <>
+        {notice}
+        <video
+          key={light}
+          controls
+          width="100%"
+          style={{ maxWidth }}
+          poster={posterLight}
+          preload="metadata"
+          aria-describedby={describedBy}
+        >
+          <source src={light} type="video/webm" onError={onSourceError} />
+          Your browser does not support the video tag.
+        </video>
+      </>
     );
   }
 
   return (
     <>
+      {notice}
       <video
         key={light}
         className="themed-video themed-video--light"
@@ -93,6 +124,7 @@ export default function ThemedVideo({ sources, maxWidth = "800px" }: ThemedVideo
         style={{ maxWidth }}
         poster={posterLight}
         preload="metadata"
+        aria-describedby={describedBy}
       >
         <source src={light} type="video/webm" onError={onSourceError} />
         Your browser does not support the video tag.
@@ -105,6 +137,7 @@ export default function ThemedVideo({ sources, maxWidth = "800px" }: ThemedVideo
         style={{ maxWidth }}
         poster={posterDark}
         preload="metadata"
+        aria-describedby={describedBy}
       >
         <source src={dark} type="video/webm" onError={onSourceError} />
         Your browser does not support the video tag.

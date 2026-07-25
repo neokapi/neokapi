@@ -37,7 +37,7 @@ narration:
     kind: title
     text: >
       Bowrain is the server-side companion to kapi. Your content stays in your
-      repository; the server adds a team, shared translation memory, and
+      repository; the server adds a team, shared content memory, and
       governance over time. Connecting a project to it takes a single command.
   - id: init
     kind: terminal

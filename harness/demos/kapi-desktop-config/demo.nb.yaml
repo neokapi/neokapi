@@ -36,7 +36,9 @@ narration:
     beat: general
     caption: Utseendet følger systemet, eller låses til lyst eller mørkt.
     text: >-
-      Utseendet følger systemet ditt, eller du kan låse det til lyst eller mørkt. Selve grensesnittet kan til og med kjøre i pseudoengelsk for lokaliseringstesting.
+      Appearance follows your system, or you can pin light or dark. The
+      interface itself can even run in pseudo-English for language testing.
+
   - id: credentials
     kind: desktop
     beat: credentials

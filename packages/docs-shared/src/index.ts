@@ -1,6 +1,8 @@
 export { default as ThemedVideo } from "./ThemedVideo";
 export { default as ThemedImage } from "./ThemedImage";
 export { default as PendingMedia } from "./PendingMedia";
+export { default as OutdatedNotice } from "./OutdatedNotice";
+export type { OutdatedKind, OutdatedNoticeProps } from "./OutdatedNotice";
 export { KapiLink, BowrainLink } from "./CrossSiteLink";
 export { readCdnConfig, cdnEnabled, cdnHref } from "./cdn";
 export type { CdnConfig } from "./cdn";
