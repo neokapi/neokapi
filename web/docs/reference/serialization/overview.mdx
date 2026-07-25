@@ -1,0 +1,158 @@
+---
+sidebar_position: 1
+title: Overview
+description: The formats kapi writes for itself — the store, bundle and committed-state distinction, the compound suffix convention, the shared version contract, and how a retired extension diagnoses itself.
+keywords:
+  [
+    kapi serialization formats,
+    .kbf.json,
+    .kpz,
+    .terms.json,
+    .memory.json,
+    overlays,
+    bundle,
+    store,
+  ]
+---
+
+# kapi serialization formats
+
+These are the formats kapi writes for itself: the on-disk shapes it uses to
+move its own content, memory, terminology, annotations and decisions between
+commands, machines and people.
+
+They are distinct from the formats kapi *reads and writes on your behalf* —
+JSON catalogs, DOCX, Markdown, `strings.xml` and the rest — which are covered
+in the [format reference](/formats). This section is about kapi's own file
+family.
+
+## Three kinds of artifact
+
+The most useful distinction in this family is not between one format and
+another. It is between three roles a file can play.
+
+**A store is working state.** SQLite databases under the project's `.kapi/`
+directory — the content-memory store (still named `tm.db`), the terms store
+(`termbase.db`), block and skeleton caches. They are fast, indexed, mutable,
+and **rebuildable**. `.kapi/` is gitignored, so nothing in it is a source of
+truth.
+
+**A bundle is a portable serialization.** One reviewable, hashable, diff-able
+file carrying the same content losslessly — a
+[content bundle](/reference/serialization/content-bundle), a
+[content-memory bundle](/reference/serialization/content-memory), a
+[terms bundle](/reference/serialization/terms), or a whole
+[project archive](/reference/serialization/project-archive). Bundles move: they
+are what you commit, hand over, or ship.
+
+**Committed state is an authored or decided record.** A
+[terms bundle](/reference/serialization/terms) kept as the project terminology, a
+[brand voice profile](/reference/serialization/brand-voice), a
+[project state file](/reference/serialization/project-state). These are the
+review surface — the files a person reads in a pull request.
+
+### The rule this produces
+
+Artifacts that must be reviewed live **outside** `.kapi/`, and the conventional
+lookup for them prefers the project root.
+
+Two artifacts arrived at that placement independently. The terms bundle
+resolves `<root>/terms.json` before `<root>/.kapi/terms.json`. The project
+state file defaults to `.kapi-state.json` at the root — a *sibling* of the
+state directory, not a file inside it. Neither would survive a fresh clone if
+it lived in `.kapi/`, and neither would ever appear in a diff.
+
+That is the rule rather than a coincidence: **if a person needs to review it,
+it does not belong in the gitignored cache.**
+
+## The formats
+
+| Format | Suffix | `kind` | What it carries |
+| --- | --- | --- | --- |
+| [Content bundle](/reference/serialization/content-bundle) | `.kbf.json` | `kapi-bundle` | Extracted blocks and their per-locale targets |
+| [Content memory](/reference/serialization/content-memory) | `.memory.json` | `kapi-memory` | Multilingual entries, entities, provenance |
+| [Terms](/reference/serialization/terms) | `.terms.json` | `kapi-terms` | Concepts and their relations |
+| [Annotation sidecar](/reference/serialization/overlays) | `.overlays.jsonl` | header `annotationType` | Stand-off annotations anchored into runs |
+| [Overlay set](/reference/serialization/overlays) | `.overlays.json` | `kapi-overlay-set` | In-progress workspace overlay layers |
+| [Project archive](/reference/serialization/project-archive) | `.kpz` | `kapi-project`, `kapi-interchange` | A whole project, or one interchange task |
+| [Project state](/reference/serialization/project-state) | `.kapi-state.json` | `kapi-project-state` | Review and workflow decisions |
+| [Brand voice](/reference/serialization/brand-voice) | `.yaml` | — | Tone, style, vocabulary, examples |
+
+Not sure which you want? [Choosing a format](/reference/serialization/choosing).
+
+## The compound suffix convention
+
+Every one of these files except the project archive and the voice profile is
+JSON or JSON Lines, and each keeps a **marker segment ahead of the
+serialization suffix**: `.kbf.json`, not `.kbf`.
+
+Both halves earn their place. The `.json` tail keeps `jq`, GitHub, editors and
+syntax highlighting treating the file as what it is. The marker segment still
+says *which* JSON it is, so a directory listing stays readable and a format can
+be recognised before parsing.
+
+The cost is real and worth knowing: the standard library's `filepath.Ext`
+reports `.json` for every one of them. Extension-driven code goes through the
+helpers in
+[`core/format`](https://github.com/neokapi/neokapi/tree/main/core/format) —
+`Ext`, `TrimExt`, `Stem`, `HasExt` — which return the most specific match. A
+naive `filepath.Ext` on `en-US.kbf.json` yields `.json`, and trimming that
+leaves a stray `.kbf` behind.
+
+## One version contract, applied per format
+
+Every format in the family carries a `schemaVersion` as `MAJOR.MINOR` and
+follows the same forward-compatibility rule:
+
+> Reject an unknown **major**. Accept unknown **minors** of a known major.
+
+Strict on major, best-effort on minor — not open-ended forward compatibility. A
+file from a future major version is refused with a message naming the version
+the build speaks, rather than parsed into something half-understood.
+
+The rule is uniform; the code is not. Each format implements the check
+separately, and the overlay set inside a project archive carries **its own**
+`schemaVersion`, versioned independently of the enclosing package. Treat the
+contract as a convention every format honours, not as one shared
+implementation.
+
+## Two ways a file says what it is
+
+Identification is deliberately split, and the two mechanisms answer different
+questions:
+
+- **`kind`** — the magic string on the document root. Answers *what schema is
+  this?*, works on content alone, and survives a rename. It is what sniffing
+  uses.
+- **The extension** — answers *what should I expect?* before the file is
+  opened, which is what lets a command route a path without reading it.
+
+They are diagnosed by separate tables, so a stale file gets its explanation
+from whichever mechanism noticed: retired *kinds* map to their replacements in
+`internal/bundlekind`, retired *extensions* in `core/format/ext.go`.
+
+## Retired extensions explain themselves
+
+Several extensions were renamed in a deliberate hard cut with no compatibility
+shim — `.klf` and `.kbf` to `.kbf.json`, `.klftm` and `.kmb` to `.memory.json`,
+`.klftb` and `.ktb` to `.terms.json`, `.klz` to `.kpz`. The compressed archive
+tier (`.kmz`, `.ktz`) was withdrawn rather than renamed: a project archive
+already packages project state, and compressing a single bundle is what a zip
+tool is for.
+
+A hard cut is only defensible if the failure explains itself, and this one now
+does. Instead of an unhelpful "unknown format", a retired extension names the
+convention that replaced it and the command that rewrites the file, turning a
+dead end into a one-line fix. Withdrawn tiers say so explicitly rather than
+implying a like-for-like substitution.
+
+That is a real improvement on the previous behaviour, which matters if you have
+old files: a legacy content-memory file used to fall through to the TMX
+importer and report that it had imported nothing, with no error at all. The
+failure was silent. It is now named.
+
+## See also
+
+- [Choosing a format](/reference/serialization/choosing) — including when an interchange format is the right answer instead.
+- [Content model](/framework/content-model) — the in-memory model these serialize.
+- [Project file](/reference/project-file) — the `kapi.yaml` recipe that binds them.

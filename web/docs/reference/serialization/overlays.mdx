@@ -1,0 +1,179 @@
+---
+sidebar_position: 5
+title: Overlays
+description: The two overlay serializations — the .overlays.jsonl stand-off annotation sidecar and the .overlays.json overlay set inside a project archive — their anchoring model, and how the two relate.
+keywords:
+  [
+    overlays,
+    .overlays.jsonl,
+    .overlays.json,
+    kapi-overlay-set,
+    stand-off,
+    annotations,
+    anchor,
+    run path,
+  ]
+---
+
+# Overlays
+
+"Overlay" names two different serializations in kapi. They are the same idea at
+two granularities — data held *beside* content rather than inside it — but they
+are distinct formats with different schemas, different suffixes, and their own
+independent version numbers.
+
+This page specifies both. If you are looking for one in particular:
+
+- [Annotation sidecar](#spec-a-annotation-sidecar-overlaysjsonl) —
+  `.overlays.jsonl`, per document, one record per annotation, anchored into a
+  block's run structure.
+- [Overlay set](#spec-b-overlay-set-overlaysjson) — `.overlays.json`, one
+  member inside a [`.kpz`](/reference/serialization/project-archive), keyed by
+  block hash.
+
+## Why stand-off at all
+
+Annotating content in place would mean rewriting the content to record an
+opinion about it. Stand-off keeps the two separable: the same extracted
+document can carry a segmentation overlay from one tool, a terminology overlay
+from another, and a QA overlay from a third, with no tool needing write access
+to another's output — and none of them modifying the content itself.
+
+The cost is that an anchor can go stale when the content it points at changes,
+which is why anchor resolution is specified rather than best-effort.
+
+## Spec A: annotation sidecar (`.overlays.jsonl`)
+
+A JSON Lines file: **one header record, then zero or more annotation records**,
+one per line. It sits beside a [content bundle](/reference/serialization/content-bundle),
+and inside a project archive it lives at `annotations/<id>.overlays.jsonl`.
+
+JSON Lines is right here — unlike content memory — because this genuinely *is*
+a flat record stream that a producing tool appends to as it works.
+
+Implemented in Go at
+[`core/kbf`](https://github.com/neokapi/neokapi/tree/main/core/kbf).
+
+### Header record
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `type` | string | Record discriminator. |
+| `annotationType` | string | What kind of annotation this file carries. Consumers negotiate on this. |
+| `annotationVersion` | string | Version of that annotation type. |
+| `producer` | object | `{id, version}` — the tool that wrote the file. |
+| `created` | string | Timestamp. |
+| `targetArchive` | string | The archive state these annotations were produced against. |
+
+`targetArchive` is what makes staleness detectable: an overlay records what it
+was computed from, so a consumer can tell it is looking at annotations for an
+older state.
+
+### Annotation record
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `type` | string | Record discriminator. |
+| `id` | string | Annotation identity. |
+| `anchor` | object | Where in the content this applies. See below. |
+| `data` | any | Producer-specific payload. **The framework imposes no schema here** — consumers that understand `annotationType` interpret it. |
+
+### The anchoring model
+
+An anchor is a flattened shape whose `kind` field discriminates which of the
+other fields are meaningful:
+
+| `kind` | Meaningful fields | Points at |
+| --- | --- | --- |
+| `block` | `block` | A whole block. |
+| `run` | `block`, `path`, `runId` | One run within a block. |
+| `range` | `block`, `path`, `offset`, `length` | A character span within a run sequence. |
+| `form` | `block`, `path`, `key` | One plural form or select case. |
+
+`path` is a **run path**: a sequence of steps through a block's nested run
+structure. An empty path refers to the block's top-level source runs. Each step
+serializes as one of three shapes, which is how a path descends into ICU
+constructs:
+
+- a bare number — an index into a run sequence
+- `{"plural": "<form>"}` — into a plural run's form
+- `{"select": "<value>"}` — into a select run's case
+
+So `["1", {"plural": "other"}, 0]` reads as: run 1, its `other` form, the first
+run inside it.
+
+## Spec B: overlay set (`.overlays.json`)
+
+A single JSON document carrying **in-progress overlay layers** — targets,
+annotations, segmentation — for a resumable workspace. Inside a project archive
+it is the one `overlays.json` member.
+
+Implemented in Go at
+[`kpz`](https://github.com/neokapi/neokapi/tree/main/kpz).
+
+### Envelope
+
+```json
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-overlay-set",
+  "overlays": []
+}
+```
+
+`schemaVersion` here is the **overlay set's own** version, tracked separately
+from the enclosing package's `schemaVersion`. The two move independently.
+
+### Overlay document
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `kind` | string | Which layer this is (targets, annotations, segmentation, …). |
+| `blockHash` | string | The block this overlay applies to, addressed by content hash. |
+| `payload` | any | Layer-specific content. |
+| `source` | string | The source document this belongs to. Optional. |
+
+`source` exists because **block ids are only unique within one document**. A
+package carrying several sources would collide in a shared keyspace, so each
+document's block-addressed work is scoped by its source member path. It is
+empty for a whole-project snapshot, whose overlays share one block store.
+
+### Determinism
+
+Overlays are sorted by `(source, kind, blockHash)` and each `payload` is
+re-marshaled through a canonical pass, so two semantically identical payloads
+hash identically regardless of how the producing tool spaced its JSON. That is
+what keeps the member bytes — and therefore the package root hash — stable for
+a given workspace state.
+
+## How the two relate
+
+| | Annotation sidecar | Overlay set |
+| --- | --- | --- |
+| Suffix | `.overlays.jsonl` | `.overlays.json` |
+| Kind marker | header `annotationType` | `kapi-overlay-set` |
+| Shape | record stream | single envelope |
+| Scope | one document | one package |
+| Addressed by | anchor into run structure | block content hash |
+| Written by | any annotating tool | `kapi pack` |
+
+They are complementary rather than alternatives. The sidecar is how a tool
+*publishes* annotations about one document at a precise position. The overlay
+set is how a package *carries* in-progress work across a whole workspace so it
+can be resumed. A `.kpz` can contain both: per-document sidecars under
+`annotations/`, and the workspace overlay set at `overlays.json`.
+
+## What is deliberately not in it
+
+- **Any schema for `data` / `payload`.** Deliberate: the framework stays out of
+  the way so a tool can define its own annotation type without a framework
+  change.
+- **The content being annotated.** That is the point of stand-off.
+- **Resolution results.** Whether an anchor still resolves is computed against
+  a document, not stored.
+
+## See also
+
+- [Content bundle](/reference/serialization/content-bundle) — the content overlays anchor into, and the full anchor-failure reasons.
+- [Project archive](/reference/serialization/project-archive) — the container carrying both overlay forms.
+- [Bundle anatomy](/kbf-lab) — edit an overlay and watch each anchor resolve or fail against a live document.

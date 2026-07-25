@@ -1,0 +1,121 @@
+---
+sidebar_position: 7
+title: Project state
+description: The .kapi-state.json committed state artifact — the transient working set that is not durable until export, the unit state record, and why the file sits outside the gitignored state directory.
+keywords:
+  [
+    project state,
+    .kapi-state.json,
+    kapi-project-state,
+    review,
+    decisions,
+    approval,
+    workflow,
+  ]
+---
+
+# Project state (`.kapi-state.json`)
+
+Project state records **workflow decisions about units**: what has been
+reviewed, what was approved and by whom, what status a target has reached. It
+is the artifact that lets a review survive a fresh clone.
+
+Implemented in Go at
+[`core/state`](https://github.com/neokapi/neokapi/tree/main/core/state).
+
+## The working set is transient until you export it
+
+This is the first thing to understand about the format, because it is the part
+that surprises people.
+
+Mutations are **in transit and not durable**. Recording a decision puts it in an
+in-memory working set; nothing reaches disk until an explicit export
+materializes it to its durable home. The model is deliberately the one you
+already know from git: decisions behave like staged changes, and you export
+deliberately — a CI step commits the state file, or `kapi push` sends it to the
+server when the project binds one.
+
+The consequences follow from that:
+
+- The working set can be discarded and re-imported from the durable home. Only
+  **un-exported** decisions are lost — exactly like uncommitted changes.
+- `Pending()` reports whether un-exported decisions exist, so they are never
+  lost silently.
+- Export is a no-op when nothing changed since the last import or export, which
+  keeps a CI step from producing an empty commit.
+
+The durable home is a **binding**, not a fixed path: a committed file today, the
+server when the project binds one. The serialization below is the file form.
+
+## Why it is not under `.kapi/`
+
+`.kapi-state.json` sits at the project root — a *sibling* of the `.kapi/` state
+directory, not a file inside it.
+
+That is deliberate, and for the same reason the
+[terms bundle](/reference/serialization/terms) prefers the root: `.kapi/` is
+gitignored. A record of who approved what is precisely the kind of thing that
+must be reviewable and must survive a clone. Putting it inside `.kapi/` would
+make it disappear.
+
+Two different artifacts arrived at the same placement independently. That is
+the rule, not a coincidence — see the
+[overview](/reference/serialization/overview).
+
+The path is configurable in the recipe; `.kapi-state.json` is the default.
+
+## Envelope
+
+```json
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-project-state",
+  "units": []
+}
+```
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `schemaVersion` | string | `MAJOR.MINOR`. |
+| `kind` | string | Always `kapi-project-state`. |
+| `units` | array | Unit state records, written in deterministic order so the file diffs cleanly under git. |
+
+## Unit state
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `unit` | string | Unit identity — the block's content hash, the same key the document cache and overlays address it by. |
+| `variant` | object | The locale, and optional tone/channel, this state applies to. |
+| `status` | string | Target ladder position: draft → translated → reviewed → signed-off. |
+| `sourceStatus` | string | Source ladder position: authored → checked → approved. |
+| `origin` | object | Provenance of the current target (engine/tool/reference). |
+| `targetHash` | string | Content hash of the translation this state blesses. |
+| `decision` | object | The recorded workflow decision. |
+| `aiReview` | object | Last AI pre-review annotation. Optional. |
+| `updated` | string | RFC 3339. |
+
+Two fields carry most of the design:
+
+**`targetHash` does not duplicate the translation.** It is a hash of the text
+the decision was made about, so editing that text invalidates a stale approval
+rather than silently carrying it forward. The translation itself lives in the
+deliverable; this file only blesses it.
+
+**`aiReview` is advisory and is never a decision.** It informs the review queue
+with a score and findings. Where an AI pre-review justified an automatic
+approval, that approval is recorded separately in `decision`, with `by`
+carrying the `ai/<model>` identity — so a machine judgement and a machine
+decision remain distinguishable in the record.
+
+## What is deliberately not in it
+
+- **The translations themselves.** Only their hashes. The content lives in the
+  deliverable or in a [content bundle](/reference/serialization/content-bundle).
+- **Anything derivable.** Coverage percentages and review queues are computed
+  from this file plus the content, not stored alongside.
+- **Un-exported decisions.** By construction — that is what export is for.
+
+## See also
+
+- [Overview](/reference/serialization/overview) — store, bundle, and committed state.
+- [Terms](/reference/serialization/terms) — the other artifact that sits outside `.kapi/`, for the same reason.

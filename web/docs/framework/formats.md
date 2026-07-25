@@ -42,7 +42,7 @@ neokapi ships built-in readers and writers spanning several families:
 - **Subtitles & media** — SubRip (SRT), WebVTT; images, audio, and video as
   per-locale assets.
 - **Bilingual interchange** — XLIFF 1.2 and 2.x, PO, TMX, and the native
-  [Kapi format family](/reference/kbf/overview) — the translator-handoff layer.
+  [Kapi format family](/reference/serialization/overview) — the translator-handoff layer.
 - **Containers & archives** — ZIP, TAR, and gzip-compressed TAR, treated as a
   folder of sub-documents (see below).
 

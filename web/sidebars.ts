@@ -269,17 +269,24 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: "category",
-      label: "KBF Format",
+      // The formats kapi itself writes. Named for what they are rather than
+      // led by an acronym: the section covers the whole family, not just the
+      // content bundle. Ordered overview → per-format specs → decision guide.
+      label: "Serialization formats",
       collapsible: false,
       className: "sidebar-section-heading",
       items: [
-        "reference/kbf/overview",
-        "reference/kbf/spec",
-        "reference/kbf/examples",
-        "reference/kbf/vs-xliff",
-        "reference/kbf/package",
-        { type: "link", label: "KBF anatomy", href: "/kbf-lab" },
-        { type: "link", label: "KBF Tests", href: "/kbf-tests" },
+        "reference/serialization/overview",
+        "reference/serialization/content-bundle",
+        "reference/serialization/content-memory",
+        "reference/serialization/terms",
+        "reference/serialization/overlays",
+        "reference/serialization/project-archive",
+        "reference/serialization/project-state",
+        "reference/serialization/brand-voice",
+        "reference/serialization/choosing",
+        { type: "link", label: "Bundle anatomy", href: "/kbf-lab" },
+        { type: "link", label: "Bundle tests", href: "/kbf-tests" },
       ],
     },
     {

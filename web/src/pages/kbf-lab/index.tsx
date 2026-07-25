@@ -27,7 +27,7 @@ export default function KbfLabPage(): React.ReactElement {
         maxWidthClassName="max-w-[1160px]"
         lede={
           <>
-            The <Link to="/reference/kbf/spec">Kapi Bundle Format</Link> (<code>.kbf.json</code>)
+            The <Link to="/reference/serialization/content-bundle">Kapi Bundle Format</Link> (<code>.kbf.json</code>)
             is the interchange format of the kapi toolchain: one deterministic JSON document that
             carries a source file&rsquo;s translatable content as blocks of runs, its per-locale
             targets, and the provenance of every string. It exists so that extraction, translation,
@@ -68,8 +68,8 @@ export default function KbfLabPage(): React.ReactElement {
         <LabFootnote>
           Conformance results: the <Link to="/kbf-tests">KBF conformance suite</Link> runs the spec
           tests against both the Go engine and the TypeScript mirror in your browser. The full
-          schema is in the <Link to="/reference/kbf/spec">specification</Link>; further editable
-          examples are in <Link to="/reference/kbf/examples">Examples</Link>.
+          schema is in the <Link to="/reference/serialization/content-bundle">specification</Link>; further editable
+          examples are in <Link to="/reference/serialization/content-bundle">Examples</Link>.
         </LabFootnote>
       </LabPageShell>
     </Layout>
