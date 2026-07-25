@@ -2,6 +2,7 @@ package resilience
 
 import (
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,11 +17,35 @@ import (
 func fastRegistry() *Registry {
 	r := NewRegistry()
 	r.Configure(Overrides{
-		MinimumRequests: ptr(4),
-		FailureRatio:    ptr(0.5),
-		CooldownSeconds: ptr(60),
+		MinimumRequests: new(4),
+		FailureRatio:    new(0.5),
+		CooldownSeconds: new(60),
 	})
 	return r
+}
+
+// reply is what a test needs from a response once the body has been settled.
+// Returning this rather than the *http.Response keeps body ownership entirely
+// inside get, so no test can leak a connection.
+type reply struct {
+	status int
+	header http.Header
+}
+
+// get issues a GET through c, drains and closes the body, and returns the
+// status and headers. Keeping the plumbing here leaves each test about breaker
+// behaviour.
+func get(t *testing.T, c *http.Client, url string) (reply, error) {
+	t.Helper()
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, url, nil)
+	require.NoError(t, err)
+	resp, err := c.Do(req)
+	if err != nil {
+		return reply{}, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	_, _ = io.Copy(io.Discard, resp.Body)
+	return reply{status: resp.StatusCode, header: resp.Header}, nil
 }
 
 func TestTransportTripsOnServerErrors(t *testing.T) {
@@ -35,16 +60,15 @@ func TestTransportTripsOnServerErrors(t *testing.T) {
 	c := &http.Client{Timeout: 5 * time.Second, Transport: TransportFor(r, "connector:test", KindConnector, nil)}
 
 	for range 4 {
-		resp, err := c.Get(srv.URL)
+		resp, err := get(t, c, srv.URL)
 		require.NoError(t, err, "a 503 is a response, not a transport error")
-		require.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
-		resp.Body.Close()
+		require.Equal(t, http.StatusServiceUnavailable, resp.status)
 	}
 	require.Equal(t, StateOpen, r.Get("connector:test", KindConnector).State())
 
 	// The circuit now sheds load: the server must see no further requests.
 	before := hits
-	_, err := c.Get(srv.URL)
+	_, err := get(t, c, srv.URL)
 	require.Error(t, err)
 	assert.True(t, IsUnavailable(err), "url.Error must still unwrap to ErrUnavailable, got %v", err)
 	assert.Equal(t, before, hits, "an open circuit must not reach the server")
@@ -59,9 +83,8 @@ func TestTransportTripsOnTooManyRequests(t *testing.T) {
 	r := fastRegistry()
 	c := &http.Client{Transport: TransportFor(r, "connector:throttled", KindConnector, nil)}
 	for range 4 {
-		resp, err := c.Get(srv.URL)
+		_, err := get(t, c, srv.URL)
 		require.NoError(t, err)
-		resp.Body.Close()
 	}
 	assert.Equal(t, StateOpen, r.Get("connector:throttled", KindConnector).State(),
 		"sustained throttling is a dependency we should back off from")
@@ -79,10 +102,9 @@ func TestTransportIgnoresClientErrors(t *testing.T) {
 	// A misconfigured token yields an endless stream of 401s. The dependency is
 	// perfectly healthy and must stay callable for everyone else.
 	for range 20 {
-		resp, err := c.Get(srv.URL)
+		resp, err := get(t, c, srv.URL)
 		require.NoError(t, err)
-		require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-		resp.Body.Close()
+		require.Equal(t, http.StatusUnauthorized, resp.status)
 	}
 	assert.Equal(t, StateClosed, r.Get("connector:badcreds", KindConnector).State())
 }
@@ -95,8 +117,7 @@ func TestTransportTripsOnTransportFailure(t *testing.T) {
 	r := fastRegistry()
 	c := &http.Client{Transport: TransportFor(r, "connector:dead", KindConnector, nil)}
 	for range 4 {
-		//nolint:bodyclose // every one of these fails before a body exists
-		_, err := c.Get(url)
+		_, err := get(t, c, url)
 		require.Error(t, err)
 	}
 	assert.Equal(t, StateOpen, r.Get("connector:dead", KindConnector).State())
@@ -110,11 +131,10 @@ func TestTransportPassesSuccessThroughUntouched(t *testing.T) {
 	defer srv.Close()
 
 	c := &http.Client{Transport: TransportFor(fastRegistry(), "connector:ok", KindConnector, nil)}
-	resp, err := c.Get(srv.URL)
+	resp, err := get(t, c, srv.URL)
 	require.NoError(t, err)
-	defer resp.Body.Close()
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, "yes", resp.Header.Get("X-Marker"))
+	assert.Equal(t, http.StatusOK, resp.status)
+	assert.Equal(t, "yes", resp.header.Get("X-Marker"))
 }
 
 // countingTransport records how many times it was invoked.
@@ -140,9 +160,8 @@ func TestGuardPreservesTimeoutAndBaseTransport(t *testing.T) {
 	assert.Same(t, inner, orig.Transport, "the original client keeps its transport")
 	assert.Equal(t, 7*time.Second, guarded.Timeout, "an explicit timeout is preserved")
 
-	resp, err := guarded.Get(srv.URL)
+	_, err := get(t, guarded, srv.URL)
 	require.NoError(t, err)
-	resp.Body.Close()
 	assert.Equal(t, 1, inner.calls, "the guard must delegate to the wrapped transport")
 }
 
@@ -180,7 +199,7 @@ func TestUnavailableErrorShape(t *testing.T) {
 	e := &UnavailableError{Dependency: "ai:bedrock", Kind: KindAI, RetryAfter: 12 * time.Second}
 	assert.Equal(t, 12, e.RetryAfterSeconds())
 	assert.Contains(t, e.Error(), "ai:bedrock")
-	assert.True(t, errors.Is(e, ErrUnavailable))
+	require.ErrorIs(t, e, ErrUnavailable)
 
 	// Sub-second and negative estimates must still be a usable Retry-After.
 	assert.Equal(t, 1, (&UnavailableError{RetryAfter: 10 * time.Millisecond}).RetryAfterSeconds())

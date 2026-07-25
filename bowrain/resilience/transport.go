@@ -75,7 +75,9 @@ func (t *breakerTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 		rtErr error
 	)
 	err := t.breaker.Do(req.Context(), func(context.Context) error {
-		resp, rtErr = base.RoundTrip(req)
+		// A RoundTripper hands the unread body to its caller; closing it here
+		// would break every response we forward.
+		resp, rtErr = base.RoundTrip(req) //nolint:bodyclose // returned to the caller
 		if rtErr != nil {
 			return rtErr
 		}

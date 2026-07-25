@@ -93,7 +93,7 @@ func TestUnavailableErr_LeavesOtherErrorsAlone(t *testing.T) {
 
 	resp, ok := unavailableErr(c, errors.New("openai: API error 401: bad key"))
 	assert.False(t, ok, "an ordinary error must fall through to the caller's handling")
-	assert.NoError(t, resp)
+	require.NoError(t, resp)
 	assert.Equal(t, http.StatusOK, rec.Code, "nothing should have been written")
 	assert.Empty(t, rec.Body.String())
 
@@ -122,9 +122,9 @@ func TestReadiness_ReportsOpenCircuitAsDegraded(t *testing.T) {
 	// there and restore it afterwards.
 	t.Cleanup(func() { resilience.Default().Configure(resilience.Overrides{}) })
 	resilience.Default().Configure(resilience.Overrides{
-		MinimumRequests: intPtr(4),
-		FailureRatio:    floatPtr(0.5),
-		CooldownSeconds: intPtr(60),
+		MinimumRequests: new(4),
+		FailureRatio:    new(0.5),
+		CooldownSeconds: new(60),
 	})
 	b := resilience.Get("ai:test-readiness", resilience.KindAI)
 	for range 4 {
@@ -171,6 +171,3 @@ func TestHandleAdminHealth_IncludesBreakerStates(t *testing.T) {
 	assert.Equal(t, string(resilience.StateClosed), found.State)
 	assert.True(t, found.Healthy)
 }
-
-func intPtr(v int) *int           { return &v }
-func floatPtr(v float64) *float64 { return &v }

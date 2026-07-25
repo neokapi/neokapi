@@ -162,7 +162,7 @@ func TestDeferralForRecognisesOpenCircuitOnly(t *testing.T) {
 	require.NotNil(t, d)
 	assert.Equal(t, "ai:bedrock", d.dependency)
 	assert.Equal(t, 25*time.Second, d.retryAfter)
-	assert.ErrorIs(t, d, resilience.ErrUnavailable)
+	require.ErrorIs(t, d, resilience.ErrUnavailable)
 
 	// A wrapped rejection still reads as a deferral — the error crosses several
 	// layers between the provider guard and the worker.

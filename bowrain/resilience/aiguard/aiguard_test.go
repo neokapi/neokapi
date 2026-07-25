@@ -76,14 +76,12 @@ func (p *fakeStreamingProvider) ChatStructuredStream(_ context.Context, _ []aipr
 func fastRegistry() *resilience.Registry {
 	r := resilience.NewRegistry()
 	r.Configure(resilience.Overrides{
-		MinimumRequests: ptr(4),
-		FailureRatio:    ptr(0.5),
-		CooldownSeconds: ptr(60),
+		MinimumRequests: new(4),
+		FailureRatio:    new(0.5),
+		CooldownSeconds: new(60),
 	})
 	return r
 }
-
-func ptr[T any](v T) *T { return &v }
 
 func TestGuardStopsCallingADownProvider(t *testing.T) {
 	reg := fastRegistry()

@@ -27,9 +27,9 @@ func TestRegistrySharesOneBreakerPerDependency(t *testing.T) {
 func TestRegistryIsolatesDependencies(t *testing.T) {
 	r := NewRegistry()
 	r.Configure(Overrides{
-		MinimumRequests: ptr(4),
-		FailureRatio:    ptr(0.5),
-		CooldownSeconds: ptr(60),
+		MinimumRequests: new(4),
+		FailureRatio:    new(0.5),
+		CooldownSeconds: new(60),
 	})
 
 	down := r.Get("ai:bedrock", KindAI)
@@ -50,7 +50,7 @@ func TestRegistryAppliesOverridesToNewAndExistingBreakers(t *testing.T) {
 	existing := r.Get("ai:bedrock", KindAI)
 	require.True(t, existing.Settings().Enabled)
 
-	r.Configure(Overrides{Enabled: ptr(false)})
+	r.Configure(Overrides{Enabled: new(false)})
 
 	assert.False(t, existing.Settings().Enabled, "existing breakers pick up the change")
 	assert.False(t, r.Get("connector:figma", KindConnector).Settings().Enabled,
@@ -59,7 +59,7 @@ func TestRegistryAppliesOverridesToNewAndExistingBreakers(t *testing.T) {
 
 func TestRegistryReconfigureResetsToClosed(t *testing.T) {
 	r := NewRegistry()
-	r.Configure(Overrides{MinimumRequests: ptr(4), FailureRatio: ptr(0.5), CooldownSeconds: ptr(60)})
+	r.Configure(Overrides{MinimumRequests: new(4), FailureRatio: new(0.5), CooldownSeconds: new(60)})
 
 	b := r.Get("ai:bedrock", KindAI)
 	for range 4 {
@@ -69,14 +69,14 @@ func TestRegistryReconfigureResetsToClosed(t *testing.T) {
 
 	// An operator changing the rules must stop enforcement made under the old
 	// rules, never keep rejecting on a stale verdict.
-	r.Configure(Overrides{MinimumRequests: ptr(50)})
+	r.Configure(Overrides{MinimumRequests: new(50)})
 	assert.Equal(t, StateClosed, b.State())
 }
 
 func TestRegistryKeepsPerKindDefaultsUnderPartialOverrides(t *testing.T) {
 	r := NewRegistry()
 	// Only the ratio is set; every other threshold must stay per-kind.
-	r.Configure(Overrides{FailureRatio: ptr(0.9)})
+	r.Configure(Overrides{FailureRatio: new(0.9)})
 
 	ai := r.Get("ai:bedrock", KindAI).Settings()
 	mail := r.Get("mail:resend", KindMail).Settings()
@@ -96,27 +96,27 @@ func TestSettingsApplyRejectsHarmfulValues(t *testing.T) {
 	// dependency: a zero cooldown would spin, a zero ratio would trip on the
 	// first call, a zero probe count would never recover.
 	got := base.Apply(Overrides{
-		FailureRatio:    ptr(0.0),
-		MinimumRequests: ptr(0),
-		WindowSeconds:   ptr(0),
-		CooldownSeconds: ptr(0),
-		HalfOpenProbes:  ptr(0),
+		FailureRatio:    new(0.0),
+		MinimumRequests: new(0),
+		WindowSeconds:   new(0),
+		CooldownSeconds: new(0),
+		HalfOpenProbes:  new(0),
 	})
 	assert.Equal(t, base, got)
 
 	// Out-of-range ratios are refused too.
-	assert.Equal(t, base.FailureRatio, base.Apply(Overrides{FailureRatio: ptr(1.5)}).FailureRatio)
-	assert.Equal(t, base.FailureRatio, base.Apply(Overrides{FailureRatio: ptr(-1.0)}).FailureRatio)
+	assert.Equal(t, base.FailureRatio, base.Apply(Overrides{FailureRatio: new(1.5)}).FailureRatio)
+	assert.Equal(t, base.FailureRatio, base.Apply(Overrides{FailureRatio: new(-1.0)}).FailureRatio)
 }
 
 func TestSettingsApplyAcceptsValidValues(t *testing.T) {
 	got := DefaultsFor(KindAI).Apply(Overrides{
-		Enabled:         ptr(false),
-		FailureRatio:    ptr(0.25),
-		MinimumRequests: ptr(7),
-		WindowSeconds:   ptr(30),
-		CooldownSeconds: ptr(45),
-		HalfOpenProbes:  ptr(3),
+		Enabled:         new(false),
+		FailureRatio:    new(0.25),
+		MinimumRequests: new(7),
+		WindowSeconds:   new(30),
+		CooldownSeconds: new(45),
+		HalfOpenProbes:  new(3),
 	})
 	assert.False(t, got.Enabled)
 	assert.InDelta(t, 0.25, got.FailureRatio, 0.0001)
@@ -130,7 +130,7 @@ func TestRegistryStatesReportsOnlyObservedDependencies(t *testing.T) {
 	r := NewRegistry()
 	assert.Empty(t, r.States(), "nothing called yet means nothing to report")
 
-	r.Configure(Overrides{MinimumRequests: ptr(4), FailureRatio: ptr(0.5), CooldownSeconds: ptr(60)})
+	r.Configure(Overrides{MinimumRequests: new(4), FailureRatio: new(0.5), CooldownSeconds: new(60)})
 	down := r.Get("ai:bedrock", KindAI)
 	r.Get("connector:figma", KindConnector)
 	for range 4 {
@@ -155,7 +155,7 @@ func TestRegistryStatesReportsOnlyObservedDependencies(t *testing.T) {
 
 func TestRegistryOpenListsTrippedDependencies(t *testing.T) {
 	r := NewRegistry()
-	r.Configure(Overrides{MinimumRequests: ptr(4), FailureRatio: ptr(0.5), CooldownSeconds: ptr(60)})
+	r.Configure(Overrides{MinimumRequests: new(4), FailureRatio: new(0.5), CooldownSeconds: new(60)})
 
 	assert.Empty(t, r.Open())
 
@@ -171,11 +171,9 @@ func TestRegistryGetIsConcurrencySafe(t *testing.T) {
 	var wg sync.WaitGroup
 	seen := make([]*Breaker, 50)
 	for i := range 50 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			seen[i] = r.Get("ai:bedrock", KindAI)
-		}()
+		})
 	}
 	wg.Wait()
 	for _, b := range seen {
@@ -184,8 +182,8 @@ func TestRegistryGetIsConcurrencySafe(t *testing.T) {
 }
 
 func TestDefaultRegistryIsProcessWide(t *testing.T) {
-	assert.Same(t, Default(), Default())
+	// The package-level Get must resolve through the same registry the health
+	// surface enumerates, or the operator would be shown a different breaker set
+	// from the one the code is enforcing.
 	assert.Same(t, Default().Get("ai:test-default", KindAI), Get("ai:test-default", KindAI))
 }
-
-func ptr[T any](v T) *T { return &v }

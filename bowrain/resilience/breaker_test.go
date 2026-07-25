@@ -175,15 +175,13 @@ func TestBreakerHalfOpenAdmitsBoundedProbes(t *testing.T) {
 	release := make(chan struct{})
 	entered := make(chan struct{})
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		_ = b.Do(context.Background(), func(context.Context) error {
 			close(entered)
 			<-release
 			return nil
 		})
-	}()
+	})
 	<-entered
 
 	err := b.Do(t.Context(), func(context.Context) error {
@@ -226,7 +224,7 @@ func TestBreakerHonoursCallerContext(t *testing.T) {
 		t.Error("a cancelled caller must not reach the dependency")
 		return nil
 	})
-	assert.ErrorIs(t, err, context.Canceled)
+	require.ErrorIs(t, err, context.Canceled)
 	assert.False(t, IsUnavailable(err), "a cancelled caller is not an outage")
 }
 
@@ -263,9 +261,7 @@ func TestBreakerIsConcurrencySafe(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for i := range 100 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			_ = b.Do(context.Background(), func(context.Context) error {
 				if i%2 == 0 {
 					return errUpstream
@@ -274,7 +270,7 @@ func TestBreakerIsConcurrencySafe(t *testing.T) {
 			})
 			_ = b.State()
 			_ = b.Settings()
-		}()
+		})
 	}
 	wg.Wait()
 }
