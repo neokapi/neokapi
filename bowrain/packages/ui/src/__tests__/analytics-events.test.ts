@@ -14,7 +14,7 @@ import { AnalyticsEvents } from "../analytics-events";
 const docPath = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "../../../../..",
-  "web/docs/contribute/notes-internal/analytics-events.md",
+  "web/docs/contribute/implementation/analytics-events.md",
 );
 
 describe("analytics event taxonomy", () => {

@@ -21,10 +21,10 @@ This hub deliberately cross-links rather than restates. The canonical companions
 | Round-trip / three-engine test harness | `docs/internals/roundtrip-testing.md` |
 | General testing conventions | `docs/internals/TESTING.md` |
 | Interface signatures | `docs/internals/INTERFACES.md` |
-| Skeleton store binary format | `web/docs/contribute/notes-internal/skeleton-store.md` |
+| Skeleton store binary format | `web/docs/contribute/implementation/skeleton-store.md` |
 | Maturity rubric + levels + audit procedure | `docs/internals/format-maturity.md` |
 
-> The older `web/docs/contribute/notes-internal/implementing-formats.md`
+> The older `web/docs/contribute/implementation/implementing-formats.md`
 > note carries valuable skeleton-store/writer-fallback detail but its reader
 > snippet omits the three base-not-provided methods (`Signature`/`Open`/`Close`);
 > treat `contribute/formats.md` as the authoritative tutorial.

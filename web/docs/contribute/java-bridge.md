@@ -18,7 +18,7 @@ suite against released kapi versions.
 
 The plugin *protocol* — the manifest model, the three transports, and the gRPC
 services a daemon serves — is specified in
-[Plugin protocol v1](./notes-internal/plugin-protocol-v1.md), with its rationale
+[Plugin protocol v1](./implementation/plugin-protocol-v1.md), with its rationale
 in [Plugin system](./architecture/007-plugin-system.md). Any plugin repository
 can verify itself against that contract with the conformance suite the spec
 describes.

@@ -17,7 +17,7 @@ import (
 // well-formed input, which is what lets a streaming JSON read stay byte-exact and
 // drive the same forward, ancestor-only walk the buffered reader uses.
 //
-// Spike scope (see notes-internal/streaming-tree-formats.md): the streaming
+// Spike scope (see implementation/streaming-tree-formats.md): the streaming
 // scanner targets parity on well-formed JSON/JSON5 (objects, arrays, strings with
 // escapes/surrogates, numbers, literals, bare identifiers, and //, /* */, #,
 // <!-- --> comments). Malformed-input error byte-offsets and the validation-mode

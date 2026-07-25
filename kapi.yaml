@@ -228,7 +228,7 @@ flows:
 # (gated on the DOGFOOD_SYNC_ENABLED repo variable, token in BOWRAIN_AUTH_TOKEN).
 #
 # To disconnect: re-comment this block and unset DOGFOOD_SYNC_ENABLED. Runbook:
-# web/docs/contribute/notes-internal/dogfood-sync.md
+# web/docs/contribute/implementation/dogfood-sync.md
 server:
   url: "https://app.bowrain.cloud/bowrain-hq/uek630Q5"   # <server>/<workspace>/<project-id>
   stream: "$auto"      # auto-detect from git branch / CI (default)

@@ -147,4 +147,4 @@ allowlist shrinks in step with the code.
 The **round-trip** side of the contract — that a `model.Block` survives the
 kapi↔bowrain sync wire (push → store → pull) losslessly — is enforced by the
 kitchen-sink conformance and drift-guard tests documented in
-[Content-Model Parity Over the Sync Wire](/contribute/notes-internal/content-parity).
+[Content-Model Parity Over the Sync Wire](/contribute/implementation/content-parity).

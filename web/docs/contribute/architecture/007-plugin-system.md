@@ -32,7 +32,7 @@ Apache-2.0 and ships zero vendor-plugin code.
 
 The contract is **versioned** and **independently verifiable**: protocol
 v1 is specified in
-[Plugin protocol v1](../notes-internal/plugin-protocol-v1.md), and
+[Plugin protocol v1](../implementation/plugin-protocol-v1.md), and
 `core/plugin/conformance` is that specification in executable form — a
 consumable Go package a plugin repository imports from a released kapi to
 self-report conformance in its own CI.
@@ -111,7 +111,7 @@ schema is embedded at `core/plugin/manifest/schema.json`; canonical Go
 types live in `core/plugin/manifest/manifest.go`. The wire contract —
 every manifest rule, all three transports, the Mode-C gRPC surface, and
 the conformance suite — is specified in
-[Plugin protocol v1](../notes-internal/plugin-protocol-v1.md).
+[Plugin protocol v1](../implementation/plugin-protocol-v1.md).
 
 ### Discovery
 
@@ -480,7 +480,7 @@ scarce. Intel users can use Rosetta on the arm64 binary.
   unified plugin model design + delivery
 - Issue [#1073](https://github.com/neokapi/neokapi/issues/1073) —
   decoupling okapi-bridge; protocol v1 + the conformance suite
-- [Plugin protocol v1](../notes-internal/plugin-protocol-v1.md) — the
+- [Plugin protocol v1](../implementation/plugin-protocol-v1.md) — the
   versioned, language-neutral specification
 - [`core/plugin/manifest/`](https://github.com/neokapi/neokapi/tree/main/core/plugin/manifest) — Go types and embedded JSON Schema
 - [`host/pluginhost/`](https://github.com/neokapi/neokapi/tree/main/host/pluginhost) — host-side runtime (discovery, dispatch, daemon pool, registry, cosign)

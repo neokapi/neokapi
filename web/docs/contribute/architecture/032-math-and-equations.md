@@ -179,7 +179,7 @@ Offsets are validated (monotonic and in range) before any block is emitted;
 otherwise the reader falls back to writing the equation verbatim. The
 sub-skeleton store mechanism itself is described in
 [AD-005](005-format-system.md) and the
-[Skeleton Store](/contribute/notes-internal/skeleton-store) note; this AD fixes
+[Skeleton Store](/contribute/implementation/skeleton-store) note; this AD fixes
 only the contract that prose is translatable while the math is byte-exact.
 
 ### Cross-format rendering
@@ -205,4 +205,4 @@ math authored in one format is recognizable to editors and preview in another.
 - [AD-018: Parity testing against Okapi](018-parity-testing.md) — why `Equiv`/`Disp`/`SemanticRole` are parity-safe carriers
 - [AD-023: Toolbox Utilities](023-toolbox-utilities.md) — `kconv` cross-format conversion that renders equations into each target's math idiom
 - [AD-031: Content-Fidelity Surfacing](031-content-fidelity-surfacing.md) — surfacing standalone equations is an instance of content-fidelity surfacing
-- [OMML Math](/contribute/notes-internal/omml-math) — the OMML coverage-approximation ledger, the AST node mapping, and the splice algorithm in detail
+- [OMML Math](/contribute/implementation/omml-math) — the OMML coverage-approximation ledger, the AST node mapping, and the splice algorithm in detail

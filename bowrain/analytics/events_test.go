@@ -67,7 +67,7 @@ func TestEventReferenceDocDrift(t *testing.T) {
 
 	// bowrain/analytics → repo root is two levels up.
 	docPath := filepath.Join(filepath.Dir(thisFile), "..", "..",
-		"web", "docs", "contribute", "notes-internal", "analytics-events.md")
+		"web", "docs", "contribute", "implementation", "analytics-events.md")
 	data, err := os.ReadFile(docPath)
 	require.NoError(t, err,
 		"analytics event reference doc missing; every event constant must be documented there")

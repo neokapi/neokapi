@@ -180,7 +180,7 @@ roundtrip writing. A format picks the one that fits its structure:
   during extraction; the writer reads entries sequentially to reconstruct
   the document with byte-exact fidelity. Peak memory is ~100 KB per
   document regardless of document size. Preferred for new formats. See
-  [Skeleton Store](/contribute/notes-internal/skeleton-store) for the binary format and
+  [Skeleton Store](/contribute/implementation/skeleton-store) for the binary format and
   wiring.
 
 - **Re-parse** (JSON, YAML, PO, Plaintext). The writer re-opens the
@@ -334,7 +334,7 @@ This is how translatable prose embedded in an opaque structure — the
 natural-language `<m:nor/>` text inside a Word equation — is translated while the
 surrounding math is replayed byte-for-byte
 ([AD-032: Math and Equations](032-math-and-equations.md); see
-[Skeleton Store](/contribute/notes-internal/skeleton-store)).
+[Skeleton Store](/contribute/implementation/skeleton-store)).
 
 ### Subfilters and nested layers
 
@@ -364,8 +364,8 @@ To add a new format:
 7. If the format can host embedded content, implement `SubfilterAware`
    and accept `Subfilters []SubfilterMapping` in the config.
 
-See [Implementing Formats](/contribute/notes-internal/implementing-formats) for a
-walkthrough, and [Skeleton Store](/contribute/notes-internal/skeleton-store) for the
+See [Implementing Formats](/contribute/implementation/implementing-formats) for a
+walkthrough, and [Skeleton Store](/contribute/implementation/skeleton-store) for the
 preferred skeleton strategy details.
 
 ## Consequences
@@ -395,5 +395,5 @@ preferred skeleton strategy details.
 - [AD-007: Plugin System and Okapi Bridge](007-plugin-system.md) — how plugin and bridge formats register
 - [AD-031: Content-Fidelity Surfacing](031-content-fidelity-surfacing.md) — surfacing non-translatable context as content for ingestion; the `extractNonTranslatableContent` opt-out
 - [AD-032: Math and Equations](032-math-and-equations.md) — the OMML sub-skeleton extension to the skeleton strategies
-- [Implementing Formats](/contribute/notes-internal/implementing-formats) — implementation walkthrough
-- [Skeleton Store](/contribute/notes-internal/skeleton-store) — binary skeleton format and wiring
+- [Implementing Formats](/contribute/implementation/implementing-formats) — implementation walkthrough
+- [Skeleton Store](/contribute/implementation/skeleton-store) — binary skeleton format and wiring

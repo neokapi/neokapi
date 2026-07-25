@@ -10,7 +10,7 @@
 # strictly DOWNSTREAM product (AD-001); its docs live in bowrain/web/docs/.
 #
 # A second, separate exception is allowed only under web/docs/contribute/
-# (architecture + notes-internal), where genuine cross-module facts may name
+# (architecture + implementation), where genuine cross-module facts may name
 # bowrain — e.g. kapi-desktop's blank-import of bowrain/plugin/schema, the
 # kapi-*/bowrain-* skill split, and the module tree. That directory is not in
 # the user_facing sweep below, so it's untouched by either check here.

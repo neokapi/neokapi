@@ -2,7 +2,7 @@
 #
 # INERT BY DEFAULT (roadmap epic 017-F, decision D2). Every job is gated on the
 # repo variable DOGFOOD_SYNC_ENABLED == 'true', so until the founder activates
-# it (see web/docs/contribute/notes-internal/dogfood-sync.md) this workflow is a
+# it (see web/docs/contribute/implementation/dogfood-sync.md) this workflow is a
 # no-op: scheduled runs and manual dispatches evaluate the gate and skip.
 #
 # Activation checklist:

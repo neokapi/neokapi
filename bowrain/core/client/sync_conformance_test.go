@@ -16,7 +16,7 @@ import (
 // the new source-locale / is-referent fields included — so a term/entity/
 // segmentation marked in kapi survives the pull, not just the push.
 //
-// See web/docs/contribute/notes-internal/content-parity.md.
+// See web/docs/contribute/implementation/content-parity.md.
 
 func TestSyncBlockJSONKitchenSinkRoundTrip(t *testing.T) {
 	orig := synctest.KitchenSinkBlock()

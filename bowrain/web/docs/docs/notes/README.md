@@ -13,7 +13,7 @@ signatures, and other reference material. They exist alongside the
 the design choices; notes describe the implementation.
 
 Framework-level notes (formats, plugin bridge, memory matching, etc.) live in the
-framework's [Implementation Notes](https://neokapi.github.io/contribute/notes-internal/index).
+framework's [Implementation Notes](https://neokapi.github.io/contribute/implementation/index).
 
 | Note                                                      | Parent AD                                                 | Content                                                     |
 | --------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------- |
