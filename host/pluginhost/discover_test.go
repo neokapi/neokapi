@@ -76,6 +76,47 @@ func TestDiscover_PrecedenceXDGOverSystem(t *testing.T) {
 	assert.Contains(t, conflictMsg, "demo")
 }
 
+// Homebrew installs a plugin into its own keg and links it into the shared
+// prefix, so the entry in the plugin root is a symlink. Discovery must follow
+// it — DirEntry.IsDir() describes the link, not the target.
+func TestDiscover_FollowsSymlinkedPluginDir(t *testing.T) {
+	keg := t.TempDir()
+	writeManifest(t, keg, "demo", `{
+		"manifest_version": "1",
+		"plugin": "demo",
+		"version": "0.1.0",
+		"binary": "kapi-demo"
+	}`)
+
+	root := t.TempDir()
+	require.NoError(t, os.Symlink(filepath.Join(keg, "demo"), filepath.Join(root, "demo")))
+
+	plugins := pluginhost.Discover(pluginhost.DiscoverOptions{
+		EnvPluginsDir: root,
+		HomeDir:       "/nonexistent",
+		SystemDirs:    []string{},
+	})
+	require.Len(t, plugins, 1)
+	assert.Equal(t, "demo", plugins[0].Manifest.Plugin)
+	assert.Equal(t, filepath.Join(root, "demo", "kapi-demo"), plugins[0].BinaryPath)
+}
+
+func TestDiscover_SkipsBrokenSymlinkAndFiles(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.Symlink(filepath.Join(root, "gone"), filepath.Join(root, "dangling")))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "loose.json"), []byte("{}"), 0o644))
+
+	var warned []string
+	plugins := pluginhost.Discover(pluginhost.DiscoverOptions{
+		EnvPluginsDir: root,
+		HomeDir:       "/nonexistent",
+		SystemDirs:    []string{},
+		OnWarn:        func(s string) { warned = append(warned, s) },
+	})
+	assert.Empty(t, plugins)
+	assert.Empty(t, warned, "non-plugin entries are skipped quietly")
+}
+
 func TestDiscover_SkipsMissingDirs(t *testing.T) {
 	plugins := pluginhost.Discover(pluginhost.DiscoverOptions{
 		EnvPluginsDir: "/nonexistent/path",

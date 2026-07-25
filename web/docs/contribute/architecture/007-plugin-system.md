@@ -125,8 +125,13 @@ kapi scans this fixed list of locations in precedence order:
 | 3           | `/usr/local/share/kapi/plugins/` (Linux `/usr/local`)                   | OS package manager           |
 | 3           | `/usr/share/kapi/plugins/` (distro)                                     | OS package manager           |
 
-Within each location, every direct subdirectory containing a
-`manifest.json` is a plugin. First-match-wins on plugin name.
+Within each location, every direct entry that resolves to a directory
+containing a `manifest.json` is a plugin. Symlinks are followed: a package
+manager installs the plugin inside its own package prefix and links it into
+the shared root (a Homebrew formula stages
+`share/kapi/plugins/<plugin>` in its keg, and `brew link` publishes it at
+`/opt/homebrew/share/kapi/plugins/<plugin>`), so a name-only or
+link-skipping scan would find nothing there. First-match-wins on plugin name.
 Conflicting capabilities between two different plugins are an error
 — kapi prints both manifests and refuses to dispatch the conflicting
 capability.
@@ -249,6 +254,31 @@ kapi prompts to install the missing plugin and retries the command;
 in CI it prints an actionable error pointing at `kapi plugin install`.
 The bare-list form (`requires: [myplugin]`) is rejected with an
 actionable migration hint.
+
+### Missing-plugin verbs
+
+A recipe need not spell out `requires:` to imply a plugin. Declaring a
+top-level key that a plugin's `schema_extensions` own — `server:`, owned by the
+platform plugin — is itself the declaration, and the key survives untouched in
+the recipe when the plugin that would decode it is absent.
+
+That leaves one gap the manifest model cannot close on its own: a verb the
+plugin provides is not in the command tree when the plugin is not installed, so
+cobra rejects it as an unknown command and names neither the cause nor the fix.
+kapi closes it with the same treatment `requires:` gets. When the typed verb
+belongs to a plugin, no installed plugin routes it, and the recipe declares that
+plugin's key, kapi explains the situation and offers the install — prompting on
+a terminal, installing under `--yes`, then running the verb the user typed. In
+CI, behind a pipe, or under `--quiet` it prints both install routes
+(`kapi plugin install <name>`, `brew install <formula>`) and exits `ExitUsage`.
+A verb that is simply mistyped keeps cobra's error and its suggestions.
+
+Deciding this needs one thing kapi cannot read from a manifest it does not have:
+which verbs the plugin provides. A compiled-in hint table carries them —
+consulted only to compose this message, never for dispatch, which stays
+manifest-driven — and a drift test in the plugin's own module pins the table to
+the plugin's real manifest, so adding or removing a verb fails the build until
+the table follows.
 
 ### Registry and signing
 

@@ -45,10 +45,13 @@ var projectionAllowlist = map[string][]string{
 // RPC envelopes like SegmentRequest/SegmentResponse do not match.
 var messageDefRe = regexp.MustCompile(`^\s*message\s+(\w*(?:Run|Block|Segment)(?:s|List|Message)?)\s*\{`)
 
-// skipDirs are directory names never scanned for proto files.
+// skipDirs are directory names never scanned for proto files. `.claude` holds
+// agent git worktrees — whole checkouts of this repo — whose copy of the
+// canonical schema is the same file, not a second definition of it.
 var skipDirs = map[string]bool{
 	".git": true, "node_modules": true, "bin": true, "dist": true,
 	"build": true, ".kapi": true, ".kapi-iso": true, "coverage": true,
+	".claude": true,
 }
 
 func repoRoot(t *testing.T) string {

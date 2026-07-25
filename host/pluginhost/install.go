@@ -284,10 +284,17 @@ func extractPluginArchive(body []byte, sourceURL, target, pluginName string) err
 // It returns an error for any entry that would escape pluginRoot via "../" or an
 // absolute path. Note a flat entry like "otherplugin/x" is a nested subdir of
 // THIS plugin's dir, not the sibling plugin — it stays safely within pluginRoot.
-func pluginEntryDest(pluginRoot, pluginName, name string) (dest string, ok bool, err error) {
+//
+// isDir must say whether the archive entry is a directory. Only a directory can
+// be a wrapper: the plugin binary is itself named "kapi-<plugin>", so testing
+// the name alone silently discarded the binary of every plugin whose archive
+// wraps its files in a "<plugin>/" directory (the bowrain layout) or ships them
+// flat — the install then failed at first dispatch with "no such file or
+// directory".
+func pluginEntryDest(pluginRoot, pluginName, name string, isDir bool) (dest string, ok bool, err error) {
 	rel := strings.TrimPrefix(filepath.ToSlash(name), "./")
 	for _, wrap := range []string{pluginName, "kapi-" + pluginName} {
-		if rel == wrap || rel == wrap+"/" {
+		if isDir && (rel == wrap || rel == wrap+"/") {
 			return "", false, nil // the wrapper dir entry itself
 		}
 		rel = strings.TrimPrefix(rel, wrap+"/")
@@ -323,7 +330,7 @@ func extractTarGz(body []byte, target, pluginName string) error {
 		}
 		// Resolve the entry under the plugin's own dir, accepting both the
 		// prefixed and flat layouts and rejecting "../"/absolute escapes.
-		clean, ok, err := pluginEntryDest(pluginRoot, pluginName, hdr.Name)
+		clean, ok, err := pluginEntryDest(pluginRoot, pluginName, hdr.Name, hdr.Typeflag == tar.TypeDir)
 		if err != nil {
 			return err
 		}
@@ -380,7 +387,7 @@ func extractZip(body []byte, target, pluginName string) error {
 	}
 	pluginRoot := filepath.Join(target, pluginName)
 	for _, f := range r.File {
-		clean, ok, err := pluginEntryDest(pluginRoot, pluginName, f.Name)
+		clean, ok, err := pluginEntryDest(pluginRoot, pluginName, f.Name, f.FileInfo().IsDir())
 		if err != nil {
 			return err
 		}

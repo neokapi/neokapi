@@ -29,9 +29,22 @@ func writeRecipe(t *testing.T, content string) string {
 	return path
 }
 
+// isolatePluginRoots cuts these tests off from the developer's real plugin
+// roots. LoadProjectInteractive re-discovers plugins after an install and
+// registers their schema extensions, so without this a bowrain plugin actually
+// installed on the machine — via Homebrew, say — satisfies `requires: bowrain`
+// and the tests assert against the wrong world. Same isolation switch the
+// in-repo dogfood contract uses.
+func isolatePluginRoots(t *testing.T) {
+	t.Helper()
+	t.Setenv("KAPI_PLUGINS_DIR_ONLY", "1")
+	t.Setenv("KAPI_PLUGINS_DIR", "")
+}
+
 func TestLoadProjectInteractive_NoRequires_Loads(t *testing.T) {
 	projecttest.ResetExtensions()
 	defer projecttest.ResetExtensions()
+	isolatePluginRoots(t)
 
 	path := writeRecipe(t, "version: v1\n")
 	app := &App{}
@@ -45,6 +58,7 @@ func TestLoadProjectInteractive_NoRequires_Loads(t *testing.T) {
 func TestLoadProjectInteractive_NonTTY_NoYes_ReturnsActionableError(t *testing.T) {
 	projecttest.ResetExtensions()
 	defer projecttest.ResetExtensions()
+	isolatePluginRoots(t)
 
 	path := writeRecipe(t, requiresRecipe)
 	app := &App{}
@@ -60,6 +74,7 @@ func TestLoadProjectInteractive_NonTTY_NoYes_ReturnsActionableError(t *testing.T
 func TestLoadProjectInteractive_TTY_Confirm_InstallsAndRevalidates(t *testing.T) {
 	projecttest.ResetExtensions()
 	defer projecttest.ResetExtensions()
+	isolatePluginRoots(t)
 
 	path := writeRecipe(t, requiresRecipe)
 
@@ -100,6 +115,7 @@ func TestLoadProjectInteractive_TTY_Confirm_InstallsAndRevalidates(t *testing.T)
 func TestLoadProjectInteractive_TTY_DeclineConfirm_ReturnsActionableError(t *testing.T) {
 	projecttest.ResetExtensions()
 	defer projecttest.ResetExtensions()
+	isolatePluginRoots(t)
 
 	path := writeRecipe(t, requiresRecipe)
 
@@ -125,6 +141,7 @@ func TestLoadProjectInteractive_TTY_DeclineConfirm_ReturnsActionableError(t *tes
 func TestLoadProjectInteractive_AssumeYes_NonTTY_Installs(t *testing.T) {
 	projecttest.ResetExtensions()
 	defer projecttest.ResetExtensions()
+	isolatePluginRoots(t)
 
 	path := writeRecipe(t, requiresRecipe)
 
@@ -159,6 +176,7 @@ func TestLoadProjectInteractive_AssumeYes_NonTTY_Installs(t *testing.T) {
 func TestLoadProjectInteractive_InstallFails_PropagatesError(t *testing.T) {
 	projecttest.ResetExtensions()
 	defer projecttest.ResetExtensions()
+	isolatePluginRoots(t)
 
 	path := writeRecipe(t, requiresRecipe)
 
@@ -182,6 +200,7 @@ func TestLoadProjectInteractive_InstallFails_PropagatesError(t *testing.T) {
 func TestLoadProjectInteractive_PostInstallValidateRequires_FailsWhenStillMissing(t *testing.T) {
 	projecttest.ResetExtensions()
 	defer projecttest.ResetExtensions()
+	isolatePluginRoots(t)
 
 	path := writeRecipe(t, requiresRecipe)
 

@@ -147,6 +147,19 @@ func init() {
 	// cli.HelpTranslator). Misses keep the English source.
 	cli.LocalizeCommandHelp(rootCmd, cli.HelpTranslator())
 
+	// A verb kapi does not have may belong to a plugin this project needs but
+	// does not have installed (`kapi push` in a project whose recipe declares
+	// `server:`). Offer the install inline instead of failing with cobra's
+	// bare "unknown command". Registered last: it only ever runs on the error
+	// path, after the whole tree — built-ins, plugin commands, contributions —
+	// has failed to match.
+	cli.SetUnknownCommandHandler(func(cmd *cobra.Command, verb string, args []string) (bool, error) {
+		// Argv, not app.AssumeYes/app.Quiet: cobra rejects an unknown verb in
+		// Find(), before execute() parses any flag, so the bound fields are
+		// still zero here however the user invoked kapi.
+		return app.ResolveMissingPluginCommand(cmd, verb, args, cli.MissingPluginOptions{Argv: os.Args[1:]})
+	})
+
 	// Colorize --help / usage through host/output's Theme (same palette and
 	// --color/NO_COLOR/isatty handling as the rest of the CLI). Must run after
 	// localization: the template reads Short/Long/Example at render time.

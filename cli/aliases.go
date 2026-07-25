@@ -41,6 +41,7 @@ type (
 	TMSessionDetail               = host.TMSessionDetail
 	TMSessionListOutput           = host.TMSessionListOutput
 	TMSessionRow                  = host.TMSessionRow
+	MissingPluginOptions          = host.MissingPluginOptions
 	ModelEnsureOptions            = host.ModelEnsureOptions
 	ParkedScope                   = host.ParkedScope
 	PluginModel                   = host.PluginModel

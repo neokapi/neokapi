@@ -80,10 +80,10 @@ func Discover(opts DiscoverOptions) []*Plugin {
 			continue
 		}
 		for _, e := range entries {
-			if !e.IsDir() {
+			pluginDir := filepath.Join(r.Path, e.Name())
+			if !isDirFollowingLinks(pluginDir, e) {
 				continue
 			}
-			pluginDir := filepath.Join(r.Path, e.Name())
 			manifestPath := filepath.Join(pluginDir, "manifest.json")
 			data, err := os.ReadFile(manifestPath)
 			if err != nil {
@@ -112,6 +112,27 @@ func Discover(opts DiscoverOptions) []*Plugin {
 		}
 	}
 	return out
+}
+
+// isDirFollowingLinks reports whether path is a directory, resolving symlinks.
+//
+// DirEntry.IsDir describes the link itself, not its target, so a plain
+// e.IsDir() check silently skips every symlinked plugin. Package managers
+// install plugins exactly that way: Homebrew stages a plugin inside its own
+// keg and links it into the shared prefix, so
+// HOMEBREW_PREFIX/share/kapi/plugins/<name> is a symlink to
+// Cellar/<formula>/<version>/share/kapi/plugins/<name>. Stat the entry so a
+// linked plugin directory is discovered like a real one; a broken or looping
+// link just fails to stat and is skipped.
+func isDirFollowingLinks(path string, e os.DirEntry) bool {
+	if e.IsDir() {
+		return true
+	}
+	if e.Type()&os.ModeSymlink == 0 {
+		return false
+	}
+	fi, err := os.Stat(path)
+	return err == nil && fi.IsDir()
 }
 
 // assembleRoots resolves the discovery list from options + defaults.
