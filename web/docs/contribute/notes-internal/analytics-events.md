@@ -22,7 +22,13 @@ pass CI. The client-side (web app) constants live in
 - **No content**: events never carry document content, file paths, source
   text, or command arguments. Sizes are bucketed
   (`analytics.CountBucket`), timings are bucketed
-  (`analytics.DurationBucket`).
+  (`analytics.DurationBucket`), credit amounts are bucketed
+  (`analytics.CreditBucket`), and shares are banded
+  (`analytics.PercentBucket` / `SharePercentBucket`). An exact credit amount,
+  token count, or unit count never leaves the process. The client mirrors the
+  same tables in `bowrain/packages/ui/src/analytics-buckets.ts`, label for
+  label, so a property is comparable across the `server` and `web-app`
+  surfaces.
 - **EU ingestion**: the default host is `https://eu.i.posthog.com`
   (`analytics.DefaultHost`).
 
@@ -62,8 +68,57 @@ the PostHog **workspace** group (`$groups: {workspace: <id>}`).
 | `review_approved` | a review decision (single or batch) persists with `approve` | `batch_size`, `locale` (single decisions), `workspace_id` (when known) |
 | `review_rejected` | a review decision (single or batch) persists with `reject` | `batch_size`, `locale` (single decisions), `workspace_id` (when known) |
 | `connector_published` | `service.ConnectorService.Publish` resolves | `workspace_id`, `project_id`, `connector_type`, `outcome` (`completed` / `failed`), `block_count_bucket` |
-| `convergence_run_started` | a server convergence run starts (`convergenceOrchestrator.StartRun`) | `workspace_id` (when known), `project_id`, `trigger` (`cli` / `push` / `manual`) |
-| `convergence_run_completed` | a server convergence run reaches a terminal state (`convergenceOrchestrator.driveWith`) | `workspace_id` (when known), `project_id`, `outcome` (`converged` / `parked` / `failed` / `canceled`), `stall_reason` (`needs_credits` / `needs_ai_key` / `rate_limited` / `no_progress` / `checks_failing` / `source_not_ready`, empty on converge), `passes`, `via_tm` / `via_ai` (count buckets), `blocked_on_source` (count bucket — source blocks held below the source-first gate), `duration_bucket` |
+| `convergence_estimate_computed` | the server computes a pre-flight estimate (`GET …/convergence/estimate`), whichever surface asked — the web run-now dialog, `kapi up`'s confirm, or any API client | `workspace_id` (when known), `project_id`, `source_held` (bool), `estimated_credits_bucket` (credit bucket), `ai_units_bucket` (count bucket), `tm_leverage_pct_bucket` (percent band), `covers_all_ai` (bool — omitted where billing is unconfigured), `first_run` (bool) |
+| `convergence_run_started` | a server convergence run starts (`convergenceOrchestrator.StartRun`) | `workspace_id` (when known), `project_id`, `trigger` (`cli` / `push` / `manual`), `first_run` (bool) |
+| `convergence_run_completed` | a server convergence run reaches a terminal state (`convergenceOrchestrator.driveWith`) | `workspace_id` (when known), `project_id`, `outcome` (`converged` / `parked` / `failed` / `canceled`), `stall_reason` (`needs_credits` / `needs_ai_key` / `rate_limited` / `no_progress` / `checks_failing` / `source_not_ready`, empty on converge), `passes`, `via_tm` / `via_ai` (count buckets), `blocked_on_source` (count bucket — source blocks held below the source-first gate), `duration_bucket`, `consumed_credits_bucket` (credit bucket — what the run ACTUALLY spent), `tm_leverage_pct_bucket` (percent band), `first_run` (bool) |
+
+### Sizing the new-workspace grant
+
+Every new workspace gets one non-recurring grant of
+`billing.FreeTrialGrantCredits` credits, and Free carries no recurring
+allowance — so that grant is the entire budget a first project has. The
+properties above exist to answer the sizing question the coverage flag alone
+cannot: **how large must the grant be to cover N% of first projects?** Three
+pieces make that answerable:
+
+- **Magnitude, not a yes/no.** `covers_all_ai` says whether the balance was
+  enough; `estimated_credits_bucket` says *how much was asked for*, so the
+  distribution of first-project demand can be read against a candidate grant
+  size. `ai_units_bucket` and `tm_leverage_pct_bucket` explain the shape of
+  that demand — a corpus that recycles well costs nothing to converge, and TM
+  leverage is the strongest lever on how far a fixed grant stretches.
+- **The cold-start cohort.** `first_run` is true when no convergence run
+  precedes this one anywhere in the workspace — the workspace's very first
+  project run. It is derived from a bounded existence probe over the
+  workspace's projects in the run store (`ConvergenceRunStore.HasRunBefore`),
+  not a stored column, and it is workspace-scoped on purpose: a second
+  project's first run is no longer a cold start. Filtering to `first_run: true`
+  is what turns fleet-wide spend into the grant-sizing cohort.
+- **Demand vs. realized spend.** `estimated_credits_bucket` (on the estimate
+  events) is uncensored demand — what a run *would* cost, computed before any
+  credit is spent. `consumed_credits_bucket` (on `convergence_run_completed`)
+  is what a run actually spent, from the token usage its translation jobs
+  reported; it is *censored by the balance*, because a run that exhausts the
+  grant parks with `stall_reason: needs_credits`. Size the grant on demand and
+  validate it against realized spend; reading realized spend alone would
+  measure the current grant rather than the need. Two caveats on realized
+  spend: a workspace using its own AI key burns tokens but no credits, and a
+  run driven by a replica that restarted mid-flight reports only what it saw.
+
+Because the estimate is computed server-side for every pre-flight, the CLI
+(`kapi up`) and the web dialog land in the same population; the mandatory
+`surface` property separates them. `convergence_estimate_viewed` remains the
+web-only impression event (a human actually saw the estimate) and is not a
+substitute for it.
+
+All of these are bucketed for privacy: the events carry a band label, never an
+exact credit amount, token count, unit count, locale list, or anything derived
+from content. The credit bands are `0`, `1_1k`, `1k_10k`, `10k_50k`,
+`50k_100k`, `100k_200k`, `200k_500k`, `500k_1m`, `gt_1m` — the upper edge of
+`100k_200k` is exactly the grant (and the top-up pack), so "fits inside the
+grant" is a boundary read rather than an interpolation. Percent bands are `0`,
+`1_25`, `26_50`, `51_75`, `76_99`, `100`, with the saturated bands reserved for
+exactly none and exactly all.
 
 ## MCP surface
 
@@ -139,7 +194,7 @@ workspace group.
 | `brand_voice_saved` | a brand-voice profile create/update persists | `mode` (`created` / `updated`) |
 | `glossary_saved` | a concept term status change persists in the Brand · Concepts edit dialog | `status`, `locale` |
 | `locale_demand_connect_clicked` | the "Connect PostHog" / "Fix connection" affordance is clicked on the locale-demand page (AD-018 demand path) | `reconnect` |
-| `convergence_estimate_viewed` | the run-now consent dialog opens and the source-readiness-first pre-flight estimate is shown, before any run starts (epic 019) | `source_held` (bool — any source blocks held on the gate), `covers_all_ai` (bool — balance covers the AI remainder) |
+| `convergence_estimate_viewed` | the run-now consent dialog opens and the source-readiness-first pre-flight estimate is shown, before any run starts (epic 019) — the web-only impression complement of the server's `convergence_estimate_computed` | `source_held` (bool — any source blocks held on the gate), `covers_all_ai` (bool — balance covers the AI remainder), `estimated_credits_bucket` (credit bucket — what the AI remainder would cost), `ai_units_bucket` (count bucket — units left for paid AI after TM), `tm_leverage_pct_bucket` (percent band — TM's share of the pending work). The three buckets size the new-workspace grant — see [Sizing the new-workspace grant](#sizing-the-new-workspace-grant) |
 | `convergence_run_started` | a convergence run is started from the run-now consent dialog after the user picks a scope and confirms (epic 019) — the web/client complement of the server's same-named event, distinguished by `surface` | `scope` (`all` / `ready-only` / `none`), `source_held` (bool) |
 | `github_setup_installation_missing` | the GitHub App setup page (`/github/setup`) loads from a GitHub redirect (`setup_action` present) but without an `installation_id` — the post-install/update handoff lost the id and the user sees the recovery card instead of the repo list | `setup_action` (`install` / `update`) |
 

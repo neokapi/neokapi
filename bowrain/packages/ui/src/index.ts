@@ -412,6 +412,7 @@ export type { AnalyticsCaptureFn, AnalyticsContextValue } from "./context/Analyt
 // Product analytics event taxonomy (epic 018, workstream B)
 export { AnalyticsEvents } from "./analytics-events";
 export type { AnalyticsEventName } from "./analytics-events";
+export { countBucket, creditBucket, percentBucket, sharePercentBucket } from "./analytics-buckets";
 
 // API
 export type { ApiAdapter } from "./api/adapter";

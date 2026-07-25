@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/analytics"
+	"github.com/neokapi/neokapi/bowrain/billing"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/event"
@@ -89,6 +90,12 @@ type convergenceOrchestrator struct {
 
 	mu      sync.Mutex
 	cancels map[string]context.CancelFunc // runID → cancel
+	// tokens is the running total of AI tokens the run's translation jobs
+	// reported, accumulated per production pass and read once at the terminal
+	// state for the run's consumed-credits bucket (grant sizing). Kept in memory
+	// rather than on the run row: it is analytics-only, and a replica that did
+	// not drive the run has nothing to report anyway.
+	tokens map[string]int // runID → AI tokens used
 }
 
 func newConvergenceOrchestrator(s *Server) *convergenceOrchestrator {
@@ -96,7 +103,29 @@ func newConvergenceOrchestrator(s *Server) *convergenceOrchestrator {
 		server:  s,
 		hub:     newConvergenceHub(),
 		cancels: map[string]context.CancelFunc{},
+		tokens:  map[string]int{},
 	}
+}
+
+// addRunTokens accumulates one production pass's reported AI token usage onto
+// the run. Called once per pass/locale as the pass returns.
+func (o *convergenceOrchestrator) addRunTokens(runID string, tokens int) {
+	if runID == "" || tokens <= 0 {
+		return
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.tokens[runID] += tokens
+}
+
+// takeRunTokens reads and clears a run's accumulated AI token usage — called
+// once, at the terminal state, so the map never grows past the in-flight runs.
+func (o *convergenceOrchestrator) takeRunTokens(runID string) int {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	n := o.tokens[runID]
+	delete(o.tokens, runID)
+	return n
 }
 
 // convergePollInterval is how often the orchestrator polls the job queue for a
@@ -278,7 +307,7 @@ func (o *convergenceOrchestrator) Cancel(ctx context.Context, run *bstore.Conver
 func (o *convergenceOrchestrator) drive(ctx context.Context, run *bstore.ConvergenceRun, localeFilter []string) {
 	o.driveWith(ctx, run, convergence.LoopFuncs{
 		Derive:  o.deriveFunc(run.ProjectID, localeFilter),
-		Produce: o.produceFunc(run.ProjectID),
+		Produce: o.produceFunc(run.ProjectID, run.ID),
 	})
 }
 
@@ -663,9 +692,18 @@ func countFailingBlocks(ctx context.Context, blocks []*platstore.StoredBlock, lo
 // count for the locale — to match the block-count Units denominator the loop's
 // locale_start carries. Job counts (one job per item) would render e.g. 3/500
 // for a 3-item, 500-block locale (F9).
-func (o *convergenceOrchestrator) produceFunc(projectID string) func(context.Context, string, int, *convergence.Emitter) (int, int, int, error) {
+// runID scopes the pass's reported AI token usage to the run, so the terminal
+// event can report what the run ACTUALLY spent (grant sizing); it may be empty
+// (tests driving a bare produce), which simply reports no usage.
+func (o *convergenceOrchestrator) produceFunc(projectID, runID string) func(context.Context, string, int, *convergence.Emitter) (int, int, int, error) {
 	s := o.server
 	return func(ctx context.Context, locale string, pass int, emit *convergence.Emitter) (int, int, int, error) {
+		// The last poll's token sum is the pass's total (a job's tokens_used is
+		// written when it finishes), banked on every exit path so a canceled pass
+		// still reports what it burned before the cancel.
+		passTokens := 0
+		defer func() { o.addRunTokens(runID, passTokens) }()
+
 		if s.JobStore == nil || s.JobQueue == nil || s.ContentStore == nil {
 			return 0, 0, 0, nil // no job infra: nothing produced, the loop parks
 		}
@@ -735,12 +773,15 @@ func (o *convergenceOrchestrator) produceFunc(projectID string) func(context.Con
 			}
 			inProgress := 0
 			viaTM := 0
+			tokens := 0
 			for _, j := range jobList {
 				viaTM += j.ViaTM
+				tokens += j.TokensUsed
 				if j.Status != jobs.StatusCompleted && j.Status != jobs.StatusFailed {
 					inProgress++
 				}
 			}
+			passTokens = tokens
 			translated = o.localeTranslatedBlocks(ctx, proj, locale)
 			// Split the reported Done across TM/AI. The recorded viaTM is
 			// authoritative; the remainder is attributed to AI so the counters
@@ -938,6 +979,10 @@ func (o *convergenceOrchestrator) trackRunStarted(ctx context.Context, run *bsto
 	wsID := o.projectWorkspaceID(ctx, run.ProjectID)
 	props := analytics.Props(wsID, run.ProjectID)
 	props["trigger"] = run.Trigger
+	// Cold-start cohort: is this the workspace's first convergence run ever?
+	// It is the cohort the one-time new-workspace grant has to cover, so every
+	// run event carries it (grant sizing).
+	props[analytics.PropFirstRun] = o.server.isFirstConvergenceRun(ctx, wsID, run.ProjectID, run.CreatedAt, run.ID)
 	o.server.trackEvent(convergenceDistinctID(wsID, run.ProjectID), analytics.EventConvergenceRunStarted, props)
 }
 
@@ -945,10 +990,27 @@ func (o *convergenceOrchestrator) trackRunStarted(ctx context.Context, run *bsto
 // terminal state, carrying the outcome, the machine-readable stall_reason, and
 // coarse TM/AI attribution + duration so the fleet-wide "where do runs stall"
 // question is answerable (theme D / D3). Never carries content.
+//
+// It also carries the run's bucketed MAGNITUDE — what it actually spent, and
+// how much of its work TM covered for free — plus the first-run cohort marker,
+// so "how big must the new-workspace grant be to cover a first project?" is
+// answerable from realized spend rather than from a yes/no coverage flag.
 func (o *convergenceOrchestrator) trackRunCompleted(ctx context.Context, run *bstore.ConvergenceRun, standing *convergence.Standing) {
+	tokens := o.takeRunTokens(run.ID) // read once, terminal state: also frees the entry
 	if o.server.PostHogClient == nil {
 		return
 	}
+	wsID := o.projectWorkspaceID(ctx, run.ProjectID)
+	firstRun := o.server.isFirstConvergenceRun(ctx, wsID, run.ProjectID, run.CreatedAt, run.ID)
+	props := runCompletedProps(run, standing, wsID, tokens, firstRun)
+	o.server.trackEvent(convergenceDistinctID(wsID, run.ProjectID), analytics.EventConvergenceRunCompleted, props)
+}
+
+// runCompletedProps builds the convergence_run_completed payload. Split out of
+// the capture so the taxonomy — every value bucketed, nothing carrying content
+// — is directly testable. tokens is the AI token usage the run's translation
+// jobs reported; firstRun is the cold-start cohort marker.
+func runCompletedProps(run *bstore.ConvergenceRun, standing *convergence.Standing, workspaceID string, tokens int, firstRun bool) map[string]any {
 	viaTM, viaAI := 0, 0
 	for _, ls := range standing.Locales() {
 		viaTM += ls.ViaTM
@@ -958,8 +1020,7 @@ func (o *convergenceOrchestrator) trackRunCompleted(ctx context.Context, run *bs
 	if run.FinishedAt != nil && !run.CreatedAt.IsZero() {
 		duration = run.FinishedAt.Sub(run.CreatedAt)
 	}
-	wsID := o.projectWorkspaceID(ctx, run.ProjectID)
-	props := analytics.Props(wsID, run.ProjectID)
+	props := analytics.Props(workspaceID, run.ProjectID)
 	props["outcome"] = run.State
 	props["stall_reason"] = run.StallReason
 	props["passes"] = run.Passes
@@ -970,7 +1031,67 @@ func (o *convergenceOrchestrator) trackRunCompleted(ctx context.Context, run *bs
 	// fleet-wide "how often does a run hold on unsettled source" question is
 	// answerable alongside the credit/checks stalls (epic 019). Never content.
 	props["blocked_on_source"] = analytics.CountBucket(run.BlockedOnSource)
-	o.server.trackEvent(convergenceDistinctID(wsID, run.ProjectID), analytics.EventConvergenceRunCompleted, props)
+	// Grant sizing: what the run ACTUALLY cost (the tokens its translation jobs
+	// reported, priced at the platform's 1 token ≈ 1 credit rate) and how much of
+	// its produced work TM covered for free. Realized spend is censored by the
+	// balance — a run that ran out parks with needs_credits — so it is read
+	// together with the uncensored demand on convergence_estimate_computed.
+	props[analytics.PropConsumedCreditsBucket] = analytics.CreditBucket(billing.TokensToCredits(tokens))
+	props[analytics.PropTMLeveragePctBucket] = analytics.SharePercentBucket(viaTM, viaTM+viaAI)
+	props[analytics.PropFirstRun] = firstRun
+	return props
+}
+
+// isFirstConvergenceRun reports whether no convergence run precedes the given
+// one anywhere in the workspace — the cold-start cohort marker (`first_run`).
+// Scope is the WORKSPACE, not the project: the question the one-time grant has
+// to answer is "does a brand-new workspace's first project fit inside it", and
+// a second project's first run is no longer cold-start. It degrades to project
+// scope when the workspace is unknown (anonymous/self-hosted projects), and to
+// false when the run store is unavailable — analytics never fail an operation.
+//
+// runID is excluded from the probe (the row usually already exists), so the
+// answer is identical whether it is asked at start or at the terminal state.
+func (s *Server) isFirstConvergenceRun(ctx context.Context, workspaceID, projectID string, at time.Time, runID string) bool {
+	if s.ConvergenceRunStore == nil {
+		return false
+	}
+	if at.IsZero() {
+		at = time.Now().UTC()
+	}
+	scope := []string{projectID}
+	if workspaceID != "" {
+		if ids := s.workspaceProjectIDs(ctx, workspaceID); len(ids) > 0 {
+			scope = ids
+		}
+	}
+	had, err := s.ConvergenceRunStore.HasRunBefore(ctx, scope, at, runID)
+	if err != nil {
+		slog.Debug("convergence: first-run probe failed", "project", projectID, "error", err)
+		return false
+	}
+	return !had
+}
+
+// workspaceProjectIDs lists the workspace's project ids (nil when unknown) —
+// the scope of the workspace-wide first-run probe. It reads the project list
+// the loop rollup already reads; projects are few per workspace and the list is
+// a single store call.
+func (s *Server) workspaceProjectIDs(ctx context.Context, workspaceID string) []string {
+	if s.ContentStore == nil || workspaceID == "" {
+		return nil
+	}
+	projects, err := s.ContentStore.ListProjects(ctx)
+	if err != nil {
+		return nil
+	}
+	var ids []string
+	for _, p := range projects {
+		if p != nil && p.WorkspaceID == workspaceID {
+			ids = append(ids, p.ID)
+		}
+	}
+	return ids
 }
 
 // projectWorkspaceID best-effort resolves a project's workspace for analytics

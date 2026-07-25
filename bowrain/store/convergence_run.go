@@ -231,6 +231,43 @@ func (s *ConvergenceRunStore) LatestRunForProjects(ctx context.Context, projectI
 	return run, err
 }
 
+// HasRunBefore reports whether any run exists across the given projects that
+// started at or before the cutoff, ignoring excludeRunID. It is the cold-start
+// probe behind the `first_run` analytics marker: pass a workspace's project ids
+// and a run's own id + created_at, and a false answer means that run is the
+// workspace's FIRST convergence run ever.
+//
+// It is deliberately a bounded existence probe, not a COUNT: the IN + created_at
+// predicate rides idx_convergence_runs_project (project_id, created_at DESC) and
+// LIMIT 1 stops at the first hit, so no schema column is needed to know whether
+// a workspace has ever run. Excluding the run's own id (rather than a strict
+// created_at <) keeps the answer stable whether it is asked at run start or at
+// terminal state, when later runs may already exist.
+func (s *ConvergenceRunStore) HasRunBefore(ctx context.Context, projectIDs []string, at time.Time, excludeRunID string) (bool, error) {
+	if len(projectIDs) == 0 {
+		return false, nil
+	}
+	placeholders := make([]string, len(projectIDs))
+	args := make([]any, 0, len(projectIDs)+2)
+	for i, pid := range projectIDs {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args = append(args, pid)
+	}
+	args = append(args, at.UTC().Format(rfc3339Nano), excludeRunID)
+	var one int
+	err := s.db.QueryRowContext(ctx, fmt.Sprintf(
+		`SELECT 1 FROM convergence_runs
+		 WHERE project_id IN (%s) AND created_at <= $%d AND id <> $%d LIMIT 1`,
+		strings.Join(placeholders, ", "), len(projectIDs)+1, len(projectIDs)+2), args...).Scan(&one)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("probe earlier convergence run: %w", err)
+	}
+	return true, nil
+}
+
 // ActiveRun returns the project's currently-running run, or (nil, nil) when
 // none is in flight — the guard a start uses to avoid a second concurrent run.
 func (s *ConvergenceRunStore) ActiveRun(ctx context.Context, projectID string) (*ConvergenceRun, error) {
