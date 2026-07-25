@@ -1,128 +1,98 @@
 ---
-sidebar_position: 4
+sidebar_position: 3
 title: Quick start
 slug: /quickstart
+description: Get content into a Bowrain workspace — from the systems it already lives in, from a repository with no pipeline, or from a developer's checkout.
+keywords: [quick start, bowrain, connectors, workspace, brand scan, review, publish, kapi]
 ---
 
 # Quick start
 
-There are two ways into Bowrain, and they meet in the same workspace. **Start
-from your content** if the work lives in a CMS, a design tool, or documents —
-no install, nothing local. **Start from a codebase** if the source files live
-in a repository you work in. Either way, the workspace's brand voice,
-terminology, and translation memory govern what gets produced, and the
-[kapi loop](/the-loop) keeps it caught up.
+Content reaches a workspace through a [connector](/server/connectors), and every
+route meets in the same place: the same voice profile, the same vocabulary, the
+same content memory, the same review queue. Pick the route that matches where
+your source lives.
 
-## Start from your content
+| Your source lives in | Start here | Anything to install? |
+| --- | --- | --- |
+| A content platform, a design tool, or documents | [From your content](#from-your-content) | No |
+| A repository, and nobody wants a pipeline | [From a repository](#from-a-repository) | No |
+| A repository a developer works in every day | [From a checkout](#from-a-checkout) | The kapi CLI |
 
-You write and publish content; you want it on brand, and optionally in more
-languages. Nothing to install — open
-[app.bowrain.cloud](https://app.bowrain.cloud) (or your own server) and sign
-in. A personal workspace is created on first login.
+## From your content
+
+You write and publish content; you want it on brand, and in more languages.
+Nothing to install — open [app.bowrain.cloud](https://app.bowrain.cloud) (or your
+own server) and sign in. A personal workspace is created on first login.
 
 1. **Create a project** and bring content in. Upload files directly in the web
-   app — the editor works on the formats you already publish — or have your
-   content systems connected server-side (WordPress, HubSpot, Figma) so source
-   flows in and published results flow back. See
+   app — the editor works on the formats you already publish — or connect the
+   systems your content lives in (WordPress, HubSpot, Figma) so source flows in
+   and published results flow back. See
    [Getting started on the server](/server/getting-started) and
    [Connectors](/server/connectors).
 2. **Establish the brand context.** Run a [brand scan](/server/brand-scan) over
-   content you already trust — it drafts a voice profile and glossary
-   candidates for you to review and adopt. Terminology and translation memory
-   grow in the workspace from there.
-3. **Translate and check.** In the [editor](/server/translation-editor), AI
-   drafts against the workspace's voice profile, terminology, and memory;
-   checks flag what drifts.
+   content you already trust — it drafts a voice profile and term candidates for
+   you to review and adopt. Vocabulary and content memory grow in the workspace
+   from there.
+3. **Draft and check.** In the [editor](/server/translation-editor), AI drafts
+   against the workspace's voice profile, vocabulary, and memory; checks flag
+   what drifts.
 4. **Review and publish.** Step through the [Review surface](/server/review),
    approve what's right — corrections feed the
    [learning loop](/server/brand-voice) — then export, or publish back through
    the connector.
 
-The end-to-end path for this door is
+The end-to-end path for this route is
 [Publish on brand](/server/publish-on-brand).
 
-## Start from a codebase
+## From a repository
 
-Your source files live in a repository. Sync them with the
-[kapi CLI](/installation) (with the bowrain plugin installed) and let the loop
-run on the server.
+Your source files live in a GitHub or GitLab repository, and you would rather
+not add a pipeline to it. Connect the repository server-side: a push webhook
+triggers a run, and the results arrive as **one open pull/merge request** that
+every later delivery updates in place.
 
-### Initialize a project
+Nothing is installed and nothing is checked out — the server holds the
+credentials and does the work. With a GitHub App registered for your server,
+installing the app on a repository and binding it to a project is the only
+per-repository step.
 
-Create a `.kapi` project — a `kapi.yaml` recipe at the project root with
-a sibling `.kapi/` state directory (like `.git` for content):
+See the [GitHub / GitLab connector](/server/connectors/github) for setup, and
+[The Bowrain GitHub App](/cli/ci/github-app) for the walkthrough.
 
-```bash
-kapi init
-```
+## From a checkout
 
-The interactive wizard signs you in and connects the project to a workspace on
-your server (or creates an anonymous project with a claim link, or a local-only
-project). Or skip the wizard with flags:
-
-```bash
-kapi init --name my-app --source en --targets fr,de
-```
-
-### Bring it up to date
-
-One verb runs the [kapi loop](/the-loop): reuse what the workspace has
-translated before, AI-translate the rest, check everything produced, park what
-needs a person:
+A developer edits the source files every day and wants the results in the
+working tree they already have open. This is the [kapi
+connector](/server/connectors/kapi) — the kapi CLI with the bowrain plugin
+installed:
 
 ```bash
-kapi up          # runs on the server — org keys, shared memory and terminology
-kapi up --plan   # dry run: pending work, TM leverage, and a token estimate
+brew install neokapi/tap/bowrain-cli
 ```
 
-On a connected project `kapi up` prints its venue first (*server*), streams the
-run's progress into your terminal, and pulls the results down. Parked units
-land in the team's [review queue](/server/review).
-
-### See where things stand
+Connect the repository to a workspace, then catch it up:
 
 ```bash
-kapi status      # per-locale coverage, server standing, and the venue
-kapi diff        # what changed locally since the last sync
+kapi init        # write kapi.yaml + .kapi/, sign in, connect to a workspace
+kapi up          # catch every language up — runs on the server
+kapi status      # per-language coverage, server standing, and venue
 ```
 
-### Move content without translating
+`kapi up` pushes what drifted, runs on the server with the organization's keys
+and shared memory, streams progress into the terminal, and pulls the results
+down. What a machine cannot decide parks into the team's
+[review queue](/server/review).
 
-`kapi push` and `kapi pull` are pure transport — like `git push` and
-`git fetch`, they move project state and never produce translations:
-
-```bash
-kapi push        # send local changes to the server
-kapi pull        # fetch teammates' and reviewers' work
-```
-
-### Run a specific flow
-
-For a custom composition — one named flow, one pass, no gate loop — define a
-flow in `.kapi/flows/` and run it:
-
-```bash
-kapi run my-flow
-```
-
-See [Flows](/cli/flows/overview).
-
-### Key commands
-
-| Command                 | Description                                     |
-| ----------------------- | ----------------------------------------------- |
-| `kapi init`             | Initialize a project                            |
-| `kapi up`               | Run the loop — catch every language up          |
-| `kapi status`           | Coverage, sync state, and venue                 |
-| `kapi diff`             | What changed since the last sync                |
-| `kapi push` / `kapi pull` | Pure transport to and from the server         |
-| `kapi check --ship`     | The release gate (exit 3 when unmet)            |
-| `kapi run <flow>`       | Execute a composed or custom flow               |
-| `kapi pseudo-translate` | Local pseudo-translation for testing            |
+The full command set, flows, and the CI contract are in the
+[CLI section](/cli/overview); [Installation](/installation) covers the other
+platforms.
 
 ## Next steps
 
-- [The kapi loop on Bowrain](/the-loop) — how produce, promote, and release fit together
-- [Publish on brand](/server/publish-on-brand) — the content door, end to end
-- [The loop in CI](/cli/ci/overview) — GitHub Actions, GitLab CI, and the Bowrain GitHub App
-- [Walkthrough](/walkthroughs/bowrain-getting-started) — the developer path on video
+- [Connectors](/server/connectors) — every route into a workspace, side by side
+- [Keeping content caught up](/the-loop) — what a run does and who starts it
+- [Publish on brand](/server/publish-on-brand) — the content route, end to end
+- [The loop in CI](/cli/ci/overview) — pipelines and the ship gate
+- [Walkthrough](/walkthroughs/bowrain-getting-started) — the developer route on video

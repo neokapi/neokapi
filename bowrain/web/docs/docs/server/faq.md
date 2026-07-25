@@ -1,26 +1,26 @@
 ---
 title: FAQ
 sidebar_position: 22
-description: Short, honest answers — kapi versus Bowrain, self-hosting, credits and bring-your-own keys, your data if you leave, supported formats, model training, review statuses, and MT providers.
+description: Short, honest answers — when a platform is warranted, self-hosting, credits and bring-your-own keys, your data if you leave, supported formats, model training, review statuses, and MT providers.
 ---
 
 # Frequently asked questions
 
 ## When do I need Bowrain, and when is kapi enough?
 
-kapi is the open-source, single-user toolchain: it reads, translates, and ships
-content in many formats, runs checks, and uses translation memory — all locally,
-from files you own, with no server or account. Bowrain is the server platform that
-hosts brand voice, terminology, and translation memory once — across every
-project, surface, and teammate — adds real-time collaboration, connectors,
-automation, and versioned history, and turns your corrections into enforced
-checks.
+kapi is the open-source, single-user toolchain: it reads and writes many
+content formats, runs checks, and draws on local memory — all from files you
+own, with no server or account. Bowrain is the platform that holds brand voice,
+vocabulary, and content memory once, across every project, surface, and
+teammate, and adds real-time collaboration, connectors, automation, versioned
+history, and corrections that become enforced checks.
 
-The relationship is the same as git and GitHub: you start in kapi and connect a
-project to Bowrain when the work should outlive a single run — several projects
-or surfaces to keep consistent, corrections that should compound, or a team.
-Bowrain is as much for a solo developer with many surfaces as it is for a team. The full comparison
-is in [Kapi vs Bowrain](/getting-started/kapi-vs-bowrain).
+kapi on its own is enough when one person works from one checkout. Reach for
+Bowrain when content lives in systems beyond that checkout, when several
+projects or surfaces should share one memory, when several people work on the
+same content, or when corrections should compound. Bowrain is as much for a solo
+builder with many surfaces as it is for a team. The full comparison is in
+[How Bowrain and kapi fit together](/getting-started/kapi-vs-bowrain).
 
 ## Can I self-host Bowrain?
 

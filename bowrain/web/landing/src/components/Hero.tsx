@@ -64,10 +64,10 @@ export function Hero() {
         </h1>
 
         <p className="animate-fade-in-up-delay-2 mx-auto mt-6 max-w-xl text-lg text-muted-foreground md:text-xl">
-          Kapi converges your content on your machine. Bowrain keeps every project converging — the
-          shared brand memory for your team and your agents. Voice, terminology, approved
-          translations, and corrections live in one place that every project, person, and agent
-          draws from — and improves with every review.
+          Bowrain is the shared brand memory for your team and your agents. Voice, vocabulary,
+          approved text, and corrections live in one place that every project, person, and agent
+          draws from — and improves with every review. Connected to the systems your content already
+          lives in.
         </p>
 
         <div className="animate-fade-in-up-delay-3 mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">

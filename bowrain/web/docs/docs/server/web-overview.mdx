@@ -7,11 +7,11 @@ import { ThemedImage, ThemedVideo } from "@neokapi/docs-shared";
 
 # Overview
 
-Bowrain is a governed, multi-user content platform served from one place — the Bowrain server. Everyone reaches the same workspace through two clients: a **browser** and a native **[desktop app](/server/desktop-app)**. They are equal real-time clients, so the editing experience, terminology, translation memory, presence, and reviews are shared across both. Writers and reviewers work here entirely; developers meet the same workspace through [the kapi loop](/the-loop) — what a run parks arrives in the review queue, and what gets approved here feeds the next run. This section describes what the platform does, organized by what you do with it; client-specific differences are noted inline, and the [desktop app](/server/desktop-app) page covers what is different about the native client (offline editing).
+Bowrain is a governed, multi-user content platform served from one place — the Bowrain server. Everyone reaches the same workspace through two clients: a **browser** and a native **[desktop app](/server/desktop-app)**. They are equal real-time clients, so the editing experience, terminology, translation memory, presence, and reviews are shared across both. Writers and reviewers work here entirely; developers meet the same workspace through [the same server runs](/the-loop) — what a run parks arrives in the review queue, and what gets approved here feeds the next run. This section describes what the platform does, organized by what you do with it; client-specific differences are noted inline, and the [desktop app](/server/desktop-app) page covers what is different about the native client (offline editing).
 
 ## A quick tour
 
-The editor works on content from any source — a CMS, a design tool, a git repository, or local files synced with [kapi](https://neokapi.github.io/web/neokapi/) — held on the server, shared across a team and governed over time. These short tours run against a live workspace.
+The editor works on content from any [connector](/server/connectors) — a content platform, a design tool, a repository, or a developer's checkout — held on the server, shared across a team and governed over time. These short tours run against a live workspace.
 
 ### The translation editor
 
@@ -37,7 +37,7 @@ Terminology and a translation memory are often per-person files or spreadsheets.
 
 ### Review and approve
 
-Projects in Bowrain — whether synced from kapi or pulled by a connector — are reviewed by the team together. The Review surface steps through a file one block at a time — source, target, and the status that tracks each block from draft to translated to reviewed — so the team always knows what is left, and approvals are recorded against the workspace rather than a local file.
+Projects in Bowrain are reviewed by the team together, whichever connector the content arrived through. The Review surface steps through a file one block at a time — source, target, and the status that tracks each block from draft to translated to reviewed — so the team always knows what is left, and approvals are recorded against the workspace rather than a local file.
 
 <ThemedVideo
   sources={{

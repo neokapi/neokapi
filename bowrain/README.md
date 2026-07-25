@@ -4,7 +4,7 @@
 [![Web Landing](https://github.com/neokapi/neokapi/actions/workflows/web-landing.yml/badge.svg)](https://github.com/neokapi/neokapi/actions/workflows/web-landing.yml)
 [![Pages Deploy](https://github.com/neokapi/neokapi/actions/workflows/pages-deploy.yml/badge.svg)](https://github.com/neokapi/neokapi/actions/workflows/pages-deploy.yml)
 
-Bowrain keeps every project converging — the shared brand memory (voice, terminology, approved translations, corrections) for your team and your agents, built on the [neokapi framework](../README.md): a sync CLI for developers, a web app for translators, a desktop app for visual workflows, and a server that holds it all together.
+Bowrain governs and stewards multilingual content — the shared brand memory (voice, vocabulary, approved text, corrections) for your team and your agents, built on the [neokapi framework](../README.md): a server that holds it together, connectors to the systems content already lives in, a web app and a desktop app for people, and a CLI plugin for the developer and CI route.
 
 This subtree (`bowrain/`) is licensed AGPL-3.0. The neokapi framework at the repository root is Apache-2.0; see the [root README](../README.md) for that side.
 
@@ -20,7 +20,7 @@ brew install --cask neokapi/tap/bowrain   # Desktop app (macOS)
 ```
 bowrain/
 ├── core/            Shared platform types (auth, store, connector, project, event)
-├── cli/             Bowrain CLI plugin (`kapi-bowrain`) — commands run as `kapi init/push/pull/sync/...`
+├── plugin/          Bowrain CLI plugin (`kapi-bowrain`) — commands run as `kapi init/push/pull/up/...`
 ├── auth/            OIDC + AuthStore + SQLite/PostgreSQL auth
 ├── server/          REST/gRPC server (Echo v4)
 ├── service/         Auth, project, connector, flow services

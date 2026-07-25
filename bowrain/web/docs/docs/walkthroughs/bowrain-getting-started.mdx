@@ -11,9 +11,10 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 
 The kapi developer path: connect a local project to your Bowrain server, push the
 source for the team to translate, and pull translations back — synced like git.
-This is the on-ramp for a developer working from a local codebase; if your
-content lives in a CMS, a design tool, or a git host,
-[connect it server-side](/server/connectors) instead — no checkout needed.
+This is one of [several routes into a workspace](/server/connectors), and the
+one for a developer working from a checkout. Content in a content platform, a
+design tool, or a repository connects server-side instead — no checkout, and
+nothing installed.
 
 <ThemedVideo
   sources={{
@@ -27,8 +28,8 @@ content lives in a CMS, a design tool, or a git host,
 `--workspace <slug>` if you belong to several). `kapi add` tracks the files you
 want translated; `kapi push` sends the source up (pure transport); `kapi status`
 shows standing, exactly like git; and `kapi pull` brings translations back into
-the same files and formats. `kapi up` runs the whole kapi loop on the
-server — push, catch up, and pull in one command, for the daily reconcile and CI.
+the same files and formats. `kapi up` does all of it on the server in one command — push, catch up, and
+pull — for the daily reconcile and for CI.
 
 ## Next
 

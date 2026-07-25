@@ -1,126 +1,101 @@
 ---
 sidebar_position: 1
 title: Overview
+description: The kapi connector in depth — the project model, the command set, flows, and configuration for a developer or CI job working from a checkout.
+keywords: [kapi, bowrain plugin, project sync, kapi.yaml, push, pull, up, flows, CI]
 ---
 
-# Project sync
+# The developer route
 
-The bowrain plugin adds project sync to [kapi](https://neokapi.github.io/web/neokapi/): it connects a `.kapi` project in your repository to a Bowrain server, so a team shares one source of brand voice, terminology, memory, and translations.
+This section documents **kapi**, the connector for a developer's working
+checkout. It is one of [several routes into a
+workspace](/server/connectors) — a content platform, a design tool, or a
+repository connected server-side reach the same workspace without any of it. Use
+this section when the source files live in a repository someone edits every day
+and the results should land in that working tree.
 
-kapi is the **local-files / git connector** — one of [several ways content reaches Bowrain](/server/connectors), and the path for a developer working from a codebase. Content can just as well arrive server-side from a CMS, a design tool, or a git host with no local checkout.
+For when to choose this route over a server-side repository connector, see
+[the kapi connector](/server/connectors/kapi).
 
 :::note
-Project sync ships as the **`kapi-bowrain` plugin** for the `kapi` CLI — there is no separate `bowrain` binary. Every command below is invoked as `kapi <command>` (e.g. `kapi init`, `kapi push`). See [Installation](/installation) to set it up.
+The Bowrain commands ship as the **`kapi-bowrain` plugin** for the `kapi` CLI —
+there is no separate `bowrain` binary. Every command below is invoked as `kapi
+<command>` (e.g. `kapi init`, `kapi push`). See
+[Installation](/installation) to set it up.
 :::
 
-## How it works
+## The project model
 
-With the plugin installed, kapi is the local end of a **git-to-GitHub** relationship with the server — you work locally and push/pull to share. It:
+A connected project is a kapi project whose recipe declares a `server:` block:
 
-- Initializes and manages `.kapi` projects in your repository
-- Runs translation flows (AI, MT, TM, QA) on project files
-- Syncs changes with Bowrain Server via push/pull
-- Provides project status, diff, and configuration commands
-
-## Key Features
-
-### Project Model
-
-A bowrain project is a kapi project with a `server:` block on its recipe:
-
-- **`kapi.yaml`** — the recipe (committed) — project settings, content collections, flows, server connection
+- **`kapi.yaml`** — the recipe (committed): languages, content collections,
+  flows, plugins, brand, and the server connection
 - **`.kapi/flows/`** — optional file-per-flow definitions (committed)
-- **`.kapi/cache/sync-cache.json`** — sync cache (gitignored, local only)
+- **`.kapi/cache/sync-cache.json`** — sync state (gitignored, local only)
 - **`.kapi/cache/blocks.db`** — block store (gitignored, regenerable)
 
-### Translation Tools and Flows
+The CLI searches upward from the current directory, the way git finds a
+repository root. See [Project model](/cli/project-model) for the full recipe
+reference.
 
-Built-in tools run as top-level commands, and composed flows run via `kapi run`:
+## Catching a project up
 
-```bash
-# Run built-in AI translation tool
-kapi translate
-
-# Run a composed multi-tool flow
-kapi run translate-qa
-
-# Create custom flows in .kapi/flows/my-flow.yaml
-# Run custom flow
-kapi run my-flow
-```
-
-Tools and flows automatically process all files matching the recipe's `content:` collections.
-
-### Server Sync
-
-Push/pull workflow similar to git:
+One verb brings every language up to date:
 
 ```bash
-kapi status    # Show local changes
-kapi diff      # Compare local vs. server
-kapi pull      # Fetch from server
-kapi push      # Upload to server
+kapi up          # runs on the server — org keys, shared memory and vocabulary
+kapi up --plan   # dry run: pending work, reuse from memory, and a cost estimate
 ```
 
-Only changed blocks transfer (content-addressed sync).
+On a connected project `kapi up` prints its resolved venue first (*server*),
+pushes what drifted, streams the run's progress into the terminal, and pulls the
+results down. What a machine cannot decide parks into the team's
+[review queue](/server/review). See [`kapi up`](/cli/commands/up) for flags and
+venue resolution, and [Keeping content caught up](/the-loop) for what a run
+does.
 
-### Configuration
+## Moving content without producing
 
-View or set project and global configuration values:
+`kapi push` and `kapi pull` are pure transport — like `git push` and `git
+fetch`, they move project state and never draft anything:
 
 ```bash
-kapi config name              # Print project name
-kapi config name "My App"     # Set project name
-kapi bowrain config --global server.url https://app.bowrain.cloud  # Set global server URL
+kapi status    # local changes, per-language coverage, server standing
+kapi diff      # compare local against the server
+kapi pull      # fetch teammates' and reviewers' work
+kapi push      # send local changes up
 ```
 
-## When to use it
+Only changed blocks transfer — sync is content-addressed.
 
-Use kapi with the bowrain plugin when you:
+## Running one flow
 
-- **Manage localization projects** with a `kapi.yaml` recipe
-- **Sync with a Bowrain server** for team collaboration
-- **Run project-based flows** defined in `.kapi/flows/` or inline on the recipe
-- **Want automation** via CI/CD pipelines
-
-Use kapi on its own (no plugin) when you:
-
-- **Process standalone files** without a project
-- **Need quick one-off operations** (word count, pseudo-translate)
-
-Use the desktop or web editor when you:
-
-- **Need visual editing** with split preview, context panel
-- **Collaborate** with team members in real-time
-- **Manage workspaces** and projects in a browser
-
-## Installation
+For a specific composition — one named flow, one pass, no gate loop — define a
+flow in `.kapi/flows/` (or inline on the recipe) and run it:
 
 ```bash
-# macOS
-brew install neokapi/tap/bowrain-cli
-
-# Download binary
-# Visit https://github.com/neokapi/neokapi/releases
+kapi run my-flow          # a custom flow
+kapi run translate-qa     # a built-in composed flow
 ```
 
-## Quick Start
+Ad-hoc file work stays available outside any project, for example
+`kapi translate messages.json --target-lang fr` or
+`kapi pseudo-translate src/locales/en.json`. See [Flows](/cli/flows/overview).
+
+## Configuration
 
 ```bash
-# Initialize project
-cd my-app/
-kapi init --name "My App" --source en-US --targets fr-FR,de-DE
-
-# Run AI translation
-kapi translate
-
-# Check status
-kapi status
+kapi config name                                                   # print a project setting
+kapi config name "My App"                                          # set it
+kapi bowrain config --global server.url https://app.bowrain.cloud  # set the default server
 ```
 
-## Next Steps
+See [`kapi config`](/cli/commands/config).
 
-- [Project Model](/cli/project-model)
-- [Commands Reference](/cli/commands/init)
-- [Flows](/cli/flows/overview)
-- [Use Cases](/cli/use-cases/website-translation)
+## Next steps
+
+- [kapi connector](/server/connectors/kapi) — where this route sits among the others
+- [Project model](/cli/project-model) — the recipe reference
+- [Commands](/cli/commands/init) — the full command reference
+- [Flows](/cli/flows/overview) — composing and customizing runs
+- [The loop in CI](/cli/ci/overview) — pipelines and the ship gate

@@ -1,6 +1,6 @@
 ---
 title: HubSpot
-sidebar_position: 3
+sidebar_position: 2
 ---
 
 # HubSpot connector
@@ -11,12 +11,11 @@ for translation, and writes approved text back to the same pages.
 
 :::note
 
-WordPress, Figma, and HubSpot connectors are added in a project's
-**Connectors** view in the web app, or through the workspace **connectors
-API** described below. Saved credentials are write-only — used for sync,
-never displayed again. The local-file and Git connectors are a separate,
-server-side surface (see [Connectors](/server/connectors)). All connector
-operations require the **manage connectors** permission.
+This connector is added in a project's **Connectors** view in the web app, or
+through the workspace **connectors API** described below. Saved credentials are
+write-only — used for sync, never displayed again. All connector operations
+require the **manage connectors** permission. It is one route into a workspace
+among several — see [Connectors](/server/connectors) for the full row.
 
 :::
 

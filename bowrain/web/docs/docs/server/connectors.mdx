@@ -1,183 +1,139 @@
 ---
 sidebar_position: 5
 title: Connectors
+description: How content reaches a Bowrain workspace — content platforms, design tools, code repositories, and a developer's checkout via kapi — and how approved results publish back.
+keywords: [connectors, wordpress, figma, hubspot, github, gitlab, git, kapi, sync, publish]
 ---
 
-import { RoundTripDiagram } from "@neokapi/docs-shared";
+import { LanesDiagram, RoundTripDiagram } from "@neokapi/docs-shared";
 
 # Connectors
 
-Connectors link Bowrain Server to the systems content already lives in — code repositories, content management platforms, design tools, and marketing platforms. Instead of manually exporting and importing files, a connector pulls content into Bowrain, lets your team translate it, and pushes the translations back.
+Bowrain governs content where it already lives. A **connector** links a
+workspace to a system that holds source content, brings that content into a
+project so the workspace's voice, terms, and content memory apply to it, and
+publishes approved results back to where they came from.
 
-## Connector types
+No single connector is the way in. A workspace can run several at once — a
+marketing site, a design file, and a product repository can all converge under
+one governed vocabulary.
 
-| Type          | Examples                   | Purpose                                    |
-| ------------- | -------------------------- | ------------------------------------------ |
-| **Code**      | GitHub, GitLab, Bitbucket  | Localization files in repositories         |
-| **CMS**       | Contentful, Sanity, Strapi | Source content for translation             |
-| **Design**    | Figma, Sketch              | UI text strings from design files          |
-| **Marketing** | HubSpot, Marketo           | Campaign and email content                 |
-| **File**      | kapi (bowrain plugin)      | Local file sync from a developer's machine |
+## The connector row
 
-## How connectors work
+| Connector | What it holds | Where it runs | Direction |
+| --- | --- | --- | --- |
+| [WordPress](/server/connectors/wordpress) | Site posts — title, body, excerpt | Server-side | In and back out |
+| [HubSpot](/server/connectors/hubspot) | CMS page title and meta description | Server-side | In and back out |
+| [Figma](/server/connectors/figma) | Design text layers | Server-side | In only |
+| [GitHub / GitLab](/server/connectors/github) | Repository content files | Server-side | In, back out as a pull/merge request |
+| [kapi](/server/connectors/kapi) | A developer's working checkout | On the developer's machine, or in CI | In and back out |
 
-1. **Pull** — the connector fetches content from the external system and delivers it to Bowrain Server
-2. **Translate and review** — your team translates and reviews the content in the web or desktop editor
-3. **Push** — the connector sends the approved translations back to the external system
+Everything above the last row runs **server-side**: nobody installs anything,
+nothing is checked out, and the workspace reaches the source system directly
+over its API. The last row is the developer path — a person or a CI job working
+in a repository, driving content in and out from where they already are.
+
+<LanesDiagram
+  lanes={[
+    {
+      title: "Content platforms",
+      sub: "wordpress · hubspot",
+      role: "io",
+      steps: ["fetch over the API", "converge in the workspace", "publish back"],
+    },
+    {
+      title: "Design tools",
+      sub: "figma",
+      role: "io",
+      steps: ["fetch text layers", "converge in the workspace", "read back in the file"],
+    },
+    {
+      title: "Code repositories",
+      sub: "github · gitlab · git",
+      role: "io",
+      steps: ["push webhook", "converge server-side", "deliver a pull request"],
+    },
+    {
+      title: "A developer's checkout",
+      sub: "kapi",
+      role: "io",
+      steps: ["kapi push / kapi up", "converge on the server", "results land in the tree"],
+    },
+  ]}
+  caption="Four peer routes into the same workspace. The first three run server-side with no checkout; the fourth is the developer and CI path."
+/>
+
+## What a connector does
+
+1. **Fetch** — the connector reads source content from the external system and
+   delivers it into the project.
+2. **Converge** — the workspace catches the content up: reuse what memory
+   already holds, draft the rest, check everything against the voice profile
+   and the workspace's terms, and park what needs a person. See
+   [Keeping content caught up](/the-loop).
+3. **Publish** — approved results go back to the system they came from.
 
 <RoundTripDiagram
   forward={[
-    { label: "External system", sub: "CMS · design · marketing · git · file" },
-    { label: "Bowrain Server", sub: "ContentStore", role: "io" },
-    { label: "Translators", sub: "web · desktop", role: "translate" },
+    { label: "Source system", sub: "content platform · design · repository · checkout" },
+    { label: "Bowrain workspace", sub: "governed content store", role: "io" },
+    { label: "People & agents", sub: "web · desktop · MCP", role: "translate" },
   ]}
   back={[
-    { label: "External system", sub: "CMS · design · marketing · git · file" },
-    { label: "Bowrain Server", sub: "ContentStore", role: "io" },
-    { label: "Translators", sub: "web · desktop", role: "translate" },
+    { label: "Source system", sub: "content platform · design · repository · checkout" },
+    { label: "Bowrain workspace", sub: "governed content store", role: "io" },
+    { label: "People & agents", sub: "web · desktop · MCP", role: "translate" },
   ]}
   hub={{ label: "Connector" }}
   forwardIndex={0}
   backIndex={0}
   forwardLabel="fetch"
   backLabel="publish"
-  caption="A connector pulls source content in and pushes approved translations back out."
+  ariaLabel="Round trip: a connector fetches source into the workspace, people and agents work on it, and approved results publish back."
+  caption="Every connector is the same round trip: source in, governed work in the middle, approved results back out."
 />
 
-## The kapi connector (local files & git)
-
-kapi is the connector for a local codebase: with the bowrain plugin installed, a developer runs `kapi push` to send local source files to the server and `kapi pull` to receive translations back into the local project. It is one connector among several — the same workspace can just as well pull from a CMS, a design tool, or a git repository, with no local checkout involved.
-
-See [Project sync](/cli/overview) for the kapi workflow.
-
-## Server-side connectors
+## Managing connectors
 
 Server-side connectors are scoped to a workspace and managed from a project's
-**Connectors** view in the web app: add a WordPress, Figma, or HubSpot
-connector there (saved credentials are write-only — used for sync, never
-displayed again), browse the content it can see, fetch it into the project,
-and publish translations back. The same operations are available through the
-workspace connectors API for scripting. Both surfaces require the
-**manage connectors** permission; the forge connector is the exception and is
-configured through the API only (below).
+**Connectors** view in the web app: add one there, browse the content it can
+see, fetch it into the project, and publish results back. Saved credentials are
+write-only — used for sync, never displayed again. The same operations are
+available through the workspace connectors API for scripting. Both surfaces
+require the **manage connectors** permission.
 
-Sync is explicit: content moves when you select **Fetch now** or **Publish**,
-or call the corresponding endpoints. A fetch does not emit an event, so
-automation rules do not react to it — the convergence orchestrator subscribes
-to push completion. Catch up fetched content by starting a run or a flow, or
-let the project's `server.converge` policy produce and review targets.
+Sync is explicit: content moves when you select **Fetch now** or **Publish**, or
+call the corresponding endpoints. A fetch does not emit an event, so automation
+rules do not react to it — the convergence orchestrator subscribes to push
+completion. Catch fetched content up by starting a run or a flow, or let the
+project's `server.converge` policy produce and review targets.
 
-Each guide covers the content it syncs, the credentials it needs, setup, and
-its limitations:
+The GitHub/GitLab connector is configured through the workspace connectors API,
+or from a project's Connectors page once the server has a GitHub App. The plain
+`git` and local `file` connectors are server-side building blocks with no
+web-app surface — they back the repository connector and server-hosted
+directories. The kapi connector needs no server-side configuration at all: it
+authenticates as the developer and connects a project from the command line.
 
-- [WordPress](/server/connectors/wordpress) — CMS posts (title, content, excerpt)
-- [Figma](/server/connectors/figma) — design text layers (pull-only)
-- [HubSpot](/server/connectors/hubspot) — CMS page title and meta description
-- Forge (GitHub / GitLab) — a repository delivers translations as a pull/merge
-  request with zero CI configuration (below)
+## Choosing a route for a repository
 
-### Forge delivery (GitHub / GitLab)
+Two connectors cover source files in a repository, and they suit different
+teams:
 
-The `forge` connector turns a repository into a connected project with no CI
-configuration in the repository at all: a push webhook triggers the server,
-the server catches up, and the produced translations come back as **one open
-pull/merge request** that every delivery updates in place — never a direct
-push to the tracked branch. When a run parks work for a person, the request
-says so; approvals travel through the project's review queue and arrive in a
-later delivery.
+- **[GitHub / GitLab](/server/connectors/github)** when nobody wants a
+  pipeline. A push webhook triggers the server, and results arrive as one open
+  pull/merge request that every delivery updates in place. There is no CI
+  configuration in the repository and no CLI on anyone's machine.
+- **[kapi](/server/connectors/kapi)** when a developer wants the work under
+  their own hand — running it locally before a commit, watching progress stream
+  into their terminal, or gating a release in CI with an explicit exit code.
 
-The forge connector is not offered in the web app's add-connector dialog.
-Create it through the workspace connectors API (`manage-connectors`
-permission), then point a webhook at the server:
+They are not exclusive. A repository can deliver through GitHub while a
+developer also runs kapi locally against the same project.
 
-```bash
-curl -X POST "$SERVER/api/v1/$WORKSPACE/connectors"   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json"   -d '{
-    "type": "forge",
-    "name": "website",
-    "config": {
-      "repo": "https://github.com/acme/website.git",
-      "branch": "main",
-      "project_id": "<project-id>",
-      "token": "<forge API token>",
-      "webhook_secret": "<random secret>",
-      "patterns": "src/locales/**/*.json"
-    }
-  }'
-```
+## Next steps
 
-Then add a **push webhook** in the repository settings pointing at
-`$SERVER/api/webhooks/forge/<connector-id>` with the same secret — GitHub
-signs the payload (secret field), GitLab sends it as the secret token. The
-token needs pull/merge-request write access: a GitHub fine-grained PAT with
-contents + pull-requests write, or a GitLab project access token with api
-scope.
-
-Optional config: `forge` (`github` | `gitlab`; default inferred from the repo
-host — self-managed GitLab included), `delivery_branch` (default
-`bowrain/translations`), `pr_title`, `pr_labels`. Target files land at the
-conventional per-locale path — a path segment or filename stem equal to the
-source language becomes the target language (`locales/en/app.json →
-locales/fr/app.json`); other layouts get the locale suffixed to the stem.
-
-Credentials are sealed at rest like every connector secret. Pushes to
-branches other than the tracked one — including the delivery branch itself —
-are ignored, so the connector's own deliveries never re-trigger a run.
-
-#### GitHub App mode (no tokens, no per-repo webhooks)
-
-With a GitHub App registered for your server, connectors on GitHub need
-neither a token nor a webhook secret — GitHub routes every installed
-repository's pushes to one app endpoint, and the server mints short-lived
-per-installation tokens for each delivery:
-
-```json
-{
-  "type": "forge",
-  "name": "website",
-  "config": {
-    "repo": "https://github.com/acme/website.git",
-    "branch": "main",
-    "project_id": "<project-id>",
-    "auth": "app",
-    "patterns": "src/locales/**/*.json"
-  }
-}
-```
-
-Register the app once (GitHub → Settings → Developer settings → GitHub Apps →
-New) with **webhook URL** `$SERVER/api/webhooks/github-app`, a webhook
-secret, the **push** event, and repository permissions **Contents:
-read & write**, **Pull requests: read & write**, **Metadata: read**. Download
-the private key and configure the server:
-
-```bash
-GITHUB_APP_ID=<app id>
-GITHUB_APP_PRIVATE_KEY_FILE=/etc/bowrain/github-app.pem   # or GITHUB_APP_PRIVATE_KEY (PEM text)
-GITHUB_APP_WEBHOOK_SECRET=<webhook secret>
-```
-
-Installing the app on a repository is then the only per-repo step: GitHub
-redirects to the server's setup page (set the app's **Setup URL** to
-`$SERVER/github/setup`), which lists the installation's repositories and
-binds each to a project with one selection — no curl, no tokens. The setup
-page is a complete on-ramp: a visitor who arrives without a Bowrain account
-signs in or creates one (the installation is preserved through login), gets a
-workspace if they have none, and can create a project from the repository
-inline. The same binding is available from a project's Connectors page
-("GitHub"), and the workspace connectors API remains the automation path.
-Static tokens keep working alongside app mode — GitLab always uses a project
-access token.
-
-:::note
-
-The local-file and Git connectors run server-side and are driven by kapi (see
-the [kapi connector](#the-kapi-connector-local-files--git) above); they do not
-appear in the web app's Connectors view.
-
-:::
-
-## Next Steps
-
-- [CLI Overview](/cli/overview)
-- [Automation](/server/automation)
-- [Workspaces](/server/workspaces)
+- [Keeping content caught up](/the-loop) — what happens between fetch and publish
+- [Publish on brand](/server/publish-on-brand) — the content-platform route, end to end
+- [Automation](/server/automation) — rules that run when content arrives
+- [Connector system](/developer/connectors) — the Go interfaces behind a connector
