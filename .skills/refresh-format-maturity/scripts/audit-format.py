@@ -30,6 +30,11 @@ Flags:
                       context-pack results). Omitted or unreadable => those
                       signals report 'unknown' and floors stay conservative.
 
+Requires:
+    PyYAML — the Vocabulary / Knowledge / Corpus signals are parsed out of the
+    per-format YAML artifacts, so the audit refuses to run without it rather
+    than reporting those axes as empty.
+
 Env:
     NEOKAPI_OKAPI_DIR   path to the upstream Okapi Framework (Java) clone.
                         Defaults to <checkouts>/okapi/Okapi, i.e. two levels
@@ -45,10 +50,24 @@ import re
 import subprocess
 import sys
 
-try:  # optional; axis-artifact parsing degrades to zero floors without it
+# PyYAML is REQUIRED, not optional. Every Vocabulary / Knowledge / Corpus
+# signal is parsed out of a YAML artifact, and a missing parser is
+# indistinguishable — in the output and on the published dashboard — from a
+# format that genuinely ships no artifacts: the axes silently floor at
+# V0/K0/C0 fleet-wide. That degradation once reached a published dataset, so
+# fail loudly instead of scoring a lie.
+try:
     import yaml as _yaml
-except Exception:  # pragma: no cover
-    _yaml = None
+except ImportError:  # pragma: no cover - environment guard
+    sys.stderr.write(
+        "audit-format.py: PyYAML is required (every Vocabulary/Knowledge/Corpus\n"
+        "signal is parsed from a YAML artifact; without it those axes would\n"
+        "silently floor at V0/K0/C0 for every format).\n"
+        "Install it for the python3 on your PATH, e.g.\n"
+        "    python3 -m pip install --user pyyaml\n"
+        "or run the audit from a venv that has it.\n"
+    )
+    raise SystemExit(2)
 
 # repo root = three levels up from this script (.skills/<skill>/scripts/)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
