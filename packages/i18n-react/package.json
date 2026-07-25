@@ -107,10 +107,6 @@
     "unplugin": "^3.3.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.29.7",
-    "@babel/plugin-syntax-jsx": "^7.29.7",
-    "@babel/preset-typescript": "^7.29.7",
-    "@babel/types": "^7.29.0",
     "@storybook/react-vite": "^10.5.0",
     "@types/node": "^25.9.2",
     "@types/react": "^19.2.17",
@@ -120,15 +116,11 @@
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
-    "@babel/core": "^7.29.7",
     "@storybook/react-vite": "^10.0.0",
     "react": "^18.0.0 || ^19.0.0",
     "storybook": "^10.0.0"
   },
   "peerDependenciesMeta": {
-    "@babel/core": {
-      "optional": true
-    },
     "@storybook/react-vite": {
       "optional": true
     },
