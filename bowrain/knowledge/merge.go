@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // ErrMergeConflict is the sentinel wrapped by MergeChangeSet when one or more
@@ -50,12 +50,12 @@ type MergeResult struct {
 // conceptSnapshot is the immutable record stored per touched concept at merge:
 // the resulting concept and its relations (or a tombstone for a deleted
 // concept). It is the snapshot half of a knowledge ConceptRevision (the
-// "termbase.Concept + relations delta" the data model calls for).
+// "terms.Concept + relations delta" the data model calls for).
 type conceptSnapshot struct {
-	ConceptID string                     `json:"concept_id"`
-	Concept   *termbase.Concept          `json:"concept,omitempty"`
-	Relations []termbase.ConceptRelation `json:"relations,omitempty"`
-	Deleted   bool                       `json:"deleted,omitempty"`
+	ConceptID string                  `json:"concept_id"`
+	Concept   *terms.Concept          `json:"concept,omitempty"`
+	Relations []terms.ConceptRelation `json:"relations,omitempty"`
+	Deleted   bool                    `json:"deleted,omitempty"`
 }
 
 // MergeChangeSet merges an approved (or ordinary draft) change-set into the
@@ -74,7 +74,7 @@ type conceptSnapshot struct {
 //     what makes a stale draft conflict loudly instead of clobbering an
 //     intervening edit (AD-021).
 //  3. Apply pass. Concept/term/relation ops are applied to the workspace
-//     termbase in seq order via the shared applyTermbaseOp; voice ops are
+//     terms in seq order via the shared applyTermsOp; voice ops are
 //     applied to the brand store, version-bumping each touched profile exactly
 //     like AD-019 promotion. One immutable ConceptRevision is recorded per
 //     touched concept (snapshot, summary, actor, changeset_id).
@@ -83,7 +83,7 @@ type conceptSnapshot struct {
 //     should fire are returned for the caller to publish; the engine never
 //     touches the event bus.
 //
-// Cross-store atomicity. The workspace termbase, the brand store, and the
+// Cross-store atomicity. The workspace terms, the brand store, and the
 // knowledge store are three separate stores that share one PostgreSQL database
 // but are written here without a single enclosing transaction. The conflict
 // pre-check (step 2) makes stale-draft clobbering impossible, so the common
@@ -132,9 +132,9 @@ func (e *Engine) MergeChangeSet(ctx context.Context, workspaceID string, store S
 
 	// 3. Apply pass.
 	actor := mergeActor(cs)
-	live, liveOK := e.concepts.(termbase.TermBase)
-	if !liveOK && hasTermbaseOps(ops) {
-		return res, errors.New("knowledge: workspace concept store is not writable (need termbase.TermBase)")
+	live, liveOK := e.concepts.(terms.Terminology)
+	if !liveOK && hasTermsOps(ops) {
+		return res, errors.New("knowledge: workspace concept store is not writable (need terms.Terminology)")
 	}
 
 	var events []MergeEvent
@@ -142,7 +142,7 @@ func (e *Engine) MergeChangeSet(ctx context.Context, workspaceID string, store S
 		if isVoiceOp(op.Op) {
 			continue // applied as a per-profile batch below
 		}
-		if err := applyTermbaseOp(ctx, live, op); err != nil {
+		if err := applyTermsOp(ctx, live, op); err != nil {
 			return res, fmt.Errorf("apply op seq %d (%s): %w", op.Seq, op.Op, err)
 		}
 		res.AppliedOps = append(res.AppliedOps, op.Seq)
@@ -277,7 +277,7 @@ func (e *Engine) applyVoiceOps(ctx context.Context, ops []ChangeSetOp, cs Change
 // snapshotConcept builds the revision snapshot for a concept after a merge: the
 // resulting concept plus its relations, or a tombstone when the change-set
 // deleted it.
-func snapshotConcept(ctx context.Context, tb termbase.TermBase, conceptID string) (json.RawMessage, error) {
+func snapshotConcept(ctx context.Context, tb terms.Terminology, conceptID string) (json.RawMessage, error) {
 	snap := conceptSnapshot{ConceptID: conceptID}
 	if tb == nil {
 		snap.Deleted = true
@@ -362,14 +362,14 @@ func loadReviews(ctx context.Context, store Store, workspaceID, changesetID stri
 }
 
 // isVoiceOp reports whether an op targets a brand profile rather than the
-// termbase.
+// terms.
 func isVoiceOp(o OpType) bool {
 	return o == OpVoiceRuleAdd || o == OpVoiceRuleRemove
 }
 
-// hasTermbaseOps reports whether ops contains any concept/term/relation op (the
-// ops that need a writable workspace termbase at merge).
-func hasTermbaseOps(ops []ChangeSetOp) bool {
+// hasTermsOps reports whether ops contains any concept/term/relation op (the
+// ops that need a writable workspace terms at merge).
+func hasTermsOps(ops []ChangeSetOp) bool {
 	for _, op := range ops {
 		if !isVoiceOp(op.Op) {
 			return true

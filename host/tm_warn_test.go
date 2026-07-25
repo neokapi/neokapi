@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/memory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -60,8 +60,8 @@ func TestWarnSuspectTokenEntries(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			tm := sievepen.NewInMemoryTM()
-			require.NoError(t, tm.Add(context.Background(), sievepen.TMEntry{ID: "e1", Variants: tc.variants}))
+			tm := memory.NewInMemoryStore()
+			require.NoError(t, tm.Add(context.Background(), memory.Entry{ID: "e1", Variants: tc.variants}))
 			var buf bytes.Buffer
 			WarnSuspectTokenEntries(context.Background(), tm, &buf)
 			if tc.wantWarn {

@@ -108,7 +108,7 @@ type AITranslateConfig struct {
 	// source is masked with a sentinel placeholder before the model sees it and
 	// restored to the exact original after, so the term cannot be translated,
 	// transliterated, or dropped no matter what the model returns. Sourced from
-	// the recipe, a checkset, or termbase do-not-translate/forbidden terms.
+	// the recipe, a checkset, or terms do-not-translate/forbidden terms.
 	//
 	// Masking a span is only safe per block (the sentinel must survive a single
 	// generation), so a tool configured with DNT terms translates one block per

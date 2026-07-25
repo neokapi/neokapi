@@ -7,7 +7,7 @@ import type { ConceptBackend, ConceptDTO, RelationDTO } from "../lib/localConcep
 // backend returns. The story drives the SAME LocalConceptDataSource the desktop
 // uses, just over an in-memory backend instead of the Go bindings — so opening a
 // concept, relating it, removing a relation, and re-statusing a term all behave
-// exactly as they do against a real local termbase.
+// exactly as they do against a real local terms.
 const SAMPLE_CONCEPTS: ConceptDTO[] = [
   {
     id: "c1",
@@ -138,7 +138,7 @@ const meta: Meta<typeof MemoryConceptsView> = {
     docs: {
       description: {
         component:
-          "The visual concept/relation workspace over a LOCAL termbase. Browse and search concepts, open one to read its story (terms, relations, tag-derived geography, constraints, synthesized timeline), then relate it to another concept or remove a relation inline — the desktop home for the editing the deleted CLI relation commands used to do.",
+          "The visual concept/relation workspace over a LOCAL terms. Browse and search concepts, open one to read its story (terms, relations, tag-derived geography, constraints, synthesized timeline), then relate it to another concept or remove a relation inline — the desktop home for the editing the deleted CLI relation commands used to do.",
       },
     },
   },

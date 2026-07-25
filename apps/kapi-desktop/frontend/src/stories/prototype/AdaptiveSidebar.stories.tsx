@@ -73,8 +73,8 @@ export const SideBySide: Story = {
             badge={<ProjectKindBadge kind="content" />}
             caption={
               <>
-                A content project: Home, Content, Check, Rewrite, Stats, Brand. No Translate, TM, or
-                Termbase — and flows are not a sidebar pillar.
+                A content project: Home, Content, Check, Rewrite, Stats, Brand. No Translate,
+                Memory, or Terms — and flows are not a sidebar pillar.
               </>
             }
           />

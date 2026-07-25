@@ -244,7 +244,7 @@ func TestAIEntityExtractTool_SkipsKnownTerms(t *testing.T) {
 
 	tool := tools.NewAIEntityExtractTool(mock, nil, tools.AIEntityExtractConfig{
 		Locale:     "en-US",
-		KnownTerms: []string{"Dashboard"}, // Already in termbase.
+		KnownTerms: []string{"Dashboard"}, // Already in terms.
 	})
 
 	ctx := t.Context()

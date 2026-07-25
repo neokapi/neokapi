@@ -53,7 +53,7 @@ func TestInitCmd_scaffoldsProject(t *testing.T) {
 	assert.Equal(t, "my-app", state.Project.ID)
 
 	// Default init scaffolds an on-brand content project: source language set,
-	// no target languages, a brand-voice pack + project termbase bound under
+	// no target languages, a brand-voice pack + project terms store bound under
 	// defaults:, and a check flow on the deterministic brand-vocabulary check.
 	p, err := project.Load(recipe)
 	require.NoError(t, err)
@@ -62,7 +62,7 @@ func TestInitCmd_scaffoldsProject(t *testing.T) {
 
 	require.NotNil(t, p.Defaults.BrandVoice)
 	assert.Equal(t, "professional-b2b", p.Defaults.BrandVoice.Pack)
-	assert.Equal(t, ".kapi/termbase.db", p.Defaults.Termbase)
+	assert.Equal(t, ".kapi/termbase.db", p.Defaults.Terms)
 
 	require.Contains(t, p.Flows, "check")
 	require.NotNil(t, p.Flows["check"])
@@ -135,7 +135,7 @@ func TestInitCmd_frameworkNeokapiI18nScaffoldsCleanLayout(t *testing.T) {
 
 	// The recipe is written and encodes the clean nested i18n/{lang} layout:
 	// source in i18n/src/, per-locale targets in i18n/{lang}/, and brand voice +
-	// termbase under i18n/ — no sibling i18n-<lang>/ sprawl.
+	// terms under i18n/ — no sibling i18n-<lang>/ sprawl.
 	recipe, err := project.Load(filepath.Join(dir, project.RecipeFileName))
 	require.NoError(t, err)
 	require.Len(t, recipe.Content, 1)
@@ -143,7 +143,7 @@ func TestInitCmd_frameworkNeokapiI18nScaffoldsCleanLayout(t *testing.T) {
 	assert.Equal(t, "i18n/{lang}/{path}.kbf", recipe.Content[0].Target)
 	require.NotNil(t, recipe.Defaults.BrandVoice)
 	assert.Equal(t, "i18n/brand-voice.yaml", recipe.Defaults.BrandVoice.ProfileFile)
-	assert.Equal(t, "i18n/termbase.ktb", recipe.Defaults.TermbaseSource)
+	assert.Equal(t, "i18n/termbase.ktb", recipe.Defaults.TermsSource)
 }
 
 func TestInitCmd_frameworkUnknown(t *testing.T) {

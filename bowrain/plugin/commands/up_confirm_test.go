@@ -19,7 +19,7 @@ func TestRunNeedsConfirm(t *testing.T) {
 		{
 			name: "no AI work never prompts",
 			est: &apiclient.ConvergenceEstimate{
-				Totals: apiclient.ConvergenceEstimateTotals{Pending: 100, ViaTM: 100, ViaAI: 0, TokenEstimate: 0},
+				Totals: apiclient.ConvergenceEstimateTotals{Pending: 100, ViaMemory: 100, ViaAI: 0, TokenEstimate: 0},
 			},
 			want: false,
 		},

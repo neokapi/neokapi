@@ -31,7 +31,7 @@ const config: WalkthroughEmbedConfig = {
         "ls lists the files the recipe's content tracks. Here one JSON catalog, mapped to a messages.{lang}.json target per locale.",
     },
     {
-      command: "kapi tm import project.tmx",
+      command: "kapi memory import project.tmx",
       narration:
         "tm import loads existing translations into the project TM (.kapi/tm.db). The flow leverages it before any AI is asked.",
     },

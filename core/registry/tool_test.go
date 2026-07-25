@@ -143,7 +143,7 @@ func TestToolInfo_ReturnsInfo(t *testing.T) {
 			Cardinality:   schema.Bilingual,
 			DefaultLocale: "qps",
 			Produces:      []schema.IOPort{schema.Port(model.OverlayQA, model.SideTarget)},
-			SideEffects:   []schema.SideEffect{schema.SideEffectTMRead},
+			SideEffects:   []schema.SideEffect{schema.SideEffectMemoryRead},
 		},
 	})
 
@@ -153,7 +153,7 @@ func TestToolInfo_ReturnsInfo(t *testing.T) {
 	assert.Equal(t, schema.Bilingual, info.Cardinality)
 	assert.Equal(t, model.LocaleID("qps"), info.DefaultLocale)
 	assert.Equal(t, []schema.IOPort{schema.Port(model.OverlayQA, model.SideTarget)}, info.Produces)
-	assert.Equal(t, []schema.SideEffect{schema.SideEffectTMRead}, info.SideEffects)
+	assert.Equal(t, []schema.SideEffect{schema.SideEffectMemoryRead}, info.SideEffects)
 }
 
 func TestToolInfo_ReturnsNilForUnknown(t *testing.T) {

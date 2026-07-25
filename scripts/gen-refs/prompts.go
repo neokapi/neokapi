@@ -8,7 +8,7 @@ import (
 // language model, rendered from the same builders the binary uses.
 //
 // It exists so the documentation cannot describe a prompt kapi does not send.
-// The prompts page used to claim they "include surrounding blocks, TM matches,
+// The prompts page used to claim they "include surrounding blocks, content-memory matches,
 // and format metadata" — none of which was true — because the docs were written
 // once and the code moved on. Generating them from prompt.Catalog() and gating
 // on drift makes that failure mode structural rather than a matter of

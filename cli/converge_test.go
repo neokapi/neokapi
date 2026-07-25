@@ -82,7 +82,7 @@ func runConverge(t *testing.T, a *App, recipe string, opts ConvergeOptions) (str
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
-	// Bind the fixture recipe explicitly: downstream TM/termbase resolution
+	// Bind the fixture recipe explicitly: downstream content memory/terms resolution
 	// reads the project flag, and without it the upward walk would bind to
 	// the repo's dogfood .kapi on a dev machine (and nothing on CI).
 	AddProjectFlag(cmd)
@@ -141,7 +141,7 @@ func TestConverge_AllTargetLocales(t *testing.T) {
 }
 
 // TestConverge_NoDefaultFlowUsesBuiltin: with no defaults.flow, the no-arg run
-// synthesizes the built-in default flow (#1078 G6) — TM reuse then AI translate
+// synthesizes the built-in default flow (#1078 G6) — content memory reuse then AI translate
 // — instead of erroring, and reports it as "default (built-in)".
 func TestConverge_NoDefaultFlowUsesBuiltin(t *testing.T) {
 	a := demoProviderApp(t)

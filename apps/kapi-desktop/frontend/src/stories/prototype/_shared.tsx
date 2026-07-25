@@ -473,7 +473,8 @@ export const configuredFlows: FlowDef[] = [
   },
   {
     name: "Translate & QA",
-    description: "Translate from TM + AI, then run terminology and placeholder QA on the targets.",
+    description:
+      "Translate from content memory + AI, then run terminology and placeholder QA on the targets.",
     steps: ["recycle", "translate", "qa-check"],
     kind: "localization",
   },

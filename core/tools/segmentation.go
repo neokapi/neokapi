@@ -85,7 +85,7 @@ func (c *SegmentationConfig) ToolName() string { return "segmentation" }
 func (c *SegmentationConfig) Reset() {
 	// Trim leading/trailing whitespace by default so every engine yields clean
 	// sentence segments (inter-sentence whitespace left uncovered) — consistent
-	// with Okapi and stable for TM keys. The SRX engine also honors trim from its
+	// with Okapi and stable for content memory keys. The SRX engine also honors trim from its
 	// ruleset header; this default extends the same behavior to UAX-29/SaT/LLM.
 	*c = SegmentationConfig{SegmentSource: true, TrimLeadingWS: true, TrimTrailingWS: true}
 }

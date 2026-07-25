@@ -44,7 +44,7 @@ export const Closed: Story = {
 export const MultiWordSelection: Story = {
   args: {
     open: true,
-    selectedText: "translation memory",
+    selectedText: "content memory",
   },
 };
 

@@ -111,7 +111,7 @@ const LazyExplorer = React.lazy(async () => {
             </ul>
             <p className="kapi-pgx__hint">
               <Play size={12} aria-hidden="true" /> After loading a project, run{" "}
-              <code>kapi add</code>, <code>kapi tm import project.tmx</code>,{" "}
+              <code>kapi add</code>, <code>kapi memory import project.tmx</code>,{" "}
               <code>kapi extract</code>, <code>kapi run translate</code>, then{" "}
               <code>kapi merge</code>.
             </p>

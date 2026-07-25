@@ -9,27 +9,27 @@ import (
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// linkTestServer wires a server whose workspace termbase is a fresh in-memory
+// linkTestServer wires a server whose workspace terms is a fresh in-memory
 // store, so linkRuleToConcept runs with no PostgreSQL. ContentStore is left nil,
 // so the source locale defaults to English (the resolution-from-project path is
 // covered by TestFirstWorkspaceSourceLocale).
 func linkTestServer(t *testing.T) *Server {
 	t.Helper()
 	srv := shutdownOnCleanup(t, NewServer(DefaultConfig()))
-	srv.wsStores.tbFactory = func() termbase.TBStore {
-		return &testTermStore{termbase.NewInMemoryTermBase()}
+	srv.wsStores.tbFactory = func() terms.Store {
+		return &testTermStore{terms.NewInMemoryStore()}
 	}
 	return srv
 }
 
 // conceptByTerm finds the brand-vocabulary concept holding a term with the given
 // text and status.
-func conceptByTerm(t *testing.T, tb termbase.TBStore, text string, status model.TermStatus) (termbase.Concept, bool) {
+func conceptByTerm(t *testing.T, tb terms.Store, text string, status model.TermStatus) (terms.Concept, bool) {
 	t.Helper()
 	concepts, err := tb.Concepts(context.Background())
 	require.NoError(t, err)
@@ -40,7 +40,7 @@ func conceptByTerm(t *testing.T, tb termbase.TBStore, text string, status model.
 			}
 		}
 	}
-	return termbase.Concept{}, false
+	return terms.Concept{}, false
 }
 
 func eventTypes(events []knowledge.MergeEvent) []knowledge.EventType {
@@ -68,14 +68,14 @@ func TestLinkRuleToConcept_CreatesForbiddenReplacementAndRelation(t *testing.T) 
 	forbidden, ok := conceptByTerm(t, tb, "utilize", model.TermForbidden)
 	require.True(t, ok, "forbidden concept should exist")
 	assert.Equal(t, forbiddenID, forbidden.ID)
-	assert.Equal(t, termbase.TermSourceBrandVocabulary, forbidden.Source)
+	assert.Equal(t, terms.TermSourceBrandVocabulary, forbidden.Source)
 	require.Len(t, forbidden.Terms, 1)
 	assert.Equal(t, defaultBrandConceptLocale, forbidden.Terms[0].Locale)
 
 	// Replacement concept: preferred term, brand-vocabulary source.
 	replacement, ok := conceptByTerm(t, tb, "use", model.TermPreferred)
 	require.True(t, ok, "replacement concept should exist")
-	assert.Equal(t, termbase.TermSourceBrandVocabulary, replacement.Source)
+	assert.Equal(t, terms.TermSourceBrandVocabulary, replacement.Source)
 
 	// USE_INSTEAD edge forbidden → replacement.
 	rels, err := tb.RelationsOf(ctx, forbiddenID, nil)
@@ -153,10 +153,10 @@ func TestLinkRuleToConcept_ReusesExistingBrandConceptCaseInsensitive(t *testing.
 	tb, err := srv.wsStores.getTB(wsSlug)
 	require.NoError(t, err)
 	// Seed a pre-existing brand-vocab forbidden concept with a different casing.
-	seeded := termbase.Concept{
+	seeded := terms.Concept{
 		ID:     "seed-forbidden",
-		Source: termbase.TermSourceBrandVocabulary,
-		Terms:  []termbase.Term{{Text: "Utilize", Locale: "en", Status: model.TermForbidden}},
+		Source: terms.TermSourceBrandVocabulary,
+		Terms:  []terms.Term{{Text: "Utilize", Locale: "en", Status: model.TermForbidden}},
 	}
 	require.NoError(t, tb.AddConcept(ctx, seeded))
 

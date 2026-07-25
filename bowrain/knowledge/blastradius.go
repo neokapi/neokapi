@@ -8,7 +8,7 @@ import (
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 )
@@ -179,7 +179,7 @@ type BlockSample struct {
 //   - Voice impact reuses core/brand.EvaluateBlastRadius, run per block against
 //     each voice profile the change-set's voice ops touch.
 //   - Term/concept/relation impact compares the terms the block contains under
-//     the before and after termbases: a block is affected when a term it
+//     the before and after terms stores: a block is affected when a term it
 //     contains gains or loses forbidden status, or when its USE_INSTEAD
 //     replacement guidance changes. Newly-forbidden terms count as new
 //     violations; no-longer-forbidden terms as resolved.
@@ -189,14 +189,14 @@ type BlockSample struct {
 func (e *Engine) EvaluateChangeSet(ctx context.Context, workspaceID string, cs ChangeSet, ops []ChangeSetOp, opts EvalOptions) (*ChangeSetImpact, error) {
 	_ = cs
 
-	// Term side: build the before/after termbase snapshots once.
-	before, err := e.buildBeforeTermbase(ctx, ops)
+	// Term side: build the before/after terms snapshots once.
+	before, err := e.buildBeforeTerms(ctx, ops)
 	if err != nil {
-		return nil, fmt.Errorf("build before termbase: %w", err)
+		return nil, fmt.Errorf("build before terms: %w", err)
 	}
-	after, err := ApplyOpsToTermbase(ctx, before, ops)
+	after, err := ApplyOpsToTerms(ctx, before, ops)
 	if err != nil {
-		return nil, fmt.Errorf("build after termbase: %w", err)
+		return nil, fmt.Errorf("build after terms: %w", err)
 	}
 
 	// Voice side: one (baseline, candidate) pair per profile the voice ops touch.
@@ -330,7 +330,7 @@ func voiceImpactForBlock(pairs []profilePair, colID, colName, blockID, text stri
 }
 
 // ---------------------------------------------------------------------------
-// Term impact (before vs after termbase)
+// Term impact (before vs after terms)
 // ---------------------------------------------------------------------------
 
 // termSig is the resolution signature of a term occurrence: its lifecycle status
@@ -342,11 +342,11 @@ type termSig struct {
 }
 
 // termImpact compares the terms a block's text contains under the before and
-// after termbases. newV counts terms that become forbidden (present and newly
+// after terms stores. newV counts terms that become forbidden (present and newly
 // forbidden); resolved counts terms that stop being forbidden (or are removed);
 // changed reports whether any contained term's status or replacement guidance
 // differs at all.
-func termImpact(ctx context.Context, before, after *termbase.InMemoryTermBase, locale model.LocaleID, text string) (newV, resolved int, changed bool, err error) {
+func termImpact(ctx context.Context, before, after *terms.InMemoryStore, locale model.LocaleID, text string) (newV, resolved int, changed bool, err error) {
 	beforeSig, err := termSignatures(ctx, before, locale, text)
 	if err != nil {
 		return 0, 0, false, err
@@ -374,12 +374,12 @@ func termImpact(ctx context.Context, before, after *termbase.InMemoryTermBase, l
 // termSignatures returns the resolution signature of every term of the lookup
 // locale that occurs in text, keyed by concept ID + lowered term text so the
 // same designation is comparable across the before and after snapshots.
-func termSignatures(ctx context.Context, tb *termbase.InMemoryTermBase, locale model.LocaleID, text string) (map[string]termSig, error) {
+func termSignatures(ctx context.Context, tb *terms.InMemoryStore, locale model.LocaleID, text string) (map[string]termSig, error) {
 	out := map[string]termSig{}
 	if tb == nil {
 		return out, nil
 	}
-	matches, err := tb.LookupAll(ctx, text, termbase.LookupOptions{SourceLocale: locale})
+	matches, err := tb.LookupAll(ctx, text, terms.LookupOptions{SourceLocale: locale})
 	if err != nil {
 		return nil, err
 	}
@@ -396,7 +396,7 @@ func termSignatures(ctx context.Context, tb *termbase.InMemoryTermBase, locale m
 // resolveReplacement returns the preferred term (in locale) of the concept that
 // c's USE_INSTEAD relation points to — the recommended substitute a steward
 // would see — or "" when c has no such guidance.
-func resolveReplacement(ctx context.Context, tb *termbase.InMemoryTermBase, c termbase.Concept, locale model.LocaleID) string {
+func resolveReplacement(ctx context.Context, tb *terms.InMemoryStore, c terms.Concept, locale model.LocaleID) string {
 	rels, err := tb.RelationsOf(ctx, c.ID, nil)
 	if err != nil {
 		return ""
@@ -441,8 +441,8 @@ func sigMapsEqual(a, b map[string]termSig) bool {
 // filtered to one concept's terms, without a candidate side — the "where used"
 // behind GET /concepts/:cid/blast-radius.
 func (e *Engine) ConceptUsage(ctx context.Context, workspaceID, conceptID string, opts EvalOptions) (*ConceptUsage, error) {
-	// A single-concept termbase so LookupAll matches only this concept's terms.
-	cTB := termbase.NewInMemoryTermBase()
+	// A single-concept terms so LookupAll matches only this concept's terms.
+	cTB := terms.NewInMemoryStore()
 	if e.concepts != nil {
 		if c, ok, err := e.concepts.GetConcept(ctx, conceptID); err != nil {
 			return nil, fmt.Errorf("load concept %q: %w", conceptID, err)
@@ -458,7 +458,7 @@ func (e *Engine) ConceptUsage(ctx context.Context, workspaceID, conceptID string
 	walkErr := e.walkBlocks(ctx, workspaceID, opts, func(p *store.Project, stream string, b *store.StoredBlock, locale model.LocaleID, text, colID, colName string) error {
 		t.scan()
 
-		matches, err := cTB.LookupAll(ctx, text, termbase.LookupOptions{SourceLocale: locale})
+		matches, err := cTB.LookupAll(ctx, text, terms.LookupOptions{SourceLocale: locale})
 		if err != nil {
 			return err
 		}

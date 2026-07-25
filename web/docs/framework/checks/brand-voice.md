@@ -220,7 +220,7 @@ import (
 checkTool := aitool.NewBrandVoiceCheckTool(llmProvider, profile)
 
 // Rule-based: fast forbidden/competitor-term enforcement, no LLM calls
-vocabTool := tools.NewBrandVocabCheckTool(profile, termBase)
+vocabTool := tools.NewBrandVocabCheckTool(profile, terminology)
 ```
 
 ### Starter packs

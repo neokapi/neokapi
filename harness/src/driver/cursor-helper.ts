@@ -136,7 +136,7 @@ export async function humanClick(page: Page, locator: Locator): Promise<void> {
 
 /**
  * Move to a text field and type key-by-key, like a person. Set `submit` to press
- * Enter afterwards — both the termbase filter bar and the TM search bar execute on
+ * Enter afterwards — both the terms store filter bar and the content-memory search bar execute on
  * Enter (not as-you-type), so a typed query needs a submit to actually run.
  */
 export async function humanType(

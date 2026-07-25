@@ -2,8 +2,8 @@
 import { render, screen, waitFor, within } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TermbaseBrowser } from "@neokapi/ui-primitives";
-import type { TermbaseAdapter, ConceptDTO } from "@neokapi/ui-primitives";
+import { TermsBrowser } from "@neokapi/ui-primitives";
+import type { TermsAdapter, ConceptDTO } from "@neokapi/ui-primitives";
 
 function makeConcept(overrides: Partial<ConceptDTO> = {}): ConceptDTO {
   return {
@@ -22,7 +22,7 @@ function makeConcept(overrides: Partial<ConceptDTO> = {}): ConceptDTO {
   };
 }
 
-function createMockAdapter(concepts: ConceptDTO[] = [], totalCount?: number): TermbaseAdapter {
+function createMockAdapter(concepts: ConceptDTO[] = [], totalCount?: number): TermsAdapter {
   return {
     search: vi.fn().mockResolvedValue({
       concepts,
@@ -36,8 +36,8 @@ function createMockAdapter(concepts: ConceptDTO[] = [], totalCount?: number): Te
   };
 }
 
-describe("TermbaseBrowser", () => {
-  let adapter: TermbaseAdapter;
+describe("TermsBrowser", () => {
+  let adapter: TermsAdapter;
 
   describe("rendering concepts", () => {
     const concepts = [
@@ -65,7 +65,7 @@ describe("TermbaseBrowser", () => {
     });
 
     it("renders concepts from adapter", async () => {
-      render(<TermbaseBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<TermsBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("contract")).toBeInTheDocument();
@@ -76,7 +76,7 @@ describe("TermbaseBrowser", () => {
     });
 
     it("renders domain labels", async () => {
-      render(<TermbaseBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<TermsBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("Legal")).toBeInTheDocument();
@@ -85,7 +85,7 @@ describe("TermbaseBrowser", () => {
     });
 
     it("renders concept count", async () => {
-      render(<TermbaseBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<TermsBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("2 concepts")).toBeInTheDocument();
@@ -95,7 +95,7 @@ describe("TermbaseBrowser", () => {
     it("renders singular concept count", async () => {
       const singleAdapter = createMockAdapter([concepts[0]], 1);
       render(
-        <TermbaseBrowser adapter={singleAdapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />,
+        <TermsBrowser adapter={singleAdapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />,
       );
 
       await waitFor(() => {
@@ -104,7 +104,7 @@ describe("TermbaseBrowser", () => {
     });
 
     it("renders term status badges", async () => {
-      render(<TermbaseBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<TermsBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         // "preferred" status is not rendered as a badge (it's the default).
@@ -114,7 +114,7 @@ describe("TermbaseBrowser", () => {
     });
 
     it("renders definition text", async () => {
-      render(<TermbaseBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<TermsBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("A binding agreement between parties")).toBeInTheDocument();
@@ -125,7 +125,7 @@ describe("TermbaseBrowser", () => {
   describe("search", () => {
     it("triggers adapter.search with debounced query", async () => {
       adapter = createMockAdapter([]);
-      render(<TermbaseBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<TermsBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       const input = screen.getByPlaceholderText("Search terminology...");
       await userEvent.type(input, "contract");
@@ -142,7 +142,7 @@ describe("TermbaseBrowser", () => {
   describe("empty state", () => {
     it("shows empty state when no concepts", async () => {
       adapter = createMockAdapter([]);
-      render(<TermbaseBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<TermsBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("No concepts yet.")).toBeInTheDocument();
@@ -151,7 +151,7 @@ describe("TermbaseBrowser", () => {
 
     it("shows 'Add your first concept' link in empty state", async () => {
       adapter = createMockAdapter([]);
-      render(<TermbaseBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<TermsBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("Add your first concept")).toBeInTheDocument();
@@ -159,7 +159,7 @@ describe("TermbaseBrowser", () => {
     });
 
     it("shows search empty state when search has no results", async () => {
-      const emptyAdapter: TermbaseAdapter = {
+      const emptyAdapter: TermsAdapter = {
         ...createMockAdapter([]),
         search: vi
           .fn()
@@ -168,7 +168,7 @@ describe("TermbaseBrowser", () => {
       };
 
       render(
-        <TermbaseBrowser adapter={emptyAdapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />,
+        <TermsBrowser adapter={emptyAdapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />,
       );
 
       await waitFor(() => {
@@ -190,7 +190,7 @@ describe("TermbaseBrowser", () => {
   describe("add concept flow", () => {
     it("opens add form and calls adapter.addConcept", async () => {
       adapter = createMockAdapter([]);
-      render(<TermbaseBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<TermsBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("Add Concept")).toBeInTheDocument();
@@ -228,7 +228,7 @@ describe("TermbaseBrowser", () => {
 
     it("cancels add form without calling adapter", async () => {
       adapter = createMockAdapter([]);
-      render(<TermbaseBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<TermsBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("Add Concept")).toBeInTheDocument();
@@ -250,7 +250,7 @@ describe("TermbaseBrowser", () => {
       const concept = makeConcept({ id: "c1", domain: "Legal" });
       adapter = createMockAdapter([concept]);
 
-      render(<TermbaseBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<TermsBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("contract")).toBeInTheDocument();
@@ -279,7 +279,7 @@ describe("TermbaseBrowser", () => {
       const concept = makeConcept({ id: "c1" });
       adapter = createMockAdapter([concept]);
 
-      render(<TermbaseBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<TermsBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("contract")).toBeInTheDocument();
@@ -305,7 +305,7 @@ describe("TermbaseBrowser", () => {
       ];
       adapter = createMockAdapter(concepts);
 
-      render(<TermbaseBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<TermsBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("word1")).toBeInTheDocument();
@@ -329,7 +329,7 @@ describe("TermbaseBrowser", () => {
         }),
       );
       adapter = createMockAdapter(concepts, 60);
-      render(<TermbaseBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<TermsBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("Next")).toBeInTheDocument();

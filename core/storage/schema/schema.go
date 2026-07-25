@@ -4,7 +4,7 @@
 // builder — it renders CREATE TABLE / CREATE INDEX / ADD COLUMN statements
 // and nothing else.
 //
-// The seam covers exactly the divergences the TM (sievepen) and termbase
+// The seam covers exactly the divergences the content memory (memory) and terms
 // schemas need:
 //
 //   - per-dialect column types and constraints, written side by side on one
@@ -17,7 +17,7 @@
 //     Postgres derives at query time);
 //   - formatting knobs so the rendered SQLite DDL stays byte-identical to
 //     the historical hand-written migrations (golden-tested in
-//     sievepen/schema and termbase/schema).
+//     memory/schema and terms/schema).
 //
 // Fuzzy-match infrastructure is inherently dialect-specific (FTS5 virtual
 // tables + triggers vs pg_trgm GIN indexes + tsvector columns) and stays as

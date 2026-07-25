@@ -285,7 +285,7 @@ The `streams` table and per-stream change log scoping are defined in
 ### Storage Backend
 
 **PostgreSQL** via `pgx` is the production backend. All six persistence
-modules — ContentStore, AuthStore, Sievepen (TM), TermBase, JobStore,
+modules — ContentStore, AuthStore, Memory (TM), Terminology, JobStore,
 QuotaStore — share a single connection pool, each managing its own schema
 namespace via an independent migration table
 (`store_schema_migrations`, `auth_schema_migrations`, etc.).

@@ -11,8 +11,8 @@ describe("viewFromPath", () => {
     expect(viewFromPath("/acme/p/abc/s/main/file.html/translate", "acme")).toBe("translate");
   });
 
-  it("returns 'termbase' for termbase route", () => {
-    expect(viewFromPath("/acme/termbase", "acme")).toBe("termbase");
+  it("returns 'terms' for terms route", () => {
+    expect(viewFromPath("/acme/terms", "acme")).toBe("terms");
   });
 
   it("returns 'memory' for memory route", () => {
@@ -30,7 +30,7 @@ describe("viewFromPath", () => {
   });
 
   it("handles workspace slugs with special characters", () => {
-    expect(viewFromPath("/my-workspace/termbase", "my-workspace")).toBe("termbase");
+    expect(viewFromPath("/my-workspace/terms", "my-workspace")).toBe("terms");
     expect(viewFromPath("/my-workspace/memory", "my-workspace")).toBe("memory");
   });
 

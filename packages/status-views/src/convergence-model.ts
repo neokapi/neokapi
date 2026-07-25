@@ -8,14 +8,14 @@
 /** A locale's lifecycle within a pass, mirroring the CLI live renderer. */
 export type LocaleRowState = "queued" | "running" | "done";
 
-/** One locale's live cell in a pass: unit progress + the TM/AI split. */
+/** One locale's live cell in a pass: unit progress + the content memory/AI split. */
 export interface ConvergenceLocaleRow {
   locale: string;
   /** Denominator a progress bar renders against (0 until locale_start). */
   units: number;
   /** Committed targets so far in this pass. */
   done: number;
-  viaTM: number;
+  viaMemory: number;
   viaAI: number;
   state: LocaleRowState;
   /**

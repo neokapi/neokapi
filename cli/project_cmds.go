@@ -32,7 +32,7 @@ func NewInitCmd(a *App) *cobra.Command {
 adjacent .kapi/ state directory.
 
 By default kapi init scaffolds a content project that keeps your source on
-brand — a brand-voice profile, the project termbase, and a check flow, with no
+brand — a brand-voice profile, the project terms store, and a check flow, with no
 target languages. Pass --target-locale (or --framework) to make it a
 translation project instead.
 
@@ -69,7 +69,7 @@ scaffolds plus per-format parsing presets) with --list-presets.`,
 			if err != nil {
 				return err
 			}
-			brandVoiceProfile, termbaseSource := FrameworkBindings(framework)
+			brandVoiceProfile, termsSource := FrameworkBindings(framework)
 
 			// `kapi init` is idempotent: re-running it (or running it on a
 			// project that already has a recipe) is not an error. This lets
@@ -94,10 +94,10 @@ scaffolds plus per-format parsing presets) with --list-presets.`,
 			} else {
 				// On-brand content is the default. --target-locale or
 				// --framework opts into the translation scaffold; otherwise
-				// scaffold the content project (brand voice + termbase + check).
+				// scaffold the content project (brand voice + terms + check).
 				var recipe []byte
 				if len(targetLocale) > 0 || framework != "" {
-					recipe = ScaffoldRecipe(name, sourceLocale, targetLocale, content, brandVoiceProfile, termbaseSource)
+					recipe = ScaffoldRecipe(name, sourceLocale, targetLocale, content, brandVoiceProfile, termsSource)
 				} else {
 					recipe = ScaffoldContentRecipe(name, sourceLocale)
 				}

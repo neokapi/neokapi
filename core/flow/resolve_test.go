@@ -152,7 +152,7 @@ func TestResolveToolConfig_SchemaAnnotation(t *testing.T) {
 				PathInfo: &schema.PathAnnotation{
 					Type:         "file",
 					Role:         "input",
-					ResourceKind: "termbase",
+					ResourceKind: "terms",
 				},
 			},
 			"regularString": {

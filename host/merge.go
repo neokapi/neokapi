@@ -24,7 +24,7 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/kpz"
-	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/memory"
 )
 
 // restoreRedactedBlocks restores redacted originals into the incoming
@@ -104,19 +104,19 @@ func (a *App) RunMerge(cmd Command) error {
 		return errors.New("merge: no input files matched — check -i paths and globs")
 	}
 
-	noTMUpdate, _ := cmd.Flags().GetBool("no-tm-update")
+	noMemoryUpdate, _ := cmd.Flags().GetBool("no-tm-update")
 	noRestore, _ := cmd.Flags().GetBool("no-restore")
 
-	var tm *sievepen.SQLiteTM
-	// In the browser/seeded build (a.TMBackend set) there is no SQLite driver and
-	// no on-disk project TM to write back to, so skip TM write-back silently
-	// rather than surfacing a driver error. The native CLI (TMBackend == nil)
-	// opens the project's SQLite TM as before.
-	if !noTMUpdate && a.TMBackend == nil {
-		tmPath := filepath.Join(layout.StateDir, "tm.db")
-		loaded, err := sievepen.NewSQLiteTM(tmPath)
+	var tm *memory.SQLiteStore
+	// In the browser/seeded build (a.MemoryBackend set) there is no SQLite driver and
+	// no on-disk project content memory to write back to, so skip content memory write-back silently
+	// rather than surfacing a driver error. The native CLI (MemoryBackend == nil)
+	// opens the project's SQLite content memory as before.
+	if !noMemoryUpdate && a.MemoryBackend == nil {
+		memoryPath := filepath.Join(layout.StateDir, "tm.db")
+		loaded, err := memory.NewSQLiteStore(memoryPath)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: merge: open project TM at %s: %v (continuing with --no-tm-update semantics)\n", tmPath, err)
+			fmt.Fprintf(os.Stderr, "Warning: merge: open project content memory at %s: %v (continuing with --no-tm-update semantics)\n", memoryPath, err)
 		} else {
 			defer loaded.Close()
 			tm = loaded
@@ -163,13 +163,13 @@ func (a *App) RunMerge(cmd Command) error {
 		res.Files = append(res.Files, output.MergeFileOutput{
 			Input:   rel,
 			Applied: stats.Applied, Stale: stats.Stale, Skipped: stats.Skipped,
-			TMNew: stats.TMNew, TMUpdated: stats.TMUpdated,
+			MemoryNew: stats.MemoryNew, MemoryUpdated: stats.MemoryUpdated,
 		})
 		emit(FlowRunEvent{Type: FlowEventFileDone, FilePath: in})
 	}
 
 	res.Applied, res.Stale, res.Skipped = totals.Applied, totals.Stale, totals.Skipped
-	res.TMNew, res.TMUpdated = totals.TMNew, totals.TMUpdated
+	res.MemoryNew, res.MemoryUpdated = totals.MemoryNew, totals.MemoryUpdated
 	res.Failures = failures
 
 	// The complete event closes the stream whatever happened (errors travel as
@@ -216,7 +216,7 @@ func (a *App) MergeFromProjectStore(cmd Command) error {
 	if len(locales) == 0 {
 		return errors.New("merge: project declares no target languages (defaults.target_languages)")
 	}
-	noTMUpdate, _ := cmd.Flags().GetBool("no-tm-update")
+	noMemoryUpdate, _ := cmd.Flags().GetBool("no-tm-update")
 
 	// In JSON mode the per-file "Merged X → Y" lines are suppressed (stdout
 	// carries only the result document); text mode streams them live as before.
@@ -224,7 +224,7 @@ func (a *App) MergeFromProjectStore(cmd Command) error {
 	if output.ResolveFormat(cmd) == output.FormatJSON {
 		lineOut = io.Discard
 	}
-	written, err := a.materializeFromProjectStore(ctx, lineOut, proj, projectPath, locales, noTMUpdate)
+	written, err := a.materializeFromProjectStore(ctx, lineOut, proj, projectPath, locales, noMemoryUpdate)
 	if err != nil {
 		return err
 	}
@@ -239,7 +239,7 @@ func (a *App) MergeFromProjectStore(cmd Command) error {
 // language; `kapi up` calls it after the loop for the shippable locales when
 // the materialize policy (defaults.materialize / --materialize) says so.
 // Returns the number of files written.
-func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, proj *project.KapiProject, projectPath string, locales []model.LocaleID, noTMUpdate bool) (int, error) {
+func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, proj *project.KapiProject, projectPath string, locales []model.LocaleID, noMemoryUpdate bool) (int, error) {
 	pctx := project.NewProjectContext(proj, projectPath)
 	layout, err := project.LayoutFor(projectPath)
 	if err != nil {
@@ -273,12 +273,13 @@ func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, pr
 		return 0, fmt.Errorf("merge: %w", berr)
 	}
 
-	var tm *sievepen.SQLiteTM
-	// Browser/seeded build (a.TMBackend set): no SQLite driver / on-disk TM —
-	// skip write-back silently. Native CLI opens the project SQLite TM as before.
-	if !noTMUpdate && a.TMBackend == nil {
+	var tm *memory.SQLiteStore
+	// Browser/seeded build (a.MemoryBackend set): no SQLite driver / on-disk content
+	// memory — skip write-back silently. The native CLI opens the project's SQLite
+	// content memory as before.
+	if !noMemoryUpdate && a.MemoryBackend == nil {
 		tmPath := filepath.Join(layout.StateDir, "tm.db")
-		if loaded, lerr := sievepen.NewSQLiteTM(tmPath); lerr != nil {
+		if loaded, lerr := memory.NewSQLiteStore(tmPath); lerr != nil {
 			fmt.Fprintf(os.Stderr, "Warning: merge: open project TM at %s: %v (continuing without TM write-back)\n", tmPath, lerr)
 		} else {
 			defer loaded.Close()
@@ -351,8 +352,8 @@ func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, pr
 
 // absorbStoreTargets reads the source blocks, applies the stored
 // `targets/<locale>` overlays, and writes accepted source+target pairs into
-// the project TM with kapi-merge provenance. Returns (new, updated) counts.
-func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFormat, sourceAbs string, source, target model.LocaleID, store blockstore.Store, tm *sievepen.SQLiteTM, sourceRel string) (int, int, error) {
+// the project content memory with kapi-merge provenance. Returns (new, updated) counts.
+func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFormat, sourceAbs string, source, target model.LocaleID, store blockstore.Store, tm *memory.SQLiteStore, sourceRel string) (int, int, error) {
 	blocks, _, err := project.ReadSourceBlocks(ctx, reg, srcFormat, sourceAbs, source, target, nil)
 	if err != nil {
 		return 0, 0, err
@@ -403,7 +404,7 @@ type mergeTask struct {
 	ctx     *project.ProjectContext
 	input   string
 	policy  string
-	tm      *sievepen.SQLiteTM
+	tm      *memory.SQLiteStore
 	project *project.KapiProject
 
 	// noRestore disables restoring redacted originals from the batch vault.
@@ -411,19 +412,19 @@ type mergeTask struct {
 }
 
 type mergeStats struct {
-	Applied   int
-	Stale     int
-	Skipped   int
-	TMNew     int
-	TMUpdated int
+	Applied       int
+	Stale         int
+	Skipped       int
+	MemoryNew     int
+	MemoryUpdated int
 }
 
 func (s *mergeStats) accumulate(o mergeStats) {
 	s.Applied += o.Applied
 	s.Stale += o.Stale
 	s.Skipped += o.Skipped
-	s.TMNew += o.TMNew
-	s.TMUpdated += o.TMUpdated
+	s.MemoryNew += o.MemoryNew
+	s.MemoryUpdated += o.MemoryUpdated
 }
 
 // MergeOneKpz ingests a bilingual interchange .kpz returned by a translator
@@ -431,7 +432,7 @@ func (s *mergeStats) accumulate(o mergeStats) {
 // target overlays onto the current source blocks (matched by id), staleness-
 // checks each block against the current source, applies the project conflict
 // policy, writes the merged target via the package's inline skeleton, and
-// absorbs accepted targets into the project TM.
+// absorbs accepted targets into the project content memory.
 func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 	ctx := cmd.Context()
 	pkg, err := LoadWorkspace(kpzInput)
@@ -465,15 +466,15 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 	}
 	policy := proj.Defaults.Merge.ResolvedConflictPolicy()
 
-	var tm *sievepen.SQLiteTM
+	var tm *memory.SQLiteStore
 	if !BoolFlag(cmd, "no-tm-update") {
-		// Warned, like the two sibling merge paths above: a TM that failed to
-		// open reported `tm_new=0 tm_updated=0`, which reads as "nothing new to
-		// learn" rather than "the TM was never opened" — so the leverage is lost
-		// for this bundle with no way to tell.
+		// Warned, like the two sibling merge paths above: a content memory that
+		// failed to open reported `tm_new=0 tm_updated=0`, which reads as
+		// "nothing new to learn" rather than "it was never opened" — so the
+		// leverage is lost for this bundle with no way to tell.
 		tmPath := filepath.Join(layout.StateDir, "tm.db")
-		if loaded, lerr := sievepen.NewSQLiteTM(tmPath); lerr != nil {
-			fmt.Fprintf(os.Stderr, "Warning: merge: open project TM at %s: %v (continuing without TM write-back)\n", tmPath, lerr)
+		if loaded, lerr := memory.NewSQLiteStore(tmPath); lerr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: merge: open project content memory at %s: %v (continuing without write-back)\n", tmPath, lerr)
 		} else {
 			defer loaded.Close()
 			tm = loaded
@@ -561,8 +562,8 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 				if aerr != nil && tmErr == nil {
 					tmErr = aerr
 				}
-				stats.TMNew += added
-				stats.TMUpdated += updated
+				stats.MemoryNew += added
+				stats.MemoryUpdated += updated
 			}
 		}
 
@@ -593,7 +594,7 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 	}
 	fmt.Fprintf(cmd.OutOrStdout(),
 		"Merged %s → %s: applied=%d skipped=%d tm_new=%d tm_updated=%d (conflict_policy=%s)\n",
-		filepath.Base(kpzInput), targetLocale, stats.Applied, stats.Skipped, stats.TMNew, stats.TMUpdated, policy)
+		filepath.Base(kpzInput), targetLocale, stats.Applied, stats.Skipped, stats.MemoryNew, stats.MemoryUpdated, policy)
 	return nil
 }
 
@@ -791,8 +792,8 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 			if aerr != nil && tmErr == nil {
 				tmErr = aerr
 			}
-			stats.TMNew += added
-			stats.TMUpdated += updated
+			stats.MemoryNew += added
+			stats.MemoryUpdated += updated
 		}
 	}
 	if tmErr != nil {
@@ -810,7 +811,7 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 }
 
 // mergeOnePO handles a returning PO (gettext) file. It shares all the
-// conflict policy, stale detection, and TM absorb machinery with
+// conflict policy, stale detection, and content memory absorb machinery with
 // mergeOneXLIFF — the only differences are parsing and target-locale
 // discovery (PO has no intrinsic src/trg attribute; we pull the target
 // from the extraction manifest via the pair that named the PO output).
@@ -912,8 +913,8 @@ func (a *App) mergeOnePO(ctx context.Context, task mergeTask) (mergeStats, error
 			if aerr != nil && tmErr == nil {
 				tmErr = aerr
 			}
-			stats.TMNew += added
-			stats.TMUpdated += updated
+			stats.MemoryNew += added
+			stats.MemoryUpdated += updated
 		}
 	}
 	if tmErr != nil {
@@ -1120,7 +1121,7 @@ func writeMergedSourceWithSkeleton(ctx context.Context, reg *registry.FormatRegi
 	return writer.Close()
 }
 
-// absorbBlockIntoTM writes a block's source+target into the project TM
+// absorbBlockIntoMemory writes a block's source+target into the project content memory
 // with kapi-merge provenance. Returns (new, updated) counts. Today both
 // are 1-or-0 since we write one entry per block; tracking them separately
 // matters once we widen to per-segment.
@@ -1130,7 +1131,7 @@ func writeMergedSourceWithSkeleton(ctx context.Context, reg *registry.FormatRegi
 // read-only, or run out of disk, absorbed nothing while every merge reported
 // success. Callers treat it as non-fatal — the merged file is the deliverable —
 // but they report it.
-func absorbBlockIntoTM(ctx context.Context, tm *sievepen.SQLiteTM, block *model.Block, source, target model.LocaleID, batchID, sourceRel, xliffPath string) (newCount, updatedCount int, err error) {
+func absorbBlockIntoTM(ctx context.Context, tm *memory.SQLiteStore, block *model.Block, source, target model.LocaleID, batchID, sourceRel, xliffPath string) (newCount, updatedCount int, err error) {
 	srcText := block.SourceText()
 	tgtText := block.TargetText(target)
 	if srcText == "" || tgtText == "" {
@@ -1147,14 +1148,14 @@ func absorbBlockIntoTM(ctx context.Context, tm *sievepen.SQLiteTM, block *model.
 		contentHash = model.ComputeContentHash(srcText)
 	}
 	now := time.Now().UTC()
-	entry := sievepen.TMEntry{
+	entry := memory.Entry{
 		ID: fmt.Sprintf("merge:%s:%s", batchID, contentHash),
 		Variants: map[model.LocaleID][]model.Run{
 			source: {{Text: &model.TextRun{Text: srcText}}},
 			target: {{Text: &model.TextRun{Text: tgtText}}},
 		},
 		HintSrcLang: source,
-		Origins: []sievepen.Origin{{
+		Origins: []memory.Origin{{
 			Source:    "merge",
 			Key:       sourceRel,
 			Reference: batchID,

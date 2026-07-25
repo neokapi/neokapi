@@ -211,7 +211,7 @@ export const InputWithMultipleActions: StoryObj = {
   render: () => (
     <div className="max-w-sm">
       <FormItem>
-        <FormLabel>TM File</FormLabel>
+        <FormLabel>Memory File</FormLabel>
         <FormInputAction>
           <Input defaultValue="/data/project.tmx" className="flex-1 font-mono text-xs h-8" />
           <Button variant="outline" size="sm" className="h-8 text-xs shrink-0">
@@ -311,33 +311,33 @@ export const CollapsibleGroup: StoryObj = {
 export const ComposedConfigEditor: StoryObj = {
   name: "Composed — Mini Config Editor",
   render: () => {
-    const [useTM, setUseTM] = useState(false);
+    const [useMemory, setUseMemory] = useState(false);
     const [threshold, setThreshold] = useState("95");
     const [format, setFormat] = useState("html");
 
     return (
       <div className="max-w-sm space-y-4">
-        <FormFieldGroup label="Translation Memory">
+        <FormFieldGroup label="Content Memory">
           <div className="space-y-2">
             <FormToggle
-              checked={useTM}
-              onCheckedChange={setUseTM}
-              label="Use Translation Memory"
+              checked={useMemory}
+              onCheckedChange={setUseMemory}
+              label="Use Content Memory"
               description="Leverage existing translations for pre-population."
             />
 
-            <FormItem disabled={!useTM}>
-              <FormLabel disabled={!useTM}>TM File</FormLabel>
+            <FormItem disabled={!useMemory}>
+              <FormLabel disabled={!useMemory}>Memory File</FormLabel>
               <FormInputAction>
                 <Input
                   defaultValue="/data/project.tmx"
-                  disabled={!useTM}
+                  disabled={!useMemory}
                   className="flex-1 font-mono text-xs h-8"
                 />
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={!useTM}
+                  disabled={!useMemory}
                   className="h-8 text-xs shrink-0"
                 >
                   Browse
@@ -345,8 +345,8 @@ export const ComposedConfigEditor: StoryObj = {
               </FormInputAction>
             </FormItem>
 
-            <FormItem disabled={!useTM}>
-              <FormLabel disabled={!useTM}>Match Threshold</FormLabel>
+            <FormItem disabled={!useMemory}>
+              <FormLabel disabled={!useMemory}>Match Threshold</FormLabel>
               <FormDescription>Minimum similarity score (0–100).</FormDescription>
               <FormControl>
                 <Input
@@ -354,7 +354,7 @@ export const ComposedConfigEditor: StoryObj = {
                   min={0}
                   max={100}
                   value={threshold}
-                  disabled={!useTM}
+                  disabled={!useMemory}
                   className="h-8 text-xs"
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     setThreshold(e.target.value)

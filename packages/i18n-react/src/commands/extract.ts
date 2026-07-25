@@ -277,7 +277,7 @@ function extractAllDocuments(
 function buildKBF(doc: Document, opts: ExtractArgs) {
   return {
     schemaVersion: "1.0" as const,
-    kind: "kapi-localization-format" as const,
+    kind: "kapi-bundle" as const,
     generator: { id: "@neokapi/i18n-react", version: readPackageVersion() },
     project: {
       id: opts.projectId,

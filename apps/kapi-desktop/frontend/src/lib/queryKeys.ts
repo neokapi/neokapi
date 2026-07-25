@@ -58,17 +58,17 @@ export const qk = {
   matchContent: (tabID: string) => ["project-content", tabID] as const,
   outputs: (tabID: string) => ["outputs", tabID] as const,
 
-  // TM
-  namedTMs: () => ["tm", "named"] as const,
-  tmStats: (handle: string) => ["tm", "stats", handle] as const,
-  tmLocaleStats: (handle: string) => ["tm", "locale-stats", handle] as const,
-  tmActivityStats: (handle: string) => ["tm", "activity-stats", handle] as const,
+  // content memory
+  namedMemories: () => ["tm", "named"] as const,
+  memoryStats: (handle: string) => ["tm", "stats", handle] as const,
+  memoryLocaleStats: (handle: string) => ["tm", "locale-stats", handle] as const,
+  memoryActivityStats: (handle: string) => ["tm", "activity-stats", handle] as const,
 
-  // Termbase
-  namedTermbases: () => ["termbase", "named"] as const,
-  termbaseStats: (handle: string) => ["termbase", "stats", handle] as const,
-  termbaseLocaleStats: (handle: string) => ["termbase", "locale-stats", handle] as const,
-  termbaseActivityStats: (handle: string) => ["termbase", "activity-stats", handle] as const,
+  // Terms
+  namedTerms: () => ["terms", "named"] as const,
+  termsStats: (handle: string) => ["terms", "stats", handle] as const,
+  termsLocaleStats: (handle: string) => ["terms", "locale-stats", handle] as const,
+  termsActivityStats: (handle: string) => ["terms", "activity-stats", handle] as const,
 
   // Settings / system
   settings: () => ["settings"] as const,

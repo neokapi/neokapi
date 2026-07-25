@@ -46,7 +46,7 @@ func TestMigrate_UniqueViolationInMigrationSQLFailsFast(t *testing.T) {
 }
 
 // Concurrent openers of the same fresh database (converge workers all opening
-// the project TM) must each get a migrated DB, with every migration applied
+// the project content memory) must each get a migrated DB, with every migration applied
 // exactly once.
 func TestMigrate_ConcurrentOpenersOfSameDB(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "test.db")

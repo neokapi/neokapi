@@ -10,7 +10,7 @@ import (
 func (c *Config) Schema() *schema.FormatSchema {
 	return &schema.FormatSchema{
 		Title:       "TMX (Translation Memory eXchange)",
-		Description: "Configuration for the native TMX translation memory format reader/writer",
+		Description: "Configuration for the native TMX content memory format reader/writer",
 		Type:        "object",
 		FormatMeta: schema.FormatMeta{
 			ID:         "tmx",

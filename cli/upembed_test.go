@@ -97,7 +97,7 @@ func TestUpPlan_Embedded(t *testing.T) {
 
 	// Two locales × two source files with one unit each → 2 missing per locale.
 	assert.Equal(t, 4, plan.Totals.MissingTarget)
-	assert.Equal(t, 4, plan.Totals.AIRemaining, "no TM → everything is AI work")
+	assert.Equal(t, 4, plan.Totals.AIRemaining, "no content memory → everything is AI work")
 	assert.Positive(t, plan.Totals.TokenEstimate)
 	assert.NotEmpty(t, plan.Note, "the estimation heuristic is disclosed")
 	require.Len(t, plan.Scopes, 2)

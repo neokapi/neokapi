@@ -11,8 +11,8 @@ import (
 
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // brandProfile is the small, deterministic brand voice profile seeded for the
@@ -41,32 +41,32 @@ var fixtureTMX []byte
 //go:embed fixtures/glossary.csv
 var fixtureGlossaryCSV []byte
 
-// seedBackends initialises the in-memory TM and termbase on app and
-// assigns them to app.TMBackend / app.TBBackend so that the tm,
-// termbase, term-check, and extract commands work in the browser build
+// seedBackends initialises the in-memory content memory and terms on app and
+// assigns them to app.MemoryBackend / app.TermsBackend so that the tm,
+// terms, term-check, and extract commands work in the browser build
 // without cgo / SQLite.
 func seedBackends() {
-	tm := sievepen.NewInMemoryTM()
-	opts := sievepen.ImportTMXOptions{
+	tm := memory.NewInMemoryStore()
+	opts := memory.ImportTMXOptions{
 		OriginKey:     "fixture/project.tmx",
 		OriginAddedBy: "kapi-wasm-cli",
 		WarnFunc: func(msg string) {
 			fmt.Fprintln(os.Stderr, "warning:", msg)
 		},
 	}
-	if _, err := sievepen.ImportTMXWithOptions(context.Background(), tm, bytes.NewReader(fixtureTMX), model.LocaleID("en"), model.LocaleID("fr"), opts); err != nil {
-		fmt.Fprintln(os.Stderr, "wasm: seed TM:", err)
+	if _, err := memory.ImportTMXWithOptions(context.Background(), tm, bytes.NewReader(fixtureTMX), model.LocaleID("en"), model.LocaleID("fr"), opts); err != nil {
+		fmt.Fprintln(os.Stderr, "wasm: seed content memory:", err)
 	}
-	app.TMBackend = tm
+	app.MemoryBackend = tm
 
-	tb := termbase.NewInMemoryTermBase()
-	csvOpts := termbase.CSVImportOptions{
+	tb := terms.NewInMemoryStore()
+	csvOpts := terms.CSVImportOptions{
 		SourceLocale: model.LocaleID("en"),
 		TargetLocale: model.LocaleID("fr"),
 		HasHeader:    true,
 	}
-	if _, err := termbase.ImportCSV(context.Background(), tb, bytes.NewReader(fixtureGlossaryCSV), csvOpts); err != nil {
-		fmt.Fprintln(os.Stderr, "wasm: seed termbase:", err)
+	if _, err := terms.ImportCSV(context.Background(), tb, bytes.NewReader(fixtureGlossaryCSV), csvOpts); err != nil {
+		fmt.Fprintln(os.Stderr, "wasm: seed terms:", err)
 	}
-	app.TBBackend = tb
+	app.TermsBackend = tb
 }

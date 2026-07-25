@@ -21,7 +21,7 @@ const config: WalkthroughEmbedConfig = {
   ],
   steps: [
     {
-      command: "kapi tm import project.tmx -s en -t fr",
+      command: "kapi memory import project.tmx -s en -t fr",
       narration:
         "Load existing translation memory — the store up leverages before any AI is asked.",
     },

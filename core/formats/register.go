@@ -45,7 +45,9 @@ import (
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 	xmlfmt "github.com/neokapi/neokapi/core/formats/xml"
 	"github.com/neokapi/neokapi/core/formats/yaml"
+	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/internal/bundlekind"
 )
 
 // RegisterOptions configures optional registries populated during RegisterAll.
@@ -628,7 +630,10 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 			MIMETypes:  []string{"application/vnd.neokapi.kbf+json"},
 			Extensions: []string{".kbf"},
 			Sniff: func(data []byte) bool {
-				return bytes.Contains(data, []byte(`"kapi-localization-format"`))
+				// Also matches the retired kind, so a bundle from an earlier
+				// release reaches the KBF reader and gets its explanatory
+				// "regenerate it with …" error instead of failing detection.
+				return bundlekind.SniffKind(data, kbf.Kind)
 			},
 		}, "Kapi Bundle Format (KBF)")
 	reg.RegisterWriter(registry.FormatID(jsx.FormatName), func() format.DataFormatWriter { return jsx.NewWriter() })

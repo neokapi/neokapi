@@ -9,7 +9,7 @@ import type {
   SpanInfo,
   BlockInfo,
   ProjectInfo,
-  TMMatchInfo,
+  MemoryMatchInfo,
   BlockTermMatch,
   QAIssue,
   FileQAResult,
@@ -321,10 +321,10 @@ export const sampleBlocks: BlockInfo[] = [
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// TM Match samples
+// content memory Match samples
 // ---------------------------------------------------------------------------
 
-export const sampleTMMatches: TMMatchInfo[] = [
+export const sampleMemoryMatches: MemoryMatchInfo[] = [
   {
     source: "Welcome to Neokapi",
     target: "Bienvenue sur Neokapi",
@@ -359,7 +359,7 @@ export const sampleTermMatches: BlockTermMatch[] = [
     end: 12,
   },
   {
-    source_term: "translation memory",
+    source_term: "content memory",
     target_terms: ["m\u00e9moire de traduction"],
     domain: "i18n",
     status: "approved",

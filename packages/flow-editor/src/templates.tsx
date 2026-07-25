@@ -53,10 +53,10 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
   {
     id: "tm-translate",
     get name() {
-      return t("TM Leverage + Translate", "flow template name");
+      return t("content memory Leverage + Translate", "flow template name");
     },
     get description() {
-      return t("Leverage translation memory first, then AI-translate unmatched segments.");
+      return t("Leverage content memory first, then AI-translate unmatched segments.");
     },
     category: "translation",
     stepCount: 2,
@@ -66,7 +66,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
         {
           tool: "recycle",
           get label() {
-            return t("TM Leverage", "flow step label");
+            return t("content memory Leverage", "flow step label");
           },
         },
         {
@@ -158,7 +158,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
     },
     get description() {
       return t(
-        "Complete workflow: TM leverage, AI translate, parallel QA + brand check, word count.",
+        "Complete workflow: content-memory leverage, AI translate, parallel QA + brand check, word count.",
       );
     },
     category: "pipeline",
@@ -169,7 +169,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
         {
           tool: "recycle",
           get label() {
-            return t("TM Leverage", "flow step label");
+            return t("content memory Leverage", "flow step label");
           },
         },
         {

@@ -1,7 +1,7 @@
 ---
 sidebar_position: 11
 title: Terminology
-description: neokapi's concept-oriented terminology system groups multi-locale terms under language-neutral concepts with lifecycle status and grammatical metadata — backing the kapi termbase commands and the term-check pipeline tool.
+description: neokapi's concept-oriented terminology system groups multi-locale terms under language-neutral concepts with lifecycle status and grammatical metadata — backing the kapi terms commands and the term-check pipeline tool.
 keywords: [terminology, termbase, TBX, concepts, glossary, term enforcement, localization QA]
 ---
 
@@ -102,14 +102,14 @@ requires.
 ## Storage backends
 
 Two backends ship in the `termbase/` package, both thread-safe
-(RWMutex-protected) and implementing the full `TermBase` interface:
+(RWMutex-protected) and implementing the full `Terminology` interface:
 
-1. **In-memory** (`termbase.NewInMemoryTermBase`) — fast and ephemeral, used
+1. **In-memory** (`termbase.NewInMemoryStore`) — fast and ephemeral, used
    for session-scoped batch processing.
-2. **SQLite** (`termbase.NewSQLiteTermBase`) — persistent file-based storage
+2. **SQLite** (`termbase.NewSQLiteStore`) — persistent file-based storage
    for CLI workflows, with fuzzy matching via SQL-based Levenshtein distance.
 
-The `TermBase` interface also accommodates server-side backends for multi-user
+The `Terminology` interface also accommodates server-side backends for multi-user
 deployments with project scoping, terminology streams, and workspace isolation.
 
 ## CLI usage
@@ -129,20 +129,20 @@ Databases are created on demand if they don't exist.
 
 ```bash
 # Import terms (CSV or JSON)
-kapi termbase import terms.csv --name project-terms --format csv -s en -t fr
-kapi termbase import terms.json --format json
+kapi terms import terms.csv --name project-terms --format csv -s en -t fr
+kapi terms import terms.json --format json
 
 # Export terms
-kapi termbase export --name project-terms --format csv -o terms.csv -s en -t fr
+kapi terms export --name project-terms --format csv -o terms.csv -s en -t fr
 
 # Look up a term (exact, or --fuzzy)
-kapi termbase lookup "encryption" --name project-terms -s en -t fr
-kapi termbase lookup "authenticating users" -s en -t fr --fuzzy
+kapi terms lookup "encryption" --name project-terms -s en -t fr
+kapi terms lookup "authenticating users" -s en -t fr --fuzzy
 
 # Search concepts, view statistics, list named termbases
-kapi termbase search "auth" -s en --limit 50
-kapi termbase stats --name project-terms
-kapi termbase list
+kapi terms search "auth" -s en --limit 50
+kapi terms stats --name project-terms
+kapi terms list
 ```
 
 The `kapi termbase` commands cover import, export, lookup, search,
@@ -172,7 +172,7 @@ Two pipeline tools bring terminology into the translation flow:
 ### Interface
 
 ```go
-type TermBase interface {
+type Terminology interface {
     AddConcept(concept Concept) error
     GetConcept(id string) (Concept, bool)
     DeleteConcept(id string) error
@@ -265,11 +265,11 @@ import (
     "fmt"
 
     "github.com/neokapi/neokapi/core/model"
-    "github.com/neokapi/neokapi/termbase"
+    "github.com/neokapi/neokapi/terms"
 )
 
 func main() {
-    tb := termbase.NewInMemoryTermBase()
+    tb := termbase.NewInMemoryStore()
     defer tb.Close()
 
     tb.AddConcept(termbase.Concept{

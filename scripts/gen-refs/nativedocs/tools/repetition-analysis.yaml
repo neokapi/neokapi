@@ -1,6 +1,6 @@
 # Native reference doc for the built-in `repetition-analysis` tool.
 # Schema source: core/tools/repetitionanalysis.go (RepetitionAnalysisConfig).
-description: Identify repeated source segments across blocks for translation-memory leverage.
+description: Identify repeated source segments across blocks for content-memory leverage.
 overview: |
   The **Repetition Analysis** tool tracks source text as blocks stream through
   the pipeline and tags each block according to whether its source has been seen

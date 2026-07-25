@@ -67,7 +67,7 @@ export interface FocusedReviewerProps {
    * selected span, or the whole block source when nothing is selected.
    */
   onProposeSourceChange?: (sourceText: string) => void;
-  /** Promote a marked source entity to a termbase concept (lights the popover's Promote button). */
+  /** Promote a marked source entity to a terms store concept (lights the popover's Promote button). */
   onEntityPromote?: (entityKey: string) => void;
 }
 

@@ -31,8 +31,8 @@
 #                      bowrain/web/landing/translations/<lang>.json
 #                      (make l10n-landing)
 #
-# Drive it with the l10n-* Makefile targets. Seeds (brand voice, termbase,
-# reviewed TM) live under l10n/.
+# Drive it with the l10n-* Makefile targets. Seeds (brand voice, terms,
+# reviewed content memory) live under l10n/.
 version: v1
 name: neokapi
 defaults:
@@ -41,10 +41,10 @@ defaults:
   brand_voice:
     profile_file: l10n/brand-voice.yaml
   # termbase_source is the committed, git-tracked glossary (the review surface
-  # `kapi apply` term-edits write to); termbase is the gitignored cache the
+  # `kapi apply` term-edits write to); terms is the gitignored cache the
   # source compiles into. Source of truth lives in git, never in the cache.
   termbase_source: l10n/termbase.ktb
-  termbase: .kapi/termbase.db
+  terms: .kapi/termbase.db
   tm:
     fuzzy_threshold: 75
   # YAML surface = the harness demo scripts (the only yaml content items).
@@ -160,8 +160,8 @@ content:
     items:
       # Narrated demo-video scripts. The English demo.yaml is the master;
       # localized narration is GENERATED into committed demo.<lang>.yaml
-      # sidecars (make l10n-demos, TM-driven) that the harness overlays at
-      # load time. Never hand-edit a sidecar — fix the TM seed instead
+      # sidecars (make l10n-demos, content memory-driven) that the harness overlays at
+      # load time. Never hand-edit a sidecar — fix the content memory seed instead
       # (l10n/tm/demo-narration-<lang>.kmb). Translatable keys are
       # selected by defaults.formats.yaml.config.keyPathPatterns above.
       - path: harness/demos/*/demo.yaml
@@ -169,7 +169,7 @@ content:
           name: yaml
         target: harness/demos/{dir}/demo.{lang}.yaml
 flows:
-  # Exact-match TM leverage only (no AI, no checks): the deterministic pass
+  # Exact-match content-memory leverage only (no AI, no checks): the deterministic pass
   # behind `make l10n-demos`. Named tm-recycle so it does not shadow the
   # built-in `recycle`/`translate` flows (built-ins win in `kapi run`).
   tm-recycle:
@@ -178,9 +178,9 @@ flows:
         config:
           fillTarget: true
           fillTargetThreshold: 100
-  # TM-driven translation: reviewed translations live in the project TM
+  # content memory-driven translation: reviewed translations live in the project content memory
   # (seeded from l10n/tm/*.tmx); exact matches fill the target, terminology
-  # compliance is checked against the project termbase.
+  # compliance is checked against the project terms.
   translate:
     steps:
       - tool: recycle
@@ -188,7 +188,7 @@ flows:
           fillTarget: true
           fillTargetThreshold: 100
       - tool: term-check
-  # AI translation for new/changed strings: TM first, then translate for
+  # AI translation for new/changed strings: content memory first, then translate for
   # the misses (brand voice + glossary are bound project-wide), then checks.
   # Requires provider credentials (keychain or ANTHROPIC_API_KEY).
   translate-ai:
@@ -215,9 +215,9 @@ flows:
 #
 # converge: manual — a push moves content but does NOT auto-start a server AI
 # convergence run. The first on-push run (2026-07-17) tried to AI-draft the whole
-# ~18.8k-block untranslated corpus with an empty server TM (TM 0 · AI everything)
+# ~18.8k-block untranslated corpus with an empty server content memory (content memory 0 · AI everything)
 # and stalled on the workspace credit allowance. Convergence is now started
-# deliberately — scoped, and only once the server TM is seeded and/or a BYO AI
+# deliberately — scoped, and only once the server content memory is seeded and/or a BYO AI
 # key is set (BYO burns no credits, DECISIONS L3) — via `kapi up` or the REST
 # convergence endpoint. Transport (kapi push) stays pure either way.
 #

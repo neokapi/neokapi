@@ -905,11 +905,11 @@ export interface ProviderConfigWithKey extends ProviderConfig {
 }
 
 // ---------------------------------------------------------------------------
-// Translation Memory types
+// Content Memory types
 // ---------------------------------------------------------------------------
 
-/** TM entry info */
-export interface TMEntryInfo {
+/** content-memory entry info */
+export interface MemoryEntryInfo {
   id: string;
   source: string;
   target: string;
@@ -920,14 +920,14 @@ export interface TMEntryInfo {
   updated_at: string;
 }
 
-/** TM search result */
-export interface TMSearchResult {
-  entries: TMEntryInfo[];
+/** content-memory search result */
+export interface MemorySearchResult {
+  entries: MemoryEntryInfo[];
   total_count: number;
 }
 
-/** TM update request */
-export interface TMUpdateRequest {
+/** Memory update request */
+export interface MemoryUpdateRequest {
   project_id: string;
   entry_id: string;
   source: string;
@@ -936,8 +936,8 @@ export interface TMUpdateRequest {
   target_locale: string;
 }
 
-/** TM match for a single block */
-export interface TMMatchInfo {
+/** content-memory match for a single block */
+export interface MemoryMatchInfo {
   source: string;
   target: string;
   score: number;
@@ -1363,7 +1363,7 @@ export interface ConvergenceEstimateCredits {
 
 /**
  * The provider-free pre-flight estimate for a project's next convergence run
- * (epic 019, theme B): source readiness first, then per-locale TM/AI work for
+ * (epic 019, theme B): source readiness first, then per-locale content memory/AI work for
  * the ready source, then the workspace credit balance. Matches the server's
  * convergenceEstimateView.
  */
@@ -1847,7 +1847,7 @@ export const PERMISSION_LABELS: Record<PermissionName, string> = {
   translate: "Translate",
   review: "Review",
   manage_terms: "Manage terminology",
-  manage_tm: "Manage TM",
+  manage_tm: "Manage content memory",
   run_flows: "Run flows",
   manage_files: "Manage files",
   manage_streams: "Manage streams",

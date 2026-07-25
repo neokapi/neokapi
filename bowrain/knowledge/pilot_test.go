@@ -10,7 +10,7 @@ import (
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 )
@@ -75,7 +75,7 @@ func TestStartStopPilot_ConceptsAndRelations(t *testing.T) {
 	cs := &ChangeSet{ID: "cs1", WorkspaceID: ws, Name: "Guide to new", CreatedBy: "alice"}
 	require.NoError(t, store.CreateChangeSet(ctx, cs))
 	appendOp(t, store, ws, cs.ID, 0, OpRelationAdd, RelationAddPayload{
-		Relation: termbase.ConceptRelation{ID: "r1", SourceID: "old", TargetID: "new", RelationType: graph.LabelUseInstead},
+		Relation: terms.ConceptRelation{ID: "r1", SourceID: "old", TargetID: "new", RelationType: graph.LabelUseInstead},
 	})
 
 	loaded, err := store.GetChangeSet(ctx, ws, cs.ID)
@@ -164,7 +164,7 @@ func TestStartStopPilot_VoiceBinding(t *testing.T) {
 	loaded, err := store.GetChangeSet(ctx, ws, cs.ID)
 	require.NoError(t, err)
 
-	e := NewEngine(content, termbase.NewInMemoryTermBase(), profiles, store)
+	e := NewEngine(content, terms.NewInMemoryStore(), profiles, store)
 	_, err = e.StartPilot(ctx, ws, store, *loaded, "proj1", pilotStream)
 	require.NoError(t, err)
 

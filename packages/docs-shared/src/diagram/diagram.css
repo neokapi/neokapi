@@ -26,7 +26,7 @@
   --kdx-annotate: #6d5ae6; /* annotators — overlays (indigo) */
   --kdx-translate: #0e9aab; /* translators — targets (cyan) */
   --kdx-qa: #b45309; /* QA / enforce (amber) */
-  --kdx-resource: #0e7490; /* TM / termbase */
+  --kdx-resource: #0e7490; /* Memory / terms */
   --kdx-plugin: #7c3aed; /* plugin system / gRPC */
   --kdx-file: #2e8555; /* file chips */
 

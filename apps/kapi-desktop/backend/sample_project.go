@@ -93,7 +93,7 @@ func (a *App) GetSampleInfo(tabID string) SampleInfo {
 // ResetSampleProject refreshes an out-of-date sample to the version embedded
 // in this kapi: it quiesces the tab's handles, backs up the existing directory
 // (so nothing is lost), re-scaffolds a fresh copy in place, and reloads the
-// SAME tab — same tab ID, recipe re-read, TM/termbase/block-store handles and
+// SAME tab — same tab ID, recipe re-read, content memory/terms/block-store handles and
 // the file watcher reopened. Keeping the tab alive throughout means every
 // surface polling it (the home hero's GetConvergence / GetConvergePlan) never
 // dangles on a closed tab or a renamed path. Only valid for projects
@@ -110,7 +110,7 @@ func (a *App) ResetSampleProject(tabID string) (*TabInfo, error) {
 		return nil, errors.New("not a sample project")
 	}
 
-	// Quiesce first so the file watcher, the block store, and TM/termbase
+	// Quiesce first so the file watcher, the block store, and content memory/terms
 	// handles release the directory before we move it — but keep the tab
 	// entry, so it can be reloaded in place after the re-scaffold.
 	a.releaseProjectResources(op)

@@ -2,7 +2,7 @@
 //
 // These mirror the Go DTOs of the concept + change-set REST surface
 // (bowrain/server/handlers_concepts.go, handlers_changesets.go and the
-// bowrain/knowledge + termbase + core/graph packages). Field names are the
+// bowrain/knowledge + terms + core/graph packages). Field names are the
 // snake_case JSON the server emits and accepts. Concept and term DTOs returned
 // by the list/get/create concept routes reuse `ConceptInfo` / `TermInfo` /
 // `TermSearchResult` from ./api; the types here add the graph, governance, and
@@ -11,7 +11,7 @@
 import type { TermRule } from "../brand/types";
 
 // ---------------------------------------------------------------------------
-// Shared atoms (termbase + core/graph)
+// Shared atoms (terms + core/graph)
 // ---------------------------------------------------------------------------
 
 /** Term lifecycle status (core/model.TermStatus). */
@@ -23,7 +23,7 @@ export type TermStatus =
   | "deprecated"
   | "forbidden";
 
-/** Where a concept comes from (termbase.TermSource). */
+/** Where a concept comes from (terms.TermSource). */
 export type TermSource = "terminology" | "brand_vocabulary";
 
 /**
@@ -69,7 +69,7 @@ export interface Validity {
 }
 
 /**
- * A full term within a concept (termbase.Term) — the shape op payloads carry.
+ * A full term within a concept (terms.Term) — the shape op payloads carry.
  * The reduced list/get concept response uses `TermInfo` from ./api instead.
  */
 export interface Term {
@@ -84,7 +84,7 @@ export interface Term {
 }
 
 /**
- * A full concept (termbase.Concept) — the shape an OpConceptCreate payload and a
+ * A full concept (terms.Concept) — the shape an OpConceptCreate payload and a
  * revision snapshot carry. The list/get/create concept routes return
  * `ConceptInfo` from ./api. created_at/updated_at are server-assigned and so
  * optional when building a create payload.
@@ -102,7 +102,7 @@ export interface GraphConcept {
 }
 
 /**
- * A persisted, typed edge between two concepts (termbase.ConceptRelation). The
+ * A persisted, typed edge between two concepts (terms.ConceptRelation). The
  * direct add route (AddConceptRelationRequest) lets the server mint id +
  * created_at; an OpRelationAdd payload must carry a complete relation.
  */
@@ -145,7 +145,7 @@ export interface ConceptRevision {
   workspace_id: string;
   concept_id: string;
   rev: number;
-  /** termbase.Concept + relations delta, JSON-encoded. */
+  /** terms.Concept + relations delta, JSON-encoded. */
   snapshot: unknown;
   summary?: string;
   actor: string;

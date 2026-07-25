@@ -245,7 +245,7 @@ export const emailCta: Block = {
 function fileWith(blocks: Block[]): File {
   return {
     schemaVersion: "1.0",
-    kind: "kapi-localization-format",
+    kind: "kapi-bundle",
     created: "2026-04-15T10:00:00Z",
     generator: {
       id: "@neokapi/kapi-format-examples",

@@ -16,7 +16,6 @@
 package jsx
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -29,6 +28,7 @@ import (
 	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/safeio"
+	"github.com/neokapi/neokapi/internal/bundlekind"
 )
 
 // AnnotationType is the discriminator key the KBFAnnotation
@@ -183,13 +183,18 @@ func NewReader() *Reader {
 }
 
 // Signature returns detection metadata — .kbf files are JSON
-// bearing the canonical `kapi-localization-format` kind marker.
+// bearing the canonical `kapi-bundle` kind marker.
+//
+// Detection also matches the retired kind this one replaced, so a bundle written
+// by an earlier release is still recognised as a bundle and gets the reader's
+// explanatory "regenerate it with …" error rather than failing as an unknown
+// format. Detecting it is not the same as accepting it: Open still rejects it.
 func (r *Reader) Signature() format.FormatSignature {
 	return format.FormatSignature{
 		MIMETypes:  MimeTypes,
 		Extensions: Extensions,
 		Sniff: func(data []byte) bool {
-			return bytes.Contains(data, []byte(`"kapi-localization-format"`))
+			return bundlekind.SniffKind(data, kbf.Kind)
 		},
 	}
 }

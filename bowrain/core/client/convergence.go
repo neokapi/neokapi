@@ -68,7 +68,7 @@ type StartConvergenceRunRequest struct {
 }
 
 // ConvergenceEstimate is the provider-free pre-flight the server computes before
-// a run (epic 019, theme B): source readiness first, then the per-locale TM/AI
+// a run (epic 019, theme B): source readiness first, then the per-locale content memory/AI
 // split and credit cost for the ready source, then the workspace balance. It
 // mirrors the server's convergenceEstimateView.
 type ConvergenceEstimate struct {
@@ -93,7 +93,7 @@ type ConvergenceSourceReadiness struct {
 type ConvergenceEstimateLocale struct {
 	Locale        string `json:"locale"`
 	Pending       int    `json:"pending"`
-	ViaTM         int    `json:"via_tm"`
+	ViaMemory     int    `json:"via_tm"`
 	ViaAI         int    `json:"via_ai"`
 	TokenEstimate int    `json:"token_estimate"`
 }
@@ -101,7 +101,7 @@ type ConvergenceEstimateLocale struct {
 // ConvergenceEstimateTotals rolls the per-locale work up across locales.
 type ConvergenceEstimateTotals struct {
 	Pending       int `json:"pending"`
-	ViaTM         int `json:"via_tm"`
+	ViaMemory     int `json:"via_tm"`
 	ViaAI         int `json:"via_ai"`
 	TokenEstimate int `json:"token_estimate"`
 }

@@ -16,7 +16,7 @@ func init() {
 	model.RegisterPayload(string(model.AnnoWordCount), func() model.Payload { return &WordCountAnnotation{} })
 	model.RegisterPayload(string(model.AnnoCharCount), func() model.Payload { return &CharCountAnnotation{} })
 	model.RegisterPayload(string(model.AnnoSegCount), func() model.Payload { return &SegCountAnnotation{} })
-	model.RegisterPayload(string(model.AnnoTMMatch), func() model.Payload { return &TMMatchAnnotation{} })
+	model.RegisterPayload(string(model.AnnoMemoryMatch), func() model.Payload { return &MemoryMatchAnnotation{} })
 	model.RegisterPayload(string(model.AnnoRepetition), func() model.Payload { return &RepetitionAnnotation{} })
 }
 
@@ -50,16 +50,16 @@ type SegCountAnnotation struct {
 // AnnotationType reports the annotation type for registry/wire discrimination.
 func (*SegCountAnnotation) TypeName() string { return string(model.AnnoSegCount) }
 
-// TMMatchAnnotation carries the best TM match score/type for a block, plus the
+// MemoryMatchAnnotation carries the best content-memory match score/type for a block, plus the
 // segment-level "matched/total" summary when leveraged per segment (recycle).
-type TMMatchAnnotation struct {
+type MemoryMatchAnnotation struct {
 	Score          int    `json:"score"`                    // 0-100
 	Type           string `json:"type"`                     // "exact","fuzzy","segmented-exact",…
 	SegmentMatches string `json:"segmentMatches,omitempty"` // "3/5"
 }
 
 // AnnotationType reports the annotation type for registry/wire discrimination.
-func (*TMMatchAnnotation) TypeName() string { return string(model.AnnoTMMatch) }
+func (*MemoryMatchAnnotation) TypeName() string { return string(model.AnnoMemoryMatch) }
 
 // RepetitionAnnotation carries a block's repetition classification (repetition-analysis).
 type RepetitionAnnotation struct {

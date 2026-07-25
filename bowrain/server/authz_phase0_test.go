@@ -41,14 +41,14 @@ func do(t *testing.T, s *Server, method, target, token, body string) int {
 }
 
 // TestPhase0_WorkspaceResourceAuthorization verifies that workspace-level
-// resource mutations (TM, terminology, connectors, providers) and audit reads
+// resource mutations (content memory, terminology, connectors, providers) and audit reads
 // are now gated: a plain member is denied, while the owner is not. This closes
 // the fail-open hole where any authenticated member could mutate shared assets.
 func TestPhase0_WorkspaceResourceAuthorization(t *testing.T) {
 	s, ownerToken := newTestServer(t)
 	memberToken := addWorkspaceMember(t, s, "member-1", "member@example.com", platauth.RoleMember)
 
-	tmBody := `{"source":"hello","target":"bonjour","source_locale":"en","target_locale":"fr"}`
+	memoryBody := `{"source":"hello","target":"bonjour","source_locale":"en","target_locale":"fr"}`
 	connBody := `{"type":"file","config":{}}`
 	provBody := `{"provider_type":"openai","model":"gpt-4o"}`
 	termBody := `{"definition":"d","terms":[]}`
@@ -56,7 +56,7 @@ func TestPhase0_WorkspaceResourceAuthorization(t *testing.T) {
 	cases := []struct {
 		name, method, path, body string
 	}{
-		{"tm-add", http.MethodPost, "/api/v1/test/translation-memory", tmBody},
+		{"tm-add", http.MethodPost, "/api/v1/test/translation-memory", memoryBody},
 		{"connector-add", http.MethodPost, "/api/v1/test/connectors", connBody},
 		{"provider-save", http.MethodPost, "/api/v1/test/providers", provBody},
 		{"concept-add", http.MethodPost, "/api/v1/test/concepts", termBody},
@@ -84,9 +84,9 @@ func TestPhase0_MemberRetainsReadAndContribute(t *testing.T) {
 	s, _ := newTestServer(t)
 	memberToken := addWorkspaceMember(t, s, "member-2", "member2@example.com", platauth.RoleMember)
 
-	// Reading the TM is allowed for any member (view permission).
+	// Reading the content memory is allowed for any member (view permission).
 	code := do(t, s, http.MethodGet, "/api/v1/test/translation-memory", memberToken, "")
-	assert.NotEqual(t, http.StatusForbidden, code, "member should be able to read the TM")
+	assert.NotEqual(t, http.StatusForbidden, code, "member should be able to read the content memory")
 
 	// Listing concepts is allowed for any member.
 	code = do(t, s, http.MethodGet, "/api/v1/test/concepts", memberToken, "")

@@ -105,7 +105,7 @@ type Fixture struct {
 type Context struct {
 	// Glossary is the term → mandated-rendering map the prompt's glossary
 	// section renders. Do-not-translate names ride here as identity pins, which
-	// is how a termbase concept whose preferred target term equals the source
+	// is how a terms store concept whose preferred target term equals the source
 	// term reaches generation in production (ResolveProjectGlossary).
 	Glossary map[string]string
 	// DNT lists the names that must survive verbatim — what dnt-check enforces.

@@ -19,8 +19,8 @@ import { defineConfig } from "vite-plus";
 // a root run matches the per-package surface instead of rewriting the tree.
 const OUT_OF_SURFACE = [
   "core/**", // Go framework module — corpus/spec/structure YAML + JSON fixtures & format-ops data
-  "sievepen/**", // Go module data (tmx mappings)
-  "termbase/**", // Go module data
+  "memory/**", // Go module data (tmx mappings)
+  "terms/**", // Go module data
   "providers/**", // Go module data
   "plugins/**", // Go plugin modules — manifests/testdata
   "examples/**", // example plugin manifests

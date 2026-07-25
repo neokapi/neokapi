@@ -2,7 +2,7 @@
  * Unified Bowrain API client for all e2e test suites.
  * Merges the cloud and web-app clients into a single class covering
  * health, auth, workspaces, editor projects, file upload, pseudo-translate,
- * TM, terms, invites, automations, brand profiles, streams, tasks,
+ * content memory, terms, invites, automations, brand profiles, streams, tasks,
  * notifications, and activities.
  */
 
@@ -95,7 +95,7 @@ export interface Activity {
   [key: string]: unknown;
 }
 
-export interface TMEntry {
+export interface Entry {
   source: string;
   target: string;
   source_locale: string;
@@ -336,10 +336,10 @@ export class BowrainAPI {
   }
 
   // -----------------------------------------------------------------------
-  // Translation Memory
+  // Content Memory
   // -----------------------------------------------------------------------
 
-  async addTMEntry(
+  async addMemoryEntry(
     wsSlug: string,
     source: string,
     target: string,
@@ -354,7 +354,7 @@ export class BowrainAPI {
     });
   }
 
-  async searchTM(wsSlug: string, query: string): Promise<unknown> {
+  async searchMemory(wsSlug: string, query: string): Promise<unknown> {
     return this.get(`/workspaces/${wsSlug}/tm?q=${encodeURIComponent(query)}`);
   }
 

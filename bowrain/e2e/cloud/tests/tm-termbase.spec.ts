@@ -1,19 +1,19 @@
 import { test, expect } from "../fixtures/test";
 
-test.describe("Translation Memory & Terminology", () => {
+test.describe("Content Memory & Terminology", () => {
   let wsSlug: string;
 
   test.beforeAll(async ({ api }) => {
-    const ws = await api.getOrCreateWorkspace("E2E TM", `e2e-tm-${Date.now()}`);
+    const ws = await api.getOrCreateWorkspace("E2E content memory", `e2e-tm-${Date.now()}`);
     wsSlug = ws.slug;
   });
 
-  test("add and search TM entries", async ({ api }) => {
-    await api.addTMEntry(wsSlug, "Hello", "Bonjour", "en", "fr");
-    await api.addTMEntry(wsSlug, "Goodbye", "Au revoir", "en", "fr");
-    await api.addTMEntry(wsSlug, "Hello", "Hallo", "en", "de");
+  test("add and search content-memory entries", async ({ api }) => {
+    await api.addMemoryEntry(wsSlug, "Hello", "Bonjour", "en", "fr");
+    await api.addMemoryEntry(wsSlug, "Goodbye", "Au revoir", "en", "fr");
+    await api.addMemoryEntry(wsSlug, "Hello", "Hallo", "en", "de");
 
-    const results = (await api.searchTM(wsSlug, "Hello")) as any;
+    const results = (await api.searchMemory(wsSlug, "Hello")) as any;
     // Response may be an array or { entries: [...], total: N }
     const entries = Array.isArray(results) ? results : (results.entries ?? results.results ?? []);
     expect(entries.length).toBeGreaterThan(0);

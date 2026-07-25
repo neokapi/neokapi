@@ -427,7 +427,7 @@ type AltTranslation struct {
     Source    []Run
     Target    []Run
     Locale    LocaleID
-    Origin    string  // Where this translation came from (TM, MT, etc.)
+    Origin    string  // Where this translation came from (content memory, MT, etc.)
     Score     float64 // Match quality (0.0 - 1.0)
     MatchType string  // "exact", "fuzzy", "mt", "ai"
 }

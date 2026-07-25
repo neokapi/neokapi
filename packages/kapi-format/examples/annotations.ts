@@ -70,7 +70,7 @@ export const exampleAnnotations: AnnotationFile = {
       data: {
         kind: "protected-term",
         term: "label",
-        termbaseEntry: "ui-terminology:label",
+        termsEntry: "ui-terminology:label",
         action: "preserve-placeholder",
         confidence: 1.0,
       },
@@ -114,7 +114,7 @@ export const exampleAnnotations: AnnotationFile = {
       data: {
         kind: "glossary-match",
         term: "Files",
-        termbaseEntry: "ui-terminology:files",
+        termsEntry: "ui-terminology:files",
         targetLocaleSuggestions: {
           de: "Dateien",
           ja: "ファイル",

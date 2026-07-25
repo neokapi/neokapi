@@ -5,12 +5,12 @@ import "sync"
 // LocaleStanding is one locale's rolled-up standing in a run: what the run
 // produced for it, and the ship verdict that follows.
 type LocaleStanding struct {
-	Locale   string `json:"locale"`
-	State    string `json:"state"` // shippable | parked | pending
-	Units    int    `json:"units,omitempty"`
-	Produced int    `json:"produced,omitempty"`
-	ViaTM    int    `json:"viaTM,omitempty"`
-	ViaAI    int    `json:"viaAI,omitempty"`
+	Locale    string `json:"locale"`
+	State     string `json:"state"` // shippable | parked | pending
+	Units     int    `json:"units,omitempty"`
+	Produced  int    `json:"produced,omitempty"`
+	ViaMemory int    `json:"viaTM,omitempty"`
+	ViaAI     int    `json:"viaAI,omitempty"`
 }
 
 // Standing folds a run's Event stream into its per-locale standing and the
@@ -61,7 +61,7 @@ func (s *Standing) Observe(ev Event) {
 		if ev.Units > 0 {
 			cur.Units = ev.Units
 		}
-		cur.Produced, cur.ViaTM, cur.ViaAI = ev.Done, ev.ViaTM, ev.ViaAI
+		cur.Produced, cur.ViaMemory, cur.ViaAI = ev.Done, ev.ViaMemory, ev.ViaAI
 		if ev.Type == EventLocaleDone {
 			// The engine's locale_done is state-less — a locale's ship verdict
 			// is a whole-pass judgement, settled by the post-pass derivation

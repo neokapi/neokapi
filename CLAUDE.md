@@ -15,7 +15,7 @@ one-way and enforced; violating one breaks `make audit-modules`.
 
 | Module | Path | May depend on |
 | --- | --- | --- |
-| Framework | `.` (`core/`, `sievepen/`, `termbase/`, `providers/`) | — |
+| Framework | `.` (`core/`, `memory/`, `terms/`, `providers/`) | — |
 | Host — cobra-free runtime + services | `host/` | framework |
 | CLI — thin Cobra shell over host | `cli/` | framework, host |
 | Kapi — the `kapi` binary | `kapi/` | framework, host, cli |

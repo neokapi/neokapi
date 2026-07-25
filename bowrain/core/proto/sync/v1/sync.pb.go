@@ -147,7 +147,7 @@ type SyncPushInitResponse struct {
 	DeletedItems []string `protobuf:"bytes,4,rep,name=deleted_items,json=deletedItems,proto3" json:"deleted_items,omitempty"`
 	// New items the client has that server doesn't.
 	NewItems []string `protobuf:"bytes,5,rep,name=new_items,json=newItems,proto3" json:"new_items,omitempty"`
-	// Whether terms/TM need re-syncing.
+	// Whether terms/content memory need re-syncing.
 	TermsChanged       bool  `protobuf:"varint,6,opt,name=terms_changed,json=termsChanged,proto3" json:"terms_changed,omitempty"`
 	TmChanged          bool  `protobuf:"varint,7,opt,name=tm_changed,json=tmChanged,proto3" json:"tm_changed,omitempty"`
 	UnchangedItemCount int32 `protobuf:"varint,8,opt,name=unchanged_item_count,json=unchangedItemCount,proto3" json:"unchanged_item_count,omitempty"`
@@ -1103,7 +1103,16 @@ func (x *SyncTermTranslation) GetStatus() string {
 	return ""
 }
 
-// SyncTMEntry carries a translation memory entry.
+// SyncTMEntry carries a content memory entry.
+//
+// The message name keeps its historical `TM` spelling deliberately. Message and
+// field names are wire schema: the name is serialized into the descriptor and
+// into every protojson payload's type URL, and kapi clients sync against
+// independently deployed servers, so the two sides are never upgraded in
+// lockstep. Renaming it to match the "content memory" vocabulary would be a
+// breaking protocol change, not a cosmetic one. Prose says "content memory";
+// the wire keeps `TM`. Same for the `tm_entries`, `tm_hash`, and `tm_changed`
+// field names below.
 type SyncTMEntry struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`

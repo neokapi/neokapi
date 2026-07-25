@@ -504,7 +504,7 @@ export const ThreeWayParallel: Story = {
   args: {
     flow: {
       steps: [
-        { tool: "recycle", label: "TM Lookup" },
+        { tool: "recycle", label: "Memory Lookup" },
         {
           tool: "",
           parallel: [
@@ -530,7 +530,7 @@ export const ManyBranchParallel: Story = {
   args: {
     flow: {
       steps: [
-        { tool: "recycle", label: "TM Lookup" },
+        { tool: "recycle", label: "Memory Lookup" },
         {
           tool: "",
           parallel: [

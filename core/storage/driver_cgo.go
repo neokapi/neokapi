@@ -7,7 +7,7 @@ import (
 
 	// Native C SQLite via CGo — significantly faster than the pure-Go
 	// transpilation for scan-heavy workloads (facet queries, FTS5, bulk
-	// imports on large TMs). Requires a C compiler at build time. Pairs with
+	// imports on large Memories). Requires a C compiler at build time. Pairs with
 	// the statically linked FTS5 ICU tokenizer in icu_tokenizer.go.
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -32,8 +32,8 @@ const FTSWordTokenizer = "icu"
 // as it is established — this is the only way to guarantee a per-connection
 // pragma reaches all up-to-25 pooled connections (a single startup Exec only
 // configures the one connection it happens to run on). foreign_keys in
-// particular MUST be set here: it is per-connection in SQLite, and TM Delete /
-// termbase DeleteConcept rely on ON DELETE CASCADE, which silently no-ops on any
+// particular MUST be set here: it is per-connection in SQLite, and content memory Delete /
+// terms DeleteConcept rely on ON DELETE CASCADE, which silently no-ops on any
 // connection where foreign_keys is OFF.
 //
 // mattn exposes dedicated DSN params for these per-connection pragmas

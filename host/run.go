@@ -136,7 +136,7 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	}
 
 	// --explain is a plan, never a run: render the resolved bindings and
-	// locale passes and return before any tool is built, store or TM opened,
+	// locale passes and return before any tool is built, store or content memory opened,
 	// or file written. The built-in path gates this inside RunFlow; without
 	// this gate the project-flow path fell through to execution and wrote
 	// outputs project-wide (#1295).

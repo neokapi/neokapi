@@ -477,7 +477,7 @@ export class UpPlanOutput {
 
 /**
  * UpPlanScope is the planned work for one (collection, locale) scope: how many
- * units have no target yet, how many of those an exact TM hit would cover, and
+ * units have no target yet, how many of those an exact content-memory hit would cover, and
  * what remains for AI translation with a rough token estimate.
  */
 export class UpPlanScope {
@@ -509,19 +509,19 @@ export class UpPlanScope {
              */
             this["missingTarget"] = 0;
         }
-        if (!("tmExact" in $$source)) {
+        if (!("memoryExact" in $$source)) {
             /**
-             * TMExact is the count of missing units covered by an exact-hash TM hit
+             * MemoryExact is the count of missing units covered by an exact-hash content-memory hit
              * (the cheap leverage estimate — fuzzy leverage is not counted).
              * @member
              * @type {number}
              */
-            this["tmExact"] = 0;
+            this["memoryExact"] = 0;
         }
         if (!("aiRemaining" in $$source)) {
             /**
              * AIRemaining is the count of missing units left for AI translation
-             * after TM leverage.
+             * after content-memory leverage.
              * @member
              * @type {number}
              */

@@ -9,7 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -214,7 +214,7 @@ func TestOrdinaryChangeSetOps(t *testing.T) {
 			Op:          OpTermAdd,
 			Payload: mustJSON(t, TermAddPayload{
 				ConceptID: "c1",
-				Term:      termbase.Term{Text: text, Locale: "en-US", Status: model.TermApproved},
+				Term:      terms.Term{Text: text, Locale: "en-US", Status: model.TermApproved},
 			}),
 			CreatedBy: "alice",
 		}

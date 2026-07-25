@@ -75,7 +75,7 @@ func (a *App) GetConvergence(tabID string) (*host.ConvergenceReport, error) {
 
 // ConvergePlan is the desktop's pre-flight picture for "Bring up to date": the
 // dry-run work plan `kapi up --plan` computes (per (collection, locale):
-// missing targets, exact TM leverage, remaining AI work, token estimate) plus
+// missing targets, exact content-memory leverage, remaining AI work, token estimate) plus
 // the block-store drift the run's auto-extract would heal. Both derivations
 // are cheap and read-only — stat checks, file reads, no provider calls.
 type ConvergePlan struct {
@@ -154,7 +154,7 @@ func (a *App) BringUpToDate(tabID string) error {
 		return errors.New("project has no file path; save it before bringing it up to date")
 	}
 	// No defaults.flow is fine: the shared up engine synthesizes the built-in
-	// default flow (#1078 G6 — TM reuse then AI translate). The label only
+	// default flow (#1078 G6 — content memory reuse then AI translate). The label only
 	// tags the run's events for the UI.
 	flowName := op.Project.Defaults.Flow
 	if flowName == "" {

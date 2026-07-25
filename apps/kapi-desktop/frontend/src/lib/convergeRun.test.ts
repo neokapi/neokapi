@@ -22,7 +22,7 @@ describe("reduceConvergeRun (typed converge_event stream)", () => {
     ]);
   });
 
-  it("advances a locale row through running → done with TM/AI split", () => {
+  it("advances a locale row through running → done with content memory/AI split", () => {
     const model = reduceConvergeRun([
       ce({ type: "pass_start", pass: 1, maxPasses: 6, pending: ["fr-FR"] }),
       ce({ type: "locale_start", pass: 1, locale: "fr-FR", units: 20 }),
@@ -38,12 +38,15 @@ describe("reduceConvergeRun (typed converge_event stream)", () => {
       }),
     ]);
     const row = model.passes[0].rows[0];
+    // The incoming events carry the wire field `viaTM`; the render model calls
+    // the same number `viaMemory`. Asserting on the model side uses the model
+    // name — a `viaTM` expectation here passes vacuously under toMatchObject.
     expect(row).toMatchObject({
       locale: "fr-FR",
       state: "done",
       units: 20,
       done: 20,
-      viaTM: 12,
+      viaMemory: 12,
       viaAI: 8,
     });
   });

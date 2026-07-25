@@ -8,7 +8,7 @@ import (
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // BrandVocabConfig holds configuration for the brand vocabulary check tool.
@@ -24,18 +24,18 @@ func (c *BrandVocabConfig) Validate() error  { return nil }
 // This is a rule-based check that runs before the LLM-based brand-voice-check.
 type BrandVocabCheckTool struct {
 	tool.BaseTool
-	profile  *brand.VoiceProfile
-	termBase termbase.TermBase     // optional — if provided, filters by term_source=brand_vocabulary
-	resolver brand.ProfileResolver // optional: lazy profile resolution
-	rc       brand.ResolveContext  // context for resolver
-	resolved bool                  // true after first resolution attempt
+	profile     *brand.VoiceProfile
+	terminology terms.Terminology     // optional — if provided, filters by term_source=brand_vocabulary
+	resolver    brand.ProfileResolver // optional: lazy profile resolution
+	rc          brand.ResolveContext  // context for resolver
+	resolved    bool                  // true after first resolution attempt
 }
 
 // NewBrandVocabCheckTool creates a new brand vocabulary check tool.
-func NewBrandVocabCheckTool(profile *brand.VoiceProfile, tb termbase.TermBase) *BrandVocabCheckTool {
+func NewBrandVocabCheckTool(profile *brand.VoiceProfile, tb terms.Terminology) *BrandVocabCheckTool {
 	t := &BrandVocabCheckTool{
-		profile:  profile,
-		termBase: tb,
+		profile:     profile,
+		terminology: tb,
 	}
 	t.ToolName = "brand-vocab-check"
 	t.ToolDescription = "Checks text against brand vocabulary rules (forbidden, competitor, preferred terms)"
@@ -46,11 +46,11 @@ func NewBrandVocabCheckTool(profile *brand.VoiceProfile, tb termbase.TermBase) *
 
 // NewBrandVocabCheckToolWithResolver creates a brand vocabulary check tool that
 // lazily resolves its profile from the organizational context hierarchy.
-func NewBrandVocabCheckToolWithResolver(resolver brand.ProfileResolver, rc brand.ResolveContext, tb termbase.TermBase) *BrandVocabCheckTool {
+func NewBrandVocabCheckToolWithResolver(resolver brand.ProfileResolver, rc brand.ResolveContext, tb terms.Terminology) *BrandVocabCheckTool {
 	t := &BrandVocabCheckTool{
-		termBase: tb,
-		resolver: resolver,
-		rc:       rc,
+		terminology: tb,
+		resolver:    resolver,
+		rc:          rc,
 	}
 	t.ToolName = "brand-vocab-check"
 	t.ToolDescription = "Checks text against brand vocabulary rules (forbidden, competitor, preferred terms)"
@@ -88,10 +88,10 @@ func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 	// the check_vocabulary MCP tool, so none of these paths diverge.
 	findings := brand.HitsToFindings(brand.MatchVocabulary(t.profile, sourceText), sourceText, sourceRuns)
 
-	// If termBase is available, also look up brand vocabulary terms.
-	if t.termBase != nil {
-		matches, err := t.termBase.LookupAll(v.Context(), sourceText, termbase.LookupOptions{
-			SourceFilter: []termbase.TermSource{termbase.TermSourceBrandVocabulary},
+	// If terminology is available, also look up brand vocabulary terms.
+	if t.terminology != nil {
+		matches, err := t.terminology.LookupAll(v.Context(), sourceText, terms.LookupOptions{
+			SourceFilter: []terms.TermSource{terms.TermSourceBrandVocabulary},
 		})
 		if err != nil {
 			return err
@@ -103,7 +103,7 @@ func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 				f = brand.BrandVoiceFinding{
 					Category:     string(brand.DimensionVocabulary),
 					Severity:     brand.SeverityCritical,
-					Message:      fmt.Sprintf("Competitor term %q found in termbase", m.Term.Text),
+					Message:      fmt.Sprintf("Competitor term %q found in terms", m.Term.Text),
 					Position:     model.RunRangeForBytes(sourceRuns, m.Position.Start, m.Position.End),
 					OriginalText: m.Term.Text,
 				}
@@ -111,7 +111,7 @@ func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 				f = brand.BrandVoiceFinding{
 					Category:     string(brand.DimensionVocabulary),
 					Severity:     brand.SeverityMajor,
-					Message:      fmt.Sprintf("Forbidden term %q found in termbase", m.Term.Text),
+					Message:      fmt.Sprintf("Forbidden term %q found in terms", m.Term.Text),
 					Position:     model.RunRangeForBytes(sourceRuns, m.Position.Start, m.Position.End),
 					OriginalText: m.Term.Text,
 				}
@@ -129,7 +129,7 @@ func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 				f.Metadata["replacement"] = pref.Text
 			}
 			// Link the finding to its knowledge-graph concept, mirroring the profile
-			// path so a termbase-sourced hit pivots to the concept story too.
+			// path so a terms store-sourced hit pivots to the concept story too.
 			if m.Concept.ID != "" {
 				if f.Metadata == nil {
 					f.Metadata = make(map[string]string)

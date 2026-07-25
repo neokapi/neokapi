@@ -71,7 +71,7 @@ func TestRoundTrip_MixedRunKinds(t *testing.T) {
 }
 
 // TestRoundTrip_RunsKeysComputedFromRuns verifies that the structural
-// and generalized keys exposed via the bowrain TM matchers compute the
+// and generalized keys exposed via the bowrain content memory matchers compute the
 // same values from a Run sequence as their Runs-native helpers.
 func TestRoundTrip_RunsKeysComputedFromRuns(t *testing.T) {
 	runs := []model.Run{

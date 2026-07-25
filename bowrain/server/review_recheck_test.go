@@ -20,14 +20,14 @@ import (
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // newRecheckHarness builds a Postgres-backed Server wired for the RV-E review
 // re-check: content/auth/task/convergence-run stores, a channel event bus, a
-// Postgres brand store, an in-memory workspace termbase, the convergence
+// Postgres brand store, an in-memory workspace terms, the convergence
 // orchestrator with the review-completion subscription (so a wrongful
 // review.completed WOULD start a run — letting the tests assert RV-E starts
 // none), and the RV-E re-check subscription itself. It seeds a workspace with an
@@ -63,9 +63,9 @@ func newRecheckHarness(t *testing.T) (*Server, string, string) {
 		Services:            service.NewServices(cs, reg, formatReg, toolReg),
 		wsStores:            newWorkspaceStores(),
 	}
-	// In-memory workspace termbase (no PgDB wired on wsStores), shared per slug.
-	s.wsStores.tbFactory = func() termbase.TBStore {
-		return &testTermStore{termbase.NewInMemoryTermBase()}
+	// In-memory workspace terms (no PgDB wired on wsStores), shared per slug.
+	s.wsStores.tbFactory = func() terms.Store {
+		return &testTermStore{terms.NewInMemoryStore()}
 	}
 	s.convergence = newConvergenceOrchestrator(s)
 	s.subscribeReviewCompletion()
@@ -157,10 +157,10 @@ func TestReviewRecheck_ConceptForbiddenTermDemotesAndRequeues(t *testing.T) {
 	tb, err := s.wsStores.getTB("rc")
 	require.NoError(t, err)
 	cid := id.New()
-	require.NoError(t, tb.AddConcept(ctx, termbase.Concept{
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{
 		ID:     cid,
-		Source: termbase.TermSourceTerminology,
-		Terms: []termbase.Term{
+		Source: terms.TermSourceTerminology,
+		Terms: []terms.Term{
 			{Text: "utiliser", Locale: "fr", Status: model.TermForbidden},
 			{Text: "employer", Locale: "fr", Status: model.TermPreferred},
 		},
@@ -235,10 +235,10 @@ func TestReviewRecheck_ConceptMandatedTermAbsenceDemotesAndRequeues(t *testing.T
 	tb, err := s.wsStores.getTB("rc")
 	require.NoError(t, err)
 	cid := id.New()
-	require.NoError(t, tb.AddConcept(ctx, termbase.Concept{
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{
 		ID:     cid,
-		Source: termbase.TermSourceTerminology,
-		Terms: []termbase.Term{
+		Source: terms.TermSourceTerminology,
+		Terms: []terms.Term{
 			{Text: "app", Locale: "en", Status: model.TermApproved},
 			{Text: "application", Locale: "fr", Status: model.TermPreferred},
 		},

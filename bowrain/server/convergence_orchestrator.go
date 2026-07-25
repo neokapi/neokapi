@@ -757,11 +757,11 @@ func (o *convergenceOrchestrator) produceFunc(projectID, runID string) func(cont
 		// Job completion is the "this pass is done producing" signal; the
 		// translated-BLOCK count is the reported progress. Each poll refreshes
 		// the run's last_activity from the newest job updated_at so a "slow but
-		// alive" run is distinguishable from a stalled one (theme D). TM-first
+		// alive" run is distinguishable from a stalled one (theme D). content memory-first
 		// convergence (theme A2): each translation job records how many blocks it
-		// filled from the project TM (recycled) vs. sent to the AI translator; we
+		// filled from the project content memory (recycled) vs. sent to the AI translator; we
 		// sum those splits across the locale's jobs so the run reports a truthful
-		// "TM N · AI M" instead of attributing everything to AI.
+		// "content memory N · AI M" instead of attributing everything to AI.
 		translated := 0
 		for {
 			if err := ctx.Err(); err != nil {
@@ -772,10 +772,10 @@ func (o *convergenceOrchestrator) produceFunc(projectID, runID string) func(cont
 				return translated, 0, translated, fmt.Errorf("poll jobs: %w", err)
 			}
 			inProgress := 0
-			viaTM := 0
+			viaMemory := 0
 			tokens := 0
 			for _, j := range jobList {
-				viaTM += j.ViaTM
+				viaMemory += j.ViaMemory
 				tokens += j.TokensUsed
 				if j.Status != jobs.StatusCompleted && j.Status != jobs.StatusFailed {
 					inProgress++
@@ -783,43 +783,43 @@ func (o *convergenceOrchestrator) produceFunc(projectID, runID string) func(cont
 			}
 			passTokens = tokens
 			translated = o.localeTranslatedBlocks(ctx, proj, locale)
-			// Split the reported Done across TM/AI. The recorded viaTM is
+			// Split the reported Done across content memory/AI. The recorded viaMemory is
 			// authoritative; the remainder is attributed to AI so the counters
 			// stay consistent with Done even while a pass is still in flight.
-			doneTM, doneAI := reconcileSplit(translated, viaTM)
+			doneMemory, doneAI := reconcileSplit(translated, viaMemory)
 			emit.Emit(convergence.Event{
 				Type: convergence.EventUnitProgress, Stage: convergence.StageAITranslate,
-				Pass: pass, Locale: locale, Done: translated, ViaTM: doneTM, ViaAI: doneAI,
+				Pass: pass, Locale: locale, Done: translated, ViaMemory: doneMemory, ViaAI: doneAI,
 			})
 			if inProgress == 0 {
-				return translated, doneTM, doneAI, nil
+				return translated, doneMemory, doneAI, nil
 			}
 			select {
 			case <-ctx.Done():
-				return translated, doneTM, doneAI, ctx.Err()
+				return translated, doneMemory, doneAI, ctx.Err()
 			case <-time.After(convergePollInterval):
 			}
 		}
 	}
 }
 
-// reconcileSplit distributes a total translated-block count across TM and AI
-// using the jobs' recorded split. The recorded viaTM is trusted (capped at the
+// reconcileSplit distributes a total translated-block count across content memory and AI
+// using the jobs' recorded split. The recorded viaMemory is trusted (capped at the
 // total so a lagging dashboard stat can't push it negative); the AI share is
-// whatever remains, so ViaTM + ViaAI always equals Done. This keeps the "TM N ·
+// whatever remains, so ViaMemory + ViaAI always equals Done. This keeps the "content memory N ·
 // AI M" report internally consistent even while a pass is still in flight and
 // some jobs have not yet recorded their split.
-func reconcileSplit(total, viaTM int) (tm, ai int) {
+func reconcileSplit(total, viaMemory int) (tm, ai int) {
 	if total <= 0 {
 		return 0, 0
 	}
-	if viaTM > total {
-		viaTM = total
+	if viaMemory > total {
+		viaMemory = total
 	}
-	if viaTM < 0 {
-		viaTM = 0
+	if viaMemory < 0 {
+		viaMemory = 0
 	}
-	return viaTM, total - viaTM
+	return viaMemory, total - viaMemory
 }
 
 // localeTranslatedBlocks returns the current translated-block count for a
@@ -988,7 +988,7 @@ func (o *convergenceOrchestrator) trackRunStarted(ctx context.Context, run *bsto
 
 // trackRunCompleted emits the convergence_run_completed analytics event at a
 // terminal state, carrying the outcome, the machine-readable stall_reason, and
-// coarse TM/AI attribution + duration so the fleet-wide "where do runs stall"
+// coarse content memory/AI attribution + duration so the fleet-wide "where do runs stall"
 // question is answerable (theme D / D3). Never carries content.
 //
 // It also carries the run's bucketed MAGNITUDE — what it actually spent, and
@@ -1011,9 +1011,9 @@ func (o *convergenceOrchestrator) trackRunCompleted(ctx context.Context, run *bs
 // — is directly testable. tokens is the AI token usage the run's translation
 // jobs reported; firstRun is the cold-start cohort marker.
 func runCompletedProps(run *bstore.ConvergenceRun, standing *convergence.Standing, workspaceID string, tokens int, firstRun bool) map[string]any {
-	viaTM, viaAI := 0, 0
+	viaMemory, viaAI := 0, 0
 	for _, ls := range standing.Locales() {
-		viaTM += ls.ViaTM
+		viaMemory += ls.ViaMemory
 		viaAI += ls.ViaAI
 	}
 	duration := time.Duration(0)
@@ -1024,7 +1024,7 @@ func runCompletedProps(run *bstore.ConvergenceRun, standing *convergence.Standin
 	props["outcome"] = run.State
 	props["stall_reason"] = run.StallReason
 	props["passes"] = run.Passes
-	props["via_tm"] = analytics.CountBucket(viaTM)
+	props["via_tm"] = analytics.CountBucket(viaMemory)
 	props["via_ai"] = analytics.CountBucket(viaAI)
 	props["duration_bucket"] = analytics.DurationBucket(duration)
 	// Source-first: bucket how many blocks the run held on source, so the
@@ -1037,7 +1037,7 @@ func runCompletedProps(run *bstore.ConvergenceRun, standing *convergence.Standin
 	// balance — a run that ran out parks with needs_credits — so it is read
 	// together with the uncensored demand on convergence_estimate_computed.
 	props[analytics.PropConsumedCreditsBucket] = analytics.CreditBucket(billing.TokensToCredits(tokens))
-	props[analytics.PropTMLeveragePctBucket] = analytics.SharePercentBucket(viaTM, viaTM+viaAI)
+	props[analytics.PropTMLeveragePctBucket] = analytics.SharePercentBucket(viaMemory, viaMemory+viaAI)
 	props[analytics.PropFirstRun] = firstRun
 	return props
 }

@@ -21,7 +21,7 @@ const config: WalkthroughEmbedConfig = {
   ],
   steps: [
     {
-      command: "kapi tm import project.tmx",
+      command: "kapi memory import project.tmx",
       narration:
         "Seed the project TM so the plumbing has leverage to work with. up tops up the same store on every merge.",
     },

@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import type {
   ProjectInfo,
   BlockInfo,
-  TMMatchInfo,
+  MemoryMatchInfo,
   BlockTermMatch,
   BlockNote,
   QAIssue,
@@ -44,9 +44,9 @@ interface VisualEditorLayoutProps {
   onCancelEditing: () => void;
   onApprove: () => void;
   onReject: () => void;
-  tmMatches: TMMatchInfo[];
+  memoryMatches: MemoryMatchInfo[];
   termMatches: BlockTermMatch[];
-  onApplyTM: (index: number) => void;
+  onApplyMemory: (index: number) => void;
   onInsertTerm: (text: string) => void;
   presenceSlot?: React.ReactNode;
   // QA
@@ -109,9 +109,9 @@ export function VisualEditorLayout({
   onCancelEditing,
   onApprove,
   onReject,
-  tmMatches,
+  memoryMatches,
   termMatches,
-  onApplyTM,
+  onApplyMemory,
   onInsertTerm,
   presenceSlot,
   qaIssues,
@@ -382,9 +382,9 @@ export function VisualEditorLayout({
             onCancel={onCancelEditing}
             onApprove={onApprove}
             onReject={onReject}
-            tmMatches={tmMatches}
+            memoryMatches={memoryMatches}
             termMatches={termMatches}
-            onApplyTM={onApplyTM}
+            onApplyMemory={onApplyMemory}
             onInsertTerm={onInsertTerm}
             referenceLocales={referenceLocales}
             project={project}

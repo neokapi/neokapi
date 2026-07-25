@@ -11,7 +11,7 @@ import (
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,33 +27,33 @@ func mkFrBlock(source, frTarget string) *model.Block {
 }
 
 // TestBlockTermCompliant_Directions unit-tests the shared predicate directly:
-// both violation directions (forbidden/competitor PRESENCE from the termbase and
+// both violation directions (forbidden/competitor PRESENCE from the terms store and
 // from the brand vocabulary; mandated-rendering ABSENCE), the compliant case, an
-// untranslated target, and the no-termbase/no-profile no-op.
+// untranslated target, and the no-terms/no-profile no-op.
 func TestBlockTermCompliant_Directions(t *testing.T) {
 	ctx := context.Background()
-	tb := termbase.NewInMemoryTermBase()
-	require.NoError(t, tb.AddConcept(ctx, termbase.Concept{
+	tb := terms.NewInMemoryStore()
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{
 		ID:     "c-use",
-		Source: termbase.TermSourceTerminology,
-		Terms: []termbase.Term{
+		Source: terms.TermSourceTerminology,
+		Terms: []terms.Term{
 			{Text: "utiliser", Locale: "fr", Status: model.TermForbidden},
 			{Text: "employer", Locale: "fr", Status: model.TermPreferred},
 		},
 	}))
-	require.NoError(t, tb.AddConcept(ctx, termbase.Concept{
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{
 		ID:     "c-app",
-		Source: termbase.TermSourceTerminology,
-		Terms: []termbase.Term{
+		Source: terms.TermSourceTerminology,
+		Terms: []terms.Term{
 			{Text: "app", Locale: "en", Status: model.TermApproved},
 			{Text: "application", Locale: "fr", Status: model.TermPreferred},
 		},
 	}))
 
-	// PRESENCE (termbase): the target uses the forbidden "utiliser".
+	// PRESENCE (terms): the target uses the forbidden "utiliser".
 	assert.False(t, blockTermCompliant(ctx, mkFrBlock("Use it", "Il faut utiliser ceci"), "en", "fr", tb, nil),
-		"a forbidden termbase term in the target is non-compliant")
-	// ABSENCE (termbase): the source uses "app" but the target omits "application".
+		"a forbidden terms term in the target is non-compliant")
+	// ABSENCE (terms): the source uses "app" but the target omits "application".
 	assert.False(t, blockTermCompliant(ctx, mkFrBlock("Open the app", "Ouvrir le truc"), "en", "fr", tb, nil),
 		"a missing mandated rendering is non-compliant")
 	// Compliant: uses the mandated rendering, no forbidden term.
@@ -62,9 +62,9 @@ func TestBlockTermCompliant_Directions(t *testing.T) {
 	// An untranslated target is vacuously compliant (nothing to check).
 	assert.True(t, blockTermCompliant(ctx, mkFrBlock("Open the app", ""), "en", "fr", tb, nil),
 		"an empty target is compliant")
-	// No termbase and no profile → pure no-op: even a would-be violation is compliant.
+	// No terms and no profile → pure no-op: even a would-be violation is compliant.
 	assert.True(t, blockTermCompliant(ctx, mkFrBlock("Use it", "Il faut utiliser ceci"), "en", "fr", nil, nil),
-		"with no termbase and no profile the predicate is a no-op")
+		"with no terms and no profile the predicate is a no-op")
 
 	// PRESENCE (brand vocabulary): a forbidden brand rule matched in the target.
 	profile := &corebrand.VoiceProfile{
@@ -82,22 +82,22 @@ func TestBlockTermCompliant_Directions(t *testing.T) {
 // seedTermUnificationConcepts adds the two concepts the unification tests share:
 // c-use marks fr "utiliser" forbidden (PRESENCE) and c-app mandates fr
 // "application" for source "app" (ABSENCE).
-func seedTermUnificationConcepts(t *testing.T, tb termbase.TBStore) (useID, appID string) {
+func seedTermUnificationConcepts(t *testing.T, tb terms.Store) (useID, appID string) {
 	t.Helper()
 	ctx := context.Background()
 	useID, appID = id.New(), id.New()
-	require.NoError(t, tb.AddConcept(ctx, termbase.Concept{
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{
 		ID:     useID,
-		Source: termbase.TermSourceTerminology,
-		Terms: []termbase.Term{
+		Source: terms.TermSourceTerminology,
+		Terms: []terms.Term{
 			{Text: "utiliser", Locale: "fr", Status: model.TermForbidden},
 			{Text: "employer", Locale: "fr", Status: model.TermPreferred},
 		},
 	}))
-	require.NoError(t, tb.AddConcept(ctx, termbase.Concept{
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{
 		ID:     appID,
-		Source: termbase.TermSourceTerminology,
-		Terms: []termbase.Term{
+		Source: terms.TermSourceTerminology,
+		Terms: []terms.Term{
 			{Text: "app", Locale: "en", Status: model.TermApproved},
 			{Text: "application", Locale: "fr", Status: model.TermPreferred},
 		},
@@ -128,7 +128,7 @@ func TestTermAwareShipPredicateUnification(t *testing.T) {
 	proj, err := s.ContentStore.GetProject(ctx, projID)
 	require.NoError(t, err)
 	gate := s.resolveTermGate(ctx, proj, "main", wsID)
-	require.NotNil(t, gate, "a workspace termbase with concepts yields a live gate")
+	require.NotNil(t, gate, "a workspace terms with concepts yields a live gate")
 
 	badID, missID, okID := ids["Use the app"], ids["Open the app"], ids["Close the app"]
 	badBlock := storedBlockByID(t, s, projID, badID)
@@ -209,10 +209,10 @@ func TestApprovePassingExcludesTermViolations(t *testing.T) {
 		"the missing-mandated draft stays below reviewed")
 }
 
-// TestResolveTermGateNoTermbaseNoOp proves the byte-stable no-op: a project with
-// no termbase concepts and no bound brand profile derives ship/on-brand numbers
+// TestResolveTermGateNoTermsNoOp proves the byte-stable no-op: a project with
+// no terms concepts and no bound brand profile derives ship/on-brand numbers
 // identical to the pre-term behavior (checks-only basis, no spurious failures).
-func TestResolveTermGateNoTermbaseNoOp(t *testing.T) {
+func TestResolveTermGateNoTermsNoOp(t *testing.T) {
 	s, wsID, _ := newRecheckHarness(t)
 	ctx := context.Background()
 
@@ -222,7 +222,7 @@ func TestResolveTermGateNoTermbaseNoOp(t *testing.T) {
 	proj, err := s.ContentStore.GetProject(ctx, projID)
 	require.NoError(t, err)
 
-	// The gate resolves with no termbase concepts and no bound profile → its term
+	// The gate resolves with no terms concepts and no bound profile → its term
 	// half is a no-op (compliant everywhere, no active term governance).
 	gate := s.resolveTermGate(ctx, proj, "main", wsID)
 	assert.True(t, gate.compliant(ctx, b, "fr"), "no governance → compliant")

@@ -10,7 +10,7 @@ import type {
   AITranslateFileRequest,
   TranslationStats,
   WordCountResult,
-  TMMatchInfo,
+  MemoryMatchInfo,
   BlockTermMatch,
   BlockNote,
   BlockHistoryEntry,
@@ -51,9 +51,9 @@ export function useEditorApi() {
     [api, ws, activeStream],
   );
 
-  const tmTranslateFile = useCallback(
+  const memoryTranslateFile = useCallback(
     async (projectId: string, fileName: string, targetLocale: string): Promise<TranslationStats> =>
-      api.tmTranslateFile(ws, projectId, fileName, targetLocale, activeStream),
+      api.memoryTranslateFile(ws, projectId, fileName, targetLocale, activeStream),
     [api, ws, activeStream],
   );
 
@@ -69,14 +69,14 @@ export function useEditorApi() {
     [api, ws, activeStream],
   );
 
-  const lookupTMForBlock = useCallback(
+  const lookupMemoryForBlock = useCallback(
     async (
       projectId: string,
       itemName: string,
       blockId: string,
       targetLocale: string,
-    ): Promise<TMMatchInfo[]> =>
-      api.lookupTMForBlock(ws, projectId, itemName, blockId, targetLocale, activeStream),
+    ): Promise<MemoryMatchInfo[]> =>
+      api.lookupMemoryForBlock(ws, projectId, itemName, blockId, targetLocale, activeStream),
     [api, ws, activeStream],
   );
 
@@ -213,10 +213,10 @@ export function useEditorApi() {
       updateBlockTarget,
       updateBlockTargetCoded,
       aiTranslateFile,
-      tmTranslateFile,
+      memoryTranslateFile,
       getWordCount,
       exportTranslatedFile,
-      lookupTMForBlock,
+      lookupMemoryForBlock,
       lookupTermsForBlock,
       getBlockHistory,
       rollbackBlock,
@@ -239,10 +239,10 @@ export function useEditorApi() {
       updateBlockTarget,
       updateBlockTargetCoded,
       aiTranslateFile,
-      tmTranslateFile,
+      memoryTranslateFile,
       getWordCount,
       exportTranslatedFile,
-      lookupTMForBlock,
+      lookupMemoryForBlock,
       lookupTermsForBlock,
       getBlockHistory,
       rollbackBlock,

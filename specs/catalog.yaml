@@ -68,7 +68,7 @@ specs:
       Part 2 Extended
       (https://docs.oasis-open.org/xliff/xliff-core/v2.2/xliff-extended-v2.2-part2.html);
       adds the Plural/Gender/Select module. Plan the 2.0/2.1→2.2 delta;
-      watch the TC's "XLIFF as TM" direction.
+      watch the TC's "XLIFF as content memory" direction.
 
   # ── Office documents ────────────────────────────────────────────────
   - id: ecma-376

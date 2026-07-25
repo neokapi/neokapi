@@ -2,7 +2,7 @@
 
 > neokapi is an open-source, format-aware content engine written in Go. It parses
 > localization, document, and data formats into a faithful content model, then
-> translates, leverages translation memory, and runs verification checks for
+> translates, leverages content memory, and runs verification checks for
 > terminology, QA, and brand voice — for content written by people or AI agents.
 > `kapi` is the command-line and desktop application built on the engine.
 
@@ -10,7 +10,7 @@ neokapi reimagines the Okapi Framework in Go. The engine extracts translatable
 text from any format into a streaming content model (Block / Run / Overlay),
 processes it through a pipeline of composable tools, and writes the original
 format back faithfully — structure, markup, and placeholders intact. It runs
-offline by default with an embedded SQLite translation memory and termbase, and
+offline by default with an embedded SQLite content memory and terms, and
 exposes its capabilities to AI assistants over MCP.
 
 ## Getting started

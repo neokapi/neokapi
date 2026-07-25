@@ -13,51 +13,51 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/sievepen/kmb"
+	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/memory/kmb"
 )
 
-func (a *App) OpenTMSQLite(cmd Command) (sievepen.TMStore, string, error) {
-	if a.TMBackend != nil {
-		return a.TMBackend, "(in-memory)", nil
+func (a *App) OpenMemorySQLite(cmd Command) (memory.Store, string, error) {
+	if a.MemoryBackend != nil {
+		return a.MemoryBackend, "(in-memory)", nil
 	}
-	dbPath, err := a.ResolveTMCmdPath(cmd)
+	dbPath, err := a.ResolveMemoryCmdPath(cmd)
 	if err != nil {
 		return nil, "", err
 	}
-	tm, err := sievepen.NewSQLiteTM(dbPath)
+	tm, err := memory.NewSQLiteStore(dbPath)
 	if err != nil {
-		return nil, dbPath, fmt.Errorf("open TM: %w", err)
+		return nil, dbPath, fmt.Errorf("open content memory: %w", err)
 	}
 	return tm, dbPath, nil
 }
 
-// ResolveTMCmdPath picks the SQLite TM file a `kapi tm` subcommand operates on.
+// ResolveMemoryCmdPath picks the SQLite content-memory file a `kapi tm` subcommand operates on.
 // An explicit --name/--file/--local flag always wins. Otherwise, when run inside
-// a .kapi project, it defaults to the project's authoritative TM
-// (<projectRoot>/.kapi/tm.db) so that `kapi tm lookup`/`import`/`stats` see the
-// same TM that `kapi extract` pre-fills from and `kapi merge` writes back to —
+// a .kapi project, it defaults to the project's authoritative content memory
+// (<projectRoot>/.kapi/tm.db) so that `kapi memory lookup`/`import`/`stats` see the
+// same content memory that `kapi extract` pre-fills from and `kapi merge` writes back to —
 // without it, those commands silently hit an empty ./tm.db. Falls back to
-// ./tm.db outside a project. This mirrors ResolveTermbaseCmdPath.
-func (a *App) ResolveTMCmdPath(cmd Command) (string, error) {
+// ./tm.db outside a project. This mirrors ResolveTermsCmdPath.
+func (a *App) ResolveMemoryCmdPath(cmd Command) (string, error) {
 	name, _ := cmd.Flags().GetString("name")
 	local, _ := cmd.Flags().GetBool("local")
 	file, _ := cmd.Flags().GetString("file")
 	if name != "" || file != "" || local {
 		return resolveResourcePath(cmd, "tm", "tm.db")
 	}
-	if p, err := a.resolveProjectTMPath(cmd); err == nil && p != "" {
+	if p, err := a.resolveProjectMemoryPath(cmd); err == nil && p != "" {
 		return p, nil
 	}
 	return resolveResourcePath(cmd, "tm", "tm.db")
 }
 
-// resolveProjectTMPath returns the authoritative TM path for the .kapi project
+// resolveProjectMemoryPath returns the authoritative content memory path for the .kapi project
 // in scope, or "" (with nil error) when no project can be located. Unlike the
-// termbase (which can be re-bound via defaults.termbase), the project TM is
+// terms (which can be re-bound via defaults.termbase), the project content memory is
 // always the conventional <projectRoot>/.kapi/tm.db — the same file
 // kapi extract and kapi merge use (see cli/extract.go and cli/merge.go).
-func (a *App) resolveProjectTMPath(cmd Command) (string, error) {
+func (a *App) resolveProjectMemoryPath(cmd Command) (string, error) {
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil {
 		return "", err
@@ -69,10 +69,10 @@ func (a *App) resolveProjectTMPath(cmd Command) (string, error) {
 	return filepath.Join(root, project.StateDirName, "tm.db"), nil
 }
 
-// ResolveTMFileFormat maps the --format flag (or, for "auto", the file
-// extension) to a TM file format name. Anything that is neither .kmb nor .kmz
+// ResolveMemoryFileFormat maps the --format flag (or, for "auto", the file
+// extension) to a content-memory file format name. Anything that is neither .kmb nor .kmz
 // is treated as TMX, matching the historical default.
-func ResolveTMFileFormat(flag, path string) string {
+func ResolveMemoryFileFormat(flag, path string) string {
 	switch strings.ToLower(flag) {
 	case "", "auto":
 		switch {
@@ -90,8 +90,8 @@ func ResolveTMFileFormat(flag, path string) string {
 // ImportKMBFile imports a native .kmb document. Entries keep their
 // serialized identity (BulkAddWithStream upserts by entry ID), and any
 // import sessions recorded in the file are recreated when absent, so a
-// wipe-and-reseed produces a byte-identical TM state.
-func ImportKMBFile(ctx context.Context, tm sievepen.TMStore, path string) (int, error) {
+// wipe-and-reseed produces a byte-identical content memory state.
+func ImportKMBFile(ctx context.Context, tm memory.Store, path string) (int, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return 0, fmt.Errorf("open %s: %w", path, err)
@@ -107,7 +107,7 @@ func ImportKMBFile(ctx context.Context, tm sievepen.TMStore, path string) (int, 
 
 // ImportKMZFile imports a .kmz archive — the compressed single-member container
 // around a .kmb bundle. Semantics are identical to ImportKMBFile.
-func ImportKMZFile(ctx context.Context, tm sievepen.TMStore, path string) (int, error) {
+func ImportKMZFile(ctx context.Context, tm memory.Store, path string) (int, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return 0, fmt.Errorf("open %s: %w", path, err)
@@ -119,10 +119,10 @@ func ImportKMZFile(ctx context.Context, tm sievepen.TMStore, path string) (int, 
 	return importKMB(ctx, tm, path, file)
 }
 
-func importKMB(ctx context.Context, tm sievepen.TMStore, path string, file *kmb.File) (int, error) {
+func importKMB(ctx context.Context, tm memory.Store, path string, file *kmb.File) (int, error) {
 	entries := file.ModelEntries()
 	if len(entries) > 0 {
-		if bulk, ok := tm.(sievepen.BulkAdder); ok {
+		if bulk, ok := tm.(memory.BulkAdder); ok {
 			if err := bulk.BulkAddWithStream(ctx, entries, ""); err != nil {
 				return 0, fmt.Errorf("add entries from %s: %w", path, err)
 			}
@@ -144,22 +144,22 @@ func importKMB(ctx context.Context, tm sievepen.TMStore, path string, file *kmb.
 	return len(entries), nil
 }
 
-// ExportKMB writes the whole TM as a deterministic, lossless .kmb document —
-// the native form for committing a TM to git and for re-seeding one exactly.
-func ExportKMB(ctx context.Context, tm sievepen.TMStore, w io.Writer) error {
-	return exportTM(ctx, tm, w, kmb.Marshal)
+// ExportKMB writes the whole content memory as a deterministic, lossless .kmb document —
+// the native form for committing a content memory to git and for re-seeding one exactly.
+func ExportKMB(ctx context.Context, tm memory.Store, w io.Writer) error {
+	return exportMemory(ctx, tm, w, kmb.Marshal)
 }
 
-// ExportKMZ writes the whole TM as a .kmz archive: the same .kmb bytes inside
+// ExportKMZ writes the whole content memory as a .kmz archive: the same .kmb bytes inside
 // the compressed single-member container.
-func ExportKMZ(ctx context.Context, tm sievepen.TMStore, w io.Writer) error {
-	return exportTM(ctx, tm, w, kmb.MarshalArchive)
+func ExportKMZ(ctx context.Context, tm memory.Store, w io.Writer) error {
+	return exportMemory(ctx, tm, w, kmb.MarshalArchive)
 }
 
-func exportTM(ctx context.Context, tm sievepen.TMStore, w io.Writer, marshal func(*kmb.File) ([]byte, error)) error {
+func exportMemory(ctx context.Context, tm memory.Store, w io.Writer, marshal func(*kmb.File) ([]byte, error)) error {
 	entries, err := tm.Entries(ctx)
 	if err != nil {
-		return fmt.Errorf("list TM entries: %w", err)
+		return fmt.Errorf("list content-memory entries: %w", err)
 	}
 	sessions, err := tm.ListImportSessions(ctx)
 	if err != nil {
@@ -167,10 +167,10 @@ func exportTM(ctx context.Context, tm sievepen.TMStore, w io.Writer, marshal fun
 	}
 	data, err := marshal(kmb.FromModel(entries, sessions))
 	if err != nil {
-		return fmt.Errorf("marshal TM bundle: %w", err)
+		return fmt.Errorf("marshal content memory bundle: %w", err)
 	}
 	if _, err := w.Write(data); err != nil {
-		return fmt.Errorf("write TM bundle: %w", err)
+		return fmt.Errorf("write content memory bundle: %w", err)
 	}
 	return nil
 }
@@ -191,9 +191,9 @@ func ParseLocaleList(raw string) []model.LocaleID {
 	return out
 }
 
-// ImportTMXFile imports a single TMX file (plain or .gz) into the TM.
+// ImportTMXFile imports a single TMX file (plain or .gz) into the content memory.
 // Uses ImportTMXLocalePairs when allPairs is true, otherwise single-pair import.
-func ImportTMXFile(ctx context.Context, tm sievepen.TMStore, path, srcLocale, tgtLocale string, allPairs bool, locales []model.LocaleID) (int, error) {
+func ImportTMXFile(ctx context.Context, tm memory.Store, path, srcLocale, tgtLocale string, allPairs bool, locales []model.LocaleID) (int, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return 0, fmt.Errorf("open %s: %w", path, err)
@@ -210,31 +210,31 @@ func ImportTMXFile(ctx context.Context, tm sievepen.TMStore, path, srcLocale, tg
 		reader = gz
 	}
 
-	opts := sievepen.ImportTMXOptions{
+	opts := memory.ImportTMXOptions{
 		OriginKey:     filepath.Base(path),
-		OriginAddedBy: "kapi tm import",
+		OriginAddedBy: "kapi memory import",
 		WarnFunc: func(msg string) {
 			fmt.Fprintf(os.Stderr, "warning: %s\n", msg)
 		},
 	}
 
 	if allPairs {
-		return sievepen.ImportTMXLocalePairs(ctx, tm, reader, locales, opts)
+		return memory.ImportTMXLocalePairs(ctx, tm, reader, locales, opts)
 	}
-	return sievepen.ImportTMXWithOptions(ctx, tm, reader,
+	return memory.ImportTMXWithOptions(ctx, tm, reader,
 		model.LocaleID(srcLocale), model.LocaleID(tgtLocale), opts)
 }
 
-// RebuildTMSearchIndexes restores the FTS5 search + fuzzy side-tables after a
+// RebuildMemorySearchIndexes restores the FTS5 search + fuzzy side-tables after a
 // bulk TMX import. ImportTMXWithOptions / ImportTMXLocalePairs use the bulk
 // add path, which deliberately skips per-row FTS5 inserts (the dominant cost on
 // large corpora), leaving tm_variant_search / tm_variant_trigram empty until
 // they are rebuilt set-wise here. Without this, imported entries are invisible
-// to `kapi tm search` and fuzzy lookup even though exact lookup still works.
+// to `kapi memory search` and fuzzy lookup even though exact lookup still works.
 // RebuildSearchIndex / RebuildFuzzyIndex are SQLite-specific; in-memory
 // backends keep their indexes live and skip this step.
-func (a *App) RebuildTMSearchIndexes(tm sievepen.TMStore) {
-	sq, ok := tm.(*sievepen.SQLiteTM)
+func (a *App) RebuildMemorySearchIndexes(tm memory.Store) {
+	sq, ok := tm.(*memory.SQLiteStore)
 	if !ok {
 		return
 	}
@@ -316,7 +316,7 @@ var markupTokenRe = regexp.MustCompile(`\{/?=m\d+\}`)
 //     can still act on it.
 //
 // The durable fix in both cases is a symmetric, run-structured entry.
-func WarnSuspectTokenEntries(ctx context.Context, tm sievepen.TMStore, out io.Writer) {
+func WarnSuspectTokenEntries(ctx context.Context, tm memory.Store, out io.Writer) {
 	entries, err := tm.Entries(ctx)
 	if err != nil {
 		return

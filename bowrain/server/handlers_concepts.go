@@ -16,7 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // registerConceptRoutes registers the concept half of the brand knowledge-graph
@@ -159,7 +159,7 @@ func (s *Server) HandleListConcepts(c echo.Context) error {
 	statusFilter := model.TermStatus(c.QueryParam("status"))
 	domainFilter := c.QueryParam("domain")
 	marketFilter := c.QueryParam("market")
-	sourceFilter := termbase.TermSource(c.QueryParam("source"))
+	sourceFilter := terms.TermSource(c.QueryParam("source"))
 	offset, _ := strconv.Atoi(c.QueryParam("offset"))
 	limit, _ := strconv.Atoi(c.QueryParam("limit"))
 	if limit <= 0 {
@@ -173,7 +173,7 @@ func (s *Server) HandleListConcepts(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	stream := c.QueryParam("stream")
-	var concepts []termbase.Concept
+	var concepts []terms.Concept
 	var total int
 	if stream != "" && stream != "main" && s.ContentStore != nil {
 		chain := buildStreamChain(ctx, s.ContentStore, c.QueryParam("project_id"), stream)
@@ -187,13 +187,13 @@ func (s *Server) HandleListConcepts(c echo.Context) error {
 
 	// Post-filter the page by the graph-specific facets. These facets are derived
 	// from a concept's terms (status/market/source) or its domain — fields the
-	// termbase text search does not index — so they are applied to the page here.
-	// total stays the termbase's DB-wide match count (an upper bound once a facet
+	// terms text search does not index — so they are applied to the page here.
+	// total stays the terms store's DB-wide match count (an upper bound once a facet
 	// narrows the page) rather than len(filtered): overwriting it with the
 	// post-filtered page count would collapse a workspace of hundreds to a
 	// single-digit count whenever a facet is active.
 	if statusFilter != "" || domainFilter != "" || marketFilter != "" || sourceFilter != "" {
-		filtered := make([]termbase.Concept, 0, len(concepts))
+		filtered := make([]terms.Concept, 0, len(concepts))
 		for _, cp := range concepts {
 			if conceptMatchesFacets(cp, statusFilter, domainFilter, marketFilter, sourceFilter) {
 				filtered = append(filtered, cp)
@@ -248,8 +248,8 @@ func (s *Server) HandleCreateConcept(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	terms := editorTermsFromInfo(req.Terms)
-	if governedConceptCreate(terms) {
+	termList := editorTermsFromInfo(req.Terms)
+	if governedConceptCreate(termList) {
 		return conceptGovernedConflict(c, "a concept whose term is created as forbidden or preferred")
 	}
 
@@ -257,12 +257,12 @@ func (s *Server) HandleCreateConcept(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
 	}
-	concept := termbase.Concept{
+	concept := terms.Concept{
 		ID:         id.New(),
 		ProjectID:  req.ProjectID,
 		Domain:     req.Domain,
 		Definition: req.Definition,
-		Terms:      terms,
+		Terms:      termList,
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 	}
@@ -487,7 +487,7 @@ func (s *Server) HandleListConceptRelations(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 	if rels == nil {
-		rels = []termbase.ConceptRelation{}
+		rels = []terms.ConceptRelation{}
 	}
 	return c.JSON(http.StatusOK, rels)
 }
@@ -521,7 +521,7 @@ func (s *Server) HandleAddConceptRelation(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
 	}
-	rel := termbase.ConceptRelation{
+	rel := terms.ConceptRelation{
 		ID:           id.New(),
 		SourceID:     cid,
 		TargetID:     req.TargetID,
@@ -909,7 +909,7 @@ func (s *Server) HandleImportConceptsCSV(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
 	}
-	count, err := termbase.ImportCSV(c.Request().Context(), tb, strings.NewReader(req.CSVContent), termbase.CSVImportOptions{
+	count, err := terms.ImportCSV(c.Request().Context(), tb, strings.NewReader(req.CSVContent), terms.CSVImportOptions{
 		HasHeader:    req.HasHeader,
 		SourceLocale: model.LocaleID(req.SourceLocale),
 		TargetLocale: model.LocaleID(req.TargetLocale),
@@ -938,7 +938,7 @@ func (s *Server) HandleImportConceptsJSON(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
 	}
-	count, err := termbase.ImportJSON(c.Request().Context(), tb, strings.NewReader(req.JSONContent))
+	count, err := terms.ImportJSON(c.Request().Context(), tb, strings.NewReader(req.JSONContent))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
@@ -958,7 +958,7 @@ func (s *Server) HandleExportConceptsJSON(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
 	}
 	var buf strings.Builder
-	if err := termbase.ExportJSON(c.Request().Context(), tb, &buf, c.QueryParam("name")); err != nil {
+	if err := terms.ExportJSON(c.Request().Context(), tb, &buf, c.QueryParam("name")); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 	return c.JSONBlob(http.StatusOK, []byte(buf.String()))
@@ -980,7 +980,7 @@ func conceptGovernedConflict(c echo.Context, detail string) error {
 
 // governedConceptCreate reports whether creating a concept with these terms is a
 // governed transition — any term created already forbidden or preferred.
-func governedConceptCreate(terms []termbase.Term) bool {
+func governedConceptCreate(terms []terms.Term) bool {
 	for _, t := range terms {
 		if t.Status == model.TermForbidden || t.Status == model.TermPreferred {
 			return true
@@ -992,19 +992,19 @@ func governedConceptCreate(terms []termbase.Term) bool {
 // governedConceptUpdate reports whether replacing oldTerms with newTerms entails
 // a governed status transition: any added/changed term moving to/from forbidden
 // or preferred, or a forbidden term removed (un-forbidding it).
-func governedConceptUpdate(oldTerms, newTerms []termbase.Term) bool {
-	oldByKey := make(map[string]termbase.Term, len(oldTerms))
+func governedConceptUpdate(oldTerms, newTerms []terms.Term) bool {
+	oldByKey := make(map[string]terms.Term, len(oldTerms))
 	for _, t := range oldTerms {
 		oldByKey[termIdentity(t)] = t
 	}
-	newByKey := make(map[string]termbase.Term, len(newTerms))
+	newByKey := make(map[string]terms.Term, len(newTerms))
 	for _, t := range newTerms {
 		newByKey[termIdentity(t)] = t
 		from := model.TermStatus("")
 		if prev, ok := oldByKey[termIdentity(t)]; ok {
 			from = prev.Status
 		}
-		if termbase.IsGovernedTransition(from, t.Status) {
+		if terms.IsGovernedTransition(from, t.Status) {
 			return true
 		}
 	}
@@ -1018,13 +1018,13 @@ func governedConceptUpdate(oldTerms, newTerms []termbase.Term) bool {
 
 // termIdentity keys a term by locale + lowered text, matching the change-set op
 // identity for terms.
-func termIdentity(t termbase.Term) string {
+func termIdentity(t terms.Term) string {
 	return string(t.Locale) + "|" + strings.ToLower(t.Text)
 }
 
 // conceptMatchesFacets reports whether a concept passes the optional list facets
 // (status, domain, market, source). Empty facets always pass.
-func conceptMatchesFacets(cp termbase.Concept, status model.TermStatus, domain, market string, source termbase.TermSource) bool {
+func conceptMatchesFacets(cp terms.Concept, status model.TermStatus, domain, market string, source terms.TermSource) bool {
 	if domain != "" && cp.Domain != domain {
 		return false
 	}
@@ -1041,7 +1041,7 @@ func conceptMatchesFacets(cp termbase.Concept, status model.TermStatus, domain, 
 }
 
 // conceptHasStatus reports whether any of a concept's terms carries the status.
-func conceptHasStatus(cp termbase.Concept, status model.TermStatus) bool {
+func conceptHasStatus(cp terms.Concept, status model.TermStatus) bool {
 	for _, t := range cp.Terms {
 		if t.Status == status {
 			return true
@@ -1052,7 +1052,7 @@ func conceptHasStatus(cp termbase.Concept, status model.TermStatus) bool {
 
 // conceptHasMarket reports whether any of a concept's terms is validity-scoped to
 // the named market.
-func conceptHasMarket(cp termbase.Concept, market string) bool {
+func conceptHasMarket(cp terms.Concept, market string) bool {
 	for _, t := range cp.Terms {
 		if t.Validity != nil && t.Validity.Tags["market"] == market {
 			return true
@@ -1062,10 +1062,10 @@ func conceptHasMarket(cp termbase.Concept, market string) bool {
 }
 
 // conceptSource returns a concept's source, defaulting an unset source to
-// terminology (matching the termbase's own default).
-func conceptSource(cp termbase.Concept) termbase.TermSource {
+// terminology (matching the terms store's own default).
+func conceptSource(cp terms.Concept) terms.TermSource {
 	if cp.Source == "" {
-		return termbase.TermSourceTerminology
+		return terms.TermSourceTerminology
 	}
 	return cp.Source
 }

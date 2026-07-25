@@ -197,8 +197,8 @@ OffthreadVideo seeks into per beat. The rust compositor is fragile here:
 - The session cookie (`bowrain_session`) is scoped to **`path: /api/`** — match
   that in any Playwright auth helper, not `/`.
 - Workspace routes are AD-011 bare-slug (`/:ws/...`): invites `/:ws/invites`,
-  TM `/:ws/translation-memory`, terms `/:ws/terms`. The old `/workspaces/:ws/...`
-  forms 404. `harness/scripts/seed-collaboration.mjs` seeds project + file + TM +
+  content memory `/:ws/content-memory`, terms `/:ws/terms`. The old `/workspaces/:ws/...`
+  forms 404. `harness/scripts/seed-collaboration.mjs` seeds project + file + content memory +
   terms + a second user and prints all the env the recorder needs.
 - The docs site's Playwright (`bowrain/web/docs`) uses its own browser cache;
   run `vpx playwright install chromium` there once (or symlink the matching

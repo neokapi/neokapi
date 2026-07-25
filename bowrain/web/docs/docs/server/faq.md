@@ -42,7 +42,7 @@ provider. See [Security and privacy](/server/security-and-privacy#bring-your-own
 
 You take it with you. Content round-trips back to the source formats you imported,
 and your linguistic assets export to open interchange formats through the kapi
-CLI: `kapi tm export` writes TMX, and `kapi termbase export` writes TBX, CSV, or
+CLI: `kapi memory export` writes TMX, and `kapi terms export` writes TBX, CSV, or
 JSON. A self-hosted deployment additionally keeps everything in a PostgreSQL
 database you can back up directly. There is no proprietary lock-in format holding
 your content hostage.

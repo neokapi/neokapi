@@ -158,7 +158,7 @@ Other inline constructs:
 **Largely ABSENT — DocLang is a monolingual document representation.**
 - `<language>` (ISO 639-3) in head, multiple entries allowed — but these are *document language detection* signals, not a multilingual content model (L3223).
 - `<rtl>` text-direction marker (L2817) — bidi support.
-- **No translation units, no source/target pairing, no variants, no locale-keyed content, no bilingual/multilingual alternation, no `xml:lang` per element, no segmentation for translation.** DocLang expresses one document in one language; translation state (targets, TM matches, segments, variants) is entirely out of scope and would be layered externally.
+- **No translation units, no source/target pairing, no variants, no locale-keyed content, no bilingual/multilingual alternation, no `xml:lang` per element, no segmentation for translation.** DocLang expresses one document in one language; translation state (targets, content-memory matches, segments, variants) is entirely out of scope and would be layered externally.
 
 ## (j) Anything else (assets/media, embedded content, versioning, profiles, extension mechanisms)
 

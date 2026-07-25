@@ -81,7 +81,7 @@ for path in sys.argv[1:]:
     with open(path, "r", encoding="utf-8") as f:
         original = f.read()
     # Only touch segments without an existing <target> — the kapi extract
-    # path pre-fills TM-matched targets, and the "translator" should
+    # path pre-fills content memory-matched targets, and the "translator" should
     # leave those alone.
     if "<target>" in original and "<source>" in original:
         # Careful: skip pre-filled segments by only replacing segments

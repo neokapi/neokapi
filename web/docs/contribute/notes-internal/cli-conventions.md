@@ -44,7 +44,7 @@ type implements `FormatText` for the human rendering. `text` is a table for
 listings and a labeled summary for single records.
 
 `-o` is **not** the format flag. Across the tree `-o` means an output *path* or
-path template (`kapi extract -o work.kpz`, `kapi tm export -o tm.tmx`, the
+path template (`kapi extract -o work.kpz`, `kapi memory export -o tm.tmx`, the
 `{dir}{name}{ext}{lang}` template on `kapi exec <tool>`), and that meaning is
 consistent, so the format axis keeps the unambiguous long spelling.
 

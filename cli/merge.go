@@ -8,7 +8,7 @@ import (
 // NewMergeCmd returns the `kapi merge` command (AD-017, issue #416).
 // Applies a translator-returned XLIFF back onto the project's source
 // files using the captured skeleton, records stale segments, and
-// absorbs accepted targets into the project TM.
+// absorbs accepted targets into the project content memory.
 func NewMergeCmd(a *App, _ MergeCmdOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "merge",
@@ -58,7 +58,7 @@ batch are fine — merge handles each input independently.`,
 	AddProjectFlag(cmd)
 	cmd.Flags().StringArrayP("input", "i", nil, "input XLIFF file, glob, or directory (repeatable)")
 	cmd.Flags().StringP("output", "o", "", "output directory or template when merging a .kpz workspace")
-	cmd.Flags().Bool("no-tm-update", false, "skip TM write-back")
+	cmd.Flags().Bool("no-tm-update", false, "skip content-memory write-back")
 	cmd.Flags().Bool("no-restore", false, "skip restoring redacted originals from the batch vault")
 	AddProgressFlag(cmd)
 	return cmd

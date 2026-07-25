@@ -42,7 +42,7 @@ Ask for enforcement, or for curation:
 
 > Check the French files against our glossary and fix what drifts.
 
-The assistant looks up approved terms before it writes (`kapi termbase lookup`), runs `term-check` after, and fixes flagged targets through the round-trip. It can also grow the glossary: candidate terms it spots (or `kapi exec term-extract` surfaces) land as `kind:"term"` change-set entries through `kapi apply` — written to the committed glossary source, for you to approve in `git diff`.
+The assistant looks up approved terms before it writes (`kapi terms lookup`), runs `term-check` after, and fixes flagged targets through the round-trip. It can also grow the glossary: candidate terms it spots (or `kapi exec term-extract` surfaces) land as `kind:"term"` change-set entries through `kapi apply` — written to the committed glossary source, for you to approve in `git diff`.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -50,14 +50,14 @@ The assistant looks up approved terms before it writes (`kapi termbase lookup`),
 Import once into a named termbase, verify, then check deliveries:
 
 ```bash
-kapi termbase import glossary.csv --name product-terms \
+kapi terms import glossary.csv --name product-terms \
   --format csv --header -s en -t fr                 # once; persists across sessions
-kapi termbase lookup "log in" --name product-terms -s en -t fr
+kapi terms lookup "log in" --name product-terms -s en -t fr
 kapi exec term-check messages_fr.json \
   --source-lang en --target-lang fr --termbase product-terms
 ```
 
-The `term-check` tool flags targets that don't use the approved equivalent for a source glossary term — "code secret" where the glossary says "mot de passe" — and exits non-zero on violations, so it doubles as a CI gate. Scale with globs and `-j 4`; keep the termbase current with re-imports (concepts merge) and `kapi termbase export` for vendor kits. Flags: [`kapi termbase`](/reference/commands/termbase), [`kapi exec term-check`](/reference/commands/exec-term-check).
+The `term-check` tool flags targets that don't use the approved equivalent for a source term — "code secret" where the terms store says "mot de passe" — and exits non-zero on violations, so it doubles as a CI gate. Scale with globs and `-j 4`; keep the terms store current with re-imports (concepts merge) and `kapi terms export` for vendor kits. Flags: [`kapi terms`](/reference/commands/terms), [`kapi exec term-check`](/reference/commands/exec-term-check).
 
 **In a project**, the check resolves the project termbase and the recipe's languages automatically — no flags — and the terminology gate folds into [`kapi check --ship`](/kapi/recipes/gate-localization-in-ci).
 

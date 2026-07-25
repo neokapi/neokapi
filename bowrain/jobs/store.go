@@ -20,13 +20,13 @@ type JobStore interface {
 	// can neither regress the fresh owner's progress nor falsely refresh its
 	// heartbeat; a lost-lease write is a silent no-op.
 	UpdateJobProgress(ctx context.Context, id string, epoch int64, doneBlocks, totalBlocks int) error
-	// UpdateJobTMSplit records the TM-first split for the job: viaTM is the
-	// block count filled from the project TM (recycled), viaAI the count sent to
+	// UpdateJobMemorySplit records the content memory-first split for the job: viaMemory is the
+	// block count filled from the project content memory (recycled), viaAI the count sent to
 	// the AI translator. The convergence produce emitter aggregates these across
-	// a locale's jobs to report a truthful "TM N · AI M" (theme A2). Epoch-
+	// a locale's jobs to report a truthful "content memory N · AI M" (theme A2). Epoch-
 	// guarded like UpdateJobProgress so a stale worker cannot overwrite the
 	// fresh owner's counts.
-	UpdateJobTMSplit(ctx context.Context, id string, epoch int64, viaTM, viaAI int) error
+	UpdateJobMemorySplit(ctx context.Context, id string, epoch int64, viaMemory, viaAI int) error
 	UpdateJobStatus(ctx context.Context, id string, status JobStatus, errMsg string) error
 	// FailJob marks the job failed with errMsg — but only while the caller
 	// still holds the lease (status 'processing' AND claim_epoch == epoch), so
@@ -158,11 +158,11 @@ var jobMigrations = []storage.Migration{
 	},
 	{
 		Version:     5,
-		Description: "TM-first convergence: record the TM-vs-AI block split per job",
-		// A TM-first convergence run recycles exact/near-exact matches before
+		Description: "content memory-first convergence: record the content memory-vs-AI block split per job",
+		// A content memory-first convergence run recycles exact/near-exact matches before
 		// paying for AI. via_tm/via_ai carry that split so the convergence
-		// produce emitter can report a truthful "TM N · AI M" instead of the old
-		// hard-coded ViaTM=0. Append-only columns; older rows read as 0/0.
+		// produce emitter can report a truthful "content memory N · AI M" instead of the old
+		// hard-coded ViaMemory=0. Append-only columns; older rows read as 0/0.
 		SQL: `
 			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS via_tm INTEGER NOT NULL DEFAULT 0;
 			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS via_ai INTEGER NOT NULL DEFAULT 0;
@@ -213,7 +213,7 @@ func (s *jobStore) CreateJob(ctx context.Context, job *TranslationJob) error {
 		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
 		job.ID, job.WorkspaceSlug, job.ProjectID, job.ItemName, job.TargetLocale,
 		job.ProviderConfigID, job.Model, job.PushID, job.StepID, string(job.Status), job.Progress, job.TotalBlocks,
-		job.DoneBlocks, job.TokensUsed, job.Error, now, now, job.WorkspaceID, job.ViaTM, job.ViaAI)
+		job.DoneBlocks, job.TokensUsed, job.Error, now, now, job.WorkspaceID, job.ViaMemory, job.ViaAI)
 	if err != nil {
 		return fmt.Errorf("insert job: %w", err)
 	}
@@ -264,12 +264,12 @@ func (s *jobStore) UpdateJobProgress(ctx context.Context, id string, epoch int64
 	return nil
 }
 
-func (s *jobStore) UpdateJobTMSplit(ctx context.Context, id string, epoch int64, viaTM, viaAI int) error {
+func (s *jobStore) UpdateJobMemorySplit(ctx context.Context, id string, epoch int64, viaMemory, viaAI int) error {
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE translation_jobs
 		 SET via_tm = $1, via_ai = $2, updated_at = NOW()
 		 WHERE id = $3 AND status = 'processing' AND claim_epoch = $4`,
-		viaTM, viaAI, id, epoch)
+		viaMemory, viaAI, id, epoch)
 	if err != nil {
 		return fmt.Errorf("update job tm split: %w", err)
 	}
@@ -482,7 +482,7 @@ func scanJob(row *sql.Row) (*TranslationJob, error) {
 	err := row.Scan(
 		&j.ID, &j.WorkspaceSlug, &j.ProjectID, &j.ItemName, &j.TargetLocale,
 		&j.ProviderConfigID, &j.Model, &j.PushID, &j.StepID, &status, &j.Progress, &j.TotalBlocks, &j.DoneBlocks,
-		&j.TokensUsed, &j.Error, &j.CreatedAt, &j.UpdatedAt, &j.WorkspaceID, &j.ViaTM, &j.ViaAI)
+		&j.TokensUsed, &j.Error, &j.CreatedAt, &j.UpdatedAt, &j.WorkspaceID, &j.ViaMemory, &j.ViaAI)
 	if err != nil {
 		return nil, fmt.Errorf("scan job: %w", err)
 	}
@@ -499,7 +499,7 @@ func scanJobs(rows *sql.Rows) ([]*TranslationJob, error) {
 		err := rows.Scan(
 			&j.ID, &j.WorkspaceSlug, &j.ProjectID, &j.ItemName, &j.TargetLocale,
 			&j.ProviderConfigID, &j.Model, &j.PushID, &j.StepID, &status, &j.Progress, &j.TotalBlocks, &j.DoneBlocks,
-			&j.TokensUsed, &j.Error, &j.CreatedAt, &j.UpdatedAt, &j.WorkspaceID, &j.ViaTM, &j.ViaAI)
+			&j.TokensUsed, &j.Error, &j.CreatedAt, &j.UpdatedAt, &j.WorkspaceID, &j.ViaMemory, &j.ViaAI)
 		if err != nil {
 			return nil, fmt.Errorf("scan job row: %w", err)
 		}

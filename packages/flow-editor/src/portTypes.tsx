@@ -95,7 +95,7 @@ export const PORT_FAMILIES: Record<PortFamily, FamilyStyle> = {
       return t("Matches & suggestions", "port type");
     },
     get description() {
-      return t("Candidate translations, TM matches, brand/term proposals.");
+      return t("Candidate translations, content-memory matches, brand/term proposals.");
     },
   },
   metric: {
@@ -207,7 +207,7 @@ const PORT_TYPES: Record<PortType, PortTypeDef> = {
     family: "linguistic",
     icon: Tag,
     get description() {
-      return t("Proposed terminology not yet in the termbase.");
+      return t("Proposed terminology not yet in the terms.");
     },
   },
   // Quality
@@ -224,7 +224,7 @@ const PORT_TYPES: Record<PortType, PortTypeDef> = {
   // Matches & suggestions
   "tm-match": {
     get label() {
-      return t("TM matches", "port type");
+      return t("content-memory matches", "port type");
     },
     family: "suggestion",
     icon: Database,
@@ -239,7 +239,7 @@ const PORT_TYPES: Record<PortType, PortTypeDef> = {
     family: "suggestion",
     icon: Sparkles,
     get description() {
-      return t("Candidate translations from TM/MT/AI.");
+      return t("Candidate translations from content memory/MT/AI.");
     },
   },
   "brand-voice": {

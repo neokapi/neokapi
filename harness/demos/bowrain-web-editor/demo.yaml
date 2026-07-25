@@ -13,7 +13,7 @@ oneshot: true
 aspects:
   - Side-by-side source and target
   - Live document preview
-  - Shared TM and terminology inline
+  - Shared Memory and terminology inline
   - Every locale in one place
 
 narration:

@@ -638,7 +638,7 @@ element. Convention props — `subtitle`, `description`, `label`,
 `heading`, `caption`, `helpText`, `helperText`, `errorMessage`,
 `hint`, `tooltip`, `emptyMessage`, `emptyStateText`,
 `filterPlaceholder` — extract from **PascalCase components only**
-(so `<PageHeader title="Translation Memories" />` works without a
+(so `<PageHeader title="Content Memories" />` works without a
 componentMap entry, while `<div label="enum-key">` is left alone).
 
 ### Auto-promotion for containers
@@ -935,7 +935,7 @@ vpx neokapi-i18n explain <file-or-glob>... [--extracted]
 The boundary is: `neokapi-i18n` emits extracted blocks (as KBF files
 or an NDJSON stream) and compiles translated KBFs back to the
 runtime dictionary. Everything in between — pseudo-translate, AI
-translate, TM matching, QA, review — goes through the `kapi` CLI.
+translate, content memory matching, QA, review — goes through the `kapi` CLI.
 
 ### Two output modes for extract
 

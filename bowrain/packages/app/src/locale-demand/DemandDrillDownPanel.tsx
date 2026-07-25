@@ -167,7 +167,7 @@ function AddLocaleBlock({ code, estimate }: { code: string; estimate?: PlanEstim
           </div>
           <div>
             <dt className="text-muted-foreground">TM coverage</dt>
-            <dd className="font-medium tabular-nums">{estimate.tmCoveragePercent}%</dd>
+            <dd className="font-medium tabular-nums">{estimate.memoryCoveragePercent}%</dd>
           </div>
           <div>
             <dt className="text-muted-foreground">Volume</dt>

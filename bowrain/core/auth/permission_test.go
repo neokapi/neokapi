@@ -18,7 +18,7 @@ func TestPermissionHas(t *testing.T) {
 	t.Run("multiple bits", func(t *testing.T) {
 		p := PermViewContent | PermTranslate | PermReview
 		assert.True(t, p.Has(PermTranslate|PermReview))
-		assert.False(t, p.Has(PermTranslate|PermManageTM))
+		assert.False(t, p.Has(PermTranslate|PermManageMemory))
 	})
 
 	t.Run("PermAll has every permission", func(t *testing.T) {
@@ -41,7 +41,7 @@ func TestPermissionLanguageScoped(t *testing.T) {
 	}
 
 	notScoped := []Permission{
-		PermViewContent, PermEditSource, PermManageTerms, PermManageTM,
+		PermViewContent, PermEditSource, PermManageTerms, PermManageMemory,
 		PermRunFlows, PermManageFiles, PermManageStreams, PermManageConnectors,
 		PermManageAutomation, PermManageMembers, PermManageProject,
 		PermManageBrand, PermManageAssets, PermAuditRead, PermRollbackChanges,
@@ -114,7 +114,7 @@ func TestParsePermission(t *testing.T) {
 func TestParsePermissions(t *testing.T) {
 	t.Run("multiple names", func(t *testing.T) {
 		got := ParsePermissions([]string{"translate", "review", "manage_tm"})
-		want := PermTranslate | PermReview | PermManageTM
+		want := PermTranslate | PermReview | PermManageMemory
 		assert.Equal(t, want, got)
 	})
 
@@ -131,7 +131,7 @@ func TestParsePermissions(t *testing.T) {
 func TestPermAll(t *testing.T) {
 	all := []Permission{
 		PermViewContent, PermEditSource, PermTranslate, PermReview,
-		PermManageTerms, PermManageTM, PermRunFlows, PermManageFiles,
+		PermManageTerms, PermManageMemory, PermRunFlows, PermManageFiles,
 		PermManageStreams, PermManageConnectors, PermManageAutomation,
 		PermManageMembers, PermManageProject, PermManageBrand, PermManageAssets,
 		PermAuditRead, PermRollbackChanges,

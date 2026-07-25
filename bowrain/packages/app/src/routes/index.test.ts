@@ -32,7 +32,7 @@ describe("route tree", () => {
     expect(childPaths).toContain("/");
     expect(childPaths).toContain("p/$projectId/s/$stream");
     expect(childPaths).toContain("p/$projectId/s/$stream/$itemId/translate");
-    expect(childPaths).toContain("termbase");
+    expect(childPaths).toContain("terms");
     expect(childPaths).toContain("memory");
     expect(childPaths).toContain("settings");
   });

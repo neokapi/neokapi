@@ -16,7 +16,7 @@ type DNTCheckConfig struct {
 	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
 	// Terms are the do-not-translate strings (product names, trademarks, code
 	// identifiers) that must survive verbatim into the target. Sourced from the
-	// recipe or a checkset; the termbase can supply more.
+	// recipe or a checkset; the terms store can supply more.
 	Terms []string `json:"terms,omitempty" schema:"-"`
 	// CaseInsensitive accepts a case-folded match in the target. Off by default:
 	// do-not-translate is usually case-sensitive ("iPhone", not "Iphone").

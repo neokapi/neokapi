@@ -21,7 +21,7 @@ export type {
   Notification,
   NotificationPreferences,
   Activity,
-  TMEntry,
+  Entry,
   ReadinessComponentStatus,
   ReadinessInfo,
 } from "./api-client.js";
@@ -34,7 +34,7 @@ export type { KeycloakAdminConfig, KeycloakUser } from "./keycloak-admin.js";
 export {
   WORKSPACE,
   PROJECTS,
-  TM_ENTRIES,
+  MEMORY_ENTRIES,
   CONCEPTS,
   BRAND_PROFILE,
   TASKS,

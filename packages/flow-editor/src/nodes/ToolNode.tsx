@@ -356,7 +356,7 @@ export function ToolNode({ data, selected }: NodeProps) {
           </SimpleTooltip>
         )}
 
-        {/* External-system satellites: TM / termbase / API / analytics / vault
+        {/* External-system satellites: Memory / terms / API / analytics / vault
             the tool reads from or writes to. Dashed chips on a free side —
             deliberately distinct from the solid ports and the main edge to the
             next tool. Part of the node, so collision-safe across layouts. */}

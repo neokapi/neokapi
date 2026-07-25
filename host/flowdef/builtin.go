@@ -19,15 +19,15 @@ func BuiltInFlows() []flow.FlowDefinition {
 		{
 			ID:          "translate",
 			Name:        "Translate",
-			Description: "Translate with guardrails: TM reuse, then AI translate, then deterministic checks",
+			Description: "Translate with guardrails: content memory reuse, then AI translate, then deterministic checks",
 			Source:      registry.SourceBuiltIn,
 			// The porcelain `kapi translate` runs this flow, so the pitch
 			// command carries the three pillars: recycle leverages a bound
-			// TM (a no-op without one), translate produces, and the
+			// content memory (a no-op without one), translate produces, and the
 			// deterministic qa pass verifies placeholders/tags before the
 			// result is written. The raw tool stays at `kapi exec translate`.
 			Nodes: []flow.FlowNode{
-				{ID: "recycle", Type: flow.NodeTool, Name: "recycle", Label: "TM Reuse", Position: flow.NodePosition{X: 0, Y: 100}},
+				{ID: "recycle", Type: flow.NodeTool, Name: "recycle", Label: "Memory Reuse", Position: flow.NodePosition{X: 0, Y: 100}},
 				{ID: "translate", Type: flow.NodeTool, Name: "translate", Label: "Translate", Position: flow.NodePosition{X: 250, Y: 100}},
 				{ID: "qa", Type: flow.NodeTool, Name: "qa", Label: "Checks", Position: flow.NodePosition{X: 500, Y: 100}},
 			},
@@ -73,7 +73,7 @@ func BuiltInFlows() []flow.FlowDefinition {
 		{
 			ID:          "recycle",
 			Name:        "Recycle",
-			Description: "Pre-fill translations from translation memory",
+			Description: "Pre-fill translations from content memory",
 			Source:      registry.SourceBuiltIn,
 			Nodes: []flow.FlowNode{
 				{ID: "recycle", Type: flow.NodeTool, Name: "recycle", Label: "Recycle", Position: flow.NodePosition{X: 0, Y: 100}},

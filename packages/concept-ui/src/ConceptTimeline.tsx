@@ -5,7 +5,7 @@
 // the horizontal language-lane roadmap, folding to a vertical git-graph when the
 // panel is narrow. With no revision log the model is synthesised from term and
 // relation validity windows, so the same panel works against a local SQLite
-// termbase and against bowrain's REST API.
+// terms and against bowrain's REST API.
 //
 // Bind it into a ConceptView timeline slot:  slots={{ timeline: (p) => <ConceptTimeline {...p} /> }}
 import { useMemo, useState } from "react";
@@ -122,7 +122,7 @@ export function ConceptTimeline({
 
       {!error && model.derived && model.eventCount > 0 && (
         <p className="mt-4 border-t pt-3 text-[11px] text-muted-foreground">
-          Derived from the local termbase — status and relation changes inferred from validity
+          Derived from the local terms — status and relation changes inferred from validity
           windows.
         </p>
       )}

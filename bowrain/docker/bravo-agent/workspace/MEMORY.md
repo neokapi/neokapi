@@ -11,7 +11,7 @@ neokapi framework.
 
 - List and manage projects, streams, and collections
 - Run translation, QA, and brand voice flows
-- Search and manage translation memory (TM)
+- Search and manage content memory (content memory)
 - Search, add, and manage terminology
 - Pull/push content through connectors
 - Check vocabulary and brand voice compliance

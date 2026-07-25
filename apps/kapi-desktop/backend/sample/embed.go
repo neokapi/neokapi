@@ -17,8 +17,8 @@ import (
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/storage"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
 )
 
 //go:embed kapimart/*
@@ -67,12 +67,12 @@ func Scaffold(name, targetDir string) error {
 		return fmt.Errorf("create .kapi dir: %w", err)
 	}
 
-	// Seed TM and termbase.
+	// Seed content memory and terms.
 	if err := seedTMv2(filepath.Join(kapiDir, "tm.db")); err != nil {
-		return fmt.Errorf("seed TM: %w", err)
+		return fmt.Errorf("seed content memory: %w", err)
 	}
-	if err := seedTermbasev2(filepath.Join(kapiDir, "termbase.db")); err != nil {
-		return fmt.Errorf("seed termbase: %w", err)
+	if err := seedTermsv2(filepath.Join(kapiDir, "termbase.db")); err != nil {
+		return fmt.Errorf("seed terms: %w", err)
 	}
 
 	// Stamp the sample manifest (.kapi/sample.json) so the desktop can detect an
@@ -93,7 +93,7 @@ func seedTMv2(dbPath string) error {
 	if err != nil {
 		return fmt.Errorf("read TMX: %w", err)
 	}
-	tm, err := sievepen.NewSQLiteTM(dbPath)
+	tm, err := memory.NewSQLiteStore(dbPath)
 	if err != nil {
 		return err
 	}
@@ -101,8 +101,8 @@ func seedTMv2(dbPath string) error {
 
 	// The TMX already has all target locales on each TU; a single import
 	// creates one multilingual entry per TU with every variant populated.
-	if _, _, err := sievepen.ImportTMXSession(context.Background(), tm, bytes.NewReader(tmxData),
-		sievepen.ImportTMXOptions{
+	if _, _, err := memory.ImportTMXSession(context.Background(), tm, bytes.NewReader(tmxData),
+		memory.ImportTMXOptions{
 			OriginKey:     "tm-seed.tmx",
 			OriginAddedBy: "kapi-sample",
 		}); err != nil {
@@ -119,26 +119,26 @@ func seedTMv2(dbPath string) error {
 	return nil
 }
 
-func seedTermbasev2(dbPath string) error {
+func seedTermsv2(dbPath string) error {
 	tbData, err := assetsFS.ReadFile("kapimart/termbase-seed.json")
 	if err != nil {
-		return fmt.Errorf("read termbase JSON: %w", err)
+		return fmt.Errorf("read terms JSON: %w", err)
 	}
-	tb, err := termbase.NewSQLiteTermBase(dbPath)
+	tb, err := terms.NewSQLiteStore(dbPath)
 	if err != nil {
 		return err
 	}
 	defer tb.Close()
-	if _, err := termbase.ImportJSON(context.Background(), tb, bytes.NewReader(tbData)); err != nil {
-		return fmt.Errorf("import termbase: %w", err)
+	if _, err := terms.ImportJSON(context.Background(), tb, bytes.NewReader(tbData)); err != nil {
+		return fmt.Errorf("import terms: %w", err)
 	}
 	spreadTimestamps(tb.DB(), "tb_concepts", 90)
 	return nil
 }
 
-// --- Enriched TM entries (structural + entity) ---
+// --- Enriched content-memory entries (structural + entity) ---
 
-// enrichedEntry defines a TM entry with inline codes and/or entity placeholders.
+// enrichedEntry defines a content-memory entry with inline codes and/or entity placeholders.
 // The source is always in en-US; targets maps each supported locale to a
 // Run-sequence factory. Entities, when set, carry the placeholder ID, type,
 // and the en-US value; per-locale entity values are not defined separately
@@ -151,18 +151,18 @@ type enrichedEntry struct {
 
 // enrichedEntity is the sample-file shape for an entity mapping — just
 // the placeholder ID, type, and the en-US value. At seed time we expand
-// this into a sievepen.EntityMapping with a Values map keyed by en-US.
+// this into a memory.EntityMapping with a Values map keyed by en-US.
 type enrichedEntity struct {
 	PlaceholderID string
 	Type          model.EntityType
 	SourceValue   string
 }
 
-// seedEnrichedEntries adds multilingual TM entries with structural markup
+// seedEnrichedEntries adds multilingual content-memory entries with structural markup
 // and entity annotations that exercise all 6 match tiers. Each definition
 // produces exactly one entry with en-US as the canonical source and all
 // v2Targets as peer variants.
-func seedEnrichedEntries(tm *sievepen.SQLiteTM) error {
+func seedEnrichedEntries(tm *memory.SQLiteStore) error {
 	entries := enrichedEntryDefs()
 	now := time.Now()
 	for i, def := range entries {
@@ -174,22 +174,22 @@ func seedEnrichedEntries(tm *sievepen.SQLiteTM) error {
 				variants[tgt] = fn()
 			}
 		}
-		entity := make([]sievepen.EntityMapping, 0, len(def.entities))
+		entity := make([]memory.EntityMapping, 0, len(def.entities))
 		for _, e := range def.entities {
-			entity = append(entity, sievepen.EntityMapping{
+			entity = append(entity, memory.EntityMapping{
 				PlaceholderID: e.PlaceholderID,
 				Type:          e.Type,
-				Values: map[model.LocaleID]sievepen.EntityValue{
+				Values: map[model.LocaleID]memory.EntityValue{
 					"en-US": {Text: e.SourceValue},
 				},
 			})
 		}
-		entry := sievepen.TMEntry{
+		entry := memory.Entry{
 			ID:          id.New(),
 			Variants:    variants,
 			HintSrcLang: "en-US",
 			Entities:    entity,
-			Origins: []sievepen.Origin{
+			Origins: []memory.Origin{
 				{
 					Source:    "import",
 					Key:       fmt.Sprintf("sample/kapimart/enriched/%d", i),

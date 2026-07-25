@@ -20,21 +20,21 @@ import (
 )
 
 // telemetryTestTree builds a miniature kapi command tree: two built-in verbs
-// (stats, tm>import), a plugin-attached verb (push), the excluded built-ins
+// (stats, memory>import), a plugin-attached verb (push), the excluded built-ins
 // (help, completion, telemetry), and returns the tree plus the built-in verb
 // set as kapi/cmd/kapi would snapshot it before plugin attach.
 func telemetryTestTree() (root *cobra.Command, lookup map[string]*cobra.Command, builtins map[string]bool) {
 	root = &cobra.Command{Use: "kapi"}
 	stats := &cobra.Command{Use: "stats"}
-	tm := &cobra.Command{Use: "tm"}
-	tmImport := &cobra.Command{Use: "import"}
-	tm.AddCommand(tmImport)
+	mem := &cobra.Command{Use: "memory"}
+	memoryImport := &cobra.Command{Use: "import"}
+	mem.AddCommand(memoryImport)
 	help := &cobra.Command{Use: "help"}
 	completion := &cobra.Command{Use: "completion"}
 	telemetryCmd := &cobra.Command{Use: "telemetry"}
 	telemetryOff := &cobra.Command{Use: "off"}
 	telemetryCmd.AddCommand(telemetryOff)
-	root.AddCommand(stats, tm, help, completion, telemetryCmd)
+	root.AddCommand(stats, mem, help, completion, telemetryCmd)
 
 	builtins = make(map[string]bool)
 	for _, c := range root.Commands() {
@@ -49,7 +49,7 @@ func telemetryTestTree() (root *cobra.Command, lookup map[string]*cobra.Command,
 
 	lookup = map[string]*cobra.Command{
 		"stats":         stats,
-		"tm.import":     tmImport,
+		"memory.import": memoryImport,
 		"push":          push,
 		"push.remote":   pushRemote,
 		"help":          help,
@@ -69,7 +69,7 @@ func TestTelemetryCommandLabel(t *testing.T) {
 		want     string
 	}{
 		{name: "built-in top-level verb", executed: "stats", want: "stats"},
-		{name: "built-in nested verb reports dotted path", executed: "tm.import", want: "tm.import"},
+		{name: "built-in nested verb reports dotted path", executed: "memory.import", want: "memory.import"},
 		{name: "plugin verb reports as plugin", executed: "push", want: "plugin"},
 		{name: "plugin subcommand reports as plugin", executed: "push.remote", want: "plugin"},
 		{name: "help is excluded", executed: "help", want: ""},
@@ -226,7 +226,7 @@ func TestTelemetryReporterEmitsFirstRunThenCommandRun(t *testing.T) {
 	reporter := NewTelemetryReporter(&App{}, builtins)
 
 	// First eligible run: cli_first_run + cli_command_run.
-	reporter(CommandReport{Root: root, Executed: lookup["tm.import"], ExitCode: ExitOK, Duration: 2 * time.Second})
+	reporter(CommandReport{Root: root, Executed: lookup["memory.import"], ExitCode: ExitOK, Duration: 2 * time.Second})
 
 	events := func() []string {
 		var names []string
@@ -265,7 +265,7 @@ func TestTelemetryReporterEmitsFirstRunThenCommandRun(t *testing.T) {
 		if ev.Event != "cli_command_run" {
 			continue
 		}
-		assert.Equal(t, "tm.import", ev.Properties["command"])
+		assert.Equal(t, "memory.import", ev.Properties["command"])
 		assert.Equal(t, "<10s", ev.Properties["duration_bucket"])
 		assert.Equal(t, "ok", ev.Properties["exit_class"])
 		assert.Equal(t, "cli", ev.Properties["surface"])

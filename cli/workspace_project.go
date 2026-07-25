@@ -16,7 +16,7 @@ func NewPackCmd(a *App) *cobra.Command {
 		Short:   "Snapshot a kapi project's working state into a .kpz",
 		GroupID: "advanced",
 		Long: `Snapshot a kapi project's working state — the block-store overlays, the
-authoritative translation memory, and the termbase — into a portable .kpz.
+authoritative content memory, and the terms store — into a portable .kpz.
 Regenerable caches and secrets are excluded. Move the snapshot to another
 machine and "kapi unpack" it to resume work there.`,
 		Example: `  kapi pack -o snapshot.kpz   # a kapi project

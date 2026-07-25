@@ -12,7 +12,7 @@ const (
 	PermTranslate                               // Add/edit translations (language-scoped)
 	PermReview                                  // Approve/reject translations (language-scoped)
 	PermManageTerms                             // Edit terminology
-	PermManageTM                                // Edit translation memory
+	PermManageMemory                            // Edit content memory
 	PermRunFlows                                // Execute processing flows
 	PermManageFiles                             // Upload/delete files (items)
 	PermManageStreams                           // Create/merge/delete streams

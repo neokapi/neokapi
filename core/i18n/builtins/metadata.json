@@ -193,7 +193,7 @@
           }
         },
         "knownTerms": {
-          "description": "Terms to exclude from extraction (already in termbase)"
+          "description": "Terms to exclude from extraction (already in the terms store)"
         },
         "locale": {
           "description": "Locale of the source content"
@@ -575,7 +575,7 @@
         },
         "noQueryThreshold": {
           "title": "No-Query Threshold",
-          "description": "Skip TM query if existing candidate scores at or above this value (101 = always query)"
+          "description": "Skip content-memory query if existing candidate scores at or above this value (101 = always query)"
         },
         "tmxPath": {
           "title": "TMX Output Path",

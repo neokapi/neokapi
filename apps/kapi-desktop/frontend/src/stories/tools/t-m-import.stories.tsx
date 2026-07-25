@@ -1,12 +1,12 @@
 /**
- * TM Import
+ * content memory Import
  */
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { ToolConfig } from "../_lib/schema-story";
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Translation/TM Import",
+  title: "Formats & Tools/Tools/Translation/content memory Import",
   parameters: { layout: "padded" },
 };
 export default meta;

@@ -36,7 +36,7 @@ type pgStores struct {
 	Agent          platagent.AgentStore
 	Billing        billing.BillingStore
 	PlatformConfig *platformconfig.Store
-	DB             *storage.PgDB // shared connection pool for TM/TB
+	DB             *storage.PgDB // shared connection pool for Memory/TB
 }
 
 func openPostgresStores(databaseURL string) (*pgStores, error) {

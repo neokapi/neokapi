@@ -18,7 +18,7 @@ import type {
   TranslationStats,
   UploadFilesResult,
   WordCountResult,
-  TMMatchInfo,
+  MemoryMatchInfo,
   BlockTermMatch,
   BlockNote,
   BlockHistoryEntry,
@@ -622,7 +622,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       word_count: 42,
     }),
 
-    tmTranslateFile: async (): Promise<TranslationStats> => ({
+    memoryTranslateFile: async (): Promise<TranslationStats> => ({
       total_blocks: _blocks.length,
       translated_blocks: Math.floor(_blocks.length * 0.7),
       word_count: 30,
@@ -638,7 +638,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     exportTranslatedFile: async () =>
       new Blob(["mock export"], { type: "application/octet-stream" }),
 
-    lookupTMForBlock: async (): Promise<TMMatchInfo[]> => [
+    lookupMemoryForBlock: async (): Promise<MemoryMatchInfo[]> => [
       {
         source: "Welcome to Neokapi",
         target: "Bienvenue sur Neokapi",
@@ -847,12 +847,12 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     renderBlockHTML: async (_ws, _projectId, _blockId): Promise<string> =>
       "<span>rendered block</span>",
 
-    // --- TM -------------------------------------------------------------
-    getTMEntries: async () => ({ entries: [], total_count: 0 }),
-    getTMCount: async () => 0,
-    addTMEntry: notImpl,
-    updateTMEntry: noop,
-    deleteTMEntry: noop,
+    // --- content memory -------------------------------------------------------------
+    getMemoryEntries: async () => ({ entries: [], total_count: 0 }),
+    getMemoryCount: async () => 0,
+    addMemoryEntry: notImpl,
+    updateMemoryEntry: noop,
+    deleteMemoryEntry: noop,
 
     // --- Terms ----------------------------------------------------------
     getTerms: async () => ({ concepts: [], total_count: 0 }),

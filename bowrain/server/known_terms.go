@@ -7,18 +7,18 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// ServerKnownTermsLoader loads known terms from the server's workspace termbases.
+// ServerKnownTermsLoader loads known terms from the server's workspace terms stores.
 type ServerKnownTermsLoader struct {
 	wsStores *workspaceStores
-	// workspaceSlug is needed because the termbase is workspace-scoped.
+	// workspaceSlug is needed because the terms store is workspace-scoped.
 	workspaceSlug string
 }
 
-// LoadKnownTerms returns all term texts for the given locale from the workspace termbase.
+// LoadKnownTerms returns all term texts for the given locale from the workspace terms.
 func (l *ServerKnownTermsLoader) LoadKnownTerms(ctx context.Context, _ string, locale string) ([]string, error) {
 	tb, err := l.wsStores.getTB(l.workspaceSlug)
 	if err != nil {
-		return nil, fmt.Errorf("init termbase: %w", err)
+		return nil, fmt.Errorf("init terms: %w", err)
 	}
 
 	concepts, err := tb.Concepts(ctx)

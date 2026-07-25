@@ -124,7 +124,7 @@ type AnnotationWriter interface {
 	// collection, never in numbered keys).
 	AddAltTranslation(a *model.AltTranslation)
 	// AppendAltUnder appends an alt-translation to the collection under an
-	// arbitrary key (e.g. the per-segment TM-match set).
+	// arbitrary key (e.g. the per-segment content memory-match set).
 	AppendAltUnder(key string, a *model.AltTranslation)
 	// AddNote appends a note to the block's note collection (multiplicity lives
 	// in the collection, never in numbered keys).

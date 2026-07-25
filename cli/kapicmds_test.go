@@ -15,34 +15,34 @@ import (
 // in-place rewrite of Short/Long/Example through a catalog-backed Translator.
 func TestLocalizeCommandHelp_TranslatesShortLongExample(t *testing.T) {
 	root := &cobra.Command{Use: "kapi", Short: "A toolkit"}
-	tm := &cobra.Command{Use: "tm", Short: "Manage translation memory"}
+	mem := &cobra.Command{Use: "memory", Short: "Manage content memory"}
 	imp := &cobra.Command{
 		Use:     "import <file>",
 		Short:   "Import a TMX file",
 		Long:    "Line one.\nLine two.",
-		Example: "  kapi tm import corpus.tmx",
+		Example: "  kapi memory import corpus.tmx",
 	}
-	tm.AddCommand(imp)
-	root.AddCommand(tm)
+	mem.AddCommand(imp)
+	root.AddCommand(mem)
 
 	cat := makeMoCatalog(t, "nb",
 		[3]string{"cli.commands.kapi.short", "A toolkit", "Et verktøysett"},
-		[3]string{"cli.commands.kapi.tm.short", "Manage translation memory", "Administrer oversettelsesminne"},
-		[3]string{"cli.commands.kapi.tm.import.short", "Import a TMX file", "Importer en TMX-fil"},
-		[3]string{"cli.commands.kapi.tm.import.long", "Line one.\nLine two.", "Linje én.\nLinje to."},
+		[3]string{"cli.commands.kapi.memory.short", "Manage content memory", "Administrer oversettelsesminne"},
+		[3]string{"cli.commands.kapi.memory.import.short", "Import a TMX file", "Importer en TMX-fil"},
+		[3]string{"cli.commands.kapi.memory.import.long", "Line one.\nLine two.", "Linje én.\nLinje to."},
 	)
 	LocalizeCommandHelp(root, i18n.NewTranslator("nb", cat))
 
 	assert.Equal(t, "Et verktøysett", root.Short)
-	assert.Equal(t, "Administrer oversettelsesminne", tm.Short)
+	assert.Equal(t, "Administrer oversettelsesminne", mem.Short)
 	assert.Equal(t, "Importer en TMX-fil", imp.Short)
 	assert.Equal(t, "Linje én.\nLinje to.", imp.Long)
 	// Example has no catalog entry — falls back to the English source.
-	assert.Equal(t, "  kapi tm import corpus.tmx", imp.Example)
+	assert.Equal(t, "  kapi memory import corpus.tmx", imp.Example)
 }
 
 // TestLocalizeCommandHelp_GuardsCollapsedMultiline verifies that a
-// translation that lost the source's line structure (the project TM's
+// translation that lost the source's line structure (the project content memory's
 // plain-text fast path collapses whitespace) is rejected in favor of the
 // English source — a one-line blob is worse than untranslated help.
 func TestLocalizeCommandHelp_GuardsCollapsedMultiline(t *testing.T) {

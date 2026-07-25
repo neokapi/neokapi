@@ -23,7 +23,7 @@ Before reaching for a command, judge whether this is a one-off or ongoing work:
   works without a project.
 - **Project** — many files or a whole app; the same target locales repeatedly; a
   brand voice or glossary that must stay consistent; recurring work (CI,
-  re-translate on change); translation memory you want to reuse. Bind that
+  re-translate on change); content memory you want to reuse. Bind that
   context **once** in a `.kapi` project, then issue plain requests — kapi applies
   the project's locales, content, brand voice, and glossary with no flags.
 

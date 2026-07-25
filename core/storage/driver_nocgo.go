@@ -35,8 +35,8 @@ const FTSWordTokenizer = "unicode61"
 // established — this is the only way to guarantee a per-connection pragma
 // reaches all up-to-25 pooled connections (a single startup Exec only
 // configures the one connection it happens to run on). foreign_keys in
-// particular MUST be set here: it is per-connection in SQLite, and TM Delete /
-// termbase DeleteConcept rely on ON DELETE CASCADE, which silently no-ops on any
+// particular MUST be set here: it is per-connection in SQLite, and content memory Delete /
+// terms DeleteConcept rely on ON DELETE CASCADE, which silently no-ops on any
 // connection where foreign_keys is OFF.
 //
 // In-memory DSNs are left untouched.

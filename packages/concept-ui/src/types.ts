@@ -1,7 +1,7 @@
 // Framework-level concept model for the concept UI (Apache-2.0). These are the
 // camelCase view types the components consume — deliberately decoupled from any
 // platform's wire DTOs. A data source (see ./adapter) maps its own storage
-// (a local SQLite termbase, a REST API, …) onto these shapes.
+// (a local SQLite terms, a REST API, …) onto these shapes.
 //
 // The model has a small required CORE (concepts, terms, relations, validity,
 // status) that any source must provide, and OPTIONAL rich types (named markets,
@@ -30,7 +30,7 @@ export const TERM_STATUSES: readonly TermStatus[] = [
   "forbidden",
 ];
 
-/** Where a concept originates (mirrors termbase.TermSource). */
+/** Where a concept originates (mirrors terms.TermSource). */
 export type TermSource = "terminology" | "brand_vocabulary";
 
 // ── Relations (SKOS labels) ──────────────────────────────────────────────────

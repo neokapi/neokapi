@@ -1,7 +1,7 @@
 // Resource resolution for pipeline step configuration.
 //
-// Steps reference external resources (TMs, termbases, SRX files, output paths) via
-// URI prefixes (tm:name, termbase:name, srx:name) or relative/absolute file paths.
+// Steps reference external resources (Memories, terms stores, SRX files, output paths) via
+// URI prefixes (tm:name, terms:name, srx:name) or relative/absolute file paths.
 // The resolver translates these references into absolute filesystem paths before
 // the config is passed to the tool or bridge.
 package flow
@@ -36,9 +36,9 @@ type ResourceContext struct {
 
 // URI prefix schemes for named resources.
 const (
-	PrefixTM       = "tm:"
-	PrefixTermbase = "termbase:"
-	PrefixSRX      = "srx:"
+	PrefixMemory = "tm:"
+	PrefixTerms  = "termbase:"
+	PrefixSRX    = "srx:"
 )
 
 // Resource kind → KAPI_HOME subdirectory and file extension.
@@ -129,14 +129,14 @@ func resolvePathValue(value, key string, cs *schema.ComponentSchema, ctx Resourc
 	return value, nil
 }
 
-// resolveURIPrefix checks for tm:, termbase:, or srx: prefixes and resolves them.
+// resolveURIPrefix checks for tm:, terms:, or srx: prefixes and resolves them.
 func resolveURIPrefix(value string) (string, bool, error) {
 	for prefix, info := range map[string]struct {
 		kind string
 	}{
-		PrefixTM:       {kind: "tm"},
-		PrefixTermbase: {kind: "termbase"},
-		PrefixSRX:      {kind: "srx"},
+		PrefixMemory: {kind: "tm"},
+		PrefixTerms:  {kind: "termbase"},
+		PrefixSRX:    {kind: "srx"},
 	} {
 		if after, ok := strings.CutPrefix(value, prefix); ok {
 			name := after

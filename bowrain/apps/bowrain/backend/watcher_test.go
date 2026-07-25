@@ -153,9 +153,9 @@ func TestHandleEventEmitsTypedFrontendEvents(t *testing.T) {
 			wantType: "brand.profile.updated",
 		},
 		{
-			name:     "termbase",
+			name:     "terms",
 			event:    apiclient.EditorChangeEvent{Type: "concept.updated"},
-			wantName: "termbase-changed",
+			wantName: "terms-changed",
 			wantType: "concept.updated",
 		},
 		{

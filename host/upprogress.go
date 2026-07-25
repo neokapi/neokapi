@@ -11,7 +11,7 @@ import (
 
 // convergeRenderer renders a convergence.Event stream for the terminal — the
 // live face of `kapi up`. On a TTY it maintains an in-place region: one line
-// per locale in the current pass (progress bar, unit counts, TM/AI split)
+// per locale in the current pass (progress bar, unit counts, content memory/AI split)
 // under a pass header, repainted as events arrive. On a plain stream (CI logs,
 // pipes) it degrades to one line per meaningful event and never rewrites.
 //
@@ -31,8 +31,8 @@ type convergeRenderer struct {
 }
 
 type convergeRow struct {
-	units, done, viaTM, viaAI int
-	state                     string // queued | running | done
+	units, done, viaMemory, viaAI int
+	state                         string // queued | running | done
 }
 
 // NewConvergeRenderer builds a renderer; tty selects the in-place live region.
@@ -77,16 +77,16 @@ func (r *convergeRenderer) OnEvent(ev convergence.Event) {
 		r.redrawTTY()
 	case convergence.EventUnitProgress:
 		if row := r.rows[ev.Locale]; row != nil {
-			row.done, row.viaTM, row.viaAI = ev.Done, ev.ViaTM, ev.ViaAI
+			row.done, row.viaMemory, row.viaAI = ev.Done, ev.ViaMemory, ev.ViaAI
 		}
 		r.redrawTTY()
 	case convergence.EventLocaleDone:
 		if row := r.rows[ev.Locale]; row != nil {
 			row.state = "done"
-			row.units, row.done, row.viaTM, row.viaAI = ev.Units, ev.Done, ev.ViaTM, ev.ViaAI
+			row.units, row.done, row.viaMemory, row.viaAI = ev.Units, ev.Done, ev.ViaMemory, ev.ViaAI
 		}
 		if !r.tty {
-			fmt.Fprintf(r.w, "  %-10s %d/%d units%s\n", ev.Locale, ev.Done, ev.Units, tmAISuffix(ev.ViaTM, ev.ViaAI))
+			fmt.Fprintf(r.w, "  %-10s %d/%d units%s\n", ev.Locale, ev.Done, ev.Units, memoryAISuffix(ev.ViaMemory, ev.ViaAI))
 			return
 		}
 		r.redraw()
@@ -112,12 +112,12 @@ func (r *convergeRenderer) OnEvent(ev convergence.Event) {
 	}
 }
 
-// tmAISuffix renders the TM/AI split when either count is non-zero.
-func tmAISuffix(viaTM, viaAI int) string {
-	if viaTM == 0 && viaAI == 0 {
+// memoryAISuffix renders the content memory/AI split when either count is non-zero.
+func memoryAISuffix(viaMemory, viaAI int) string {
+	if viaMemory == 0 && viaAI == 0 {
 		return ""
 	}
-	return fmt.Sprintf("  (TM %d · AI %d)", viaTM, viaAI)
+	return fmt.Sprintf("  (content memory %d · AI %d)", viaMemory, viaAI)
 }
 
 // printAbove writes a plain line above the live region.
@@ -174,9 +174,9 @@ func (r *convergeRenderer) rowBody(row *convergeRow) string {
 	case "queued":
 		return "queued"
 	case "done":
-		return fmt.Sprintf("%s %d/%d%s ✓", bar(row.done, row.units), row.done, row.units, tmAISuffix(row.viaTM, row.viaAI))
+		return fmt.Sprintf("%s %d/%d%s ✓", bar(row.done, row.units), row.done, row.units, memoryAISuffix(row.viaMemory, row.viaAI))
 	default:
-		return fmt.Sprintf("%s %d/%d%s", bar(row.done, row.units), row.done, row.units, tmAISuffix(row.viaTM, row.viaAI))
+		return fmt.Sprintf("%s %d/%d%s", bar(row.done, row.units), row.done, row.units, memoryAISuffix(row.viaMemory, row.viaAI))
 	}
 }
 

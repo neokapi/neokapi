@@ -4,7 +4,7 @@ import type {
   ProjectInfo,
   BlockInfo,
   SpanInfo,
-  TMMatchInfo,
+  MemoryMatchInfo,
   BlockTermMatch,
   BlockNote,
   QAIssue,
@@ -54,9 +54,9 @@ export interface VisualEditorCardProps {
   onCancel: () => void;
   onApprove: () => void;
   onReject: () => void;
-  tmMatches: TMMatchInfo[];
+  memoryMatches: MemoryMatchInfo[];
   termMatches: BlockTermMatch[];
-  onApplyTM: (index: number) => void;
+  onApplyMemory: (index: number) => void;
   onInsertTerm: (text: string) => void;
   referenceLocales?: string[];
   project: ProjectInfo;
@@ -95,9 +95,9 @@ export function VisualEditorCard({
   onCancel,
   onApprove,
   onReject,
-  tmMatches,
+  memoryMatches,
   termMatches,
-  onApplyTM,
+  onApplyMemory,
   onInsertTerm: _onInsertTerm,
   referenceLocales,
   project,
@@ -112,7 +112,7 @@ export function VisualEditorCard({
   onNext,
   targetEditorRef,
 }: VisualEditorCardProps) {
-  const [tmExpanded, setTmExpanded] = useState(true);
+  const [memoryExpanded, setTmExpanded] = useState(true);
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [qaExpanded, setQaExpanded] = useState(false);
   const [notesExpanded, setNotesExpanded] = useState(true);
@@ -524,8 +524,8 @@ export function VisualEditorCard({
         )}
       </div>
 
-      {/* ── TM Matches (Translate mode) ────────────────── */}
-      {editorMode === "translate" && tmMatches.length > 0 && (
+      {/* ── Memory Matches (Translate mode) ────────────────── */}
+      {editorMode === "translate" && memoryMatches.length > 0 && (
         <div className="border-t border-border px-4 py-2">
           <button
             type="button"
@@ -533,19 +533,19 @@ export function VisualEditorCard({
             onClick={() => setTmExpanded((v) => !v)}
             data-testid="tm-toggle"
           >
-            {tmExpanded ? (
+            {memoryExpanded ? (
               <ChevronDown className="w-3 h-3" />
             ) : (
               <ChevronRight className="w-3 h-3" />
             )}
-            TM Matches
-            <span className="font-normal text-[10px] ml-1">({tmMatches.length})</span>
+            Memory Matches
+            <span className="font-normal text-[10px] ml-1">({memoryMatches.length})</span>
           </button>
-          {tmExpanded && (
+          {memoryExpanded && (
             <ContextPanel
-              tmMatches={tmMatches}
+              memoryMatches={memoryMatches}
               termMatches={[]}
-              onApplyTM={onApplyTM}
+              onApplyMemory={onApplyMemory}
               currentProjectId={project.id}
               sections={{ tm: true, terms: false, entities: false }}
               hideSectionTitles

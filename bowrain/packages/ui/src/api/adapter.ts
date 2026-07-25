@@ -13,10 +13,10 @@ import type {
   WordCountResult,
   ProviderConfig,
   ProviderConfigWithKey,
-  TMEntryInfo,
-  TMSearchResult,
-  TMUpdateRequest,
-  TMMatchInfo,
+  MemoryEntryInfo,
+  MemorySearchResult,
+  MemoryUpdateRequest,
+  MemoryMatchInfo,
   ConceptInfo,
   TermSearchResult,
   AddConceptRequest,
@@ -530,7 +530,7 @@ export interface ApiAdapter {
     stream?: string,
   ): Promise<TranslationStats>;
   aiTranslateFile(workspaceSlug: string, req: AITranslateFileRequest): Promise<TranslationStats>;
-  tmTranslateFile(
+  memoryTranslateFile(
     workspaceSlug: string,
     projectId: string,
     fileName: string,
@@ -556,14 +556,14 @@ export interface ApiAdapter {
     stream?: string,
     opts?: TranslationDashboardItemOpts,
   ): Promise<TranslationDashboardStats>;
-  lookupTMForBlock(
+  lookupMemoryForBlock(
     workspaceSlug: string,
     projectId: string,
     itemName: string,
     blockId: string,
     targetLocale: string,
     stream?: string,
-  ): Promise<TMMatchInfo[]>;
+  ): Promise<MemoryMatchInfo[]>;
   lookupTermsForBlock(
     workspaceSlug: string,
     projectId: string,
@@ -669,7 +669,7 @@ export interface ApiAdapter {
   ): Promise<DecideSourceProposalResult>;
 
   /**
-   * Promote a marked source entity to a real termbase concept (RV-F piece 3).
+   * Promote a marked source entity to a real terms concept (RV-F piece 3).
    * Distinct from the term-candidate `/promote`: this creates a concept, which
    * fires concept.created and flows into the governed terminology re-check.
    */
@@ -739,25 +739,25 @@ export interface ApiAdapter {
     stream?: string,
   ): Promise<string>;
 
-  // Translation Memory
-  getTMEntries(
+  // Content Memory
+  getMemoryEntries(
     workspaceSlug: string,
     query: string,
     sourceLocale: string,
     targetLocale: string,
     offset: number,
     limit: number,
-  ): Promise<TMSearchResult>;
-  getTMCount(workspaceSlug: string): Promise<number>;
-  addTMEntry(
+  ): Promise<MemorySearchResult>;
+  getMemoryCount(workspaceSlug: string): Promise<number>;
+  addMemoryEntry(
     workspaceSlug: string,
     source: string,
     target: string,
     sourceLocale: string,
     targetLocale: string,
-  ): Promise<TMEntryInfo>;
-  updateTMEntry(workspaceSlug: string, req: TMUpdateRequest): Promise<void>;
-  deleteTMEntry(workspaceSlug: string, entryId: string): Promise<void>;
+  ): Promise<MemoryEntryInfo>;
+  updateMemoryEntry(workspaceSlug: string, req: MemoryUpdateRequest): Promise<void>;
+  deleteMemoryEntry(workspaceSlug: string, entryId: string): Promise<void>;
 
   // Terminology
   getTerms(
@@ -1030,7 +1030,7 @@ export interface ApiAdapter {
   cancelConvergenceRun(workspaceSlug: string, projectId: string, runId: string): Promise<void>;
   /**
    * The provider-free pre-flight estimate for a project's next run (epic 019):
-   * source readiness first, then per-locale TM/AI work and credit cost for the
+   * source readiness first, then per-locale content memory/AI work and credit cost for the
    * ready source, then the workspace balance. Starts no run.
    */
   estimateConvergence(workspaceSlug: string, projectId: string): Promise<ConvergenceEstimate>;

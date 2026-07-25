@@ -152,7 +152,7 @@ export async function injectMockBackend(page: Page) {
     const IDS = {
       AddConcept: 1629877469,
       AddItems: 3605832733,
-      AddTMEntry: 2110941316,
+      AddMemoryEntry: 2110941316,
       CancelLogin: 3730504007,
       CheckPluginUpdates: 3156217699,
       CloseProject: 3843799473,
@@ -163,7 +163,7 @@ export async function injectMockBackend(page: Page) {
       DeleteConcept: 3557611909,
       DeleteFlowDefinition: 1213282658,
       DeleteProviderConfig: 1970959020,
-      DeleteTMEntry: 3484082396,
+      DeleteMemoryEntry: 3484082396,
       DetectFormat: 661014944,
       Disconnect: 668361826,
       ExportTermsJSON: 2197315403,
@@ -180,8 +180,8 @@ export async function injectMockBackend(page: Page) {
       GetPendingChangesCount: 3204097911,
       GetProject: 999425817,
       GetServerWorkspaces: 3159397869,
-      GetTMCount: 696825198,
-      GetTMEntries: 2067629197,
+      GetMemoryCount: 696825198,
+      GetMemoryEntries: 2067629197,
       GetTermCount: 2826518989,
       GetTerms: 3424415079,
       GetVersion: 663291304,
@@ -208,7 +208,7 @@ export async function injectMockBackend(page: Page) {
       ListWorkspaces: 3303885562,
       LoadPlugins: 686613052,
       Logout: 329111662,
-      LookupTMForBlock: 1469074117,
+      LookupMemoryForBlock: 1469074117,
       LookupTerms: 223814221,
       LookupTermsForBlock: 1112384681,
       OpenFileInOS: 3445961939,
@@ -231,7 +231,7 @@ export async function injectMockBackend(page: Page) {
       StartWatching: 378219921,
       StopWatching: 2958338237,
       StoreProject: 1885409090,
-      TMTranslateItem: 1701277356,
+      MemoryTranslateItem: 1701277356,
       TermEnforceItem: 88031319,
       TestProviderConfig: 3045289771,
       TryAutoConnect: 1058981368,
@@ -240,13 +240,13 @@ export async function injectMockBackend(page: Page) {
       UpdateConcept: 3374190367,
       UpdatePlugin: 3191396990,
       UpdatePresence: 3401740472,
-      UpdateTMEntry: 3731738086,
+      UpdateMemoryEntry: 3731738086,
       WaitForLogin: 3244055841,
     };
 
-    // Global TM storage (workspace-scoped, not per-project)
-    const tmStore: Record<string, any> = {};
-    let tmEntryCounter = 0;
+    // Global content memory storage (workspace-scoped, not per-project)
+    const memoryStore: Record<string, any> = {};
+    let memoryEntryCounter = 0;
 
     // Global terminology storage (workspace-scoped, not per-project)
     const termsStore: Record<string, any> = {};
@@ -663,16 +663,16 @@ export async function injectMockBackend(page: Page) {
       return { total_blocks: blocks.length, translated_blocks: translated, word_count: wordCount };
     };
 
-    mock[IDS.TMTranslateItem] = (projectID: string, itemName: string, targetLocale: string) => {
+    mock[IDS.MemoryTranslateItem] = (projectID: string, itemName: string, targetLocale: string) => {
       const files = projectFiles[projectID];
       if (!files || !files[itemName]) throw new Error("Item not found");
       const blocks = files[itemName];
-      const entries = Object.values(tmStore);
+      const entries = Object.values(memoryStore);
       let translated = 0;
       let wordCount = 0;
       for (const b of blocks) {
         if (!b.translatable || targetText(b, targetLocale)) continue;
-        // Find exact or fuzzy match from TM
+        // Find exact or fuzzy match from content memory
         const exact = entries.find(
           (e: any) =>
             e.source.toLowerCase() === b.source.toLowerCase() && e.target_locale === targetLocale,
@@ -800,9 +800,9 @@ export async function injectMockBackend(page: Page) {
 
     mock[IDS.TestProviderConfig] = () => {};
 
-    // --- TM mock handlers ---
+    // --- content memory mock handlers ---
 
-    mock[IDS.GetTMEntries] = (
+    mock[IDS.GetMemoryEntries] = (
       _projectID: string,
       query: string,
       sourceLocale: string,
@@ -810,7 +810,7 @@ export async function injectMockBackend(page: Page) {
       offset: number,
       limit: number,
     ) => {
-      let entries = Object.values(tmStore);
+      let entries = Object.values(memoryStore);
 
       if (query) {
         const q = query.toLowerCase();
@@ -830,18 +830,18 @@ export async function injectMockBackend(page: Page) {
       return { entries: page, total_count: total };
     };
 
-    mock[IDS.GetTMCount] = () => {
-      return Object.keys(tmStore).length;
+    mock[IDS.GetMemoryCount] = () => {
+      return Object.keys(memoryStore).length;
     };
 
-    mock[IDS.AddTMEntry] = (
+    mock[IDS.AddMemoryEntry] = (
       _projectID: string,
       source: string,
       target: string,
       sourceLocale: string,
       targetLocale: string,
     ) => {
-      const id = `tm-entry-${++tmEntryCounter}`;
+      const id = `tm-entry-${++memoryEntryCounter}`;
       const entry = {
         id,
         source,
@@ -850,14 +850,14 @@ export async function injectMockBackend(page: Page) {
         target_locale: targetLocale,
         updated_at: new Date().toISOString(),
       };
-      tmStore[id] = entry;
+      memoryStore[id] = entry;
       return entry;
     };
 
-    mock[IDS.UpdateTMEntry] = (req: any) => {
-      if (!tmStore[req.entry_id]) throw new Error("TM entry not found");
-      tmStore[req.entry_id] = {
-        ...tmStore[req.entry_id],
+    mock[IDS.UpdateMemoryEntry] = (req: any) => {
+      if (!memoryStore[req.entry_id]) throw new Error("content-memory entry not found");
+      memoryStore[req.entry_id] = {
+        ...memoryStore[req.entry_id],
         source: req.source,
         target: req.target,
         source_locale: req.source_locale,
@@ -866,14 +866,14 @@ export async function injectMockBackend(page: Page) {
       };
     };
 
-    mock[IDS.DeleteTMEntry] = (_projectID: string, entryID: string) => {
-      if (!tmStore[entryID]) throw new Error("TM entry not found");
-      delete tmStore[entryID];
+    mock[IDS.DeleteMemoryEntry] = (_projectID: string, entryID: string) => {
+      if (!memoryStore[entryID]) throw new Error("content-memory entry not found");
+      delete memoryStore[entryID];
     };
 
-    // --- Context panel: per-block TM and term lookup ---
+    // --- Context panel: per-block content memory and term lookup ---
 
-    mock[IDS.LookupTMForBlock] = (
+    mock[IDS.LookupMemoryForBlock] = (
       projectID: string,
       itemName: string,
       blockID: string,
@@ -883,7 +883,7 @@ export async function injectMockBackend(page: Page) {
       if (!files || !files[itemName]) return [];
       const block = files[itemName].find((b: any) => b.id === blockID);
       if (!block) return [];
-      const entries = Object.values(tmStore);
+      const entries = Object.values(memoryStore);
       const matches: any[] = [];
       for (const e of entries) {
         const entry = e as any;

@@ -25,7 +25,7 @@ type AltTranslation struct {
 	Source        []Run     `json:"source,omitempty"`
 	Target        []Run     `json:"target,omitempty"`
 	Locale        LocaleID  `json:"locale,omitempty"`
-	Origin        string    `json:"origin,omitempty"`        // Where this translation came from (TM, MT, etc.)
+	Origin        string    `json:"origin,omitempty"`        // Where this translation came from (Memory, MT, etc.)
 	Score         float64   `json:"score,omitempty"`         // Match quality (0.0 - 1.0)
 	MatchType     MatchType `json:"matchType,omitempty"`     // MatchExact, MatchFuzzy, MatchMT, or MatchAI
 	CombinedScore float64   `json:"combinedScore,omitempty"` // Combined match score (Okapi)
@@ -94,7 +94,7 @@ func (a *AltTranslation) UnmarshalJSON(data []byte) error {
 }
 
 // AltTranslations is the block annotation holding all alternative-translation
-// candidates for a block — TM/MT/AI proposals and xliff <alt-trans> entries.
+// candidates for a block — content memory/MT/AI proposals and xliff <alt-trans> entries.
 // It is one typed payload under the AnnoAltTranslation key: multiplicity lives
 // in the slice, not in numbered keys ("alt-translation-1", …). It implements
 // AnnotationType so the payload registry rehydrates it like any other.

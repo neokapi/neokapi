@@ -16,7 +16,7 @@ import (
 const (
 	AnnoNote           = "note"
 	AnnoAltTranslation = "alt-translation"
-	AnnoTMMatch        = "tm-match"
+	AnnoMemoryMatch    = "tm-match"
 	AnnoWordCount      = "word-count"
 	AnnoCharCount      = "char-count"
 	AnnoSegCount       = "seg-count"
@@ -94,7 +94,7 @@ func (b *Block) AddNote(n *NoteAnnotation) {
 }
 
 // AppendAltUnder appends an alt-translation to the AltTranslations collection
-// stored under an arbitrary key (e.g. the per-segment TM-match collection),
+// stored under an arbitrary key (e.g. the per-segment content memory-match collection),
 // creating it if absent. The set is one typed payload; the segment is recorded
 // on AltTranslation.SegmentIndex rather than in the key.
 func (b *Block) AppendAltUnder(key string, a *AltTranslation) { b.appendAlt(key, a) }

@@ -175,7 +175,7 @@ func telemetryExitClass(code int) string {
 
 // telemetryCommandLabel sanitizes what cli_command_run reports as "command".
 // Only built-in verbs are ever named: the dotted command path (e.g.
-// "tm.import") for a command whose top-level verb is in builtins, "plugin"
+// "memory.import") for a command whose top-level verb is in builtins, "plugin"
 // for plugin-attached verbs, "other" for unknown verbs, "root" for a bare
 // invocation. An empty return means "emit nothing" (help, shell completion,
 // and the telemetry group itself).
@@ -221,7 +221,15 @@ func telemetryCommandLabel(root, executed *cobra.Command, err error, builtins ma
 		return "plugin"
 	}
 	// CommandPath is space-joined and starts with the root name; report the
-	// dotted path without it ("kapi tm import" → "tm.import").
+	// dotted path without it ("kapi memory import" → "memory.import").
+	//
+	// The label is derived from the live command path, so renaming a command
+	// renames its telemetry series. `kapi tm *` became `kapi memory *` and
+	// `kapi termbase *` became `kapi terms *`, which means those series start
+	// fresh rather than continuing the old ones; any dashboard querying the
+	// `tm.*` / `termbase.*` labels needs to union both spellings across the
+	// release boundary. That is a consequence of the deliberate CLI rename, not
+	// something this function can paper over.
 	parts := strings.Fields(executed.CommandPath())
 	if len(parts) < 2 {
 		return "root"

@@ -40,10 +40,10 @@ type (
 	MatcherOpts                   = host.MatcherOpts
 	MergeCmdOptions               = host.MergeCmdOptions
 	ModelDefaultOutput            = host.ModelDefaultOutput
-	TMSessionDeleteOutput         = host.TMSessionDeleteOutput
-	TMSessionDetail               = host.TMSessionDetail
-	TMSessionListOutput           = host.TMSessionListOutput
-	TMSessionRow                  = host.TMSessionRow
+	MemorySessionDeleteOutput     = host.MemorySessionDeleteOutput
+	MemorySessionDetail           = host.MemorySessionDetail
+	MemorySessionListOutput       = host.MemorySessionListOutput
+	MemorySessionRow              = host.MemorySessionRow
 	MissingPluginOptions          = host.MissingPluginOptions
 	ModelEnsureOptions            = host.ModelEnsureOptions
 	ParkedScope                   = host.ParkedScope
@@ -118,8 +118,8 @@ var (
 	CollectFormatPresets         = host.CollectFormatPresets
 	CollectFrameworkPresets      = host.CollectFrameworkPresets
 	Confirm                      = host.Confirm
-	TMSessionDetailFrom          = host.TMSessionDetailFrom
-	TMSessionRows                = host.TMSessionRows
+	MemorySessionDetailFrom      = host.MemorySessionDetailFrom
+	MemorySessionRows            = host.MemorySessionRows
 	ErrNoInput                   = host.ErrNoInput
 	ContentTracks                = host.ContentTracks
 	DeduplicateVersionedFormats  = host.DeduplicateVersionedFormats
@@ -188,8 +188,8 @@ var (
 	ResetMCPToolFactoriesForTest = host.ResetMCPToolFactoriesForTest
 	ResolveDir                   = host.ResolveDir
 	ResolveProjectPath           = host.ResolveProjectPath
-	ResolveTMFileFormat          = host.ResolveTMFileFormat
-	ResolveTermbaseFileFormat    = host.ResolveTermbaseFileFormat
+	ResolveMemoryFileFormat      = host.ResolveMemoryFileFormat
+	ResolveTermsFileFormat       = host.ResolveTermsFileFormat
 	RmPattern                    = host.RmPattern
 	RuleRewrite                  = host.RuleRewrite
 	RunBlockTool                 = host.RunBlockTool

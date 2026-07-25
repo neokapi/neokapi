@@ -4,7 +4,7 @@ subtitle: Translate the UI, and keep the product's approved wording consistent.
 kind: use-case
 aspects:
   - terminology
-  - glossary / termbase
+  - glossary / terms
   - AI translation
 needsAi: true
 model: sonnet
@@ -46,11 +46,11 @@ narration:
   - id: work
     kind: terminal
     text: >
-      Claude imports the glossary into a kapi termbase — a small local database of approved
+      Claude imports the glossary into a kapi terms — a small local database of approved
       terms — and looks the key product terms up before translating, so it works from the
       agreed wording rather than a synonym. Then it translates the catalog with Gemini,
       keeping every JSON key in place.
-    caption: "Claude imports the glossary into a termbase, then translates the catalog"
+    caption: "Claude imports the glossary into a terms store, then translates the catalog"
   - id: glossary
     kind: artifact
     artifact: glossary
@@ -65,5 +65,5 @@ narration:
   - id: outro
     kind: outro
     text: >
-      Terminology is a project asset. A termbase keeps it in one place, and every later
+      Terminology is a project asset. A terms store keeps it in one place, and every later
       translation can reuse it.

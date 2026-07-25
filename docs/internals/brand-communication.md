@@ -94,8 +94,8 @@ config key against the source before publishing. Prefer generated artifacts as
 the source of truth. Specifics that have bitten us:
 
 - **Import paths:** `github.com/neokapi/neokapi/core/model` (not `.../model`);
-  top-level `sievepen/` and `termbase/` hold both in-memory and SQLite backends
-  (not `core/sievepen`, not `cli/storage/sievepen`); LLM/MT backends are
+  top-level `memory/` and `terms/` hold both in-memory and SQLite backends
+  (not `core/memory`, not `cli/storage/memory`); LLM/MT backends are
   `providers/ai` (package `aiprovider`) and `providers/mt` (package
   `mtprovider`); pipeline tools are `core/ai/tools`, `core/mt/tools`; brand
   voice is `core/brand`.
@@ -105,7 +105,7 @@ the source of truth. Specifics that have bitten us:
 - **`--target-lang` is single-valued** for `run` and tool commands; only
   `extract` accepts a comma-separated list. Don't show `--target-lang fr,de,ja`
   fanning out to multiple files.
-- **`kapi termbase`** uses `-s`/`--source-locale` and `-t`/`--target-locale`
+- **`kapi terms`** uses `-s`/`--source-locale` and `-t`/`--target-locale`
   (not `--source-lang`).
 - **`--json`** is the output-format flag (a global persistent flag); `--format`
   / `-f` overrides *input* format detection — don't use `--format json` for

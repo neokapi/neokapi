@@ -9,12 +9,12 @@ import (
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // This file gives the Apache desktop the visual concept/relation editing that
 // the deleted CLI relation commands used to provide. The methods drive a LOCAL
-// SQLite termbase through the existing handle model (App.tbHandles) and return
+// SQLite terms through the existing handle model (App.tbHandles) and return
 // snake_case DTOs that mirror the @neokapi/concept-ui view shapes, so the
 // framework concept UI can browse, relate, and re-status concepts against the
 // author's own local copy. There is no governance gate here — that lives on the
@@ -125,7 +125,7 @@ func validityFromFields(validFrom, validTo string, tags map[string]string) *grap
 }
 
 // relationToDTO converts a framework relation to its frontend DTO.
-func relationToDTO(r termbase.ConceptRelation) RelationDTO {
+func relationToDTO(r terms.ConceptRelation) RelationDTO {
 	return RelationDTO{
 		ID:       r.ID,
 		SourceID: r.SourceID,
@@ -144,7 +144,7 @@ func relationToDTO(r termbase.ConceptRelation) RelationDTO {
 func (a *App) GetRelations(handle, conceptID string) ([]RelationDTO, error) {
 	tb, ok := a.tbHandles.Get(handle)
 	if !ok {
-		return nil, fmt.Errorf("termbase handle %q not found", handle)
+		return nil, fmt.Errorf("terms handle %q not found", handle)
 	}
 	rels, err := tb.RelationsOf(context.Background(), conceptID, nil)
 	if err != nil {
@@ -164,9 +164,9 @@ func (a *App) GetRelations(handle, conceptID string) ([]RelationDTO, error) {
 func (a *App) AddRelation(handle string, req AddRelationRequest) (RelationDTO, error) {
 	tb, ok := a.tbHandles.Get(handle)
 	if !ok {
-		return RelationDTO{}, fmt.Errorf("termbase handle %q not found", handle)
+		return RelationDTO{}, fmt.Errorf("terms handle %q not found", handle)
 	}
-	rel := termbase.ConceptRelation{
+	rel := terms.ConceptRelation{
 		ID:           id.New(),
 		SourceID:     req.SourceID,
 		TargetID:     req.TargetID,
@@ -185,7 +185,7 @@ func (a *App) AddRelation(handle string, req AddRelationRequest) (RelationDTO, e
 func (a *App) RemoveRelation(handle, relationID string) error {
 	tb, ok := a.tbHandles.Get(handle)
 	if !ok {
-		return fmt.Errorf("termbase handle %q not found", handle)
+		return fmt.Errorf("terms handle %q not found", handle)
 	}
 	if err := tb.DeleteRelation(context.Background(), relationID); err != nil {
 		return fmt.Errorf("remove relation %q: %w", relationID, err)
@@ -202,9 +202,9 @@ func (a *App) RemoveRelation(handle, relationID string) error {
 func (a *App) SetTermStatus(handle string, req SetTermStatusRequest) error {
 	tb, ok := a.tbHandles.Get(handle)
 	if !ok {
-		return fmt.Errorf("termbase handle %q not found", handle)
+		return fmt.Errorf("terms handle %q not found", handle)
 	}
-	if !termbase.KnownTermStatus(model.TermStatus(req.Status)) {
+	if !terms.KnownTermStatus(model.TermStatus(req.Status)) {
 		return fmt.Errorf("unknown term status %q", req.Status)
 	}
 
@@ -248,7 +248,7 @@ func (a *App) SetTermStatus(handle string, req SetTermStatusRequest) error {
 func (a *App) GetConceptForView(handle, conceptID string) (*ConceptDTO, error) {
 	tb, ok := a.tbHandles.Get(handle)
 	if !ok {
-		return nil, fmt.Errorf("termbase handle %q not found", handle)
+		return nil, fmt.Errorf("terms handle %q not found", handle)
 	}
 	concept, found, err := tb.GetConcept(context.Background(), conceptID)
 	if err != nil {

@@ -139,7 +139,7 @@ func RenderExplain(w io.Writer, exchanges []aiprovider.Exchange) {
 				continue
 			}
 			// Attribute each block of the prompt to what produced it, so a user
-			// can see that the glossary came from their termbase and the tag rule
+			// can see that the glossary came from their terms and the tag rule
 			// from the framework — not one opaque wall of English.
 			for i, s := range m.Sections {
 				if i > 0 {

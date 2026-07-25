@@ -107,7 +107,7 @@ QA results can fail your build — a common CI pattern is `extract → translate
 `kapi` has a built-in SQLite translation memory. Feed past translations in:
 
 ```bash
-kapi tm import historical-translations.xliff -s en -t fr
+kapi memory import historical-translations.xliff -s en -t fr
 ```
 
 Then pre-fill matches before the AI pass: `kapi exec recycle` writes exact and high-scoring fuzzy matches into the target, and `translate --skip-matched` translates only what's left:
@@ -124,7 +124,7 @@ Pass `--tm <name-or-path>` to leverage a specific TM. See [Translation memory](/
 For apps with a large product vocabulary, keep terms rendered consistently with a termbase. Import the glossary, then gate translations with `kapi exec term-check` so any target that diverges from an approved term is flagged:
 
 ```bash
-kapi termbase import product-terms.csv -s en -t fr
+kapi terms import product-terms.csv -s en -t fr
 kapi exec term-check i18n/ --target-lang fr --termbase product-terms.csv
 ```
 

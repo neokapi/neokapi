@@ -23,15 +23,15 @@ import (
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 )
 
 // initTestStores wires up test stores on the server for testing.
 // It also installs factory functions on wsStores so that
-// getTM/getTB create in-memory stores instead of requiring PostgreSQL.
+// getMemory/getTB create in-memory stores instead of requiring PostgreSQL.
 func initTestStores(t *testing.T, srv *Server) {
 	t.Helper()
 
@@ -61,12 +61,12 @@ func initTestStores(t *testing.T, srv *Server) {
 		srv.JobQueue = jobs.NewChannelQueue(64)
 	}
 
-	// Install factory functions for in-memory TM/TB stores.
-	srv.wsStores.tmFactory = func() sievepen.TMStore {
-		return &testTMStore{sievepen.NewInMemoryTM()}
+	// Install factory functions for in-memory content memory/TB stores.
+	srv.wsStores.memoryFactory = func() memory.Store {
+		return &testMemoryStore{memory.NewInMemoryStore()}
 	}
-	srv.wsStores.tbFactory = func() termbase.TBStore {
-		return &testTermStore{termbase.NewInMemoryTermBase()}
+	srv.wsStores.tbFactory = func() terms.Store {
+		return &testTermStore{terms.NewInMemoryStore()}
 	}
 }
 
@@ -283,30 +283,30 @@ func pushBlocks(t *testing.T, srv *Server, e *echo.Echo, authHeader, projectID s
 	return rec
 }
 
-// testTMStore wraps InMemoryTM to satisfy the TMStore interface for tests.
+// testMemoryStore wraps InMemoryStore to satisfy the Store interface for tests.
 // All new multilingual methods delegate directly to the in-memory
-// implementation, since it already implements the full TMStore interface.
-type testTMStore struct {
-	*sievepen.InMemoryTM
+// implementation, since it already implements the full Store interface.
+type testMemoryStore struct {
+	*memory.InMemoryStore
 }
 
-// testTermStore wraps InMemoryTermBase to satisfy the TBStore interface for tests.
+// testTermStore wraps InMemoryStore to satisfy the Store interface for tests.
 type testTermStore struct {
-	*termbase.InMemoryTermBase
+	*terms.InMemoryStore
 }
 
-func (t *testTermStore) AddConceptWithStream(ctx context.Context, concept termbase.Concept, _ string) error {
+func (t *testTermStore) AddConceptWithStream(ctx context.Context, concept terms.Concept, _ string) error {
 	return t.AddConcept(ctx, concept)
 }
 
-func (t *testTermStore) SearchForStream(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, _ string, _ []string, offset, limit int) ([]termbase.Concept, int, error) {
+func (t *testTermStore) SearchForStream(ctx context.Context, query string, sourceLocale, targetLocale model.LocaleID, _ string, _ []string, offset, limit int) ([]terms.Concept, int, error) {
 	return t.Search(ctx, query, sourceLocale, targetLocale, offset, limit)
 }
 
-func (t *testTermStore) AddRelationWithStream(ctx context.Context, rel termbase.ConceptRelation, _ string) error {
+func (t *testTermStore) AddRelationWithStream(ctx context.Context, rel terms.ConceptRelation, _ string) error {
 	return t.AddRelation(ctx, rel)
 }
 
-func (t *testTermStore) RelationsForStream(ctx context.Context, conceptID, _ string, _ []string, scope *graph.Scope) ([]termbase.ConceptRelation, error) {
+func (t *testTermStore) RelationsForStream(ctx context.Context, conceptID, _ string, _ []string, scope *graph.Scope) ([]terms.ConceptRelation, error) {
 	return t.RelationsOf(ctx, conceptID, scope)
 }

@@ -2,14 +2,14 @@
 # full schema. Regenerate with:
 #   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-terminology-qa
 #
-# The browser (wasm) build pre-seeds an in-memory termbase from the same
+# The browser (wasm) build pre-seeds an in-memory terms from the same
 # glossary used here (kapi/cmd/kapi-wasm-cli/fixtures/glossary.csv), so the
-# termbase stats/lookup/search/import commands operate on a real backend with
+# terms stats/lookup/search/import commands operate on a real backend with
 # no SQLite. The inline `files` below give the embed the source catalogue and a
-# visible copy of the glossary; `term-check` enforces the seeded termbase.
+# visible copy of the glossary; `term-check` enforces the seeded terms.
 
 id: kapi-terminology-qa
-scene: termbase-qa
+scene: terms-qa
 mode: interactive
 
 seed: []
@@ -36,13 +36,13 @@ files:
 
 steps:
   - comment: A glossary keeps terminology consistent across locales
-  - command: kapi termbase stats
-    narration: The browser build pre-seeds a termbase from the project glossary.
-  - command: kapi termbase lookup password -s en -t fr
+  - command: kapi terms stats
+    narration: The browser build pre-seeds a terms store from the project glossary.
+  - command: kapi terms lookup password -s en -t fr
     narration: Look up a single term and its approved translation.
-  - command: kapi termbase search encrypt -s en
-    narration: Search across every concept in the termbase.
-  - comment: Pseudo-translate, then check terminology against the termbase
+  - command: kapi terms search encrypt -s en
+    narration: Search across every concept in the terms store.
+  - comment: Pseudo-translate, then check terminology against the terms store
   # pseudo-translate runs against the scene's inline messages_en.json — W7
   # seeds the same sandbox the embed does, so both venues run it live.
   - command: kapi pseudo-translate messages_en.json -o pseudo_fr.json

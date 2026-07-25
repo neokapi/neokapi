@@ -12,7 +12,7 @@ import (
 	"github.com/leonelquinteros/gotext"
 	"github.com/neokapi/neokapi/core/formats/mo"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,7 +20,7 @@ import (
 // the host package with the runtime/service extraction.
 
 // writeVerifyProject creates a temp project that binds a brand profile and a
-// project termbase, with an English source file and a French target file. The
+// project terms store, with an English source file and a French target file. The
 // returned root is the project directory; the target file is returned so the
 // test can rewrite it for the passing case.
 func writeVerifyProject(t *testing.T) (root, targetFile string) {
@@ -68,13 +68,13 @@ content:
 	targetFile = filepath.Join(root, "locales", "fr", "app.json")
 	require.NoError(t, os.WriteFile(targetFile, []byte(bad), 0o644))
 
-	// Seed the project termbase: Save -> Enregistrer (approved).
+	// Seed the project terms store: Save -> Enregistrer (approved).
 	tbPath := filepath.Join(root, ".kapi", "termbase.db")
-	tb, err := termbase.NewSQLiteTermBase(tbPath)
+	tb, err := terms.NewSQLiteStore(tbPath)
 	require.NoError(t, err)
-	require.NoError(t, tb.AddConcept(t.Context(), termbase.Concept{
+	require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{
 		ID: "c1",
-		Terms: []termbase.Term{
+		Terms: []terms.Term{
 			{Text: "Save", Locale: model.LocaleEnglish, Status: model.TermPreferred},
 			{Text: "Enregistrer", Locale: model.LocaleFrench, Status: model.TermPreferred},
 		},

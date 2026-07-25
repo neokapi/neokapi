@@ -12,8 +12,8 @@
 #   scripts/scaffold-walkthrough.sh \
 #     --id bowrain-web-tm-explorer \
 #     --kind web \
-#     --title "Browse the translation memory" \
-#     --label "TM explorer (web)" \
+#     --title "Browse the content memory" \
+#     --label "content memory explorer (web)" \
 #     --story "Three sentences of context" \
 #     --scene-id browse \
 #     --duration 45 \

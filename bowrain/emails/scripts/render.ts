@@ -5,7 +5,7 @@
  * English (the source locale) renders straight from src/ into
  * ../../mailer/templates/*.html. For every compiled catalog found in
  * translations/<locale>.json (produced by `make l10n-emails`: neokapi-i18n
- * extraction → kapi pseudo-translate / TM recycle → neokapi-i18n compile),
+ * extraction → kapi pseudo-translate / content memory recycle → neokapi-i18n compile),
  * the template module is re-bundled with the @neokapi/i18n-react esbuild
  * plugin in inline mode — which bakes that locale's strings into the JSX —
  * and rendered into ../../mailer/templates/<locale>/*.html. The Go mailer

@@ -18,7 +18,7 @@ import type {
   BlockInfo,
   ReviewDemotion,
   WordCountResult,
-  TMMatchInfo,
+  MemoryMatchInfo,
   BlockTermMatch,
   BlockNote,
   QAIssue,
@@ -103,8 +103,8 @@ export function TranslationEditor({
   const [searchQuery, setSearchQuery] = useState("");
   const [view, setView] = useState<TranslateView>(defaultView);
 
-  // Per-block linguistic context (TM + terms) loaded on selection.
-  const [tmMatches, setTmMatches] = useState<TMMatchInfo[]>([]);
+  // Per-block linguistic context (content memory + terms) loaded on selection.
+  const [memoryMatches, setTmMatches] = useState<MemoryMatchInfo[]>([]);
   const [termMatches, setTermMatches] = useState<BlockTermMatch[]>([]);
 
   // Visual-card extended state (QA, history, notes) — loaded for the selected
@@ -289,7 +289,7 @@ export function TranslationEditor({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [editingIndex, selectedIndex, filteredBlocks, view, startEditing]);
 
-  // Load TM + term matches for the selected block.
+  // Load content memory + term matches for the selected block.
   useEffect(() => {
     const block = filteredBlocks[selectedIndex];
     if (!block || !block.translatable) {
@@ -297,15 +297,15 @@ export function TranslationEditor({
       setTermMatches([]);
       return;
     }
-    const tmPromise = api
-      .lookupTMForBlock(project.id, fileName, block.id, targetLocale)
+    const memoryPromise = api
+      .lookupMemoryForBlock(project.id, fileName, block.id, targetLocale)
       .then((m) => setTmMatches(m || []))
       .catch(() => setTmMatches([]));
     const termPromise = api
       .lookupTermsForBlock(project.id, fileName, block.id, targetLocale)
       .then((m) => setTermMatches(m || []))
       .catch(() => setTermMatches([]));
-    void Promise.all([tmPromise, termPromise]);
+    void Promise.all([memoryPromise, termPromise]);
   }, [selectedIndex, filteredBlocks, targetLocale, project.id, fileName, api]);
 
   // Load QA issues, history, and notes for the selected block (Visual card).
@@ -546,9 +546,9 @@ export function TranslationEditor({
     void applyReview(block, false, "draft");
   }, [selectedIndex, filteredBlocks, applyReview]);
 
-  const handleApplyTM = useCallback(
+  const handleApplyMemory = useCallback(
     (index: number) => {
-      const match = tmMatches[index];
+      const match = memoryMatches[index];
       const block = filteredBlocks[selectedIndex];
       if (!match || !block || !block.translatable) return;
       void api
@@ -574,7 +574,16 @@ export function TranslationEditor({
           );
         });
     },
-    [tmMatches, filteredBlocks, selectedIndex, api, capture, project.id, fileName, targetLocale],
+    [
+      memoryMatches,
+      filteredBlocks,
+      selectedIndex,
+      api,
+      capture,
+      project.id,
+      fileName,
+      targetLocale,
+    ],
   );
 
   // Insert a target term. When a target editor is open for the selected
@@ -816,9 +825,9 @@ export function TranslationEditor({
                 onCancelEditing={() => setEditingIndex(null)}
                 onApprove={handleVisualApprove}
                 onReject={handleVisualReject}
-                tmMatches={tmMatches}
+                memoryMatches={memoryMatches}
                 termMatches={termMatches}
-                onApplyTM={handleApplyTM}
+                onApplyMemory={handleApplyMemory}
                 onInsertTerm={handleInsertTerm}
                 presenceSlot={presenceSlot}
                 qaIssues={blockQAIssues}

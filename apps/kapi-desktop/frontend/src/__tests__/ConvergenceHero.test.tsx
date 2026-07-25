@@ -13,7 +13,7 @@ const driftedPlan: ConvergePlan = {
         locale: "fr-FR",
         collection: "docs",
         missingTarget: 12,
-        tmExact: 4,
+        memoryExact: 4,
         aiRemaining: 8,
         tokenEstimate: 640,
       },
@@ -21,13 +21,13 @@ const driftedPlan: ConvergePlan = {
         locale: "de-DE",
         collection: "docs",
         missingTarget: 9,
-        tmExact: 0,
+        memoryExact: 0,
         aiRemaining: 9,
         tokenEstimate: 720,
       },
     ],
-    totals: { missingTarget: 21, tmExact: 4, aiRemaining: 17, tokenEstimate: 1360 },
-    note: "TM leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining units (no tokenizer, no provider calls).",
+    totals: { missingTarget: 21, memoryExact: 4, aiRemaining: 17, tokenEstimate: 1360 },
+    note: "content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining units (no tokenizer, no provider calls).",
   },
   changedFiles: 3,
   removedFiles: 0,
@@ -56,8 +56,8 @@ const convergedPlan: ConvergePlan = {
   plan: {
     flow: "translate",
     scopes: null,
-    totals: { missingTarget: 0, tmExact: 0, aiRemaining: 0, tokenEstimate: 0 },
-    note: "TM leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining units (no tokenizer, no provider calls).",
+    totals: { missingTarget: 0, memoryExact: 0, aiRemaining: 0, tokenEstimate: 0 },
+    note: "content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining units (no tokenizer, no provider calls).",
   },
   changedFiles: 0,
   removedFiles: 0,
@@ -184,7 +184,7 @@ describe("ConvergenceHero", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Preview the catch-up plan" }));
 
-    // Per-(collection, locale) rows: missing / TM-exact / AI-remainder.
+    // Per-(collection, locale) rows: missing / content memory-exact / AI-remainder.
     const dialog = await screen.findByRole("dialog");
     expect(dialog).toHaveTextContent("docs");
     expect(dialog).toHaveTextContent("12");
@@ -235,7 +235,7 @@ describe("ConvergePlanDialog subscription wording", () => {
       ...driftedPlan.plan,
       provider: "claude-code",
       subscription: true,
-      note: "AI work runs on your Claude subscription — the token estimate is scale, not a metered cost. TM leverage counts exact-hash hits only; token estimate is source chars / 4 (no tokenizer, no provider calls).",
+      note: "AI work runs on your Claude subscription — the token estimate is scale, not a metered cost. Content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 (no tokenizer, no provider calls).",
     },
   };
 

@@ -142,7 +142,7 @@ translations, corrections) that every project, person, and agent draws from and 
 whole team, all the time" and any "whole team" venue phrasing.
 
 **Naming:** customer-facing surfaces say **content memory** (with *recycling* as the verb),
-never "translation memory" — TM/sievepen stay engine/internal terms (framework docs and
+never "translation memory" — TM/memory stay engine/internal terms (framework docs and
 code keep them).
 
 **Headline register:** brand, voice, on-brand, agents, governed review, delivery, the kapi

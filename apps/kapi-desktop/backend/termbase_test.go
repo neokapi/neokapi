@@ -8,32 +8,32 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func openTestTermbase(t *testing.T, app *App) string {
+func openTestTerms(t *testing.T, app *App) string {
 	t.Helper()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.db")
-	handle, err := app.OpenTermbase(path)
+	handle, err := app.OpenTerms(path)
 	require.NoError(t, err)
 	require.NotEmpty(t, handle)
-	t.Cleanup(func() { app.CloseTermbase(handle) })
+	t.Cleanup(func() { app.CloseTerms(handle) })
 	return handle
 }
 
-func TestTermbase_OpenAndClose(t *testing.T) {
+func TestTerms_OpenAndClose(t *testing.T) {
 	app := newTestApp(t)
-	handle := openTestTermbase(t, app)
+	handle := openTestTerms(t, app)
 
-	stats := app.GetTermbaseStats(handle)
+	stats := app.GetTermsStats(handle)
 	require.NotNil(t, stats)
 	assert.Equal(t, 0, stats.Count)
 
-	app.CloseTermbase(handle)
-	assert.Nil(t, app.GetTermbaseStats(handle))
+	app.CloseTerms(handle)
+	assert.Nil(t, app.GetTermsStats(handle))
 }
 
-func TestTermbase_CRUD(t *testing.T) {
+func TestTerms_CRUD(t *testing.T) {
 	app := newTestApp(t)
-	handle := openTestTermbase(t, app)
+	handle := openTestTerms(t, app)
 
 	// Add
 	err := app.AddConcept(handle, AddConceptRequest{
@@ -46,7 +46,7 @@ func TestTermbase_CRUD(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	stats := app.GetTermbaseStats(handle)
+	stats := app.GetTermsStats(handle)
 	assert.Equal(t, 1, stats.Count)
 
 	// Search
@@ -84,12 +84,12 @@ func TestTermbase_CRUD(t *testing.T) {
 	// Delete
 	err = app.DeleteConcept(handle, conceptID)
 	require.NoError(t, err)
-	assert.Equal(t, 0, app.GetTermbaseStats(handle).Count)
+	assert.Equal(t, 0, app.GetTermsStats(handle).Count)
 }
 
-func TestTermbase_BatchDelete(t *testing.T) {
+func TestTerms_BatchDelete(t *testing.T) {
 	app := newTestApp(t)
-	handle := openTestTermbase(t, app)
+	handle := openTestTerms(t, app)
 
 	for i := range 5 {
 		require.NoError(t, app.AddConcept(handle, AddConceptRequest{
@@ -99,7 +99,7 @@ func TestTermbase_BatchDelete(t *testing.T) {
 			},
 		}))
 	}
-	assert.Equal(t, 5, app.GetTermbaseStats(handle).Count)
+	assert.Equal(t, 5, app.GetTermsStats(handle).Count)
 
 	result := app.SearchTerms(handle, "", "", "", 0, 50)
 	ids := make([]string, 0, 3)
@@ -108,12 +108,12 @@ func TestTermbase_BatchDelete(t *testing.T) {
 	}
 
 	require.NoError(t, app.DeleteConcepts(handle, ids))
-	assert.Equal(t, 2, app.GetTermbaseStats(handle).Count)
+	assert.Equal(t, 2, app.GetTermsStats(handle).Count)
 }
 
-func TestTermbase_Search(t *testing.T) {
+func TestTerms_Search(t *testing.T) {
 	app := newTestApp(t)
-	handle := openTestTermbase(t, app)
+	handle := openTestTerms(t, app)
 
 	require.NoError(t, app.AddConcept(handle, AddConceptRequest{
 		Domain:     "Software",
@@ -135,9 +135,9 @@ func TestTermbase_Search(t *testing.T) {
 	assert.Equal(t, "widget", result.Concepts[0].Terms[0].Text)
 }
 
-func TestTermbase_ConceptDTO_Conversion(t *testing.T) {
+func TestTerms_ConceptDTO_Conversion(t *testing.T) {
 	app := newTestApp(t)
-	handle := openTestTermbase(t, app)
+	handle := openTestTerms(t, app)
 
 	require.NoError(t, app.AddConcept(handle, AddConceptRequest{
 		ProjectID:  "proj-1",
@@ -165,7 +165,7 @@ func TestTermbase_ConceptDTO_Conversion(t *testing.T) {
 	assert.Equal(t, "feminine", c.Terms[1].Gender)
 }
 
-func TestTermbase_ListNamed(t *testing.T) {
-	list := listNamedResources("nonexistent-termbases-dir-12345")
+func TestTerms_ListNamed(t *testing.T) {
+	list := listNamedResources("nonexistent-terms stores-dir-12345")
 	assert.Nil(t, list)
 }

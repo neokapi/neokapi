@@ -59,7 +59,7 @@ steps:
   - tool: recycle
     config:
       fuzzy_threshold: 70
-      provider: sievepen
+      provider: memory
 
   # 3. Translate untranslated blocks with AI
   - tool: translate
@@ -173,7 +173,7 @@ Each tool has its own configuration options. Common patterns:
 - tool: recycle
   config:
     fuzzy_threshold: 70 # Match threshold (0-100)
-    provider: sievepen | null
+    provider: memory | null
     tmx_path: ./my-tm.tmx # Optional TMX import
 ```
 

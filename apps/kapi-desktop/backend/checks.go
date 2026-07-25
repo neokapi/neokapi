@@ -101,7 +101,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 
 	// Resolve standing project context once: a bound brand profile (for the
 	// source-side vocabulary check, via the CLI's full resolution ladder) and
-	// do-not-translate terms (from the bound termbase). Both are optional —
+	// do-not-translate terms (from the bound terms). Both are optional —
 	// when absent the corresponding check is simply skipped, matching the
 	// CLI's flag-free behavior.
 	var profile *brand.VoiceProfile
@@ -494,9 +494,9 @@ func (a *App) resolveTargetPath(rf project.ResolvedFile, op *openProject, target
 }
 
 // resolveProjectDNTTerms collects do-not-translate terms from the project's
-// auto-opened termbase. A concept opts in via a `do_not_translate` property
+// auto-opened terms. A concept opts in via a `do_not_translate` property
 // (the term must survive verbatim); its source-locale term texts are returned.
-// Returns nil when there is no termbase or no opted-in concepts — the
+// Returns nil when there is no terms or no opted-in concepts — the
 // do-not-translate check is then skipped, matching the CLI's flag-driven default.
 func (a *App) resolveProjectDNTTerms(op *openProject, sourceLang string) []string {
 	if op.tbHandle == "" {

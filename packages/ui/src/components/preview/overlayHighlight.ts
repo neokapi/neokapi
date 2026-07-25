@@ -36,7 +36,7 @@ const BRAND_CATEGORY = "brand-vocabulary";
 // Effective-accent keys. The renderer never sees these directly — they are the
 // resolved identity (type + category) that `overlayStyle` maps to an accent.
 const OVERLAY_STYLES: Record<string, OverlayStyle> = {
-  // Terminology / vocabulary matches from the termbase.
+  // Terminology / vocabulary matches from the terms store.
   term: { className: "bg-violet-500/20 text-violet-700 dark:text-violet-300", label: "Vocabulary" },
   terms: {
     className: "bg-violet-500/20 text-violet-700 dark:text-violet-300",
@@ -164,7 +164,7 @@ export function resolveOverlaySpans(
   // texts within one overlay map to successive occurrences, not all to the first.
   for (const ov of overlays) {
     if (ov.side !== side) continue;
-    // "tm" is a line-level marker (TM leverage), not a span highlight — the
+    // "tm" is a line-level marker (content-memory leverage), not a span highlight — the
     // renderer reads it off the line directly and styles the whole line.
     if (ov.type === "tm") continue;
     if (filter && !filter.has(ov.type)) continue;

@@ -12,7 +12,7 @@ import (
 
 // TestApplyFrameworkPreset_NeokapiI18nCleanLayout proves `kapi init --preset
 // neokapi-i18n` scaffolds the clean nested layout: source KBF catalogs under
-// i18n/src/, per-locale targets under i18n/{lang}/, and brand voice + termbase
+// i18n/src/, per-locale targets under i18n/{lang}/, and brand voice + terms
 // source bound under i18n/. It then round-trips through InitProject so the
 // generated state .gitignore is asserted too.
 func TestApplyFrameworkPreset_NeokapiI18nCleanLayout(t *testing.T) {
@@ -27,10 +27,10 @@ func TestApplyFrameworkPreset_NeokapiI18nCleanLayout(t *testing.T) {
 
 	require.NotNil(t, recipe.Defaults.BrandVoice)
 	assert.Equal(t, "i18n/brand-voice.yaml", recipe.Defaults.BrandVoice.ProfileFile)
-	assert.Equal(t, "i18n/termbase.ktb", recipe.Defaults.TermbaseSource)
+	assert.Equal(t, "i18n/termbase.ktb", recipe.Defaults.TermsSource)
 
 	// Full init round-trip: the recipe writes, the state dir scaffolds, and the
-	// generated .gitignore keeps rebuildable state (TM/termbase/block stores and
+	// generated .gitignore keeps rebuildable state (content memory/terms/block stores and
 	// the cache root) out of git.
 	dir := t.TempDir()
 	proj, err := project.InitProject(dir, recipe)

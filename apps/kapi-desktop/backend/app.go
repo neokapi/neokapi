@@ -43,8 +43,8 @@ import (
 	"github.com/neokapi/neokapi/host/credentials"
 	cliI18n "github.com/neokapi/neokapi/host/i18n"
 	"github.com/neokapi/neokapi/host/pluginhost"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"gopkg.in/yaml.v3"
 )
@@ -105,9 +105,9 @@ type App struct {
 	checks   *host.App
 	checksMu sync.Mutex
 
-	// TM and Termbase handles
-	tmHandles *handleStore[*sievepen.SQLiteTM]
-	tbHandles *handleStore[*termbase.SQLiteTermBase]
+	// content memory and Terms handles
+	memoryHandles *handleStore[*memory.SQLiteStore]
+	tbHandles     *handleStore[*terms.SQLiteStore]
 
 	// Persistence
 	credentials *credentials.Store
@@ -159,18 +159,18 @@ func NewApp() *App {
 	}
 
 	app := &App{
-		formatReg:   formatReg,
-		toolReg:     toolReg,
-		schemaReg:   schemaReg,
-		pluginDir:   pluginDir,
-		projects:    make(map[string]*openProject),
-		tmHandles:   newHandleStore[*sievepen.SQLiteTM](),
-		tbHandles:   newHandleStore[*termbase.SQLiteTermBase](),
-		credentials: credStore,
-		recent:      newRecentStore(),
-		settings:    newSettingsStore(),
-		aiConfig:    aiCfg,
-		logger:      logger,
+		formatReg:     formatReg,
+		toolReg:       toolReg,
+		schemaReg:     schemaReg,
+		pluginDir:     pluginDir,
+		projects:      make(map[string]*openProject),
+		memoryHandles: newHandleStore[*memory.SQLiteStore](),
+		tbHandles:     newHandleStore[*terms.SQLiteStore](),
+		credentials:   credStore,
+		recent:        newRecentStore(),
+		settings:      newSettingsStore(),
+		aiConfig:      aiCfg,
+		logger:        logger,
 	}
 	// Emit recent:changed whenever the recent-projects list mutates so the
 	// native File → Recent Projects menu can rebuild itself (the menu is built
@@ -210,9 +210,9 @@ type openProject struct {
 	Project *project.KapiProject
 	watcher *fileWatcher
 
-	// Project-scoped TM and termbase (auto-opened from .kapi/tm.db and .kapi/termbase.db).
-	tmHandle string // handle ID in App.tmHandles, empty if none
-	tbHandle string // handle ID in App.tbHandles, empty if none
+	// Project-scoped content memory and terms (auto-opened from .kapi/tm.db and .kapi/termbase.db).
+	memoryHandle string // handle ID in App.memoryHandles, empty if none
+	tbHandle     string // handle ID in App.tbHandles, empty if none
 
 	// blockStore is the project's .kapi/cache/blocks.db, opened once and reused
 	// across calls. Opening it per call created a fresh connection pool (plus a
@@ -228,20 +228,20 @@ type openProject struct {
 	missingWarned atomic.Bool
 }
 
-// GetProjectTMHandle returns the auto-opened TM handle for a project tab,
+// GetProjectMemoryHandle returns the auto-opened content-memory handle for a project tab,
 // or empty string if the project has no .kapi/tm.db.
-func (a *App) GetProjectTMHandle(tabID string) string {
+func (a *App) GetProjectMemoryHandle(tabID string) string {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	if op := a.projects[tabID]; op != nil {
-		return op.tmHandle
+		return op.memoryHandle
 	}
 	return ""
 }
 
-// GetProjectTermbaseHandle returns the auto-opened termbase handle for a project tab,
+// GetProjectTermsHandle returns the auto-opened terms handle for a project tab,
 // or empty string if the project has no .kapi/termbase.db.
-func (a *App) GetProjectTermbaseHandle(tabID string) string {
+func (a *App) GetProjectTermsHandle(tabID string) string {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	if op := a.projects[tabID]; op != nil {
@@ -250,26 +250,26 @@ func (a *App) GetProjectTermbaseHandle(tabID string) string {
 	return ""
 }
 
-// ProjectHandles bundles the project-scoped TM and termbase handle IDs for a
+// ProjectHandles bundles the project-scoped content memory and terms handle IDs for a
 // tab so the frontend can preselect both in a single call. Each id is the
-// string handle the TM/termbase Wails methods (and handleStore.Get) accept;
+// string handle the content memory/terms Wails methods (and handleStore.Get) accept;
 // an empty id means the project has no auto-opened resource of that kind.
 type ProjectHandles struct {
-	TabID          string `json:"tabID"`
-	TMHandle       string `json:"tmHandle"`
-	TermbaseHandle string `json:"termbaseHandle"`
+	TabID        string `json:"tabID"`
+	MemoryHandle string `json:"tmHandle"`
+	TermsHandle  string `json:"termbaseHandle"`
 }
 
-// GetProjectHandles returns the project-scoped TM and termbase handle IDs for a
-// tab in one call. Convenience wrapper over GetProjectTMHandle /
-// GetProjectTermbaseHandle for frontends that preselect both at once.
+// GetProjectHandles returns the project-scoped content memory and terms handle IDs for a
+// tab in one call. Convenience wrapper over GetProjectMemoryHandle /
+// GetProjectTermsHandle for frontends that preselect both at once.
 func (a *App) GetProjectHandles(tabID string) ProjectHandles {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	h := ProjectHandles{TabID: tabID}
 	if op := a.projects[tabID]; op != nil {
-		h.TMHandle = op.tmHandle
-		h.TermbaseHandle = op.tbHandle
+		h.MemoryHandle = op.memoryHandle
+		h.TermsHandle = op.tbHandle
 	}
 	return h
 }
@@ -285,7 +285,7 @@ func (a *App) ServiceStartup(ctx context.Context, options application.ServiceOpt
 // ServiceShutdown is called by Wails v3 during application shutdown.
 func (a *App) ServiceShutdown() error {
 	a.logger.Println("service shutting down")
-	a.tmHandles.CloseAll()
+	a.memoryHandles.CloseAll()
 	a.tbHandles.CloseAll()
 	if a.watchCancel != nil {
 		a.watchCancel()
@@ -467,7 +467,7 @@ func (a *App) OpenProject(path string) (*TabInfo, error) {
 	tabID := id.New()
 	op := &openProject{ID: tabID, Path: path, Project: proj}
 
-	// Auto-open project-scoped TM and termbase if present.
+	// Auto-open project-scoped content memory and terms if present.
 	a.autoOpenProjectResources(op)
 
 	a.mu.Lock()
@@ -495,7 +495,7 @@ func (a *App) UpdateProject(tabID string, proj *project.KapiProject) error {
 }
 
 // CloseProject removes a project tab, stops its file watcher,
-// and closes any auto-opened TM/termbase handles.
+// and closes any auto-opened content memory/terms handles.
 func (a *App) CloseProject(tabID string) {
 	a.mu.Lock()
 	op := a.projects[tabID]
@@ -508,7 +508,7 @@ func (a *App) CloseProject(tabID string) {
 }
 
 // releaseProjectResources quiesces everything a tab holds on its directory —
-// the file watcher, the auto-opened TM/termbase handles, and the shared block
+// the file watcher, the auto-opened content memory/terms handles, and the shared block
 // store — WITHOUT removing the tab entry. CloseProject uses it on the way out;
 // ResetSampleProject uses it to free the directory before the backup rename,
 // then reloads the same tab in place.
@@ -517,9 +517,9 @@ func (a *App) releaseProjectResources(op *openProject) {
 		op.watcher.Stop()
 		op.watcher = nil
 	}
-	if op.tmHandle != "" {
-		a.tmHandles.Close(op.tmHandle)
-		op.tmHandle = ""
+	if op.memoryHandle != "" {
+		a.memoryHandles.Close(op.memoryHandle)
+		op.memoryHandle = ""
 	}
 	if op.tbHandle != "" {
 		a.tbHandles.Close(op.tbHandle)
@@ -535,23 +535,23 @@ func (a *App) releaseProjectResources(op *openProject) {
 
 // autoOpenProjectResources checks for convention-based .kapi/tm.db and
 // .kapi/termbase.db files relative to the project root and opens them as
-// project-scoped TM/termbase handles.
+// project-scoped content memory/terms handles.
 func (a *App) autoOpenProjectResources(op *openProject) {
 	if op.Path == "" {
 		return
 	}
 	basePath := filepath.Dir(op.Path)
 
-	tmPath := filepath.Join(basePath, ".kapi", "tm.db")
-	if _, err := os.Stat(tmPath); err == nil {
-		if tm, err := sievepen.NewSQLiteTM(tmPath); err == nil {
-			op.tmHandle = a.tmHandles.Open(tm)
+	memoryPath := filepath.Join(basePath, ".kapi", "tm.db")
+	if _, err := os.Stat(memoryPath); err == nil {
+		if tm, err := memory.NewSQLiteStore(memoryPath); err == nil {
+			op.memoryHandle = a.memoryHandles.Open(tm)
 		}
 	}
 
 	tbPath := filepath.Join(basePath, ".kapi", "termbase.db")
 	if _, err := os.Stat(tbPath); err == nil {
-		if tb, err := termbase.NewSQLiteTermBase(tbPath); err == nil {
+		if tb, err := terms.NewSQLiteStore(tbPath); err == nil {
 			op.tbHandle = a.tbHandles.Open(tb)
 		}
 	}

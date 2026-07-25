@@ -5,7 +5,7 @@
  * matching ids, and the deletable / duplicable constraints from the
  * source's `RunConstraints`.
  *
- * Invoked by translation tooling (compile step, AI / TM post-processing,
+ * Invoked by translation tooling (compile step, AI / content memory post-processing,
  * connectors) before a target Run[] is accepted into the runtime
  * dictionary. Diagnostics carry enough context for callers to surface
  * them in CLI output, the visual editor, or CI logs.

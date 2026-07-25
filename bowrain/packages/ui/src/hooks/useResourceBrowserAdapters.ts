@@ -1,33 +1,33 @@
 import { useMemo } from "react";
 import type {
-  TMAdapter,
-  TermbaseAdapter,
-  TMEntryDTO,
-  TMSearchResult,
-  AddTMEntryRequest,
-  UpdateTMEntryRequest,
+  MemoryAdapter,
+  TermsAdapter,
+  MemoryEntryDTO,
+  MemorySearchResult,
+  AddMemoryEntryRequest,
+  UpdateMemoryEntryRequest,
   ConceptDTO,
   TermDTO,
   TermSearchResult,
   AddConceptRequest,
   UpdateConceptRequest,
   ImportResult,
-  TermbaseStats,
+  TermsStats,
 } from "@neokapi/ui-primitives";
 import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
 import type { ApiAdapter } from "../api/adapter";
-import type { TMEntryInfo, ConceptInfo, TermInfo } from "../types/api";
+import type { MemoryEntryInfo, ConceptInfo, TermInfo } from "../types/api";
 
-// Bowrain's translation memory is stored as bilingual (source + target pair)
-// entries, whereas the shared @neokapi/ui-primitives TMBrowser speaks the
+// Bowrain's content memory is stored as bilingual (source + target pair)
+// entries, whereas the shared @neokapi/ui-primitives MemoryBrowser speaks the
 // framework's multilingual model (one variant per locale). These adapters
-// bridge the two: each bowrain TMEntryInfo becomes a two-variant TMEntryDTO,
+// bridge the two: each bowrain MemoryEntryInfo becomes a two-variant MemoryEntryDTO,
 // and multilingual add/update requests are reduced back to a source/target
-// pair using the entry's `hint_src_lang`. The termbase model matches the
+// pair using the entry's `hint_src_lang`. The terms store model matches the
 // shared ConceptDTO shape directly, so that adapter is a thin projection.
 
-function tmEntryToDTO(e: TMEntryInfo): TMEntryDTO {
+function memoryEntryToDTO(e: MemoryEntryInfo): MemoryEntryDTO {
   return {
     id: e.id,
     project_id: e.project_id ?? "",
@@ -35,7 +35,7 @@ function tmEntryToDTO(e: TMEntryInfo): TMEntryDTO {
       [e.source_language]: {
         locale: e.source_language,
         text: e.source,
-        // Carry the text as a run so that TMBrowser's per-variant edit path
+        // Carry the text as a run so that MemoryBrowser's per-variant edit path
         // (which rebuilds every variant from its runs) preserves the
         // unchanged locale instead of flattening it to "".
         runs: e.source ? [{ text: e.source }] : [],
@@ -54,7 +54,7 @@ function tmEntryToDTO(e: TMEntryInfo): TMEntryDTO {
 
 /** Pick the source/target locale + text pair out of a multilingual request. */
 function pairFromVariants(
-  variants: UpdateTMEntryRequest["variants"],
+  variants: UpdateMemoryEntryRequest["variants"],
   hintSrcLang: string,
 ): { source: string; target: string; sourceLocale: string; targetLocale: string } {
   const locales = Object.keys(variants);
@@ -68,39 +68,46 @@ function pairFromVariants(
   };
 }
 
-function createTMAdapter(
+function createMemoryAdapter(
   api: ApiAdapter,
   ws: string,
   defaultSource: string,
   defaultTargets: string[],
-): TMAdapter {
+): MemoryAdapter {
   return {
-    async search(query, anyLocale, requireLocale, offset, limit): Promise<TMSearchResult> {
+    async search(query, anyLocale, requireLocale, offset, limit): Promise<MemorySearchResult> {
       const sourceLocale = anyLocale || defaultSource;
       const targetLocale = requireLocale || defaultTargets[0] || "";
-      const result = await api.getTMEntries(ws, query, sourceLocale, targetLocale, offset, limit);
+      const result = await api.getMemoryEntries(
+        ws,
+        query,
+        sourceLocale,
+        targetLocale,
+        offset,
+        limit,
+      );
       return {
-        entries: (result.entries ?? []).map(tmEntryToDTO),
+        entries: (result.entries ?? []).map(memoryEntryToDTO),
         total_count: result.total_count,
       };
     },
-    // Not driven by TMBrowser — the row already holds the loaded entry.
-    async getEntry(): Promise<TMEntryDTO | null> {
+    // Not driven by MemoryBrowser — the row already holds the loaded entry.
+    async getEntry(): Promise<MemoryEntryDTO | null> {
       return null;
     },
-    async addEntry(req: AddTMEntryRequest): Promise<void> {
+    async addEntry(req: AddMemoryEntryRequest): Promise<void> {
       const { source, target, sourceLocale, targetLocale } = pairFromVariants(
         req.variants,
         req.hint_src_lang,
       );
-      await api.addTMEntry(ws, source, target, sourceLocale, targetLocale);
+      await api.addMemoryEntry(ws, source, target, sourceLocale, targetLocale);
     },
-    async updateEntry(req: UpdateTMEntryRequest): Promise<void> {
+    async updateEntry(req: UpdateMemoryEntryRequest): Promise<void> {
       const { source, target, sourceLocale, targetLocale } = pairFromVariants(
         req.variants,
         req.hint_src_lang,
       );
-      await api.updateTMEntry(ws, {
+      await api.updateMemoryEntry(ws, {
         project_id: req.project_id ?? "",
         entry_id: req.entry_id,
         source,
@@ -110,10 +117,10 @@ function createTMAdapter(
       });
     },
     async deleteEntry(id: string): Promise<void> {
-      await api.deleteTMEntry(ws, id);
+      await api.deleteMemoryEntry(ws, id);
     },
     async deleteEntries(ids: string[]): Promise<void> {
-      await Promise.all(ids.map((id) => api.deleteTMEntry(ws, id)));
+      await Promise.all(ids.map((id) => api.deleteMemoryEntry(ws, id)));
     },
   };
 }
@@ -150,7 +157,7 @@ function termsToInfo(terms: TermDTO[]): TermInfo[] {
   }));
 }
 
-function createTermbaseAdapter(api: ApiAdapter, ws: string): TermbaseAdapter {
+function createTermsAdapter(api: ApiAdapter, ws: string): TermsAdapter {
   return {
     async search(query, srcLocale, tgtLocale, offset, limit): Promise<TermSearchResult> {
       const result = await api.getTerms(ws, query, srcLocale, tgtLocale, offset, limit);
@@ -159,7 +166,7 @@ function createTermbaseAdapter(api: ApiAdapter, ws: string): TermbaseAdapter {
         total_count: result.total_count,
       };
     },
-    // Not driven by TermbaseBrowser — the card already holds the loaded concept.
+    // Not driven by TermsBrowser — the card already holds the loaded concept.
     async getConcept(): Promise<ConceptDTO | null> {
       return null;
     },
@@ -197,40 +204,40 @@ function createTermbaseAdapter(api: ApiAdapter, ws: string): TermbaseAdapter {
     async exportJSON(name: string): Promise<string> {
       return api.exportTermsJSON(ws, name);
     },
-    async getStats(): Promise<TermbaseStats> {
+    async getStats(): Promise<TermsStats> {
       return { count: await api.getTermCount(ws) };
     },
   };
 }
 
 /**
- * Builds a {@link TMAdapter} backed by the bowrain REST {@link ApiAdapter} for
+ * Builds a {@link MemoryAdapter} backed by the bowrain REST {@link ApiAdapter} for
  * the active workspace. `defaultSource`/`defaultTargets` seed the bilingual
  * pair the bowrain backend requires when the browser has not yet scoped a
  * locale.
  */
-export function useTMBrowserAdapter(
+export function useMemoryBrowserAdapter(
   defaultSource: string,
   defaultTargets: string[],
-): TMAdapter | null {
+): MemoryAdapter | null {
   const api = useApi();
   const { activeWorkspace } = useWorkspace();
   const ws = activeWorkspace?.slug ?? "";
   const targetKey = defaultTargets.join(",");
   return useMemo(() => {
     if (!ws) return null;
-    return createTMAdapter(api, ws, defaultSource, targetKey ? targetKey.split(",") : []);
+    return createMemoryAdapter(api, ws, defaultSource, targetKey ? targetKey.split(",") : []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, ws, defaultSource, targetKey]);
 }
 
-/** Builds a {@link TermbaseAdapter} backed by the bowrain REST adapter. */
-export function useTermbaseBrowserAdapter(): TermbaseAdapter | null {
+/** Builds a {@link TermsAdapter} backed by the bowrain REST adapter. */
+export function useTermsBrowserAdapter(): TermsAdapter | null {
   const api = useApi();
   const { activeWorkspace } = useWorkspace();
   const ws = activeWorkspace?.slug ?? "";
   return useMemo(() => {
     if (!ws) return null;
-    return createTermbaseAdapter(api, ws);
+    return createTermsAdapter(api, ws);
   }, [api, ws]);
 }

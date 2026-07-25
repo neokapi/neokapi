@@ -65,7 +65,7 @@ type Message struct {
 	Role  string        `json:"role"` // RoleSystem, RoleUser, RoleAssistant
 	Parts []ContentPart `json:"parts"`
 	// Sections attributes the message's text to what produced each piece of it
-	// (framework rule, brand voice profile, termbase, the source block). Set when
+	// (framework rule, brand voice profile, terms, the source block). Set when
 	// the message came from a prompt builder; --explain renders it so a prompt can
 	// be traced back to its origins. Providers ignore it — they send Parts.
 	Sections []prompt.Section `json:"sections,omitempty"`

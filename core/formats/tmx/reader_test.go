@@ -2069,7 +2069,7 @@ func TestNestedHiElements(t *testing.T) {
 	input := wrapTMX(`
     <tu>
       <tuv xml:lang="en">
-        <seg>See <hi type="term">translation memory</hi> and <hi type="term">terminology</hi>.</seg>
+        <seg>See <hi type="term">content memory</hi> and <hi type="term">terminology</hi>.</seg>
       </tuv>
       <tuv xml:lang="fr">
         <seg>Voir <hi type="term">memoire de traduction</hi> et <hi type="term">terminologie</hi>.</seg>
@@ -2078,7 +2078,7 @@ func TestNestedHiElements(t *testing.T) {
 	blocks := readTMXBlocks(t, input)
 	require.NotEmpty(t, blocks)
 	text := blocks[0].SourceText()
-	assert.Contains(t, text, "translation memory")
+	assert.Contains(t, text, "content memory")
 	assert.Contains(t, text, "terminology")
 
 	codes := inlineCodeRuns(blocks[0].SourceRuns())

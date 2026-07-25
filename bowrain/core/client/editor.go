@@ -16,7 +16,7 @@ import (
 )
 
 // This file adds the "editor" surface of the Bowrain REST API to BowrainClient:
-// the workspace/project browsing, block editing, translation-memory,
+// the workspace/project browsing, block editing, content-memory,
 // terminology, and AI-provider operations that the Bowrain desktop app used to
 // reach over a bespoke gRPC EditorService client. Unlike the sync surface
 // (which is scoped to a single project via the struct's workspace/projectID
@@ -124,8 +124,8 @@ type EditorBlock struct {
 	Properties   map[string]string            `json:"properties"`
 }
 
-// EditorTMMatch mirrors TMMatchInfoResponse.
-type EditorTMMatch struct {
+// EditorMemoryMatch mirrors MemoryMatchInfoResponse.
+type EditorMemoryMatch struct {
 	Source    string  `json:"source"`
 	Target    string  `json:"target"`
 	Score     float64 `json:"score"`
@@ -142,9 +142,9 @@ type EditorTermMatch struct {
 	End         int      `json:"end"`
 }
 
-// EditorTMEntry mirrors TMEntryInfoResponse. Note the server serializes the
+// EditorMemoryEntry mirrors MemoryEntryInfoResponse. Note the server serializes the
 // locales as source_language/target_language.
-type EditorTMEntry struct {
+type EditorMemoryEntry struct {
 	ID             string `json:"id"`
 	Source         string `json:"source"`
 	Target         string `json:"target"`
@@ -153,10 +153,10 @@ type EditorTMEntry struct {
 	UpdatedAt      string `json:"updated_at"`
 }
 
-// EditorTMSearchResult mirrors TMSearchResponse.
-type EditorTMSearchResult struct {
-	Entries    []EditorTMEntry `json:"entries"`
-	TotalCount int             `json:"total_count"`
+// EditorMemorySearchResult mirrors MemorySearchResponse.
+type EditorMemorySearchResult struct {
+	Entries    []EditorMemoryEntry `json:"entries"`
+	TotalCount int                 `json:"total_count"`
 }
 
 // EditorTerm mirrors TermInfoResponse.
@@ -326,14 +326,14 @@ func (c *BowrainClient) UpdateBlockTargetRuns(ctx context.Context, ws, projectID
 }
 
 // ---------------------------------------------------------------------------
-// Per-block TM & term lookup
+// Per-block content memory & term lookup
 // ---------------------------------------------------------------------------
 
-// LookupTMForBlock returns TM matches for a block's source.
-func (c *BowrainClient) LookupTMForBlock(ctx context.Context, ws, projectID, blockID, targetLocale string) ([]EditorTMMatch, error) {
+// LookupMemoryForBlock returns content-memory matches for a block's source.
+func (c *BowrainClient) LookupMemoryForBlock(ctx context.Context, ws, projectID, blockID, targetLocale string) ([]EditorMemoryMatch, error) {
 	q := url.Values{}
 	q.Set("target_locale", targetLocale)
-	var out []EditorTMMatch
+	var out []EditorMemoryMatch
 	if err := c.editorDo(ctx, http.MethodGet, blockPath(ws, projectID, blockID, "/tm-matches"), q, nil, &out); err != nil {
 		return nil, err
 	}
@@ -424,8 +424,8 @@ func (c *BowrainClient) PseudoTranslateItem(ctx context.Context, ws, projectID, 
 	return c.itemStatsAction(ctx, ws, projectID, itemName, "pseudo-translate", targetLocale)
 }
 
-// TMTranslateItem leverages the workspace TM to translate an item on the server.
-func (c *BowrainClient) TMTranslateItem(ctx context.Context, ws, projectID, itemName, targetLocale string) (*EditorTranslationStats, error) {
+// MemoryTranslateItem leverages the workspace content memory to translate an item on the server.
+func (c *BowrainClient) MemoryTranslateItem(ctx context.Context, ws, projectID, itemName, targetLocale string) (*EditorTranslationStats, error) {
 	return c.itemStatsAction(ctx, ws, projectID, itemName, "tm-translate", targetLocale)
 }
 
@@ -459,26 +459,26 @@ func (c *BowrainClient) TermEnforceItem(ctx context.Context, ws, projectID, item
 }
 
 // ---------------------------------------------------------------------------
-// Translation memory
+// Content memory
 // ---------------------------------------------------------------------------
 
-// GetTMEntries searches the workspace translation memory.
-func (c *BowrainClient) GetTMEntries(ctx context.Context, ws, query, sourceLocale, targetLocale string, offset, limit int) (*EditorTMSearchResult, error) {
+// GetMemoryEntries searches the workspace content memory.
+func (c *BowrainClient) GetMemoryEntries(ctx context.Context, ws, query, sourceLocale, targetLocale string, offset, limit int) (*EditorMemorySearchResult, error) {
 	q := url.Values{}
 	q.Set("q", query)
 	q.Set("source_locale", sourceLocale)
 	q.Set("target_locale", targetLocale)
 	q.Set("offset", strconv.Itoa(offset))
 	q.Set("limit", strconv.Itoa(limit))
-	var out EditorTMSearchResult
+	var out EditorMemorySearchResult
 	if err := c.editorDo(ctx, http.MethodGet, wsPath(ws, "/translation-memory"), q, nil, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
 }
 
-// GetTMCount returns the workspace TM entry count.
-func (c *BowrainClient) GetTMCount(ctx context.Context, ws string) (int, error) {
+// GetMemoryCount returns the workspace content-memory entry count.
+func (c *BowrainClient) GetMemoryCount(ctx context.Context, ws string) (int, error) {
 	var out struct {
 		Count int `json:"count"`
 	}
@@ -488,23 +488,23 @@ func (c *BowrainClient) GetTMCount(ctx context.Context, ws string) (int, error) 
 	return out.Count, nil
 }
 
-// AddTMEntry adds a TM entry and returns the stored record.
-func (c *BowrainClient) AddTMEntry(ctx context.Context, ws, source, target, sourceLocale, targetLocale string) (*EditorTMEntry, error) {
+// AddMemoryEntry adds a content-memory entry and returns the stored record.
+func (c *BowrainClient) AddMemoryEntry(ctx context.Context, ws, source, target, sourceLocale, targetLocale string) (*EditorMemoryEntry, error) {
 	body := struct {
 		Source       string `json:"source"`
 		Target       string `json:"target"`
 		SourceLocale string `json:"source_locale"`
 		TargetLocale string `json:"target_locale"`
 	}{source, target, sourceLocale, targetLocale}
-	var out EditorTMEntry
+	var out EditorMemoryEntry
 	if err := c.editorDo(ctx, http.MethodPost, wsPath(ws, "/translation-memory"), nil, body, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
 }
 
-// UpdateTMEntry updates an existing TM entry.
-func (c *BowrainClient) UpdateTMEntry(ctx context.Context, ws, entryID, source, target, sourceLocale, targetLocale string) error {
+// UpdateMemoryEntry updates an existing content-memory entry.
+func (c *BowrainClient) UpdateMemoryEntry(ctx context.Context, ws, entryID, source, target, sourceLocale, targetLocale string) error {
 	body := struct {
 		Source       string `json:"source"`
 		Target       string `json:"target"`
@@ -514,8 +514,8 @@ func (c *BowrainClient) UpdateTMEntry(ctx context.Context, ws, entryID, source, 
 	return c.editorDo(ctx, http.MethodPut, wsPath(ws, "/translation-memory/"+url.PathEscape(entryID)), nil, body, nil)
 }
 
-// DeleteTMEntry deletes a TM entry.
-func (c *BowrainClient) DeleteTMEntry(ctx context.Context, ws, entryID string) error {
+// DeleteMemoryEntry deletes a content-memory entry.
+func (c *BowrainClient) DeleteMemoryEntry(ctx context.Context, ws, entryID string) error {
 	return c.editorDo(ctx, http.MethodDelete, wsPath(ws, "/translation-memory/"+url.PathEscape(entryID)), nil, nil, nil)
 }
 

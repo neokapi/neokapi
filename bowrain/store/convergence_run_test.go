@@ -79,7 +79,7 @@ func TestConvergenceRunStore_Lifecycle(t *testing.T) {
 			run.State = store.ConvergenceRunConverged
 			run.Passes = 2
 			run.Standing = []store.ConvergenceLocaleStanding{
-				{Locale: "fr-FR", State: "shippable", Units: 96, Produced: 96, ViaAI: 60, ViaTM: 36},
+				{Locale: "fr-FR", State: "shippable", Units: 96, Produced: 96, ViaAI: 60, ViaMemory: 36},
 				{Locale: "de-DE", State: "parked", Units: 96, Produced: 40},
 			}
 			now := run.CreatedAt

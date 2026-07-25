@@ -52,7 +52,7 @@ const meta: Meta<typeof ConceptCard> = {
     docs: {
       description: {
         component:
-          "Termbase concept card with reference language term, target translations, domain badge, and hover actions. Built on shadcn Card/Badge/Button.",
+          "Terms concept card with reference language term, target translations, domain badge, and hover actions. Built on shadcn Card/Badge/Button.",
       },
     },
   },

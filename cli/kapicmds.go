@@ -74,8 +74,8 @@ func KapiCommandSet(a *App) []*cobra.Command {
 		NewFormatsCmd(a),
 		NewPluginCmd(a),
 		NewModelsCmd(a),
-		NewTermbaseCmd(a),
-		NewTMCmd(a),
+		NewTermsCmd(a),
+		NewMemoryCmd(a),
 		NewBrandCmd(a),
 		NewCredentialsCmd(a),
 		NewConfigCmd(a),
@@ -151,11 +151,11 @@ func localizeCommand(c *cobra.Command, path string, t i18n.Translator) {
 }
 
 // helpText translates a multi-line help string (Long / Example), guarding
-// against translations that lost their line structure. The project TM's
+// against translations that lost their line structure. The project content memory's
 // plain-text fast path normalizes whitespace on stored variants
-// (sievepen.NormalizeText), so a TM-leveraged catalog can carry a Long whose
+// (memory.NormalizeText), so a content memory-leveraged catalog can carry a Long whose
 // line breaks were collapsed to spaces — rendering as one unreadable
-// paragraph. Until the TM round-trips line structure, prefer the English
+// paragraph. Until the content memory round-trips line structure, prefer the English
 // source over a structurally damaged translation.
 func helpText(t i18n.Translator, scope i18n.Scope, source string) string {
 	tr := t.T(scope, source)

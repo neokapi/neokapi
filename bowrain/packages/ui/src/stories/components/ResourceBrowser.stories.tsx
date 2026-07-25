@@ -17,7 +17,7 @@ const meta: Meta<typeof ResourceBrowser> = {
 export default meta;
 type Story = StoryObj<typeof ResourceBrowser>;
 
-const sampleTMs: ResourceInfo[] = [
+const sampleMemories: ResourceInfo[] = [
   {
     name: "project-memory",
     kind: "tm",
@@ -44,10 +44,10 @@ const sampleTMs: ResourceInfo[] = [
   },
 ];
 
-const sampleTermbases: ResourceInfo[] = [
+const sampleTerms: ResourceInfo[] = [
   {
     name: "glossary",
-    kind: "termbase",
+    kind: "terms",
     path: "~/.config/kapi/termbases/glossary.db",
     entryCount: 340,
     sourceLocale: "en",
@@ -55,7 +55,7 @@ const sampleTermbases: ResourceInfo[] = [
   },
   {
     name: "brand-terms",
-    kind: "termbase",
+    kind: "terms",
     path: "~/.config/kapi/termbases/brand-terms.db",
     entryCount: 52,
     sourceLocale: "en",
@@ -103,12 +103,12 @@ function InteractiveBrowser(props: Omit<ResourceBrowserProps, "open" | "onClose"
   );
 }
 
-export const TMBrowser: Story = {
-  render: () => <InteractiveBrowser resourceKind="tm" resources={sampleTMs} />,
+export const MemoryBrowser: Story = {
+  render: () => <InteractiveBrowser resourceKind="tm" resources={sampleMemories} />,
 };
 
-export const TermbaseBrowser: Story = {
-  render: () => <InteractiveBrowser resourceKind="termbase" resources={sampleTermbases} />,
+export const TermsBrowser: Story = {
+  render: () => <InteractiveBrowser resourceKind="terms" resources={sampleTerms} />,
 };
 
 export const SrxBrowser: Story = {
@@ -125,6 +125,6 @@ export const WithSelection: Story = {
     onClose: fn(),
     onSelect: fn(),
     resourceKind: "tm",
-    resources: sampleTMs,
+    resources: sampleMemories,
   },
 };

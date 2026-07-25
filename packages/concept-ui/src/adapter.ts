@@ -1,7 +1,7 @@
 // The data-source contract the concept UI consumes (Apache-2.0). A single small
 // interface lets the SAME components run against very different backends:
 //
-//   • kapi-desktop drives it against a LOCAL SQLite termbase — the required
+//   • kapi-desktop drives it against a LOCAL SQLite terms — the required
 //     CORE only (concepts, terms, relations, validity/status), plus the
 //     editable-core mutations.
 //   • bowrain drives it against its REST API — the core PLUS the optional rich

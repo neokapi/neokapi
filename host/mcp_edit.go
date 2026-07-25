@@ -40,7 +40,7 @@ type applyEditsMCPOutput struct {
 func registerEditMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "apply_edits",
-		Description: "Apply a typed change-set — the one write verb. Content edits land through the byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash); asset edits (glossary term, TM pair, brand rule, recipe field) are written to their committed source and compiled into the cache. No AI provider is used.",
+		Description: "Apply a typed change-set — the one write verb. Content edits land through the byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash); asset edits (glossary term, content memory pair, brand rule, recipe field) are written to their committed source and compiled into the cache. No AI provider is used.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in applyEditsInput) (*mcp.CallToolResult, applyEditsMCPOutput, error) {
 		return a.applyEditsMCP(ctx, in)
 	})
@@ -66,7 +66,7 @@ func (a *App) applyEditsMCP(ctx context.Context, in applyEditsInput) (*mcp.CallT
 				fileOrder = append(fileOrder, e.File)
 			}
 			byFile[e.File] = append(byFile[e.File], e)
-		case kindTerm, kindTM, kindBrand, kindRecipe:
+		case kindTerm, kindMemory, kindBrand, kindRecipe:
 			out.Assets = append(out.Assets, a.applyAssetEntry(ctx, cmd, e))
 		case "":
 			return nil, applyEditsMCPOutput{}, errors.New("change-set entry has no \"kind\"")

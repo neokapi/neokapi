@@ -474,12 +474,12 @@ func (c *BowrainSourceConnector) Close() error {
 }
 
 // SetConceptBaseline records the governed-terminology baseline a concept pull
-// just wrote into the project's bound termbase onto the connector's in-memory
+// just wrote into the project's bound terms onto the connector's in-memory
 // sync cache. The baseline is persisted by the single final Close() alongside
 // the block-sync state (stream cursors, file hashes) the connector accumulated
 // during the same pull — so a concept pull folded into a block pull cannot be
 // silently overwritten by the connector's own deferred Close(). A later concept
-// push reloads this baseline to diff local termbase edits against it.
+// push reloads this baseline to diff local terms edits against it.
 func (c *BowrainSourceConnector) SetConceptBaseline(b *bproject.ConceptBaseline) {
 	c.cache.ConceptBaseline = b
 }

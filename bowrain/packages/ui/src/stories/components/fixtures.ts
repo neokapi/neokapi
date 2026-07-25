@@ -716,13 +716,13 @@ export const sampleRoleTemplates: RoleTemplate[] = [
 
 import type { ResourceOption } from "../../components/ResourcePicker";
 
-export const sampleTMs: ResourceOption[] = [
+export const sampleMemories: ResourceOption[] = [
   { name: "project-memory", entryCount: 12450 },
   { name: "legacy-tm", entryCount: 85000 },
   { name: "small-test", entryCount: 120 },
 ];
 
-export const sampleTermbases: ResourceOption[] = [
+export const sampleTerms: ResourceOption[] = [
   { name: "glossary", entryCount: 340 },
   { name: "brand-terms", entryCount: 52 },
 ];

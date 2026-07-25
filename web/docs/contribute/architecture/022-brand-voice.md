@@ -160,7 +160,7 @@ operational error.
 
 kapi does not send content to a model to rewrite it. An on-brand fix is
 caller-supplied: the assistant loads the voice guide (`kapi brand guide`) and the
-approved wording (`kapi termbase lookup`) as context, rewrites the off-voice text
+approved wording (`kapi terms lookup`) as context, rewrites the off-voice text
 itself, and applies the result through the one write verb, `kapi apply`. The
 edits land through the byte-faithful round-trip with **no AI provider**
 ([AD-024](024-agent-skills.md)): structure and inline codes are preserved, each

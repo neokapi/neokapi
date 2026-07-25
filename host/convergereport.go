@@ -207,7 +207,7 @@ func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang
 // — the authoritative carrier of workflow state — keyed by unit identity + locale,
 // bound to the content hash of the translation it judges so a later edit drops
 // the decision (stale). The decision is transient until Export persists it to the
-// committed state artifact (the export sink). The TM (.kmb) is no longer
+// committed state artifact (the export sink). The content memory (.kmb) is no longer
 // touched here: it is the recycle corpus, not the state carrier. Advisory fields
 // already on the unit's record (origin, source status, a fresh AI pre-review
 // annotation) survive the decision write.
