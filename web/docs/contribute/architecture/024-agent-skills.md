@@ -112,6 +112,56 @@ always matches a shipped CLI surface — a Claude Code plugin can't pin a CLI
 version, so a skill that referenced an unreleased command would break an
 up-to-date plugin against an older binary.
 
+### The hook decision protocol: fail open, never silently
+
+Both hooks are **fail-open** — a guard that cannot evaluate must never block work
+that has nothing wrong with it. Failing closed on a payload kapi could not parse
+would stop an unrelated edit, or trap an assistant that has finished. That policy
+is not in question.
+
+What fail-open needs is a way to **say so**, because the zero value of a hook
+payload is indistinguishable from a legitimate one. An empty `tool_input.file_path`
+reads as "no file to guard"; an empty `cwd` skips the `os.Chdir` and lets the
+upward project walk run from wherever the hook process started. Both allow, and
+neither used to leave a trace, so a guard that never ran looked exactly like a
+guard that passed (#1480).
+
+The protocol every kapi hook follows:
+
+| Situation | stdout | Exit |
+| --- | --- | --- |
+| Guard evaluated, verdict is negative | the assistant's decision shape, with a reason | 0 |
+| Guard evaluated, nothing to report | nothing | 0 |
+| Guard could not run | `{"systemMessage":"…"}`, plus the same warning on stderr, naming the hook | 0 |
+
+Three consequences worth stating:
+
+- **The exit code is not the channel.** Claude Code reads a non-zero exit as a
+  hook that is broken (exit 2 being its own "block and feed stderr back"
+  convention), so carrying a denial there converts an enforced decision into a
+  hook error. A `deny` is therefore exit 0, with the verdict in the JSON. In
+  particular it is not `ExitGate` (3): that code is `kapi check --ship`'s own,
+  for a human or CI running the gate directly. The hook *drives* the gate; it is
+  not the gate.
+- **`systemMessage` is a documented common field on every hook output**, and a
+  payload carrying only that field carries no decision — so the assistant's
+  normal permission flow is untouched and fail-open is preserved exactly.
+- **The warning goes to stderr too**, naming the hook, because a hand-run or CI
+  invocation has no session to surface a `systemMessage` into. The two channels
+  carry the same sentence.
+
+The discriminating case is that **no payload at all is not a failure**: when stdin
+is a character device the command was run by hand with nothing piped in, so there
+is nothing to read and nothing to report. Likewise "there is no kapi project
+here" is nothing to gate, not a guard that failed to evaluate. Warning on either
+would make every session outside a project noisy, which is the failure mode that
+gets a guard uninstalled.
+
+These are the **assistant-integration** hooks (`kapi hook stop`,
+`kapi hook pre-edit`). They are unrelated to the recipe's `hooks:` block, a
+separate lifecycle mechanism that is validated but not executed (#1255); see
+[the flow-hooks page](https://bowrain.cloud/docs/cli/flows/hooks).
+
 ### kapi-* and bowrain-* skills
 
 The skill set is split by which surface a skill drives. **kapi-\*** skills drive

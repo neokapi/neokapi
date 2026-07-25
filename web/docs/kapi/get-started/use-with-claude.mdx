@@ -34,7 +34,7 @@ You describe the outcome; Claude runs kapi. kapi supplies the guardrails — the
 /plugin install kapi@neokapi-plugins
 ```
 
-The **Stop hook** runs the project gate (`kapi check --ship`) when Claude tries to finish and keeps it working while a gate fails; the **PreToolUse hook** denies hand-edits to generated translation targets, steering changes through the source. Both are fail-open outside a project.
+The **Stop hook** runs the project gate (`kapi check --ship`) when Claude tries to finish and keeps it working while a gate fails; the **PreToolUse hook** denies hand-edits to generated translation targets, steering changes through the source. Both are fail-open outside a project, and both follow one [decision protocol](#the-hook-decision-protocol).
 
 **Copilot, Cursor, Windsurf, VS Code, Codex** — `SKILL.md` is an open standard:
 
@@ -61,6 +61,20 @@ Your client launches `kapi mcp` as a stdio subprocess. For Claude Code, add `.mc
 See [MCP server](/reference/mcp) for every client's configuration and the full tool list.
 
 </details>
+
+### The hook decision protocol {#the-hook-decision-protocol}
+
+A kapi hook states its verdict as JSON on stdout and always exits `0`. The exit code is not the channel: Claude Code reads a non-zero exit as a *broken hook*, so a denial carried that way would be downgraded to a hook error rather than enforced. `kapi check --ship` keeps its own gate exit code (`3`) when you run it yourself — the hook drives that gate but is not it.
+
+| What the hook found | On stdout | What happens |
+|---|---|---|
+| A gate fails / the file is a generated target | `{"decision":"block","reason":"…"}` (Stop) · `{"hookSpecificOutput":{"permissionDecision":"deny","permissionDecisionReason":"…"}}` (PreToolUse) | Claude keeps working, or the edit is refused. The `reason` names the findings, or the source and locale to change instead. |
+| Nothing to report — gates pass, the file is not generated, or there is no kapi project | nothing | The operation proceeds. |
+| **The guard could not run at all** | `{"systemMessage":"…"}` — plus the same warning on stderr, naming the hook | The operation proceeds: kapi hooks fail open, so a broken guard never blocks work. But the bypass is stated, because a guard that never ran must not look like a guard that passed. |
+
+The third row is the one worth knowing about. An unreadable, empty, or malformed hook payload; a session directory kapi cannot enter; a recipe that will not load because it needs a plugin you have not installed — each of those leaves the guard installed but inert. The notice says which hook, and what stopped it.
+
+The wire shapes are Claude Code's, and Claude Code versions its own hook schema; kapi does not add a version of its own. What is stable here is the policy in the table: fail open, and never silently.
 
 The loop, whichever door: Claude pulls your brand guide and approved terms first (`kapi brand guide`, `kapi terms lookup`), writes through the one write verb (`kapi apply` — structure preserved, drift-guarded by content hash), then gates out with `kapi check` until green. Bind the profile and glossary in a [project](/kapi/get-started/first-project) and this happens automatically; your prompts stay short — "Set kapi up for this project", "Check `README.md` against our brand voice and fix what fails", "Translate the docs into French and German, then bring them to the ship gate".
 

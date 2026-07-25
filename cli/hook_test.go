@@ -3,7 +3,9 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,15 +20,28 @@ import (
 // Claude to stop).
 func runHookStopCapture(t *testing.T, stdin string) (StopHookDecision, string) {
 	t.Helper()
+	dec, raw, stderr := runHookStopStdin(t, strings.NewReader(stdin))
+	assert.Empty(t, stderr, "a hook that evaluated its guard must not warn")
+	return dec, raw
+}
+
+// runHookStopStdin invokes the stop hook reading from r and returns the parsed
+// decision, the raw stdout, and the raw stderr. Separate from
+// runHookStopCapture so the un-evaluated-guard tests can assert on the warning
+// channel, and so a test can hand the hook a real *os.File (the character-device
+// no-payload case).
+func runHookStopStdin(t *testing.T, r io.Reader) (StopHookDecision, string, string) {
+	t.Helper()
 	a := &App{}
 	cmd := newHookStopCmd(a)
-	cmd.SetIn(strings.NewReader(stdin))
+	cmd.SetIn(r)
 	// Invoking RunHookStop directly bypasses cobra's Execute, which normally
 	// seeds cmd.Context(); set it so the ctx-aware terms/content-memory lookups in the
 	// verify gate get a real context instead of nil.
 	cmd.SetContext(t.Context())
-	var buf bytes.Buffer
+	var buf, errBuf bytes.Buffer
 	cmd.SetOut(&buf)
+	cmd.SetErr(&errBuf)
 
 	require.NoError(t, a.RunHookStop(cmd), "the stop hook must not error — its verdict is the JSON on stdout")
 
@@ -35,7 +50,18 @@ func runHookStopCapture(t *testing.T, stdin string) (StopHookDecision, string) {
 	if raw != "" {
 		require.NoError(t, json.Unmarshal([]byte(raw), &dec), "hook output must be valid JSON: %s", raw)
 	}
-	return dec, raw
+	return dec, raw, errBuf.String()
+}
+
+// hookNoticeOf decodes the systemMessage a hook emits when its guard could not
+// be evaluated. Asserting on the parsed field rather than on the raw line keeps
+// the wire shape — a decision-free payload, so the assistant's normal flow is
+// untouched — part of the contract under test.
+func hookNoticeOf(t *testing.T, raw string) string {
+	t.Helper()
+	var n HookNotice
+	require.NoError(t, json.Unmarshal([]byte(raw), &n), "the notice must be valid JSON: %s", raw)
+	return n.SystemMessage
 }
 
 // makeVerifyPass rewrites the project's source and target files so all gates
@@ -110,14 +136,146 @@ func TestHookStop_AllowsWhenNoProject(t *testing.T) {
 	assert.Empty(t, dec.Decision)
 }
 
-// TestHookStop_AllowsOnEmptyStdin asserts that an empty/garbage payload (e.g.
-// run by hand) does not error or block when there is no project.
-func TestHookStop_AllowsOnEmptyStdin(t *testing.T) {
+// TestHookStop_NoPayloadOnCharDeviceStaysSilent is the discriminating control
+// for the un-evaluated-guard notice: the documented no-payload case — the
+// command run by hand with nothing piped in, so stdin is a character device —
+// must stay completely silent. Without it, "warn whenever the payload is not a
+// full struct" would pass the tests below while making every hand-run noisy.
+func TestHookStop_NoPayloadOnCharDeviceStaysSilent(t *testing.T) {
 	t.Chdir(t.TempDir())
 
-	dec, raw := runHookStopCapture(t, "")
+	devnull, err := os.Open(os.DevNull)
+	require.NoError(t, err)
+	defer func() { _ = devnull.Close() }()
 
-	assert.Empty(t, raw)
+	dec, raw, stderr := runHookStopStdin(t, devnull)
+
+	assert.Empty(t, raw, "no payload was offered — there is nothing to warn about")
+	assert.Empty(t, stderr, "a hand-run hook must not warn")
+	assert.Empty(t, dec.Decision)
+}
+
+// TestHookStop_WarnsOnEmptyPayload asserts that a pipe which delivered nothing
+// is reported: the assistant invoked the hook, so the guard was expected to
+// evaluate, and it did not.
+func TestHookStop_WarnsOnEmptyPayload(t *testing.T) {
+	root, _ := writeVerifyProject(t)
+	t.Chdir(root)
+
+	dec, raw, stderr := runHookStopStdin(t, strings.NewReader(""))
+
+	assert.Empty(t, dec.Decision, "an unheard hook must fail open — never block")
+	assert.Contains(t, hookNoticeOf(t, raw), "the payload on stdin was empty",
+		"the notice must say why the guard did not run")
+	assert.Contains(t, stderr, "kapi hook stop", "the warning must name the hook")
+	assert.Contains(t, stderr, "it never ran",
+		"the warning must distinguish an un-evaluated guard from one that passed")
+}
+
+// TestHookStop_WarnsOnMalformedPayload asserts a payload that is not the JSON
+// the hook expects is reported rather than silently treated as a passing
+// project. The project here has failing gates, so the discriminating fact is
+// that the hook does NOT block (fail-open is preserved) while still saying so.
+func TestHookStop_WarnsOnMalformedPayload(t *testing.T) {
+	root, _ := writeVerifyProject(t)
+	t.Chdir(root)
+
+	dec, raw, stderr := runHookStopStdin(t, strings.NewReader(`{"cwd": [not json`))
+
+	assert.Empty(t, dec.Decision, "a broken payload must never block the assistant")
+	assert.Contains(t, hookNoticeOf(t, raw), "not the JSON this hook expects")
+	assert.Contains(t, stderr, "kapi hook stop")
+}
+
+// TestHookStop_WarnsOnUnenterableCWD asserts the second, quieter bypass route is
+// reported too: a cwd the hook cannot enter leaves the upward project walk
+// starting from wherever the hook process happened to launch.
+func TestHookStop_WarnsOnUnenterableCWD(t *testing.T) {
+	root, _ := writeVerifyProject(t)
+	t.Chdir(root)
+
+	missing := filepath.Join(root, "no-such-dir")
+	payload := fmt.Sprintf(`{"hook_event_name":"Stop","cwd":%q}`, missing)
+	dec, raw, stderr := runHookStopStdin(t, strings.NewReader(payload))
+
+	assert.Empty(t, dec.Decision, "an unenterable cwd must not block the assistant")
+	assert.Contains(t, hookNoticeOf(t, raw), "could not be entered")
+	assert.Contains(t, stderr, missing, "the warning must name the directory")
+}
+
+// failingReader fails the read after handing back prefix, standing in for a
+// hook pipe that breaks mid-payload. #1480's sites conflated this with an empty
+// payload; the two now read differently, so the message names the real cause.
+type failingReader struct {
+	prefix string
+	n      int
+}
+
+func (r *failingReader) Read(p []byte) (int, error) {
+	if r.n < len(r.prefix) {
+		n := copy(p, r.prefix[r.n:])
+		r.n += n
+		return n, nil
+	}
+	return 0, errors.New("hook pipe reset by peer")
+}
+
+// TestHookStop_WarnsOnUnreadableStdin asserts a read failure is reported as a
+// read failure, not as the empty payload it used to be conflated with.
+func TestHookStop_WarnsOnUnreadableStdin(t *testing.T) {
+	root, _ := writeVerifyProject(t)
+	t.Chdir(root)
+
+	dec, raw, stderr := runHookStopStdin(t, &failingReader{prefix: `{"cwd":"`})
+
+	assert.Empty(t, dec.Decision, "an unreadable payload must never block")
+	msg := hookNoticeOf(t, raw)
+	assert.Contains(t, msg, "stdin could not be read", "a read failure must not read as an empty payload")
+	assert.Contains(t, msg, "hook pipe reset by peer", "the underlying cause must survive")
+	assert.Contains(t, stderr, "kapi hook stop")
+}
+
+// TestHookStop_WarnsOnUnloadableProject asserts a project that exists but cannot
+// be evaluated is reported — the gate is installed but inert, which used to be
+// indistinguishable from a project with no gates to run.
+func TestHookStop_WarnsOnUnloadableProject(t *testing.T) {
+	root, _ := writeVerifyProject(t)
+	t.Chdir(root)
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte("defaults: [this is not a mapping]\n"), 0o644))
+
+	dec, raw, stderr := runHookStopStdin(t, strings.NewReader(`{"hook_event_name":"Stop"}`))
+
+	assert.Empty(t, dec.Decision, "an unevaluable project must not trap the assistant")
+	assert.Contains(t, hookNoticeOf(t, raw), "could not be evaluated")
+	assert.Contains(t, stderr, "kapi hook stop")
+}
+
+// TestHookPreEdit_WarnsOnUnreadableStdin is the pre-edit half of the read-error
+// vs empty-payload distinction.
+func TestHookPreEdit_WarnsOnUnreadableStdin(t *testing.T) {
+	root, _ := writeVerifyProject(t)
+	t.Chdir(root)
+
+	dec, raw, stderr := runHookPreEditStdin(t, &failingReader{prefix: `{"tool_name":"Edit"`})
+
+	assert.Empty(t, dec.HookSpecificOutput.PermissionDecision, "an unreadable payload must never deny")
+	msg := hookNoticeOf(t, raw)
+	assert.Contains(t, msg, "stdin could not be read")
+	assert.Contains(t, msg, "hook pipe reset by peer")
+	assert.Contains(t, stderr, "kapi hook pre-edit")
+}
+
+// TestHookStop_NoProjectStaysSilent asserts the other discriminating control:
+// "there is no kapi project here" is not an un-evaluated guard, it is nothing to
+// gate. It must stay silent on both channels, or every session outside a project
+// would carry a warning.
+func TestHookStop_NoProjectStaysSilent(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	dec, raw, stderr := runHookStopStdin(t, strings.NewReader(`{"hook_event_name":"Stop"}`))
+
+	assert.Empty(t, raw, "no project → no decision and no notice")
+	assert.Empty(t, stderr, "no project is not a failure to evaluate")
 	assert.Empty(t, dec.Decision)
 }
 
@@ -126,14 +284,24 @@ func TestHookStop_AllowsOnEmptyStdin(t *testing.T) {
 // allows the edit to proceed).
 func runHookPreEditCapture(t *testing.T, stdin string) (PreToolUseDecision, string) {
 	t.Helper()
+	dec, raw, stderr := runHookPreEditStdin(t, strings.NewReader(stdin))
+	assert.Empty(t, stderr, "a hook that evaluated its guard must not warn")
+	return dec, raw
+}
+
+// runHookPreEditStdin invokes the pre-edit hook reading from r and returns the
+// parsed decision, the raw stdout, and the raw stderr.
+func runHookPreEditStdin(t *testing.T, r io.Reader) (PreToolUseDecision, string, string) {
+	t.Helper()
 	a := &App{}
 	cmd := newHookPreEditCmd(a)
-	cmd.SetIn(strings.NewReader(stdin))
+	cmd.SetIn(r)
 	// See runHookStopCapture: a direct call bypasses cobra's Execute, so seed
 	// the context the ctx-aware project lookups expect.
 	cmd.SetContext(t.Context())
-	var buf bytes.Buffer
+	var buf, errBuf bytes.Buffer
 	cmd.SetOut(&buf)
+	cmd.SetErr(&errBuf)
 
 	require.NoError(t, a.RunHookPreEdit(cmd), "the pre-edit hook must not error — its verdict is the JSON on stdout")
 
@@ -142,7 +310,7 @@ func runHookPreEditCapture(t *testing.T, stdin string) (PreToolUseDecision, stri
 	if raw != "" {
 		require.NoError(t, json.Unmarshal([]byte(raw), &dec), "hook output must be valid JSON: %s", raw)
 	}
-	return dec, raw
+	return dec, raw, errBuf.String()
 }
 
 // preEditPayload builds a PreToolUse stdin payload for the Edit tool writing
@@ -223,13 +391,114 @@ func TestHookPreEdit_AllowsWhenNoProject(t *testing.T) {
 	assert.Empty(t, dec.HookSpecificOutput.PermissionDecision)
 }
 
-// TestHookPreEdit_AllowsOnEmptyStdin asserts an empty payload (e.g. run by
-// hand) does not error or block.
-func TestHookPreEdit_AllowsOnEmptyStdin(t *testing.T) {
+// TestHookPreEdit_NoPayloadOnCharDeviceStaysSilent is the discriminating control
+// for the notice: run by hand with nothing piped in (stdin is a character
+// device), the hook must stay silent on both channels.
+func TestHookPreEdit_NoPayloadOnCharDeviceStaysSilent(t *testing.T) {
 	t.Chdir(t.TempDir())
 
-	dec, raw := runHookPreEditCapture(t, "")
+	devnull, err := os.Open(os.DevNull)
+	require.NoError(t, err)
+	defer func() { _ = devnull.Close() }()
 
-	assert.Empty(t, raw)
+	dec, raw, stderr := runHookPreEditStdin(t, devnull)
+
+	assert.Empty(t, raw, "no payload was offered — there is nothing to warn about")
+	assert.Empty(t, stderr, "a hand-run hook must not warn")
+	assert.Empty(t, dec.HookSpecificOutput.PermissionDecision)
+}
+
+// TestHookPreEdit_WarnsOnMalformedPayload is the regression for the bug: a
+// payload the hook cannot parse used to zero ToolInput.FilePath, which the guard
+// read as "nothing to guard" and allowed the edit with no signal anywhere. The
+// edit must still proceed — and now the bypass is on record.
+func TestHookPreEdit_WarnsOnMalformedPayload(t *testing.T) {
+	root, targetFile := writeVerifyProject(t)
+	t.Chdir(root)
+
+	// Same payload as the deny case, truncated mid-object: exactly the shape a
+	// partial write down the hook pipe produces.
+	partial := preEditPayload(root, targetFile)
+	dec, raw, stderr := runHookPreEditStdin(t, strings.NewReader(partial[:len(partial)-12]))
+
+	assert.Empty(t, dec.HookSpecificOutput.PermissionDecision,
+		"a broken payload must never deny — the guard fails open")
+	assert.Contains(t, hookNoticeOf(t, raw), "not the JSON this hook expects")
+	assert.Contains(t, stderr, "kapi hook pre-edit", "the warning must name the hook")
+	assert.Contains(t, stderr, "it never ran",
+		"the warning must distinguish an un-evaluated guard from one that passed")
+}
+
+// TestHookPreEdit_WarnsOnEmptyPayload asserts a pipe that delivered nothing is
+// reported rather than read as "no file to guard".
+func TestHookPreEdit_WarnsOnEmptyPayload(t *testing.T) {
+	root, _ := writeVerifyProject(t)
+	t.Chdir(root)
+
+	dec, raw, stderr := runHookPreEditStdin(t, strings.NewReader(""))
+
+	assert.Empty(t, dec.HookSpecificOutput.PermissionDecision)
+	assert.Contains(t, hookNoticeOf(t, raw), "the payload on stdin was empty")
+	assert.Contains(t, stderr, "kapi hook pre-edit")
+}
+
+// TestHookPreEdit_WarnsOnUnenterableCWD covers the second bypass route #1480
+// names: a cwd the hook cannot enter leaves the upward walk running from
+// wherever the hook process launched, so the guard matches nothing.
+func TestHookPreEdit_WarnsOnUnenterableCWD(t *testing.T) {
+	root, targetFile := writeVerifyProject(t)
+	t.Chdir(t.TempDir())
+
+	missing := filepath.Join(root, "no-such-dir")
+	dec, raw, stderr := runHookPreEditStdin(t, strings.NewReader(preEditPayload(missing, targetFile)))
+
+	assert.Empty(t, dec.HookSpecificOutput.PermissionDecision, "an unenterable cwd must not deny")
+	assert.Contains(t, hookNoticeOf(t, raw), "could not be entered")
+	assert.Contains(t, stderr, missing, "the warning must name the directory")
+}
+
+// TestHookPreEdit_WarnsOnUnloadableProject asserts the installed-but-inert case
+// is reported: a recipe the hook cannot load leaves the guard unable to know
+// which files are generated, so every target edit is allowed.
+func TestHookPreEdit_WarnsOnUnloadableProject(t *testing.T) {
+	root, targetFile := writeVerifyProject(t)
+	t.Chdir(root)
+	// Corrupt the recipe so project.LoadWithOptions fails. The payload is the
+	// same one that denies against a loadable recipe, so the only variable is
+	// whether the guard could evaluate.
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte("defaults: [this is not a mapping]\n"), 0o644))
+
+	dec, raw, stderr := runHookPreEditStdin(t, strings.NewReader(preEditPayload(root, targetFile)))
+
+	assert.Empty(t, dec.HookSpecificOutput.PermissionDecision, "an unloadable project must not deny")
+	assert.Contains(t, hookNoticeOf(t, raw), "could not be loaded")
+	assert.Contains(t, stderr, "kapi hook pre-edit")
+}
+
+// TestHookPreEdit_NoProjectStaysSilent is the other discriminating control:
+// outside a project there is nothing to guard, which is not a failure to
+// evaluate and must stay silent on both channels.
+func TestHookPreEdit_NoProjectStaysSilent(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	dec, raw, stderr := runHookPreEditStdin(t, strings.NewReader(preEditPayload(dir, filepath.Join(dir, "anything.json"))))
+
+	assert.Empty(t, raw, "no project → no decision and no notice")
+	assert.Empty(t, stderr, "no project is not a failure to evaluate")
+	assert.Empty(t, dec.HookSpecificOutput.PermissionDecision)
+}
+
+// TestHookPreEdit_AllowsPayloadWithoutFilePath asserts a well-formed payload
+// carrying no file path stays silent: the matcher delivered a tool call with
+// nothing to guard, which is not an un-evaluated guard.
+func TestHookPreEdit_AllowsPayloadWithoutFilePath(t *testing.T) {
+	root, _ := writeVerifyProject(t)
+	t.Chdir(root)
+
+	dec, raw, stderr := runHookPreEditStdin(t, strings.NewReader(`{"hook_event_name":"PreToolUse","tool_name":"Bash"}`))
+
+	assert.Empty(t, raw, "no file in the payload → nothing to guard")
+	assert.Empty(t, stderr)
 	assert.Empty(t, dec.HookSpecificOutput.PermissionDecision)
 }

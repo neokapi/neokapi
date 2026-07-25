@@ -30,6 +30,70 @@ type StopHookDecision struct {
 	Reason   string `json:"reason,omitempty"`
 }
 
+// HookNotice is what a kapi hook writes when it could not evaluate its guard at
+// all. It deliberately carries no decision — so the assistant's normal flow is
+// untouched and the hook still fails open — plus a systemMessage, Claude Code's
+// documented channel for a warning shown to the user.
+//
+// The shape exists because fail-open without a signal is unobservable: the zero
+// value of a hook payload is indistinguishable from a legitimate one, so a guard
+// that never ran looked exactly like a guard that passed. An unheard hook is
+// never silent.
+type HookNotice struct {
+	SystemMessage string `json:"systemMessage"`
+}
+
+// hookUnheard reports that hook could not evaluate its guard, then allows.
+//
+// The message goes to both of a hook's channels because they reach different
+// readers: stderr is the shell/CI channel (and the only one when the command is
+// run by hand), while the systemMessage on stdout is the in-session channel
+// Claude Code surfaces to the user. Both name the hook, so an inert guard is
+// attributable.
+//
+// The returned error is the stdout write's, matching the decision paths: a hook
+// that cannot write its own stdout has genuinely failed, and Claude Code reads a
+// non-zero exit (other than 2) as a non-blocking hook error — it shows stderr to
+// the user and lets the operation proceed. So even that path stays fail-open.
+func hookUnheard(cmd Command, hook, because string) error {
+	msg := fmt.Sprintf("%s: the guard did not run — %s. Allowing: a kapi hook fails open, "+
+		"so this is not a denial — but the guard did not pass either, it never ran.", hook, because)
+	fmt.Fprintln(cmd.ErrOrStderr(), "warning: "+msg)
+	enc := json.NewEncoder(cmd.OutOrStdout())
+	enc.SetEscapeHTML(false)
+	return enc.Encode(HookNotice{SystemMessage: msg})
+}
+
+// readHookPayload decodes an assistant's hook payload from r into out. It
+// returns an empty string when out is usable, and otherwise a clause naming why
+// the payload could not be turned into a decision input, so the caller can fail
+// open *and say so*.
+//
+// The three failures are kept apart on purpose — the previous code conflated an
+// unreadable stdin with an empty one and then discarded the JSON error entirely,
+// which is how an inert guard became invisible. The documented no-payload case
+// is not one of them: when r is a character device (a terminal, or /dev/null)
+// the command was run by hand with nothing piped in, so there is nothing to read
+// and nothing to warn about — and reading would block on a tty forever.
+func readHookPayload(r io.Reader, out any) string {
+	if f, ok := r.(*os.File); ok {
+		if fi, err := f.Stat(); err == nil && (fi.Mode()&os.ModeCharDevice) != 0 {
+			return ""
+		}
+	}
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return fmt.Sprintf("stdin could not be read: %v", err)
+	}
+	if len(bytes.TrimSpace(data)) == 0 {
+		return "the payload on stdin was empty"
+	}
+	if err := json.Unmarshal(data, out); err != nil {
+		return fmt.Sprintf("the payload on stdin is not the JSON this hook expects: %v", err)
+	}
+	return ""
+}
+
 // hookBlockMaxFindings caps how many findings the block reason lists, so the
 // instruction stays focused even on a project with many issues.
 const hookBlockMaxFindings = 25
@@ -38,14 +102,21 @@ const hookBlockMaxFindings = 25
 // decision. It returns nil on every expected path (the decision is the JSON on
 // stdout, not the exit code); only an unexpected write failure is an error.
 func (a *App) RunHookStop(cmd Command) error {
-	in := readStopHookInput(cmd.InOrStdin())
+	const hook = "kapi hook stop"
+
+	var in stopHookInput
+	if because := readHookPayload(cmd.InOrStdin(), &in); because != "" {
+		return hookUnheard(cmd, hook, because)
+	}
 
 	// Evaluate the project in the session's working directory. The hook process
 	// may start elsewhere, so move into cwd before resolving the project and its
-	// relative content globs. If we can't, fail open (let Claude stop).
+	// relative content globs. If we can't, fail open — but say so: from the wrong
+	// directory the upward walk finds a different project, or none, and the gate
+	// silently evaluates nothing.
 	if in.CWD != "" {
 		if err := os.Chdir(in.CWD); err != nil {
-			return nil
+			return hookUnheard(cmd, hook, fmt.Sprintf("the session directory %s could not be entered: %v", in.CWD, err))
 		}
 	}
 
@@ -57,14 +128,26 @@ func (a *App) RunHookStop(cmd Command) error {
 	vcmd := NewEnvCommand(context.Background(), "verify")
 	AddProjectFlag(vcmd)
 	AddVerifyFlags(vcmd)
-	out, err := a.computeVerify(vcmd, nil)
-	restore()
-	if err != nil {
-		// No .kapi project here, or an operational error — nothing to gate on.
-		// Don't trap the assistant; let it stop.
-		return nil
+	// Resolve the project before evaluating, so "there is no project here" (the
+	// ordinary case, and genuinely nothing to gate) stays apart from "there is a
+	// project and its gates could not be evaluated" (an installed-but-inert
+	// guard, which must be reported). computeVerify returns one error for both.
+	projectPath, perr := ResolveProjectPath(vcmd)
+	var out verifyOutput
+	var verr error
+	if perr == nil && projectPath != "" {
+		out, verr = a.computeVerify(vcmd, nil)
 	}
-	if out.Pass {
+	restore()
+
+	switch {
+	case perr != nil:
+		return hookUnheard(cmd, hook, fmt.Sprintf("the project could not be located: %v", perr))
+	case projectPath == "":
+		return nil // no kapi project here → nothing to gate; Claude may stop
+	case verr != nil:
+		return hookUnheard(cmd, hook, fmt.Sprintf("the gates for %s could not be evaluated: %v", projectPath, verr))
+	case out.Pass:
 		return nil
 	}
 
@@ -89,28 +172,6 @@ func silenceStderr() func() {
 		os.Stderr = orig
 		_ = devnull.Close()
 	}
-}
-
-// readStopHookInput parses the Stop-hook JSON from r. Missing or malformed
-// input yields a zero value (safe defaults). When r is an interactive terminal
-// (the command was run by hand with no piped payload) it does not block on a
-// read that would never return.
-func readStopHookInput(r io.Reader) stopHookInput {
-	var in stopHookInput
-	if f, ok := r.(*os.File); ok {
-		if fi, err := f.Stat(); err == nil && (fi.Mode()&os.ModeCharDevice) != 0 {
-			return in
-		}
-	}
-	data, err := io.ReadAll(r)
-	if err != nil || len(bytes.TrimSpace(data)) == 0 {
-		return in
-	}
-	// Best-effort: malformed or partial hook payloads fall back to the caller's
-	// defaults (in) rather than failing the hook; the error is intentionally
-	// ignored.
-	_ = json.Unmarshal(data, &in) // best-effort; falls back to defaults on malformed input
-	return in
 }
 
 // hookBlockReason renders the failing gates' findings as the instruction fed
@@ -188,47 +249,59 @@ type PreToolUseDecision struct {
 // (the verdict is the JSON on stdout, not the exit code); only an unexpected
 // write failure is an error.
 func (a *App) RunHookPreEdit(cmd Command) error {
-	in := readPreEditHookInput(cmd.InOrStdin())
+	const hook = "kapi hook pre-edit"
+
+	var in preEditHookInput
+	if because := readHookPayload(cmd.InOrStdin(), &in); because != "" {
+		return hookUnheard(cmd, hook, because)
+	}
 
 	file := strings.TrimSpace(in.ToolInput.FilePath)
 	if file == "" {
-		return nil // nothing to guard
+		return nil // a well-formed payload with no file path → nothing to guard
 	}
 
 	// Resolve the project in the session's working directory. The hook process
 	// may start elsewhere, so move into cwd before the git-style upward walk and
 	// before resolving the project's relative content globs. Fail open if we
-	// can't.
+	// can't — but say so: from the wrong directory the walk finds a different
+	// project, or none, and the guard matches nothing.
 	if in.CWD != "" {
 		if err := os.Chdir(in.CWD); err != nil {
-			return nil
+			return hookUnheard(cmd, hook, fmt.Sprintf("the session directory %s could not be entered: %v", in.CWD, err))
 		}
 	}
 
 	projectPath, err := ResolveProjectPath(cmd)
-	if err != nil || projectPath == "" {
+	if err != nil {
+		return hookUnheard(cmd, hook, fmt.Sprintf("the project could not be located: %v", err))
+	}
+	if projectPath == "" {
 		return nil // no project here → nothing to guard
 	}
 
 	// Silence any gate chatter to stderr while we load and match: a PreToolUse
 	// hook's stderr on exit 0 surfaces to the user as a notice, and the verdict
-	// belongs in the decision JSON, not in stray logging.
+	// belongs in the decision JSON, not in stray logging. Restore it before any
+	// warning, so an un-evaluated guard is still heard.
 	restore := silenceStderr()
-	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
-	if err != nil {
-		restore()
-		return nil // unloadable project (e.g. requires a plugin we lack) → fail open
+	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
+	restore()
+	if lerr != nil {
+		// An unloadable project (e.g. it requires a plugin we lack) leaves the
+		// guard installed but inert — exactly the state that must not be silent.
+		return hookUnheard(cmd, hook, fmt.Sprintf("the project at %s could not be loaded: %v", projectPath, lerr))
 	}
-	abs, err := filepath.Abs(file)
-	if err != nil {
-		restore()
-		return nil
+	abs, aerr := filepath.Abs(file)
+	if aerr != nil {
+		return hookUnheard(cmd, hook, fmt.Sprintf("%s could not be resolved to an absolute path: %v", file, aerr))
 	}
 	// Match in canonical (symlink-resolved) space. The project root comes from
 	// os.Getwd (which may return the real path) while the edited file_path comes
 	// from the assistant verbatim; on macOS those differ (/var vs /private/var),
 	// and a project under any symlinked path would mismatch otherwise. Reuse the
 	// canonical forms for the reason so its paths render relative consistently.
+	restore = silenceStderr()
 	root := canonicalPath(filepath.Dir(projectPath))
 	target := canonicalPath(abs)
 	source, locale, isTarget := matchTargetToSource(proj, root, target)
@@ -246,28 +319,6 @@ func (a *App) RunHookPreEdit(cmd Command) error {
 	enc := json.NewEncoder(cmd.OutOrStdout())
 	enc.SetEscapeHTML(false)
 	return enc.Encode(dec)
-}
-
-// readPreEditHookInput parses the PreToolUse-hook JSON from r. Missing or
-// malformed input yields a zero value (safe defaults). When r is an interactive
-// terminal (the command was run by hand with no piped payload) it does not block
-// on a read that would never return.
-func readPreEditHookInput(r io.Reader) preEditHookInput {
-	var in preEditHookInput
-	if f, ok := r.(*os.File); ok {
-		if fi, err := f.Stat(); err == nil && (fi.Mode()&os.ModeCharDevice) != 0 {
-			return in
-		}
-	}
-	data, err := io.ReadAll(r)
-	if err != nil || len(bytes.TrimSpace(data)) == 0 {
-		return in
-	}
-	// Best-effort: malformed or partial hook payloads fall back to the caller's
-	// defaults (in) rather than failing the hook; the error is intentionally
-	// ignored.
-	_ = json.Unmarshal(data, &in) // best-effort; falls back to defaults on malformed input
-	return in
 }
 
 // preEditDenyReason renders the instruction fed back to Claude when it tries to
