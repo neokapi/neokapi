@@ -707,8 +707,13 @@ jobs:
             mingw-w64-${{ matrix.build.mtriple }}-icu
             mingw-w64-${{ matrix.build.mtriple }}-pkg-config
 
-      - name: Install wails3 CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+      # Pinned to the wails version the app builds against, not @latest: the
+      # bindings this job regenerates are also committed and gated for byte
+      # equality (make check-bowrain-desktop-bindings), so a floating CLI would
+      # let an upstream release silently make the shipped bindings diverge from
+      # the gated copy. `make wails3-cli` derives the pin from go.mod.
+      - name: Install wails3 CLI (pinned to the app's wails module)
+        run: make wails3-cli
 
       - name: Type-check shared UI package
         working-directory: bowrain/packages/ui

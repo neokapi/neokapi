@@ -200,6 +200,9 @@ jobs:
       # core/ or host/ model types is still caught post-merge). Needs the Go
       # toolchain + libicu-dev from the two steps above; regeneration is a
       # static analysis of the service API, so it reuses this job's build cache.
+      - name: Install wails3 CLI (pinned to the app's wails module)
+        run: make wails3-cli
+
       - name: Kapi Desktop Wails bindings are fresh
         run: make check-kapi-desktop-bindings
 
@@ -302,6 +305,9 @@ jobs:
       # TM→Memory wrappers in the committed app.js but left the ids, which are
       # hashes of the Go method names — so the names typechecked while every one
       # of those calls dispatched to a hash of a method that no longer exists.
+      - name: Install wails3 CLI (pinned to the app's wails module)
+        run: make wails3-cli
+
       - name: Bowrain Desktop Wails bindings are fresh
         run: make check-bowrain-desktop-bindings
 

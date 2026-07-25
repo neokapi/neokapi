@@ -1083,6 +1083,28 @@ kapi-desktop-test: ## Run Kapi Desktop Go backend tests
 WAILS_BINDINGS_FLAGS := -f "-tags production,fts5 -trimpath -buildvcs=false -ldflags=\"\"" -clean=true
 BOWRAIN_DESKTOP_DIR  := bowrain/apps/bowrain
 
+# Install the wails3 CLI at the exact wails version the apps build against, so
+# the generator can never disagree with the library. `go install …@latest` would
+# make the byte gate drift repo-wide the day upstream tags a release; deriving
+# the pin from go.mod keeps one source of truth. (Verified byte-identical output
+# across two CLI versions, so the pin is future-proofing, not a current fix.)
+#
+# One CLI on PATH serves both desktop apps, so their pins must agree — assert it
+# rather than silently generating one app's bindings with the other's generator.
+# The queries run with GOWORK=off deliberately: inside the workspace `go list -m`
+# reports the MVS-unified version, so both modules would always look identical
+# and the assertion would never fire.
+wails3-cli: ## Install the wails3 CLI pinned to the wails version both desktop apps require
+	@kv="$$(cd $(KAPI_DESKTOP_DIR) && GOWORK=off $(GO) list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"; \
+	bv="$$(cd $(BOWRAIN_DESKTOP_DIR)/../.. && GOWORK=off $(GO) list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"; \
+	if [ "$$kv" != "$$bv" ]; then \
+		echo "wails3-cli: the desktop apps pin different wails versions (kapi-desktop=$$kv, bowrain=$$bv);"; \
+		echo "  one wails3 CLI cannot generate both apps' bindings faithfully — align the two go.mod files."; \
+		exit 1; \
+	fi; \
+	echo "wails3-cli: installing wails3 $$kv"; \
+	$(GO) install github.com/wailsapp/wails/v3/cmd/wails3@$$kv
+
 kapi-desktop-bindings: ## Regenerate the committed Kapi Desktop Wails bindings + wbridge id map
 	cd $(KAPI_DESKTOP_DIR) && wails3 generate bindings $(WAILS_BINDINGS_FLAGS)
 	cd $(KAPI_DESKTOP_DIR)/frontend && node scripts/gen-wails-id-map.mjs
@@ -2203,7 +2225,7 @@ help: ## Show this help
         kapi-desktop-frontend-deps kapi-desktop-frontend-dev kapi-desktop-frontend-build \
         kapi-desktop-frontend-test kapi-desktop-frontend-check kapi-desktop-extract \
         kapi-desktop-bindings bowrain-desktop-bindings wails-bindings check-wails-bindings \
-        check-kapi-desktop-bindings check-bowrain-desktop-bindings \
+        check-kapi-desktop-bindings check-bowrain-desktop-bindings wails3-cli \
         kapi-desktop-pseudo-translate kapi-desktop-compile kapi-desktop-translations \
         bowrain-app-extract bowrain-app-pseudo-translate bowrain-app-compile \
         bowrain-app-translations bowrain-app-l10n-verify \
