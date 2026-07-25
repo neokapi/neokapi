@@ -62,7 +62,7 @@
   "devDependencies": {
     "@oxlint/plugins": "^1.73.0",
     "@types/estree": "^1.0.0",
-    "@types/node": "^25.9.2",
+    "@types/node": "^26.1.1",
     "esbuild": "^0.28.1",
     "eslint": "^10.7.0",
     "typescript": "^7.0.2",
