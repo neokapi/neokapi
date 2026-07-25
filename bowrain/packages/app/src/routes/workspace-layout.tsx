@@ -724,7 +724,16 @@ export function WorkspaceLayout() {
     return null;
   }
 
-  const isEditor = activeView === "translate";
+  // Which routes manage their own scrolling, and therefore want the shell's
+  // scroll container switched off.
+  //
+  // Only the full-height editor surfaces qualify — they lay out fixed panes and
+  // scroll inside them. activeView === "translate" is the whole Projects
+  // *section*, which also covers the dashboard and the project overview: those
+  // are ordinary documents that grow past the viewport, and handing them
+  // overflow-hidden left their lower content unreachable (no scrollbar, no
+  // wheel, nothing) on any window short enough to matter. Match the route.
+  const isSelfScrollingRoute = /\/(translate|review|pre-process)$/.test(pathname);
 
   // @bravo is dark by default (epic 015): only surface it when the server reports
   // the workspace is entitled (plan matrix + per-workspace override). It is also
@@ -821,7 +830,7 @@ export function WorkspaceLayout() {
                 />
               }
               rightPanelSlot={bravoEnabled ? <ConnectedBravoPanel /> : undefined}
-              contentClassName={isEditor ? "overflow-hidden" : "overflow-auto"}
+              contentClassName={isSelfScrollingRoute ? "overflow-hidden" : "overflow-auto"}
             >
               <StreamProvider initialStream={currentStream} onStreamChange={handleStreamChange}>
                 <Outlet />

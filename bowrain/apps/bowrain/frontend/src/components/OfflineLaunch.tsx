@@ -73,7 +73,8 @@ export function OfflineLaunch({ serverURL, onRetry, onUseDifferentServer }: Offl
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center h-full gap-8">
+    // min-h-full: centres when it fits, grows when it does not (see ServerConnect).
+    <div className="flex min-h-full flex-col items-center justify-center gap-8 p-4">
       <div className="flex flex-col items-center text-center gap-3">
         <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
           <WifiOff className="w-6 h-6 text-muted-foreground" />

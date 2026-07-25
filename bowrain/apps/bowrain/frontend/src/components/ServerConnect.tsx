@@ -112,7 +112,9 @@ export function ServerConnect({
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full gap-8">
+    // min-h-full, not h-full: fills and centres when there is room, grows past
+    // it when there is not, so the enclosing scroll region can reach the rest.
+    <div className="flex min-h-full flex-col items-center justify-center gap-8 p-4">
       <div className="text-center">
         <h2 className="text-2xl font-semibold mb-2">Welcome to Bowrain</h2>
         <p className="text-muted-foreground text-sm max-w-md">
