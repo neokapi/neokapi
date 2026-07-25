@@ -211,20 +211,49 @@ func (w *Writer) writeBlockAsMsgstr(blocks map[string]*model.Block, refID string
 		return err
 	}
 
-	text := w.blockText(block)
+	text, known := w.msgstrText(block)
 
-	// Check if we can use the raw msgstr bytes for byte-exact output.
-	if raw, ok := block.Properties["raw-msgstr"]; ok && raw != "" {
-		// Parse the original msgstr value from the raw field to compare.
-		origValue := w.parseRawMsgstrValue(raw)
-		if origValue == text {
-			// Text unchanged — output raw bytes verbatim.
+	// Check if we can use the raw msgstr bytes for byte-exact output. When the
+	// writer cannot say what belongs in the slot, the capture is the only
+	// statement of it and stands unconditionally: blanking a translation the file
+	// arrived with is the worst of the available answers.
+	if raw, ok := block.Properties[propRawMsgstr]; ok && raw != "" {
+		if !known || w.parseRawMsgstrValue(raw) == text {
 			_, err := io.WriteString(w.Output, raw)
 			return err
 		}
 	}
 
 	return w.writeMultilineField(fieldName, text)
+}
+
+// msgstrText resolves what belongs in a block's msgstr slot, and whether the
+// writer can say.
+//
+// With an active locale the writer is merging that locale into the catalog, so
+// the answer is its target — empty when there is none, which is PO's spelling of
+// "untranslated" and the long-standing behaviour.
+//
+// With NO active locale the writer is reproducing the catalog rather than merging
+// into it, and the msgstr slot still belongs to the locale the reader attached it
+// under. The model's target for that locale is then the authority — the rule
+// #1471 established for .kbf, here under a non-write locale (#1482). Before this,
+// "no active locale" resolved to the empty string, so every translated msgstr was
+// rewritten empty: `kapi apply` and the MCP edit tool pass no write locale at
+// all, and `kapi ksed -i` passes one only with --target-lang, so editing a source
+// string in a translated catalog blanked every translation in it and exited 0.
+//
+// When no locale was recorded either — a monolingual catalog, where the msgstr
+// carries the source and no target is ever attached — the writer knows nothing
+// about the slot and says so, and its caller keeps the captured bytes.
+func (w *Writer) msgstrText(block *model.Block) (text string, known bool) {
+	if !w.Locale.IsEmpty() {
+		return renderTarget(block, w.Locale), true
+	}
+	if loc, ok := format.VerbatimSlotLocale(block, propRawMsgstr); ok {
+		return renderTarget(block, loc), true
+	}
+	return "", false
 }
 
 // parseRawMsgstrValue extracts the decoded string value from raw msgstr field text.
@@ -377,11 +406,9 @@ func (w *Writer) writeBlock(part *model.Part) error {
 		return err
 	}
 
-	// Write msgstr - use target text if available
-	target := ""
-	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		target = renderTarget(block, w.Locale)
-	}
+	// Write msgstr — the target for the writer's locale, or, with no active
+	// locale, the target for the locale the slot belongs to (msgstrText).
+	target, _ := w.msgstrText(block)
 	if err := w.writeMultilineField("msgstr", target); err != nil {
 		return err
 	}
@@ -422,10 +449,7 @@ func (w *Writer) writePluralGroup() error {
 	// Write one msgstr[N] per plural form in the group. Languages with
 	// more than two forms (e.g. Russian nplurals=3) carry extra blocks.
 	for i, block := range w.pluralGroup {
-		target := ""
-		if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-			target = renderTarget(block, w.Locale)
-		}
+		target, _ := w.msgstrText(block)
 		if err := w.writeMultilineField(fmt.Sprintf("msgstr[%d]", i), target); err != nil {
 			return err
 		}
@@ -537,20 +561,6 @@ func escapePOPlain(s string) string {
 	s = strings.ReplaceAll(s, "\f", "\\f")
 	s = strings.ReplaceAll(s, "\v", "\\v")
 	return s
-}
-
-// blockText returns the target text if available for the writer's locale,
-// otherwise an empty string. PO is a bilingual format — untranslated
-// entries keep an empty msgstr rather than falling back to source text.
-//
-// Inline-code Ph runs (e.g. printf specifiers split out by codeFinder)
-// re-emit their original Data string, so `%s` survives a round-trip
-// through the model instead of disappearing as `seg.Text()` would.
-func (w *Writer) blockText(block *model.Block) string {
-	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		return renderTarget(block, w.Locale)
-	}
-	return ""
 }
 
 // renderSource returns the source text with inline-code Data preserved

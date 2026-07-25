@@ -98,3 +98,50 @@ func TestVerbatimTextProp_DerivesFromTheCaptureName(t *testing.T) {
 	assert.NotEqual(t, format.VerbatimTextProp("raw-msgid"), format.VerbatimTextProp("raw-msgstr"))
 	assert.Equal(t, "raw-msgid.text", format.VerbatimTextProp("raw-msgid"))
 }
+
+// The slot-locale seam (#1482). A captured TARGET slot belongs to a locale, and
+// the writer needs that locale to tell "no active locale was given" from "this
+// slot has nothing to write". Both cases below draw the same distinction the
+// witness above draws, one level up.
+
+func TestVerbatimSlotLocale_RecordedLocaleIsReturned(t *testing.T) {
+	b := &model.Block{ID: "tu1"}
+	format.RecordVerbatimSlotLocale(b, "raw-msgstr", model.LocaleID("fr"))
+
+	loc, ok := format.VerbatimSlotLocale(b, "raw-msgstr")
+	require.True(t, ok, "a recorded slot locale must be readable back")
+	assert.Equal(t, model.LocaleID("fr"), loc)
+	assert.Equal(t, "raw-msgstr.locale", format.VerbatimSlotLocaleProp("raw-msgstr"))
+}
+
+func TestVerbatimSlotLocale_UnknownIsReportedAsUnknown(t *testing.T) {
+	// The control. A reader that could not name the slot's locale must leave the
+	// writer unable to claim one: the alternative — treating the absence as
+	// "untranslated" — is what blanked a translated PO catalog.
+	b := &model.Block{ID: "tu1"}
+	_, ok := format.VerbatimSlotLocale(b, "raw-msgstr")
+	assert.False(t, ok, "no recorded locale must report unknown, not a zero locale")
+
+	// An empty locale is not a locale: recording one records nothing.
+	format.RecordVerbatimSlotLocale(b, "raw-msgstr", model.LocaleID(""))
+	_, ok = format.VerbatimSlotLocale(b, "raw-msgstr")
+	assert.False(t, ok, "an empty locale must not be recorded as if it were known")
+}
+
+func TestVerbatimText_ReturnsTheWitnessAsAValue(t *testing.T) {
+	// EPUB's package rewrite locates what to replace BY the text as read, so it
+	// needs the witness as a value, not as a comparison.
+	b := &model.Block{ID: "tu1"}
+	b.SetSourceText("This is the first paragraph.")
+	format.RecordVerbatimText(b, "epub.xhtml", "This is the first paragraph.")
+
+	// After the edit the block's source is the NEW text; the witness is not.
+	b.SetSourceText("This is the first section.")
+	asRead, ok := format.VerbatimText(b, "epub.xhtml")
+	require.True(t, ok)
+	assert.Equal(t, "This is the first paragraph.", asRead,
+		"the witness must stay the text as read — keyed on the current source the lookup is tautological")
+
+	_, ok = format.VerbatimText(b, "nothing-recorded")
+	assert.False(t, ok)
+}

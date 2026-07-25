@@ -400,28 +400,54 @@ func (w *Writer) writeEPUB(parts []*model.Part, childLayerValues map[string]stri
 	return nil
 }
 
-// replaceXHTMLText replaces translatable text in XHTML content with translations.
+// replaceXHTMLText rewrites an XHTML entry in place: every span of character
+// data that belongs to a translatable block is replaced with the text the
+// pipeline produced (the target for locale when the block has one, otherwise the
+// block's own source), and every other byte of the entry is the original byte.
+//
+// Two things are load-bearing here.
+//
+// The lookup key is the text the reader recorded for the block (propXHTMLText) —
+// what actually stands in this entry — never the block's current source. Keyed on
+// the current source the comparison is tautological: after a source edit the
+// needle IS the new text, so it matches nothing in the original entry, the
+// replacement no-ops, and the write reports success with the edit missing from
+// the file (#1482). Blocks carrying no recorded witness (built by something other
+// than this reader) fall back to their source, the best available statement of
+// what they replace.
+//
+// And the entry is spliced, not re-encoded. Round-tripping the token stream
+// through encoding/xml re-declared the default namespace on every element
+// (`<html xmlns="…" xmlns="…">`, `<p xmlns="…">`) because the decoder resolves
+// each name into Name.Space and the encoder re-emits it — invalid XML, produced
+// even when nothing had been edited. Splicing preserves the entry byte for byte
+// outside the replaced spans, which is the same "keep the original, overwrite
+// only what changed" discipline the other package writers follow.
 func replaceXHTMLText(content []byte, blocks []*model.Block, locale model.LocaleID) []byte {
-	// Build a map from source text to translated text
+	// Build a map from the text as read to the text to write.
 	replacements := make(map[string]string)
 	for _, block := range blocks {
-		sourceText := block.SourceText()
-		targetText := sourceText
+		asRead, ok := format.VerbatimText(block, propXHTMLText)
+		if !ok {
+			asRead = block.SourceText()
+		}
+		targetText := block.SourceText()
 		if !locale.IsEmpty() && block.HasTarget(locale) {
 			targetText = block.TargetText(locale)
 		}
-		replacements[sourceText] = targetText
+		replacements[strings.TrimSpace(asRead)] = targetText
+	}
+	if len(replacements) == 0 {
+		return content
 	}
 
-	// Parse and rebuild XHTML
 	decoder := xml.NewDecoder(bytes.NewReader(content))
 	decoder.Strict = false
 	decoder.AutoClose = xml.HTMLAutoClose
 	decoder.Entity = xml.HTMLEntity
 
-	var result bytes.Buffer
-	encoder := xml.NewEncoder(&result)
-
+	// blockElements are the containers whose text the reader surfaced as blocks;
+	// only their character data is eligible for replacement.
 	blockElements := map[string]bool{
 		"p": true, "h1": true, "h2": true, "h3": true,
 		"h4": true, "h5": true, "h6": true, "li": true,
@@ -430,46 +456,41 @@ func replaceXHTMLText(content []byte, blocks []*model.Block, locale model.Locale
 		"blockquote": true, "title": true,
 	}
 
-	var textBuf strings.Builder
-	inBlock := false
-	depth := 0
-	var pendingTokens []xml.Token
+	var (
+		edits    []byteSplice
+		textBuf  strings.Builder
+		spans    []byteSpan
+		inBlock  bool
+		depth    int
+		lastRead int64
+	)
 
+	// flushBlock decides what happens to the character-data spans collected for
+	// one block element. The whole replacement goes into the FIRST span and the
+	// rest are dropped, so inline markup between them (an <em>, a <span>) keeps
+	// its own bytes and its position.
 	flushBlock := func() {
-		if textBuf.Len() > 0 {
-			text := strings.TrimSpace(textBuf.String())
-			if replacement, ok := replacements[text]; ok {
-				// Replace all pending char data tokens with the replacement
-				var newTokens []xml.Token
-				replaced := false
-				for _, tok := range pendingTokens {
-					if _, isCharData := tok.(xml.CharData); isCharData && !replaced {
-						newTokens = append(newTokens, xml.CharData(replacement))
-						replaced = true
-					} else if _, isCharData := tok.(xml.CharData); !isCharData {
-						newTokens = append(newTokens, tok)
-					}
-				}
-				for _, tok := range newTokens {
-					_ = encoder.EncodeToken(tok)
-				}
-			} else {
-				for _, tok := range pendingTokens {
-					_ = encoder.EncodeToken(tok)
-				}
-			}
+		defer func() {
 			textBuf.Reset()
-			pendingTokens = nil
-		} else {
-			for _, tok := range pendingTokens {
-				_ = encoder.EncodeToken(tok)
-			}
-			pendingTokens = nil
+			spans = nil
+		}()
+		if len(spans) == 0 {
+			return
+		}
+		replacement, ok := replacements[strings.TrimSpace(textBuf.String())]
+		if !ok {
+			return
+		}
+		edits = append(edits, byteSplice{byteSpan: spans[0], text: xmlEscape(replacement)})
+		for _, s := range spans[1:] {
+			edits = append(edits, byteSplice{byteSpan: s})
 		}
 	}
 
 	for {
+		start := lastRead
 		tok, err := decoder.Token()
+		lastRead = decoder.InputOffset()
 		if err != nil {
 			break
 		}
@@ -482,16 +503,11 @@ func replaceXHTMLText(content []byte, blocks []*model.Block, locale model.Locale
 				}
 				inBlock = true
 				depth++
-				pendingTokens = append(pendingTokens, xml.CopyToken(t))
 			} else if inBlock {
 				depth++
-				pendingTokens = append(pendingTokens, xml.CopyToken(t))
-			} else {
-				_ = encoder.EncodeToken(xml.CopyToken(t))
 			}
 		case xml.EndElement:
 			if blockElements[t.Name.Local] {
-				pendingTokens = append(pendingTokens, xml.CopyToken(t))
 				flushBlock()
 				depth--
 				if depth <= 0 {
@@ -500,28 +516,47 @@ func replaceXHTMLText(content []byte, blocks []*model.Block, locale model.Locale
 				}
 			} else if inBlock {
 				depth--
-				pendingTokens = append(pendingTokens, xml.CopyToken(t))
-			} else {
-				_ = encoder.EncodeToken(xml.CopyToken(t))
 			}
 		case xml.CharData:
 			if inBlock {
 				textBuf.Write(t)
-				pendingTokens = append(pendingTokens, xml.CopyToken(t))
-			} else {
-				_ = encoder.EncodeToken(xml.CopyToken(t))
+				spans = append(spans, byteSpan{start: start, end: lastRead})
 			}
-		case xml.ProcInst:
-			_ = encoder.EncodeToken(xml.CopyToken(t))
-		case xml.Comment:
-			_ = encoder.EncodeToken(xml.CopyToken(t))
-		case xml.Directive:
-			_ = encoder.EncodeToken(xml.CopyToken(t))
 		}
 	}
-
 	flushBlock()
-	encoder.Flush()
 
-	return result.Bytes()
+	return applySplices(content, edits)
+}
+
+// byteSpan is a half-open byte range of the original entry.
+type byteSpan struct{ start, end int64 }
+
+// byteSplice replaces a span with text; an empty text deletes the span.
+type byteSplice struct {
+	byteSpan
+	text string
+}
+
+// applySplices rebuilds content with each splice applied. The splices are
+// produced in document order by a single forward scan, so no sorting is needed;
+// an out-of-order or out-of-range one is skipped rather than corrupting the
+// output.
+func applySplices(content []byte, splices []byteSplice) []byte {
+	if len(splices) == 0 {
+		return content
+	}
+	var out bytes.Buffer
+	out.Grow(len(content))
+	cursor := int64(0)
+	for _, s := range splices {
+		if s.start < cursor || s.end > int64(len(content)) || s.start > s.end {
+			continue
+		}
+		out.Write(content[cursor:s.start])
+		out.WriteString(s.text)
+		cursor = s.end
+	}
+	out.Write(content[cursor:])
+	return out.Bytes()
 }
