@@ -48,6 +48,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/mailer"
 	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/bowrain/platformconfig"
+	"github.com/neokapi/neokapi/bowrain/resilience"
 	mcpserver "github.com/neokapi/neokapi/bowrain/server/mcp"
 	"github.com/neokapi/neokapi/bowrain/service"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -581,6 +582,10 @@ func NewServer(cfg Config) *Server {
 	if err := s.PlatformConfig.Refresh(context.Background()); err != nil {
 		slog.Warn("platform_config: initial load failed (serving env defaults)", "error", err)
 	}
+	// Apply the admin's circuit-breaker thresholds. A failed load above leaves
+	// this at the compiled-in defaults, which is the correct fallback: breakers
+	// must work on an un-provisioned instance, not wait for configuration.
+	resilience.Default().Configure(s.PlatformConfig.ResilienceOverrides())
 
 	// Initialize job queues if SQS is configured. The extraction queue feeds
 	// the auto-extract automation (AD-013/AD-015): triggerAutoExtract enqueues
@@ -699,7 +704,12 @@ func NewServer(cfg Config) *Server {
 			s.EventBus.Subscribe(platev.EventPlatformConfigChanged, func(platev.Event) {
 				if err := s.PlatformConfig.Refresh(context.Background()); err != nil {
 					slog.Warn("platform_config: reload after change event failed", "error", err)
+					return
 				}
+				// Re-apply breaker thresholds from the new config. This is the
+				// path that makes the ctrl kill switch immediate on every
+				// instance rather than a redeploy away.
+				resilience.Default().Configure(s.PlatformConfig.ResilienceOverrides())
 			})
 		}
 	}

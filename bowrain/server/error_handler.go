@@ -32,6 +32,18 @@ func (s *Server) httpErrorHandler(err error, c echo.Context) {
 		return
 	}
 
+	// Backstop for an open-circuit rejection that reached the chain unhandled.
+	// It must not become a generic 500: nothing broke, a known-down dependency
+	// was simply not called, and the client needs the typed code and Retry-After
+	// to render that honestly.
+	if resp, ok := unavailableErr(c, err); ok {
+		if resp != nil {
+			slog.WarnContext(c.Request().Context(), "request declined: dependency circuit open",
+				"method", c.Request().Method, "path", c.Path(), "reference", requestID(c), "error", err)
+		}
+		return
+	}
+
 	ref := requestID(c)
 	status := http.StatusInternalServerError
 	code := ""

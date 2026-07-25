@@ -29,6 +29,19 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// Stable codes for a dependency the platform declined to call because its
+// circuit breaker is open. They are distinct from a generic 5xx on purpose: the
+// request did not fail, it was not attempted, and the work will succeed once
+// the upstream returns — so the UI shows a wait, not a failure.
+const (
+	// CodeAIUnavailable is the AI/LLM provider being circuit-broken. Detail
+	// fields: "dependency", "retry_after_seconds".
+	CodeAIUnavailable = "ai_unavailable"
+	// CodeDependencyUnavailable is any other circuit-broken upstream (a CMS
+	// connector, the forge API, the mail relay). Same detail fields.
+	CodeDependencyUnavailable = "dependency_unavailable"
+)
+
 // RequestID returns the per-request correlation ID set by
 // observe.RequestIDMiddleware, or "" when the middleware did not run (tests,
 // non-HTTP contexts).
@@ -127,6 +140,16 @@ func MessageFor(code string, details map[string]any) string {
 			return fmt.Sprintf("This workspace has used its weekly credits; they reset at %v.", at)
 		}
 		return "This workspace has used its weekly credits for this week."
+	case CodeAIUnavailable:
+		if s, ok := details["retry_after_seconds"]; ok {
+			return fmt.Sprintf("The AI service is temporarily unavailable. This work is queued and will be retried automatically in about %v seconds.", s)
+		}
+		return "The AI service is temporarily unavailable. This work is queued and will be retried automatically."
+	case CodeDependencyUnavailable:
+		if d, ok := details["dependency"]; ok {
+			return fmt.Sprintf("The %v service is temporarily unavailable. This work is queued and will be retried automatically.", d)
+		}
+		return "An external service is temporarily unavailable. This work is queued and will be retried automatically."
 	}
 	if m, ok := messages[code]; ok {
 		return m

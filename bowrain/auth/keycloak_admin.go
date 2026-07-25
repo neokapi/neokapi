@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/neokapi/neokapi/bowrain/resilience"
 )
 
 // KeycloakAdminConfig holds the parameters needed to talk to the Keycloak
@@ -64,7 +66,7 @@ func NewKeycloakAdminClient(cfg KeycloakAdminConfig) (*KeycloakAdminClient, erro
 	}
 	return &KeycloakAdminClient{
 		cfg:  cfg,
-		http: &http.Client{Timeout: 15 * time.Second},
+		http: resilience.Client("identity:keycloak-admin", resilience.KindIdentity, 15*time.Second),
 	}, nil
 }
 

@@ -5,10 +5,12 @@ import (
 	"context"
 	"net/http"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/jobs"
+	"github.com/neokapi/neokapi/bowrain/resilience"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/version"
@@ -131,6 +133,21 @@ func (s *Server) readiness(ctx context.Context) (map[string]ComponentStatus, str
 		"ai":            s.checkAI(),
 		"session_store": s.checkSessionStore(ctx),
 		"email":         s.checkEmail(),
+	}
+
+	// An open circuit is a real, currently-enforced degradation: the platform is
+	// declining calls to that dependency right now. Surface it as its own
+	// component so /ready and the ctrl dashboard say "degraded" for the same
+	// reason the request path is returning 503s — never "ready" while work is
+	// being deferred. It is never "unhealthy": the platform is still serving,
+	// and a load balancer must not pull an instance out for an upstream outage
+	// every instance shares.
+	if open := resilience.Default().Open(); len(open) > 0 {
+		components["circuit_breakers"] = ComponentStatus{
+			Status: "down",
+			Type:   "resilience",
+			Error:  "open circuit: " + strings.Join(open, ", "),
+		}
 	}
 
 	status := "ready"

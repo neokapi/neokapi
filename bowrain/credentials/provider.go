@@ -3,6 +3,7 @@ package credentials
 import (
 	"fmt"
 
+	"github.com/neokapi/neokapi/bowrain/resilience/aiguard"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
@@ -26,13 +27,15 @@ func NewProvider(store *Store, configID string) (aiprovider.LLMProvider, error) 
 
 // NewProviderFromConfig creates an LLMProvider from an explicit config and API key.
 // Uses the global provider registry, so plugin-provided providers are supported.
+// The provider comes back guarded by its circuit breaker (see aiguard), so no
+// caller can end up holding an unprotected upstream.
 func NewProviderFromConfig(cfg ProviderConfig, apiKey string) aiprovider.LLMProvider {
 	pcfg := aiprovider.Config{
 		APIKey:  apiKey,
 		Model:   cfg.Model,
 		BaseURL: cfg.BaseURL,
 	}
-	provider, err := aiprovider.NewProvider(aiprovider.ProviderID(cfg.ProviderType), pcfg)
+	provider, err := aiguard.NewProvider(aiprovider.ProviderID(cfg.ProviderType), pcfg)
 	if err != nil {
 		// Fall back to mock for unknown providers (preserves existing behavior).
 		return aiprovider.NewMockProvider()

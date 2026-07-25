@@ -60,6 +60,21 @@ type JobStore interface {
 	// knock the fresh owner's in-flight run back to 'queued' (spawning a
 	// duplicate) or eat its retry budget.
 	RetryOrFail(ctx context.Context, id string, epoch int64, maxAttempts int, errMsg string) (retry bool, err error)
+	// DeferJob parks a job whose dependency is known to be down — the circuit
+	// breaker rejected the call, so nothing was attempted upstream. The job goes
+	// back to 'queued' WITHOUT consuming a retry attempt, because the attempt
+	// budget exists to stop a job that keeps failing, not to punish a job that
+	// was never tried. An outage therefore costs waiting, not dead jobs.
+	//
+	// Deferrals are counted separately and capped by maxDeferrals: an upstream
+	// that never comes back must still terminate the job rather than cycle it
+	// through the queue forever. Exceeding the cap marks the job 'failed' with
+	// errMsg and returns (false, nil).
+	//
+	// Epoch-guarded exactly like RetryOrFail: a stale worker must not requeue
+	// the fresh owner's in-flight job. A job no longer in 'processing' yields
+	// (false, nil).
+	DeferJob(ctx context.Context, id string, epoch int64, maxDeferrals int, errMsg string) (deferred bool, err error)
 	// SweepStaleProcessing recovers jobs stuck in 'processing' longer than
 	// olderThan (a worker crashed after ClaimJob). Jobs with retry budget left
 	// are reset to 'queued' — their IDs are returned so the caller can
@@ -151,6 +166,20 @@ var jobMigrations = []storage.Migration{
 		SQL: `
 			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS via_tm INTEGER NOT NULL DEFAULT 0;
 			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS via_ai INTEGER NOT NULL DEFAULT 0;
+		`,
+	},
+	{
+		Version:     6,
+		Description: "deferral count for jobs parked on an unavailable dependency",
+		// A deferral is not a retry: the job was never attempted because the
+		// dependency's circuit was open, so it must not spend attempts. Counting
+		// deferrals separately keeps the two budgets independent — a job can wait
+		// out a long outage and still arrive at the upstream with its full retry
+		// budget intact — while the cap stops an upstream that never returns from
+		// cycling jobs through the queue indefinitely. Append-only column; older
+		// rows read as 0.
+		SQL: `
+			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS deferrals INTEGER NOT NULL DEFAULT 0;
 		`,
 	},
 }
@@ -302,6 +331,33 @@ func (s *jobStore) RetryOrFail(ctx context.Context, id string, epoch int64, maxA
 	}
 	if err != nil {
 		return false, fmt.Errorf("retry-or-fail job: %w", err)
+	}
+	return requeued, nil
+}
+
+func (s *jobStore) DeferJob(ctx context.Context, id string, epoch int64, maxDeferrals int, errMsg string) (bool, error) {
+	if maxDeferrals < 1 {
+		maxDeferrals = 1
+	}
+	// Mirrors RetryOrFail's single-statement shape, but increments `deferrals`
+	// and leaves `attempts` alone — that is the whole point of a deferral. The
+	// status/epoch guards are identical, so a stale worker can no more defer the
+	// fresh owner's job than it can retry it.
+	var requeued bool
+	err := s.db.QueryRowContext(ctx,
+		`UPDATE translation_jobs
+		 SET deferrals = deferrals + 1,
+		     status = CASE WHEN deferrals + 1 < $2 THEN 'queued' ELSE 'failed' END,
+		     error  = CASE WHEN deferrals + 1 < $2 THEN error ELSE $3 END,
+		     updated_at = NOW()
+		 WHERE id = $1 AND status = 'processing' AND claim_epoch = $4
+		 RETURNING status = 'queued'`,
+		id, maxDeferrals, errMsg, epoch).Scan(&requeued)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("defer job: %w", err)
 	}
 	return requeued, nil
 }

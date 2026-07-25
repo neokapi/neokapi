@@ -23,6 +23,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/neokapi/neokapi/bowrain/resilience"
 )
 
 // Well-known PostHog Cloud hosts. A custom self-hosted URL is also accepted.
@@ -157,7 +159,7 @@ func NewPostHogClient(host, projectID, apiKey string) (*PostHogClient, error) {
 		baseURL:   base,
 		projectID: strings.TrimSpace(projectID),
 		apiKey:    apiKey,
-		client:    &http.Client{Timeout: posthogQueryTimeout},
+		client:    resilience.Client("connector:posthog", resilience.KindConnector, posthogQueryTimeout),
 	}, nil
 }
 

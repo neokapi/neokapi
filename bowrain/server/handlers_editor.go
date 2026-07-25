@@ -556,6 +556,12 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 		pid, streamParam(c), fname, req, s.BillingHooks, wsID, c.Param("ws"),
 		s.platformProviderConfigForWorkspace(c.Request().Context(), wsID), brandCtx)
 	if err != nil {
+		// The provider is circuit-broken: nothing was sent, no credits were
+		// spent. Say so with a typed 503 the editor renders as "queued, will
+		// retry" rather than a red failure the user cannot act on.
+		if resp, ok := unavailableErr(c, err); ok {
+			return resp
+		}
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
@@ -1065,6 +1071,11 @@ func (s *Server) HandleTestProviderConfig(c echo.Context) error {
 	if _, err := prov.Chat(c.Request().Context(), []aiprovider.Message{
 		aiprovider.TextMessage("user", "Hello, respond with OK."),
 	}); err != nil {
+		// A circuit-broken provider is not a bad credential: the test never ran.
+		// Reporting it as a 400 would tell the user their key is wrong.
+		if resp, ok := unavailableErr(c, err); ok {
+			return resp
+		}
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("connection test failed: %s", err)})
 	}
 

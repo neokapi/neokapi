@@ -1,7 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSetBreadcrumb, Card, CardHeader, CardTitle, CardContent, Button } from "@neokapi/ui";
 import { RefreshCw, ExternalLink } from "lucide-react";
-import { getHealth, type ComponentStatus, type AdminHealth } from "../api";
+import {
+  getHealth,
+  type ComponentStatus,
+  type AdminHealth,
+  type CircuitBreakerStatus,
+} from "../api";
 
 // Map a component/overall status to a colored dot + label. "unconfigured" is
 // intentionally neutral (grey), not a failure — many components are optional.
@@ -57,6 +62,69 @@ function ComponentRow({ name, comp }: { name: string; comp: ComponentStatus }) {
         <StatusPill status={comp.status} />
       </div>
     </div>
+  );
+}
+
+// A breaker state maps onto the same three colours the component rows use, so
+// "open" reads as red wherever it appears.
+function breakerStatusLabel(b: CircuitBreakerStatus): string {
+  if (!b.enabled) return "unconfigured";
+  switch (b.state) {
+    case "open":
+      return "down";
+    case "half_open":
+      return "degraded";
+    default:
+      return "up";
+  }
+}
+
+function BreakerRow({ breaker }: { breaker: CircuitBreakerStatus }) {
+  return (
+    <div className="flex items-center justify-between border-b border-border/60 py-2 last:border-0">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="truncate font-mono text-sm font-medium">{breaker.dependency}</span>
+          <span className="text-xs text-muted-foreground">({breaker.kind})</span>
+        </div>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {!breaker.enabled
+            ? "Breakers are switched off — calls are never rejected."
+            : breaker.state === "open"
+              ? `Calls are being rejected without being attempted. Next recovery probe in ~${breaker.retry_after_seconds ?? 0}s.`
+              : breaker.state === "half_open"
+                ? "Probing recovery — a bounded number of calls is being let through."
+                : "Calls are passing through normally."}
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center gap-3 pl-3">
+        <span className="font-mono text-xs text-muted-foreground">{breaker.state}</span>
+        <StatusPill status={breakerStatusLabel(breaker)} />
+      </div>
+    </div>
+  );
+}
+
+function BreakersCard({ breakers }: { breakers: CircuitBreakerStatus[] }) {
+  const open = breakers.filter((b) => b.state === "open");
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Circuit Breakers</CardTitle>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Outbound dependencies the platform has called. An open circuit means calls are being
+            declined rather than attempted — jobs queue and wait instead of failing.
+          </p>
+        </div>
+        <StatusPill status={open.length > 0 ? "degraded" : "up"} />
+      </CardHeader>
+      <CardContent>
+        {breakers.map((b) => (
+          <BreakerRow key={b.dependency} breaker={b} />
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -157,6 +225,10 @@ export function HealthRoute() {
             <p className="-mt-3 text-xs text-red-500">
               Worker unreachable{data.worker.error ? `: ${data.worker.error}` : ""}
             </p>
+          )}
+
+          {data.circuit_breakers && data.circuit_breakers.length > 0 && (
+            <BreakersCard breakers={data.circuit_breakers} />
           )}
 
           {(data.links.sentry || data.links.posthog || data.links.cloudwatch) && (

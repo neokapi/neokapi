@@ -28,6 +28,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/bowrain/platformconfig"
+	"github.com/neokapi/neokapi/bowrain/resilience"
 	sqltm "github.com/neokapi/neokapi/bowrain/sievepen"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/bowrain/storage/blobcfg"
@@ -364,6 +365,10 @@ func runWorker(dbURL string) error {
 		if err := pcSvc.Refresh(ctx); err != nil {
 			slog.Warn("platform_config: initial worker load failed (serving env defaults)", "error", err)
 		}
+		// Circuit-breaker thresholds. The worker keeps its own registry, so it
+		// trips on what it observes rather than inheriting the server's view —
+		// the two run different call volumes against the same upstreams.
+		resilience.Default().Configure(pcSvc.ResilienceOverrides())
 		// The shared auth-store handle (opened above) lets the resolver apply a
 		// workspace's chosen platform model (customer model choice) at job time,
 		// so batch/auto translation resolves the same model as the interactive
@@ -412,6 +417,7 @@ func runWorker(dbURL string) error {
 				if err := pcSvc.Refresh(ctx); err != nil {
 					slog.Warn("platform_config: worker reload after change event failed", "error", err)
 				} else {
+					resilience.Default().Configure(pcSvc.ResilienceOverrides())
 					slog.Info("platform_config: worker reloaded settings", "provider", pcSvc.AIProvider(), "model", pcSvc.AIDefaultModel())
 				}
 			})

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/resilience"
 	"github.com/neokapi/neokapi/core/version"
 )
 
@@ -16,9 +17,16 @@ import (
 // the external observability tools so an operator can jump from a red tile to
 // the underlying logs/traces.
 type AdminHealthResponse struct {
-	Server ReadinessResponse  `json:"server"`
-	Worker *WorkerHealth      `json:"worker,omitempty"`
-	Links  ObservabilityLinks `json:"links"`
+	Server ReadinessResponse `json:"server"`
+	Worker *WorkerHealth     `json:"worker,omitempty"`
+	// Breakers is the live circuit-breaker state for every outbound dependency
+	// the server has actually called. It is the operator's answer to "is the
+	// platform refusing to call something, and for how much longer" — the same
+	// state the request path and the job worker are acting on, not a separate
+	// probe that could disagree with them. A dependency never called yet has no
+	// entry: there is nothing truthful to report about it.
+	Breakers []resilience.Status `json:"circuit_breakers,omitempty"`
+	Links    ObservabilityLinks  `json:"links"`
 }
 
 // WorkerHealth mirrors the worker's /readyz payload, plus whether it was
@@ -58,7 +66,8 @@ func (s *Server) HandleAdminHealth(c echo.Context) error {
 			Version:    version.Version,
 			Components: components,
 		},
-		Worker: probeWorkerHealth(ctx, os.Getenv("BOWRAIN_WORKER_HEALTH_URL")),
+		Worker:   probeWorkerHealth(ctx, os.Getenv("BOWRAIN_WORKER_HEALTH_URL")),
+		Breakers: resilience.Default().States(),
 		Links: ObservabilityLinks{
 			Sentry:     os.Getenv("OBSERVABILITY_SENTRY_URL"),
 			PostHog:    os.Getenv("OBSERVABILITY_POSTHOG_URL"),

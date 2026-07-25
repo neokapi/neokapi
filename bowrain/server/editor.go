@@ -23,6 +23,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/bowrain/jobs"
+	"github.com/neokapi/neokapi/bowrain/resilience/aiguard"
 	sqltm "github.com/neokapi/neokapi/bowrain/sievepen"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -918,7 +919,7 @@ func editorAITranslate(
 		if m == "" {
 			m = req.Model
 		}
-		prov, err = aiprovider.NewProvider(aiprovider.ProviderID(cfg.Type), aiprovider.Config{
+		prov, err = aiguard.NewProvider(aiprovider.ProviderID(cfg.Type), aiprovider.Config{
 			APIKey:  cfg.APIKey,
 			Model:   m,
 			BaseURL: cfg.BaseURL,
