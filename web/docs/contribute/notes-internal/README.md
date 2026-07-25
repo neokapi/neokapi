@@ -23,7 +23,7 @@ notes describe the implementation.
 | [Flow Steps Format](flow-steps-format.md)                  | [AD-006](/contribute/architecture/006-tool-system)        | YAML step list, fan-out, script steps               |
 | [Session-Scoped Tool Authoring](session-tool-authoring.md) | [AD-006](/contribute/architecture/006-tool-system)        | Guide for writing tools against BlockStore          |
 | [Plugin Model](plugin-model.md)                            | [AD-007](/contribute/architecture/007-plugin-system)      | In-process registry contract for plugin binaries    |
-| [Plugin Bridge Protocol](plugin-bridge-protocol.md)        | [AD-007](/contribute/architecture/007-plugin-system)      | gRPC protocol, bridge descriptor                    |
+| [Plugin protocol v1](plugin-protocol-v1.md)                | [AD-007](/contribute/architecture/007-plugin-system)      | The versioned plugin contract: manifest rules, the three transports, the Mode-C gRPC surface and wire format, and the conformance suite |
 | [Kapi Project File](kapi-project-file.md)                  | [AD-008](/contribute/architecture/008-project-model)      | `kapi.yaml` recipe schema and examples              |
 | [TM Matching Algorithm](tm-matching-algorithm.md)          | [AD-009](/contribute/architecture/009-translation-memory) | Tiered matching, TMX mapping                        |
 | [Terminology Data Model](terminology-data-model.md)        | [AD-010](/contribute/architecture/010-terminology)        | Go structs, TermBase interface                      |

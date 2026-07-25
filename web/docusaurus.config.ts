@@ -175,6 +175,12 @@ const config: Config = {
           // external inbound links land there instead of 404ing.
           { from: "/parity", to: "/format-maturity" },
           { from: "/parity/fixtures", to: "/format-maturity" },
+          // The bridge-specific protocol note became the versioned, plugin-wide
+          // protocol v1 specification (#1073 D2).
+          {
+            from: "/contribute/notes-internal/plugin-bridge-protocol",
+            to: "/contribute/notes-internal/plugin-protocol-v1",
+          },
         ],
       },
     ],
