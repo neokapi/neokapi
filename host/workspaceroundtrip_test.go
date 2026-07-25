@@ -16,7 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/kpz"
-	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/memory"
 )
 
 // The trio's contract is a round trip: `pack` writes exactly the parts `info`
@@ -54,9 +54,9 @@ content:
 	// `pack` correctly refuses ("nothing to pack"), which is its own contract
 	// and is asserted separately.
 	require.NoError(t, os.MkdirAll(filepath.Join(root, project.StateDirName), 0o755))
-	tm, err := sievepen.NewSQLiteTM(filepath.Join(root, project.StateDirName, "tm.db"))
+	tm, err := memory.NewSQLiteStore(filepath.Join(root, project.StateDirName, "tm.db"))
 	require.NoError(t, err)
-	require.NoError(t, tm.Add(context.Background(), sievepen.TMEntry{
+	require.NoError(t, tm.Add(context.Background(), memory.Entry{
 		ID:          "rt-1",
 		HintSrcLang: "en",
 		Variants: map[model.LocaleID][]model.Run{
@@ -399,7 +399,7 @@ func partByName(t *testing.T, parts []ProjectArchivePart, name string) ProjectAr
 // depending on row ids or insertion order.
 func tmEntries(t *testing.T, root string) map[string]map[string]string {
 	t.Helper()
-	tm, err := sievepen.NewSQLiteTM(filepath.Join(root, project.StateDirName, "tm.db"))
+	tm, err := memory.NewSQLiteStore(filepath.Join(root, project.StateDirName, "tm.db"))
 	require.NoError(t, err)
 	defer func() { require.NoError(t, tm.Close()) }()
 

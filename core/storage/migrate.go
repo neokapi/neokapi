@@ -22,13 +22,13 @@ var validTableName = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 
 // migrateLocks serializes migrations per database file within the process:
 // concurrent openers of the same fresh database (converge workers all opening
-// the project TM) would otherwise race to apply the same versions. Keyed by
+// the project content memory) would otherwise race to apply the same versions. Keyed by
 // path, so unrelated databases never wait on each other; in-memory databases
 // are excluded (each is private to its pool).
 var migrateLocks pathLocks
 
 // Migrate applies schema migrations to the database using a namespaced migration
-// tracking table. Each subsystem (sievepen, termbase) should use a distinct
+// tracking table. Each subsystem (memory, terms) should use a distinct
 // namespace to avoid version collisions when sharing a database file.
 //
 // Concurrent-safe: within the process, migrations of one database file

@@ -19,12 +19,12 @@ const meta: Meta<typeof FlowStepList> = {
 export default meta;
 type Story = StoryObj<typeof FlowStepList>;
 
-const sampleTMs = [
+const sampleMemories = [
   { name: "project-memory", entryCount: 12450 },
   { name: "legacy-tm", entryCount: 85000 },
 ];
 
-const sampleTermbases = [{ name: "glossary", entryCount: 340 }];
+const sampleTerms = [{ name: "glossary", entryCount: 340 }];
 
 // Minimal schemas for demo.
 const leveragingSchema: ComponentSchema = {
@@ -61,7 +61,7 @@ const qualityCheckSchema: ComponentSchema = {
     termsPath: {
       type: "string",
       title: "Terminology",
-      "x-path": { type: "file", role: "input", resourceKind: "termbase" },
+      "x-path": { type: "file", role: "input", resourceKind: "terms" },
     },
     outputPath: {
       type: "string",
@@ -110,7 +110,7 @@ const schemas = new Map<string, ComponentSchema>([
 const translateFlow: FlowStepInfo[] = [
   {
     tool: "leveraging",
-    label: "TM Leverage",
+    label: "content memory Leverage",
     config: { tmxPath: "tm:project-memory", threshold: 95, fillTarget: true },
   },
   {
@@ -120,7 +120,7 @@ const translateFlow: FlowStepInfo[] = [
   {
     tool: "quality-check",
     label: "QA Check",
-    config: { termsPath: "termbase:glossary", leadingWS: true, emptyTarget: true },
+    config: { termsPath: "terms:glossary", leadingWS: true, emptyTarget: true },
   },
 ];
 
@@ -138,7 +138,7 @@ function StatefulList(props: { steps: FlowStepInfo[] }) {
       steps={steps}
       schemas={schemas}
       onStepConfigChange={handleConfigChange}
-      resources={{ tm: sampleTMs, termbase: sampleTermbases }}
+      resources={{ tm: sampleMemories, terms: sampleTerms }}
     />
   );
 }

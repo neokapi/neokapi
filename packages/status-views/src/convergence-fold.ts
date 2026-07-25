@@ -54,6 +54,12 @@ export interface ConvergenceEvent {
   locale?: string;
   units?: number;
   done?: number;
+  /**
+   * Wire field name, not vocabulary: this mirrors `json:"viaTM"` on
+   * core/convergence.Event. The serialized key is a network contract with
+   * independently released clients, so it keeps its legacy name; the render
+   * model below calls the same number `viaMemory`.
+   */
   viaTM?: number;
   viaAI?: number;
 
@@ -78,7 +84,7 @@ export function emptyRunModel(): ConvergenceRunModel {
 }
 
 function newRow(locale: string): ConvergenceLocaleRow {
-  return { locale, units: 0, done: 0, viaTM: 0, viaAI: 0, state: "queued" };
+  return { locale, units: 0, done: 0, viaMemory: 0, viaAI: 0, state: "queued" };
 }
 
 /**
@@ -149,7 +155,7 @@ export function applyEvent(model: ConvergenceRunModel, ev: ConvergenceEvent): Co
       if (pass && ev.locale) {
         const row = ensureRow(pass, ev.locale);
         row.done = ev.done ?? 0;
-        row.viaTM = ev.viaTM ?? 0;
+        row.viaMemory = ev.viaTM ?? 0;
         row.viaAI = ev.viaAI ?? 0;
         row.state = deriveRowState(row);
       }
@@ -161,7 +167,7 @@ export function applyEvent(model: ConvergenceRunModel, ev: ConvergenceEvent): Co
         const row = ensureRow(pass, ev.locale);
         if (ev.units != null) row.units = ev.units;
         row.done = ev.done ?? row.done;
-        row.viaTM = ev.viaTM ?? row.viaTM;
+        row.viaMemory = ev.viaTM ?? row.viaMemory;
         row.viaAI = ev.viaAI ?? row.viaAI;
         // locale_done is terminal for the row within this pass.
         row.state = "done";

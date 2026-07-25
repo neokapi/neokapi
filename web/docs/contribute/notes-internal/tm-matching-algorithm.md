@@ -1,8 +1,8 @@
 ---
 sidebar_position: 4
 title: "TM Matching Algorithm"
-description: Implementation note for AD-009 — the three derived matching keys (plain, structural, generalized), how they are indexed in SQLite, and the fuzzy match scoring and adaptation pipeline in Sievepen.
-keywords: [TM matching, fuzzy match, Sievepen, plain key, structural key, generalized key, implementation note, neokapi]
+description: Implementation note for AD-009 — the three derived matching keys (plain, structural, generalized), how they are indexed in SQLite, and the fuzzy match scoring and adaptation pipeline in Memory.
+keywords: [TM matching, fuzzy match, Memory, plain key, structural key, generalized key, implementation note, neokapi]
 ---
 
 # TM Matching Algorithm
@@ -13,7 +13,7 @@ This note provides implementation details for [AD-009](/contribute/architecture/
 
 Each TM entry stores its variants as `[]model.Run` sequences (AD-002). Several
 matching representations are derived from those runs at storage time and indexed
-for fast lookup. Sievepen computes them with the framework's projection helpers
+for fast lookup. Memory computes them with the framework's projection helpers
 in `core/model`:
 
 - **plain**: `model.FlattenRuns(runs)` (normalized via `NormalizeText`) -- keeps
@@ -47,7 +47,7 @@ Lookup tries matching strategies in order of reuse potential:
 
 After the exact tiers, the ambiguity rule runs: multiple full-score
 matches with *differing* target texts all demote to `ScoreNearExact` and
-flag `TMMatch.Ambiguous` -- exact-only consumers (extract pre-fill,
+flag `Match.Ambiguous` -- exact-only consumers (extract pre-fill,
 `fillTargetThreshold: 100`) skip them instead of picking by storage order.
 Results order deterministically by (score desc, match-type priority,
 entry ID).
@@ -59,8 +59,8 @@ The first match at or above the score threshold wins. A generalized exact match 
 When a generalized match is found, the match result carries adaptation information to substitute entity values from the current source into the stored target:
 
 ```go
-type TMMatch struct {
-    Entry             TMEntry
+type Match struct {
+    Entry             Entry
     Score             float64 // 0.0-1.0 (1.0 = exact match, text AND structure)
     MatchType         MatchType
     ProjectID         string // provenance: project ID of the matched entry

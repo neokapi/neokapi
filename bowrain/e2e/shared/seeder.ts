@@ -6,7 +6,7 @@
  *
  * Layers:
  *   1. Foundation  — workspace + projects + file uploads
- *   2. Language     — TM entries + terminology concepts
+ *   2. Language     — content-memory entries + terminology concepts
  *   3. Brand Voice  — brand profile from starter pack
  *   4. Collaboration — stream + tasks
  *   5. Automation   — automation rules
@@ -20,7 +20,7 @@ import { BowrainAPI } from "./api-client.js";
 import {
   WORKSPACE,
   PROJECTS,
-  TM_ENTRIES,
+  MEMORY_ENTRIES,
   CONCEPTS,
   BRAND_PROFILE,
   TASKS,
@@ -42,7 +42,7 @@ export interface StoryContext {
   brandProfileId?: string;
   stream?: string;
   taskIds?: string[];
-  tmCount: number;
+  memoryCount: number;
   conceptCount: number;
 }
 
@@ -112,19 +112,19 @@ export async function seedFoundation(api: BowrainAPI): Promise<StoryContext> {
   }
 
   console.log(`[seed] Foundation complete: ${Object.keys(projects).length} projects`);
-  return { api, wsSlug: ws.slug, projects, tmCount: 0, conceptCount: 0 };
+  return { api, wsSlug: ws.slug, projects, memoryCount: 0, conceptCount: 0 };
 }
 
 // ---------------------------------------------------------------------------
-// Layer 2: Language Assets — TM entries + terminology
+// Layer 2: Language Assets — content-memory entries + terminology
 // ---------------------------------------------------------------------------
 
 export async function seedLanguageAssets(ctx: StoryContext): Promise<StoryContext> {
   const { api, wsSlug } = ctx;
 
-  console.log(`[seed] Seeding ${TM_ENTRIES.length} TM entries...`);
-  for (const entry of TM_ENTRIES) {
-    await api.addTMEntry(
+  console.log(`[seed] Seeding ${MEMORY_ENTRIES.length} content-memory entries...`);
+  for (const entry of MEMORY_ENTRIES) {
+    await api.addMemoryEntry(
       wsSlug,
       entry.source,
       entry.target,
@@ -141,7 +141,7 @@ export async function seedLanguageAssets(ctx: StoryContext): Promise<StoryContex
   console.log(`[seed] Language assets complete`);
   return {
     ...ctx,
-    tmCount: TM_ENTRIES.length,
+    memoryCount: MEMORY_ENTRIES.length,
     conceptCount: CONCEPTS.length,
   };
 }
@@ -294,7 +294,7 @@ export async function fullSeed(api: BowrainAPI): Promise<StoryContext> {
   console.log(
     `[seed] Full seed complete: ws=${ctx.wsSlug}, ` +
       `${Object.keys(ctx.projects).length} projects, ` +
-      `${ctx.tmCount} TM entries, ` +
+      `${ctx.memoryCount} content-memory entries, ` +
       `${ctx.conceptCount} concepts, ` +
       `${ctx.taskIds?.length ?? 0} tasks`,
   );

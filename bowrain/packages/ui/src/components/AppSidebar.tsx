@@ -44,7 +44,7 @@ import { MobileWorkspaceSwitcher } from "./MobileWorkspaceSwitcher";
 // Types
 // ---------------------------------------------------------------------------
 
-export type View = "translate" | "brand" | "termbase" | "memory" | "auditlog" | "bin" | "settings";
+export type View = "translate" | "brand" | "terms" | "memory" | "auditlog" | "bin" | "settings";
 
 export interface NavItem {
   id: string;

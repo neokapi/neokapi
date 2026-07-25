@@ -10,7 +10,7 @@ import "./diagram.css";
               ─chan─▶ QA ─chan─▶ Writer ─▶ file or store
 
   with three things layered on:
-    · resources (TM, termbase, translation provider) feed annotate/translate
+    · resources (Memory, terms, translation provider) feed annotate/translate
       from above;
     · the gRPC plugin band (Okapi bridge, kapi-sat, remote) feeds reader,
       annotate and a tool stage from below;
@@ -132,7 +132,7 @@ export function ArchitectureDiagram({
               A streaming pipeline: a format reader at the left edge and a writer at the right that
               sinks to a file (round-trip) or a content store (overlays); a serial chain of
               annotate, translate and QA tools in the middle, with the translate stage fanning out
-              across parallel goroutines; translation-memory, termbase and a translation provider
+              across parallel goroutines; content-memory, terms and a translation provider
               (LLM or MT) feeding it from above; and a gRPC plugin band (Okapi bridge, tier-3
               segmenter/media/OCR plugins, remote plugins) feeding it from below. Each stage is a
               goroutine joined by Part channels, and the whole pipeline runs over many documents in
@@ -158,7 +158,7 @@ export function ArchitectureDiagram({
 
             {/* ── resources (top) ── */}
             <g>
-              {/* termbase over annotate */}
+              {/* terms over annotate */}
               <rect
                 x={252}
                 y={18}
@@ -168,14 +168,14 @@ export function ArchitectureDiagram({
                 className="kdx-chip kdx-chip--resource"
               />
               <text x={314} y={35} textAnchor="middle" fontSize={11} className="kdx-chip-t">
-                Termbase
+                Terms
               </text>
               <text x={314} y={48} textAnchor="middle" fontSize={8} className="kdx-chip-sub">
                 term-lookup
               </text>
               <path d="M314,56 L314,164" className="kdx-link kdx-link--resource" />
 
-              {/* TM over translate */}
+              {/* Memory over translate */}
               <rect
                 x={454}
                 y={18}
@@ -185,7 +185,7 @@ export function ArchitectureDiagram({
                 className="kdx-chip kdx-chip--resource"
               />
               <text x={516} y={35} textAnchor="middle" fontSize={11} className="kdx-chip-t">
-                Translation Memory
+                Content Memory
               </text>
               <text x={516} y={48} textAnchor="middle" fontSize={8} className="kdx-chip-sub">
                 recycle

@@ -55,7 +55,7 @@ approved wording **before** writing so the first draft is already close:
 
 ```bash
 kapi brand guide                       # the voice to follow (no flag inside a project)
-kapi termbase lookup "dashboard" -t en  # the approved term
+kapi terms lookup "dashboard" -t en  # the approved term
 ```
 
 ## 4. Revise and repeat
@@ -91,7 +91,7 @@ kapi apply changeset.jsonl
 
 - The **content** entry rewrites the block through the faithful round-trip.
 - The **term** entry upserts the glossary term: it is written into the project's
-  committed termbase source (`.ktb`) and the existing import compiles it into
+  committed terms source (`.ktb`) and the existing import compiles it into
   the `.kapi/termbase.db` cache. `git diff` shows the one new term; the next
   `kapi check --ship` enforces it.
 

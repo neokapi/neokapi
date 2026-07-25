@@ -15,7 +15,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // CreateEntityRequest creates a new entity annotation on a block.
@@ -233,7 +233,7 @@ func (s *Server) HandlePromoteEntity(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]any{"ok": true, "term_candidate_key": tcKey})
 }
 
-// HandlePromoteEntityToConcept promotes a marked entity to a real termbase
+// HandlePromoteEntityToConcept promotes a marked entity to a real terms
 // concept — distinct from HandlePromoteEntity, which only creates a term
 // *candidate* review item. Creating the concept fires concept.created, which the
 // RV-E/RV-F re-check subscriber reacts to automatically (re-checking existing
@@ -279,10 +279,10 @@ func (s *Server) HandlePromoteEntityToConcept(c echo.Context) error {
 	return c.JSON(http.StatusCreated, map[string]any{"ok": true, "concept": editorConceptToInfo(concept)})
 }
 
-// promoteEntityToConcept creates a termbase concept from a marked entity and fires
+// promoteEntityToConcept creates a terms store concept from a marked entity and fires
 // concept.created (which the RV-E/RV-F re-check reacts to automatically). Split
 // from the HTTP handler so the promotion mapping is testable directly.
-func (s *Server) promoteEntityToConcept(ctx context.Context, wsSlug, wsID, actor, projectID, stream string, entity *model.EntityAnnotation) (termbase.Concept, error) {
+func (s *Server) promoteEntityToConcept(ctx context.Context, wsSlug, wsID, actor, projectID, stream string, entity *model.EntityAnnotation) (terms.Concept, error) {
 	// The concept's source term lives in the entity's locale, falling back to the
 	// project's source language when the entity carries none.
 	loc := entity.Locale
@@ -295,12 +295,12 @@ func (s *Server) promoteEntityToConcept(ctx context.Context, wsSlug, wsID, actor
 	// Promote to an APPROVED term — ordinary curation, not a governed transition
 	// (forbidden/preferred creation is governed and refused on the direct path).
 	now := time.Now()
-	concept := termbase.Concept{
+	concept := terms.Concept{
 		ID:        id.New(),
 		ProjectID: projectID,
 		Domain:    string(entity.Type),
-		Source:    termbase.TermSourceTerminology,
-		Terms: []termbase.Term{
+		Source:    terms.TermSourceTerminology,
+		Terms: []terms.Term{
 			{Text: entity.Text, Locale: loc, Status: model.TermApproved},
 		},
 		CreatedAt: now,

@@ -12,7 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/kpz"
-	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/memory"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -51,7 +51,7 @@ func extractProjectFixture(t *testing.T, dir string, targetLanguages []model.Loc
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: targetLanguages,
-			TM: project.TMDefaults{
+			Memory: project.MemoryDefaults{
 				FuzzyThreshold: 75,
 			},
 		},
@@ -130,7 +130,7 @@ func TestExtract_MultiTargetWritesOneOutputPerPair(t *testing.T) {
 
 // TestExtractMergeKpzInterchangeRoundTrip exercises the bilingual interchange
 // profile (AD-025 §7): `kapi extract --format kpz` writes a
-// kind=kapi-interchange package with TM-pre-filled target overlays + skeleton,
+// kind=kapi-interchange package with content memory-pre-filled target overlays + skeleton,
 // and `kapi merge <file.kpz>` hydrates those targets and writes translated
 // output.
 func TestExtractMergeKpzInterchangeRoundTrip(t *testing.T) {
@@ -141,9 +141,9 @@ func TestExtractMergeKpzInterchangeRoundTrip(t *testing.T) {
 	writeJSONSource(t, real, "src/locales/en/messages.json",
 		`{"greeting": "Hello, world."}`)
 
-	// TM with an exact match for the source text so extract pre-fills a target.
-	tm := sievepen.NewInMemoryTM()
-	require.NoError(t, tm.Add(t.Context(), sievepen.TMEntry{
+	// content memory with an exact match for the source text so extract pre-fills a target.
+	tm := memory.NewInMemoryStore()
+	require.NoError(t, tm.Add(t.Context(), memory.Entry{
 		ID:          "tm-greeting",
 		HintSrcLang: "en-US",
 		Variants: map[model.LocaleID][]model.Run{
@@ -154,7 +154,7 @@ func TestExtractMergeKpzInterchangeRoundTrip(t *testing.T) {
 
 	// Extract --format kpz.
 	ea := newExtractApp(t)
-	ea.TMBackend = tm
+	ea.MemoryBackend = tm
 	ecmd := NewExtractCmd(ea, ExtractCmdOptions{})
 	var eout bytes.Buffer
 	ecmd.SetOut(&eout)
@@ -171,11 +171,11 @@ func TestExtractMergeKpzInterchangeRoundTrip(t *testing.T) {
 	require.NotNil(t, pkg.InterchangeTask)
 	assert.Equal(t, "fr-FR", pkg.InterchangeTask.TargetLocale)
 	require.NotEmpty(t, pkg.Skeletons, "interchange package must carry a skeleton")
-	require.NotEmpty(t, pkg.Overlays, "interchange package must carry TM-prefilled target overlays")
+	require.NotEmpty(t, pkg.Overlays, "interchange package must carry content memory-prefilled target overlays")
 
 	// Merge the interchange .kpz back.
 	ma := newExtractApp(t)
-	ma.TMBackend = tm
+	ma.MemoryBackend = tm
 	mcmd := NewMergeCmd(ma, MergeCmdOptions{})
 	var mout bytes.Buffer
 	mcmd.SetOut(&mout)
@@ -242,18 +242,18 @@ func TestExtract_StampsBatchIDAndSourceHashInXLIFFFile(t *testing.T) {
 	assert.Contains(t, s, hashExpected)
 }
 
-func TestExtract_TMExactPrefillFillsTarget(t *testing.T) {
+func TestExtract_MemoryExactPrefillFillsTarget(t *testing.T) {
 	dir := t.TempDir()
 	real, err := filepath.EvalSymlinks(dir)
 	require.NoError(t, err)
 	recipe := extractProjectFixture(t, real, []model.LocaleID{"fr-FR"})
 	writeJSONSource(t, real, "src/locales/en/app.json", `{"k":"Hello"}`)
 
-	// Seed the project TM with an exact match.
-	tmPath := filepath.Join(real, project.StateDirName, "tm.db")
-	tm, err := sievepen.NewSQLiteTM(tmPath)
+	// Seed the project content memory with an exact match.
+	memoryPath := filepath.Join(real, project.StateDirName, "tm.db")
+	tm, err := memory.NewSQLiteStore(memoryPath)
 	require.NoError(t, err)
-	require.NoError(t, tm.Add(t.Context(), sievepen.TMEntry{
+	require.NoError(t, tm.Add(t.Context(), memory.Entry{
 		ID: "e1",
 		Variants: map[model.LocaleID][]model.Run{
 			"en-US": {{Text: &model.TextRun{Text: "Hello"}}},
@@ -274,18 +274,18 @@ func TestExtract_TMExactPrefillFillsTarget(t *testing.T) {
 	assert.Contains(t, string(outBytes), "Bonjour")
 }
 
-func TestExtract_NoTMSkipsPrefill(t *testing.T) {
+func TestExtract_NoMemorySkipsPrefill(t *testing.T) {
 	dir := t.TempDir()
 	real, err := filepath.EvalSymlinks(dir)
 	require.NoError(t, err)
 	recipe := extractProjectFixture(t, real, []model.LocaleID{"fr-FR"})
 	writeJSONSource(t, real, "src/locales/en/app.json", `{"k":"Hello"}`)
 
-	// Seed TM with a would-be match.
-	tmPath := filepath.Join(real, project.StateDirName, "tm.db")
-	tm, err := sievepen.NewSQLiteTM(tmPath)
+	// Seed content memory with a would-be match.
+	memoryPath := filepath.Join(real, project.StateDirName, "tm.db")
+	tm, err := memory.NewSQLiteStore(memoryPath)
 	require.NoError(t, err)
-	require.NoError(t, tm.Add(t.Context(), sievepen.TMEntry{
+	require.NoError(t, tm.Add(t.Context(), memory.Entry{
 		ID: "e1",
 		Variants: map[model.LocaleID][]model.Run{
 			"en-US": {{Text: &model.TextRun{Text: "Hello"}}},

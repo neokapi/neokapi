@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { TMBrowser, useTMBrowserAdapter, useWorkspace, useApi, Card } from "@neokapi/ui";
+import { MemoryBrowser, useMemoryBrowserAdapter, useWorkspace, useApi, Card } from "@neokapi/ui";
 import { projectsQueryOptions } from "../../queries";
 
 export function MemoryRoute() {
@@ -40,9 +40,9 @@ export function MemoryRoute() {
     };
   }, [projects]);
 
-  const tmAdapter = useTMBrowserAdapter(sourceLocale, targetLocales);
+  const memoryAdapter = useMemoryBrowserAdapter(sourceLocale, targetLocales);
 
-  if (!activeWorkspace || !tmAdapter) {
+  if (!activeWorkspace || !memoryAdapter) {
     return (
       <Card className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">
         Select a workspace
@@ -52,7 +52,7 @@ export function MemoryRoute() {
 
   return (
     <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
-      <TMBrowser adapter={tmAdapter} sourceLocale={sourceLocale} targetLocales={targetLocales} />
+      <MemoryBrowser adapter={memoryAdapter} sourceLocale={sourceLocale} targetLocales={targetLocales} />
     </div>
   );
 }

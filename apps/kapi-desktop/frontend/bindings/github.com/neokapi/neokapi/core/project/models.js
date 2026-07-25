@@ -405,9 +405,9 @@ export class Defaults {
         }
         if (/** @type {any} */(false)) {
             /**
-             * TM governs TM pre-fill on kapi extract and TM write-back on kapi merge (AD-017).
+             * Memory governs Memory pre-fill on kapi extract and Memory write-back on kapi merge (AD-017).
              * @member
-             * @type {TMDefaults | undefined}
+             * @type {MemoryDefaults | undefined}
              */
             this["tm"] = undefined;
         }
@@ -447,21 +447,21 @@ export class Defaults {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Termbase binds a glossary/termbase as standing project context. When
-             * set, project-scoped term enforcement uses it with no --termbase flag.
+             * Terms binds a glossary/terms as standing project context. When
+             * set, project-scoped term enforcement uses it with no --terms flag.
              * The path resolves relative to the project root (the recipe's
-             * directory). Empty means no bound termbase.
+             * directory). Empty means no bound terms.
              * @member
              * @type {string | undefined}
              */
-            this["termbase"] = undefined;
+            this["terms"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
-             * TermbaseSource binds the committed, git-tracked native source artifact
-             * (a .ktb document) the project termbase is compiled from. This is the
+             * TermsSource binds the committed, git-tracked native source artifact
+             * (a .ktb document) the project terms store is compiled from. This is the
              * authored, reviewable form: `kapi apply` edits the .ktb here and then
-             * re-imports it into the gitignored Termbase (.db) cache, so the SQLite
+             * re-imports it into the gitignored Terms (.db) cache, so the SQLite
              * store is written by exactly one path and `git diff` is the review
              * surface. The path resolves relative to the project root. Empty means no
              * bound source (the .db cache, if any, is the only artifact).
@@ -472,11 +472,11 @@ export class Defaults {
         }
         if (/** @type {any} */(false)) {
             /**
-             * TMSource binds the committed, git-tracked native source artifact (a
-             * .kmb document) the project translation memory is compiled from, the TM
-             * analogue of TermbaseSource. `kapi apply` edits the .kmb here and
+             * MemorySource binds the committed, git-tracked native source artifact (a
+             * .kmb document) the project content memory is compiled from, the content memory
+             * analogue of TermsSource. `kapi apply` edits the .kmb here and
              * re-imports it into the gitignored .kapi/tm.db cache. The path resolves
-             * relative to the project root. Empty means no bound TM source.
+             * relative to the project root. Empty means no bound Memory source.
              * @member
              * @type {string | undefined}
              */
@@ -1043,7 +1043,7 @@ export class MergeDefaults {
         if (/** @type {any} */(false)) {
             /**
              * ConflictPolicy governs how merge applies a translator's target when
-             * an existing on-disk target or TM TU already has a translation. Valid
+             * an existing on-disk target or Memory TU already has a translation. Valid
              * values: "translator-wins" (default), "existing-wins", "newest-wins".
              * @member
              * @type {string | undefined}
@@ -1377,12 +1377,12 @@ export class ShipGateRule {
 }
 
 /**
- * TMDefaults governs TM pre-fill on extract and TM write-back on merge (AD-017).
+ * MemoryDefaults governs Memory pre-fill on extract and Memory write-back on merge (AD-017).
  */
-export class TMDefaults {
+export class MemoryDefaults {
     /**
-     * Creates a new TMDefaults instance.
-     * @param {Partial<TMDefaults>} [$$source = {}] - The source object to create the TMDefaults.
+     * Creates a new MemoryDefaults instance.
+     * @param {Partial<MemoryDefaults>} [$$source = {}] - The source object to create the MemoryDefaults.
      */
     constructor($$source = {}) {
         if (/** @type {any} */(false)) {
@@ -1396,8 +1396,8 @@ export class TMDefaults {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Read lists additional read-only TM files consulted during pre-fill on
-             * extract. Writes always go to the project TM, never to these.
+             * Read lists additional read-only Memory files consulted during pre-fill on
+             * extract. Writes always go to the project content memory, never to these.
              * @member
              * @type {string[] | undefined}
              */
@@ -1408,9 +1408,9 @@ export class TMDefaults {
     }
 
     /**
-     * Creates a new TMDefaults instance from a string or object.
+     * Creates a new MemoryDefaults instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {TMDefaults}
+     * @returns {MemoryDefaults}
      */
     static createFrom($$source = {}) {
         const $$createField1_0 = $$createType9;
@@ -1418,7 +1418,7 @@ export class TMDefaults {
         if ("read" in $$parsedSource) {
             $$parsedSource["read"] = $$createField1_0($$parsedSource["read"]);
         }
-        return new TMDefaults(/** @type {Partial<TMDefaults>} */($$parsedSource));
+        return new MemoryDefaults(/** @type {Partial<MemoryDefaults>} */($$parsedSource));
     }
 }
 
@@ -1434,7 +1434,7 @@ const $$createType7 = FormatDefaults.createFrom;
 const $$createType8 = $Create.Map($Create.Any, $$createType7);
 const $$createType9 = $Create.Array($Create.Any);
 const $$createType10 = MergeDefaults.createFrom;
-const $$createType11 = TMDefaults.createFrom;
+const $$createType11 = MemoryDefaults.createFrom;
 const $$createType12 = SegmentationDefaults.createFrom;
 const $$createType13 = BrandVoiceBinding.createFrom;
 const $$createType14 = $Create.Nullable($$createType13);

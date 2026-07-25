@@ -199,7 +199,7 @@ Three tiers:
 ## 8. Out of scope (deferred to v2 of this spec)
 
 - XSD validation against the OASIS schema.
-- Active interpretation of mtc:matches (read/write to TM).
+- Active interpretation of mtc:matches (read/write to content memory).
 - Active interpretation of slr:* (size restriction enforcement).
 - Active interpretation of val:validation (rule execution).
 - Active interpretation of its:* (locQualityIssue surfacing).

@@ -31,7 +31,7 @@ Ask for the leverage pass:
 
 > Import `project.tmx` into the project TM, pre-translate the French catalog from it, and tell me what's left.
 
-The assistant runs `kapi tm import`, then `recycle`, and reports the residue — the blocks with no match — so you decide what goes to a model or a vendor. Approved sentence pairs it encounters along the way can be banked for the future with a `kind:"tm"` change-set entry through `kapi apply`.
+The assistant runs `kapi memory import`, then `recycle`, and reports the residue — the blocks with no match — so you decide what goes to a model or a vendor. Approved sentence pairs it encounters along the way can be banked for the future with a `kind:"tm"` change-set entry through `kapi apply`.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -39,7 +39,7 @@ The assistant runs `kapi tm import`, then `recycle`, and reports the residue —
 Three deterministic steps — leverage, make the gaps visible, pre-flag terms:
 
 ```bash
-kapi tm import project.tmx -s en -t fr        # 1. load past work (see tm stats)
+kapi memory import project.tmx -s en -t fr        # 1. load past work (see tm stats)
 kapi exec recycle messages_en.json -o step1.json \
   --source-lang en --target-lang fr           # 2. fill exact + fuzzy matches
 kapi pseudo-translate step1.json -o step2.json  # 3. mark what the TM missed
@@ -78,4 +78,4 @@ The in-browser build pre-seeds a TM and a termbase. The rail tops up the TM from
 
 - [TM & termbase storage](/kapi/recipes/tm-termbase-storage) — loose file, named store, or project store.
 - [Keep terms consistent](/kapi/recipes/terminology-qa) — the validation side of the same termbase.
-- [`kapi tm`](/reference/commands/tm) and [`kapi exec recycle`](/reference/commands/exec-recycle) — command references.
+- [`kapi memory`](/reference/commands/memory) and [`kapi exec recycle`](/reference/commands/exec-recycle) — command references.

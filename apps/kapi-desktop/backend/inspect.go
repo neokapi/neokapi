@@ -18,7 +18,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/host"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // InspectFile reads a content file through the project's format reader and
@@ -40,7 +40,7 @@ func (a *App) InspectFile(tabID, filePath string) (string, error) {
 // native, read-only annotators over the parsed blocks so the tree carries
 // source-anchored stand-off overlays before serialization:
 //
-//   - term overlays (type "term") from the project's auto-opened termbase
+//   - term overlays (type "term") from the project's auto-opened terms
 //     (LookupAll over each block's source text), carrying the matched surface
 //     form, its preferred target translation and domain;
 //   - brand-vocabulary overlays (type "qa", props.category="brand-vocabulary")
@@ -51,7 +51,7 @@ func (a *App) InspectFile(tabID, filePath string) (string, error) {
 //
 // These mirror the overlay shapes the docs "Anatomy" explorer produces in
 // kapi/cmd/kapi-wasm-cli/lab_annotate.go, but use the project's real resources
-// rather than a seeded in-memory termbase / brand profile. DocumentViewer's
+// rather than a seeded in-memory terms / brand profile. DocumentViewer's
 // annotations toggle highlights them on the rendered document.
 func (a *App) InspectFileAnnotated(tabID, filePath string) (string, error) {
 	return a.inspect(tabID, filePath, true)
@@ -219,8 +219,9 @@ func blocksFromParts(parts []*model.Part) []*model.Block {
 
 // annotateParts walks the part stream and writes source-anchored stand-off
 // overlays onto every translatable Block, in place, using the project's real
-// resources: its termbase (term overlays), its brand profile (brand-vocabulary
-// QA overlays) and the shared source-only shape rules (check.HygieneOverlay). It mirrors
+// resources: its terms store (term overlays), its brand profile
+// (brand-vocabulary QA overlays) and the shared source-only shape rules
+// (check.HygieneOverlay). It mirrors
 // the wasm "Anatomy" annotator (kapi/cmd/kapi-wasm-cli/lab_annotate.go) so the
 // content tree's `overlays` view is populated identically, but sources its term
 // and brand data from the open project rather than a seeded demo set.
@@ -235,7 +236,7 @@ func (a *App) annotateParts(ctx context.Context, op *openProject, parts []*model
 		targetLoc = pctx.TargetLocales[0]
 	}
 
-	var tb termbase.TermBase
+	var tb terms.Terminology
 	if op.tbHandle != "" {
 		if h, ok := a.tbHandles.Get(op.tbHandle); ok && h != nil {
 			tb = h
@@ -274,11 +275,11 @@ func (a *App) annotateParts(ctx context.Context, op *openProject, parts []*model
 }
 
 // termOverlay builds an OverlayTerm over the source runs from the project's
-// termbase. Each matched glossary term becomes a span carrying the matched
+// terms. Each matched glossary term becomes a span carrying the matched
 // surface form (term), its preferred target translation (target) and domain.
 // Returns nil when nothing matches.
-func termOverlay(ctx context.Context, tb termbase.TermBase, runs []model.Run, source string, sourceLoc, targetLoc model.LocaleID) *model.Overlay {
-	matches, err := tb.LookupAll(ctx, source, termbase.LookupOptions{
+func termOverlay(ctx context.Context, tb terms.Terminology, runs []model.Run, source string, sourceLoc, targetLoc model.LocaleID) *model.Overlay {
+	matches, err := tb.LookupAll(ctx, source, terms.LookupOptions{
 		SourceLocale: sourceLoc,
 		TargetLocale: targetLoc,
 	})

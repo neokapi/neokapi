@@ -46,7 +46,7 @@ Author the artifacts, bind them once, and gate on them everywhere:
 
 ```bash
 kapi brand new --pack technical-docs -o brand/voice.yaml   # scaffold, then edit
-kapi termbase import glossary.csv --name product-terms --format csv --header -s en -t fr
+kapi terms import glossary.csv --name product-terms --format csv --header -s en -t fr
 kapi check docs/*.md --profile-file brand/voice.yaml       # the loop's gate
 kapi check --ship                                          # the release bar, in CI
 ```

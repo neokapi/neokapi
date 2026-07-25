@@ -3,7 +3,7 @@
  * Used by the layered seeder to populate a realistic workspace for e2e tests.
  */
 
-import type { Concept, TMEntry } from "./api-client.js";
+import type { Concept, Entry } from "./api-client.js";
 
 // ---------------------------------------------------------------------------
 // Workspace
@@ -53,10 +53,10 @@ export const PROJECTS: ProjectDef[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// TM Entries
+// content memory Entries
 // ---------------------------------------------------------------------------
 
-export const TM_ENTRIES: TMEntry[] = [
+export const MEMORY_ENTRIES: Entry[] = [
   // en -> fr
   {
     source: "About Acme Inc.",
@@ -242,7 +242,7 @@ export const TASKS: TaskDef[] = [
   },
   {
     title: "Verify release notes terminology",
-    description: "Ensure release notes use approved terminology from the termbase.",
+    description: "Ensure release notes use approved terminology from the terms store.",
     type: "review",
     priority: "low",
     projectIndex: 2,
@@ -280,7 +280,7 @@ export const AUTOMATION_RULES: AutomationRuleDef[] = [
     projectIndex: 0,
   },
   {
-    name: "TM pre-translate on upload",
+    name: "content memory pre-translate on upload",
     trigger: "file.uploaded",
     conditions: [],
     actions: [{ type: "tm_pretranslate", min_match: 80 }],

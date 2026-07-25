@@ -12,7 +12,7 @@ scenes:
     smoke_contract:
       - kapi init --name demo --source-locale en --target-locale fr
       - kapi ls
-      - kapi tm import project.tmx
+      - kapi memory import project.tmx
       - kapi status
       - kapi extract --target-lang fr
 ---
@@ -22,7 +22,7 @@ scenes:
 A `.kapi` project is the day-to-day working model: capture the languages, the
 content globs, and the flows once in a committed recipe, then drive the project
 without repeating flags. The recipe sits beside a `.kapi/` state directory —
-the project store that accumulates block overlays and translation memory as
+the project store that accumulates block overlays and content memory as
 you work.
 
 The verb that drives it is `kapi up`. It treats the recipe as the desired
@@ -36,14 +36,14 @@ executes one pass of one named flow; inside a project a pass is
 **process-only** — it commits results to the project store rather than writing
 files. `kapi merge` materializes the localized files from the store. And when
 a person does the translating, `kapi extract` emits a bilingual file
-pre-filled from the TM, and `merge` applies the return.
+pre-filled from the content memory, and `merge` applies the return.
 
 ## Scene 1 — project-workflow (terminal)
 
 Scaffold a project with `kapi init`, list the tracked content with `kapi ls`,
-seed the project translation memory with `kapi tm import`, and read the
+seed the project content memory with `kapi memory import`, and read the
 before-grid with `kapi status`. Then `kapi up` brings the project up to date —
-the recipe's TM-only flow fills real `fr` targets, no LLM, fully offline. The
+the recipe's content memory-only flow fills real `fr` targets, no LLM, fully offline. The
 closing beats run the plumbing by hand: one `kapi run` pass into the store,
 `kapi merge` to write `messages.fr.json`, the after-grid at 100%, and
 `kapi extract` as the translator handoff.

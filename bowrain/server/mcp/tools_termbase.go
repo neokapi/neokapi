@@ -8,11 +8,11 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
-// registerTermbaseTools registers terminology management MCP tools.
-func (s *MCPServer) registerTermbaseTools() {
+// registerTermsTools registers terminology management MCP tools.
+func (s *MCPServer) registerTermsTools() {
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "term_search",
 		Description: "Search the workspace terminology base for matching terms.",
@@ -54,7 +54,7 @@ func (s *MCPServer) handleTermSearch(ctx context.Context, req *mcp.CallToolReque
 
 	tb, err := s.tbResolver.GetTB(input.WorkspaceID)
 	if err != nil {
-		return nil, termSearchOutput{}, fmt.Errorf("get termbase: %w", err)
+		return nil, termSearchOutput{}, fmt.Errorf("get terms: %w", err)
 	}
 
 	limit := input.Limit
@@ -64,7 +64,7 @@ func (s *MCPServer) handleTermSearch(ctx context.Context, req *mcp.CallToolReque
 
 	concepts, total, err := tb.Search(ctx, input.Query, model.LocaleID(input.Locale), "", 0, limit)
 	if err != nil {
-		return nil, termSearchOutput{}, fmt.Errorf("search termbase: %w", err)
+		return nil, termSearchOutput{}, fmt.Errorf("search terms: %w", err)
 	}
 
 	var results []termResult
@@ -111,14 +111,14 @@ func (s *MCPServer) handleTermAdd(ctx context.Context, req *mcp.CallToolRequest,
 
 	tb, err := s.tbResolver.GetTB(input.WorkspaceID)
 	if err != nil {
-		return nil, termAddOutput{}, fmt.Errorf("get termbase: %w", err)
+		return nil, termAddOutput{}, fmt.Errorf("get terms: %w", err)
 	}
 
 	added := 0
 	for _, t := range input.Terms {
-		concept := termbase.Concept{
+		concept := terms.Concept{
 			Definition: t.Definition,
-			Terms: []termbase.Term{
+			Terms: []terms.Term{
 				{
 					Text:   t.Term,
 					Locale: model.LocaleID(t.Locale),

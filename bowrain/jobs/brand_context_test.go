@@ -8,7 +8,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -36,30 +36,30 @@ func (f fakeWorkspaceDefault) WorkspaceBrandProfileID(context.Context, string) (
 }
 
 // seedConcept adds a concept with a source term and a preferred target term to
-// the in-memory termbase. projectID "" is workspace-scoped.
-func seedConcept(t *testing.T, tb termbase.TermBase, id, projectID, source, target string, targetStatus model.TermStatus) {
+// the in-memory terms store. projectID "" is workspace-scoped.
+func seedConcept(t *testing.T, tb terms.Terminology, id, projectID, source, target string, targetStatus model.TermStatus) {
 	t.Helper()
-	terms := []termbase.Term{
+	ts := []terms.Term{
 		{Text: source, Locale: "en", Status: model.TermPreferred},
 	}
 	if target != "" {
-		terms = append(terms, termbase.Term{Text: target, Locale: "fr", Status: targetStatus})
+		ts = append(ts, terms.Term{Text: target, Locale: "fr", Status: targetStatus})
 	}
-	require.NoError(t, tb.AddConcept(t.Context(), termbase.Concept{
+	require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{
 		ID:        id,
 		ProjectID: projectID,
-		Terms:     terms,
+		Terms:     ts,
 	}))
 }
 
-// TestResolveJobGlossary_BuildsFromTermbase proves the glossary derivation:
+// TestResolveJobGlossary_BuildsFromTerms proves the glossary derivation:
 // workspace-scoped concepts and this project's concepts contribute
 // source→preferred-target pairs; other projects' concepts are excluded; a
 // concept with no target-locale rendering contributes nothing; and a
 // project-scoped rendering beats a workspace-scoped one for the same source
 // term.
-func TestResolveJobGlossary_BuildsFromTermbase(t *testing.T) {
-	tb := termbase.NewInMemoryTermBase()
+func TestResolveJobGlossary_BuildsFromTerms(t *testing.T) {
+	tb := terms.NewInMemoryStore()
 	seedConcept(t, tb, "c1", "", "dashboard", "tableau de bord", model.TermPreferred)
 	seedConcept(t, tb, "c2", "proj-1", "berth", "poste d'amarrage", model.TermPreferred)
 	seedConcept(t, tb, "c3", "proj-OTHER", "vessel", "navire", model.TermPreferred)
@@ -70,7 +70,7 @@ func TestResolveJobGlossary_BuildsFromTermbase(t *testing.T) {
 	seedConcept(t, tb, "c6", "proj-1", "alert", "avis de vigilance", model.TermPreferred)
 
 	deps := &WorkerDeps{
-		TBResolver: TBResolverFunc(func(slug string) (termbase.TermBase, error) {
+		TermsResolver: TermsResolverFunc(func(slug string) (terms.Terminology, error) {
 			assert.Equal(t, "acme", slug)
 			return tb, nil
 		}),
@@ -89,16 +89,16 @@ func TestResolveJobGlossary_BuildsFromTermbase(t *testing.T) {
 // rendering follows PreferredTerm semantics: a preferred term wins over other
 // candidates and forbidden/deprecated renderings are never mandated.
 func TestResolveJobGlossary_PrefersApprovedTargetTerm(t *testing.T) {
-	tb := termbase.NewInMemoryTermBase()
-	require.NoError(t, tb.AddConcept(t.Context(), termbase.Concept{
+	tb := terms.NewInMemoryStore()
+	require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{
 		ID: "c1",
-		Terms: []termbase.Term{
+		Terms: []terms.Term{
 			{Text: "sync", Locale: "en", Status: model.TermPreferred},
 			{Text: "synchronisation interdite", Locale: "fr", Status: model.TermForbidden},
 			{Text: "rapprochement des données", Locale: "fr", Status: model.TermPreferred},
 		},
 	}))
-	deps := &WorkerDeps{TBResolver: TBResolverFunc(func(string) (termbase.TermBase, error) { return tb, nil })}
+	deps := &WorkerDeps{TermsResolver: TermsResolverFunc(func(string) (terms.Terminology, error) { return tb, nil })}
 	job := &TranslationJob{ID: "j1", WorkspaceSlug: "acme", ProjectID: "p", TargetLocale: "fr"}
 
 	got := resolveJobGlossary(t.Context(), deps, job, "en", "fr")
@@ -106,20 +106,20 @@ func TestResolveJobGlossary_PrefersApprovedTargetTerm(t *testing.T) {
 }
 
 // TestResolveJobGlossary_DegradesGracefully pins the never-fail contract: no
-// resolver, a failing resolver, or an empty termbase all yield a nil glossary
+// resolver, a failing resolver, or an empty terms all yield a nil glossary
 // and never an error surface.
 func TestResolveJobGlossary_DegradesGracefully(t *testing.T) {
 	job := &TranslationJob{ID: "j1", WorkspaceSlug: "acme", ProjectID: "p", TargetLocale: "fr"}
 
-	assert.Nil(t, resolveJobGlossary(t.Context(), &WorkerDeps{}, job, "en", "fr"), "no TBResolver → bare")
+	assert.Nil(t, resolveJobGlossary(t.Context(), &WorkerDeps{}, job, "en", "fr"), "no TermsResolver → bare")
 
-	failing := &WorkerDeps{TBResolver: TBResolverFunc(func(string) (termbase.TermBase, error) {
+	failing := &WorkerDeps{TermsResolver: TermsResolverFunc(func(string) (terms.Terminology, error) {
 		return nil, errors.New("db down")
 	})}
 	assert.Nil(t, resolveJobGlossary(t.Context(), failing, job, "en", "fr"), "resolver failure → bare, not fatal")
 
-	empty := &WorkerDeps{TBResolver: TBResolverFunc(func(string) (termbase.TermBase, error) {
-		return termbase.NewInMemoryTermBase(), nil
+	empty := &WorkerDeps{TermsResolver: TermsResolverFunc(func(string) (terms.Terminology, error) {
+		return terms.NewInMemoryStore(), nil
 	})}
 	assert.Nil(t, resolveJobGlossary(t.Context(), empty, job, "en", "fr"), "no terms for the pair → nil, not empty map")
 
@@ -187,7 +187,7 @@ func TestJobTranslateConfig_BareWithoutBrandDeps(t *testing.T) {
 
 // TestJobTranslateConfig_CarriesBrandContext proves the constructed translate
 // config carries the resolved voice profile (rendering to the expected guide
-// text) and the termbase-derived glossary — the exact fields the AI translate
+// text) and the terms store-derived glossary — the exact fields the AI translate
 // tool injects into every prompt.
 func TestJobTranslateConfig_CarriesBrandContext(t *testing.T) {
 	profile := &brand.VoiceProfile{
@@ -198,13 +198,13 @@ func TestJobTranslateConfig_CarriesBrandContext(t *testing.T) {
 			ForbiddenTerms: []brand.TermRule{{Term: "utilize", Replacement: "use"}},
 		},
 	}
-	tb := termbase.NewInMemoryTermBase()
+	tb := terms.NewInMemoryStore()
 	seedConcept(t, tb, "c1", "", "dashboard", "tableau de bord", model.TermPreferred)
 
 	deps := &WorkerDeps{
 		BrandStore:       &fakeBrandStore{profiles: map[string]*brand.VoiceProfile{"bp-1": profile}},
 		WorkspaceDefault: fakeWorkspaceDefault{id: "bp-1"},
-		TBResolver:       TBResolverFunc(func(string) (termbase.TermBase, error) { return tb, nil }),
+		TermsResolver:    TermsResolverFunc(func(string) (terms.Terminology, error) { return tb, nil }),
 	}
 	proj := &store.Project{ID: "p", DefaultSourceLanguage: "en"}
 	job := &TranslationJob{ID: "j1", WorkspaceID: "ws-1", WorkspaceSlug: "acme", ProjectID: "p", TargetLocale: "fr"}

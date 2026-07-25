@@ -218,7 +218,7 @@ export function BrandMCPGuide({
                 name: "brand_rewrite",
                 desc: "Rewrite off-brand copy by substituting forbidden/competitor terms",
               },
-              { name: "term_lookup", desc: "Look up approved terminology in the termbase" },
+              { name: "term_lookup", desc: "Look up approved terminology in the terms store" },
             ].map((tool) => (
               <div key={tool.name} className="flex items-start gap-2 border rounded px-3 py-2">
                 <code className="text-xs bg-muted px-1 rounded shrink-0">{tool.name}</code>

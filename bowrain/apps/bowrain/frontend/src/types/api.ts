@@ -297,8 +297,8 @@ export interface WordCountResult {
   target_chars: Record<string, number>;
 }
 
-/** TM entry info */
-export interface TMEntryInfo {
+/** content-memory entry info */
+export interface MemoryEntryInfo {
   id: string;
   source: string;
   target: string;
@@ -307,14 +307,14 @@ export interface TMEntryInfo {
   updated_at: string;
 }
 
-/** TM search result */
-export interface TMSearchResult {
-  entries: TMEntryInfo[];
+/** content-memory search result */
+export interface MemorySearchResult {
+  entries: MemoryEntryInfo[];
   total_count: number;
 }
 
-/** TM update request */
-export interface TMUpdateRequest {
+/** Memory update request */
+export interface MemoryUpdateRequest {
   project_id: string;
   entry_id: string;
   source: string;
@@ -384,8 +384,8 @@ export interface UpdateConceptRequest {
   terms: TermInfo[];
 }
 
-/** TM match for a single block */
-export interface TMMatchInfo {
+/** content-memory match for a single block */
+export interface MemoryMatchInfo {
   source: string;
   target: string;
   score: number;

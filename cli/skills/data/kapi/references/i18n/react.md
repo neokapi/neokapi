@@ -199,7 +199,7 @@ kapi integration and CLI tooling as react-i18next.
 Every string is `<FormattedMessage defaultMessage=…/>` or
 `intl.formatMessage(…)` — the most verbose mainstream option (W=3, which caps
 it at T3 no matter what tooling is added) — and extractor hash IDs churn on
-every copy edit, orphaning translations unless a TM-capable TMS absorbs it.
+every copy edit, orphaning translations unless a content memory-capable TMS absorbs it.
 Choose it only with an existing FormatJS/ICU mandate and a TMS. If adopting:
 never hand-write IDs, wire `formatjs extract`/`compile` into CI immediately.
 kapi: preset `react-intl` (`src/lang/{lang}.json`). Tell the user the toil

@@ -106,7 +106,7 @@ func TestRunCompletedProps(t *testing.T) {
 	}
 	standing := convergence.NewStanding()
 	standing.Observe(convergence.Event{
-		Type: convergence.EventUnitProgress, Locale: "fr-FR", Done: 100, ViaTM: 75, ViaAI: 25,
+		Type: convergence.EventUnitProgress, Locale: "fr-FR", Done: 100, ViaMemory: 75, ViaAI: 25,
 	})
 
 	// 60_000 tokens ≈ 60_000 credits → the 50k–100k band, below the 200K grant.
@@ -125,7 +125,7 @@ func TestRunCompletedProps(t *testing.T) {
 	// A TM-only run spends nothing and reports full leverage.
 	tmOnly := convergence.NewStanding()
 	tmOnly.Observe(convergence.Event{
-		Type: convergence.EventUnitProgress, Locale: "fr-FR", Done: 40, ViaTM: 40, ViaAI: 0,
+		Type: convergence.EventUnitProgress, Locale: "fr-FR", Done: 40, ViaMemory: 40, ViaAI: 0,
 	})
 	props = runCompletedProps(run, tmOnly, "ws1", 0, false)
 	assert.Equal(t, "0", props[analytics.PropConsumedCreditsBucket])
@@ -163,7 +163,7 @@ func TestEstimateComputedProps(t *testing.T) {
 	proj := &platstore.Project{ID: "p1", WorkspaceID: "ws1"}
 	view := convergenceEstimateView{
 		Source: jobs.SourceReadiness{Gate: model.SourceGateChecked, Total: 14, Ready: 10, Held: 4},
-		Totals: jobs.EstimateTotals{Pending: 50, ViaTM: 10, ViaAI: 40, TokenEstimate: 250_000},
+		Totals: jobs.EstimateTotals{Pending: 50, ViaMemory: 10, ViaAI: 40, TokenEstimate: 250_000},
 		Credits: &convergenceCreditsView{
 			EstimatedCredits: 250_000, Balance: 200_000, CoversAllAI: false,
 		},

@@ -64,7 +64,7 @@ func (t Translate) steering() []Section {
 		}
 		out = append(out, Section{
 			Kind:    KindGlossary,
-			Origin:  fmt.Sprintf("termbase (%s)", plural(len(t.Glossary), "term")),
+			Origin:  fmt.Sprintf("terms (%s)", plural(len(t.Glossary), "term")),
 			Heading: "Glossary:",
 			Text:    strings.TrimRight(b.String(), "\n"),
 		})

@@ -78,8 +78,8 @@ function positionLine(run: ConvergenceRun, live: boolean): string {
   return line;
 }
 
-/** TM/AI totals across the run's locale standing (truthful "TM N · AI M"). */
-function tmAiSummary(run: ConvergenceRun): string | null {
+/** Memory/AI totals across the run's locale standing (truthful "content memory N · AI M"). */
+function memoryAiSummary(run: ConvergenceRun): string | null {
   const locales = run.locales ?? [];
   let tm = 0;
   let ai = 0;
@@ -88,7 +88,7 @@ function tmAiSummary(run: ConvergenceRun): string | null {
     ai += l.viaAI ?? 0;
   }
   if (tm === 0 && ai === 0) return null;
-  return `TM ${tm} · AI ${ai}`;
+  return `Memory ${tm} · AI ${ai}`;
 }
 
 export function ConvergenceRunContext({
@@ -101,7 +101,7 @@ export function ConvergenceRunContext({
   onOpenReviewSurface,
 }: ConvergenceRunContextProps) {
   const position = positionLine(run, !!live);
-  const tmAi = tmAiSummary(run);
+  const memoryAi = memoryAiSummary(run);
 
   // The labeled stall/hold banner: reason + next action. Only terminal-ish
   // states carry a stall_reason; a running run without one just shows position.
@@ -114,14 +114,14 @@ export function ConvergenceRunContext({
       ? awaitingReviewBanner(run, onOpenReviewSurface ?? onOpenReview)
       : null;
 
-  if (!position && !tmAi && !banner && !review) return null;
+  if (!position && !memoryAi && !banner && !review) return null;
 
   return (
     <div className="space-y-3">
-      {(position || tmAi) && (
+      {(position || memoryAi) && (
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           {position && <span className="font-medium text-foreground">{position}</span>}
-          {tmAi && <span className="tabular-nums">{tmAi}</span>}
+          {memoryAi && <span className="tabular-nums">{memoryAi}</span>}
         </div>
       )}
       {banner}
@@ -130,7 +130,7 @@ export function ConvergenceRunContext({
   );
 }
 
-/** Blocks this run produced (TM + AI) per locale — the translations that now
+/** Blocks this run produced (Memory + AI) per locale — the translations that now
  * sit in the review queue under the default-on governed-review workflow. */
 function awaitingReview(run: ConvergenceRun): { total: number; breakdown: string } {
   const locales = run.locales ?? [];

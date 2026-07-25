@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "kind": "kapi-tm-format",
+  "kind": "kapi-memory",
   "entries": [
     {
       "id": "cli-nb:04986f846d",
@@ -692,7 +692,7 @@
       "variants": {
         "en": [
           {
-            "text": "Search translation memory entries"
+            "text": "Search content memory entries"
           }
         ],
         "nb": [
@@ -998,7 +998,7 @@
       "variants": {
         "en": [
           {
-            "text": "Search concepts in the termbase"
+            "text": "Search concepts in the terms store"
           }
         ],
         "nb": [
@@ -1250,7 +1250,7 @@
       "variants": {
         "en": [
           {
-            "text": "Manage translation memory"
+            "text": "Manage content memory"
           }
         ],
         "nb": [
@@ -1484,7 +1484,7 @@
       "variants": {
         "en": [
           {
-            "text": "Look up text in translation memory"
+            "text": "Look up text in content memory"
           }
         ],
         "nb": [
@@ -2168,7 +2168,7 @@
       "variants": {
         "en": [
           {
-            "text": "Show translation memory statistics"
+            "text": "Show content memory statistics"
           }
         ],
         "nb": [
@@ -2204,7 +2204,7 @@
       "variants": {
         "en": [
           {
-            "text": "List named termbases in KAPI_HOME"
+            "text": "List named terms stores in KAPI_HOME"
           }
         ],
         "nb": [
@@ -2222,7 +2222,7 @@
       "variants": {
         "en": [
           {
-            "text": "Look up a term in the termbase"
+            "text": "Look up a term in the terms store"
           }
         ],
         "nb": [
@@ -2312,7 +2312,7 @@
       "variants": {
         "en": [
           {
-            "text": "Import all TMX files from a directory into translation memory"
+            "text": "Import all TMX files from a directory into content memory"
           }
         ],
         "nb": [

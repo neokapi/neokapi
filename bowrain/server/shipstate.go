@@ -37,7 +37,7 @@ import (
 // which evidence produced the number so consumers can present it honestly. Voice
 // scores are read best-effort: a brand store hiccup degrades the rate rather than
 // failing the dashboard. The gate is resolved once per (workspace, locale) by the
-// caller and reused across every block; a nil gate (no termbase, no brand store)
+// caller and reused across every block; a nil gate (no terms, no brand store)
 // makes the term half a no-op, keeping the numbers byte-identical to before.
 func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore corebrand.BrandStore, projectID, stream string, gate *termGate, stats *store.TranslationDashboardStats) error {
 	fullyCovered := func(ls store.LocaleTranslationStats) bool {
@@ -77,7 +77,7 @@ func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore core
 	voiceUsed := map[string]bool{}
 	voiceUsedByColl := map[string]map[string]bool{}
 	// termActive is per-locale (term governance is workspace/project-wide, not
-	// per collection): true where the gate has a termbase or brand-vocab rule to
+	// per collection): true where the gate has a terms store or brand-vocab rule to
 	// enforce for the locale, so the on_brand_basis can honestly note term checks
 	// contributed. Applied to both the project-locale and every collection-locale.
 	termActive := map[string]bool{}

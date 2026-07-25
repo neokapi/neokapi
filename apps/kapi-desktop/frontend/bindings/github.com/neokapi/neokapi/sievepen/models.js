@@ -46,7 +46,7 @@ export class ActivityStat {
 }
 
 /**
- * LocaleFacet is a single-locale count across all entries in the TM.
+ * LocaleFacet is a single-locale count across all entries in the content memory.
  * An entry with N variants contributes to N LocaleFacet counts.
  */
 export class LocaleFacet {

@@ -86,7 +86,7 @@ func TestBravoEndToEnd_ConversationLifecycle(t *testing.T) {
 	assert.Len(t, msgs, 2)
 
 	// ── 4. Send message with SSE stream ────────────────────────────────
-	sseBody := `{"content":"Check TM for hello"}`
+	sseBody := `{"content":"Check content memory for hello"}`
 	req = httptest.NewRequest(http.MethodPost, "/", strings.NewReader(sseBody))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream")

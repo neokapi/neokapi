@@ -6,7 +6,7 @@
 //     "since forever" and "still in force", and dimmed bars for windows that
 //     have closed;
 //   • a "banned where / preferred where" summary derived from per-market term
-//     status — the part a flat termbase with no dates can still answer.
+//     status — the part a flat terms with no dates can still answer.
 //
 // Bind it into a ConceptView constraints slot:  slots={{ constraints: (p) => <ConstraintsPanel {...p} /> }}
 import { useMemo } from "react";

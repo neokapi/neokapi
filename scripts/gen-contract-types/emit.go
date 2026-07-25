@@ -91,7 +91,7 @@ func emitVocabularies() string {
 		string(model.OverlayAlignment), string(model.OverlayTermCandidate),
 	}
 	annotations := []string{
-		model.AnnoNote, model.AnnoAltTranslation, model.AnnoTMMatch,
+		model.AnnoNote, model.AnnoAltTranslation, model.AnnoMemoryMatch,
 		model.AnnoWordCount, model.AnnoCharCount, model.AnnoSegCount,
 		model.AnnoComparison, model.AnnoScopingReport, model.AnnoRepetition,
 		model.AnnoBrandVoice, model.AnnoEntityMapping, model.AnnoTermEnforce,

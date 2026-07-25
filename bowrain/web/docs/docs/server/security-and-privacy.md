@@ -150,9 +150,9 @@ store and round-trips back to the source formats you brought it in as. Translati
 memory and terminology export to open, standard interchange formats through the
 kapi CLI:
 
-- `kapi tm export` writes **TMX 1.4** (the standard translation-memory
+- `kapi memory export` writes **TMX 1.4** (the standard translation-memory
   interchange format).
-- `kapi termbase export` writes **TBX**, **CSV**, or **JSON**.
+- `kapi terms export` writes **TBX**, **CSV**, or **JSON**.
 
 The web app's terminology view also exports the termbase as JSON. Combined with
 the non-destructive history above, this means your linguistic assets are portable

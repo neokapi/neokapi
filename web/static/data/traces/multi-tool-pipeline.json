@@ -1,6 +1,6 @@
 {
   "name": "Multi-tool Pipeline",
-  "description": "TM Leverage followed by Pseudo-Translate showing concurrent processing across multiple tools",
+  "description": "Memory Leverage followed by Pseudo-Translate showing concurrent processing across multiple tools",
   "nodes": [
     { "id": "reader", "type": "reader", "name": "json", "label": "JSON Reader" },
     { "id": "tm", "type": "tool", "name": "recycle", "label": "Recycle" },
@@ -81,7 +81,7 @@
         "tm": {
           "id": "block-title",
           "type": "Block",
-          "summary": "title: Getting Started (no TM match)",
+          "summary": "title: Getting Started (no content-memory match)",
           "sourceText": "Getting Started"
         },
         "pseudo": {
@@ -104,7 +104,7 @@
         "tm": {
           "id": "block-subtitle",
           "type": "Block",
-          "summary": "subtitle: Quick Setup Guide (85% TM match)",
+          "summary": "subtitle: Quick Setup Guide (85% content-memory match)",
           "sourceText": "Quick Setup Guide"
         },
         "pseudo": {
@@ -127,14 +127,14 @@
         "tm": {
           "id": "block-body1",
           "type": "Block",
-          "summary": "body1: Install the package (100% TM match)",
+          "summary": "body1: Install the package (100% content-memory match)",
           "sourceText": "Install the package",
           "targetText": "Installez le paquet"
         },
         "pseudo": {
           "id": "block-body1",
           "type": "Block",
-          "summary": "body1: Installez le paquet (TM applied)",
+          "summary": "body1: Installez le paquet (Memory applied)",
           "sourceText": "Install the package",
           "targetText": "Installez le paquet"
         }
@@ -151,7 +151,7 @@
         "tm": {
           "id": "block-body2",
           "type": "Block",
-          "summary": "body2: Configure your settings (no TM match)",
+          "summary": "body2: Configure your settings (no content-memory match)",
           "sourceText": "Configure your settings"
         },
         "pseudo": {
@@ -174,7 +174,7 @@
         "tm": {
           "id": "block-body3",
           "type": "Block",
-          "summary": "body3: Run the application (no TM match)",
+          "summary": "body3: Run the application (no content-memory match)",
           "sourceText": "Run the application"
         },
         "pseudo": {

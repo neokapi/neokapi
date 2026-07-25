@@ -1,5 +1,5 @@
 // Package storage provides a shared SQLite infrastructure layer for
-// persistent translation memories and termbases. It handles connection
+// persistent content memories and terms stores. It handles connection
 // management, WAL mode, and common pragmas.
 //
 // Two SQLite backends are selected at compile time by the cgo build tag:
@@ -18,7 +18,7 @@
 // file.
 //
 // Cross-build .db caveat: an FTS5 word-search table is created with whichever
-// tokenizer the building binary supports. A TM/termbase .db whose FTS table was
+// tokenizer the building binary supports. A content memory/terms .db whose FTS table was
 // created with tokenize='icu' under a cgo build cannot be FTS-word-queried by a
 // no-cgo/modernc binary (which lacks the icu tokenizer), and a db created with
 // tokenize='unicode61' under no-cgo cannot rely on ICU segmentation under cgo.
@@ -65,12 +65,12 @@ func (p *pathLocks) get(path string) *sync.Mutex {
 // file. Two connections racing to switch a fresh database's journal mode to
 // WAL can hit SQLite's deadlock-avoidance path, which returns "database is
 // locked" IMMEDIATELY — bypassing busy_timeout entirely — so a concurrent
-// first open of the same file (converge workers each opening the project TM)
+// first open of the same file (converge workers each opening the project content memory)
 // failed spuriously.
 //
 // The lock is held across applyPragmasRetry, whose retry window is measured in
 // seconds when a cross-process opener holds the file, so it must be per-path:
-// a process-wide lock would park every other database's Open — TM, termbase,
+// a process-wide lock would park every other database's Open — content memory, terms,
 // block store — behind one worker's wait. In-memory databases are private to
 // their pool and need no lock at all.
 //

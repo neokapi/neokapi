@@ -49,7 +49,7 @@ narration:
   - id: work
     kind: terminal
     text: >
-      kapi up --plan first previews the pending work — the units, the translation-memory
+      kapi up --plan first previews the pending work — the units, the content-memory
       leverage, and a token estimate — before anything is spent. Then one kapi up pass
       converges all four locales together. Because kapi parses the JSON, every key and every
       interpolation placeholder is carried through; only the values change.

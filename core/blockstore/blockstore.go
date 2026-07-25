@@ -37,7 +37,7 @@ type Block = kbf.Block
 // fail fast when missing.
 type Capabilities struct {
 	// RandomAccess: GetBlock / GetOverlay / ListOverlays are O(log n)
-	// or better. memory and cache: yes. remote: server-dependent.
+	// or better. Memory and cache: yes. remote: server-dependent.
 	RandomAccess bool
 	// Concurrent: multiple Sessions can write different overlay kinds
 	// in parallel without corrupting state. cache (SQLite WAL): yes.
@@ -84,7 +84,7 @@ type Store interface {
 type Overlay struct {
 	// Kind namespaces the overlay. Conventions:
 	//   "targets/<locale>"            → translated targets
-	//   "annotations/<name>"          → term matches, TM fuzzies, QA
+	//   "annotations/<name>"          → term matches, content memory fuzzies, QA
 	//   "skeletons/<format>"          → round-trip skeletons
 	// Dots and slashes in Kind are allowed; stores must not interpret
 	// them beyond indexing.

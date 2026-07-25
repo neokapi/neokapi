@@ -22,7 +22,7 @@ const meta: Meta<typeof ToolConfigPanel> = {
 export default meta;
 type Story = StoryObj<typeof ToolConfigPanel>;
 
-const sampleTermbases = [
+const sampleTerms = [
   { name: "glossary", entryCount: 340 },
   { name: "brand-terms", entryCount: 52 },
 ];
@@ -171,7 +171,7 @@ const qualityCheckSchema: ComponentSchema = {
           "x-path": {
             type: "file",
             role: "input",
-            resourceKind: "termbase",
+            resourceKind: "terms",
           },
           "ui:enabled": { field: "checkTerms", eq: true },
         },
@@ -196,7 +196,7 @@ export const QualityCheckStep: Story = {
         report: { outputType: 0, autoOpen: true },
         terminology: { checkTerms: false },
       }}
-      resources={{ termbase: sampleTermbases }}
+      resources={{ terms: sampleTerms }}
     />
   ),
 };
@@ -290,7 +290,7 @@ export const ReadOnly: Story = {
         whitespace: { leadingWS: true },
         terminology: { checkTerms: true },
       }}
-      resources={{ termbase: sampleTermbases }}
+      resources={{ terms: sampleTerms }}
       readOnly
     />
   ),

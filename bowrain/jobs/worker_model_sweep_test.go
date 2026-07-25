@@ -8,18 +8,18 @@ import (
 	brandpg "github.com/neokapi/neokapi/bowrain/brand"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
-	sqltb "github.com/neokapi/neokapi/bowrain/termbase"
+	sqltb "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
-	fwtermbase "github.com/neokapi/neokapi/termbase"
+	fwterms "github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // TestModelSweep_EndToEnd is the demo-provider proof of measured steerability
 // over the real PostgreSQL stores: a seeded project (bound voice profile,
-// workspace termbase terminology, DNT terms, trap-bearing content) is swept
+// workspace terms terminology, DNT terms, trap-bearing content) is swept
 // through the durable worker path — both arms per candidate model — and the
 // deterministic scorers produce a positive context lift (the context arm's
 // enforced DNT masking preserves the product name the bare arm mangles),
@@ -74,14 +74,14 @@ func TestModelSweep_EndToEnd(t *testing.T) {
 		},
 	}))
 
-	// Workspace termbase: "save" → "enregistrer" is deliberately a rendering
+	// Workspace terms: "save" → "enregistrer" is deliberately a rendering
 	// the demo lexicon also produces, so glossary fixtures measure the check
 	// plumbing without depending on prompt adherence a stub cannot offer.
-	tb, err := sqltb.NewPostgresTermBaseFromDB(db, wsSlug)
+	tb, err := sqltb.NewPostgresStoreFromDB(db, wsSlug)
 	require.NoError(t, err)
-	require.NoError(t, tb.AddConcept(ctx, fwtermbase.Concept{
+	require.NoError(t, tb.AddConcept(ctx, fwterms.Concept{
 		ID: "c-save",
-		Terms: []fwtermbase.Term{
+		Terms: []fwterms.Term{
 			{Text: "save", Locale: "en", Status: model.TermPreferred},
 			{Text: "enregistrer", Locale: "fr", Status: model.TermPreferred},
 		},
@@ -112,8 +112,8 @@ func TestModelSweep_EndToEnd(t *testing.T) {
 		SweepSettings: settings,
 		BrandStore:    bs,
 		Platform:      &PlatformProviderConfig{Provider: "demo"},
-		TBResolver: TBResolverFunc(func(slug string) (fwtermbase.TermBase, error) {
-			return sqltb.NewPostgresTermBaseFromDB(db, slug)
+		TermsResolver: TermsResolverFunc(func(slug string) (fwterms.Terminology, error) {
+			return sqltb.NewPostgresStoreFromDB(db, slug)
 		}),
 	}
 

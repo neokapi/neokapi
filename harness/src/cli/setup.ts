@@ -15,9 +15,9 @@ const CRED = "harness-gemini";
 
 /**
  * Give the harness its own isolated kapi state so recordings don't depend on this
- * machine's installed plugins / flows / TMs. Demos that need a plugin install it
- * themselves into this dir (the plugin-manager walkthroughs record the real
- * download), so setup only has to make the isolated roots exist.
+ * machine's installed plugins / flows / content memories. Demos that need a plugin
+ * install it themselves into this dir (the plugin-manager walkthroughs record the
+ * real download), so setup only has to make the isolated roots exist.
  */
 function setupIsolatedKapi(): void {
   ensureDir(KAPI_ISO_HOME);
@@ -34,7 +34,7 @@ async function buildKapiIfMissing(): Promise<void> {
   // Find an icu4c pkgconfig dir from Homebrew.
   const icu = await sh("brew --prefix icu4c 2>/dev/null");
   const pkgPath = icu.code === 0 ? `${icu.stdout.trim()}/lib/pkgconfig` : "/opt/homebrew/opt/icu4c/lib/pkgconfig";
-  // -tags fts5 is required by mattn/go-sqlite3 for the termbase/TM full-text search.
+  // -tags fts5 is required by mattn/go-sqlite3 for the terms/content memory full-text search.
   const r = await sh(`mkdir -p "${REPO_ROOT}/bin" && cd "${REPO_ROOT}/kapi" && go build -tags fts5 -o "${REPO_ROOT}/bin/kapi" ./cmd/kapi`, {
     env: { ...process.env, PKG_CONFIG_PATH: `${pkgPath}:${process.env.PKG_CONFIG_PATH ?? ""}` },
     timeoutMs: 600_000,

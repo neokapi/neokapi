@@ -496,7 +496,7 @@ const translationDashboardRoute = createRoute({
 // ── Brand hub (AD-021) ───────────────────────────────────────────────────────
 // One workspace surface with five sections: Concepts (graph + list + per-concept
 // story), Voice (profiles + correction loop), Experiments (change-sets), Activity,
-// and Dashboard. The old standalone Termbase is absorbed into Concepts.
+// and Dashboard. The old standalone Terms is absorbed into Concepts.
 
 const brandRoute = createRoute({
   getParentRoute: () => workspaceRoute,
@@ -616,10 +616,10 @@ const brandVoiceMCPGuideRoute = createRoute({
   component: lazyRouteComponent(() => import("./workspace/brand-mcp-guide"), "BrandMCPGuideRoute"),
 });
 
-// Legacy /termbase → Brand · Concepts. Terminology now lives inside the graph.
-const termbaseRoute = createRoute({
+// Legacy /terms → Brand · Concepts. Terminology now lives inside the graph.
+const termsRoute = createRoute({
   getParentRoute: () => workspaceRoute,
-  path: "termbase",
+  path: "terms",
   beforeLoad: ({ params }) => {
     throw redirect({
       to: "/$workspace/brand/concepts",
@@ -838,7 +838,7 @@ const routeTree = rootRoute.addChildren([
         brandVoiceMCPGuideRoute,
       ]),
     ]),
-    termbaseRoute,
+    termsRoute,
     memoryRoute,
     localeDemandRoute,
     auditlogRoute,

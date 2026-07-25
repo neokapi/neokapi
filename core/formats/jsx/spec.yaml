@@ -25,7 +25,7 @@ format: okf_kbf
 kind: top_level
 mime_type: application/vnd.neokapi.kbf+json
 description: |
-  KBF (.kbf) reader/writer. Parses a `kind: kapi-localization-format`
+  KBF (.kbf) reader/writer. Parses a `kind: kapi-bundle`
   JSON envelope, walks every Document → Block, and emits one
   translatable Block per KBF Block whose:
     - source text = flattened run sequence (placeholders → equivs,
@@ -49,7 +49,7 @@ features:
         input_xml: |
           {
             "schemaVersion": "1.0",
-            "kind": "kapi-localization-format",
+            "kind": "kapi-bundle",
             "generator": {"id": "spec-test", "version": "1.0"},
             "project": {"id": "p1", "sourceLocale": "en"},
             "documents": [{
@@ -81,7 +81,7 @@ features:
         input_xml: |
           {
             "schemaVersion": "1.0",
-            "kind": "kapi-localization-format",
+            "kind": "kapi-bundle",
             "generator": {"id": "spec-test", "version": "1.0"},
             "project": {"id": "p1", "sourceLocale": "en"},
             "documents": [{
@@ -117,7 +117,7 @@ features:
         input_xml: |
           {
             "schemaVersion": "1.0",
-            "kind": "kapi-localization-format",
+            "kind": "kapi-bundle",
             "generator": {"id": "spec-test", "version": "1.0"},
             "project": {"id": "p1", "sourceLocale": "en"},
             "documents": [{
@@ -160,7 +160,7 @@ features:
         input_xml: |
           {
             "schemaVersion": "1.0",
-            "kind": "kapi-localization-format",
+            "kind": "kapi-bundle",
             "generator": {"id": "spec-test", "version": "1.0"},
             "project": {"id": "p1", "sourceLocale": "en"},
             "documents": [{

@@ -172,7 +172,7 @@ func TestGetConvergePlan_ReportsPendingWorkAndDrift(t *testing.T) {
 	require.NotNil(t, plan)
 	assert.True(t, plan.StoreMissing, "no block store yet")
 	assert.Equal(t, 4, plan.Plan.Totals.MissingTarget, "2 units × 2 locales")
-	assert.Equal(t, 4, plan.Plan.Totals.AIRemaining, "no TM → all AI work")
+	assert.Equal(t, 4, plan.Plan.Totals.AIRemaining, "no content memory → all AI work")
 	assert.Positive(t, plan.Plan.Totals.TokenEstimate)
 	assert.NotEmpty(t, plan.Plan.Note, "the token heuristic is disclosed")
 	require.Len(t, plan.Plan.Scopes, 2)

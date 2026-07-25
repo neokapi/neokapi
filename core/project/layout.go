@@ -24,7 +24,7 @@ type Layout struct {
 }
 
 // StateDirName is the hidden directory that holds kapi's working
-// state (manifest bookkeeping, TM, termbase, and the cache subdir).
+// state (manifest bookkeeping, content memory, terms, and the cache subdir).
 const StateDirName = ".kapi"
 
 // RecipeFileName is the fixed filename of a kapi project recipe. A plain
@@ -38,7 +38,7 @@ const RecipeFileName = "kapi.yaml"
 // caches: block store, extraction intermediates, overlay layers, and any
 // platform-specific caches (e.g. sync caches added by extensions).
 // Authoritative
-// project data (TM, termbase, manifest) lives at the top level of
+// project data (content memory, terms, manifest) lives at the top level of
 // StateDir so users can blow away the cache without losing translation
 // work.
 const CacheDirName = "cache"

@@ -18,18 +18,18 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
 )
 
-// TMResolver provides workspace-scoped translation memory access.
-type TMResolver interface {
-	GetTM(workspaceID string) (sievepen.TMStore, error)
+// MemoryResolver provides workspace-scoped content memory access.
+type MemoryResolver interface {
+	GetMemory(workspaceID string) (memory.Store, error)
 }
 
-// TBResolver provides workspace-scoped terminology access.
-type TBResolver interface {
-	GetTB(workspaceID string) (termbase.TBStore, error)
+// TermsResolver provides workspace-scoped terminology access.
+type TermsResolver interface {
+	GetTB(workspaceID string) (terms.Store, error)
 }
 
 // ConnectorResolver provides workspace-scoped connector access.
@@ -69,19 +69,19 @@ type SandboxResult struct {
 
 // MCPServer wraps the MCP protocol server with brand voice resources and tools.
 type MCPServer struct {
-	brandStore   corebrand.BrandStore
-	contentStore store.ContentStore
-	wsDefault    brandscope.WorkspaceDefault
-	tmResolver   TMResolver
-	tbResolver   TBResolver
-	connResolver ConnectorResolver
-	membership   MembershipChecker
-	sandbox      SandboxExecutor
-	toolReg      *registry.ToolRegistry
-	tracker      EventTracker
-	server       *mcp.Server
-	handler      http.Handler
-	metadata     *oauthex.ProtectedResourceMetadata
+	brandStore     corebrand.BrandStore
+	contentStore   store.ContentStore
+	wsDefault      brandscope.WorkspaceDefault
+	memoryResolver MemoryResolver
+	tbResolver     TermsResolver
+	connResolver   ConnectorResolver
+	membership     MembershipChecker
+	sandbox        SandboxExecutor
+	toolReg        *registry.ToolRegistry
+	tracker        EventTracker
+	server         *mcp.Server
+	handler        http.Handler
+	metadata       *oauthex.ProtectedResourceMetadata
 }
 
 // Config holds configuration for the MCP server.
@@ -103,13 +103,13 @@ type Config struct {
 // Option configures optional MCPServer dependencies.
 type Option func(*MCPServer)
 
-// WithTMResolver adds workspace-scoped TM access.
-func WithTMResolver(r TMResolver) Option {
-	return func(s *MCPServer) { s.tmResolver = r }
+// WithMemoryResolver adds workspace-scoped content memory access.
+func WithMemoryResolver(r MemoryResolver) Option {
+	return func(s *MCPServer) { s.memoryResolver = r }
 }
 
-// WithTBResolver adds workspace-scoped termbase access.
-func WithTBResolver(r TBResolver) Option {
+// WithTermsResolver adds workspace-scoped terms access.
+func WithTermsResolver(r TermsResolver) Option {
 	return func(s *MCPServer) { s.tbResolver = r }
 }
 
@@ -119,7 +119,7 @@ func WithConnectorResolver(r ConnectorResolver) Option {
 }
 
 // WithMembershipChecker enables workspace-membership enforcement on the
-// workspace-scoped tools (TM, termbase, connector). When unset (single-user /
+// workspace-scoped tools (content memory, terms, connector). When unset (single-user /
 // no-auth deployments), no enforcement is applied.
 func WithMembershipChecker(m MembershipChecker) Option {
 	return func(s *MCPServer) { s.membership = m }
@@ -165,7 +165,7 @@ func NewMCPServer(brandStore corebrand.BrandStore, cfg Config) (*MCPServer, erro
 }
 
 // NewMCPServerWithStore creates a new MCP server with brand voice and
-// content/flow/TM/termbase/connector tools for @bravo agent access.
+// content/flow/content memory/terms/connector tools for @bravo agent access.
 func NewMCPServerWithStore(brandStore corebrand.BrandStore, contentStore store.ContentStore, cfg Config, opts ...Option) (*MCPServer, error) {
 	s := mcp.NewServer(
 		&mcp.Implementation{
@@ -196,8 +196,8 @@ func NewMCPServerWithStore(brandStore corebrand.BrandStore, contentStore store.C
 	if contentStore != nil {
 		ms.registerContentTools()
 		ms.registerFlowTools()
-		ms.registerTMTools()
-		ms.registerTermbaseTools()
+		ms.registerMemoryTools()
+		ms.registerTermsTools()
 		ms.registerConnectorTools()
 	}
 	if ms.sandbox != nil {

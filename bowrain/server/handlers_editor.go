@@ -16,8 +16,8 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/memory"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
-	"github.com/neokapi/neokapi/sievepen"
 )
 
 // HandleCreateEditorProject creates a new translation project in the ContentStore.
@@ -569,8 +569,8 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 	return c.JSON(http.StatusOK, stats)
 }
 
-// HandleTMTranslate leverages translation memory to translate blocks.
-func (s *Server) HandleTMTranslate(c echo.Context) error {
+// HandleMemoryTranslate leverages content memory to translate blocks.
+func (s *Server) HandleMemoryTranslate(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermTranslate); err != nil {
 		return err
 	}
@@ -593,7 +593,7 @@ func (s *Server) HandleTMTranslate(c echo.Context) error {
 		return err
 	}
 
-	stats, err := editorTMTranslate(c.Request().Context(), s.ContentStore, s.wsStores, ws, pid, streamParam(c), fname, req.TargetLocale)
+	stats, err := editorMemoryTranslate(c.Request().Context(), s.ContentStore, s.wsStores, ws, pid, streamParam(c), fname, req.TargetLocale)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
@@ -692,8 +692,8 @@ func (s *Server) HandleExportTranslatedFile(c echo.Context) error {
 	return c.File(outputPath)
 }
 
-// HandleLookupTMForBlock looks up TM matches for a specific block.
-func (s *Server) HandleLookupTMForBlock(c echo.Context) error {
+// HandleLookupMemoryForBlock looks up content-memory matches for a specific block.
+func (s *Server) HandleLookupMemoryForBlock(c echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -703,13 +703,13 @@ func (s *Server) HandleLookupTMForBlock(c echo.Context) error {
 	bid := c.Param("bid")
 	targetLocale := c.QueryParam("target_locale")
 
-	matches, err := editorLookupTMForBlock(c.Request().Context(), s.ContentStore, s.wsStores, ws, pid, streamParam(c), bid, targetLocale)
+	matches, err := editorLookupMemoryForBlock(c.Request().Context(), s.ContentStore, s.wsStores, ws, pid, streamParam(c), bid, targetLocale)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
 	if matches == nil {
-		matches = []TMMatchInfoResponse{}
+		matches = []MemoryMatchInfoResponse{}
 	}
 	return c.JSON(http.StatusOK, matches)
 }
@@ -736,8 +736,8 @@ func (s *Server) HandleLookupTermsForBlock(c echo.Context) error {
 	return c.JSON(http.StatusOK, matches)
 }
 
-// HandleGetTMEntries searches TM entries.
-func (s *Server) HandleGetTMEntries(c echo.Context) error {
+// HandleGetMemoryEntries searches content-memory entries.
+func (s *Server) HandleGetMemoryEntries(c echo.Context) error {
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -753,19 +753,19 @@ func (s *Server) HandleGetTMEntries(c echo.Context) error {
 		limit = 50
 	}
 
-	tm, err := s.wsStores.getTM(ws)
+	tm, err := s.wsStores.getMemory(ws)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
 	stream := c.QueryParam("stream")
 	ctx := c.Request().Context()
-	var entries []sievepen.TMEntry
+	var entries []memory.Entry
 	var total int
 	if stream != "" && stream != "main" && s.ContentStore != nil {
 		pid := c.QueryParam("project_id")
 		chain := buildStreamChain(ctx, s.ContentStore, pid, stream)
-		entries, total, err = tm.SearchEntriesForStream(ctx, sievepen.SearchParams{
+		entries, total, err = tm.SearchEntriesForStream(ctx, memory.SearchParams{
 			Query:         query,
 			AnyLocale:     sourceLocale,
 			RequireLocale: targetLocale,
@@ -775,7 +775,7 @@ func (s *Server) HandleGetTMEntries(c echo.Context) error {
 			Limit:         limit,
 		})
 	} else {
-		entries, total, err = tm.SearchEntries(ctx, sievepen.SearchParams{
+		entries, total, err = tm.SearchEntries(ctx, memory.SearchParams{
 			Query:         query,
 			AnyLocale:     sourceLocale,
 			RequireLocale: targetLocale,
@@ -789,7 +789,7 @@ func (s *Server) HandleGetTMEntries(c echo.Context) error {
 
 	// Post-filter by project_id if specified.
 	if projectID != "" {
-		filtered := make([]sievepen.TMEntry, 0, len(entries))
+		filtered := make([]memory.Entry, 0, len(entries))
 		for _, e := range entries {
 			if e.ProjectID == projectID {
 				filtered = append(filtered, e)
@@ -799,23 +799,23 @@ func (s *Server) HandleGetTMEntries(c echo.Context) error {
 		total = len(filtered)
 	}
 
-	infos := make([]TMEntryInfoResponse, len(entries))
+	infos := make([]MemoryEntryInfoResponse, len(entries))
 	for i, e := range entries {
 		infos[i] = editorEntryToInfo(e, sourceLocale, targetLocale)
 	}
 
-	return c.JSON(http.StatusOK, TMSearchResponse{Entries: infos, TotalCount: total})
+	return c.JSON(http.StatusOK, MemorySearchResponse{Entries: infos, TotalCount: total})
 }
 
-// HandleGetTMCount returns the TM entry count.
-func (s *Server) HandleGetTMCount(c echo.Context) error {
+// HandleGetMemoryCount returns the content-memory entry count.
+func (s *Server) HandleGetMemoryCount(c echo.Context) error {
 	if s.wsStores == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
 	ws := c.Param("ws")
 
-	tm, err := s.wsStores.getTM(ws)
+	tm, err := s.wsStores.getMemory(ws)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
@@ -827,9 +827,9 @@ func (s *Server) HandleGetTMCount(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]int{"count": count})
 }
 
-// HandleAddTMEntry adds a new TM entry.
-func (s *Server) HandleAddTMEntry(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageTM); err != nil {
+// HandleAddMemoryEntry adds a new content-memory entry.
+func (s *Server) HandleAddMemoryEntry(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageMemory); err != nil {
 		return err
 	}
 	if s.wsStores == nil {
@@ -838,19 +838,19 @@ func (s *Server) HandleAddTMEntry(c echo.Context) error {
 
 	ws := c.Param("ws")
 
-	var req TMAddRequest
+	var req MemoryAddRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	tm, err := s.wsStores.getTM(ws)
+	tm, err := s.wsStores.getMemory(ws)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
 	srcLoc := model.LocaleID(req.SourceLocale)
 	tgtLoc := model.LocaleID(req.TargetLocale)
-	entry := sievepen.TMEntry{
+	entry := memory.Entry{
 		ID: id.New(),
 		Variants: map[model.LocaleID][]model.Run{
 			srcLoc: {{Text: &model.TextRun{Text: req.Source}}},
@@ -874,9 +874,9 @@ func (s *Server) HandleAddTMEntry(c echo.Context) error {
 	return c.JSON(http.StatusCreated, editorEntryToInfo(entry, req.SourceLocale, req.TargetLocale))
 }
 
-// HandleUpdateTMEntry updates an existing TM entry.
-func (s *Server) HandleUpdateTMEntry(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageTM); err != nil {
+// HandleUpdateMemoryEntry updates an existing content-memory entry.
+func (s *Server) HandleUpdateMemoryEntry(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageMemory); err != nil {
 		return err
 	}
 	if s.wsStores == nil {
@@ -886,12 +886,12 @@ func (s *Server) HandleUpdateTMEntry(c echo.Context) error {
 	ws := c.Param("ws")
 	eid := c.Param("eid")
 
-	var req TMUpdateRequest
+	var req MemoryUpdateRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	tm, err := s.wsStores.getTM(ws)
+	tm, err := s.wsStores.getMemory(ws)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
@@ -901,7 +901,7 @@ func (s *Server) HandleUpdateTMEntry(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 	if !ok {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: fmt.Sprintf("TM entry %q not found", eid)})
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: fmt.Sprintf("content-memory entry %q not found", eid)})
 	}
 
 	// Delete old and add updated.
@@ -928,9 +928,9 @@ func (s *Server) HandleUpdateTMEntry(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-// HandleDeleteTMEntry deletes a TM entry.
-func (s *Server) HandleDeleteTMEntry(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageTM); err != nil {
+// HandleDeleteMemoryEntry deletes a content-memory entry.
+func (s *Server) HandleDeleteMemoryEntry(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageMemory); err != nil {
 		return err
 	}
 	if s.wsStores == nil {
@@ -940,7 +940,7 @@ func (s *Server) HandleDeleteTMEntry(c echo.Context) error {
 	ws := c.Param("ws")
 	eid := c.Param("eid")
 
-	tm, err := s.wsStores.getTM(ws)
+	tm, err := s.wsStores.getMemory(ws)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
@@ -1159,8 +1159,8 @@ func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
 	// Derive per-locale + per-collection ship states and on-brand rates
 	// (bounded QA pass + deterministic term compliance + persisted voice scores)
 	// so the cached result carries them for every paged slice. The term gate
-	// resolves the workspace termbase snapshot + per-locale brand profile once
-	// (never per block) — a nil gate (no termbase, no brand store) is a no-op.
+	// resolves the workspace terms snapshot + per-locale brand profile once
+	// (never per block) — a nil gate (no terms, no brand store) is a no-op.
 	gate := s.resolveTermGate(ctx, proj, stream, wsID)
 	if err := applyShipStates(ctx, s.ContentStore, s.BrandStore, proj.ID, stream, gate, stats); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})

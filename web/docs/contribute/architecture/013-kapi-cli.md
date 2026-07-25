@@ -183,9 +183,9 @@ All commands that produce output support consistent format flags through
 the shared `cli/output/` package:
 
 ```bash
-kapi tm stats --json                 # machine-readable JSON
-kapi tm stats --text                 # human-readable (default)
-kapi tm stats --output-format=json   # explicit long form
+kapi memory stats --json                 # machine-readable JSON
+kapi memory stats --text                 # human-readable (default)
+kapi memory stats --output-format=json   # explicit long form
 ```
 
 Flag precedence:

@@ -3,7 +3,7 @@
 #   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-up-loop
 #
 # The kapi-loop trust moment, end to end: preview the work (`up --plan`),
-# produce (`up` fills every target from the TM, then parks — the ship gate
+# produce (`up` fills every target from the content memory, then parks — the ship gate
 # wants review, and review needs a person), read the worklist
 # (`status --review`), watch the gate block (`check --ship`, exit 3), record
 # the decision (`apply`), and watch the same gate clear (exit 0).
@@ -15,7 +15,7 @@
 # `apply`, and the closing `status` run live against the in-memory filesystem
 # — the same park → decide → shippable arc, minus the native-only verbs.
 #
-# Fully offline in every venue: the recipe's tm-recycle flow leverages the TM
+# Fully offline in every venue: the recipe's tm-recycle flow leverages the content memory
 # only — no LLM, no network. The ship gate is translated: 100 + reviewed: 100,
 # so production alone can never clear it: the human decision is the last mile.
 
@@ -26,7 +26,7 @@ mode: video
 # Steps the offline embed runs (status --review / apply / status). The
 # generator builds the embed config from the steps marked `offline: true`.
 # The embed seeds the project *already produced*: messages.fr.json carries the
-# TM's French, exactly what `kapi up` materializes in the recording.
+# content memory's French, exactly what `kapi up` materializes in the recording.
 embed:
   files:
     - path: kapi.yaml
@@ -77,7 +77,7 @@ tape:
   padding: 20
   fontSize: 16
 
-# Recording fixtures: the kit catalog, the TM that supplies the French, the
+# Recording fixtures: the kit catalog, the content memory that supplies the French, the
 # recipe with a translated+reviewed ship gate, and the reviewer's change-set.
 # The recording starts from an unproduced project — `kapi up` does the work.
 seed:
@@ -130,14 +130,14 @@ files:
 
 steps:
   - comment: The ship gate wants translated 100% and reviewed 100%. A machine can meet the first; only a person can meet the second.
-  - command: kapi tm import project.tmx
-    narration: Seed the project TM. The recipe's flow leverages it before any AI is asked — this scene never calls a provider.
+  - command: kapi memory import project.tmx
+    narration: Seed the project content memory. The recipe's flow leverages it before any AI is asked — this scene never calls a provider.
     offline: false
   - command: kapi up --plan
-    narration: --plan previews the work without doing any. Per locale it reports the pending units, the exact TM leverage, what remains for AI, and a token estimate. No provider calls, no writes.
+    narration: --plan previews the work without doing any. Per locale it reports the pending units, the exact content-memory leverage, what remains for AI, and a token estimate. No provider calls, no writes.
     offline: false
   - command: kapi up
-    narration: up produces. The TM fills every fr unit, then the loop stops — the gate also wants review, and review needs a person. fr parks. Parking is the hand-off, not a failure; up exits zero.
+    narration: up produces. The content memory fills every fr unit, then the loop stops — the gate also wants review, and review needs a person. fr parks. Parking is the hand-off, not a failure; up exits zero.
     offline: false
   - command: kapi status --review
     narration: The worklist — every translated unit not yet approved, addressed by file, id, and locale, exactly as a review change-set names it.

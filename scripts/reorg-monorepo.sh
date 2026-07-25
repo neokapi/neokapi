@@ -10,8 +10,8 @@
 #
 #   framework/              framework Go module root (go.mod moves here)
 #     core/                 framework packages (moved from ./core/)
-#     sievepen/             translation memory (promoted from core/sievepen/)
-#     termbase/             terminology (promoted from core/termbase/)
+#     memory/             content memory (promoted from core/memory/)
+#     terms/             terminology (promoted from core/terms/)
 #     providers/ai/         LLM providers (promoted from core/ai/provider/)
 #     providers/mt/         MT providers (promoted from core/mt/provider/)
 #     cli/                  shared CLI base (moved from ./cli/)
@@ -38,7 +38,7 @@
 #   - Directory locations (git mv)
 #   - go.work use directives
 #   - replace directives in every go.mod
-#   - Go import paths for promoted packages (sievepen, termbase, ai/provider, mt/provider)
+#   - Go import paths for promoted packages (memory, terms, ai/provider, mt/provider)
 #   - Makefile path variables
 #   - .goreleaser.yaml build dirs and hooks
 #   - .dockerignore paths
@@ -96,11 +96,11 @@ git mv core framework/core
 
 # ─── 1b. Promote packages out of core/ to framework/ top level ───────────────
 
-echo "--- Promoting sievepen/ out of core/"
-git mv framework/core/sievepen framework/sievepen
+echo "--- Promoting memory/ out of core/"
+git mv framework/core/memory framework/memory
 
-echo "--- Promoting termbase/ out of core/"
-git mv framework/core/termbase framework/termbase
+echo "--- Promoting terms/ out of core/"
+git mv framework/core/terms framework/terms
 
 echo "--- Promoting mt/provider/ → providers/mt/"
 mkdir -p framework/providers
@@ -230,19 +230,19 @@ GOWORK
 
 echo "--- Rewriting Go import paths for promoted packages"
 
-# sievepen:    core/sievepen    → sievepen       (drops core/ prefix)
-# termbase:    core/termbase    → termbase       (drops core/ prefix)
+# memory:    core/memory    → memory       (drops core/ prefix)
+# terms:    core/terms    → terms       (drops core/ prefix)
 # ai/provider: core/ai/provider → providers/ai   (reorganized)
 # mt/provider: core/mt/provider → providers/mt   (reorganized)
 #
 # These find/replace operate on all .go files across every module.
 # The module name (github.com/neokapi/neokapi) stays the same — only the
 # package path suffix changes.  We match the partial path (without leading
-# quote) to also catch aliased imports like:  fw "github.com/…/core/sievepen"
+# quote) to also catch aliased imports like:  fw "github.com/…/core/memory"
 
 find framework/ bowrain/ -name '*.go' -exec sed "${_SED_I_ARGS[@]}" \
-  -e 's|neokapi/neokapi/core/sievepen"|neokapi/neokapi/sievepen"|g' \
-  -e 's|neokapi/neokapi/core/termbase"|neokapi/neokapi/termbase"|g' \
+  -e 's|neokapi/neokapi/core/memory"|neokapi/neokapi/memory"|g' \
+  -e 's|neokapi/neokapi/core/terms"|neokapi/neokapi/terms"|g' \
   -e 's|neokapi/neokapi/core/ai/provider"|neokapi/neokapi/providers/ai"|g' \
   -e 's|neokapi/neokapi/core/mt/provider"|neokapi/neokapi/providers/mt"|g' \
   {} +

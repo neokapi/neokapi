@@ -56,7 +56,7 @@ const localeStateColor: Record<string, string> = {
 /**
  * The live convergence view of a "Bring up to date" run. It renders the reduced
  * event stream into passes, each showing one row per locale with a unit-progress
- * bar, the TM-vs-AI split, and the locale's state (queued → running → done),
+ * bar, the content memory-vs-AI split, and the locale's state (queued → running → done),
  * then the pass's post-derivation summary (produced delta, failing checks, still
  * pending locales). Once the run settles it shows the structured outcome, with
  * each parked (collection, locale) scope rendered as a deep link. Parity with
@@ -365,7 +365,7 @@ function ConvergePassBlock({ pass, live, running }: ConvergePassBlockProps) {
   );
 }
 
-/** One locale's live cell: state icon, progress bar, counts, TM/AI split. */
+/** One locale's live cell: state icon, progress bar, counts, Memory/AI split. */
 function ConvergeLocaleRowView({ row }: { row: ConvergenceLocaleRow }) {
   const pct = row.units > 0 ? Math.round((row.done / row.units) * 100) : 0;
   return (
@@ -391,9 +391,9 @@ function ConvergeLocaleRowView({ row }: { row: ConvergenceLocaleRow }) {
       <span className="shrink-0 tabular-nums text-muted-foreground">
         {row.done}/{row.units}
       </span>
-      {(row.viaTM > 0 || row.viaAI > 0) && (
+      {(row.viaMemory > 0 || row.viaAI > 0) && (
         <span className="shrink-0 text-[11px] text-muted-foreground">
-          {t("TM {tm} · AI {ai}", { tm: row.viaTM, ai: row.viaAI })}
+          {t("content memory {tm} · AI {ai}", { tm: row.viaMemory, ai: row.viaAI })}
         </span>
       )}
       {row.localeState && (

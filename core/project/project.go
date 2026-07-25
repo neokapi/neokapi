@@ -165,8 +165,8 @@ type Defaults struct {
 	// Merge governs kapi merge behavior (AD-017).
 	Merge MergeDefaults `yaml:"merge,omitempty" json:"merge,omitzero"`
 
-	// TM governs TM pre-fill on kapi extract and TM write-back on kapi merge (AD-017).
-	TM TMDefaults `yaml:"tm,omitempty" json:"tm,omitzero"`
+	// content memory governs content memory pre-fill on kapi extract and content memory write-back on kapi merge (AD-017).
+	Memory MemoryDefaults `yaml:"tm,omitempty" json:"tm,omitzero"`
 
 	// Segmentation governs the opt-in sentence-level segmentation overlay
 	// applied on extract (AD-017).
@@ -187,27 +187,27 @@ type Defaults struct {
 	// which is a platform-level policy with collection scoping.
 	BrandVoice *BrandVoiceBinding `yaml:"brand_voice,omitempty" json:"brand_voice,omitempty"`
 
-	// Termbase binds a glossary/termbase as standing project context. When
-	// set, project-scoped term enforcement uses it with no --termbase flag.
+	// Terms binds a glossary/terms as standing project context. When
+	// set, project-scoped term enforcement uses it with no --terms flag.
 	// The path resolves relative to the project root (the recipe's
-	// directory). Empty means no bound termbase.
-	Termbase string `yaml:"termbase,omitempty" json:"termbase,omitempty"`
+	// directory). Empty means no bound terms.
+	Terms string `yaml:"termbase,omitempty" json:"termbase,omitempty"`
 
-	// TermbaseSource binds the committed, git-tracked native source artifact
-	// (a .ktb document) the project termbase is compiled from. This is the
+	// TermsSource binds the committed, git-tracked native source artifact
+	// (a .ktb document) the project terms store is compiled from. This is the
 	// authored, reviewable form: `kapi apply` edits the .ktb here and then
-	// re-imports it into the gitignored Termbase (.db) cache, so the SQLite
+	// re-imports it into the gitignored Terms (.db) cache, so the SQLite
 	// store is written by exactly one path and `git diff` is the review
 	// surface. The path resolves relative to the project root. Empty means no
 	// bound source (the .db cache, if any, is the only artifact).
-	TermbaseSource string `yaml:"termbase_source,omitempty" json:"termbase_source,omitempty"`
+	TermsSource string `yaml:"termbase_source,omitempty" json:"termbase_source,omitempty"`
 
-	// TMSource binds the committed, git-tracked native source artifact (a
-	// .kmb document) the project translation memory is compiled from, the TM
-	// analogue of TermbaseSource. `kapi apply` edits the .kmb here and
+	// MemorySource binds the committed, git-tracked native source artifact (a
+	// .kmb document) the project content memory is compiled from, the content memory
+	// analogue of TermsSource. `kapi apply` edits the .kmb here and
 	// re-imports it into the gitignored .kapi/tm.db cache. The path resolves
-	// relative to the project root. Empty means no bound TM source.
-	TMSource string `yaml:"tm_source,omitempty" json:"tm_source,omitempty"`
+	// relative to the project root. Empty means no bound content memory source.
+	MemorySource string `yaml:"tm_source,omitempty" json:"tm_source,omitempty"`
 
 	// State binds the committed, git-tracked project state artifact (a
 	// kapi-project-state JSON document, core/state) — the authoritative carrier of
@@ -360,26 +360,26 @@ func (d Defaults) validateMaterialize() error {
 	}
 }
 
-// DefaultFuzzyThreshold is the TM fuzzy-match cutoff (percent) applied when
+// DefaultFuzzyThreshold is the content memory fuzzy-match cutoff (percent) applied when
 // the recipe does not specify one (AD-017).
 const DefaultFuzzyThreshold = 75
 
 // MergeDefaults governs kapi merge behavior (AD-017).
 type MergeDefaults struct {
 	// ConflictPolicy governs how merge applies a translator's target when
-	// an existing on-disk target or TM TU already has a translation. Valid
+	// an existing on-disk target or content memory TU already has a translation. Valid
 	// values: "translator-wins" (default), "existing-wins", "newest-wins".
 	ConflictPolicy string `yaml:"conflict_policy,omitempty" json:"conflict_policy,omitempty"`
 }
 
-// TMDefaults governs TM pre-fill on extract and TM write-back on merge (AD-017).
-type TMDefaults struct {
+// MemoryDefaults governs content memory pre-fill on extract and content memory write-back on merge (AD-017).
+type MemoryDefaults struct {
 	// FuzzyThreshold is the minimum fuzzy match score (0..100) to pre-fill
 	// the target on extract. Defaults to DefaultFuzzyThreshold when zero.
 	FuzzyThreshold int `yaml:"fuzzy_threshold,omitempty" json:"fuzzy_threshold,omitempty"`
 
-	// Read lists additional read-only TM files consulted during pre-fill on
-	// extract. Writes always go to the project TM, never to these.
+	// Read lists additional read-only content memory files consulted during pre-fill on
+	// extract. Writes always go to the project content memory, never to these.
 	Read []string `yaml:"read,omitempty" json:"read,omitempty"`
 }
 
@@ -402,9 +402,9 @@ func (m MergeDefaults) ResolvedConflictPolicy() string {
 	return m.ConflictPolicy
 }
 
-// ResolvedFuzzyThreshold returns the effective TM fuzzy threshold, applying
+// ResolvedFuzzyThreshold returns the effective content memory fuzzy threshold, applying
 // the default when the recipe does not set one.
-func (t TMDefaults) ResolvedFuzzyThreshold() int {
+func (t MemoryDefaults) ResolvedFuzzyThreshold() int {
 	if t.FuzzyThreshold == 0 {
 		return DefaultFuzzyThreshold
 	}
@@ -424,7 +424,7 @@ func (m MergeDefaults) validate() error {
 	}
 }
 
-func (t TMDefaults) validate() error {
+func (t MemoryDefaults) validate() error {
 	if t.FuzzyThreshold < 0 || t.FuzzyThreshold > 100 {
 		return fmt.Errorf("defaults.tm.fuzzy_threshold: %d out of range (0..100)", t.FuzzyThreshold)
 	}
@@ -738,7 +738,7 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 	if err := p.Defaults.validateMaterialize(); err != nil {
 		return err
 	}
-	if err := p.Defaults.TM.validate(); err != nil {
+	if err := p.Defaults.Memory.validate(); err != nil {
 		return err
 	}
 	if err := p.Defaults.Redaction.validate(); err != nil {

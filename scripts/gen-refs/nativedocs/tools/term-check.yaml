@@ -7,11 +7,11 @@ overview: |
   block's source text, the tool verifies that the required target term occurs in
   the translation; when it does not, the block is flagged and the missing
   expectations are recorded on its properties. A target locale is required, and a
-  termbase or glossary supplies the term pairs.
+  terms or glossary supplies the term pairs.
 
   The glossary is supplied programmatically rather than as a schema field, so the
   tool is typically wired up by the host application or a project that binds a
-  termbase. The only schema-level option controls whether term matching respects
+  terms. The only schema-level option controls whether term matching respects
   letter case.
 parameters:
   caseSensitive:
@@ -24,7 +24,7 @@ parameters:
 limitations:
   - The glossary of term pairs is configured programmatically; it is not exposed as a schema parameter.
   - Matching is substring-based; it does not account for inflection or morphology.
-  - Requires a configured target locale and a termbase; blocks without a translation are skipped.
+  - Requires a configured target locale and a terms store; blocks without a translation are skipped.
 processingNotes:
   - Operates on translatable blocks; non-translatable structure passes through unchanged.
   - Only entries whose source term is present in the block's source are checked.

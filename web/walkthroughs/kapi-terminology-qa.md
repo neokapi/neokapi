@@ -3,7 +3,7 @@ id: kapi-terminology-qa
 audience: developer
 target_doc: docs/walkthroughs/kapi-terminology-qa.mdx
 scenes:
-  - id: termbase-qa
+  - id: terms-qa
     kind: terminal
     binary: kapi
     duration_budget_seconds: 60
@@ -11,23 +11,23 @@ scenes:
       - glossary.csv
       - messages_en.json
     smoke_contract:
-      - kapi termbase stats
-      - kapi termbase lookup password -s en -t fr
-      - kapi termbase search encrypt -s en
+      - kapi terms stats
+      - kapi terms lookup password -s en -t fr
+      - kapi terms search encrypt -s en
       - kapi pseudo-translate messages_en.json -o pseudo_fr.json
 ---
 
 ## Story
 
 A glossary makes terminology consistent across your translations and across
-locales. `kapi termbase` ingests CSVs and exposes lookup/search;
+locales. `kapi terms` ingests CSVs and exposes lookup/search;
 `kapi exec term-check` flags terminology drift in target files before they
 ship — the same check `kapi up` binds after every pass, so a violating unit
 cannot lift its locale over the ship gate.
 
-## Scene 1 — termbase-qa (terminal)
+## Scene 1 — terms-qa (terminal)
 
-Inspect the pre-seeded termbase's stats, look up a
+Inspect the pre-seeded terms's stats, look up a
 specific term, search for related ones, then run `kapi pseudo-translate`
 followed by `kapi exec term-check ...` to see violations flagged in
 the output.

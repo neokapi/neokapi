@@ -68,7 +68,7 @@ export class Origin {
         }
         if (/** @type {any} */(false)) {
             /**
-             * batch id, TM entry, etc.
+             * batch id, content-memory entry, etc.
              * @member
              * @type {string | undefined}
              */

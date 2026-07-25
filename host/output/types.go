@@ -265,7 +265,7 @@ func (o FlowRunOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// LeverageOutput is a TM leverage tally (extract pre-fill).
+// LeverageOutput is a content-memory leverage tally (extract pre-fill).
 type LeverageOutput struct {
 	Exact int `json:"exact"`
 	Fuzzy int `json:"fuzzy"`
@@ -311,7 +311,7 @@ func (o ExtractOutput) FormatText(w io.Writer) error {
 	fmt.Fprintf(w, "Extracting batch %s (format=%s, targets=%s, sources=%d)\n\n",
 		s.Accent.Render(o.BatchID), o.Format, strings.Join(o.Targets, ", "), o.Sources)
 
-	// One row per target locale. These were "fr: 2 files, 10 blocks, TM
+	// One row per target locale. These were "fr: 2 files, 10 blocks, content memory
 	// exact=4 fuzzy=1 new=5" lines — a record set spelled out as prose, which
 	// stops being readable the moment there is more than a handful of locales.
 	t := NewTable(w).Accent(0).Headers("LOCALE", "FILES", "BLOCKS", "EXACT", "FUZZY", "NEW")
@@ -326,7 +326,7 @@ func (o ExtractOutput) FormatText(w io.Writer) error {
 	if o.Reused > 0 {
 		Note(w, "Reused %d unchanged file(s) from a prior batch (no re-parse).", o.Reused)
 	}
-	Note(w, "Aggregate TM leverage: exact=%d fuzzy=%d new=%d (total=%d)",
+	Note(w, "Aggregate content-memory leverage: exact=%d fuzzy=%d new=%d (total=%d)",
 		o.Leverage.Exact, o.Leverage.Fuzzy, o.Leverage.New, o.Leverage.Total())
 	return nil
 }
@@ -335,13 +335,13 @@ func (o ExtractOutput) FormatText(w io.Writer) error {
 // that failed carries its error (details also go to stderr as they happen)
 // and zero counts.
 type MergeFileOutput struct {
-	Input     string `json:"input"`
-	Applied   int    `json:"applied"`
-	Stale     int    `json:"stale"`
-	Skipped   int    `json:"skipped"`
-	TMNew     int    `json:"tm_new"`
-	TMUpdated int    `json:"tm_updated"`
-	Error     string `json:"error,omitempty"`
+	Input         string `json:"input"`
+	Applied       int    `json:"applied"`
+	Stale         int    `json:"stale"`
+	Skipped       int    `json:"skipped"`
+	MemoryNew     int    `json:"tm_new"`
+	MemoryUpdated int    `json:"tm_updated"`
+	Error         string `json:"error,omitempty"`
 }
 
 // MergeOutput represents the result of `kapi merge -i` (applying returned
@@ -351,15 +351,15 @@ type MergeOutput struct {
 	Applied        int               `json:"applied"`
 	Stale          int               `json:"stale"`
 	Skipped        int               `json:"skipped"`
-	TMNew          int               `json:"tm_new"`
-	TMUpdated      int               `json:"tm_updated"`
+	MemoryNew      int               `json:"tm_new"`
+	MemoryUpdated  int               `json:"tm_updated"`
 	ConflictPolicy string            `json:"conflict_policy"`
 	Failures       int               `json:"failures,omitempty"`
 }
 
 func (o MergeOutput) FormatText(w io.Writer) error {
 	t := NewTable(w).Accent(0).
-		Headers("FILE", "APPLIED", "STALE", "SKIPPED", "TM NEW", "TM UPDATED")
+		Headers("FILE", "APPLIED", "STALE", "SKIPPED", "content memory NEW", "content memory UPDATED")
 	s := t.Styles()
 
 	for _, f := range o.Files {
@@ -369,13 +369,13 @@ func (o MergeOutput) FormatText(w io.Writer) error {
 			t.Row(f.Input, s.Error.Render("failed"), "", "", "", "")
 			continue
 		}
-		t.Rowf(f.Input, f.Applied, f.Stale, f.Skipped, f.TMNew, f.TMUpdated)
+		t.Rowf(f.Input, f.Applied, f.Stale, f.Skipped, f.MemoryNew, f.MemoryUpdated)
 	}
 	t.Render()
 
 	fmt.Fprintf(w,
 		"\nMerge complete. applied=%d stale=%d skipped=%d tm_new=%d tm_updated=%d (conflict_policy=%s)\n",
-		o.Applied, o.Stale, o.Skipped, o.TMNew, o.TMUpdated, o.ConflictPolicy)
+		o.Applied, o.Stale, o.Skipped, o.MemoryNew, o.MemoryUpdated, o.ConflictPolicy)
 	return nil
 }
 
@@ -669,64 +669,64 @@ func (o FormatInfoOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// TermbaseImportOutput represents the result of a termbase import.
-type TermbaseImportOutput struct {
+// TermsImportOutput represents the result of a terms store import.
+type TermsImportOutput struct {
 	Imported int    `json:"imported"`
 	DBPath   string `json:"db_path"`
 	Total    int    `json:"total"`
 }
 
-func (o TermbaseImportOutput) FormatText(w io.Writer) error {
+func (o TermsImportOutput) FormatText(w io.Writer) error {
 	fmt.Fprintf(w, "Imported %d concepts into %s (total: %d)\n", o.Imported, o.DBPath, o.Total)
 	return nil
 }
 
-// TermbaseExportOutput represents the result of a termbase export.
-type TermbaseExportOutput struct {
+// TermsExportOutput represents the result of a terms store export.
+type TermsExportOutput struct {
 	Count      int    `json:"count"`
 	OutputPath string `json:"output_path"`
 }
 
-func (o TermbaseExportOutput) FormatText(w io.Writer) error {
+func (o TermsExportOutput) FormatText(w io.Writer) error {
 	fmt.Fprintf(w, "Exported %d concepts to %s\n", o.Count, o.OutputPath)
 	return nil
 }
 
-// TermbaseLookupTarget represents a target term in a lookup result.
-type TermbaseLookupTarget struct {
+// TermsLookupTarget represents a target term in a lookup result.
+type TermsLookupTarget struct {
 	Text   string `json:"text"`
 	Locale string `json:"locale"`
 	Status string `json:"status"`
 }
 
-// TermbaseLookupEntry represents a single match from a termbase lookup.
-type TermbaseLookupEntry struct {
-	Term      string                 `json:"term"`
-	Locale    string                 `json:"locale"`
-	Status    string                 `json:"status"`
-	MatchType string                 `json:"match_type"`
-	Score     float64                `json:"score"`
-	ConceptID string                 `json:"concept_id"`
-	Domain    string                 `json:"domain,omitempty"`
-	Targets   []TermbaseLookupTarget `json:"targets,omitempty"`
+// TermsLookupEntry represents a single match from a terms store lookup.
+type TermsLookupEntry struct {
+	Term      string              `json:"term"`
+	Locale    string              `json:"locale"`
+	Status    string              `json:"status"`
+	MatchType string              `json:"match_type"`
+	Score     float64             `json:"score"`
+	ConceptID string              `json:"concept_id"`
+	Domain    string              `json:"domain,omitempty"`
+	Targets   []TermsLookupTarget `json:"targets,omitempty"`
 }
 
-// TermbaseLookupOutput represents the result of a termbase lookup.
-type TermbaseLookupOutput struct {
-	Matches []TermbaseLookupEntry `json:"matches"`
-	Total   int                   `json:"total"`
+// TermsLookupOutput represents the result of a terms store lookup.
+type TermsLookupOutput struct {
+	Matches []TermsLookupEntry `json:"matches"`
+	Total   int                `json:"total"`
 }
 
-func (o TermbaseLookupOutput) FormatText(w io.Writer) error {
+func (o TermsLookupOutput) FormatText(w io.Writer) error {
 	if len(o.Matches) == 0 {
 		fmt.Fprintln(w, "No matches found.")
 		return nil
 	}
 
 	t := NewTable(w).Accent(0).Headers(
-		T("termbase.header.term"), T("termbase.header.locale"), T("termbase.header.status"),
-		T("termbase.header.match"), T("termbase.header.score"), T("termbase.header.concept"),
-		T("termbase.header.domain"))
+		T("terms.header.term"), T("terms.header.locale"), T("terms.header.status"),
+		T("terms.header.match"), T("terms.header.score"), T("terms.header.concept"),
+		T("terms.header.domain"))
 	s := t.Styles()
 	for _, m := range o.Matches {
 		t.Row(m.Term, m.Locale, s.Dim(m.Status), s.Dim(m.MatchType),
@@ -744,36 +744,36 @@ func (o TermbaseLookupOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// TermbaseSearchTerm represents a term within a concept search result.
-type TermbaseSearchTerm struct {
+// TermsSearchTerm represents a term within a concept search result.
+type TermsSearchTerm struct {
 	Text   string `json:"text"`
 	Locale string `json:"locale"`
 }
 
-// TermbaseSearchEntry represents a single concept from a termbase search.
-type TermbaseSearchEntry struct {
-	ID         string               `json:"id"`
-	Domain     string               `json:"domain,omitempty"`
-	Definition string               `json:"definition,omitempty"`
-	Terms      []TermbaseSearchTerm `json:"terms"`
+// TermsSearchEntry represents a single concept from a terms store search.
+type TermsSearchEntry struct {
+	ID         string            `json:"id"`
+	Domain     string            `json:"domain,omitempty"`
+	Definition string            `json:"definition,omitempty"`
+	Terms      []TermsSearchTerm `json:"terms"`
 }
 
-// TermbaseSearchOutput represents the result of a termbase search.
-type TermbaseSearchOutput struct {
-	Concepts []TermbaseSearchEntry `json:"concepts"`
-	Total    int                   `json:"total"`
-	Shown    int                   `json:"shown"`
+// TermsSearchOutput represents the result of a terms store search.
+type TermsSearchOutput struct {
+	Concepts []TermsSearchEntry `json:"concepts"`
+	Total    int                `json:"total"`
+	Shown    int                `json:"shown"`
 }
 
-func (o TermbaseSearchOutput) FormatText(w io.Writer) error {
+func (o TermsSearchOutput) FormatText(w io.Writer) error {
 	if len(o.Concepts) == 0 {
 		fmt.Fprintln(w, "No concepts found.")
 		return nil
 	}
 
 	t := NewTable(w).Accent(0).Headers(
-		T("termbase.header.concept"), T("termbase.header.domain"),
-		T("termbase.header.terms"), T("termbase.header.definition"))
+		T("terms.header.concept"), T("terms.header.domain"),
+		T("terms.header.terms"), T("terms.header.definition"))
 	s := t.Styles()
 	for _, c := range o.Concepts {
 		terms := make([]string, 0, len(c.Terms))
@@ -791,8 +791,8 @@ func (o TermbaseSearchOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// TermbaseStatsOutput represents the result of termbase stats.
-type TermbaseStatsOutput struct {
+// TermsStatsOutput represents the result of terms stats.
+type TermsStatsOutput struct {
 	DBPath   string         `json:"db_path"`
 	Concepts int            `json:"concepts"`
 	Terms    int            `json:"terms"`
@@ -801,8 +801,8 @@ type TermbaseStatsOutput struct {
 	Statuses map[string]int `json:"statuses,omitempty"`
 }
 
-func (o TermbaseStatsOutput) FormatText(w io.Writer) error {
-	fmt.Fprintf(w, "Termbase: %s\n", o.DBPath)
+func (o TermsStatsOutput) FormatText(w io.Writer) error {
+	fmt.Fprintf(w, "Terms: %s\n", o.DBPath)
 	fmt.Fprintln(w)
 	fmt.Fprintf(w, "  Concepts:  %d\n", o.Concepts)
 	fmt.Fprintf(w, "  Terms:     %d\n", o.Terms)
@@ -811,7 +811,7 @@ func (o TermbaseStatsOutput) FormatText(w io.Writer) error {
 		fmt.Fprintln(w)
 		Title(w, "Locales:")
 		t := NewTable(w).Accent(0).
-			Headers(T("termbase.header.locale"), T("termbase.header.terms"))
+			Headers(T("terms.header.locale"), T("terms.header.terms"))
 		for _, k := range SortedKeys(o.Locales) {
 			t.Rowf(k, o.Locales[k])
 		}
@@ -822,7 +822,7 @@ func (o TermbaseStatsOutput) FormatText(w io.Writer) error {
 		fmt.Fprintln(w)
 		Title(w, "Domains:")
 		t := NewTable(w).Accent(0).
-			Headers(T("termbase.header.domain"), T("termbase.header.concepts"))
+			Headers(T("terms.header.domain"), T("terms.header.concepts"))
 		for _, k := range SortedKeys(o.Domains) {
 			t.Rowf(k, o.Domains[k])
 		}
@@ -833,7 +833,7 @@ func (o TermbaseStatsOutput) FormatText(w io.Writer) error {
 		fmt.Fprintln(w)
 		Title(w, "Term statuses:")
 		t := NewTable(w).Accent(0).
-			Headers(T("termbase.header.status"), T("termbase.header.terms"))
+			Headers(T("terms.header.status"), T("terms.header.terms"))
 		for _, k := range SortedKeys(o.Statuses) {
 			t.Rowf(k, o.Statuses[k])
 		}
@@ -843,33 +843,33 @@ func (o TermbaseStatsOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// --- TM output types ---
+// --- content memory output types ---
 
-// TMImportOutput represents the result of a TM import.
-type TMImportOutput struct {
+// MemoryImportOutput represents the result of a content-memory import.
+type MemoryImportOutput struct {
 	Imported int    `json:"imported"`
 	DBPath   string `json:"db_path"`
 	Total    int    `json:"total"`
 }
 
-func (o TMImportOutput) FormatText(w io.Writer) error {
+func (o MemoryImportOutput) FormatText(w io.Writer) error {
 	fmt.Fprintf(w, "Imported %d entries into %s (total: %d)\n", o.Imported, o.DBPath, o.Total)
 	return nil
 }
 
-// TMExportOutput represents the result of a TM export.
-type TMExportOutput struct {
+// MemoryExportOutput represents the result of a content-memory export.
+type MemoryExportOutput struct {
 	Count      int    `json:"count"`
 	OutputPath string `json:"output_path"`
 }
 
-func (o TMExportOutput) FormatText(w io.Writer) error {
+func (o MemoryExportOutput) FormatText(w io.Writer) error {
 	fmt.Fprintf(w, "Exported %d entries to %s\n", o.Count, o.OutputPath)
 	return nil
 }
 
-// TMLookupEntry represents a single TM match.
-type TMLookupEntry struct {
+// MemoryLookupEntry represents a single content-memory match.
+type MemoryLookupEntry struct {
 	Source    string  `json:"source"`
 	Target    string  `json:"target"`
 	Score     float64 `json:"score"`
@@ -877,13 +877,13 @@ type TMLookupEntry struct {
 	EntryID   string  `json:"entry_id"`
 }
 
-// TMLookupOutput represents the result of a TM lookup.
-type TMLookupOutput struct {
-	Matches []TMLookupEntry `json:"matches"`
-	Total   int             `json:"total"`
+// MemoryLookupOutput represents the result of a content-memory lookup.
+type MemoryLookupOutput struct {
+	Matches []MemoryLookupEntry `json:"matches"`
+	Total   int                 `json:"total"`
 }
 
-func (o TMLookupOutput) FormatText(w io.Writer) error {
+func (o MemoryLookupOutput) FormatText(w io.Writer) error {
 	if len(o.Matches) == 0 {
 		fmt.Fprintln(w, "No matches found.")
 		return nil
@@ -903,8 +903,8 @@ func (o TMLookupOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// TMSearchEntry represents a single TM entry in search results.
-type TMSearchEntry struct {
+// MemorySearchEntry represents a single content-memory entry in search results.
+type MemorySearchEntry struct {
 	ID             string `json:"id"`
 	Source         string `json:"source"`
 	Target         string `json:"target"`
@@ -912,14 +912,14 @@ type TMSearchEntry struct {
 	TargetLanguage string `json:"target_language"`
 }
 
-// TMSearchOutput represents the result of a TM search.
-type TMSearchOutput struct {
-	Entries []TMSearchEntry `json:"entries"`
-	Total   int             `json:"total"`
-	Shown   int             `json:"shown"`
+// MemorySearchOutput represents the result of a content-memory search.
+type MemorySearchOutput struct {
+	Entries []MemorySearchEntry `json:"entries"`
+	Total   int                 `json:"total"`
+	Shown   int                 `json:"shown"`
 }
 
-func (o TMSearchOutput) FormatText(w io.Writer) error {
+func (o MemorySearchOutput) FormatText(w io.Writer) error {
 	if len(o.Entries) == 0 {
 		fmt.Fprintln(w, "No entries found.")
 		return nil
@@ -940,15 +940,15 @@ func (o TMSearchOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// TMStatsOutput represents the result of TM stats.
-type TMStatsOutput struct {
+// MemoryStatsOutput represents the result of content-memory stats.
+type MemoryStatsOutput struct {
 	DBPath      string         `json:"db_path"`
 	Entries     int            `json:"entries"`
 	LocalePairs map[string]int `json:"locale_pairs,omitempty"`
 }
 
-func (o TMStatsOutput) FormatText(w io.Writer) error {
-	fmt.Fprintf(w, "Translation Memory: %s\n", o.DBPath)
+func (o MemoryStatsOutput) FormatText(w io.Writer) error {
+	fmt.Fprintf(w, "Content Memory: %s\n", o.DBPath)
 	fmt.Fprintln(w)
 	fmt.Fprintf(w, "  Entries: %d\n", o.Entries)
 
@@ -968,7 +968,7 @@ func (o TMStatsOutput) FormatText(w io.Writer) error {
 
 // --- Resource list output types ---
 
-// ResourceListEntry represents a named resource (termbase or TM) in KAPI_HOME.
+// ResourceListEntry represents a named resource (terms or content memory) in KAPI_HOME.
 type ResourceListEntry struct {
 	Name     string    `json:"name"`
 	Path     string    `json:"path"`

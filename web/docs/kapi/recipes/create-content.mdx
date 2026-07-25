@@ -40,7 +40,7 @@ With [kapi connected](/kapi/get-started/use-with-claude), the assistant is the a
 
 > Draft a release-notes page for the export feature — on brand, using our approved terms.
 
-It loads the voice and wording first (`kapi brand guide`, `kapi termbase lookup`) so the first draft is already close, then loops `check_file` → revise until the gate is green. When a check flags a new term, it proposes the [close-the-loop change-set](#close-the-loop-fix-the-content-and-the-rule-together) — the content fix and the glossary rule in one `apply`.
+It loads the voice and wording first (`kapi brand guide`, `kapi terms lookup`) so the first draft is already close, then loops `check_file` → revise until the gate is green. When a check flags a new term, it proposes the [close-the-loop change-set](#close-the-loop-fix-the-content-and-the-rule-together) — the content fix and the glossary rule in one `apply`.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -64,7 +64,7 @@ Load the voice and approved wording **before** writing so the first draft is alr
 
 ```bash
 kapi brand guide                          # the voice to follow (no flag inside a project)
-kapi termbase lookup "dashboard" -t en    # the approved term
+kapi terms lookup "dashboard" -t en    # the approved term
 ```
 
 Fix what the check flags — edit the source directly, or route the fix through `kapi apply` when you want the round-trip and drift guards ([Edit content](/kapi/recipes/rewrite-content)) — and re-check until green.

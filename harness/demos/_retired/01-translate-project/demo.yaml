@@ -10,17 +10,17 @@ needsAi: false
 model: sonnet
 captureTimeoutSec: 360
 
-# Real git-tracked project; the glossary is imported into the project termbase up front.
+# Real git-tracked project; the glossary is imported into the project terms store up front.
 setup:
   - git init -q && git add -A && git -c user.email=dev@example.com -c user.name=Dev commit -qm "initial project"
-  - kapi termbase import glossary.csv --format csv -s en -t fr --file .kapi/termbase.db
+  - kapi terms import glossary.csv --format csv -s en -t fr --file .kapi/termbase.db
 
 prompt: >
   Can you translate our app into French? The English strings are in src/en.json.
 
 artifacts:
   - id: glossary
-    caption: "The project's approved terms (imported into its termbase)"
+    caption: "The project's approved terms (imported into its terms)"
     source: report
     report: glossary
     path: glossary.csv

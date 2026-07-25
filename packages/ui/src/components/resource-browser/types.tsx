@@ -1,11 +1,11 @@
 import type { Run } from "@neokapi/kapi-format";
 import { t } from "@neokapi/i18n-react/runtime";
 
-// --- TM Types (multilingual model) ---
+// --- content memory Types (multilingual model) ---
 
 /**
- * A single language variant of a multilingual TM entry.
- * Each TM entry has one variant per locale. Inline markup travels as
+ * A single language variant of a multilingual content-memory entry.
+ * Each content-memory entry has one variant per locale. Inline markup travels as
  * an RFC 0001 Run sequence; `text` is the flattened plain form.
  */
 export interface VariantDTO {
@@ -26,12 +26,12 @@ export interface EntityMappingDTO {
   placeholder_id: string;
   type: string;
   values: Record<string, EntityValueDTO>;
-  /** Optional cross-reference to a termbase concept ID. */
+  /** Optional cross-reference to a terms store concept ID. */
   concept_id?: string;
 }
 
-/** Frontend-facing multilingual TM entry. */
-export interface TMEntryDTO {
+/** Frontend-facing multilingual content-memory entry. */
+export interface MemoryEntryDTO {
   id: string;
   project_id: string;
   /** Per-locale variants keyed by locale tag (e.g. "en-US"). */
@@ -47,7 +47,7 @@ export interface TMEntryDTO {
 }
 
 /**
- * Provenance record — where a TM entry came from.
+ * Provenance record — where a content-memory entry came from.
  * An entry can have multiple origins if the same source was ingested
  * from multiple locations. When the origin came from an import session
  * the `session_id` links back to an ImportSessionDTO.
@@ -61,20 +61,20 @@ export interface OriginDTO {
   session_id?: string; // link to an ImportSessionDTO when applicable
 }
 
-export interface TMSearchResult {
-  entries: TMEntryDTO[];
+export interface MemorySearchResult {
+  entries: MemoryEntryDTO[];
   total_count: number;
 }
 
-export interface TMStats {
+export interface MemoryStats {
   count: number;
   path?: string;
   size?: number;
 }
 
-// --- TM Facets ---
+// --- content memory Facets ---
 
-export interface TMFacets {
+export interface MemoryFacets {
   locales: LocaleFacet[];
   projects: ProjectFacet[];
   entity_types: EntityTypeFacet[];
@@ -128,8 +128,8 @@ export interface ImportSessionDTO {
   properties?: Record<string, string>;
 }
 
-/** Filter parameters for faceted TM search. */
-export interface TMSearchFilter {
+/** Filter parameters for faceted content-memory search. */
+export interface MemorySearchFilter {
   project_id?: string;
   /** Restrict to entries that originated from these import sessions. */
   session_ids?: string[];
@@ -144,8 +144,8 @@ export interface EntityValueFilter {
   type: string; // e.g. "entity:person"
 }
 
-export interface TMMatchDTO {
-  entry: TMEntryDTO;
+export interface MemoryMatchDTO {
+  entry: MemoryEntryDTO;
   score: number;
   match_type: string;
   entity_adaptations?: EntityAdaptationDTO[];
@@ -165,7 +165,7 @@ export interface EntityAnnotationDTO {
   end: number;
 }
 
-export interface LookupTMRequest {
+export interface LookupMemoryRequest {
   text: string;
   entities: EntityAnnotationDTO[];
   source_locale: string;
@@ -174,14 +174,14 @@ export interface LookupTMRequest {
   max_results: number;
 }
 
-/** Input for a single variant when adding / updating a TM entry. */
+/** Input for a single variant when adding / updating a content-memory entry. */
 export interface VariantInputDTO {
   text: string;
   runs?: Run[];
 }
 
-/** Request payload for adding a multilingual TM entry. */
-export interface AddTMEntryRequest {
+/** Request payload for adding a multilingual content-memory entry. */
+export interface AddMemoryEntryRequest {
   variants: Record<string, VariantInputDTO>;
   hint_src_lang: string;
   project_id?: string;
@@ -189,8 +189,8 @@ export interface AddTMEntryRequest {
   origins?: OriginDTO[];
 }
 
-/** Request payload for updating a multilingual TM entry. Variants replace wholesale. */
-export interface UpdateTMEntryRequest {
+/** Request payload for updating a multilingual content-memory entry. Variants replace wholesale. */
+export interface UpdateMemoryEntryRequest {
   entry_id: string;
   variants: Record<string, VariantInputDTO>;
   hint_src_lang: string;
@@ -215,7 +215,7 @@ export interface AnnotateResult {
   entities_added: number;
 }
 
-// --- Termbase Types ---
+// --- Terms Types ---
 
 export interface ConceptDTO {
   id: string;
@@ -244,7 +244,7 @@ export interface TermSearchResult {
   total_count: number;
 }
 
-export interface TermbaseStats {
+export interface TermsStats {
   count: number;
   path?: string;
 }

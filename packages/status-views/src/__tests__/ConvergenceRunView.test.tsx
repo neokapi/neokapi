@@ -18,15 +18,15 @@ const liveModel: ConvergenceRunModel = {
       failingChecks: 2,
       pending: ["de-DE"],
       rows: [
-        { locale: "fr-FR", units: 20, done: 20, viaTM: 12, viaAI: 8, state: "done" },
-        { locale: "de-DE", units: 20, done: 9, viaTM: 4, viaAI: 5, state: "running" },
+        { locale: "fr-FR", units: 20, done: 20, viaMemory: 12, viaAI: 8, state: "done" },
+        { locale: "de-DE", units: 20, done: 9, viaMemory: 4, viaAI: 5, state: "running" },
       ],
     },
   ],
 };
 
 describe("ConvergenceRunView — live locale rows", () => {
-  it("renders one row per locale with state, progress, and TM/AI split", () => {
+  it("renders one row per locale with state, progress, and content memory/AI split", () => {
     const { container } = render(<ConvergenceRunView model={liveModel} running />);
 
     expect(screen.getByText("Pass 1")).toBeInTheDocument();
@@ -38,7 +38,7 @@ describe("ConvergenceRunView — live locale rows", () => {
     const fr = container.querySelector('[data-locale="fr-FR"]')!;
     expect(fr.getAttribute("data-state")).toBe("done");
     expect(within(fr as HTMLElement).getByText("20/20")).toBeInTheDocument();
-    expect(within(fr as HTMLElement).getByText("TM 12 · AI 8")).toBeInTheDocument();
+    expect(within(fr as HTMLElement).getByText("content memory 12 · AI 8")).toBeInTheDocument();
 
     const de = container.querySelector('[data-locale="de-DE"]')!;
     expect(de.getAttribute("data-state")).toBe("running");
@@ -117,7 +117,7 @@ describe("ConvergenceRunView — header + logs + done footer (bowrain)", () => {
               locale: "fr-FR",
               units: 12,
               done: 12,
-              viaTM: 8,
+              viaMemory: 8,
               viaAI: 4,
               state: "done",
               localeState: "shippable",

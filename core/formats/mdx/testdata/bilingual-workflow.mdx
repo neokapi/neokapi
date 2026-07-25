@@ -54,7 +54,7 @@ authored source  ──►  kapi extract  ──►  XLIFF / PO  ──► trans
 - **TM absorb on merge** — every accepted target segment becomes a new
   or updated translation unit (TU) in the project TM, carrying
   provenance (merge batch id, source file path, block content hash,
-  originating XLIFF filename) so a later `kapi tm audit --batch <id>`
+  originating XLIFF filename) so a later `kapi memory audit --batch <id>`
   can trace every TU back to the merge that introduced it.
 
 Both are on by default. `--no-tm` and `--no-tm-update` disable them
@@ -98,7 +98,7 @@ locales, and any optional recipe sections. Then seed the project TM
 from existing memory, if you have any:
 
 ```bash
-kapi tm import ./corporate-en-fr.tmx -p app.kapi
+kapi memory import ./corporate-en-fr.tmx -p app.kapi
 ```
 
 ## Day 1: first extraction
@@ -209,7 +209,7 @@ has a translation — never ambiguous, never interactive.
 ## Audit: what did this merge contribute?
 
 ```bash
-kapi tm audit --batch <merge-batch-id>
+kapi memory audit --batch <merge-batch-id>
 ```
 
 Lists every TM entry written or updated by a specific merge with

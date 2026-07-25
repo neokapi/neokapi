@@ -37,7 +37,7 @@ func kbfDoc(t *testing.T, path, locale string, blocks []kbfBlock) {
 	}
 	out := map[string]any{
 		"schemaVersion": "1.0",
-		"kind":          "kapi-localization-format",
+		"kind":          "kapi-bundle",
 		"generator":     map[string]string{"id": "test", "version": "1.0"},
 		"project":       map[string]string{"id": "presence", "sourceLocale": "en"},
 		"documents": []map[string]any{{

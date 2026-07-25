@@ -9,9 +9,9 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/termbase"
-	"github.com/neokapi/neokapi/termbase/ktb"
+	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
+	"github.com/neokapi/neokapi/terms/ktb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -63,8 +63,8 @@ func TestApplyTermEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	require.Equal(t, filepath.Join("l10n", "termbase.ktb"), proj.Defaults.TermbaseSource)
-	require.NotEmpty(t, proj.Defaults.Termbase, "the compiled cache should be bound too")
+	require.Equal(t, filepath.Join("l10n", "termbase.ktb"), proj.Defaults.TermsSource)
+	require.NotEmpty(t, proj.Defaults.Terms, "the compiled cache should be bound too")
 
 	data, err := os.ReadFile(srcPath)
 	require.NoError(t, err)
@@ -78,7 +78,7 @@ func TestApplyTermEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	// 2. The cache (.kapi/termbase.db) was compiled from the source.
 	dbPath := filepath.Join(root, project.StateDirName, "termbase.db")
 	require.FileExists(t, dbPath)
-	tb, err := termbase.NewSQLiteTermBase(dbPath)
+	tb, err := terms.NewSQLiteStore(dbPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { tb.Close() })
 	n, err := tb.Count(ctx)
@@ -106,12 +106,12 @@ func TestApplyTermEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	assert.Len(t, file.Concepts, 2)
 }
 
-func TestApplyTMEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
+func TestApplyMemoryEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	a, cmd, root, recipe := newApplyAssetProject(t)
 	ctx := context.Background()
 
 	e := changeEntry{
-		Kind:         kindTM,
+		Kind:         kindMemory,
 		Op:           "add",
 		Source:       "Welcome back",
 		Target:       "Bon retour",
@@ -127,15 +127,15 @@ func TestApplyTMEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	require.Equal(t, filepath.Join("l10n", "tm.kmb"), proj.Defaults.TMSource)
+	require.Equal(t, filepath.Join("l10n", "tm.kmb"), proj.Defaults.MemorySource)
 
 	// Cache compiled, contains the pair.
 	dbPath := filepath.Join(root, project.StateDirName, "tm.db")
 	require.FileExists(t, dbPath)
-	tm, err := sievepen.NewSQLiteTM(dbPath)
+	tm, err := memory.NewSQLiteStore(dbPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { tm.Close() })
-	got := lookupTMTarget(t, ctx, tm, "Welcome back", "en", "fr")
+	got := lookupMemoryTarget(t, ctx, tm, "Welcome back", "en", "fr")
 	assert.Equal(t, "Bon retour", got)
 
 	// Idempotent.
@@ -143,11 +143,11 @@ func TestApplyTMEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	assert.Equal(t, "skipped", res2.Status)
 }
 
-func TestApplyTMEntry_reviewStatus(t *testing.T) {
+func TestApplyMemoryEntry_reviewStatus(t *testing.T) {
 	a, cmd, _, _ := newApplyAssetProject(t)
 	ctx := context.Background()
 
-	base := changeEntry{Kind: kindTM, Source: "Save", Target: "Enregistrer", SourceLocale: "en", TargetLocale: "fr"}
+	base := changeEntry{Kind: kindMemory, Source: "Save", Target: "Enregistrer", SourceLocale: "en", TargetLocale: "fr"}
 
 	// A signed-off status is accepted and applied.
 	so := base
@@ -156,7 +156,7 @@ func TestApplyTMEntry_reviewStatus(t *testing.T) {
 	assert.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
 
 	// An unknown review status is rejected.
-	bad := changeEntry{Kind: kindTM, Source: "Cancel", Target: "Annuler", SourceLocale: "en", TargetLocale: "fr", Status: "bogus"}
+	bad := changeEntry{Kind: kindMemory, Source: "Cancel", Target: "Annuler", SourceLocale: "en", TargetLocale: "fr", Status: "bogus"}
 	res2 := a.applyAssetEntry(ctx, cmd, bad)
 	assert.Equal(t, "error", res2.Status)
 	assert.Contains(t, res2.Detail, "status")
@@ -238,10 +238,10 @@ func TestApplyAssetEntry_noProjectIsError(t *testing.T) {
 	assert.Contains(t, res.Detail, "no kapi project")
 }
 
-func lookupTMTarget(t *testing.T, ctx context.Context, tm sievepen.TMStore, text, src, tgt string) string {
+func lookupMemoryTarget(t *testing.T, ctx context.Context, tm memory.Store, text, src, tgt string) string {
 	t.Helper()
-	matches, err := tm.LookupText(ctx, text, model.LocaleID(src), model.LocaleID(tgt), sievepen.LookupOptions{MinScore: 0.9, MaxResults: 5})
+	matches, err := tm.LookupText(ctx, text, model.LocaleID(src), model.LocaleID(tgt), memory.LookupOptions{MinScore: 0.9, MaxResults: 5})
 	require.NoError(t, err)
-	require.NotEmpty(t, matches, "expected a TM match for %q", text)
+	require.NotEmpty(t, matches, "expected a content-memory match for %q", text)
 	return matches[0].Entry.VariantText(model.LocaleID(tgt))
 }

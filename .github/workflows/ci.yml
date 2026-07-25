@@ -206,7 +206,7 @@ jobs:
   # ── Emails + landing dogfood l10n gate ───────────────────────────────────
   # Mirrors kapi-desktop-l10n-verify for the two node-dependent dogfood
   # surfaces the go-only l10n-drift job cannot cover: regenerates the email
-  # extraction → qps pseudo + nb TM-recycle → compiled catalogs → per-locale
+  # extraction → qps pseudo + nb content memory-recycle → compiled catalogs → per-locale
   # template renders (bowrain/mailer/templates, subjects) and the landing
   # runtime catalogs (bowrain/web/landing/translations), and fails on any
   # byte drift from the committed artifacts. A stale catalog would ship

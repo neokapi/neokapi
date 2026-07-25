@@ -11,7 +11,7 @@ import ProjectExplorer, {
 import { workspaceSampleById } from "../workspaceSamples";
 
 describe("ProjectExplorer helpers", () => {
-  it("declares offline TM-leverage flows", () => {
+  it("declares offline content memory-leverage flows", () => {
     const ids = FLOWS.map((f) => f.id);
     expect(ids).toContain("translate");
     expect(ids).toContain("translate-exact");

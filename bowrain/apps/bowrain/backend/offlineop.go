@@ -18,16 +18,16 @@ const (
 	opUpdateBlockTarget     opKind = "update_block_target"
 	opUpdateBlockTargetRuns opKind = "update_block_target_runs"
 	opReviewBlock           opKind = "review_block"
-	opAddTMEntry            opKind = "add_tm_entry"
-	opUpdateTMEntry         opKind = "update_tm_entry"
-	opDeleteTMEntry         opKind = "delete_tm_entry"
+	opAddMemoryEntry        opKind = "add_tm_entry"
+	opUpdateMemoryEntry     opKind = "update_tm_entry"
+	opDeleteMemoryEntry     opKind = "delete_tm_entry"
 	opAddConcept            opKind = "add_concept"
 	opUpdateConcept         opKind = "update_concept"
 	opDeleteConcept         opKind = "delete_concept"
 	opAddItems              opKind = "add_items"
 	opRemoveItem            opKind = "remove_item"
 	opPseudoTranslateItem   opKind = "pseudo_translate_item"
-	opTMTranslateItem       opKind = "tm_translate_item"
+	opMemoryTranslateItem   opKind = "tm_translate_item"
 )
 
 // offlineOp is a typed, self-describing offline mutation: it knows its kind
@@ -52,12 +52,12 @@ func decodeOp(kind opKind, payload string) (offlineOp, error) {
 		return unmarshalOp[updateBlockTargetRunsOp](payload)
 	case opReviewBlock:
 		return unmarshalOp[reviewBlockOp](payload)
-	case opAddTMEntry:
-		return unmarshalOp[addTMEntryOp](payload)
-	case opUpdateTMEntry:
-		return unmarshalOp[updateTMEntryOp](payload)
-	case opDeleteTMEntry:
-		return unmarshalOp[deleteTMEntryOp](payload)
+	case opAddMemoryEntry:
+		return unmarshalOp[addMemoryEntryOp](payload)
+	case opUpdateMemoryEntry:
+		return unmarshalOp[updateMemoryEntryOp](payload)
+	case opDeleteMemoryEntry:
+		return unmarshalOp[deleteMemoryEntryOp](payload)
 	case opAddConcept:
 		return unmarshalOp[addConceptOp](payload)
 	case opUpdateConcept:
@@ -70,8 +70,8 @@ func decodeOp(kind opKind, payload string) (offlineOp, error) {
 		return unmarshalOp[removeItemOp](payload)
 	case opPseudoTranslateItem:
 		return unmarshalOp[pseudoTranslateItemOp](payload)
-	case opTMTranslateItem:
-		return unmarshalOp[tmTranslateItemOp](payload)
+	case opMemoryTranslateItem:
+		return unmarshalOp[memoryTranslateItemOp](payload)
 	default:
 		return nil, nil
 	}
@@ -130,42 +130,42 @@ func (o reviewBlockOp) replay(ctx context.Context, client *apiclient.BowrainClie
 
 // --- Translation-memory ops ---
 
-// addTMEntryOp queues a new TM entry.
-type addTMEntryOp struct {
+// addMemoryEntryOp queues a new content-memory entry.
+type addMemoryEntryOp struct {
 	Source       string `json:"source"`
 	Target       string `json:"target"`
 	SourceLocale string `json:"source_locale"`
 	TargetLocale string `json:"target_locale"`
 }
 
-func (addTMEntryOp) opKind() opKind { return opAddTMEntry }
+func (addMemoryEntryOp) opKind() opKind { return opAddMemoryEntry }
 
-func (o addTMEntryOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
-	_, err := client.AddTMEntry(ctx, ws, o.Source, o.Target, o.SourceLocale, o.TargetLocale)
+func (o addMemoryEntryOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
+	_, err := client.AddMemoryEntry(ctx, ws, o.Source, o.Target, o.SourceLocale, o.TargetLocale)
 	return err
 }
 
-// updateTMEntryOp queues an edit to an existing TM entry.
-type updateTMEntryOp struct{ TMUpdateRequest }
+// updateMemoryEntryOp queues an edit to an existing content-memory entry.
+type updateMemoryEntryOp struct{ MemoryUpdateRequest }
 
-func (updateTMEntryOp) opKind() opKind { return opUpdateTMEntry }
+func (updateMemoryEntryOp) opKind() opKind { return opUpdateMemoryEntry }
 
-func (o updateTMEntryOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
-	return client.UpdateTMEntry(ctx, ws, o.EntryID, o.Source, o.Target, o.SourceLocale, o.TargetLocale)
+func (o updateMemoryEntryOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
+	return client.UpdateMemoryEntry(ctx, ws, o.EntryID, o.Source, o.Target, o.SourceLocale, o.TargetLocale)
 }
 
-// deleteTMEntryOp queues a TM entry deletion.
-type deleteTMEntryOp struct {
+// deleteMemoryEntryOp queues a content-memory entry deletion.
+type deleteMemoryEntryOp struct {
 	EntryID string `json:"entry_id"`
 }
 
-func (deleteTMEntryOp) opKind() opKind { return opDeleteTMEntry }
+func (deleteMemoryEntryOp) opKind() opKind { return opDeleteMemoryEntry }
 
-func (o deleteTMEntryOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
-	return client.DeleteTMEntry(ctx, ws, o.EntryID)
+func (o deleteMemoryEntryOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
+	return client.DeleteMemoryEntry(ctx, ws, o.EntryID)
 }
 
-// --- Termbase (concept) ops ---
+// --- Terms (concept) ops ---
 
 // addConceptOp queues a new concept.
 type addConceptOp struct{ AddConceptRequest }
@@ -240,16 +240,16 @@ func (o pseudoTranslateItemOp) replay(ctx context.Context, client *apiclient.Bow
 	return err
 }
 
-// tmTranslateItemOp queues a bulk TM-translate action for an item.
-type tmTranslateItemOp struct {
+// memoryTranslateItemOp queues a bulk content memory-translate action for an item.
+type memoryTranslateItemOp struct {
 	ProjectID    string `json:"project_id"`
 	ItemName     string `json:"item_name"`
 	TargetLocale string `json:"target_locale"`
 }
 
-func (tmTranslateItemOp) opKind() opKind { return opTMTranslateItem }
+func (memoryTranslateItemOp) opKind() opKind { return opMemoryTranslateItem }
 
-func (o tmTranslateItemOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
-	_, err := client.TMTranslateItem(ctx, ws, o.ProjectID, o.ItemName, o.TargetLocale)
+func (o memoryTranslateItemOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
+	_, err := client.MemoryTranslateItem(ctx, ws, o.ProjectID, o.ItemName, o.TargetLocale)
 	return err
 }

@@ -51,7 +51,7 @@ checks, and `kapi up` loops a flow until the project's gates are met.
       role: "annotate",
       steps: [
         "one registry tool, one pass",
-        "no TM pass, no checks around it",
+        "no content-memory pass, no checks around it",
         "discover with kapi tools list",
       ],
     },
@@ -63,7 +63,7 @@ checks, and `kapi up` loops a flow until the project's gates are met.
 
 `kapi exec <tool>` executes a single registry tool on the files you name — one
 tool, one pass, no guardrails around it. These are the same tools a flow runs:
-`exec translate` is a bare AI translate with no TM pass before it and no checks
+`exec translate` is a bare AI translate with no content-memory pass before it and no checks
 after it; `exec term-check` runs just the terminology check; `exec recycle`
 runs just the TM leverage. Discover a tool's options with
 `kapi tools schema <name>`.

@@ -7,7 +7,7 @@ import type { SpanInfo } from "../../types/api";
 import {
   sampleBlocks,
   sampleProject,
-  sampleTMMatches,
+  sampleMemoryMatches,
   sampleTermMatches,
   sampleQAIssues,
   sampleBlockNotes,
@@ -44,9 +44,9 @@ function InteractiveCard(props: CardOverrides) {
       onCancel={() => setIsEditing(false)}
       onApprove={() => setIsEditing(false)}
       onReject={() => {}}
-      tmMatches={props.tmMatches ?? []}
+      memoryMatches={props.memoryMatches ?? []}
       termMatches={props.termMatches ?? []}
-      onApplyTM={props.onApplyTM ?? (() => {})}
+      onApplyMemory={props.onApplyMemory ?? (() => {})}
       onInsertTerm={props.onInsertTerm ?? (() => {})}
       project={props.project ?? sampleProject}
       referenceLocales={props.referenceLocales}
@@ -89,9 +89,9 @@ const meta: Meta<typeof VisualEditorCard> = {
     onCancel: fn(),
     onApprove: fn(),
     onReject: fn(),
-    tmMatches: [],
+    memoryMatches: [],
     termMatches: [],
-    onApplyTM: fn(),
+    onApplyMemory: fn(),
     onInsertTerm: fn(),
     project: sampleProject,
   },
@@ -113,9 +113,9 @@ export const Interactive: Story = {
   render: () => <InteractiveCard />,
 };
 
-/** Interactive card with TM matches panel visible */
-export const WithTMMatches: Story = {
-  render: () => <InteractiveCard tmMatches={sampleTMMatches} />,
+/** Interactive card with content-memory matches panel visible */
+export const WithMemoryMatches: Story = {
+  render: () => <InteractiveCard memoryMatches={sampleMemoryMatches} />,
 };
 
 /** Interactive card in enrich mode with notes */
@@ -137,7 +137,7 @@ export const ReviewMode: Story = {
 };
 
 /**
- * Interactive card with all panels: TM, QA, history, terms, ref locales.
+ * Interactive card with all panels: content memory, QA, history, terms, ref locales.
  * Full editing flow is functional.
  */
 export const FullFeatured: Story = {
@@ -145,7 +145,7 @@ export const FullFeatured: Story = {
     <InteractiveCard
       block={sampleBlocks[0]}
       blockIndex={0}
-      tmMatches={sampleTMMatches}
+      memoryMatches={sampleMemoryMatches}
       termMatches={sampleTermMatches}
       qaIssues={sampleQAIssues}
       history={sampleBlockHistory}

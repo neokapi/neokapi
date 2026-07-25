@@ -295,7 +295,7 @@ var altTransStartTagRE = regexp.MustCompile(`<(?:[A-Za-z_][\w.-]*:)?alt-trans[\s
 
 // stripAltTransSegSource removes any `<seg-source>…</seg-source>`
 // element nested inside an `<alt-trans>` body. okapi's XLIFFFilter
-// treats alt-trans as a flat (source, target) translation-memory
+// treats alt-trans as a flat (source, target) content-memory
 // match and never round-trips an inner seg-source. Trans-units
 // without alt-trans are unaffected.
 //

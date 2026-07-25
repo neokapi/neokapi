@@ -12,8 +12,8 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // GetItemBlocks returns all blocks for an item in the project.
@@ -495,26 +495,28 @@ func (a *App) pseudoTranslateItemLocal(projectID, itemName, targetLocale string)
 	return computeStats(outParts, targetLocale), nil
 }
 
-// TMTranslateItem leverages translation memory to translate blocks. Routing
+// MemoryTranslateItem leverages content memory to translate blocks. Routing
 // mirrors PseudoTranslateItem: server-first when connected, local cache with a
 // queued replay when offline.
-func (a *App) TMTranslateItem(projectID, itemName, targetLocale string) (*TranslationStats, error) {
-	op := tmTranslateItemOp{ProjectID: projectID, ItemName: itemName, TargetLocale: targetLocale}
+func (a *App) MemoryTranslateItem(projectID, itemName, targetLocale string) (*TranslationStats, error) {
+	op := memoryTranslateItemOp{ProjectID: projectID, ItemName: itemName, TargetLocale: targetLocale}
 	return writeThroughResult(a, op,
 		func() (*TranslationStats, error) {
 			client, ws := a.editorRemote()
-			stats, err := client.TMTranslateItem(context.Background(), ws, projectID, itemName, targetLocale)
+			stats, err := client.MemoryTranslateItem(context.Background(), ws, projectID, itemName, targetLocale)
 			if err != nil {
 				return nil, err
 			}
 			return editorStatsToStats(stats), nil
 		},
 		func(*TranslationStats) { a.refreshItemCache(projectID, itemName) },
-		func() (*TranslationStats, error) { return a.tmTranslateItemLocal(projectID, itemName, targetLocale) },
+		func() (*TranslationStats, error) {
+			return a.memoryTranslateItemLocal(projectID, itemName, targetLocale)
+		},
 	)
 }
 
-func (a *App) tmTranslateItemLocal(projectID, itemName, targetLocale string) (*TranslationStats, error) {
+func (a *App) memoryTranslateItemLocal(projectID, itemName, targetLocale string) (*TranslationStats, error) {
 	ctx := context.Background()
 	proj, err := a.store.GetProject(ctx, projectID)
 	if err != nil {
@@ -530,23 +532,23 @@ func (a *App) tmTranslateItemLocal(projectID, itemName, targetLocale string) (*T
 		return nil, err
 	}
 
-	tm, err := a.getOrCreateTM()
+	tm, err := a.getOrCreateMemory()
 	if err != nil {
-		return nil, fmt.Errorf("init TM: %w", err)
+		return nil, fmt.Errorf("init content memory: %w", err)
 	}
 
 	parts := storedBlocksToParts(storedBlocks)
 
-	tmTool := sievepen.NewTMLeverageTool(tm, sievepen.TMLeverageConfig{
+	memoryTool := memory.NewMemoryLeverageTool(tm, memory.MemoryLeverageConfig{
 		MinScore:     0.7,
 		MaxResults:   5,
 		SourceLocale: proj.DefaultSourceLanguage,
 		TargetLocale: model.LocaleID(targetLocale),
 	})
 
-	outParts, err := runToolOnParts(ctx, tmTool, parts)
+	outParts, err := runToolOnParts(ctx, memoryTool, parts)
 	if err != nil {
-		return nil, fmt.Errorf("TM translate: %w", err)
+		return nil, fmt.Errorf("content memory translate: %w", err)
 	}
 
 	blocks := partsToBlocks(outParts)
@@ -631,24 +633,24 @@ func (a *App) OpenFileInOS(filePath string) error {
 	return cmd.Start()
 }
 
-// TMMatchInfo is a TM match result for a single block, exposed to the frontend.
-type TMMatchInfo struct {
+// MemoryMatchInfo is a content-memory match result for a single block, exposed to the frontend.
+type MemoryMatchInfo struct {
 	Source    string  `json:"source"`
 	Target    string  `json:"target"`
 	Score     float64 `json:"score"`
 	MatchType string  `json:"match_type"`
 }
 
-// LookupTMForBlock looks up TM matches for a specific block.
-func (a *App) LookupTMForBlock(projectID, itemName, blockID, targetLocale string) ([]TMMatchInfo, error) {
+// LookupMemoryForBlock looks up content-memory matches for a specific block.
+func (a *App) LookupMemoryForBlock(projectID, itemName, blockID, targetLocale string) ([]MemoryMatchInfo, error) {
 	if a.isConnected() {
 		client, ws := a.editorRemote()
-		matches, err := client.LookupTMForBlock(context.Background(), ws, projectID, blockID, targetLocale)
+		matches, err := client.LookupMemoryForBlock(context.Background(), ws, projectID, blockID, targetLocale)
 		if err != nil {
 			a.goOffline()
-			// Fall through to local TM lookup.
+			// Fall through to local content-memory lookup.
 		} else {
-			return editorTMMatchesToInfos(matches), nil
+			return editorMemoryMatchesToInfos(matches), nil
 		}
 	}
 	ctx := context.Background()
@@ -657,9 +659,9 @@ func (a *App) LookupTMForBlock(projectID, itemName, blockID, targetLocale string
 		return nil, err
 	}
 
-	tm, err := a.getOrCreateTM()
+	tm, err := a.getOrCreateMemory()
 	if err != nil {
-		return nil, fmt.Errorf("init TM: %w", err)
+		return nil, fmt.Errorf("init content memory: %w", err)
 	}
 	if count, err := tm.Count(ctx); err != nil {
 		return nil, err
@@ -672,7 +674,7 @@ func (a *App) LookupTMForBlock(projectID, itemName, blockID, targetLocale string
 		return nil, err
 	}
 
-	opts := sievepen.DefaultLookupOptions()
+	opts := memory.DefaultLookupOptions()
 	opts.MaxResults = 5
 	matches, err := tm.Lookup(ctx, sb.Block, proj.DefaultSourceLanguage, model.LocaleID(targetLocale), opts)
 	if err != nil {
@@ -681,9 +683,9 @@ func (a *App) LookupTMForBlock(projectID, itemName, blockID, targetLocale string
 
 	srcLoc := proj.DefaultSourceLanguage
 	tgtLoc := model.LocaleID(targetLocale)
-	result := make([]TMMatchInfo, len(matches))
+	result := make([]MemoryMatchInfo, len(matches))
 	for i, m := range matches {
-		result[i] = TMMatchInfo{
+		result[i] = MemoryMatchInfo{
 			Source:    m.Entry.VariantText(srcLoc),
 			Target:    m.Entry.VariantText(tgtLoc),
 			Score:     m.Score,
@@ -723,7 +725,7 @@ func (a *App) LookupTermsForBlock(projectID, itemName, blockID, targetLocale str
 
 	tb, err := a.getOrCreateTB()
 	if err != nil {
-		return nil, fmt.Errorf("init termbase: %w", err)
+		return nil, fmt.Errorf("init terms: %w", err)
 	}
 	if count, err := tb.Count(ctx); err != nil {
 		return nil, err
@@ -741,7 +743,7 @@ func (a *App) LookupTermsForBlock(projectID, itemName, blockID, targetLocale str
 		return nil, nil
 	}
 
-	matches, err := tb.LookupAll(ctx, sourceText, termbase.LookupOptions{
+	matches, err := tb.LookupAll(ctx, sourceText, terms.LookupOptions{
 		SourceLocale: proj.DefaultSourceLanguage,
 		TargetLocale: model.LocaleID(targetLocale),
 	})

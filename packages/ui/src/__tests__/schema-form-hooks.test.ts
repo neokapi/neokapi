@@ -213,8 +213,12 @@ describe("humanizeKey", () => {
     expect(humanizeKey("source-locale")).toBe("Source Locale");
   });
 
+  // humanizeKey is a pure camelCase→Title Case split, so the acronym run has to
+  // be a real acronym: it can only ever re-case and space the input, never
+  // substitute vocabulary into it.
   it("keeps acronym runs together", () => {
-    expect(humanizeKey("enableTMLookup")).toBe("Enable TM Lookup");
+    expect(humanizeKey("enableAILookup")).toBe("Enable AI Lookup");
+    expect(humanizeKey("useICUPlurals")).toBe("Use ICU Plurals");
   });
 
   it("title-cases a single lowercase word", () => {

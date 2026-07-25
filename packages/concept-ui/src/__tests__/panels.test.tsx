@@ -30,14 +30,14 @@ describe("ConceptTimeline", () => {
     // Direction toggle shows when there is more than one event.
     expect(await findByText("Newest")).toBeTruthy();
     // Rich source → no degradation caption.
-    expect(queryByText(/Derived from the local termbase/)).toBeNull();
+    expect(queryByText(/Derived from the local terms/)).toBeNull();
   });
 
   it("degrades to a synthesised core timeline with a caption", async () => {
     const props = ctx(makePanelSource({ rich: false }), "checkout");
     const { findByText } = render(<ConceptTimeline {...props} />);
     expect(await findByText("Concept created")).toBeTruthy();
-    expect(await findByText(/Derived from the local termbase/)).toBeTruthy();
+    expect(await findByText(/Derived from the local terms/)).toBeTruthy();
   });
 
   it("shows an empty state for an undated concept", async () => {

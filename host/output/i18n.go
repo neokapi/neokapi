@@ -70,17 +70,17 @@ var sources = map[string]string{
 	"plugins.header.formats":     "FORMATS",
 	"plugins.header.description": "DESCRIPTION",
 
-	// termbase lookup, search and stats
-	"termbase.header.term":       "TERM",
-	"termbase.header.terms":      "TERMS",
-	"termbase.header.locale":     "LOCALE",
-	"termbase.header.status":     "STATUS",
-	"termbase.header.match":      "MATCH",
-	"termbase.header.score":      "SCORE",
-	"termbase.header.concept":    "CONCEPT",
-	"termbase.header.concepts":   "CONCEPTS",
-	"termbase.header.domain":     "DOMAIN",
-	"termbase.header.definition": "DEFINITION",
+	// terms lookup, search and stats
+	"terms.header.term":       "TERM",
+	"terms.header.terms":      "TERMS",
+	"terms.header.locale":     "LOCALE",
+	"terms.header.status":     "STATUS",
+	"terms.header.match":      "MATCH",
+	"terms.header.score":      "SCORE",
+	"terms.header.concept":    "CONCEPT",
+	"terms.header.concepts":   "CONCEPTS",
+	"terms.header.domain":     "DOMAIN",
+	"terms.header.definition": "DEFINITION",
 
 	// tm lookup, search and stats
 	"tm.header.source":     "SOURCE",
@@ -91,7 +91,7 @@ var sources = map[string]string{
 	"tm.header.localePair": "LOCALE PAIR",
 	"tm.header.entries":    "ENTRIES",
 
-	// named resources (termbases, TMs) in KAPI_HOME
+	// named resources (terms stores, Memories) in KAPI_HOME
 	"resources.header.name":     "NAME",
 	"resources.header.size":     "SIZE",
 	"resources.header.modified": "MODIFIED",

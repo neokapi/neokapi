@@ -36,7 +36,16 @@ export const AnalyticsEvents = {
   localeAdded: "locale_added",
   /** A brand-voice profile was saved ({mode}). */
   brandVoiceSaved: "brand_voice_saved",
-  /** A glossary term status change persisted ({status, locale}). */
+  /**
+   * A terms status change persisted ({status, locale}).
+   *
+   * The event id stays `glossary_saved`. An analytics id is a join key into
+   * history: renaming it starts a new series and silently truncates every chart,
+   * funnel, and saved query built on the old one. The vocabulary sweep that
+   * renamed "glossary"/"termbase" to "terms" elsewhere deliberately left this
+   * alone — rename it only alongside a dashboard migration that unions both
+   * spellings across the cutover.
+   */
   glossarySaved: "glossary_saved",
   /** The locale-demand "Connect PostHog" affordance was clicked ({reconnect}). */
   localeDemandConnectClicked: "locale_demand_connect_clicked",

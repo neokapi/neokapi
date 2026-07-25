@@ -33,7 +33,7 @@ func TestMain(m *testing.M) {
 	root := findRoot()
 	kapiBin = filepath.Join(root, "bin", "kapi-e2e-test")
 	// Build with the same tags as `make build` — fts5 is required for the
-	// SQLite TM/termbase to open (otherwise: "no such function: fts5").
+	// SQLite content memory/terms to open (otherwise: "no such function: fts5").
 	cmd := exec.Command("go", "build", "-tags", "fts5", "-o", kapiBin, "./cmd/kapi")
 	cmd.Dir = filepath.Join(root, "kapi")
 	cmd.Stdout = os.Stdout
@@ -109,75 +109,75 @@ func kapiAllowFail(t *testing.T, args ...string) (string, error) {
 //   Import glossary → inspect stats → lookup terms → search →
 //   run QA on translations → export glossary
 
-func TestTermbaseImport(t *testing.T) {
+func TestTermsImport(t *testing.T) {
 	tb := tempDB(t, "tb")
 
-	out := kapi(t, "termbase", "import", filepath.Join(testdata, "glossary.csv"),
+	out := kapi(t, "terms", "import", filepath.Join(testdata, "glossary.csv"),
 		"--file", tb, "--format", "csv", "-s", "en", "-t", "fr", "--header")
 	assert.Contains(t, out, "Imported 7") // 7 concepts imported
 }
 
-func TestTermbaseStats(t *testing.T) {
-	tb := importedTermbase(t)
+func TestTermsStats(t *testing.T) {
+	tb := importedTerms(t)
 
-	out := kapi(t, "termbase", "stats", "--file", tb)
+	out := kapi(t, "terms", "stats", "--file", tb)
 	assert.Contains(t, out, "Concepts:  7")  // 7 concepts
 	assert.Contains(t, out, "Terms:     14") // 14 terms (7 en + 7 fr)
 	assert.Contains(t, out, "en")
 	assert.Contains(t, out, "fr")
 }
 
-func TestTermbaseLookup(t *testing.T) {
-	tb := importedTermbase(t)
+func TestTermsLookup(t *testing.T) {
+	tb := importedTerms(t)
 
-	out := kapi(t, "termbase", "lookup", "password", "--file", tb, "-s", "en", "-t", "fr")
+	out := kapi(t, "terms", "lookup", "password", "--file", tb, "-s", "en", "-t", "fr")
 	assert.Contains(t, out, "password")
 	assert.Contains(t, out, "mot de passe")
 }
 
-func TestTermbaseLookupFuzzy(t *testing.T) {
-	tb := importedTermbase(t)
+func TestTermsLookupFuzzy(t *testing.T) {
+	tb := importedTerms(t)
 
-	out := kapi(t, "termbase", "lookup", "passwords", "--file", tb, "-s", "en", "-t", "fr", "--fuzzy")
+	out := kapi(t, "terms", "lookup", "passwords", "--file", tb, "-s", "en", "-t", "fr", "--fuzzy")
 	assert.Contains(t, out, "password")
 }
 
-func TestTermbaseSearch(t *testing.T) {
-	tb := importedTermbase(t)
+func TestTermsSearch(t *testing.T) {
+	tb := importedTerms(t)
 
-	out := kapi(t, "termbase", "search", "encrypt", "--file", tb, "-s", "en")
+	out := kapi(t, "terms", "search", "encrypt", "--file", tb, "-s", "en")
 	assert.Contains(t, out, "encryption")
 	assert.Contains(t, out, "chiffrement")
 }
 
-func TestTermbaseExportCSV(t *testing.T) {
-	tb := importedTermbase(t)
+func TestTermsExportCSV(t *testing.T) {
+	tb := importedTerms(t)
 
 	outFile := filepath.Join(t.TempDir(), "export.csv")
-	kapi(t, "termbase", "export", "--file", tb, "--format", "csv", "-s", "en", "-t", "fr", "-o", outFile)
+	kapi(t, "terms", "export", "--file", tb, "--format", "csv", "-s", "en", "-t", "fr", "-o", outFile)
 
 	content := readFile(t, outFile)
 	assert.Contains(t, content, "password")
 	assert.Contains(t, content, "mot de passe")
 }
 
-func TestTermbaseExportJSON(t *testing.T) {
-	tb := importedTermbase(t)
+func TestTermsExportJSON(t *testing.T) {
+	tb := importedTerms(t)
 
 	outFile := filepath.Join(t.TempDir(), "export.json")
-	kapi(t, "termbase", "export", "--file", tb, "--format", "json", "-o", outFile)
+	kapi(t, "terms", "export", "--file", tb, "--format", "json", "-o", outFile)
 
 	content := readFile(t, outFile)
 	assert.Contains(t, content, "encryption")
 	assert.Contains(t, content, "chiffrement")
 }
 
-// TestTermCheckWithTermbase exercises terminology QA on a pseudo-translated
-// file. Steps: pseudo-translate → term-check with termbase.
+// TestTermCheckWithTerms exercises terminology QA on a pseudo-translated
+// file. Steps: pseudo-translate → term-check with terms.
 // The pseudo-translated output will not use correct French terminology, so
 // term-check flags violations and exits non-zero (a QA gate, not a failure).
-func TestTermCheckWithTermbase(t *testing.T) {
-	tb := importedTermbase(t)
+func TestTermCheckWithTerms(t *testing.T) {
+	tb := importedTerms(t)
 	tmp := t.TempDir()
 
 	// Step 1: pseudo-translate to create bilingual content
@@ -187,19 +187,19 @@ func TestTermCheckWithTermbase(t *testing.T) {
 		"--target-lang", "fr")
 	assert.FileExists(t, pseudoOut)
 
-	// Step 2: term-check against the termbase — exercises flag parsing,
-	// termbase loading and processing. It runs as an informational QA pass
+	// Step 2: term-check against the terms store — exercises flag parsing,
+	// terms loading and processing. It runs as an informational QA pass
 	// (exit 0; no stdout), so a clean run is the assertion. term-check is not
 	// in the curated TopLevelTools tier, so it executes via `kapi exec`.
 	kapi(t, "exec", "term-check", pseudoOut,
 		"--source-lang", "en",
 		"--target-lang", "fr",
-		"--termbase", tb)
+		"--terms", tb)
 }
 
-// TestQACheckWithoutTermbase verifies that qa works standalone for
+// TestQACheckWithoutTerms verifies that qa works standalone for
 // baseline rule-based checks and writes its annotated output file.
-func TestQACheckWithoutTermbase(t *testing.T) {
+func TestQACheckWithoutTerms(t *testing.T) {
 	tmp := t.TempDir()
 
 	pseudoOut := filepath.Join(tmp, "pseudo.json")
@@ -218,90 +218,90 @@ func TestQACheckWithoutTermbase(t *testing.T) {
 	assert.FileExists(t, qaOut)
 }
 
-// ─── User Story 2: Pre-Translation with TM + Terminology ────────────────────
+// ─── User Story 2: Pre-Translation with content memory + Terminology ────────────────────
 // Verifies the complete workflow from terminology-pretranslation.md:
-//   Import TM → inspect stats → lookup entries → search →
-//   TM leverage → pseudo-translate remaining → QA with termbase
+//   Import content memory → inspect stats → lookup entries → search →
+//   content-memory leverage → pseudo-translate remaining → QA with terms
 
-func TestTMImport(t *testing.T) {
-	tmFile := tempDB(t, "tm")
+func TestMemoryImport(t *testing.T) {
+	memoryFile := tempDB(t, "tm")
 
 	out := kapi(t, "tm", "import", filepath.Join(testdata, "project.tmx"),
-		"--file", tmFile, "-s", "en", "-t", "fr")
+		"--file", memoryFile, "-s", "en", "-t", "fr")
 	assert.Contains(t, out, "Imported 2") // 2 entries imported
 }
 
-func TestTMStats(t *testing.T) {
-	tmFile := importedTM(t)
+func TestMemoryStats(t *testing.T) {
+	memoryFile := importedMemory(t)
 
-	out := kapi(t, "tm", "stats", "--file", tmFile)
+	out := kapi(t, "tm", "stats", "--file", memoryFile)
 	assert.Contains(t, out, "Entries: 2") // 2 entries
 	assert.Contains(t, out, "en")
 	assert.Contains(t, out, "fr")
 }
 
-func TestTMLookup(t *testing.T) {
-	tmFile := importedTM(t)
+func TestMemoryLookup(t *testing.T) {
+	memoryFile := importedMemory(t)
 
-	out := kapi(t, "tm", "lookup", "Settings", "--file", tmFile, "-s", "en", "-t", "fr")
+	out := kapi(t, "tm", "lookup", "Settings", "--file", memoryFile, "-s", "en", "-t", "fr")
 	assert.Contains(t, out, "Paramètres")
 }
 
-// TestTMSearch verifies `kapi tm search` resolves source terms against the
-// imported TM. This previously returned "No entries found." (#701) because
-// single-file `kapi tm import` did not rebuild the FTS5 search side-tables;
-// that was fixed by #38 (import now calls rebuildTMSearchIndexes), so the
-// search now finds the same entries `kapi tm lookup` resolves.
-func TestTMSearch(t *testing.T) {
-	tmFile := importedTM(t)
+// TestMemorySearch verifies `kapi memory search` resolves source terms against the
+// imported content memory. This previously returned "No entries found." (#701) because
+// single-file `kapi memory import` did not rebuild the FTS5 search side-tables;
+// that was fixed by #38 (import now calls rebuildMemorySearchIndexes), so the
+// search now finds the same entries `kapi memory lookup` resolves.
+func TestMemorySearch(t *testing.T) {
+	memoryFile := importedMemory(t)
 
-	out := kapi(t, "tm", "search", "Settings", "--file", tmFile, "-s", "en", "-t", "fr")
+	out := kapi(t, "tm", "search", "Settings", "--file", memoryFile, "-s", "en", "-t", "fr")
 	assert.Contains(t, out, "Settings")
 	assert.Contains(t, out, "Paramètres")
 }
 
-func TestTMExport(t *testing.T) {
-	tmFile := importedTM(t)
+func TestMemoryExport(t *testing.T) {
+	memoryFile := importedMemory(t)
 
 	outFile := filepath.Join(t.TempDir(), "export.tmx")
-	kapi(t, "tm", "export", "--file", tmFile, "-o", outFile)
+	kapi(t, "tm", "export", "--file", memoryFile, "-o", outFile)
 
 	content := readFile(t, outFile)
 	assert.Contains(t, content, "Settings")
 	assert.Contains(t, content, "Paramètres")
 }
 
-// TestTMLeverage exercises TM leverage via `kapi exec recycle` (the raw
-// registry layer — the porcelain surface folded TM reuse into `kapi translate`
-// and retired the standalone top-level verb) against an external TM via --tm. It accepts --tm (and a project .kapi/tm.db), and — since the
+// TestMemoryLeverage exercises content-memory leverage via `kapi exec recycle` (the raw
+// registry layer — the porcelain surface folded content memory reuse into `kapi translate`
+// and retired the standalone top-level verb) against an external content memory via --tm. It accepts --tm (and a project .kapi/tm.db), and — since the
 // #700 fix wired SourceLocale from --source-lang — it fills targets from
-// exact TM matches: "Settings" and "File upload" (both in project.tmx) are
+// exact content-memory matches: "Settings" and "File upload" (both in project.tmx) are
 // leveraged into their French equivalents in the output.
-func TestTMLeverage(t *testing.T) {
-	tmFile := importedTM(t)
+func TestMemoryLeverage(t *testing.T) {
+	memoryFile := importedMemory(t)
 	tmp := t.TempDir()
 
 	out := filepath.Join(tmp, "leveraged.json")
 	kapi(t, "exec", "recycle", filepath.Join(testdata, "messages_en.json"),
-		"--tm", tmFile,
+		"--tm", memoryFile,
 		"--source-lang", "en",
 		"--target-lang", "fr",
 		"-o", out)
 	assert.FileExists(t, out)
 
-	// The exact TM matches must be leveraged into the French output (#700).
+	// The exact content-memory matches must be leveraged into the French output (#700).
 	content := readFile(t, out)
 	assert.Contains(t, content, "Paramètres")
 	assert.Contains(t, content, "Téléversement de fichier")
 }
 
-// ─── Full Pipeline: TM Leverage → Pseudo-Translate → QA + Termbase ──────────
+// ─── Full Pipeline: content memory Leverage → Pseudo-Translate → QA + Terms ──────────
 
 // TestFullPipeline runs the supported standalone pipeline end-to-end:
 // pseudo-translate → qa → term-check against the project glossary.
-// (TM leverage is covered separately by TestTMLeverage.)
+// (content-memory leverage is covered separately by TestMemoryLeverage.)
 func TestFullPipeline(t *testing.T) {
-	tb := importedTermbase(t)
+	tb := importedTerms(t)
 	tmp := t.TempDir()
 
 	// Step 1: Pseudo-translate the source.
@@ -324,7 +324,7 @@ func TestFullPipeline(t *testing.T) {
 	kapi(t, "exec", "term-check", pseudoOut,
 		"--source-lang", "en",
 		"--target-lang", "fr",
-		"--termbase", tb)
+		"--terms", tb)
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -334,20 +334,20 @@ func tempDB(t *testing.T, prefix string) string {
 	return filepath.Join(t.TempDir(), prefix+".db")
 }
 
-func importedTermbase(t *testing.T) string {
+func importedTerms(t *testing.T) string {
 	t.Helper()
 	tb := tempDB(t, "tb")
-	kapi(t, "termbase", "import", filepath.Join(testdata, "glossary.csv"),
+	kapi(t, "terms", "import", filepath.Join(testdata, "glossary.csv"),
 		"--file", tb, "--format", "csv", "-s", "en", "-t", "fr", "--header")
 	return tb
 }
 
-func importedTM(t *testing.T) string {
+func importedMemory(t *testing.T) string {
 	t.Helper()
-	tmFile := tempDB(t, "tm")
+	memoryFile := tempDB(t, "tm")
 	kapi(t, "tm", "import", filepath.Join(testdata, "project.tmx"),
-		"--file", tmFile, "-s", "en", "-t", "fr")
-	return tmFile
+		"--file", memoryFile, "-s", "en", "-t", "fr")
+	return memoryFile
 }
 
 func readFile(t *testing.T, path string) string {

@@ -6,18 +6,18 @@ import (
 	brandpg "github.com/neokapi/neokapi/bowrain/brand"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
-	sqltb "github.com/neokapi/neokapi/bowrain/termbase"
+	sqltb "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
-	fwtermbase "github.com/neokapi/neokapi/termbase"
+	fwterms "github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // TestWorkerBrandContext_EndToEnd is the end-to-end proof of J-4 over the real
 // PostgreSQL stores: a project whose Properties bind a brand-voice profile
-// (the project rung of the brandscope ladder) and whose workspace termbase
+// (the project rung of the brandscope ladder) and whose workspace terms
 // carries approved terminology produces a translate config that carries the
 // rendered voice guide and the per-locale glossary — and the demo-provider
 // translation job completes with them bound. A sibling project with neither
@@ -61,13 +61,13 @@ func TestWorkerBrandContext_EndToEnd(t *testing.T) {
 		model.NewBlock("b1", "Open the dashboard"),
 	}))
 
-	// Real Postgres termbase (workspace-keyed, like the server's getTB) with a
+	// Real Postgres terms (workspace-keyed, like the server's getTB) with a
 	// preferred fr rendering.
-	tb, err := sqltb.NewPostgresTermBaseFromDB(db, wsSlug)
+	tb, err := sqltb.NewPostgresStoreFromDB(db, wsSlug)
 	require.NoError(t, err)
-	require.NoError(t, tb.AddConcept(ctx, fwtermbase.Concept{
+	require.NoError(t, tb.AddConcept(ctx, fwterms.Concept{
 		ID: "c-dashboard",
-		Terms: []fwtermbase.Term{
+		Terms: []fwterms.Term{
 			{Text: "dashboard", Locale: "en", Status: model.TermPreferred},
 			{Text: "tableau de bord", Locale: "fr", Status: model.TermPreferred},
 		},
@@ -79,8 +79,8 @@ func TestWorkerBrandContext_EndToEnd(t *testing.T) {
 		Platform:      &PlatformProviderConfig{Provider: "demo"},
 		ProviderStore: &fakeProviderResolver{cfg: bstore.ProviderConfig{Type: "demo"}},
 		BrandStore:    bs,
-		TBResolver: TBResolverFunc(func(slug string) (fwtermbase.TermBase, error) {
-			return sqltb.NewPostgresTermBaseFromDB(db, slug)
+		TermsResolver: TermsResolverFunc(func(slug string) (fwterms.Terminology, error) {
+			return sqltb.NewPostgresStoreFromDB(db, slug)
 		}),
 	}
 

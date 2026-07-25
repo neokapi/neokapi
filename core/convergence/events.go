@@ -17,11 +17,11 @@ const (
 	// progress bar renders against).
 	EventLocaleStart EventType = "locale_start"
 	// EventUnitProgress is the throttled live counter for one locale: Done
-	// units carry a committed target so far, of which ViaTM came from TM
+	// units carry a committed target so far, of which ViaMemory came from content memory
 	// recycling and ViaAI from an AI/MT engine.
 	EventUnitProgress EventType = "unit_progress"
 	// EventLocaleDone reports one locale's flow run finishing inside the
-	// current pass, with the final Done/ViaTM/ViaAI counts for the pass.
+	// current pass, with the final Done/ViaMemory/ViaAI counts for the pass.
 	EventLocaleDone EventType = "locale_done"
 	// EventPassDone closes a pass after post-derivation: Produced units at
 	// ≥ draft, the pass's ProducedDelta, FailingChecks demoted by the bound
@@ -67,7 +67,7 @@ const (
 	StageSync         = "sync"          // pre-pass source sync / drift re-extract
 	StageSettleSource = "settle_source" // source-settlement phase before target production (source-first, epic 019)
 	StageDerive       = "derive"        // coverage + bound-check derivation
-	StageRecycle      = "recycle"       // TM-leverage stage of production
+	StageRecycle      = "recycle"       // Memory-leverage stage of production
 	StageAITranslate  = "ai_translate"  // AI/MT drafting stage of production
 	StageChecks       = "checks"        // post-production QA checks
 	StageMaterialize  = "materialize"   // writing shippable output
@@ -144,11 +144,11 @@ type Event struct {
 	ExtractedBlocks int `json:"extractedBlocks,omitempty"`
 
 	// Locale-scoped fields (locale_start, unit_progress, locale_done).
-	Locale string `json:"locale,omitempty"`
-	Units  int    `json:"units,omitempty"`
-	Done   int    `json:"done,omitempty"`
-	ViaTM  int    `json:"viaTM,omitempty"`
-	ViaAI  int    `json:"viaAI,omitempty"`
+	Locale    string `json:"locale,omitempty"`
+	Units     int    `json:"units,omitempty"`
+	Done      int    `json:"done,omitempty"`
+	ViaMemory int    `json:"viaTM,omitempty"`
+	ViaAI     int    `json:"viaAI,omitempty"`
 
 	// Post-derivation fields (pass_done).
 	Produced      int `json:"produced,omitempty"`

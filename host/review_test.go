@@ -114,11 +114,11 @@ func TestReview_QueueListsUnreviewedUnits(t *testing.T) {
 	assert.Equal(t, "Banana", q2.Pending[0].Source, "only the unreviewed unit remains")
 }
 
-// TestReview_ApplyTMCorrectionIsRecycleNotReview drives the real `kapi apply` verb
+// TestReview_ApplyMemoryCorrectionIsRecycleNotReview drives the real `kapi apply` verb
 // and asserts the migrated boundary: a tm correction lands in the .kmb as
 // RECYCLE leverage — it does NOT promote review coverage. Review state lives in
-// the project state store now (set by ApproveReviewUnit), not the TM.
-func TestReview_ApplyTMCorrectionIsRecycleNotReview(t *testing.T) {
+// the project state store now (set by ApproveReviewUnit), not the content memory.
+func TestReview_ApplyMemoryCorrectionIsRecycleNotReview(t *testing.T) {
 	root := writeReviewProject(t)
 	t.Chdir(root)
 
@@ -126,7 +126,7 @@ func TestReview_ApplyTMCorrectionIsRecycleNotReview(t *testing.T) {
 	a.InitRegistries()
 	cmd := NewEnvCommand(context.Background(), "apply")
 	res := a.applyAssetEntry(context.Background(), cmd, changeEntry{
-		Kind: kindTM, Op: "add", Source: "Apple", Target: "Eple",
+		Kind: kindMemory, Op: "add", Source: "Apple", Target: "Eple",
 		SourceLocale: "en", TargetLocale: "nb",
 	})
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
@@ -151,7 +151,7 @@ func TestReview_EmptyQueueWhenNothingTranslated(t *testing.T) {
 // TestReview_EditAfterApprovalInvalidatesReview proves the state model's upgrade
 // over the old content-keyed .kmb: an approval is bound to the targetHash of the
 // translation it blessed, so editing that translation drops the unit back below
-// the reviewed rung — something the content-keyed TM index could not express.
+// the reviewed rung — something the content-keyed content memory index could not express.
 func TestReview_EditAfterApprovalInvalidatesReview(t *testing.T) {
 	root := writeReviewProject(t)
 	t.Chdir(root)

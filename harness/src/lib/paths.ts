@@ -84,13 +84,13 @@ export const PLUGIN_DIR = path.join(REPO_ROOT, "packages", "kapi-claude-plugin")
 
 /**
  * Isolated kapi state so demos don't depend on this machine's installed plugins,
- * flows, TMs or config. Set via env (XDG_DATA_HOME / KAPI_CONFIG_DIR / KAPI_PLUGINS_DIR)
+ * flows, Memories or config. Set via env (XDG_DATA_HOME / KAPI_CONFIG_DIR / KAPI_PLUGINS_DIR)
  * for every kapi invocation. (AI credentials still live in the OS keychain, which is
  * machine-global; the harness manages its own "harness-gemini" entry.)
  */
 export const KAPI_ISO = path.join(HARNESS_ROOT, ".kapi");
 export const KAPI_ISO_DATA = path.join(KAPI_ISO, "data"); // XDG_DATA_HOME → plugins live in <data>/kapi/plugins
-export const KAPI_ISO_HOME = path.join(KAPI_ISO, "home"); // KAPI_CONFIG_DIR → KAPI_HOME (tm/termbase/flows)
+export const KAPI_ISO_HOME = path.join(KAPI_ISO, "home"); // KAPI_CONFIG_DIR → KAPI_HOME (tm/terms/flows)
 export const KAPI_ISO_PLUGINS = path.join(KAPI_ISO_DATA, "kapi", "plugins");
 
 /**

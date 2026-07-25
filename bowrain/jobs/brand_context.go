@@ -7,31 +7,31 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/brandscope"
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // This file resolves the brand context — voice profile + terminology glossary —
 // for a server-side translation job, so every AI translation the worker runs
 // (convergence-created jobs, manual enqueue, automation) carries the same
 // standing context the CLI flow binds via ApplyProjectBindings. Resolution is
-// strictly best-effort: a missing profile, an unreadable termbase, or a store
+// strictly best-effort: a missing profile, an unreadable terms, or a store
 // error degrades the job to a bare translation, never fails it — the context
 // is advisory and the checks still report what the model got wrong.
 
-// TBResolver returns the workspace's server termbase, so a translation job can
+// TermsResolver returns the workspace's server terms, so a translation job can
 // build the per-locale glossary that reaches the model's prompt. It mirrors the
-// server's workspaceStores.getTB: a per-workspace, PostgreSQL-backed termbase
+// server's workspaceStores.getTB: a per-workspace, PostgreSQL-backed terms
 // keyed by the workspace slug. Optional on WorkerDeps — when nil the job
 // translates without a glossary.
-type TBResolver interface {
-	GetTB(workspaceSlug string) (termbase.TermBase, error)
+type TermsResolver interface {
+	GetTB(workspaceSlug string) (terms.Terminology, error)
 }
 
-// TBResolverFunc adapts a plain function to the TBResolver interface.
-type TBResolverFunc func(workspaceSlug string) (termbase.TermBase, error)
+// TermsResolverFunc adapts a plain function to the TermsResolver interface.
+type TermsResolverFunc func(workspaceSlug string) (terms.Terminology, error)
 
-// GetTB implements TBResolver.
-func (f TBResolverFunc) GetTB(workspaceSlug string) (termbase.TermBase, error) {
+// GetTB implements TermsResolver.
+func (f TermsResolverFunc) GetTB(workspaceSlug string) (terms.Terminology, error) {
 	return f(workspaceSlug)
 }
 
@@ -64,14 +64,14 @@ func resolveJobBrandProfile(ctx context.Context, deps *WorkerDeps, job *Translat
 }
 
 // resolveJobGlossary builds the source→target glossary for a translation job
-// from the workspace termbase, mirroring the CLI's ResolveProjectGlossary via
-// the shared GlossaryFromTermbase derivation.
+// from the workspace terms, mirroring the CLI's ResolveProjectGlossary via
+// the shared GlossaryFromTerms derivation.
 //
-// Returns nil (and logs) when no termbase resolves, it has no terms for the
+// Returns nil (and logs) when no terms resolves, it has no terms for the
 // locale pair, or any read fails: terminology must never fail a translation
 // job.
 func resolveJobGlossary(ctx context.Context, deps *WorkerDeps, job *TranslationJob, sourceLocale, targetLocale model.LocaleID) map[string]string {
-	if deps == nil || deps.TBResolver == nil {
+	if deps == nil || deps.TermsResolver == nil {
 		return nil
 	}
 	if sourceLocale == "" || targetLocale == "" {
@@ -81,36 +81,36 @@ func resolveJobGlossary(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	if slug == "" {
 		slug = "_anon"
 	}
-	tb, err := deps.TBResolver.GetTB(slug)
+	tb, err := deps.TermsResolver.GetTB(slug)
 	if err != nil || tb == nil {
 		if err != nil {
-			slog.WarnContext(ctx, "termbase resolution failed; translating without glossary",
+			slog.WarnContext(ctx, "terms resolution failed; translating without glossary",
 				"job_id", job.ID, "workspace", slug, "error", err)
 		}
 		return nil
 	}
-	glossary, err := GlossaryFromTermbase(ctx, tb, job.ProjectID, sourceLocale, targetLocale)
+	glossary, err := GlossaryFromTerms(ctx, tb, job.ProjectID, sourceLocale, targetLocale)
 	if err != nil {
-		slog.WarnContext(ctx, "termbase read failed; translating without glossary",
+		slog.WarnContext(ctx, "terms read failed; translating without glossary",
 			"job_id", job.ID, "workspace", slug, "error", err)
 		return nil
 	}
 	return glossary
 }
 
-// GlossaryFromTermbase derives the source→target glossary a translation
-// prompt carries from a workspace termbase: for each concept, the
+// GlossaryFromTerms derives the source→target glossary a translation
+// prompt carries from a workspace terms: for each concept, the
 // source-locale term paired with the preferred (or first approved)
 // target-locale term becomes a glossary mandate. Workspace-scoped concepts
 // (empty ProjectID) and concepts scoped to this project both apply; concepts
 // scoped to other projects are excluded, and a project-scoped rendering wins
 // over a workspace-scoped one for the same source term. Returns nil (not an
-// empty map) when the termbase has no terms for the locale pair.
+// empty map) when the terms store has no terms for the locale pair.
 //
 // It is the single derivation shared by every server-side translation
 // surface — the worker's jobs (resolveJobGlossary) and the synchronous editor
 // translate in bowrain/server — so both mandate identical renderings.
-func GlossaryFromTermbase(ctx context.Context, tb termbase.TermBase, projectID string, sourceLocale, targetLocale model.LocaleID) (map[string]string, error) {
+func GlossaryFromTerms(ctx context.Context, tb terms.Terminology, projectID string, sourceLocale, targetLocale model.LocaleID) (map[string]string, error) {
 	if tb == nil || sourceLocale == "" || targetLocale == "" {
 		return nil, nil
 	}

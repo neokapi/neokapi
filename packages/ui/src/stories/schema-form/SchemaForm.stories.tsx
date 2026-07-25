@@ -154,18 +154,18 @@ const conditionalSchema: ComponentSchema = {
   title: "Batch Translation",
   type: "object",
   properties: {
-    useTM: {
+    useMemory: {
       type: "boolean",
-      title: "Use Translation Memory",
+      title: "Use Content Memory",
       default: false,
-      description: "Use translation memory for leveraging",
+      description: "Use content memory for leveraging",
     },
-    tmPath: {
+    memoryPath: {
       type: "string",
-      title: "TM File Path",
-      description: "Path to translation memory file",
+      title: "content memory File Path",
+      description: "Path to content memory file",
       "ui:widget": "path",
-      "ui:enabled": { field: "useTM", eq: true },
+      "ui:enabled": { field: "useMemory", eq: true },
     },
     threshold: {
       type: "integer",
@@ -174,14 +174,14 @@ const conditionalSchema: ComponentSchema = {
       minimum: 0,
       maximum: 100,
       description: "Minimum match threshold",
-      "ui:enabled": { field: "useTM", eq: true },
+      "ui:enabled": { field: "useMemory", eq: true },
     },
     markAsMT: {
       type: "boolean",
       title: "Mark as Machine Translated",
       default: true,
       description: "Mark leveraged segments as machine translated",
-      "ui:visible": { field: "useTM", eq: true },
+      "ui:visible": { field: "useMemory", eq: true },
     },
   },
 };

@@ -135,7 +135,7 @@ func TestEditorBlockLookups(t *testing.T) {
 		"GET /api/v1/acme/p1/blocks/main/b1/tm-matches":   {200, `[{"source":"Hello","target":"Bonjour","score":0.9,"match_type":"fuzzy"}]`},
 		"GET /api/v1/acme/p1/blocks/main/b1/term-matches": {200, `[{"source_term":"login","target_terms":["connexion"],"domain":"ui","status":"preferred","start":0,"end":5}]`},
 	})
-	tm, err := c.LookupTMForBlock(context.Background(), "acme", "p1", "b1", "fr")
+	tm, err := c.LookupMemoryForBlock(context.Background(), "acme", "p1", "b1", "fr")
 	require.NoError(t, err)
 	require.Len(t, tm, 1)
 	assert.InEpsilon(t, 0.9, tm[0].Score, 0.001)
@@ -148,7 +148,7 @@ func TestEditorBlockLookups(t *testing.T) {
 	assert.Equal(t, 5, terms[0].End)
 }
 
-func TestEditorTM(t *testing.T) {
+func TestEditorMemory(t *testing.T) {
 	c, got := editorServer(t, map[string]route{
 		"GET /api/v1/acme/translation-memory":       {200, `{"entries":[{"id":"e1","source":"Hi","target":"Salut","source_language":"en","target_language":"fr","updated_at":"t"}],"total_count":1}`},
 		"GET /api/v1/acme/translation-memory/count": {200, `{"count":42}`},
@@ -156,7 +156,7 @@ func TestEditorTM(t *testing.T) {
 		"PUT /api/v1/acme/translation-memory/e2":    {204, ""},
 		"DELETE /api/v1/acme/translation-memory/e2": {204, ""},
 	})
-	res, err := c.GetTMEntries(context.Background(), "acme", "hi", "en", "fr", 0, 50)
+	res, err := c.GetMemoryEntries(context.Background(), "acme", "hi", "en", "fr", 0, 50)
 	require.NoError(t, err)
 	assert.Equal(t, 1, res.TotalCount)
 	assert.Equal(t, "Salut", res.Entries[0].Target)
@@ -164,11 +164,11 @@ func TestEditorTM(t *testing.T) {
 	assert.Contains(t, got.query, "q=hi")
 	assert.Contains(t, got.query, "limit=50")
 
-	n, err := c.GetTMCount(context.Background(), "acme")
+	n, err := c.GetMemoryCount(context.Background(), "acme")
 	require.NoError(t, err)
 	assert.Equal(t, 42, n)
 
-	entry, err := c.AddTMEntry(context.Background(), "acme", "Bye", "Au revoir", "en", "fr")
+	entry, err := c.AddMemoryEntry(context.Background(), "acme", "Bye", "Au revoir", "en", "fr")
 	require.NoError(t, err)
 	assert.Equal(t, "e2", entry.ID)
 	var addBody map[string]string
@@ -176,8 +176,8 @@ func TestEditorTM(t *testing.T) {
 	assert.Equal(t, "Bye", addBody["source"])
 	assert.Equal(t, "fr", addBody["target_locale"])
 
-	require.NoError(t, c.UpdateTMEntry(context.Background(), "acme", "e2", "Bye", "A+", "en", "fr"))
-	require.NoError(t, c.DeleteTMEntry(context.Background(), "acme", "e2"))
+	require.NoError(t, c.UpdateMemoryEntry(context.Background(), "acme", "e2", "Bye", "A+", "en", "fr"))
+	require.NoError(t, c.DeleteMemoryEntry(context.Background(), "acme", "e2"))
 	assert.Equal(t, "DELETE", got.method)
 }
 

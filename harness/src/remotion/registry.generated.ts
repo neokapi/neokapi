@@ -71,7 +71,7 @@ export const DEMOS: RegistryEntry[] = [
   },
   {
     "id": "kapi-desktop-explorer",
-    "title": "Browse a termbase and translation memory"
+    "title": "Browse a terms store and content memory"
   },
   {
     "id": "kapi-desktop-flows",

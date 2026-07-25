@@ -211,16 +211,17 @@ describe("extractDocument — skip rules", () => {
   });
 
   it("extracts translatable props on unmapped components", () => {
-    // `<PageHeader title="Translation Memories" />` is the dominant
+    // `<PageHeader title="Content Memories" />` is the dominant
     // page-heading pattern — title/subtitle/description/… should
     // extract without a componentMap entry.
-    const doc = extractDocument(
-      '<PageHeader title="Translation Memories" subtitle="Glossaries" />',
-      { filename: "Test.tsx" },
-    );
+    const doc = extractDocument('<PageHeader title="Content Memories" subtitle="Terms" />', {
+      filename: "Test.tsx",
+    });
     const attrBlocks = doc?.blocks.filter((b) => b.type === "jsx:attribute") ?? [];
+    // Sorted, so the assertion does not depend on attribute order — which means
+    // the expectation has to be in sorted order too.
     const texts = attrBlocks.map((b) => (b.source[0] as { text: string }).text).sort();
-    expect(texts).toEqual(["Glossaries", "Translation Memories"]);
+    expect(texts).toEqual(["Content Memories", "Terms"]);
   });
 
   it('respects `translate="no"`', () => {

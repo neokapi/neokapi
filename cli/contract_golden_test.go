@@ -69,10 +69,10 @@ func TestCLIJSONContract(t *testing.T) {
 			name: "merge",
 			data: output.MergeOutput{
 				Files: []output.MergeFileOutput{
-					{Input: "out/app.en-to-fr.xliff", Applied: 8, Stale: 1, TMNew: 6, TMUpdated: 2},
+					{Input: "out/app.en-to-fr.xliff", Applied: 8, Stale: 1, MemoryNew: 6, MemoryUpdated: 2},
 					{Input: "out/bad.xliff", Error: "no extraction batch note found"},
 				},
-				Applied: 8, Stale: 1, TMNew: 6, TMUpdated: 2,
+				Applied: 8, Stale: 1, MemoryNew: 6, MemoryUpdated: 2,
 				ConflictPolicy: "prefer-incoming",
 				Failures:       1,
 			},
@@ -144,21 +144,21 @@ func TestCLIContractText(t *testing.T) {
 			"  fr      2      10      4      1      5\n"+
 			"\nBatch 0b6be731-3a5c-4a02-9e04-2f79e4c2d1aa complete. Manifest: .kapi/cache/extractions/0b6be731/manifest.yaml\n"+
 			"Reused 1 unchanged file(s) from a prior batch (no re-parse).\n"+
-			"Aggregate TM leverage: exact=4 fuzzy=1 new=15 (total=20)\n",
+			"Aggregate content-memory leverage: exact=4 fuzzy=1 new=15 (total=20)\n",
 		buf.String())
 
 	mres := output.MergeOutput{
 		Files: []output.MergeFileOutput{
-			{Input: "out/app.en-to-fr.xliff", Applied: 8, Stale: 1, TMNew: 6, TMUpdated: 2},
+			{Input: "out/app.en-to-fr.xliff", Applied: 8, Stale: 1, MemoryNew: 6, MemoryUpdated: 2},
 		},
-		Applied: 8, Stale: 1, TMNew: 6, TMUpdated: 2,
+		Applied: 8, Stale: 1, MemoryNew: 6, MemoryUpdated: 2,
 		ConflictPolicy: "prefer-incoming",
 	}
 	buf.Reset()
 	require.NoError(t, mres.FormatText(&buf))
 	assert.Equal(t,
-		"  FILE                    APPLIED  STALE  SKIPPED  TM NEW  TM UPDATED\n"+
-			"  out/app.en-to-fr.xliff  8        1      0        6       2\n"+
+		"  FILE                    APPLIED  STALE  SKIPPED  content memory NEW  content memory UPDATED\n"+
+			"  out/app.en-to-fr.xliff  8        1      0        6                   2\n"+
 			"\nMerge complete. applied=8 stale=1 skipped=0 tm_new=6 tm_updated=2 (conflict_policy=prefer-incoming)\n",
 		buf.String())
 

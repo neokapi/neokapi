@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { HighlightedSource } from "../../components/editor/HighlightedSource";
 import { sampleTermMatches, deprecatedTermMatch } from "../fixtures";
 
-const sampleText = "localization is key in translation memory work and each term matters";
+const sampleText = "localization is key in content memory work and each term matters";
 
 const meta: Meta<typeof HighlightedSource> = {
   title: "Editor/Core/HighlightedSource",

@@ -337,8 +337,8 @@ func TestOfflineQueueIntegrationWithReviewBlock(t *testing.T) {
 	assert.True(t, found, "review_block should be in the queue")
 }
 
-// TestOfflineQueueIntegrationWithTM verifies TM add/delete offline queuing.
-func TestOfflineQueueIntegrationWithTM(t *testing.T) {
+// TestOfflineQueueIntegrationWithMemory verifies content memory add/delete offline queuing.
+func TestOfflineQueueIntegrationWithMemory(t *testing.T) {
 	app := newTestApp(t)
 	q := newTestQueue(t)
 	if app.offlineQueue != nil {
@@ -354,8 +354,8 @@ func TestOfflineQueueIntegrationWithTM(t *testing.T) {
 	app.connState = StateOffline
 	app.mu.Unlock()
 
-	// Add TM entry — should succeed locally and enqueue.
-	entry, err := app.AddTMEntry(proj.ID, "Hello", "Bonjour", "en", "fr")
+	// Add content-memory entry — should succeed locally and enqueue.
+	entry, err := app.AddMemoryEntry(proj.ID, "Hello", "Bonjour", "en", "fr")
 	require.NoError(t, err)
 	assert.NotEmpty(t, entry.ID)
 

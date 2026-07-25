@@ -7,7 +7,7 @@ import (
 	"time"
 
 	corebrand "github.com/neokapi/neokapi/core/brand"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 )
@@ -31,8 +31,8 @@ type PilotProfileStore interface {
 }
 
 // Compile-time proof that the production stores satisfy the pilot interfaces:
-// the bowrain ContentStore is a StreamBindingStore, the framework termbase
-// TBStore carries the stream-shadow methods the pilot writes to, and the brand
+// the bowrain ContentStore is a StreamBindingStore, the framework terms
+// Store carries the stream-shadow methods the pilot writes to, and the brand
 // store is a PilotProfileStore.
 var (
 	_ StreamBindingStore = (store.ContentStore)(nil)
@@ -40,7 +40,7 @@ var (
 )
 
 // pilotShadowPrefix namespaces every row the pilot lifecycle writes to the
-// termbase. The framework concept/relation tables key on ID alone (stream is a
+// terms. The framework concept/relation tables key on ID alone (stream is a
 // plain column), so a pilot shadow must use a *distinct* ID per (change-set,
 // stream, original) — writing a live concept's own ID with a pilot stream would
 // re-home the single live row onto the pilot branch and destroy the workspace
@@ -66,7 +66,7 @@ func pilotProfileID(changesetID, stream, profileID string) string {
 
 // StartPilot binds a change-set to one content stream as a pilot so real content
 // and real checks resolve through the draft before it merges (AD-021). It writes
-// the change-set's resulting concepts and added relations into the termbase's
+// the change-set's resulting concepts and added relations into the terms store's
 // stream-scoped shadow (AddConceptWithStream / AddRelationWithStream on the pilot
 // stream, under namespaced IDs), materializes a candidate brand profile for the
 // change-set's voice ops and binds it to the content stream's brand-voice
@@ -87,10 +87,10 @@ func (e *Engine) StartPilot(ctx context.Context, workspaceID string, store Store
 		return nil, err
 	}
 
-	// Write the change-set's resulting concepts and relations into the termbase
+	// Write the change-set's resulting concepts and relations into the terms store
 	// stream shadow. Skipped entirely for a voice-only change-set, which needs no
-	// termbase store at all.
-	if hasTermbaseOps(ops) {
+	// terms store at all.
+	if hasTermsOps(ops) {
 		if err := e.writePilotShadow(ctx, cs, ops, stream); err != nil {
 			return nil, err
 		}
@@ -130,9 +130,9 @@ func (e *Engine) StopPilot(ctx context.Context, workspaceID string, store Store,
 		return err
 	}
 
-	// Remove the termbase stream shadow (relations first, then their concepts).
+	// Remove the terms store stream shadow (relations first, then their concepts).
 	// Skipped for a voice-only change-set, which wrote no shadow.
-	if hasTermbaseOps(ops) {
+	if hasTermsOps(ops) {
 		if err := e.removePilotShadow(ctx, cs, ops, stream); err != nil {
 			return err
 		}
@@ -184,7 +184,7 @@ func (e *Engine) StopAllPilots(ctx context.Context, workspaceID string, store St
 }
 
 // writePilotShadow writes the change-set's resulting concepts and added
-// relations into the termbase stream shadow under namespaced IDs.
+// relations into the terms store stream shadow under namespaced IDs.
 func (e *Engine) writePilotShadow(ctx context.Context, cs ChangeSet, ops []ChangeSetOp, stream string) error {
 	shadow, err := e.shadowStore()
 	if err != nil {
@@ -192,13 +192,13 @@ func (e *Engine) writePilotShadow(ctx context.Context, cs ChangeSet, ops []Chang
 	}
 
 	// Build the "after" graph the change-set would produce, purely in memory.
-	before, err := e.buildBeforeTermbase(ctx, ops)
+	before, err := e.buildBeforeTerms(ctx, ops)
 	if err != nil {
-		return fmt.Errorf("build before termbase: %w", err)
+		return fmt.Errorf("build before terms: %w", err)
 	}
-	after, err := ApplyOpsToTermbase(ctx, before, ops)
+	after, err := ApplyOpsToTerms(ctx, before, ops)
 	if err != nil {
-		return fmt.Errorf("build after termbase: %w", err)
+		return fmt.Errorf("build after terms: %w", err)
 	}
 
 	// Shadow every touched concept that survives, under a namespaced ID.
@@ -364,11 +364,11 @@ func (e *Engine) unbindPilotVoice(ctx context.Context, cs ChangeSet, ops []Chang
 }
 
 // shadowStore returns the engine's concept store as the stream-shadow write
-// surface the pilot lifecycle needs (the framework termbase TBStore).
-func (e *Engine) shadowStore() (termbase.TBStore, error) {
-	s, ok := e.concepts.(termbase.TBStore)
+// surface the pilot lifecycle needs (the framework terms Store).
+func (e *Engine) shadowStore() (terms.Store, error) {
+	s, ok := e.concepts.(terms.Store)
 	if !ok {
-		return nil, errors.New("knowledge: concept store does not support stream shadows (need termbase.TBStore)")
+		return nil, errors.New("knowledge: concept store does not support stream shadows (need terms.Store)")
 	}
 	return s, nil
 }

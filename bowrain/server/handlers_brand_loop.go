@@ -288,7 +288,7 @@ func (s *Server) maybeAutoPromote(ctx echo.Context, profile *corebrand.VoiceProf
 
 		// Link the rule into the brand knowledge graph (AD-021) before promoting,
 		// so the auto-promoted TermRule denotes its concept. Best-effort: a
-		// termbase hiccup must not cost the loop an auto-promotion it earned.
+		// terms hiccup must not cost the loop an auto-promotion it earned.
 		rule := *sug
 		conceptID, kgEvents, linkErr := s.linkRuleToConcept(rctx, ctx.Param("ws"), wsID, rule)
 		if linkErr != nil {

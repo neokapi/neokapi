@@ -11,7 +11,7 @@
  *   Block  →  Run[]
  *
  *   - Block is the unit of translation tracking. Extractors produce
- *     Blocks; mergers consume them; TM, status, targets, and
+ *     Blocks; mergers consume them; content memory, status, targets, and
  *     annotations are all keyed per Block (per locale where
  *     applicable).
  *
@@ -221,7 +221,7 @@ export interface RunConstraints {
  * A Block is the unit of translation tracking. Typically a JSX
  * element (<h2>, <button>, <p>), an HTML paragraph, a Markdown
  * heading, or one attribute value (alt, placeholder). Extractors
- * produce Blocks; TM, status, targets, merge, and annotations are
+ * produce Blocks; content memory, status, targets, merge, and annotations are
  * all keyed on the Block.
  */
 export interface Block {
@@ -328,7 +328,7 @@ export const SchemaVersion = "1.0" as const;
  * blob is a KBF document before parsing, rather than a same-shaped
  * structure from a different producer.
  */
-export const Kind = "kapi-localization-format" as const;
+export const Kind = "kapi-bundle" as const;
 
 /** Canonical file extension of a Kapi Bundle Format document. */
 export const Ext = ".kbf" as const;

@@ -93,7 +93,7 @@ export async function captureDemo(m: DemoManifest, opts: CaptureOptions = {}): P
   const fixtureClaudeMd = fs.existsSync(sandboxClaudeMdPath) ? fs.readFileSync(sandboxClaudeMdPath, "utf8").trim() + "\n\n" : "";
   fs.writeFileSync(sandboxClaudeMdPath, fixtureClaudeMd + sandboxClaudeMd(m));
 
-  // 2. Optional setup commands (seed a termbase, init a project, pnpm install, …).
+  // 2. Optional setup commands (seed a terms store, init a project, pnpm install, …).
   // Isolated kapi state (own plugins/home) so demos don't depend on the machine.
   const env = {
     ...process.env,

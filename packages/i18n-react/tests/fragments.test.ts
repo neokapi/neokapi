@@ -70,7 +70,7 @@ describe("fragment transform (runtime mode)", () => {
   });
 });
 
-describe("consumed fragments with conditional JSX (TMFacetSidebar regression)", () => {
+describe("consumed fragments with conditional JSX (MemoryFacetSidebar regression)", () => {
   it("emits ONE op for the whole fragment — never nested ops inside its range", () => {
     const code = `const x = (
       <>

@@ -32,9 +32,9 @@ import (
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host/flowdef"
 	"github.com/neokapi/neokapi/host/output"
-	sqltm "github.com/neokapi/neokapi/sievepen"
-	sqltb "github.com/neokapi/neokapi/termbase"
-	"github.com/neokapi/neokapi/termbase/ktb"
+	sqltm "github.com/neokapi/neokapi/memory"
+	sqltb "github.com/neokapi/neokapi/terms"
+	"github.com/neokapi/neokapi/terms/ktb"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -115,7 +115,7 @@ func (a *App) RunFlow(ctx context.Context, cmd Command, flowName string, opts Fl
 }
 
 // AddFlowRunFlags registers the common flow-execution flags (provider/model/
-// tm/termbase/source-lang/target-lang/parallel-blocks/trace/…) on cmd. The
+// tm/terms/source-lang/target-lang/parallel-blocks/trace/…) on cmd. The
 // built-in `kapi up` gets these via NewUpCmd; the kapi-bowrain plugin, which
 // owns the `up` verb when installed, calls this so its up presents the exact
 // same flag surface and ExecuteUp stays byte-identical.
@@ -137,8 +137,8 @@ func (a *App) addFlowRunFlags(cmd Command) {
 	cmd.Flags().String("trace", "", "write flow trace JSON to file (for flow visualization)")
 	cmd.Flags().Bool("pack", false, "when transforming a .kpz, also eject the result to the .kpz (auto-pack)")
 	cmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
-	cmd.Flags().String("tm", "", "named TM for recycle flow (resolves from KAPI_HOME)")
-	cmd.Flags().String("termbase", "", "named termbase for term-lookup/enforce (resolves from KAPI_HOME)")
+	cmd.Flags().String("tm", "", "named Memory for recycle flow (resolves from KAPI_HOME)")
+	cmd.Flags().String("termbase", "", "named terms for term-lookup/enforce (resolves from KAPI_HOME)")
 	cmd.Flags().Bool("stats", false, "include part/block counts in output")
 	cmd.Flags().Bool("explain", false, "print the resolved source → sink bindings and exit without running")
 }
@@ -175,7 +175,7 @@ func explainBindings(w io.Writer, flowName string, inputPaths []string, outputFl
 // (kapi run <project-flow> --explain), sharing its source → sink rendering.
 // One binding line per resolved input (explicit -i or content-derived), then
 // the locale pass(es) the run would execute. Plan only: no tool is built, no
-// store or TM is opened, and nothing is written (#1295).
+// store or content memory is opened, and nothing is written (#1295).
 func explainProjectFlowRun(w io.Writer, flowName string, inputPaths []string, outputFlag string, locales []string) error {
 	for _, in := range inputPaths {
 		if err := explainBindings(w, flowName, []string{in}, outputFlag); err != nil {
@@ -1003,7 +1003,7 @@ func expandOutputTemplate(tmpl, name, lang, ext, dir string) string {
 }
 
 // buildFlowTools creates the tool chain for the given flow. The returned cleanup
-// function releases any resources opened during tool creation (e.g. SQLite TM).
+// function releases any resources opened during tool creation (e.g. SQLite content memory).
 // Callers must defer cleanup() after checking err.
 func (a *App) buildFlowTools(flowName string, cmd ...Command) ([]tool.Tool, func(), error) {
 	noop := func() {}
@@ -1171,8 +1171,8 @@ func mergeFlowNodeConfig(base, over map[string]any) map[string]any {
 }
 
 // buildToolByName creates tool(s) for a named tool, returning any resource
-// cleanup function. Uses ToolInfo.Requires to drive resource setup (termbase,
-// TM) rather than hardcoding tool names.
+// cleanup function. Uses ToolInfo.Requires to drive resource setup (terms,
+// content memory) rather than hardcoding tool names.
 func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Command) ([]tool.Tool, func(), error) {
 	if a.ToolReg == nil || !a.ToolReg.Has(registry.ToolID(toolName)) {
 		return nil, nil, fmt.Errorf("tool %q not found in registry", toolName)
@@ -1185,14 +1185,14 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Com
 		for _, req := range info.Requires {
 			switch req {
 			case "termbase":
-				// Tools requiring a termbase get term lookup/enforce tools appended.
+				// Tools requiring a terms store get term lookup/enforce tools appended.
 				t, err := a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), config, a.TargetLang)
 				if err != nil {
 					return nil, nil, err
 				}
 				qaTools := []tool.Tool{t}
 				var cleanup func()
-				if tb, tbCleanup, err := a.openTermbase(cmd...); err != nil {
+				if tb, tbCleanup, err := a.openTerms(cmd...); err != nil {
 					return nil, nil, err
 				} else if tb != nil {
 					qaTools = append(qaTools,
@@ -1210,24 +1210,24 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Com
 				return qaTools, cleanup, nil
 
 			case "tm":
-				// Tools requiring a TM get a real SQLite provider injected from
+				// Tools requiring a content memory get a real SQLite provider injected from
 				// the --tm flag or, with no flag, the project's .kapi/tm.db.
-				tmConfig := map[string]any{
+				memoryConfig := map[string]any{
 					"source_locale":   a.SourceLang,
 					"target_locale":   a.TargetLang,
 					"fuzzy_threshold": 70,
 				}
 				var cleanup func()
-				var provider coretools.TMProvider
+				var provider coretools.MemoryProvider
 				if len(cmd) > 0 && cmd[0] != nil {
-					p, cl, err := a.OpenToolTM(cmd[0])
+					p, cl, err := a.OpenToolMemory(cmd[0])
 					if err != nil {
 						return nil, nil, err
 					}
 					cleanup = cl
 					provider = p
 				}
-				t, err := a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), tmConfig, a.TargetLang)
+				t, err := a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), memoryConfig, a.TargetLang)
 				if err != nil {
 					if cleanup != nil {
 						cleanup()
@@ -1236,12 +1236,12 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Com
 				}
 				// The recycle config factory cannot read a non-JSON provider
 				// or the schema-hidden SourceLocale from the config map (both are
-				// schema:"-"), so it defaults to NullTMProvider with an empty
+				// schema:"-"), so it defaults to NullMemoryProvider with an empty
 				// source locale — which makes the SQLite lookup (WHERE locale = ?)
 				// match nothing. Set both on the created tool so the flow step
 				// actually leverages.
 				if provider != nil {
-					if cfg, ok := t.Config().(*coretools.TMLeverageConfig); ok {
+					if cfg, ok := t.Config().(*coretools.MemoryLeverageConfig); ok {
 						cfg.Provider = provider
 						if cfg.SourceLocale.IsEmpty() && a.SourceLang != "" {
 							cfg.SourceLocale = model.LocaleID(a.SourceLang)
@@ -1294,21 +1294,21 @@ func (a *App) defaultParallelBlocks(flowName string) int {
 	return 0
 }
 
-// cliTMProvider adapts a CLI translation memory to the tools.TMProvider
-// interface. The backing store is any sievepen.TranslationMemory — a SQLite TM
+// cliMemoryProvider adapts a CLI content memory to the tools.MemoryProvider
+// interface. The backing store is any memory.ContentMemory — a SQLite content memory
 // opened from a file, or the in-memory backend seeded in the wasm build — so
 // recycle works both natively and offline in the browser.
-type cliTMProvider struct {
-	tm sqltm.TranslationMemory
+type cliMemoryProvider struct {
+	tm sqltm.ContentMemory
 }
 
-func (p *cliTMProvider) LookupExact(source string, sourceLocale, targetLocale model.LocaleID) (string, bool) {
+func (p *cliMemoryProvider) LookupExact(source string, sourceLocale, targetLocale model.LocaleID) (string, bool) {
 	opts := sqltm.LookupOptions{
 		MinScore:   1.0,
 		MaxResults: 1,
 		MatchModes: []sqltm.MatchMode{sqltm.MatchModePlain},
 	}
-	// TODO: thread a real context once tools.TMProvider carries one.
+	// TODO: thread a real context once tools.MemoryProvider carries one.
 	matches, err := p.tm.LookupText(context.Background(), source, sourceLocale, targetLocale, opts)
 	if err != nil || len(matches) == 0 {
 		return "", false
@@ -1316,29 +1316,29 @@ func (p *cliTMProvider) LookupExact(source string, sourceLocale, targetLocale mo
 	return matches[0].Entry.VariantText(targetLocale), true
 }
 
-// LookupBlock implements coretools.BlockTMProvider: a structure-aware
-// lookup over the block's full source Run sequence via sievepen's tiered
+// LookupBlock implements coretools.BlockMemoryProvider: a structure-aware
+// lookup over the block's full source Run sequence via memory's tiered
 // matching (generalized → structural → plain → fuzzy). A structurally
 // identical entry scores 100; a plain-text exact with differing inline
-// codes is capped below 100 by the TM; ambiguous exacts (several
+// codes is capped below 100 by the content memory; ambiguous exacts (several
 // full-score entries with differing targets) carry the Ambiguous flag so
 // the tool records them without filling.
-func (p *cliTMProvider) LookupBlock(block *model.Block, sourceLocale, targetLocale model.LocaleID, threshold int) (coretools.TMBlockMatch, bool) {
+func (p *cliMemoryProvider) LookupBlock(block *model.Block, sourceLocale, targetLocale model.LocaleID, threshold int) (coretools.MemoryBlockMatch, bool) {
 	opts := sqltm.LookupOptions{
 		MinScore:   float64(threshold) / 100.0,
 		MaxResults: 1,
 	}
-	// TODO: thread a real context once tools.TMProvider carries one.
+	// TODO: thread a real context once tools.MemoryProvider carries one.
 	matches, err := p.tm.Lookup(context.Background(), block, sourceLocale, targetLocale, opts)
 	if err != nil || len(matches) == 0 {
-		return coretools.TMBlockMatch{}, false
+		return coretools.MemoryBlockMatch{}, false
 	}
 	m := matches[0]
 	runs := m.Entry.Variant(targetLocale)
 	if len(runs) == 0 {
-		return coretools.TMBlockMatch{}, false
+		return coretools.MemoryBlockMatch{}, false
 	}
-	return coretools.TMBlockMatch{
+	return coretools.MemoryBlockMatch{
 		TargetRuns: runs,
 		Score:      int(math.Round(m.Score * 100)),
 		Exact:      m.MatchType.IsExact(),
@@ -1346,13 +1346,13 @@ func (p *cliTMProvider) LookupBlock(block *model.Block, sourceLocale, targetLoca
 	}, true
 }
 
-func (p *cliTMProvider) LookupFuzzy(source string, sourceLocale, targetLocale model.LocaleID, threshold int) (string, int, bool) {
+func (p *cliMemoryProvider) LookupFuzzy(source string, sourceLocale, targetLocale model.LocaleID, threshold int) (string, int, bool) {
 	minScore := float64(threshold) / 100.0
 	opts := sqltm.LookupOptions{
 		MinScore:   minScore,
 		MaxResults: 1,
 	}
-	// TODO: thread a real context once tools.TMProvider carries one.
+	// TODO: thread a real context once tools.MemoryProvider carries one.
 	matches, err := p.tm.LookupText(context.Background(), source, sourceLocale, targetLocale, opts)
 	if err != nil || len(matches) == 0 {
 		return "", 0, false
@@ -1361,14 +1361,14 @@ func (p *cliTMProvider) LookupFuzzy(source string, sourceLocale, targetLocale mo
 	return matches[0].Entry.VariantText(targetLocale), score, true
 }
 
-// openTermbase resolves the --termbase flag and opens a SQLite termbase.
+// openTerms resolves the --terms flag and opens a SQLite terms.
 // The flag value can be a named resource (no path separators) which resolves
 // via KAPI_HOME, or an explicit file path. When no flag is given but a .kapi
-// project is in scope with a bound termbase (defaults.termbase) or a
-// <root>/.kapi/termbase.db convention file, that project termbase is opened
+// project is in scope with a bound terms (defaults.termbase) or a
+// <root>/.kapi/termbase.db convention file, that project terms store is opened
 // instead, so term tools in built-in flows are project-aware flag-free.
-// Returns (nil, noop, nil) when neither a flag nor a project termbase exists.
-func (a *App) openTermbase(cmd ...Command) (*sqltb.SQLiteTermBase, func(), error) {
+// Returns (nil, noop, nil) when neither a flag nor a project terms store exists.
+func (a *App) openTerms(cmd ...Command) (*sqltb.SQLiteStore, func(), error) {
 	noop := func() {}
 	if len(cmd) == 0 || cmd[0] == nil {
 		return nil, noop, nil
@@ -1378,8 +1378,8 @@ func (a *App) openTermbase(cmd ...Command) (*sqltb.SQLiteTermBase, func(), error
 	var tbPath string
 	switch {
 	case tbValue == "":
-		// No flag — fall back to the project's bound termbase.
-		p, err := a.resolveProjectTermbasePath(cmd[0])
+		// No flag — fall back to the project's bound terms.
+		p, err := a.resolveProjectTermsPath(cmd[0])
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1399,74 +1399,74 @@ func (a *App) openTermbase(cmd ...Command) (*sqltb.SQLiteTermBase, func(), error
 		var err error
 		tbPath, err = resolveNamedResource("termbases", tbValue)
 		if err != nil {
-			return nil, nil, fmt.Errorf("resolve termbase %q: %w", tbValue, err)
+			return nil, nil, fmt.Errorf("resolve terms %q: %w", tbValue, err)
 		}
 	}
-	tb, err := sqltb.NewSQLiteTermBase(tbPath)
+	tb, err := sqltb.NewSQLiteStore(tbPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("open termbase %q: %w", tbPath, err)
+		return nil, nil, fmt.Errorf("open terms %q: %w", tbPath, err)
 	}
 	return tb, func() { tb.Close() }, nil
 }
 
-// OpenToolTM resolves the TM a `tm`-requiring tool (e.g. recycle) should
-// leverage and opens it as a TMProvider. The --tm flag wins: a named resource
+// OpenToolMemory resolves the content memory a `tm`-requiring tool (e.g. recycle) should
+// leverage and opens it as a MemoryProvider. The --tm flag wins: a named resource
 // (no path separators) resolves via KAPI_HOME, an explicit file path is opened
 // directly. When no flag is given but a .kapi project is in scope, the project's
-// authoritative TM (<root>/.kapi/tm.db) is opened, so `kapi recycle fr.json`
-// leverages the same TM that `kapi extract`/`kapi merge` use — with no flag.
+// authoritative content memory (<root>/.kapi/tm.db) is opened, so `kapi recycle fr.json`
+// leverages the same content memory that `kapi extract`/`kapi merge` use — with no flag.
 //
-// Returns (nil, noop, nil) when no TM is in scope, or when the resolved DB does
+// Returns (nil, noop, nil) when no content memory is in scope, or when the resolved DB does
 // not exist outside a project, preserving today's no-match behavior rather than
 // erroring. Inside a project the .kapi/tm.db file is opened (and created on
-// demand by SQLite) so the tool leverages it. This mirrors openTermbase and
-// reuses the same resolution as the `kapi tm` subcommands (resolveProjectTMPath).
-func (a *App) OpenToolTM(cmd Command) (coretools.TMProvider, func(), error) {
+// demand by SQLite) so the tool leverages it. This mirrors openTerms and
+// reuses the same resolution as the `kapi tm` subcommands (resolveProjectMemoryPath).
+func (a *App) OpenToolMemory(cmd Command) (coretools.MemoryProvider, func(), error) {
 	noop := func() {}
 	if cmd == nil {
 		return nil, noop, nil
 	}
-	tmValue, _ := cmd.Flags().GetString("tm")
+	memoryValue, _ := cmd.Flags().GetString("tm")
 
 	// A pre-seeded in-memory backend (the wasm build, or any host that sets
-	// a.TMBackend) is the authoritative TM and the only one that works without
+	// a.MemoryBackend) is the authoritative content memory and the only one that works without
 	// the SQLite driver — prefer it over any on-disk project path. The native
-	// CLI never sets a.TMBackend, so this only takes effect in the browser/seed
+	// CLI never sets a.MemoryBackend, so this only takes effect in the browser/seed
 	// case; the on-disk resolution below is unchanged for the native binary.
 	// An explicit --tm path still wins (handled in the switch).
-	if tmValue == "" && a.TMBackend != nil {
-		return &cliTMProvider{tm: a.TMBackend}, noop, nil
+	if memoryValue == "" && a.MemoryBackend != nil {
+		return &cliMemoryProvider{tm: a.MemoryBackend}, noop, nil
 	}
 
-	var tmPath string
+	var memoryPath string
 	switch {
-	case tmValue == "":
-		// No flag — fall back to the project's authoritative TM.
-		p, err := a.resolveProjectTMPath(cmd)
+	case memoryValue == "":
+		// No flag — fall back to the project's authoritative content memory.
+		p, err := a.resolveProjectMemoryPath(cmd)
 		if err != nil {
 			return nil, nil, err
 		}
 		if p == "" {
 			return nil, noop, nil
 		}
-		tmPath = p
-	case strings.ContainsAny(tmValue, "/\\") || strings.HasSuffix(tmValue, ".db"):
+		memoryPath = p
+	case strings.ContainsAny(memoryValue, "/\\") || strings.HasSuffix(memoryValue, ".db"):
 		// Explicit file path.
-		tmPath = tmValue
+		memoryPath = memoryValue
 	default:
 		// Named resource.
 		var err error
-		tmPath, err = resolveNamedResource("tm", tmValue)
+		memoryPath, err = resolveNamedResource("tm", memoryValue)
 		if err != nil {
-			return nil, nil, fmt.Errorf("resolve TM %q: %w", tmValue, err)
+			return nil, nil, fmt.Errorf("resolve content memory %q: %w", memoryValue, err)
 		}
 	}
 
-	tm, err := sqltm.NewSQLiteTM(tmPath)
+	tm, err := sqltm.NewSQLiteStore(memoryPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("open TM %q: %w", tmPath, err)
+		return nil, nil, fmt.Errorf("open content memory %q: %w", memoryPath, err)
 	}
-	return &cliTMProvider{tm: tm}, func() { tm.Close() }, nil
+	return &cliMemoryProvider{tm: tm}, func() { tm.Close() }, nil
 }
 
 // ProjectBindings holds the standing brand-voice + glossary context resolved
@@ -1475,7 +1475,7 @@ type ProjectBindings struct {
 	// profile is the resolved brand voice profile (defaults.brand_voice),
 	// injected into translate steps as config["profile"]. nil when unbound.
 	profile *brand.VoiceProfile
-	// glossary is the source→target glossary built from the project termbase
+	// glossary is the source→target glossary built from the project terms store
 	// (defaults.termbase), injected into term-check steps. nil when unbound.
 	glossary []coretools.GlossaryEntry
 	// ToolPresets holds the project-level tool presets (defaults.tools):
@@ -1492,7 +1492,7 @@ type ProjectBindings struct {
 
 // resolveProjectBindings resolves the standing brand-voice + glossary context
 // for a project flow run. The brand voice comes from defaults.brand_voice (or
-// a convention brand.yaml); the glossary comes from the project termbase
+// a convention brand.yaml); the glossary comes from the project terms store
 // (defaults.termbase or <root>/.kapi/termbase.db). Returns nil when the
 // project carries neither, so ad-hoc behavior is unchanged.
 func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, projectPath string) (*ProjectBindings, error) {
@@ -1531,16 +1531,16 @@ func ToolRequires(s *schema.ComponentSchema, req string) bool {
 	return slices.Contains(s.ToolMeta.Requires, req)
 }
 
-// resolveProjectTermbasePath returns the termbase path a project-aware tool
+// resolveProjectTermsPath returns the terms store path a project-aware tool
 // command should use, with no flag. Resolution order:
 //
-//  1. An explicit --termbase flag (named resource or path).
+//  1. An explicit --terms flag (named resource or path).
 //  2. defaults.termbase in the .kapi recipe (relative to the project root).
 //  3. <projectRoot>/.kapi/termbase.db when it exists.
 //
 // Returns "" (with nil error) when nothing resolves, so callers fall through
 // to the tool's default (no glossary).
-func (a *App) resolveProjectTermbasePath(cmd Command) (string, error) {
+func (a *App) resolveProjectTermsPath(cmd Command) (string, error) {
 	if cmd != nil {
 		if tbValue, _ := cmd.Flags().GetString("termbase"); tbValue != "" {
 			if strings.ContainsAny(tbValue, "/\\") || strings.HasSuffix(tbValue, ".db") {
@@ -1548,7 +1548,7 @@ func (a *App) resolveProjectTermbasePath(cmd Command) (string, error) {
 			}
 			path, err := resolveNamedResource("termbases", tbValue)
 			if err != nil {
-				return "", fmt.Errorf("resolve termbase %q: %w", tbValue, err)
+				return "", fmt.Errorf("resolve terms %q: %w", tbValue, err)
 			}
 			return path, nil
 		}
@@ -1565,16 +1565,16 @@ func (a *App) resolveProjectTermbasePath(cmd Command) (string, error) {
 
 	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if lerr != nil {
-		return "", fmt.Errorf("load project for termbase: %w", lerr)
+		return "", fmt.Errorf("load project for terms: %w", lerr)
 	}
-	if bound := proj.Defaults.Termbase; bound != "" {
+	if bound := proj.Defaults.Terms; bound != "" {
 		if !filepath.IsAbs(bound) {
 			bound = filepath.Join(root, bound)
 		}
 		return bound, nil
 	}
 
-	// Convention: the project's authoritative termbase under .kapi/.
+	// Convention: the project's authoritative terms under .kapi/.
 	conv := filepath.Join(root, project.StateDirName, "termbase.db")
 	if _, statErr := os.Stat(conv); statErr == nil {
 		return conv, nil
@@ -1583,11 +1583,11 @@ func (a *App) resolveProjectTermbasePath(cmd Command) (string, error) {
 }
 
 // ResolveProjectGlossary builds a source→target glossary from the project's
-// termbase, for the active source and target locales. It reads the committed
-// .ktb serialization — the termbase's durable form (AD-010) — directly, so the
+// terms, for the active source and target locales. It reads the committed
+// .ktb serialization — the terms store's durable form (AD-010) — directly, so the
 // terminology gate validates the committed state and works at check time in CI,
 // where the gitignored working-store .db doesn't exist (see projectConcepts for
-// the full precedence). Returns nil when no termbase is in scope or it has
+// the full precedence). Returns nil when no terms is in scope or it has
 // no terms for the locale pair. The result is suitable for injection into a
 // term-check tool config under the "glossary" key.
 func (a *App) ResolveProjectGlossary(cmd Command, targetLang string) ([]coretools.GlossaryEntry, error) {
@@ -1621,14 +1621,14 @@ func (a *App) ResolveProjectGlossary(cmd Command, targetLang string) ([]coretool
 	return glossary, nil
 }
 
-// projectConcepts loads the project's termbase concepts for the read-only check
-// gates. Per the termbase model (AD-010), the committed .ktb is the authored
+// projectConcepts loads the project's terms concepts for the read-only check
+// gates. Per the terms store model (AD-010), the committed .ktb is the authored
 // source and the SQLite .db is only a rebuildable read-cache over it — so a ship
 // gate validates the *committed* source: when the recipe binds a termbase_source
 // we decode it directly, no cache required. That is also why the terminology
 // gate works on a fresh CI checkout, where the gitignored .db is absent.
 //
-// Precedence: an explicit --termbase selects a specific store (honour it); else
+// Precedence: an explicit --terms selects a specific store (honour it); else
 // the committed serialization wins; else the working index the recipe binds
 // directly (the legacy defaults.termbase-only case, with no serialization).
 func (a *App) projectConcepts(cmd Command) ([]sqltb.Concept, error) {
@@ -1641,7 +1641,7 @@ func (a *App) projectConcepts(cmd Command) ([]sqltb.Concept, error) {
 
 	// Source of truth: the committed .ktb serialization.
 	if !explicitStore {
-		srcPath, err := a.resolveProjectTermbaseSourcePath(cmd)
+		srcPath, err := a.resolveProjectTermsSourcePath(cmd)
 		if err != nil {
 			return nil, err
 		}
@@ -1650,23 +1650,23 @@ func (a *App) projectConcepts(cmd Command) ([]sqltb.Concept, error) {
 		}
 	}
 
-	// Working index: an explicit --termbase, a defaults.termbase binding, or the
+	// Working index: an explicit --terms, a defaults.termbase binding, or the
 	// .kapi/termbase.db convention. Read directly only when no serialization is
 	// bound (or the user explicitly selected a store).
-	tbPath, err := a.resolveProjectTermbasePath(cmd)
+	tbPath, err := a.resolveProjectTermsPath(cmd)
 	if err != nil {
 		return nil, err
 	}
 	if tbPath != "" {
 		if _, statErr := os.Stat(tbPath); statErr == nil {
-			tb, err := sqltb.NewSQLiteTermBase(tbPath)
+			tb, err := sqltb.NewSQLiteStore(tbPath)
 			if err != nil {
-				return nil, fmt.Errorf("open termbase %q: %w", tbPath, err)
+				return nil, fmt.Errorf("open terms %q: %w", tbPath, err)
 			}
 			defer tb.Close()
 			concepts, err := tb.Concepts(CmdContext(cmd))
 			if err != nil {
-				return nil, fmt.Errorf("list termbase concepts: %w", err)
+				return nil, fmt.Errorf("list terms concepts: %w", err)
 			}
 			return concepts, nil
 		}
@@ -1674,39 +1674,39 @@ func (a *App) projectConcepts(cmd Command) ([]sqltb.Concept, error) {
 	return nil, nil
 }
 
-// conceptsFromKTB decodes the committed .ktb termbase serialization into
+// conceptsFromKTB decodes the committed .ktb terms serialization into
 // concepts — the read-only fast path a check gate uses to validate the
 // committed source of truth without materializing the SQLite working index.
 func conceptsFromKTB(path string) ([]sqltb.Concept, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("open termbase source %q: %w", path, err)
+		return nil, fmt.Errorf("open terms source %q: %w", path, err)
 	}
 	defer f.Close()
 	file, err := ktb.Decode(f)
 	if err != nil {
-		return nil, fmt.Errorf("decode termbase source %q: %w", path, err)
+		return nil, fmt.Errorf("decode terms source %q: %w", path, err)
 	}
 	return file.Concepts, nil
 }
 
-// resolveProjectTermbaseSourcePath returns the absolute path of the project's
+// resolveProjectTermsSourcePath returns the absolute path of the project's
 // committed termbase_source (a .ktb document), or "" when none is bound or the
 // bound file is missing.
-func (a *App) resolveProjectTermbaseSourcePath(cmd Command) (string, error) {
+func (a *App) resolveProjectTermsSourcePath(cmd Command) (string, error) {
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil || projectPath == "" {
 		return "", err
 	}
 	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if lerr != nil {
-		return "", fmt.Errorf("load project for termbase source: %w", lerr)
+		return "", fmt.Errorf("load project for terms source: %w", lerr)
 	}
-	src := proj.Defaults.TermbaseSource
+	src := proj.Defaults.TermsSource
 	if src == "" {
 		return "", nil
 	}
-	// Only the canonical .ktb termbase document is resolved live at check
+	// Only the canonical .ktb terms document is resolved live at check
 	// time. Lossy interchange sources (CSV, TBX) are import formats: they're
 	// compiled into .kapi/termbase.db by up/apply and read from there, so we
 	// don't try to decode them here.
@@ -1735,7 +1735,7 @@ func (a *App) runProjectStepsOver(ctx context.Context, cmd Command, flowName str
 	}
 
 	// Assemble the pass's tool chain through the shared builder (placement
-	// gate, per-step config resolution, project TM injection) — the same
+	// gate, per-step config resolution, project content memory injection) — the same
 	// implementation the multi-locale orchestrator (RunFlowAllLocales) uses.
 	projectTools, cleanup, err := a.buildProjectFlowTools(cmd, flowName, spec, rCtx, nil)
 	if err != nil {
@@ -1805,17 +1805,17 @@ func (a *App) toolFromStep(step flow.FlowStep, cmd Command, rCtx *flow.ResourceC
 // The project path (RunFromProject, converge) resolves bindings up front and
 // leaves them on the App. A built-in flow given explicit files — `kapi translate
 // messages.json` inside a project, `kapi run translate -i …` — does not, so it
-// used to see none: the recipe's defaults.tools were ignored and its termbase
+// used to see none: the recipe's defaults.tools were ignored and its terms
 // never reached the model, while `kapi up` over the same recipe honored both.
 // One recipe, two behaviours, depending on the verb. Resolve them here instead.
 //
-// Outside a project there are no bindings — but `--termbase` is an explicit
+// Outside a project there are no bindings — but `--terms` is an explicit
 // request to use that terminology, and it used to reach only term-check (which
 // validates the output afterwards) and never translate (which could have got it
 // right the first time). That run now carries a binding set holding just the
 // glossary, so the terms are in the prompt.
 //
-// Nothing here is fatal: a recipe or termbase that cannot be read leaves the run
+// Nothing here is fatal: a recipe or terms that cannot be read leaves the run
 // unbound rather than failing a translation over context that is, at worst,
 // advisory. The checks still report what the model got wrong.
 func (a *App) resolveRunBindings(cmd ...Command) *ProjectBindings {
@@ -1839,14 +1839,14 @@ func (a *App) resolveRunBindings(cmd ...Command) *ProjectBindings {
 		}
 	}
 
-	// No project: honor an explicit --termbase on its own.
+	// No project: honor an explicit --terms on its own.
 	if tb, _ := c.Flags().GetString("termbase"); tb == "" {
 		return nil
 	}
 	glossary, err := a.ResolveProjectGlossary(c, a.TargetLang)
 	if err != nil {
 		if !a.Quiet {
-			fmt.Fprintf(os.Stderr, "Warning: --termbase: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Warning: --terms: %v\n", err)
 		}
 		return nil
 	}
@@ -1867,7 +1867,7 @@ func (a *App) ApplyProjectBindings(toolName string, s *schema.ComponentSchema, c
 }
 
 // applyBindings is ApplyProjectBindings over an explicit binding set, so a run
-// with no project (an ad-hoc `kapi translate --termbase …`) can still carry the
+// with no project (an ad-hoc `kapi translate --terms …`) can still carry the
 // terminology the user asked for.
 func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.ComponentSchema, config map[string]any) map[string]any {
 	if b == nil {
@@ -1897,8 +1897,8 @@ func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.Compo
 		}
 	}
 
-	// Glossary → termbase-requiring steps (term-check), as a []GlossaryEntry.
-	if len(b.glossary) > 0 && ToolRequires(s, schema.RequiresTermbase) {
+	// Glossary → terms-requiring steps (term-check), as a []GlossaryEntry.
+	if len(b.glossary) > 0 && ToolRequires(s, schema.RequiresTerms) {
 		if _, ok := config["glossary"]; !ok {
 			clone()
 			config["glossary"] = b.glossary
@@ -1908,12 +1908,12 @@ func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.Compo
 	// Glossary → translate steps, as the map the prompt's glossary section wants.
 	//
 	// Translate carries a Glossary that renders straight into the prompt, but it
-	// declares Requires{TargetLanguage, Credentials} — not Termbase — so the
-	// project's terminology never reached it. A project with a termbase had its
+	// declares Requires{TargetLanguage, Credentials} — not Terms — so the
+	// project's terminology never reached it. A project with a terms store had its
 	// terminology *checked* after the fact by term-check, yet never *enforced at
-	// generation*: the model was simply never told the terms. Wired here the way
-	// brand voice is above (not by adding Termbase to translate's Requires, which
-	// gates nothing else and would imply a termbase is mandatory).
+	// generation*: the model was simply never told the terms store. Wired here the way
+	// brand voice is above (not by adding Terms to translate's Requires, which
+	// gates nothing else and would imply a terms store is mandatory).
 	//
 	// The two tools want the same key in different shapes — term-check takes the
 	// entry list, translate takes source→target — so the conversion happens here

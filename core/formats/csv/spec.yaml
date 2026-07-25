@@ -518,7 +518,7 @@ features:
       0-based column indices listed in `keyColumns` contribute their
       cell values (joined by `.`) as the row's Block ID; cells in
       key columns are not themselves extracted as Blocks. Multiple
-      key columns concatenate in spec order. Lets translation memory
+      key columns concatenate in spec order. Lets content memory
       key Blocks by stable per-row identifiers (e.g. message IDs)
       rather than positional `tu1`, `tu2`, … counters.
     examples:

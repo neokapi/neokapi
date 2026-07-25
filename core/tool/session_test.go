@@ -14,7 +14,7 @@ import (
 
 // annotatingTool is a minimal example of a SessionTool that reads
 // each incoming Part from the stream but also consults the session
-// for a pre-existing termbase annotation, and writes a QA overlay
+// for a pre-existing terms annotation, and writes a QA overlay
 // per block. Purpose: assert the SessionTool contract composes with
 // the existing streaming contract end-to-end.
 type annotatingTool struct {
@@ -45,7 +45,7 @@ func (t *annotatingTool) SessionProcess(
 ) error {
 	// For each streamed Part, write a "annotations/qa" overlay keyed
 	// on its block hash. Then pass through. Real tools would also
-	// read prior overlays (termbase matches, TM) via sess.GetOverlay.
+	// read prior overlays (terms matches, content memory) via sess.GetOverlay.
 	for p := range in {
 		if p != nil {
 			if blk, ok := p.Resource.(*model.Block); ok && blk != nil {

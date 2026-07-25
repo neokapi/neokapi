@@ -6,7 +6,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,7 +14,7 @@ import (
 // TestEditorTermEnforce verifies the server-owned term-enforce action reports a
 // violation when the preferred target term is absent, using the framework tool
 // (no hand-reimplemented matching). It runs against an in-memory content store
-// and termbase, so it needs no PostgreSQL.
+// and terms, so it needs no PostgreSQL.
 func TestEditorTermEnforce(t *testing.T) {
 	ctx := t.Context()
 
@@ -36,19 +36,19 @@ func TestEditorTermEnforce(t *testing.T) {
 	b.SetTargetText("fr", "le programme est prêt")
 	require.NoError(t, cs.StoreBlocksForItem(ctx, "p1", "main", "hello.txt", []*model.Block{b}))
 
-	// In-memory termbase seeded with software → logiciel (approved).
-	tb := termbase.NewInMemoryTermBase()
-	require.NoError(t, tb.AddConcept(ctx, termbase.Concept{
+	// In-memory terms seeded with software → logiciel (approved).
+	tb := terms.NewInMemoryStore()
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{
 		ID:     "c1",
 		Domain: "IT",
-		Terms: []termbase.Term{
+		Terms: []terms.Term{
 			{Text: "software", Locale: "en", Status: model.TermApproved},
 			{Text: "logiciel", Locale: "fr", Status: model.TermApproved},
 		},
 	}))
 
 	wsStores := newWorkspaceStores()
-	wsStores.tbFactory = func() termbase.TBStore { return &testTermStore{tb} }
+	wsStores.tbFactory = func() terms.Store { return &testTermStore{tb} }
 
 	results, err := editorTermEnforce(ctx, cs, wsStores, "acme", "p1", "main", "hello.txt", "fr")
 	require.NoError(t, err)
@@ -83,17 +83,17 @@ func TestEditorTermEnforcePasses(t *testing.T) {
 	b.SetTargetText("fr", "le logiciel est prêt")
 	require.NoError(t, cs.StoreBlocksForItem(ctx, "p1", "main", "hello.txt", []*model.Block{b}))
 
-	tb := termbase.NewInMemoryTermBase()
-	require.NoError(t, tb.AddConcept(ctx, termbase.Concept{
+	tb := terms.NewInMemoryStore()
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{
 		ID: "c1", Domain: "IT",
-		Terms: []termbase.Term{
+		Terms: []terms.Term{
 			{Text: "software", Locale: "en", Status: model.TermApproved},
 			{Text: "logiciel", Locale: "fr", Status: model.TermApproved},
 		},
 	}))
 
 	wsStores := newWorkspaceStores()
-	wsStores.tbFactory = func() termbase.TBStore { return &testTermStore{tb} }
+	wsStores.tbFactory = func() terms.Store { return &testTermStore{tb} }
 
 	results, err := editorTermEnforce(ctx, cs, wsStores, "acme", "p1", "main", "hello.txt", "fr")
 	require.NoError(t, err)

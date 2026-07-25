@@ -83,7 +83,7 @@ type LoopFuncs struct {
 	// by emitting unit_progress events on emit (already serialized and
 	// throttle-friendly) and returns the locale's final produced counts for
 	// the pass.
-	Produce func(ctx context.Context, locale string, pass int, emit *Emitter) (done, viaTM, viaAI int, err error)
+	Produce func(ctx context.Context, locale string, pass int, emit *Emitter) (done, viaMemory, viaAI int, err error)
 }
 
 // LoopOptions are the loop's knobs.
@@ -181,18 +181,18 @@ func Loop(ctx context.Context, opts LoopOptions, f LoopFuncs, emit *Emitter) (Lo
 					Locale: loc,
 					Units:  state.UnitTotals[loc],
 				})
-				done, viaTM, viaAI, err := f.Produce(gctx, loc, passes, emit)
+				done, viaMemory, viaAI, err := f.Produce(gctx, loc, passes, emit)
 				if err != nil {
 					return fmt.Errorf("converge %s: %w", loc, err)
 				}
 				emit.Emit(Event{
-					Type:   EventLocaleDone,
-					Pass:   passes,
-					Locale: loc,
-					Units:  state.UnitTotals[loc],
-					Done:   done,
-					ViaTM:  viaTM,
-					ViaAI:  viaAI,
+					Type:      EventLocaleDone,
+					Pass:      passes,
+					Locale:    loc,
+					Units:     state.UnitTotals[loc],
+					Done:      done,
+					ViaMemory: viaMemory,
+					ViaAI:     viaAI,
 				})
 				return nil
 			})

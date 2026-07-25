@@ -92,8 +92,8 @@ surface.
 | **Auth & workspace** | `GetCurrentUser`, `ListWorkspaces`                                                                                 |
 | **Projects**         | `ListEditorProjects`, `GetEditorProject`                                                                           |
 | **Blocks**           | `GetBlocks`, `UpdateBlockTarget`, `ReviewBlock`                                                                    |
-| **Context**          | `LookupTMForBlock`, `LookupTermsForBlock`                                                                           |
-| **TM CRUD**          | `GetTMEntries`, `GetTMCount`, `AddTMEntry`, `UpdateTMEntry`, `DeleteTMEntry`                                       |
+| **Context**          | `LookupMemoryForBlock`, `LookupTermsForBlock`                                                                           |
+| **TM CRUD**          | `GetMemoryEntries`, `GetMemoryCount`, `AddMemoryEntry`, `UpdateMemoryEntry`, `DeleteMemoryEntry`                                       |
 | **Terminology**      | `GetTerms`, `GetTermCount`, `AddConcept`, `UpdateConcept`, `DeleteConcept`, `ImportTermsCSV`, `ImportTermsJSON`, `ExportTermsJSON` |
 | **Change relay**     | `WatchProject` (server-streaming), `UpdatePresence` (legacy presence)                                              |
 
@@ -152,8 +152,8 @@ CREATE TABLE pending_changes (
 );
 ```
 
-Queued operations: `UpdateBlockTarget`, `ReviewBlock`, `AddTMEntry`,
-`UpdateTMEntry`, `AddConcept`, `UpdateConcept`. On reconnection the
+Queued operations: `UpdateBlockTarget`, `ReviewBlock`, `AddMemoryEntry`,
+`UpdateMemoryEntry`, `AddConcept`, `UpdateConcept`. On reconnection the
 queue replays in FIFO order. Replay stops on first failure to preserve
 ordering.
 

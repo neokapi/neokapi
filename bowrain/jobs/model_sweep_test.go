@@ -117,7 +117,7 @@ func TestSweepFixtureDigest_SensitiveToContentAndContext(t *testing.T) {
 	sc2.Profile.Version = 4
 	assert.NotEqual(t, base, SweepFixtureDigest("p1", "fr", fixtures, sc2))
 
-	// Termbase-derived glossary change → new digest.
+	// Terms-derived glossary change → new digest.
 	sc3 := sweepTestContext()
 	sc3.Glossary["dashboard"] = "tableau de bord"
 	assert.NotEqual(t, base, SweepFixtureDigest("p1", "fr", fixtures, sc3))

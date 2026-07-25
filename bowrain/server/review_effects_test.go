@@ -7,15 +7,15 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestProcessDecisionSideEffects_ApproveTermCandidate(t *testing.T) {
-	tb := newTestTBStore()
+	tb := newTestTermsStore()
 	ws := &workspaceStores{
-		stores: map[string]*workspaceTMTB{
+		stores: map[string]*workspaceMemoryTerms{
 			"test-ws": {tb: tb},
 		},
 	}
@@ -45,7 +45,7 @@ func TestProcessDecisionSideEffects_ApproveTermCandidate(t *testing.T) {
 
 	s.processDecisionSideEffects(t.Context(), item, "test-ws")
 
-	// Verify term was added to termbase.
+	// Verify term was added to terms.
 	concepts, err := tb.Concepts(t.Context())
 	require.NoError(t, err)
 	require.Len(t, concepts, 1)
@@ -57,9 +57,9 @@ func TestProcessDecisionSideEffects_ApproveTermCandidate(t *testing.T) {
 }
 
 func TestProcessDecisionSideEffects_ApproveTermDNT(t *testing.T) {
-	tb := newTestTBStore()
+	tb := newTestTermsStore()
 	ws := &workspaceStores{
-		stores: map[string]*workspaceTMTB{
+		stores: map[string]*workspaceMemoryTerms{
 			"ws": {tb: tb},
 		},
 	}
@@ -164,8 +164,8 @@ func TestProcessDecisionSideEffects_ApproveEntityDNT(t *testing.T) {
 	assert.Equal(t, string(model.EntityOrganization), entries[0].EntityType)
 }
 
-func newTestTBStore() *testTermStore {
-	return &testTermStore{InMemoryTermBase: termbase.NewInMemoryTermBase()}
+func newTestTermsStore() *testTermStore {
+	return &testTermStore{InMemoryStore: terms.NewInMemoryStore()}
 }
 
 // newTestReviewStoreForServer creates a ReviewQueueStore for tests.

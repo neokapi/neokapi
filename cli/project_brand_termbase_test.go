@@ -8,7 +8,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -145,37 +145,37 @@ defaults:
 	assert.Equal(t, "Explicit", profile.Name, "explicit flag must override the project binding")
 }
 
-// seedProjectTermbase creates <root>/.kapi/termbase.db with one en→fr concept.
-func seedProjectTermbase(t *testing.T, root string) {
+// seedProjectTerms creates <root>/.kapi/termbase.db with one en→fr concept.
+func seedProjectTerms(t *testing.T, root string) {
 	t.Helper()
 	dbPath := filepath.Join(root, ".kapi", "termbase.db")
-	tb, err := termbase.NewSQLiteTermBase(dbPath)
+	tb, err := terms.NewSQLiteStore(dbPath)
 	require.NoError(t, err)
 	defer tb.Close()
-	require.NoError(t, tb.AddConcept(t.Context(), termbase.Concept{
+	require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{
 		ID: "c1",
-		Terms: []termbase.Term{
+		Terms: []terms.Term{
 			{Text: "Save", Locale: model.LocaleEnglish, Status: model.TermPreferred},
 			{Text: "Enregistrer", Locale: model.LocaleFrench, Status: model.TermPreferred},
 		},
 	}))
 }
 
-// TestResolveProjectGlossary_FromConventionTermbase asserts that with no
-// --termbase flag and no defaults.termbase, the convention
+// TestResolveProjectGlossary_FromConventionTerms asserts that with no
+// --terms flag and no defaults.termbase, the convention
 // <root>/.kapi/termbase.db is used to build the project glossary.
-func TestResolveProjectGlossary_FromConventionTermbase(t *testing.T) {
+func TestResolveProjectGlossary_FromConventionTerms(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
   source_language: en
   target_languages: [fr]
 `)
-	seedProjectTermbase(t, root)
+	seedProjectTerms(t, root)
 	t.Chdir(root)
 
 	a := &App{SourceLang: "en"}
-	// A command without a --termbase flag still resolves the project termbase.
+	// A command without a --terms flag still resolves the project terms.
 	cmd := newBrandCheckCmd(a)
 
 	glossary, err := a.ResolveProjectGlossary(cmd, "fr")
@@ -185,9 +185,9 @@ defaults:
 	assert.Equal(t, "Enregistrer", glossary[0].Target)
 }
 
-// TestResolveProjectGlossary_FromBoundTermbase asserts that defaults.termbase
+// TestResolveProjectGlossary_FromBoundTerms asserts that defaults.termbase
 // (relative to the project root) is honored when set.
-func TestResolveProjectGlossary_FromBoundTermbase(t *testing.T) {
+func TestResolveProjectGlossary_FromBoundTerms(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
@@ -195,13 +195,13 @@ defaults:
   target_languages: [fr]
   termbase: glossary.db
 `)
-	// Bound termbase at the project root (not the .kapi convention path).
+	// Bound terms at the project root (not the .kapi convention path).
 	dbPath := filepath.Join(root, "glossary.db")
-	tb, err := termbase.NewSQLiteTermBase(dbPath)
+	tb, err := terms.NewSQLiteStore(dbPath)
 	require.NoError(t, err)
-	require.NoError(t, tb.AddConcept(t.Context(), termbase.Concept{
+	require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{
 		ID: "c1",
-		Terms: []termbase.Term{
+		Terms: []terms.Term{
 			{Text: "Cancel", Locale: model.LocaleEnglish, Status: model.TermPreferred},
 			{Text: "Annuler", Locale: model.LocaleFrench, Status: model.TermPreferred},
 		},
@@ -231,7 +231,7 @@ func TestResolveProjectGlossary_NoProject(t *testing.T) {
 }
 
 // TestTermCheck_EnforcesProjectGlossary proves the end-to-end chain: the
-// project termbase glossary, injected as the term-check tool's config, makes
+// project terms store glossary, injected as the term-check tool's config, makes
 // the tool flag the violation. This mirrors what the term-check command's
 // newTool closure does inside a project.
 func TestTermCheck_EnforcesProjectGlossary(t *testing.T) {
@@ -241,7 +241,7 @@ defaults:
   source_language: en
   target_languages: [fr]
 `)
-	seedProjectTermbase(t, root) // Save → Enregistrer
+	seedProjectTerms(t, root) // Save → Enregistrer
 	t.Chdir(root)
 
 	a := &App{SourceLang: "en"}

@@ -132,10 +132,10 @@ func editorTermEnforceToResults(rs []apiclient.EditorTermEnforceResult) []TermEn
 	return out
 }
 
-// --- TM ---
+// --- content memory ---
 
-func editorTMEntryToInfo(e apiclient.EditorTMEntry) TMEntryInfo {
-	return TMEntryInfo{
+func editorMemoryEntryToInfo(e apiclient.EditorMemoryEntry) MemoryEntryInfo {
+	return MemoryEntryInfo{
 		ID:           e.ID,
 		Source:       e.Source,
 		Target:       e.Target,
@@ -145,18 +145,18 @@ func editorTMEntryToInfo(e apiclient.EditorTMEntry) TMEntryInfo {
 	}
 }
 
-func editorTMResultToSearch(r *apiclient.EditorTMSearchResult) *TMSearchResult {
-	entries := make([]TMEntryInfo, len(r.Entries))
+func editorMemoryResultToSearch(r *apiclient.EditorMemorySearchResult) *MemorySearchResult {
+	entries := make([]MemoryEntryInfo, len(r.Entries))
 	for i, e := range r.Entries {
-		entries[i] = editorTMEntryToInfo(e)
+		entries[i] = editorMemoryEntryToInfo(e)
 	}
-	return &TMSearchResult{Entries: entries, TotalCount: r.TotalCount}
+	return &MemorySearchResult{Entries: entries, TotalCount: r.TotalCount}
 }
 
-func editorTMMatchesToInfos(ms []apiclient.EditorTMMatch) []TMMatchInfo {
-	out := make([]TMMatchInfo, len(ms))
+func editorMemoryMatchesToInfos(ms []apiclient.EditorMemoryMatch) []MemoryMatchInfo {
+	out := make([]MemoryMatchInfo, len(ms))
 	for i, m := range ms {
-		out[i] = TMMatchInfo{Source: m.Source, Target: m.Target, Score: m.Score, MatchType: m.MatchType}
+		out[i] = MemoryMatchInfo{Source: m.Source, Target: m.Target, Score: m.Score, MatchType: m.MatchType}
 	}
 	return out
 }

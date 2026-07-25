@@ -739,7 +739,7 @@ const CASES: ConfCase[] = [
   {
     id: "env-kind",
     name: "Reject an unknown envelope kind",
-    description: "A file whose kind is not kapi-localization-format is rejected.",
+    description: "A file whose kind is not kapi-bundle is rejected.",
     category: "structure",
     expected: "rejected",
     runGo: (rt) =>

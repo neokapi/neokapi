@@ -16,7 +16,7 @@ import {
 import * as React from "react";
 import { DatabaseIcon, FileIcon, FolderIcon } from "lucide-react";
 
-export type ResourceKind = "tm" | "termbase" | "srx";
+export type ResourceKind = "tm" | "terms" | "srx";
 
 export interface ResourceOption {
   name: string;
@@ -51,19 +51,19 @@ export interface ResourcePickerProps {
 
 const kindLabels: Record<ResourceKind, string> = {
   tm: "Named memory",
-  termbase: "Named Termbase",
+  terms: "Named Terms",
   srx: "Named SRX",
 };
 
 const kindIcons: Record<ResourceKind, React.ReactNode> = {
   tm: <DatabaseIcon className="size-3.5" />,
-  termbase: <DatabaseIcon className="size-3.5" />,
+  terms: <DatabaseIcon className="size-3.5" />,
   srx: <FileIcon className="size-3.5" />,
 };
 
 const kindPrefixes: Record<ResourceKind, string> = {
   tm: "tm:",
-  termbase: "termbase:",
+  terms: "terms:",
   srx: "srx:",
 };
 

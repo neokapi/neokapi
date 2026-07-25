@@ -40,7 +40,7 @@ export function AbandonChangeset(workspaceSlug, changesetID) {
 }
 
 /**
- * AddConcept adds a new concept to the termbase.
+ * AddConcept adds a new concept to the terms.
  * @param {$models.AddConceptRequest} req
  * @returns {$CancellablePromise<$models.ConceptInfo | null>}
  */
@@ -127,15 +127,15 @@ export function AddPilot(workspaceSlug, changesetID, req) {
 }
 
 /**
- * AddTMEntry adds a new entry to the TM.
+ * AddMemoryEntry adds a new entry to the content memory.
  * @param {string} projectID
  * @param {string} source
  * @param {string} target
  * @param {string} sourceLocale
  * @param {string} targetLocale
- * @returns {$CancellablePromise<$models.TMEntryInfo | null>}
+ * @returns {$CancellablePromise<$models.MemoryEntryInfo | null>}
  */
-export function AddTMEntry(projectID, source, target, sourceLocale, targetLocale) {
+export function AddMemoryEntry(projectID, source, target, sourceLocale, targetLocale) {
     return $Call.ByID(2110941316, projectID, source, target, sourceLocale, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType5($result);
     }));
@@ -275,7 +275,7 @@ export function CreateStoreVersion(projectID, label, description) {
 }
 
 /**
- * DeleteConcept removes a concept from the termbase.
+ * DeleteConcept removes a concept from the terms.
  * @param {string} projectID
  * @param {string} conceptID
  * @returns {$CancellablePromise<void>}
@@ -357,12 +357,12 @@ export function DeleteProviderConfig(id) {
 }
 
 /**
- * DeleteTMEntry deletes a TM entry by ID.
+ * DeleteMemoryEntry deletes a content-memory entry by ID.
  * @param {string} projectID
  * @param {string} entryID
  * @returns {$CancellablePromise<void>}
  */
-export function DeleteTMEntry(projectID, entryID) {
+export function DeleteMemoryEntry(projectID, entryID) {
     return $Call.ByID(3484082396, projectID, entryID);
 }
 
@@ -396,7 +396,7 @@ export function EvaluateRule(workspaceSlug, profileID, req) {
 }
 
 /**
- * ExportTermsJSON exports the termbase as JSON.
+ * ExportTermsJSON exports the terms store as JSON.
  * @param {string} projectID
  * @param {string} name
  * @returns {$CancellablePromise<string>}
@@ -683,32 +683,32 @@ export function GetSuggestedRules(workspaceSlug, profileID, minCount, all) {
 }
 
 /**
- * GetTMCount returns the total number of entries in the TM.
+ * GetMemoryCount returns the total number of entries in the content memory.
  * @param {string} projectID
  * @returns {$CancellablePromise<number>}
  */
-export function GetTMCount(projectID) {
+export function GetMemoryCount(projectID) {
     return $Call.ByID(696825198, projectID);
 }
 
 /**
- * GetTMEntries searches the TM with optional query and locale filters.
+ * GetMemoryEntries searches the content memory with optional query and locale filters.
  * @param {string} projectID
  * @param {string} query
  * @param {string} sourceLocale
  * @param {string} targetLocale
  * @param {number} offset
  * @param {number} limit
- * @returns {$CancellablePromise<$models.TMSearchResult | null>}
+ * @returns {$CancellablePromise<$models.MemorySearchResult | null>}
  */
-export function GetTMEntries(projectID, query, sourceLocale, targetLocale, offset, limit) {
+export function GetMemoryEntries(projectID, query, sourceLocale, targetLocale, offset, limit) {
     return $Call.ByID(2067629197, projectID, query, sourceLocale, targetLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType26($result);
     }));
 }
 
 /**
- * GetTermCount returns the total number of concepts in the termbase.
+ * GetTermCount returns the total number of concepts in the terms.
  * @param {string} projectID
  * @returns {$CancellablePromise<number>}
  */
@@ -717,7 +717,7 @@ export function GetTermCount(projectID) {
 }
 
 /**
- * GetTerms searches the termbase.
+ * GetTerms searches the terms.
  * @param {string} projectID
  * @param {string} query
  * @param {string} sourceLocale
@@ -776,7 +776,7 @@ export function HandleDeepLink(webURL) {
 }
 
 /**
- * ImportTermsCSV imports terms from CSV content into the termbase.
+ * ImportTermsCSV imports terms from CSV content into the terms.
  * @param {string} projectID
  * @param {string} csvContent
  * @param {string} sourceLocale
@@ -790,7 +790,7 @@ export function ImportTermsCSV(projectID, csvContent, sourceLocale, targetLocale
 }
 
 /**
- * ImportTermsJSON imports terms from JSON content into the termbase.
+ * ImportTermsJSON imports terms from JSON content into the terms.
  * @param {string} projectID
  * @param {string} jsonContent
  * @returns {$CancellablePromise<number>}
@@ -1069,14 +1069,14 @@ export function Logout() {
 }
 
 /**
- * LookupTMForBlock looks up TM matches for a specific block.
+ * LookupMemoryForBlock looks up content-memory matches for a specific block.
  * @param {string} projectID
  * @param {string} itemName
  * @param {string} blockID
  * @param {string} targetLocale
- * @returns {$CancellablePromise<$models.TMMatchInfo[]>}
+ * @returns {$CancellablePromise<$models.MemoryMatchInfo[]>}
  */
-export function LookupTMForBlock(projectID, itemName, blockID, targetLocale) {
+export function LookupMemoryForBlock(projectID, itemName, blockID, targetLocale) {
     return $Call.ByID(1469074117, projectID, itemName, blockID, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType54($result);
     }));
@@ -1465,7 +1465,7 @@ export function SubmitChangeset(workspaceSlug, changesetID) {
 }
 
 /**
- * TMTranslateItem leverages translation memory to translate blocks. Routing
+ * MemoryTranslateItem leverages content memory to translate blocks. Routing
  * mirrors PseudoTranslateItem: server-first when connected, local cache with a
  * queued replay when offline.
  * @param {string} projectID
@@ -1473,7 +1473,7 @@ export function SubmitChangeset(workspaceSlug, changesetID) {
  * @param {string} targetLocale
  * @returns {$CancellablePromise<$models.TranslationStats | null>}
  */
-export function TMTranslateItem(projectID, itemName, targetLocale) {
+export function MemoryTranslateItem(projectID, itemName, targetLocale) {
     return $Call.ByID(1701277356, projectID, itemName, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType61($result);
     }));
@@ -1536,8 +1536,8 @@ export function UpdateBlockTargetRuns(req) {
 }
 
 /**
- * UpdateConcept updates an existing concept in the termbase. The server is
- * authoritative for the termbase, so a successful online update skips the local
+ * UpdateConcept updates an existing concept in the terms. The server is
+ * authoritative for the terms store, so a successful online update skips the local
  * mirror; the local write runs only offline (queued for replay) or in pure
  * local mode.
  * @param {$models.UpdateConceptRequest} req
@@ -1583,13 +1583,13 @@ export function UpdatePresence(projectID, itemName, blockID) {
 }
 
 /**
- * UpdateTMEntry updates an existing TM entry. The server is authoritative for
- * the TM, so a successful online update skips the local mirror; the local write
+ * UpdateMemoryEntry updates an existing content-memory entry. The server is authoritative for
+ * the content memory, so a successful online update skips the local mirror; the local write
  * runs only offline (queued for replay) or in pure local mode.
- * @param {$models.TMUpdateRequest} req
+ * @param {$models.MemoryUpdateRequest} req
  * @returns {$CancellablePromise<void>}
  */
-export function UpdateTMEntry(req) {
+export function UpdateMemoryEntry(req) {
     return $Call.ByID(3731738086, req);
 }
 
@@ -1607,7 +1607,7 @@ const $$createType0 = $models.ConceptInfo.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = $models.ProjectInfo.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = $models.TMEntryInfo.createFrom;
+const $$createType4 = $models.MemoryEntryInfo.createFrom;
 const $$createType5 = $Create.Nullable($$createType4);
 const $$createType6 = $models.ConnectorInfo.createFrom;
 const $$createType7 = $Create.Nullable($$createType6);
@@ -1628,7 +1628,7 @@ const $$createType21 = $Create.Array($$createType20);
 const $$createType22 = locale$0.LocaleInfo.createFrom;
 const $$createType23 = $Create.Array($$createType22);
 const $$createType24 = $Create.Array($$createType17);
-const $$createType25 = $models.TMSearchResult.createFrom;
+const $$createType25 = $models.MemorySearchResult.createFrom;
 const $$createType26 = $Create.Nullable($$createType25);
 const $$createType27 = $models.TermSearchResult.createFrom;
 const $$createType28 = $Create.Nullable($$createType27);
@@ -1656,7 +1656,7 @@ const $$createType49 = $Create.Array($$createType48);
 const $$createType50 = $Create.Array($$createType10);
 const $$createType51 = $models.ToolInfo.createFrom;
 const $$createType52 = $Create.Array($$createType51);
-const $$createType53 = $models.TMMatchInfo.createFrom;
+const $$createType53 = $models.MemoryMatchInfo.createFrom;
 const $$createType54 = $Create.Array($$createType53);
 const $$createType55 = $models.TermLookupResult.createFrom;
 const $$createType56 = $Create.Nullable($$createType55);

@@ -9,13 +9,13 @@ import (
 
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/memory"
 )
 
-// TMEntryInfo is the frontend-facing representation of a TM entry.
+// MemoryEntryInfo is the frontend-facing representation of a content-memory entry.
 // The Bowrain desktop still exposes a bilingual shape over the API; it
 // renders two locales at a time chosen by the user.
-type TMEntryInfo struct {
+type MemoryEntryInfo struct {
 	ID           string `json:"id"`
 	Source       string `json:"source"`
 	Target       string `json:"target"`
@@ -24,14 +24,14 @@ type TMEntryInfo struct {
 	UpdatedAt    string `json:"updated_at"`
 }
 
-// TMSearchResult holds a page of TM search results.
-type TMSearchResult struct {
-	Entries    []TMEntryInfo `json:"entries"`
-	TotalCount int           `json:"total_count"`
+// MemorySearchResult holds a page of content-memory search results.
+type MemorySearchResult struct {
+	Entries    []MemoryEntryInfo `json:"entries"`
+	TotalCount int               `json:"total_count"`
 }
 
-// TMUpdateRequest holds parameters for updating a TM entry.
-type TMUpdateRequest struct {
+// MemoryUpdateRequest holds parameters for updating a content-memory entry.
+type MemoryUpdateRequest struct {
 	ProjectID    string `json:"project_id"`
 	EntryID      string `json:"entry_id"`
 	Source       string `json:"source"`
@@ -40,20 +40,20 @@ type TMUpdateRequest struct {
 	TargetLocale string `json:"target_locale"`
 }
 
-// getOrCreateTM lazily initializes the app-level persistent SQLite TM.
-func (a *App) getOrCreateTM() (*sievepen.SQLiteTM, error) {
+// getOrCreateMemory lazily initializes the app-level persistent SQLite content memory.
+func (a *App) getOrCreateMemory() (*memory.SQLiteStore, error) {
 	if a.tm != nil {
 		return a.tm, nil
 	}
-	tmPath := a.tmPath
-	if tmPath == "" {
-		tmDir := filepath.Join(desktopConfigDir(), "tm")
-		if err := os.MkdirAll(tmDir, 0755); err != nil {
+	memoryPath := a.memoryPath
+	if memoryPath == "" {
+		memoryDir := filepath.Join(desktopConfigDir(), "tm")
+		if err := os.MkdirAll(memoryDir, 0755); err != nil {
 			return nil, fmt.Errorf("create tm dir: %w", err)
 		}
-		tmPath = filepath.Join(tmDir, "default.db")
+		memoryPath = filepath.Join(memoryDir, "default.db")
 	}
-	tm, err := sievepen.NewSQLiteTM(tmPath)
+	tm, err := memory.NewSQLiteStore(memoryPath)
 	if err != nil {
 		return nil, err
 	}
@@ -61,9 +61,9 @@ func (a *App) getOrCreateTM() (*sievepen.SQLiteTM, error) {
 	return tm, nil
 }
 
-// entryToInfo converts a sievepen.TMEntry to a TMEntryInfo for the bilingual
+// entryToInfo converts a memory.Entry to a MemoryEntryInfo for the bilingual
 // view. It projects the entry's variants onto the requested (src, tgt) pair.
-func entryToInfo(e sievepen.TMEntry, sourceLocale, targetLocale string) TMEntryInfo {
+func entryToInfo(e memory.Entry, sourceLocale, targetLocale string) MemoryEntryInfo {
 	srcLoc := model.LocaleID(sourceLocale)
 	tgtLoc := model.LocaleID(targetLocale)
 	if srcLoc == "" && e.HintSrcLang != "" {
@@ -78,7 +78,7 @@ func entryToInfo(e sievepen.TMEntry, sourceLocale, targetLocale string) TMEntryI
 			}
 		}
 	}
-	return TMEntryInfo{
+	return MemoryEntryInfo{
 		ID:           e.ID,
 		Source:       e.VariantText(srcLoc),
 		Target:       e.VariantText(tgtLoc),
@@ -88,24 +88,24 @@ func entryToInfo(e sievepen.TMEntry, sourceLocale, targetLocale string) TMEntryI
 	}
 }
 
-// GetTMEntries searches the TM with optional query and locale filters.
-func (a *App) GetTMEntries(projectID, query, sourceLocale, targetLocale string, offset, limit int) (*TMSearchResult, error) {
+// GetMemoryEntries searches the content memory with optional query and locale filters.
+func (a *App) GetMemoryEntries(projectID, query, sourceLocale, targetLocale string, offset, limit int) (*MemorySearchResult, error) {
 	if a.isConnected() {
 		client, ws := a.editorRemote()
-		result, err := client.GetTMEntries(context.Background(), ws, query, sourceLocale, targetLocale, offset, limit)
+		result, err := client.GetMemoryEntries(context.Background(), ws, query, sourceLocale, targetLocale, offset, limit)
 		if err != nil {
 			a.goOffline()
-			// Fall through to local TM.
+			// Fall through to local content memory.
 		} else {
-			return editorTMResultToSearch(result), nil
+			return editorMemoryResultToSearch(result), nil
 		}
 	}
-	tm, err := a.getOrCreateTM()
+	tm, err := a.getOrCreateMemory()
 	if err != nil {
-		return nil, fmt.Errorf("init TM: %w", err)
+		return nil, fmt.Errorf("init content memory: %w", err)
 	}
 
-	entries, total, err := tm.SearchEntries(context.Background(), sievepen.SearchParams{
+	entries, total, err := tm.SearchEntries(context.Background(), memory.SearchParams{
 		Query:         query,
 		AnyLocale:     sourceLocale,
 		RequireLocale: targetLocale,
@@ -115,54 +115,54 @@ func (a *App) GetTMEntries(projectID, query, sourceLocale, targetLocale string, 
 	if err != nil {
 		return nil, err
 	}
-	infos := make([]TMEntryInfo, len(entries))
+	infos := make([]MemoryEntryInfo, len(entries))
 	for i, e := range entries {
 		infos[i] = entryToInfo(e, sourceLocale, targetLocale)
 	}
 
-	return &TMSearchResult{
+	return &MemorySearchResult{
 		Entries:    infos,
 		TotalCount: total,
 	}, nil
 }
 
-// GetTMCount returns the total number of entries in the TM.
-func (a *App) GetTMCount(projectID string) (int, error) {
+// GetMemoryCount returns the total number of entries in the content memory.
+func (a *App) GetMemoryCount(projectID string) (int, error) {
 	if a.isConnected() {
 		client, ws := a.editorRemote()
-		count, err := client.GetTMCount(context.Background(), ws)
+		count, err := client.GetMemoryCount(context.Background(), ws)
 		if err != nil {
 			a.goOffline()
 		} else {
 			return count, nil
 		}
 	}
-	tm, err := a.getOrCreateTM()
+	tm, err := a.getOrCreateMemory()
 	if err != nil {
-		return 0, fmt.Errorf("init TM: %w", err)
+		return 0, fmt.Errorf("init content memory: %w", err)
 	}
 
 	return tm.Count(context.Background())
 }
 
-// UpdateTMEntry updates an existing TM entry. The server is authoritative for
-// the TM, so a successful online update skips the local mirror; the local write
+// UpdateMemoryEntry updates an existing content-memory entry. The server is authoritative for
+// the content memory, so a successful online update skips the local mirror; the local write
 // runs only offline (queued for replay) or in pure local mode.
-func (a *App) UpdateTMEntry(req TMUpdateRequest) error {
-	return a.writeThroughVoid(updateTMEntryOp{req},
+func (a *App) UpdateMemoryEntry(req MemoryUpdateRequest) error {
+	return a.writeThroughVoid(updateMemoryEntryOp{req},
 		func() error {
 			client, ws := a.editorRemote()
-			return client.UpdateTMEntry(context.Background(), ws, req.EntryID, req.Source, req.Target, req.SourceLocale, req.TargetLocale)
+			return client.UpdateMemoryEntry(context.Background(), ws, req.EntryID, req.Source, req.Target, req.SourceLocale, req.TargetLocale)
 		},
 		func() error { return nil }, // server-authoritative: skip the local mirror on success
-		func() error { return a.updateTMEntryLocal(req) },
+		func() error { return a.updateMemoryEntryLocal(req) },
 	)
 }
 
-func (a *App) updateTMEntryLocal(req TMUpdateRequest) error {
-	tm, err := a.getOrCreateTM()
+func (a *App) updateMemoryEntryLocal(req MemoryUpdateRequest) error {
+	tm, err := a.getOrCreateMemory()
 	if err != nil {
-		return fmt.Errorf("init TM: %w", err)
+		return fmt.Errorf("init content memory: %w", err)
 	}
 
 	entry, ok, err := tm.GetEntry(context.Background(), req.EntryID)
@@ -170,7 +170,7 @@ func (a *App) updateTMEntryLocal(req TMUpdateRequest) error {
 		return err
 	}
 	if !ok {
-		return fmt.Errorf("TM entry %q not found", req.EntryID)
+		return fmt.Errorf("content-memory entry %q not found", req.EntryID)
 	}
 
 	srcLoc := model.LocaleID(req.SourceLocale)
@@ -188,52 +188,54 @@ func (a *App) updateTMEntryLocal(req TMUpdateRequest) error {
 	return tm.Add(context.Background(), entry)
 }
 
-// DeleteTMEntry deletes a TM entry by ID.
-func (a *App) DeleteTMEntry(projectID, entryID string) error {
-	return a.writeThroughVoid(deleteTMEntryOp{EntryID: entryID},
+// DeleteMemoryEntry deletes a content-memory entry by ID.
+func (a *App) DeleteMemoryEntry(projectID, entryID string) error {
+	return a.writeThroughVoid(deleteMemoryEntryOp{EntryID: entryID},
 		func() error {
 			client, ws := a.editorRemote()
-			return client.DeleteTMEntry(context.Background(), ws, entryID)
+			return client.DeleteMemoryEntry(context.Background(), ws, entryID)
 		},
 		func() error { return nil }, // server-authoritative: skip the local mirror on success
 		func() error {
-			tm, err := a.getOrCreateTM()
+			tm, err := a.getOrCreateMemory()
 			if err != nil {
-				return fmt.Errorf("init TM: %w", err)
+				return fmt.Errorf("init content memory: %w", err)
 			}
 			return tm.Delete(context.Background(), entryID)
 		},
 	)
 }
 
-// AddTMEntry adds a new entry to the TM.
-func (a *App) AddTMEntry(projectID, source, target, sourceLocale, targetLocale string) (*TMEntryInfo, error) {
-	op := addTMEntryOp{Source: source, Target: target, SourceLocale: sourceLocale, TargetLocale: targetLocale}
+// AddMemoryEntry adds a new entry to the content memory.
+func (a *App) AddMemoryEntry(projectID, source, target, sourceLocale, targetLocale string) (*MemoryEntryInfo, error) {
+	op := addMemoryEntryOp{Source: source, Target: target, SourceLocale: sourceLocale, TargetLocale: targetLocale}
 	return writeThroughResult(a, op,
-		func() (*TMEntryInfo, error) {
+		func() (*MemoryEntryInfo, error) {
 			client, ws := a.editorRemote()
-			info, err := client.AddTMEntry(context.Background(), ws, source, target, sourceLocale, targetLocale)
+			info, err := client.AddMemoryEntry(context.Background(), ws, source, target, sourceLocale, targetLocale)
 			if err != nil {
 				return nil, err
 			}
-			out := editorTMEntryToInfo(*info)
+			out := editorMemoryEntryToInfo(*info)
 			return &out, nil
 		},
 		nil, // server returns the canonical entry; nothing to reconcile locally
-		func() (*TMEntryInfo, error) { return a.addTMEntryLocal(source, target, sourceLocale, targetLocale) },
+		func() (*MemoryEntryInfo, error) {
+			return a.addMemoryEntryLocal(source, target, sourceLocale, targetLocale)
+		},
 	)
 }
 
-func (a *App) addTMEntryLocal(source, target, sourceLocale, targetLocale string) (*TMEntryInfo, error) {
-	tm, err := a.getOrCreateTM()
+func (a *App) addMemoryEntryLocal(source, target, sourceLocale, targetLocale string) (*MemoryEntryInfo, error) {
+	tm, err := a.getOrCreateMemory()
 	if err != nil {
-		return nil, fmt.Errorf("init TM: %w", err)
+		return nil, fmt.Errorf("init content memory: %w", err)
 	}
 
 	now := time.Now()
 	srcLoc := model.LocaleID(sourceLocale)
 	tgtLoc := model.LocaleID(targetLocale)
-	entry := sievepen.TMEntry{
+	entry := memory.Entry{
 		ID: id.New(),
 		Variants: map[model.LocaleID][]model.Run{
 			srcLoc: {{Text: &model.TextRun{Text: source}}},

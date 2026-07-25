@@ -1,14 +1,14 @@
 ---
 sidebar_position: 10
 title: Translation Memory
-description: Sievepen is neokapi's built-in translation memory. It stores multilingual entries as Run sequences with inline markup and matches them in three tiers — plain, structural, and source-entity — so high-quality matches are returned first.
-keywords: [translation memory, Sievepen, TM leverage, fuzzy matching, runs, inline markup, SQLite]
+description: Memory is neokapi's built-in translation memory. It stores multilingual entries as Run sequences with inline markup and matches them in three tiers — plain, structural, and source-entity — so high-quality matches are returned first.
+keywords: [translation memory, Memory, TM leverage, fuzzy matching, runs, inline markup, SQLite]
 ---
 
 # Translation Memory
 
-neokapi's translation memory is **Sievepen** (`sievepen/`). Unlike traditional
-TMs that store plain strings, Sievepen works with the full content model — each
+neokapi's translation memory is **Memory** (`memory/`). Unlike traditional
+TMs that store plain strings, Memory works with the full content model — each
 entry holds multilingual variants as `Run` sequences (text plus inline markup)
 and matches them in three tiers with entity-aware adaptation. The same engine
 backs the `kapi tm` commands, the `recycle` pipeline tool, and the Go
@@ -47,12 +47,12 @@ reuse and redaction follow.
 
 ## Storage backends
 
-Two backends ship in the `sievepen/` package, both implementing the
-`TranslationMemory` interface with full tier support:
+Two backends ship in the `memory/` package, both implementing the
+`ContentMemory` interface with full tier support:
 
-1. **In-memory** (`sievepen.NewInMemoryTM`) — fast and ephemeral, used for
+1. **In-memory** (`memory.NewInMemoryStore`) — fast and ephemeral, used for
    session-scoped batch processing.
-2. **SQLite** (`sievepen.NewSQLiteTM`) — persistent file-based storage for CLI
+2. **SQLite** (`memory.NewSQLiteStore`) — persistent file-based storage for CLI
    workflows.
 
 The interface also accommodates server-side backends for multi-user
@@ -76,12 +76,12 @@ All TM commands (except `list`) accept these mutually exclusive flags:
 Databases are created on demand if they don't exist.
 
 ```bash
-kapi tm import translations.tmx --name project-tm -s en -t fr
-kapi tm export --name project-tm -s en -t fr -o output.tmx
-kapi tm lookup "Welcome to our platform" --name project-tm -s en -t fr
-kapi tm search "welcome" --name project-tm -s en
-kapi tm stats --name project-tm
-kapi tm list
+kapi memory import translations.tmx --name project-tm -s en -t fr
+kapi memory export --name project-tm -s en -t fr -o output.tmx
+kapi memory lookup "Welcome to our platform" --name project-tm -s en -t fr
+kapi memory search "welcome" --name project-tm -s en
+kapi memory stats --name project-tm
+kapi memory list
 ```
 
 ## Pipeline integration
@@ -134,12 +134,12 @@ steps:
 ### Interface
 
 ```go
-type TranslationMemory interface {
-    Add(entry TMEntry) error
+type ContentMemory interface {
+    Add(entry Entry) error
     Lookup(source *model.Block, sourceLocale, targetLocale model.LocaleID,
-        opts LookupOptions) ([]TMMatch, error)
+        opts LookupOptions) ([]Match, error)
     LookupText(source string, sourceLocale, targetLocale model.LocaleID,
-        opts LookupOptions) ([]TMMatch, error)
+        opts LookupOptions) ([]Match, error)
     Delete(id string) error
     Count() int
     Close() error
@@ -156,7 +156,7 @@ export and browsing.
 ### Key types
 
 ```go
-type TMEntry struct {
+type Entry struct {
     ID          string
     ProjectID   string
     Variants    map[model.LocaleID][]model.Run // peer language variants
@@ -169,8 +169,8 @@ type TMEntry struct {
     UpdatedAt   time.Time
 }
 
-type TMMatch struct {
-    Entry             TMEntry
+type Match struct {
+    Entry             Entry
     Score             float64 // 0.0-1.0
     MatchType         MatchType
     ProjectID         string             // provenance of the matched entry
@@ -190,7 +190,7 @@ An entry is multilingual: there is no authoritative source at the persistence
 layer — each language is a peer `Variants[locale]` Run sequence, and the lookup
 direction is supplied at the call site. `MatchType` ranges from
 `generalized-exact` (highest reuse) through `structural-exact`, `exact`, the
-corresponding fuzzy variants, down to `fuzzy`. `TMEntry` helpers:
+corresponding fuzzy variants, down to `fuzzy`. `Entry` helpers:
 `Variant(locale)`, `VariantText(locale)`, `VariantStructural(locale)`,
 `VariantGeneralized(locale)`. The `EntityAdaptations` field on a match lists
 each substitution with its position so consumers can apply adaptations
@@ -205,14 +205,14 @@ import (
     "fmt"
 
     "github.com/neokapi/neokapi/core/model"
-    "github.com/neokapi/neokapi/sievepen"
+    "github.com/neokapi/neokapi/memory"
 )
 
 func main() {
-    tm := sievepen.NewInMemoryTM()
+    tm := memory.NewInMemoryStore()
     defer tm.Close()
 
-    tm.Add(sievepen.TMEntry{
+    tm.Add(memory.Entry{
         ID: "e1",
         Variants: map[model.LocaleID][]model.Run{
             "en": {{Text: &model.TextRun{Text: "Welcome to our platform"}}},
@@ -222,7 +222,7 @@ func main() {
     })
 
     block := model.NewBlock("b1", "Welcome to our platform")
-    matches, err := tm.Lookup(block, "en", "fr", sievepen.DefaultLookupOptions())
+    matches, err := tm.Lookup(block, "en", "fr", memory.DefaultLookupOptions())
     if err != nil {
         panic(err)
     }
@@ -236,10 +236,10 @@ func main() {
 ### TMX import / export
 
 ```go
-count, err := sievepen.ImportTMX(tm, reader, "en", "fr")
-err = sievepen.ExportTMXBilingual(tm, writer, "en", "fr") // src/tgt pair
+count, err := memory.ImportTMX(tm, reader, "en", "fr")
+err = memory.ExportTMXBilingual(tm, writer, "en", "fr") // src/tgt pair
 // or, for all locales in the TM:
-err = sievepen.ExportTMX(tm, writer, []model.LocaleID{"en", "fr", "de"})
+err = memory.ExportTMX(tm, writer, []model.LocaleID{"en", "fr", "de"})
 ```
 
 ## Translation memory and terminology

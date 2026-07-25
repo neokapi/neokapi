@@ -22,8 +22,8 @@ import (
 	"github.com/neokapi/neokapi/core/schema"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -33,9 +33,9 @@ type App struct {
 	app          *application.App
 	formatReg    *registry.FormatRegistry
 	toolReg      *registry.ToolRegistry
-	store        store.ContentStore       // persistent SQLite
-	tm           *sievepen.SQLiteTM       // lazily initialized
-	tb           *termbase.SQLiteTermBase // lazily initialized
+	store        store.ContentStore  // persistent SQLite
+	tm           *memory.SQLiteStore // lazily initialized
+	tb           *terms.SQLiteStore  // lazily initialized
 	pluginMu     sync.Mutex
 	pluginDir    string             // resolved plugin directory
 	plugins      []manifestedPlugin // discovered manifest plugins (lazy)
@@ -56,8 +56,8 @@ type App struct {
 	reconnectCancel context.CancelFunc       // stops the reconnection goroutine
 	autoConnectDone bool                     // true after BOWRAIN_TOKEN auto-connect attempted
 
-	// tmPath overrides the default TM database path (for testing).
-	tmPath string
+	// memoryPath overrides the default content-memory database path (for testing).
+	memoryPath string
 
 	// eventSink, when set, receives every backend event in addition to the
 	// Wails runtime. The recording wbridge (cmd/wbridge) uses it to stream

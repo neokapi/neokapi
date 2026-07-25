@@ -24,12 +24,12 @@ export interface FlowStepListProps {
   className?: string;
 }
 
-/** Extract resource references (tm:name, termbase:name) from a config map. */
+/** Extract resource references (tm:name, terms:name) from a config map. */
 function extractResourceBadges(config: Record<string, unknown>): string[] {
   const badges: string[] = [];
   for (const value of Object.values(config)) {
     if (typeof value !== "string") continue;
-    if (value.startsWith("tm:") || value.startsWith("termbase:") || value.startsWith("srx:")) {
+    if (value.startsWith("tm:") || value.startsWith("terms:") || value.startsWith("srx:")) {
       badges.push(value);
     }
   }

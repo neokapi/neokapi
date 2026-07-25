@@ -13,7 +13,7 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/memory"
 	"google.golang.org/protobuf/proto"
 
 	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
@@ -104,19 +104,19 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		itemMetaMap[itemMetas[i].Name] = &itemMetas[i]
 	}
 
-	// Resolve the project TM (optional) and source language once, so ingest can
-	// seed pushed target translations into the TM for future recycling (theme
-	// A2). A missing TM or source language simply disables seeding — never an
+	// Resolve the project content memory (optional) and source language once, so ingest can
+	// seed pushed target translations into the content memory for future recycling (theme
+	// A2). A missing content memory or source language simply disables seeding — never an
 	// error on the push path.
-	var seedTM sievepen.TMStore
+	var seedMemory memory.Store
 	var sourceLocale model.LocaleID
-	if deps.TMResolver != nil {
+	if deps.MemoryResolver != nil {
 		slug := manifest.WorkspaceSlug
 		if slug == "" {
 			slug = "_anon"
 		}
-		if tm, terr := deps.TMResolver.GetTM(slug); terr == nil {
-			seedTM = tm
+		if tm, terr := deps.MemoryResolver.GetMemory(slug); terr == nil {
+			seedMemory = tm
 		}
 		if proj, perr := deps.ContentStore.GetProject(ctx, projectID); perr == nil {
 			sourceLocale = proj.DefaultSourceLanguage
@@ -164,7 +164,7 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		// Route by content type.
 		switch chunk.ContentType {
 		case "blocks":
-			stored, itemNames, err := processBlockChunk(ctx, deps, &chunk, projectID, stream, itemMetaMap, seedTM, sourceLocale)
+			stored, itemNames, err := processBlockChunk(ctx, deps, &chunk, projectID, stream, itemMetaMap, seedMemory, sourceLocale)
 			if err != nil {
 				_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, err.Error())
 				return err
@@ -259,12 +259,12 @@ func sampleItemNames(names []string, n int) []string {
 // processBlockChunk converts SyncBlocks to model.Blocks and stores them.
 // Blocks with ExpectedHash set are checked for optimistic concurrency conflicts.
 //
-// tm (optional) is the project's server TM: when a stored block arrives with an
-// existing target translation, that pair is seeded into the TM so a future
+// tm (optional) is the project's server content memory: when a stored block arrives with an
+// existing target translation, that pair is seeded into the content memory so a future
 // convergence recycles it instead of paying AI (theme A2, "arrives with
 // translations → recycles for free"). Seeding is idempotent (content-hash keyed
 // entry IDs) and best-effort — a seed failure never fails the push.
-func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChunk, projectID, stream string, itemMetas map[string]*pb.SyncItemMeta, tm sievepen.TMStore, sourceLocale model.LocaleID) (int, []string, error) {
+func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChunk, projectID, stream string, itemMetas map[string]*pb.SyncItemMeta, tm memory.Store, sourceLocale model.LocaleID) (int, []string, error) {
 	// Check expected_hash conflict detection (optimistic concurrency).
 	for _, sb := range chunk.Blocks {
 		if sb.ExpectedHash == "" {
@@ -325,19 +325,19 @@ func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChun
 		}
 		stored += len(blocks)
 
-		// Seed the project TM from any target translations these blocks arrived
+		// Seed the project content memory from any target translations these blocks arrived
 		// with, so a future convergence recycles them for free (theme A2).
-		seedTMFromBlockTargets(ctx, tm, blocks, projectID, sourceLocale)
+		seedMemoryFromBlockTargets(ctx, tm, blocks, projectID, sourceLocale)
 	}
 
 	return stored, itemNames, nil
 }
 
-// seedTMFromBlockTargets adds every (source, target) pair carried by the blocks
-// to the project TM, across all target locales present. It is a thin fan-out
-// over seedTMFromBlocks (one call per distinct target locale) and is a no-op
+// seedMemoryFromBlockTargets adds every (source, target) pair carried by the blocks
+// to the project content memory, across all target locales present. It is a thin fan-out
+// over seedMemoryFromBlocks (one call per distinct target locale) and is a no-op
 // when tm is nil or no block carries a populated target.
-func seedTMFromBlockTargets(ctx context.Context, tm sievepen.TMStore, blocks []*model.Block, projectID string, sourceLocale model.LocaleID) {
+func seedMemoryFromBlockTargets(ctx context.Context, tm memory.Store, blocks []*model.Block, projectID string, sourceLocale model.LocaleID) {
 	if tm == nil || sourceLocale.IsEmpty() {
 		return
 	}
@@ -354,6 +354,6 @@ func seedTMFromBlockTargets(ctx context.Context, tm sievepen.TMStore, blocks []*
 		}
 	}
 	for loc := range locales {
-		seedTMFromBlocks(ctx, tm, blocks, projectID, sourceLocale, loc, "push", "")
+		seedMemoryFromBlocks(ctx, tm, blocks, projectID, sourceLocale, loc, "push", "")
 	}
 }

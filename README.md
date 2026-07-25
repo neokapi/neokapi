@@ -27,7 +27,7 @@ The framework + kapi CLI live at the root. Companion areas are clearly marked.
 
 ```
 core/                       Framework: content model, formats, tools, flows, plugin system
-sievepen/                   Translation memory (interface + in-memory + SQLite + matching)
+memory/                   Translation memory (interface + in-memory + SQLite + matching)
 termbase/                   Terminology (interface + in-memory + SQLite + import)
 providers/                  AI + MT provider integrations
 cli/                        Shared CLI base (commands, output, config, credentials)
@@ -46,7 +46,7 @@ The Go side is a multi-module workspace coordinated by `go.work`:
 
 | Module          | Path                  | Purpose                                              |
 | --------------- | --------------------- | ---------------------------------------------------- |
-| **Framework**   | `.` (root)            | Engine — `core/`, `sievepen/`, `termbase/`, `providers/` |
+| **Framework**   | `.` (root)            | Engine — `core/`, `memory/`, `termbase/`, `providers/` |
 | **CLI base**    | `cli/`                | Shared CLI commands + output formatting              |
 | **Kapi**        | `kapi/`               | Standalone file-processing CLI                       |
 | **Kapi Desktop**| `apps/kapi-desktop/`  | Wails v3 desktop app                                 |

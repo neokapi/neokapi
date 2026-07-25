@@ -1,21 +1,21 @@
 import { Button, cn } from "@neokapi/ui-primitives";
-import type { TMMatchInfo, BlockTermMatch, EntityInfo } from "../../types/api";
+import type { MemoryMatchInfo, BlockTermMatch, EntityInfo } from "../../types/api";
 import { ArrowRight } from "../icons";
 import { entityLabel } from "./HighlightedSource";
-import { tmScoreClass, termStatusClass } from "./blockStatus";
+import { memoryScoreClass, termStatusClass } from "./blockStatus";
 
 export interface ContextPanelProps {
-  tmMatches: TMMatchInfo[];
+  memoryMatches: MemoryMatchInfo[];
   termMatches: BlockTermMatch[];
   entities?: EntityInfo[];
   loading?: boolean;
-  /** Apply a TM match (by index) to the active block's target. */
-  onApplyTM: (index: number) => void;
+  /** Apply a content-memory match (by index) to the active block's target. */
+  onApplyMemory: (index: number) => void;
   /** Insert a target term into the active editor. */
   onInsertTerm?: (text: string) => void;
-  /** Highlight a TM match as already applied (e.g. after Apply). */
-  appliedTMIndex?: number | null;
-  /** The active project's id — used to flag same-project vs cross-project TM. */
+  /** Highlight a content-memory match as already applied (e.g. after Apply). */
+  appliedMemoryIndex?: number | null;
+  /** The active project's id — used to flag same-project vs cross-project content memory. */
   currentProjectId?: string;
   /** Which sections to render. Defaults to all three. */
   sections?: { tm?: boolean; terms?: boolean; entities?: boolean };
@@ -25,25 +25,25 @@ export interface ContextPanelProps {
 }
 
 /**
- * ContextPanel renders the per-block linguistic context — TM matches,
+ * ContextPanel renders the per-block linguistic context — content-memory matches,
  * terminology, and entities — in a single reusable surface. It is the one
  * source of truth shared by the Translate editor's Visual card and the Review
- * surface, replacing the formerly-duplicated TM/term/entity blocks.
+ * surface, replacing the formerly-duplicated content memory/term/entity blocks.
  */
 export function ContextPanel({
-  tmMatches,
+  memoryMatches,
   termMatches,
   entities = [],
   loading,
-  onApplyTM,
+  onApplyMemory,
   onInsertTerm,
-  appliedTMIndex = null,
+  appliedMemoryIndex = null,
   currentProjectId,
   sections,
   hideSectionTitles = false,
   className,
 }: ContextPanelProps) {
-  const showTM = sections?.tm ?? true;
+  const showMemory = sections?.tm ?? true;
   const showTerms = sections?.terms ?? true;
   const showEntities = sections?.entities ?? true;
 
@@ -51,28 +51,28 @@ export function ContextPanel({
     <div className={cn("overflow-auto p-3", className)} data-testid="context-panel">
       {loading && <div className="text-center py-3 text-xs text-muted-foreground">Loading...</div>}
 
-      {/* TM Matches */}
-      {showTM && (
+      {/* Memory Matches */}
+      {showMemory && (
         <div className="mb-4">
           {!hideSectionTitles && (
             <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2 pb-1 border-b border-border">
-              TM Matches
-              {tmMatches.length > 0 && (
-                <span className="ml-1.5 font-normal text-[10px]">({tmMatches.length})</span>
+              Memory Matches
+              {memoryMatches.length > 0 && (
+                <span className="ml-1.5 font-normal text-[10px]">({memoryMatches.length})</span>
               )}
             </div>
           )}
-          {!loading && tmMatches.length === 0 ? (
+          {!loading && memoryMatches.length === 0 ? (
             <div className="text-xs text-muted-foreground italic py-2">
-              No TM matches for this block
+              No content-memory matches for this block
             </div>
           ) : (
-            tmMatches.map((m, i) => (
+            memoryMatches.map((m, i) => (
               <div
                 key={i}
                 className={cn(
                   "p-2 bg-muted rounded-md mb-1.5 border border-border",
-                  appliedTMIndex === i && "border-success bg-success/5",
+                  appliedMemoryIndex === i && "border-success bg-success/5",
                 )}
                 data-testid={`tm-match-${i}`}
               >
@@ -80,7 +80,7 @@ export function ContextPanel({
                   <span
                     className={cn(
                       "text-[11px] font-bold px-1.5 py-px rounded",
-                      tmScoreClass(m.score),
+                      memoryScoreClass(m.score),
                     )}
                   >
                     {Math.round(m.score * 100)}%
@@ -107,13 +107,14 @@ export function ContextPanel({
                   size="sm"
                   className={cn(
                     "mt-1.5 text-[11px] h-6 px-2",
-                    appliedTMIndex === i && "bg-success hover:bg-success opacity-80 cursor-default",
+                    appliedMemoryIndex === i &&
+                      "bg-success hover:bg-success opacity-80 cursor-default",
                   )}
-                  onClick={() => onApplyTM(i)}
+                  onClick={() => onApplyMemory(i)}
                   data-testid={`tm-apply-${i}`}
-                  disabled={appliedTMIndex === i}
+                  disabled={appliedMemoryIndex === i}
                 >
-                  {appliedTMIndex === i ? "Applied" : "Apply"}
+                  {appliedMemoryIndex === i ? "Applied" : "Apply"}
                 </Button>
               </div>
             ))

@@ -78,7 +78,7 @@ export interface DemoManifest {
   model?: string;
   /** Seconds before the headless claude run is killed. */
   captureTimeoutSec?: number;
-  /** Extra setup commands run inside the sandbox before claude starts (e.g. seed a termbase). */
+  /** Extra setup commands run inside the sandbox before claude starts (e.g. seed a terms store). */
   setup?: string[];
   /** Optional extra context appended to the sandbox CLAUDE.md (per-demo environment notes). */
   claudeNote?: string;
@@ -92,9 +92,9 @@ export interface DemoManifest {
    * NOT authored in demo.yaml (an inline `locales:` block is rejected at
    * load time). Overlays are populated by loadManifest from GENERATED
    * sidecar files — `demo.<locale>.yaml` next to demo.yaml, produced by the
-   * dogfood l10n pipeline (`make l10n-demos`, TM-driven; see the
+   * dogfood l10n pipeline (`make l10n-demos`, content memory-driven; see the
    * demo-narration entry in the root kapi.yaml). Never hand-edit a
-   * sidecar: fix the TM seed (l10n/tm/demo-narration-<lang>.kmb) and
+   * sidecar: fix the content memory seed (l10n/tm/demo-narration-<lang>.kmb) and
    * regenerate.
    *
    * The `narration` array in demo.yaml is the English (en) master and stays
@@ -103,7 +103,7 @@ export interface DemoManifest {
    * scenes — each entry references a scene `id` and supplies the locale's
    * spoken `text` (and optionally a `caption`); everything else is
    * inherited from the master scene. Sidecar entries whose text is still
-   * English (a TM miss — pending translation work) or whose scene id no
+   * English (a content memory miss — pending translation work) or whose scene id no
    * longer exists (source drift) are dropped at load time, so a stale
    * sidecar degrades gracefully to English.
    *

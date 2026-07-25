@@ -15,8 +15,8 @@ import (
 
 	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/sievepen/kmb"
-	"github.com/neokapi/neokapi/termbase/ktb"
+	"github.com/neokapi/neokapi/memory/kmb"
+	"github.com/neokapi/neokapi/terms/ktb"
 )
 
 // Content provides a parcel member's bytes on demand. A .kpz member that can
@@ -94,12 +94,12 @@ const (
 	Kind = "kapi-localization-package"
 
 	// KindProject marks a whole-project snapshot .kpz (the pack/unpack
-	// profile, AD-025 §7): all locales, the full recipe, TM, termbase,
+	// profile, AD-025 §7): all locales, the full recipe, content memory, terms,
 	// overlays, and source identity + skeletons. The default Kind.
 	KindProject = "kapi-project"
 	// KindInterchange marks a task-scoped bilingual interchange .kpz (the
 	// extract/merge profile, AD-025 §7): one source→target locale pair —
-	// blocks, skeleton, target overlays, and the relevant TM/term context.
+	// blocks, skeleton, target overlays, and the relevant content memory/term context.
 	// neokapi's lossless interchange format for a translator or reviewer.
 	KindInterchange = "kapi-interchange"
 
@@ -108,8 +108,8 @@ const (
 
 	ContentTypeBlocks      = "blocks"
 	ContentTypeAnnotations = "annotations"
-	ContentTypeTM          = "tm"
-	ContentTypeTermbase    = "termbase"
+	ContentTypeMemory      = "tm"
+	ContentTypeTerms       = "terms"
 	ContentTypeMedia       = "media"
 	// ContentTypeSkeleton carries one source document's round-trip skeleton
 	// (the derived extract template `merge` reuses), keyed by source. Members
@@ -133,8 +133,8 @@ const (
 	// or status, and safe to delete with no loss of work. Opt-in.
 	ContentTypeHistory = "history"
 
-	tmPath       = "tm.kmb"
-	termbasePath = "termbase.ktb"
+	memoryPath = "tm.kmb"
+	termsPath  = "termbase.ktb"
 	// OverlaysPath is the single overlay-set member's archive path.
 	OverlaysPath = "overlays.json"
 	// HistoryPath is the advisory history log's archive path.
@@ -163,8 +163,8 @@ type Package struct {
 	Generator   *GeneratorInfo
 	Blocks      []BlockDoc
 	Annotations []AnnotationDoc
-	TM          *kmb.File
-	Termbase    *ktb.File
+	Memory      *kmb.File
+	Terms       *ktb.File
 	Media       []Media
 
 	// Skeletons carries each source document's round-trip skeleton (the
@@ -209,7 +209,7 @@ type Package struct {
 }
 
 // HasContent reports whether the package carries any packable content — blocks,
-// annotations, overlays, skeletons, media, raw source, TM entries, or termbase
+// annotations, overlays, skeletons, media, raw source, content-memory entries, or terms
 // concepts. Recipe, Sources identity, InterchangeTask, and History are metadata,
 // not content: a package with only those is empty (nothing worth packing).
 // Callers use this to refuse writing a content-less .kpz, the way `git bundle`
@@ -221,8 +221,8 @@ func (p *Package) HasContent() bool {
 		len(p.Skeletons) > 0 ||
 		len(p.Media) > 0 ||
 		len(p.Source) > 0 ||
-		(p.TM != nil && len(p.TM.Entries) > 0) ||
-		(p.Termbase != nil && len(p.Termbase.Concepts) > 0)
+		(p.Memory != nil && len(p.Memory.Entries) > 0) ||
+		(p.Terms != nil && len(p.Terms.Concepts) > 0)
 }
 
 // SourceIdentity records one source document's identity so a .kpz can detect
@@ -449,7 +449,7 @@ func (p *Package) RootHash() (string, error) {
 }
 
 // serializeMembers turns each section into its native Kapi-family bytes.
-// Structured members (blocks, annotations, TM, termbase, overlays, history) are
+// Structured members (blocks, annotations, content memory, terms, overlays, history) are
 // serialized in memory; whole-document/media members (media, source, skeleton)
 // are streamed through SHA-256 from their Content reference without retaining
 // the bytes.
@@ -488,19 +488,19 @@ func (p *Package) serializeMembers() ([]memberContent, error) {
 		}
 		addData(a.Path, ContentTypeAnnotations, ab.Bytes())
 	}
-	if p.TM != nil {
-		data, err := kmb.Marshal(p.TM)
+	if p.Memory != nil {
+		data, err := kmb.Marshal(p.Memory)
 		if err != nil {
 			return nil, fmt.Errorf("kpz: marshal tm: %w", err)
 		}
-		addData(tmPath, ContentTypeTM, data)
+		addData(memoryPath, ContentTypeMemory, data)
 	}
-	if p.Termbase != nil {
-		data, err := ktb.Marshal(p.Termbase)
+	if p.Terms != nil {
+		data, err := ktb.Marshal(p.Terms)
 		if err != nil {
-			return nil, fmt.Errorf("kpz: marshal termbase: %w", err)
+			return nil, fmt.Errorf("kpz: marshal terms: %w", err)
 		}
-		addData(termbasePath, ContentTypeTermbase, data)
+		addData(termsPath, ContentTypeTerms, data)
 	}
 	for _, m := range p.Media {
 		if m.Path == "" {
@@ -661,18 +661,18 @@ func Unmarshal(data []byte) (*Package, error) {
 				return nil, fmt.Errorf("kpz: parse %q: %w", m.Path, err)
 			}
 			pkg.Annotations = append(pkg.Annotations, AnnotationDoc{Path: m.Path, File: f})
-		case ContentTypeTM:
+		case ContentTypeMemory:
 			f, err := kmb.Unmarshal(body)
 			if err != nil {
 				return nil, fmt.Errorf("kpz: parse tm: %w", err)
 			}
-			pkg.TM = f
-		case ContentTypeTermbase:
+			pkg.Memory = f
+		case ContentTypeTerms:
 			f, err := ktb.Unmarshal(body)
 			if err != nil {
-				return nil, fmt.Errorf("kpz: parse termbase: %w", err)
+				return nil, fmt.Errorf("kpz: parse terms: %w", err)
 			}
-			pkg.Termbase = f
+			pkg.Terms = f
 		case ContentTypeMedia:
 			// Whole-asset members are verified above, then dropped from memory:
 			// the public struct keeps only a lazy reader over the ZIP entry.

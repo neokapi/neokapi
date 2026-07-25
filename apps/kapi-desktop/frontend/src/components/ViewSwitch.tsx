@@ -8,7 +8,7 @@ import { RunnerPage } from "./RunnerPage";
 import { FlowsPage } from "./FlowsPage";
 import { ToolRunnerPage } from "./ToolRunnerPage";
 import { ToolboxPage } from "./ToolboxPage";
-import { TermbasesPage } from "./TermbasesPage";
+import { TermsPage } from "./TermsPage";
 import { MemoriesPage } from "./MemoriesPage";
 import { ChecksPanel } from "./ChecksPanel";
 import { ReviewPage, type ReviewScope } from "./ReviewPage";
@@ -193,7 +193,7 @@ export function ViewSwitch({
           />
         );
       case "termbases":
-        return <TermbasesPage />;
+        return <TermsPage />;
       case "memories":
         return <MemoriesPage />;
       case "formats":
@@ -329,7 +329,7 @@ export function ViewSwitch({
         );
 
       case "termbases":
-        return <TermbasesPage tabID={tabID} />;
+        return <TermsPage tabID={tabID} />;
 
       case "memories":
         return <MemoriesPage tabID={tabID} />;

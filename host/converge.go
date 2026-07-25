@@ -163,7 +163,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	flowLabel := flowName
 	var spec *flow.StepsSpec
 	if flowName == "" {
-		// No defaults.flow: run the built-in default (#1078 G6) — TM reuse then
+		// No defaults.flow: run the built-in default (#1078 G6) — content memory reuse then
 		// AI translate — so `kapi up` works with zero flow YAML. An explicitly
 		// configured defaults.flow always wins over this synthesis.
 		flowName = builtinDefaultFlowName
@@ -287,8 +287,8 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			if err != nil {
 				return 0, 0, 0, err
 			}
-			done, viaTM, viaAI := tap.snapshot()
-			return done, viaTM, viaAI, nil
+			done, viaMemory, viaAI := tap.snapshot()
+			return done, viaMemory, viaAI, nil
 		},
 	}
 	if !opts.noExtract {
@@ -673,7 +673,7 @@ const builtinDefaultFlowName = "default"
 const BuiltinDefaultFlowLabel = "default (built-in)"
 
 // DefaultConvergeFlowSpec returns the built-in default convergence flow used
-// when a recipe configures no defaults.flow: TM reuse (recycle) followed by AI
+// when a recipe configures no defaults.flow: content memory reuse (recycle) followed by AI
 // translate. It needs no qa step — the convergence loop already runs the
 // project's bound checks after each pass (#1078 G4). A fresh spec is returned
 // per call so callers can never mutate a shared instance.

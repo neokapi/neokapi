@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/graph"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // This file holds the read-only REST client for the brand knowledge graph
@@ -307,10 +307,10 @@ func (c *BowrainClient) GetConceptStory(ctx context.Context, conceptID string) (
 
 // ListConceptRelations returns the relations touching a concept in either
 // direction (GET /api/v1/:ws/concepts/:cid/relations), optionally scoped by
-// asOf (RFC3339) and market. It returns the framework's termbase.ConceptRelation
+// asOf (RFC3339) and market. It returns the framework's terms.ConceptRelation
 // directly so a `terms pull` caller can feed each value straight into
-// termbase.AddRelation.
-func (c *BowrainClient) ListConceptRelations(ctx context.Context, conceptID, asOf, market string) ([]termbase.ConceptRelation, error) {
+// terms.AddRelation.
+func (c *BowrainClient) ListConceptRelations(ctx context.Context, conceptID, asOf, market string) ([]terms.ConceptRelation, error) {
 	q := url.Values{}
 	if asOf != "" {
 		q.Set("as_of", asOf)
@@ -318,7 +318,7 @@ func (c *BowrainClient) ListConceptRelations(ctx context.Context, conceptID, asO
 	if market != "" {
 		q.Set("market", market)
 	}
-	var out []termbase.ConceptRelation
+	var out []terms.ConceptRelation
 	if err := c.getKnowledgeJSON(ctx, "/concepts/"+url.PathEscape(conceptID)+"/relations", q, &out); err != nil {
 		return nil, err
 	}
@@ -473,8 +473,8 @@ func (c *BowrainClient) DeleteConcept(ctx context.Context, conceptID string) err
 
 // AddRelation adds an ordinary typed relation from sourceID to params.TargetID
 // and returns the stored relation (POST /api/v1/:ws/concepts/:cid/relations).
-func (c *BowrainClient) AddRelation(ctx context.Context, sourceID string, params AddRelationParams) (*termbase.ConceptRelation, error) {
-	var out termbase.ConceptRelation
+func (c *BowrainClient) AddRelation(ctx context.Context, sourceID string, params AddRelationParams) (*terms.ConceptRelation, error) {
+	var out terms.ConceptRelation
 	if err := c.knowledgeWrite(ctx, http.MethodPost, "/concepts/"+url.PathEscape(sourceID)+"/relations", params, &out); err != nil {
 		return nil, err
 	}

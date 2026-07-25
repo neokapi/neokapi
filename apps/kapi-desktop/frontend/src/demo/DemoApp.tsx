@@ -1,7 +1,7 @@
 /**
  * DemoApp — a self-contained, recording-only build of Kapi Desktop.
  *
- * Renders the REAL app chrome (IconSidebar) and the REAL termbase / TM browser
+ * Renders the REAL app chrome (IconSidebar) and the REAL terms / content memory browser
  * components from @neokapi/ui-primitives, wired to in-browser mock adapters with
  * a rich, coherent sample terms list + content memory. There is no Wails
  * backend in play — this entry exists purely so the walkthrough recorder
@@ -28,12 +28,12 @@ import {
   SimpleTooltip,
   TooltipProvider,
   ResourceCard,
-  TMBrowser,
-  TermbaseBrowser,
-  type TMAdapter,
-  type TermbaseAdapter,
+  MemoryBrowser,
+  TermsBrowser,
+  type MemoryAdapter,
+  type TermsAdapter,
   type ConceptDTO,
-  type TMEntryDTO,
+  type MemoryEntryDTO,
 } from "@neokapi/ui-primitives";
 import { IconSidebar } from "../components/IconSidebar";
 
@@ -48,7 +48,7 @@ const LOCALES = [
 
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
 
-// ── Sample termbase: a product glossary for a fictional analytics app ───────
+// ── Sample terms: a product glossary for a fictional analytics app ───────
 const CONCEPTS: ConceptDTO[] = [
   {
     id: "c-dashboard",
@@ -187,7 +187,7 @@ const CONCEPTS: ConceptDTO[] = [
 ];
 
 // ── Sample content memory: real UI strings, with inline code + an entity ────
-const TM_ENTRIES: TMEntryDTO[] = [
+const MEMORY_ENTRIES: MemoryEntryDTO[] = [
   {
     id: "tm-1",
     project_id: "",
@@ -363,7 +363,7 @@ const TM_ENTRIES: TMEntryDTO[] = [
 ];
 
 // ── Mock adapters (in-browser, no backend) ──────────────────────────────────
-function termbaseAdapter(seed: ConceptDTO[]): TermbaseAdapter {
+function termsAdapter(seed: ConceptDTO[]): TermsAdapter {
   let data = [...seed];
   return {
     async search(query) {
@@ -393,9 +393,9 @@ function termbaseAdapter(seed: ConceptDTO[]): TermbaseAdapter {
   };
 }
 
-function tmAdapter(seed: TMEntryDTO[]): TMAdapter {
+function memoryAdapter(seed: MemoryEntryDTO[]): MemoryAdapter {
   let data = [...seed];
-  const hit = (e: TMEntryDTO, q: string) =>
+  const hit = (e: MemoryEntryDTO, q: string) =>
     Object.values(e.variants).some((v) => v.text.toLowerCase().includes(q));
   return {
     async search(query) {
@@ -434,7 +434,7 @@ const TERMBASE_RESOURCES = [
   },
 ];
 
-const TM_RESOURCES = [
+const MEMORY_RESOURCES = [
   {
     name: "acme-app",
     path: "~/.config/kapi/tm/acme-app.db",
@@ -492,9 +492,9 @@ function HomeView({ onGo }: { onGo: (v: string) => void }) {
   );
 }
 
-function TermbasesView() {
+function TermsView() {
   const [open, setOpen] = useState<string | null>(null);
-  const adapter = useMemo(() => termbaseAdapter(CONCEPTS), []);
+  const adapter = useMemo(() => termsAdapter(CONCEPTS), []);
   if (open) {
     return (
       <div className="p-6">
@@ -519,7 +519,7 @@ function TermbasesView() {
             </Button>
           }
         />
-        <TermbaseBrowser adapter={adapter} locales={LOCALES} />
+        <TermsBrowser adapter={adapter} locales={LOCALES} />
       </div>
     );
   }
@@ -558,7 +558,7 @@ function TermbasesView() {
 
 function MemoriesView() {
   const [open, setOpen] = useState<string | null>(null);
-  const adapter = useMemo(() => tmAdapter(TM_ENTRIES), []);
+  const adapter = useMemo(() => memoryAdapter(MEMORY_ENTRIES), []);
   if (open) {
     return (
       <div className="p-6">
@@ -588,7 +588,7 @@ function MemoriesView() {
             </div>
           }
         />
-        <TMBrowser
+        <MemoryBrowser
           adapter={adapter}
           locales={LOCALES}
           sourceLocale="en-US"
@@ -613,14 +613,14 @@ function MemoriesView() {
         }
       />
       <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-        {TM_RESOURCES.map((r) => (
+        {MEMORY_RESOURCES.map((r) => (
           <ResourceCard
             key={r.path}
             name={r.name}
             path={r.path}
             size={r.size}
             modified={r.modified}
-            entryCount={r.name === "acme-app" ? TM_ENTRIES.length : 312}
+            entryCount={r.name === "acme-app" ? MEMORY_ENTRIES.length : 312}
             icon={<Database size={18} />}
             onClick={() => setOpen(r.name)}
           />
@@ -653,7 +653,7 @@ export default function DemoApp() {
             </div>
             <main className="flex-1 overflow-auto">
               {view === "termbases" ? (
-                <TermbasesView />
+                <TermsView />
               ) : view === "memories" ? (
                 <MemoriesView />
               ) : (

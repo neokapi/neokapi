@@ -3,12 +3,12 @@ import { setupLocalApp } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
 /**
- * E2E for the shared @neokapi/ui-primitives TermbaseBrowser as mounted by the
- * bowrain desktop (App.tsx renders it via useTermbaseBrowserAdapter when the
+ * E2E for the shared @neokapi/ui-primitives TermsBrowser as mounted by the
+ * bowrain desktop (App.tsx renders it via useTermsBrowserAdapter when the
  * project view's "open-terms-btn" is clicked).
  */
 
-/** Creates a project and returns with the project view visible (before opening the termbase browser). */
+/** Creates a project and returns with the project view visible (before opening the terms store browser). */
 async function createProject(page: Page) {
   await setupLocalApp(page);
 
@@ -22,25 +22,25 @@ async function createProject(page: Page) {
   await expect(page.getByTestId("back-to-projects")).toBeVisible();
 }
 
-/** Opens the termbase browser from the project view. */
+/** Opens the terms store browser from the project view. */
 async function openTerms(page: Page) {
   await page.getByTestId("open-terms-btn").click();
-  await expect(page.getByTestId("termbase-browser")).toBeVisible();
+  await expect(page.getByTestId("terms-browser")).toBeVisible();
 }
 
-/** Creates a project and opens the termbase browser. */
+/** Creates a project and opens the terms store browser. */
 async function createProjectAndOpenTerms(page: Page) {
   await createProject(page);
   await openTerms(page);
 }
 
-/** The "N concepts" count under the termbase browser toolbar. */
+/** The "N concepts" count under the terms store browser toolbar. */
 function countText(page: Page, pattern: RegExp) {
-  return expect(page.getByTestId("termbase-browser").getByText(pattern)).toBeVisible();
+  return expect(page.getByTestId("terms-browser").getByText(pattern)).toBeVisible();
 }
 
-test.describe("Termbase Browser", () => {
-  test("should open termbase browser and show empty state", async ({ page }) => {
+test.describe("Terms Browser", () => {
+  test("should open terms browser and show empty state", async ({ page }) => {
     await createProjectAndOpenTerms(page);
 
     await countText(page, /^0 concepts$/);
@@ -78,7 +78,7 @@ test.describe("Termbase Browser", () => {
   test("should search concepts by text", async ({ page }) => {
     await createProject(page);
 
-    // Add two concepts via mock backend before opening the termbase browser
+    // Add two concepts via mock backend before opening the terms store browser
     await page.evaluate(() => {
       const backend = (window as any).__wailsMockByName;
       const projects = backend.ListProjects();
@@ -159,7 +159,7 @@ test.describe("Termbase Browser", () => {
   test("should edit a concept", async ({ page }) => {
     await createProject(page);
 
-    // Add a concept before opening the termbase browser
+    // Add a concept before opening the terms store browser
     await page.evaluate(() => {
       const backend = (window as any).__wailsMockByName;
       const projects = backend.ListProjects();
@@ -197,7 +197,7 @@ test.describe("Termbase Browser", () => {
   test("should delete a concept with confirmation", async ({ page }) => {
     await createProject(page);
 
-    // Add a concept before opening the termbase browser
+    // Add a concept before opening the terms store browser
     await page.evaluate(() => {
       const backend = (window as any).__wailsMockByName;
       const projects = backend.ListProjects();
@@ -236,7 +236,7 @@ test.describe("Termbase Browser", () => {
     // The sidebar back button leaves the project (and closes the browser)
     await page.getByTestId("sidebar-home").click();
 
-    await expect(page.getByTestId("termbase-browser")).not.toBeVisible();
+    await expect(page.getByTestId("terms-browser")).not.toBeVisible();
     await expect(page.getByText("Terms Test")).toBeVisible();
   });
 });

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestOpenProjectAutoOpensTM(t *testing.T) {
+func TestOpenProjectAutoOpensMemory(t *testing.T) {
 	app := NewApp()
 	dir := t.TempDir()
 
@@ -28,15 +28,15 @@ func TestOpenProjectAutoOpensTM(t *testing.T) {
 	app.mu.RUnlock()
 	require.NotNil(t, op)
 
-	assert.NotEmpty(t, op.tmHandle, "project-scoped TM should be auto-opened")
-	assert.NotEmpty(t, op.tbHandle, "project-scoped termbase should be auto-opened")
+	assert.NotEmpty(t, op.memoryHandle, "project-scoped content memory should be auto-opened")
+	assert.NotEmpty(t, op.tbHandle, "project-scoped terms should be auto-opened")
 
 	// Handles should be valid.
-	tm, ok := app.tmHandles.Get(op.tmHandle)
+	tm, ok := app.memoryHandles.Get(op.memoryHandle)
 	assert.True(t, ok)
-	tmCount, err := tm.Count(t.Context())
+	memoryCount, err := tm.Count(t.Context())
 	require.NoError(t, err)
-	assert.Greater(t, tmCount, 0)
+	assert.Greater(t, memoryCount, 0)
 
 	tb, ok := app.tbHandles.Get(op.tbHandle)
 	assert.True(t, ok)
@@ -56,16 +56,16 @@ func TestGetProjectHandles(t *testing.T) {
 
 	h := app.GetProjectHandles(tab.ID)
 	assert.Equal(t, tab.ID, h.TabID)
-	assert.NotEmpty(t, h.TMHandle, "project TM handle should be reachable")
-	assert.NotEmpty(t, h.TermbaseHandle, "project termbase handle should be reachable")
+	assert.NotEmpty(t, h.MemoryHandle, "project content-memory handle should be reachable")
+	assert.NotEmpty(t, h.TermsHandle, "project terms store handle should be reachable")
 
 	// The bundled ids match the single-getter accessors and resolve to live
 	// handles the frontend can preselect.
-	assert.Equal(t, app.GetProjectTMHandle(tab.ID), h.TMHandle)
-	assert.Equal(t, app.GetProjectTermbaseHandle(tab.ID), h.TermbaseHandle)
-	_, ok := app.tmHandles.Get(h.TMHandle)
+	assert.Equal(t, app.GetProjectMemoryHandle(tab.ID), h.MemoryHandle)
+	assert.Equal(t, app.GetProjectTermsHandle(tab.ID), h.TermsHandle)
+	_, ok := app.memoryHandles.Get(h.MemoryHandle)
 	assert.True(t, ok)
-	_, ok = app.tbHandles.Get(h.TermbaseHandle)
+	_, ok = app.tbHandles.Get(h.TermsHandle)
 	assert.True(t, ok)
 }
 
@@ -73,8 +73,8 @@ func TestGetProjectHandlesUnknownTab(t *testing.T) {
 	app := NewApp()
 	h := app.GetProjectHandles("nope")
 	assert.Equal(t, "nope", h.TabID)
-	assert.Empty(t, h.TMHandle)
-	assert.Empty(t, h.TermbaseHandle)
+	assert.Empty(t, h.MemoryHandle)
+	assert.Empty(t, h.TermsHandle)
 }
 
 func TestOpenProjectNoAutoOpenWithoutDotKapi(t *testing.T) {
@@ -85,8 +85,8 @@ func TestOpenProjectNoAutoOpenWithoutDotKapi(t *testing.T) {
 	op := app.projects[tab.ID]
 	app.mu.RUnlock()
 
-	assert.Empty(t, op.tmHandle, "no TM handle when .kapi/tm.db doesn't exist")
-	assert.Empty(t, op.tbHandle, "no termbase handle when .kapi/termbase.db doesn't exist")
+	assert.Empty(t, op.memoryHandle, "no content-memory handle when .kapi/tm.db doesn't exist")
+	assert.Empty(t, op.tbHandle, "no terms handle when .kapi/termbase.db doesn't exist")
 }
 
 func TestCloseProjectClosesHandles(t *testing.T) {
@@ -98,17 +98,17 @@ func TestCloseProjectClosesHandles(t *testing.T) {
 	require.NoError(t, err)
 
 	app.mu.RLock()
-	tmHandle := app.projects[tab.ID].tmHandle
+	memoryHandle := app.projects[tab.ID].memoryHandle
 	tbHandle := app.projects[tab.ID].tbHandle
 	app.mu.RUnlock()
 
 	app.CloseProject(tab.ID)
 
 	// Handles should be closed.
-	_, ok := app.tmHandles.Get(tmHandle)
-	assert.False(t, ok, "TM handle should be closed")
+	_, ok := app.memoryHandles.Get(memoryHandle)
+	assert.False(t, ok, "content-memory handle should be closed")
 	_, ok = app.tbHandles.Get(tbHandle)
-	assert.False(t, ok, "termbase handle should be closed")
+	assert.False(t, ok, "terms handle should be closed")
 }
 
 func TestCreateSampleProjectIdempotent(t *testing.T) {
@@ -247,16 +247,16 @@ func TestResetSampleProject_TabStaysUsable(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, tab.ID, newTab.ID, "the tab reloads in place — no close/reopen churn")
 
-	// The tab entry is rewired to the fresh scaffold: recipe reloaded, TM and
-	// termbase handles live again, and the derivation bindings answer without
+	// The tab entry is rewired to the fresh scaffold: recipe reloaded, content memory and
+	// terms handles live again, and the derivation bindings answer without
 	// a friendly-error detour.
 	app.mu.RLock()
 	op := app.projects[tab.ID]
 	app.mu.RUnlock()
 	require.NotNil(t, op)
 	assert.NotNil(t, op.Project)
-	assert.NotEmpty(t, op.tmHandle, "project TM reopened after reset")
-	assert.NotEmpty(t, op.tbHandle, "project termbase reopened after reset")
+	assert.NotEmpty(t, op.memoryHandle, "project content memory reopened after reset")
+	assert.NotEmpty(t, op.tbHandle, "project terms store reopened after reset")
 
 	_, err = app.GetConvergePlan(tab.ID)
 	require.NoError(t, err, "plan must be derivable immediately after a reset")

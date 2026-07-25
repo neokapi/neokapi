@@ -176,9 +176,25 @@ func TestReaderSniffsKBFEnvelope(t *testing.T) {
 	sig := r.Signature()
 	require.NotNil(t, sig.Sniff)
 	// A .kbf envelope.
-	assert.True(t, sig.Sniff([]byte(`{"schemaVersion":"1.0","kind":"kapi-localization-format"}`)))
+	assert.True(t, sig.Sniff([]byte(`{"schemaVersion":"1.0","kind":"kapi-bundle"}`)))
 	// Random JSON isn't a match.
 	assert.False(t, sig.Sniff([]byte(`{"foo":1}`)))
+}
+
+// A bundle written before the `kind` rename must still be *detected* as a
+// bundle. Detection is what routes it to this reader, and only this reader can
+// explain that the kind was renamed and name the command that rewrites the file.
+// If detection missed it, the user would get "unknown format" and no clue.
+// Detecting is not accepting — Open still rejects it (see TestReaderRejects…).
+func TestReaderSniffsRetiredKBFEnvelope(t *testing.T) {
+	r := NewReader()
+	sig := r.Signature()
+	require.NotNil(t, sig.Sniff)
+	assert.True(t, sig.Sniff([]byte(`{"schemaVersion":"1.0","kind":"kapi-localization-format"}`)),
+		"a bundle with the retired kind must still be detected so the reader can explain the rename")
+	// The other two retired kinds belong to .kmb / .ktb, not to a bundle.
+	assert.False(t, sig.Sniff([]byte(`{"kind":"kapi-tm-format"}`)))
+	assert.False(t, sig.Sniff([]byte(`{"kind":"kapi-termbase-format"}`)))
 }
 
 // ───────── helpers ─────────

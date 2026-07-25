@@ -8,7 +8,7 @@ import { useEditorSurfaceNav } from "./useEditorSurfaceNav";
 
 /**
  * PreProcessRoute is the pre-flight surface — file-wide source-prep (pseudo,
- * bulk TM leverage, AI draft) run before per-block translation. Sibling of the
+ * bulk content-memory leverage, AI draft) run before per-block translation. Sibling of the
  * translate route, scoped to the same file.
  */
 export function PreProcessRoute() {

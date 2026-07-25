@@ -10,7 +10,7 @@ scenes:
     fixtures:
       - messages.json
     smoke_contract:
-      - kapi tm import project.tmx
+      - kapi memory import project.tmx
       - kapi exec recycle messages.json -o step1.json --source-lang en --target-lang fr
       - kapi extract --target-lang fr
 ---
@@ -24,24 +24,24 @@ pairs with the docs page [Understanding the CLI
 layers](/kapi/direct-execution-layer).
 
 Three layers, three verbs. `kapi exec <tool>` runs exactly one registry tool
-with nothing around it — here `recycle`, the TM step of `up`'s default flow.
+with nothing around it — here `recycle`, the content memory step of `up`'s default flow.
 `kapi run <flow>` executes one pass of one composed pipeline — here
 `leverage-check`, recycle followed by the deterministic qa checks; inside a
 project the pass commits to the project store, not to files. And
 `kapi extract` / `kapi merge` are the interchange doors: a bilingual XLIFF
-pre-filled from the TM goes out to a human translator, and the returned file
-merges back onto the source with TM write-back.
+pre-filled from the content memory goes out to a human translator, and the returned file
+merges back onto the source with content memory write-back.
 
 Each beat is something `up` does automatically — re-extract on source drift,
 produce a pass, materialize the results. The plumbing stays addressable.
 
 ## Scene 1 — under-the-hood (terminal)
 
-Seed the TM with `kapi tm import`, run one tool with `kapi exec recycle`, run
+Seed the content memory with `kapi memory import`, run one tool with `kapi exec recycle`, run
 one composed pass with `kapi run leverage-check`, then walk the interchange:
 `kapi extract --target-lang fr` emits `out/messages.en-to-fr.xliff`, and
 `kapi merge -i` applies it back, writing `messages.fr.json`. Fully offline —
-TM leverage and deterministic checks only, no provider calls.
+content-memory leverage and deterministic checks only, no provider calls.
 
 ## Closing
 

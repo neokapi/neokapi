@@ -11,7 +11,7 @@ overview: |
   Because the tool calls an external model, it requires provider credentials. An
   optional subject domain can be supplied to bias extraction toward that field
   (for example medical, legal, or technology terminology). The results are
-  candidate terms intended for review and curation into a termbase, not an
+  candidate terms intended for review and curation into a terms store, not an
   authoritative glossary.
 parameters:
   provider:

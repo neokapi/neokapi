@@ -3,7 +3,7 @@ name: taskly
 defaults:
   source_language: en
   target_languages: [fr]
-  termbase: .kapi/termbase.db
+  terms: .kapi/termbase.db
 content:
   - path: src/en.json
     format: json

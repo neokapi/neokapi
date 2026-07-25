@@ -115,7 +115,7 @@ func (s *Server) HandleDecideReviewItem(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, ErrorResponse{Error: err.Error()})
 	}
 
-	// Process side effects (termbase creation, rejected terms, DNT entries).
+	// Process side effects (terms creation, rejected terms, DNT entries).
 	wsSlug, _ := c.Get("workspace_slug").(string)
 	go s.processDecisionSideEffects(context.WithoutCancel(ctx), item, wsSlug)
 

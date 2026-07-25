@@ -48,7 +48,7 @@ kapi exec recycle src/locales/en.json --target-lang fr
 **Keep terminology and quality consistent** — import the glossary once, then gate:
 
 ```bash
-kapi termbase import glossary.csv --name product-terms --format csv --header -s en -t fr
+kapi terms import glossary.csv --name product-terms --format csv --header -s en -t fr
 kapi check src/locales/en.json --target src/locales/fr.json --target-lang fr
 ```
 

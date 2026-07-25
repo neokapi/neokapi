@@ -1,5 +1,5 @@
 /**
- * ConceptCard — displays a termbase concept with reference term, target terms,
+ * ConceptCard — displays a terms store concept with reference term, target terms,
  * and action buttons. Built on shadcn Card/Badge/Button primitives.
  *
  * The reference (source) language term is shown prominently at the top.

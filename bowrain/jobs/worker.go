@@ -70,12 +70,12 @@ type WorkerDeps struct {
 	// unavailable dependency before it is failed. Zero uses
 	// defaultMaxJobDeferrals.
 	MaxJobDeferrals int
-	// TMResolver returns the project's server TM for a workspace, so a
+	// MemoryResolver returns the project's server content memory for a workspace, so a
 	// convergence translation job can recycle exact/near-exact matches before
-	// paying for AI (TM-first convergence). Optional; when nil the job falls
+	// paying for AI (content memory-first convergence). Optional; when nil the job falls
 	// back to the previous AI-only behavior. Mirrors the server's per-workspace
-	// workspaceStores.getTM.
-	TMResolver TMResolver
+	// workspaceStores.getMemory.
+	MemoryResolver MemoryResolver
 	// BrandStore reads brand voice profiles so a translation job carries the
 	// project's brand voice into the AI prompt — parity with the CLI flow's
 	// brand binding. Optional; nil translates without brand voice.
@@ -85,10 +85,10 @@ type WorkerDeps struct {
 	// project/stream/collection binding overrides. Optional; nil skips the
 	// workspace rung.
 	WorkspaceDefault brandscope.WorkspaceDefault
-	// TBResolver returns the workspace termbase so a translation job carries
+	// TermsResolver returns the workspace terms so a translation job carries
 	// the project's terminology as a prompt glossary — parity with the CLI
-	// flow's termbase binding. Optional; nil translates without a glossary.
-	TBResolver TBResolver
+	// flow's terms binding. Optional; nil translates without a glossary.
+	TermsResolver TermsResolver
 	// ConnectorFetcher performs the fetch+store for durable forge-ingest jobs
 	// (webhook/bind-triggered source ingests enqueued by the server). The
 	// worker wires a store-backed fetcher that instantiates connectors on
@@ -480,31 +480,31 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		return voiceProfile
 	}
 
-	// TM-first convergence (theme A). Before paying for AI, recycle exact/
-	// near-exact matches from the project's server TM — mirroring the built-in
+	// content memory-first convergence (theme A). Before paying for AI, recycle exact/
+	// near-exact matches from the project's server content memory — mirroring the built-in
 	// `translate` flow's recycle→translate ordering. Only the blocks with no
-	// usable TM match go to the AI translator below; the TM-filled ones are
-	// persisted straight away. tmFilled feeds the truthful ViaTM report.
-	tmFilled := 0
-	tm := resolveJobTM(deps, job)
+	// usable content-memory match go to the AI translator below; the content memory-filled ones are
+	// persisted straight away. memoryFilled feeds the truthful ViaMemory report.
+	memoryFilled := 0
+	tm := resolveJobMemory(deps, job)
 	if tm != nil {
-		res, rerr := recycleBlocks(ctx, tm, storedBlocks, srcLocale, tgtLocale, projectTMMinScore(proj))
+		res, rerr := recycleBlocks(ctx, tm, storedBlocks, srcLocale, tgtLocale, projectMemoryMinScore(proj))
 		if rerr != nil {
-			// A TM failure must never block the paid translation path — fall
+			// A content memory failure must never block the paid translation path — fall
 			// back to translating everything, exactly as before.
-			slog.WarnContext(ctx, "TM recycle failed; falling back to AI-only", "job_id", job.ID, "error", rerr)
+			slog.WarnContext(ctx, "content memory recycle failed; falling back to AI-only", "job_id", job.ID, "error", rerr)
 		} else {
-			tmFilled = res.tmCount
+			memoryFilled = res.memoryCount
 			if len(res.filled) > 0 {
 				if err := deps.ContentStore.StoreBlocks(ctx, job.ProjectID, "main", res.filled); err != nil {
 					return fmt.Errorf("store recycled blocks: %w", err)
 				}
 				emitLog(deps, job.StepID, "info",
-					fmt.Sprintf("Recycled %d block(s) from TM (skipping AI)", tmFilled),
-					map[string]string{"via_tm": strconv.Itoa(tmFilled)})
+					fmt.Sprintf("Recycled %d block(s) from content memory (skipping AI)", memoryFilled),
+					map[string]string{"via_tm": strconv.Itoa(memoryFilled)})
 				// Score the recycled drafts against the standing voice profile
 				// (deterministic vocabulary check, zero AI) so the on-brand
-				// rate covers TM output too.
+				// rate covers content memory output too.
 				persistDraftVoiceScores(ctx, deps, job, draftProfile(), res.filled, tgtLocale)
 			}
 			// Rebuild the stored-block slice for the AI loop as the remainder —
@@ -516,11 +516,11 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		}
 	}
 
-	// Record the TM/AI split truthfully on the job so the convergence produce
-	// emitter can report "TM N · AI M" (theme A2). aiFilled is the remainder
+	// Record the content memory/AI split truthfully on the job so the convergence produce
+	// emitter can report "content memory N · AI M" (theme A2). aiFilled is the remainder
 	// the AI loop below translates.
-	if err := deps.JobStore.UpdateJobTMSplit(ctx, job.ID, epoch, tmFilled, totalBlocks); err != nil {
-		slog.WarnContext(ctx, "record TM/AI split failed", "job_id", job.ID, "error", err)
+	if err := deps.JobStore.UpdateJobMemorySplit(ctx, job.ID, epoch, memoryFilled, totalBlocks); err != nil {
+		slog.WarnContext(ctx, "record content memory/AI split failed", "job_id", job.ID, "error", err)
 	}
 
 	// Nothing left for AI (everything recycled or already translated): done.
@@ -673,12 +673,12 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		// vocabulary check, zero AI) so the dashboard's on-brand rate is
 		// voice-informed for every drafted block.
 		persistDraftVoiceScores(ctx, deps, job, draftProfile(), blocks, tgtLocale)
-		// Write the AI drafts back to the project TM (theme A2) so sibling
+		// Write the AI drafts back to the project content memory (theme A2) so sibling
 		// locales, re-runs, and future pushes recycle instead of re-paying.
 		// Draft origin lets a later review approval upgrade the same entry.
 		if tm != nil {
-			if n := seedTMFromBlocks(ctx, tm, blocks, job.ProjectID, srcLocale, tgtLocale, "ai-draft", job.ID); n > 0 {
-				slog.InfoContext(ctx, "seeded TM from AI drafts", "job_id", job.ID, "entries", n)
+			if n := seedMemoryFromBlocks(ctx, tm, blocks, job.ProjectID, srcLocale, tgtLocale, "ai-draft", job.ID); n > 0 {
+				slog.InfoContext(ctx, "seeded content memory from AI drafts", "job_id", job.ID, "entries", n)
 			}
 		}
 	}

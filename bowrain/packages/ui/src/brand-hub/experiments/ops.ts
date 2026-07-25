@@ -20,7 +20,7 @@ import type {
 } from "../../types/brand-graph";
 
 // ── Governed classification ──────────────────────────────────────────────────
-// Mirrors knowledge.IsGovernedOp + termbase.IsGovernedTransition (Go) so the UI
+// Mirrors knowledge.IsGovernedOp + terms.IsGovernedTransition (Go) so the UI
 // badges the same ops the server gates. A governed op only reaches the live
 // graph through a reviewed change-set with an approval from a second person.
 

@@ -43,14 +43,14 @@ export interface ResourceBrowserProps {
 }
 
 const kindLabels: Record<ResourceKind, string> = {
-  tm: "Translation Memories",
-  termbase: "Termbases",
+  tm: "Content Memories",
+  terms: "Termbases",
   srx: "Segmentation Rules",
 };
 
 const kindPrefixes: Record<ResourceKind, string> = {
   tm: "tm:",
-  termbase: "termbase:",
+  terms: "terms:",
   srx: "srx:",
 };
 

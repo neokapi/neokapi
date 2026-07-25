@@ -11,7 +11,7 @@ import (
 // anchor facet, AD-002) and a source Origin{Kind: asr, Confidence} — the audio
 // counterpart of vision.BlocksFromOCR. IDs are allocated from counter (advanced
 // in place) so they stay unique across inputs. Empty segments are skipped. The
-// blocks feed the normal block path (TM, AI translate, …) and round-trip into a
+// blocks feed the normal block path (content memory, AI translate, …) and round-trip into a
 // timed-text writer (WebVTT/SubRip/TTML) via the timing anchor.
 func BlocksFromASR(res *Result, counter *int) []*model.Block {
 	if res == nil {

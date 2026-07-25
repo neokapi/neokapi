@@ -12,7 +12,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // TermInfo is the frontend-facing representation of a term.
@@ -79,17 +79,22 @@ type UpdateConceptRequest struct {
 	Terms      []TermInfo `json:"terms"`
 }
 
-// getOrCreateTB lazily initializes the app-level persistent SQLite termbase.
-func (a *App) getOrCreateTB() (*termbase.SQLiteTermBase, error) {
+// getOrCreateTB lazily initializes the app-level persistent SQLite terms store.
+func (a *App) getOrCreateTB() (*terms.SQLiteStore, error) {
 	if a.tb != nil {
 		return a.tb, nil
 	}
+	// The directory name stays "termbase": every existing install already has
+	// its .db files there, and this path is not versioned or migrated. Renaming
+	// it would silently orphan them and present an empty terms list. Prose says
+	// "terms"; the on-disk layout keeps its original name. The content-memory
+	// sibling in tm.go keeps "tm" for the same reason.
 	tbDir := filepath.Join(desktopConfigDir(), "termbase")
 	if err := os.MkdirAll(tbDir, 0755); err != nil {
-		return nil, fmt.Errorf("create termbase dir: %w", err)
+		return nil, fmt.Errorf("create terms dir: %w", err)
 	}
 	tbPath := filepath.Join(tbDir, "default.db")
-	tb, err := termbase.NewSQLiteTermBase(tbPath)
+	tb, err := terms.NewSQLiteStore(tbPath)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +102,7 @@ func (a *App) getOrCreateTB() (*termbase.SQLiteTermBase, error) {
 	return tb, nil
 }
 
-func conceptToInfo(c termbase.Concept) ConceptInfo {
+func conceptToInfo(c terms.Concept) ConceptInfo {
 	terms := make([]TermInfo, len(c.Terms))
 	for i, t := range c.Terms {
 		terms[i] = TermInfo{
@@ -120,10 +125,10 @@ func conceptToInfo(c termbase.Concept) ConceptInfo {
 	}
 }
 
-func termsFromInfo(terms []TermInfo) []termbase.Term {
-	result := make([]termbase.Term, len(terms))
-	for i, t := range terms {
-		result[i] = termbase.Term{
+func termsFromInfo(infos []TermInfo) []terms.Term {
+	result := make([]terms.Term, len(infos))
+	for i, t := range infos {
+		result[i] = terms.Term{
 			Text:         t.Text,
 			Locale:       model.LocaleID(t.Locale),
 			Status:       model.TermStatus(t.Status),
@@ -138,7 +143,7 @@ func termsFromInfo(terms []TermInfo) []termbase.Term {
 	return result
 }
 
-// GetTerms searches the termbase.
+// GetTerms searches the terms store.
 func (a *App) GetTerms(projectID, query, sourceLocale, targetLocale string, offset, limit int) (*TermSearchResult, error) {
 	if a.isConnected() {
 		client, ws := a.editorRemote()
@@ -151,7 +156,7 @@ func (a *App) GetTerms(projectID, query, sourceLocale, targetLocale string, offs
 	}
 	tb, err := a.getOrCreateTB()
 	if err != nil {
-		return nil, fmt.Errorf("init termbase: %w", err)
+		return nil, fmt.Errorf("init terms: %w", err)
 	}
 	results, total, err := tb.Search(context.Background(), query, model.LocaleID(sourceLocale), model.LocaleID(targetLocale), offset, limit)
 	if err != nil {
@@ -167,7 +172,7 @@ func (a *App) GetTerms(projectID, query, sourceLocale, targetLocale string, offs
 	}, nil
 }
 
-// GetTermCount returns the total number of concepts in the termbase.
+// GetTermCount returns the total number of concepts in the terms store.
 func (a *App) GetTermCount(projectID string) (int, error) {
 	if a.isConnected() {
 		client, ws := a.editorRemote()
@@ -180,12 +185,12 @@ func (a *App) GetTermCount(projectID string) (int, error) {
 	}
 	tb, err := a.getOrCreateTB()
 	if err != nil {
-		return 0, fmt.Errorf("init termbase: %w", err)
+		return 0, fmt.Errorf("init terms: %w", err)
 	}
 	return tb.Count(context.Background())
 }
 
-// AddConcept adds a new concept to the termbase.
+// AddConcept adds a new concept to the terms store.
 func (a *App) AddConcept(req AddConceptRequest) (*ConceptInfo, error) {
 	return writeThroughResult(a, addConceptOp{req},
 		func() (*ConceptInfo, error) {
@@ -205,9 +210,9 @@ func (a *App) AddConcept(req AddConceptRequest) (*ConceptInfo, error) {
 func (a *App) addConceptLocal(req AddConceptRequest) (*ConceptInfo, error) {
 	tb, err := a.getOrCreateTB()
 	if err != nil {
-		return nil, fmt.Errorf("init termbase: %w", err)
+		return nil, fmt.Errorf("init terms: %w", err)
 	}
-	concept := termbase.Concept{
+	concept := terms.Concept{
 		ID:         id.New(),
 		Domain:     req.Domain,
 		Definition: req.Definition,
@@ -224,8 +229,8 @@ func (a *App) addConceptLocal(req AddConceptRequest) (*ConceptInfo, error) {
 	return &info, nil
 }
 
-// UpdateConcept updates an existing concept in the termbase. The server is
-// authoritative for the termbase, so a successful online update skips the local
+// UpdateConcept updates an existing concept in the terms store. The server is
+// authoritative for the terms store, so a successful online update skips the local
 // mirror; the local write runs only offline (queued for replay) or in pure
 // local mode.
 func (a *App) UpdateConcept(req UpdateConceptRequest) error {
@@ -238,9 +243,9 @@ func (a *App) UpdateConcept(req UpdateConceptRequest) error {
 		func() error {
 			tb, err := a.getOrCreateTB()
 			if err != nil {
-				return fmt.Errorf("init termbase: %w", err)
+				return fmt.Errorf("init terms: %w", err)
 			}
-			concept := termbase.Concept{
+			concept := terms.Concept{
 				ID:         req.ConceptID,
 				Domain:     req.Domain,
 				Definition: req.Definition,
@@ -251,7 +256,7 @@ func (a *App) UpdateConcept(req UpdateConceptRequest) error {
 	)
 }
 
-// DeleteConcept removes a concept from the termbase.
+// DeleteConcept removes a concept from the terms store.
 func (a *App) DeleteConcept(projectID, conceptID string) error {
 	return a.writeThroughVoid(deleteConceptOp{ConceptID: conceptID},
 		func() error {
@@ -262,7 +267,7 @@ func (a *App) DeleteConcept(projectID, conceptID string) error {
 		func() error {
 			tb, err := a.getOrCreateTB()
 			if err != nil {
-				return fmt.Errorf("init termbase: %w", err)
+				return fmt.Errorf("init terms: %w", err)
 			}
 			return tb.DeleteConcept(context.Background(), conceptID)
 		},
@@ -273,9 +278,9 @@ func (a *App) DeleteConcept(projectID, conceptID string) error {
 func (a *App) LookupTerms(projectID, text, sourceLocale, targetLocale string) (*TermLookupResult, error) {
 	tb, err := a.getOrCreateTB()
 	if err != nil {
-		return nil, fmt.Errorf("init termbase: %w", err)
+		return nil, fmt.Errorf("init terms: %w", err)
 	}
-	matches, err := tb.LookupAll(context.Background(), text, termbase.LookupOptions{
+	matches, err := tb.LookupAll(context.Background(), text, terms.LookupOptions{
 		SourceLocale: model.LocaleID(sourceLocale),
 	})
 	if err != nil {
@@ -308,7 +313,7 @@ func (a *App) LookupTerms(projectID, text, sourceLocale, targetLocale string) (*
 	return &TermLookupResult{Matches: infos}, nil
 }
 
-// ImportTermsCSV imports terms from CSV content into the termbase.
+// ImportTermsCSV imports terms from CSV content into the terms store.
 func (a *App) ImportTermsCSV(projectID, csvContent, sourceLocale, targetLocale, domain string, hasHeader bool) (int, error) {
 	if a.isConnected() {
 		client, ws := a.editorRemote()
@@ -321,9 +326,9 @@ func (a *App) ImportTermsCSV(projectID, csvContent, sourceLocale, targetLocale, 
 	}
 	tb, err := a.getOrCreateTB()
 	if err != nil {
-		return 0, fmt.Errorf("init termbase: %w", err)
+		return 0, fmt.Errorf("init terms: %w", err)
 	}
-	count, err := termbase.ImportCSV(context.Background(), tb, strings.NewReader(csvContent), termbase.CSVImportOptions{
+	count, err := terms.ImportCSV(context.Background(), tb, strings.NewReader(csvContent), terms.CSVImportOptions{
 		SourceLocale: model.LocaleID(sourceLocale),
 		TargetLocale: model.LocaleID(targetLocale),
 		Domain:       domain,
@@ -336,7 +341,7 @@ func (a *App) ImportTermsCSV(projectID, csvContent, sourceLocale, targetLocale, 
 	return count, nil
 }
 
-// ImportTermsJSON imports terms from JSON content into the termbase.
+// ImportTermsJSON imports terms from JSON content into the terms store.
 func (a *App) ImportTermsJSON(projectID, jsonContent string) (int, error) {
 	if a.isConnected() {
 		client, ws := a.editorRemote()
@@ -349,9 +354,9 @@ func (a *App) ImportTermsJSON(projectID, jsonContent string) (int, error) {
 	}
 	tb, err := a.getOrCreateTB()
 	if err != nil {
-		return 0, fmt.Errorf("init termbase: %w", err)
+		return 0, fmt.Errorf("init terms: %w", err)
 	}
-	count, err := termbase.ImportJSON(context.Background(), tb, strings.NewReader(jsonContent))
+	count, err := terms.ImportJSON(context.Background(), tb, strings.NewReader(jsonContent))
 	if err != nil {
 		return 0, fmt.Errorf("import JSON: %w", err)
 	}
@@ -359,7 +364,7 @@ func (a *App) ImportTermsJSON(projectID, jsonContent string) (int, error) {
 	return count, nil
 }
 
-// ExportTermsJSON exports the termbase as JSON.
+// ExportTermsJSON exports the terms store as JSON.
 func (a *App) ExportTermsJSON(projectID, name string) (string, error) {
 	if a.isConnected() {
 		client, ws := a.editorRemote()
@@ -372,10 +377,10 @@ func (a *App) ExportTermsJSON(projectID, name string) (string, error) {
 	}
 	tb, err := a.getOrCreateTB()
 	if err != nil {
-		return "", fmt.Errorf("init termbase: %w", err)
+		return "", fmt.Errorf("init terms: %w", err)
 	}
 	var buf bytes.Buffer
-	if err := termbase.ExportJSON(context.Background(), tb, &buf, name); err != nil {
+	if err := terms.ExportJSON(context.Background(), tb, &buf, name); err != nil {
 		return "", fmt.Errorf("export JSON: %w", err)
 	}
 
@@ -413,7 +418,7 @@ func (a *App) termEnforceItemLocal(projectID, itemName, targetLocale string) ([]
 
 	tb, err := a.getOrCreateTB()
 	if err != nil {
-		return nil, fmt.Errorf("init termbase: %w", err)
+		return nil, fmt.Errorf("init terms: %w", err)
 	}
 	if count, cerr := tb.Count(ctx); cerr != nil {
 		return nil, cerr
@@ -433,7 +438,7 @@ func (a *App) termEnforceItemLocal(projectID, itemName, targetLocale string) ([]
 	tgtLocale := model.LocaleID(targetLocale)
 
 	parts := storedBlocksToParts(storedBlocks)
-	enforceTool := termbase.NewTermEnforceTool(tb, termbase.TermEnforceConfig{
+	enforceTool := terms.NewTermEnforceTool(tb, terms.TermEnforceConfig{
 		SourceLocale: srcLocale,
 		TargetLocale: tgtLocale,
 	})
@@ -444,7 +449,7 @@ func (a *App) termEnforceItemLocal(projectID, itemName, targetLocale string) ([]
 
 	var results []TermEnforceResult
 	for _, block := range partsToBlocks(outParts) {
-		for _, v := range termbase.ViolationsFromBlock(block) {
+		for _, v := range terms.ViolationsFromBlock(block) {
 			results = append(results, TermEnforceResult{
 				BlockID:      block.ID,
 				SourceTerm:   v.SourceTerm,

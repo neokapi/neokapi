@@ -62,7 +62,7 @@ actually shipped, verified against code:
   (server) behaviour.
 - **Server convergence is TM-first with a truthful split.** `recycleBlocks`
   recycles before AI and `reconcileSplit` (`convergence_orchestrator.go`) makes
-  `ViaTM + ViaAI = Done`, so the `TM N · AI M` report is truthful server-side.
+  `ViaMemory + ViaAI = Done`, so the `TM N · AI M` report is truthful server-side.
 - **Stall reasons** now include `source_not_ready` (`core/convergence/events.go`
   `StallSourceNotReady`); the run row carries a `blocked_on_source` count
   (`bowrain/store/convergence_run.go`). (`needs_source_review` was never added as
@@ -90,7 +90,7 @@ actually shipped, verified against code:
 - **Server convergence is not yet source-first, and its TM split is not
   truthful.** PR #1312 added a recycle stage server-side (`recycleBlocks`,
   `bowrain/jobs/worker.go`), but `produceFunc` still attributes produced units
-  to AI (`ViaTM` unknown server-side, `convergence_orchestrator.go`). The
+  to AI (`ViaMemory` unknown server-side, `convergence_orchestrator.go`). The
   source-review automation exists (`create_source_review`, title *"Review source
   content before translation"*, `bowrain/server/automation.go`) and the
   `EventSourceReviewCompleted` event exists, but convergence-on-push does not
@@ -148,7 +148,7 @@ loop pages.
 | `architecture-decisions/022-convergence-as-a-service.md` (AD-022) | **Done** | Predated source-first: no source-settle phase, no `source_not_ready` stall. | **Done in the follow-up PR:** added decision *1a* (settle → gate → translate approved source), `source_not_ready` + `blocked_on_source` on the run entity, and the estimate endpoint. |
 | `architecture-decisions/014-translator-workflow.md` (AD-014) | **Done** | Documented the source-review gate as an *optional*/bypassed automation option. | **Done in the follow-up PR:** reconciled with AD-022 — the source gate is convergence-enforced (one story); `TaskSourceReview` is the human half of the `source_not_ready` hold. |
 | `architecture-decisions/013-automation-engine.md` (AD-013) | **Done** | `fan-out-after-source-review` default rule; defers to AD-014. | **Done in the follow-up PR:** reframed the rule as "resume a held run"; the on-push note now describes the source-first hold. |
-| `architecture-decisions/015-server-ai-operations.md` (AD-015) | Correct | Translation jobs, extraction, brand voice. | **Done (neokapi#1323):** the produce/worker description now includes the TM-first recycle step and truthful `ViaTM`/`ViaAI` split. |
+| `architecture-decisions/015-server-ai-operations.md` (AD-015) | Correct | Translation jobs, extraction, brand voice. | **Done (neokapi#1323):** the produce/worker description now includes the TM-first recycle step and truthful `ViaMemory`/`ViaAI` split. |
 | `notes/translator-workflow.md` | Accurate | Implementation detail for AD-014 (events, tasks, tracker). | No change; update alongside AD-022 reconciliation. |
 | `notes/translation-job-queue.md` | Correct | Job model, quotas, worker algorithm. | **Done (neokapi#1323):** the TM-first split section reflects `recycleBlocks` + `reconcileSplit`. |
 
@@ -171,7 +171,7 @@ No conversions needed.
    site in this PR (the explainer + `GatedLoopDiagram`); the bowrain venue
    framing is a follow-up gated on phase E.
 2. **Server TM-first is over-claimed.** Docs imply a truthful `TM N · AI M`
-   server-side; `produceFunc` still attributes to AI (`ViaTM` unknown). Soften
+   server-side; `produceFunc` still attributes to AI (`ViaMemory` unknown). Soften
    until #1312's split is real, or scope the truthful-split claim to the CLI.
 3. **Source-review as a first-class surface is undocumented on the user side.**
    The machinery exists (`create_source_review`, `TaskSourceReview`) but no

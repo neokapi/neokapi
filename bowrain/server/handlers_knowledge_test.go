@@ -21,12 +21,12 @@ import (
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // These tests exercise the brand knowledge-graph REST handlers (AD-021) in-session
 // — without a PostgreSQL container — by driving the echo handlers directly with a
-// fake knowledge.Store and an in-memory workspace termbase. They cover the parts
+// fake knowledge.Store and an in-memory workspace terms. They cover the parts
 // of the surface that are decidable at the handler layer: route registration,
 // permission gating, DTO bind/validate, governed-edit 409s on the direct path,
 // the separation-of-duties self-review refusal, and graceful 503s when the graph
@@ -35,7 +35,7 @@ import (
 
 const kgTestWS = "ws-kg"
 
-// kgHarness wires a server with an in-memory termbase and a fake knowledge store,
+// kgHarness wires a server with an in-memory terms and a fake knowledge store,
 // so the concept and change-set handlers run with no database.
 type kgHarness struct {
 	srv  *Server
@@ -45,8 +45,8 @@ type kgHarness struct {
 func newKGHarness(t *testing.T) *kgHarness {
 	t.Helper()
 	srv := shutdownOnCleanup(t, NewServer(DefaultConfig()))
-	srv.wsStores.tbFactory = func() termbase.TBStore {
-		return &testTermStore{termbase.NewInMemoryTermBase()}
+	srv.wsStores.tbFactory = func() terms.Store {
+		return &testTermStore{terms.NewInMemoryStore()}
 	}
 	fake := newFakeKnowledgeStore()
 	srv.KnowledgeStore = fake
@@ -56,7 +56,7 @@ func newKGHarness(t *testing.T) *kgHarness {
 // req builds an echo context for a knowledge route with the given permissions and
 // the standard workspace context. params are name/value pairs for the route's path
 // parameters (":ws", ":cid", ":id", …). The "ws" path param is always set to
-// kgTestWS so it keys the same in-memory termbase the test seeds.
+// kgTestWS so it keys the same in-memory terms the test seeds.
 func (h *kgHarness) req(method, target, body string, perms platauth.Permission, params ...string) (echo.Context, *httptest.ResponseRecorder) {
 	var r io.Reader
 	if body != "" {
@@ -82,9 +82,9 @@ func (h *kgHarness) req(method, target, body string, perms platauth.Permission, 
 	return c, rec
 }
 
-// tb returns the in-memory workspace termbase the handlers resolve for kgTestWS,
+// tb returns the in-memory workspace terms the handlers resolve for kgTestWS,
 // so a test can seed concepts and relations the handlers will read.
-func (h *kgHarness) tb(t *testing.T) termbase.TBStore {
+func (h *kgHarness) tb(t *testing.T) terms.Store {
 	t.Helper()
 	tb, err := h.srv.wsStores.getTB(kgTestWS)
 	require.NoError(t, err)
@@ -256,10 +256,10 @@ func TestConceptGovernedConflicts(t *testing.T) {
 
 	t.Run("transitioning a term to forbidden is governed", func(t *testing.T) {
 		// Seed a concept whose term is an acceptable alternative (ordinary).
-		seed := termbase.Concept{
+		seed := terms.Concept{
 			ID:     "c-gov",
 			Domain: "d",
-			Terms: []termbase.Term{
+			Terms: []terms.Term{
 				{Text: "utilize", Locale: "en", Status: model.TermAdmitted},
 			},
 			CreatedAt: time.Now(), UpdatedAt: time.Now(),
@@ -273,10 +273,10 @@ func TestConceptGovernedConflicts(t *testing.T) {
 	})
 
 	t.Run("ordinary update lands directly", func(t *testing.T) {
-		seed := termbase.Concept{
+		seed := terms.Concept{
 			ID:     "c-ord",
 			Domain: "d",
-			Terms: []termbase.Term{
+			Terms: []terms.Term{
 				{Text: "dashboard", Locale: "en", Status: model.TermAdmitted},
 			},
 			CreatedAt: time.Now(), UpdatedAt: time.Now(),
@@ -305,9 +305,9 @@ func TestConceptGovernedConflicts(t *testing.T) {
 	t.Run("ordinary relation lands directly", func(t *testing.T) {
 		// A relation needs both endpoint concepts to exist.
 		for _, cid := range []string{"c1", "c2"} {
-			require.NoError(t, h.tb(t).AddConcept(ctx, termbase.Concept{
+			require.NoError(t, h.tb(t).AddConcept(ctx, terms.Concept{
 				ID: cid, Domain: "d",
-				Terms:     []termbase.Term{{Text: cid, Locale: "en", Status: model.TermAdmitted}},
+				Terms:     []terms.Term{{Text: cid, Locale: "en", Status: model.TermAdmitted}},
 				CreatedAt: time.Now(), UpdatedAt: time.Now(),
 			}))
 		}

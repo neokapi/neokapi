@@ -18,13 +18,13 @@ const meta: Meta<typeof ResourcePicker> = {
 export default meta;
 type Story = StoryObj<typeof ResourcePicker>;
 
-const sampleTMs = [
+const sampleMemories = [
   { name: "project-memory", entryCount: 12450 },
   { name: "legacy-tm", entryCount: 85000 },
   { name: "small-test", entryCount: 120 },
 ];
 
-const sampleTermbases = [
+const sampleTerms = [
   { name: "glossary", entryCount: 340 },
   { name: "brand-terms", entryCount: 52 },
 ];
@@ -38,7 +38,7 @@ function StatefulPicker(props: Omit<ResourcePickerProps, "onChange">) {
 
 export const Default: Story = {
   render: () => (
-    <StatefulPicker value="" label="Content memory" resourceKind="tm" resources={sampleTMs} />
+    <StatefulPicker value="" label="Content memory" resourceKind="tm" resources={sampleMemories} />
   ),
 };
 
@@ -48,7 +48,7 @@ export const WithNamedResource: Story = {
       value="tm:project-memory"
       label="Content memory"
       resourceKind="tm"
-      resources={sampleTMs}
+      resources={sampleMemories}
       resolvedPath="~/.config/kapi/tm/project-memory.db"
     />
   ),
@@ -60,19 +60,19 @@ export const WithFilePath: Story = {
       value="./resources/my-tm.db"
       label="Content memory"
       resourceKind="tm"
-      resources={sampleTMs}
+      resources={sampleMemories}
       resolvedPath="/home/user/project/resources/my-tm.db"
     />
   ),
 };
 
-export const TermbaseKind: Story = {
+export const TermsKind: Story = {
   render: () => (
     <StatefulPicker
-      value="termbase:glossary"
+      value="terms:glossary"
       label="Terminology"
-      resourceKind="termbase"
-      resources={sampleTermbases}
+      resourceKind="terms"
+      resources={sampleTerms}
       resolvedPath="~/.config/kapi/termbases/glossary.db"
     />
   ),
@@ -98,10 +98,10 @@ export const DirectoryType: Story = {
   render: () => (
     <StatefulPicker
       value=""
-      label="TM Directory"
+      label="content memory Directory"
       resourceKind="tm"
       pathType="directory"
-      resources={sampleTMs}
+      resources={sampleMemories}
     />
   ),
 };
@@ -123,7 +123,7 @@ export const Disabled: Story = {
       value="tm:project-memory"
       label="Content memory"
       resourceKind="tm"
-      resources={sampleTMs}
+      resources={sampleMemories}
       disabled
     />
   ),

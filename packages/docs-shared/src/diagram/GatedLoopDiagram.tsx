@@ -22,7 +22,7 @@ import "./diagram.css";
           },
           {
             kind: "phase", role: "translate", label: "translate approved source",
-            steps: ["recycle (TM-first)", "AI remainder", "target QA"],
+            steps: ["recycle (content memory-first)", "AI remainder", "target QA"],
           },
           {
             kind: "gate", label: "target ship-gate", sub: "ship_gate",

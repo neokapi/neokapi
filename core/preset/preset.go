@@ -25,10 +25,10 @@ type FrameworkPreset struct {
 	// defaults.brand_voice.profile_file — a project-local brand voice profile
 	// the stack conventionally commits (e.g. i18n/brand-voice.yaml).
 	BrandVoiceProfile string
-	// TermbaseSource, when non-empty, is scaffolded as defaults.termbase_source
-	// — the committed, git-tracked native termbase the project compiles its
+	// TermsSource, when non-empty, is scaffolded as defaults.termbase_source
+	// — the committed, git-tracked native terms the project compiles its
 	// glossary from (e.g. i18n/termbase.ktb).
-	TermbaseSource string
+	TermsSource string
 }
 
 // MappingTemplate is a mapping entry from a framework preset.

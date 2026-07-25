@@ -316,13 +316,13 @@ export function ReviewSession({
     [api, project.id],
   );
 
-  // Promote a marked source entity to a termbase concept (RV-F piece 3). The
+  // Promote a marked source entity to a terms store concept (RV-F piece 3). The
   // resulting concept.created flows into the governed terminology re-check.
   const promoteEntity = useCallback(
     async (entry: ReviewEntry, entityKey: string) => {
       try {
         await api.promoteEntityToConcept(project.id, entry.itemName, entry.block.id, entityKey);
-        setMessage("Promoted to a termbase concept.");
+        setMessage("Promoted to a terms store concept.");
       } catch (e) {
         setActionError(e);
       }

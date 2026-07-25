@@ -128,7 +128,7 @@ function renderGlossary(data: any): string {
     .join("");
   return SHELL(
     "Glossary",
-    `<h1>Approved terminology</h1><div class="sub">kapi termbase · the wording every translation must use</div>
+    `<h1>Approved terminology</h1><div class="sub">kapi terms · the wording every translation must use</div>
      <div class="card"><table><thead><tr><th>Source (en)</th><th></th><th>Approved term</th></tr></thead>
        <tbody>${rows}</tbody></table></div>`,
   );

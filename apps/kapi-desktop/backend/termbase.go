@@ -10,12 +10,12 @@ import (
 
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // --- DTOs ---
 
-// ConceptDTO is the frontend-facing termbase concept.
+// ConceptDTO is the frontend-facing terms concept.
 type ConceptDTO struct {
 	ID         string            `json:"id"`
 	ProjectID  string            `json:"project_id"`
@@ -48,8 +48,8 @@ type TermSearchResult struct {
 	TotalCount int          `json:"total_count"`
 }
 
-// TermbaseStats is the stats response for an open termbase.
-type TermbaseStats struct {
+// TermsStats is the stats response for an open terms.
+type TermsStats struct {
 	Count int    `json:"count"`
 	Path  string `json:"path"`
 }
@@ -73,7 +73,7 @@ type UpdateConceptRequest struct {
 
 // --- Conversion helpers ---
 
-func conceptToDTO(c termbase.Concept) ConceptDTO {
+func conceptToDTO(c terms.Concept) ConceptDTO {
 	terms := make([]TermDTO, 0, len(c.Terms))
 	for _, t := range c.Terms {
 		terms = append(terms, TermDTO{
@@ -100,10 +100,10 @@ func conceptToDTO(c termbase.Concept) ConceptDTO {
 	}
 }
 
-func dtoToTerms(dtos []TermDTO) []termbase.Term {
-	terms := make([]termbase.Term, 0, len(dtos))
+func dtoToTerms(dtos []TermDTO) []terms.Term {
+	ts := make([]terms.Term, 0, len(dtos))
 	for _, d := range dtos {
-		terms = append(terms, termbase.Term{
+		ts = append(ts, terms.Term{
 			Text:           d.Text,
 			Locale:         model.LocaleID(d.Locale),
 			Status:         model.TermStatus(d.Status),
@@ -114,29 +114,29 @@ func dtoToTerms(dtos []TermDTO) []termbase.Term {
 			Validity:       validityFromDTO(d.Validity),
 		})
 	}
-	return terms
+	return ts
 }
 
 // --- Resource discovery ---
 
-// ListNamedTermbases returns named termbases from KAPI_HOME/termbases/.
-func (a *App) ListNamedTermbases() []ResourceInfo {
+// ListNamedTerms returns named terms stores from KAPI_HOME/termbases/.
+func (a *App) ListNamedTerms() []ResourceInfo {
 	return listNamedResources("termbases")
 }
 
 // --- Lifecycle ---
 
-// OpenTermbase opens a SQLite termbase file and returns a handle ID.
-func (a *App) OpenTermbase(path string) (string, error) {
-	tb, err := termbase.NewSQLiteTermBase(path)
+// OpenTerms opens a SQLite terms file and returns a handle ID.
+func (a *App) OpenTerms(path string) (string, error) {
+	tb, err := terms.NewSQLiteStore(path)
 	if err != nil {
-		return "", fmt.Errorf("open termbase %q: %w", path, err)
+		return "", fmt.Errorf("open terms %q: %w", path, err)
 	}
 	return a.tbHandles.Open(tb), nil
 }
 
-// OpenTermbaseDialog shows a native file dialog to open a termbase.
-func (a *App) OpenTermbaseDialog() (string, error) {
+// OpenTermsDialog shows a native file dialog to open a terms store.
+func (a *App) OpenTermsDialog() (string, error) {
 	if a.app == nil {
 		return "", nil
 	}
@@ -150,34 +150,34 @@ func (a *App) OpenTermbaseDialog() (string, error) {
 	if path == "" {
 		return "", nil
 	}
-	return a.OpenTermbase(path)
+	return a.OpenTerms(path)
 }
 
-// CreateTermbase creates a new empty termbase at the given path.
-func (a *App) CreateTermbase(path string) (string, error) {
+// CreateTerms creates a new empty terms at the given path.
+func (a *App) CreateTerms(path string) (string, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return "", fmt.Errorf("create directory: %w", err)
 	}
-	return a.OpenTermbase(path)
+	return a.OpenTerms(path)
 }
 
-// CreateNamedTermbase creates a new named termbase in KAPI_HOME/termbases/.
-func (a *App) CreateNamedTermbase(name string) (string, error) {
+// CreateNamedTerms creates a new named terms in KAPI_HOME/termbases/.
+func (a *App) CreateNamedTerms(name string) (string, error) {
 	dir := namedResourceDir("termbases")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", fmt.Errorf("create termbases directory: %w", err)
+		return "", fmt.Errorf("create terms stores directory: %w", err)
 	}
 	path := filepath.Join(dir, name+".db")
-	return a.OpenTermbase(path)
+	return a.OpenTerms(path)
 }
 
-// CloseTermbase closes an open termbase by handle.
-func (a *App) CloseTermbase(handle string) {
+// CloseTerms closes an open terms by handle.
+func (a *App) CloseTerms(handle string) {
 	_ = a.tbHandles.Close(handle)
 }
 
-// GetTermbaseStats returns stats for an open termbase.
-func (a *App) GetTermbaseStats(handle string) *TermbaseStats {
+// GetTermsStats returns stats for an open terms.
+func (a *App) GetTermsStats(handle string) *TermsStats {
 	tb, ok := a.tbHandles.Get(handle)
 	if !ok {
 		return nil
@@ -186,11 +186,11 @@ func (a *App) GetTermbaseStats(handle string) *TermbaseStats {
 	if err != nil {
 		return nil
 	}
-	return &TermbaseStats{Count: count}
+	return &TermsStats{Count: count}
 }
 
-// GetTermbaseActivityStats returns daily concept counts over time.
-func (a *App) GetTermbaseActivityStats(handle string) []termbase.ActivityStat {
+// GetTermsActivityStats returns daily concept counts over time.
+func (a *App) GetTermsActivityStats(handle string) []terms.ActivityStat {
 	tb, ok := a.tbHandles.Get(handle)
 	if !ok {
 		return nil
@@ -202,8 +202,8 @@ func (a *App) GetTermbaseActivityStats(handle string) []termbase.ActivityStat {
 	return stats
 }
 
-// GetTermbaseLocaleStats returns term counts grouped by locale.
-func (a *App) GetTermbaseLocaleStats(handle string) []termbase.LocaleStat {
+// GetTermsLocaleStats returns term counts grouped by locale.
+func (a *App) GetTermsLocaleStats(handle string) []terms.LocaleStat {
 	tb, ok := a.tbHandles.Get(handle)
 	if !ok {
 		return nil
@@ -217,7 +217,7 @@ func (a *App) GetTermbaseLocaleStats(handle string) []termbase.LocaleStat {
 
 // --- CRUD ---
 
-// SearchTerms searches termbase concepts by query with pagination.
+// SearchTerms searches terms concepts by query with pagination.
 func (a *App) SearchTerms(handle, query, srcLocale, tgtLocale string, offset, limit int) *TermSearchResult {
 	tb, ok := a.tbHandles.Get(handle)
 	if !ok {
@@ -248,18 +248,18 @@ func (a *App) GetConcept(handle, conceptID string) *ConceptDTO {
 	return &dto
 }
 
-// AddConcept adds a new concept to the termbase.
+// AddConcept adds a new concept to the terms store.
 func (a *App) AddConcept(handle string, req AddConceptRequest) error {
 	tb, ok := a.tbHandles.Get(handle)
 	if !ok {
-		return fmt.Errorf("termbase handle %q not found", handle)
+		return fmt.Errorf("terms handle %q not found", handle)
 	}
-	concept := termbase.Concept{
+	concept := terms.Concept{
 		ID:         id.New(),
 		ProjectID:  req.ProjectID,
 		Domain:     req.Domain,
 		Definition: req.Definition,
-		Source:     termbase.TermSourceTerminology,
+		Source:     terms.TermSourceTerminology,
 		Terms:      dtoToTerms(req.Terms),
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
@@ -271,7 +271,7 @@ func (a *App) AddConcept(handle string, req AddConceptRequest) error {
 func (a *App) UpdateConcept(handle string, req UpdateConceptRequest) error {
 	tb, ok := a.tbHandles.Get(handle)
 	if !ok {
-		return fmt.Errorf("termbase handle %q not found", handle)
+		return fmt.Errorf("terms handle %q not found", handle)
 	}
 	existing, found, err := tb.GetConcept(context.Background(), req.ConceptID)
 	if err != nil {
@@ -292,7 +292,7 @@ func (a *App) UpdateConcept(handle string, req UpdateConceptRequest) error {
 func (a *App) DeleteConcept(handle, conceptID string) error {
 	tb, ok := a.tbHandles.Get(handle)
 	if !ok {
-		return fmt.Errorf("termbase handle %q not found", handle)
+		return fmt.Errorf("terms handle %q not found", handle)
 	}
 	return tb.DeleteConcept(context.Background(), conceptID)
 }
@@ -301,7 +301,7 @@ func (a *App) DeleteConcept(handle, conceptID string) error {
 func (a *App) DeleteConcepts(handle string, conceptIDs []string) error {
 	tb, ok := a.tbHandles.Get(handle)
 	if !ok {
-		return fmt.Errorf("termbase handle %q not found", handle)
+		return fmt.Errorf("terms handle %q not found", handle)
 	}
 	for _, cid := range conceptIDs {
 		if err := tb.DeleteConcept(context.Background(), cid); err != nil {
@@ -313,14 +313,14 @@ func (a *App) DeleteConcepts(handle string, conceptIDs []string) error {
 
 // --- Import / Export ---
 
-// ImportTermbaseCSVDialog shows a file dialog and imports a CSV termbase.
-func (a *App) ImportTermbaseCSVDialog(handle, srcLocale, tgtLocale, domain string) (*ImportResult, error) {
+// ImportTermsCSVDialog shows a file dialog and imports a CSV terms.
+func (a *App) ImportTermsCSVDialog(handle, srcLocale, tgtLocale, domain string) (*ImportResult, error) {
 	if a.app == nil {
 		return nil, nil
 	}
 	tb, ok := a.tbHandles.Get(handle)
 	if !ok {
-		return nil, fmt.Errorf("termbase handle %q not found", handle)
+		return nil, fmt.Errorf("terms handle %q not found", handle)
 	}
 
 	path, err := a.app.Dialog.OpenFile().
@@ -340,7 +340,7 @@ func (a *App) ImportTermbaseCSVDialog(handle, srcLocale, tgtLocale, domain strin
 	}
 	defer f.Close()
 
-	count, err := termbase.ImportCSV(context.Background(), tb, f, termbase.CSVImportOptions{
+	count, err := terms.ImportCSV(context.Background(), tb, f, terms.CSVImportOptions{
 		SourceLocale: model.LocaleID(srcLocale),
 		TargetLocale: model.LocaleID(tgtLocale),
 		Domain:       domain,
@@ -352,14 +352,14 @@ func (a *App) ImportTermbaseCSVDialog(handle, srcLocale, tgtLocale, domain strin
 	return &ImportResult{Count: count}, nil
 }
 
-// ImportTermbaseJSONDialog shows a file dialog and imports a JSON termbase.
-func (a *App) ImportTermbaseJSONDialog(handle string) (*ImportResult, error) {
+// ImportTermsJSONDialog shows a file dialog and imports a JSON terms.
+func (a *App) ImportTermsJSONDialog(handle string) (*ImportResult, error) {
 	if a.app == nil {
 		return nil, nil
 	}
 	tb, ok := a.tbHandles.Get(handle)
 	if !ok {
-		return nil, fmt.Errorf("termbase handle %q not found", handle)
+		return nil, fmt.Errorf("terms handle %q not found", handle)
 	}
 
 	path, err := a.app.Dialog.OpenFile().
@@ -379,26 +379,26 @@ func (a *App) ImportTermbaseJSONDialog(handle string) (*ImportResult, error) {
 	}
 	defer f.Close()
 
-	count, err := termbase.ImportJSON(context.Background(), tb, f)
+	count, err := terms.ImportJSON(context.Background(), tb, f)
 	if err != nil {
 		return nil, fmt.Errorf("import JSON: %w", err)
 	}
 	return &ImportResult{Count: count}, nil
 }
 
-// ExportTermbaseJSONDialog shows a save dialog and exports the termbase as JSON.
-func (a *App) ExportTermbaseJSONDialog(handle, name string) error {
+// ExportTermsJSONDialog shows a save dialog and exports the terms store as JSON.
+func (a *App) ExportTermsJSONDialog(handle, name string) error {
 	if a.app == nil {
 		return nil
 	}
 	tb, ok := a.tbHandles.Get(handle)
 	if !ok {
-		return fmt.Errorf("termbase handle %q not found", handle)
+		return fmt.Errorf("terms handle %q not found", handle)
 	}
 
 	path, err := a.app.Dialog.SaveFile().
 		AddFilter("JSON Files", "*.json").
-		SetFilename(name + "-termbase.json").
+		SetFilename(name + "-terms.json").
 		PromptForSingleSelection()
 	if err != nil {
 		return err
@@ -416,5 +416,5 @@ func (a *App) ExportTermbaseJSONDialog(handle, name string) error {
 	}
 	defer f.Close()
 
-	return termbase.ExportJSON(context.Background(), tb, f, name)
+	return terms.ExportJSON(context.Background(), tb, f, name)
 }

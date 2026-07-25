@@ -612,7 +612,7 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 	// Mirrors okapi's `addToQueue(refText, isVisibleRef(refText), REFERENCE)`
 	// + `addToQueue(node.getTitle().toString(), isRefTextUsed(refText), REFERENCE)`
 	// pattern: each translatable atom becomes its own short text unit so
-	// the TM keys cleanly off the source string.
+	// the content memory keys cleanly off the source string.
 	r.skelText("[")
 	if labelVisible {
 		r.blockCounter++

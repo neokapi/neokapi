@@ -7,7 +7,7 @@ import (
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // ---------------------------------------------------------------------------
@@ -41,7 +41,7 @@ func isVoiceRuleList(list string) bool {
 // ConceptCreatePayload is the payload for OpConceptCreate: a full concept to
 // insert into the workspace graph.
 type ConceptCreatePayload struct {
-	Concept termbase.Concept `json:"concept"`
+	Concept terms.Concept `json:"concept"`
 }
 
 // ConceptUpdatePayload is the payload for OpConceptUpdate: a partial edit to a
@@ -60,8 +60,8 @@ type ConceptDeletePayload struct {
 
 // TermAddPayload is the payload for OpTermAdd: a new term on an existing concept.
 type TermAddPayload struct {
-	ConceptID string        `json:"concept_id"`
-	Term      termbase.Term `json:"term"`
+	ConceptID string     `json:"concept_id"`
+	Term      terms.Term `json:"term"`
 }
 
 // TermUpdatePayload is the payload for OpTermUpdate: locale+text identify the
@@ -70,7 +70,7 @@ type TermUpdatePayload struct {
 	ConceptID string         `json:"concept_id"`
 	Locale    model.LocaleID `json:"locale"`
 	Text      string         `json:"text"`
-	Term      termbase.Term  `json:"term"`
+	Term      terms.Term     `json:"term"`
 }
 
 // TermRemovePayload is the payload for OpTermRemove: locale+text identify the
@@ -82,7 +82,7 @@ type TermRemovePayload struct {
 }
 
 // TermStatusPayload is the payload for OpTermStatus: a term status transition,
-// governed when termbase.IsGovernedTransition(From, To) is true. Validity
+// governed when terms.IsGovernedTransition(From, To) is true. Validity
 // optionally scopes the new status to a market/time window.
 type TermStatusPayload struct {
 	ConceptID string           `json:"concept_id"`
@@ -96,7 +96,7 @@ type TermStatusPayload struct {
 // RelationAddPayload is the payload for OpRelationAdd: a full relation, governed
 // when its RelationType is graph.LabelReplacedBy.
 type RelationAddPayload struct {
-	Relation termbase.ConceptRelation `json:"relation"`
+	Relation terms.ConceptRelation `json:"relation"`
 }
 
 // RelationRemovePayload is the payload for OpRelationRemove.
@@ -156,7 +156,7 @@ func ValidateOp(op ChangeSetOp) error {
 			return requireField(op.Op, "concept.id")
 		}
 		for _, t := range p.Concept.Terms {
-			if t.Status != "" && !termbase.KnownTermStatus(t.Status) {
+			if t.Status != "" && !terms.KnownTermStatus(t.Status) {
 				return fmt.Errorf("%s: term %q (%s): unknown status %q", op.Op, t.Text, t.Locale, t.Status)
 			}
 		}
@@ -196,7 +196,7 @@ func ValidateOp(op ChangeSetOp) error {
 		if p.Term.Locale == "" {
 			return requireField(op.Op, "term.locale")
 		}
-		if p.Term.Status != "" && !termbase.KnownTermStatus(p.Term.Status) {
+		if p.Term.Status != "" && !terms.KnownTermStatus(p.Term.Status) {
 			return fmt.Errorf("%s: unknown term status %q", op.Op, p.Term.Status)
 		}
 		return nil
@@ -215,7 +215,7 @@ func ValidateOp(op ChangeSetOp) error {
 		if p.Text == "" {
 			return requireField(op.Op, "text")
 		}
-		if p.Term.Status != "" && !termbase.KnownTermStatus(p.Term.Status) {
+		if p.Term.Status != "" && !terms.KnownTermStatus(p.Term.Status) {
 			return fmt.Errorf("%s: unknown term status %q", op.Op, p.Term.Status)
 		}
 		return nil
@@ -250,7 +250,7 @@ func ValidateOp(op ChangeSetOp) error {
 		if p.Text == "" {
 			return requireField(op.Op, "text")
 		}
-		if err := termbase.ValidateTransition(p.From, p.To); err != nil {
+		if err := terms.ValidateTransition(p.From, p.To); err != nil {
 			return fmt.Errorf("%s: %w", op.Op, err)
 		}
 		return nil
@@ -260,7 +260,7 @@ func ValidateOp(op ChangeSetOp) error {
 		if err := decodePayload(op, &p); err != nil {
 			return err
 		}
-		if err := termbase.ValidateRelation(p.Relation); err != nil {
+		if err := terms.ValidateRelation(p.Relation); err != nil {
 			return fmt.Errorf("%s: %w", op.Op, err)
 		}
 		return nil
@@ -318,7 +318,7 @@ func ValidateOp(op ChangeSetOp) error {
 
 // IsGovernedOp reports whether an op is governed — that is, whether it may only
 // reach the live graph through a reviewed change-set (AD-021). Governed ops:
-// a term status transition that termbase.IsGovernedTransition flags, a
+// a term status transition that terms.IsGovernedTransition flags, a
 // REPLACED_BY relation, a concept deletion, and any voice-rule change. Every
 // other op is ordinary. An unknown OpType is an error.
 func IsGovernedOp(op ChangeSetOp) (bool, error) {
@@ -328,7 +328,7 @@ func IsGovernedOp(op ChangeSetOp) (bool, error) {
 		if err := decodePayload(op, &p); err != nil {
 			return false, err
 		}
-		return termbase.IsGovernedTransition(p.From, p.To), nil
+		return terms.IsGovernedTransition(p.From, p.To), nil
 
 	case OpRelationAdd:
 		var p RelationAddPayload

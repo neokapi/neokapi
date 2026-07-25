@@ -11,25 +11,25 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 )
 
-// TM leverage property keys stored on Block.Properties.
+// content-memory leverage property keys stored on Block.Properties.
 const (
-	PropTMMatchScore = "tm-match-score"
-	PropTMMatchType  = "tm-match-type"
-	// PropTMSegmentMatches records segment-level leverage as "matched/total"
+	PropMemoryMatchScore = "tm-match-score"
+	PropMemoryMatchType  = "tm-match-type"
+	// PropMemorySegmentMatches records segment-level leverage as "matched/total"
 	// (e.g. "3/5") whenever the block carried a multi-segment source
 	// segmentation overlay, even when the block target was not filled.
-	PropTMSegmentMatches = "tm-segment-matches"
-	// PropTMSegmentAlts is the annotation key under which the per-segment TM
+	PropMemorySegmentMatches = "tm-segment-matches"
+	// PropMemorySegmentAlts is the annotation key under which the per-segment content memory
 	// matches are stored as one AltTranslations collection (each carrying its
 	// SegmentIndex).
-	PropTMSegmentAlts = "tm-segment-alts"
-	// PropTMAltKey is the annotation key for a whole-block TM match's
-	// AltTranslation (matches the convention used by the sievepen TM tool).
-	PropTMAltKey = "alt-translation"
+	PropMemorySegmentAlts = "tm-segment-alts"
+	// PropMemoryAltKey is the annotation key for a whole-block content-memory match's
+	// AltTranslation (matches the convention used by the memory content memory tool).
+	PropMemoryAltKey = "alt-translation"
 )
 
-// TMProvider is the interface for translation memory lookup.
-type TMProvider interface {
+// MemoryProvider is the interface for content memory lookup.
+type MemoryProvider interface {
 	// LookupExact looks up an exact match for the source text.
 	// Returns the translation and true if found.
 	LookupExact(source string, sourceLocale, targetLocale model.LocaleID) (string, bool)
@@ -39,78 +39,78 @@ type TMProvider interface {
 	LookupFuzzy(source string, sourceLocale, targetLocale model.LocaleID, threshold int) (string, int, bool)
 }
 
-// TMBlockMatch is the result of a structure-aware (block-level) TM lookup.
-// Unlike the text-based TMProvider results, the translation is carried as
+// MemoryBlockMatch is the result of a structure-aware (block-level) content-memory lookup.
+// Unlike the text-based MemoryProvider results, the translation is carried as
 // the matched entry's target Run sequence, so inline codes (icons, paired
 // markup) survive the fill instead of being flattened into — and leaking
 // as — literal token text.
-type TMBlockMatch struct {
+type MemoryBlockMatch struct {
 	// TargetRuns is the matched entry's target-variant runs.
 	TargetRuns []model.Run
 	// Score is the match score (0-100). 100 means a structurally exact
 	// match (same inline-code structure); a plain-text exact whose code
-	// structure differs from the block's is capped below 100 by the TM.
+	// structure differs from the block's is capped below 100 by the content memory.
 	Score int
 	// Exact reports whether the match came from an exact tier (any of
 	// generalized / structural / plain), as opposed to fuzzy.
 	Exact bool
-	// Ambiguous marks an exact match that the TM could not disambiguate:
+	// Ambiguous marks an exact match that the content memory could not disambiguate:
 	// several entries matched at full score with differing targets. An
 	// ambiguous match must never be filled unattended — it is recorded as
 	// an alt-translation candidate only.
 	Ambiguous bool
 }
 
-// BlockTMProvider is an optional TMProvider capability for structure-aware
+// BlockMemoryProvider is an optional MemoryProvider capability for structure-aware
 // lookup. When the configured Provider implements it, the recycle tool
-// queries the TM with the block's full source Run sequence (inline codes
+// queries the content memory with the block's full source Run sequence (inline codes
 // included) instead of its flattened text, and fills the target with the
-// matched entry's runs. Providers backed by sievepen implement this via
-// TranslationMemory.Lookup; the plain-text TMProvider methods remain the
+// matched entry's runs. Providers backed by memory implement this via
+// ContentMemory.Lookup; the plain-text MemoryProvider methods remain the
 // fallback path.
-type BlockTMProvider interface {
+type BlockMemoryProvider interface {
 	// LookupBlock looks up the best match for the block's source content.
 	// threshold is the minimum acceptable score (0-100) for fuzzy matches.
 	// Returns false when no match at or above threshold exists.
-	LookupBlock(block *model.Block, sourceLocale, targetLocale model.LocaleID, threshold int) (TMBlockMatch, bool)
+	LookupBlock(block *model.Block, sourceLocale, targetLocale model.LocaleID, threshold int) (MemoryBlockMatch, bool)
 }
 
-// NullTMProvider is a TMProvider that returns no matches.
-// Useful for testing and as a default when no TM is available.
-type NullTMProvider struct{}
+// NullMemoryProvider is a MemoryProvider that returns no matches.
+// Useful for testing and as a default when no content memory is available.
+type NullMemoryProvider struct{}
 
 // LookupExact always returns no match.
-func (NullTMProvider) LookupExact(string, model.LocaleID, model.LocaleID) (string, bool) {
+func (NullMemoryProvider) LookupExact(string, model.LocaleID, model.LocaleID) (string, bool) {
 	return "", false
 }
 
 // LookupFuzzy always returns no match.
-func (NullTMProvider) LookupFuzzy(string, model.LocaleID, model.LocaleID, int) (string, int, bool) {
+func (NullMemoryProvider) LookupFuzzy(string, model.LocaleID, model.LocaleID, int) (string, int, bool) {
 	return "", 0, false
 }
 
-// TMLeverageConfig holds configuration for the TM leverage tool.
-type TMLeverageConfig struct {
+// MemoryLeverageConfig holds configuration for the content-memory leverage tool.
+type MemoryLeverageConfig struct {
 	TargetLocale model.LocaleID `json:"targetLocale,omitempty"   schema:"-"`
 	SourceLocale model.LocaleID `json:"sourceLocale,omitempty"   schema:"-"`
-	Provider     TMProvider     `json:"-"                        schema:"-"`
+	Provider     MemoryProvider `json:"-"                        schema:"-"`
 
 	// Schema-visible properties matching the bridge schema.
 	FuzzyThreshold                int    `json:"fuzzyThreshold,omitempty"   schema:"title=Fuzzy Match Threshold,description=Minimum score for fuzzy matches (0-100),default=70,min=0,max=100"`
 	FillTarget                    bool   `json:"fillTarget,omitempty"       schema:"title=Fill Target with Translation,description=Copy the best translation candidate into the target content,default=true"`
 	FillTargetThreshold           int    `json:"fillTargetThreshold,omitempty" schema:"title=Fill Target Threshold,description=Minimum match score required to fill the target,default=95,min=0,max=100"`
 	FillIfTargetIsEmpty           bool   `json:"fillIfTargetIsEmpty,omitempty" schema:"title=Only If Target Is Empty,description=Fill the target only when it has no existing content"`
-	NoQueryThreshold              int    `json:"noQueryThreshold,omitempty" schema:"title=No-Query Threshold,description=Skip TM query if existing candidate scores at or above this value (101 = always query),default=101,min=0,max=101"`
+	NoQueryThreshold              int    `json:"noQueryThreshold,omitempty" schema:"title=No-Query Threshold,description=Skip content-memory query if existing candidate scores at or above this value (101 = always query),default=101,min=0,max=101"`
 	MakeTMX                       bool   `json:"makeTmx,omitempty"          schema:"title=Generate TMX Document,description=Create a TMX file with all leveraged matches"`
 	TMXPath                       string `json:"tmxPath,omitempty"         schema:"title=TMX Output Path,description=File path for the generated TMX document"`
 	DowngradeIdenticalBestMatches bool   `json:"downgradeIdenticalBestMatches,omitempty" schema:"title=Downgrade Identical Exact Matches,description=Reduce score by 1%% when multiple identical exact matches are returned"`
 }
 
 // ToolName returns the tool name this config applies to.
-func (c *TMLeverageConfig) ToolName() string { return "recycle" }
+func (c *MemoryLeverageConfig) ToolName() string { return "recycle" }
 
 // Reset restores default values.
-func (c *TMLeverageConfig) Reset() {
+func (c *MemoryLeverageConfig) Reset() {
 	c.TargetLocale = ""
 	c.SourceLocale = ""
 	c.Provider = nil
@@ -125,7 +125,7 @@ func (c *TMLeverageConfig) Reset() {
 }
 
 // Validate checks configuration validity.
-func (c *TMLeverageConfig) Validate() error {
+func (c *MemoryLeverageConfig) Validate() error {
 	if c.TargetLocale.IsEmpty() {
 		return errors.New("recycle: TargetLocale is required")
 	}
@@ -138,23 +138,23 @@ func (c *TMLeverageConfig) Validate() error {
 	return nil
 }
 
-// TMLeverageSchema returns the auto-generated schema for the TM leverage tool.
-func TMLeverageSchema() *schema.ComponentSchema {
-	cfg := &TMLeverageConfig{}
+// MemoryLeverageSchema returns the auto-generated schema for the content-memory leverage tool.
+func MemoryLeverageSchema() *schema.ComponentSchema {
+	cfg := &MemoryLeverageConfig{}
 	cfg.Reset()
 	return schema.FromStruct(cfg, schema.ToolMeta{
 		ID:          "recycle",
 		Category:    schema.CategoryTranslation,
 		DisplayName: "Recycle",
-		Description: "Pre-fill translations from translation memory",
+		Description: "Pre-fill translations from content memory",
 		Tags:        []string{schema.TagL10n},
-		Requires:    []string{schema.RequiresTargetLanguage, schema.RequiresSourceLanguage, schema.RequiresTM},
+		Requires:    []string{schema.RequiresTargetLanguage, schema.RequiresSourceLanguage, schema.RequiresMemory},
 	})
 }
 
-// NewTMLeverageFromConfig creates a TM leverage tool from a config map.
-func NewTMLeverageFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
-	cfg := &TMLeverageConfig{}
+// NewMemoryLeverageFromConfig creates a content-memory leverage tool from a config map.
+func NewMemoryLeverageFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	cfg := &MemoryLeverageConfig{}
 	cfg.Reset()
 	if err := schema.ApplyConfig(config, cfg); err != nil {
 		return nil, fmt.Errorf("recycle config: %w", err)
@@ -165,14 +165,14 @@ func NewTMLeverageFromConfig(config map[string]any, targetLang string) (tool.Too
 	if cfg.FuzzyThreshold == 0 {
 		cfg.FuzzyThreshold = 70
 	}
-	cfg.Provider = NullTMProvider{}
-	return NewTMLeverageTool(cfg), nil
+	cfg.Provider = NullMemoryProvider{}
+	return NewMemoryLeverageTool(cfg), nil
 }
 
-// NewTMLeverageTool creates a TM leveraging tool that pre-fills translations
-// from a translation memory. It first attempts exact matches, then falls back
+// NewMemoryLeverageTool creates a content memory leveraging tool that pre-fills translations
+// from a content memory. It first attempts exact matches, then falls back
 // to fuzzy matching if a threshold is configured.
-func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
+func NewMemoryLeverageTool(cfg *MemoryLeverageConfig) *tool.BaseTool {
 	if cfg.FuzzyThreshold == 0 {
 		cfg.FuzzyThreshold = 70
 	}
@@ -184,10 +184,10 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 
 	t := &tool.BaseTool{
 		ToolName:        "recycle",
-		ToolDescription: "Pre-fills translations from translation memory using exact and fuzzy matching",
+		ToolDescription: "Pre-fills translations from content memory using exact and fuzzy matching",
 		Cfg:             cfg,
 	}
-	// Translate: recycle writes a target translation from TM; source is read-only.
+	// Translate: recycle writes a target translation from content memory; source is read-only.
 	t.Produce = func(v tool.VariantView) error {
 		if !v.Translatable() {
 			return nil
@@ -201,7 +201,7 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 			return nil
 		}
 
-		conf := t.Cfg.(*TMLeverageConfig)
+		conf := t.Cfg.(*MemoryLeverageConfig)
 		if conf.Provider == nil {
 			return nil
 		}
@@ -211,18 +211,18 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 			return nil
 		}
 
-		// Check no-query threshold: skip TM query if an existing match scores at/above.
+		// Check no-query threshold: skip content memory query if an existing match scores at/above.
 		if conf.NoQueryThreshold <= 101 {
-			if existing, ok := v.Annotations()[string(model.AnnoTMMatch)].(*TMMatchAnnotation); ok && existing.Score >= conf.NoQueryThreshold {
+			if existing, ok := v.Annotations()[string(model.AnnoMemoryMatch)].(*MemoryMatchAnnotation); ok && existing.Score >= conf.NoQueryThreshold {
 				return nil
 			}
 		}
 
 		// Segment-aware path: when the block carries a multi-segment source
-		// segmentation overlay, leverage the TM sentence by sentence (TM stores
+		// segmentation overlay, leverage the content memory sentence by sentence (content-memory stores
 		// segment pairs) and assemble the block target from the per-segment
 		// translations. This recovers leverage for multi-sentence (prose) blocks
-		// that would never match the sentence-keyed TM as one unit. Handled and
+		// that would never match the sentence-keyed content memory as one unit. Handled and
 		// filled here only when every segment matches; otherwise it records
 		// partial leverage and falls through so a later stage translates the
 		// whole block. Single-segment blocks (most software-localization
@@ -236,7 +236,7 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 		// whose source carries icon/markup runs only scores 100 against an
 		// entry with the same code structure, and the fill preserves the
 		// entry's runs (tokens stay model objects, never literal text).
-		if bp, ok := conf.Provider.(BlockTMProvider); ok {
+		if bp, ok := conf.Provider.(BlockMemoryProvider); ok {
 			if leverageBlockRuns(conf, v, bp) {
 				return nil
 			}
@@ -263,7 +263,7 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 	return t
 }
 
-// recordWholeBlockMatch records a whole-block TM hit the same auditable way as
+// recordWholeBlockMatch records a whole-block content-memory hit the same auditable way as
 // the segment path: the match is attached as an AltTranslation annotation
 // (source/target runs, score, match type, provenance) regardless of fill, and
 // when the block target is filled it is committed as a real Target carrying
@@ -275,7 +275,7 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 // without codes. Its translation is a bare text run, so filling it would drop
 // every placeholder the source carries. Such a match is recorded as a candidate
 // for review but never filled — see fillWouldDropCodes.
-func recordWholeBlockMatch(v tool.VariantView, conf *TMLeverageConfig, translation string, score int, mt model.MatchType, propType string) {
+func recordWholeBlockMatch(v tool.VariantView, conf *MemoryLeverageConfig, translation string, score int, mt model.MatchType, propType string) {
 	targetRuns := []model.Run{{Text: &model.TextRun{Text: translation}}}
 	v.AddAltTranslation(&model.AltTranslation{
 		Source:    v.SourceRuns(),
@@ -294,7 +294,7 @@ func recordWholeBlockMatch(v tool.VariantView, conf *TMLeverageConfig, translati
 			Score:  float64(score) / 100,
 		})
 	}
-	v.Annotate(string(model.AnnoTMMatch), &TMMatchAnnotation{Score: score, Type: propType})
+	v.Annotate(string(model.AnnoMemoryMatch), &MemoryMatchAnnotation{Score: score, Type: propType})
 }
 
 // fillWouldDropCodes reports whether committing candidate as v's target would
@@ -333,7 +333,7 @@ func fillWouldDropCodes(v tool.VariantView, candidate []model.Run) bool {
 //
 // Every candidate is recorded as an alt-translation before the fill decision,
 // so a rejected match is visible to a reviewer instead of vanishing.
-func leverageBlockRuns(conf *TMLeverageConfig, v tool.VariantView, bp BlockTMProvider) bool {
+func leverageBlockRuns(conf *MemoryLeverageConfig, v tool.VariantView, bp BlockMemoryProvider) bool {
 	block := &model.Block{
 		ID:           v.ID(),
 		Translatable: true,
@@ -372,20 +372,20 @@ func leverageBlockRuns(conf *TMLeverageConfig, v tool.VariantView, bp BlockTMPro
 		// score). The candidate stays recorded above so a reviewer can repair
 		// it; the block itself falls through to the text path, which keys
 		// differently and may recover a legacy entry — under the same guard.
-		v.Annotate(string(model.AnnoTMMatch), &TMMatchAnnotation{Score: m.Score, Type: propType})
+		v.Annotate(string(model.AnnoMemoryMatch), &MemoryMatchAnnotation{Score: m.Score, Type: propType})
 		return false
 	}
 	if m.Ambiguous {
 		// Recorded as a candidate only. Handled: the text path would
 		// resolve the same tie by arbitrary pick.
-		v.Annotate(string(model.AnnoTMMatch), &TMMatchAnnotation{Score: m.Score, Type: propType})
+		v.Annotate(string(model.AnnoMemoryMatch), &MemoryMatchAnnotation{Score: m.Score, Type: propType})
 		return true
 	}
 	if !shouldFillTarget(conf, v, m.Score) {
 		// Below the fill policy: keep the candidate recorded, but let the
 		// text path try its differently-keyed lookup (it may overwrite the
 		// tm-match annotation with a better match).
-		v.Annotate(string(model.AnnoTMMatch), &TMMatchAnnotation{Score: m.Score, Type: propType})
+		v.Annotate(string(model.AnnoMemoryMatch), &MemoryMatchAnnotation{Score: m.Score, Type: propType})
 		return false
 	}
 	v.SetTarget(conf.TargetLocale, &model.Target{
@@ -394,7 +394,7 @@ func leverageBlockRuns(conf *TMLeverageConfig, v tool.VariantView, bp BlockTMPro
 		Origin: model.Origin{Kind: "tm", Tool: "recycle"},
 		Score:  float64(m.Score) / 100,
 	})
-	v.Annotate(string(model.AnnoTMMatch), &TMMatchAnnotation{Score: m.Score, Type: propType})
+	v.Annotate(string(model.AnnoMemoryMatch), &MemoryMatchAnnotation{Score: m.Score, Type: propType})
 	return true
 }
 
@@ -461,7 +461,7 @@ func cloneRun(r model.Run) model.Run {
 	return c
 }
 
-// leverageSegments attempts sentence-level TM leverage over a multi-segment
+// leverageSegments attempts sentence-level content-memory leverage over a multi-segment
 // block. It returns true when it has fully handled the block (every segment
 // matched at/above the fuzzy threshold and, if permitted, the assembled target
 // was written), so the caller should stop. It returns false — leaving the block
@@ -472,7 +472,7 @@ func cloneRun(r model.Run) model.Run {
 // contiguous (their concatenation reproduces the source); when they are not
 // (gaps the overlay does not cover), it records partial leverage but does not
 // fill, so nothing is silently dropped.
-func leverageSegments(conf *TMLeverageConfig, v tool.VariantView) bool {
+func leverageSegments(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 	if v.SourceSegmentation() == nil {
 		return false
 	}
@@ -529,12 +529,12 @@ func leverageSegments(conf *TMLeverageConfig, v tool.VariantView) bool {
 	// recorded as alt-translation annotations regardless of fill, so partial
 	// leverage is never lost.
 	segMatches := strconv.Itoa(matched) + "/" + strconv.Itoa(n)
-	v.Annotate(string(model.AnnoTMMatch), &TMMatchAnnotation{SegmentMatches: segMatches})
+	v.Annotate(string(model.AnnoMemoryMatch), &MemoryMatchAnnotation{SegmentMatches: segMatches})
 
 	if matched < n {
 		// Partial leverage: leave the block for a later whole-block translation
 		// stage. We deliberately do not write a half-translated target here;
-		// per-segment fill (mixing TM and MT within one block) needs
+		// per-segment fill (mixing content memory and MT within one block) needs
 		// segment-aligned target storage and is a separate change. The matched
 		// segments survive as alt-translation annotations for that stage / the
 		// editor to consume.
@@ -561,8 +561,8 @@ func leverageSegments(conf *TMLeverageConfig, v tool.VariantView) bool {
 	// segment matches stay recorded as alt-translations either way.
 	if shouldFillTarget(conf, v, minScore) && !fillWouldDropCodes(v, assembled) {
 		// Commit a real Target carrying provenance and score, not an opaque
-		// string: a TM pre-fill is a reviewable draft assembled from segment
-		// matches, so a reviewer/tool can see it came from TM and at what score.
+		// string: a content memory pre-fill is a reviewable draft assembled from segment
+		// matches, so a reviewer/tool can see it came from content memory and at what score.
 		v.SetTarget(conf.TargetLocale, &model.Target{
 			Runs:   assembled,
 			Status: model.TargetStatusDraft,
@@ -570,17 +570,17 @@ func leverageSegments(conf *TMLeverageConfig, v tool.VariantView) bool {
 			Score:  float64(minScore) / 100,
 		})
 	}
-	v.Annotate(string(model.AnnoTMMatch), &TMMatchAnnotation{Score: minScore, Type: matchType, SegmentMatches: segMatches})
+	v.Annotate(string(model.AnnoMemoryMatch), &MemoryMatchAnnotation{Score: minScore, Type: matchType, SegmentMatches: segMatches})
 	return true
 }
 
-// annotateSegmentMatch records a per-segment TM hit as an AltTranslation
+// annotateSegmentMatch records a per-segment content-memory hit as an AltTranslation
 // annotation anchored by its source runs and segment index, so the leverage is
 // auditable and partial matches survive even when the block target is not
 // filled. The annotation key carries the segment index; the annotation itself
 // carries the matched source/target, score (0-1), match type, and provenance.
-func annotateSegmentMatch(v tool.VariantView, conf *TMLeverageConfig, idx int, srcRuns []model.Run, translation string, score int, mt model.MatchType) {
-	v.AppendAltUnder(PropTMSegmentAlts, &model.AltTranslation{
+func annotateSegmentMatch(v tool.VariantView, conf *MemoryLeverageConfig, idx int, srcRuns []model.Run, translation string, score int, mt model.MatchType) {
+	v.AppendAltUnder(PropMemorySegmentAlts, &model.AltTranslation{
 		Source:       srcRuns,
 		Target:       []model.Run{{Text: &model.TextRun{Text: translation}}},
 		Locale:       conf.TargetLocale,
@@ -593,7 +593,7 @@ func annotateSegmentMatch(v tool.VariantView, conf *TMLeverageConfig, idx int, s
 }
 
 // shouldFillTarget decides whether to copy the translation into the target based on config.
-func shouldFillTarget(conf *TMLeverageConfig, v tool.VariantView, score int) bool {
+func shouldFillTarget(conf *MemoryLeverageConfig, v tool.VariantView, score int) bool {
 	if !conf.FillTarget {
 		return false
 	}

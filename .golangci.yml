@@ -2,7 +2,7 @@ version: "2"
 run:
   timeout: 5m
   # Analyze the code behind these build constraints too — without them the
-  # FTS5 TM path, the cgo ICU tokenizer, and the parity harness are silently
+  # FTS5 content memory path, the cgo ICU tokenizer, and the parity harness are silently
   # excluded from staticcheck/govet/errcheck. The cgo files additionally need
   # pkg-config icu-uc/icu-i18n on PKG_CONFIG_PATH (the lint CI job installs
   # libicu-dev, mirroring the test job).
@@ -124,7 +124,7 @@ linters:
       # enforced on non-test code.
       - linters: [contextcheck]
         path: _test\.go
-      # The lazy workspace-store getters (getTM/getTB) run schema migrations on
+      # The lazy workspace-store getters (getMemory/getTB) run schema migrations on
       # first use, and the shared migration runner (storage.runMigrations)
       # intentionally uses a detached context: a one-time DDL migration must run
       # to completion and the cached store must outlive whichever request
@@ -135,8 +135,8 @@ linters:
       # TODO(P06): thread ctx through storage.runMigrations and drop this rule.
       - linters: [contextcheck]
         text: "MigratePostgresNS->runMigrations"
-      # sievepen's FTS5/fuzzy index rebuild is a ctx-less local SQLite
-      # maintenance API, so compileTMSource (which does hold a ctx) trips
+      # memory's FTS5/fuzzy index rebuild is a ctx-less local SQLite
+      # maintenance API, so compileMemorySource (which does hold a ctx) trips
       # contextcheck when it calls it.
       #
       # This has to be a config exclusion rather than a //nolint directive:
@@ -146,7 +146,7 @@ linters:
       # nolintlint on the other — it cannot be correct in both places. An
       # exclusion is inert when the finding does not fire.
       - linters: [contextcheck]
-        text: "RebuildTMSearchIndexes->RebuildSearchIndex"
+        text: "RebuildMemorySearchIndexes->RebuildSearchIndex"
       # SA5011 (possible nil dereference) is a known false-positive class in
       # tests that guard with `if x == nil { t.Fatal(...) }` and then use x:
       # staticcheck does not model testing.T.Fatal as terminating in every

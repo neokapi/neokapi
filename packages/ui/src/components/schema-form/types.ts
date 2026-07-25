@@ -32,7 +32,7 @@ export interface SchemaFormProps {
   compact?: boolean;
   presetValues?: Record<string, unknown>;
   paramDocs?: Record<string, ToolDocParam>;
-  /** Named resources for ResourcePicker integration (e.g., TM, termbase). */
+  /** Named resources for ResourcePicker integration (e.g., Memory, terms). */
   resources?: Record<string, Array<{ name: string; path?: string; entryCount?: number }>>;
   /** Context for path resolution (project dir, output dir). */
   resourceContext?: { projectDir: string; outputDir: string };

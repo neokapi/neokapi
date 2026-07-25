@@ -17,7 +17,7 @@ import (
 // Every default path is overridable from the environment so the app can run
 // fully isolated from the user's real data (tests, demo recordings, CI):
 //
-//	KAPI_CONFIG_DIR          kapi config root — termbases, tm, flows,
+//	KAPI_CONFIG_DIR          kapi config root — terms stores, tm, flows,
 //	                         format-presets, plugins (shared with the CLI's
 //	                         KAPI_HOME convention). Default: <UserConfigDir>/kapi
 //	KAPI_DESKTOP_CONFIG_DIR  desktop-only config root — settings.json,
@@ -29,7 +29,7 @@ import (
 // On macOS os.UserConfigDir() is ~/Library/Application Support and
 // os.UserHomeDir() is $HOME; on Linux they follow XDG.
 
-// kapiConfigDir returns the kapi config root (termbases, tm, flows, presets,
+// kapiConfigDir returns the kapi config root (terms stores, tm, flows, presets,
 // plugins) — the shared host.ConfigDir chain.
 func kapiConfigDir() string {
 	return host.ConfigDir()

@@ -5,7 +5,9 @@
 description: Read and write TMX translation-memory exchange files, one block per translation unit.
 overview: |
   TMX (Translation Memory eXchange) is the XML interchange format for
-  translation memories. A TMX document holds a header declaring the
+  content memories. The expansion of the acronym is the LISA standard's own
+  name, not our vocabulary, so it keeps its original wording — a format we do
+  not own is not ours to rename. A TMX document holds a header declaring the
   source language (`srclang`) and a body of `<tu>` translation units;
   each unit carries one `<tuv>` translation-unit variant per language,
   with optional unit- and header-level `<note>` and `<prop>` metadata.
@@ -56,7 +58,7 @@ parameters:
     help: |
       A list of regular expressions; each match within a translatable
       block is protected as an inline code rather than translated. Used to
-      shield placeholders or markup carried inside TM segments. Only takes
+      shield placeholders or markup carried inside Memory segments. Only takes
       effect when `useCodeFinder` is enabled; invalid patterns are skipped.
     values: "Array of regular-expression strings"
     examples:

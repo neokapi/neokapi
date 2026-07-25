@@ -20,7 +20,7 @@ export {
     RedactionSpec,
     SegmentationDefaults,
     ShipGateRule,
-    TMDefaults
+    MemoryDefaults
 } from "./models.js";
 
 import * as $models from "./models.js";

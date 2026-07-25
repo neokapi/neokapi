@@ -66,7 +66,7 @@ func TestRoundTripBlocks(t *testing.T) {
 }
 
 func TestRejectsUnknownMajorVersion(t *testing.T) {
-	data := []byte(`{"schemaVersion":"2.0","kind":"kapi-localization-format","generator":{"id":"x","version":"1"},"project":{"id":"p","sourceLocale":"en"},"documents":[]}`)
+	data := []byte(`{"schemaVersion":"2.0","kind":"kapi-bundle","generator":{"id":"x","version":"1"},"project":{"id":"p","sourceLocale":"en"},"documents":[]}`)
 	_, err := Unmarshal(data)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported major")

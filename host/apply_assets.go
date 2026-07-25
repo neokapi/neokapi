@@ -13,14 +13,14 @@ import (
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/sievepen/kmb"
-	"github.com/neokapi/neokapi/termbase"
-	"github.com/neokapi/neokapi/termbase/ktb"
+	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/memory/kmb"
+	"github.com/neokapi/neokapi/terms"
+	"github.com/neokapi/neokapi/terms/ktb"
 	"gopkg.in/yaml.v3"
 )
 
-// applyAssetEntry lands one asset change (a glossary term, TM pair, brand rule,
+// applyAssetEntry lands one asset change (a glossary term, content memory pair, brand rule,
 // or recipe field). It implements decision B of the apply design: an asset edit
 // is written into the asset's COMMITTED SOURCE artifact — the git-tracked file
 // the recipe points at — and the EXISTING import/compile then refreshes the
@@ -43,8 +43,8 @@ func (a *App) applyAssetEntry(ctx context.Context, cmd Command, e changeEntry) a
 	switch e.Kind {
 	case kindTerm:
 		return a.applyTermEntry(ctx, cmd, e)
-	case kindTM:
-		return a.applyTMEntry(ctx, cmd, e)
+	case kindMemory:
+		return a.applyMemoryEntry(ctx, cmd, e)
 	case kindBrand:
 		return a.applyBrandEntry(ctx, cmd, e)
 	case kindRecipe:
@@ -70,12 +70,12 @@ func (a *App) resolveProjectRoot(cmd Command) (recipePath, root string, err erro
 }
 
 // ---------------------------------------------------------------------------
-// term → committed .ktb source → termbase import compile into .kapi/termbase.db
+// term → committed .ktb source → terms import compile into .kapi/termbase.db
 // ---------------------------------------------------------------------------
 
 // applyTermEntry upserts a glossary term. It edits the committed .ktb source
 // the recipe binds (creating l10n/termbase.ktb and binding it when none
-// exists), then re-imports the whole .ktb into the project termbase (.db)
+// exists), then re-imports the whole .ktb into the project terms store (.db)
 // cache so the SQLite store reflects the committed source — one write path.
 func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.Term}
@@ -92,7 +92,7 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 		return errResult(res, err.Error())
 	}
 
-	srcPath, err := a.ensureTermbaseSourceBinding(recipePath, root)
+	srcPath, err := a.ensureTermsSourceBinding(recipePath, root)
 	if err != nil {
 		return errResult(res, err.Error())
 	}
@@ -121,7 +121,7 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 	if err := writeKTB(srcPath, concepts); err != nil {
 		return errResult(res, err.Error())
 	}
-	if err := a.compileTermbaseSource(ctx, root, srcPath); err != nil {
+	if err := a.compileTermsSource(ctx, root, srcPath); err != nil {
 		return errResult(res, err.Error())
 	}
 
@@ -130,90 +130,90 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 	return res
 }
 
-// ensureTermbaseSourceBinding returns the committed .ktb source path the
+// ensureTermsSourceBinding returns the committed .ktb source path the
 // recipe binds via defaults.termbase_source, creating a default
 // (l10n/termbase.ktb) and writing the binding into the recipe when none is
 // bound — so future runs are consistent.
-func (a *App) ensureTermbaseSourceBinding(recipePath, root string) (string, error) {
+func (a *App) ensureTermsSourceBinding(recipePath, root string) (string, error) {
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return "", fmt.Errorf("load project: %w", err)
 	}
-	if bound := proj.Defaults.TermbaseSource; bound != "" {
+	if bound := proj.Defaults.TermsSource; bound != "" {
 		return resolveUnder(root, bound), nil
 	}
 	rel := filepath.Join("l10n", "termbase.ktb")
-	proj.Defaults.TermbaseSource = rel
-	// Bind the compiled cache too, so term enforcement (resolveProjectTermbasePath)
+	proj.Defaults.TermsSource = rel
+	// Bind the compiled cache too, so term enforcement (resolveProjectTermsPath)
 	// reads the .db this source compiles into rather than an unrelated default.
-	if proj.Defaults.Termbase == "" {
-		proj.Defaults.Termbase = filepath.Join(project.StateDirName, "termbase.db")
+	if proj.Defaults.Terms == "" {
+		proj.Defaults.Terms = filepath.Join(project.StateDirName, "termbase.db")
 	}
 	if err := project.Save(recipePath, proj); err != nil {
-		return "", fmt.Errorf("bind termbase source: %w", err)
+		return "", fmt.Errorf("bind terms source: %w", err)
 	}
 	return resolveUnder(root, rel), nil
 }
 
-// compileTermbaseSource re-imports the committed .ktb into the project
-// termbase (.db) cache — the single store-write path. The cache is the recipe's
-// bound termbase, else the .kapi/termbase.db convention.
-func (a *App) compileTermbaseSource(ctx context.Context, root, srcPath string) error {
+// compileTermsSource re-imports the committed .ktb into the project
+// terms (.db) cache — the single store-write path. The cache is the recipe's
+// bound terms, else the .kapi/termbase.db convention.
+func (a *App) compileTermsSource(ctx context.Context, root, srcPath string) error {
 	dbPath := filepath.Join(root, project.StateDirName, "termbase.db")
-	if proj, err := a.loadRecipeForRoot(root); err == nil && proj.Defaults.Termbase != "" {
-		dbPath = resolveUnder(root, proj.Defaults.Termbase)
+	if proj, err := a.loadRecipeForRoot(root); err == nil && proj.Defaults.Terms != "" {
+		dbPath = resolveUnder(root, proj.Defaults.Terms)
 	}
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
-		return fmt.Errorf("create termbase dir: %w", err)
+		return fmt.Errorf("create terms dir: %w", err)
 	}
 
-	tb, err := termbase.NewSQLiteTermBase(dbPath)
+	tb, err := terms.NewSQLiteStore(dbPath)
 	if err != nil {
-		return fmt.Errorf("open termbase cache: %w", err)
+		return fmt.Errorf("open terms cache: %w", err)
 	}
 	defer tb.Close()
 
 	f, err := os.Open(srcPath)
 	if err != nil {
-		return fmt.Errorf("open termbase source: %w", err)
+		return fmt.Errorf("open terms source: %w", err)
 	}
 	defer f.Close()
 	if _, err := ImportKTBFile(ctx, tb, f); err != nil {
-		return fmt.Errorf("compile termbase: %w", err)
+		return fmt.Errorf("compile terms: %w", err)
 	}
 	return nil
 }
 
 // loadKTBConcepts reads the concepts from a .ktb source, returning an empty
 // slice when the file does not exist yet (the first term creates it).
-func loadKTBConcepts(path string) ([]termbase.Concept, error) {
+func loadKTBConcepts(path string) ([]terms.Concept, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("open termbase source: %w", err)
+		return nil, fmt.Errorf("open terms source: %w", err)
 	}
 	defer f.Close()
 	file, err := ktb.Decode(f)
 	if err != nil {
-		return nil, fmt.Errorf("parse termbase source: %w", err)
+		return nil, fmt.Errorf("parse terms source: %w", err)
 	}
 	return file.Concepts, nil
 }
 
 // writeKTB serializes concepts to a deterministic .ktb document, creating
 // parent directories. The deterministic marshal keeps `git diff` minimal.
-func writeKTB(path string, concepts []termbase.Concept) error {
+func writeKTB(path string, concepts []terms.Concept) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("create source dir: %w", err)
 	}
 	data, err := ktb.Marshal(ktb.FromConcepts(concepts))
 	if err != nil {
-		return fmt.Errorf("marshal termbase source: %w", err)
+		return fmt.Errorf("marshal terms source: %w", err)
 	}
 	if err := os.WriteFile(path, data, 0o644); err != nil {
-		return fmt.Errorf("write termbase source: %w", err)
+		return fmt.Errorf("write terms source: %w", err)
 	}
 	return nil
 }
@@ -224,7 +224,7 @@ func writeKTB(path string, concepts []termbase.Concept) error {
 // so apply reports a skipped no-op. A term is matched case-insensitively on its
 // text within its locale; a new term creates its own concept (one concept per
 // term text), keyed by a stable id so re-seeding is reproducible.
-func upsertTerm(concepts []termbase.Concept, text string, locale model.LocaleID, status model.TermStatus, replacement string) ([]termbase.Concept, bool) {
+func upsertTerm(concepts []terms.Concept, text string, locale model.LocaleID, status model.TermStatus, replacement string) ([]terms.Concept, bool) {
 	now := time.Now().UTC()
 	for ci := range concepts {
 		c := &concepts[ci]
@@ -246,10 +246,10 @@ func upsertTerm(concepts []termbase.Concept, text string, locale model.LocaleID,
 			return concepts, true
 		}
 	}
-	concepts = append(concepts, termbase.Concept{
+	concepts = append(concepts, terms.Concept{
 		ID:     conceptID(text, locale),
-		Source: termbase.TermSourceTerminology,
-		Terms: []termbase.Term{{
+		Source: terms.TermSourceTerminology,
+		Terms: []terms.Term{{
 			Text:   text,
 			Locale: locale,
 			Status: status,
@@ -285,7 +285,7 @@ func conceptID(text string, locale model.LocaleID) string {
 // shared ApproveReviewUnit path — the CLI counterpart of the desktop "approve"
 // action and the write side of `kapi status --review`. The unit is addressed by
 // (file, id, locale) exactly as the review queue lists it; `status` is "reviewed"
-// (default) or "signed-off". This is distinct from a `kind:"tm"` entry: a TM
+// (default) or "signed-off". This is distinct from a `kind:"tm"` entry: a content memory
 // correction is recycle leverage, not a review decision.
 func (a *App) applyReviewEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.ID}
@@ -317,10 +317,10 @@ func (a *App) applyReviewEntry(ctx context.Context, cmd Command, e changeEntry) 
 	return res
 }
 
-// applyTMEntry adds a source→target TM pair. It edits the committed .kmb
+// applyMemoryEntry adds a source→target content memory pair. It edits the committed .kmb
 // source the recipe binds (creating l10n/tm.kmb and binding it when none
-// exists), then re-imports the .kmb into the project TM (.kapi/tm.db) cache.
-func (a *App) applyTMEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
+// exists), then re-imports the .kmb into the project content memory (.kapi/tm.db) cache.
+func (a *App) applyMemoryEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.Source}
 
 	if e.Op != "" && e.Op != "add" {
@@ -335,7 +335,7 @@ func (a *App) applyTMEntry(ctx context.Context, cmd Command, e changeEntry) asse
 		return errResult(res, err.Error())
 	}
 
-	srcPath, err := a.ensureTMSourceBinding(recipePath, root)
+	srcPath, err := a.ensureMemorySourceBinding(recipePath, root)
 	if err != nil {
 		return errResult(res, err.Error())
 	}
@@ -363,7 +363,7 @@ func (a *App) applyTMEntry(ctx context.Context, cmd Command, e changeEntry) asse
 		return errResult(res, fmt.Sprintf("tm: status must be empty, %q, or %q", model.TargetStatusReviewed, model.TargetStatusSignedOff))
 	}
 
-	entries, changed := upsertTMPair(entries, e.Source, e.Target, model.LocaleID(srcLocale), model.LocaleID(tgtLocale), reviewState)
+	entries, changed := upsertMemoryPair(entries, e.Source, e.Target, model.LocaleID(srcLocale), model.LocaleID(tgtLocale), reviewState)
 	if !changed {
 		res.Status = "skipped"
 		res.Detail = "already present"
@@ -373,7 +373,7 @@ func (a *App) applyTMEntry(ctx context.Context, cmd Command, e changeEntry) asse
 	if err := writeKMB(srcPath, entries); err != nil {
 		return errResult(res, err.Error())
 	}
-	if err := a.compileTMSource(ctx, root, srcPath); err != nil {
+	if err := a.compileMemorySource(ctx, root, srcPath); err != nil {
 		return errResult(res, err.Error())
 	}
 
@@ -382,33 +382,33 @@ func (a *App) applyTMEntry(ctx context.Context, cmd Command, e changeEntry) asse
 	return res
 }
 
-// ensureTMSourceBinding returns the committed .kmb source path bound via
+// ensureMemorySourceBinding returns the committed .kmb source path bound via
 // defaults.tm_source, creating l10n/tm.kmb and binding it when none is bound.
-func (a *App) ensureTMSourceBinding(recipePath, root string) (string, error) {
+func (a *App) ensureMemorySourceBinding(recipePath, root string) (string, error) {
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return "", fmt.Errorf("load project: %w", err)
 	}
-	if bound := proj.Defaults.TMSource; bound != "" {
+	if bound := proj.Defaults.MemorySource; bound != "" {
 		return resolveUnder(root, bound), nil
 	}
 	rel := filepath.Join("l10n", "tm.kmb")
-	proj.Defaults.TMSource = rel
+	proj.Defaults.MemorySource = rel
 	if err := project.Save(recipePath, proj); err != nil {
 		return "", fmt.Errorf("bind tm source: %w", err)
 	}
 	return resolveUnder(root, rel), nil
 }
 
-// compileTMSource re-imports the committed .kmb into the project TM cache
+// compileMemorySource re-imports the committed .kmb into the project content memory cache
 // (the conventional .kapi/tm.db, the same file kapi extract/merge use).
-func (a *App) compileTMSource(ctx context.Context, root, srcPath string) error {
+func (a *App) compileMemorySource(ctx context.Context, root, srcPath string) error {
 	dbPath := filepath.Join(root, project.StateDirName, "tm.db")
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
 		return fmt.Errorf("create tm dir: %w", err)
 	}
 
-	tm, err := sievepen.NewSQLiteTM(dbPath)
+	tm, err := memory.NewSQLiteStore(dbPath)
 	if err != nil {
 		return fmt.Errorf("open tm cache: %w", err)
 	}
@@ -417,13 +417,13 @@ func (a *App) compileTMSource(ctx context.Context, root, srcPath string) error {
 	if _, err := ImportKMBFile(ctx, tm, srcPath); err != nil {
 		return fmt.Errorf("compile tm: %w", err)
 	}
-	a.RebuildTMSearchIndexes(tm)
+	a.RebuildMemorySearchIndexes(tm)
 	return nil
 }
 
 // loadKMBEntries reads the entries from a .kmb source, returning an empty
 // slice when the file does not exist yet.
-func loadKMBEntries(path string) ([]sievepen.TMEntry, error) {
+func loadKMBEntries(path string) ([]memory.Entry, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -440,7 +440,7 @@ func loadKMBEntries(path string) ([]sievepen.TMEntry, error) {
 }
 
 // writeKMB serializes entries to a deterministic .kmb document.
-func writeKMB(path string, entries []sievepen.TMEntry) error {
+func writeKMB(path string, entries []memory.Entry) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("create source dir: %w", err)
 	}
@@ -454,17 +454,17 @@ func writeKMB(path string, entries []sievepen.TMEntry) error {
 	return nil
 }
 
-// upsertTMPair adds a source→target pair as a bilingual entry, keyed by a
+// upsertMemoryPair adds a source→target pair as a bilingual entry, keyed by a
 // stable id so re-applying the same pair is idempotent. When the entry already
 // holds the same target text for the target locale, it returns changed=false.
-// upsertTMPair adds or updates a source→target correction in the .kmb entry
+// upsertMemoryPair adds or updates a source→target correction in the .kmb entry
 // list. reviewState, when non-empty, is recorded on the entry's `review` property
 // (the carrier that distinguishes `reviewed` from `signed-off`); an empty
 // reviewState leaves the entry at the `reviewed` baseline. It returns changed =
 // true when the target text OR the review state changed, so promoting an
 // already-present translation to signed-off is not mistaken for a no-op.
-func upsertTMPair(entries []sievepen.TMEntry, source, target string, srcLocale, tgtLocale model.LocaleID, reviewState string) ([]sievepen.TMEntry, bool) {
-	id := tmEntryID(source, srcLocale, tgtLocale)
+func upsertMemoryPair(entries []memory.Entry, source, target string, srcLocale, tgtLocale model.LocaleID, reviewState string) ([]memory.Entry, bool) {
+	id := memoryEntryID(source, srcLocale, tgtLocale)
 	for i := range entries {
 		if entries[i].ID != id {
 			continue
@@ -483,14 +483,14 @@ func upsertTMPair(entries []sievepen.TMEntry, source, target string, srcLocale, 
 		return entries, true
 	}
 	now := time.Now().UTC()
-	e := sievepen.TMEntry{
+	e := memory.Entry{
 		ID:          id,
 		HintSrcLang: srcLocale,
 		Variants: map[model.LocaleID][]model.Run{
 			srcLocale: {{Text: &model.TextRun{Text: source}}},
 			tgtLocale: {{Text: &model.TextRun{Text: target}}},
 		},
-		Origins: []sievepen.Origin{{
+		Origins: []memory.Origin{{
 			Source:  "apply",
 			AddedAt: now,
 			AddedBy: "kapi-apply",
@@ -504,14 +504,14 @@ func upsertTMPair(entries []sievepen.TMEntry, source, target string, srcLocale, 
 }
 
 // setReviewProperty records the review state (signed-off; reviewed is the
-// property-absent baseline) on a TM entry, returning whether it changed. An empty
+// property-absent baseline) on a content-memory entry, returning whether it changed. An empty
 // or `reviewed` state clears the property so the entry round-trips minimally.
 // reviewPropertyKey is the .kmb entry property `kapi apply` uses to tag a
-// correction's review state in the TM corpus. (Project review STATE now lives in
-// the state store, core/state; this is the TM-side tag the apply path still sets.)
+// correction's review state in the content memory corpus. (Project review STATE now lives in
+// the state store, core/state; this is the content memory-side tag the apply path still sets.)
 const reviewPropertyKey = "review"
 
-func setReviewProperty(e *sievepen.TMEntry, reviewState string) bool {
+func setReviewProperty(e *memory.Entry, reviewState string) bool {
 	want := reviewState
 	if want == string(model.TargetStatusReviewed) {
 		want = "" // reviewed is the property-absent baseline
@@ -530,8 +530,8 @@ func setReviewProperty(e *sievepen.TMEntry, reviewState string) bool {
 	return true
 }
 
-// tmEntryID derives a stable id for a source/locale-pair TM entry.
-func tmEntryID(source string, srcLocale, tgtLocale model.LocaleID) string {
+// memoryEntryID derives a stable id for a source/locale-pair content-memory entry.
+func memoryEntryID(source string, srcLocale, tgtLocale model.LocaleID) string {
 	return fmt.Sprintf("apply:%s:%s:%s", srcLocale, tgtLocale, model.ComputeContentHash(source))
 }
 
@@ -826,10 +826,10 @@ func setRecipeField(proj *project.KapiProject, path string, raw json.RawMessage)
 		if err := decodeRecipeValue(path, raw, &v); err != nil {
 			return false, err
 		}
-		if proj.Defaults.Termbase == v {
+		if proj.Defaults.Terms == v {
 			return false, nil
 		}
-		proj.Defaults.Termbase = v
+		proj.Defaults.Terms = v
 		return true, nil
 
 	case "defaults.termbase_source":
@@ -837,10 +837,10 @@ func setRecipeField(proj *project.KapiProject, path string, raw json.RawMessage)
 		if err := decodeRecipeValue(path, raw, &v); err != nil {
 			return false, err
 		}
-		if proj.Defaults.TermbaseSource == v {
+		if proj.Defaults.TermsSource == v {
 			return false, nil
 		}
-		proj.Defaults.TermbaseSource = v
+		proj.Defaults.TermsSource = v
 		return true, nil
 
 	case "defaults.tm_source":
@@ -848,10 +848,10 @@ func setRecipeField(proj *project.KapiProject, path string, raw json.RawMessage)
 		if err := decodeRecipeValue(path, raw, &v); err != nil {
 			return false, err
 		}
-		if proj.Defaults.TMSource == v {
+		if proj.Defaults.MemorySource == v {
 			return false, nil
 		}
-		proj.Defaults.TMSource = v
+		proj.Defaults.MemorySource = v
 		return true, nil
 
 	default:

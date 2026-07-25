@@ -19,7 +19,7 @@ authoritative content:
 | --- | --- | --- | --- |
 | blocks + targets | KBF (`core/kbf`, `.kbf`) | `blocks/*.kbf` | XLIFF / PO |
 | stand-off annotations | KBF annotations (`.overlays.jsonl`) | `annotations/*.overlays.jsonl` | — |
-| translation memory | KMB (`sievepen/kmb`, `.kmb`; archive `.kmz`) | `tm.kmb` | TMX |
+| translation memory | KMB (`memory/kmb`, `.kmb`; archive `.kmz`) | `tm.kmb` | TMX |
 | termbase | KTB (`termbase/ktb`, `.ktb`; archive `.ktz`) | `termbase.ktb` | TBX |
 | media | opaque blobs | `media/*` | — |
 
@@ -34,9 +34,9 @@ KBF (AD: the content model serialization) already gives blocks a deterministic,
 hashable, lossless on-disk form. But the other content a project owns had no
 equivalent:
 
-- **Translation memory** had only `sievepen` TMX export — an *interchange*
+- **Translation memory** had only `memory` TMX export — an *interchange*
   format. TMX preserves the multilingual variants a CAT tool understands but
-  **silently drops** the AI-native enrichments `sievepen.TMEntry` carries:
+  **silently drops** the AI-native enrichments `memory.Entry` carries:
   entity mappings (including the `ConceptID` cross-link to the termbase),
   provenance origins and import sessions, per-entry properties, and notes.
 - **Termbase** had TBX export and an ad-hoc JSON export. TBX maps the standard
@@ -66,12 +66,12 @@ shares the KBF discipline — a `kind` magic string, a `MAJOR.MINOR`
 and a **deterministic** encoder (sorted keys/records, no HTML escaping, trailing
 newline) so output is stable for content hashing and git diffing.
 
-- **KMB** (`sievepen/kmb`, `kind: kapi-tm-format`). Wire DTOs mapped
-  to/from `sievepen.TMEntry`; variant content reuses the canonical `model.Run`
+- **KMB** (`memory/kmb`, `kind: kapi-memory`). Wire DTOs mapped
+  to/from `memory.Entry`; variant content reuses the canonical `model.Run`
   serialization, so inline codes, placeholders, and plural/select survive
   identically to KBF blocks. Carries entities (with `ConceptID`), origins,
   import sessions, properties, and notes.
-- **KTB** (`termbase/ktb`, `kind: kapi-termbase-format`). Reuses the
+- **KTB** (`termbase/ktb`, `kind: kapi-terms`). Reuses the
   already-JSON-tagged `termbase.Concept` directly — one source of truth, no
   parallel wire type to drift — and so preserves `Source`, `CompetitorTerm`, and
   `Properties`.
@@ -84,7 +84,7 @@ timestamps — but deflates its member rather than storing it, because size is t
 whole reason the tier exists: a project TM as `.kmb` JSON is far larger than its
 deflated form. Bundles are what a project **commits** (a reviewed TM or termbase
 has to diff line by line in git); archives are what it **ships**. `kapi tm
-export/import` and `kapi termbase export/import` select the tier from the file
+export/import` and `kapi terms export/import` select the tier from the file
 extension, `--format` overrides.
 
 ### 2. The `.kpz` package container
@@ -287,7 +287,7 @@ Both profiles are parcels — neither is a workspace.
 
 - A project's full content can be serialized losslessly and rehydrated into
   fresh stores. The guarantee is enforced by a cache-internal round-trip test:
-  populate real `sievepen` / `termbase` stores → pack to `.kpz` → unpack into
+  populate real `memory` / `termbase` stores → pack to `.kpz` → unpack into
   fresh stores → re-pack → assert byte-identical.
 - TMX/TBX keep their role unchanged (industry interchange), and their lossiness
   is now a documented, intentional property rather than an accident.
@@ -315,7 +315,7 @@ Both profiles are parcels — neither is a workspace.
 
 ## Implementation
 
-- Formats: `sievepen/kmb`, `termbase/ktb`, container `kpz/`.
+- Formats: `memory/kmb`, `termbase/ktb`, container `kpz/`.
 - Tests: per-format lossless round-trip + determinism + envelope rejection, and
   `kpz` package round-trip + a cache-internal store round-trip.
 - The working-state / hand-off capability (§5) is implemented

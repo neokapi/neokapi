@@ -43,7 +43,7 @@ export interface ProjectViewProps {
   /** Upload files via adapter. Web apps pass File objects; desktop passes file paths. */
   onUploadFiles: (files: File[]) => void;
   onRemoveFile: (fileName: string) => void;
-  onOpenTM?: () => void;
+  onOpenMemory?: () => void;
   onOpenTerms?: () => void;
   /** When set, shows "Open in Bowrain Desktop" banner with deep link. */
   serverMode?: { serverURL: string; workspaceSlug: string };
@@ -75,7 +75,7 @@ export function ProjectView({
   onOpenFile,
   onUploadFiles,
   onRemoveFile,
-  onOpenTM,
+  onOpenMemory,
   onOpenTerms,
   serverMode,
   onCreateCollection,
@@ -225,8 +225,8 @@ export function ProjectView({
                 Terminology
               </Button>
             )}
-            {onOpenTM && (
-              <Button variant="ghost" size="sm" onClick={onOpenTM} data-testid="open-tm-btn">
+            {onOpenMemory && (
+              <Button variant="ghost" size="sm" onClick={onOpenMemory} data-testid="open-tm-btn">
                 Content memory
               </Button>
             )}

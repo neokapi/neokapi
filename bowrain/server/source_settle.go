@@ -13,7 +13,7 @@ import (
 // 2026-07-dogfood doc 07 / roadmap epic 019): settle the SOURCE before
 // translating it into N languages. It runs as a small explicit server-side
 // settle step (approach (a) in the epic), mirroring how #1312 folded the
-// TM-first recycle step into the job pipeline rather than resurrecting the flow
+// content memory-first recycle step into the job pipeline rather than resurrecting the flow
 // engine — the server still bypasses flows, so a leading source-transform stage
 // has no home; a focused settle pass over the source-locale blocks is the
 // smaller, consistent change.

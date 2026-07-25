@@ -19,7 +19,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // These tests drive the brand knowledge-graph handlers against the real
@@ -29,8 +29,8 @@ import (
 
 // kgIntegrationServer wires a server with the real Postgres knowledge, content,
 // and brand stores on a single throwaway schema, plus an in-memory workspace
-// termbase (the merge engine's writable concept store), so a change-set merge
-// applies to the same termbase the concept reads resolve.
+// terms (the merge engine's writable concept store), so a change-set merge
+// applies to the same terms the concept reads resolve.
 func kgIntegrationServer(t *testing.T) *Server {
 	t.Helper()
 	db := pgtest.NewTestDB(t)
@@ -49,8 +49,8 @@ func kgIntegrationServer(t *testing.T) *Server {
 	require.NoError(t, err)
 	srv.BrandStore = bs
 
-	srv.wsStores.tbFactory = func() termbase.TBStore {
-		return &testTermStore{termbase.NewInMemoryTermBase()}
+	srv.wsStores.tbFactory = func() terms.Store {
+		return &testTermStore{terms.NewInMemoryStore()}
 	}
 	return srv
 }

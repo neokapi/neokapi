@@ -101,7 +101,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	reg.RegisterWithSchema("term-check", func() tool.Tool {
 		return NewTermCheckTool(&TermCheckConfig{TargetLocale: model.LocaleEnglish})
 	}, toolSchema(&TermCheckConfig{}, toolMeta("term-check", "Terminology Check", schema.CategoryQuality,
-		withTags("quality", schema.TagL10n), withRequires("target-language", "termbase"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(srcF(model.OverlayTerm)), withSideEffects(schema.SideEffectTermbaseRead))))
+		withTags("quality", schema.TagL10n), withRequires("target-language", "termbase"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(srcF(model.OverlayTerm)), withSideEffects(schema.SideEffectTermsRead))))
 
 	reg.RegisterWithSchema("xml-validation", func() tool.Tool {
 		return NewXMLValidationTool(&XMLValidationConfig{CheckSource: true, WrapRoot: true})
@@ -185,12 +185,12 @@ func RegisterAll(reg *registry.ToolRegistry) {
 
 	// ── Enrich ──────────────────────────────────────────────────────
 
-	// "recycle" is the canonical id for TM leverage (pre-fill from translation
+	// "recycle" is the canonical id for content-memory leverage (pre-fill from translation
 	// memory).
 	reg.RegisterWithSchema("recycle", func() tool.Tool {
-		return NewTMLeverageTool(&TMLeverageConfig{FuzzyThreshold: 70, Provider: NullTMProvider{}})
-	}, toolSchema(&TMLeverageConfig{FuzzyThreshold: 70}, toolMeta("recycle", "Recycle", schema.CategoryTranslation,
-		withTags("translation", schema.TagL10n), withWritesOutput(), withRequires("target-language", "tm"), withCardinality(schema.Bilingual), withConsumes(optF(srcF(model.OverlaySegmentation))), withProduces(srcF(model.AnnoTMMatch), srcF(model.AnnoAltTranslation), tgtF(schema.PortTarget)), withSideEffects(schema.SideEffectTMRead))))
+		return NewMemoryLeverageTool(&MemoryLeverageConfig{FuzzyThreshold: 70, Provider: NullMemoryProvider{}})
+	}, toolSchema(&MemoryLeverageConfig{FuzzyThreshold: 70}, toolMeta("recycle", "Recycle", schema.CategoryTranslation,
+		withTags("translation", schema.TagL10n), withWritesOutput(), withRequires("target-language", "tm"), withCardinality(schema.Bilingual), withConsumes(optF(srcF(model.OverlaySegmentation))), withProduces(srcF(model.AnnoMemoryMatch), srcF(model.AnnoAltTranslation), tgtF(schema.PortTarget)), withSideEffects(schema.SideEffectMemoryRead))))
 
 	reg.RegisterWithSchema("diff-leverage", func() tool.Tool {
 		return NewDiffLeverageTool(&DiffLeverageConfig{CaseSensitive: true, PreviousTexts: map[string]PreviousBlock{}})
@@ -266,7 +266,7 @@ func registerConfigFactories(reg *registry.ToolRegistry) {
 	reg.SetConfigFactory("whitespace-correct", NewWhitespaceCorrectFromConfig)
 	// segmentation's ConfigFactory is set by RegisterGroup (it's a ToolGroup).
 	reg.SetConfigFactory("source-gate", NewSourceGateFromConfig)
-	reg.SetConfigFactory("recycle", NewTMLeverageFromConfig)
+	reg.SetConfigFactory("recycle", NewMemoryLeverageFromConfig)
 	reg.SetConfigFactory("diff-leverage", NewDiffLeverageFromConfig)
 	reg.SetConfigFactory("script", NewScriptFromConfig)
 }

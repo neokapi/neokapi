@@ -167,7 +167,7 @@ func TestValidatePlacement_LocalProviderDoesNotTrip(t *testing.T) {
 	require.NoError(t, onDevice.CheckPlacement(reg))
 }
 
-// A local termbase/TM step (no remote egress declared) before redact never
+// A local terms/content memory step (no remote egress declared) before redact never
 // trips the egress rule.
 func TestValidatePlacement_LocalAnnotatorBeforeRedactAllowed(t *testing.T) {
 	t.Parallel()

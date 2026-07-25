@@ -194,7 +194,7 @@ function tapeSleepForCommand(cmd: string): string {
   // so the recording shows settled output; lookups/help are quick.
   if (/\b(extract|merge|recycle|translate|qa|term-check|tm audit)\b/.test(cmd))
     return "2500ms";
-  if (/\b(pseudo-translate|tm import|termbase import)\b/.test(cmd)) return "1500ms";
+  if (/\b(pseudo-translate|tm import|terms import)\b/.test(cmd)) return "1500ms";
   if (/\b(--help|formats|tools|stats|lookup|search|ls)\b/.test(cmd)) return "2s";
   return "1500ms";
 }

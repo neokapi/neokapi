@@ -95,9 +95,9 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 	}
 	scores := latestVoiceScores(ctx, s.BrandStore, pid, stream)
 	// The same terminology gate the dashboard ship/on-brand pass uses, resolved
-	// once (workspace termbase snapshot + per-locale brand profile): a pending
+	// once (workspace terms snapshot + per-locale brand profile): a pending
 	// draft that uses a forbidden term or misses a mandated one is off-brand and
-	// must not be auto-approved. Nil gate (no termbase/brand store) is a no-op.
+	// must not be auto-approved. Nil gate (no terms/brand store) is a no-op.
 	wsID, _ := c.Get("workspace_id").(string)
 	gate := s.resolveTermGate(ctx, proj, stream, wsID)
 

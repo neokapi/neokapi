@@ -30,7 +30,7 @@ Only changed blocks are transferred. Runs post-pull hooks if configured.
 
 When the project is claimed into a workspace, pull also snapshots the
 workspace's governed concepts and their relations into the project's bound
-termbase (.kapi/termbase.db) and records a baseline, so a later 'kapi push'
+terms (.kapi/termbase.db) and records a baseline, so a later 'kapi push'
 can diff local terminology edits against it and 'kapi check --ship' gates its
 terminology offline against the same governed vocabulary.`,
 	RunE: runPull,
@@ -113,7 +113,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 	}
 
 	// --concepts: terminology-only transport. Snapshot the workspace's
-	// governed concepts into the bound termbase and record the baseline,
+	// governed concepts into the bound terms and record the baseline,
 	// without moving any content blocks and without firing pull hooks — the
 	// explicit re-sync for stale local term checks (see `kapi status`'s
 	// terms line). The deferred conn.Close() persists the baseline.
@@ -148,7 +148,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 	}
 
 	// Fold the workspace's governed terminology into the pull: fetch the
-	// concepts + relations into the project's bound termbase (skipped silently
+	// concepts + relations into the project's bound terms (skipped silently
 	// when the project is not workspace-claimed). The baseline is recorded on the
 	// connector's in-memory cache so the single deferred conn.Close() below
 	// persists it together with the block-sync state — writing it to disk here
@@ -184,6 +184,6 @@ func init() {
 	pullCmd.Flags().BoolVar(&pullForce, "force", false, "Re-download everything, even unchanged content")
 	pullCmd.Flags().BoolVar(&pullDryRun, "dry-run", false, "Show what would change without writing files")
 	pullCmd.Flags().StringVar(&pullStream, "stream", "", "Source stream (default: auto-detect from git/CI)")
-	pullCmd.Flags().BoolVar(&pullConceptsOnly, "concepts", false, "Sync only the workspace terminology (concepts + relations) into the local termbase; no content transport, no hooks")
+	pullCmd.Flags().BoolVar(&pullConceptsOnly, "concepts", false, "Sync only the workspace terminology (concepts + relations) into the local terms; no content transport, no hooks")
 	cli.RegisterCommandFactory(func(parent *cobra.Command, _ *cli.App) { parent.AddCommand(pullCmd) })
 }

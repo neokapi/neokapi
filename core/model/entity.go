@@ -33,7 +33,7 @@ func entityTypeLabel(typeName string) string {
 
 // EntityAnnotation carries a named entity with its position in source text.
 // Implements the Annotation interface. Used by entity-annotate tool,
-// TM generalization (ADR-010), and terminology management (ADR-016).
+// content memory generalization (ADR-010), and terminology management (ADR-016).
 type EntityAnnotation struct {
 	Text   string           // the entity text as found in source
 	Type   EntityType       // classification

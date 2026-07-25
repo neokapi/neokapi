@@ -213,7 +213,7 @@ func TestBrandVoiceCheckToolAddsAnnotation(t *testing.T) {
 	mock := aiprovider.NewMockProvider()
 	mock.ChatStructuredFunc = func(ctx context.Context, messages []aiprovider.Message, schema aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
 		return &aiprovider.ChatResponse{
-			Content: `{"findings":[{"dimension":"brand_compliance","severity":"minor","message":"missing trademark","suggestion":"add TM symbol"}]}`,
+			Content: `{"findings":[{"dimension":"brand_compliance","severity":"minor","message":"missing trademark","suggestion":"add content memory symbol"}]}`,
 			Model:   "test",
 		}, nil
 	}

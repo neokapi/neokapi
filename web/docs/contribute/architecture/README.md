@@ -53,8 +53,8 @@ pseudocode) are separated into [Implementation Notes](/contribute/notes-internal
 
 | AD                               | Title              | Scope                                                         |
 | -------------------------------- | ------------------ | ------------------------------------------------------------- |
-| [009](009-translation-memory.md) | Translation Memory | Sievepen, tiered matching, generalized matching with entities |
-| [010](010-terminology.md)        | Terminology        | Concept model, TermBase, tiered lookup                        |
+| [009](009-translation-memory.md) | Translation Memory | Memory, tiered matching, generalized matching with entities |
+| [010](010-terminology.md)        | Terminology        | Concept model, Terminology, tiered lookup                        |
 | [011](011-ai-providers.md)       | AI Providers       | LLMProvider, streaming, batching, worker pool                 |
 | [012](012-mt-providers.md)       | MT Providers       | MTProvider interface, built-in backends                       |
 | [022](022-brand-voice.md)        | Brand Voice        | VoiceProfile, starter packs, vocab/voice checks, scoring, command + MCP surface |

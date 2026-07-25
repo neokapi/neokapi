@@ -36,8 +36,8 @@ and term context in one integrity-verified, diffable parcel. For a third-party
 CAT tool, `kapi extract` emits **XLIFF 2.x / PO** (the default), the interop
 tier this page focuses on. Both go out and come back through the same
 `extract` / `merge` verbs — see [KBF vs XLIFF](/reference/kbf/vs-xliff). (TM and
-terminology have their own interchange: `kapi tm import/export` for TMX,
-`kapi termbase import/export` for TBX.)
+terminology have their own interchange: `kapi memory import/export` for TMX,
+`kapi terms import/export` for TBX.)
 
 <ThemedVideo
   sources={{
@@ -74,7 +74,7 @@ The translation memory participates on both sides of the round-trip:
   above the recipe's `tm.fuzzy_threshold` land as fuzzy.
 - **TM absorb on merge** — every accepted target becomes a TU in the project TM,
   with provenance (batch id, source path, content hash, filename) that
-  `kapi tm audit --batch <id>` can trace back later.
+  `kapi memory audit --batch <id>` can trace back later.
 
 Both are on by default; `--no-tm` and `--no-tm-update` disable them. Absorb is
 **recycle leverage**, not a review decision: whether a reviewer *approved* a
@@ -108,7 +108,7 @@ content:
 
 The `merge`, `tm`, and (opt-in) `segmentation` sections are optional; details on
 the [project file reference](/reference/project-file). Seed the TM from existing
-memory if you have any: `kapi tm import ./corporate-en-fr.tmx`.
+memory if you have any: `kapi memory import ./corporate-en-fr.tmx`.
 
 ## Extract
 
@@ -159,7 +159,7 @@ outcomes are reported and the exit code reflects any failure.
 - **Conflicts.** When a target already exists, `merge.conflict_policy` decides:
   `translator-wins` (default), `existing-wins`, or `newest-wins` (by
   timestamp) — the same policy governs TM write-back. Never interactive.
-- **Audit.** `kapi tm audit --batch <merge-batch-id>` lists every TU the merge
+- **Audit.** `kapi memory audit --batch <merge-batch-id>` lists every TU the merge
   wrote, with provenance.
 
 After a merge, the gates say where you stand: `kapi status` re-derives coverage

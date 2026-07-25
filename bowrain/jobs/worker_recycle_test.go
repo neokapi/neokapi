@@ -4,21 +4,21 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	sqltm "github.com/neokapi/neokapi/bowrain/sievepen"
+	sqltm "github.com/neokapi/neokapi/bowrain/memory"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
-	fwsievepen "github.com/neokapi/neokapi/sievepen"
+	fwmemory "github.com/neokapi/neokapi/memory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TestWorkerRecycle_FillsFromTMOnlyAITranslatesRemainder is the end-to-end proof
-// of verification (a): a convergence translation job with TM entries fills the
-// matching blocks from the project TM and sends only the remainder to the AI
-// translator — and records a truthful ViaTM/ViaAI split on the job row (the
-// input to the produce emitter's "TM N · AI M").
-func TestWorkerRecycle_FillsFromTMOnlyAITranslatesRemainder(t *testing.T) {
+// TestWorkerRecycle_FillsFromMemoryOnlyAITranslatesRemainder is the end-to-end proof
+// of verification (a): a convergence translation job with content-memory entries fills the
+// matching blocks from the project content memory and sends only the remainder to the AI
+// translator — and records a truthful ViaMemory/ViaAI split on the job row (the
+// input to the produce emitter's "content memory N · AI M").
+func TestWorkerRecycle_FillsFromMemoryOnlyAITranslatesRemainder(t *testing.T) {
 	db := pgtest.NewTestDB(t)
 	ctx := t.Context()
 
@@ -37,16 +37,16 @@ func TestWorkerRecycle_FillsFromTMOnlyAITranslatesRemainder(t *testing.T) {
 		DefaultSourceLanguage: "en",
 		TargetLanguages:       []model.LocaleID{"fr"},
 	}))
-	// Two source blocks; only "Hello" has a TM match.
+	// Two source blocks; only "Hello" has a content-memory match.
 	require.NoError(t, cs.StoreBlocksForItem(ctx, projectID, "main", "en.json", []*model.Block{
 		model.NewBlock("b1", "Hello"),
 		model.NewBlock("b2", "Brand new string"),
 	}))
 
-	// Seed the project TM (workspace-scoped) with the "Hello" pair.
-	tm, err := sqltm.NewPostgresTMFromDB(db, wsSlug)
+	// Seed the project content memory (workspace-scoped) with the "Hello" pair.
+	tm, err := sqltm.NewPostgresStoreFromDB(db, wsSlug)
 	require.NoError(t, err)
-	require.NoError(t, tm.Add(ctx, fwsievepen.TMEntry{
+	require.NoError(t, tm.Add(ctx, fwmemory.Entry{
 		ID: "e-hello",
 		Variants: map[model.LocaleID][]model.Run{
 			"en": {{Text: &model.TextRun{Text: "Hello"}}},
@@ -60,8 +60,8 @@ func TestWorkerRecycle_FillsFromTMOnlyAITranslatesRemainder(t *testing.T) {
 		ContentStore:  cs,
 		Platform:      &PlatformProviderConfig{Provider: "demo"},
 		ProviderStore: &fakeProviderResolver{cfg: bstore.ProviderConfig{Type: "demo"}},
-		TMResolver: TMResolverFunc(func(slug string) (fwsievepen.TMStore, error) {
-			return sqltm.NewPostgresTMFromDB(db, slug)
+		MemoryResolver: MemoryResolverFunc(func(slug string) (fwmemory.Store, error) {
+			return sqltm.NewPostgresStoreFromDB(db, slug)
 		}),
 	}
 
@@ -81,8 +81,8 @@ func TestWorkerRecycle_FillsFromTMOnlyAITranslatesRemainder(t *testing.T) {
 	require.True(t, claimed)
 	require.NoError(t, executeTranslationWithDeps(ctx, deps, job, epoch))
 
-	// The TM-matched block carries the recycled target verbatim; the other block
-	// carries an AI (demo) draft that is NOT the TM value. Read back by item
+	// The content memory-matched block carries the recycled target verbatim; the other block
+	// carries an AI (demo) draft that is NOT the content memory value. Read back by item
 	// (StoreBlocksForItem remaps source IDs to internal IDs) and key on the
 	// source text.
 	stored, err := cs.GetBlocks(ctx, store.BlockQuery{ProjectID: projectID, Stream: "main", ItemName: "en.json"})
@@ -91,13 +91,13 @@ func TestWorkerRecycle_FillsFromTMOnlyAITranslatesRemainder(t *testing.T) {
 	for _, sb := range stored {
 		targets[sb.Block.SourceText()] = sb.Block.TargetText("fr")
 	}
-	assert.Equal(t, "Bonjour", targets["Hello"], "the TM-matched block must be recycled from TM, not AI")
+	assert.Equal(t, "Bonjour", targets["Hello"], "the content memory-matched block must be recycled from Memory, not AI")
 	assert.NotEmpty(t, targets["Brand new string"], "the unmatched block must be AI-translated")
 	assert.NotEqual(t, "Bonjour", targets["Brand new string"])
 
-	// The job records the truthful split: 1 via TM, 1 via AI (verification (c)).
+	// The job records the truthful split: 1 via content memory, 1 via AI (verification (c)).
 	reloaded, err := js.GetJob(ctx, job.ID)
 	require.NoError(t, err)
-	assert.Equal(t, 1, reloaded.ViaTM, "one block recycled from TM → ViaTM=1")
+	assert.Equal(t, 1, reloaded.ViaMemory, "one block recycled from content memory → ViaMemory=1")
 	assert.Equal(t, 1, reloaded.ViaAI, "one block sent to AI → ViaAI=1")
 }

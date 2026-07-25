@@ -6,7 +6,7 @@ overview: |
   This format reads and writes the Kapi Bundle Format (`.kbf`), a
   structured JSON envelope for translatable strings extracted from
   source code such as JSX / React components. A KBF document is a
-  `kind: kapi-localization-format` envelope holding one or more
+  `kind: kapi-bundle` envelope holding one or more
   documents, each carrying blocks. Every block has a structured run
   sequence — text plus placeholders, paired inline codes, plurals, and
   selects.

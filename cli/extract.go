@@ -8,7 +8,7 @@ import (
 
 // NewExtractCmd returns the `kapi extract` command (AD-017, issue #415).
 // Emits one XLIFF 2.x (or PO) file per source → target-locale pair with
-// TM pre-fill, under .kapi/cache/extractions/<batch-id>/ bookkeeping.
+// content memory pre-fill, under .kapi/cache/extractions/<batch-id>/ bookkeeping.
 func NewExtractCmd(a *App, _ ExtractCmdOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "extract",
@@ -57,7 +57,7 @@ plus one bilingual file per source → target pair in --out-dir (default "out/")
 	cmd.Flags().String("pattern", "", "extra glob pattern restricting which source files to include")
 	cmd.Flags().String("format", ExtractFormatXLIFF2, "bilingual output format (xliff2 | po | kpz)")
 	cmd.Flags().String("xliff-version", "", "XLIFF 2.x version to emit (2.0, 2.1, 2.2; default 2.2)")
-	cmd.Flags().Bool("no-tm", false, "skip TM pre-fill on extract")
+	cmd.Flags().Bool("no-tm", false, "skip content-memory pre-fill on extract")
 	cmd.Flags().Bool("force", false, "re-extract every file, ignoring the incremental reuse of unchanged sources")
 	cmd.Flags().Bool("with-source", false, "embed raw source bytes in the .kpz (default: identity + skeleton only)")
 	cmd.Flags().String("out-dir", "out", "directory for emitted bilingual files (relative to project)")

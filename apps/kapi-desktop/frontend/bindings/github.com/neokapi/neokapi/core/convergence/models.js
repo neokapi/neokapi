@@ -112,7 +112,7 @@ export class Event {
              * @member
              * @type {number | undefined}
              */
-            this["viaTM"] = undefined;
+            this["viaMemory"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -255,14 +255,14 @@ export const EventType = {
 
     /**
      * EventUnitProgress is the throttled live counter for one locale: Done
-     * units carry a committed target so far, of which ViaTM came from TM
+     * units carry a committed target so far, of which ViaMemory came from Memory
      * recycling and ViaAI from an AI/MT engine.
      */
     EventUnitProgress: "unit_progress",
 
     /**
      * EventLocaleDone reports one locale's flow run finishing inside the
-     * current pass, with the final Done/ViaTM/ViaAI counts for the pass.
+     * current pass, with the final Done/ViaMemory/ViaAI counts for the pass.
      */
     EventLocaleDone: "locale_done",
 

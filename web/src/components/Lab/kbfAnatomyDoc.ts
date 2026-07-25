@@ -165,7 +165,7 @@ const bannerItems: Block = {
 
 export const ANATOMY_FILE: File = {
   schemaVersion: "1.0",
-  kind: "kapi-localization-format",
+  kind: "kapi-bundle",
   created: "2026-05-02T09:30:00Z",
   generator: {
     id: "@neokapi/kapi-format-examples",

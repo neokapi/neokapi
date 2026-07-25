@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "kind": "kapi-tm-format",
+  "kind": "kapi-memory",
   "entries": [
     {
       "id": "demo-narration-nb:03d6abf05c",
@@ -116,7 +116,7 @@
       "variants": {
         "en": [
           {
-            "text": "The translation memory works the same way."
+            "text": "The content memory works the same way."
           }
         ],
         "nb": [
@@ -602,7 +602,7 @@
       "variants": {
         "en": [
           {
-            "text": "The Termbases section lists each glossary on disk."
+            "text": "The Terms stores section lists each glossary on disk."
           }
         ],
         "nb": [

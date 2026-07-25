@@ -82,7 +82,7 @@
   },
   {
     "name": "recycle",
-    "description": "Pre-fill translations from TM",
+    "description": "Pre-fill translations from Memory",
     "category": "translation",
     "has_schema": true,
     "inputs": ["block"],
@@ -243,7 +243,7 @@
   },
   {
     "name": "okapi:concordance-character-count",
-    "description": "TM concordance or phrase match (usually a word or term only) Expects: filter events. Sends back: filter events.",
+    "description": "Memory concordance or phrase match (usually a word or term only) Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
     "inputs": ["block"],
@@ -253,7 +253,7 @@
   },
   {
     "name": "okapi:concordance-word-count",
-    "description": "TM concordance or phrase match (usually a word or term only) Expects: filter events. Sends back: filter events.",
+    "description": "Memory concordance or phrase match (usually a word or term only) Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
     "inputs": ["block"],
@@ -747,7 +747,7 @@
   },
   {
     "name": "okapi:g-m-x-fuzzy-match-character-count",
-    "description": "An accumulation of the character count for text units that have been fuzzy matched against a leveraged translation memory database. Expects: filter events. Sends back: filter events.",
+    "description": "An accumulation of the character count for text units that have been fuzzy matched against a leveraged content memory database. Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
     "inputs": ["block"],
@@ -757,7 +757,7 @@
   },
   {
     "name": "okapi:g-m-x-fuzzy-match-word-count",
-    "description": "An accumulation of the word count for text units that have been fuzzy matched against a leveraged translation memory database. Expects: filter events. Sends back: filter events.",
+    "description": "An accumulation of the word count for text units that have been fuzzy matched against a leveraged content memory database. Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
     "inputs": ["block"],
@@ -767,7 +767,7 @@
   },
   {
     "name": "okapi:g-m-x-leveraged-matched-character-count",
-    "description": "An accumulation of the character count for text units that have been matched against a leveraged translation memory database. Expects: filter events. Sends back: filter events.",
+    "description": "An accumulation of the character count for text units that have been matched against a leveraged content memory database. Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
     "inputs": ["block"],
@@ -777,7 +777,7 @@
   },
   {
     "name": "okapi:g-m-x-leveraged-matched-word-count",
-    "description": "An accumulation of the word count for text units that have been matched against a leveraged translation memory database. Expects: filter events. Sends back: filter events.",
+    "description": "An accumulation of the word count for text units that have been matched against a leveraged content memory database. Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
     "inputs": ["block"],
@@ -980,7 +980,7 @@
   },
   {
     "name": "okapi:m-s-batch-translation",
-    "description": "Annotates text units with Microsoft Translator matches or/and creates a TM from them. Expects: filter events. Sends back: filter events.",
+    "description": "Annotates text units with Microsoft Translator matches or/and creates a content memory from them. Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": true,
     "inputs": ["block"],
@@ -1040,7 +1040,7 @@
   },
   {
     "name": "okapi:phrase-assembled-character-count",
-    "description": "Matches assembled from phrases in the TM or other resources (different algorithms could be used). Expects: filter events. Sends back: filter events.",
+    "description": "Matches assembled from phrases in the content memory or other resources (different algorithms could be used). Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
     "inputs": ["block"],
@@ -1050,7 +1050,7 @@
   },
   {
     "name": "okapi:phrase-assembled-word-count",
-    "description": "Matches assembled from phrases in the TM or other resources (different algorithms could be used). Expects: filter events. Sends back: filter events.",
+    "description": "Matches assembled from phrases in the content memory or other resources (different algorithms could be used). Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": false,
     "inputs": ["block"],
@@ -1236,7 +1236,7 @@
   },
   {
     "name": "okapi:t-m-import",
-    "description": "Import text into a new or existing Pensieve TM. Expects: filter events. Sends back: filter events.",
+    "description": "Import text into a new or existing Pensieve Memory. Expects: filter events. Sends back: filter events.",
     "category": "translation",
     "has_schema": true,
     "inputs": ["block"],

@@ -14,14 +14,14 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/kpz"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/sievepen/kmb"
-	"github.com/neokapi/neokapi/termbase"
-	"github.com/neokapi/neokapi/termbase/ktb"
+	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/memory/kmb"
+	"github.com/neokapi/neokapi/terms"
+	"github.com/neokapi/neokapi/terms/ktb"
 )
 
 // RunPack snapshots a .kapi project's working state — block-store overlays
-// (and any blocks), the authoritative TM, and the termbase — into a
+// (and any blocks), the authoritative content memory, and the terms store — into a
 // portable .kpz. Regenerable caches and secrets are excluded (AD-025 §4).
 func (a *App) RunPack(cmd Command) error {
 	projectPath, err := RequireProjectPath(cmd)
@@ -77,35 +77,35 @@ func (a *App) RunPack(cmd Command) error {
 		}
 	}
 
-	// Authoritative TM.
-	if tmPath := filepath.Join(layout.StateDir, "tm.db"); fileExists(tmPath) {
-		tm, err := sievepen.NewSQLiteTM(tmPath)
+	// Authoritative content memory.
+	if memoryPath := filepath.Join(layout.StateDir, "tm.db"); fileExists(memoryPath) {
+		tm, err := memory.NewSQLiteStore(memoryPath)
 		if err != nil {
-			return fmt.Errorf("open project TM: %w", err)
+			return fmt.Errorf("open project content memory: %w", err)
 		}
 		entries, err := tm.Entries(cmd.Context())
 		_ = tm.Close()
 		if err != nil {
-			return fmt.Errorf("read project TM: %w", err)
+			return fmt.Errorf("read project content memory: %w", err)
 		}
 		if len(entries) > 0 {
-			pkg.TM = kmb.FromModel(entries, nil)
+			pkg.Memory = kmb.FromModel(entries, nil)
 		}
 	}
 
-	// Termbase.
+	// Terms.
 	if tbPath := filepath.Join(layout.StateDir, "termbase.db"); fileExists(tbPath) {
-		tb, err := termbase.NewSQLiteTermBase(tbPath)
+		tb, err := terms.NewSQLiteStore(tbPath)
 		if err != nil {
-			return fmt.Errorf("open project termbase: %w", err)
+			return fmt.Errorf("open project terms store: %w", err)
 		}
 		concepts, err := tb.Concepts(cmd.Context())
 		_ = tb.Close()
 		if err != nil {
-			return fmt.Errorf("read project termbase: %w", err)
+			return fmt.Errorf("read project terms store: %w", err)
 		}
 		if len(concepts) > 0 {
-			pkg.Termbase = ktb.FromConcepts(concepts)
+			pkg.Terms = ktb.FromConcepts(concepts)
 		}
 	}
 
@@ -121,11 +121,11 @@ func (a *App) RunPack(cmd Command) error {
 	}
 
 	// Refuse to write a content-less snapshot — the way `git bundle` refuses an
-	// empty bundle. A project with no extracted content, TM, or terminology has
+	// empty bundle. A project with no extracted content, content memory, or terminology has
 	// nothing worth packing; its intent is the .kapi recipe, which is shared via
 	// git, not a .kpz.
 	if !pkg.HasContent() {
-		return fmt.Errorf("pack: nothing to pack — %s has no extracted content, translation memory, or terminology yet; run `kapi extract` (and translate) first, or share the kapi.yaml recipe directly", filepath.Base(projectPath))
+		return fmt.Errorf("pack: nothing to pack — %s has no extracted content, content memory, or terminology yet; run `kapi extract` (and translate) first, or share the kapi.yaml recipe directly", filepath.Base(projectPath))
 	}
 
 	if err := saveWorkspace(pkg, outPath); err != nil {
@@ -191,7 +191,7 @@ func (a *App) collectProjectSources(pkg *kpz.Package, layout project.Layout, pro
 }
 
 // RunUnpack rehydrates a project's working state from a .kpz snapshot into
-// the local .kapi/ state dir, recreating the block store, TM, and termbase.
+// the local .kapi/ state dir, recreating the block store, content memory, and terms.
 // A workspace .kpz (one carrying a Recipe) instead rebuilds its shadow cache.
 func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 	pkg, err := LoadWorkspace(snapshotPath)
@@ -254,28 +254,28 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 		}
 	}
 
-	// TM.
-	if pkg.TM != nil {
-		tm, err := sievepen.NewSQLiteTM(filepath.Join(layout.StateDir, "tm.db"))
+	// content memory.
+	if pkg.Memory != nil {
+		tm, err := memory.NewSQLiteStore(filepath.Join(layout.StateDir, "tm.db"))
 		if err != nil {
-			return fmt.Errorf("open project TM: %w", err)
+			return fmt.Errorf("open project content memory: %w", err)
 		}
-		for _, e := range pkg.TM.ModelEntries() {
+		for _, e := range pkg.Memory.ModelEntries() {
 			if aerr := tm.Add(cmd.Context(), e); aerr != nil {
 				_ = tm.Close()
-				return fmt.Errorf("restore TM entry: %w", aerr)
+				return fmt.Errorf("restore content-memory entry: %w", aerr)
 			}
 		}
 		_ = tm.Close()
 	}
 
-	// Termbase.
-	if pkg.Termbase != nil {
-		tb, err := termbase.NewSQLiteTermBase(filepath.Join(layout.StateDir, "termbase.db"))
+	// Terms.
+	if pkg.Terms != nil {
+		tb, err := terms.NewSQLiteStore(filepath.Join(layout.StateDir, "termbase.db"))
 		if err != nil {
-			return fmt.Errorf("open project termbase: %w", err)
+			return fmt.Errorf("open project terms store: %w", err)
 		}
-		for _, c := range pkg.Termbase.Concepts {
+		for _, c := range pkg.Terms.Concepts {
 			if aerr := tb.AddConcept(cmd.Context(), c); aerr != nil {
 				_ = tb.Close()
 				return fmt.Errorf("restore concept: %w", aerr)

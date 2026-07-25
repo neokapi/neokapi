@@ -63,9 +63,9 @@ type ItemDiffResult struct {
 	// Count of items with matching hashes (no changes).
 	UnchangedCount int
 
-	// Whether terms/TM collections changed.
-	TermsChanged bool
-	TMChanged    bool
+	// Whether terms/content memory collections changed.
+	TermsChanged  bool
+	MemoryChanged bool
 }
 
 // CompareItems performs the first level of Merkle comparison: item-level hashes.

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+
+	"github.com/neokapi/neokapi/internal/bundlekind"
 )
 
 // Unmarshal decodes a .kbf JSON payload into a File, returning an
@@ -36,7 +38,7 @@ func Decode(r io.Reader) (*File, error) {
 
 func checkEnvelope(f *File) error {
 	if f.Kind != Kind {
-		return fmt.Errorf("kbf: unexpected kind %q (want %q)", f.Kind, Kind)
+		return bundlekind.Unexpected("kbf", f.Kind, Kind, "kapi extract")
 	}
 	major, _, ok := splitVersion(f.SchemaVersion)
 	if !ok {

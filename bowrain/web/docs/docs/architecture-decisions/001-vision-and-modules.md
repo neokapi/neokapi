@@ -150,7 +150,7 @@ imports `bowrain/core/project`.
 | `brand/`                 | Brand voice profiles, tag dimensions                          |
 | `graph/`                 | Brand knowledge graph — plain-SQL (default) and Apache AGE (opt-in) backends |
 | `analytics/`             | Usage analytics and reporting                                 |
-| `sievepen/`              | SQLite + PostgreSQL TM implementation                         |
+| `memory/`              | SQLite + PostgreSQL TM implementation                         |
 | `termbase/`              | SQLite + PostgreSQL termbase implementation                   |
 | `proto/`                 | Protobuf definitions for gRPC and sync                        |
 | `apps/bowrain/`          | Wails v3 desktop app (Go + React/TypeScript)                  |
@@ -190,8 +190,8 @@ interfaces Bowrain uses:
 | `aiprovider.LLMProvider`         | AI translation, QA, and review tools use the same provider interface |
 | `mtprovider.MTProvider`          | MT translation tools likewise                                      |
 | `core/storage.BlobStore`         | Bowrain provides Azure Blob and local filesystem implementations. See [AD-007: Media and Blob Storage](007-media-and-blob-storage.md). |
-| `sievepen.TM`                    | Bowrain provides SQLite + PostgreSQL implementations               |
-| `termbase.TermBase`              | Bowrain provides SQLite + PostgreSQL implementations               |
+| `memory.TM`                    | Bowrain provides SQLite + PostgreSQL implementations               |
+| `termbase.Terminology`              | Bowrain provides SQLite + PostgreSQL implementations               |
 | `plugin` registries              | Bowrain hosts format and tool plugins via gRPC + Java bridge       |
 
 The framework never imports `bowrain/*`. Bowrain never forks framework types.

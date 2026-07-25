@@ -45,7 +45,7 @@ MOD_FRONTEND=false
 # Map paths to modules (matches CI change detection)
 while IFS= read -r f; do
   case "$f" in
-    core/*|go.mod|go.sum|go.work|sievepen/*|termbase/*|providers/*)
+    core/*|go.mod|go.sum|go.work|memory/*|terms/*|providers/*)
       MOD_FRAMEWORK=true ;;
     cli/*)
       MOD_CLI=true ;;

@@ -208,6 +208,14 @@ survives the sync boundary. No data loss.
 
 #### SyncTerm, SyncTMEntry, SyncMedia
 
+`SyncTMEntry` and the `tm_entries` / `tm_hash` / `tm_changed` fields keep their
+historical `TM` spelling even though the product vocabulary is now *content
+memory*. Message and field names are wire schema — serialized into the
+descriptor and into every protojson type URL — and a kapi client syncs against
+an independently deployed server, so the two sides are never upgraded in
+lockstep. Renaming them would be a breaking protocol change. Prose says
+"content memory"; the wire keeps `TM`.
+
 ```protobuf
 message SyncTerm {
   string concept_id = 1;
@@ -463,7 +471,7 @@ for _, chunk := range manifest.Chunks {
     case "terms":
         storeTerms(data.Terms, manifest)
     case "tm":
-        storeTMEntries(data.TMEntries, manifest)
+        storeMemoryEntries(data.MemoryEntries, manifest)
     case "media":
         storeMedia(data.Media, manifest)
     }

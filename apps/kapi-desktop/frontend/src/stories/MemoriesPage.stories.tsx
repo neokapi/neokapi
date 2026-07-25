@@ -4,13 +4,13 @@ import { Database, Plus, FolderOpen, X, Upload, Download } from "lucide-react";
 import { MemoriesPage } from "../components/MemoriesPage";
 import {
   Button,
-  TMBrowser,
+  MemoryBrowser,
   ResourceCard,
-  type TMAdapter,
-  type TMEntryDTO,
+  type MemoryAdapter,
+  type MemoryEntryDTO,
 } from "@neokapi/ui-primitives";
 
-const SAMPLE_ENTRIES: TMEntryDTO[] = [
+const SAMPLE_ENTRIES: MemoryEntryDTO[] = [
   {
     id: "1",
     project_id: "",
@@ -84,10 +84,10 @@ const SAMPLE_ENTRIES: TMEntryDTO[] = [
   },
 ];
 
-function createMockAdapter(entries: TMEntryDTO[]): TMAdapter {
+function createMockAdapter(entries: MemoryEntryDTO[]): MemoryAdapter {
   let data = [...entries];
 
-  const matchQuery = (e: TMEntryDTO, q: string) => {
+  const matchQuery = (e: MemoryEntryDTO, q: string) => {
     const needle = q.toLowerCase();
     return Object.values(e.variants).some((v) => v.text.toLowerCase().includes(needle));
   };
@@ -101,7 +101,7 @@ function createMockAdapter(entries: TMEntryDTO[]): TMAdapter {
       return data.find((e) => e.id === id) ?? null;
     },
     async addEntry(req) {
-      const variants: TMEntryDTO["variants"] = {};
+      const variants: MemoryEntryDTO["variants"] = {};
       for (const [locale, input] of Object.entries(req.variants)) {
         variants[locale] = {
           locale,
@@ -121,7 +121,7 @@ function createMockAdapter(entries: TMEntryDTO[]): TMAdapter {
     async updateEntry(req) {
       data = data.map((e) => {
         if (e.id !== req.entry_id) return e;
-        const variants: TMEntryDTO["variants"] = {};
+        const variants: MemoryEntryDTO["variants"] = {};
         for (const [locale, input] of Object.entries(req.variants)) {
           variants[locale] = {
             locale,
@@ -214,7 +214,7 @@ function SimulatedMemoriesPage() {
             </Button>
           </div>
         </div>
-        <TMBrowser adapter={adapter} />
+        <MemoryBrowser adapter={adapter} />
       </div>
     );
   }

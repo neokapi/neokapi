@@ -13,8 +13,8 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/kpz"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // `kapi info` reports what `kapi pack` would capture, and what a `.kpz` holds.
@@ -130,7 +130,7 @@ var archivePartAbsentNotes = map[string]string{
 	"blocks":   "no block store yet — run `kapi extract` or `kapi up`",
 	"overlays": "no committed targets yet",
 	"memory":   "no content memory yet — it fills as work is committed",
-	"terms":    "no terms yet — `kapi termbase import` seeds one",
+	"terms":    "no terms yet — `kapi terms import` seeds one",
 	"history":  "no provenance chain — `kapi pack --log` stamps one",
 }
 
@@ -198,7 +198,7 @@ func (a *App) RunProjectInfo(cmd Command) error {
 	out.Parts = append(out.Parts,
 		part("memory", relativeToCwd(tmPath), countTMEntries(ctx, tmPath), fileSize(tmPath)))
 
-	tbPath := filepath.Join(layout.StateDir, "termbase.db")
+	tbPath := filepath.Join(layout.StateDir, "terms.db")
 	out.Parts = append(out.Parts,
 		part("terms", relativeToCwd(tbPath), countTermConcepts(ctx, tbPath), fileSize(tbPath)))
 
@@ -270,7 +270,7 @@ func countTMEntries(ctx context.Context, path string) int {
 	if !fileExists(path) {
 		return 0
 	}
-	tm, err := sievepen.NewSQLiteTM(path)
+	tm, err := memory.NewSQLiteStore(path)
 	if err != nil {
 		return 0
 	}
@@ -287,7 +287,7 @@ func countTermConcepts(ctx context.Context, path string) int {
 	if !fileExists(path) {
 		return 0
 	}
-	tb, err := termbase.NewSQLiteTermBase(path)
+	tb, err := terms.NewSQLiteStore(path)
 	if err != nil {
 		return 0
 	}
@@ -376,12 +376,12 @@ func (a *App) RunArchiveInfo(cmd Command, path string, pkg *kpz.Package) error {
 		}
 	}
 	memory := 0
-	if pkg.TM != nil {
-		memory = len(pkg.TM.ModelEntries())
+	if pkg.Memory != nil {
+		memory = len(pkg.Memory.ModelEntries())
 	}
 	terms := 0
-	if pkg.Termbase != nil {
-		terms = len(pkg.Termbase.Concepts)
+	if pkg.Terms != nil {
+		terms = len(pkg.Terms.Concepts)
 	}
 
 	out.Parts = []ProjectArchivePart{

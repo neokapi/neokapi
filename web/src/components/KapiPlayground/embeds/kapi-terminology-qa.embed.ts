@@ -21,15 +21,15 @@ const config: WalkthroughEmbedConfig = {
   ],
   steps: [
     {
-      command: "kapi termbase stats",
+      command: "kapi terms stats",
       narration: "The browser build pre-seeds a termbase from the project glossary.",
     },
     {
-      command: "kapi termbase lookup password -s en -t fr",
+      command: "kapi terms lookup password -s en -t fr",
       narration: "Look up a single term and its approved translation.",
     },
     {
-      command: "kapi termbase search encrypt -s en",
+      command: "kapi terms search encrypt -s en",
       narration: "Search across every concept in the termbase.",
     },
     {

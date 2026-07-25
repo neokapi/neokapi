@@ -27,7 +27,7 @@ func TestUnitsFromProject_ExpandsPathToken(t *testing.T) {
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "i18n", "sub"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "i18n", "sub", "a.kbf"),
-		[]byte(`{"kind":"kapi-localization-format"}`), 0o644))
+		[]byte(`{"kind":"kapi-bundle"}`), 0o644))
 
 	proj := &project.KapiProject{
 		Version: project.CurrentVersion,

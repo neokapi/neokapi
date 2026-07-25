@@ -2,7 +2,7 @@ import type { BlockInfo, TargetEntry, TargetStatus } from "../../types/api";
 
 /**
  * Single source of truth for per-block translation status, its derived CSS
- * classes, and the TM/term score colourings. Previously this logic was
+ * classes, and the content memory/term score colourings. Previously this logic was
  * duplicated across TranslationEditor, VisualEditorCard, and TermSidebar; the
  * Translate / Review / Pre-process surfaces all import it from here.
  *
@@ -182,8 +182,8 @@ export const statusConfig: Record<BlockStatus, { label: string; className: strin
   reviewed: { label: "Reviewed", className: "bg-success/15 text-success dark:text-success" },
 };
 
-/** Colour class for a TM match score badge. */
-export function tmScoreClass(score: number): string {
+/** Colour class for a content-memory match score badge. */
+export function memoryScoreClass(score: number): string {
   if (score >= 1) return "text-success bg-success/15 dark:text-success";
   if (score >= 0.85) return "text-info bg-info/15 dark:text-info";
   if (score >= 0.7) return "text-warning bg-warning/15 dark:text-warning";

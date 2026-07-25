@@ -11,7 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // defaultBrandConceptLocale is the source locale a brand-vocabulary concept's
@@ -37,7 +37,7 @@ const defaultBrandConceptLocale = model.LocaleID("en")
 // EventConceptRelationAdded when a new edge is added). The returned slice is
 // empty when the graph already held everything, so publishing it is a no-op.
 //
-// wsSlug keys the workspace termbase (getTB); wsID scopes the project lookup that
+// wsSlug keys the workspace terms (getTB); wsID scopes the project lookup that
 // resolves the source locale and stamps the emitted events.
 func (s *Server) linkRuleToConcept(ctx context.Context, wsSlug, wsID string, rule corebrand.SuggestedRule) (string, []knowledge.MergeEvent, error) {
 	term := strings.TrimSpace(rule.Term)
@@ -127,7 +127,7 @@ func firstWorkspaceSourceLocale(ctx context.Context, ps store.ProjectStore, wsID
 // term with the given text (case-insensitive) and status, or creates a single-
 // term concept when none exists. It reports the concept ID and whether it was
 // freshly created.
-func upsertBrandVocabConcept(ctx context.Context, tb termbase.TBStore, text string, locale model.LocaleID, status model.TermStatus) (string, bool, error) {
+func upsertBrandVocabConcept(ctx context.Context, tb terms.Store, text string, locale model.LocaleID, status model.TermStatus) (string, bool, error) {
 	concepts, err := tb.Concepts(ctx)
 	if err != nil {
 		return "", false, err
@@ -136,10 +136,10 @@ func upsertBrandVocabConcept(ctx context.Context, tb termbase.TBStore, text stri
 		return existing, false, nil
 	}
 	now := time.Now().UTC()
-	c := termbase.Concept{
+	c := terms.Concept{
 		ID:     id.New(),
-		Source: termbase.TermSourceBrandVocabulary,
-		Terms: []termbase.Term{{
+		Source: terms.TermSourceBrandVocabulary,
+		Terms: []terms.Term{{
 			Text:   text,
 			Locale: locale,
 			Status: status,
@@ -155,9 +155,9 @@ func upsertBrandVocabConcept(ctx context.Context, tb termbase.TBStore, text stri
 
 // findBrandVocabConcept returns the ID of a brand-vocabulary concept that holds a
 // term matching text (case-insensitive) at the given status, or "" if none does.
-func findBrandVocabConcept(concepts []termbase.Concept, text string, status model.TermStatus) string {
+func findBrandVocabConcept(concepts []terms.Concept, text string, status model.TermStatus) string {
 	for _, c := range concepts {
-		if conceptSource(c) != termbase.TermSourceBrandVocabulary {
+		if conceptSource(c) != terms.TermSourceBrandVocabulary {
 			continue
 		}
 		for _, t := range c.Terms {
@@ -172,7 +172,7 @@ func findBrandVocabConcept(concepts []termbase.Concept, text string, status mode
 // ensureUseInstead adds a USE_INSTEAD relation from the forbidden concept to its
 // replacement, unless an equivalent edge already exists. It reports whether a new
 // relation was added.
-func ensureUseInstead(ctx context.Context, tb termbase.TBStore, sourceID, targetID string) (bool, error) {
+func ensureUseInstead(ctx context.Context, tb terms.Store, sourceID, targetID string) (bool, error) {
 	rels, err := tb.RelationsOf(ctx, sourceID, nil)
 	if err != nil {
 		return false, err
@@ -182,7 +182,7 @@ func ensureUseInstead(ctx context.Context, tb termbase.TBStore, sourceID, target
 			return false, nil
 		}
 	}
-	rel := termbase.ConceptRelation{
+	rel := terms.ConceptRelation{
 		ID:           id.New(),
 		SourceID:     sourceID,
 		TargetID:     targetID,

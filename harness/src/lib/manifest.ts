@@ -13,7 +13,7 @@ const LOCALE_SIDECAR_RE = /^demo\.([a-zA-Z]{2,3}(?:-[a-zA-Z0-9]{2,8})*)\.yaml$/;
  * demo.yaml produced by the dogfood l10n pipeline (`make l10n-demos`); only
  * the localized narration fields are lifted into the overlay:
  *
- *  - a scene whose text is still identical to the English master is a TM
+ *  - a scene whose text is still identical to the English master is a content memory
  *    miss (pending translation) and is skipped — EN fallback, not an error;
  *  - a scene id the master no longer has is source drift: warn and skip, so
  *    a stale sidecar never blocks loading (regenerate via `make l10n-demos`);
@@ -37,7 +37,7 @@ function loadLocaleSidecars(id: string, m: DemoManifest): Record<string, DemoLoc
         console.warn(`demo ${id}: ${entry} carries scene "${s.id}" which demo.yaml no longer has — regenerate via 'make l10n-demos'`);
         continue;
       }
-      if (s.text === master.text) continue; // untranslated (TM miss) — EN fallback
+      if (s.text === master.text) continue; // untranslated (Memory miss) — EN fallback
       const caption = s.caption && s.caption !== master.caption ? s.caption : undefined;
       overlay.narration.push({ id: s.id, text: s.text, ...(caption ? { caption } : {}) });
     }

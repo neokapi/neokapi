@@ -27,7 +27,7 @@ type ConceptRelation struct {
 }
 ```
 
-`TermBase` interface additions:
+`Terminology` interface additions:
 
 ```go
 AddRelation(ctx, rel ConceptRelation) error            // upsert by ID
