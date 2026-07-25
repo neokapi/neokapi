@@ -98,9 +98,9 @@ gate is a separate, opt-in step:
 kapi check --ship
 ```
 
-It answers one question — is this scope shippable? — and exits non-zero when it
-is not. Ordinary builds are never failed by target-language drift; only this
-explicit gate is.
+It answers one question — is this scope shippable? — and exits **3** when the
+gate is unmet (distinct from an operational error). Ordinary builds are never
+failed by language drift; only this explicit gate is.
 
 See [The loop in CI](/cli/ci/overview) for GitHub Actions, GitLab CI, and the
 exit-code contract.
