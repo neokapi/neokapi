@@ -28,6 +28,12 @@ Run a single test with `go test ./core/flow/ -run TestName -v`. For the
 frontend packages, use `vp` (viteplus) rather than `npx` — e.g.
 `vp check --fix` before committing.
 
+A fresh clone in the conventional layout needs no environment at all. A few
+build and audit targets do reach outside this repository — sibling repos and
+reference checkouts — and name those locations by environment variable; see
+[`docs/internals/workspace-paths.md`](docs/internals/workspace-paths.md) if
+your checkouts live somewhere else, or if `make check-abs-paths` fails.
+
 ### Formatting: `make fmt` is a fixer, `make check-gofmt` is the check
 
 `make fmt` runs `gofmt -w -s` over the tree. It **rewrites files and exits 0**,

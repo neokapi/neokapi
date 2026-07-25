@@ -40,7 +40,7 @@ Env:
                         Defaults to <checkouts>/okapi/Okapi, i.e. two levels
                         above this repo plus okapi/Okapi — the conventional
                         multi-repo layout. OKAPI_SRC is accepted as a legacy
-                        alias. See web/docs/contribute/workspace-paths.md.
+                        alias. See docs/internals/workspace-paths.md.
 """
 from __future__ import annotations
 
@@ -93,7 +93,7 @@ def _main_checkout(repo: str) -> str:
 # The upstream Okapi clone lives outside this repo; its location is
 # per-developer, so it is resolved from the environment with a repo-relative
 # default — never from an absolute home path.
-# See web/docs/contribute/workspace-paths.md.
+# See docs/internals/workspace-paths.md.
 _WORKSPACE = os.environ.get("NEOKAPI_WORKSPACE_DIR") or os.path.dirname(_main_checkout(REPO))
 _CHECKOUTS = os.environ.get("NEOKAPI_CHECKOUTS_DIR") or os.path.dirname(_WORKSPACE)
 OKAPI = os.path.abspath(

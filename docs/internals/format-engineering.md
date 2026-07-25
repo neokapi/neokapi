@@ -242,7 +242,7 @@ byte-stable while the tier moved means native regressed; dump via
 
 Okapi (Java) lives at `$NEOKAPI_OKAPI_DIR/okapi/filters/` (default
 `<checkouts>/okapi/Okapi` — see
-[workspace paths](../../web/docs/contribute/workspace-paths.md)) — one Maven
+[workspace paths](workspace-paths.md)) — one Maven
 module per filter, v1.48.0. The filter id is `okf_<format>` from `getName()`.
 
 A filter module contains: `<Format>Filter.java` (an `IFilter` event pull-parser:

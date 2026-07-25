@@ -197,7 +197,6 @@ const sidebars: SidebarsConfig = {
         "contribute/graph",
         "contribute/vocabularies",
         "contribute/interfaces",
-        "contribute/workspace-paths",
       ],
     },
     {

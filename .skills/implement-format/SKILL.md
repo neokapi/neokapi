@@ -36,7 +36,7 @@ Use this skill to create a brand-new format package. Do **not** use it to:
 
 Resolve the upstream Okapi clone once (it lives outside this repo, so it is
 named by environment variable, never by an absolute path — see
-[workspace paths](../../web/docs/contribute/workspace-paths.md)):
+[workspace paths](../../docs/internals/workspace-paths.md)):
 
 ```bash
 . scripts/lib/workspace.sh && neokapi_init_workspace "$PWD"

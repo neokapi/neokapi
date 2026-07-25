@@ -7,7 +7,7 @@
 # every other clone — and, in a generated artefact, leaks the author's
 # directory layout. Locations outside the repository are named by environment
 # variable with a repo-relative default instead
-# (web/docs/contribute/workspace-paths.md).
+# (docs/internals/workspace-paths.md).
 #
 # What fails:
 #     /Users/<name>            macOS home directory
@@ -190,5 +190,5 @@ echo "  Makefile      NEOKAPI_WORKSPACE_DIR ?= \$(abspath \$(CURDIR)/..)"
 echo "  shell         : \"\${NEOKAPI_WORKSPACE_DIR:=\$(cd \"\$ROOT/..\" && pwd)}\""
 echo "  prose         \$NEOKAPI_WORKSPACE_DIR/<repo>/…"
 echo ""
-echo "See web/docs/contribute/workspace-paths.md."
+echo "See docs/internals/workspace-paths.md."
 exit 1

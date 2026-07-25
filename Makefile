@@ -78,7 +78,7 @@ COVER_DIR := coverage
 #   └── doclang-project/doclang/      $(NEOKAPI_DOCLANG_DIR)
 #
 # `make check-abs-paths` (part of `make lint`) keeps absolute home paths from
-# creeping back in. See web/docs/contribute/workspace-paths.md.
+# creeping back in. See docs/internals/workspace-paths.md.
 #
 # The workspace is the parent of the MAIN checkout, not of $(CURDIR): in a
 # linked git worktree (.claude/worktrees/<name>/) $(CURDIR)/.. is
@@ -246,7 +246,7 @@ check-package-licenses: ## Guard: every non-private package.json declares a lice
 check-gofmt: ## Guard: every tracked .go file is gofmt-clean (gofmt -l -s); `make fmt` fixes
 	@./scripts/check-gofmt.sh
 
-workspace-paths: ## Print the resolved locations outside this repo (see web/docs/contribute/workspace-paths.md)
+workspace-paths: ## Print the resolved locations outside this repo (see docs/internals/workspace-paths.md)
 	@echo "NEOKAPI_WORKSPACE_DIR = $(NEOKAPI_WORKSPACE_DIR)"
 	@echo "NEOKAPI_CHECKOUTS_DIR = $(NEOKAPI_CHECKOUTS_DIR)"
 	@echo "NEOKAPI_OKAPI_DIR     = $(NEOKAPI_OKAPI_DIR)"
