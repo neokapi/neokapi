@@ -15,6 +15,10 @@ import (
 // sqliteDriver is the database/sql driver name registered by mattn/go-sqlite3.
 const sqliteDriver = "sqlite3"
 
+// driverUnavailable reports nil: this build registers a SQLite driver. Only the
+// wasm build has none (see driver_wasm.go).
+func driverUnavailable() error { return nil }
+
 // FTSWordTokenizer is the FTS5 tokenizer used for word-based search tables
 // under cgo builds. The ICU tokenizer (an extension statically linked via
 // icu_tokenizer.go) provides Unicode-aware word segmentation, including CJK and

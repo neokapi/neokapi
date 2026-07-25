@@ -37,11 +37,46 @@ typed `KapiRuntime` facade.
   error when its bridge is absent. The typed interfaces live in
   `packages/engine/src/capabilities.ts`.
 
+## Command surface
+
+`kapiRun(argv)` executes the ordinary kapi CLI, so the browser build has a
+second contract alongside the global function set: which verbs it answers.
+
+- **One declaration.** `cli.BrowserCommandSet` is the browser build's command
+  set, mirroring `cli.KapiCommandSet` (the native binary's) verb for verb.
+  `kapi/cmd/kapi-wasm-cli` registers it wholesale and declares nothing itself.
+- **No missing verbs.** A verb the browser cannot run — one needing a
+  subprocess, the OS keychain, the network, or a socket — is recorded in
+  `cli.browserGaps` with the facility it needs, and registers a command that
+  reports it. `unknown command` therefore means the verb does not exist in kapi
+  at all, never that the browser omitted it. `--help` still works on those
+  verbs; their help text carries the limitation.
+- **Drift is a test failure.** `cli.TestBrowserCommandSurface` compares the two
+  sets and fails when a verb appears in one and not the other, or when a gap's
+  help metadata drifts from the command it stands in for. Adding a verb to
+  `KapiCommandSet` is a decision: wire it up for the browser, or record why it
+  cannot run there.
+- **Runtime guard.** `make wasm-surface-smoke`
+  (`scripts/verify-snippets/command-surface-smoke.ts`) boots the real wasm in
+  Node, sweeps every reachable verb for `unknown command`, asserts each gap's
+  message, and replays the argv the lab explorers themselves use. It runs in the
+  Docs — Verify Snippets workflow.
+- **Capture strips ANSI.** The engine boots with `CLICOLOR_FORCE=1` so the
+  playground terminal renders kapi's real styling; `runCapture` hands output to
+  program code instead, and strips the escapes so a `--json` payload parses.
+
+The same derivation feeds the docs: `scripts/gen-refs` reads
+`cli.BrowserUnavailableReason` for each command's runnable-in-browser badge, so
+the Command Reference cannot claim a verb runs in the lab when it does not.
+
 ## Where the pieces live
 
 | Concern | Location |
 | --- | --- |
 | Registration table + `kapiEngineABI()` | `kapi/cmd/kapi-wasm-cli/main.go` |
+| Browser command set + recorded gaps | `cli/browsercmds.go` |
+| Surface drift guard | `cli/browsercmds_test.go` |
+| Runtime surface smoke | `scripts/verify-snippets/command-surface-smoke.ts` |
 | Ambient TS typings for the globals | `packages/engine/src/globals.ts` |
 | Wire shapes + `engineABI()` helper | `packages/engine/src/abi.ts` |
 | `KapiRuntime` facade + boot | `packages/engine/src/runtime.ts` |

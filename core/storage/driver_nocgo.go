@@ -16,6 +16,10 @@ import (
 // sqliteDriver is the database/sql driver name registered by modernc.org/sqlite.
 const sqliteDriver = "sqlite"
 
+// driverUnavailable reports nil: this build registers a SQLite driver. Only the
+// wasm build has none (see driver_wasm.go).
+func driverUnavailable() error { return nil }
+
 // FTSWordTokenizer is the FTS5 tokenizer used for word-based search tables
 // under no-cgo builds. modernc.org/sqlite ships only the FTS5 tokenizers built
 // into SQLite itself (unicode61, ascii, porter, trigram); the ICU tokenizer is

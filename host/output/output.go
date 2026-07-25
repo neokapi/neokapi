@@ -146,7 +146,11 @@ func Colorize(cmd Command, w io.Writer) bool {
 	if os.Getenv("NO_COLOR") != "" {
 		return false
 	}
-	if os.Getenv("CLICOLOR_FORCE") != "" {
+	// CLICOLOR_FORCE forces color when set to anything other than 0 — the
+	// convention termenv implements for the text path. Treating a bare "set"
+	// as force-on made CLICOLOR_FORCE=0, the documented way to turn color off,
+	// turn it on instead.
+	if v := os.Getenv("CLICOLOR_FORCE"); v != "" && v != "0" {
 		return true
 	}
 	if f, ok := w.(*os.File); ok {

@@ -9,20 +9,21 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// offlineOverride is a curated map of dot-joined command paths that override
-// the wasm-allowlist derivation. Commands that require network, a running
-// server, the OS keychain subprocess model, or SQLite cgo are marked false.
-// The wasm buildRoot already implies offline=true for the commands it wires;
-// this map handles commands that appear in the full kapi tree but should be
-// clearly marked as requiring network or system services.
+// offlineOverride is a curated map of dot-joined command paths whose
+// offline-capability the flag heuristic below gets wrong. A command is offline
+// when it can complete with no outbound network: the heuristic reads that off
+// the absence of a --credential flag, which is right for the tool commands but
+// blind to management verbs that talk to a registry, a release feed, or a
+// keychain daemon.
 //
-// Commands NOT in the wasm allowlist AND NOT listed here default to
-// offlineCapable=false (conservative: assume they need something the browser
-// cannot provide).
+// This is a different axis from runnable-in-browser (which comes from
+// cli.BrowserUnavailableReason): `kapi models list` is offline yet unavailable
+// in the browser, and `kapi translate` is available in the browser — against
+// the deterministic demo provider — yet not offline on a real machine.
 var offlineOverride = map[string]bool{
 	// Network / AI / MT — require API keys + outbound TLS. (qa is offline by
-	// default — rule-based — so it is left to the conservative default rather
-	// than force-marked here; with --provider it needs network at run time.)
+	// default — rule-based — so it is left to the heuristic rather than
+	// force-marked here; with --provider it needs network at run time.)
 	"translate":          false,
 	"brand-voice-check":  false,
 	"brand-voice-review": false,
@@ -40,73 +41,28 @@ var offlineOverride = map[string]bool{
 	"plugin.update":       false,
 	"plugin.search":       false,
 	"plugin.update-index": false,
-	// Registry — requires network (GitHub API / plugin index).
-	"registry":         false,
-	"registry.add":     false,
-	"registry.list":    false,
-	"registry.remove":  false,
-	"registry.resolve": false,
+	// Plugin registry — requires network (GitHub API / plugin index).
+	"plugin.registry": false,
+	// Model assets — downloaded from a release feed into the shared cache.
+	"models.download": false,
+	"models.pull":     false,
+	// Self-update — resolves and downloads a release.
+	"update": false,
 	// MCP server — requires a running process.
 	"mcp": false,
-	// Brand voice — the --ai path needs an AI provider/key.
-	"brand":             false,
-	"brand.voice":       false,
-	"brand.voice.apply": false,
-	// Skills — requires network (download).
-	"skills": false,
-}
+	// Brand voice — check and rewrite reach an AI provider; the rest of the
+	// group (guide, show, profiles, validate, new, import, pack) is local.
+	"brand.check":   false,
+	"brand.rewrite": false,
 
-// wasmAllowlist is the set of dot-joined command paths that are present in
-// kapi-wasm-cli's buildRoot(). Commands here are offline-capable by definition.
-// Tool commands (pseudo-translate, word-count, …) are added dynamically below
-// since they are enumerated from the registry rather than hardcoded.
-var wasmAllowlist = map[string]bool{
-	"run":     true,
-	"flows":   true,
-	"tools":   true,
-	"formats": true,
-	"presets": true,
-	"version": true,
-	// Subcommands added by NewToolsCmd / NewFormatsCmd / NewPresetsCmd.
-	"tools.list":            true,
-	"tools.schema":          true,
-	"formats.list":          true,
-	"formats.info":          true,
-	"formats.schema":        true,
-	"presets.list":          true,
-	"presets.show":          true,
-	"presets.apply":         true,
-	"completion":            true,
-	"completion.bash":       true,
-	"completion.zsh":        true,
-	"completion.fish":       true,
-	"completion.powershell": true,
-	// extract/merge are wired into buildRoot; TM-prefill uses the injected
-	// in-memory TM. tm/termbase run via in-memory backends seeded from
-	// embedded fixtures (#662); no SQLite in the wasm build.
-	"extract":            true,
-	"merge":              true,
-	"tm":                 true,
-	"tm.import":          true,
-	"tm.import-dir":      true,
-	"tm.export":          true,
-	"tm.lookup":          true,
-	"tm.search":          true,
-	"tm.stats":           true,
-	"tm.audit":           true,
-	"tm.list":            true,
-	"tm.sessions":        true,
-	"tm.sessions.list":   true,
-	"tm.sessions.show":   true,
-	"tm.sessions.delete": true,
-	"termbase":           true,
-	"termbase.import":    true,
-	"termbase.export":    true,
-	"termbase.lookup":    true,
-	"termbase.search":    true,
-	"termbase.stats":     true,
-	"termbase.list":      true,
-	"term-check":         true,
+	// The porcelain flow verbs carry the shared provider flag set
+	// (--credential/--provider/--model), which the heuristic below reads as
+	// "needs network". They do not: pseudo-translate is deterministic, and run
+	// and up need network only when the flow they execute contains an AI or MT
+	// tool. translate is the one that always does, and is marked above.
+	"pseudo-translate": true,
+	"run":              true,
+	"up":               true,
 }
 
 // buildKapiRoot constructs the full kapi cobra command tree exactly as the
@@ -114,22 +70,14 @@ var wasmAllowlist = map[string]bool{
 // running process). The resulting tree is used only for metadata extraction;
 // none of the RunE functions are called.
 //
-// This mirrors kapi/cmd/kapi/root.go init() but skips InitPluginHost() and
-// config loading since we only need the static command/flag metadata.
-// wasmRunnableTop is the set of top-level framework commands wired into the
-// kapi-wasm-cli buildRoot (run/extract/merge/init + flows/tools/formats/
-// presets/version/completion + tm/termbase). init is pure local scaffolding,
-// so it runs against the in-memory filesystem. Tool commands are runnable too
-// and are detected separately (enumerated from the registry). Everything else
-// (plugin, registry, credentials, mcp, brand, skills, verify) is not in the
-// wasm build → not runnable in the browser.
-var wasmRunnableTop = map[string]bool{
-	"run": true, "extract": true, "merge": true, "init": true, "flows": true,
-	"tools": true, "formats": true, "presets": true, "version": true,
-	"completion": true, "tm": true, "termbase": true,
-}
-
-func buildKapiRoot() (*cobra.Command, map[string]bool) {
+// The command set comes from cli.KapiCommandSet — the same function
+// kapi/cmd/kapi registers and the cli/i18n generator walks — so the reference
+// dataset can never document a different surface than the binary ships. It
+// used to re-declare the tree by hand, and had silently fallen thirteen verbs
+// behind (status, apply, inspect, ls, add, rm, config, hook, pack, unpack,
+// info, telemetry, update) while still documenting verbs the hard cutover in
+// #1180 had retired.
+func buildKapiRoot() *cobra.Command {
 	app := &cli.App{}
 	// InitRegistries populates FormatReg/ToolReg so NewToolCommands and
 	// NewFormatsCmd / NewToolsCmd can enumerate their subcommands correctly.
@@ -137,9 +85,8 @@ func buildKapiRoot() (*cobra.Command, map[string]bool) {
 
 	root := &cobra.Command{
 		Use:   "kapi",
-		Short: "A localization and translation toolkit",
-		Long: `kapi helps you manage multilingual content — convert document formats,
-translate with AI, and run quality checks across a wide range of file types.`,
+		Short: cli.KapiRootShort,
+		Long:  cli.KapiRootLong,
 	}
 
 	cli.AddPersistentFlags(app, root)
@@ -149,59 +96,18 @@ translate with AI, and run quality checks across a wide range of file types.`,
 	// panic; not called during metadata extraction.
 	app.Config = cliconfig.NewAppConfig()
 
-	// Porcelain (#1078 C1): `kapi up` reconciles the project toward its gates;
-	// translate/pseudo-translate are the flow-backed produce verbs.
-	root.AddCommand(cli.NewUpCmd(app))
-	root.AddCommand(cli.NewTranslateCmd(app))
-	root.AddCommand(cli.NewPseudoTranslateCmd(app))
-
-	// Primary commands.
-	runCmd := cli.NewRunCmd(app, cli.RunCmdOptions{})
-	runCmd.GroupID = "advanced"
-	root.AddCommand(runCmd)
-	root.AddCommand(cli.NewExtractCmd(app, cli.ExtractCmdOptions{}))
-	root.AddCommand(cli.NewMergeCmd(app, cli.MergeCmdOptions{}))
-	root.AddCommand(cli.NewCheckCmd(app))
-	root.AddCommand(cli.NewStatsCmd(app))
-	root.AddCommand(cli.NewInitCmd(app))
-
-	// Management commands.
-	root.AddCommand(cli.NewFlowsCmd(app, cli.FlowCmdOptions{}))
-	root.AddCommand(cli.NewToolsCmd(app))
-	root.AddCommand(cli.NewFormatsCmd(app))
-	root.AddCommand(cli.NewPluginCmd(app))
-	root.AddCommand(cli.NewModelsCmd(app))
-	root.AddCommand(cli.NewTermbaseCmd(app))
-	root.AddCommand(cli.NewTMCmd(app))
-	root.AddCommand(cli.NewBrandCmd(app))
-	root.AddCommand(cli.NewCredentialsCmd(app))
-	root.AddCommand(cli.NewVersionCmd(app, "kapi"))
-	root.AddCommand(cli.NewCompletionCmd(app))
-
-	// Top-level tool commands (pseudo-translate, word-count, …). These are all
-	// present in the wasm build; AI/MT ones run there via the demo provider.
-	toolNames := map[string]bool{}
-	for _, c := range cli.NewToolCommands(app) {
-		toolNames[c.Name()] = true
-		root.AddCommand(c)
+	for _, cmd := range cli.KapiCommandSet(app) {
+		root.AddCommand(cmd)
 	}
 
-	mcpCmd := cli.NewMCPCmd(app, "kapi")
-	mcpCmd.GroupID = "advanced"
-	root.AddCommand(mcpCmd)
-
-	engineCmd := cli.NewEngineCmd(app)
-	engineCmd.GroupID = "advanced"
-	root.AddCommand(engineCmd)
-
-	return root, toolNames
+	return root
 }
 
 // collectCommands walks the cobra command tree rooted at root and returns a
 // flat slice of CommandEntry values. parentPath is the dot-joined path to the
 // parent command (empty for root's direct children). The root itself ("kapi")
 // is not emitted — only its descendants are.
-func collectCommands(cmd *cobra.Command, parentPath []string, toolNames map[string]bool) []CommandEntry {
+func collectCommands(cmd *cobra.Command, parentPath []string) []CommandEntry {
 	var out []CommandEntry
 
 	for _, sub := range cmd.Commands() {
@@ -232,39 +138,42 @@ func collectCommands(cmd *cobra.Command, parentPath []string, toolNames map[stri
 			OfflineCapable: isOfflineCapableCmd(dotPath, sub),
 		}
 
-		// Runnable-in-browser = present in the wasm buildRoot: a framework
-		// command (or descendant of one) or a tool command. AI/MT tool commands
-		// (those with a --credential flag) run there via the demo provider.
-		top := path[0]
-		isTool := toolNames[top]
-		entry.RunnableInBrowser = wasmRunnableTop[top] || isTool
-		entry.DemoMode = isTool && sub.Flags().Lookup("credential") != nil
+		// Runnable-in-browser comes straight from the browser build's own
+		// command set (cli.BrowserCommandSet): a verb the browser cannot run is
+		// recorded there with the facility it needs, and everything else is
+		// wired up for real. Deriving it here — rather than from a second
+		// allowlist — is what keeps the badge honest when the surface changes.
+		//
+		// Demo mode is then exactly the overlap: a command that runs in the
+		// browser but would need an AI or MT provider on a real machine, so the
+		// browser resolves it to the deterministic demo provider.
+		_, browserGap := cli.BrowserUnavailableReason(path[0])
+		entry.RunnableInBrowser = !browserGap
+		entry.DemoMode = entry.RunnableInBrowser && !entry.OfflineCapable
 
 		out = append(out, entry)
 		// Recurse into subcommands.
-		out = append(out, collectCommands(sub, path, toolNames)...)
+		out = append(out, collectCommands(sub, path)...)
 	}
 	return out
 }
 
-// isOfflineCapableCmd combines the static map lookup with a heuristic for
-// tool-level commands that are not listed in either map: a command is offline
-// if it has no "credential" flag (AI/MT tools that call external APIs register
-// this flag). The static maps take precedence; the heuristic only fires for
-// genuinely unlisted commands.
+// isOfflineCapableCmd combines the curated override with a heuristic: a
+// command is offline if it has no "credential" flag (AI/MT tools that call
+// external APIs register this flag). The override takes precedence; the
+// heuristic only fires for commands it does not name.
 func isOfflineCapableCmd(dotPath string, cmd *cobra.Command) bool {
-	// Static map + ancestor propagation always wins.
-	staticResult, hasStatic := offlineCapableFromMaps(dotPath)
-	if hasStatic {
-		return staticResult
+	if v, ok := offlineCapableOverride(dotPath); ok {
+		return v
 	}
 	// Heuristic for unlisted commands: "credential" flag → needs network.
 	return cmd.Flags().Lookup("credential") == nil
 }
 
-// offlineCapableFromMaps returns (value, true) when the dot-path (or any
-// ancestor prefix) appears in either static map, otherwise (false, false).
-func offlineCapableFromMaps(dotPath string) (bool, bool) {
+// offlineCapableOverride returns (value, true) when the dot-path — or any
+// ancestor prefix marked offline=false, which propagates to descendants —
+// appears in offlineOverride, otherwise (false, false).
+func offlineCapableOverride(dotPath string) (bool, bool) {
 	segments := strings.Split(dotPath, ".")
 	// Check ancestors for an explicit offline=false override; it propagates.
 	for i := 1; i <= len(segments); i++ {
@@ -275,10 +184,6 @@ func offlineCapableFromMaps(dotPath string) (bool, bool) {
 	}
 	// Exact override (could be true or false).
 	if v, ok := offlineOverride[dotPath]; ok {
-		return v, true
-	}
-	// WASM allowlist.
-	if v, ok := wasmAllowlist[dotPath]; ok {
 		return v, true
 	}
 	return false, false
@@ -333,8 +238,7 @@ func nonEmptyStrings(ss []string) []string {
 // collectCommandDataset builds the full kapi command tree and returns a
 // CommandDataset ready for JSON serialisation.
 func collectCommandDataset(now string) CommandDataset {
-	root, toolNames := buildKapiRoot()
-	entries := collectCommands(root, nil, toolNames)
+	entries := collectCommands(buildKapiRoot(), nil)
 	return CommandDataset{
 		GeneratedAt: now,
 		Commands:    entries,

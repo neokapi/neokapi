@@ -4,7 +4,7 @@ import { ConversionExplorer } from "@site/src/components/Lab";
 import { LabPageShell } from "@site/src/components/Lab/LabPageShell";
 
 // The Conversion Lab: read a document in one format, re-express it in another —
-// the real kapi `convert` (kconv) running in the browser via WebAssembly. The
+// the real kapi `kconv` running in the browser via WebAssembly. The
 // target list is restricted to GENERATIVE writers (those that reconstruct a
 // whole document from the content model); skeleton-driven formats (docx/odt/
 // idml/epub) inject into an original file and so cannot be conversion targets.

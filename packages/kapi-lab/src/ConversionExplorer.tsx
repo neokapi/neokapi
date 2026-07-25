@@ -17,7 +17,7 @@ import shared from "./styles.module.css";
 // into the content model and shown in the shared DocumentViewer (Preview /
 // Blocks / Structure / Layout / Stats — the same widget the other labs use), and
 // alongside the built-in views sits one extra pill per *generative* output
-// format. Selecting a format pill runs the real kapi `convert` (kconv) in WASM
+// format. Selecting a format pill runs the real kapi `kconv` in WASM
 // and shows that serialization two ways: a faithful rendering of the document the
 // target reconstructs (the converted output read back and projected via
 // FormatPreview, left) and its raw source (right) — so a table that survives
@@ -206,13 +206,18 @@ export default function ConversionExplorer({
     };
   }, [runtime.ready, runtime.runCapture]);
 
-  // convertTo runs `kapi convert <in> --to <fmt> -o <out>` in WASM and returns
+  // convertTo runs `kapi kconv <in> --to <fmt> -o <out>` in WASM and returns
   // the written output (or throws with the captured error).
+  //
+  // The verb is `kconv`, not `convert`: #1180 gave every toolbox utility its
+  // standalone binary name so bare verbs stay free for real commands. This call
+  // site kept the old spelling and the lab answered every conversion with
+  // `unknown command "convert" for "kapi"`.
   const convertTo = useCallback(
     async (inPath: string, fmt: string, ext: string): Promise<string> => {
       const outPath = `/project/converted.${ext}`;
       const { code, output: log } = await runtime.runCapture([
-        "convert",
+        "kconv",
         inPath,
         "--to",
         fmt,

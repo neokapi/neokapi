@@ -82,6 +82,11 @@ var openLocks pathLocks
 // Use ":memory:" for in-memory databases (useful for testing).
 // Parent directories must already exist; the file is created on demand.
 func Open(dbPath string) (*DB, error) {
+	// Builds without a SQLite driver (wasm) report why before database/sql can
+	// blame a missing import.
+	if err := driverUnavailable(); err != nil {
+		return nil, fmt.Errorf("open database %s: %w", dbPath, err)
+	}
 	if !isMemoryDSN(dbPath) {
 		l := openLocks.get(dbPath)
 		l.Lock()

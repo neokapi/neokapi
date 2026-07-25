@@ -19,6 +19,17 @@ import type { ContentTree, FlowTrace } from "@neokapi/ui-primitives/preview";
 
 export type LabStatus = "idle" | "booting" | "ready" | "error";
 
+// The engine boots with CLICOLOR_FORCE=1 so the playground terminal renders
+// kapi's real ANSI styling in xterm.js. runCapture, though, hands output to
+// program code rather than to a terminal — and coloured output is not
+// parseable: `JSON.parse` on an ANSI-styled `--json` payload throws, which is
+// how the Conversion Lab silently fell back to its hardcoded target list
+// instead of the writers the engine actually reports. Strip the escapes at the
+// capture boundary; the interactive `run` path keeps its colours.
+// eslint-disable-next-line no-control-regex
+const ANSI_ESCAPE = /\x1b\[[0-9;]*m/g;
+const stripAnsi = (s: string): string => s.replace(ANSI_ESCAPE, "");
+
 export interface LabRuntimeAssets {
   wasmExecUrl: string;
   wasmUrl: string;
@@ -266,7 +277,7 @@ export function useLabRuntime(
         );
         const code = await rt.run(argv);
         rt.setSinks(noop, noop);
-        return { code, output: captured };
+        return { code, output: stripAnsi(captured) };
       });
     },
     [],
