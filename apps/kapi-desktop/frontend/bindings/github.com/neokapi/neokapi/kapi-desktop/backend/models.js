@@ -3921,6 +3921,12 @@ export class ProjectFilters {
  * tab so the frontend can preselect both in a single call. Each id is the
  * string handle the content memory/terms Wails methods (and handleStore.Get) accept;
  * an empty id means the project has no auto-opened resource of that kind.
+ * The json tags carry the same memory/terms vocabulary as the Go fields and the
+ * frontend's ProjectHandles type. They were left as tmHandle/termbaseHandle when
+ * the fields were renamed, so the wire never matched what the frontend reads
+ * (`memoryHandle`) — MemoriesPage and the Terms page saw undefined and showed
+ * their "no project content memory found" empty state for every project. That
+ * type is hand-written, so tsc could not catch it either.
  */
 export class ProjectHandles {
     /**
@@ -3935,19 +3941,19 @@ export class ProjectHandles {
              */
             this["tabID"] = "";
         }
-        if (!("tmHandle" in $$source)) {
+        if (!("memoryHandle" in $$source)) {
             /**
              * @member
              * @type {string}
              */
-            this["tmHandle"] = "";
+            this["memoryHandle"] = "";
         }
-        if (!("termbaseHandle" in $$source)) {
+        if (!("termsHandle" in $$source)) {
             /**
              * @member
              * @type {string}
              */
-            this["termbaseHandle"] = "";
+            this["termsHandle"] = "";
         }
 
         Object.assign(this, $$source);

@@ -254,10 +254,16 @@ func (a *App) GetProjectTermsHandle(tabID string) string {
 // tab so the frontend can preselect both in a single call. Each id is the
 // string handle the content memory/terms Wails methods (and handleStore.Get) accept;
 // an empty id means the project has no auto-opened resource of that kind.
+// The json tags carry the same memory/terms vocabulary as the Go fields and the
+// frontend's ProjectHandles type. They were left as tmHandle/termbaseHandle when
+// the fields were renamed, so the wire never matched what the frontend reads
+// (`memoryHandle`) — MemoriesPage and the Terms page saw undefined and showed
+// their "no project content memory found" empty state for every project. That
+// type is hand-written, so tsc could not catch it either.
 type ProjectHandles struct {
 	TabID        string `json:"tabID"`
-	MemoryHandle string `json:"tmHandle"`
-	TermsHandle  string `json:"termbaseHandle"`
+	MemoryHandle string `json:"memoryHandle"`
+	TermsHandle  string `json:"termsHandle"`
 }
 
 // GetProjectHandles returns the project-scoped content memory and terms handle IDs for a

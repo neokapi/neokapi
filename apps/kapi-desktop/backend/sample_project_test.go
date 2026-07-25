@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -75,6 +76,25 @@ func TestGetProjectHandlesUnknownTab(t *testing.T) {
 	assert.Equal(t, "nope", h.TabID)
 	assert.Empty(t, h.MemoryHandle)
 	assert.Empty(t, h.TermsHandle)
+}
+
+// The frontend's ProjectHandles type (src/types/api.ts) is hand-written, so no
+// typecheck relates it to this struct: MemoriesPage reads `memoryHandle` off the
+// decoded response, and when these tags still said `tmHandle`/`termbaseHandle`
+// it silently read undefined and showed "no project content memory found" for
+// every project. Assert the wire names, not just the Go field values.
+func TestProjectHandlesJSONFieldNames(t *testing.T) {
+	b, err := json.Marshal(ProjectHandles{TabID: "t", MemoryHandle: "m", TermsHandle: "s"})
+	require.NoError(t, err)
+
+	var wire map[string]string
+	require.NoError(t, json.Unmarshal(b, &wire))
+
+	assert.Equal(t, map[string]string{
+		"tabID":        "t",
+		"memoryHandle": "m",
+		"termsHandle":  "s",
+	}, wire, "wire field names must match the frontend ProjectHandles type")
 }
 
 func TestOpenProjectNoAutoOpenWithoutDotKapi(t *testing.T) {
