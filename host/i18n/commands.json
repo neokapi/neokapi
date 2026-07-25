@@ -170,6 +170,9 @@
           },
           "unredact": {
             "short": "Restore original values into redacted content after processing"
+          },
+          "whitespace-correct": {
+            "short": "Whitespace Correct"
           }
         },
         "extract": {

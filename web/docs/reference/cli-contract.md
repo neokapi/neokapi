@@ -164,3 +164,5 @@ For block-level content streaming (rather than run progress), `kapi inspect --js
 ## MCP surface stability
 
 The [MCP server](/reference/mcp) (`kapi mcp`) is part of the same contract: its tool names and input schemas are a stable surface for agent integrations, locked by a snapshot test (`kapi/cmd/kapi/mcp_snapshot_test.go`). New tools and new optional fields may be added; existing tools are not renamed or removed, and existing fields do not change type, without an explicit, documented decision.
+
+The registry tools on that surface are exactly the CLI-visible ones — a built-in tool appears under `kapi exec`, in `kapi tools list`, and as an MCP tool when, and only when, it registers a config factory (`registry.ToolRegistry.CLITools`). Wiring a factory for a tool that lacked one is therefore an additive surface change: it adds the tool to all three at once, and the snapshot moves. `whitespace-correct` gained one this way.

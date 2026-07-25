@@ -3052,5 +3052,130 @@
       },
       "type": "object"
     }
+  },
+  {
+    "name": "whitespace-correct",
+    "input_schema": {
+      "$id": "whitespace-correct",
+      "properties": {
+        "correctComma": {
+          "default": true,
+          "description": "Correct whitespace after commas",
+          "title": "Comma",
+          "type": "boolean"
+        },
+        "correctExclamation": {
+          "default": true,
+          "description": "Correct whitespace after exclamation marks",
+          "title": "Exclamation Point",
+          "type": "boolean"
+        },
+        "correctFullStop": {
+          "default": true,
+          "description": "Correct whitespace after full stops (periods)",
+          "title": "Full Stop",
+          "type": "boolean"
+        },
+        "correctQuestion": {
+          "default": true,
+          "description": "Correct whitespace after question marks",
+          "title": "Question Mark",
+          "type": "boolean"
+        },
+        "includeHorizontalWS": {
+          "default": true,
+          "description": "Include horizontal tab characters in corrections",
+          "title": "Horizontal Tabs",
+          "type": "boolean"
+        },
+        "includeVerticalWS": {
+          "default": true,
+          "description": "Include vertical whitespace (line feeds and carriage returns) in corrections",
+          "title": "Vertical White Space",
+          "type": "boolean"
+        },
+        "matchSourceWhitespace": {
+          "default": true,
+          "description": "Copy source leading/trailing whitespace to target",
+          "title": "Match Source Whitespace",
+          "type": "boolean"
+        },
+        "normalizeSpaces": {
+          "default": true,
+          "description": "Collapse multiple spaces to a single space",
+          "title": "Normalize Spaces",
+          "type": "boolean"
+        },
+        "removeZeroWidthChars": {
+          "default": true,
+          "description": "Remove zero-width spaces and joiners",
+          "title": "Remove Zero-Width Characters",
+          "type": "boolean"
+        },
+        "targetLocale": {
+          "description": "Target locale for processing",
+          "title": "Target Locale",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        },
+        "trimLeading": {
+          "default": false,
+          "description": "Remove leading whitespace from target text",
+          "title": "Trim Leading Whitespace",
+          "type": "boolean"
+        },
+        "trimTrailing": {
+          "default": false,
+          "description": "Remove trailing whitespace from target text",
+          "title": "Trim Trailing Whitespace",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Whitespace Correct",
+      "toolMeta": {
+        "cardinality": "bilingual",
+        "category": "text-processing",
+        "displayName": "Whitespace Correct",
+        "id": "whitespace-correct",
+        "requires": [
+          "target-language"
+        ],
+        "tags": [
+          "text-processing",
+          "l10n"
+        ]
+      },
+      "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "correctFullStop",
+            "correctComma",
+            "correctExclamation",
+            "correctQuestion"
+          ],
+          "id": "punctuation",
+          "label": "Punctuation"
+        },
+        {
+          "fields": [
+            "includeVerticalWS",
+            "includeHorizontalWS"
+          ],
+          "id": "whitespace-types",
+          "label": "Whitespace-types"
+        }
+      ]
+    }
   }
 ]
