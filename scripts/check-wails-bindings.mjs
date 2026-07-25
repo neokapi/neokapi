@@ -156,13 +156,12 @@ for (const app of APPS) {
     failures.push(`${app.label}: missing id map ${app.idMap}`);
   } else {
     const committed = JSON.parse(readFileSync(idMapPath, "utf8"));
+    // Same shape gen-wails-id-map.mjs writes: id -> name, ascending by id.
     const expected = {};
-    for (const id of [...surface.values()].sort((a, b) => a - b)) {
-      expected[String(id)] = [...surface].find(([, v]) => v === id)[0];
+    for (const [name, id] of [...surface].sort((x, y) => x[1] - y[1])) {
+      expected[String(id)] = name;
     }
-    const a = JSON.stringify(committed);
-    const b = JSON.stringify(expected);
-    if (a !== b) {
+    if (JSON.stringify(committed) !== JSON.stringify(expected)) {
       const missing = Object.keys(expected).filter((k) => committed[k] !== expected[k]);
       failures.push(
         `${app.label}: ${app.idMap} is stale vs app.js` +
