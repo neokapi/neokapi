@@ -405,7 +405,7 @@ export class Defaults {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Memory governs Memory pre-fill on kapi extract and Memory write-back on kapi merge (AD-017).
+             * content memory governs content memory pre-fill on kapi extract and content memory write-back on kapi merge (AD-017).
              * @member
              * @type {MemoryDefaults | undefined}
              */
@@ -454,7 +454,7 @@ export class Defaults {
              * @member
              * @type {string | undefined}
              */
-            this["terms"] = undefined;
+            this["termbase"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -476,7 +476,7 @@ export class Defaults {
              * .kmb document) the project content memory is compiled from, the content memory
              * analogue of TermsSource. `kapi apply` edits the .kmb here and
              * re-imports it into the gitignored .kapi/tm.db cache. The path resolves
-             * relative to the project root. Empty means no bound Memory source.
+             * relative to the project root. Empty means no bound content memory source.
              * @member
              * @type {string | undefined}
              */
@@ -1032,6 +1032,52 @@ export class LocaleDefaults {
 }
 
 /**
+ * MemoryDefaults governs content memory pre-fill on extract and content memory write-back on merge (AD-017).
+ */
+export class MemoryDefaults {
+    /**
+     * Creates a new MemoryDefaults instance.
+     * @param {Partial<MemoryDefaults>} [$$source = {}] - The source object to create the MemoryDefaults.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * FuzzyThreshold is the minimum fuzzy match score (0..100) to pre-fill
+             * the target on extract. Defaults to DefaultFuzzyThreshold when zero.
+             * @member
+             * @type {number | undefined}
+             */
+            this["fuzzy_threshold"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Read lists additional read-only content memory files consulted during pre-fill on
+             * extract. Writes always go to the project content memory, never to these.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["read"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MemoryDefaults instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {MemoryDefaults}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType9;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("read" in $$parsedSource) {
+            $$parsedSource["read"] = $$createField1_0($$parsedSource["read"]);
+        }
+        return new MemoryDefaults(/** @type {Partial<MemoryDefaults>} */($$parsedSource));
+    }
+}
+
+/**
  * MergeDefaults governs kapi merge behavior (AD-017).
  */
 export class MergeDefaults {
@@ -1043,7 +1089,7 @@ export class MergeDefaults {
         if (/** @type {any} */(false)) {
             /**
              * ConflictPolicy governs how merge applies a translator's target when
-             * an existing on-disk target or Memory TU already has a translation. Valid
+             * an existing on-disk target or content memory TU already has a translation. Valid
              * values: "translator-wins" (default), "existing-wins", "newest-wins".
              * @member
              * @type {string | undefined}
@@ -1373,52 +1419,6 @@ export class ShipGateRule {
             $$parsedSource["gate"] = $$createField1_0($$parsedSource["gate"]);
         }
         return new ShipGateRule(/** @type {Partial<ShipGateRule>} */($$parsedSource));
-    }
-}
-
-/**
- * MemoryDefaults governs Memory pre-fill on extract and Memory write-back on merge (AD-017).
- */
-export class MemoryDefaults {
-    /**
-     * Creates a new MemoryDefaults instance.
-     * @param {Partial<MemoryDefaults>} [$$source = {}] - The source object to create the MemoryDefaults.
-     */
-    constructor($$source = {}) {
-        if (/** @type {any} */(false)) {
-            /**
-             * FuzzyThreshold is the minimum fuzzy match score (0..100) to pre-fill
-             * the target on extract. Defaults to DefaultFuzzyThreshold when zero.
-             * @member
-             * @type {number | undefined}
-             */
-            this["fuzzy_threshold"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * Read lists additional read-only Memory files consulted during pre-fill on
-             * extract. Writes always go to the project content memory, never to these.
-             * @member
-             * @type {string[] | undefined}
-             */
-            this["read"] = undefined;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new MemoryDefaults instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {MemoryDefaults}
-     */
-    static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType9;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("read" in $$parsedSource) {
-            $$parsedSource["read"] = $$createField1_0($$parsedSource["read"]);
-        }
-        return new MemoryDefaults(/** @type {Partial<MemoryDefaults>} */($$parsedSource));
     }
 }
 

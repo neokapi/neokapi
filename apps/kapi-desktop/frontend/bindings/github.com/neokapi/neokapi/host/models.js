@@ -32,8 +32,9 @@ export const AIModelOrigin = {
     AIModelFromProjectPreset: "project-preset",
 
     /**
-     * AIModelFromAppConfig — `ai.provider` / `ai.model` in ~/.config/kapi/kapi.yaml,
-     * which is what `kapi models setup` and `kapi models default` write.
+     * AIModelFromAppConfig — the stored `ai.provider` / `ai.model` (the file at
+     * config.GlobalConfigFilePath, or the KAPI_AI_* environment overrides), which
+     * is what `kapi models setup` and `kapi models default` write.
      */
     AIModelFromAppConfig: "app-config",
 
@@ -509,14 +510,14 @@ export class UpPlanScope {
              */
             this["missingTarget"] = 0;
         }
-        if (!("memoryExact" in $$source)) {
+        if (!("tmExact" in $$source)) {
             /**
              * MemoryExact is the count of missing units covered by an exact-hash content-memory hit
              * (the cheap leverage estimate — fuzzy leverage is not counted).
              * @member
              * @type {number}
              */
-            this["memoryExact"] = 0;
+            this["tmExact"] = 0;
         }
         if (!("aiRemaining" in $$source)) {
             /**

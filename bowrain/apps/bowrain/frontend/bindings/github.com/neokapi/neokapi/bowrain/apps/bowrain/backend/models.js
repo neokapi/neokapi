@@ -1602,6 +1602,234 @@ export class MemberInfo {
 }
 
 /**
+ * MemoryEntryInfo is the frontend-facing representation of a content-memory entry.
+ * The Bowrain desktop still exposes a bilingual shape over the API; it
+ * renders two locales at a time chosen by the user.
+ */
+export class MemoryEntryInfo {
+    /**
+     * Creates a new MemoryEntryInfo instance.
+     * @param {Partial<MemoryEntryInfo>} [$$source = {}] - The source object to create the MemoryEntryInfo.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("source" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["source"] = "";
+        }
+        if (!("target" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["target"] = "";
+        }
+        if (!("source_locale" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["source_locale"] = "";
+        }
+        if (!("target_locale" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["target_locale"] = "";
+        }
+        if (!("updated_at" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["updated_at"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MemoryEntryInfo instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {MemoryEntryInfo}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MemoryEntryInfo(/** @type {Partial<MemoryEntryInfo>} */($$parsedSource));
+    }
+}
+
+/**
+ * MemoryMatchInfo is a content-memory match result for a single block, exposed to the frontend.
+ */
+export class MemoryMatchInfo {
+    /**
+     * Creates a new MemoryMatchInfo instance.
+     * @param {Partial<MemoryMatchInfo>} [$$source = {}] - The source object to create the MemoryMatchInfo.
+     */
+    constructor($$source = {}) {
+        if (!("source" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["source"] = "";
+        }
+        if (!("target" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["target"] = "";
+        }
+        if (!("score" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["score"] = 0;
+        }
+        if (!("match_type" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["match_type"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MemoryMatchInfo instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {MemoryMatchInfo}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MemoryMatchInfo(/** @type {Partial<MemoryMatchInfo>} */($$parsedSource));
+    }
+}
+
+/**
+ * MemorySearchResult holds a page of content-memory search results.
+ */
+export class MemorySearchResult {
+    /**
+     * Creates a new MemorySearchResult instance.
+     * @param {Partial<MemorySearchResult>} [$$source = {}] - The source object to create the MemorySearchResult.
+     */
+    constructor($$source = {}) {
+        if (!("entries" in $$source)) {
+            /**
+             * @member
+             * @type {MemoryEntryInfo[]}
+             */
+            this["entries"] = [];
+        }
+        if (!("total_count" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["total_count"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MemorySearchResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {MemorySearchResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType19;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("entries" in $$parsedSource) {
+            $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
+        }
+        return new MemorySearchResult(/** @type {Partial<MemorySearchResult>} */($$parsedSource));
+    }
+}
+
+/**
+ * MemoryUpdateRequest holds parameters for updating a content-memory entry.
+ */
+export class MemoryUpdateRequest {
+    /**
+     * Creates a new MemoryUpdateRequest instance.
+     * @param {Partial<MemoryUpdateRequest>} [$$source = {}] - The source object to create the MemoryUpdateRequest.
+     */
+    constructor($$source = {}) {
+        if (!("project_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["project_id"] = "";
+        }
+        if (!("entry_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["entry_id"] = "";
+        }
+        if (!("source" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["source"] = "";
+        }
+        if (!("target" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["target"] = "";
+        }
+        if (!("source_locale" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["source_locale"] = "";
+        }
+        if (!("target_locale" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["target_locale"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MemoryUpdateRequest instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {MemoryUpdateRequest}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MemoryUpdateRequest(/** @type {Partial<MemoryUpdateRequest>} */($$parsedSource));
+    }
+}
+
+/**
  * PcCloseRunInfo is the closing half of a paired inline code.
  */
 export class PcCloseRunInfo {
@@ -1728,7 +1956,7 @@ export class PcOpenRunInfo {
      * @returns {PcOpenRunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType19;
+        const $$createField6_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField6_0($$parsedSource["constraints"]);
@@ -1805,7 +2033,7 @@ export class PlaceholderRunInfo {
      * @returns {PlaceholderRunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType19;
+        const $$createField6_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField6_0($$parsedSource["constraints"]);
@@ -2026,7 +2254,7 @@ export class ProjectInfo {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType10;
-        const $$createField5_0 = $$createType21;
+        const $$createField5_0 = $$createType23;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField3_0($$parsedSource["target_languages"]);
@@ -2354,13 +2582,13 @@ export class RunInfo {
      * @returns {RunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType23;
-        const $$createField1_0 = $$createType25;
-        const $$createField2_0 = $$createType27;
-        const $$createField3_0 = $$createType29;
-        const $$createField4_0 = $$createType31;
-        const $$createField5_0 = $$createType33;
-        const $$createField6_0 = $$createType35;
+        const $$createField0_0 = $$createType25;
+        const $$createField1_0 = $$createType27;
+        const $$createField2_0 = $$createType29;
+        const $$createField3_0 = $$createType31;
+        const $$createField4_0 = $$createType33;
+        const $$createField5_0 = $$createType35;
+        const $$createField6_0 = $$createType37;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("text" in $$parsedSource) {
             $$parsedSource["text"] = $$createField0_0($$parsedSource["text"]);
@@ -2627,234 +2855,6 @@ export class SyncStatusInfo {
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new SyncStatusInfo(/** @type {Partial<SyncStatusInfo>} */($$parsedSource));
-    }
-}
-
-/**
- * MemoryEntryInfo is the frontend-facing representation of a content-memory entry.
- * The Bowrain desktop still exposes a bilingual shape over the API; it
- * renders two locales at a time chosen by the user.
- */
-export class MemoryEntryInfo {
-    /**
-     * Creates a new MemoryEntryInfo instance.
-     * @param {Partial<MemoryEntryInfo>} [$$source = {}] - The source object to create the MemoryEntryInfo.
-     */
-    constructor($$source = {}) {
-        if (!("id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["id"] = "";
-        }
-        if (!("source" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source"] = "";
-        }
-        if (!("target" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target"] = "";
-        }
-        if (!("source_locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source_locale"] = "";
-        }
-        if (!("target_locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target_locale"] = "";
-        }
-        if (!("updated_at" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["updated_at"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new MemoryEntryInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {MemoryEntryInfo}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new MemoryEntryInfo(/** @type {Partial<MemoryEntryInfo>} */($$parsedSource));
-    }
-}
-
-/**
- * MemoryMatchInfo is a content-memory match result for a single block, exposed to the frontend.
- */
-export class MemoryMatchInfo {
-    /**
-     * Creates a new MemoryMatchInfo instance.
-     * @param {Partial<MemoryMatchInfo>} [$$source = {}] - The source object to create the MemoryMatchInfo.
-     */
-    constructor($$source = {}) {
-        if (!("source" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source"] = "";
-        }
-        if (!("target" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target"] = "";
-        }
-        if (!("score" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["score"] = 0;
-        }
-        if (!("match_type" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["match_type"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new MemoryMatchInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {MemoryMatchInfo}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new MemoryMatchInfo(/** @type {Partial<MemoryMatchInfo>} */($$parsedSource));
-    }
-}
-
-/**
- * MemorySearchResult holds a page of content-memory search results.
- */
-export class MemorySearchResult {
-    /**
-     * Creates a new MemorySearchResult instance.
-     * @param {Partial<MemorySearchResult>} [$$source = {}] - The source object to create the MemorySearchResult.
-     */
-    constructor($$source = {}) {
-        if (!("entries" in $$source)) {
-            /**
-             * @member
-             * @type {MemoryEntryInfo[]}
-             */
-            this["entries"] = [];
-        }
-        if (!("total_count" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["total_count"] = 0;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new MemorySearchResult instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {MemorySearchResult}
-     */
-    static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType37;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("entries" in $$parsedSource) {
-            $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
-        }
-        return new MemorySearchResult(/** @type {Partial<MemorySearchResult>} */($$parsedSource));
-    }
-}
-
-/**
- * MemoryUpdateRequest holds parameters for updating a content-memory entry.
- */
-export class MemoryUpdateRequest {
-    /**
-     * Creates a new MemoryUpdateRequest instance.
-     * @param {Partial<MemoryUpdateRequest>} [$$source = {}] - The source object to create the MemoryUpdateRequest.
-     */
-    constructor($$source = {}) {
-        if (!("project_id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["project_id"] = "";
-        }
-        if (!("entry_id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["entry_id"] = "";
-        }
-        if (!("source" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source"] = "";
-        }
-        if (!("target" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target"] = "";
-        }
-        if (!("source_locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source_locale"] = "";
-        }
-        if (!("target_locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target_locale"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new MemoryUpdateRequest instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {MemoryUpdateRequest}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new MemoryUpdateRequest(/** @type {Partial<MemoryUpdateRequest>} */($$parsedSource));
     }
 }
 
@@ -3833,26 +3833,26 @@ const $$createType14 = FlowEdgeInfo.createFrom;
 const $$createType15 = $Create.Array($$createType14);
 const $$createType16 = $Create.Map($Create.Any, $Create.Any);
 const $$createType17 = PositionInfo.createFrom;
-const $$createType18 = RunConstraintsInfo.createFrom;
-const $$createType19 = $Create.Nullable($$createType18);
-const $$createType20 = ProjectItem.createFrom;
-const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = TextRunInfo.createFrom;
-const $$createType23 = $Create.Nullable($$createType22);
-const $$createType24 = PlaceholderRunInfo.createFrom;
+const $$createType18 = MemoryEntryInfo.createFrom;
+const $$createType19 = $Create.Array($$createType18);
+const $$createType20 = RunConstraintsInfo.createFrom;
+const $$createType21 = $Create.Nullable($$createType20);
+const $$createType22 = ProjectItem.createFrom;
+const $$createType23 = $Create.Array($$createType22);
+const $$createType24 = TextRunInfo.createFrom;
 const $$createType25 = $Create.Nullable($$createType24);
-const $$createType26 = PcOpenRunInfo.createFrom;
+const $$createType26 = PlaceholderRunInfo.createFrom;
 const $$createType27 = $Create.Nullable($$createType26);
-const $$createType28 = PcCloseRunInfo.createFrom;
+const $$createType28 = PcOpenRunInfo.createFrom;
 const $$createType29 = $Create.Nullable($$createType28);
-const $$createType30 = SubRunInfo.createFrom;
+const $$createType30 = PcCloseRunInfo.createFrom;
 const $$createType31 = $Create.Nullable($$createType30);
-const $$createType32 = PluralRunInfo.createFrom;
+const $$createType32 = SubRunInfo.createFrom;
 const $$createType33 = $Create.Nullable($$createType32);
-const $$createType34 = SelectRunInfo.createFrom;
+const $$createType34 = PluralRunInfo.createFrom;
 const $$createType35 = $Create.Nullable($$createType34);
-const $$createType36 = MemoryEntryInfo.createFrom;
-const $$createType37 = $Create.Array($$createType36);
+const $$createType36 = SelectRunInfo.createFrom;
+const $$createType37 = $Create.Nullable($$createType36);
 const $$createType38 = TermMatchInfo.createFrom;
 const $$createType39 = $Create.Array($$createType38);
 const $$createType40 = ConceptInfo.createFrom;

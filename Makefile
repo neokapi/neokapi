@@ -485,6 +485,11 @@ ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web f
 	node scripts/story-coverage.mjs || true
 
 ci-kapi-desktop-frontend: ## Mirror the CI `kapi-desktop` job's frontend half (Go backend test is a separate step)
+	# Bindings wrapper/id pairing + call-name reachability. Runs before the
+	# typecheck because `tsc` cannot catch either: the dispatch layer types the
+	# bindings as Record<string, …>, so a wrong method name is invisible to the
+	# compiler and silently returns null at runtime.
+	$(MAKE) check-wails-bindings
 	cd packages/i18n-react && vp run build
 	cd packages/ui && vp check
 	cd packages/flow-editor && vp check
@@ -494,6 +499,10 @@ ci-kapi-desktop-frontend: ## Mirror the CI `kapi-desktop` job's frontend half (G
 	cd storybook && vpx storybook build -o storybook-static
 
 ci-bowrain-desktop-frontend: ## Mirror the CI `bowrain-desktop` job's frontend half (Go backend test is a separate step)
+	# Wrapper/id pairing + id-map freshness (both apps). Repeated here rather
+	# than only in ci-kapi-desktop-frontend because the two desktop jobs are
+	# independently path-gated: a bowrain-only change never runs that job.
+	$(MAKE) check-wails-bindings
 	# Build neokapi-i18n first so its `/runtime` subpath export resolves for the
 	# @neokapi/{ui,flow-editor} components the desktop frontend pulls in.
 	cd packages/i18n-react && vp run build
@@ -1057,6 +1066,67 @@ kapi-desktop-dev: kapi-desktop-frontend-deps ## Run Kapi Desktop in dev mode (ho
 
 kapi-desktop-test: ## Run Kapi Desktop Go backend tests
 	cd $(KAPI_DESKTOP_DIR) && $(GOTEST_BASE) ./backend/... -count=1 -timeout 60s
+
+# ── Wails bindings (committed AND regenerated at release) ───────────────────
+# Both desktop apps commit their generated bindings (.gitignore re-includes them
+# with `!`) *and* regenerate them during release.yml / release-bowrain.yml. Two
+# copies of one generated artifact drift, and nothing in the ordinary build
+# notices: the shipped app gets fresh bindings while local dev, `wails3 dev` and
+# the CI typecheck all build against the committed copy.
+#
+# The flags below mirror those release steps verbatim, so the committed copy is
+# byte-identical to what ships. Bindings are a static analysis of the service
+# API, and the output is invariant to both the -ldflags content and CGO_ENABLED
+# (verified byte-identical either way) — so no version stamp is threaded here.
+# Unlike the release steps this deliberately does NOT run `go mod tidy`, which
+# would mutate go.mod/go.sum and collide with the `tidy-check` gate.
+WAILS_BINDINGS_FLAGS := -f "-tags production,fts5 -trimpath -buildvcs=false -ldflags=\"\"" -clean=true
+BOWRAIN_DESKTOP_DIR  := bowrain/apps/bowrain
+
+kapi-desktop-bindings: ## Regenerate the committed Kapi Desktop Wails bindings + wbridge id map
+	cd $(KAPI_DESKTOP_DIR) && wails3 generate bindings $(WAILS_BINDINGS_FLAGS)
+	cd $(KAPI_DESKTOP_DIR)/frontend && node scripts/gen-wails-id-map.mjs
+
+bowrain-desktop-bindings: ## Regenerate the committed Bowrain Desktop Wails bindings + wbridge id map
+	cd $(BOWRAIN_DESKTOP_DIR) && wails3 generate bindings $(WAILS_BINDINGS_FLAGS)
+	cd $(BOWRAIN_DESKTOP_DIR)/frontend && node scripts/gen-wails-id-map.mjs
+
+wails-bindings: kapi-desktop-bindings bowrain-desktop-bindings ## Regenerate both desktop apps' committed Wails bindings
+
+# Node-only semantic gate: proves each JS wrapper name and the id it passes to
+# $Call.ByID are a consistent pair (recomputing Wails' own fnv32a(FQN)), that the
+# wbridge id maps are app.js's projection, and that every name kapi-desktop
+# dispatches through `call("Name")` is actually exported. No Go toolchain, ~0.1s
+# — so it rides along in the cheap frontend job for both apps.
+check-wails-bindings: ## Gate: Wails wrapper/id pairing, id maps, and call-name reachability (both desktop apps)
+	node scripts/check-wails-bindings.mjs
+
+# Byte-drift gates: regenerate and fail if the committed copy differs. Needs the
+# Go toolchain (and, on Linux, libicu-dev) for the bindings analysis, so these
+# run in the path-gated desktop jobs that already set that up. `git diff` alone
+# misses a *new* generated file, so untracked output under bindings/ fails too —
+# that is exactly how the memory/ + terms/ package rename surfaced.
+check-kapi-desktop-bindings: kapi-desktop-bindings ## Drift gate: committed Kapi Desktop bindings regenerate identically
+	git diff --exit-code $(KAPI_DESKTOP_DIR)/frontend/bindings \
+		$(KAPI_DESKTOP_DIR)/frontend/src/demo/wails-id-map.generated.json
+	@untracked="$$(git ls-files --others --exclude-standard $(KAPI_DESKTOP_DIR)/frontend/bindings)"; \
+	if [ -n "$$untracked" ]; then \
+		echo "check-kapi-desktop-bindings: regeneration produced untracked files (commit them):"; \
+		echo "$$untracked" | sed 's/^/  /'; \
+		exit 1; \
+	fi
+	@echo "check-kapi-desktop-bindings: committed bindings match the Go backend"
+
+check-bowrain-desktop-bindings: bowrain-desktop-bindings ## Drift gate: committed Bowrain Desktop bindings regenerate identically
+	git diff --exit-code $(BOWRAIN_DESKTOP_DIR)/frontend/bindings \
+		$(BOWRAIN_DESKTOP_DIR)/frontend/src/demo/wails-id-map.generated.json
+	@untracked="$$(git ls-files --others --exclude-standard $(BOWRAIN_DESKTOP_DIR)/frontend/bindings)"; \
+	if [ -n "$$untracked" ]; then \
+		echo "check-bowrain-desktop-bindings: regeneration produced untracked files (commit them):"; \
+		echo "$$untracked" | sed 's/^/  /'; \
+		exit 1; \
+	fi
+	@echo "check-bowrain-desktop-bindings: committed bindings match the Go backend"
 
 kapi-desktop-frontend-deps: ## Install Kapi Desktop frontend dependencies
 	cd $(KAPI_DESKTOP_DIR)/frontend && vp install
@@ -2132,6 +2202,8 @@ help: ## Show this help
         build-kapi-desktop kapi-desktop-dev kapi-desktop-test \
         kapi-desktop-frontend-deps kapi-desktop-frontend-dev kapi-desktop-frontend-build \
         kapi-desktop-frontend-test kapi-desktop-frontend-check kapi-desktop-extract \
+        kapi-desktop-bindings bowrain-desktop-bindings wails-bindings check-wails-bindings \
+        check-kapi-desktop-bindings check-bowrain-desktop-bindings \
         kapi-desktop-pseudo-translate kapi-desktop-compile kapi-desktop-translations \
         bowrain-app-extract bowrain-app-pseudo-translate bowrain-app-compile \
         bowrain-app-translations bowrain-app-l10n-verify \
