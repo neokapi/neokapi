@@ -179,7 +179,7 @@ func (a *App) collectProjectSources(pkg *kpz.Package, layout project.Layout, pro
 				if withSource {
 					srcAbs := filepath.Join(layout.Root, ef.Source)
 					if _, serr := os.Stat(srcAbs); serr == nil {
-						pkg.Source = append(pkg.Source, kpz.SourceDoc{Path: "source/" + ef.Source, Content: kpz.FileContent(srcAbs)})
+						pkg.Source = append(pkg.Source, kpz.SourceDoc{Path: kpz.SourceDir + ef.Source, Content: kpz.FileContent(srcAbs)})
 						si.HasRawSource = true
 					}
 				}
@@ -284,6 +284,16 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 		_ = tb.Close()
 	}
 
+	// Restore raw source bytes when the snapshot carries them. `pack
+	// --with-source` embeds them precisely so the recipient can *re-extract*
+	// (AD-025 §6), which needs the file on disk — packing bytes that unpack
+	// dropped made the flag a one-way trip. An existing file is left alone: the
+	// working tree is authoritative wherever it already has an answer, the same
+	// rule the recipe follows above.
+	if err := restoreSources(pkg, layout.Root); err != nil {
+		return err
+	}
+
 	// Restore per-source skeletons into an extraction cache dir so a later
 	// merge can reuse the round-trip templates without re-extracting (AD-025
 	// §6). One synthetic batch holds them all, keyed by source content hash
@@ -309,6 +319,43 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 		return nil
 	}
 	return outputPrint(cmd, fmt.Sprintf("Unpacked %s → %s", snapshotPath, layout.StateDir))
+}
+
+// restoreSources writes a snapshot's raw source members back into the project
+// tree under their logical paths (the archive path minus the "source/" prefix).
+//
+// A file already present is kept: unpack restores state, and the working tree is
+// the authority on its own sources. A member whose logical path escapes the
+// project root is refused rather than skipped — an archive from elsewhere must
+// not be able to write outside the directory it was unpacked into.
+func restoreSources(pkg *kpz.Package, root string) error {
+	if len(pkg.Source) == 0 {
+		return nil
+	}
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return fmt.Errorf("unpack: resolve project root: %w", err)
+	}
+	for _, doc := range pkg.Source {
+		rel := strings.TrimPrefix(doc.Path, kpz.SourceDir)
+		if rel == "" || rel == doc.Path && strings.HasPrefix(doc.Path, "/") {
+			return fmt.Errorf("unpack: source member %q has no usable path", doc.Path)
+		}
+		dst := filepath.Join(absRoot, filepath.FromSlash(rel))
+		if !strings.HasPrefix(dst, absRoot+string(os.PathSeparator)) {
+			return fmt.Errorf("unpack: source member %q escapes the project root", doc.Path)
+		}
+		if fileExists(dst) {
+			continue // the working tree already has this source
+		}
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			return fmt.Errorf("unpack: create source dir: %w", err)
+		}
+		if err := copyContentToFile(doc.Content, dst); err != nil {
+			return fmt.Errorf("unpack: write source %s: %w", rel, err)
+		}
+	}
+	return nil
 }
 
 // reconstitutedProjectPath derives the kapi.yaml path to materialize when

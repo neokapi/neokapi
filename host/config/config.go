@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/channel"
@@ -16,21 +17,36 @@ type AppConfig struct {
 	v *viper.Viper
 }
 
-// NewAppConfig creates a config reader that searches for kapi.yaml
-// in standard locations (plugins, formats, flow config).
+// NewAppConfig creates a reader for kapi's app configuration: the global config
+// file (plugins, formats, flow, the default AI provider/model), plus env-var
+// overrides and built-in defaults.
+//
+// # One path, shared with the writer
+//
+// The file is pinned to [GlobalConfigFilePath] — the same function every writer
+// uses (SetGlobalConfig, UnsetGlobalConfig, AddGlobalRegistry) — rather than
+// resolved through a search path. A search path made read and write disagree in
+// two independent ways, and `kapi models default` silently lost its value to
+// both:
+//
+//  1. `.` (the working directory) was searched *before* the user config dir, and
+//     a kapi project's recipe is named `kapi.yaml` — exactly the name being
+//     searched for. Inside any project, the recipe was loaded *as* the app
+//     config, so `ai.provider` read as empty however it had been set.
+//  2. The writer resolved `os.UserConfigDir()` while the reader searched a
+//     hardcoded `$HOME/.config/kapi`. On macOS those are different directories,
+//     so even outside a project the stored value was in a directory the reader
+//     never looked in.
+//
+// A recipe is not app configuration, and app configuration is not per-directory:
+// the two never had a reason to share a search path. The locations the old reader
+// searched are still read as lower-precedence layers (see legacyConfigPaths), so
+// an existing `$HOME/.config/kapi/kapi.yaml` or `/etc/kapi/kapi.yaml` keeps
+// working — what is removed is only the working directory.
 func NewAppConfig() *AppConfig {
 	v := viper.New()
-	v.SetConfigName("kapi")
 	v.SetConfigType("yaml")
-	// Honor KAPI_CONFIG_DIR first, mirroring GlobalConfigFilePath. This keeps
-	// in-repo (dogfood) kapi invocations isolated from the developer's real
-	// ~/.config/kapi when KAPI_CONFIG_DIR points at a throwaway dir.
-	if dir := os.Getenv("KAPI_CONFIG_DIR"); dir != "" {
-		v.AddConfigPath(dir)
-	}
-	v.AddConfigPath(".")
-	v.AddConfigPath("$HOME/.config/kapi")
-	v.AddConfigPath("/etc/kapi")
+	v.SetConfigFile(GlobalConfigFilePath())
 	v.SetEnvPrefix("KAPI")
 	// Translate dots to underscores so dotted keys like "plugins.directory"
 	// resolve from env vars like KAPI_PLUGINS_DIRECTORY (not KAPI_PLUGINS.DIRECTORY).
@@ -81,16 +97,70 @@ func NewOverlayAppConfig(appName string, configure func(cfg *AppConfig)) *AppCon
 	return cfg
 }
 
-// Load reads the configuration file.
+// legacyConfigPaths are pre-existing app-config locations kept readable as
+// lower-precedence layers beneath the pinned global file, so an installation
+// that already had one keeps working:
+//
+//   - `$HOME/.config/kapi/kapi.yaml` — the location the old reader searched and
+//     the docs name. On Linux it *is* the pinned path (os.UserConfigDir honours
+//     XDG), so this entry is a no-op there; on macOS os.UserConfigDir resolves to
+//     `~/Library/Application Support`, and a hand-written config at the
+//     documented path must not stop being read just because the reader stopped
+//     guessing.
+//   - `/etc/kapi/kapi.yaml` — a system-wide install.
+//
+// The working directory is deliberately absent: `./kapi.yaml` is a project
+// recipe, not app configuration, and searching it is what made `kapi models
+// default` unreadable inside any project (see NewAppConfig). A path equal to the
+// pinned file is skipped, so nothing is read twice.
+func legacyConfigPaths() []string {
+	paths := []string{filepath.Join("/etc", "kapi", "kapi.yaml")}
+	if home, err := os.UserHomeDir(); err == nil {
+		paths = append([]string{filepath.Join(home, ".config", "kapi", "kapi.yaml")}, paths...)
+	}
+	pinned := GlobalConfigFilePath()
+	return slices.DeleteFunc(paths, func(p string) bool { return p == pinned })
+}
+
+// Load reads the configuration file, then merges any legacy location underneath
+// it (the pinned file wins key by key). A missing file is not an error — an
+// unconfigured kapi runs on its built-in defaults.
 func (c *AppConfig) Load() error {
 	if err := c.v.ReadInConfig(); err != nil {
 		var notFound viper.ConfigFileNotFoundError
-		if errors.As(err, &notFound) {
-			return nil // Config file not found is ok
+		if errors.As(err, &notFound) || errors.Is(err, os.ErrNotExist) {
+			// Nothing stored yet; fall through to the legacy layers.
+		} else {
+			return err
 		}
-		return err
 	}
+	c.mergeLegacyLayers()
 	return nil
+}
+
+// mergeLegacyLayers folds each legacy config file into the file layer, without
+// overriding what the pinned file already set. Best-effort: a legacy file that
+// cannot be parsed is reported and skipped rather than failing the run, since it
+// is not the file kapi writes.
+func (c *AppConfig) mergeLegacyLayers() {
+	for _, path := range legacyConfigPaths() {
+		if _, err := os.Stat(path); err != nil {
+			continue
+		}
+		layer := viper.New()
+		layer.SetConfigFile(path)
+		layer.SetConfigType("yaml")
+		if err := layer.ReadInConfig(); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: config %s: %v\n", path, err)
+			continue
+		}
+		for key, val := range layer.AllSettings() {
+			if c.v.InConfig(key) {
+				continue // the pinned file already decided this key
+			}
+			c.v.SetDefault(key, val)
+		}
+	}
 }
 
 // Viper returns the underlying Viper instance for advanced access.

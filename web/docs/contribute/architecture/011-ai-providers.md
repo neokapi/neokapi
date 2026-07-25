@@ -378,6 +378,38 @@ AI providers read credentials at runtime from one of three sources:
 Flag overrides store overrides environment. API keys never appear in
 project files.
 
+### Default provider resolution
+
+*Which* provider a run uses when nothing names one is a separate question from
+*how it authenticates*, and it has exactly one resolver:
+`config.ResolveAIDefault`. It returns the provider, the model, and **where the
+value came from** (`env` | `config` | `none`), and `config.SetAIDefault` /
+`ClearAIDefault` are the matching single write path.
+
+Precedence, matching every other config key: an explicit `--provider`/`--model`
+flag or an inline/recipe value first, then `KAPI_AI_PROVIDER` /
+`KAPI_AI_MODEL`, then the stored `ai.provider` / `ai.model`.
+
+One resolver rather than six read sites, because six read sites had no shared
+answer to "what is configured, and where did it come from" — so a scope bug in
+the reader was invisible in all of them at once. Reporting the *source*
+alongside the value is what lets a diagnostic name the file or the environment
+variable to change, instead of asserting that nothing is configured.
+
+The app config file is pinned to `config.GlobalConfigFilePath()` — the same
+function the writers use — never resolved through a search path. A search path
+had put the working directory ahead of the user config dir, and a kapi project's
+recipe is named `kapi.yaml`: inside any project the *recipe* was loaded as the
+app config, and every stored default read as empty. The working directory is not
+a config location; a recipe is project configuration, app config is per-machine.
+
+The locations the old search path covered — `$HOME/.config/kapi/kapi.yaml` and
+`/etc/kapi/kapi.yaml` — are still read, as lower-precedence layers beneath the
+pinned file, so an existing hand-written config keeps working. What is removed
+is only the working directory. (On Linux the first of those *is* the pinned path,
+since `os.UserConfigDir` honours XDG; on macOS it resolves to
+`~/Library/Application Support`, which is why the two could differ at all.)
+
 ### Scope boundary
 
 The framework's responsibility ends at the provider interface and the

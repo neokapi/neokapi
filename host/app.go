@@ -77,6 +77,12 @@ type App struct {
 	// scripted stdin, fake detection, and stub live checks through it.
 	AISetupIOOverride *AISetupIO
 
+	// AISetupPrompter, when non-nil, renders the setup wizard's questions. The
+	// terminal experience is a presentation concern, so the front-end registers
+	// it (the CLI installs a form-based one) and host keeps its plain numbered
+	// reader as the default for a dumb TTY, a pipe, and the tests.
+	AISetupPrompter AISetupPrompter
+
 	// RegistryResolver is an optional hook for resolving plugin registries.
 	// When set, it is called before falling back to the config-based registries.
 	RegistryResolver func() []config.RegistryEntry

@@ -142,6 +142,10 @@ const (
 	// SkeletonDir is the archive directory holding per-source skeleton
 	// members.
 	SkeletonDir = "skeletons/"
+	// SourceDir is the archive directory holding raw source members (opt-in,
+	// `pack --with-source`). Named here rather than spelled at each call site so
+	// the writer and the reader that strips it back off cannot disagree.
+	SourceDir = "source/"
 )
 
 // zipEpoch is a fixed modification time so the archive bytes are deterministic

@@ -211,8 +211,9 @@
           }
         },
         "info": {
-          "example": "  kapi info work.kpz",
-          "short": "Show a .kpz workspace's state (dirty?)"
+          "example": "  kapi info              # the project: what a snapshot would capture\n  kapi info handoff.kpz  # the archive: what it holds",
+          "long": "With no argument, reports the project in scope: its languages, how many files\nit tracks, and the parts a `kapi pack` snapshot would capture — each with\nwhether it is present and how many items it holds — plus what the snapshot\ndeliberately leaves out (regenerable caches, credentials, sync tokens).\n\nWith a .kpz argument, reports that archive. A project snapshot is reported as the\nsame parts, in the same words, so comparing the two is the round-trip check. A\nworkspace .kpz (the ad-hoc parcel with a working cache) instead reports its\ndocuments, locales, and whether the cache holds work not yet packed back.\n\nBoth forms support --output-format json|yaml.",
+          "short": "Report a project's packable state, or a .kpz archive's contents"
         },
         "init": {
           "long": "Create a new kapi project with a kapi.yaml recipe and an\nadjacent .kapi/ state directory.\n\nBy default kapi init scaffolds a content project that keeps your source on\nbrand — a brand-voice profile, the project termbase, and a check flow, with no\ntarget languages. Pass --target-locale (or --framework) to make it a\ntranslation project instead.\n\nThe project id defaults to the current directory's basename and the source\nlocale to en. Override with --name, --source-locale, --target-locale\n(repeatable).\n\n--preset \u003cname\u003e (alias: --framework) pre-fills the content mapping for a known\nstack's i18n catalogs: react-i18next, react-intl, nextjs, vue-i18n, flutter,\nangular — and scaffolds the translation project. List every preset (framework\nscaffolds plus per-format parsing presets) with --list-presets.",

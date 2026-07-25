@@ -68,20 +68,12 @@ func newModelsDefaultCmd(a *App) *cobra.Command {
 			"  kapi models default gpt-4o --provider azureopenai",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			out := cmd.OutOrStdout()
+			// Read and write both go through config.ResolveAIDefault /
+			// config.SetAIDefault — the one resolver and the one writer every
+			// surface shares. Reading the config directly here is what let the
+			// read-back disagree with what every consumer actually resolved.
 			if len(args) == 0 {
-				if a.Config == nil {
-					return errors.New("config not loaded")
-				}
-				prov := a.Config.GetString(config.KeyAIProvider)
-				modl := a.Config.GetString(config.KeyAIModel)
-				if prov == "" && modl == "" {
-					fmt.Fprintln(out, "No default AI model set (AI tools fall back to the built-in anthropic default).")
-					fmt.Fprintln(out, "Set one with: kapi models default <model>")
-					return nil
-				}
-				fmt.Fprintf(out, "provider: %s\nmodel:    %s\n", OrNone(prov), OrNone(modl))
-				return nil
+				return output.Print(cmd, ModelDefaultOutput{Default: config.ResolveAIDefault(a.Config)})
 			}
 
 			model := args[0]
@@ -94,18 +86,18 @@ func newModelsDefaultCmd(a *App) *cobra.Command {
 				}
 				provider = string(inferred)
 			}
-			if err := config.SetGlobalConfig(config.KeyAIProvider, provider); err != nil {
-				return fmt.Errorf("set %s: %w", config.KeyAIProvider, err)
+			if err := config.SetAIDefault(a.Config, provider, model); err != nil {
+				return err
 			}
-			if err := config.SetGlobalConfig(config.KeyAIModel, model); err != nil {
-				return fmt.Errorf("set %s: %w", config.KeyAIModel, err)
-			}
-			fmt.Fprintf(out, "Default AI model set: %s (provider %s)\n", model, provider)
-			return nil
+			return output.Print(cmd, ModelDefaultOutput{
+				Default: config.ResolveAIDefault(a.Config),
+				Set:     true,
+			})
 		},
 	}
 	cmd.Flags().StringVar(&providerFlag, "provider", "",
 		"set the provider explicitly instead of inferring it from the model name")
+	output.AddFlags(cmd.Flags())
 	return cmd
 }
 

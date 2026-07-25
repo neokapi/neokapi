@@ -147,26 +147,28 @@ func TestNewAppConfigHonorsConfigDir(t *testing.T) {
 		"NewAppConfig should read language from KAPI_CONFIG_DIR, not real home")
 }
 
-// TestNewAppConfigConfigDirPrecedence verifies the KAPI_CONFIG_DIR path is
-// searched before the cwd ("."), so an isolated dir wins over a stray
-// kapi.yaml in the working directory.
-func TestNewAppConfigConfigDirPrecedence(t *testing.T) {
-	// Config in the isolated dir.
+// TestNewAppConfigIgnoresTheWorkingDirectory is the regression guard for the bug
+// behind `kapi models default` being silently ignored: the app config used to be
+// resolved through a search path whose first entry was "." — and a kapi
+// project's recipe is named kapi.yaml, exactly the name being searched for. So
+// inside any project the *recipe* was loaded as the app config, and every stored
+// ai.provider / ai.model read as empty.
+//
+// The working directory is not a config location. A recipe is project
+// configuration, committed and per-project; app config is per-machine.
+func TestNewAppConfigIgnoresTheWorkingDirectory(t *testing.T) {
 	isoDir := t.TempDir()
 	require.NoError(t, os.WriteFile(
 		filepath.Join(isoDir, "kapi.yaml"),
 		[]byte("language: iso-lang\n"), 0o644))
 
-	// A competing config in the working directory.
+	// A project recipe in the working directory — the exact filename the old
+	// search path would have picked up first.
 	cwdDir := t.TempDir()
 	require.NoError(t, os.WriteFile(
 		filepath.Join(cwdDir, "kapi.yaml"),
-		[]byte("language: cwd-lang\n"), 0o644))
-
-	origWD, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(cwdDir))
-	t.Cleanup(func() { _ = os.Chdir(origWD) })
+		[]byte("version: v1\nname: a-recipe-not-app-config\nlanguage: cwd-lang\n"), 0o644))
+	t.Chdir(cwdDir)
 
 	t.Setenv("KAPI_CONFIG_DIR", isoDir)
 	t.Setenv("KAPI_LANGUAGE", "")
@@ -175,7 +177,42 @@ func TestNewAppConfigConfigDirPrecedence(t *testing.T) {
 	require.NoError(t, cfg.Load())
 
 	assert.Equal(t, "iso-lang", cfg.Language(),
-		"KAPI_CONFIG_DIR should take precedence over the working directory")
+		"the pinned global config must win; a cwd kapi.yaml is a recipe, not app config")
+}
+
+// TestAppConfigRoundTripsAStoredDefault is the founder-reported symptom in its
+// smallest form: whatever a writer stores must be readable by a *fresh* reader,
+// including from inside a project directory.
+func TestAppConfigRoundTripsAStoredDefault(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	t.Setenv("KAPI_AI_PROVIDER", "")
+	t.Setenv("KAPI_AI_MODEL", "")
+
+	require.NoError(t, SetGlobalConfig(KeyAIProvider, "ollama"))
+	require.NoError(t, SetGlobalConfig(KeyAIModel, "gemma4:e2b"))
+
+	// Stand inside a project — the case that used to lose the value.
+	projDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(projDir, "kapi.yaml"),
+		[]byte("version: v1\nname: proj\n"), 0o644))
+	t.Chdir(projDir)
+
+	cfg := NewAppConfig()
+	require.NoError(t, cfg.Load())
+	assert.Equal(t, "ollama", cfg.GetString(KeyAIProvider))
+	assert.Equal(t, "gemma4:e2b", cfg.GetString(KeyAIModel))
+}
+
+// TestAppConfigEnvStillOverridesTheFile keeps the precedence order: env beats
+// the stored file, which beats the built-in default.
+func TestAppConfigEnvStillOverridesTheFile(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	require.NoError(t, SetGlobalConfig(KeyAIProvider, "ollama"))
+	t.Setenv("KAPI_AI_PROVIDER", "anthropic")
+
+	cfg := NewAppConfig()
+	require.NoError(t, cfg.Load())
+	assert.Equal(t, "anthropic", cfg.GetString(KeyAIProvider))
 }
 
 // TestGlobalConfigFilePathIsolatesPluginNamespaces asserts KAPI_CONFIG_DIR

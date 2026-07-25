@@ -13,7 +13,9 @@ import (
 
 type (
 	AIDetection                   = host.AIDetection
+	AISetupChoice                 = host.AISetupChoice
 	AISetupIO                     = host.AISetupIO
+	AISetupPrompter               = host.AISetupPrompter
 	App                           = host.App
 	CatOptions                    = host.CatOptions
 	CheckExclusions               = host.CheckExclusions
@@ -37,6 +39,7 @@ type (
 	Matcher                       = host.Matcher
 	MatcherOpts                   = host.MatcherOpts
 	MergeCmdOptions               = host.MergeCmdOptions
+	ModelDefaultOutput            = host.ModelDefaultOutput
 	TMSessionDeleteOutput         = host.TMSessionDeleteOutput
 	TMSessionDetail               = host.TMSessionDetail
 	TMSessionListOutput           = host.TMSessionListOutput

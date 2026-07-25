@@ -66,6 +66,7 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		docCache:            a.docCache,
 		translator:          a.translator,
 		AISetupIOOverride:   a.AISetupIOOverride,
+		AISetupPrompter:     a.AISetupPrompter,
 		convergeProgressTap: tap,
 
 		// Pre-seed the parent's runtime (building it on the parent if needed —
@@ -114,6 +115,7 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	"TBBackend":           fieldShared,
 	"Credentials":         fieldShared,
 	"AISetupIOOverride":   fieldShared,
+	"AISetupPrompter":     fieldShared, // presentation, and a worker never prompts
 	"RegistryResolver":    fieldShared,
 	"FallbackRunE":        fieldShared,
 	"ExtraFlows":          fieldShared,

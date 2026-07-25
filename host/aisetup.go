@@ -33,16 +33,42 @@ type AIDetection struct {
 	// SavedCredentialProviders are provider ids with a saved credential in the
 	// store (deduplicated, in store order).
 	SavedCredentialProviders []string `json:"savedCredentialProviders,omitempty"`
-	// DefaultProvider / DefaultModel are the shared ai.Provider / ai.model app
-	// config, when set.
+	// DefaultProvider / DefaultModel are the shared ai.provider / ai.model app
+	// config, when set — resolved through config.ResolveAIDefault, the one
+	// resolver every surface reads.
 	DefaultProvider string `json:"defaultProvider,omitempty"`
 	DefaultModel    string `json:"defaultModel,omitempty"`
+	// DefaultSource carries where the default came from, so a diagnostic can say
+	// which file or env var to change instead of asserting that nothing is
+	// configured.
+	DefaultSource config.AIDefault `json:"defaultSource,omitzero"`
 }
 
 // Configured reports whether any AI provider is already usable without setup:
 // a configured default, a saved credential, or an API key in the environment.
 func (d AIDetection) Configured() bool {
 	return d.DefaultProvider != "" || len(d.SavedCredentialProviders) > 0 || len(d.EnvKeyProviders) > 0
+}
+
+// StandingLine renders an accurate one-line account of what is already
+// available, for the wizard header and for the "nothing configured" path — which
+// must never claim nothing is configured when a default, a saved credential or
+// an env key exists.
+func (d AIDetection) StandingLine() string {
+	var parts []string
+	if d.DefaultProvider != "" {
+		parts = append(parts, "default: "+d.DefaultSource.Describe())
+	}
+	if len(d.SavedCredentialProviders) > 0 {
+		parts = append(parts, "saved credentials: "+strings.Join(d.SavedCredentialProviders, ", "))
+	}
+	if len(d.EnvKeyProviders) > 0 {
+		parts = append(parts, "API keys in the environment: "+strings.Join(d.EnvKeyProviders, ", "))
+	}
+	if len(parts) == 0 {
+		return "no AI provider configured"
+	}
+	return strings.Join(parts, " · ")
 }
 
 // aiDetectOllamaTimeout bounds the local Ollama liveness probe.
@@ -72,10 +98,10 @@ func (a *App) DetectAIOptions(ctx context.Context, ollamaBaseURLParam string) AI
 			}
 		}
 	}
-	if a.Config != nil {
-		det.DefaultProvider = a.Config.GetString(config.KeyAIProvider)
-		det.DefaultModel = a.Config.GetString(config.KeyAIModel)
-	}
+	def := config.ResolveAIDefault(a.Config)
+	det.DefaultProvider = def.Provider
+	det.DefaultModel = def.Model
+	det.DefaultSource = def
 	return det
 }
 
@@ -91,6 +117,33 @@ type AISetupChoice struct {
 	needsKey bool   // prompt for an API key when chosen (no env key present)
 }
 
+// Label is the choice's one-line rendering, for a prompter to display.
+func (c AISetupChoice) Label() string { return c.label }
+
+// Model is the model written alongside the provider when this choice is taken.
+func (c AISetupChoice) Model() string { return c.model }
+
+// NeedsKey reports whether choosing this provider requires entering an API key
+// (no conventional env var already carries one).
+func (c AISetupChoice) NeedsKey() bool { return c.needsKey }
+
+// AISetupPrompter renders the wizard's three questions. It exists so the
+// terminal experience is a presentation concern: host owns detection, the
+// ordered choices, the live check and persistence, and knows nothing about how
+// the questions are drawn. The CLI supplies a form-based implementation
+// (charmbracelet/huh — the repo's established interactive convention, already
+// used by `kapi init`); host's own default is a plain numbered reader, which is
+// what a bare terminal, a dumb TTY, and the tests use.
+type AISetupPrompter interface {
+	// SelectProvider asks for one of choices, defaulting to index def (0-based),
+	// and returns the chosen index.
+	SelectProvider(choices []AISetupChoice, def int) (int, error)
+	// APIKey asks for a provider API key. Returning "" aborts with guidance.
+	APIKey(providerLabel string) (string, error)
+	// Confirm asks a yes/no question with the given default.
+	Confirm(prompt string, def bool) (bool, error)
+}
+
 // AISetupIO carries the wizard's injectable dependencies so tests can script
 // stdin, fake detection, and stub the live check and persistence.
 type AISetupIO struct {
@@ -101,22 +154,37 @@ type AISetupIO struct {
 	// liveCheck runs a tiny call through the chosen provider ("" apiKey for
 	// keyless ones). Defaults to a real one-message Chat.
 	LiveCheck func(ctx context.Context, provider, model, apiKey string) error
-	// setConfig persists one global config key. Defaults to config.SetGlobalConfig.
-	SetConfig func(key, value string) error
+	// SetDefault persists the chosen provider and model. Defaults to
+	// config.SetAIDefault — the one write path, which also clears a stored model
+	// when the new provider brings none, so a model chosen for a previous provider
+	// cannot survive as an orphan attached to a different one.
+	SetDefault func(provider, model string) error
+	// Prompter renders the questions. Defaults to the plain numbered reader over
+	// In/Out; the CLI injects a form-based one (see App.AISetupPrompter).
+	Prompter AISetupPrompter
 }
 
 func (a *App) DefaultAISetupIO(cmd Command) AISetupIO {
 	if a.AISetupIOOverride != nil {
 		return *a.AISetupIOOverride
 	}
-	return AISetupIO{
+	io := AISetupIO{
 		In:        cmd.InOrStdin(),
 		Out:       cmd.ErrOrStderr(),
 		IsTTY:     defaultIsStdinTTY,
 		Detect:    func(ctx context.Context) AIDetection { return a.DetectAIOptions(ctx, "") },
 		LiveCheck: aiSetupLiveCheck,
-		SetConfig: func(key, value string) error { return config.SetGlobalConfig(key, value) },
+		SetDefault: func(provider, model string) error {
+			return config.SetAIDefault(a.Config, provider, model)
+		},
 	}
+	// A front-end that registered a richer prompter gets it for every wizard
+	// entry point — `kapi models setup` and the inline one mid-`kapi up` alike,
+	// so the two are never a different experience.
+	if a.AISetupPrompter != nil {
+		io.Prompter = a.AISetupPrompter
+	}
+	return io
 }
 
 // aiSetupLiveCheck sends one tiny prompt through the chosen provider to prove
@@ -226,10 +294,19 @@ func (a *App) RunAISetupWizard(ctx context.Context, io AISetupIO, compact bool) 
 	choices := BuildAISetupChoices(det)
 
 	w := io.Out
-	if compact {
+	switch {
+	case compact && det.Configured():
+		// Something IS configured — the run needed setup for another reason
+		// (an unusable default, a missing key). Saying "nothing is configured"
+		// here sent people looking for a setting that was already there.
+		fmt.Fprintf(w, "\nAn AI provider is needed to continue. Currently: %s.\n\n", det.StandingLine())
+	case compact:
 		fmt.Fprintf(w, "\nNo AI provider is configured yet — pick one to continue (see `kapi models setup`).\n\n")
-	} else {
+	default:
 		fmt.Fprintf(w, "\nConnect an AI provider\n\n")
+		if det.Configured() {
+			fmt.Fprintf(w, "Currently: %s\n\n", det.StandingLine())
+		}
 	}
 	if det.ClaudeCode || det.Ollama || len(det.EnvKeyProviders) > 0 {
 		fmt.Fprintf(w, "Detected on this machine:\n")
@@ -245,27 +322,29 @@ func (a *App) RunAISetupWizard(ctx context.Context, io AISetupIO, compact bool) 
 		fmt.Fprintln(w)
 	}
 
-	fmt.Fprintf(w, "Choose the default AI provider:\n")
-	for i, c := range choices {
-		fmt.Fprintf(w, "  %d) %s\n", i+1, c.label)
+	prompter := io.Prompter
+	if prompter == nil {
+		prompter = newLinePrompter(io.In, w)
 	}
-	reader := newLineReader(io.In)
-	idx, err := promptSelect(reader, w, "Select", len(choices), 1)
+
+	idx, err := prompter.SelectProvider(choices, 0)
 	if err != nil {
 		return "", err
 	}
-	choice := choices[idx-1]
+	if idx < 0 || idx >= len(choices) {
+		return "", errors.New("no provider selected")
+	}
+	choice := choices[idx]
 
 	// Key entry (stored through the existing credentials flow) when the chosen
 	// provider needs one and the environment doesn't already carry it.
 	apiKey := ""
 	if choice.needsKey {
-		fmt.Fprintf(w, "Paste your %s API key (input is not masked): ", aiProviderDisplayLabel(choice.Provider))
-		line, rerr := reader.line()
+		entered, rerr := prompter.APIKey(aiProviderDisplayLabel(choice.Provider))
 		if rerr != nil {
 			return "", rerr
 		}
-		apiKey = strings.TrimSpace(line)
+		apiKey = strings.TrimSpace(entered)
 		if apiKey == "" {
 			return "", fmt.Errorf("no API key entered — run `kapi models setup` again, or set %s_API_KEY", strings.ToUpper(choice.Provider))
 		}
@@ -289,7 +368,7 @@ func (a *App) RunAISetupWizard(ctx context.Context, io AISetupIO, compact bool) 
 	// Tiny live check through the chosen provider — skippable, and pointless
 	// for the offline demo stub.
 	if choice.Provider != string(aiprovider.Demo) {
-		ok, cerr := promptYesNo(reader, w, "Run a quick test call to verify the setup? [Y/n] ")
+		ok, cerr := prompter.Confirm("Run a quick test call to verify the setup?", true)
 		if cerr != nil {
 			return "", cerr
 		}
@@ -302,21 +381,26 @@ func (a *App) RunAISetupWizard(ctx context.Context, io AISetupIO, compact bool) 
 		}
 	}
 
-	if err := io.SetConfig(config.KeyAIProvider, choice.Provider); err != nil {
-		return "", fmt.Errorf("set %s: %w", config.KeyAIProvider, err)
-	}
-	if choice.model != "" {
-		if err := io.SetConfig(config.KeyAIModel, choice.model); err != nil {
-			return "", fmt.Errorf("set %s: %w", config.KeyAIModel, err)
+	// Persist through the one write path (config.SetAIDefault by default), which
+	// clears a stored model when the chosen provider brings none: picking
+	// claude-code after ollama/gemma must not leave `model: gemma…` attached to
+	// it. Injectable so tests observe the write without touching a real config.
+	setDefault := io.SetDefault
+	if setDefault == nil {
+		setDefault = func(provider, model string) error {
+			return config.SetAIDefault(nil, provider, model)
 		}
 	}
-	// Mirror into the in-memory config so the current process (an inline
-	// wizard mid-`kapi up`) picks the choice up without reloading.
+	if err := setDefault(choice.Provider, choice.model); err != nil {
+		return "", err
+	}
+	// Mirror into the in-memory config — separate from persistence, because this
+	// is about the *running* process: an inline wizard mid-`kapi up` must take
+	// effect without re-reading the file. The model is written even when empty, so
+	// the mirror clears alongside the stored value.
 	if a.Config != nil {
 		a.Config.Set(config.KeyAIProvider, choice.Provider)
-		if choice.model != "" {
-			a.Config.Set(config.KeyAIModel, choice.model)
-		}
+		a.Config.Set(config.KeyAIModel, choice.model)
 	}
 
 	ready := aiProviderDisplayLabel(choice.Provider)
@@ -414,17 +498,58 @@ func promptSelect(r *promptReader, w io.Writer, label string, n, def int) (int, 
 	}
 }
 
-// promptYesNo asks a yes/no question, defaulting to yes.
-func promptYesNo(r *promptReader, w io.Writer, prompt string) (bool, error) {
+// promptYesNo asks a yes/no question, using def for empty input.
+func promptYesNo(r *promptReader, w io.Writer, prompt string, def bool) (bool, error) {
 	fmt.Fprint(w, prompt)
 	line, err := r.line()
 	if err != nil {
 		return false, fmt.Errorf("read answer: %w", err)
 	}
 	switch strings.ToLower(strings.TrimSpace(line)) {
-	case "", "y", "yes":
+	case "":
+		return def, nil
+	case "y", "yes":
 		return true, nil
 	default:
 		return false, nil
 	}
+}
+
+// linePrompter is host's own AISetupPrompter: a numbered list read
+// line-at-a-time. It is the default because it is the implementation that
+// always works — a dumb terminal, a pipe with scripted answers, the tests — and
+// because host must not depend on a TUI (the desktop links host too). A
+// front-end that can do better registers its own (see App.AISetupPrompter).
+type linePrompter struct {
+	r *promptReader
+	w io.Writer
+}
+
+func newLinePrompter(r io.Reader, w io.Writer) *linePrompter {
+	return &linePrompter{r: newLineReader(r), w: w}
+}
+
+func (p *linePrompter) SelectProvider(choices []AISetupChoice, def int) (int, error) {
+	fmt.Fprintf(p.w, "Choose the default AI provider:\n")
+	for i, c := range choices {
+		fmt.Fprintf(p.w, "  %d) %s\n", i+1, c.label)
+	}
+	idx, err := promptSelect(p.r, p.w, "Select", len(choices), def+1)
+	if err != nil {
+		return 0, err
+	}
+	return idx - 1, nil
+}
+
+func (p *linePrompter) APIKey(providerLabel string) (string, error) {
+	fmt.Fprintf(p.w, "Paste your %s API key (input is not masked): ", providerLabel)
+	return p.r.line()
+}
+
+func (p *linePrompter) Confirm(prompt string, def bool) (bool, error) {
+	suffix := " [y/N] "
+	if def {
+		suffix = " [Y/n] "
+	}
+	return promptYesNo(p.r, p.w, prompt+suffix, def)
 }

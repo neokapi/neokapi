@@ -201,7 +201,7 @@ func buildKpzCacheFromPackage(ctx context.Context, kpzPath string, pkg *kpz.Pack
 	if len(pkg.Sources) > 0 {
 		for _, si := range pkg.Sources {
 			entries = append(entries, srcEntry{
-				archivePath:  "source/" + filepath.Base(si.SourcePath),
+				archivePath:  kpz.SourceDir + filepath.Base(si.SourcePath),
 				sourcePath:   si.SourcePath,
 				formatID:     si.FormatID,
 				contentHash:  si.ContentHash,

@@ -35,27 +35,50 @@ machine and "kapi unpack" it to resume work there.`,
 	cmd.Flags().StringP("output", "o", "", "output .kpz snapshot path")
 	cmd.Flags().Bool("log", false, "stamp a tamper-evident provenance line into the snapshot's advisory history")
 	cmd.Flags().Bool("with-source", false, "embed raw source bytes in the .kpz (default: identity + skeleton only)")
+	output.AddFlags(cmd.Flags())
 	return cmd
 }
 
-// NewInfoCmd creates the "info" command: show a .kpz workspace's state —
-// documents, locales, output layout, and whether its working cache is dirty
-// (has work not yet packed into the .kpz). Named `info` because the bowrain
-// plugin owns `status`.
+// NewInfoCmd creates the "info" command: report on a project's packable state,
+// or on a .kpz archive.
+//
+// One verb, two subjects, because they are two views of the same thing: `kapi
+// info` in a project lists the parts a snapshot would capture (and what it
+// deliberately omits), and `kapi info work.kpz` lists what an archive actually
+// holds plus whether its working cache has drifted from it. Asking "what would I
+// be handing over?" before `kapi pack` used to be impossible — info took only a
+// .kpz. Named `info` rather than `status` because the bowrain plugin owns
+// `status`.
 func NewInfoCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "info <work.kpz>",
-		Short:   "Show a .kpz workspace's state (dirty?)",
+		Use:     "info [work.kpz]",
+		Short:   "Report a project's packable state, or a .kpz archive's contents",
 		GroupID: "advanced",
-		Example: `  kapi info work.kpz`,
-		Args:    cobra.ExactArgs(1),
+		Long: `With no argument, reports the project in scope: its languages, how many files
+it tracks, and the parts a ` + "`kapi pack`" + ` snapshot would capture — each with
+whether it is present and how many items it holds — plus what the snapshot
+deliberately leaves out (regenerable caches, credentials, sync tokens).
+
+With a .kpz argument, reports that archive. A project snapshot is reported as the
+same parts, in the same words, so comparing the two is the round-trip check. A
+workspace .kpz (the ad-hoc parcel with a working cache) instead reports its
+documents, locales, and whether the cache holds work not yet packed back.
+
+Both forms support --output-format json|yaml.`,
+		Example: `  kapi info              # the project: what a snapshot would capture
+  kapi info handoff.kpz  # the archive: what it holds`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				return a.RunProjectInfo(cmd)
+			}
 			if !IsKpzPath(args[0]) {
-				return errors.New("info: expects a .kpz workspace")
+				return errors.New("info: expects a .kpz archive, or no argument to report the project")
 			}
 			return a.InfoKpz(cmd, args[0])
 		},
 	}
+	AddProjectFlag(cmd)
 	output.AddFlags(cmd.Flags())
 	return cmd
 }
@@ -74,5 +97,6 @@ func NewUnpackCmd(a *App) *cobra.Command {
 		},
 	}
 	AddProjectFlag(cmd)
+	output.AddFlags(cmd.Flags())
 	return cmd
 }
