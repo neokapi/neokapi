@@ -6,11 +6,7 @@ export { readCdnConfig, cdnEnabled, cdnHref } from "./cdn";
 export type { CdnConfig } from "./cdn";
 
 // Cookieless analytics shared by both docs sites (key-gated; see analytics.ts).
-export {
-  initDocsAnalytics,
-  captureDocsEvent,
-  captureDocsPageview,
-} from "./analytics";
+export { initDocsAnalytics, captureDocsEvent, captureDocsPageview } from "./analytics";
 export type { DocsAnalyticsOptions } from "./analytics";
 
 // Diagram kit — uniform, theme-aware SVG diagrams shared by both docs sites.

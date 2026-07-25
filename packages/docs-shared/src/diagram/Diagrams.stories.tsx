@@ -160,11 +160,7 @@ export const Lanes: Story = {
           title: "Writer Thread",
           sub: "writerPool, unbounded",
           role: "translate",
-          steps: [
-            "receive events",
-            "re-assemble the skeleton",
-            "write target bytes",
-          ],
+          steps: ["receive events", "re-assemble the skeleton", "write target bytes"],
         },
       ]}
     />
