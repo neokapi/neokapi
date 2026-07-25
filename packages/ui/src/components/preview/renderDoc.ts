@@ -538,8 +538,7 @@ export function treeToRenderDoc(
   const ctx = { locales, format };
   // Every branch below states the same source locale, so stamp it once here
   // rather than threading it through the per-kind extractors.
-  const withSource = (doc: RenderDoc): RenderDoc =>
-    sourceLocale ? { ...doc, sourceLocale } : doc;
+  const withSource = (doc: RenderDoc): RenderDoc => (sourceLocale ? { ...doc, sourceLocale } : doc);
 
   for (const rule of rules) {
     const doc = rule.detect(tree, ctx);
