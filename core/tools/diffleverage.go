@@ -112,7 +112,7 @@ func NewDiffLeverageTool(cfg *DiffLeverageConfig) *tool.BaseTool {
 
 		if srcMatch {
 			v.SetProperty(PropDiffLeverageStatus, "unchanged")
-			if prev.TargetText != "" {
+			if prev.TargetText != "" && !leveragedTextDropsCodes(v, prev.TargetText) {
 				v.SetTargetText(conf.TargetLocale, prev.TargetText)
 			}
 			return nil
@@ -129,7 +129,7 @@ func NewDiffLeverageTool(cfg *DiffLeverageConfig) *tool.BaseTool {
 			if score > 70 {
 				v.SetProperty(PropDiffLeverageStatus, "leveraged")
 				v.SetProperty(PropDiffLeverageScore, strconv.Itoa(score))
-				if prev.TargetText != "" {
+				if prev.TargetText != "" && !leveragedTextDropsCodes(v, prev.TargetText) {
 					v.SetTargetText(conf.TargetLocale, prev.TargetText)
 					// A fuzzy-leveraged target was carried over onto a *changed*
 					// source: it no longer exactly fits, so mark it `draft` —
@@ -145,6 +145,18 @@ func NewDiffLeverageTool(cfg *DiffLeverageConfig) *tool.BaseTool {
 		return nil
 	}
 	return t
+}
+
+// leveragedTextDropsCodes reports whether carrying a previous version's plain
+// target text onto this block would lose inline codes the source carries.
+//
+// diff-leverage keys on flattened text, so a block whose source holds `{count}`
+// or an icon placeholder as a Run matches a previous entry recorded without it.
+// Writing that text back would drop the code — the same silent content loss the
+// TM path guards against — so the block is left untranslated (status stays
+// recorded) rather than filled with a lossy carry-over.
+func leveragedTextDropsCodes(v tool.VariantView, text string) bool {
+	return model.DiffRunCodes(v.SourceRuns(), []model.Run{{Text: &model.TextRun{Text: text}}}).Lossy()
 }
 
 // levenshteinDistance computes the Levenshtein edit distance between two strings.

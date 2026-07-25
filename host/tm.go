@@ -299,13 +299,23 @@ func TruncateID(id string, max int) string {
 // {/=m0}) serialized as literal text.
 var markupTokenRe = regexp.MustCompile(`\{/?=m\d+\}`)
 
-// WarnSuspectTokenEntries scans the TM for entries whose variants disagree
-// on their markup-token sets — e.g. a plain-text source paired with a
-// target carrying {=m0} tokens. Such entries bake one format's runtime
-// projection into format-neutral text: matched from another surface, the
-// tokens leak verbatim into the output (the class behind the docs
-// "{=m0} Installer" leak). The durable fix is run-structured entries;
-// until then, importing one earns a warning.
+// WarnSuspectTokenEntries scans the TM for entries whose variants disagree on
+// their placeholder sets, in either representation:
+//
+//   - literal markup tokens in the text — e.g. a plain-text source paired with
+//     a target carrying {=m0} tokens. Such entries bake one format's runtime
+//     projection into format-neutral text: matched from another surface, the
+//     tokens leak verbatim into the output (the class behind the docs
+//     "{=m0} Installer" leak).
+//   - inline-code *runs* — a variant that carries a Ph / PcOpen / PcClose / Sub
+//     its peers do not. That is a pair one side of which has already lost a
+//     placeholder, so leveraging it can only produce a translation with a hole
+//     in it. `recycle` refuses to fill from such an entry (see
+//     model.DiffRunCodes), which is a silent coverage loss unless the entry
+//     itself is repaired — hence the warning at ingest, where the seed author
+//     can still act on it.
+//
+// The durable fix in both cases is a symmetric, run-structured entry.
 func WarnSuspectTokenEntries(ctx context.Context, tm sievepen.TMStore, out io.Writer) {
 	entries, err := tm.Entries(ctx)
 	if err != nil {
@@ -316,19 +326,28 @@ func WarnSuspectTokenEntries(ctx context.Context, tm sievepen.TMStore, out io.Wr
 		slices.Sort(toks)
 		return strings.Join(toks, " ")
 	}
+	codeSet := func(runs []model.Run) string {
+		counts := model.RunCodeCounts(runs)
+		sigs := make([]string, 0, len(counts))
+		for sig, n := range counts {
+			sigs = append(sigs, fmt.Sprintf("%s*%d", sig, n))
+		}
+		slices.Sort(sigs)
+		return strings.Join(sigs, " ")
+	}
 	var suspects []string
 	for i := range entries {
 		e := &entries[i]
-		var first string
+		var firstTokens, firstCodes string
 		firstSet := false
 		mismatch := false
-		for locale := range e.Variants {
-			set := tokenSet(e.VariantText(locale))
+		for locale, runs := range e.Variants {
+			tokens, codes := tokenSet(e.VariantText(locale)), codeSet(runs)
 			if !firstSet {
-				first, firstSet = set, true
+				firstTokens, firstCodes, firstSet = tokens, codes, true
 				continue
 			}
-			if set != first {
+			if tokens != firstTokens || codes != firstCodes {
 				mismatch = true
 				break
 			}
@@ -345,6 +364,6 @@ func WarnSuspectTokenEntries(ctx context.Context, tm sievepen.TMStore, out io.Wr
 	if len(show) > 5 {
 		show = show[:5]
 	}
-	fmt.Fprintf(out, "Warning: %d TM entr%s with markup tokens ({=mN}) in some variants but not others — format-specific projections in format-neutral text leak into other surfaces (e.g. %s). Store these entries run-structured instead.\n",
+	fmt.Fprintf(out, "Warning: %d TM entr%s whose variants disagree on their placeholder set — markup tokens ({=mN}) or inline-code runs present in some variants but not others (e.g. %s). Leveraging such an entry would drop a placeholder, so recycle refuses to fill from it. Store these entries run-structured and symmetric.\n",
 		len(suspects), map[bool]string{true: "y", false: "ies"}[len(suspects) == 1], strings.Join(show, ", "))
 }

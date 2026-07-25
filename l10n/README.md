@@ -73,12 +73,47 @@ element, `pcOpen`/`pcClose` for a paired one, with the literal token text
 as `data` — in **both** the source and target variants, so the TM matches
 them structurally (same code structure scores 1.0; a bare-text lookalike
 caps below it) and `recycle` fills targets with the entry's runs,
-tokens intact. Named parameters like `{count}` are not markup and stay
-literal text. `kapi tm import` warns about entries whose variants disagree
-on their token sets; a clean import (no warnings, `make l10n-seed`) is the
-gate. Where a plain-text surface legitimately shares the words with a
-token-bearing UI string, keep a separate plain entry (the `…-plain`
-companion entries) rather than reusing the structured one.
+tokens intact.
+
+Named parameters follow the **reader**, not a rule of thumb. Where the reader
+lifts `{count}` out of the text into a `ph` run — as the JSX extraction does
+for *every* `{expr}` child, emitting `ph` with `type: "jsx:var"` and
+`data: "{count}"` — the seed must carry that same `ph` run in both variants.
+Only where the reader leaves the braces in the text (a plain JSON or gettext
+surface, where `{count}` is just characters) is it literal text. Storing a
+lifted parameter as literal text produces exactly the asymmetry the next
+paragraph forbids.
+
+`kapi tm import` warns about entries whose variants disagree
+on their token sets — literal `{=mN}` markup **or** inline-code runs; a clean
+import (no warnings, `make l10n-seed`) is the gate. Where a plain-text
+surface legitimately shares the words with a token-bearing UI string, keep a
+separate plain entry (the `…-plain` companion entries) rather than reusing
+the structured one.
+
+**A target variant must carry exactly the inline codes its source variant
+carries.** `recycle` enforces this at fill time: a match whose target dropped
+a placeholder is recorded as a review candidate but never written, so the
+locale falls back to source rather than shipping a sentence with a hole where
+a count, a name or a link belongs. The practical consequence for a seed
+author: an asymmetric entry is not "partial credit", it is zero coverage for
+that string. When a source string gains or renumbers a code (an extractor
+change, or new markup in the JSX), the seed entry stops matching structurally
+and the string falls back to English until the entry is re-anchored to the
+new source runs — visible as a coverage drop, never as a corrupted string.
+
+Why an asymmetric entry is *dangerous* rather than merely useless: TM leverage
+has a plain tier that keys on the **flattened** source, and inline codes
+contribute no characters to that flattening. So a code-free entry is a
+near-exact match for a code-bearing source — `[ph{documentedCount}]["
+documented formats"]` flattens to `" documented formats"` and matches a plain
+`"documented formats"` entry at ~100% — and filling it wrote a target with the
+placeholder simply gone. Nothing downstream objected: target-language drift
+never fails the build, so the corrupted string shipped and only the coverage
+number moved. Three layers now stop it — `kapi tm import` warns on the
+asymmetric entry, `recycle` refuses the fill, and `placeholder-check` reports a
+critical finding if one ever reaches a target — all keyed off the one
+predicate, `model.DiffRunCodes`.
 
 ## Why not PO files? (decided, not overlooked)
 
