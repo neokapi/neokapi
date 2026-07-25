@@ -142,6 +142,20 @@ func runDaemon() {
 		}
 	}
 
+	// Settle the signal disposition BEFORE announcing readiness. The handshake
+	// line is what tells the host the daemon is up, and the host may SIGTERM it
+	// immediately afterwards. Installing the disposition after the announcement
+	// leaves a window in which SIGTERM still has its default action — kill —
+	// so a probe asked to ignore SIGTERM would die anyway, and (because cleanup
+	// never runs) leave its socket behind. That raced: `modeC.sigterm-exit`
+	// reported "left the socket behind" instead of "still running".
+	sigCh := make(chan os.Signal, 1)
+	if !on("PROBE_IGNORE_SIGTERM") {
+		signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
+	} else {
+		signal.Ignore(syscall.SIGTERM)
+	}
+
 	switch {
 	case on("PROBE_NO_HANDSHAKE"):
 		// Print nothing; the host's startup timeout must fire.
@@ -160,12 +174,6 @@ func runDaemon() {
 		fmt.Println("probedaemon ready")
 	}
 
-	sigCh := make(chan os.Signal, 1)
-	if !on("PROBE_IGNORE_SIGTERM") {
-		signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
-	} else {
-		signal.Ignore(syscall.SIGTERM)
-	}
 	select {
 	case <-sigCh:
 	case <-stopped:

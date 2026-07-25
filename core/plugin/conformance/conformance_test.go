@@ -822,12 +822,16 @@ func TestModeCMissingShutdownIsAdvisoryButSigtermIsNot(t *testing.T) {
 	})
 
 	t.Run("ignores SIGTERM", func(t *testing.T) {
-		s := conformance.Suite{
-			Dir:     probeDir(t, nil),
-			Timeout: 4 * time.Second,
-			Only:    []string{"modeC"},
-			Env:     []string{"PROBE_NO_SHUTDOWN=1", "PROBE_IGNORE_SIGTERM=1"},
-		}
+		// Use the standard 20s budget, not a shortened one. Suite.Timeout bounds
+		// the daemon's *startup* handshake as well as the shutdown grace
+		// (shutdownGrace = min(5s, Timeout)), so trimming it to buy a shorter
+		// post-SIGTERM wait also starves startup: under load the handshake
+		// missed the budget and the check reported "the daemon did not start"
+		// instead of the "still running" this test is about. The grace caps at
+		// 5s either way, so the standard budget costs ~1s and removes the race.
+		s := suite(probeDir(t, nil))
+		s.Only = []string{"modeC"}
+		s.Env = []string{"PROBE_NO_SHUTDOWN=1", "PROBE_IGNORE_SIGTERM=1"}
 		rep := run(t, s)
 		res := requireStatus(t, rep, "modeC.sigterm-exit", conformance.Fail)
 		assert.True(t, res.Required)
