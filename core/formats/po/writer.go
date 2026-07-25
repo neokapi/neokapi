@@ -120,12 +120,61 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 			}
 		case format.SkeletonRef:
 			refID := string(entry.Data)
+			if blockID, field, ok := splitMsgidRef(refID); ok {
+				if err := w.writeBlockAsMsgid(blocks, blockID, field); err != nil {
+					return err
+				}
+				continue
+			}
 			if err := w.writeBlockAsMsgstr(blocks, refID); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+// splitMsgidRef recognises a skeleton ref that stands in for a msgid /
+// msgid_plural line group, returning the block id it addresses and the field
+// name to emit. Msgstr refs carry no separator and are reported as not-a-msgid.
+func splitMsgidRef(refID string) (blockID, field string, ok bool) {
+	blockID, field, ok = strings.Cut(refID, msgidRefSep)
+	if !ok || blockID == "" {
+		return "", "", false
+	}
+	if field != "msgid" && field != "msgid_plural" {
+		return "", "", false
+	}
+	return blockID, field, true
+}
+
+// writeBlockAsMsgid writes the complete msgid (or msgid_plural) field for a
+// block reference — the source side of the round-trip.
+//
+// The original line group is re-emitted verbatim while it still spells the
+// block's source, which keeps an untouched catalog byte-exact (line wrapping,
+// escaping and the leading `msgid ""` continuation style all survive). Once the
+// source has been edited the field is re-serialized, so the edit actually
+// reaches the file. Before #1473 there was no ref here at all: the msgid was
+// opaque skeleton text, so `kapi ksed -i` on a .po applied the edit to the
+// content model and then wrote the original bytes back, exit 0.
+func (w *Writer) writeBlockAsMsgid(blocks map[string]*model.Block, blockID, field string) error {
+	block, ok := blocks[blockID]
+	if !ok {
+		// No block for this ref (a plural form the header's nplurals did not
+		// produce, say). Nothing to substitute — emit an empty field rather
+		// than dropping the keyword, which would corrupt the entry.
+		_, err := fmt.Fprintf(w.Output, "%s \"\"%s", field, w.nl())
+		return err
+	}
+	// The recorded witness is the msgid as parsed, so compare against the
+	// source rebuilt with its inline-code Data spliced back in (a codeFinder
+	// `%s` comes back as `%s`) — that reproduces exactly what the reader read.
+	if raw, ok := format.VerbatimFor(block, "raw-msgid", model.RenderRunsWithData(block.Source)); ok && raw != "" {
+		_, err := io.WriteString(w.Output, raw)
+		return err
+	}
+	return w.writeMultilineField(field, renderSource(block))
 }
 
 // writeBlockAsMsgstr writes the complete msgstr field for a block reference.

@@ -39,6 +39,26 @@ func (a *SegmentNativeAnnotation) TypeName() string { return "xliff:native" }
 // span of the source segmentation overlay).
 type SourceBodyNativeAnnotation struct {
 	Content *NativeContent
+
+	// SourceAsRead is the block's source text at the moment Content was
+	// captured. It is the witness that makes the capture usable: the writer
+	// may re-emit Content's bytes verbatim only while the block's source
+	// still reads the same, and that cannot be decided by comparing the
+	// emitted text against the block's own source — after a source edit the
+	// block's source IS the new text, which is how `kapi ksed -i` on an
+	// .xlf came to be a silent no-op (#1473).
+	//
+	// It is deliberately not derivable from Content: for a segmented
+	// trans-unit the block's source runs come from <seg-source> and drop the
+	// whitespace *between* mrks, so the <source> body's own text ("t1. t2")
+	// and the block's source text ("t1.t2") legitimately differ at read
+	// time. Only a snapshot taken when the capture was made can tell an edit
+	// from that pre-existing difference.
+	//
+	// An annotation that carries no witness (one rebuilt by the payload
+	// factory on deserialization, say) makes the capture unprovable, so the
+	// writer re-renders rather than risk emitting stale bytes.
+	SourceAsRead string
 }
 
 // AnnotationType identifies the annotation key.

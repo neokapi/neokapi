@@ -580,8 +580,20 @@ func (r *Reader) newBlock(counter int, name string, runs []model.Run, translatab
 	if !translatable {
 		b.PreserveWhitespace = true
 	}
+	// Record the entry's value as read. The writer's no-skeleton path preserves
+	// the original <resources> body and splices only entries it must change, so
+	// it needs to tell "this entry was not touched" (leave its bytes, whatever
+	// their escaping) from "this entry's text equals its source" — which is
+	// always true after a source edit, and used to make `kapi ksed -i` on a
+	// strings.xml with no skeleton wired a silent no-op (#1473).
+	format.RecordVerbatimText(b, propEntryValue, renderRunsToXML(runs))
 	return b
 }
+
+// propEntryValue names the per-entry value whose as-read text the writer's
+// splice decision consults. Only the witness is recorded under it: the bytes
+// themselves live in the preserved androidxml.original document body.
+const propEntryValue = "androidxml.value"
 
 // applyEntryProps records the entry kind on the Block so the writer and tooling
 // can identify it. The raw @name and any @product qualifier are stored so the

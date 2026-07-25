@@ -89,6 +89,20 @@ func collectTexts(out *[]string, runs []model.Run) {
 	}
 }
 
+// sourceBodyIsCurrent reports whether a captured <source> body may still be
+// re-emitted verbatim: the block's source must read exactly as it did when the
+// capture was taken. See SourceBodyNativeAnnotation.SourceAsRead for why the
+// witness is a snapshot rather than something derived from the capture.
+func sourceBodyIsCurrent(sa *SourceBodyNativeAnnotation, block *model.Block) bool {
+	if sa == nil || sa.SourceAsRead == "" {
+		// No witness: either a genuinely empty source (in which case the
+		// block's source is empty too and the capture is trivially current)
+		// or an annotation that lost its snapshot, which must not be trusted.
+		return model.RunsText(block.Source) == ""
+	}
+	return model.RunsText(block.Source) == sa.SourceAsRead
+}
+
 // emitInlinesOpts walks an inline tree and emits XML, with a
 // `translatable` flag governing whether bare text nodes consume from
 // the runs slice (true) or fall back to the native IR's verbatim text

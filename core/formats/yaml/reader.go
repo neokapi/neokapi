@@ -526,9 +526,13 @@ func (r *Reader) collectScalarRange(ctx context.Context, ch chan<- model.PartRes
 	// Store the scalar style so the writer can re-encode in the same style.
 	block.Properties["yaml.style"] = scalarStyleName(node.Style)
 	// Store the raw original bytes so the writer can reproduce them byte-exact
-	// when no translation is applied.
+	// while they still represent the scalar's text. The text is recorded
+	// alongside them: a YAML scalar's bytes cannot be decoded back to text
+	// without re-parsing (quoting style, block-scalar chomping and indent all
+	// bear on it), so the writer's "are these bytes still current?" test has to
+	// be against the text captured here. See core/format.RecordVerbatim.
 	if start >= 0 && end <= len(content) && start < end {
-		block.Properties["yaml.raw"] = string(content[start:end])
+		format.RecordVerbatim(block, "yaml.raw", string(content[start:end]), text)
 	}
 	// Record the source's dominant line ending so the writer re-emits
 	// multi-line re-encoded (translated) block scalars with the same

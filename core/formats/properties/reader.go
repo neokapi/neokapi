@@ -243,7 +243,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				block.SourceLocale = locale
 				block.Properties["separator"] = sep
 				if r.skeletonStore != nil {
-					block.Properties["rawValue"] = r.rawValueText(line)
+					format.RecordVerbatim(block, "rawValue", r.rawValueText(line), value)
 				}
 				if pendingNote != "" {
 					block.AddNote(&model.NoteAnnotation{Text: pendingNote, From: "developer"})
@@ -283,9 +283,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		block := model.NewBlock(blockIDStr, value)
 		block.Name = key
 		block.Properties["separator"] = sep
-		// Store raw value for byte-exact skeleton reconstruction
+		// Store the raw value bytes for byte-exact skeleton reconstruction,
+		// together with the text they decode to — the writer needs that text to
+		// tell "this entry was not edited" from "this entry's text equals its
+		// source" (#1473). See core/format.RecordVerbatim.
 		if r.skeletonStore != nil {
-			block.Properties["rawValue"] = r.rawValueText(line)
+			format.RecordVerbatim(block, "rawValue", r.rawValueText(line), value)
 		}
 
 		// Attach the pending developer comment to the entry. It rides as a

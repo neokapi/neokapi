@@ -94,9 +94,14 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 		case format.SkeletonRef:
 			if block, ok := blocks[string(entry.Data)]; ok {
 				text := w.blockText(block)
-				// If the text is unchanged from source and we have the original
-				// raw bytes, use those for byte-exact output.
-				if raw, ok := block.Properties["yaml.raw"]; ok && text == block.SourceText() {
+				// Re-emit the scalar's original bytes while they still spell
+				// exactly the text being written — byte-exact output for a block
+				// nothing touched. The test is against the text the reader
+				// recorded with those bytes, NOT against block.SourceText():
+				// after a source edit the block's source IS the new text, so
+				// that comparison always held and the pre-edit bytes won,
+				// discarding the edit (#1473).
+				if raw, ok := format.VerbatimFor(block, "yaml.raw", text); ok {
 					if _, err := io.WriteString(w.Output, raw); err != nil {
 						return err
 					}

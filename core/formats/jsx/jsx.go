@@ -452,12 +452,24 @@ func (w *Writer) handlePart(part *model.Part) error {
 func (w *Writer) materializeBlock(mb *model.Block) (kbf.Block, string, string) {
 	if annRaw, ok := mb.Anno(AnnotationType); ok {
 		if ann, ok := annRaw.(*KBFAnnotation); ok && ann != nil {
+			// The annotation's source runs are the ones read from the input
+			// bundle, kept so a block nothing touched round-trips with its
+			// structure (placeholders, paired codes) verbatim. They are only
+			// usable while they still carry the block's current text: a SOURCE
+			// edit (`kapi ksed -i`, `kapi apply`, the desktop's "apply fix")
+			// used to be written back as the pre-edit runs, exit 0 (#1473) —
+			// the source-side counterpart of the target-side discard #1471
+			// fixed just below.
+			source := cloneRuns(ann.Source)
+			if !format.VerbatimRunsCurrent(ann.Source, mb.Source) {
+				source = runsFromModel(mb.Source)
+			}
 			b := kbf.Block{
 				ID:           mb.ID,
 				Hash:         ann.Hash,
 				Translatable: mb.Translatable,
 				Type:         ann.Type,
-				Source:       cloneRuns(ann.Source),
+				Source:       source,
 				// The pipeline owns the targets. The annotation carries
 				// the block *as read*, so seeding the output from it and
 				// only filling locales it lacked meant the writer could
