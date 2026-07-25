@@ -179,15 +179,23 @@ func (s *SkeletonStore) Bytes() ([]byte, error) {
 // The file is removed when Close is called — use NewSkeletonStoreAt for a
 // store that survives Close() for later reuse (e.g. kapi extract capturing
 // a source-file skeleton for kapi merge).
+//
+// On a platform with no temp filesystem at all (js/wasm — see
+// tempFilesystemAvailable) the backing is in-memory *by design*: there is no
+// alternative there, and browser documents are small. On every platform that
+// does have one, a temp file that cannot be created is an operational fault and
+// is returned as an error. It used to fall back to memory unconditionally, which
+// silently substituted an unbounded in-memory buffer for a spill-to-disk store —
+// and, worse, made this error unreachable, so the callers that discarded it (all
+// seven of them, silently degrading a faithful round-trip into a reconstruction)
+// could never be caught. Callers must propagate: see NewWiredSkeleton.
 func NewSkeletonStore() (*SkeletonStore, error) {
+	if !tempFilesystemAvailable {
+		return NewMemorySkeletonStore(), nil
+	}
 	f, err := os.CreateTemp("", "neokapi-skeleton-*")
 	if err != nil {
-		// No writable temp filesystem (notably the js/wasm browser build, where
-		// os.CreateTemp always fails). Fall back to an in-memory store so the
-		// caller still gets a working byte-exact skeleton — otherwise skeleton
-		// wiring is skipped and format writers re-serialize their parse tree,
-		// silently losing whitespace, doctype case, and attribute spacing.
-		return NewMemorySkeletonStore(), nil
+		return nil, fmt.Errorf("skeleton store: cannot create a temporary file in %s (set TMPDIR to a writable directory with free space): %w", os.TempDir(), err)
 	}
 	return &SkeletonStore{
 		file:   f,
@@ -445,6 +453,77 @@ type SkeletonStoreEmitter interface {
 // skeleton — only that it will use one if offered (see GenerativeWriter).
 type SkeletonStoreConsumer interface {
 	SetSkeletonStore(store *SkeletonStore)
+}
+
+// SkeletonPairEligible reports whether a reader→writer pair has a skeleton path
+// at all: the reader emits one, the writer consumes one, and they are the same
+// format (a skeleton is meaningless to a foreign writer — see WireSkeleton).
+// When this is false the writer legitimately reconstructs from the content
+// model, which is the documented lower-fidelity path; when it is true, the
+// skeleton is the only thing that carries the structure the reader could not
+// model, so failing to obtain a store is a fault, not a fallback.
+func SkeletonPairEligible(reader DataFormatReader, writer DataFormatWriter) bool {
+	if reader == nil || writer == nil {
+		return false
+	}
+	if _, ok := reader.(SkeletonStoreEmitter); !ok {
+		return false
+	}
+	if _, ok := writer.(SkeletonStoreConsumer); !ok {
+		return false
+	}
+	return reader.Name() == writer.Name()
+}
+
+// NewWiredSkeleton creates the temp-file-backed skeleton store a same-format
+// reader→writer pair needs and wires both ends. It is the single seam for "give
+// this round-trip its skeleton", so the decision cannot drift across the call
+// sites that make it (core/flow's file and stream runners, the toolbox
+// edit/convert/archive paths, the tool runner, and the desktop's in-place
+// rewrite).
+//
+// The backing is deliberately NOT chosen from the pair's streaming capability.
+// A streaming store blocks the writer inside Next() until the reader's feeder
+// calls CloseWrite, which only the concurrent read↔write protocol in core/flow
+// does; a caller that buffers the whole part stream and then writes would
+// deadlock. Callers that drive that protocol use NewWiredStreamingSkeleton.
+//
+// Returns:
+//
+//   - (nil, nil) — the pair has no skeleton path (SkeletonPairEligible is
+//     false). The writer reconstructs from the content model; that is the
+//     documented behaviour, not a degradation.
+//   - (nil, err) — a skeleton path exists but the store could not be created.
+//     This must never be swallowed. Discarding it silently turns a byte-exact
+//     same-format pass into a re-serialization from the content model: the
+//     structure the reader could not model (WordprocessingML fragments, unknown
+//     elements, comment and whitespace layout, attribute spacing) is dropped
+//     while the command still reports success.
+func NewWiredSkeleton(reader DataFormatReader, writer DataFormatWriter) (*SkeletonStore, error) {
+	if !SkeletonPairEligible(reader, writer) {
+		return nil, nil
+	}
+	store, err := NewSkeletonStore()
+	if err != nil {
+		return nil, fmt.Errorf("the %s round-trip needs a skeleton store to preserve the original formatting, and one could not be created — without it the document would be rewritten from the content model and its exact formatting lost: %w", reader.Name(), err)
+	}
+	WireSkeleton(store, reader, writer)
+	return store, nil
+}
+
+// NewWiredStreamingSkeleton is NewWiredSkeleton's counterpart for a caller that
+// drives the concurrent streaming protocol (the reader feeds entries from its
+// read goroutine and calls CloseWrite; the writer pops them interleaved with the
+// Part stream). The store is channel-backed, so it needs no temp file and cannot
+// fail — the error return exists on NewWiredSkeleton alone. Returns nil when the
+// pair has no skeleton path.
+func NewWiredStreamingSkeleton(reader DataFormatReader, writer DataFormatWriter) *SkeletonStore {
+	if !SkeletonPairEligible(reader, writer) {
+		return nil
+	}
+	store := NewStreamingSkeletonStore()
+	WireSkeleton(store, reader, writer)
+	return store
 }
 
 // WireSkeleton connects a reader's skeleton emission to a writer — but only when

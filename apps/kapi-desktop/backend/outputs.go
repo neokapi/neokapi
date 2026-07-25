@@ -57,9 +57,13 @@ func (a *App) ListOutputs(tabID string) (map[string][]OutputFileInfo, error) {
 			if len(langs) == 0 {
 				continue
 			}
+			// A pattern that cannot be expanded used to drop the whole item, so
+			// the outputs panel listed fewer target files than the recipe
+			// declares and read as "these are all the outputs" — item 2's shape
+			// in the desktop.
 			matches, err := project.ExpandGlob(basePath, item.Path, defaults.Exclude...)
 			if err != nil {
-				continue
+				return nil, fmt.Errorf("content pattern %q cannot be expanded, so its outputs cannot be listed — fix the pattern in the recipe: %w", item.Path, err)
 			}
 			ofiFor := func(lang, sourceRel string) OutputFileInfo {
 				outRel := project.ResolveTargetPath(item.Path, item.Base, item.Target, sourceRel, lang)

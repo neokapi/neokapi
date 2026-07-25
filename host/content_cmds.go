@@ -90,6 +90,11 @@ func RmPattern(proj *coreproj.KapiProject, root, pattern string) output.RmEntry 
 		return output.RmEntry{Pattern: pattern, Action: "already_excluded"}
 	}
 	proj.Defaults.Exclude = append(proj.Defaults.Exclude, pattern)
+	// Deliberately not propagated. The count is informational for a pattern the
+	// user just asked to EXCLUDE: a pattern that cannot expand excludes nothing
+	// either way, so there is no content to lose and nothing downstream reads
+	// this number. (Contrast `content add`, which writes the pattern into the
+	// recipe and so refuses a malformed one — see cli/content_cmds.go.)
 	matches, _ := coreproj.ExpandGlob(root, pattern)
 	return output.RmEntry{Pattern: pattern, Action: "excluded", Files: len(matches)}
 }

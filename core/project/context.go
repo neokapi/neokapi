@@ -129,6 +129,13 @@ type ResolvedFile struct {
 // ResolveContent matches project content patterns against the filesystem and
 // returns the resolved file list with detected formats. Ignore rules from
 // .kapiignore are applied. Patterns that escape the project root are rejected.
+//
+// It fails rather than resolve a partial content set: a pattern that cannot be
+// expanded means the recipe declares content this call cannot account for, and
+// every derivation downstream (coverage, plan, checks, review, extract) reads a
+// short list as a smaller universe rather than as an error. Callers must not
+// discard the error — an empty result and a failed resolution are different
+// facts.
 func (ctx *ProjectContext) ResolveContent(reg *registry.FormatRegistry) ([]ResolvedFile, error) {
 	if ctx.Project == nil || len(ctx.Project.Content) == 0 {
 		return nil, nil
@@ -155,9 +162,25 @@ func (ctx *ProjectContext) ResolveContent(reg *registry.FormatRegistry) ([]Resol
 			// content-listing path does — filepath.Glob has no `**` support
 			// and silently matched only one directory level. Project-wide
 			// excludes apply here exactly as they do for `kapi ls`.
+			//
+			// A pattern that will not expand is a fault in the recipe (doublestar
+			// reports path.ErrBadPattern for an unclosed `[`/`{`), and it used to
+			// `continue` — dropping the whole item silently. This is the single
+			// content-resolution seam for ls, extract, merge --materialize, up and
+			// ExtractToBlockStore, so a dropped item is invisible everywhere
+			// downstream: coverage cannot tell "this collection has no units" from
+			// "this collection never resolved", and the locale's percentages are
+			// computed over a smaller universe and read as complete (#1449's shape,
+			// one layer earlier). Name the collection, the item and the pattern so
+			// the typo is fixable from the message alone.
 			rels, err := ExpandGlob(ctx.ProjectDir, item.Path, ctx.Project.Defaults.Exclude...)
 			if err != nil {
-				continue
+				where := "content"
+				if collName != "" {
+					where = fmt.Sprintf("content collection %q", collName)
+				}
+				return nil, fmt.Errorf("%s: pattern %q cannot be expanded, so its content would resolve to nothing — fix the pattern in the recipe: %w",
+					where, item.Path, err)
 			}
 			matches := make([]string, 0, len(rels))
 			for _, rel := range rels {

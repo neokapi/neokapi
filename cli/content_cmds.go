@@ -52,7 +52,14 @@ from the extension unless --format is given.
 						}
 					}
 				}
-				matches, _ := coreproj.ExpandGlob(root, pattern)
+				// Refuse to write a pattern the recipe could never expand: this
+				// is where the malformed pattern that item 2 has to cope with
+				// downstream gets authored, and "0 files" reads as "nothing
+				// matches yet" rather than "this pattern is broken".
+				matches, gerr := coreproj.ExpandGlob(root, pattern)
+				if gerr != nil {
+					return fmt.Errorf("pattern %q cannot be expanded, so it would track nothing — fix it before adding it: %w", pattern, gerr)
+				}
 				entry := coreproj.ContentCollection{Path: pattern}
 				if fmtName != "" {
 					entry.Format = &coreproj.FormatSpec{Name: fmtName}
@@ -108,9 +115,19 @@ standing ("2 to push" / "synced"), derived from the sync cache.
 			for _, it := range proj.IterateContent() {
 				lang := string(it.Item.ResolvedSourceLanguage(it.Collection, proj.Defaults))
 				pattern := coreproj.ResolvePathPattern(it.Item.Path, lang)
+				// `ls` does not go through project.ResolveContent, so it carried
+				// its own copy of the same swallow: a pattern that cannot be
+				// expanded dropped its collection and `ls` printed a short list
+				// with exit 0 — the listing a user checks to confirm the recipe
+				// tracks what they think it does.
 				rels, gerr := coreproj.ExpandGlob(root, pattern, proj.Defaults.Exclude...)
 				if gerr != nil {
-					continue
+					where := "content"
+					if it.Collection != nil && it.Collection.Name != "" {
+						where = fmt.Sprintf("content collection %q", it.Collection.Name)
+					}
+					return fmt.Errorf("%s: pattern %q cannot be expanded, so its content would resolve to nothing — fix the pattern in the recipe: %w",
+						where, it.Item.Path, gerr)
 				}
 				for _, rp := range rels {
 					if seen[rp] || !MatchesPathPrefix(rp, args) {

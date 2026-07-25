@@ -73,14 +73,16 @@ func (a *App) editBytes(ctx context.Context, name string, content []byte, t *too
 	if err != nil {
 		return nil, fmt.Errorf("%q is not editable (no writer)", fmtName)
 	}
-	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
-		if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
-			if store, serr := format.NewSkeletonStore(); serr == nil {
-				defer store.Close()
-				emitter.SetSkeletonStore(store)
-				consumer.SetSkeletonStore(store)
-			}
-		}
+	// A store that cannot be created fails the entry: the repacked archive would
+	// otherwise carry a reconstruction of the member in place of the member, and
+	// the edit would report success.
+	store, skelErr := format.NewWiredSkeleton(reader, writer)
+	if skelErr != nil {
+		reader.Close()
+		return nil, fmt.Errorf("cannot edit %s: %w", name, skelErr)
+	}
+	if store != nil {
+		defer store.Close()
 	}
 
 	doc := &model.RawDocument{

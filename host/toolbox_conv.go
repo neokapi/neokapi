@@ -105,13 +105,18 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 		}
 	}
 	// Same-format conversion is a faithful round-trip through the typed skeleton.
-	// WireSkeleton stamps the store with the source format's origin and connects
-	// the writer only when it is that same format — so a cross-format target can
-	// never consume this foreign skeleton (it reconstructs from the model).
+	// NewWiredSkeleton stamps the store with the source format's origin and
+	// connects the writer only when it is that same format — so a cross-format
+	// target can never consume this foreign skeleton (it reconstructs from the
+	// model). A store that cannot be created fails the conversion rather than
+	// quietly turning a faithful round-trip into a re-serialization.
 	if sameFormat {
-		if store, serr := format.NewSkeletonStore(); serr == nil {
+		store, skelErr := format.NewWiredSkeleton(reader, writer)
+		if skelErr != nil {
+			return fmt.Errorf("cannot convert %s: %w", DisplayName(path), skelErr)
+		}
+		if store != nil {
 			defer store.Close()
-			format.WireSkeleton(store, reader, writer)
 		}
 	}
 

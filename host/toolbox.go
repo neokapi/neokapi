@@ -206,14 +206,17 @@ func (a *App) EditDocument(ctx context.Context, path string, t *tool.BaseTool, w
 	}
 
 	// Wire skeleton store when both sides support it (byte-for-byte round-trip).
-	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
-		if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
-			if store, serr := format.NewSkeletonStore(); serr == nil {
-				defer store.Close()
-				emitter.SetSkeletonStore(store)
-				consumer.SetSkeletonStore(store)
-			}
-		}
+	// A store that cannot be created fails the edit: this path rewrites the file
+	// IN PLACE, so degrading silently would replace a faithfully-preserved
+	// document with a reconstruction of itself — the original bytes are gone and
+	// the command still reports success.
+	store, skelErr := format.NewWiredSkeleton(reader, writer)
+	if skelErr != nil {
+		reader.Close()
+		return fmt.Errorf("cannot edit %s: %w", DisplayName(path), skelErr)
+	}
+	if store != nil {
+		defer store.Close()
 	}
 
 	doc := &model.RawDocument{
