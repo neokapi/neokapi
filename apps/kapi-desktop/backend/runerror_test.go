@@ -151,6 +151,31 @@ func TestRunErrorScope_NoScope(t *testing.T) {
 	assert.Empty(t, file)
 }
 
+func TestClassifyRunError_SingleFileRunStillClassifies(t *testing.T) {
+	// A single-file run skips the multi-file runner, so the chain carries no
+	// `flow execution error: <file>:` prefix — there is no file to report. The
+	// missing metadata must cost only that field: the classification and the
+	// remedy still have to come through, since they are read off the typed error
+	// rather than parsed out of the text.
+	cause := &aiprovider.OllamaError{
+		Kind:    aiprovider.OllamaErrUnreachable,
+		BaseURL: "http://localhost:11434",
+		Err:     errors.New("connection refused"),
+	}
+	err := fmt.Errorf("converge nb: %w",
+		fmt.Errorf("execute flow: %w",
+			fmt.Errorf("tool translate: %w", fmt.Errorf("translate: %w", cause))))
+
+	re := classifyRunError(err)
+	require.NotNil(t, re)
+	assert.Equal(t, RunErrOllamaUnreachable, re.Kind)
+	assert.Equal(t, "Ollama isn't running", re.Headline)
+	assert.Equal(t, "nb", re.Locale)
+	assert.Empty(t, re.File, "no file in the chain — the field is absent, not guessed")
+	require.NotEmpty(t, re.Actions)
+	assert.Equal(t, "ollama serve", re.Actions[0].Command)
+}
+
 func TestGetLastRunError_RecordsAndClears(t *testing.T) {
 	a := &App{runState: newRunner()}
 	assert.Nil(t, a.GetLastRunError(), "no run attempted yet")
