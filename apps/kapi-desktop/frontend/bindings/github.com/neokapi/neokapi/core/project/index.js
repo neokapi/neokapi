@@ -13,14 +13,14 @@ export {
     GateRef,
     KapiProject,
     LocaleDefaults,
+    MemoryDefaults,
     MergeDefaults,
     PluginIssue,
     PluginSpec,
     PluginStatus,
     RedactionSpec,
     SegmentationDefaults,
-    ShipGateRule,
-    MemoryDefaults
+    ShipGateRule
 } from "./models.js";
 
 import * as $models from "./models.js";

@@ -112,7 +112,7 @@ export class Event {
              * @member
              * @type {number | undefined}
              */
-            this["viaMemory"] = undefined;
+            this["viaTM"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -255,7 +255,7 @@ export const EventType = {
 
     /**
      * EventUnitProgress is the throttled live counter for one locale: Done
-     * units carry a committed target so far, of which ViaMemory came from Memory
+     * units carry a committed target so far, of which ViaMemory came from content memory
      * recycling and ViaAI from an AI/MT engine.
      */
     EventUnitProgress: "unit_progress",
@@ -355,6 +355,27 @@ export class LocaleCoverage {
              * @type {gate$0.Shortfall[] | undefined}
              */
             this["pending"] = undefined;
+        }
+        if (!("shipProgress" in $$source)) {
+            /**
+             * ShipProgress is how far the scope has come toward its ship gate, in
+             * [0,100] — gate.Progress: the mean fractional attainment of the gate's
+             * required thresholds. It is a distance to the bar, not a lifecycle
+             * percentage (those are in Pct), so it answers exactly one question: how
+             * much of the ship gate is left. 100 for an ungated scope.
+             * @member
+             * @type {number}
+             */
+            this["shipProgress"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Blocking names the lowest unmet rung of the ship gate — the one gate to
+             * clear next. Empty when the scope ships.
+             * @member
+             * @type {string | undefined}
+             */
+            this["blocking"] = undefined;
         }
         if (!("verified" in $$source)) {
             /**

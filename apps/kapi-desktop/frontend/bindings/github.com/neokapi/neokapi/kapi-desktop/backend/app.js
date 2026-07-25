@@ -31,10 +31,10 @@ import * as project$0 from "../../core/project/models.js";
 import * as host$0 from "../../host/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as sievepen$0 from "../../sievepen/models.js";
+import * as memory$0 from "../../memory/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as termbase$0 from "../../termbase/models.js";
+import * as terms$0 from "../../terms/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as application$0 from "../../../../wailsapp/wails/v3/pkg/application/models.js";
@@ -69,7 +69,7 @@ export function AcknowledgeSampleRevision(tabID) {
 }
 
 /**
- * AddConcept adds a new concept to the termbase.
+ * AddConcept adds a new concept to the terms store.
  * @param {string} handle
  * @param {$models.AddConceptRequest} req
  * @returns {$CancellablePromise<void>}
@@ -93,6 +93,16 @@ export function AddFilesDialog(tabID, destDir) {
 }
 
 /**
+ * AddMemoryEntry adds a new multilingual content-memory entry.
+ * @param {string} handle
+ * @param {$models.AddMemoryEntryRequest} req
+ * @returns {$CancellablePromise<void>}
+ */
+export function AddMemoryEntry(handle, req) {
+    return $Call.ByID(2396624920, handle, req);
+}
+
+/**
  * AddRelation creates a typed relation from req.SourceID to req.TargetID. The
  * relation ID is generated here; the framework AddRelation validates the type
  * (must be a known graph.Label*) and that both concepts exist, returning an
@@ -105,16 +115,6 @@ export function AddRelation(handle, req) {
     return $Call.ByID(2010328003, handle, req).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType1($result);
     }));
-}
-
-/**
- * AddTMEntry adds a new multilingual TM entry.
- * @param {string} handle
- * @param {$models.AddTMEntryRequest} req
- * @returns {$CancellablePromise<void>}
- */
-export function AddTMEntry(handle, req) {
-    return $Call.ByID(1344157892, handle, req);
 }
 
 /**
@@ -135,14 +135,14 @@ export function AdoptUserFlowIntoProject(tabID, flowID) {
 }
 
 /**
- * AnnotateEntities applies entity annotations to selected TM entries. The
+ * AnnotateEntities applies entity annotations to selected content-memory entries. The
  * patterns are searched across every variant's plain text and entity spans
  * are inserted where matches are found. Entity values are populated per
  * locale from the matching variant.
  * 
- * When TermbaseHandle is set, each new entity's text is looked up in the
- * termbase; if a concept matches, its ID is stored on the EntityMapping
- * so the TM entry cross-references the termbase.
+ * When TermsHandle is set, each new entity's text is looked up in the
+ * terms; if a concept matches, its ID is stored on the EntityMapping
+ * so the content-memory entry cross-references the terms store.
  * @param {string} handle
  * @param {$models.AnnotateEntitiesRequest} req
  * @returns {$CancellablePromise<$models.AnnotateResult | null>}
@@ -302,8 +302,16 @@ export function ClearRecentFiles() {
 }
 
 /**
+ * @param {string} handle
+ * @returns {$CancellablePromise<void>}
+ */
+export function CloseMemory(handle) {
+    return $Call.ByID(3698216543, handle);
+}
+
+/**
  * CloseProject removes a project tab, stops its file watcher,
- * and closes any auto-opened TM/termbase handles.
+ * and closes any auto-opened content memory/terms handles.
  * @param {string} tabID
  * @returns {$CancellablePromise<void>}
  */
@@ -312,20 +320,12 @@ export function CloseProject(tabID) {
 }
 
 /**
+ * CloseTerms closes an open terms by handle.
  * @param {string} handle
  * @returns {$CancellablePromise<void>}
  */
-export function CloseTM(handle) {
-    return $Call.ByID(1888351567, handle);
-}
-
-/**
- * CloseTermbase closes an open termbase by handle.
- * @param {string} handle
- * @returns {$CancellablePromise<void>}
- */
-export function CloseTermbase(handle) {
-    return $Call.ByID(1231480235, handle);
+export function CloseTerms(handle) {
+    return $Call.ByID(3719988687, handle);
 }
 
 /**
@@ -352,25 +352,33 @@ export function CopyFileToProject(tabID, srcPath, destDir) {
 }
 
 /**
- * @param {string} name
+ * @param {string} path
  * @returns {$CancellablePromise<string>}
  */
-export function CreateNamedTM(name) {
-    return $Call.ByID(1240973870, name);
+export function CreateMemory(path) {
+    return $Call.ByID(3278951951, path);
 }
 
 /**
- * CreateNamedTermbase creates a new named termbase in KAPI_HOME/termbases/.
  * @param {string} name
  * @returns {$CancellablePromise<string>}
  */
-export function CreateNamedTermbase(name) {
-    return $Call.ByID(882997886, name);
+export function CreateNamedMemory(name) {
+    return $Call.ByID(4293568018, name);
+}
+
+/**
+ * CreateNamedTerms creates a new named terms in KAPI_HOME/termbases/.
+ * @param {string} name
+ * @returns {$CancellablePromise<string>}
+ */
+export function CreateNamedTerms(name) {
+    return $Call.ByID(766434048, name);
 }
 
 /**
  * CreateSampleProject scaffolds a sample project and opens it as a tab.
- * name must be "kapimart" or "okapimart".
+ * name must be one of sample.List() — currently "kapimart".
  * If the project already exists on disk, it is opened without re-scaffolding.
  * @param {string} name
  * @returns {$CancellablePromise<$models.TabInfo | null>}
@@ -382,20 +390,12 @@ export function CreateSampleProject(name) {
 }
 
 /**
+ * CreateTerms creates a new empty terms at the given path.
  * @param {string} path
  * @returns {$CancellablePromise<string>}
  */
-export function CreateTM(path) {
-    return $Call.ByID(2679126687, path);
-}
-
-/**
- * CreateTermbase creates a new empty termbase at the given path.
- * @param {string} path
- * @returns {$CancellablePromise<string>}
- */
-export function CreateTermbase(path) {
-    return $Call.ByID(2555416443, path);
+export function CreateTerms(path) {
+    return $Call.ByID(2141088063, path);
 }
 
 /**
@@ -439,6 +439,37 @@ export function DeleteFormatPreset(formatName, presetName) {
 }
 
 /**
+ * DeleteMemoryEntries deletes multiple content-memory entries.
+ * @param {string} handle
+ * @param {string[]} entryIDs
+ * @returns {$CancellablePromise<void>}
+ */
+export function DeleteMemoryEntries(handle, entryIDs) {
+    return $Call.ByID(2479776596, handle, entryIDs);
+}
+
+/**
+ * DeleteMemoryEntry deletes a single content-memory entry.
+ * @param {string} handle
+ * @param {string} entryID
+ * @returns {$CancellablePromise<void>}
+ */
+export function DeleteMemoryEntry(handle, entryID) {
+    return $Call.ByID(4093406560, handle, entryID);
+}
+
+/**
+ * DeleteMemoryImportSession removes a session; its origins keep pointing at
+ * empty session_id (see memory.DeleteImportSession).
+ * @param {string} handle
+ * @param {string} sessionID
+ * @returns {$CancellablePromise<void>}
+ */
+export function DeleteMemoryImportSession(handle, sessionID) {
+    return $Call.ByID(222446051, handle, sessionID);
+}
+
+/**
  * DeleteProjectFilter removes a filter from whichever file holds it and clears
  * the active selection if it pointed at the deleted filter.
  * @param {string} tabID
@@ -456,37 +487,6 @@ export function DeleteProjectFilter(tabID, filterID) {
  */
 export function DeleteProvider(id) {
     return $Call.ByID(619613282, id);
-}
-
-/**
- * DeleteTMEntries deletes multiple TM entries.
- * @param {string} handle
- * @param {string[]} entryIDs
- * @returns {$CancellablePromise<void>}
- */
-export function DeleteTMEntries(handle, entryIDs) {
-    return $Call.ByID(3149600520, handle, entryIDs);
-}
-
-/**
- * DeleteTMEntry deletes a single TM entry.
- * @param {string} handle
- * @param {string} entryID
- * @returns {$CancellablePromise<void>}
- */
-export function DeleteTMEntry(handle, entryID) {
-    return $Call.ByID(2629253148, handle, entryID);
-}
-
-/**
- * DeleteTMImportSession removes a session; its origins keep pointing at
- * empty session_id (see sievepen.DeleteImportSession).
- * @param {string} handle
- * @param {string} sessionID
- * @returns {$CancellablePromise<void>}
- */
-export function DeleteTMImportSession(handle, sessionID) {
-    return $Call.ByID(920774839, handle, sessionID);
 }
 
 /**
@@ -550,7 +550,7 @@ export function DismissSamples() {
 }
 
 /**
- * ExportTMXDialog shows a save dialog and exports the TM as TMX. When
+ * ExportTMXDialog shows a save dialog and exports the content memory as TMX. When
  * locales is empty, every variant present on each entry is emitted.
  * @param {string} handle
  * @param {string[]} locales
@@ -561,13 +561,13 @@ export function ExportTMXDialog(handle, locales) {
 }
 
 /**
- * ExportTermbaseJSONDialog shows a save dialog and exports the termbase as JSON.
+ * ExportTermsJSONDialog shows a save dialog and exports the terms store as JSON.
  * @param {string} handle
  * @param {string} name
  * @returns {$CancellablePromise<void>}
  */
-export function ExportTermbaseJSONDialog(handle, name) {
-    return $Call.ByID(1122165683, handle, name);
+export function ExportTermsJSONDialog(handle, name) {
+    return $Call.ByID(1082191207, handle, name);
 }
 
 /**
@@ -774,6 +774,88 @@ export function GetLastTrace() {
 }
 
 /**
+ * GetMemoryActivityStats returns daily entry counts over time.
+ * @param {string} handle
+ * @returns {$CancellablePromise<memory$0.ActivityStat[]>}
+ */
+export function GetMemoryActivityStats(handle) {
+    return $Call.ByID(3493578781, handle).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType33($result);
+    }));
+}
+
+/**
+ * GetMemoryEntry returns a single content-memory entry by ID.
+ * @param {string} handle
+ * @param {string} entryID
+ * @returns {$CancellablePromise<$models.MemoryEntryDTO | null>}
+ */
+export function GetMemoryEntry(handle, entryID) {
+    return $Call.ByID(1216897681, handle, entryID).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType35($result);
+    }));
+}
+
+/**
+ * @param {string} handle
+ * @returns {$CancellablePromise<$models.MemoryFacets | null>}
+ */
+export function GetMemoryFacets(handle) {
+    return $Call.ByID(4153851271, handle).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType37($result);
+    }));
+}
+
+/**
+ * @param {string} handle
+ * @param {string} query
+ * @param {string} anyLocale
+ * @param {string} requireLocale
+ * @param {$models.MemorySearchFilter} filter
+ * @returns {$CancellablePromise<$models.MemoryFacets | null>}
+ */
+export function GetMemoryFacetsFiltered(handle, query, anyLocale, requireLocale, filter) {
+    return $Call.ByID(1425890456, handle, query, anyLocale, requireLocale, filter).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType37($result);
+    }));
+}
+
+/**
+ * GetMemoryImportSession fetches a single session by ID.
+ * @param {string} handle
+ * @param {string} sessionID
+ * @returns {$CancellablePromise<$models.ImportSessionDTO | null>}
+ */
+export function GetMemoryImportSession(handle, sessionID) {
+    return $Call.ByID(187545130, handle, sessionID).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType39($result);
+    }));
+}
+
+/**
+ * GetMemoryLocaleStats returns per-locale entry counts. The legacy API name is
+ * preserved for frontend compatibility; the response is now a flat list of
+ * single-locale counts, not locale pairs.
+ * @param {string} handle
+ * @returns {$CancellablePromise<memory$0.LocaleFacet[]>}
+ */
+export function GetMemoryLocaleStats(handle) {
+    return $Call.ByID(2129326216, handle).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType41($result);
+    }));
+}
+
+/**
+ * @param {string} handle
+ * @returns {$CancellablePromise<$models.MemoryStats | null>}
+ */
+export function GetMemoryStats(handle) {
+    return $Call.ByID(2243128186, handle).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType43($result);
+    }));
+}
+
+/**
  * GetPluginDocs returns a summary of available plugin-contributed
  * documentation. The manifest plugin model does not currently surface
  * docs through the host, so this always returns nil — the frontend
@@ -816,21 +898,31 @@ export function GetProject(tabID) {
  */
 export function GetProjectFilters(tabID) {
     return $Call.ByID(637337544, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType32($result);
+        return $$createType44($result);
     }));
 }
 
 /**
- * GetProjectHandles returns the project-scoped TM and termbase handle IDs for a
- * tab in one call. Convenience wrapper over GetProjectTMHandle /
- * GetProjectTermbaseHandle for frontends that preselect both at once.
+ * GetProjectHandles returns the project-scoped content memory and terms handle IDs for a
+ * tab in one call. Convenience wrapper over GetProjectMemoryHandle /
+ * GetProjectTermsHandle for frontends that preselect both at once.
  * @param {string} tabID
  * @returns {$CancellablePromise<$models.ProjectHandles>}
  */
 export function GetProjectHandles(tabID) {
     return $Call.ByID(1036900364, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType33($result);
+        return $$createType45($result);
     }));
+}
+
+/**
+ * GetProjectMemoryHandle returns the auto-opened content-memory handle for a project tab,
+ * or empty string if the project has no .kapi/tm.db.
+ * @param {string} tabID
+ * @returns {$CancellablePromise<string>}
+ */
+export function GetProjectMemoryHandle(tabID) {
+    return $Call.ByID(2822798572, tabID);
 }
 
 /**
@@ -855,7 +947,7 @@ export function GetProjectPath(tabID) {
  */
 export function GetProjectServer(tabID) {
     return $Call.ByID(3912668062, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType35($result);
+        return $$createType47($result);
     }));
 }
 
@@ -877,28 +969,18 @@ export function GetProjectServer(tabID) {
  */
 export function GetProjectStatus(tabID) {
     return $Call.ByID(1376007355, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType37($result);
+        return $$createType49($result);
     }));
 }
 
 /**
- * GetProjectTMHandle returns the auto-opened TM handle for a project tab,
- * or empty string if the project has no .kapi/tm.db.
- * @param {string} tabID
- * @returns {$CancellablePromise<string>}
- */
-export function GetProjectTMHandle(tabID) {
-    return $Call.ByID(4232296248, tabID);
-}
-
-/**
- * GetProjectTermbaseHandle returns the auto-opened termbase handle for a project tab,
+ * GetProjectTermsHandle returns the auto-opened terms handle for a project tab,
  * or empty string if the project has no .kapi/termbase.db.
  * @param {string} tabID
  * @returns {$CancellablePromise<string>}
  */
-export function GetProjectTermbaseHandle(tabID) {
-    return $Call.ByID(3607810952, tabID);
+export function GetProjectTermsHandle(tabID) {
+    return $Call.ByID(2348199238, tabID);
 }
 
 /**
@@ -911,7 +993,7 @@ export function GetProjectTermbaseHandle(tabID) {
  */
 export function GetRelations(handle, conceptID) {
     return $Call.ByID(211018617, handle, conceptID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType38($result);
+        return $$createType50($result);
     }));
 }
 
@@ -926,7 +1008,7 @@ export function GetRelations(handle, conceptID) {
  */
 export function GetReviewQueue(tabID) {
     return $Call.ByID(3360875527, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType40($result);
+        return $$createType52($result);
     }));
 }
 
@@ -935,7 +1017,7 @@ export function GetReviewQueue(tabID) {
  * (locale, file, key) exactly as the review queue lists it: rendered source and
  * target text, the unit's current check findings (checkers run on demand for
  * this block), the recorded decision + provenance from the project state store,
- * and the best TM match percent when the project TM is open.
+ * and the best content-memory match percent when the project content memory is open.
  * @param {string} tabID
  * @param {string} locale
  * @param {string} file
@@ -944,7 +1026,7 @@ export function GetReviewQueue(tabID) {
  */
 export function GetReviewUnit(tabID, locale, file, key) {
     return $Call.ByID(751131190, tabID, locale, file, key).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType42($result);
+        return $$createType54($result);
     }));
 }
 
@@ -955,7 +1037,7 @@ export function GetReviewUnit(tabID, locale, file, key) {
  */
 export function GetRunEvents() {
     return $Call.ByID(3258718056).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType44($result);
+        return $$createType56($result);
     }));
 }
 
@@ -975,7 +1057,7 @@ export function GetRunState() {
  */
 export function GetSampleInfo(tabID) {
     return $Call.ByID(1332081630, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType45($result);
+        return $$createType57($result);
     }));
 }
 
@@ -988,7 +1070,7 @@ export function GetSampleInfo(tabID) {
  */
 export function GetSessionState() {
     return $Call.ByID(303936325).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType46($result);
+        return $$createType58($result);
     }));
 }
 
@@ -998,7 +1080,7 @@ export function GetSessionState() {
  */
 export function GetSettings() {
     return $Call.ByID(2735126073).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType47($result);
+        return $$createType59($result);
     }));
 }
 
@@ -1016,116 +1098,34 @@ export function GetStepDoc(stepID) {
 }
 
 /**
- * GetTMActivityStats returns daily entry counts over time.
+ * GetTermsActivityStats returns daily concept counts over time.
  * @param {string} handle
- * @returns {$CancellablePromise<sievepen$0.ActivityStat[]>}
+ * @returns {$CancellablePromise<terms$0.ActivityStat[]>}
  */
-export function GetTMActivityStats(handle) {
-    return $Call.ByID(3959831133, handle).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType49($result);
-    }));
-}
-
-/**
- * GetTMEntry returns a single TM entry by ID.
- * @param {string} handle
- * @param {string} entryID
- * @returns {$CancellablePromise<$models.TMEntryDTO | null>}
- */
-export function GetTMEntry(handle, entryID) {
-    return $Call.ByID(1732683985, handle, entryID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType51($result);
-    }));
-}
-
-/**
- * @param {string} handle
- * @returns {$CancellablePromise<$models.TMFacets | null>}
- */
-export function GetTMFacets(handle) {
-    return $Call.ByID(848093895, handle).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType53($result);
-    }));
-}
-
-/**
- * @param {string} handle
- * @param {string} query
- * @param {string} anyLocale
- * @param {string} requireLocale
- * @param {$models.TMSearchFilter} filter
- * @returns {$CancellablePromise<$models.TMFacets | null>}
- */
-export function GetTMFacetsFiltered(handle, query, anyLocale, requireLocale, filter) {
-    return $Call.ByID(4250842328, handle, query, anyLocale, requireLocale, filter).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType53($result);
-    }));
-}
-
-/**
- * GetTMImportSession fetches a single session by ID.
- * @param {string} handle
- * @param {string} sessionID
- * @returns {$CancellablePromise<$models.ImportSessionDTO | null>}
- */
-export function GetTMImportSession(handle, sessionID) {
-    return $Call.ByID(644927338, handle, sessionID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType55($result);
-    }));
-}
-
-/**
- * GetTMLocaleStats returns per-locale entry counts. The legacy API name is
- * preserved for frontend compatibility; the response is now a flat list of
- * single-locale counts, not locale pairs.
- * @param {string} handle
- * @returns {$CancellablePromise<sievepen$0.LocaleFacet[]>}
- */
-export function GetTMLocaleStats(handle) {
-    return $Call.ByID(3245876680, handle).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType57($result);
-    }));
-}
-
-/**
- * @param {string} handle
- * @returns {$CancellablePromise<$models.TMStats | null>}
- */
-export function GetTMStats(handle) {
-    return $Call.ByID(2800491194, handle).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType59($result);
-    }));
-}
-
-/**
- * GetTermbaseActivityStats returns daily concept counts over time.
- * @param {string} handle
- * @returns {$CancellablePromise<termbase$0.ActivityStat[]>}
- */
-export function GetTermbaseActivityStats(handle) {
-    return $Call.ByID(585369705, handle).then(/** @type {($result: any) => any} */(($result) => {
+export function GetTermsActivityStats(handle) {
+    return $Call.ByID(4031946285, handle).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType61($result);
     }));
 }
 
 /**
- * GetTermbaseLocaleStats returns term counts grouped by locale.
+ * GetTermsLocaleStats returns term counts grouped by locale.
  * @param {string} handle
- * @returns {$CancellablePromise<termbase$0.LocaleStat[]>}
+ * @returns {$CancellablePromise<terms$0.LocaleStat[]>}
  */
-export function GetTermbaseLocaleStats(handle) {
-    return $Call.ByID(3626578924, handle).then(/** @type {($result: any) => any} */(($result) => {
+export function GetTermsLocaleStats(handle) {
+    return $Call.ByID(235687448, handle).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType63($result);
     }));
 }
 
 /**
- * GetTermbaseStats returns stats for an open termbase.
+ * GetTermsStats returns stats for an open terms.
  * @param {string} handle
- * @returns {$CancellablePromise<$models.TermbaseStats | null>}
+ * @returns {$CancellablePromise<$models.TermsStats | null>}
  */
-export function GetTermbaseStats(handle) {
-    return $Call.ByID(3396033326, handle).then(/** @type {($result: any) => any} */(($result) => {
+export function GetTermsStats(handle) {
+    return $Call.ByID(2036388554, handle).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType65($result);
     }));
 }
@@ -1186,7 +1186,7 @@ export function GetVersion() {
 }
 
 /**
- * ImportTMXDialog shows a file dialog and imports a TMX file into the TM.
+ * ImportTMXDialog shows a file dialog and imports a TMX file into the content memory.
  * The importer creates one multilingual entry per TU with all TUVs as
  * variants. A new ImportSession row is created for each invocation.
  * @param {string} handle
@@ -1199,26 +1199,26 @@ export function ImportTMXDialog(handle) {
 }
 
 /**
- * ImportTermbaseCSVDialog shows a file dialog and imports a CSV termbase.
+ * ImportTermsCSVDialog shows a file dialog and imports a CSV terms.
  * @param {string} handle
  * @param {string} srcLocale
  * @param {string} tgtLocale
  * @param {string} domain
  * @returns {$CancellablePromise<$models.ImportResult | null>}
  */
-export function ImportTermbaseCSVDialog(handle, srcLocale, tgtLocale, domain) {
-    return $Call.ByID(830332458, handle, srcLocale, tgtLocale, domain).then(/** @type {($result: any) => any} */(($result) => {
+export function ImportTermsCSVDialog(handle, srcLocale, tgtLocale, domain) {
+    return $Call.ByID(1693408308, handle, srcLocale, tgtLocale, domain).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType70($result);
     }));
 }
 
 /**
- * ImportTermbaseJSONDialog shows a file dialog and imports a JSON termbase.
+ * ImportTermsJSONDialog shows a file dialog and imports a JSON terms.
  * @param {string} handle
  * @returns {$CancellablePromise<$models.ImportResult | null>}
  */
-export function ImportTermbaseJSONDialog(handle) {
-    return $Call.ByID(1740483588, handle).then(/** @type {($result: any) => any} */(($result) => {
+export function ImportTermsJSONDialog(handle) {
+    return $Call.ByID(287632718, handle).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType70($result);
     }));
 }
@@ -1262,18 +1262,18 @@ export function InspectFile(tabID, filePath) {
  * native, read-only annotators over the parsed blocks so the tree carries
  * source-anchored stand-off overlays before serialization:
  * 
- *   - term overlays (type "term") from the project's auto-opened termbase
+ *   - term overlays (type "term") from the project's auto-opened terms
  *     (LookupAll over each block's source text), carrying the matched surface
  *     form, its preferred target translation and domain;
  *   - brand-vocabulary overlays (type "qa", props.category="brand-vocabulary")
  *     from the project's resolved brand profile (resolveProjectBrandProfile via
  *     brand.MatchVocabulary);
- *   - rule-based QA overlays (type "qa") from source-only heuristics (double
- *     spaces, doubled words).
+ *   - rule-based QA overlays (type "qa") from the shared source-only shape rules
+ *     (double spaces, doubled words — check.HygieneOverlay).
  * 
  * These mirror the overlay shapes the docs "Anatomy" explorer produces in
  * kapi/cmd/kapi-wasm-cli/lab_annotate.go, but use the project's real resources
- * rather than a seeded in-memory termbase / brand profile. DocumentViewer's
+ * rather than a seeded in-memory terms / brand profile. DocumentViewer's
  * annotations toggle highlights them on the rendered document.
  * @param {string} tabID
  * @param {string} filePath
@@ -1405,21 +1405,32 @@ export function ListFormats() {
 }
 
 /**
- * @returns {$CancellablePromise<$models.ResourceInfo[]>}
+ * ListMemoryImportSessions returns every session row in imported_at DESC order.
+ * @param {string} handle
+ * @returns {$CancellablePromise<$models.ImportSessionDTO[]>}
  */
-export function ListNamedTMs() {
-    return $Call.ByID(138470699).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType84($result);
+export function ListMemoryImportSessions(handle) {
+    return $Call.ByID(2120829287, handle).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType83($result);
     }));
 }
 
 /**
- * ListNamedTermbases returns named termbases from KAPI_HOME/termbases/.
  * @returns {$CancellablePromise<$models.ResourceInfo[]>}
  */
-export function ListNamedTermbases() {
-    return $Call.ByID(1569783227).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType84($result);
+export function ListNamedMemories() {
+    return $Call.ByID(1872270374).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType85($result);
+    }));
+}
+
+/**
+ * ListNamedTerms returns named terms stores from KAPI_HOME/termbases/.
+ * @returns {$CancellablePromise<$models.ResourceInfo[]>}
+ */
+export function ListNamedTerms() {
+    return $Call.ByID(1945825244).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType85($result);
     }));
 }
 
@@ -1439,7 +1450,7 @@ export function ListNamedTermbases() {
  */
 export function ListOutputs(tabID) {
     return $Call.ByID(2429100394, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType87($result);
+        return $$createType88($result);
     }));
 }
 
@@ -1450,7 +1461,7 @@ export function ListOutputs(tabID) {
  */
 export function ListPlugins() {
     return $Call.ByID(2093840368).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType89($result);
+        return $$createType90($result);
     }));
 }
 
@@ -1460,7 +1471,7 @@ export function ListPlugins() {
  */
 export function ListPresets() {
     return $Call.ByID(1022998084).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType91($result);
+        return $$createType92($result);
     }));
 }
 
@@ -1473,7 +1484,7 @@ export function ListPresets() {
  */
 export function ListProjectFiles(tabID) {
     return $Call.ByID(258177568, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType93($result);
+        return $$createType94($result);
     }));
 }
 
@@ -1498,7 +1509,7 @@ export function ListProjectFormats(tabID) {
  */
 export function ListProjectTools(tabID) {
     return $Call.ByID(2643725580, tabID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType95($result);
+        return $$createType96($result);
     }));
 }
 
@@ -1508,7 +1519,7 @@ export function ListProjectTools(tabID) {
  */
 export function ListProviderTypes() {
     return $Call.ByID(2908430146).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType97($result);
+        return $$createType98($result);
     }));
 }
 
@@ -1518,7 +1529,7 @@ export function ListProviderTypes() {
  */
 export function ListProviders() {
     return $Call.ByID(431317626).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType99($result);
+        return $$createType100($result);
     }));
 }
 
@@ -1528,17 +1539,6 @@ export function ListProviders() {
  */
 export function ListRecentFiles() {
     return $Call.ByID(525069106).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType101($result);
-    }));
-}
-
-/**
- * ListTMImportSessions returns every session row in imported_at DESC order.
- * @param {string} handle
- * @returns {$CancellablePromise<$models.ImportSessionDTO[]>}
- */
-export function ListTMImportSessions(handle) {
-    return $Call.ByID(1524112231, handle).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType102($result);
     }));
 }
@@ -1559,7 +1559,7 @@ export function ListTabs() {
  */
 export function ListTools() {
     return $Call.ByID(4153492859).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType95($result);
+        return $$createType96($result);
     }));
 }
 
@@ -1586,13 +1586,13 @@ export function LoadPlugins() {
 }
 
 /**
- * LookupTM performs entity-aware TM lookup using the full tiered matching pipeline.
+ * LookupMemory performs entity-aware content-memory lookup using the full tiered matching pipeline.
  * @param {string} handle
- * @param {$models.LookupTMRequest} req
- * @returns {$CancellablePromise<$models.TMMatchDTO[]>}
+ * @param {$models.LookupMemoryRequest} req
+ * @returns {$CancellablePromise<$models.MemoryMatchDTO[]>}
  */
-export function LookupTM(handle, req) {
-    return $Call.ByID(858147209, handle, req).then(/** @type {($result: any) => any} */(($result) => {
+export function LookupMemory(handle, req) {
+    return $Call.ByID(867542809, handle, req).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType107($result);
     }));
 }
@@ -1654,6 +1654,21 @@ export function OpenFlowFileDialog() {
 }
 
 /**
+ * @param {string} path
+ * @returns {$CancellablePromise<string>}
+ */
+export function OpenMemory(path) {
+    return $Call.ByID(665341491, path);
+}
+
+/**
+ * @returns {$CancellablePromise<string>}
+ */
+export function OpenMemoryDialog() {
+    return $Call.ByID(1434938751);
+}
+
+/**
  * OpenProject loads a kapi.yaml recipe from disk and returns its tab ID.
  * If the recipe is already open in another tab, returns that tab's ID.
  * @param {string} path
@@ -1678,35 +1693,20 @@ export function OpenProjectDialog() {
 }
 
 /**
+ * OpenTerms opens a SQLite terms file and returns a handle ID.
  * @param {string} path
  * @returns {$CancellablePromise<string>}
  */
-export function OpenTM(path) {
-    return $Call.ByID(1590161971, path);
+export function OpenTerms(path) {
+    return $Call.ByID(3445179363, path);
 }
 
 /**
+ * OpenTermsDialog shows a native file dialog to open a terms store.
  * @returns {$CancellablePromise<string>}
  */
-export function OpenTMDialog() {
-    return $Call.ByID(4002017663);
-}
-
-/**
- * OpenTermbase opens a SQLite termbase file and returns a handle ID.
- * @param {string} path
- * @returns {$CancellablePromise<string>}
- */
-export function OpenTermbase(path) {
-    return $Call.ByID(1725863647, path);
-}
-
-/**
- * OpenTermbaseDialog shows a native file dialog to open a termbase.
- * @returns {$CancellablePromise<string>}
- */
-export function OpenTermbaseDialog() {
-    return $Call.ByID(2649642507);
+export function OpenTermsDialog() {
+    return $Call.ByID(1190844783);
 }
 
 /**
@@ -1790,7 +1790,7 @@ export function RenderFormatConfig(formatName, config, outputFormat) {
  * ResetSampleProject refreshes an out-of-date sample to the version embedded
  * in this kapi: it quiesces the tab's handles, backs up the existing directory
  * (so nothing is lost), re-scaffolds a fresh copy in place, and reloads the
- * SAME tab — same tab ID, recipe re-read, TM/termbase/block-store handles and
+ * SAME tab — same tab ID, recipe re-read, content memory/terms/block-store handles and
  * the file watcher reopened. Keeping the tab alive throughout means every
  * surface polling it (the home hero's GetConvergence / GetConvergePlan) never
  * dangles on a closed tab or a renamed path. Only valid for projects
@@ -1805,18 +1805,18 @@ export function ResetSampleProject(tabID) {
 }
 
 /**
- * ResolveEntityConcepts re-links entities on TM entries to termbase concepts.
- * Useful after a termbase import or when entities were created without a
- * termbase available. Entries whose entities already have a ConceptID are
+ * ResolveEntityConcepts re-links entities on content-memory entries to terms concepts.
+ * Useful after a terms store import or when entities were created without a
+ * terms available. Entries whose entities already have a ConceptID are
  * skipped unless force is true.
- * @param {string} tmHandle
+ * @param {string} memoryHandle
  * @param {string} tbHandle
  * @param {string[]} entryIDs
  * @param {boolean} force
  * @returns {$CancellablePromise<number>}
  */
-export function ResolveEntityConcepts(tmHandle, tbHandle, entryIDs, force) {
-    return $Call.ByID(4123096462, tmHandle, tbHandle, entryIDs, force);
+export function ResolveEntityConcepts(memoryHandle, tbHandle, entryIDs, force) {
+    return $Call.ByID(4123096462, memoryHandle, tbHandle, entryIDs, force);
 }
 
 /**
@@ -2075,6 +2075,41 @@ export function SaveUserFlow(req) {
 }
 
 /**
+ * SearchMemoryEntries searches content-memory entries by query with pagination.
+ * anyLocale restricts the text search to entries with a variant in that
+ * locale; requireLocale additionally requires that variant to exist.
+ * @param {string} handle
+ * @param {string} query
+ * @param {string} anyLocale
+ * @param {string} requireLocale
+ * @param {number} offset
+ * @param {number} limit
+ * @returns {$CancellablePromise<$models.MemorySearchResult | null>}
+ */
+export function SearchMemoryEntries(handle, query, anyLocale, requireLocale, offset, limit) {
+    return $Call.ByID(3872715149, handle, query, anyLocale, requireLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType126($result);
+    }));
+}
+
+/**
+ * SearchMemoryEntriesFiltered searches content-memory entries with facet filters.
+ * @param {string} handle
+ * @param {string} query
+ * @param {string} anyLocale
+ * @param {string} requireLocale
+ * @param {$models.MemorySearchFilter} filter
+ * @param {number} offset
+ * @param {number} limit
+ * @returns {$CancellablePromise<$models.MemorySearchResult | null>}
+ */
+export function SearchMemoryEntriesFiltered(handle, query, anyLocale, requireLocale, filter, offset, limit) {
+    return $Call.ByID(28274782, handle, query, anyLocale, requireLocale, filter, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType126($result);
+    }));
+}
+
+/**
  * SearchPlugins searches the registry index for plugins whose name or
  * description matches the query (substring, case-sensitive).
  * @param {string} query
@@ -2087,42 +2122,7 @@ export function SearchPlugins(query) {
 }
 
 /**
- * SearchTMEntries searches TM entries by query with pagination.
- * anyLocale restricts the text search to entries with a variant in that
- * locale; requireLocale additionally requires that variant to exist.
- * @param {string} handle
- * @param {string} query
- * @param {string} anyLocale
- * @param {string} requireLocale
- * @param {number} offset
- * @param {number} limit
- * @returns {$CancellablePromise<$models.TMSearchResult | null>}
- */
-export function SearchTMEntries(handle, query, anyLocale, requireLocale, offset, limit) {
-    return $Call.ByID(2364570829, handle, query, anyLocale, requireLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType126($result);
-    }));
-}
-
-/**
- * SearchTMEntriesFiltered searches TM entries with facet filters.
- * @param {string} handle
- * @param {string} query
- * @param {string} anyLocale
- * @param {string} requireLocale
- * @param {$models.TMSearchFilter} filter
- * @param {number} offset
- * @param {number} limit
- * @returns {$CancellablePromise<$models.TMSearchResult | null>}
- */
-export function SearchTMEntriesFiltered(handle, query, anyLocale, requireLocale, filter, offset, limit) {
-    return $Call.ByID(1068746654, handle, query, anyLocale, requireLocale, filter, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType126($result);
-    }));
-}
-
-/**
- * SearchTerms searches termbase concepts by query with pagination.
+ * SearchTerms searches terms concepts by query with pagination.
  * @param {string} handle
  * @param {string} query
  * @param {string} srcLocale
@@ -2313,6 +2313,16 @@ export function UpdateConcept(handle, req) {
 }
 
 /**
+ * UpdateMemoryEntry updates an existing multilingual content-memory entry.
+ * @param {string} handle
+ * @param {$models.UpdateMemoryEntryRequest} req
+ * @returns {$CancellablePromise<void>}
+ */
+export function UpdateMemoryEntry(handle, req) {
+    return $Call.ByID(2365677546, handle, req);
+}
+
+/**
  * UpdatePlugin updates a plugin to the latest version (async).
  * @param {string} name
  * @returns {$CancellablePromise<void>}
@@ -2353,16 +2363,6 @@ export function UpdateProject(tabID, proj) {
  */
 export function UpdateReviewTarget(tabID, locale, file, key, text) {
     return $Call.ByID(523815832, tabID, locale, file, key, text);
-}
-
-/**
- * UpdateTMEntry updates an existing multilingual TM entry.
- * @param {string} handle
- * @param {$models.UpdateTMEntryRequest} req
- * @returns {$CancellablePromise<void>}
- */
-export function UpdateTMEntry(handle, req) {
-    return $Call.ByID(771615526, handle, req);
 }
 
 /**
@@ -2419,39 +2419,39 @@ const $$createType28 = $models.RunError.createFrom;
 const $$createType29 = $Create.Nullable($$createType28);
 const $$createType30 = flow$0.FlowTrace.createFrom;
 const $$createType31 = $Create.Nullable($$createType30);
-const $$createType32 = $models.ProjectFilters.createFrom;
-const $$createType33 = $models.ProjectHandles.createFrom;
-const $$createType34 = $models.ProjectServer.createFrom;
+const $$createType32 = memory$0.ActivityStat.createFrom;
+const $$createType33 = $Create.Array($$createType32);
+const $$createType34 = $models.MemoryEntryDTO.createFrom;
 const $$createType35 = $Create.Nullable($$createType34);
-const $$createType36 = $models.ProjectStatus.createFrom;
+const $$createType36 = $models.MemoryFacets.createFrom;
 const $$createType37 = $Create.Nullable($$createType36);
-const $$createType38 = $Create.Array($$createType1);
-const $$createType39 = convergence$0.ReviewItem.createFrom;
-const $$createType40 = $Create.Array($$createType39);
-const $$createType41 = $models.ReviewUnitDetail.createFrom;
-const $$createType42 = $Create.Nullable($$createType41);
-const $$createType43 = $models.RunEvent.createFrom;
-const $$createType44 = $Create.Array($$createType43);
-const $$createType45 = $models.SampleInfo.createFrom;
-const $$createType46 = $models.SessionState.createFrom;
-const $$createType47 = $models.AppSettings.createFrom;
-const $$createType48 = sievepen$0.ActivityStat.createFrom;
-const $$createType49 = $Create.Array($$createType48);
-const $$createType50 = $models.TMEntryDTO.createFrom;
-const $$createType51 = $Create.Nullable($$createType50);
-const $$createType52 = $models.TMFacets.createFrom;
-const $$createType53 = $Create.Nullable($$createType52);
-const $$createType54 = $models.ImportSessionDTO.createFrom;
-const $$createType55 = $Create.Nullable($$createType54);
-const $$createType56 = sievepen$0.LocaleFacet.createFrom;
-const $$createType57 = $Create.Array($$createType56);
-const $$createType58 = $models.TMStats.createFrom;
-const $$createType59 = $Create.Nullable($$createType58);
-const $$createType60 = termbase$0.ActivityStat.createFrom;
+const $$createType38 = $models.ImportSessionDTO.createFrom;
+const $$createType39 = $Create.Nullable($$createType38);
+const $$createType40 = memory$0.LocaleFacet.createFrom;
+const $$createType41 = $Create.Array($$createType40);
+const $$createType42 = $models.MemoryStats.createFrom;
+const $$createType43 = $Create.Nullable($$createType42);
+const $$createType44 = $models.ProjectFilters.createFrom;
+const $$createType45 = $models.ProjectHandles.createFrom;
+const $$createType46 = $models.ProjectServer.createFrom;
+const $$createType47 = $Create.Nullable($$createType46);
+const $$createType48 = $models.ProjectStatus.createFrom;
+const $$createType49 = $Create.Nullable($$createType48);
+const $$createType50 = $Create.Array($$createType1);
+const $$createType51 = convergence$0.ReviewItem.createFrom;
+const $$createType52 = $Create.Array($$createType51);
+const $$createType53 = $models.ReviewUnitDetail.createFrom;
+const $$createType54 = $Create.Nullable($$createType53);
+const $$createType55 = $models.RunEvent.createFrom;
+const $$createType56 = $Create.Array($$createType55);
+const $$createType57 = $models.SampleInfo.createFrom;
+const $$createType58 = $models.SessionState.createFrom;
+const $$createType59 = $models.AppSettings.createFrom;
+const $$createType60 = terms$0.ActivityStat.createFrom;
 const $$createType61 = $Create.Array($$createType60);
-const $$createType62 = termbase$0.LocaleStat.createFrom;
+const $$createType62 = terms$0.LocaleStat.createFrom;
 const $$createType63 = $Create.Array($$createType62);
-const $$createType64 = $models.TermbaseStats.createFrom;
+const $$createType64 = $models.TermsStats.createFrom;
 const $$createType65 = $Create.Nullable($$createType64);
 const $$createType66 = $models.UserFlowDetail.createFrom;
 const $$createType67 = $Create.Nullable($$createType66);
@@ -2470,30 +2470,30 @@ const $$createType79 = $models.FlowInfo.createFrom;
 const $$createType80 = $Create.Array($$createType79);
 const $$createType81 = $models.FormatInfo.createFrom;
 const $$createType82 = $Create.Array($$createType81);
-const $$createType83 = $models.ResourceInfo.createFrom;
-const $$createType84 = $Create.Array($$createType83);
-const $$createType85 = $models.OutputFileInfo.createFrom;
-const $$createType86 = $Create.Array($$createType85);
-const $$createType87 = $Create.Map($Create.Any, $$createType86);
-const $$createType88 = $models.PluginInfo.createFrom;
-const $$createType89 = $Create.Array($$createType88);
-const $$createType90 = $models.PresetInfo.createFrom;
-const $$createType91 = $Create.Array($$createType90);
-const $$createType92 = $models.ProjectFileInfo.createFrom;
-const $$createType93 = $Create.Array($$createType92);
-const $$createType94 = $models.ToolInfo.createFrom;
-const $$createType95 = $Create.Array($$createType94);
-const $$createType96 = $models.ProviderTypeInfo.createFrom;
-const $$createType97 = $Create.Array($$createType96);
-const $$createType98 = $models.ProviderInfo.createFrom;
-const $$createType99 = $Create.Array($$createType98);
-const $$createType100 = $models.RecentFile.createFrom;
-const $$createType101 = $Create.Array($$createType100);
-const $$createType102 = $Create.Array($$createType54);
+const $$createType83 = $Create.Array($$createType38);
+const $$createType84 = $models.ResourceInfo.createFrom;
+const $$createType85 = $Create.Array($$createType84);
+const $$createType86 = $models.OutputFileInfo.createFrom;
+const $$createType87 = $Create.Array($$createType86);
+const $$createType88 = $Create.Map($Create.Any, $$createType87);
+const $$createType89 = $models.PluginInfo.createFrom;
+const $$createType90 = $Create.Array($$createType89);
+const $$createType91 = $models.PresetInfo.createFrom;
+const $$createType92 = $Create.Array($$createType91);
+const $$createType93 = $models.ProjectFileInfo.createFrom;
+const $$createType94 = $Create.Array($$createType93);
+const $$createType95 = $models.ToolInfo.createFrom;
+const $$createType96 = $Create.Array($$createType95);
+const $$createType97 = $models.ProviderTypeInfo.createFrom;
+const $$createType98 = $Create.Array($$createType97);
+const $$createType99 = $models.ProviderInfo.createFrom;
+const $$createType100 = $Create.Array($$createType99);
+const $$createType101 = $models.RecentFile.createFrom;
+const $$createType102 = $Create.Array($$createType101);
 const $$createType103 = $Create.Array($$createType12);
 const $$createType104 = $models.UserFlowInfo.createFrom;
 const $$createType105 = $Create.Array($$createType104);
-const $$createType106 = $models.TMMatchDTO.createFrom;
+const $$createType106 = $models.MemoryMatchDTO.createFrom;
 const $$createType107 = $Create.Array($$createType106);
 const $$createType108 = $models.FileMatch.createFrom;
 const $$createType109 = $Create.Array($$createType108);
@@ -2511,8 +2511,8 @@ const $$createType120 = $models.FormatPartInfo.createFrom;
 const $$createType121 = $Create.Array($$createType120);
 const $$createType122 = $models.ProjectFilter.createFrom;
 const $$createType123 = $Create.Nullable($$createType122);
-const $$createType124 = $Create.Nullable($$createType98);
-const $$createType125 = $models.TMSearchResult.createFrom;
+const $$createType124 = $Create.Nullable($$createType99);
+const $$createType125 = $models.MemorySearchResult.createFrom;
 const $$createType126 = $Create.Nullable($$createType125);
 const $$createType127 = $models.TermSearchResult.createFrom;
 const $$createType128 = $Create.Nullable($$createType127);
