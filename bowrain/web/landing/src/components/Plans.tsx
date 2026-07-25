@@ -20,11 +20,6 @@ type PlanId = "free" | "pro" | "team" | "enterprise";
 
 type PlanFacts = (typeof plansCatalog.plans)[number];
 
-const factsById = Object.fromEntries(plansCatalog.plans.map((p) => [p.id, p])) as Record<
-  PlanId,
-  PlanFacts
->;
-
 /** Compact human credits: 200000 → "200K", 2_000_000 → "2M". */
 function formatCredits(n: number): string {
   if (n >= 1_000_000) return `${n / 1_000_000}M`;

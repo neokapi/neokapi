@@ -95,10 +95,7 @@ interface Placed {
   w: number;
 }
 
-export function GatedLoopDiagram({
-  nodes,
-  caption,
-}: GatedLoopDiagramProps): React.ReactElement {
+export function GatedLoopDiagram({ nodes, caption }: GatedLoopDiagramProps): React.ReactElement {
   let x = PAD;
   const placed: Placed[] = nodes.map((n) => {
     const w = nodeWidth(n);
@@ -111,23 +108,17 @@ export function GatedLoopDiagram({
   const anyHold = nodes.some((n) => n.kind === "gate" && n.hold);
   const holdLabelW = Math.max(
     0,
-    ...nodes.map((n) =>
-      n.kind === "gate" && n.hold ? n.hold.length * 5.6 + 20 : 0,
-    ),
+    ...nodes.map((n) => (n.kind === "gate" && n.hold ? n.hold.length * 5.6 + 20 : 0)),
   );
   const totalW = Math.max(spineW, holdLabelW + 2 * PAD);
   const spineTop = TOP;
   const cy = spineTop + SPINE_H / 2;
-  const totalH =
-    cy + SPINE_H / 2 + (anyHold ? HOLD_DROP + 26 : 0) + (caption ? 4 : 14);
+  const totalH = cy + SPINE_H / 2 + (anyHold ? HOLD_DROP + 26 : 0) + (caption ? 4 : 14);
 
   return (
     <div className="kdx">
       <div className="kdx-scroll">
-        <div
-          className="kdx-canvas"
-          style={{ minWidth: Math.min(totalW, 520), maxWidth: totalW }}
-        >
+        <div className="kdx-canvas" style={{ minWidth: Math.min(totalW, 520), maxWidth: totalW }}>
           <svg
             viewBox={`0 0 ${totalW} ${totalH}`}
             xmlns="http://www.w3.org/2000/svg"
@@ -184,37 +175,17 @@ export function GatedLoopDiagram({
   );
 }
 
-function Node({
-  placed,
-  cy,
-}: {
-  placed: Placed;
-  cy: number;
-}): React.ReactElement {
+function Node({ placed, cy }: { placed: Placed; cy: number }): React.ReactElement {
   const { n, x, w } = placed;
   const cx = x + w / 2;
   const top = cy - SPINE_H / 2;
 
-  if (n.kind === "gate")
-    return <Gate n={n} x={x} w={w} cx={cx} cy={cy} top={top} />;
+  if (n.kind === "gate") return <Gate n={n} x={x} w={w} cx={cx} cy={cy} top={top} />;
   if (n.kind === "done") {
     return (
       <g>
-        <rect
-          x={x}
-          y={top}
-          width={w}
-          height={SPINE_H}
-          rx={10}
-          className="kdx-box kdx-box--io"
-        />
-        <text
-          x={cx}
-          y={cy + 5}
-          textAnchor="middle"
-          fontSize={13}
-          className="kdx-gate-t"
-        >
+        <rect x={x} y={top} width={w} height={SPINE_H} rx={10} className="kdx-box kdx-box--io" />
+        <text x={cx} y={cy + 5} textAnchor="middle" fontSize={13} className="kdx-gate-t">
           {n.label}
         </text>
       </g>
@@ -227,21 +198,8 @@ function Node({
   const titleY = steps.length ? top + 18 : cy + 4;
   return (
     <g>
-      <rect
-        x={x}
-        y={top}
-        width={w}
-        height={SPINE_H}
-        rx={10}
-        className={`kdx-phase${cls}`}
-      />
-      <text
-        x={cx}
-        y={titleY}
-        textAnchor="middle"
-        fontSize={12}
-        className="kdx-phase-t"
-      >
+      <rect x={x} y={top} width={w} height={SPINE_H} rx={10} className={`kdx-phase${cls}`} />
+      <text x={cx} y={titleY} textAnchor="middle" fontSize={12} className="kdx-phase-t">
         {n.label}
       </text>
       {steps.map((s, i) => (
@@ -301,23 +259,11 @@ function Gate({
         className="kdx-gate-check"
         transform={`translate(0, ${n.sub ? -2 : 2})`}
       />
-      <text
-        x={cx}
-        y={subY + 8}
-        textAnchor="middle"
-        fontSize={11}
-        className="kdx-gate-t"
-      >
+      <text x={cx} y={subY + 8} textAnchor="middle" fontSize={11} className="kdx-gate-t">
         {n.label}
       </text>
       {n.sub && (
-        <text
-          x={cx}
-          y={subY + 20}
-          textAnchor="middle"
-          fontSize={8.5}
-          className="kdx-gate-sub"
-        >
+        <text x={cx} y={subY + 20} textAnchor="middle" fontSize={8.5} className="kdx-gate-sub">
           {n.sub}
         </text>
       )}
