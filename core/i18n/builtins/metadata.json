@@ -1012,6 +1012,68 @@
       "displayName": "Unredact",
       "description": "Restore original values into redacted content after processing",
       "category": "text-processing"
+    },
+    "whitespace-correct": {
+      "displayName": "Whitespace Correct",
+      "category": "text-processing",
+      "properties": {
+        "correctComma": {
+          "title": "Comma",
+          "description": "Correct whitespace after commas"
+        },
+        "correctExclamation": {
+          "title": "Exclamation Point",
+          "description": "Correct whitespace after exclamation marks"
+        },
+        "correctFullStop": {
+          "title": "Full Stop",
+          "description": "Correct whitespace after full stops (periods)"
+        },
+        "correctQuestion": {
+          "title": "Question Mark",
+          "description": "Correct whitespace after question marks"
+        },
+        "includeHorizontalWS": {
+          "title": "Horizontal Tabs",
+          "description": "Include horizontal tab characters in corrections"
+        },
+        "includeVerticalWS": {
+          "title": "Vertical White Space",
+          "description": "Include vertical whitespace (line feeds and carriage returns) in corrections"
+        },
+        "matchSourceWhitespace": {
+          "title": "Match Source Whitespace",
+          "description": "Copy source leading/trailing whitespace to target"
+        },
+        "normalizeSpaces": {
+          "title": "Normalize Spaces",
+          "description": "Collapse multiple spaces to a single space"
+        },
+        "removeZeroWidthChars": {
+          "title": "Remove Zero-Width Characters",
+          "description": "Remove zero-width spaces and joiners"
+        },
+        "targetLocale": {
+          "title": "Target Locale",
+          "description": "Target locale for processing"
+        },
+        "trimLeading": {
+          "title": "Trim Leading Whitespace",
+          "description": "Remove leading whitespace from target text"
+        },
+        "trimTrailing": {
+          "title": "Trim Trailing Whitespace",
+          "description": "Remove trailing whitespace from target text"
+        }
+      },
+      "groups": {
+        "punctuation": {
+          "label": "Punctuation"
+        },
+        "whitespace-types": {
+          "label": "Whitespace-types"
+        }
+      }
     }
   },
   "formats": {

@@ -67,8 +67,11 @@ var MimeTypes = []string{
 type KBFAnnotation struct {
 	// Source runs copied verbatim from the .kbf Block.
 	Source []kbf.Run
-	// Targets maps locale → target runs copied verbatim from the
-	// .kbf Block (nil-safe for blocks without targets).
+	// Targets maps locale → target runs copied verbatim from the .kbf
+	// Block (nil-safe for blocks without targets). This is provenance —
+	// the targets *as read*. It is deliberately not what the writer
+	// emits: the model.Block's targets are, because only those carry
+	// what the pipeline produced.
 	Targets map[kbf.LocaleID][]kbf.Run
 	// Placeholders carries the Block.placeholders list.
 	Placeholders []kbf.Placeholder
@@ -433,11 +436,12 @@ func (w *Writer) handlePart(part *model.Part) error {
 }
 
 // materializeBlock reconstructs a kbf.Block from a model.Block. If
-// the source block carries a KBFAnnotation (the round-trip case)
-// the structured Runs are preserved verbatim; a target is written
-// in as a text-only run sequence at the writer's locale when the
-// annotation already has a target for that locale with updated
-// content. If there is no annotation (the synthesized case) the
+// the source block carries a KBFAnnotation (the round-trip case) the
+// annotation supplies the wire-level metadata the model has no
+// first-class field for — hash, placeholders, properties, preview,
+// document identity — and the structured source Runs are preserved
+// verbatim. Targets come from the model.Block, never from the
+// annotation. If there is no annotation (the synthesized case) the
 // writer emits a minimal text-only block so the archive is still
 // well-formed.
 func (w *Writer) materializeBlock(mb *model.Block) (kbf.Block, string, string) {
@@ -449,23 +453,18 @@ func (w *Writer) materializeBlock(mb *model.Block) (kbf.Block, string, string) {
 				Translatable: mb.Translatable,
 				Type:         ann.Type,
 				Source:       cloneRuns(ann.Source),
-				Targets:      cloneTargets(ann.Targets),
+				// The pipeline owns the targets. The annotation carries
+				// the block *as read*, so seeding the output from it and
+				// only filling locales it lacked meant the writer could
+				// not express an edit at all: a tool ran, produced a
+				// corrected target, reported success, and the original
+				// was re-emitted byte for byte. Every edit — a whitespace
+				// correction, a re-translation, an unredact, a removal —
+				// now reaches the file.
+				Targets:      targetsFromModel(mb),
 				Placeholders: append([]kbf.Placeholder(nil), ann.Placeholders...),
 				Properties:   ann.Properties,
 				Preview:      ann.Preview,
-			}
-			if w.locale != "" && mb.HasTarget(w.locale) {
-				if b.Targets == nil {
-					b.Targets = make(map[kbf.LocaleID][]kbf.Run)
-				}
-				// Update only if the annotation didn't already carry a
-				// target for this locale — preserves upstream structure.
-				// Carry the model.Block's structured Runs across so
-				// placeholders / paired codes survive tools that populate
-				// targets via SetTargetRuns (e.g. pseudo-translate).
-				if _, hasExisting := b.Targets[kbf.LocaleID(w.locale)]; !hasExisting {
-					b.Targets[kbf.LocaleID(w.locale)] = runsFromModel(mb.TargetRuns(w.locale))
-				}
 			}
 			return b, ann.DocumentID, ann.DocumentPath
 		}
@@ -477,14 +476,38 @@ func (w *Writer) materializeBlock(mb *model.Block) (kbf.Block, string, string) {
 		Translatable: mb.Translatable,
 		Type:         kbf.BlockTypeJSXElement,
 		Source:       []kbf.Run{{Text: &kbf.TextRun{Text: mb.SourceText()}}},
+		Targets:      targetsFromModel(mb),
 		Properties:   kbf.BlockProperties{File: mb.Properties["file"], Component: mb.Properties["component"], Element: mb.Properties["element"]},
 	}
-	if w.locale != "" && mb.HasTarget(w.locale) {
-		b.Targets = map[kbf.LocaleID][]kbf.Run{
-			kbf.LocaleID(w.locale): runsFromModel(mb.TargetRuns(w.locale)),
-		}
-	}
 	return b, "synthesized", "synthesized"
+}
+
+// targetsFromModel projects a model.Block's committed targets onto the
+// .kbf wire shape. Every locale the block carries is written, not just
+// the writer's own: a flow that produced a target for a locale the
+// writer was not pointed at is still a target the file has to carry,
+// and the reader put every locale in the file on the block to begin
+// with. Only locale-only variants are projected — the wire keys targets
+// by bare locale, so a tone- or channel-qualified variant has no slot
+// and must not silently overwrite the plain one.
+func targetsFromModel(mb *model.Block) map[kbf.LocaleID][]kbf.Run {
+	if len(mb.Targets) == 0 {
+		return nil
+	}
+	out := make(map[kbf.LocaleID][]kbf.Run, len(mb.Targets))
+	for key, t := range mb.Targets {
+		if key.Tone != "" || key.Channel != "" {
+			continue
+		}
+		if t == nil || len(t.Runs) == 0 {
+			continue
+		}
+		out[kbf.LocaleID(key.Locale)] = runsFromModel(t.Runs)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // runsFromModel is the model.Run → kbf.Run adapter used when a

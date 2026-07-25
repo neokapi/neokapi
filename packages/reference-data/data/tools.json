@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-18T02:19:16Z",
+  "generatedAt": "2026-07-25T11:32:36Z",
   "kind": "tool",
   "entries": [
     {
@@ -4528,7 +4528,8 @@
           "requires": [
             "target-language"
           ],
-          "cardinality": "bilingual"
+          "cardinality": "bilingual",
+          "writesOutput": true
         },
         "ui:groups": [
           {

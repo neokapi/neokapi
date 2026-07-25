@@ -91,25 +91,29 @@ kapi stats src/locales/en/*.json
 kapi up --plan
 ```
 
-### Source Cleanup
+### Cleanup
 
-Normalize source content before translation:
+`case-transform` normalizes the source; `whitespace-correct` tidies the target
+against it, so it runs after a target exists. Step config keys are camelCase —
+the same spelling as the tool's schema, which
+[the tool reference](https://neokapi.github.io/web/neokapi/reference/tools/whitespace-correct)
+lists.
 
 ```yaml
-name: source-cleanup
-description: Normalize source content
+name: cleanup
+description: Normalize source case, then tidy the target's whitespace
 
 steps:
-  - tool: whitespace-correct
-    config:
-      normalize_spaces: true
-      match_source_whitespace: true
-      remove_zero_width_chars: true
-
   - tool: case-transform
     config:
       mode: title
-      apply_source: true
+      applySource: true
+
+  - tool: whitespace-correct
+    config:
+      normalizeSpaces: true
+      matchSourceWhitespace: true
+      removeZeroWidthChars: true
 ```
 
 ## CI Integration

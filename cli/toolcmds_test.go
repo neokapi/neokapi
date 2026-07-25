@@ -107,6 +107,11 @@ func TestNewToolCommands_GeneratesExpectedTools(t *testing.T) {
 		"translate", "pseudo-translate", "recycle", "qa",
 		"review", "search-replace",
 		"segmentation", "script",
+		// A built-in tool reaches the CLI only through its config factory
+		// (registry.CLITools). whitespace-correct had none, so it was absent
+		// from `kapi exec`, from `kapi tools list`, and from the MCP surface —
+		// unreachable except as an inner flow step whose config was dropped.
+		"whitespace-correct",
 	}
 	for _, name := range expectedTools {
 		assert.True(t, names[name], "expected CLI command for %q", name)
@@ -143,6 +148,22 @@ func execChildren(t *testing.T, app *App) map[string]*cobra.Command {
 	}
 	require.NotEmpty(t, byName, "exec group should host the registry tools")
 	return byName
+}
+
+// A tool that rewrites content needs somewhere to put the result. `kapi exec`
+// grows -o / --output-dir only for tools that declare WritesOutput, so a
+// content-rewriting tool without it corrects the content in memory, exits 0,
+// and writes nothing — the same silent success as the defects in #1471.
+func TestExecContentWritingToolsExposeAnOutput(t *testing.T) {
+	tools := execChildren(t, newTestApp())
+	for _, name := range []string{"whitespace-correct", "pseudo-translate", "case-transform", "search-replace", "recycle"} {
+		cmd := tools[name]
+		require.NotNil(t, cmd, "expected `exec %s`", name)
+		assert.NotNil(t, cmd.Flags().Lookup("output"),
+			"`exec %s` rewrites content, so it must accept -o", name)
+		assert.NotNil(t, cmd.Flags().Lookup("output-dir"),
+			"`exec %s` rewrites content, so it must accept --output-dir", name)
+	}
 }
 
 func TestRecycleAlias(t *testing.T) {
