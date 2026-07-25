@@ -23,6 +23,7 @@ import {
   LocalePill,
   ScrollArea,
   SimpleTooltip,
+  directionAttrs,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
 import { VirtualList } from "@neokapi/editor-grid";
@@ -949,6 +950,7 @@ export function ReviewPage({
                       className="whitespace-pre-wrap text-sm"
                       data-slot="review-source"
                       translate="no"
+                      {...directionAttrs(unit?.source_locale)}
                     >
                       {unit?.source ?? selected?.source ?? ""}
                     </div>
@@ -974,6 +976,7 @@ export function ReviewPage({
                       aria-label={t("Edit the translation")}
                       data-slot="review-target"
                       translate="no"
+                      {...directionAttrs(unit?.locale ?? selected?.locale)}
                     />
                     {unit && unit.editable && editText !== unit.target && (
                       <div className="mt-2 flex items-center gap-2">
@@ -1065,7 +1068,11 @@ export function ReviewPage({
                           <span className="mr-1 text-[10px] uppercase text-muted-foreground">
                             {t("Current")}
                           </span>
-                          <span className="whitespace-pre-wrap" translate="no">
+                          <span
+                            className="whitespace-pre-wrap"
+                            translate="no"
+                            {...directionAttrs(unit.locale)}
+                          >
                             {unit.target}
                           </span>
                         </div>
@@ -1073,7 +1080,11 @@ export function ReviewPage({
                           <span className="mr-1 text-[10px] uppercase text-muted-foreground">
                             {t("Proposed")}
                           </span>
-                          <span className="whitespace-pre-wrap" translate="no">
+                          <span
+                            className="whitespace-pre-wrap"
+                            translate="no"
+                            {...directionAttrs(unit.locale)}
+                          >
                             {aiProposal}
                           </span>
                         </div>
@@ -1178,7 +1189,7 @@ export function ReviewPage({
                     )}
                     {(unit?.tm_score ?? 0) > 0 && (
                       <div className="flex items-center gap-1.5" data-slot="review-tm-score">
-                        <span className="text-muted-foreground">{t("TM best match")}</span>
+                        <span className="text-muted-foreground">{t("Memory best match")}</span>
                         <span className="tabular-nums">{unit?.tm_score}%</span>
                       </div>
                     )}

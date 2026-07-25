@@ -111,8 +111,8 @@ function SimulatedTermbasesPage() {
 
   const resources = [
     {
-      name: "my-glossary",
-      path: "~/.config/kapi/termbases/my-glossary.db",
+      name: "my-terms",
+      path: "~/.config/kapi/termbases/my-terms.db",
       size: 262144,
       modified: new Date(Date.now() - 7200000).toISOString(),
     },
@@ -135,7 +135,7 @@ function SimulatedTermbasesPage() {
             >
               <X size={16} />
             </button>
-            <h1 className="text-lg font-semibold">my-glossary</h1>
+            <h1 className="text-lg font-semibold">my-terms</h1>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm">
@@ -151,13 +151,13 @@ function SimulatedTermbasesPage() {
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Termbases</h1>
+        <h1 className="text-xl font-semibold">Terms</h1>
         <div className="flex gap-2">
           <Button variant="outline" size="sm">
             <FolderOpen size={12} /> Open File...
           </Button>
           <Button size="sm">
-            <Plus size={12} /> New Termbase
+            <Plus size={12} /> New Terms
           </Button>
         </div>
       </div>
@@ -205,8 +205,8 @@ export const WithResources: StoryObj<typeof TermbasesPage> = {
     <TermbasesPage
       resources={[
         {
-          name: "my-glossary",
-          path: "~/.config/kapi/termbases/my-glossary.db",
+          name: "my-terms",
+          path: "~/.config/kapi/termbases/my-terms.db",
           size: 262144,
           modified: new Date(Date.now() - 7200000).toISOString(),
         },

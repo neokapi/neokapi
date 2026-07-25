@@ -9,7 +9,7 @@ import {
   Trash2,
   ExternalLink,
 } from "lucide-react";
-import { Button, ScrollArea, SimpleTooltip } from "@neokapi/ui-primitives";
+import { Button, RunErrorNotice, ScrollArea, SimpleTooltip } from "@neokapi/ui-primitives";
 import { useJobFeed, type Job } from "../context/JobFeedContext";
 
 /**
@@ -193,7 +193,28 @@ export function JobFeedButton({ onViewJob }: { onViewJob?: (job: Job) => void })
                         Flow canceled
                       </div>
                     )}
-                    {job.status === "error" && job.error && (
+                    {/* A classified failure gets the full structured notice —
+                        headline, remediation actions, affected file/locale, and
+                        the raw chain behind Details. Anything unclassified falls
+                        back to the one-line message. */}
+                    {job.status === "error" && job.runError && (
+                      <div className="mt-1.5 ml-5">
+                        <RunErrorNotice
+                          error={job.runError}
+                          variant="inline"
+                          // The feed is a dropdown over whatever view you are
+                          // on; it can copy a command and open a page, but it
+                          // has no business navigating you elsewhere. Offering
+                          // only what it can do beats an inert button.
+                          actionKinds={["command", "open-url"]}
+                          onAction={(a) => {
+                            if (a.kind === "open-url" && a.url)
+                              window.open(a.url, "_blank", "noopener,noreferrer");
+                          }}
+                        />
+                      </div>
+                    )}
+                    {job.status === "error" && !job.runError && job.error && (
                       <div className="text-[10px] text-destructive mt-1 ml-5 truncate">
                         {job.error}
                       </div>

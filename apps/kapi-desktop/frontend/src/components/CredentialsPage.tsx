@@ -35,6 +35,7 @@ import type {
 } from "../types/api";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
+import { ActiveModelBadge } from "./ActiveModelBadge";
 import { AIModelList } from "./AIModelList";
 import { useError } from "./ErrorBanner";
 
@@ -256,6 +257,14 @@ export function CredentialsPage({
         title="AI Models"
         subtitle="Pick the default model for translation and QA — the provider follows from the model. API keys are stored in your OS keychain."
       />
+
+      {/* What a run will actually use, resolved by the same shared precedence
+          the CLI applies — so this page states the outcome, not just the keys
+          it edits. */}
+      <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
+        <span>{t("Active for runs")}</span>
+        <ActiveModelBadge />
+      </div>
 
       {error && (
         <p className="mb-4 text-sm text-destructive" role="alert">

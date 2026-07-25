@@ -86,7 +86,7 @@ function NewProject() {
               <ul className="space-y-1.5">
                 <ScaffoldItem>Source &amp; target languages</ScaffoldItem>
                 <ScaffoldItem>Translate + QA flow</ScaffoldItem>
-                <ScaffoldItem>Translation memory &amp; termbase</ScaffoldItem>
+                <ScaffoldItem>Content memory &amp; terms</ScaffoldItem>
                 <ScaffoldItem>Brand voice &amp; checks</ScaffoldItem>
               </ul>
             }

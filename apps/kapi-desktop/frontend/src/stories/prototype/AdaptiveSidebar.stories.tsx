@@ -8,7 +8,7 @@ import { AdaptiveSidebar, DesktopFrame, ProjectKindBadge } from "./_shared";
  *
  * A content project shows only the content workspace. When the project enables
  * the localization feature, a clearly-grouped Localization set (Translate,
- * Translation Memories, Termbases) lights up — same content items, plus the
+ * Content Memory, Terms) lights up — same content items, plus the
  * l10n surface.
  */
 const meta = {

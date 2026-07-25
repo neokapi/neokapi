@@ -8,5 +8,6 @@ export {
     LocaleCoverage,
     Report,
     ReviewItem,
-    SourceCoverage
+    SourceCoverage,
+    StallReason
 } from "./models.js";

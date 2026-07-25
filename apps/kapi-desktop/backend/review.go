@@ -33,6 +33,11 @@ type ReviewUnitDetail struct {
 	// Source and Target are the unit's rendered text (v1: plain text, not runs).
 	Source string `json:"source"`
 	Target string `json:"target"`
+	// SourceLocale is the project's source language. The reviewer renders the
+	// source and target panes in their own writing direction, so both locales
+	// have to reach the UI — a right-to-left source (or target) otherwise
+	// inherits the app's direction and reads scrambled.
+	SourceLocale string `json:"source_locale,omitempty"`
 	// Status is the unit's effective ladder state (draft|translated|reviewed|
 	// signed-off), with a fresh state-store decision applied over the presence
 	// baseline.
@@ -198,14 +203,15 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 	targetText := b.TargetText(loc)
 
 	detail := &ReviewUnitDetail{
-		Locale:     locale,
-		File:       file,
-		Key:        key,
-		Collection: rf.Collection,
-		Source:     b.SourceText(),
-		Target:     targetText,
-		Status:     string(model.TargetStatusTranslated),
-		Editable:   targetEditable(b, loc),
+		Locale:       locale,
+		File:         file,
+		Key:          key,
+		Collection:   rf.Collection,
+		Source:       b.SourceText(),
+		Target:       targetText,
+		SourceLocale: sourceLang,
+		Status:       string(model.TargetStatusTranslated),
+		Editable:     targetEditable(b, loc),
 	}
 	if strings.TrimSpace(targetText) == "" {
 		detail.Status = ""

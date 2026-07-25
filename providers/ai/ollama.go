@@ -234,13 +234,11 @@ func (p *OllamaProvider) transportError(err error) error {
 }
 
 // statusError turns a non-200 response into guidance. A 404 almost always means
-// the requested model has not been pulled yet.
+// the requested model has not been pulled yet. The result is a typed
+// *OllamaError so a caller can offer the remedy as an action rather than
+// re-deriving it from the sentence.
 func (p *OllamaProvider) statusError(status int, body []byte) error {
-	msg := strings.TrimSpace(string(body))
-	if status == http.StatusNotFound || strings.Contains(strings.ToLower(msg), "not found") {
-		return fmt.Errorf("ollama: model %q is not installed — pull it first with `ollama pull %s` (server said: %s)", p.config.Model, p.config.Model, msg)
-	}
-	return fmt.Errorf("ollama: API error %d: %s", status, msg)
+	return classifyOllamaStatus(p.config.Model, status, body)
 }
 
 // Ollama API types

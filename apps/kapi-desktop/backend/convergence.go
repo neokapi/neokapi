@@ -12,8 +12,6 @@ import (
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host"
-	appconfig "github.com/neokapi/neokapi/host/config"
-	"github.com/neokapi/neokapi/host/credentials"
 )
 
 // errProjectFilesMissing is the typed, user-facing error GetConvergence /
@@ -198,10 +196,10 @@ func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowNa
 	// its saved key with no per-flow pinning.
 	capp := &host.App{Credentials: a.credentials, Config: a.aiConfig}
 	capp.InitRegistries()
-	capp.ToolReg.SetConfigPreprocessor(func(toolName string, requires []string, cfg map[string]any) (map[string]any, error) {
-		cfg = appconfig.ApplyAIToolDefaults(a.aiConfig, toolName, requires, cfg)
-		return credentials.ResolveCredentials(a.credentials, toolName, requires, cfg)
-	})
+	// The same preprocessor the desktop's own registry carries — one definition,
+	// so a converge run resolves provider/model/credentials identically to a
+	// plain flow run and to the CLI.
+	capp.ToolReg.SetConfigPreprocessor(a.aiConfigPreprocessor())
 	out, err := capp.RunUp(ctx, projectPath, sourceLang, host.UpOptions{
 		UntilGate: true,
 		// OnEvent is the stream the live run view renders from: one typed event
@@ -232,14 +230,35 @@ func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowNa
 				a.runState.state = RunStateCanceled
 			}
 			a.runState.mu.Unlock()
+			// A cancelled run still wrote whatever it finished before the stop,
+			// so the derived state must be recomputed exactly as on the success
+			// path — see the note below.
+			a.recordRunFailure(classifyRunError(err))
+			a.emitEvent("project:extracted", map[string]any{"tabID": tabID})
+			a.emitEvent("outputs-changed", map[string]any{})
 			return
 		}
-		a.emitRunEvent(RunEvent{Type: "error", FlowID: flowName, Message: err.Error()})
+		a.emitRunEvent(RunEvent{
+			Type:    "error",
+			FlowID:  flowName,
+			Message: err.Error(),
+			Error:   classifyRunError(err),
+		})
 		a.runState.mu.Lock()
 		if a.runState.state == RunStateRunning {
 			a.runState.state = RunStateError
 		}
 		a.runState.mu.Unlock()
+		// A partly-failed run has already materialized the passes that DID
+		// succeed (the engine writes files as it goes), so the on-disk state has
+		// moved while the UI's derived state has not. Without these two events
+		// the home surfaces keep showing the pre-run numbers — which, for a run
+		// that failed on its very first locale, reads as "up to date". Re-derive
+		// on failure exactly as on success; recordRunFailure then makes the
+		// failure itself visible rather than leaving the UI to infer it.
+		a.recordRunFailure(classifyRunError(err))
+		a.emitEvent("project:extracted", map[string]any{"tabID": tabID})
+		a.emitEvent("outputs-changed", map[string]any{})
 		return
 	}
 
@@ -248,6 +267,7 @@ func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowNa
 		a.runState.state = RunStateComplete
 	}
 	a.runState.mu.Unlock()
+	a.recordRunFailure(nil)
 
 	parked := len(out.ParkedScopes)
 	msg := fmt.Sprintf("Up to date in %d pass(es) in %s", out.Passes, time.Since(start).Round(time.Millisecond))

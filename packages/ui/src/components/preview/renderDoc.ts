@@ -48,8 +48,18 @@ export interface RenderLine {
   text: string;
   /** Per-locale target text, keyed by variant locale (e.g. "fr-FR"). */
   targets?: Record<string, string>;
-  /** Render role, used for typography (heading vs body vs bullet vs key). */
-  role?: "heading" | "title" | "body" | "bullet" | "key";
+  /** The block's source locale, so the renderer can set `dir`/`lang` on it. */
+  sourceLocale?: string;
+  /** Render role, used for typography (heading vs body vs bullet vs key vs code). */
+  role?: "heading" | "title" | "body" | "bullet" | "key" | "code";
+  /**
+   * The block's whitespace is significant (code blocks, `<pre>`, preformatted
+   * cells): render with `white-space: pre-wrap` rather than collapsing runs of
+   * spaces and newlines into prose.
+   */
+  preserveWhitespace?: boolean;
+  /** Code language hint for a `role: "code"` line (e.g. "go", "bash"). */
+  codeLanguage?: string;
   /** Optional key/label (JSON path, PO msgid, properties key) shown beside text. */
   key?: string;
   /** Stand-off overlays anchored to this block's runs (terms, entities, qa, …). */
@@ -106,6 +116,12 @@ export interface RenderDoc {
   format: string;
   /** All target locales found across the document, in first-seen order. */
   locales?: string[];
+  /**
+   * The document's source locale, when the engine stated one. Drives the `dir`
+   * / `lang` attributes on the source side, so an RTL *source* document reads
+   * correctly too — not only RTL targets.
+   */
+  sourceLocale?: string;
   /** Populated when kind === "slides". */
   slides?: RenderSlide[];
   /** Populated when kind === "sheet" (first/primary worksheet). */
@@ -147,14 +163,43 @@ function targetTexts(node: ContentNode): Record<string, string> | undefined {
 /** Build a RenderLine from a block, carrying its targets/overlays/annotations. */
 function lineFromBlock(node: ContentNode, role?: RenderLine["role"]): RenderLine {
   const targets = targetTexts(node);
+  // Code wins over the caller's positional role: a fenced block is code
+  // wherever it appears, including as the first paragraph of a document (which
+  // `docRole` would otherwise typeset as the title).
+  const resolvedRole = isCodeBlock(node) ? "code" : role;
+  const codeLanguage = node.properties?.[CODE_LANGUAGE_PROP];
   return {
     id: node.id,
     text: runsText(node.source),
     ...(targets ? { targets } : {}),
-    ...(role ? { role } : {}),
+    ...(node.sourceLocale ? { sourceLocale: node.sourceLocale } : {}),
+    ...(resolvedRole ? { role: resolvedRole } : {}),
+    // Code is preformatted whether or not the engine set the flag: a code block
+    // whose indentation collapses is no longer code.
+    ...(node.preserveWhitespace || resolvedRole === "code" ? { preserveWhitespace: true } : {}),
+    ...(codeLanguage ? { codeLanguage } : {}),
     ...(node.overlays && node.overlays.length > 0 ? { overlays: node.overlays } : {}),
     ...(node.annotations && node.annotations.length > 0 ? { annotations: node.annotations } : {}),
   };
+}
+
+/**
+ * The block property carrying a fenced code block's info string
+ * (`model.PropCodeLanguage`).
+ */
+const CODE_LANGUAGE_PROP = "code.language";
+
+/**
+ * True when a block is a code block — a fenced or indented markdown block, an
+ * HTML `<pre>`, a docx code paragraph. The engine states this twice: as the
+ * semantic role on the structure view (`model.RoleCode`) and as the block type
+ * the format reader assigned. Either is authoritative; formats that only set
+ * one still render as code.
+ */
+function isCodeBlock(node: ContentNode): boolean {
+  if (node.structure?.role?.toLowerCase() === "code") return true;
+  const t = (node.type ?? "").toLowerCase();
+  return t === "code" || t === "code-block" || t === "codeblock" || t === "pre";
 }
 
 /** Walk the tree depth-first, invoking `visit(node, layerName)` for each node. */
@@ -194,6 +239,16 @@ function allBlocks(tree: ContentTree): ContentNode[] {
     if (n.kind === "block") out.push(n);
   });
   return out;
+}
+
+/** The first source locale the engine stated on any block, if any. */
+function collectSourceLocale(tree: ContentTree): string | undefined {
+  let found: string | undefined;
+  eachNode(tree.root, (n) => {
+    if (found !== undefined || n.kind !== "block") return;
+    if (n.sourceLocale) found = n.sourceLocale;
+  });
+  return found;
 }
 
 /** Every target locale across the document, in first-seen order. */
@@ -479,11 +534,15 @@ export function treeToRenderDoc(
 ): RenderDoc {
   const format = tree.format ?? "";
   const locales = collectLocales(tree);
+  const sourceLocale = collectSourceLocale(tree);
   const ctx = { locales, format };
+  // Every branch below states the same source locale, so stamp it once here
+  // rather than threading it through the per-kind extractors.
+  const withSource = (doc: RenderDoc): RenderDoc => (sourceLocale ? { ...doc, sourceLocale } : doc);
 
   for (const rule of rules) {
     const doc = rule.detect(tree, ctx);
-    if (doc) return doc;
+    if (doc) return withSource(doc);
   }
 
   // No structured shape matched — fall back by format family.
@@ -491,7 +550,7 @@ export function treeToRenderDoc(
 
   if (DOC_FORMATS.has(format)) {
     const paragraphs = blocks.map((b, i) => lineFromBlock(b, docRole(b, i)));
-    return { kind: "doc", format, locales, paragraphs };
+    return withSource({ kind: "doc", format, locales, paragraphs });
   }
 
   if (LIST_FORMATS.has(format)) {
@@ -500,19 +559,19 @@ export function treeToRenderDoc(
       const k = entryKey(b);
       return k ? { ...l, key: k } : l;
     });
-    return { kind: "list", format, locales, lines };
+    return withSource({ kind: "list", format, locales, lines });
   }
 
   // Truly generic: render the layer/group hierarchy as titled sections. If the
   // tree is flat (no containers), fall back to a plain entry list.
   const sections = extractSections(tree);
   if (sections.length > 0) {
-    return { kind: "sections", format, locales, sections };
+    return withSource({ kind: "sections", format, locales, sections });
   }
   const lines = blocks.map((b) => {
     const l = lineFromBlock(b, "key");
     const k = entryKey(b);
     return k ? { ...l, key: k } : l;
   });
-  return { kind: "list", format, locales, lines };
+  return withSource({ kind: "list", format, locales, lines });
 }

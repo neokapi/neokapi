@@ -115,7 +115,7 @@ export function MemoriesPage({
 
   useEffect(() => {
     if (resourcesQuery.error) {
-      showError("Failed to load translation memories", resourcesQuery.error);
+      showError("Failed to load content memories", resourcesQuery.error);
     }
   }, [resourcesQuery.error, showError]);
 
@@ -162,11 +162,11 @@ export function MemoriesPage({
       const h = await api.openTMDialog();
       if (h) {
         setHandle(h);
-        setTmName("Translation Memory");
+        setTmName("Content Memory");
         setTmPath("");
       }
     } catch (err) {
-      showError("Failed to open translation memory", err);
+      showError("Failed to open content memory", err);
     }
   }, [showError]);
 
@@ -182,7 +182,7 @@ export function MemoriesPage({
         setNewName("");
       }
     } catch (err) {
-      showError("Failed to create translation memory", err);
+      showError("Failed to create content memory", err);
     }
   }, [newName, showError]);
 
@@ -224,14 +224,19 @@ export function MemoriesPage({
     return (
       <div className="p-6">
         <PageHeader
-          title={isProject ? "Project Translation Memory" : tmName}
+          title={isProject ? "Project Content Memory" : tmName}
           subtitle={
             projectStats ? `${projectStats.count.toLocaleString()} entries` : tmPath || undefined
           }
           backButton={
             isProject ? undefined : (
-              <SimpleTooltip content="Close TM">
-                <Button variant="ghost" size="icon-xs" onClick={handleClose} aria-label="Close TM">
+              <SimpleTooltip content="Close memory">
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={handleClose}
+                  aria-label="Close memory"
+                >
                   <X size={16} />
                 </Button>
               </SimpleTooltip>
@@ -302,7 +307,7 @@ export function MemoriesPage({
   return (
     <div className="p-6">
       <PageHeader
-        title="Translation Memories"
+        title="Content Memories"
         actions={
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleOpenDialog}>
@@ -311,7 +316,7 @@ export function MemoriesPage({
             </Button>
             <Button size="sm" onClick={() => setShowCreateDialog(true)}>
               <Plus size={12} />
-              Create TM
+              New memory
             </Button>
           </div>
         }
@@ -322,8 +327,8 @@ export function MemoriesPage({
         <Card className="mb-4 border-dashed">
           <CardContent className="p-4 text-center text-sm text-muted-foreground">
             <Database size={16} className="mx-auto mb-1 opacity-50" />
-            No project translation memory found. Run a translation flow to create one automatically,
-            or create one below.
+            No project content memory found. Run a translation flow to create one automatically, or
+            create one below.
           </CardContent>
         </Card>
       )}
@@ -352,11 +357,11 @@ export function MemoriesPage({
           <CardContent className="p-8 text-center">
             <Database size={24} className="mx-auto mb-2 text-muted-foreground/50" />
             <p className="mb-3 text-sm text-muted-foreground">
-              No translation memories found. Create one or open a .db file.
+              No content memories found. Create one or open a .db file.
             </p>
             <div className="flex justify-center gap-2">
               <Button size="sm" onClick={() => setShowCreateDialog(true)}>
-                Create TM
+                New memory
               </Button>
               <Button variant="outline" size="sm" onClick={handleOpenDialog}>
                 Open File...
@@ -370,7 +375,7 @@ export function MemoriesPage({
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>New Translation Memory</DialogTitle>
+            <DialogTitle>New Content Memory</DialogTitle>
           </DialogHeader>
           <div>
             <Label className="mb-1 block text-xs text-muted-foreground">Name</Label>
@@ -411,7 +416,7 @@ export function MemoriesPage({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle size={18} className="text-destructive" />
-              Corrupt Translation Memory
+              Corrupt Content Memory
             </DialogTitle>
           </DialogHeader>
           <div>

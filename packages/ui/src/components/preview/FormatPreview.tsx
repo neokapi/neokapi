@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { cn } from "../../lib/utils";
+import { directionAttrs, type TextDirection } from "../../lib/text-direction";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import type {
   RenderCell,
@@ -88,6 +89,8 @@ interface PreviewCtx {
   stagger: number;
   reducedMotion?: boolean;
   beforeIndex: Map<string, string> | null;
+  /** The document's source locale, used for `dir`/`lang` on the source side. */
+  sourceLocale?: string;
 }
 
 const Ctx = React.createContext<PreviewCtx | null>(null);
@@ -96,6 +99,27 @@ function useCtx(): PreviewCtx {
   const c = React.useContext(Ctx);
   if (!c) throw new Error("FormatPreview line rendered outside provider");
   return c;
+}
+
+// ── Writing direction ────────────────────────────────────────────────────────
+
+/**
+ * The locale of the text currently rendered for a line: the chosen target
+ * locale, or the block's (else the document's) source locale on the source side.
+ */
+function activeLocale(line: RenderLine | undefined, ctx: PreviewCtx): string | undefined {
+  if (ctx.side !== "source") return ctx.side;
+  return line?.sourceLocale ?? ctx.sourceLocale;
+}
+
+/**
+ * `dir` / `lang` for a line's block element. Code is always laid out
+ * left-to-right — source code has no RTL reading order even inside an RTL
+ * document, and mirroring it would scramble brackets and indentation.
+ */
+function lineDirAttrs(line: RenderLine, ctx: PreviewCtx): { dir: TextDirection; lang?: string } {
+  if (line.role === "code") return { dir: "ltr" };
+  return directionAttrs(activeLocale(line, ctx));
 }
 
 // ── before-model lookup (word diff) ──────────────────────────────────────────
@@ -287,6 +311,14 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
     !!ctx.annotations &&
     (line.overlays?.some((o) => o.type === "tm" && o.side === ctx.side) ?? false);
 
+  // The rendered text's own direction. Stated on the inline span (not only on
+  // the block element) because several kinds — slides, sheet cells, entry rows —
+  // place LineText straight into a container the host owns. A `dir` attribute
+  // also makes the element a bidi *isolate* per HTML's suggested rendering, so
+  // an RTL cell can sit in an LTR table (or an LTR key beside an RTL value)
+  // without either reordering the other.
+  const attrs = lineDirAttrs(line, ctx);
+
   // Slot roll: render the line via slot-text, starting from the previous value.
   // (Reduced motion and redacted lines fall through to the instant text path.)
   if (ctx.transition === "slot" && !ctx.reducedMotion && !hasRedaction) {
@@ -297,7 +329,11 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
         delay={ctx.stagger > 0 ? ctx.stagger * seq : 0}
       />
     );
-    return tmLine ? <span className={styles.tmHit}>{roll}</span> : roll;
+    return (
+      <span {...attrs} className={cn(tmLine && styles.tmHit)}>
+        {roll}
+      </span>
+    );
   }
 
   const showCaret = ctx.transition === "typewriter" && !done && !ctx.reducedMotion;
@@ -306,6 +342,7 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
   return (
     <span
       key={fadeKey}
+      {...attrs}
       className={cn(
         ctx.transition === "crossfade" && styles.fade,
         showCaret && styles.caret,
@@ -450,27 +487,48 @@ function Sheet({
   );
 }
 
-function lineEl(p: RenderLine, index = 0): React.ReactElement {
-  const content = <LineText line={p} seq={index} />;
-  if (p.role === "heading") {
+/**
+ * Render one line's block element. Split from `lineEl` so it can read the
+ * preview context (writing direction) — `lineEl` stays a plain mapper usable
+ * directly in `.map(lineEl)`.
+ */
+function Line({ line, index = 0 }: { line: RenderLine; index?: number }): React.ReactElement {
+  const ctx = useCtx();
+  const attrs = lineDirAttrs(line, ctx);
+  const content = <LineText line={line} seq={index} />;
+
+  // Code is preformatted, monospaced, and never typeset as prose: markdown
+  // markers inside it are literal characters, and its whitespace is meaningful.
+  if (line.role === "code") {
     return (
-      <div key={p.id} className={styles.heading}>
+      <pre {...attrs} className={styles.code} data-code-language={line.codeLanguage}>
+        <code>{content}</code>
+      </pre>
+    );
+  }
+  if (line.role === "heading") {
+    return (
+      <div {...attrs} className={styles.heading}>
         {content}
       </div>
     );
   }
-  if (p.role === "bullet") {
+  if (line.role === "bullet") {
     return (
-      <ul key={p.id} className={styles.bulletList}>
+      <ul {...attrs} className={styles.bulletList}>
         <li>{content}</li>
       </ul>
     );
   }
   return (
-    <p key={p.id} className={styles.para}>
+    <p {...attrs} className={cn(styles.para, line.preserveWhitespace && styles.preserve)}>
       {content}
     </p>
   );
+}
+
+function lineEl(p: RenderLine, index = 0): React.ReactElement {
+  return <Line key={p.id} line={p} index={index} />;
 }
 
 function Doc({ paragraphs }: { paragraphs: RenderLine[] }): React.ReactElement {
@@ -496,9 +554,11 @@ function List({ lines }: { lines: RenderLine[] }): React.ReactElement {
       {lines.map((l, i) => (
         <div key={l.id} className={styles.entry}>
           {l.key && (
-            <span className={styles.entryKey} title={l.key}>
+            // A catalog key is an identifier, not prose: always LTR, and
+            // isolated so it cannot be reordered by an adjacent RTL value.
+            <bdi dir="ltr" className={styles.entryKey} title={l.key}>
               {l.key}
-            </span>
+            </bdi>
           )}
           <span className={styles.entryText}>
             <LineText line={l} seq={i} />
@@ -604,6 +664,7 @@ export default function FormatPreview({
       stagger: typewriterStagger,
       reducedMotion,
       beforeIndex,
+      sourceLocale: model.sourceLocale,
     }),
     [
       side,
@@ -614,6 +675,7 @@ export default function FormatPreview({
       typewriterStagger,
       reducedMotion,
       beforeIndex,
+      model.sourceLocale,
     ],
   );
 
@@ -623,7 +685,7 @@ export default function FormatPreview({
         <div className={cn("kapi-reference", styles.root, flush && styles.flush, className)}>
           {needsMarker && <RedactMarkerFilter />}
           {useProjection && tree?.render ? (
-            <RenderedDocument node={tree.render} />
+            <RenderedDocument node={tree.render} locale={model.sourceLocale} />
           ) : (
             <PreviewBody doc={model} gridHeaders={gridHeaders} />
           )}

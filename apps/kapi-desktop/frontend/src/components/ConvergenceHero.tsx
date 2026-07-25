@@ -13,6 +13,8 @@ import {
   DialogTitle,
   ErrorNotice,
   LocalePill,
+  RunErrorNotice,
+  type RunErrorActionView,
   Table,
   TableBody,
   TableCell,
@@ -26,11 +28,18 @@ import {
   parseAppError,
 } from "@neokapi/ui-primitives";
 import { t } from "@neokapi/i18n-react/runtime";
-import type { ConvergePlan, ConvergenceReport, ProjectServer, UpPlanScope } from "../types/api";
+import type {
+  ConvergePlan,
+  ConvergenceReport,
+  ProjectServer,
+  RunError,
+  UpPlanScope,
+} from "../types/api";
 import { api } from "../hooks/useApi";
 import { qk } from "../lib/queryKeys";
 import { useInvalidateOnEvent } from "../hooks/useInvalidateOnEvent";
 import { useJobFeed } from "../context/JobFeedContext";
+import { ActiveModelBadge } from "./ActiveModelBadge";
 import { AIModelPromptDialog } from "./AIModelPromptDialog";
 
 /** The backend's typed marker for a tab whose recipe vanished from disk. */
@@ -50,6 +59,10 @@ export interface ConvergenceHeroProps {
   plan?: ConvergePlan;
   /** Pre-loaded run venue for Storybook/tests — skips api.getProjectServer(). */
   server?: ProjectServer;
+  /** Pre-loaded last-run failure for Storybook/tests — skips api.getLastRunError(). */
+  lastRunError?: RunError | null;
+  /** Open an in-app settings view named by a remediation action's target. */
+  onOpenSettings?: (target: string) => void;
 }
 
 /**
@@ -67,6 +80,8 @@ export function ConvergenceHero({
   convergence: propConvergence,
   plan: propPlan,
   server: propServer,
+  lastRunError: propLastRunError,
+  onOpenSettings,
 }: ConvergenceHeroProps) {
   const { hasActive, startJob, failActiveJob } = useJobFeed();
   const [planOpen, setPlanOpen] = useState(false);
@@ -82,21 +97,32 @@ export function ConvergenceHero({
     queryKey: qk.convergence(tabID),
     enabled: !(propConvergence && propPlan && propServer),
     queryFn: async () => {
-      const [c, p, s] = await Promise.allSettled([
+      const [c, p, s, e] = await Promise.allSettled([
         propConvergence ? Promise.resolve(null) : api.getConvergence(tabID),
         propPlan ? Promise.resolve(null) : api.getConvergePlan(tabID),
         propServer ? Promise.resolve(null) : api.getProjectServer(tabID),
+        api.getLastRunError(),
       ]);
       // The backend answers both derivations with a single typed error when the
       // recipe is gone from disk — render the quiet reopen state.
       const filesMissing = [c, p].some(
         (r) => r.status === "rejected" && String(r.reason).includes(MISSING_FILES_MARKER),
       );
+      // A derivation that FAILED is not a converged project — it is an unknown
+      // one. Keeping the rejection (rather than folding it to null) is what
+      // stops "compute coverage: …" from rendering as "all gates green": null
+      // and "we could not tell" are different states and must stay different.
+      const derivationError =
+        !filesMissing && (c.status === "rejected" || p.status === "rejected")
+          ? ((c.status === "rejected" ? c.reason : (p as PromiseRejectedResult).reason) as unknown)
+          : null;
       return {
         convergence: c.status === "fulfilled" ? (c.value as ConvergenceReport | null) : null,
         plan: p.status === "fulfilled" ? (p.value as ConvergePlan | null) : null,
         server: s.status === "fulfilled" ? (s.value as ProjectServer | null) : null,
+        lastRunError: e.status === "fulfilled" ? (e.value as RunError | null) : null,
         filesMissing,
+        derivationError,
       };
     },
   });
@@ -106,10 +132,34 @@ export function ConvergenceHero({
   const plan: ConvergePlan | null = propPlan ?? dataQuery.data?.plan ?? null;
   const server: ProjectServer | null = propServer ?? dataQuery.data?.server ?? null;
   const filesMissing = dataQuery.data?.filesMissing ?? false;
-  const loaded = !!(propConvergence && propPlan) || dataQuery.isSuccess;
+  const derivationError = dataQuery.data?.derivationError ?? null;
+  const lastRunError: RunError | null = propLastRunError ?? dataQuery.data?.lastRunError ?? null;
+  // "loaded" means we actually know the project's state. A settled query whose
+  // derivations rejected has not told us anything, so it must not count.
+  const loaded =
+    (!!(propConvergence && propPlan) || dataQuery.isSuccess) &&
+    derivationError == null &&
+    convergence !== null &&
+    plan !== null;
 
   // A convergence run or extraction elsewhere changed the derived state.
   useInvalidateOnEvent("project:extracted", [qk.convergence(tabID)]);
+
+  // Remediation actions: a command copies itself inside RunErrorNotice, an
+  // external page opens in the OS browser, and a settings target hands off to
+  // the host so navigation stays the shell's concern.
+  const onErrorAction = useCallback(
+    (action: RunErrorActionView) => {
+      if (action.kind === "open-url" && action.url) {
+        // Same affordance the docs links use: the Wails webview hands a
+        // _blank target to the OS browser.
+        window.open(action.url, "_blank", "noopener,noreferrer");
+        return;
+      }
+      if (action.kind === "open-settings" && action.target) onOpenSettings?.(action.target);
+    },
+    [onOpenSettings],
+  );
 
   // doLaunch starts the run through the shared `kapi up` engine and navigates
   // to the runner only once the launch call succeeded. A rejected launch
@@ -135,18 +185,29 @@ export function ConvergenceHero({
   const storeMissing = !!plan?.storeMissing;
   const versionStale = !!plan?.versionStale;
   const gated = (convergence?.locales ?? []).filter((l) => l.gated);
-  const gatesGreen = gated.every((l) => l.shippable);
-  const drifted = changed > 0 || missing > 0 || storeMissing || versionStale;
-  const upToDate = loaded && !drifted && gatesGreen;
+  // Three states, not two: gates green, gates unmet, and *no gates at all*.
+  // `[].every()` is vacuously true, so folding the third into the first let an
+  // ungated recipe — or a report we never received — assert "all gates green"
+  // without a single gate having been evaluated. `hasGates` keeps the claim
+  // honest: no gates means no claim, not a green one.
+  const hasGates = gated.length > 0;
+  const gatesUnmet = hasGates && !gated.every((l) => l.shippable);
+  // A failed catch-up run leaves locales unproduced no matter what the
+  // file-derived tally says, so it is drift in its own right — the state cannot
+  // be trusted as converged until a run completes.
+  const runFailed = lastRunError != null && lastRunError.kind !== "canceled";
+  const drifted = changed > 0 || missing > 0 || storeMissing || versionStale || runFailed;
+  const upToDate = loaded && !drifted && !gatesUnmet;
 
   // The drift summary: only the non-zero pieces, joined with " · ".
   const pieces: string[] = [];
+  if (runFailed) pieces.push(t("last run failed"));
   if (storeMissing) pieces.push(t("content not extracted yet"));
   else if (versionStale) pieces.push(t("store written by another kapi version"));
   if (changed > 0) pieces.push(t("{count} source file(s) changed", { count: changed }));
   if (missing > 0) pieces.push(t("{count} unit(s) missing targets", { count: missing }));
   if (parked > 0) pieces.push(t("{count} parked for review", { count: parked }));
-  if (pieces.length === 0 && !gatesGreen && loaded) {
+  if (pieces.length === 0 && gatesUnmet) {
     pieces.push(t("ship gates not met yet"));
   }
 
@@ -199,16 +260,23 @@ export function ConvergenceHero({
           <div className="min-w-0">
             {upToDate ? (
               <p className="text-sm font-medium" data-slot="hero-up-to-date">
-                {t("Up to date · all gates green")}
+                {/* Only claim the gates when there are gates to claim. */}
+                {hasGates ? t("Up to date · all gates green") : t("Up to date")}
               </p>
             ) : (
               <p className="text-sm font-medium" data-slot="hero-drift-summary">
-                {loaded ? pieces.join(" · ") || t("Pending work") : t("Deriving project state…")}
+                {derivationError != null
+                  ? t("Could not determine project state")
+                  : loaded
+                    ? pieces.join(" · ") || t("Pending work")
+                    : t("Deriving project state…")}
               </p>
             )}
             <p className="text-xs text-muted-foreground">
               {upToDate
-                ? t("Every unit has a committed target and every gated scope ships.")
+                ? hasGates
+                  ? t("Every unit has a committed target and every gated scope ships.")
+                  : t("Every unit has a committed target. This recipe declares no ship gates.")
                 : t(
                     "Bring up to date extracts changed sources, runs the default flow to the ship gates, and parks what needs a human.",
                   )}
@@ -219,11 +287,12 @@ export function ConvergenceHero({
                 </span>
               )}
             </p>
-            {server?.connected && (
-              <div className="mt-1.5">
-                <VenueBadge server={server} />
-              </div>
-            )}
+            {/* Which model this run will use — visible where the run is
+                launched, not only in Settings. */}
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              {server?.connected && <VenueBadge server={server} />}
+              <ActiveModelBadge tabID={tabID} />
+            </div>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -254,6 +323,34 @@ export function ConvergenceHero({
       {launchError != null && (
         <div data-slot="hero-launch-error" className="mt-3">
           <ErrorNotice error={launchError} variant="panel" detailsLabel={t("Details")} />
+        </div>
+      )}
+
+      {/* A failed catch-up run stays visible on the home surface until the next
+          run clears it — prominently, and with its remedy attached, rather than
+          being represented only as an absence in the coverage numbers. */}
+      {launchError == null && runFailed && lastRunError != null && (
+        <div data-slot="hero-run-error" className="mt-3">
+          <RunErrorNotice
+            error={lastRunError}
+            context={t("Last run failed")}
+            detailsLabel={t("Details")}
+            copiedLabel={t("Copied")}
+            onAction={onErrorAction}
+          />
+        </div>
+      )}
+
+      {/* A derivation that failed is reported as such — never as convergence. */}
+      {derivationError != null && (
+        <div data-slot="hero-derivation-error" className="mt-3">
+          <ErrorNotice
+            error={derivationError}
+            title={t("Could not determine project state")}
+            hint={t("The numbers below may be stale. Re-open the project or run again.")}
+            variant="panel"
+            detailsLabel={t("Details")}
+          />
         </div>
       )}
 
@@ -408,7 +505,7 @@ export function ConvergePlanDialog({
                   {t("Missing")}
                 </TableHead>
                 <TableHead className="h-auto px-2 py-1.5 text-right text-muted-foreground">
-                  {t("TM exact")}
+                  {t("Memory exact")}
                 </TableHead>
                 <TableHead className="h-auto px-2 py-1.5 text-right text-muted-foreground">
                   {t("AI work")}

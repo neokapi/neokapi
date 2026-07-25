@@ -229,7 +229,7 @@ func (m *OllamaManager) Delete(ctx context.Context, name string) error {
 		b, _ := io.ReadAll(resp.Body)
 		msg := strings.TrimSpace(string(b))
 		if resp.StatusCode == http.StatusNotFound {
-			return fmt.Errorf("ollama: model %q is not installed", name)
+			return ollamaModelNotInstalledError(name, "")
 		}
 		return fmt.Errorf("ollama: delete %q failed (%d): %s", name, resp.StatusCode, msg)
 	}
@@ -250,11 +250,4 @@ func (m *OllamaManager) EnsureModel(ctx context.Context, name string, onProgress
 		return false, err
 	}
 	return true, nil
-}
-
-// ollamaUnreachableError turns a connection-level failure into guidance: the
-// usual cause is that no Ollama server is running at baseURL. Shared by the
-// provider and the manager so the message is identical everywhere.
-func ollamaUnreachableError(baseURL string, err error) error {
-	return fmt.Errorf("ollama: cannot reach Ollama at %s — is it running? Start it with `ollama serve`, or install it from https://ollama.com (underlying error: %w)", baseURL, err)
 }

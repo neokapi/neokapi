@@ -39,6 +39,9 @@ export const qk = {
   providerTypes: () => ["providers", "types"] as const,
   /** Combined AI-model bundle (providers + types + catalog + default + detection). */
   aiModelData: () => ["ai", "model-data"] as const,
+  /** The provider/model a run will actually use, per (project, locale) scope. */
+  effectiveModel: (tabID: string, locale: string) =>
+    ["ai", "effective-model", tabID, locale] as const,
   defaultModel: () => ["ai", "default-model"] as const,
   aiModels: () => ["ai", "models"] as const,
   aiDetection: () => ["ai", "detection"] as const,

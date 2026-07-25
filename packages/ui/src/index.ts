@@ -8,6 +8,18 @@ export { PortalThemeProvider, usePortalThemeClass } from "./lib/portal-theme";
 // Hooks
 export { useIsMobile } from "./hooks/use-mobile";
 
+// Writing direction — locale → `dir`/`lang`, plus the bidi-isolation predicate.
+// Every surface that renders source or target text should derive `dir` from the
+// locale rather than inheriting the app's; RTL targets otherwise render with
+// scrambled punctuation, digits, and embedded LTR fragments.
+export {
+  localeDirection,
+  isRTLLocale,
+  directionAttrs,
+  needsIsolation,
+  type TextDirection,
+} from "./lib/text-direction";
+
 // Form layout primitives
 export {
   FormItem,
@@ -24,6 +36,16 @@ export {
 // Error contract — friendly-first errors with details-on-demand
 export { parseAppError, type ParsedAppError } from "./lib/parse-app-error";
 export { ErrorNotice, type ErrorNoticeProps } from "./components/ui/error-notice";
+// Classified run failures — headline + remediation actions + affected scope,
+// with the raw chain behind a disclosure. Used wherever a flow/converge run can
+// fail: the desktop's home and job feed, and the platform's run surfaces.
+export {
+  RunErrorNotice,
+  type RunErrorNoticeProps,
+  type RunErrorView,
+  type RunErrorActionView,
+  type RunErrorActionKind,
+} from "./components/ui/run-error-notice";
 
 // List containment — honest render-cap footer for truncated listings
 export { ListCapRow, type ListCapRowProps } from "./components/ui/list-cap-row";

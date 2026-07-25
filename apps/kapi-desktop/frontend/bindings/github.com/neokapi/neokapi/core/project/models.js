@@ -326,6 +326,33 @@ export class Defaults {
         }
         if (/** @type {any} */(false)) {
             /**
+             * SourceGate is the source-first convergence gate: the SourceStatus a
+             * source block must reach before its translations are produced. Source-first
+             * convergence settles the source (terminology + brand + source-QA) and gates
+             * the fan-out on it, so an unsettled, off-brand, un-term-checked source is
+             * never translated into N locales only to be redone when it changes
+             * (strategy 2026-07-dogfood doc 07 / roadmap epic 019).
+             * 
+             * Values:
+             *   ""         — unset; the runner applies the default gate (`checked`).
+             *   "authored" — the presence baseline (any non-empty source qualifies).
+             *   "checked"  — the DEFAULT: source cleared its automated terminology,
+             *                brand, and source-QA checks (no human bottleneck).
+             *   "approved" — a human/agent signed off the source (brand-critical or
+             *                regulated projects).
+             *   "none"     — the deliberate opt-out: no gate, raw MT / fan-out on push
+             *                exactly as before source-first. You have to choose it.
+             * 
+             * It is the level-based, per-project counterpart of the coverage-bar
+             * SourceGate on KapiProject (which `kapi check --ship` evaluates); this one
+             * governs the convergence fan-out.
+             * @member
+             * @type {string | undefined}
+             */
+            this["source_gate"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * "bcp-47" (default) or "posix"
              * @member
              * @type {string | undefined}
@@ -507,45 +534,45 @@ export class Defaults {
      */
     static createFrom($$source = {}) {
         const $$createField1_0 = $$createType0;
-        const $$createField9_0 = $$createType8;
-        const $$createField10_0 = $$createType9;
-        const $$createField11_0 = $$createType10;
-        const $$createField12_0 = $$createType11;
-        const $$createField13_0 = $$createType12;
-        const $$createField14_0 = $$createType6;
-        const $$createField15_0 = $$createType14;
-        const $$createField20_0 = $$createType16;
-        const $$createField21_0 = $$createType18;
+        const $$createField10_0 = $$createType8;
+        const $$createField11_0 = $$createType9;
+        const $$createField12_0 = $$createType10;
+        const $$createField13_0 = $$createType11;
+        const $$createField14_0 = $$createType12;
+        const $$createField15_0 = $$createType6;
+        const $$createField16_0 = $$createType14;
+        const $$createField21_0 = $$createType16;
+        const $$createField22_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField1_0($$parsedSource["target_languages"]);
         }
         if ("formats" in $$parsedSource) {
-            $$parsedSource["formats"] = $$createField9_0($$parsedSource["formats"]);
+            $$parsedSource["formats"] = $$createField10_0($$parsedSource["formats"]);
         }
         if ("exclude" in $$parsedSource) {
-            $$parsedSource["exclude"] = $$createField10_0($$parsedSource["exclude"]);
+            $$parsedSource["exclude"] = $$createField11_0($$parsedSource["exclude"]);
         }
         if ("merge" in $$parsedSource) {
-            $$parsedSource["merge"] = $$createField11_0($$parsedSource["merge"]);
+            $$parsedSource["merge"] = $$createField12_0($$parsedSource["merge"]);
         }
         if ("tm" in $$parsedSource) {
-            $$parsedSource["tm"] = $$createField12_0($$parsedSource["tm"]);
+            $$parsedSource["tm"] = $$createField13_0($$parsedSource["tm"]);
         }
         if ("segmentation" in $$parsedSource) {
-            $$parsedSource["segmentation"] = $$createField13_0($$parsedSource["segmentation"]);
+            $$parsedSource["segmentation"] = $$createField14_0($$parsedSource["segmentation"]);
         }
         if ("redaction" in $$parsedSource) {
-            $$parsedSource["redaction"] = $$createField14_0($$parsedSource["redaction"]);
+            $$parsedSource["redaction"] = $$createField15_0($$parsedSource["redaction"]);
         }
         if ("brand_voice" in $$parsedSource) {
-            $$parsedSource["brand_voice"] = $$createField15_0($$parsedSource["brand_voice"]);
+            $$parsedSource["brand_voice"] = $$createField16_0($$parsedSource["brand_voice"]);
         }
         if ("tools" in $$parsedSource) {
-            $$parsedSource["tools"] = $$createField20_0($$parsedSource["tools"]);
+            $$parsedSource["tools"] = $$createField21_0($$parsedSource["tools"]);
         }
         if ("locales" in $$parsedSource) {
-            $$parsedSource["locales"] = $$createField21_0($$parsedSource["locales"]);
+            $$parsedSource["locales"] = $$createField22_0($$parsedSource["locales"]);
         }
         return new Defaults(/** @type {Partial<Defaults>} */($$parsedSource));
     }
@@ -853,11 +880,38 @@ export class KapiProject {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Verified gates decide when localized content is "human-verified": the
+             * second gate, evaluated exactly like the ship gate but against a bar that
+             * implies a person reviewed or signed off the work (e.g. {reviewed: 100}).
+             * A locale that clears its ship gate but not its verified gate ships flagged
+             * AI in a language picker; a verified locale carries no badge. The two gates
+             * are independent — being verified is not a prerequisite for shipping. Same
+             * additive forms and precedence as the ship gate, resolving a rule's
+             * `gate: <name>` reference against the same Gates registry:
+             *   VerifiedGate  — a single catch-all gate.
+             *   VerifiedGates — a when/gate rule list; most-specific rule wins.
+             * With NO verified gate configured, nothing is verified: BuildVerifiedGates
+             * returns an empty RuleSet, so every locale reads unverified (the honest
+             * default — a project opts in to "verified" by declaring the bar).
+             * @member
+             * @type {gate$0.Gate | undefined}
+             */
+            this["verified_gate"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {ShipGateRule[] | undefined}
+             */
+            this["verified_gates"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * SourceGate is the source-readiness bar: a single coverage gate over the
              * source authoring ladder (authored → checked → approved), e.g.
              * {checked: 100}. It is the source-side counterpart of ShipGate — it gates
              * the author's own content, not the translations. BuildSourceGate
-             * resolves it; evaluated by `kapi verify --ship` (never an ordinary
+             * resolves it; evaluated by `kapi check --ship` (never an ordinary
              * build).
              * @member
              * @type {gate$0.Gate | undefined}
@@ -898,7 +952,9 @@ export class KapiProject {
         const $$createField8_0 = $$createType30;
         const $$createField9_0 = $$createType31;
         const $$createField10_0 = $$createType19;
-        const $$createField11_0 = $$createType32;
+        const $$createField11_0 = $$createType30;
+        const $$createField12_0 = $$createType19;
+        const $$createField13_0 = $$createType32;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField2_0($$parsedSource["plugins"]);
@@ -921,11 +977,17 @@ export class KapiProject {
         if ("gates" in $$parsedSource) {
             $$parsedSource["gates"] = $$createField9_0($$parsedSource["gates"]);
         }
+        if ("verified_gate" in $$parsedSource) {
+            $$parsedSource["verified_gate"] = $$createField10_0($$parsedSource["verified_gate"]);
+        }
+        if ("verified_gates" in $$parsedSource) {
+            $$parsedSource["verified_gates"] = $$createField11_0($$parsedSource["verified_gates"]);
+        }
         if ("source_gate" in $$parsedSource) {
-            $$parsedSource["source_gate"] = $$createField10_0($$parsedSource["source_gate"]);
+            $$parsedSource["source_gate"] = $$createField12_0($$parsedSource["source_gate"]);
         }
         if ("requires" in $$parsedSource) {
-            $$parsedSource["requires"] = $$createField11_0($$parsedSource["requires"]);
+            $$parsedSource["requires"] = $$createField13_0($$parsedSource["requires"]);
         }
         return new KapiProject(/** @type {Partial<KapiProject>} */($$parsedSource));
     }

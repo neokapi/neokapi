@@ -252,6 +252,7 @@ export function HomePage({
           onBringUpToDate={onBringUpToDate}
           convergence={convergence}
           plan={plan}
+          onOpenSettings={onNavigate}
         />
       )}
 
