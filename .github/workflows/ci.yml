@@ -839,6 +839,8 @@ jobs:
         run: ./scripts/check-docs-bowrain-clean.sh
       - name: Guard — no absolute home paths in tracked files
         run: ./scripts/check-abs-paths.sh
+      - name: Guard — pnpm lockfile keeps its registry provenance
+        run: ./scripts/check-lockfile-provenance.sh
 
   # ── GitHub Actions Lint ──────────────────────────────────────────────────
   gha-lint:
