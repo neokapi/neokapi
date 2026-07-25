@@ -171,7 +171,7 @@ const config: Config = {
           // APIs, not neokapi functionality); provider setup lives in the
           // Use-with-Claude/models docs, and /labs maps the remaining labs.
           { from: "/lab/models", to: "/labs" },
-          // The file-format vocabulary rename (.klf → .kbf.json, .klz → .kpz):
+          // The file-format vocabulary rename (.klf → .kbf → .kbf.json, .klz → .kpz):
           // the *format* is a hard rename with no back-compat, but the
           // published doc URLs are indexed, so the old routes redirect. These
           // "klf" strings are historical route names, not live vocabulary.
