@@ -180,6 +180,7 @@ var (
 	ParseSedProgram              = host.ParseSedProgram
 	PrintPresetList              = host.PrintPresetList
 	PrintUpResult                = host.PrintUpResult
+	PrintUpResultStream          = host.PrintUpResultStream
 	ReadPOForMerge               = host.ReadPOForMerge
 	ReadProfileInput             = host.ReadProfileInput
 	ReadSubjectText              = host.ReadSubjectText

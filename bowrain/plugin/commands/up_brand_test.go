@@ -3,8 +3,11 @@ package commands
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"syscall"
 	"testing"
 
+	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -54,7 +57,7 @@ func TestReportBrandPush_TextMatchesPushFooter(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			cmd, stdout, stderr := brandReportCmd()
-			reportBrandPush(cmd, tc.res, false)
+			require.NoError(t, reportBrandPush(cmd, nil, tc.res, false))
 			assert.Equal(t, tc.want, stderr.String(), "the footer renders on stderr, next to the push messages")
 			assert.Empty(t, stdout.String(), "text mode writes nothing to stdout")
 		})
@@ -65,7 +68,7 @@ func TestReportBrandPush_TextMatchesPushFooter(t *testing.T) {
 // NDJSON line with the same field names `kapi push --json` uses.
 func TestReportBrandPush_JSONLine(t *testing.T) {
 	cmd, stdout, stderr := brandReportCmd()
-	reportBrandPush(cmd, &PushBrandResult{Name: "Acme Voice", Action: "updated", Version: 4}, true)
+	require.NoError(t, reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "updated", Version: 4}, true))
 
 	assert.Empty(t, stderr.String(), "JSON mode writes nothing to stderr")
 	var line map[string]any
@@ -81,7 +84,7 @@ func TestReportBrandPush_JSONLine(t *testing.T) {
 // still surfaces its reason on the NDJSON line.
 func TestReportBrandPush_JSONSkippedCarriesReason(t *testing.T) {
 	cmd, stdout, _ := brandReportCmd()
-	reportBrandPush(cmd, &PushBrandResult{Name: "Acme Voice", Action: "skipped", Reason: "requires the manage-brand permission"}, true)
+	require.NoError(t, reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "skipped", Reason: "requires the manage-brand permission"}, true))
 
 	var line map[string]any
 	require.NoError(t, json.Unmarshal(stdout.Bytes(), &line))
@@ -96,7 +99,7 @@ func TestReportBrandPush_JSONSkippedCarriesReason(t *testing.T) {
 func TestReportBrandPush_NilResultIsSilent(t *testing.T) {
 	for _, jsonOut := range []bool{false, true} {
 		cmd, stdout, stderr := brandReportCmd()
-		reportBrandPush(cmd, nil, jsonOut)
+		require.NoError(t, reportBrandPush(cmd, nil, nil, jsonOut))
 		assert.Empty(t, stdout.String())
 		assert.Empty(t, stderr.String())
 	}
@@ -111,13 +114,71 @@ func TestReportBrandPush_QuietSuppressesTextNotJSON(t *testing.T) {
 	t.Cleanup(func() { app = prev })
 
 	cmd, stdout, stderr := brandReportCmd()
-	reportBrandPush(cmd, &PushBrandResult{Name: "Acme Voice", Action: "created", Version: 1}, false)
+	require.NoError(t, reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "created", Version: 1}, false))
 	assert.Empty(t, stderr.String(), "quiet suppresses the text footer")
 	assert.Empty(t, stdout.String())
 
 	cmd, stdout, _ = brandReportCmd()
-	reportBrandPush(cmd, &PushBrandResult{Name: "Acme Voice", Action: "created", Version: 1}, true)
+	require.NoError(t, reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "created", Version: 1}, true))
 	assert.NotEmpty(t, stdout.String(), "the NDJSON line is structured output, not chatter")
+}
+
+// nthWriteFailer fails the nth Write (1-based) with err and succeeds otherwise.
+// The failure sits at the writer so json.Encoder stays in the path, exercising the
+// same wrapping a real stdout failure has.
+type nthWriteFailer struct {
+	n      int
+	err    error
+	writes int
+	buf    bytes.Buffer
+}
+
+func (w *nthWriteFailer) Write(p []byte) (int, error) {
+	w.writes++
+	if w.writes == w.n {
+		return 0, w.err
+	}
+	return w.buf.Write(p)
+}
+
+// TestReportBrandPush_ReportsTruncation is the regression for the dropped
+// `_ = enc.Encode(...)` at up.go's brand-push record. Unlike host's
+// PrintUpResult, this discriminated record's error was thrown away, so a consumer
+// could be told a brand profile travelled when its line never landed.
+func TestReportBrandPush_ReportsTruncation(t *testing.T) {
+	cmd := &cobra.Command{Use: "server-up"}
+	w := &nthWriteFailer{n: 1, err: &os.PathError{Op: "write", Path: "/out.ndjson", Err: syscall.ENOSPC}}
+	cmd.SetOut(w)
+
+	err := reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "created", Version: 1}, true)
+	require.Error(t, err, "a record the consumer never received must not be reported as sent")
+	assert.ErrorIs(t, err, syscall.ENOSPC)
+}
+
+// TestReportBrandPush_ClosedConsumerIsQuiet is the discriminating control: a
+// consumer that closed the pipe must not fail the push.
+func TestReportBrandPush_ClosedConsumerIsQuiet(t *testing.T) {
+	cmd := &cobra.Command{Use: "server-up"}
+	w := &nthWriteFailer{n: 1, err: &os.PathError{Op: "write", Path: "/dev/stdout", Err: syscall.EPIPE}}
+	cmd.SetOut(w)
+
+	assert.NoError(t, reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "created", Version: 1}, true),
+		"`kapi up --json | head` must not fail the push")
+}
+
+// TestReportBrandPush_SharesTheRunStream asserts the record joins the caller's
+// NDJSON document rather than opening a private encoder: a truncation at the brand
+// line is then still reported by the run's single closing check, so bowrain's
+// stream accounting matches kapi's instead of drifting from it.
+func TestReportBrandPush_SharesTheRunStream(t *testing.T) {
+	cmd := &cobra.Command{Use: "server-up"}
+	w := &nthWriteFailer{n: 1, err: &os.PathError{Op: "write", Path: "/out.ndjson", Err: syscall.ENOSPC}}
+	cmd.SetOut(w)
+	stream := output.NewNDJSONStream(cmd.OutOrStdout())
+
+	require.Error(t, reportBrandPush(cmd, stream, &PushBrandResult{Name: "Acme Voice", Action: "created"}, true))
+	require.Error(t, stream.Report("kapi up --json"),
+		"the shared stream remembers the loss, so the run's own check reports it too")
 }
 
 // TestUpCmdHasNoBrandFlag asserts the up verb mirrors push's --no-brand opt-out.

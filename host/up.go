@@ -1,7 +1,6 @@
 package host
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -9,6 +8,7 @@ import (
 	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/host/output"
 )
 
 // formatPlanLine compresses the up-plan into the one-line header a run prints
@@ -154,9 +154,13 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 	// --quiet keeps today's summary-only behavior.
 	jsonOut := BoolFlag(cmd, "json")
 	var onEvent func(convergence.Event)
+	var stream *output.NDJSONStream
 	if jsonOut {
-		enc := json.NewEncoder(cmd.OutOrStdout())
-		onEvent = func(ev convergence.Event) { _ = enc.Encode(ev) }
+		// One stream for the whole NDJSON document — every progress line and the
+		// closing result record — so a truncation anywhere in it is reported once,
+		// at the end, instead of failing per event or vanishing.
+		stream = output.NewNDJSONStream(cmd.OutOrStdout())
+		onEvent = func(ev convergence.Event) { stream.Emit(ev) }
 	} else if !a.Quiet {
 		// Plan-first: one line of scope before any tokens burn (the
 		// full dry-run table stays under --plan).
@@ -191,20 +195,39 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 	}); err != nil {
 		return err
 	}
-	return PrintUpResult(cmd, result)
+	return PrintUpResultStream(cmd, stream, result)
 }
 
-// PrintUpResult renders a convergence result the way `kapi up` does: the
-// text summary, or — under --json — the NDJSON stream's closing record (the
-// structured result, flat, discriminated like every other line). Exported for
-// the plugin's up verb, whose remote venue produces the same ConvergeOutput.
+// PrintUpResult renders a convergence result the way `kapi up` does. Callers that
+// streamed events into an NDJSONStream should use PrintUpResultStream instead, so
+// the closing record joins the same stream and a truncation anywhere in the
+// document is reported once.
 func PrintUpResult(cmd Command, result ConvergeOutput) error {
-	if BoolFlag(cmd, "json") {
-		enc := json.NewEncoder(cmd.OutOrStdout())
-		return enc.Encode(struct {
-			Type string `json:"type"`
-			ConvergeOutput
-		}{Type: "result", ConvergeOutput: result})
+	return PrintUpResultStream(cmd, nil, result)
+}
+
+// PrintUpResultStream renders a convergence result: the text summary, or — under
+// --json — the NDJSON stream's closing record (the structured result, flat,
+// discriminated like every other line), written to stream. A nil stream gets a
+// fresh one, so a caller with no event phase needs no ceremony. Exported for the
+// plugin's up verb, whose remote venue produces the same ConvergeOutput.
+//
+// The returned error carries the stream's verdict, not just this record's: an
+// encode that failed 200 events ago left the consumer with a truncated document
+// and must fail the command, while a consumer that closed the pipe must not
+// (`kapi up --json | head` is ordinary use).
+func PrintUpResultStream(cmd Command, stream *output.NDJSONStream, result ConvergeOutput) error {
+	if !BoolFlag(cmd, "json") {
+		return result.FormatText(cmd.OutOrStdout())
 	}
-	return result.FormatText(cmd.OutOrStdout())
+	if stream == nil {
+		stream = output.NewNDJSONStream(cmd.OutOrStdout())
+	}
+	// The record's own failure is already recorded on the stream; Report renders
+	// it — with the count of what got through — for every path.
+	_ = stream.Encode(struct {
+		Type string `json:"type"`
+		ConvergeOutput
+	}{Type: "result", ConvergeOutput: result})
+	return stream.Report("kapi up --json")
 }

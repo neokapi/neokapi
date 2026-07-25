@@ -129,7 +129,7 @@ func (a *App) RunMerge(cmd Command) error {
 	// historical human report byte-for-byte, so text mode is unchanged while
 	// --json gets a documented document on stdout.
 	res := output.MergeOutput{ConflictPolicy: policy}
-	sink := progressSink(cmd)
+	sink, progressReport := progressSink(cmd)
 	emit := func(ev FlowRunEvent) {
 		if sink != nil {
 			ev.Flow = "merge"
@@ -192,7 +192,9 @@ func (a *App) RunMerge(cmd Command) error {
 	if failures > 0 {
 		return fmt.Errorf("merge: %d input file(s) failed — see errors above", failures)
 	}
-	return nil
+	// A truncated progress feed is reported after the result, so the deliverable
+	// still lands and the consumer still learns its feed was incomplete.
+	return progressReport()
 }
 
 // MergeFromProjectStore materializes localized files from the project block

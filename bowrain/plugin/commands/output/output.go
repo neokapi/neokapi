@@ -15,7 +15,16 @@ type (
 	Format = shared.Format
 	Table  = shared.Table
 	Styles = shared.Styles
+
+	// NDJSONStream is the shared NDJSON writer with the sticky-error policy: a
+	// consumer that closed the pipe stops the stream quietly, any other write
+	// failure is remembered and reported once. bowrain's --json event streams use
+	// the same one as kapi's, so the two cannot drift.
+	NDJSONStream = shared.NDJSONStream
 )
+
+// NewNDJSONStream returns a stream writing NDJSON to w.
+func NewNDJSONStream(w io.Writer) *NDJSONStream { return shared.NewNDJSONStream(w) }
 
 const (
 	FormatText = shared.FormatText

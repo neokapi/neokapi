@@ -307,7 +307,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	// NDJSON progress (--progress jsonl): the flow-run event vocabulary on
 	// stderr, so machine consumers get the same event stream the desktop
 	// run sink receives.
-	sink := progressSink(cmd)
+	sink, progressReport := progressSink(cmd)
 	emit := func(ev FlowRunEvent) {
 		if sink != nil {
 			ev.Flow = flowName
@@ -444,9 +444,11 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 		}
 		if !a.Quiet {
 			out := output.FlowRunOutput{FlowName: flowName, InputPath: inputPath, OutputPath: outputPath}
-			return output.Print(cmd, out)
+			if err := output.Print(cmd, out); err != nil {
+				return err
+			}
 		}
-		return nil
+		return progressReport()
 	}
 
 	if err := runner.RunFile(ctx, flowName, flowTools, inputPath, outputPath, a.TargetLang); err != nil {
@@ -482,9 +484,13 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 			InputPath:  inputPath,
 			OutputPath: outputPath,
 		}
-		return output.Print(cmd, out)
+		if err := output.Print(cmd, out); err != nil {
+			return err
+		}
 	}
-	return nil
+	// A truncated progress feed is reported after the result, so the deliverable
+	// still lands and the consumer still learns its feed was incomplete.
+	return progressReport()
 }
 
 // writeTraceFile serializes a trace to JSON and writes it to disk. toolNames is
@@ -597,7 +603,7 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 
 	// NDJSON progress (--progress jsonl); the sink is mutex-guarded, so the
 	// concurrent per-file goroutines may emit directly.
-	sink := progressSink(cmd)
+	sink, progressReport := progressSink(cmd)
 	emit := func(ev FlowRunEvent) {
 		if sink != nil {
 			ev.Flow = flowName
@@ -701,12 +707,16 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd Command, flowName string
 	})
 
 	if !a.Quiet {
-		return output.Print(cmd, output.FlowRunOutput{
+		if err := output.Print(cmd, output.FlowRunOutput{
 			FlowName:       flowName,
 			FilesProcessed: processed,
-		})
+		}); err != nil {
+			return err
+		}
 	}
-	return nil
+	// A truncated progress feed is reported after the result, so the deliverable
+	// still lands and the consumer still learns its feed was incomplete.
+	return progressReport()
 }
 
 // processFlowFile performs the full read → process → write cycle for a single file.
