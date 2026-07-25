@@ -58,7 +58,7 @@ it:
 ```bash
 kapi memory export -o l10n/tm/cli-nb.memory.json
 kapi terms import seeds/terms.json    # format detected from the extension
-kapi terms export --format bundle -o glossary.terms.json   # or name it explicitly
+kapi terms export --format bundle -o brand.terms.json   # or name it explicitly
 ```
 
 The explicit spelling is `--format bundle` for both stores. It is not called
@@ -79,18 +79,18 @@ by an explicit `-o` path.
 
 ### Where terms live when nothing is bound
 
-Your glossary belongs at the **repository root**, as `terms.json` — not under
-`.kapi/`. `.kapi/` is gitignored, so a glossary kept there would never be
+Your terms bundle belongs at the **repository root**, as `terms.json` — not
+under `.kapi/`. `.kapi/` is gitignored, so a terms bundle kept there would never be
 committed, never show up in a diff, and never get reviewed, which defeats the
 point of keeping terminology as source. The bundle is the committed source;
 `.kapi/termbase.db` is the throwaway cache it compiles into.
 
 So the fallback ladder is `<root>/terms.json` first, then
 `<root>/.kapi/terms.json` — the second rung only for a project that deliberately
-keeps its glossary local and uncommitted.
+keeps its terms bundle local and uncommitted.
 
 Content memory has no such fallback, and that asymmetry is deliberate: **a
-project has one glossary but many content-memory bundles**, typically one per
+project has one terms bundle but many content-memory bundles**, typically one per
 content surface. This repository's own dogfood commits a bundle per surface
 under `l10n/tm/` against a single `l10n/terms.json`. A convention needs one
 obvious answer to point at; terms has one and memory does not, so a memory seed
