@@ -154,7 +154,7 @@ GroupStart, GroupEnd, Block, Data, Media).
 {"layer_start":{"id":"doc","format":"html","locale":"en","mime_type":"text/html"}}
 {"data":{"id":"d1"}}
 {"block":{"id":"b1","translatable":true,"source":[{"type":"text","text":"Press "},{"type":"pcOpen","id":"1","semantic":"fmt:bold","data":"<b>"},{"type":"text","text":"Start"},{"type":"pcClose","id":"1","semantic":"fmt:bold","data":"</b>"}],"properties":{"resname":"intro"}}}
-{"block":{"id":"b2","translatable":true,"source":[{"type":"text","text":"Hello"}],"targets":{"fr-FR":[{"type":"text","text":"Bonjour"}]},"overlays":[{"type":"segmentation","spans":[{"id":"s1","range":[0,0,0,5]}]}]}}
+{"block":{"id":"b2","translatable":true,"source":[{"type":"text","text":"Hello"}],"targets":{"fr":[{"type":"text","text":"Bonjour"}]},"overlays":[{"type":"segmentation","spans":[{"id":"s1","range":[0,0,0,5]}]}]}}
 {"layer_end":{"id":"doc"}}
 ```
 

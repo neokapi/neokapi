@@ -4,20 +4,26 @@ import (
 	"github.com/leonelquinteros/gotext"
 
 	corei18n "github.com/neokapi/neokapi/core/i18n"
+	loc "github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 )
 
 // Catalog returns the embedded CLI MO catalog for the given locale, or nil
-// when no catalog has been compiled for it. Lookup is exact (same
-// convention as core/i18n's embedded catalogs — no language-tag fallback).
+// when no catalog has been compiled for it or any of its fallbacks. Lookup
+// follows locale.Fallbacks — exact tag first, then the CLDR-minimal form, then
+// the bare language — matching core/i18n's embedded catalogs, so a user whose
+// config still says "nb-NO" gets the "nb" catalog instead of English.
 func Catalog(locale model.LocaleID) *gotext.Mo {
-	data, err := catalogFS.ReadFile("catalogs/" + string(locale) + ".mo")
-	if err != nil {
-		return nil
+	for _, cand := range loc.Fallbacks(locale) {
+		data, err := catalogFS.ReadFile("catalogs/" + string(cand) + ".mo")
+		if err != nil {
+			continue
+		}
+		mo := gotext.NewMo()
+		mo.Parse(data)
+		return mo
 	}
-	mo := gotext.NewMo()
-	mo.Parse(data)
-	return mo
+	return nil
 }
 
 // Resolve builds the Translator for a CLI binary: it runs the framework's

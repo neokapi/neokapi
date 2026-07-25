@@ -140,7 +140,7 @@ kapi extract --redact
 # ... translator fills in targets, preserving the placeholders ...
 
 # Restore the originals into the merged target
-kapi merge -i out/app.en-US-to-fr-FR.xliff
+kapi merge -i out/app.en-to-fr.xliff
 ```
 
 Pass `--redact-rules <path>` to point at a rules file directly, or enable

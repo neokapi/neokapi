@@ -70,7 +70,7 @@ examples:
     config: |
       command: my-formatter
       applyTarget: true
-      targetLocale: fr-FR
+      targetLocale: fr
   - title: Pass text as an argument
     description: Substitute the text into the argument list instead of stdin.
     config: |

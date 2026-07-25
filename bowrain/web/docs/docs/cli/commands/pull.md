@@ -29,10 +29,10 @@ kapi pull [flags]
 kapi pull
 
 # Pull only French translations
-kapi pull --locale fr-FR
+kapi pull --locale fr
 
 # Pull multiple locales
-kapi pull --locale fr-FR --locale de-DE
+kapi pull --locale fr --locale de
 
 # Show what would be pulled without making changes
 kapi pull --dry-run
@@ -68,10 +68,10 @@ without downloading everything:
 
 ```bash
 # Only French
-kapi pull --locale fr-FR
+kapi pull --locale fr
 
 # French and German
-kapi pull --locale fr-FR --locale de-DE
+kapi pull --locale fr --locale de
 ```
 
 This is efficient because the server's change log is indexed by locale.

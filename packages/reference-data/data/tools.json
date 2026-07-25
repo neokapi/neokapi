@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-25T14:07:26Z",
+  "generatedAt": "2026-07-25T14:36:34Z",
   "kind": "tool",
   "entries": [
     {
@@ -538,7 +538,7 @@
           {
             "title": "Extract entities and terms with Anthropic",
             "description": "Analyse source blocks one at a time with an Anthropic model.",
-            "config": "provider: anthropic\nlocale: en-US\n"
+            "config": "provider: anthropic\nlocale: en\n"
           },
           {
             "title": "Batched extraction",
@@ -1037,7 +1037,7 @@
           },
           "targetLocale": {
             "description": "The locale to create a target for.",
-            "help": "The BCP-47 locale identifier for the target to create (for example\n`fr-FR`). On the CLI and in flows this is typically supplied by the\n`--target-lang` value.\n",
+            "help": "The BCP-47 locale identifier for the target to create (for example\n`fr`). On the CLI and in flows this is typically supplied by the\n`--target-lang` value.\n",
             "values": "BCP-47 locale (required)"
           }
         },
@@ -1048,12 +1048,12 @@
           {
             "title": "Create empty targets for a locale",
             "description": "Prepare empty target containers ready for translation.",
-            "config": "targetLocale: fr-FR\n"
+            "config": "targetLocale: fr\n"
           },
           {
             "title": "Pre-fill targets with the source",
             "description": "Seed targets with source text as a starting draft.",
-            "config": "targetLocale: de-DE\ncopySource: true\n"
+            "config": "targetLocale: de\ncopySource: true\n"
           }
         ]
       }
@@ -1426,7 +1426,7 @@
           {
             "title": "Pipe target text through a formatter",
             "description": "Run an external program on the target, sending text on stdin.",
-            "config": "command: my-formatter\napplyTarget: true\ntargetLocale: fr-FR\n"
+            "config": "command: my-formatter\napplyTarget: true\ntargetLocale: fr\n"
           },
           {
             "title": "Pass text as an argument",
@@ -1550,12 +1550,12 @@
           {
             "title": "Strip codes from the target",
             "description": "Produce plain target text for a locale.",
-            "config": "applyTarget: true\ntargetLocale: fr-FR\n"
+            "config": "applyTarget: true\ntargetLocale: fr\n"
           },
           {
             "title": "Keep word boundaries at line breaks",
             "description": "Replace line-break codes with a space when stripping.",
-            "config": "applyTarget: true\ntargetLocale: fr-FR\nreplaceWithSpace: true\n"
+            "config": "applyTarget: true\ntargetLocale: fr\nreplaceWithSpace: true\n"
           }
         ]
       }
@@ -3127,7 +3127,7 @@
           {
             "title": "Clear one locale's targets",
             "description": "Remove the French targets from every block.",
-            "config": "targetLocale: fr-FR\n"
+            "config": "targetLocale: fr\n"
           },
           {
             "title": "Remove targets for selected text units",
@@ -4718,12 +4718,12 @@
           {
             "title": "Normalize spacing for a locale",
             "description": "Apply the default whitespace cleanup to a target.",
-            "config": "targetLocale: fr-FR\n"
+            "config": "targetLocale: fr\n"
           },
           {
             "title": "Tidy CJK punctuation spacing",
             "description": "Remove spaces after punctuation for a non-space-delimited target.",
-            "config": "targetLocale: zh-CN\ncorrectFullStop: true\ncorrectComma: true\n"
+            "config": "targetLocale: zh-Hans\ncorrectFullStop: true\ncorrectComma: true\n"
           }
         ]
       }
@@ -4813,7 +4813,7 @@
           "locale": {
             "description": "Target locale to validate.",
             "help": "The locale whose translation is validated when target checking is enabled.\nRequired when `checkTarget` is on; ignored otherwise.\n",
-            "values": "BCP-47 locale (e.g. `fr-FR`)",
+            "values": "BCP-47 locale (e.g. `fr`)",
             "dependsOn": [
               {
                 "property": "checkTarget",
@@ -4843,7 +4843,7 @@
           {
             "title": "Validate target as well",
             "description": "Also validate the French translation, treating each block as a fragment.",
-            "config": "checkTarget: true\nlocale: fr-FR\n"
+            "config": "checkTarget: true\nlocale: fr\n"
           }
         ]
       }

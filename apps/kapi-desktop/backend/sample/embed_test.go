@@ -30,8 +30,8 @@ func TestScaffoldKapiMart(t *testing.T) {
 	proj, err := project.Load(filepath.Join(dir, "kapi.yaml"))
 	require.NoError(t, err)
 	assert.Equal(t, "KapiMart", proj.Name)
-	assert.Equal(t, model.LocaleID("en-US"), proj.Defaults.SourceLanguage)
-	assert.Equal(t, []model.LocaleID{"de-DE", "fr-FR", "ja-JP", "nb-NO", "ar-SA"}, proj.Defaults.TargetLanguages)
+	assert.Equal(t, model.LocaleID("en"), proj.Defaults.SourceLanguage)
+	assert.Equal(t, []model.LocaleID{"de", "fr", "ja", "nb", "ar"}, proj.Defaults.TargetLanguages)
 
 	// 4 named content collections.
 	require.Len(t, proj.Content, 4)
@@ -43,11 +43,11 @@ func TestScaffoldKapiMart(t *testing.T) {
 	// 3 flows.
 	assert.NotEmpty(t, proj.Flows)
 
-	// Source file counts per area (natural layout: <area>/en-US/…).
-	assertDirCount(t, filepath.Join(dir, "web", "en-US"), 7)
-	assertDirCount(t, filepath.Join(dir, "src", "en-US"), 5)
-	assertDirCount(t, filepath.Join(dir, "legal", "en-US"), 2)
-	assertDirCount(t, filepath.Join(dir, "marketing", "en-US"), 2)
+	// Source file counts per area (natural layout: <area>/en/…).
+	assertDirCount(t, filepath.Join(dir, "web", "en"), 7)
+	assertDirCount(t, filepath.Join(dir, "src", "en"), 5)
+	assertDirCount(t, filepath.Join(dir, "legal", "en"), 2)
+	assertDirCount(t, filepath.Join(dir, "marketing", "en"), 2)
 
 	// No separate output/ tree — localized files land beside source in locale dirs.
 	_, err = os.Stat(filepath.Join(dir, "output"))

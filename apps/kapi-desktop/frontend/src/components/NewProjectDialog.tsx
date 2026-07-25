@@ -22,7 +22,7 @@ interface NewProjectDialogProps {
 export function NewProjectDialog({ onCreate, onCancel, shortenHome }: NewProjectDialogProps) {
   const { locales } = useLocales();
   const [name, setName] = useState("");
-  const [sourceLang, setSourceLang] = useState("en-US");
+  const [sourceLang, setSourceLang] = useState("en");
   const [customPath, setCustomPath] = useState("");
   // eslint-disable-next-line no-control-regex -- intentional check for control characters in filenames
   const INVALID = /[<>:"/\\|?*\x00-\x1f]/;

@@ -474,7 +474,7 @@ func (s *PluginSpec) UnmarshalYAML(node *yaml.Node) error {
 // Collection (has name and items):
 //
 //   - name: Marketing
-//     target_languages: [fr-FR]
+//     target_languages: [fr]
 //     items:
 //   - path: "marketing/*.html"
 //     format: okf_html

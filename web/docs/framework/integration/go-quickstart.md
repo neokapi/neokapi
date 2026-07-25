@@ -71,8 +71,8 @@ func run() error {
 	ctx := context.Background()
 
 	const (
-		sourceLocale = model.LocaleID("en-US")
-		targetLocale = model.LocaleID("fr-FR")
+		sourceLocale = model.LocaleID("en")
+		targetLocale = model.LocaleID("fr")
 		outputPath   = "messages.xlf"
 	)
 
@@ -200,7 +200,7 @@ wrote messages.xlf
 
 ```xml title="messages.xlf"
 <?xml version="1.0" encoding="UTF-8"?>
-<xliff xmlns="urn:oasis:names:tc:xliff:document:2.2" version="2.2" srcLang="en-US" trgLang="fr-FR">
+<xliff xmlns="urn:oasis:names:tc:xliff:document:2.2" version="2.2" srcLang="en" trgLang="fr">
   <file id="messages.json">
     <unit id="tu1" name="greeting">
       <segment>
@@ -267,10 +267,10 @@ tool chain, output) for you:
 ```go
 runner := flow.NewFileRunner(flow.FileRunnerConfig{
 	FormatReg:    reg,
-	SourceLocale: "en-US",
+	SourceLocale: "en",
 })
 err := runner.RunFile(ctx, "pseudo", []tool.Tool{pseudo},
-	"messages.json", "messages.out.json", "fr-FR")
+	"messages.json", "messages.out.json", "fr")
 ```
 
 For batches of files run in parallel, `flow.NewExecutor` takes a built flow and a

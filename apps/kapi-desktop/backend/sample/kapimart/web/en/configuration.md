@@ -39,7 +39,7 @@ log_level: info
 # Regional settings
 region: eu-west
 currency: EUR
-locale: de-DE
+locale: de
 
 # Rate limiting
 rate_limit:
@@ -60,7 +60,7 @@ locale and currency for your integration:
 ```javascript
 const client = new KapiMart({
   apiKey: process.env.KAPIMART_API_KEY,
-  locale: "ja-JP",
+  locale: "ja",
   currency: "JPY",
   // Prices returned in yen (no decimal subdivision)
 });

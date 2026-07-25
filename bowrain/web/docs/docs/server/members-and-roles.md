@@ -78,7 +78,7 @@ A template is assembled from individual permissions grouped by area:
 Adding someone to a project draws on both mechanisms above. From a project's
 members surface you assign a workspace member a **role template**, and — for the
 language-scoped templates such as Translator and Reviewer — an optional set of
-**languages** they are limited to. A reviewer scoped to `fr-FR` sees and acts on
+**languages** they are limited to. A reviewer scoped to `fr` sees and acts on
 French work only; leaving the language list empty grants all languages.
 
 This is how a single project can host translators for different languages, a

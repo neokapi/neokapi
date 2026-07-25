@@ -35,7 +35,7 @@ describe("RunnerPage", () => {
 
   it("shows target language input", () => {
     renderWithProviders(<RunnerPage {...defaultProps} />);
-    expect(screen.getByPlaceholderText("e.g. fr-FR")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("e.g. fr")).toBeInTheDocument();
   });
 
   it("has disabled Run button when no target lang", () => {

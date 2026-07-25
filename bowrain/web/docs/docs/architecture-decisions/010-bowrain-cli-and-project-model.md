@@ -208,8 +208,8 @@ my-app/
 │       └── collections/
 └── src/
     └── locales/
-        ├── en-US.json
-        └── fr-FR.json
+        ├── en.json
+        └── fr.json
 ```
 
 Ownership:
@@ -239,8 +239,8 @@ version: v1
 name: My App
 
 defaults:
-  source_language: en-US
-  target_languages: [fr-FR, de-DE, ja-JP]
+  source_language: en
+  target_languages: [fr, de, ja]
   collection: ui/strings
   exclude:
     - "**/*.test.json"

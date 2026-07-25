@@ -135,8 +135,8 @@ version: v1
 name: my-app
 
 defaults:
-  source_language: en-US
-  target_languages: [fr-FR, de-DE]
+  source_language: en
+  target_languages: [fr, de]
 
 server:
   url: https://bowrain.example.com/my-team/abc123

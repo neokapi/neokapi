@@ -234,18 +234,18 @@ kind: kapi-extraction
 batchId: 6f2e8a1c-...
 generator: { id: kapi, version: v1.x }
 createdAt: 2026-04-24T10:00:00Z
-sourceLocale: en-US
+sourceLocale: en
 options: { format: xliff2, xliffVersion: "2.2", noMemory: false }
 pairs:
-  - targetLocale: fr-FR
+  - targetLocale: fr
     output: out/myapp-en-to-fr.xliff
     files:
-      - source: src/locales/en-US/app.json
+      - source: src/locales/en/app.json
         sourceHash: sha256:...
         blocks: 412
         leverage: { exact: 108, fuzzy: 67, new: 237 }
         skeleton: skel-<source-hash>.bin
-  - targetLocale: de-DE
+  - targetLocale: de
     output: out/myapp-en-to-de.xliff
     files: [...]
 ```
@@ -334,8 +334,8 @@ Three new sections on `Defaults`:
 
 ```yaml
 defaults:
-  source_language: en-US
-  target_languages: [fr-FR, de-DE, es-ES]
+  source_language: en
+  target_languages: [fr, de, es]
   merge:
     conflict_policy: translator-wins # | existing-wins | newest-wins
   tm:

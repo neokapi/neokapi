@@ -47,8 +47,8 @@ make up the [content model](/framework/content-model).
   of text. See [Content Model](/framework/content-model).
 
 - **VariantKey** — the key that identifies a Target: a locale plus optional tone
-  or channel. *Analogy:* the address of one rendition of a Block (e.g. `fr-FR`,
-  or `fr-FR` + "formal").
+  or channel. *Analogy:* the address of one rendition of a Block (e.g. `fr`,
+  or `fr` + "formal").
 
 - **Resource** — the payload a Part carries (a Block, Data, or Media). The Part
   is the envelope; the Resource is the content.

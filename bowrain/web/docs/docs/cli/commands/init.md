@@ -42,7 +42,7 @@ existing workspace or create a new one.
 kapi init
 
 # Non-interactive: local project with locales
-kapi init --name "My App" --source en-US --targets fr-FR,de-DE,ja-JP
+kapi init --name "My App" --source en --targets fr,de,ja
 
 # Non-interactive: anonymous project (prints claim URL)
 kapi init --anonymous --name "My App" --source en
@@ -111,8 +111,8 @@ version: v1
 name: my-app
 
 defaults:
-  source_language: en-US
-  target_languages: [fr-FR, de-DE, ja-JP]
+  source_language: en
+  target_languages: [fr, de, ja]
 
 content:
   - path: src/locales/**/*.json

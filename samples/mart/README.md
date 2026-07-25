@@ -40,19 +40,19 @@ do-not-translate so a check passes whichever instance is in use.
 samples/mart/
 ├── README.md            # this file — the source of truth
 ├── src/
-│   ├── en-US.json       # source (nested, i18next-style keys)
+│   ├── en.json          # source (nested, i18next-style keys)
 │   ├── about.md         # source prose document (marketing/about copy)
-│   ├── fr-FR.json       # French — complete
-│   ├── de-DE.json       # German — partial (~70%)
-│   └── ja-JP.json       # Japanese — partial (~30%)
-├── glossary.csv         # term, fr-FR, de-DE, ja-JP, note (DNT marked)
+│   ├── fr.json          # French — complete
+│   ├── de.json          # German — partial (~70%)
+│   └── ja.json          # Japanese — partial (~30%)
+├── glossary.csv         # term, fr, de, ja, note (DNT marked)
 ├── brand/
 │   ├── forbidden-terms.txt   # one term per line, for a brand check
 │   └── README.md             # forbidden→preferred substitutions, naming rules
-└── tm.tmx               # TMX 1.4, en-US→fr-FR, with exact and fuzzy matches
+└── tm.tmx               # TMX 1.4, en→fr, with exact and fuzzy matches
 ```
 
-Two source formats exercise the engine's round-trip: `src/en-US.json` for
+Two source formats exercise the engine's round-trip: `src/en.json` for
 structured key-value content, and `src/about.md` for prose. The locale JSON
 files share the exact same key set as the source.
 
@@ -60,10 +60,10 @@ files share the exact same key set as the source.
 
 | Locale | Completion | Why |
 | --- | --- | --- |
-| `en-US` | source | — |
-| `fr-FR` | complete | shows a finished locale and 100% content memory/leverage |
-| `de-DE` | ~70% | shows pending work and partial progress |
-| `ja-JP` | ~30% | shows an early-stage locale with most strings pending |
+| `en` | source | — |
+| `fr` | complete | shows a finished locale and 100% content memory/leverage |
+| `de` | ~70% | shows pending work and partial progress |
+| `ja` | ~30% | shows an early-stage locale with most strings pending |
 
 **Missing-translation convention:** every locale file carries the full key set;
 an untranslated string is an **empty string** (`""`), never an absent key. This
@@ -96,7 +96,7 @@ the correction-learning loop can be shown with the same cast every time:
 
 | Person | Role | Scope |
 | --- | --- | --- |
-| Maya | Translator | fr-FR |
+| Maya | Translator | fr |
 | Jonas | Reviewer | approves translations before publish |
 | Priya | PM / admin | manages the project, languages, and members |
 
@@ -107,8 +107,8 @@ This sequence is the recurring story for BowMart correction-loop demos:
 1. The AI assistant suggests `tableau de bord` for the German string
    `account.title` — carrying a French term into German.
 2. **Maya** corrects the German to `Übersicht` (consistent with the glossary's
-   `Dashboard → de-DE: Übersicht`).
-3. The correction becomes a rule: "Dashboard in de-DE is `Übersicht`, not
+   `Dashboard → de: Übersicht`).
+3. The correction becomes a rule: "Dashboard in de is `Übersicht`, not
    `tableau de bord`," recorded as a project check.
 4. **Jonas** reviews and approves the rule.
 5. On the next locale and the next time the term appears, the check enforces the

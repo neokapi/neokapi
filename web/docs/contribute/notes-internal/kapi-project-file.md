@@ -251,8 +251,8 @@ version: v1
 name: Acme App Localization
 
 defaults:
-  source_language: en-US
-  target_languages: [fr-FR, de-DE, ja-JP]
+  source_language: en
+  target_languages: [fr, de, ja]
   concurrency: 4
   parallel_blocks: 3
   encoding: utf-8
@@ -274,7 +274,7 @@ content:
 
   # Named collection — groups patterns, scopes languages, and shares a base.
   - name: Marketing
-    target_languages: [fr-FR, de-DE]
+    target_languages: [fr, de]
     base: en
     items:
       - path: "en/docs/**/*.md"

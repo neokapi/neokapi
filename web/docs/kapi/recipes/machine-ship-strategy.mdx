@@ -36,8 +36,8 @@ version: v1
 name: storefront
 
 defaults:
-  source_language: en-US
-  target_languages: [de-DE, ja-JP, fr-FR, es-ES, pt-BR, nl-NL, sv-SE]
+  source_language: en
+  target_languages: [de, ja, fr, es, pt-BR, nl, sv]
 
 gates:
   contractual: { translated: 100, reviewed: { pct: 100, by: human } }
@@ -45,9 +45,9 @@ gates:
   machine: { translated: 100, reviewed: { pct: 100, by: any } }
 
 ship_gates:
-  - when: { locales: [de-DE, ja-JP] } # markets with a review contract
+  - when: { locales: [de, ja] } # markets with a review contract
     gate: contractual
-  - when: { locales: [fr-FR, es-ES] }
+  - when: { locales: [fr, es] }
     gate: standard
   - gate: machine # everyone else: the long tail
 ```

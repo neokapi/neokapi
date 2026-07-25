@@ -80,7 +80,7 @@ export class BrandVoiceBinding {
  * Collection (has name and items):
  * 
  *   - name: Marketing
- *     target_languages: [fr-FR]
+ *     target_languages: [fr]
  *     items:
  *   - path: "marketing/*.html"
  *     format: okf_html

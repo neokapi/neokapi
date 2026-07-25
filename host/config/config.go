@@ -205,7 +205,7 @@ func (c *AppConfig) PluginDirectory() string {
 }
 
 // Language returns the configured target locale for CLI/UI output
-// (BCP-47, e.g. "fr-FR"). Empty when unset — the i18n.Resolve chain
+// (BCP-47, e.g. "fr"). Empty when unset — the i18n.Resolve chain
 // then falls back to KAPI_LANG / LC_ALL / LANG.
 func (c *AppConfig) Language() string {
 	return c.v.GetString(KeyLanguage)

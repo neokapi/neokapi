@@ -115,8 +115,8 @@ Same schema adapted for SQLite types:
     {
       "id": "proj_abc",
       "name": "Mobile App",
-      "source_locale": "en-US",
-      "target_locales": ["fr-FR", "de-DE", "ja-JP"],
+      "source_locale": "en",
+      "target_locales": ["fr", "de", "ja"],
       "block_count": 1250,
       "status": "active",
       "updated_at": "2026-03-15T10:30:00Z"
@@ -145,12 +145,12 @@ Same schema adapted for SQLite types:
   "id": "blk_123",
   "collection_id": "col_abc",
   "source": {
-    "locale": "en-US",
+    "locale": "en",
     "text": "Welcome to our app"
   },
   "targets": {
-    "fr-FR": { "text": "Bienvenue dans notre application", "status": "translated" },
-    "de-DE": { "text": "", "status": "untranslated" }
+    "fr": { "text": "Bienvenue dans notre application", "status": "translated" },
+    "de": { "text": "", "status": "untranslated" }
   },
   "notes": [],
   "updated_at": "2026-03-15T10:30:00Z"
@@ -166,7 +166,7 @@ Same schema adapted for SQLite types:
   "project_id": "proj_abc",
   "block_id": "blk_123",
   "stream": "main",
-  "locale": "fr-FR",
+  "locale": "fr",
   "text": "Bienvenue dans notre application",
   "status": "translated" // optional
 }
@@ -178,7 +178,7 @@ Same schema adapted for SQLite types:
 {
   "success": true,
   "block_id": "blk_123",
-  "locale": "fr-FR"
+  "locale": "fr"
 }
 ```
 
@@ -191,7 +191,7 @@ Same schema adapted for SQLite types:
   "project_id": "proj_abc",
   "flow": "pseudo-translate", // flow name or preset
   "stream": "main",
-  "target_locales": ["fr-FR"], // optional, defaults to all project targets
+  "target_locales": ["fr"], // optional, defaults to all project targets
   "params": {} // optional flow-specific params
 }
 ```

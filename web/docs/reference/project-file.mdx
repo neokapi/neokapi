@@ -49,11 +49,11 @@ flows:
           expansionPercent: 30
 
 defaults:
-  source_language: en-US
+  source_language: en
   target_languages:
-    - fr-FR
-    - de-DE
-    - ja-JP
+    - fr
+    - de
+    - ja
   concurrency: 4
   parallel_blocks: 3
   encoding: utf-8
@@ -123,7 +123,7 @@ language. The supported tokens are:
 
 | Token       | Meaning                                                | Example (`base` `input/`, source `input/docs/api.md`) |
 | ----------- | ------------------------------------------------------ | ----------------------------------------------------- |
-| `{lang}`    | Target language                                        | `fr-FR`                                               |
+| `{lang}`    | Target language                                        | `fr`                                                  |
 | `{relpath}` | Source path relative to `base`, **with** extension     | `docs/api.md`                                         |
 | `{path}`    | Source path relative to `base`, **without** extension  | `docs/api`                                            |
 | `{dir}`     | Directory portion of `{relpath}` (empty at the root)   | `docs`                                                |
@@ -137,7 +137,7 @@ A bare `*` is legacy shorthand for `{name}`.
 segment has no extension and no wildcard/token, it names a *directory* and the
 source's `{relpath}` (under `base`) is mirrored beneath it. So `target:
 output/{lang}` reproduces the source tree under each per-language root —
-`input/docs/api.md` → `output/fr-FR/docs/api.md` — with no `*` and no risk of a
+`input/docs/api.md` → `output/fr/docs/api.md` — with no `*` and no risk of a
 doubled extension:
 
 ```yaml
@@ -155,7 +155,7 @@ tokens explicitly:
 ```yaml
 content:
   - path: "src/locales/en/*.json"
-    target: "src/locales/{lang}/{name}.{ext}" # api.json → src/locales/fr-FR/api.json
+    target: "src/locales/{lang}/{name}.{ext}" # api.json → src/locales/fr/api.json
 ```
 
 ### Defaults
@@ -164,7 +164,7 @@ content:
 
 | Field              | Type                | Description                                                                                                              |
 | ------------------ | ------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `source_language`  | string              | BCP-47 source locale (e.g., `en-US`)                                                                                     |
+| `source_language`  | string              | BCP-47 source locale (e.g., `en`)                                                                                        |
 | `target_languages` | string[]            | BCP-47 target locales                                                                                                    |
 | `locale_format`    | string              | Locale style for the `{lang}` placeholder: `bcp-47` (default) or `posix`                                                 |
 | `concurrency`      | int                 | Number of files to process in parallel                                                                                   |
@@ -398,7 +398,7 @@ earliest-listed wins.
 
 ```yaml
 ship_gates:
-  - when: { locales: [de-DE] } # contractually reviewed market
+  - when: { locales: [de] } # contractually reviewed market
     gate: { translated: 100, reviewed: 100 }
   - when: { collections: [Legal] } # regulated content, every locale
     gate: { translated: 100, signed-off: 100 }
@@ -413,7 +413,7 @@ gates:
   machine: { translated: 100, reviewed: { pct: 100, by: any } }
 
 ship_gates:
-  - when: { locales: [de-DE, ja-JP] }
+  - when: { locales: [de, ja] }
     gate: contractual
   - gate: machine
 ```

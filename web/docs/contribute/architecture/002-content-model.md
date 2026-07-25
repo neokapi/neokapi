@@ -175,8 +175,8 @@ type Target struct {
 }
 ```
 
-Ergonomic accessors keep the locale-only path a one-liner: `block.Target("fr-FR")`
-resolves `VariantKey{Locale: "fr-FR"}`, while `block.TargetVariant(key)` reaches
+Ergonomic accessors keep the locale-only path a one-liner: `block.Target("fr")`
+resolves `VariantKey{Locale: "fr"}`, while `block.TargetVariant(key)` reaches
 the general case. Code that only knows about locales never has to mention tone or
 channel — richer variants are strictly opt-in. A `Target`'s `Runs` carry their own
 overlays (target-side segmentation, target terms), scoped to that variant.

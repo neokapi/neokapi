@@ -346,7 +346,7 @@ export function RunnerPage({
                 type="text"
                 value={targetLang}
                 onChange={(e) => setTargetLang(e.target.value)}
-                placeholder="e.g. fr-FR"
+                placeholder="e.g. fr"
                 className="w-48"
               />
             )}

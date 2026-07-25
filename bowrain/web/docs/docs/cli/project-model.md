@@ -49,8 +49,8 @@ version: v1
 name: My App
 
 defaults:
-  source_language: en-US
-  target_languages: [fr-FR, de-DE, ja-JP]
+  source_language: en
+  target_languages: [fr, de, ja]
   collection: ui/strings
   exclude:
     - "**/*.test.json"
@@ -132,7 +132,7 @@ brand_voice:
 
 | Field              | Type   | Description                                              |
 | ------------------ | ------ | -------------------------------------------------------- |
-| `source_language`  | string | BCP-47 source language (e.g. `en-US`)                    |
+| `source_language`  | string | BCP-47 source language (e.g. `en`)                       |
 | `target_languages` | list   | BCP-47 target languages                                  |
 | `collection`       | string | Default collection name for organizing content           |
 | `exclude`          | list   | Glob patterns to skip during scanning                    |
@@ -300,7 +300,7 @@ For non-interactive usage (e.g. CI/CD), use flags:
 
 ```bash
 # Local-only project (no server: block written)
-kapi init --source en-US --targets fr-FR,de-DE,ja-JP
+kapi init --source en --targets fr,de,ja
 
 # Connect to a server (anonymous claim)
 kapi init --server https://app.bowrain.cloud --anonymous

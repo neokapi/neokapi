@@ -142,8 +142,8 @@ plugin-dir/
 ├── manifest.json
 ├── schemas/
 └── i18n/
-    ├── fr-FR.mo
-    └── ja-JP.mo
+    ├── fr.mo
+    └── ja.mo
 ```
 
 The conventional path is computed by
