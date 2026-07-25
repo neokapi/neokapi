@@ -8,6 +8,9 @@ import {
   ConvergenceRunNowDialog,
   ConvergenceRunsList,
   ConvergenceRunView,
+  countBucket,
+  creditBucket,
+  sharePercentBucket,
   useAnalytics,
   useApi,
   useWorkspace,
@@ -77,11 +80,25 @@ export function RunsRoute() {
   }, [runs, selectedRunId]);
 
   // Fire the estimate-viewed event once the estimate lands in the open dialog.
+  // Beyond the yes/no coverage flag it carries the BUCKETED magnitude of the
+  // work the run would do — what it would cost, how many units are left for AI
+  // after TM recycling, and TM's share — which is what sizes the one-time
+  // new-workspace credit grant. Bucketed only: never an exact credit amount,
+  // token count, or anything content-derived.
   useEffect(() => {
     if (consentOpen && estimate) {
+      const viaTm = estimate.totals?.via_tm ?? 0;
+      const viaAi = estimate.totals?.via_ai ?? 0;
+      // Where billing is unconfigured (self-hosted) the estimate carries no
+      // credit section; the demand is still the token estimate (1 token ≈ 1
+      // credit), so fall back to it rather than reporting a false zero.
+      const credits = estimate.credits?.estimated_credits ?? estimate.totals?.token_estimate ?? 0;
       capture(AnalyticsEvents.convergenceEstimateViewed, {
         source_held: (estimate.source.held ?? 0) > 0,
         covers_all_ai: estimate.credits?.covers_all_ai ?? true,
+        estimated_credits_bucket: creditBucket(credits),
+        ai_units_bucket: countBucket(viaAi),
+        tm_leverage_pct_bucket: sharePercentBucket(viaTm, viaTm + viaAi),
       });
     }
   }, [consentOpen, estimate, capture]);

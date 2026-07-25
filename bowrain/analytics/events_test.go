@@ -112,6 +112,59 @@ func TestDurationBucket(t *testing.T) {
 	assert.Equal(t, "gt_10m", DurationBucket(time.Hour))
 }
 
+// TestCreditBucket walks every boundary: the grant-sizing read ("what share of
+// first runs fits inside the 200K grant?") is only sound if the edges are exact.
+func TestCreditBucket(t *testing.T) {
+	cases := []struct {
+		credits int64
+		want    string
+	}{
+		{-1, "0"}, {0, "0"},
+		{1, "1_1k"}, {1_000, "1_1k"},
+		{1_001, "1k_10k"}, {10_000, "1k_10k"},
+		{10_001, "10k_50k"}, {50_000, "10k_50k"},
+		{50_001, "50k_100k"}, {100_000, "50k_100k"},
+		{100_001, "100k_200k"}, {200_000, "100k_200k"},
+		{200_001, "200k_500k"}, {500_000, "200k_500k"},
+		{500_001, "500k_1m"}, {1_000_000, "500k_1m"},
+		{1_000_001, "gt_1m"},
+	}
+	for _, tc := range cases {
+		assert.Equal(t, tc.want, CreditBucket(tc.credits), "credits=%d", tc.credits)
+	}
+}
+
+func TestPercentBucket(t *testing.T) {
+	cases := []struct {
+		pct  int
+		want string
+	}{
+		{-5, "0"}, {0, "0"},
+		{1, "1_25"}, {25, "1_25"},
+		{26, "26_50"}, {50, "26_50"},
+		{51, "51_75"}, {75, "51_75"},
+		{76, "76_99"}, {99, "76_99"},
+		{100, "100"}, {150, "100"},
+	}
+	for _, tc := range cases {
+		assert.Equal(t, tc.want, PercentBucket(tc.pct), "pct=%d", tc.pct)
+	}
+}
+
+func TestSharePercentBucket(t *testing.T) {
+	assert.Equal(t, "0", SharePercentBucket(0, 0), "undefined share reads as 0")
+	assert.Equal(t, "0", SharePercentBucket(5, 0), "undefined share reads as 0")
+	assert.Equal(t, "0", SharePercentBucket(0, 10), "no TM leverage")
+	assert.Equal(t, "100", SharePercentBucket(10, 10), "all work came from TM")
+	assert.Equal(t, "100", SharePercentBucket(11, 10), "clamped above the whole")
+	assert.Equal(t, "1_25", SharePercentBucket(1, 1000), "a tiny share never reads as none")
+	assert.Equal(t, "1_25", SharePercentBucket(25, 100))
+	assert.Equal(t, "26_50", SharePercentBucket(1, 2))
+	assert.Equal(t, "51_75", SharePercentBucket(3, 4))
+	assert.Equal(t, "76_99", SharePercentBucket(9, 10))
+	assert.Equal(t, "76_99", SharePercentBucket(999, 1000), "a near-complete share never reads as all")
+}
+
 func TestCountBucket(t *testing.T) {
 	assert.Equal(t, "0", CountBucket(0))
 	assert.Equal(t, "0", CountBucket(-3))

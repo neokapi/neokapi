@@ -42,8 +42,14 @@ export const AnalyticsEvents = {
   localeDemandConnectClicked: "locale_demand_connect_clicked",
   /**
    * The run-now consent dialog opened and the pre-flight estimate was shown
-   * ({source_held?, covers_all_ai?}) — the source-readiness-first gate (epic
-   * 019). Fired before any run is started.
+   * ({source_held?, covers_all_ai?, estimated_credits_bucket, ai_units_bucket,
+   * tm_leverage_pct_bucket}) — the source-readiness-first gate (epic 019).
+   * Fired before any run is started.
+   *
+   * The bucketed magnitudes (see `analytics-buckets.ts`) are what size the
+   * one-time new-workspace credit grant; this dialog-only sample is biased
+   * toward the web app, so the server fires `convergence_estimate_computed`
+   * for every pre-flight it computes, `kapi up` included.
    */
   convergenceEstimateViewed: "convergence_estimate_viewed",
   /**

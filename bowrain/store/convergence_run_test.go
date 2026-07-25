@@ -182,6 +182,61 @@ func TestConvergenceRunStore_Events(t *testing.T) {
 	}
 }
 
+// TestConvergenceRunStore_HasRunBefore covers the cold-start probe behind the
+// `first_run` analytics marker: a workspace's FIRST run must answer false, its
+// second true — asked at start AND at terminal state, when later runs exist.
+func TestConvergenceRunStore_HasRunBefore(t *testing.T) {
+	for _, mk := range []func(*testing.T) convergeBackend{sqliteConvergeBackend, pgConvergeBackend} {
+		be := mk(t)
+		t.Run(be.name, func(t *testing.T) {
+			ctx := context.Background()
+			rs := store.NewConvergenceRunStore(be.db)
+			base := time.Date(2026, 7, 1, 10, 0, 0, 0, time.UTC)
+
+			// No projects at all → nothing ran (the empty-workspace boundary).
+			had, err := rs.HasRunBefore(ctx, nil, base, "")
+			require.NoError(t, err)
+			assert.False(t, had)
+
+			// A workspace with projects but no runs → nothing ran.
+			be.newProject(t, "ws-proj-a")
+			be.newProject(t, "ws-proj-b")
+			be.newProject(t, "other-proj")
+			ws := []string{"ws-proj-a", "ws-proj-b"}
+			had, err = rs.HasRunBefore(ctx, ws, base, "")
+			require.NoError(t, err)
+			assert.False(t, had)
+
+			// The workspace's FIRST run: excluding itself, nothing precedes it.
+			first := &store.ConvergenceRun{ProjectID: "ws-proj-a", Trigger: "manual", CreatedAt: base}
+			require.NoError(t, rs.CreateRun(ctx, first))
+			had, err = rs.HasRunBefore(ctx, ws, first.CreatedAt, first.ID)
+			require.NoError(t, err)
+			assert.False(t, had, "the workspace's first run must read as first")
+
+			// A second run — on the workspace's OTHER project — is not first.
+			second := &store.ConvergenceRun{
+				ProjectID: "ws-proj-b", Trigger: "push", CreatedAt: base.Add(time.Hour),
+			}
+			require.NoError(t, rs.CreateRun(ctx, second))
+			had, err = rs.HasRunBefore(ctx, ws, second.CreatedAt, second.ID)
+			require.NoError(t, err)
+			assert.True(t, had, "a later run in the same workspace is not first")
+
+			// The first run's answer is STABLE once a later run exists — the
+			// completed event asks the same question minutes later.
+			had, err = rs.HasRunBefore(ctx, ws, first.CreatedAt, first.ID)
+			require.NoError(t, err)
+			assert.False(t, had, "a later run must not retroactively unmark the first")
+
+			// Another workspace's runs never count.
+			had, err = rs.HasRunBefore(ctx, []string{"other-proj"}, base.Add(2*time.Hour), "")
+			require.NoError(t, err)
+			assert.False(t, had)
+		})
+	}
+}
+
 func TestConvergenceRunStore_LatestRunForProjects(t *testing.T) {
 	for _, mk := range []func(*testing.T) convergeBackend{sqliteConvergeBackend, pgConvergeBackend} {
 		be := mk(t)

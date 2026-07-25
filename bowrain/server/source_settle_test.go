@@ -257,7 +257,7 @@ func TestDrive_HoldsOnSource(t *testing.T) {
 
 	s.convergence.driveWith(t.Context(), run, convergence.LoopFuncs{
 		Derive:  s.convergence.deriveFunc("p", nil),
-		Produce: s.convergence.produceFunc("p"),
+		Produce: s.convergence.produceFunc("p", run.ID),
 	})
 
 	got, err := runStore.GetRun(t.Context(), run.ID)

@@ -3,8 +3,10 @@ package server
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
@@ -127,6 +129,48 @@ func (o *convergenceOrchestrator) creditsEstimate(ctx context.Context, proj *pla
 	return view
 }
 
+// trackEstimateComputed emits convergence_estimate_computed for a pre-flight
+// the server just computed, whichever surface asked — the web run-now dialog,
+// `kapi up`'s confirm, or any API client. The web-only client event
+// (convergence_estimate_viewed) samples dialog impressions and therefore misses
+// every CLI pre-flight; this one is the unbiased population, discriminated by
+// the mandatory `surface` property ("server" vs. "web-app").
+//
+// It carries the bucketed MAGNITUDE of the work a run would do — how many
+// credits the AI remainder would cost, how many units are left for AI after TM,
+// and TM's share — plus the cold-start cohort marker, which together size the
+// one-time new-workspace grant (billing.FreeTrialGrantCredits): "how large must
+// the grant be to cover N% of first projects?". Bucketed only: never an exact
+// credit amount, token count, locale work list, or any content.
+func (s *Server) trackEstimateComputed(ctx context.Context, proj *platstore.Project, view convergenceEstimateView) {
+	if s.PostHogClient == nil || proj == nil {
+		return
+	}
+	firstRun := s.isFirstConvergenceRun(ctx, proj.WorkspaceID, proj.ID, time.Now().UTC(), "")
+	s.trackEvent(convergenceDistinctID(proj.WorkspaceID, proj.ID),
+		analytics.EventConvergenceEstimateComputed, estimateComputedProps(proj, view, firstRun))
+}
+
+// estimateComputedProps builds the convergence_estimate_computed payload. Split
+// out of the capture so the taxonomy — every magnitude bucketed, nothing
+// carrying content — is directly testable.
+func estimateComputedProps(proj *platstore.Project, view convergenceEstimateView, firstRun bool) map[string]any {
+	props := analytics.Props(proj.WorkspaceID, proj.ID)
+	props[analytics.PropSourceHeld] = view.Source.Held > 0
+	// Demand is priced from the token estimate, so it is reported even where
+	// billing is not configured (self-hosted) and no credits section exists.
+	props[analytics.PropEstimatedCreditsBucket] =
+		analytics.CreditBucket(billing.TokensToCredits(view.Totals.TokenEstimate))
+	props[analytics.PropAIUnitsBucket] = analytics.CountBucket(view.Totals.ViaAI)
+	props[analytics.PropTMLeveragePctBucket] =
+		analytics.SharePercentBucket(view.Totals.ViaTM, view.Totals.ViaTM+view.Totals.ViaAI)
+	if view.Credits != nil {
+		props[analytics.PropCoversAllAI] = view.Credits.CoversAllAI
+	}
+	props[analytics.PropFirstRun] = firstRun
+	return props
+}
+
 // HandleConvergenceEstimate returns the provider-free pre-flight estimate for a
 // project's convergence run: source readiness first, then the per-locale TM/AI
 // split and credit cost for the ready source, then the workspace balance. It
@@ -147,5 +191,6 @@ func (s *Server) HandleConvergenceEstimate(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
+	s.trackEstimateComputed(c.Request().Context(), proj, view)
 	return c.JSON(http.StatusOK, view)
 }
