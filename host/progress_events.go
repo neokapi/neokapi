@@ -1,8 +1,7 @@
 package host
 
 import (
-	"encoding/json"
-	"sync"
+	"github.com/neokapi/neokapi/host/output"
 )
 
 // progressFlagName is the NDJSON progress flag shared by run/extract/merge.
@@ -17,20 +16,24 @@ func AddProgressFlag(cmd Command) {
 		"stream progress events to stderr as NDJSON (value: jsonl); events use the flow-run event vocabulary")
 }
 
-// progressSink resolves the --progress flag into a RunEventSink. It returns
-// nil (the discard sink) unless --progress=jsonl was passed. Events go to
-// stderr so stdout stays reserved for the command's result (text or --json).
-// The sink is safe for concurrent emitters.
-func progressSink(cmd Command) RunEventSink {
+// progressSink resolves the --progress flag into a RunEventSink plus the check to
+// run when the command finishes. It returns a nil sink (the discard sink) unless
+// --progress=jsonl was passed. Events go to stderr so stdout stays reserved for
+// the command's result (text or --json). The sink is safe for concurrent
+// emitters.
+//
+// RunEventSink cannot return an error — the desktop and embedded runs consume the
+// same signature — so a failed write is remembered on the stream and surfaced by
+// the returned check, which the caller must consult before returning success. A
+// progress feed that stops while the run continues shows a watching UI a stalled
+// run that is in fact fine, and the exit code is the only channel left when the
+// failing writer *is* stderr.
+func progressSink(cmd Command) (RunEventSink, func() error) {
 	mode, _ := cmd.Flags().GetString(progressFlagName)
 	if mode != "jsonl" {
-		return nil
+		return nil, func() error { return nil }
 	}
-	enc := json.NewEncoder(cmd.ErrOrStderr())
-	var mu sync.Mutex
-	return func(ev FlowRunEvent) {
-		mu.Lock()
-		defer mu.Unlock()
-		_ = enc.Encode(ev)
-	}
+	stream := output.NewNDJSONStream(cmd.ErrOrStderr())
+	return func(ev FlowRunEvent) { stream.Emit(ev) },
+		func() error { return stream.Report("--progress=jsonl") }
 }

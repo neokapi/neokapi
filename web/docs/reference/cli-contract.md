@@ -157,6 +157,30 @@ kapi extract -p kapi.yaml --progress jsonl 2> >(jq -c 'select(.type=="file_done"
 {"type":"complete","flow":"extract","duration_ms":420,"files_processed":4}
 ```
 
+## Stream integrity: a truncated NDJSON stream is never silent
+
+Every NDJSON stream kapi writes — `kapi up --json`, `--progress jsonl` — is a
+contract with a machine reader, so a stream that stops early must not look like one
+that finished. The two ways a write can fail are treated differently, because they
+mean opposite things:
+
+| What happened | kapi's behaviour |
+| --- | --- |
+| **You stopped reading** — `kapi up --json \| head`, a `jq` filter that exits, a watching UI that disconnects | The stream stops, quietly, and the run is not failed. Failing a run because its reader walked away would be worse than the silence. On a shell pipe the process is normally terminated by `SIGPIPE` before the write even returns, giving the conventional `141` exit; either way nothing is printed. |
+| **The write failed** — a full disk, a closed file, an unwritable destination | One message on stderr (or the JSON error envelope) naming the stream and counting what got through, and a non-zero exit. A consumer must never believe a truncated stream. |
+
+```console
+$ kapi up --json > /mnt/full/out.ndjson
+Error: kapi up --json: the event stream truncated — 6 record(s) written, 12 lost: write /dev/stdout: no space left on device
+$ echo $?
+1
+```
+
+The distinction is drawn structurally (`errors.Is` against `syscall.EPIPE` and
+`io.ErrClosedPipe`, plus the Windows broken-pipe errnos), never by matching the
+message text. Under `--progress jsonl` the exit code is the load-bearing signal:
+when the failing writer *is* stderr, the message has nowhere to land.
+
 ## Streaming inspection: `kapi inspect --jsonl`
 
 For block-level content streaming (rather than run progress), `kapi inspect --jsonl` emits one JSON object per block — run `kapi inspect --help` for the block fields.

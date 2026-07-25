@@ -234,7 +234,7 @@ func (a *App) RunExtract(cmd Command) error {
 		res.RedactionVault = redactionVault
 	}
 
-	sink := progressSink(cmd)
+	sink, progressReport := progressSink(cmd)
 	emit := func(ev FlowRunEvent) {
 		if sink != nil {
 			ev.Flow = "extract"
@@ -368,7 +368,9 @@ func (a *App) RunExtract(cmd Command) error {
 	if failures > 0 {
 		return fmt.Errorf("extract: %d source/target pair(s) failed — see errors above", failures)
 	}
-	return nil
+	// A truncated progress feed is reported after the result, so the deliverable
+	// still lands and the consumer still learns its feed was incomplete.
+	return progressReport()
 }
 
 type extractTask struct {

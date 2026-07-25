@@ -3,7 +3,6 @@ package commands
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -138,8 +137,7 @@ func pushAfterLocalConverge(cmd *cobra.Command, server *project.ServerSpec) erro
 			fmt.Fprintf(cmd.ErrOrStderr(), "Pushed %d block(s) to the server.\n", pr.BlocksPushed)
 		}
 	}
-	reportBrandPush(cmd, bres, flagBool(cmd, "json"))
-	return nil
+	return reportBrandPush(cmd, nil, bres, flagBool(cmd, "json"))
 }
 
 // runServerUp is the server-venue up: push local changes, start (or join) a
@@ -151,6 +149,15 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 	ctx := cmd.Context()
 	jsonOut := flagBool(cmd, "json")
 	stderr := cmd.ErrOrStderr()
+
+	// One stream for the whole NDJSON document — the brand-push record, every
+	// re-emitted server event, and the closing result — so a write that fails
+	// part-way is reported once at the end rather than leaving the consumer with a
+	// truncated stream that looks complete. nil in text mode.
+	var jsonStream *output.NDJSONStream
+	if jsonOut {
+		jsonStream = output.NewNDJSONStream(cmd.OutOrStdout())
+	}
 
 	// Recipe pre-push automations run before the push, exactly as they did for
 	// the retired `kapi sync` (up subsumed sync — the hooks must not silently
@@ -200,7 +207,9 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 			fmt.Fprintf(stderr, "Pushed %d block(s).\n", pr.BlocksPushed)
 		}
 	}
-	reportBrandPush(cmd, bres, jsonOut)
+	if err := reportBrandPush(cmd, jsonStream, bres, jsonOut); err != nil {
+		return err
+	}
 
 	// Phase 2: pre-flight — show the estimate (source readiness FIRST, then the
 	// credit/scope estimate) and gate a large run behind confirmation. --yes and
@@ -233,8 +242,7 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 	// Phase 3: subscribe to the run's event stream and re-emit it locally.
 	var sink func(convergence.Event)
 	if jsonOut {
-		enc := json.NewEncoder(cmd.OutOrStdout())
-		sink = func(ev convergence.Event) { _ = enc.Encode(ev) }
+		sink = func(ev convergence.Event) { jsonStream.Emit(ev) }
 	} else if !app.Quiet {
 		sink = cli.NewConvergeEventRenderer(stderr, isatty.IsTerminal(os.Stderr.Fd()))
 	}
@@ -291,7 +299,7 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 	if gerr != nil {
 		final = run
 	}
-	if err := cli.PrintUpResult(cmd, acc.output(final)); err != nil {
+	if err := cli.PrintUpResultStream(cmd, jsonStream, acc.output(final)); err != nil {
 		return err
 	}
 	// A run that ended failed/canceled is not ordinary parked work: surface it
@@ -305,23 +313,30 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 // the push messages on stderr, or — under --json — one discriminated NDJSON
 // line on stdout carrying the same field names as push's JSON output. Silent
 // when no profile travelled (nil result) or, for text, under --quiet.
-func reportBrandPush(cmd *cobra.Command, res *PushBrandResult, jsonOut bool) {
+//
+// stream is the caller's NDJSON document, so this record shares the run's
+// sticky-error accounting; a nil stream gets one of its own (the local-venue
+// push, which happens after the local run has closed its stream).
+func reportBrandPush(cmd *cobra.Command, stream *output.NDJSONStream, res *PushBrandResult, jsonOut bool) error {
 	if res == nil {
-		return
+		return nil
 	}
 	if jsonOut {
-		enc := json.NewEncoder(cmd.OutOrStdout())
-		_ = enc.Encode(struct {
+		if stream == nil {
+			stream = output.NewNDJSONStream(cmd.OutOrStdout())
+		}
+		// Unlike host's PrintUpResult this record's error used to be dropped.
+		// Encode returns nil when the consumer merely went away.
+		return stream.Encode(struct {
 			Type    string `json:"type"`
 			Profile string `json:"brand_profile"`
 			Action  string `json:"brand_profile_action"`
 			Version int    `json:"brand_profile_version,omitempty"`
 			Reason  string `json:"brand_profile_reason,omitempty"`
 		}{Type: "brand_profile", Profile: res.Name, Action: res.Action, Version: res.Version, Reason: res.Reason})
-		return
 	}
 	if app != nil && app.Quiet {
-		return
+		return nil
 	}
 	out := output.PushOutput{
 		BrandProfile: res.Name,
@@ -330,6 +345,7 @@ func reportBrandPush(cmd *cobra.Command, res *PushBrandResult, jsonOut bool) {
 		BrandReason:  res.Reason,
 	}
 	out.FormatBrand(cmd.ErrOrStderr())
+	return nil
 }
 
 // syncConvergePolicy pushes the recipe's server.converge value to the server so
