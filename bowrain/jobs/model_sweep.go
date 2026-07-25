@@ -39,8 +39,8 @@ const ModelSweepItemName = "__model_sweep__"
 //   - ItemName     — the ModelSweepItemName sentinel (routes the worker)
 //   - TargetLocale — the target locale this sweep measures
 //   - ProjectID    — the project whose brand context is measured
-//   - WorkspaceID  — the durable workspace id (scopes brand/termbase reads)
-//   - WorkspaceSlug— the workspace slug (termbase resolution + ai_usage)
+//   - WorkspaceID  — the durable workspace id (scopes brand/terms reads)
+//   - WorkspaceSlug— the workspace slug (terms resolution + ai_usage)
 //
 // The candidate model list and the brand context are re-read at execution
 // time, so a config or profile change between enqueue and execution is
@@ -83,7 +83,7 @@ type SweepFixture struct {
 	BlockID    string
 	SourceText string
 	// Trap classifies why the segment was selected: "glossary" (contains a
-	// termbase source term), "voice" (tempts the profile's forbidden/competitor
+	// terms source term), "voice" (tempts the profile's forbidden/competitor
 	// vocabulary or a mechanical style rule), or "dnt" (carries a
 	// do-not-translate term).
 	Trap string
@@ -123,7 +123,7 @@ func (c *SweepContext) Empty() bool {
 // from the project's stored source blocks, deterministically (blocks are
 // visited in ID order; the same content + context always yields the same set):
 //
-//   - glossary traps: the source contains a termbase source term, so the
+//   - glossary traps: the source contains a terms store source term, so the
 //     mandated rendering is checkable in the target (term-check);
 //   - voice traps: the source tempts the profile's forbidden/competitor
 //     vocabulary (brand.MatchVocabulary against the source — a model that
@@ -260,7 +260,7 @@ func isVoiceTrap(text string, profile *brand.VoiceProfile, prohibited []*regexp.
 
 // SweepFixtureDigest keys sweep results to exactly what was measured: the
 // fixture content, the profile identity+version, and the glossary/DNT terms
-// derived from the termbase and project settings. Any change to content or
+// derived from the terms store and project settings. Any change to content or
 // context yields a new digest, so stale rows are never mistaken for a
 // measurement of the current state.
 func SweepFixtureDigest(projectID, locale string, fixtures []SweepFixture, sc *SweepContext) string {
@@ -420,7 +420,7 @@ func sweepVoiceAdherent(target string, profile *brand.VoiceProfile) bool {
 
 // resolveSweepContext captures the project's standing brand context for a
 // sweep, via the very same resolution the translation worker binds into every
-// AI job (#1334): the brandscope profile ladder, the workspace termbase
+// AI job (#1334): the brandscope profile ladder, the workspace terms
 // glossary, and the project's DNT terms.
 func resolveSweepContext(ctx context.Context, deps *WorkerDeps, job *TranslationJob, proj *store.Project) *SweepContext {
 	srcLocale := proj.DefaultSourceLanguage

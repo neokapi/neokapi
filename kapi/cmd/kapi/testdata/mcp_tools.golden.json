@@ -749,7 +749,7 @@
           "ui:widget": "select"
         },
         "knownTerms": {
-          "description": "Terms to exclude from extraction (already in termbase)",
+          "description": "Terms to exclude from extraction (already in the terms store)",
           "items": {
             "type": "string"
           },
@@ -1655,7 +1655,7 @@
         },
         "noQueryThreshold": {
           "default": 101,
-          "description": "Skip TM query if existing candidate scores at or above this value (101 = always query)",
+          "description": "Skip content-memory query if existing candidate scores at or above this value (101 = always query)",
           "maximum": 101,
           "minimum": 0,
           "title": "No-Query Threshold",
@@ -2672,7 +2672,7 @@
           "type": "string"
         },
         "termbase": {
-          "description": "path to the termbase db (default: termbase.db)",
+          "description": "path to the terms store db (default: termbase.db)",
           "type": "string"
         }
       },
@@ -2704,7 +2704,7 @@
           "type": "string"
         },
         "tm": {
-          "description": "path to the TM db (default: tm.db)",
+          "description": "path to the content memory db (default: tm.db)",
           "type": "string"
         }
       },

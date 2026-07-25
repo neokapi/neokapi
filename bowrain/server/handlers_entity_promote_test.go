@@ -14,7 +14,7 @@ import (
 )
 
 // TestPromoteEntityToConcept (RV-F piece 3) proves the entity→concept promotion:
-// a marked entity becomes a real termbase concept (not merely a term candidate),
+// a marked entity becomes a real terms concept (not merely a term candidate),
 // carrying the entity text as an approved source-locale term, AND fires
 // concept.created — the event RV-E/RV-F's re-check subscribes to — so a promoted
 // entity flows into the governed terminology loop automatically.
@@ -42,12 +42,12 @@ func TestPromoteEntityToConcept(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, concept.ID)
 
-	// A real termbase concept with the entity text as an approved source-locale term.
+	// A real terms concept with the entity text as an approved source-locale term.
 	tb, err := s.wsStores.getTB("rc")
 	require.NoError(t, err)
 	got, ok, err := tb.GetConcept(ctx, concept.ID)
 	require.NoError(t, err)
-	require.True(t, ok, "a real termbase concept was created")
+	require.True(t, ok, "a real terms concept was created")
 	require.Len(t, got.Terms, 1)
 	assert.Equal(t, "Acme Corp", got.Terms[0].Text)
 	assert.Equal(t, model.LocaleID("en"), got.Terms[0].Locale)

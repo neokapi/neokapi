@@ -54,7 +54,7 @@ func TestUp_SingleFile_ConcurrentLocales(t *testing.T) {
 // TestUp_BuiltinDefaultFlow_ConcurrentLocales: the built-in default flow
 // (recycle → translate) converges multiple locales CONCURRENTLY within one
 // pass — the path the desktop's "Bring up to date" takes. Regression guard for
-// the per-locale fan-out: shared TM open, shared block-store sessions, and the
+// the per-locale fan-out: shared content memory open, shared block-store sessions, and the
 // shared parse cache must all tolerate concurrent locale workers (a failure
 // here historically surfaced as a "send on closed channel" panic through
 // ExecuteWithChannels' Begin-error path).

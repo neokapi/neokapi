@@ -159,7 +159,7 @@ message SyncChunk {
   // Exactly one populated (determined by content_type):
   repeated SyncBlock blocks = 10;
   repeated SyncTerm terms = 11;
-  repeated SyncTMEntry tm_entries = 12;
+  repeated SyncMemoryEntry tm_entries = 12;
   repeated SyncQAResult qa_results = 13;
   repeated SyncActivity activities = 14;
   repeated SyncMedia media = 15;
@@ -206,7 +206,7 @@ The full Block model — including structured source and target
 segments, annotations, skeleton, display hints, and connector data —
 survives the sync boundary. No data loss.
 
-#### SyncTerm, SyncTMEntry, SyncMedia
+#### SyncTerm, SyncMemoryEntry, SyncMedia
 
 ```protobuf
 message SyncTerm {
@@ -220,7 +220,7 @@ message SyncTerm {
   string status = 8;  // "approved", "pending", "deprecated"
 }
 
-message SyncTMEntry {
+message SyncMemoryEntry {
   string id = 1;
   string source_locale = 2;
   string target_locale = 3;
@@ -445,7 +445,7 @@ message SyncPullResponse {
 
   repeated SyncBlock blocks = 10;
   repeated SyncTerm terms = 11;
-  repeated SyncTMEntry tm_entries = 12;
+  repeated SyncMemoryEntry tm_entries = 12;
   repeated SyncQAResult qa_results = 13;
   repeated SyncActivity activities = 14;
   repeated SyncMedia media = 15;   // metadata only; binary via blob URLs
@@ -463,7 +463,7 @@ for _, chunk := range manifest.Chunks {
     case "terms":
         storeTerms(data.Terms, manifest)
     case "tm":
-        storeTMEntries(data.TMEntries, manifest)
+        storeMemoryEntries(data.MemoryEntries, manifest)
     case "media":
         storeMedia(data.Media, manifest)
     }

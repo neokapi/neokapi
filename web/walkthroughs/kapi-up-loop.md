@@ -21,8 +21,8 @@ whose ship gate demands both translated 100% and reviewed 100% — a bar a
 machine alone can never clear.
 
 `kapi up --plan` previews the work before anything is spent: pending units,
-exact TM leverage, remaining AI work, a token estimate. `kapi up` produces —
-here the TM covers everything — and then parks the locale, because review
+exact content-memory leverage, remaining AI work, a token estimate. `kapi up` produces —
+here the content memory covers everything — and then parks the locale, because review
 needs a person. Parking is the hand-off, not a failure: `up` exits zero, and
 `kapi status --review` holds the worklist.
 
@@ -34,7 +34,7 @@ recorded decisions are what cleared it.
 
 ## Scene 1 — up-loop (terminal)
 
-Seed the TM, preview with `kapi up --plan`, produce with `kapi up` (fr parks
+Seed the content memory, preview with `kapi up --plan`, produce with `kapi up` (fr parks
 awaiting review), list the worklist with `kapi status --review`, watch
 `kapi check --ship` fail (exit 3), record the decisions with
 `kapi apply review.jsonl`, and watch the same gate pass (exit 0). The closing

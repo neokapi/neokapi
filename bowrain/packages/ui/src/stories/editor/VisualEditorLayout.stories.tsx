@@ -10,7 +10,7 @@ import type { SpanInfo } from "../../types/api";
 import {
   sampleBlocks,
   sampleProject,
-  sampleTMMatches,
+  sampleMemoryMatches,
   sampleTermMatches,
   sampleQAIssues,
   sampleFileQAResults,
@@ -76,9 +76,9 @@ function InteractiveLayout(overrides: LayoutOverrides) {
       onCancelEditing={handleCancelEditing}
       onApprove={() => setSelectedIndex((i) => Math.min(i + 1, blocks.length - 1))}
       onReject={() => {}}
-      tmMatches={overrides.tmMatches ?? []}
+      memoryMatches={overrides.memoryMatches ?? []}
       termMatches={overrides.termMatches ?? []}
-      onApplyTM={overrides.onApplyTM ?? (() => {})}
+      onApplyMemory={overrides.onApplyMemory ?? (() => {})}
       onInsertTerm={overrides.onInsertTerm ?? (() => {})}
       presenceSlot={overrides.presenceSlot}
       qaIssues={overrides.qaIssues}
@@ -131,9 +131,9 @@ const meta: Meta<typeof VisualEditorLayout> = {
     onCancelEditing: fn(),
     onApprove: fn(),
     onReject: fn(),
-    tmMatches: [],
+    memoryMatches: [],
     termMatches: [],
-    onApplyTM: fn(),
+    onApplyMemory: fn(),
     onInsertTerm: fn(),
   },
 };
@@ -153,9 +153,9 @@ export const Default: Story = {
   render: () => <InteractiveLayout />,
 };
 
-/** Interactive layout with TM matches */
-export const WithTMMatches: Story = {
-  render: () => <InteractiveLayout tmMatches={sampleTMMatches} />,
+/** Interactive layout with content-memory matches */
+export const WithMemoryMatches: Story = {
+  render: () => <InteractiveLayout memoryMatches={sampleMemoryMatches} />,
 };
 
 /** Interactive layout in review mode */
@@ -177,14 +177,14 @@ export const EnrichMode: Story = {
 };
 
 /**
- * Interactive layout with all panels: TM, terms, QA, history, notes,
+ * Interactive layout with all panels: content memory, terms, QA, history, notes,
  * presence slot. Full editing flow is functional.
  */
 export const FullFeatured: Story = {
   render: () => (
     <InteractiveLayout
       selectedIndex={1}
-      tmMatches={sampleTMMatches}
+      memoryMatches={sampleMemoryMatches}
       termMatches={sampleTermMatches}
       qaIssues={sampleQAIssues}
       fileQAResults={sampleFileQAResults}
@@ -339,9 +339,9 @@ function NavigationDemo() {
       onCancelEditing={handleCancelEditing}
       onApprove={() => setSelectedIndex((i) => Math.min(i + 1, blocks.length - 1))}
       onReject={() => {}}
-      tmMatches={[]}
+      memoryMatches={[]}
       termMatches={[]}
-      onApplyTM={() => {}}
+      onApplyMemory={() => {}}
       onInsertTerm={() => {}}
     />
   );

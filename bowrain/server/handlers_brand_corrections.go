@@ -141,7 +141,7 @@ func (s *Server) HandlePromoteSuggestedRule(c echo.Context) error {
 	}
 
 	// Link the rule into the brand knowledge graph (AD-021) before promoting, so
-	// the promoted TermRule denotes its concept. Best-effort: if the termbase is
+	// the promoted TermRule denotes its concept. Best-effort: if the terms store is
 	// unavailable, log and still promote the flat rule rather than failing a
 	// promotion the team already reviewed.
 	conceptID, kgEvents, linkErr := s.linkRuleToConcept(c.Request().Context(), wsSlug, wsID, rule)

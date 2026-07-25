@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// ResourceInfo describes a named resource (termbase or TM) in KAPI_HOME.
+// ResourceInfo describes a named resource (terms or content memory) in KAPI_HOME.
 type ResourceInfo struct {
 	Name     string    `json:"name"`
 	Path     string    `json:"path"`
@@ -120,7 +120,7 @@ func ListNamedResources(kind string) ([]ResourceInfo, error) {
 	return resources, nil
 }
 
-// ConfigDir returns the kapi config root — named resources (termbases, tm,
+// ConfigDir returns the kapi config root — named resources (terms stores, tm,
 // brands), flows, format presets, and the plugin dir all hang off it. It
 // honors the KAPI_CONFIG_DIR env override (the isolation contract), else
 // resolves to <os.UserConfigDir()>/kapi (~/.config/kapi on Linux,

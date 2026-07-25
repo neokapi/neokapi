@@ -10,7 +10,7 @@ import { Backend } from "./backend";
  * so every server surface reaches the connected bowrain server (keychain auth,
  * Go-side, no webview-origin/CORS concern). Over that base, the LOCAL_FIRST
  * methods are served by the desktop's Wails bindings instead — the offline-
- * capable content surfaces (editor blocks, TM/termbase mirrors), native
+ * capable content surfaces (editor blocks, content memory/terms mirrors), native
  * file-path uploads, keychain-local provider config, and the governance/
  * knowledge surfaces the Go backend already proxies with workspace scoping.
  *
@@ -58,16 +58,16 @@ const LOCAL_FIRST: ReadonlySet<string> = new Set<string>([
   "updateBlockTarget",
   "updateBlockTargetCoded",
   "pseudoTranslateFile",
-  "tmTranslateFile",
+  "memoryTranslateFile",
   "getWordCount",
   "exportTranslatedFile",
-  "lookupTMForBlock",
+  "lookupMemoryForBlock",
   "lookupTermsForBlock",
-  "getTMEntries",
-  "getTMCount",
-  "addTMEntry",
-  "updateTMEntry",
-  "deleteTMEntry",
+  "getMemoryEntries",
+  "getMemoryCount",
+  "addMemoryEntry",
+  "updateMemoryEntry",
+  "deleteMemoryEntry",
   "getTerms",
   "getTermCount",
   "addConcept",

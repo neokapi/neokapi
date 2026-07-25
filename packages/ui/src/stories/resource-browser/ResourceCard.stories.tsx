@@ -17,7 +17,7 @@ const meta: Meta<typeof ResourceCard> = {
     docs: {
       description: {
         component:
-          "Card for the resource picker landing page. Shows resource name, path, entry count, last modified time, and file size. Used for both TM databases and termbases.",
+          "Card for the resource picker landing page. Shows resource name, path, entry count, last modified time, and file size. Used for both content-memory databases and terms stores.",
       },
     },
   },
@@ -26,7 +26,7 @@ const meta: Meta<typeof ResourceCard> = {
 export default meta;
 type Story = StoryObj<typeof ResourceCard>;
 
-export const TMCard: Story = {
+export const MemoryCard: Story = {
   args: {
     name: "my-project",
     path: "~/.config/kapi/tm/my-project.db",
@@ -38,7 +38,7 @@ export const TMCard: Story = {
   },
 };
 
-export const TermbaseCard: Story = {
+export const TermsCard: Story = {
   args: {
     name: "brand-glossary",
     path: "~/.config/kapi/termbases/brand-glossary.db",

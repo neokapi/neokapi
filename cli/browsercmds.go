@@ -45,7 +45,7 @@ type browserGap struct {
 
 // browserGaps is the complete set of kapi verbs the browser build cannot run.
 // Everything else in KapiCommandSet is expected to work against the in-memory
-// filesystem, the in-memory TM/termbase, and the deterministic demo AI provider.
+// filesystem, the in-memory content memory/terms, and the deterministic demo AI provider.
 //
 // Each reason names the specific host facility the browser denies — a
 // subprocess, the OS keychain, the network, or a socket — because "not
@@ -192,7 +192,7 @@ func BrowserCommandSet(a *App) []*cobra.Command {
 		NewLsCmd(a),
 	)
 
-	// Management commands. TM and termbase run against the in-memory backends
+	// Management commands. content memory and terms run against the in-memory backends
 	// the wasm entrypoint seeds from embedded fixtures — no SQLite, no cgo.
 	cmds = append(cmds,
 		NewFlowsCmd(a, FlowCmdOptions{}),
@@ -200,8 +200,8 @@ func BrowserCommandSet(a *App) []*cobra.Command {
 		NewFormatsCmd(a),
 		newBrowserGapCmd("plugin"),
 		newBrowserGapCmd("models"),
-		NewTermbaseCmd(a),
-		NewTMCmd(a),
+		NewTermsCmd(a),
+		NewMemoryCmd(a),
 		NewBrandCmd(a),
 		newBrowserGapCmd("credentials"),
 		NewConfigCmd(a),

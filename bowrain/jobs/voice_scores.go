@@ -13,7 +13,7 @@ import (
 // surface) over freshly persisted draft targets and stores one brand voice
 // score per block. This is what makes the dashboard's on-brand rate
 // voice-informed without any extra AI spend: every server-side draft the
-// convergence loop produces (TM-recycled or AI-translated) leaves a measured
+// convergence loop produces (content memory-recycled or AI-translated) leaves a measured
 // score behind it, and later passes overwrite staleness by appending a newer
 // measurement (readers keep the latest per block+locale).
 //

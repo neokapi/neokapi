@@ -66,7 +66,7 @@ export const richBlock: ContentNode = {
           id: "t1",
           range: { startRun: 4, startOffset: 0, endRun: 5, endOffset: 0 },
           text: "docs",
-          props: { termbase: "glossary", match: "exact" },
+          props: { terms: "glossary", match: "exact" },
         },
       ],
     },

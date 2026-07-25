@@ -85,7 +85,7 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
   translator's target against an existing on-disk target or TM entry
   (`translator-wins` default, `existing-wins`, `newest-wins`). See
   [AD-017](/contribute/architecture/017-bilingual-format-interop).
-- `tm` (`TMDefaults`) — `fuzzy_threshold` (TM pre-fill cutoff on `kapi extract`,
+- `tm` (`MemoryDefaults`) — `fuzzy_threshold` (TM pre-fill cutoff on `kapi extract`,
   default 75) and `read` (additional read-only TM files; writes always go to the
   project TM).
 - `segmentation` (`SegmentationDefaults`) — opt-in SRX sentence segmentation
@@ -264,7 +264,7 @@ defaults:
     fuzzy_threshold: 75
   segmentation:
     source: true
-  termbase: glossary/terms.db
+  termbase: glossary/termbase.db
 
 content:
   # Bare entry — single glob, languages inherited from defaults.

@@ -1,7 +1,7 @@
 // Side-effect → external-system mapping. A tool's declared sideEffects (and the
 // redaction-secret it may produce) are surfaced as small "satellite" systems
-// hanging off the node — the external things it reads from or writes to (TM,
-// termbase, an API/provider, analytics, a redaction vault).
+// hanging off the node — the external things it reads from or writes to (content memory,
+// terms, an API/provider, analytics, a redaction vault).
 
 import { t } from "@neokapi/i18n-react/runtime";
 import { Database, BookMarked, Cloud, BarChart3, Vault, type LucideIcon } from "lucide-react";
@@ -20,7 +20,7 @@ export interface SystemEffect {
   description: string;
 }
 
-const TM_COLOR = "oklch(0.6 0.13 250)";
+const MEMORY_COLOR = "oklch(0.6 0.13 250)";
 const TB_COLOR = "oklch(0.62 0.13 160)";
 const API_COLOR = "oklch(0.64 0.15 300)";
 const ANALYTICS_COLOR = "oklch(0.6 0.04 265)";
@@ -30,49 +30,49 @@ const BY_EFFECT: Record<string, SystemEffect> = {
   "tm-read": {
     key: "tm",
     get label() {
-      return t("TM", "external system");
+      return t("Memory", "external system");
     },
     icon: Database,
     direction: "read",
-    color: TM_COLOR,
+    color: MEMORY_COLOR,
     get description() {
-      return t("Reads from translation memory");
+      return t("Reads from content memory");
     },
   },
   "tm-write": {
     key: "tm",
     get label() {
-      return t("TM", "external system");
+      return t("Memory", "external system");
     },
     icon: Database,
     direction: "write",
-    color: TM_COLOR,
+    color: MEMORY_COLOR,
     get description() {
-      return t("Writes to translation memory");
+      return t("Writes to content memory");
     },
   },
-  "termbase-read": {
-    key: "termbase",
+  "terms-read": {
+    key: "terms",
     get label() {
-      return t("Termbase", "external system");
+      return t("Terms", "external system");
     },
     icon: BookMarked,
     direction: "read",
     color: TB_COLOR,
     get description() {
-      return t("Reads from the termbase");
+      return t("Reads from the terms store");
     },
   },
-  "termbase-write": {
-    key: "termbase",
+  "terms-write": {
+    key: "terms",
     get label() {
-      return t("Termbase", "external system");
+      return t("Terms", "external system");
     },
     icon: BookMarked,
     direction: "write",
     color: TB_COLOR,
     get description() {
-      return t("Writes to the termbase");
+      return t("Writes to the terms store");
     },
   },
   "api-call": {

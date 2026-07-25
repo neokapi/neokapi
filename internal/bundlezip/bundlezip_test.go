@@ -10,7 +10,7 @@ import (
 )
 
 func TestRoundTrip(t *testing.T) {
-	payload := []byte("{\n  \"kind\": \"kapi-tm-format\"\n}\n")
+	payload := []byte("{\n  \"kind\": \"kapi-memory\"\n}\n")
 	data, err := Marshal("tm.kmb", payload)
 	require.NoError(t, err)
 
@@ -70,7 +70,7 @@ func TestUnmarshalRejectsEmptyArchive(t *testing.T) {
 }
 
 func TestUnmarshalRejectsNonZip(t *testing.T) {
-	_, err := Unmarshal([]byte("{\"kind\":\"kapi-tm-format\"}"), "tm.kmb")
+	_, err := Unmarshal([]byte("{\"kind\":\"kapi-memory\"}"), "tm.kmb")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "open archive")
 }

@@ -90,7 +90,7 @@ export const Editable: Story = {
   render: () => <RelationsHarness source={richSource} />,
 };
 
-/** Framework-only (local termbase): the same lanes, read-only — no edit affordances. */
+/** Framework-only (local terms): the same lanes, read-only — no edit affordances. */
 export const ReadOnly: Story = {
   render: () => <RelationsHarness source={coreSource} />,
 };

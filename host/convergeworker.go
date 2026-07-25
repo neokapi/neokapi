@@ -13,7 +13,7 @@ import (
 // convergeJobsDefault is how many locales a convergence pass runs concurrently
 // when the run does not say otherwise (`up --jobs`, defaults.jobs). Locales
 // are independent within a pass (disjoint target rows and files, shared
-// read-only source and TM), so the fan-out is safe; 4 keeps the effective
+// read-only source and content memory), so the fan-out is safe; 4 keeps the effective
 // LLM concurrency (jobs × parallel-blocks) inside typical provider limits.
 const convergeJobsDefault = 4
 
@@ -22,7 +22,7 @@ const convergeJobsDefault = 4
 // registries, config, credentials, the project context/bindings, the document
 // cache (SQLite, WAL), the plugin runtime — and own only the per-run mutable
 // state that made App single-locale: TargetLang, the projectFlowTools slot
-// (each worker builds its own tool instances, so no LLM provider or TM handle
+// (each worker builds its own tool instances, so no LLM provider or content-memory handle
 // is shared mid-flight), and the progress tap.
 //
 // This is an explicit field-by-field copy, NOT a struct copy: App carries a
@@ -52,9 +52,9 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		SourceLang: a.SourceLang,
 		TargetLang: locale,
 
-		TMBackend:   a.TMBackend,
-		TBBackend:   a.TBBackend,
-		Credentials: a.Credentials,
+		MemoryBackend: a.MemoryBackend,
+		TermsBackend:  a.TermsBackend,
+		Credentials:   a.Credentials,
 
 		RegistryResolver: a.RegistryResolver,
 		FallbackRunE:     a.FallbackRunE,
@@ -110,8 +110,8 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	"Encoding":            fieldShared,
 	"SourceLang":          fieldShared,
 	"TargetLang":          fieldOwned, // the whole point: one worker, one locale
-	"TMBackend":           fieldShared,
-	"TBBackend":           fieldShared,
+	"MemoryBackend":       fieldShared,
+	"TermsBackend":        fieldShared,
 	"Credentials":         fieldShared,
 	"AISetupIOOverride":   fieldShared,
 	"RegistryResolver":    fieldShared,
@@ -136,16 +136,16 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 // convergeTap is the trailing read-only step a converge worker appends to its
 // flow (runProjectStepsOver): it observes every block leaving the pipeline and
 // counts the units that carry a committed target for the worker's locale —
-// split by Origin.Kind into TM-recycled and AI/MT-produced — feeding the
+// split by Origin.Kind into content memory-recycled and AI/MT-produced — feeding the
 // unit_progress events of the convergence run. Counters are atomic because
 // ParallelBlockTool may drive Annotate from several goroutines.
 type convergeTap struct {
 	tool.BaseTool
 	locale model.LocaleID
 
-	done  atomic.Int64
-	viaTM atomic.Int64
-	viaAI atomic.Int64
+	done      atomic.Int64
+	viaMemory atomic.Int64
+	viaAI     atomic.Int64
 }
 
 // newConvergeTap builds the tap for one locale's pass run.
@@ -163,8 +163,8 @@ func newConvergeTap(locale string) *convergeTap {
 		}
 		t.done.Add(1)
 		switch tgt.Origin.Kind {
-		case model.OriginTM:
-			t.viaTM.Add(1)
+		case model.OriginMemory:
+			t.viaMemory.Add(1)
 		case model.OriginAI, model.OriginMT:
 			t.viaAI.Add(1)
 		}
@@ -174,8 +174,8 @@ func newConvergeTap(locale string) *convergeTap {
 }
 
 // snapshot returns the tap's current counts.
-func (t *convergeTap) snapshot() (done, viaTM, viaAI int) {
-	return int(t.done.Load()), int(t.viaTM.Load()), int(t.viaAI.Load())
+func (t *convergeTap) snapshot() (done, viaMemory, viaAI int) {
+	return int(t.done.Load()), int(t.viaMemory.Load()), int(t.viaAI.Load())
 }
 
 // convergeProgressInterval throttles unit_progress: one event per locale at
@@ -193,7 +193,7 @@ func watchTapProgress(tap *convergeTap, pass int, emit func(convergence.Event)) 
 	var last int
 	var mu sync.Mutex
 	flush := func() {
-		done, viaTM, viaAI := tap.snapshot()
+		done, viaMemory, viaAI := tap.snapshot()
 		mu.Lock()
 		defer mu.Unlock()
 		if done == last {
@@ -201,12 +201,12 @@ func watchTapProgress(tap *convergeTap, pass int, emit func(convergence.Event)) 
 		}
 		last = done
 		emit(convergence.Event{
-			Type:   convergence.EventUnitProgress,
-			Pass:   pass,
-			Locale: string(tap.locale),
-			Done:   done,
-			ViaTM:  viaTM,
-			ViaAI:  viaAI,
+			Type:      convergence.EventUnitProgress,
+			Pass:      pass,
+			Locale:    string(tap.locale),
+			Done:      done,
+			ViaMemory: viaMemory,
+			ViaAI:     viaAI,
 		})
 	}
 	stopCh := make(chan struct{})

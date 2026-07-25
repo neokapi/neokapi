@@ -10,16 +10,16 @@ import (
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
-// term is a small constructor for a termbase.Term.
-func term(text string, locale model.LocaleID, status model.TermStatus) termbase.Term {
-	return termbase.Term{Text: text, Locale: locale, Status: status}
+// term is a small constructor for a terms.Term.
+func term(text string, locale model.LocaleID, status model.TermStatus) terms.Term {
+	return terms.Term{Text: text, Locale: locale, Status: status}
 }
 
-func concept(id string, terms ...termbase.Term) termbase.Concept {
-	return termbase.Concept{ID: id, Terms: terms}
+func concept(id string, terms ...terms.Term) terms.Concept {
+	return terms.Concept{ID: id, Terms: terms}
 }
 
 // ---------------------------------------------------------------------------
@@ -91,15 +91,15 @@ func TestApplyVoiceOpsToProfile(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// ApplyOpsToTermbase
+// ApplyOpsToTerms
 // ---------------------------------------------------------------------------
 
-func TestApplyOpsToTermbase(t *testing.T) {
+func TestApplyOpsToTerms(t *testing.T) {
 	ctx := context.Background()
 
-	newBase := func(t *testing.T) *termbase.InMemoryTermBase {
+	newBase := func(t *testing.T) *terms.InMemoryStore {
 		t.Helper()
-		base := termbase.NewInMemoryTermBase()
+		base := terms.NewInMemoryStore()
 		require.NoError(t, base.AddConcept(ctx, concept("c1", term("foobar", "en-US", model.TermAdmitted))))
 		return base
 	}
@@ -111,7 +111,7 @@ func TestApplyOpsToTermbase(t *testing.T) {
 			From: model.TermAdmitted, To: model.TermForbidden,
 		})}
 
-		after, err := ApplyOpsToTermbase(ctx, base, ops)
+		after, err := ApplyOpsToTerms(ctx, base, ops)
 		require.NoError(t, err)
 
 		ac, ok, _ := after.GetConcept(ctx, "c1")
@@ -130,7 +130,7 @@ func TestApplyOpsToTermbase(t *testing.T) {
 			mustOp(t, 0, OpTermAdd, TermAddPayload{ConceptID: "c1", Term: term("foo-bar", "en-GB", model.TermAdmitted)}),
 			mustOp(t, 0, OpTermRemove, TermRemovePayload{ConceptID: "c2", Locale: "en-US", Text: "widget"}),
 		}
-		after, err := ApplyOpsToTermbase(ctx, base, ops)
+		after, err := ApplyOpsToTerms(ctx, base, ops)
 		require.NoError(t, err)
 
 		c1, ok, _ := after.GetConcept(ctx, "c1")
@@ -149,12 +149,12 @@ func TestApplyOpsToTermbase(t *testing.T) {
 	})
 
 	t.Run("relation.add and relation.remove", func(t *testing.T) {
-		base := termbase.NewInMemoryTermBase()
+		base := terms.NewInMemoryStore()
 		require.NoError(t, base.AddConcept(ctx, concept("c1", term("old", "en-US", model.TermDeprecated))))
 		require.NoError(t, base.AddConcept(ctx, concept("c2", term("new", "en-US", model.TermPreferred))))
 
-		rel := termbase.ConceptRelation{ID: "r1", SourceID: "c1", TargetID: "c2", RelationType: graph.LabelUseInstead}
-		after, err := ApplyOpsToTermbase(ctx, base, []ChangeSetOp{
+		rel := terms.ConceptRelation{ID: "r1", SourceID: "c1", TargetID: "c2", RelationType: graph.LabelUseInstead}
+		after, err := ApplyOpsToTerms(ctx, base, []ChangeSetOp{
 			mustOp(t, 0, OpRelationAdd, RelationAddPayload{Relation: rel}),
 		})
 		require.NoError(t, err)
@@ -166,7 +166,7 @@ func TestApplyOpsToTermbase(t *testing.T) {
 		assert.Empty(t, baseRels)
 
 		// relation.remove drops it again.
-		removed, err := ApplyOpsToTermbase(ctx, after, []ChangeSetOp{
+		removed, err := ApplyOpsToTerms(ctx, after, []ChangeSetOp{
 			mustOp(t, 0, OpRelationRemove, RelationRemovePayload{RelationID: "r1"}),
 		})
 		require.NoError(t, err)
@@ -174,9 +174,9 @@ func TestApplyOpsToTermbase(t *testing.T) {
 		assert.Empty(t, rels)
 	})
 
-	t.Run("voice ops are ignored by the termbase builder", func(t *testing.T) {
+	t.Run("voice ops are ignored by the terms store builder", func(t *testing.T) {
 		base := newBase(t)
-		after, err := ApplyOpsToTermbase(ctx, base, []ChangeSetOp{
+		after, err := ApplyOpsToTerms(ctx, base, []ChangeSetOp{
 			mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: corebrand.TermRule{Term: "x"}}),
 		})
 		require.NoError(t, err)
@@ -186,7 +186,7 @@ func TestApplyOpsToTermbase(t *testing.T) {
 
 	t.Run("editing a missing concept errors", func(t *testing.T) {
 		base := newBase(t)
-		_, err := ApplyOpsToTermbase(ctx, base, []ChangeSetOp{
+		_, err := ApplyOpsToTerms(ctx, base, []ChangeSetOp{
 			mustOp(t, 0, OpTermStatus, TermStatusPayload{ConceptID: "ghost", Locale: "en-US", Text: "foobar", From: model.TermAdmitted, To: model.TermForbidden}),
 		})
 		require.Error(t, err)

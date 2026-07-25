@@ -5,8 +5,8 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/auth"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // eventTrackerAdapter bridges analytics.PostHogClient → mcpserver.EventTracker.
@@ -51,20 +51,20 @@ func (a *mcpWorkspaceDefaultAdapter) WorkspaceBrandProfileID(ctx context.Context
 	return ws.BrandVoiceProfileID, nil
 }
 
-// tmResolverAdapter bridges workspaceStores → MCPServer.TMResolver.
-type tmResolverAdapter struct {
+// memoryResolverAdapter bridges workspaceStores → MCPServer.MemoryResolver.
+type memoryResolverAdapter struct {
 	ws *workspaceStores
 }
 
-func (a *tmResolverAdapter) GetTM(workspaceID string) (sievepen.TMStore, error) {
-	return a.ws.getTM(workspaceID)
+func (a *memoryResolverAdapter) GetMemory(workspaceID string) (memory.Store, error) {
+	return a.ws.getMemory(workspaceID)
 }
 
-// tbResolverAdapter bridges workspaceStores → MCPServer.TBResolver.
+// tbResolverAdapter bridges workspaceStores → MCPServer.TermsResolver.
 type tbResolverAdapter struct {
 	ws *workspaceStores
 }
 
-func (a *tbResolverAdapter) GetTB(workspaceID string) (termbase.TBStore, error) {
+func (a *tbResolverAdapter) GetTB(workspaceID string) (terms.Store, error) {
 	return a.ws.getTB(workspaceID)
 }

@@ -84,7 +84,7 @@ jobs:
       # a push never auto-starts a server AI run, so the nightly job keeps content
       # synced without burning credits. Server AI convergence over the ~18.8k-block
       # corpus is opt-in (the `converge` dispatch input → kapi up) and should only
-      # be run once the server TM is seeded and/or a BYO AI key is set.
+      # be run once the server content memory is seeded and/or a BYO AI key is set.
       - name: kapi push (transport)
         if: ${{ github.event.inputs.dry_run != 'true' }}
         run: ./bin/kapi push

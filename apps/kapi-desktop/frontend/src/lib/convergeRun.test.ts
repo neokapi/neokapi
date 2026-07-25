@@ -22,7 +22,7 @@ describe("reduceConvergeRun (typed converge_event stream)", () => {
     ]);
   });
 
-  it("advances a locale row through running → done with TM/AI split", () => {
+  it("advances a locale row through running → done with content memory/AI split", () => {
     const model = reduceConvergeRun([
       ce({ type: "pass_start", pass: 1, maxPasses: 6, pending: ["fr-FR"] }),
       ce({ type: "locale_start", pass: 1, locale: "fr-FR", units: 20 }),

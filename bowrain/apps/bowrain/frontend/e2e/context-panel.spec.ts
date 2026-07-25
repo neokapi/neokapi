@@ -3,9 +3,9 @@ import { setupLocalApp } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
 /**
- * Per-block context (TM matches + terminology) moved out of the old grid-mode
- * toolbar side panel into the Translate editor's Visual view: TM matches render
- * in the inline card's TM section, terminology in the right-hand TermSidebar.
+ * Per-block context (content-memory matches + terminology) moved out of the old grid-mode
+ * toolbar side panel into the Translate editor's Visual view: content-memory matches render
+ * in the inline card's content memory section, terminology in the right-hand TermSidebar.
  * These tests exercise that surface in the Visual view (the default).
  */
 
@@ -16,8 +16,8 @@ function clickTestId(page: any, testId: string) {
   }, testId);
 }
 
-/** Sets up a project with TM + terminology, adds a file, opens the Visual editor. */
-async function openVisualEditorWithTMAndTerms(page: any) {
+/** Sets up a project with Memory + terminology, adds a file, opens the Visual editor. */
+async function openVisualEditorWithMemoryAndTerms(page: any) {
   await setupLocalApp(page);
 
   await page.getByText("Upload files").click();
@@ -32,15 +32,15 @@ async function openVisualEditorWithTMAndTerms(page: any) {
     const pid = projects[0]?.id;
     if (!pid) return;
 
-    backend.AddTMEntry(pid, "Hello from index.html", "Bonjour depuis index.html", "en", "fr");
-    backend.AddTMEntry(
+    backend.AddMemoryEntry(pid, "Hello from index.html", "Bonjour depuis index.html", "en", "fr");
+    backend.AddMemoryEntry(
       pid,
       "Welcome to our application",
       "Bienvenue dans notre application",
       "en",
       "fr",
     );
-    backend.AddTMEntry(pid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
+    backend.AddMemoryEntry(pid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
 
     backend.AddConcept({
       project_id: pid,
@@ -78,16 +78,16 @@ async function openVisualEditorWithTMAndTerms(page: any) {
 }
 
 test.describe("Context Panel (Visual view)", () => {
-  test("should show TM matches for the current block", async ({ page }) => {
-    await openVisualEditorWithTMAndTerms(page);
+  test("should show content-memory matches for the current block", async ({ page }) => {
+    await openVisualEditorWithMemoryAndTerms(page);
 
-    // The first block matches a TM entry; its match renders in the card.
+    // The first block matches a content-memory entry; its match renders in the card.
     await expect(page.getByTestId("tm-match-0")).toBeVisible({ timeout: 5000 });
     await expect(page.getByTestId("context-panel")).toContainText("Bonjour depuis index.html");
   });
 
   test("should show term matches for a block in the term sidebar", async ({ page }) => {
-    await openVisualEditorWithTMAndTerms(page);
+    await openVisualEditorWithMemoryAndTerms(page);
 
     // Navigate to the second block which contains "application".
     await clickTestId(page, "next-block-btn");
@@ -98,8 +98,8 @@ test.describe("Context Panel (Visual view)", () => {
     await expect(page.getByTestId("term-sidebar")).toContainText("application");
   });
 
-  test("should apply a TM match to the target", async ({ page }) => {
-    await openVisualEditorWithTMAndTerms(page);
+  test("should apply a content-memory match to the target", async ({ page }) => {
+    await openVisualEditorWithMemoryAndTerms(page);
 
     // Move to the second block (untranslated).
     await clickTestId(page, "next-block-btn");
@@ -116,7 +116,7 @@ test.describe("Context Panel (Visual view)", () => {
   });
 
   test("should update matches when navigating between blocks", async ({ page }) => {
-    await openVisualEditorWithTMAndTerms(page);
+    await openVisualEditorWithMemoryAndTerms(page);
 
     await expect(page.getByTestId("tm-match-0")).toBeVisible({ timeout: 5000 });
     await expect(page.getByTestId("context-panel")).toContainText("Bonjour depuis index.html");

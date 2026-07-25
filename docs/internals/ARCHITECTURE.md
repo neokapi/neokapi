@@ -20,7 +20,7 @@ graph TB
     subgraph "Flow (Pipeline)"
         direction LR
         T1[Tool 1<br/>Segmentation]
-        T2[Tool 2<br/>TM Leverage]
+        T2[Tool 2<br/>content memory Leverage]
         T3[Tool 3<br/>AI Translation]
         T4[Tool N<br/>QA Check]
         T1 -->|"chan Part"| T2
@@ -100,8 +100,8 @@ neokapi/
 │   │   ├── protoconvert/            # Part ⇆ Okapi Event conversion
 │   │   └── proto/                   # gRPC protobuf (v1 connector, v2 BridgeService)
 │   └── internal/testutil/           # Shared test helpers (RawDocFromString, CollectBlocks, …)
-├── sievepen/                        # Translation memory (interface + in-memory + SQLite + matching)
-├── termbase/                        # Terminology (interface + in-memory + SQLite + import/export)
+├── memory/                        # Content memory (interface + in-memory + SQLite + matching)
+├── terms/                        # Terminology (interface + in-memory + SQLite + import/export)
 ├── providers/
 │   ├── ai/                          # package aiprovider — LLM providers + AI tools
 │   └── mt/                          # package mtprovider — MT providers + MT tools
@@ -114,7 +114,7 @@ neokapi/
 │   ├── config/                      # Viper-based app configuration (~/.config/kapi/)
 │   ├── pluginhost/                  # Manifest discovery + dispatch + Mode-C daemon pool
 │   ├── output/                      # Shared output formatting + types
-│   └── storage/                     # SQLite-backed termbase and TM for CLI workflows
+│   └── storage/                     # SQLite-backed terms and content memory for CLI workflows
 │
 │   ── Kapi Module ──
 ├── kapi/

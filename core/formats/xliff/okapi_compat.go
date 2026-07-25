@@ -123,7 +123,7 @@ type OkapiCompatConfig struct {
 
 	// StripAltTransSegSource removes any `<seg-source>…</seg-source>`
 	// wrapper inside an `<alt-trans>` element on round-trip. okapi's
-	// XLIFFFilter treats alt-trans as a translation-memory match — a
+	// XLIFFFilter treats alt-trans as a content-memory match — a
 	// flat (source, target) pair with no segmentation envelope — so
 	// when the source happened to authoring-time include a seg-source
 	// inside alt-trans (legal per the schema, rare in practice), the

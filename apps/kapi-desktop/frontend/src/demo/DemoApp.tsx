@@ -1,9 +1,9 @@
 /**
  * DemoApp — a self-contained, recording-only build of Kapi Desktop.
  *
- * Renders the REAL app chrome (IconSidebar) and the REAL termbase / TM browser
+ * Renders the REAL app chrome (IconSidebar) and the REAL terms / content memory browser
  * components from @neokapi/ui-primitives, wired to in-browser mock adapters with
- * a rich, coherent sample glossary + translation memory. There is no Wails
+ * a rich, coherent sample glossary + content memory. There is no Wails
  * backend in play — this entry exists purely so the walkthrough recorder
  * (harness/) can drive the genuine UI in a browser and capture a clean,
  * deterministic screencast (ripple clicks, human-like mouse motion, zoom).
@@ -28,12 +28,12 @@ import {
   SimpleTooltip,
   TooltipProvider,
   ResourceCard,
-  TMBrowser,
-  TermbaseBrowser,
-  type TMAdapter,
-  type TermbaseAdapter,
+  MemoryBrowser,
+  TermsBrowser,
+  type MemoryAdapter,
+  type TermsAdapter,
   type ConceptDTO,
-  type TMEntryDTO,
+  type MemoryEntryDTO,
 } from "@neokapi/ui-primitives";
 import { IconSidebar } from "../components/IconSidebar";
 
@@ -48,7 +48,7 @@ const LOCALES = [
 
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
 
-// ── Sample termbase: a product glossary for a fictional analytics app ───────
+// ── Sample terms: a product glossary for a fictional analytics app ───────
 const CONCEPTS: ConceptDTO[] = [
   {
     id: "c-dashboard",
@@ -186,8 +186,8 @@ const CONCEPTS: ConceptDTO[] = [
   },
 ];
 
-// ── Sample translation memory: real UI strings, with inline code + an entity ─
-const TM_ENTRIES: TMEntryDTO[] = [
+// ── Sample content memory: real UI strings, with inline code + an entity ─
+const MEMORY_ENTRIES: MemoryEntryDTO[] = [
   {
     id: "tm-1",
     project_id: "",
@@ -363,7 +363,7 @@ const TM_ENTRIES: TMEntryDTO[] = [
 ];
 
 // ── Mock adapters (in-browser, no backend) ──────────────────────────────────
-function termbaseAdapter(seed: ConceptDTO[]): TermbaseAdapter {
+function termsAdapter(seed: ConceptDTO[]): TermsAdapter {
   let data = [...seed];
   return {
     async search(query) {
@@ -393,9 +393,9 @@ function termbaseAdapter(seed: ConceptDTO[]): TermbaseAdapter {
   };
 }
 
-function tmAdapter(seed: TMEntryDTO[]): TMAdapter {
+function memoryAdapter(seed: MemoryEntryDTO[]): MemoryAdapter {
   let data = [...seed];
-  const hit = (e: TMEntryDTO, q: string) =>
+  const hit = (e: MemoryEntryDTO, q: string) =>
     Object.values(e.variants).some((v) => v.text.toLowerCase().includes(q));
   return {
     async search(query) {
@@ -428,13 +428,13 @@ const TERMBASE_RESOURCES = [
   },
   {
     name: "brand-terms",
-    path: "~/.config/kapi/termbases/brand-terms.db",
+    path: "~/.config/kapi/termbases/brand-termbase.db",
     size: 131072,
     modified: hoursAgo(48),
   },
 ];
 
-const TM_RESOURCES = [
+const MEMORY_RESOURCES = [
   {
     name: "acme-app",
     path: "~/.config/kapi/tm/acme-app.db",
@@ -456,7 +456,7 @@ function HomeView({ onGo }: { onGo: (v: string) => void }) {
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">Kapi Desktop</h1>
         <p className="mt-2 max-w-xl text-muted-foreground">
-          Browse the terminology and translation memory behind your localisation — every concept,
+          Browse the terminology and content memory behind your localisation — every concept,
           every approved term, every remembered translation.
         </p>
       </div>
@@ -466,7 +466,7 @@ function HomeView({ onGo }: { onGo: (v: string) => void }) {
           className="group flex flex-col items-start gap-2 rounded-xl border border-border bg-card p-5 text-left transition-all hover:border-primary/40 hover:shadow-md"
         >
           <BookOpen size={22} className="text-primary" />
-          <div className="text-base font-semibold">Termbases</div>
+          <div className="text-base font-semibold">Terms stores</div>
           <div className="text-sm text-muted-foreground">
             Multi-locale concepts with preferred and deprecated terms.
           </div>
@@ -479,7 +479,7 @@ function HomeView({ onGo }: { onGo: (v: string) => void }) {
           className="group flex flex-col items-start gap-2 rounded-xl border border-border bg-card p-5 text-left transition-all hover:border-primary/40 hover:shadow-md"
         >
           <Database size={22} className="text-primary" />
-          <div className="text-base font-semibold">Translation Memories</div>
+          <div className="text-base font-semibold">Content Memories</div>
           <div className="text-sm text-muted-foreground">
             Searchable past translations, inline formatting preserved.
           </div>
@@ -492,9 +492,9 @@ function HomeView({ onGo }: { onGo: (v: string) => void }) {
   );
 }
 
-function TermbasesView() {
+function TermsView() {
   const [open, setOpen] = useState<string | null>(null);
-  const adapter = useMemo(() => termbaseAdapter(CONCEPTS), []);
+  const adapter = useMemo(() => termsAdapter(CONCEPTS), []);
   if (open) {
     return (
       <div className="p-6">
@@ -519,7 +519,7 @@ function TermbasesView() {
             </Button>
           }
         />
-        <TermbaseBrowser adapter={adapter} locales={LOCALES} />
+        <TermsBrowser adapter={adapter} locales={LOCALES} />
       </div>
     );
   }
@@ -533,7 +533,7 @@ function TermbasesView() {
               <FolderOpen size={12} /> Open File...
             </Button>
             <Button size="sm">
-              <Plus size={12} /> New Termbase
+              <Plus size={12} /> New Terms
             </Button>
           </div>
         }
@@ -558,7 +558,7 @@ function TermbasesView() {
 
 function MemoriesView() {
   const [open, setOpen] = useState<string | null>(null);
-  const adapter = useMemo(() => tmAdapter(TM_ENTRIES), []);
+  const adapter = useMemo(() => memoryAdapter(MEMORY_ENTRIES), []);
   if (open) {
     return (
       <div className="p-6">
@@ -588,7 +588,7 @@ function MemoriesView() {
             </div>
           }
         />
-        <TMBrowser
+        <MemoryBrowser
           adapter={adapter}
           locales={LOCALES}
           sourceLocale="en-US"
@@ -600,27 +600,27 @@ function MemoriesView() {
   return (
     <div className="p-6">
       <PageHeader
-        title="Translation Memories"
+        title="Content Memories"
         actions={
           <div className="flex gap-2">
             <Button variant="outline" size="sm">
               <FolderOpen size={12} /> Open File...
             </Button>
             <Button size="sm">
-              <Plus size={12} /> Create TM
+              <Plus size={12} /> Create Memory
             </Button>
           </div>
         }
       />
       <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-        {TM_RESOURCES.map((r) => (
+        {MEMORY_RESOURCES.map((r) => (
           <ResourceCard
             key={r.path}
             name={r.name}
             path={r.path}
             size={r.size}
             modified={r.modified}
-            entryCount={r.name === "acme-app" ? TM_ENTRIES.length : 312}
+            entryCount={r.name === "acme-app" ? MEMORY_ENTRIES.length : 312}
             icon={<Database size={18} />}
             onClick={() => setOpen(r.name)}
           />
@@ -653,7 +653,7 @@ export default function DemoApp() {
             </div>
             <main className="flex-1 overflow-auto">
               {view === "termbases" ? (
-                <TermbasesView />
+                <TermsView />
               ) : view === "memories" ? (
                 <MemoriesView />
               ) : (

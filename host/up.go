@@ -18,8 +18,8 @@ func formatPlanLine(plan UpPlanOutput) string {
 	if t.MissingTarget == 0 {
 		return "plan: every unit has a committed target — verifying gates"
 	}
-	line := fmt.Sprintf("plan: %d unit(s) missing · %d exact-TM · %d AI · ≈%s tokens",
-		t.MissingTarget, t.TMExact, t.AIRemaining, compactTokens(t.TokenEstimate))
+	line := fmt.Sprintf("plan: %d unit(s) missing · %d exact-content memory · %d AI · ≈%s tokens",
+		t.MissingTarget, t.MemoryExact, t.AIRemaining, compactTokens(t.TokenEstimate))
 	if plan.Provider != "" {
 		if plan.Subscription {
 			line += fmt.Sprintf(" · %s (your subscription)", plan.Provider)
@@ -51,7 +51,7 @@ func AddUpFlags(cmd Command) {
 	cmd.Flags().Bool("no-extract", false, "skip the pre-pass source-drift check and block-store re-extraction")
 	cmd.Flags().Bool("no-checks", false, "skip the bound checks in the loop (produced units count as translated even when failing guardrails)")
 	cmd.Flags().Bool("materialize", false, "after the loop, write localized files from the project store for every shippable locale (forces defaults.materialize: on-converge)")
-	cmd.Flags().Bool("plan", false, "dry run: report pending work, TM leverage, and a token estimate per (collection, locale) — no provider calls, no writes")
+	cmd.Flags().Bool("plan", false, "dry run: report pending work, content-memory leverage, and a token estimate per (collection, locale) — no provider calls, no writes")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
 }
 
@@ -103,7 +103,7 @@ func (a *App) WarnIfServerRecipeConvergingLocally(cmd Command, projectPath strin
 	fmt.Fprintln(cmd.ErrOrStderr(),
 		"warning: this project declares a server: block, but the bowrain plugin is not installed — "+
 			"running the loop locally on your own AI provider; results are NOT pushed to the server. "+
-			"Install kapi-bowrain to run `kapi up` on the server (org keys, shared TM, team review).")
+			"Install kapi-bowrain to run `kapi up` on the server (org keys, shared content memory, team review).")
 }
 
 // ExecuteUp is the local-venue `kapi up` execution behind the command: load

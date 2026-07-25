@@ -87,20 +87,20 @@ test.describe("Routing", () => {
     expect(page.url()).toContain(`/s/main/${itemId}/translate`);
   });
 
-  test("deep link to TM explorer loads correctly", async ({ page }) => {
+  test("deep link to content memory explorer loads correctly", async ({ page }) => {
     await injectAuthCookie(page, token);
     await page.goto(`/${wsSlug}/memory`);
 
-    // TM browser should be visible
+    // content memory browser should be visible
     await expect(page.getByTestId("tm-browser")).toBeVisible({ timeout: 10000 });
     expect(page.url()).toContain("/memory");
   });
 
-  test("legacy termbase deep link redirects to Brand · Concepts", async ({ page }) => {
+  test("legacy terms deep link redirects to Brand · Concepts", async ({ page }) => {
     await injectAuthCookie(page, token);
-    await page.goto(`/${wsSlug}/termbase`);
+    await page.goto(`/${wsSlug}/terms`);
 
-    // Terminology lives inside the brand graph now: /termbase is a legacy
+    // Terminology lives inside the brand graph now: /terms is a legacy
     // redirect to the Concepts section of the Brand hub.
     await expect(page).toHaveURL(new RegExp(`/${wsSlug}/brand/concepts`), { timeout: 10000 });
     await expect(page.getByRole("heading", { name: "Concepts" })).toBeVisible({ timeout: 10000 });
@@ -132,7 +132,7 @@ test.describe("Routing", () => {
     await page.goto(`/${wsSlug}`);
     await expect(page.getByTestId("nav-translate")).toBeVisible({ timeout: 10000 });
 
-    // Navigate to memory via sidebar (Termbase has no sidebar entry anymore —
+    // Navigate to memory via sidebar (Terms has no sidebar entry anymore —
     // it is reached from the Memory surface / direct URL, covered above).
     await page.getByTestId("nav-memory").click();
     await expect(page.getByTestId("tm-browser")).toBeVisible({ timeout: 10000 });

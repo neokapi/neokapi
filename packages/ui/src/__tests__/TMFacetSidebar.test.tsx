@@ -3,10 +3,10 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
-import { TMFacetSidebar, EMPTY_FACETS } from "../components/resource-browser/TMFacetSidebar";
-import type { TMFacets } from "../components/resource-browser/types";
+import { MemoryFacetSidebar, EMPTY_FACETS } from "../components/resource-browser/MemoryFacetSidebar";
+import type { MemoryFacets } from "../components/resource-browser/types";
 
-const FACETS: TMFacets = {
+const FACETS: MemoryFacets = {
   locales: [
     { locale: "en-US", count: 15 },
     { locale: "fr-FR", count: 10 },
@@ -45,7 +45,7 @@ function renderToContainer(el: React.ReactElement): HTMLDivElement {
   return container;
 }
 
-describe("TMFacetSidebar", () => {
+describe("MemoryFacetSidebar", () => {
   afterEach(() => {
     while (document.body.firstChild) {
       document.body.removeChild(document.body.firstChild);
@@ -54,7 +54,7 @@ describe("TMFacetSidebar", () => {
 
   it("renders Filters heading", () => {
     const c = renderToContainer(
-      createElement(TMFacetSidebar, {
+      createElement(MemoryFacetSidebar, {
         facets: FACETS,
         selection: EMPTY_FACETS,
         onSelectionChange: vi.fn(),
@@ -65,7 +65,7 @@ describe("TMFacetSidebar", () => {
 
   it("renders Languages facets with counts", () => {
     const c = renderToContainer(
-      createElement(TMFacetSidebar, {
+      createElement(MemoryFacetSidebar, {
         facets: FACETS,
         selection: EMPTY_FACETS,
         onSelectionChange: vi.fn(),
@@ -82,7 +82,7 @@ describe("TMFacetSidebar", () => {
 
   it("renders Import Sessions facets", () => {
     const c = renderToContainer(
-      createElement(TMFacetSidebar, {
+      createElement(MemoryFacetSidebar, {
         facets: FACETS,
         selection: EMPTY_FACETS,
         onSelectionChange: vi.fn(),
@@ -104,7 +104,7 @@ describe("TMFacetSidebar", () => {
   it("calls onSelectionChange when locale checkbox is toggled", () => {
     const onChange = vi.fn();
     const c = renderToContainer(
-      createElement(TMFacetSidebar, {
+      createElement(MemoryFacetSidebar, {
         facets: FACETS,
         selection: EMPTY_FACETS,
         onSelectionChange: onChange,
@@ -121,7 +121,7 @@ describe("TMFacetSidebar", () => {
   it("calls onSelectionChange when a session is toggled", () => {
     const onChange = vi.fn();
     const c = renderToContainer(
-      createElement(TMFacetSidebar, {
+      createElement(MemoryFacetSidebar, {
         facets: FACETS,
         selection: EMPTY_FACETS,
         onSelectionChange: onChange,
@@ -147,14 +147,14 @@ describe("TMFacetSidebar", () => {
   it("shows Clear all when filters are active", () => {
     const selection = { ...EMPTY_FACETS, locales: ["fr-FR"] };
     const c = renderToContainer(
-      createElement(TMFacetSidebar, { facets: FACETS, selection, onSelectionChange: vi.fn() }),
+      createElement(MemoryFacetSidebar, { facets: FACETS, selection, onSelectionChange: vi.fn() }),
     );
     expect(c.textContent).toContain("Clear all");
   });
 
   it("does not show Clear all when no filters active", () => {
     const c = renderToContainer(
-      createElement(TMFacetSidebar, {
+      createElement(MemoryFacetSidebar, {
         facets: FACETS,
         selection: EMPTY_FACETS,
         onSelectionChange: vi.fn(),
@@ -165,7 +165,7 @@ describe("TMFacetSidebar", () => {
 
   it("returns null when facets is null and not loading", () => {
     const c = renderToContainer(
-      createElement(TMFacetSidebar, {
+      createElement(MemoryFacetSidebar, {
         facets: null,
         selection: EMPTY_FACETS,
         onSelectionChange: vi.fn(),

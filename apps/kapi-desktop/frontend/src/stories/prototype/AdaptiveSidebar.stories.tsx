@@ -8,7 +8,7 @@ import { AdaptiveSidebar, DesktopFrame, ProjectKindBadge } from "./_shared";
  *
  * A content project shows only the content workspace. When the project enables
  * the localization feature, a clearly-grouped Localization set (Translate,
- * Translation Memories, Termbases) lights up — same content items, plus the
+ * Content Memories, Terms stores) lights up — same content items, plus the
  * l10n surface.
  */
 const meta = {
@@ -73,8 +73,8 @@ export const SideBySide: Story = {
             badge={<ProjectKindBadge kind="content" />}
             caption={
               <>
-                A content project: Home, Content, Check, Rewrite, Stats, Brand. No Translate, TM, or
-                Termbase — and flows are not a sidebar pillar.
+                A content project: Home, Content, Check, Rewrite, Stats, Brand. No Translate, Memory, or
+                Terms — and flows are not a sidebar pillar.
               </>
             }
           />

@@ -281,9 +281,9 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
   // as it rolls. It falls through to the overlay path, which paints a censor bar.
   const hasRedaction = spans.some((s) => s.type === "redaction");
 
-  // A TM-leveraged line: rolls into its memory match wrapped in a "from memory"
+  // A content memory-leveraged line: rolls into its memory match wrapped in a "from memory"
   // highlight. The "tm" overlay is a line-level marker (not a rendered span).
-  const tmLine =
+  const memoryLine =
     !!ctx.annotations &&
     (line.overlays?.some((o) => o.type === "tm" && o.side === ctx.side) ?? false);
 
@@ -297,7 +297,7 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
         delay={ctx.stagger > 0 ? ctx.stagger * seq : 0}
       />
     );
-    return tmLine ? <span className={styles.tmHit}>{roll}</span> : roll;
+    return memoryLine ? <span className={styles.memoryHit}>{roll}</span> : roll;
   }
 
   const showCaret = ctx.transition === "typewriter" && !done && !ctx.reducedMotion;
@@ -309,7 +309,7 @@ function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.
       className={cn(
         ctx.transition === "crossfade" && styles.fade,
         showCaret && styles.caret,
-        tmLine && styles.tmHit,
+        memoryLine && styles.memoryHit,
       )}
     >
       {segments.map((seg, i) =>

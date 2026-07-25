@@ -53,7 +53,7 @@ type SyncPushInit struct {
 	RootHash string `protobuf:"bytes,5,opt,name=root_hash,json=rootHash,proto3" json:"root_hash,omitempty"`
 	// Collection-level hashes for non-block content.
 	TermsHash     string `protobuf:"bytes,6,opt,name=terms_hash,json=termsHash,proto3" json:"terms_hash,omitempty"`
-	TmHash        string `protobuf:"bytes,7,opt,name=tm_hash,json=tmHash,proto3" json:"tm_hash,omitempty"`
+	TmHash        string `protobuf:"bytes,7,opt,name=tm_hash,json=memoryHash,proto3" json:"tm_hash,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -147,9 +147,9 @@ type SyncPushInitResponse struct {
 	DeletedItems []string `protobuf:"bytes,4,rep,name=deleted_items,json=deletedItems,proto3" json:"deleted_items,omitempty"`
 	// New items the client has that server doesn't.
 	NewItems []string `protobuf:"bytes,5,rep,name=new_items,json=newItems,proto3" json:"new_items,omitempty"`
-	// Whether terms/TM need re-syncing.
+	// Whether terms/content memory need re-syncing.
 	TermsChanged       bool  `protobuf:"varint,6,opt,name=terms_changed,json=termsChanged,proto3" json:"terms_changed,omitempty"`
-	TmChanged          bool  `protobuf:"varint,7,opt,name=tm_changed,json=tmChanged,proto3" json:"tm_changed,omitempty"`
+	TmChanged          bool  `protobuf:"varint,7,opt,name=tm_changed,json=memoryChanged,proto3" json:"tm_changed,omitempty"`
 	UnchangedItemCount int32 `protobuf:"varint,8,opt,name=unchanged_item_count,json=unchangedItemCount,proto3" json:"unchanged_item_count,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
@@ -576,10 +576,10 @@ type SyncChunk struct {
 	ContentType string                 `protobuf:"bytes,1,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
 	RecordCount int32                  `protobuf:"varint,2,opt,name=record_count,json=recordCount,proto3" json:"record_count,omitempty"`
 	// Exactly one of these is populated (determined by content_type).
-	Blocks        []*SyncBlock   `protobuf:"bytes,10,rep,name=blocks,proto3" json:"blocks,omitempty"`
-	Terms         []*SyncTerm    `protobuf:"bytes,11,rep,name=terms,proto3" json:"terms,omitempty"`
-	TmEntries     []*SyncTMEntry `protobuf:"bytes,12,rep,name=tm_entries,json=tmEntries,proto3" json:"tm_entries,omitempty"`
-	Media         []*SyncMedia   `protobuf:"bytes,13,rep,name=media,proto3" json:"media,omitempty"`
+	Blocks        []*SyncBlock       `protobuf:"bytes,10,rep,name=blocks,proto3" json:"blocks,omitempty"`
+	Terms         []*SyncTerm        `protobuf:"bytes,11,rep,name=terms,proto3" json:"terms,omitempty"`
+	TmEntries     []*SyncMemoryEntry `protobuf:"bytes,12,rep,name=tm_entries,json=memoryEntries,proto3" json:"tm_entries,omitempty"`
+	Media         []*SyncMedia       `protobuf:"bytes,13,rep,name=media,proto3" json:"media,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -642,7 +642,7 @@ func (x *SyncChunk) GetTerms() []*SyncTerm {
 	return nil
 }
 
-func (x *SyncChunk) GetTmEntries() []*SyncTMEntry {
+func (x *SyncChunk) GetTmEntries() []*SyncMemoryEntry {
 	if x != nil {
 		return x.TmEntries
 	}
@@ -1103,8 +1103,8 @@ func (x *SyncTermTranslation) GetStatus() string {
 	return ""
 }
 
-// SyncTMEntry carries a translation memory entry.
-type SyncTMEntry struct {
+// SyncMemoryEntry carries a content memory entry.
+type SyncMemoryEntry struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	SourceLocale  string                 `protobuf:"bytes,2,opt,name=source_locale,json=sourceLocale,proto3" json:"source_locale,omitempty"`
@@ -1119,20 +1119,20 @@ type SyncTMEntry struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SyncTMEntry) Reset() {
-	*x = SyncTMEntry{}
+func (x *SyncMemoryEntry) Reset() {
+	*x = SyncMemoryEntry{}
 	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SyncTMEntry) String() string {
+func (x *SyncMemoryEntry) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SyncTMEntry) ProtoMessage() {}
+func (*SyncMemoryEntry) ProtoMessage() {}
 
-func (x *SyncTMEntry) ProtoReflect() protoreflect.Message {
+func (x *SyncMemoryEntry) ProtoReflect() protoreflect.Message {
 	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1144,68 +1144,68 @@ func (x *SyncTMEntry) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SyncTMEntry.ProtoReflect.Descriptor instead.
-func (*SyncTMEntry) Descriptor() ([]byte, []int) {
+// Deprecated: Use SyncMemoryEntry.ProtoReflect.Descriptor instead.
+func (*SyncMemoryEntry) Descriptor() ([]byte, []int) {
 	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *SyncTMEntry) GetId() string {
+func (x *SyncMemoryEntry) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *SyncTMEntry) GetSourceLocale() string {
+func (x *SyncMemoryEntry) GetSourceLocale() string {
 	if x != nil {
 		return x.SourceLocale
 	}
 	return ""
 }
 
-func (x *SyncTMEntry) GetTargetLocale() string {
+func (x *SyncMemoryEntry) GetTargetLocale() string {
 	if x != nil {
 		return x.TargetLocale
 	}
 	return ""
 }
 
-func (x *SyncTMEntry) GetSourceText() string {
+func (x *SyncMemoryEntry) GetSourceText() string {
 	if x != nil {
 		return x.SourceText
 	}
 	return ""
 }
 
-func (x *SyncTMEntry) GetTargetText() string {
+func (x *SyncMemoryEntry) GetTargetText() string {
 	if x != nil {
 		return x.TargetText
 	}
 	return ""
 }
 
-func (x *SyncTMEntry) GetOrigin() string {
+func (x *SyncMemoryEntry) GetOrigin() string {
 	if x != nil {
 		return x.Origin
 	}
 	return ""
 }
 
-func (x *SyncTMEntry) GetScore() float64 {
+func (x *SyncMemoryEntry) GetScore() float64 {
 	if x != nil {
 		return x.Score
 	}
 	return 0
 }
 
-func (x *SyncTMEntry) GetProperties() map[string]string {
+func (x *SyncMemoryEntry) GetProperties() map[string]string {
 	if x != nil {
 		return x.Properties
 	}
 	return nil
 }
 
-func (x *SyncTMEntry) GetContentHash() string {
+func (x *SyncMemoryEntry) GetContentHash() string {
 	if x != nil {
 		return x.ContentHash
 	}
@@ -1536,10 +1536,10 @@ type SyncPullResponse struct {
 	Cursor  int64                  `protobuf:"varint,1,opt,name=cursor,proto3" json:"cursor,omitempty"`
 	HasMore bool                   `protobuf:"varint,2,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
 	// Mixed content types in a single response.
-	Blocks        []*SyncBlock   `protobuf:"bytes,10,rep,name=blocks,proto3" json:"blocks,omitempty"`
-	Terms         []*SyncTerm    `protobuf:"bytes,11,rep,name=terms,proto3" json:"terms,omitempty"`
-	TmEntries     []*SyncTMEntry `protobuf:"bytes,12,rep,name=tm_entries,json=tmEntries,proto3" json:"tm_entries,omitempty"`
-	Media         []*SyncMedia   `protobuf:"bytes,13,rep,name=media,proto3" json:"media,omitempty"`
+	Blocks        []*SyncBlock       `protobuf:"bytes,10,rep,name=blocks,proto3" json:"blocks,omitempty"`
+	Terms         []*SyncTerm        `protobuf:"bytes,11,rep,name=terms,proto3" json:"terms,omitempty"`
+	TmEntries     []*SyncMemoryEntry `protobuf:"bytes,12,rep,name=tm_entries,json=memoryEntries,proto3" json:"tm_entries,omitempty"`
+	Media         []*SyncMedia       `protobuf:"bytes,13,rep,name=media,proto3" json:"media,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1602,7 +1602,7 @@ func (x *SyncPullResponse) GetTerms() []*SyncTerm {
 	return nil
 }
 
-func (x *SyncPullResponse) GetTmEntries() []*SyncTMEntry {
+func (x *SyncPullResponse) GetTmEntries() []*SyncMemoryEntry {
 	if x != nil {
 		return x.TmEntries
 	}
@@ -1686,7 +1686,7 @@ const file_bowrain_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	" \x03(\v2\x1a.neokapi.sync.v1.SyncBlockR\x06blocks\x12/\n" +
 	"\x05terms\x18\v \x03(\v2\x19.neokapi.sync.v1.SyncTermR\x05terms\x12;\n" +
 	"\n" +
-	"tm_entries\x18\f \x03(\v2\x1c.neokapi.sync.v1.SyncTMEntryR\ttmEntries\x120\n" +
+	"tm_entries\x18\f \x03(\v2\x1c.neokapi.sync.v1.SyncMemoryEntryR\ttmEntries\x120\n" +
 	"\x05media\x18\r \x03(\v2\x1a.neokapi.sync.v1.SyncMediaR\x05media\"\xe7\b\n" +
 	"\tSyncBlock\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
@@ -1749,7 +1749,7 @@ const file_bowrain_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	"\x06locale\x18\x01 \x01(\tR\x06locale\x12\x12\n" +
 	"\x04term\x18\x02 \x01(\tR\x04term\x12\x16\n" +
 	"\x06status\x18\x03 \x01(\tR\x06status\"\x87\x03\n" +
-	"\vSyncTMEntry\x12\x0e\n" +
+	"\vSyncMemoryEntry\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12#\n" +
 	"\rsource_locale\x18\x02 \x01(\tR\fsourceLocale\x12#\n" +
 	"\rtarget_locale\x18\x03 \x01(\tR\ftargetLocale\x12\x1f\n" +
@@ -1760,7 +1760,7 @@ const file_bowrain_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	"\x06origin\x18\x06 \x01(\tR\x06origin\x12\x14\n" +
 	"\x05score\x18\a \x01(\x01R\x05score\x12L\n" +
 	"\n" +
-	"properties\x18\b \x03(\v2,.neokapi.sync.v1.SyncTMEntry.PropertiesEntryR\n" +
+	"properties\x18\b \x03(\v2,.neokapi.sync.v1.SyncMemoryEntry.PropertiesEntryR\n" +
 	"properties\x12!\n" +
 	"\fcontent_hash\x18\t \x01(\tR\vcontentHash\x1a=\n" +
 	"\x0fPropertiesEntry\x12\x10\n" +
@@ -1815,7 +1815,7 @@ const file_bowrain_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	" \x03(\v2\x1a.neokapi.sync.v1.SyncBlockR\x06blocks\x12/\n" +
 	"\x05terms\x18\v \x03(\v2\x19.neokapi.sync.v1.SyncTermR\x05terms\x12;\n" +
 	"\n" +
-	"tm_entries\x18\f \x03(\v2\x1c.neokapi.sync.v1.SyncTMEntryR\ttmEntries\x120\n" +
+	"tm_entries\x18\f \x03(\v2\x1c.neokapi.sync.v1.SyncMemoryEntryR\ttmEntries\x120\n" +
 	"\x05media\x18\r \x03(\v2\x1a.neokapi.sync.v1.SyncMediaR\x05mediaB>Z<github.com/neokapi/neokapi/bowrain/core/proto/sync/v1;syncv1b\x06proto3"
 
 var (
@@ -1843,7 +1843,7 @@ var file_bowrain_core_proto_sync_v1_sync_proto_goTypes = []any{
 	(*SyncSegmentList)(nil),      // 8: neokapi.sync.v1.SyncSegmentList
 	(*SyncTerm)(nil),             // 9: neokapi.sync.v1.SyncTerm
 	(*SyncTermTranslation)(nil),  // 10: neokapi.sync.v1.SyncTermTranslation
-	(*SyncTMEntry)(nil),          // 11: neokapi.sync.v1.SyncTMEntry
+	(*SyncMemoryEntry)(nil),      // 11: neokapi.sync.v1.SyncMemoryEntry
 	(*SyncMedia)(nil),            // 12: neokapi.sync.v1.SyncMedia
 	(*SyncItemMeta)(nil),         // 13: neokapi.sync.v1.SyncItemMeta
 	(*SyncPullRequest)(nil),      // 14: neokapi.sync.v1.SyncPullRequest
@@ -1855,7 +1855,7 @@ var file_bowrain_core_proto_sync_v1_sync_proto_goTypes = []any{
 	nil,                          // 20: neokapi.sync.v1.SyncBlock.PropertiesEntry
 	nil,                          // 21: neokapi.sync.v1.SyncBlock.ConnectorDataEntry
 	nil,                          // 22: neokapi.sync.v1.SyncTerm.PropertiesEntry
-	nil,                          // 23: neokapi.sync.v1.SyncTMEntry.PropertiesEntry
+	nil,                          // 23: neokapi.sync.v1.SyncMemoryEntry.PropertiesEntry
 	nil,                          // 24: neokapi.sync.v1.SyncMedia.PropertiesEntry
 	nil,                          // 25: neokapi.sync.v1.SyncItemMeta.ConnectorDataEntry
 	(*v1.SegmentMessage)(nil),    // 26: neokapi.content.v1.SegmentMessage
@@ -1869,7 +1869,7 @@ var file_bowrain_core_proto_sync_v1_sync_proto_depIdxs = []int32{
 	18, // 4: neokapi.sync.v1.SyncManifest.context:type_name -> neokapi.sync.v1.SyncManifest.ContextEntry
 	7,  // 5: neokapi.sync.v1.SyncChunk.blocks:type_name -> neokapi.sync.v1.SyncBlock
 	9,  // 6: neokapi.sync.v1.SyncChunk.terms:type_name -> neokapi.sync.v1.SyncTerm
-	11, // 7: neokapi.sync.v1.SyncChunk.tm_entries:type_name -> neokapi.sync.v1.SyncTMEntry
+	11, // 7: neokapi.sync.v1.SyncChunk.tm_entries:type_name -> neokapi.sync.v1.SyncMemoryEntry
 	12, // 8: neokapi.sync.v1.SyncChunk.media:type_name -> neokapi.sync.v1.SyncMedia
 	26, // 9: neokapi.sync.v1.SyncBlock.source:type_name -> neokapi.content.v1.SegmentMessage
 	19, // 10: neokapi.sync.v1.SyncBlock.targets:type_name -> neokapi.sync.v1.SyncBlock.TargetsEntry
@@ -1879,12 +1879,12 @@ var file_bowrain_core_proto_sync_v1_sync_proto_depIdxs = []int32{
 	26, // 14: neokapi.sync.v1.SyncSegmentList.segments:type_name -> neokapi.content.v1.SegmentMessage
 	10, // 15: neokapi.sync.v1.SyncTerm.translations:type_name -> neokapi.sync.v1.SyncTermTranslation
 	22, // 16: neokapi.sync.v1.SyncTerm.properties:type_name -> neokapi.sync.v1.SyncTerm.PropertiesEntry
-	23, // 17: neokapi.sync.v1.SyncTMEntry.properties:type_name -> neokapi.sync.v1.SyncTMEntry.PropertiesEntry
+	23, // 17: neokapi.sync.v1.SyncMemoryEntry.properties:type_name -> neokapi.sync.v1.SyncMemoryEntry.PropertiesEntry
 	24, // 18: neokapi.sync.v1.SyncMedia.properties:type_name -> neokapi.sync.v1.SyncMedia.PropertiesEntry
 	25, // 19: neokapi.sync.v1.SyncItemMeta.connector_data:type_name -> neokapi.sync.v1.SyncItemMeta.ConnectorDataEntry
 	7,  // 20: neokapi.sync.v1.SyncPullResponse.blocks:type_name -> neokapi.sync.v1.SyncBlock
 	9,  // 21: neokapi.sync.v1.SyncPullResponse.terms:type_name -> neokapi.sync.v1.SyncTerm
-	11, // 22: neokapi.sync.v1.SyncPullResponse.tm_entries:type_name -> neokapi.sync.v1.SyncTMEntry
+	11, // 22: neokapi.sync.v1.SyncPullResponse.tm_entries:type_name -> neokapi.sync.v1.SyncMemoryEntry
 	12, // 23: neokapi.sync.v1.SyncPullResponse.media:type_name -> neokapi.sync.v1.SyncMedia
 	8,  // 24: neokapi.sync.v1.SyncBlock.TargetsEntry.value:type_name -> neokapi.sync.v1.SyncSegmentList
 	25, // [25:25] is the sub-list for method output_type

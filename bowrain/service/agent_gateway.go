@@ -192,7 +192,7 @@ func sleepContext(ctx context.Context, d time.Duration) bool {
 func modePrefix(mode string) string {
 	switch mode {
 	case "ask":
-		return `(Mode: Ask) You are answering questions only. Help the user understand their projects, TM, terminology, and formats. Explain what actions are possible but do not execute any changes.
+		return `(Mode: Ask) You are answering questions only. Help the user understand their projects, Memory, terminology, and formats. Explain what actions are possible but do not execute any changes.
 
 If the user asks you to perform a mutating action (translate, edit, delete, run flows, manage files, push/pull), respond with a step-up marker followed by a helpful explanation:
 [STEP_UP:{"required_mode":"coworker","action":"<brief description of what the user wants>"}]

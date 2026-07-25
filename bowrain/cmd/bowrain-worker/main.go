@@ -26,19 +26,19 @@ import (
 	"github.com/neokapi/neokapi/bowrain/crypto"
 	bowevent "github.com/neokapi/neokapi/bowrain/event"
 	"github.com/neokapi/neokapi/bowrain/jobs"
+	sqltm "github.com/neokapi/neokapi/bowrain/memory"
 	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/bowrain/platformconfig"
 	"github.com/neokapi/neokapi/bowrain/resilience"
-	sqltm "github.com/neokapi/neokapi/bowrain/sievepen"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/bowrain/storage/blobcfg"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
-	sqltb "github.com/neokapi/neokapi/bowrain/termbase"
+	sqltb "github.com/neokapi/neokapi/bowrain/terms"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/version"
-	fwsievepen "github.com/neokapi/neokapi/sievepen"
-	fwtermbase "github.com/neokapi/neokapi/termbase"
+	fwmemory "github.com/neokapi/neokapi/memory"
+	fwterms "github.com/neokapi/neokapi/terms"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/sync/errgroup"
 
@@ -214,11 +214,11 @@ func runWorker(dbURL string) error {
 		ProviderStore: providerStore,
 		Queue:         translationQueue,
 		QuotaStore:    pgQS,
-		// TM-first convergence: give the worker per-workspace TM access so a
+		// content memory-first convergence: give the worker per-workspace content memory access so a
 		// convergence translation job recycles exact/near-exact matches before
-		// paying for AI, and ingest seeds pushed targets into the TM. Mirrors the
-		// server's per-workspace, PostgreSQL-backed TM (NewPostgresTMFromDB).
-		TMResolver: newWorkerTMResolver(pgdb),
+		// paying for AI, and ingest seeds pushed targets into the content memory. Mirrors the
+		// server's per-workspace, PostgreSQL-backed content memory (NewPostgresStoreFromDB).
+		MemoryResolver: newWorkerMemoryResolver(pgdb),
 		// Durable forge ingest (webhook/bind-triggered source ingests, enqueued
 		// by the server): the worker performs the clone+fetch+store the server
 		// used to fire-and-forget in-process, so a mid-deploy task death can no
@@ -241,7 +241,7 @@ func runWorker(dbURL string) error {
 
 	// Brand context (parity with the CLI flow's project bindings): the brand
 	// store + workspace-default resolver bind the project's brand voice into
-	// every AI translation the worker runs, and the termbase resolver supplies
+	// every AI translation the worker runs, and the terms store resolver supplies
 	// the per-locale terminology glossary. All optional — a failure here (or an
 	// unbound project) degrades translations to bare, never blocks them.
 	if bs, err := brandpg.NewPostgresBrandStore(pgdb); err != nil {
@@ -252,7 +252,7 @@ func runWorker(dbURL string) error {
 	if authStore != nil {
 		translationDeps.WorkspaceDefault = &workerWorkspaceDefault{auth: authStore}
 	}
-	translationDeps.TBResolver = newWorkerTBResolver(pgdb)
+	translationDeps.TermsResolver = newWorkerTermsResolver(pgdb)
 
 	// Product analytics (epic 018): the worker emits content_pushed after sync
 	// push processing. Keyless deployments stay silent (nil tracker). Mirrors
@@ -534,7 +534,7 @@ func runWorker(dbURL string) error {
 		Queue:              extractionQueue,
 		ReviewQueueCreator: &jobs.ReviewQueueStoreAdapter{Store: bstore.NewReviewQueueStore(pgdb.DB)},
 		// KnownTermsLoader and NERProvider stay nil here: known-term
-		// filtering reads workspace termbases that live on the server box,
+		// filtering reads workspace terms stores that live on the server box,
 		// and NER needs per-deployment Azure config. Both are documented
 		// optional — extraction degrades to the plain LLM pass.
 		Platform:         translationDeps.Platform,
@@ -643,23 +643,23 @@ func buildWorkerBillingHooks(pgdb *storage.PgDB) *billing.UsageHooks {
 	return hooks
 }
 
-// newWorkerTMResolver returns a per-workspace TM resolver backed by the same
-// PostgreSQL TM the server uses (NewPostgresTMFromDB). It caches one TMStore per
+// newWorkerMemoryResolver returns a per-workspace content memory resolver backed by the same
+// PostgreSQL content memory the server uses (NewPostgresStoreFromDB). It caches one Store per
 // workspace slug so a convergence pass does not rebuild the store per job. A
 // resolution failure yields a nil store so the job degrades to AI-only rather
 // than failing.
-func newWorkerTMResolver(pgdb *storage.PgDB) jobs.TMResolver {
-	var cache sync.Map // workspaceSlug -> fwsievepen.TMStore
-	return jobs.TMResolverFunc(func(workspaceSlug string) (fwsievepen.TMStore, error) {
+func newWorkerMemoryResolver(pgdb *storage.PgDB) jobs.MemoryResolver {
+	var cache sync.Map // workspaceSlug -> fwmemory.Store
+	return jobs.MemoryResolverFunc(func(workspaceSlug string) (fwmemory.Store, error) {
 		if v, ok := cache.Load(workspaceSlug); ok {
-			return v.(fwsievepen.TMStore), nil
+			return v.(fwmemory.Store), nil
 		}
-		tm, err := sqltm.NewPostgresTMFromDB(pgdb, workspaceSlug)
+		tm, err := sqltm.NewPostgresStoreFromDB(pgdb, workspaceSlug)
 		if err != nil {
 			return nil, err
 		}
-		actual, _ := cache.LoadOrStore(workspaceSlug, fwsievepen.TMStore(tm))
-		return actual.(fwsievepen.TMStore), nil
+		actual, _ := cache.LoadOrStore(workspaceSlug, fwmemory.Store(tm))
+		return actual.(fwmemory.Store), nil
 	})
 }
 
@@ -679,24 +679,24 @@ func (a *workerWorkspaceDefault) WorkspaceBrandProfileID(ctx context.Context, wo
 	return ws.BrandVoiceProfileID, nil
 }
 
-// newWorkerTBResolver returns a per-workspace termbase resolver backed by the
-// same PostgreSQL termbase the server uses (NewPostgresTermBaseFromDB), so a
+// newWorkerTermsResolver returns a per-workspace terms resolver backed by the
+// same PostgreSQL terms the server uses (NewPostgresStoreFromDB), so a
 // translation job's prompt glossary reads the very terminology the editor and
 // term-check enforce. It caches one store per workspace slug (mirrors
-// newWorkerTMResolver); a resolution failure yields nil so the job degrades to
+// newWorkerMemoryResolver); a resolution failure yields nil so the job degrades to
 // a glossary-less translation rather than failing.
-func newWorkerTBResolver(pgdb *storage.PgDB) jobs.TBResolver {
-	var cache sync.Map // workspaceSlug -> fwtermbase.TermBase
-	return jobs.TBResolverFunc(func(workspaceSlug string) (fwtermbase.TermBase, error) {
+func newWorkerTermsResolver(pgdb *storage.PgDB) jobs.TermsResolver {
+	var cache sync.Map // workspaceSlug -> fwterms.Terminology
+	return jobs.TermsResolverFunc(func(workspaceSlug string) (fwterms.Terminology, error) {
 		if v, ok := cache.Load(workspaceSlug); ok {
-			return v.(fwtermbase.TermBase), nil
+			return v.(fwterms.Terminology), nil
 		}
-		tb, err := sqltb.NewPostgresTermBaseFromDB(pgdb, workspaceSlug)
+		tb, err := sqltb.NewPostgresStoreFromDB(pgdb, workspaceSlug)
 		if err != nil {
 			return nil, err
 		}
-		actual, _ := cache.LoadOrStore(workspaceSlug, fwtermbase.TermBase(tb))
-		return actual.(fwtermbase.TermBase), nil
+		actual, _ := cache.LoadOrStore(workspaceSlug, fwterms.Terminology(tb))
+		return actual.(fwterms.Terminology), nil
 	})
 }
 

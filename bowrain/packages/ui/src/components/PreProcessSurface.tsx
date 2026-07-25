@@ -34,7 +34,7 @@ type OpKey = "pseudo" | "tm" | "ai";
 /**
  * PreProcessSurface is the pre-flight route — bulk source-prep operations run
  * before per-block translation: pseudo-translate (layout/expansion testing),
- * bulk TM leverage (apply exact + fuzzy matches across the file), and AI bulk
+ * bulk content-memory leverage (apply exact + fuzzy matches across the file), and AI bulk
  * draft. These were removed from the per-block Translate toolbar so the editor
  * stays focused on editing one block at a time.
  */
@@ -100,11 +100,11 @@ export function PreProcessSurface({
     }
   }, [fullApi, wsSlug, project.id, fileName, targetLocale]);
 
-  const runTM = useCallback(async () => {
+  const runMemory = useCallback(async () => {
     setRunning("tm");
     setError(null);
     try {
-      const stats = await api.tmTranslateFile(project.id, fileName, targetLocale);
+      const stats = await api.memoryTranslateFile(project.id, fileName, targetLocale);
       setResults((prev) => ({ ...prev, tm: stats }));
     } catch (e) {
       setError({ title: "Couldn't recycle from the content memory", cause: e });
@@ -143,7 +143,7 @@ export function PreProcessSurface({
       title: "Bulk recycle",
       desc: "Pre-fill targets from the content memory across the whole file — exact and high-confidence fuzzy matches land as drafts you can review.",
       icon: <Languages className="w-4 h-4" />,
-      run: runTM,
+      run: runMemory,
       cta: "Recycle from memory",
     },
     {

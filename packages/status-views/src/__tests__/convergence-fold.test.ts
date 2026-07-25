@@ -58,7 +58,7 @@ describe("reduceRun", () => {
     expect(fr.localeState).toBe("shippable");
     expect(fr.units).toBe(10);
     expect(fr.done).toBe(10);
-    expect(fr.viaTM).toBe(6);
+    expect(fr.viaMemory).toBe(6);
     expect(fr.viaAI).toBe(4);
   });
 

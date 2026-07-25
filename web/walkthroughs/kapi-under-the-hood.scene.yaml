@@ -13,7 +13,7 @@
 # Pairs with the docs "Understanding the CLI layers" page
 # (/kapi/direct-execution-layer).
 #
-# Fully offline: recycle leverages the pre-seeded/in-memory TM, the composed
+# Fully offline: recycle leverages the pre-seeded/in-memory content memory, the composed
 # flow is recycle + deterministic qa, and extract/merge are pure filesystem +
 # skeleton round-trip. Every runnable step works in the wasm embed.
 
@@ -24,7 +24,7 @@ mode: interactive
 # messages.json is the kit fixture (greeting / farewell / cart). project.tmx
 # carries the matching French so recycle has real leverage. kapi.yaml declares
 # the content (with a target template) and two non-shadowing flows: tm-recycle
-# (the single TM step) and leverage-check (recycle composed with the
+# (the single content memory step) and leverage-check (recycle composed with the
 # deterministic qa checks).
 seed:
   - messages.json
@@ -74,24 +74,24 @@ files:
 steps:
   - comment: kapi up is porcelain. This is the layer underneath — one tool, one flow pass, and the interchange files.
   - command: kapi tm import project.tmx
-    narration: Seed the project TM so the plumbing has leverage to work with. up tops up the same store on every merge.
+    narration: Seed the project content memory so the plumbing has leverage to work with. up tops up the same store on every merge.
     smoke: true
   - comment: One tool, one pass — kapi exec.
   - command: kapi exec recycle messages.json -o step1.json --source-lang en --target-lang fr
-    narration: exec runs exactly one registry tool, nothing around it. recycle is the TM step of up's default flow — exact and fuzzy matches fill the targets; the rest stay untranslated.
+    narration: exec runs exactly one registry tool, nothing around it. recycle is the content memory step of up's default flow — exact and fuzzy matches fill the targets; the rest stay untranslated.
     smoke: true
   - comment: One named pipeline, one pass — kapi run.
   - command: kapi run leverage-check -i messages.json
     narration: run executes a composed flow once — recycle, then the deterministic qa checks. In a project the pass commits to the project store. up is this pass, looped until every gate is met or the rest parks.
-    # smoke:false — consumes the TM seeded by the prior tm import step; W7 would
-    # run it in isolation (no TM) and leverage nothing.
+    # smoke:false — consumes the content memory seeded by the prior tm import step; W7 would
+    # run it in isolation (no content memory) and leverage nothing.
     smoke: false
   - comment: The interchange doors — extract and merge.
   - command: kapi extract --target-lang fr
-    narration: extract emits one bilingual XLIFF per source and target pair, pre-filled from the TM — the handoff a human translator works in.
+    narration: extract emits one bilingual XLIFF per source and target pair, pre-filled from the content memory — the handoff a human translator works in.
     smoke: true
   - command: kapi merge -i out/messages.en-to-fr.xliff
-    narration: merge applies the returned file back onto the source and writes messages.fr.json. Applied targets also land in the TM, so the next pass starts further ahead.
+    narration: merge applies the returned file back onto the source and writes messages.fr.json. Applied targets also land in the content memory, so the next pass starts further ahead.
     # smoke:false — consumes the XLIFF emitted by the prior extract step.
     smoke: false
   - comment: Every move here is one up runs for you — re-extract, produce a pass, materialize. The plumbing stays addressable when you need one move at a time.

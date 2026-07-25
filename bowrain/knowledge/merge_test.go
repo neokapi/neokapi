@@ -10,14 +10,14 @@ import (
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
-// newSQLiteTB opens an in-memory framework SQLite termbase (the engine's live
+// newSQLiteTB opens an in-memory framework SQLite terms (the engine's live
 // ConceptStore in the write-side tests). It requires the fts5 build tag.
-func newSQLiteTB(t *testing.T) *termbase.SQLiteTermBase {
+func newSQLiteTB(t *testing.T) *terms.SQLiteStore {
 	t.Helper()
-	tb, err := termbase.NewSQLiteTermBase(":memory:")
+	tb, err := terms.NewSQLiteStore(":memory:")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = tb.Close() })
 	return tb
@@ -78,7 +78,7 @@ func TestMergeChangeSet_OrdinaryAppliesAndRecordsRevision(t *testing.T) {
 	assert.Equal(t, 1, res.RevisionsCreated)
 	assert.Equal(t, []int64{0}, res.AppliedOps)
 
-	// The op was applied to the live termbase.
+	// The op was applied to the live terms.
 	c, ok, err := tb.GetConcept(ctx, "c1")
 	require.NoError(t, err)
 	require.True(t, ok)
@@ -249,7 +249,7 @@ func TestMergeChangeSet_VoiceRuleAddBumpsProfile(t *testing.T) {
 	loaded, err := store.GetChangeSet(ctx, ws, cs.ID)
 	require.NoError(t, err)
 
-	e := NewEngine(nil, termbase.NewInMemoryTermBase(), profiles, store)
+	e := NewEngine(nil, terms.NewInMemoryStore(), profiles, store)
 	res, err := e.MergeChangeSet(ctx, ws, store, *loaded)
 	require.NoError(t, err)
 
@@ -335,7 +335,7 @@ func TestMergeChangeSet_RelationOpBaseRevDoesNotConflict(t *testing.T) {
 		// relation.add (RELATED is ordinary) pinned to base revision 1. It carries
 		// no concept ID, so the stale base pin must not produce a conflict.
 		appendOp(t, store, ws, cs.ID, 1, OpRelationAdd, RelationAddPayload{
-			Relation: termbase.ConceptRelation{ID: "r1", SourceID: "c1", TargetID: "c2", RelationType: graph.LabelRelated},
+			Relation: terms.ConceptRelation{ID: "r1", SourceID: "c1", TargetID: "c2", RelationType: graph.LabelRelated},
 		})
 
 		loaded, err := store.GetChangeSet(ctx, ws, cs.ID)
@@ -346,7 +346,7 @@ func TestMergeChangeSet_RelationOpBaseRevDoesNotConflict(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, res.Conflicts)
 
-		// The relation was applied to the live termbase.
+		// The relation was applied to the live terms.
 		rels, err := tb.RelationsOf(ctx, "c1", nil)
 		require.NoError(t, err)
 		require.Len(t, rels, 1)

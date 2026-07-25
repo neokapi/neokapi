@@ -173,8 +173,8 @@ var (
 	ResetMCPToolFactoriesForTest = host.ResetMCPToolFactoriesForTest
 	ResolveDir                   = host.ResolveDir
 	ResolveProjectPath           = host.ResolveProjectPath
-	ResolveTMFileFormat          = host.ResolveTMFileFormat
-	ResolveTermbaseFileFormat    = host.ResolveTermbaseFileFormat
+	ResolveMemoryFileFormat      = host.ResolveMemoryFileFormat
+	ResolveTermsFileFormat       = host.ResolveTermsFileFormat
 	RmPattern                    = host.RmPattern
 	RuleRewrite                  = host.RuleRewrite
 	RunBlockTool                 = host.RunBlockTool

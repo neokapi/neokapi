@@ -8,8 +8,8 @@ import (
 
 // ConceptBaseline is the snapshot a concept pull records into the sync cache:
 // the governed concepts and typed relations fetched from the workspace
-// knowledge graph and written into the project's bound termbase. A later
-// concept push diffs the local termbase against this baseline to decide what
+// knowledge graph and written into the project's bound terms. A later
+// concept push diffs the local terms against this baseline to decide what
 // changed and how to route it — ordinary edits (definitions, notes, new
 // proposed terms, non-governed relations) go up directly through the concept
 // REST endpoints, while governed edits (a term banned/promoted, a forbidden

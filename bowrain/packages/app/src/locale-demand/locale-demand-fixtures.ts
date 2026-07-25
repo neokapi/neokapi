@@ -34,8 +34,8 @@ export interface PlanEstimate {
   units: number;
   /** Approximate token volume for the run. */
   tokens: number;
-  /** Expected TM leverage, percent. */
-  tmCoveragePercent: number;
+  /** Expected content-memory leverage, percent. */
+  memoryCoveragePercent: number;
 }
 
 export interface CountryLanguageSplit {
@@ -139,21 +139,21 @@ function coverageFor(code: string): Coverage {
   return COVERAGE[code] ?? { status: "not-covered" };
 }
 
-/** Mocked plan estimates per uncovered/partial language (units · TM leverage). */
+/** Mocked plan estimates per uncovered/partial language (units · content-memory leverage). */
 const PLAN_ESTIMATES: Record<string, PlanEstimate> = {
-  ja: { units: 1566, tokens: 720_000, tmCoveragePercent: 62 },
-  "pt-BR": { units: 4120, tokens: 2_100_000, tmCoveragePercent: 14 },
-  ko: { units: 4120, tokens: 2_460_000, tmCoveragePercent: 6 },
-  "es-419": { units: 4120, tokens: 1_980_000, tmCoveragePercent: 21 },
-  pl: { units: 4120, tokens: 2_240_000, tmCoveragePercent: 9 },
-  tr: { units: 4120, tokens: 2_190_000, tmCoveragePercent: 7 },
-  ar: { units: 4120, tokens: 2_620_000, tmCoveragePercent: 4 },
-  it: { units: 4120, tokens: 2_050_000, tmCoveragePercent: 18 },
-  nl: { units: 4120, tokens: 2_020_000, tmCoveragePercent: 16 },
-  "zh-Hans": { units: 4120, tokens: 2_380_000, tmCoveragePercent: 5 },
-  hi: { units: 4120, tokens: 2_550_000, tmCoveragePercent: 3 },
-  vi: { units: 4120, tokens: 2_340_000, tmCoveragePercent: 4 },
-  id: { units: 4120, tokens: 2_150_000, tmCoveragePercent: 8 },
+  ja: { units: 1566, tokens: 720_000, memoryCoveragePercent: 62 },
+  "pt-BR": { units: 4120, tokens: 2_100_000, memoryCoveragePercent: 14 },
+  ko: { units: 4120, tokens: 2_460_000, memoryCoveragePercent: 6 },
+  "es-419": { units: 4120, tokens: 1_980_000, memoryCoveragePercent: 21 },
+  pl: { units: 4120, tokens: 2_240_000, memoryCoveragePercent: 9 },
+  tr: { units: 4120, tokens: 2_190_000, memoryCoveragePercent: 7 },
+  ar: { units: 4120, tokens: 2_620_000, memoryCoveragePercent: 4 },
+  it: { units: 4120, tokens: 2_050_000, memoryCoveragePercent: 18 },
+  nl: { units: 4120, tokens: 2_020_000, memoryCoveragePercent: 16 },
+  "zh-Hans": { units: 4120, tokens: 2_380_000, memoryCoveragePercent: 5 },
+  hi: { units: 4120, tokens: 2_550_000, memoryCoveragePercent: 3 },
+  vi: { units: 4120, tokens: 2_340_000, memoryCoveragePercent: 4 },
+  id: { units: 4120, tokens: 2_150_000, memoryCoveragePercent: 8 },
 };
 
 interface CountrySeed {

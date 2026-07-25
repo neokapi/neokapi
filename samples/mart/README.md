@@ -20,7 +20,7 @@ sample (including this README), not the in-fiction product copy itself.
 ## Three instances, one design
 
 Three brand instances share the same source strings, structure, glossary, and
-TM design. Only the product name differs per surface, which keeps the product
+content memory design. Only the product name differs per surface, which keeps the product
 boundary clean in each context:
 
 | Instance | Use it for | Product name in copy |
@@ -32,7 +32,7 @@ boundary clean in each context:
 The files in this directory carry the `KapiMart` name as the default instance.
 For OkapiMart or BowMart, substitute the product name at record time (a single
 find-and-replace of `KapiMart`), since the strings, keys, locales, glossary, and
-TM are identical by design. The glossary lists all three names as
+content memory are identical by design. The glossary lists all three names as
 do-not-translate so a check passes whichever instance is in use.
 
 ## File layout
@@ -62,7 +62,7 @@ files share the exact same key set as the source.
 | Locale | Completion | Why |
 | --- | --- | --- |
 | `en-US` | source | — |
-| `fr-FR` | complete | shows a finished locale and 100% TM/leverage |
+| `fr-FR` | complete | shows a finished locale and 100% content memory/leverage |
 | `de-DE` | ~70% | shows pending work and partial progress |
 | `ja-JP` | ~30% | shows an early-stage locale with most strings pending |
 

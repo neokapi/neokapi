@@ -1,12 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { BookOpen, Plus, FolderOpen, X, Upload } from "lucide-react";
-import { TermbasesPage } from "../components/TermbasesPage";
+import { TermsPage } from "../components/TermsPage";
 import {
   Button,
-  TermbaseBrowser,
+  TermsBrowser,
   ResourceCard,
-  type TermbaseAdapter,
+  type TermsAdapter,
   type ConceptDTO,
 } from "@neokapi/ui-primitives";
 
@@ -54,7 +54,7 @@ const SAMPLE_CONCEPTS: ConceptDTO[] = [
   },
 ];
 
-function createMockAdapter(concepts: ConceptDTO[]): TermbaseAdapter {
+function createMockAdapter(concepts: ConceptDTO[]): TermsAdapter {
   let data = [...concepts];
   return {
     async search(query) {
@@ -105,7 +105,7 @@ function createMockAdapter(concepts: ConceptDTO[]): TermbaseAdapter {
   };
 }
 
-function SimulatedTermbasesPage() {
+function SimulatedTermsPage() {
   const [handle, setHandle] = useState<string | null>(null);
   const adapter = handle ? createMockAdapter(SAMPLE_CONCEPTS) : null;
 
@@ -118,7 +118,7 @@ function SimulatedTermbasesPage() {
     },
     {
       name: "brand-terms",
-      path: "~/.config/kapi/termbases/brand-terms.db",
+      path: "~/.config/kapi/termbases/brand-termbase.db",
       size: 131072,
       modified: new Date(Date.now() - 172800000).toISOString(),
     },
@@ -143,7 +143,7 @@ function SimulatedTermbasesPage() {
             </Button>
           </div>
         </div>
-        <TermbaseBrowser adapter={adapter} />
+        <TermsBrowser adapter={adapter} />
       </div>
     );
   }
@@ -151,13 +151,13 @@ function SimulatedTermbasesPage() {
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Termbases</h1>
+        <h1 className="text-xl font-semibold">Terms stores</h1>
         <div className="flex gap-2">
           <Button variant="outline" size="sm">
             <FolderOpen size={12} /> Open File...
           </Button>
           <Button size="sm">
-            <Plus size={12} /> New Termbase
+            <Plus size={12} /> New Terms
           </Button>
         </div>
       </div>
@@ -178,31 +178,31 @@ function SimulatedTermbasesPage() {
   );
 }
 
-const meta: Meta<typeof SimulatedTermbasesPage> = {
-  title: "Pages/TermbasesPage",
-  component: SimulatedTermbasesPage,
+const meta: Meta<typeof SimulatedTermsPage> = {
+  title: "Pages/TermsPage",
+  component: SimulatedTermsPage,
   tags: ["autodocs"],
   parameters: {
     docs: {
       description: {
         component:
-          "Termbase browser with resource picker, card-based concept display, multi-locale terms with status badges, and CRUD operations.",
+          "Terms browser with resource picker, card-based concept display, multi-locale terms with status badges, and CRUD operations.",
       },
     },
   },
 };
 
 export default meta;
-type Story = StoryObj<typeof SimulatedTermbasesPage>;
+type Story = StoryObj<typeof SimulatedTermsPage>;
 
 export const Default: Story = {};
 
 /**
  * Real component with pre-loaded resources (no Wails API calls).
  */
-export const WithResources: StoryObj<typeof TermbasesPage> = {
+export const WithResources: StoryObj<typeof TermsPage> = {
   render: () => (
-    <TermbasesPage
+    <TermsPage
       resources={[
         {
           name: "my-glossary",
@@ -212,7 +212,7 @@ export const WithResources: StoryObj<typeof TermbasesPage> = {
         },
         {
           name: "brand-terms",
-          path: "~/.config/kapi/termbases/brand-terms.db",
+          path: "~/.config/kapi/termbases/brand-termbase.db",
           size: 131072,
           modified: new Date(Date.now() - 172800000).toISOString(),
         },
@@ -224,11 +224,11 @@ export const WithResources: StoryObj<typeof TermbasesPage> = {
 /**
  * Real component with empty resources list.
  */
-export const Empty: StoryObj<typeof TermbasesPage> = {
-  render: () => <TermbasesPage resources={[]} />,
+export const Empty: StoryObj<typeof TermsPage> = {
+  render: () => <TermsPage resources={[]} />,
 };
 
 /** Loading state showing skeleton ResourceCards. */
-export const Loading: StoryObj<typeof TermbasesPage> = {
-  render: () => <TermbasesPage resources={[]} forceLoading />,
+export const Loading: StoryObj<typeof TermsPage> = {
+  render: () => <TermsPage resources={[]} forceLoading />,
 };

@@ -134,7 +134,7 @@ func sourceUnits(b *model.Block, layer string) iter.Seq[Unit] {
 // contribute their source runs verbatim). If the loop is stopped early, or any
 // non-ignorable unit was left unwritten, nothing is committed — so a tool that
 // can only translate some segments leaves the target untouched for a later
-// stage, exactly as per-segment TM leverage requires.
+// stage, exactly as per-segment content-memory leverage requires.
 func targetUnits(b *model.Block, loc model.LocaleID, layer string) iter.Seq[WritableUnit] {
 	return func(yield func(WritableUnit) bool) {
 		seg := b.SegmentationLayerFor(nil, layer)

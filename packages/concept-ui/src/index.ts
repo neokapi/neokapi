@@ -1,7 +1,7 @@
 // @neokapi/concept-ui — framework-level, data-source-agnostic UI for browsing a
 // concept knowledge base and reading one concept's story (Apache-2.0). Drive it
 // against any backend via the ConceptDataSource adapter: kapi-desktop against a
-// local SQLite termbase (core only), bowrain against its REST API (core + rich
+// local SQLite terms (core only), bowrain against its REST API (core + rich
 // markets/observations/comments/timeline).
 
 // ── Views ──

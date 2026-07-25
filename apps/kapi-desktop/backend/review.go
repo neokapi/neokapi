@@ -17,14 +17,14 @@ import (
 	"github.com/neokapi/neokapi/core/state"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host"
-	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/memory"
 )
 
 // ReviewUnitDetail is the full picture of one review-queue unit for the Review
 // page: the rendered source and target text, the unit's check findings (the
 // registered checkers run on demand for just this block), the recorded review
-// state and provenance from the project state store, and the best TM match when
-// the project TM is open. It is read-derived — nothing here is cached.
+// state and provenance from the project state store, and the best content-memory match when
+// the project content memory is open. It is read-derived — nothing here is cached.
 type ReviewUnitDetail struct {
 	Locale     string `json:"locale"`
 	File       string `json:"file"`
@@ -43,9 +43,9 @@ type ReviewUnitDetail struct {
 	Note        string `json:"note,omitempty"`
 	// Origin is the target's provenance when known (from the state store).
 	Origin *model.Origin `json:"origin,omitempty"`
-	// TMScore is the best TM match percent for the source (0 = none found or
-	// no project TM open).
-	TMScore int `json:"tm_score,omitempty"`
+	// MemoryScore is the best content-memory match percent for the source (0 = none found or
+	// no project content memory open).
+	MemoryScore int `json:"tm_score,omitempty"`
 	// Findings are the unit's current check findings (placeholder integrity,
 	// do-not-translate, brand vocabulary — the same checkers the Checks panel
 	// runs, scoped to this one block).
@@ -167,7 +167,7 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale mod
 // (locale, file, key) exactly as the review queue lists it: rendered source and
 // target text, the unit's current check findings (checkers run on demand for
 // this block), the recorded decision + provenance from the project state store,
-// and the best TM match percent when the project TM is open.
+// and the best content-memory match percent when the project content memory is open.
 func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -247,15 +247,15 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 		detail.Origin = &o
 	}
 
-	// Best TM match, when the project TM is already open — an existing lookup,
-	// not a new TM API.
-	if op.tmHandle != "" {
-		if tm, tok := a.tmHandles.Get(op.tmHandle); tok && tm != nil {
+	// Best content-memory match, when the project content memory is already open — an existing lookup,
+	// not a new content memory API.
+	if op.memoryHandle != "" {
+		if tm, tok := a.memoryHandles.Get(op.memoryHandle); tok && tm != nil {
 			lookup := &model.Block{ID: "review-lookup", Translatable: true, Source: b.SourceRuns()}
 			matches, lerr := tm.Lookup(ctx, lookup, model.LocaleID(sourceLang), loc,
-				sievepen.LookupOptions{MinScore: 0.5, MaxResults: 1})
+				memory.LookupOptions{MinScore: 0.5, MaxResults: 1})
 			if lerr == nil && len(matches) > 0 {
-				detail.TMScore = int(math.Round(matches[0].Score * 100))
+				detail.MemoryScore = int(math.Round(matches[0].Score * 100))
 			}
 		}
 	}

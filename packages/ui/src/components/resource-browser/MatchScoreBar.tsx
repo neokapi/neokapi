@@ -31,7 +31,7 @@ function matchTypeLabel(matchType: string): string {
 }
 
 /**
- * Horizontal bar visualizing a TM match score (0-1.0).
+ * Horizontal bar visualizing a content-memory match score (0-1.0).
  * Color coded: red < 0.7, amber 0.7-0.85, green 0.85-0.99, blue 1.0.
  */
 export function MatchScoreBar({ score, matchType, className }: MatchScoreBarProps) {

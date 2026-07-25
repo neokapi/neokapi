@@ -2631,14 +2631,14 @@ export class SyncStatusInfo {
 }
 
 /**
- * TMEntryInfo is the frontend-facing representation of a TM entry.
+ * MemoryEntryInfo is the frontend-facing representation of a content-memory entry.
  * The Bowrain desktop still exposes a bilingual shape over the API; it
  * renders two locales at a time chosen by the user.
  */
-export class TMEntryInfo {
+export class MemoryEntryInfo {
     /**
-     * Creates a new TMEntryInfo instance.
-     * @param {Partial<TMEntryInfo>} [$$source = {}] - The source object to create the TMEntryInfo.
+     * Creates a new MemoryEntryInfo instance.
+     * @param {Partial<MemoryEntryInfo>} [$$source = {}] - The source object to create the MemoryEntryInfo.
      */
     constructor($$source = {}) {
         if (!("id" in $$source)) {
@@ -2688,23 +2688,23 @@ export class TMEntryInfo {
     }
 
     /**
-     * Creates a new TMEntryInfo instance from a string or object.
+     * Creates a new MemoryEntryInfo instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {TMEntryInfo}
+     * @returns {MemoryEntryInfo}
      */
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new TMEntryInfo(/** @type {Partial<TMEntryInfo>} */($$parsedSource));
+        return new MemoryEntryInfo(/** @type {Partial<MemoryEntryInfo>} */($$parsedSource));
     }
 }
 
 /**
- * TMMatchInfo is a TM match result for a single block, exposed to the frontend.
+ * MemoryMatchInfo is a content-memory match result for a single block, exposed to the frontend.
  */
-export class TMMatchInfo {
+export class MemoryMatchInfo {
     /**
-     * Creates a new TMMatchInfo instance.
-     * @param {Partial<TMMatchInfo>} [$$source = {}] - The source object to create the TMMatchInfo.
+     * Creates a new MemoryMatchInfo instance.
+     * @param {Partial<MemoryMatchInfo>} [$$source = {}] - The source object to create the MemoryMatchInfo.
      */
     constructor($$source = {}) {
         if (!("source" in $$source)) {
@@ -2740,29 +2740,29 @@ export class TMMatchInfo {
     }
 
     /**
-     * Creates a new TMMatchInfo instance from a string or object.
+     * Creates a new MemoryMatchInfo instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {TMMatchInfo}
+     * @returns {MemoryMatchInfo}
      */
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new TMMatchInfo(/** @type {Partial<TMMatchInfo>} */($$parsedSource));
+        return new MemoryMatchInfo(/** @type {Partial<MemoryMatchInfo>} */($$parsedSource));
     }
 }
 
 /**
- * TMSearchResult holds a page of TM search results.
+ * MemorySearchResult holds a page of content-memory search results.
  */
-export class TMSearchResult {
+export class MemorySearchResult {
     /**
-     * Creates a new TMSearchResult instance.
-     * @param {Partial<TMSearchResult>} [$$source = {}] - The source object to create the TMSearchResult.
+     * Creates a new MemorySearchResult instance.
+     * @param {Partial<MemorySearchResult>} [$$source = {}] - The source object to create the MemorySearchResult.
      */
     constructor($$source = {}) {
         if (!("entries" in $$source)) {
             /**
              * @member
-             * @type {TMEntryInfo[]}
+             * @type {MemoryEntryInfo[]}
              */
             this["entries"] = [];
         }
@@ -2778,9 +2778,9 @@ export class TMSearchResult {
     }
 
     /**
-     * Creates a new TMSearchResult instance from a string or object.
+     * Creates a new MemorySearchResult instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {TMSearchResult}
+     * @returns {MemorySearchResult}
      */
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType37;
@@ -2788,17 +2788,17 @@ export class TMSearchResult {
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
         }
-        return new TMSearchResult(/** @type {Partial<TMSearchResult>} */($$parsedSource));
+        return new MemorySearchResult(/** @type {Partial<MemorySearchResult>} */($$parsedSource));
     }
 }
 
 /**
- * TMUpdateRequest holds parameters for updating a TM entry.
+ * MemoryUpdateRequest holds parameters for updating a content-memory entry.
  */
-export class TMUpdateRequest {
+export class MemoryUpdateRequest {
     /**
-     * Creates a new TMUpdateRequest instance.
-     * @param {Partial<TMUpdateRequest>} [$$source = {}] - The source object to create the TMUpdateRequest.
+     * Creates a new MemoryUpdateRequest instance.
+     * @param {Partial<MemoryUpdateRequest>} [$$source = {}] - The source object to create the MemoryUpdateRequest.
      */
     constructor($$source = {}) {
         if (!("project_id" in $$source)) {
@@ -2848,13 +2848,13 @@ export class TMUpdateRequest {
     }
 
     /**
-     * Creates a new TMUpdateRequest instance from a string or object.
+     * Creates a new MemoryUpdateRequest instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {TMUpdateRequest}
+     * @returns {MemoryUpdateRequest}
      */
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new TMUpdateRequest(/** @type {Partial<TMUpdateRequest>} */($$parsedSource));
+        return new MemoryUpdateRequest(/** @type {Partial<MemoryUpdateRequest>} */($$parsedSource));
     }
 }
 
@@ -3851,7 +3851,7 @@ const $$createType32 = PluralRunInfo.createFrom;
 const $$createType33 = $Create.Nullable($$createType32);
 const $$createType34 = SelectRunInfo.createFrom;
 const $$createType35 = $Create.Nullable($$createType34);
-const $$createType36 = TMEntryInfo.createFrom;
+const $$createType36 = MemoryEntryInfo.createFrom;
 const $$createType37 = $Create.Array($$createType36);
 const $$createType38 = TermMatchInfo.createFrom;
 const $$createType39 = $Create.Array($$createType38);

@@ -1,34 +1,34 @@
 // Types
 export type {
-  TMEntryDTO,
+  MemoryEntryDTO,
   VariantDTO,
   VariantInputDTO,
   EntityMappingDTO,
   EntityValueDTO,
-  TMSearchResult,
-  TMStats,
-  TMFacets,
+  MemorySearchResult,
+  MemoryStats,
+  MemoryFacets,
   LocaleFacet,
   ProjectFacet,
   EntityTypeFacet,
   ImportSessionFacet,
   ImportSessionDTO,
-  TMSearchFilter,
+  MemorySearchFilter,
   EntityValueFilter,
   OriginDTO,
-  TMMatchDTO,
+  MemoryMatchDTO,
   EntityAdaptationDTO,
   EntityAnnotationDTO,
-  LookupTMRequest,
-  AddTMEntryRequest,
-  UpdateTMEntryRequest,
+  LookupMemoryRequest,
+  AddMemoryEntryRequest,
+  UpdateMemoryEntryRequest,
   AnnotateEntitiesRequest,
   EntityPatternRequest,
   AnnotateResult,
   ConceptDTO,
   TermDTO,
   TermSearchResult,
-  TermbaseStats,
+  TermsStats,
   AddConceptRequest,
   UpdateConceptRequest,
   ImportResult,
@@ -38,14 +38,14 @@ export type {
 export { ENTITY_TYPES } from "./types";
 
 // Adapters
-export type { TMAdapter, TermbaseAdapter } from "./adapters";
+export type { MemoryAdapter, TermsAdapter } from "./adapters";
 
 // Components
-export { TMBrowser } from "./TMBrowser";
-export { TermbaseBrowser } from "./TermbaseBrowser";
-export { TMSearchBar } from "./TMSearchBar";
-export { TMFacetSidebar, EMPTY_FACETS, type FacetSelection } from "./TMFacetSidebar";
-export { TMGroupedEntry } from "./TMGroupedEntry";
+export { MemoryBrowser } from "./MemoryBrowser";
+export { TermsBrowser } from "./TermsBrowser";
+export { MemorySearchBar } from "./MemorySearchBar";
+export { MemoryFacetSidebar, EMPTY_FACETS, type FacetSelection } from "./MemoryFacetSidebar";
+export { MemoryGroupedEntry } from "./MemoryGroupedEntry";
 export { OriginsPopover } from "./OriginsPopover";
 export { EntityAnnotationDialog } from "./EntityAnnotationDialog";
 export { CodedTextDisplay } from "./CodedTextDisplay";

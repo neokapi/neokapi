@@ -24,7 +24,7 @@ type SidebarItem =
       /** When true, this item is disabled when project plugins are unresolved. */
       pluginGated?: boolean;
       /** When true, this item appears only once the project has target
-       *  languages (e.g. Translation Memories). Hidden, not disabled, when it
+       *  languages (e.g. Content Memories). Hidden, not disabled, when it
        *  doesn't — a project simply shows the surfaces its languages call for. */
       localeGated?: boolean;
       /** Extra routes that keep this item highlighted — e.g. the Toolbox stays
@@ -70,7 +70,7 @@ const adhocItems: SidebarItem[] = [
     type: "item",
     view: "memories",
     icon: <Database size={20} strokeWidth={SW} />,
-    label: "Translation Memories",
+    label: "Content Memories",
   },
   {
     type: "item",
@@ -125,7 +125,7 @@ const projectItems: SidebarItem[] = [
     type: "item",
     view: "memories",
     icon: <Database size={20} strokeWidth={SW} />,
-    label: "Translation Memories",
+    label: "Content Memories",
     localeGated: true,
   },
   {
@@ -153,7 +153,7 @@ export function IconSidebar({
           if (item.type === "separator") {
             return <div key={`sep-${i}`} className="my-1 h-px w-6 bg-border" />;
           }
-          // Locale-gated items (Translation Memories) appear only once the
+          // Locale-gated items (Content Memories) appear only once the
           // project has target languages — present, never an announced unlock.
           if (item.localeGated && !hasTargetLanguages) {
             return null;

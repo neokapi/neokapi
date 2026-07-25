@@ -17,7 +17,7 @@ import (
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // labInspectAnnotated reads a file through the kapi format reader exactly like
@@ -28,7 +28,7 @@ import (
 // explorer can highlight vocabulary terms and QA findings on a rendered document.
 //
 // The annotators are deterministic and offline: term overlays come from the
-// seeded in-memory termbase (LookupAll over the source text), brand overlays
+// seeded in-memory terms (LookupAll over the source text), brand overlays
 // from brand.MatchVocabulary against the seeded brand profile (wasm_backends.go),
 // and QA overlays from source-only heuristics (double spaces, doubled words).
 // Each is a source-anchored overlay (Variant nil) carrying its matched span text
@@ -208,15 +208,15 @@ func segmentSpans(ctx context.Context, runs []model.Run, engineName, locale stri
 }
 
 // termOverlay builds an OverlayTerm over the source runs from the seeded
-// termbase. Each matched glossary term becomes a span carrying the matched
+// terms. Each matched glossary term becomes a span carrying the matched
 // surface form (text), its required translation and domain. Returns nil when
-// the termbase is unseeded or nothing matches.
+// the terms store is unseeded or nothing matches.
 func termOverlay(ctx context.Context, runs []model.Run, source string) *model.Overlay {
-	tb := app.TBBackend
+	tb := app.TermsBackend
 	if tb == nil {
 		return nil
 	}
-	matches, err := tb.LookupAll(ctx, source, termbase.LookupOptions{
+	matches, err := tb.LookupAll(ctx, source, terms.LookupOptions{
 		SourceLocale: model.LocaleID("en"),
 		TargetLocale: model.LocaleID("fr"),
 	})

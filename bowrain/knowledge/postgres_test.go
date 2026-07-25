@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -59,14 +59,14 @@ func TestMarketLocales_Roundtrip(t *testing.T) {
 	assert.Equal(t, in, out)
 }
 
-// TestConceptRevisionSnapshot_Roundtrip checks that a termbase.Concept stored in
+// TestConceptRevisionSnapshot_Roundtrip checks that a terms.Concept stored in
 // ConceptRevision.Snapshot (mapped to a JSONB column) survives a marshal/scan
 // round-trip and decodes back to the same concept.
 func TestConceptRevisionSnapshot_Roundtrip(t *testing.T) {
-	concept := termbase.Concept{
+	concept := terms.Concept{
 		ID:     "c1",
 		Domain: "software",
-		Terms: []termbase.Term{
+		Terms: []terms.Term{
 			{Text: "sign in", Locale: "en-US", Status: model.TermPreferred},
 		},
 	}
@@ -88,7 +88,7 @@ func TestConceptRevisionSnapshot_Roundtrip(t *testing.T) {
 	var back ConceptRevision
 	require.NoError(t, json.Unmarshal(envelope, &back))
 
-	var decoded termbase.Concept
+	var decoded terms.Concept
 	require.NoError(t, json.Unmarshal(back.Snapshot, &decoded))
 	assert.Equal(t, concept.ID, decoded.ID)
 	assert.Equal(t, "software", decoded.Domain)
@@ -99,7 +99,7 @@ func TestConceptRevisionSnapshot_Roundtrip(t *testing.T) {
 // TestChangeSetOpPayload_Roundtrip checks that an op payload stored in the JSONB
 // payload column round-trips and stays valid + ordinary/governed-classifiable.
 func TestChangeSetOpPayload_Roundtrip(t *testing.T) {
-	raw, err := json.Marshal(ConceptCreatePayload{Concept: termbase.Concept{ID: "c1"}})
+	raw, err := json.Marshal(ConceptCreatePayload{Concept: terms.Concept{ID: "c1"}})
 	require.NoError(t, err)
 
 	op := ChangeSetOp{

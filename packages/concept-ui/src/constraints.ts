@@ -334,7 +334,7 @@ function byMarketThenLocale(a: ConstraintPlacement, b: ConstraintPlacement): num
  * The "banned where / preferred where" read: every forbidden/deprecated term and
  * every preferred term, each placed by market + locale and flagged with whether
  * it is in force as-of the reference instant. Independent of any dates, so it
- * works for a flat termbase with no validity windows at all.
+ * works for a flat terms with no validity windows at all.
  */
 export function constraintSummary(concept: Concept, opts: SummaryOptions = {}): ConstraintSummary {
   const markets = opts.markets ?? [];

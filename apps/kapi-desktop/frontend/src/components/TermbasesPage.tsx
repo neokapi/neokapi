@@ -26,10 +26,10 @@ import { useActiveFilter } from "../context/ActiveFilterContext";
 import { ConceptsView } from "./ConceptsView";
 import { ResourceCard, ImportProgress, type ResourceInfo } from "@neokapi/ui-primitives";
 
-export interface TermbasesPageProps {
-  /** Project tab ID — when set, shows the project-scoped termbase. */
+export interface TermsPageProps {
+  /** Project tab ID — when set, shows the project-scoped terms. */
   tabID?: string;
-  /** Pre-loaded resources for Storybook — skips api.listNamedTermbases(). */
+  /** Pre-loaded resources for Storybook — skips api.listNamedTerms(). */
   resources?: ResourceInfo[];
   /** Force loading/skeleton state (for Storybook). */
   forceLoading?: boolean;
@@ -44,11 +44,11 @@ const chartConfig: ChartConfig = {
   count: { label: "Concepts", color: "var(--chart-2)" },
 };
 
-export function TermbasesPage({
+export function TermsPage({
   tabID,
   resources: propResources,
   forceLoading = false,
-}: TermbasesPageProps = {}) {
+}: TermsPageProps = {}) {
   const qc = useQueryClient();
   const [handle, setHandle] = useState<string | null>(null);
   const [tbName, setTbName] = useState("");
@@ -63,8 +63,8 @@ export function TermbasesPage({
   const { showError } = useError();
   const { active: activeFilter } = useActiveFilter();
 
-  // Project-scoped termbase handle + source locale (auto-selects the project's
-  // own termbase rather than a blank picker). Read-only server state.
+  // Project-scoped terms handle + source locale (auto-selects the project's
+  // own terms rather than a blank picker). Read-only server state.
   const projectHandlesQuery = useQuery({
     queryKey: qk.projectHandles(tabID ?? ""),
     queryFn: () => api.getProjectHandles(tabID!),
@@ -75,7 +75,7 @@ export function TermbasesPage({
     queryFn: () => api.getProject(tabID!),
     enabled: !!tabID,
   });
-  const projectHandle = tabID ? (projectHandlesQuery.data?.termbaseHandle ?? null) : null;
+  const projectHandle = tabID ? (projectHandlesQuery.data?.termsHandle ?? null) : null;
   const sourceLang = projectQuery.data?.defaults?.source_language ?? "";
   const activeHandle = projectHandle || handle;
 
@@ -85,26 +85,26 @@ export function TermbasesPage({
     ? [sourceLang, ...activeFilter.languages].filter(Boolean)
     : undefined;
 
-  // Dashboard stats (count, activity, locales) for whichever termbase is open —
-  // project OR named. Both use the same view, so a named termbase shows the same
+  // Dashboard stats (count, activity, locales) for whichever terms is open —
+  // project OR named. Both use the same view, so a named terms shows the same
   // activity chart + filters as a project one.
   const statsQuery = useQuery({
-    queryKey: qk.termbaseStats(activeHandle ?? ""),
-    queryFn: () => api.getTermbaseStats(activeHandle!),
+    queryKey: qk.termsStats(activeHandle ?? ""),
+    queryFn: () => api.getTermsStats(activeHandle!),
     enabled: !!activeHandle,
   });
   const activityQuery = useQuery({
-    queryKey: qk.termbaseActivityStats(activeHandle ?? ""),
-    queryFn: () => api.getTermbaseActivityStats(activeHandle!),
+    queryKey: qk.termsActivityStats(activeHandle ?? ""),
+    queryFn: () => api.getTermsActivityStats(activeHandle!),
     enabled: !!activeHandle,
   });
   const projectStats = activeHandle ? (statsQuery.data ?? null) : null;
   const activityStats: ActivityPoint[] = activeHandle ? (activityQuery.data ?? []) : [];
 
-  // Named-termbase list — only when there is no project termbase to show instead.
+  // Named-terms list — only when there is no project terms store to show instead.
   const resourcesQuery = useQuery({
-    queryKey: qk.namedTermbases(),
-    queryFn: () => api.listNamedTermbases(),
+    queryKey: qk.namedTerms(),
+    queryFn: () => api.listNamedTerms(),
     enabled: !propResources && !forceLoading && !projectHandle,
   });
   const resources: ResourceInfo[] = propResources ?? resourcesQuery.data ?? [];
@@ -117,12 +117,12 @@ export function TermbasesPage({
   }, [resourcesQuery.error, showError]);
 
   const refreshResources = useCallback(() => {
-    void qc.invalidateQueries({ queryKey: qk.namedTermbases() });
+    void qc.invalidateQueries({ queryKey: qk.namedTerms() });
   }, [qc]);
 
   const handleOpen = useCallback(async (path: string, name: string) => {
     try {
-      const h = await api.openTermbase(path);
+      const h = await api.openTerms(path);
       if (h) {
         setHandle(h);
         setTbName(name);
@@ -139,7 +139,7 @@ export function TermbasesPage({
     setRecovering(true);
     try {
       await api.recoverResource(corruptPath);
-      const h = await api.createTermbase(corruptPath);
+      const h = await api.createTerms(corruptPath);
       if (h) {
         setHandle(h);
         setTbName(corruptName);
@@ -156,21 +156,21 @@ export function TermbasesPage({
 
   const handleOpenDialog = useCallback(async () => {
     try {
-      const h = await api.openTermbaseDialog();
+      const h = await api.openTermsDialog();
       if (h) {
         setHandle(h);
-        setTbName("Termbase");
+        setTbName("Terms");
         setTbPath("");
       }
     } catch (err) {
-      showError("Failed to open termbase", err);
+      showError("Failed to open terms", err);
     }
   }, [showError]);
 
   const handleCreate = useCallback(async () => {
     if (!newName.trim()) return;
     try {
-      const h = await api.createNamedTermbase(newName.trim());
+      const h = await api.createNamedTerms(newName.trim());
       if (h) {
         setHandle(h);
         setTbName(newName.trim());
@@ -179,13 +179,13 @@ export function TermbasesPage({
         setNewName("");
       }
     } catch (err) {
-      showError("Failed to create termbase", err);
+      showError("Failed to create terms", err);
     }
   }, [newName, showError]);
 
   const handleClose = useCallback(() => {
     if (handle) {
-      void api.closeTermbase(handle);
+      void api.closeTerms(handle);
       setHandle(null);
       setTbName("");
       setTbPath("");
@@ -197,7 +197,7 @@ export function TermbasesPage({
     if (!activeHandle) return;
     setImporting(true);
     try {
-      await api.importTermbaseCSVDialog(activeHandle, "", "", "");
+      await api.importTermsCSVDialog(activeHandle, "", "", "");
     } catch (err) {
       showError("Failed to import CSV", err);
     } finally {
@@ -209,7 +209,7 @@ export function TermbasesPage({
     if (!activeHandle) return;
     setImporting(true);
     try {
-      await api.importTermbaseJSONDialog(activeHandle);
+      await api.importTermsJSONDialog(activeHandle);
     } catch (err) {
       showError("Failed to import JSON", err);
     } finally {
@@ -220,32 +220,32 @@ export function TermbasesPage({
   const handleExport = useCallback(async () => {
     if (!activeHandle) return;
     try {
-      await api.exportTermbaseJSONDialog(activeHandle, tbName || "termbase");
+      await api.exportTermsJSONDialog(activeHandle, tbName || "terms");
     } catch (err) {
-      showError("Failed to export termbase", err);
+      showError("Failed to export terms", err);
     }
   }, [activeHandle, tbName, showError]);
 
-  // Open termbase view — identical dashboard (stats + activity chart + the
-  // visual concept/relation workspace) whether the termbase is project-scoped or
+  // Open terms view — identical dashboard (stats + activity chart + the
+  // visual concept/relation workspace) whether the terms store is project-scoped or
   // a named/ad-hoc one. Only the header (title, back button) differs.
   if (activeHandle) {
     const isProject = !!projectHandle;
     return (
       <div className="p-6">
         <PageHeader
-          title={isProject ? "Project Termbase" : tbName}
+          title={isProject ? "Project Terms" : tbName}
           subtitle={
             projectStats ? `${projectStats.count.toLocaleString()} concepts` : tbPath || undefined
           }
           backButton={
             isProject ? undefined : (
-              <SimpleTooltip content="Close Termbase">
+              <SimpleTooltip content="Close Terms">
                 <Button
                   variant="ghost"
                   size="icon-xs"
                   onClick={handleClose}
-                  aria-label="Close Termbase"
+                  aria-label="Close Terms"
                 >
                   <X size={16} />
                 </Button>
@@ -324,18 +324,18 @@ export function TermbasesPage({
             </Button>
             <Button size="sm" onClick={() => setShowCreateDialog(true)}>
               <Plus size={12} />
-              New Termbase
+              New Terms
             </Button>
           </div>
         }
       />
 
-      {/* No project termbase hint */}
+      {/* No project terms store hint */}
       {tabID && !projectHandle && !loading && (
         <Card className="mb-4 border-dashed">
           <CardContent className="p-4 text-center text-sm text-muted-foreground">
             <BookOpen size={16} className="mx-auto mb-1 opacity-50" />
-            No project termbase found. Import terminology to create one automatically, or create one
+            No project terms store found. Import terminology to create one automatically, or create one
             below.
           </CardContent>
         </Card>
@@ -362,11 +362,11 @@ export function TermbasesPage({
       {!loading && resources.length === 0 && !tabID && (
         <EmptyState
           icon={<BookOpen size={24} className="text-muted-foreground/50" />}
-          title="No termbases found. Create one or open a .db file."
+          title="No terms stores found. Create one or open a .db file."
           action={
             <div className="flex justify-center gap-2">
               <Button size="sm" onClick={() => setShowCreateDialog(true)}>
-                New Termbase
+                New Terms
               </Button>
               <Button variant="outline" size="sm" onClick={handleOpenDialog}>
                 Open File...
@@ -379,7 +379,7 @@ export function TermbasesPage({
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>New Termbase</DialogTitle>
+            <DialogTitle>New Terms</DialogTitle>
           </DialogHeader>
           <div>
             <Label className="mb-1 block text-xs text-muted-foreground">Name</Label>
@@ -419,7 +419,7 @@ export function TermbasesPage({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle size={18} className="text-destructive" />
-              Corrupt Termbase
+              Corrupt Terms
             </DialogTitle>
           </DialogHeader>
           <div>
@@ -433,7 +433,7 @@ export function TermbasesPage({
             </p>
             <div className="flex gap-2">
               <Button size="sm" onClick={() => void handleRecover()} disabled={recovering}>
-                {recovering ? t("Recovering...") : t("Create Fresh Termbase")}
+                {recovering ? t("Recovering...") : t("Create Fresh Terms")}
               </Button>
               <Button
                 variant="outline"

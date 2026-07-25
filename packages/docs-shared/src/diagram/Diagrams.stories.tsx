@@ -114,7 +114,7 @@ export const RoundTrip: Story = {
         { label: "translated XLIFF / PO" },
         { label: "returned" },
       ]}
-      hub={{ label: "project TM", sub: "pre-fill · absorb" }}
+      hub={{ label: "project content memory", sub: "pre-fill · absorb" }}
       forwardLabel="pre-fill"
       backLabel="absorb"
     />
@@ -338,7 +338,7 @@ export const GatedLoop: Story = {
           kind: "phase",
           role: "translate",
           label: "translate approved source",
-          steps: ["recycle (TM-first)", "AI remainder", "target QA"],
+          steps: ["recycle (content memory-first)", "AI remainder", "target QA"],
         },
         {
           kind: "gate",

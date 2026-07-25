@@ -52,8 +52,8 @@ func TestConvergenceEstimate_SourceHeldVsReady(t *testing.T) {
 	fr := view.Locales[0]
 	assert.Equal(t, string(model.LocaleFrench), fr.Locale)
 	assert.Equal(t, 2, fr.Pending, "only the 2 ready blocks are pending; the held block is excluded")
-	assert.Equal(t, 2, fr.ViaAI, "no TM → all pending is AI work")
-	assert.Equal(t, 0, fr.ViaTM)
+	assert.Equal(t, 2, fr.ViaAI, "no content memory → all pending is AI work")
+	assert.Equal(t, 0, fr.ViaMemory)
 	assert.Greater(t, fr.TokenEstimate, 0, "the AI remainder has a non-zero token estimate")
 
 	// Totals roll up the single locale.

@@ -1,6 +1,6 @@
 /**
  * Recording-only entry for Kapi Desktop walkthroughs. Mounts {@link DemoApp}
- * (real chrome + real TM/termbase browsers, mock data) so the harness can drive
+ * (real chrome + real content memory/terms browsers, mock data) so the harness can drive
  * the genuine UI in a browser. `?theme=dark` records the dark palette.
  */
 import "@fontsource-variable/inter";

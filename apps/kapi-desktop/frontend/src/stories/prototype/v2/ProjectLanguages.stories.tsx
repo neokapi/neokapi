@@ -8,7 +8,7 @@ import { DesktopFrame, SourceFirstSidebar } from "../_shared";
  * Prototype v2 (source-first): managing a project's languages.
  *
  * Adding a language is an ordinary setting — no "enable localization", no
- * "turns on Translate / TM / Termbases", no before/after drama. You add or
+ * "turns on Translate / content memory / Termbases", no before/after drama. You add or
  * remove target languages like any other project property, and the sidebar
  * quietly reflects the result. The transition from one language to many is
  * transparent precisely because nothing marks it as an event.

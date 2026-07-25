@@ -13,7 +13,7 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // editorFakeBrandStore resolves profiles by ID from a fixed set. Embedding the
@@ -40,7 +40,7 @@ func (f editorFakeWorkspaceDefault) WorkspaceBrandProfileID(context.Context, str
 
 // editorBrandContextFixture builds a content store with one project + item +
 // block, plus a brand context whose workspace default binds a voice profile and
-// whose termbase mandates software → logiciel for en→fr.
+// whose terms mandates software → logiciel for en→fr.
 func editorBrandContextFixture(t *testing.T) (platstore.ContentStore, editorBrandContext, *platstore.Project) {
 	t.Helper()
 	ctx := t.Context()
@@ -62,16 +62,16 @@ func editorBrandContextFixture(t *testing.T) (platstore.ContentStore, editorBran
 	b.SetSourceText("the software is ready")
 	require.NoError(t, cs.StoreBlocksForItem(ctx, "p1", "main", "hello.txt", []*model.Block{b}))
 
-	tb := termbase.NewInMemoryTermBase()
-	require.NoError(t, tb.AddConcept(ctx, termbase.Concept{
+	tb := terms.NewInMemoryStore()
+	require.NoError(t, tb.AddConcept(ctx, terms.Concept{
 		ID: "c1",
-		Terms: []termbase.Term{
+		Terms: []terms.Term{
 			{Text: "software", Locale: "en", Status: model.TermPreferred},
 			{Text: "logiciel", Locale: "fr", Status: model.TermPreferred},
 		},
 	}))
 	wsStores := newWorkspaceStores()
-	wsStores.tbFactory = func() termbase.TBStore { return &testTermStore{tb} }
+	wsStores.tbFactory = func() terms.Store { return &testTermStore{tb} }
 
 	profile := &corebrand.VoiceProfile{
 		ID:   "bp-1",
@@ -92,7 +92,7 @@ func editorBrandContextFixture(t *testing.T) (platstore.ContentStore, editorBran
 // TestEditorTranslateConfigCarriesBrandContext proves the interactive editor
 // translate config carries the same standing brand context a worker job does:
 // the voice profile resolved through the brandscope ladder (with the target
-// locale's override applied) and the termbase-derived glossary — the exact
+// locale's override applied) and the terms store-derived glossary — the exact
 // fields the AI translate tool injects into every prompt.
 func TestEditorTranslateConfigCarriesBrandContext(t *testing.T) {
 	cs, brandCtx, proj := editorBrandContextFixture(t)
@@ -112,7 +112,7 @@ func TestEditorTranslateConfigCarriesBrandContext(t *testing.T) {
 }
 
 // TestEditorTranslateConfigBareWithoutBrandContext pins the control case: a
-// server with no brand/termbase wiring (or a workspace with nothing bound)
+// server with no brand/terms wiring (or a workspace with nothing bound)
 // constructs exactly the pre-existing bare config — no profile, no glossary,
 // locales and batching intact.
 func TestEditorTranslateConfigBareWithoutBrandContext(t *testing.T) {
@@ -157,7 +157,7 @@ func TestEditorTranslateConfigCarriesDNTTerms(t *testing.T) {
 
 // TestEditorTranslateConfigDegradesGracefully pins the never-fail contract on
 // the interactive path: an unbound workspace default, an unresolvable profile,
-// or a termbase that cannot be opened all degrade to a bare translation.
+// or a terms store that cannot be opened all degrade to a bare translation.
 func TestEditorTranslateConfigDegradesGracefully(t *testing.T) {
 	cs, err := bstore.NewSQLiteStore(":memory:")
 	require.NoError(t, err)
@@ -176,7 +176,7 @@ func TestEditorTranslateConfigDegradesGracefully(t *testing.T) {
 		"p1", "main", "ws-1", "acme", TranslateRequest{TargetLocale: "fr"})
 
 	assert.Nil(t, cfg.Profile, "unresolvable profile → bare, not fatal")
-	assert.Nil(t, cfg.Glossary, "unopenable termbase → bare, not fatal")
+	assert.Nil(t, cfg.Glossary, "unopenable terms → bare, not fatal")
 }
 
 // TestEditorAITranslateWithBrandContext runs the full editorAITranslate path

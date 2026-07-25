@@ -135,7 +135,7 @@ func NewDiffLeverageTool(cfg *DiffLeverageConfig) *tool.BaseTool {
 					// source: it no longer exactly fits, so mark it `draft` —
 					// it counts as work-in-progress, not as `translated`, until
 					// a human or translator revisits it.
-					v.StampTargetProvenance(conf.TargetLocale, model.TargetStatusDraft, model.Origin{Tool: t.ToolName, Kind: model.OriginTM})
+					v.StampTargetProvenance(conf.TargetLocale, model.TargetStatusDraft, model.Origin{Tool: t.ToolName, Kind: model.OriginMemory})
 				}
 				return nil
 			}

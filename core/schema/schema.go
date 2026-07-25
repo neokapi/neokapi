@@ -80,7 +80,7 @@ type ToolMeta struct {
 	Tags []string `json:"tags,omitempty"` // "ai-powered","batch","regex","configurable"
 
 	// Requires declares external resources this tool needs at runtime.
-	Requires []string `json:"requires,omitempty"` // "target-language","source-language","tm","termbase","credentials"
+	Requires []string `json:"requires,omitempty"` // "target-language","source-language","tm","terms","credentials"
 
 	// Cardinality declares how many locales the tool operates on per execution.
 	Cardinality LocaleCardinality `json:"cardinality,omitempty"`
@@ -155,7 +155,7 @@ const (
 	CategoryPipeline       = "pipeline"        // composite / sub-pipeline
 )
 
-// TagL10n marks a tool as part of the localization toolchain (translate, TM
+// TagL10n marks a tool as part of the localization toolchain (translate, content memory
 // recycling, the bilingual quality checks, pseudo-translation, target
 // management). It is a freeform Tag on ToolMeta, orthogonal to Category: the
 // CLI groups every l10n-tagged command under one "Localization:" help section
@@ -198,8 +198,8 @@ func NormalizeCategory(c string) string {
 const (
 	RequiresTargetLanguage = "target-language"
 	RequiresSourceLanguage = "source-language"
-	RequiresTM             = "tm"
-	RequiresTermbase       = "termbase"
+	RequiresMemory         = "tm"
+	RequiresTerms          = "termbase"
 	RequiresCredentials    = "credentials"
 	RequiresRetryable      = "retryable"
 )
@@ -306,7 +306,7 @@ type ConditionalOptions struct {
 }
 
 // PathAnnotation describes a property that references a file path or named resource.
-// Used by the resource resolver to resolve URI prefixes (tm:, termbase:, srx:) and
+// Used by the resource resolver to resolve URI prefixes (tm:, terms:, srx:) and
 // relative paths, and by the UI to render ResourcePicker widgets.
 type PathAnnotation struct {
 	// Type is "file" or "directory".
@@ -315,7 +315,7 @@ type PathAnnotation struct {
 	// Role is "input" or "output". Output paths get auto-placed into the output directory.
 	Role string `json:"role,omitempty"`
 
-	// ResourceKind enables URI prefix resolution: "tm", "termbase", or "srx".
+	// ResourceKind enables URI prefix resolution: "tm", "terms", or "srx".
 	ResourceKind string `json:"resourceKind,omitempty"`
 
 	// Accepts lists file extensions for validation and UI filtering (e.g. ["html", "txt"]).

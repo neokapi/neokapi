@@ -24,7 +24,7 @@ is and the role it plays, start with the [overview](/reference/kbf/overview);
 for worked examples you can edit live, see [Examples](/reference/kbf/examples).
 
 A `.kbf` file is auto-detected by its extension and by sniffing the document for
-the magic string `"kapi-localization-format"`. The format is implemented in Go
+the magic string `"kapi-bundle"`. The format is implemented in Go
 at [`core/kbf`](https://github.com/neokapi/neokapi/tree/main/core/kbf) and
 mirrored in TypeScript as the
 [`@neokapi/kapi-format`](https://github.com/neokapi/neokapi/tree/main/packages/kapi-format)
@@ -50,7 +50,7 @@ every file. Versions follow a `MAJOR.MINOR` contract:
   recognize.
 
 A reader validates the envelope on load: it rejects any document whose `kind` is
-not `kapi-localization-format` and any `schemaVersion` whose major does not match
+not `kapi-bundle` and any `schemaVersion` whose major does not match
 the version the build speaks.
 
 ## File envelope
@@ -62,7 +62,7 @@ across the Go and TypeScript implementations.
 | Field           | Type          | Required | Description                                                                  |
 | --------------- | ------------- | -------- | ---------------------------------------------------------------------------- |
 | `schemaVersion` | string        | yes      | Wire format version, e.g. `"1.0"`. Subject to the versioning contract above. |
-| `kind`          | string        | yes      | Magic string; must be `"kapi-localization-format"`.                          |
+| `kind`          | string        | yes      | Magic string; must be `"kapi-bundle"`.                          |
 | `created`       | string        | no       | Creation timestamp (RFC 3339). Omitted when empty.                           |
 | `generator`     | GeneratorInfo | yes      | The extractor that produced the file.                                        |
 | `project`       | ProjectInfo   | yes      | The project the file belongs to.                                             |

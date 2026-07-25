@@ -15,12 +15,12 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host/config"
 	"github.com/neokapi/neokapi/host/output"
+	"github.com/neokapi/neokapi/memory"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
-	"github.com/neokapi/neokapi/sievepen"
 )
 
 // UpPlanScope is the planned work for one (collection, locale) scope: how many
-// units have no target yet, how many of those an exact TM hit would cover, and
+// units have no target yet, how many of those an exact content-memory hit would cover, and
 // what remains for AI translation with a rough token estimate.
 type UpPlanScope struct {
 	Locale     string `json:"locale,omitempty"`
@@ -28,11 +28,11 @@ type UpPlanScope struct {
 	// MissingTarget is the count of translatable units with no committed
 	// target for the locale.
 	MissingTarget int `json:"missingTarget"`
-	// TMExact is the count of missing units covered by an exact-hash TM hit
+	// MemoryExact is the count of missing units covered by an exact-hash content-memory hit
 	// (the cheap leverage estimate — fuzzy leverage is not counted).
-	TMExact int `json:"tmExact"`
+	MemoryExact int `json:"tmExact"`
 	// AIRemaining is the count of missing units left for AI translation
-	// after TM leverage.
+	// after content-memory leverage.
 	AIRemaining int `json:"aiRemaining"`
 	// TokenEstimate approximates the input tokens for the remaining AI work:
 	// source characters / 4 (a common chars-per-token heuristic — the
@@ -59,11 +59,11 @@ type UpPlanOutput struct {
 }
 
 // upPlanNote is the estimation-method disclosure carried in the output.
-const upPlanNote = "TM leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining units (no tokenizer, no provider calls)."
+const upPlanNote = "content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining units (no tokenizer, no provider calls)."
 
 // upPlanSubscriptionNote replaces the metered-cost framing when the resolved
 // provider bills a personal subscription instead of per-token API usage.
-const upPlanSubscriptionNote = "AI work runs on your Claude subscription — the token estimate is scale, not a metered cost. TM leverage counts exact-hash hits only; token estimate is source chars / 4 (no tokenizer, no provider calls)."
+const upPlanSubscriptionNote = "AI work runs on your Claude subscription — the token estimate is scale, not a metered cost. content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 (no tokenizer, no provider calls)."
 
 // FormatText renders the plan as a table.
 func (o UpPlanOutput) FormatText(w io.Writer) error {
@@ -73,15 +73,15 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 	}
 	fmt.Fprintf(w, "Plan for flow %q (dry run — nothing written, no provider calls):\n\n", o.Flow)
 	t := output.NewTable(w).Accent(0).
-		Headers("scope", "missing", "TM exact", "AI work", "~tokens")
+		Headers("scope", "missing", "content memory exact", "AI work", "~tokens")
 	for _, s := range o.Scopes {
 		scope := s.Locale
 		if s.Collection != "" {
 			scope = s.Locale + "/" + s.Collection
 		}
-		t.Rowf(scope, s.MissingTarget, s.TMExact, s.AIRemaining, s.TokenEstimate)
+		t.Rowf(scope, s.MissingTarget, s.MemoryExact, s.AIRemaining, s.TokenEstimate)
 	}
-	t.Rowf("total", o.Totals.MissingTarget, o.Totals.TMExact, o.Totals.AIRemaining, o.Totals.TokenEstimate)
+	t.Rowf("total", o.Totals.MissingTarget, o.Totals.MemoryExact, o.Totals.AIRemaining, o.Totals.TokenEstimate)
 	t.Render()
 	if o.Subscription {
 		fmt.Fprintf(w, "\n  AI provider: %s — runs on your Claude subscription (no per-token API cost).\n", o.Provider)
@@ -92,7 +92,7 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 
 // runUpPlan is `kapi up --plan`: a read-only dry run of the convergence work.
 // For every (collection, locale) scope it counts the units missing a target,
-// estimates TM leverage by exact-hash lookup against the project TM, and
+// estimates content-memory leverage by exact-hash lookup against the project content memory, and
 // prices the remainder as AI work with a chars/4 token estimate. It makes no
 // provider calls and writes nothing — not even the block store.
 func (a *App) runUpPlan(cmd Command, proj *project.KapiProject, projectPath string) error {
@@ -115,7 +115,7 @@ func (a *App) runUpPlan(cmd Command, proj *project.KapiProject, projectPath stri
 	return output.Print(cmd, plan)
 }
 
-// computeProjectPlan resolves the project's units, opens the project TM as a
+// computeProjectPlan resolves the project's units, opens the project content memory as a
 // read-only leverage source (only an existing tm.db — a plan must not create
 // files), and derives the dry-run work plan. Shared by `kapi up --plan` and
 // the exported UpPlan the desktop binds to.
@@ -126,13 +126,13 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 		return UpPlanOutput{}, fmt.Errorf("resolve content: %w", err)
 	}
 
-	var tm sievepen.TranslationMemory
-	if a.TMBackend != nil {
-		tm = a.TMBackend
+	var tm memory.TranslationMemory
+	if a.MemoryBackend != nil {
+		tm = a.MemoryBackend
 	} else if layout, lerr := project.LayoutFor(projectPath); lerr == nil {
-		tmPath := filepath.Join(layout.StateDir, "tm.db")
-		if _, statErr := os.Stat(tmPath); statErr == nil {
-			if loaded, terr := sievepen.NewSQLiteTM(tmPath); terr == nil {
+		memoryPath := filepath.Join(layout.StateDir, "tm.db")
+		if _, statErr := os.Stat(memoryPath); statErr == nil {
+			if loaded, terr := memory.NewSQLiteStore(memoryPath); terr == nil {
 				defer loaded.Close()
 				tm = loaded
 			}
@@ -167,7 +167,7 @@ func (a *App) applyPlanProvider(plan *UpPlanOutput) {
 }
 
 // UpPlan computes the dry-run convergence plan `kapi up --plan` reports — per
-// (collection, locale): units missing a target, exact TM leverage, the
+// (collection, locale): units missing a target, exact content-memory leverage, the
 // remaining AI work, and a chars/4 token estimate — for an embedding caller
 // (the desktop's pre-flight dialog). It is read-only and self-contained: no
 // provider calls, nothing written, state derived from the working tree on
@@ -196,7 +196,7 @@ func (a *App) UpPlan(ctx context.Context, projectPath, sourceLang string) (*UpPl
 }
 
 // computeUpPlan derives the per-scope work plan from the verify units.
-func (a *App) computeUpPlan(ctx context.Context, tm sievepen.TranslationMemory, proj *project.KapiProject, units []VerifyUnit) (UpPlanOutput, error) {
+func (a *App) computeUpPlan(ctx context.Context, tm memory.TranslationMemory, proj *project.KapiProject, units []VerifyUnit) (UpPlanOutput, error) {
 	type scopeKey struct{ Locale, Collection string }
 	scopes := map[scopeKey]*UpPlanScope{}
 	scopeFor := func(k scopeKey) *UpPlanScope {
@@ -235,8 +235,8 @@ func (a *App) computeUpPlan(ctx context.Context, tm sievepen.TranslationMemory, 
 				continue // already produced
 			}
 			s.MissingTarget++
-			if planTMExactHit(ctx, tm, b, source, target) {
-				s.TMExact++
+			if planMemoryExactHit(ctx, tm, b, source, target) {
+				s.MemoryExact++
 				continue
 			}
 			s.AIRemaining++
@@ -257,7 +257,7 @@ func (a *App) computeUpPlan(ctx context.Context, tm sievepen.TranslationMemory, 
 		}
 		out.Scopes = append(out.Scopes, *s)
 		out.Totals.MissingTarget += s.MissingTarget
-		out.Totals.TMExact += s.TMExact
+		out.Totals.MemoryExact += s.MemoryExact
 		out.Totals.AIRemaining += s.AIRemaining
 		out.Totals.TokenEstimate += s.TokenEstimate
 	}
@@ -270,14 +270,14 @@ func (a *App) computeUpPlan(ctx context.Context, tm sievepen.TranslationMemory, 
 	return out, nil
 }
 
-// planTMExactHit reports whether the block's source has an unambiguous exact
-// (score 1.0) TM hit with a non-empty target variant — the cheap "TM exact"
+// planMemoryExactHit reports whether the block's source has an unambiguous exact
+// (score 1.0) content-memory hit with a non-empty target variant — the cheap "content memory exact"
 // leverage counted by the plan.
-func planTMExactHit(ctx context.Context, tm sievepen.TranslationMemory, b *model.Block, source, target model.LocaleID) bool {
+func planMemoryExactHit(ctx context.Context, tm memory.TranslationMemory, b *model.Block, source, target model.LocaleID) bool {
 	if tm == nil {
 		return false
 	}
-	matches, err := tm.Lookup(ctx, b, source, target, sievepen.LookupOptions{MinScore: 1.0, MaxResults: 1})
+	matches, err := tm.Lookup(ctx, b, source, target, memory.LookupOptions{MinScore: 1.0, MaxResults: 1})
 	if err != nil || len(matches) == 0 || matches[0].Ambiguous || matches[0].Score < 1.0 {
 		return false
 	}

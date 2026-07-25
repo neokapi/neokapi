@@ -33,7 +33,7 @@ kapi extract --target-lang fr                  # → out/<name>.en-to-fr.xliff (
 kapi merge -i out/*.xliff                       # -i is REQUIRED and repeatable; positional paths are ignored
 kapi check --ship --json                              # the gate: brand + terminology + QA in one shot (prefer this)
 kapi exec term-check ./locales/fr.json --target-lang fr   # file is POSITIONAL; there is no --source/--target
-kapi termbase lookup "board" -t fr              # approved wording; termbase uses -s/-t, not --*-lang
+kapi terms lookup "board" -t fr              # approved wording; terms uses -s/-t, not --*-lang
 kapi brand guide                                # the voice to follow (no flag inside a project)
 ```
 
@@ -55,15 +55,15 @@ change through the round-trip below, or edit the source.)
 ```bash
 kapi extract --target-lang fr        # bilingual file with source + empty targets (out/*.xliff)
 kapi brand guide                     # the voice to follow (no flag inside a project)
-kapi termbase lookup "<term>" -t fr  # the approved wording
+kapi terms lookup "<term>" -t fr  # the approved wording
 ```
 
 Fill each unit's `<target>` following the brand guide and glossary, preserving
-placeholders; reuse any TM-prefilled targets. Then merge it back, and treat the task
+placeholders; reuse any content memory-prefilled targets. Then merge it back, and treat the task
 as unfinished until kapi confirms the result:
 
 ```bash
-kapi merge -i out/*.xliff            # write translations back into the target files + TM
+kapi merge -i out/*.xliff            # write translations back into the target files + content memory
 kapi check --ship --json                   # in a project: brand + terminology + QA in one gate
 kapi exec term-check ./locales/fr.json    # one-off, no project: terminology check on the file
 ```
@@ -84,7 +84,7 @@ kapi translate ./deck.pptx --target-lang ja -o ./out/deck.ja.pptx
 ```
 
 `--target-lang` is single-valued, so run one command per locale. A bound brand
-profile and termbase still apply. Format is detected from the extension and
+profile and terms still apply. Format is detected from the extension and
 written back unchanged (round-trip), preserving structure, tags, and placeholders.
 
 ## Bring a project up to date (status → up → review)
@@ -98,13 +98,13 @@ kapi status                  # per-locale coverage + each scope's ship standing
 kapi up                      # catch up: loop the project's default flow over ALL
                              #   content × every target language until each scope
                              #   ships or "parks"; runs locales concurrently
-kapi up --plan               # dry run: pending work, TM leverage, token estimate
+kapi up --plan               # dry run: pending work, content-memory leverage, token estimate
 kapi up --json               # NDJSON event stream (one event per line, final
                              #   record = the result) — use this to drive the loop
 ```
 
 `kapi up` is the one verb that runs the loop. With no `defaults.flow` in the recipe it
-runs the built-in default flow (TM recycle → AI translate) and materializes the
+runs the built-in default flow (content memory recycle → AI translate) and materializes the
 localized files. Drift is never an error — a behind locale is *pending*, and work
 a machine can't finish *parks* (reported, exit 0), so neither blocks you. Use
 `--json` for the machine-readable event stream; the `up` and `up_plan` MCP tools
@@ -135,13 +135,13 @@ target drift never blocks.
 ## Keep terminology consistent
 
 ```bash
-kapi termbase import glossary.csv --format csv -s en -t fr --local   # also: json, tbx
-kapi termbase lookup "checkout" -s en -t fr --json
+kapi terms import glossary.csv --format csv -s en -t fr --local   # also: json, tbx
+kapi terms lookup "checkout" -s en -t fr --json
 kapi exec term-check ./locales/fr.json --json                            # flag wrong/missing terms
 ```
 
 Use the approved (preferred) term; avoid deprecated/forbidden ones. A bound
-termbase also feeds the translation step.
+terms also feeds the translation step.
 
 ## Publish (format round-trip)
 
@@ -172,6 +172,6 @@ shadow a shared extension (e.g. `.strings`, `.xml`, `.resx`); pass
 
 1. Confirm the format reads **and** writes (`kapi formats list`); for write-limited
    formats (e.g. PDF is read-only), extract to a bilingual format instead.
-2. Bind a brand profile + termbase so output is on-brand and consistent.
+2. Bind a brand profile + terms so output is on-brand and consistent.
 3. Pre-flight with `kapi pseudo-translate <file> --target-lang qps` to surface
    hardcoded or untranslated strings before real translation.

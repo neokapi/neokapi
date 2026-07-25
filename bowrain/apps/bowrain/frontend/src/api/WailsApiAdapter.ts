@@ -21,10 +21,10 @@ import type {
   WordCountResult,
   ProviderConfig,
   ProviderConfigWithKey,
-  TMEntryInfo,
-  TMSearchResult,
-  TMUpdateRequest,
-  TMMatchInfo,
+  MemoryEntryInfo,
+  MemorySearchResult,
+  MemoryUpdateRequest,
+  MemoryMatchInfo,
   ConceptInfo,
   TermSearchResult,
   AddConceptRequest,
@@ -679,13 +679,13 @@ export class WailsApiAdapter implements ApiAdapter {
   async aiTranslateFile(_ws: string, _req: AITranslateFileRequest): Promise<TranslationStats> {
     throw new Error("AI translation is managed by the server pipeline");
   }
-  async tmTranslateFile(
+  async memoryTranslateFile(
     _ws: string,
     projectId: string,
     fileName: string,
     targetLocale: string,
   ): Promise<TranslationStats> {
-    return Backend.TMTranslateItem(projectId, fileName, targetLocale) as Promise<TranslationStats>;
+    return Backend.MemoryTranslateItem(projectId, fileName, targetLocale) as Promise<TranslationStats>;
   }
   async getWordCount(_ws: string, projectId: string, fileName: string): Promise<WordCountResult> {
     return Backend.GetWordCount(projectId, fileName) as Promise<WordCountResult>;
@@ -719,15 +719,15 @@ export class WailsApiAdapter implements ApiAdapter {
     }
     return fn(projectId, stream ?? "");
   }
-  async lookupTMForBlock(
+  async lookupMemoryForBlock(
     _ws: string,
     projectId: string,
     itemName: string,
     blockId: string,
     targetLocale: string,
-  ): Promise<TMMatchInfo[]> {
-    return Backend.LookupTMForBlock(projectId, itemName, blockId, targetLocale) as Promise<
-      TMMatchInfo[]
+  ): Promise<MemoryMatchInfo[]> {
+    return Backend.LookupMemoryForBlock(projectId, itemName, blockId, targetLocale) as Promise<
+      MemoryMatchInfo[]
     >;
   }
   async lookupTermsForBlock(
@@ -742,17 +742,17 @@ export class WailsApiAdapter implements ApiAdapter {
     >;
   }
 
-  // --- Translation Memory ---
-  async getTMEntries(
+  // --- Content Memory ---
+  async getMemoryEntries(
     _ws: string,
     query: string,
     sourceLocale: string,
     targetLocale: string,
     offset: number,
     limit: number,
-  ): Promise<TMSearchResult> {
-    // Bowrain TM API takes projectID as first arg; pass empty string for workspace-level
-    const result = (await Backend.GetTMEntries(
+  ): Promise<MemorySearchResult> {
+    // Bowrain content memory API takes projectID as first arg; pass empty string for workspace-level
+    const result = (await Backend.GetMemoryEntries(
       "",
       query,
       sourceLocale,
@@ -765,7 +765,7 @@ export class WailsApiAdapter implements ApiAdapter {
     };
     // The Wails backend names the locale fields source_locale/target_locale;
     // the shared ApiAdapter contract (REST shape) uses source_language/
-    // target_language. Map so shared consumers (TMBrowser adapter) see the
+    // target_language. Map so shared consumers (MemoryBrowser adapter) see the
     // contract shape.
     return {
       entries: (result.entries ?? []).map((e) => ({
@@ -774,31 +774,31 @@ export class WailsApiAdapter implements ApiAdapter {
         target_language: e.target_locale,
       })),
       total_count: result.total_count,
-    } as TMSearchResult;
+    } as MemorySearchResult;
   }
-  async getTMCount(): Promise<number> {
-    return Backend.GetTMCount("") as Promise<number>;
+  async getMemoryCount(): Promise<number> {
+    return Backend.GetMemoryCount("") as Promise<number>;
   }
-  async addTMEntry(
+  async addMemoryEntry(
     _ws: string,
     source: string,
     target: string,
     sourceLocale: string,
     targetLocale: string,
-  ): Promise<TMEntryInfo> {
-    return Backend.AddTMEntry(
+  ): Promise<MemoryEntryInfo> {
+    return Backend.AddMemoryEntry(
       "",
       source,
       target,
       sourceLocale,
       targetLocale,
-    ) as Promise<TMEntryInfo>;
+    ) as Promise<MemoryEntryInfo>;
   }
-  async updateTMEntry(_ws: string, req: TMUpdateRequest): Promise<void> {
-    return Backend.UpdateTMEntry(req);
+  async updateMemoryEntry(_ws: string, req: MemoryUpdateRequest): Promise<void> {
+    return Backend.UpdateMemoryEntry(req);
   }
-  async deleteTMEntry(_ws: string, entryId: string): Promise<void> {
-    return Backend.DeleteTMEntry("", entryId);
+  async deleteMemoryEntry(_ws: string, entryId: string): Promise<void> {
+    return Backend.DeleteMemoryEntry("", entryId);
   }
 
   // --- Terminology ---

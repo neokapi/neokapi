@@ -238,10 +238,10 @@ export { WordCountChart } from "./components/WordCountChart";
 export { CollectionHeatmap } from "./components/CollectionHeatmap";
 export { FileProgressTable, type FileProgressPaging } from "./components/FileProgressTable";
 // Chart components re-exported from @neokapi/ui-primitives above
-// TM + termbase browsers are the shared Apache-licensed suites from
+// content memory + terms browsers are the shared Apache-licensed suites from
 // @neokapi/ui-primitives, fed by bowrain's REST adapter via the
-// useTMBrowserAdapter / useTermbaseBrowserAdapter hooks below.
-export { TMBrowser, TermbaseBrowser } from "@neokapi/ui-primitives";
+// useMemoryBrowserAdapter / useTermsBrowserAdapter hooks below.
+export { MemoryBrowser, TermsBrowser } from "@neokapi/ui-primitives";
 export { InviteManager } from "./components/InviteManager";
 export { ApiTokenManager } from "./components/ApiTokenManager";
 export { RoleTemplateManager } from "./components/RoleTemplateManager";
@@ -369,7 +369,7 @@ export {
   statusBorderClass,
   statusBadgeClass,
   statusConfig,
-  tmScoreClass,
+  memoryScoreClass,
   termStatusClass,
 } from "./components/editor/blockStatus";
 export type { BlockStatus } from "./components/editor/blockStatus";
@@ -430,7 +430,7 @@ export type {
 // Hooks
 export { useProjectApi, useProjects } from "./hooks/useProjectApi";
 export { useEditorApi } from "./hooks/useEditorApi";
-export { useTMBrowserAdapter, useTermbaseBrowserAdapter } from "./hooks/useResourceBrowserAdapters";
+export { useMemoryBrowserAdapter, useTermsBrowserAdapter } from "./hooks/useResourceBrowserAdapters";
 export { useProviderConfigs, useProviderApi } from "./hooks/useProviderApi";
 export { useLocales } from "./hooks/useLocales";
 export { useFormats } from "./hooks/useFormats";
@@ -467,10 +467,10 @@ export type {
   WordCountResult,
   ProviderConfig,
   ProviderConfigWithKey,
-  TMEntryInfo,
-  TMSearchResult,
-  TMUpdateRequest,
-  TMMatchInfo,
+  MemoryEntryInfo,
+  MemorySearchResult,
+  MemoryUpdateRequest,
+  MemoryMatchInfo,
   TermInfo,
   ConceptInfo,
   TermSearchResult,

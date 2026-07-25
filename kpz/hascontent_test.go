@@ -3,7 +3,7 @@ package kpz
 import (
 	"testing"
 
-	"github.com/neokapi/neokapi/sievepen/kmb"
+	"github.com/neokapi/neokapi/memory/kmb"
 )
 
 func TestPackageHasContent(t *testing.T) {
@@ -19,9 +19,9 @@ func TestPackageHasContent(t *testing.T) {
 		t.Errorf("HasContent() = true for a metadata-only package, want false")
 	}
 
-	// An empty TM file is not content.
-	if (&Package{TM: &kmb.File{}}).HasContent() {
-		t.Errorf("HasContent() = true for an empty TM file, want false")
+	// An empty content-memory file is not content.
+	if (&Package{Memory: &kmb.File{}}).HasContent() {
+		t.Errorf("HasContent() = true for an empty content-memory file, want false")
 	}
 
 	// Any real content member makes it non-empty.
@@ -30,7 +30,7 @@ func TestPackageHasContent(t *testing.T) {
 		"overlays":  {Overlays: []OverlayDoc{{Kind: "targets/fr", Source: "a.json"}}},
 		"skeletons": {Skeletons: []SkeletonDoc{{Path: "skeletons/x", SourcePath: "a.json"}}},
 		"source":    {Source: []SourceDoc{{Path: "source/a.json", Content: BytesContent([]byte("{}"))}}},
-		"tm":        {TM: &kmb.File{Entries: make([]kmb.Entry, 1)}},
+		"tm":        {Memory: &kmb.File{Entries: make([]kmb.Entry, 1)}},
 	}
 	for name, pkg := range cases {
 		if !pkg.HasContent() {

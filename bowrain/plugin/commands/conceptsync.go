@@ -16,16 +16,16 @@ import (
 	bconn "github.com/neokapi/neokapi/bowrain/plugin/connector"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 	"golang.org/x/sync/errgroup"
 )
 
 // conceptsync.go folds the workspace knowledge graph into the ordinary project
 // sync. A pull (kapi pull, kapi sync's pull phase) fetches the workspace's
 // governed concepts + relations and writes them into the project's bound
-// termbase, recording a baseline in the sync cache so a later push can diff
+// terms, recording a baseline in the sync cache so a later push can diff
 // against it. A push (kapi push, kapi sync's push phase) reconciles local
-// termbase edits against that baseline: ordinary edits (definitions, notes, new
+// terms edits against that baseline: ordinary edits (definitions, notes, new
 // proposed terms, non-governed relations) go up directly through the concept
 // REST endpoints, while governed edits (a term banned/promoted, a forbidden
 // status removed, a REPLACED_BY relation, a concept delete) are bundled into a
@@ -69,7 +69,7 @@ type termStatusPayload struct {
 }
 
 type conceptCreatePayload struct {
-	Concept termbase.Concept `json:"concept"`
+	Concept terms.Concept `json:"concept"`
 }
 
 type conceptDeletePayload struct {
@@ -77,8 +77,8 @@ type conceptDeletePayload struct {
 }
 
 type termAddPayload struct {
-	ConceptID string        `json:"concept_id"`
-	Term      termbase.Term `json:"term"`
+	ConceptID string     `json:"concept_id"`
+	Term      terms.Term `json:"term"`
 }
 
 type termRemovePayload struct {
@@ -88,7 +88,7 @@ type termRemovePayload struct {
 }
 
 type relationAddPayload struct {
-	Relation termbase.ConceptRelation `json:"relation"`
+	Relation terms.ConceptRelation `json:"relation"`
 }
 
 // ---------------------------------------------------------------------------
@@ -127,14 +127,14 @@ func (r *PushConceptsResult) changed() bool {
 // ---------------------------------------------------------------------------
 
 // PullConcepts paginates the workspace concept search, fetches the typed
-// relations touching the pulled concepts, writes them into the SQLite termbase
+// relations touching the pulled concepts, writes them into the SQLite terms
 // at tbPath (refreshing by concept ID), and returns the counts plus a baseline
 // snapshot the caller records in the sync cache so a later push can diff against
 // it. When dryRun is set it fetches and counts but writes nothing.
 func PullConcepts(ctx context.Context, client *apiclient.BowrainClient, tbPath string, dryRun bool) (*PullConceptsResult, *bproject.ConceptBaseline, error) {
 	known := map[string]bool{}
 	var (
-		concepts   []termbase.Concept
+		concepts   []terms.Concept
 		conceptIDs []string
 	)
 
@@ -166,9 +166,9 @@ func PullConcepts(ctx context.Context, client *apiclient.BowrainClient, tbPath s
 	if err != nil {
 		return nil, nil, err
 	}
-	// Keep only edges whose endpoints were pulled (the termbase rejects dangling
+	// Keep only edges whose endpoints were pulled (the terms store rejects dangling
 	// relations).
-	kept := make([]termbase.ConceptRelation, 0, len(relations))
+	kept := make([]terms.ConceptRelation, 0, len(relations))
 	for _, rel := range relations {
 		if known[rel.SourceID] && known[rel.TargetID] {
 			kept = append(kept, rel)
@@ -182,7 +182,7 @@ func PullConcepts(ctx context.Context, client *apiclient.BowrainClient, tbPath s
 	}
 
 	if !dryRun {
-		if err := writeConceptsToTermbase(ctx, tbPath, concepts, kept); err != nil {
+		if err := writeConceptsToTerms(ctx, tbPath, concepts, kept); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -190,17 +190,17 @@ func PullConcepts(ctx context.Context, client *apiclient.BowrainClient, tbPath s
 	return res, buildBaseline(concepts, kept), nil
 }
 
-// writeConceptsToTermbase opens (creating the directory if needed) the SQLite
-// termbase at tbPath and writes every concept then every relation, refreshing
+// writeConceptsToTerms opens (creating the directory if needed) the SQLite
+// terms at tbPath and writes every concept then every relation, refreshing
 // any concept already present. Relations are added after all concepts so the
-// termbase's referential check (both endpoints must exist) is satisfied.
-func writeConceptsToTermbase(ctx context.Context, tbPath string, concepts []termbase.Concept, relations []termbase.ConceptRelation) error {
+// terms's referential check (both endpoints must exist) is satisfied.
+func writeConceptsToTerms(ctx context.Context, tbPath string, concepts []terms.Concept, relations []terms.ConceptRelation) error {
 	if err := os.MkdirAll(filepath.Dir(tbPath), 0o755); err != nil {
-		return fmt.Errorf("create termbase directory: %w", err)
+		return fmt.Errorf("create terms directory: %w", err)
 	}
-	tb, err := termbase.NewSQLiteTermBase(tbPath)
+	tb, err := terms.NewSQLiteStore(tbPath)
 	if err != nil {
-		return fmt.Errorf("open termbase: %w", err)
+		return fmt.Errorf("open terms: %w", err)
 	}
 	defer tb.Close()
 
@@ -220,14 +220,14 @@ func writeConceptsToTermbase(ctx context.Context, tbPath string, concepts []term
 // fetchConceptRelations fetches the typed relations touching every concept in
 // conceptIDs using a bounded parallel fan-out, de-duplicated by relation ID and
 // sorted by ID so the pull stays deterministic despite the concurrent fetch.
-func fetchConceptRelations(ctx context.Context, client *apiclient.BowrainClient, conceptIDs []string) ([]termbase.ConceptRelation, error) {
+func fetchConceptRelations(ctx context.Context, client *apiclient.BowrainClient, conceptIDs []string) ([]terms.ConceptRelation, error) {
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(conceptPullRelationConcurrency)
 
 	var (
 		mu        sync.Mutex
 		seen      = map[string]bool{}
-		relations []termbase.ConceptRelation
+		relations []terms.ConceptRelation
 	)
 
 	for _, id := range conceptIDs {
@@ -258,7 +258,7 @@ func fetchConceptRelations(ctx context.Context, client *apiclient.BowrainClient,
 
 // buildBaseline snapshots the pulled concepts + relations into the diff-relevant
 // baseline recorded in the sync cache.
-func buildBaseline(concepts []termbase.Concept, relations []termbase.ConceptRelation) *bproject.ConceptBaseline {
+func buildBaseline(concepts []terms.Concept, relations []terms.ConceptRelation) *bproject.ConceptBaseline {
 	b := &bproject.ConceptBaseline{
 		PulledAt:  time.Now().UTC(),
 		Concepts:  make(map[string]bproject.BaselineConcept, len(concepts)),
@@ -289,11 +289,11 @@ func buildBaseline(concepts []termbase.Concept, relations []termbase.ConceptRela
 	return b
 }
 
-// conceptInfoToConcept maps a server concept DTO into the framework termbase
+// conceptInfoToConcept maps a server concept DTO into the framework terms
 // concept type, casting the term status/locale strings and parsing the RFC3339
 // timestamps.
-func conceptInfoToConcept(ci apiclient.ConceptInfo) termbase.Concept {
-	concept := termbase.Concept{
+func conceptInfoToConcept(ci apiclient.ConceptInfo) terms.Concept {
+	concept := terms.Concept{
 		ID:         ci.ID,
 		ProjectID:  ci.ProjectID,
 		Domain:     ci.Domain,
@@ -301,7 +301,7 @@ func conceptInfoToConcept(ci apiclient.ConceptInfo) termbase.Concept {
 		Properties: ci.Properties,
 	}
 	for _, t := range ci.Terms {
-		concept.Terms = append(concept.Terms, termbase.Term{
+		concept.Terms = append(concept.Terms, terms.Term{
 			Text:         t.Text,
 			Locale:       model.LocaleID(t.Locale),
 			Status:       model.TermStatus(t.Status),
@@ -323,10 +323,10 @@ func conceptInfoToConcept(ci apiclient.ConceptInfo) termbase.Concept {
 // Push
 // ---------------------------------------------------------------------------
 
-// PushConcepts diffs the local termbase at tbPath against baseline and pushes
+// PushConcepts diffs the local terms at tbPath against baseline and pushes
 // the changes: ordinary edits go up directly through the concept endpoints,
 // governed edits are bundled into one submitted change-set. It returns nil when
-// there is no baseline (a pull must run first) or no local termbase. When dryRun
+// there is no baseline (a pull must run first) or no local terms. When dryRun
 // is set it reports the plan without writing or proposing anything.
 func PushConcepts(ctx context.Context, client *apiclient.BowrainClient, tbPath string, baseline *bproject.ConceptBaseline, dryRun bool) (*PushConceptsResult, error) {
 	if baseline == nil {
@@ -336,9 +336,9 @@ func PushConcepts(ctx context.Context, client *apiclient.BowrainClient, tbPath s
 		return nil, nil
 	}
 
-	tb, err := termbase.NewSQLiteTermBase(tbPath)
+	tb, err := terms.NewSQLiteStore(tbPath)
 	if err != nil {
-		return nil, fmt.Errorf("open termbase: %w", err)
+		return nil, fmt.Errorf("open terms: %w", err)
 	}
 	defer tb.Close()
 
@@ -459,10 +459,10 @@ func (p pushPlan) apply(ctx context.Context, client *apiclient.BowrainClient, na
 // ordinary concept update keeps any governed terms pinned to their baseline
 // status so the direct PUT never entails a governed transition the server would
 // refuse with a 409.
-func buildPushPlan(local []termbase.Concept, localRels []termbase.ConceptRelation, baseline *bproject.ConceptBaseline) pushPlan {
+func buildPushPlan(local []terms.Concept, localRels []terms.ConceptRelation, baseline *bproject.ConceptBaseline) pushPlan {
 	var plan pushPlan
 
-	localByID := make(map[string]termbase.Concept, len(local))
+	localByID := make(map[string]terms.Concept, len(local))
 	localIDs := make([]string, 0, len(local))
 	for _, c := range local {
 		localByID[c.ID] = c
@@ -526,18 +526,18 @@ func buildPushPlan(local []termbase.Concept, localRels []termbase.ConceptRelatio
 // baseline status (ordinary metadata edits still applied), a governed term add
 // is excluded (it rides a term.add op), and a governed term removal keeps the
 // term (the change-set's term.remove op removes it).
-func diffConceptTerms(conceptID string, local termbase.Concept, base bproject.BaselineConcept) ([]apiclient.ChangeSetOpInput, []termbase.Term) {
+func diffConceptTerms(conceptID string, local terms.Concept, base bproject.BaselineConcept) ([]apiclient.ChangeSetOpInput, []terms.Term) {
 	baseByID := make(map[string]bproject.BaselineTerm, len(base.Terms))
 	for _, bt := range base.Terms {
 		baseByID[bt.TermIdentity()] = bt
 	}
-	localByID := make(map[string]termbase.Term, len(local.Terms))
+	localByID := make(map[string]terms.Term, len(local.Terms))
 	for _, lt := range local.Terms {
 		localByID[termIdentity(lt)] = lt
 	}
 
 	var govOps []apiclient.ChangeSetOpInput
-	ordinary := make([]termbase.Term, 0, len(local.Terms))
+	ordinary := make([]terms.Term, 0, len(local.Terms))
 
 	for _, lt := range local.Terms {
 		key := termIdentity(lt)
@@ -550,7 +550,7 @@ func diffConceptTerms(conceptID string, local termbase.Concept, base bproject.Ba
 			ordinary = append(ordinary, lt)
 			continue
 		}
-		if string(lt.Status) != bt.Status && termbase.IsGovernedTransition(model.TermStatus(bt.Status), lt.Status) {
+		if string(lt.Status) != bt.Status && terms.IsGovernedTransition(model.TermStatus(bt.Status), lt.Status) {
 			govOps = append(govOps, newOp(opTermStatus, termStatusPayload{
 				ConceptID: conceptID,
 				Locale:    string(lt.Locale),
@@ -591,8 +591,8 @@ func diffConceptTerms(conceptID string, local termbase.Concept, base bproject.Ba
 // governed; every other add is an ordinary direct add. Removals are ordinary
 // (the server ungates relation deletes). Relations are matched by ID; in-place
 // edits to an existing edge are not diffed (edges are effectively immutable).
-func diffRelations(local []termbase.ConceptRelation, baseline *bproject.ConceptBaseline) ([]relationAdd, []relationRemove, []apiclient.ChangeSetOpInput) {
-	localByID := make(map[string]termbase.ConceptRelation, len(local))
+func diffRelations(local []terms.ConceptRelation, baseline *bproject.ConceptBaseline) ([]relationAdd, []relationRemove, []apiclient.ChangeSetOpInput) {
+	localByID := make(map[string]terms.ConceptRelation, len(local))
 	localIDs := make([]string, 0, len(local))
 	for _, r := range local {
 		if r.ID == "" {
@@ -651,7 +651,7 @@ func diffRelations(local []termbase.ConceptRelation, baseline *bproject.ConceptB
 
 // conceptPull runs the project-level concept pull: it builds the workspace
 // knowledge client (skipping silently — returning nil — when the project is not
-// claimed into a workspace or has no auth), pulls into the bound termbase, and
+// claimed into a workspace or has no auth), pulls into the bound terms, and
 // returns the baseline the caller must hand to the sync connector via
 // SetConceptBaseline so the connector's single final Close() persists it
 // alongside the block-sync state. A genuine fetch error is surfaced; a skip is
@@ -668,7 +668,7 @@ func conceptPull(ctx context.Context, proj *bproject.Project, dryRun bool) (*Pul
 	if err != nil {
 		return nil, nil, nil
 	}
-	tbPath, err := projectTermbasePath(proj)
+	tbPath, err := projectTermsPath(proj)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -684,7 +684,7 @@ func conceptPull(ctx context.Context, proj *bproject.Project, dryRun bool) (*Pul
 
 // conceptPush runs the project-level concept push: it builds the workspace
 // knowledge client (skipping silently when the project is not workspace-claimed)
-// and diffs the bound termbase against the sync-cache baseline. It skips when no
+// and diffs the bound terms against the sync-cache baseline. It skips when no
 // baseline has been pulled yet. On a real push it fills in the change-set review
 // URL.
 func conceptPush(ctx context.Context, proj *bproject.Project, dryRun bool) (*PushConceptsResult, error) {
@@ -696,7 +696,7 @@ func conceptPush(ctx context.Context, proj *bproject.Project, dryRun bool) (*Pus
 	if cache.ConceptBaseline == nil {
 		return nil, nil
 	}
-	tbPath, err := projectTermbasePath(proj)
+	tbPath, err := projectTermsPath(proj)
 	if err != nil {
 		return nil, err
 	}
@@ -717,12 +717,12 @@ func conceptPush(ctx context.Context, proj *bproject.Project, dryRun bool) (*Pus
 // Helpers
 // ---------------------------------------------------------------------------
 
-// projectTermbasePath returns the SQLite termbase file a concept pull/push uses.
+// projectTermsPath returns the SQLite terms file a concept pull/push uses.
 // It mirrors the CLI's project-bound resolution: defaults.termbase from the
 // recipe (relative to the project root), else the conventional
 // <root>/.kapi/termbase.db.
-func projectTermbasePath(proj *bproject.Project) (string, error) {
-	if bound := proj.Recipe.Defaults.Termbase; bound != "" {
+func projectTermsPath(proj *bproject.Project) (string, error) {
+	if bound := proj.Recipe.Defaults.Terms; bound != "" {
 		if filepath.IsAbs(bound) {
 			return bound, nil
 		}
@@ -751,7 +751,7 @@ func newOp(op string, payload any) apiclient.ChangeSetOpInput {
 
 // termIdentity keys a term by locale + lowered text, matching the server's
 // governed-transition identity for terms.
-func termIdentity(t termbase.Term) string {
+func termIdentity(t terms.Term) string {
 	return string(t.Locale) + "|" + strings.ToLower(t.Text)
 }
 
@@ -764,7 +764,7 @@ func isGovernedStatus(s model.TermStatus) bool {
 
 // conceptHasGovernedTerm reports whether any of a concept's terms carries a
 // governed (forbidden/preferred) status.
-func conceptHasGovernedTerm(c termbase.Concept) bool {
+func conceptHasGovernedTerm(c terms.Concept) bool {
 	for _, t := range c.Terms {
 		if isGovernedStatus(t.Status) {
 			return true
@@ -777,7 +777,7 @@ func conceptHasGovernedTerm(c termbase.Concept) bool {
 // state (domain, definition, and the neutralized terms list) differs from the
 // baseline. Properties are not diffed — the direct concept PUT does not carry
 // them.
-func ordinaryConceptChanged(local termbase.Concept, base bproject.BaselineConcept, ordinaryTerms []termbase.Term) bool {
+func ordinaryConceptChanged(local terms.Concept, base bproject.BaselineConcept, ordinaryTerms []terms.Term) bool {
 	if local.Domain != base.Domain || local.Definition != base.Definition {
 		return true
 	}
@@ -786,7 +786,7 @@ func ordinaryConceptChanged(local termbase.Concept, base bproject.BaselineConcep
 
 // termsSignature is an order-independent canonical signature of a terms list,
 // used to compare the would-be PUT against the baseline.
-func termsSignature(terms []termbase.Term) string {
+func termsSignature(terms []terms.Term) string {
 	parts := make([]string, 0, len(terms))
 	for _, t := range terms {
 		parts = append(parts, strings.Join([]string{
@@ -809,7 +809,7 @@ func baselineTermsSignature(terms []bproject.BaselineTerm) string {
 }
 
 // termsToInfo maps framework terms to the client's term DTO.
-func termsToInfo(terms []termbase.Term) []apiclient.TermInfo {
+func termsToInfo(terms []terms.Term) []apiclient.TermInfo {
 	out := make([]apiclient.TermInfo, 0, len(terms))
 	for _, t := range terms {
 		out = append(out, apiclient.TermInfo{
@@ -825,8 +825,8 @@ func termsToInfo(terms []termbase.Term) []apiclient.TermInfo {
 }
 
 // baselineTermToTerm reconstructs a framework term from its baseline snapshot.
-func baselineTermToTerm(t bproject.BaselineTerm) termbase.Term {
-	return termbase.Term{
+func baselineTermToTerm(t bproject.BaselineTerm) terms.Term {
+	return terms.Term{
 		Text:         t.Text,
 		Locale:       model.LocaleID(t.Locale),
 		Status:       model.TermStatus(t.Status),

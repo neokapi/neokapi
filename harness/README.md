@@ -97,7 +97,7 @@ Switch with `NARRATION_BACKEND=elevenlabs pnpm run demo <id> -- --only=narrate -
 Demos carry their narration in English in `narration:` (the master — scene
 structure, beats, holds and timing all come from it), and `demo.yaml` is
 English-only. Localized narration lives in **generated** sidecar files next to
-it — `demo.<locale>.yaml`, a TM-driven localized copy produced by the repo's
+it — `demo.<locale>.yaml`, a content memory-driven localized copy produced by the repo's
 dogfood l10n pipeline:
 
 ```bash
@@ -106,16 +106,16 @@ make -C .. l10n-demos    # regenerate the committed demo.<lang>.yaml sidecars
 
 At load time the harness overlays a sidecar's localized narration text /
 captions (and title/subtitle) onto the English master by scene `id`; sidecar
-entries still identical to the English text are TM misses (pending
+entries still identical to the English text are content memory misses (pending
 translation) and simply fall back to English. Never hand-edit a sidecar or
 author an inline `locales:` block (the loader rejects it) — corrections go
-into the TM seed `l10n/tm/demo-narration-<lang>.kmb`, then regenerate.
+into the content memory seed `l10n/tm/demo-narration-<lang>.kmb`, then regenerate.
 Freshness is CI-gated by `make l10n-verify`.
 
 Scenes without a translated override fall back to English — except for
 published demos (`publishAs`), where the narrate stage requires full coverage
 so a shipped video never mixes languages. Translations follow
-`l10n/brand-voice.yaml` (nb override) and the project termbase.
+`l10n/brand-voice.yaml` (nb override) and the project terms.
 
 Select the locale with `--locale=<bcp47>` (or `HARNESS_LOCALE`) on the
 narrate/render/publish stages. The default (`en`) keeps today's unsuffixed
@@ -182,7 +182,7 @@ Prerequisites: a logged-in `claude` CLI, Node ≥ 22, `ffmpeg`, Go + Homebrew `i
 1. `mkdir -p demos/<id>/fixtures` and add the starting project files.
 2. Write `demos/<id>/demo.yaml` (see any existing demo). Pin output filenames in the
    `prompt` and point `artifacts[].path` at them. Keep prompts to the **reliable
-   standalone** kapi surface: `translate`, `pseudo-translate`, `brand`, `termbase`,
+   standalone** kapi surface: `translate`, `pseudo-translate`, `brand`, `terms`,
    `stats`, `formats`, `extract-content`, or the MCP tools.
 3. `pnpm run demo <id>`.
 

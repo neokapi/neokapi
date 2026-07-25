@@ -652,7 +652,7 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX idx_translations_project_block
 				ON translations(project_id, stream, block_id);
 
-			-- Semantic annotations (TM hits, term hits, QA findings,
+			-- Semantic annotations (content-memory hits, term hits, QA findings,
 			-- translator notes). Grouped-by queries are the common
 			-- access pattern: "all QA findings for this project".
 			CREATE TABLE annotations (

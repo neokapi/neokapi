@@ -2,15 +2,15 @@ import { t } from "@neokapi/i18n-react/runtime";
 import type { Run } from "@neokapi/kapi-format";
 import { flattenRuns } from "@neokapi/kapi-format";
 import type {
-  TMEntryDTO,
-  TMFacets,
-  TMSearchFilter,
+  MemoryEntryDTO,
+  MemoryFacets,
+  MemorySearchFilter,
   EntityAnnotationDTO,
   VariantDTO,
   VariantInputDTO,
 } from "./types";
-import type { FilterToken, FilterField } from "./TMSearchBar";
-import type { FacetSelection } from "./TMFacetSidebar";
+import type { FilterToken, FilterField } from "./MemorySearchBar";
+import type { FacetSelection } from "./MemoryFacetSidebar";
 
 export type ViewMode = "bilingual" | "multilang";
 
@@ -27,12 +27,12 @@ export function variantForInput(runs: Run[]): VariantInputDTO {
 }
 
 /**
- * Returns a TMEntryDTO where hint_src_lang is overridden for display
+ * Returns a MemoryEntryDTO where hint_src_lang is overridden for display
  * purposes when the caller (bilingual view) has picked a specific source.
  * When `override` is null or not present as a variant, the original entry
  * is returned untouched.
  */
-export function withHint(entry: TMEntryDTO, override: string | null): TMEntryDTO {
+export function withHint(entry: MemoryEntryDTO, override: string | null): MemoryEntryDTO {
   if (!override) return entry;
   const variant: VariantDTO | undefined = entry.variants[override];
   if (!variant) return entry;
@@ -54,8 +54,8 @@ export function buildSearchFilter(
   facetSelection: FacetSelection,
   filterTokens: FilterToken[],
   markedEntities: EntityAnnotationDTO[],
-): TMSearchFilter {
-  const filter: TMSearchFilter = {};
+): MemorySearchFilter {
+  const filter: MemorySearchFilter = {};
   const tokenProject = filterTokens.find((t) => t.key === "project")?.value;
   if (tokenProject) filter.project_id = tokenProject;
   else if (facetSelection.projects.length === 1) filter.project_id = facetSelection.projects[0];
@@ -70,7 +70,7 @@ export function buildSearchFilter(
 }
 
 /** Builds filter fields from facet data for the search bar's filter dropdown. */
-export function buildSearchBarFilterFields(facets: TMFacets | null): FilterField[] {
+export function buildSearchBarFilterFields(facets: MemoryFacets | null): FilterField[] {
   if (!facets) return [];
   const fields: FilterField[] = [];
   if (facets.locales.length > 0) {

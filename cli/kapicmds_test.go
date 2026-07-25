@@ -15,7 +15,7 @@ import (
 // in-place rewrite of Short/Long/Example through a catalog-backed Translator.
 func TestLocalizeCommandHelp_TranslatesShortLongExample(t *testing.T) {
 	root := &cobra.Command{Use: "kapi", Short: "A toolkit"}
-	tm := &cobra.Command{Use: "tm", Short: "Manage translation memory"}
+	tm := &cobra.Command{Use: "tm", Short: "Manage content memory"}
 	imp := &cobra.Command{
 		Use:     "import <file>",
 		Short:   "Import a TMX file",
@@ -27,7 +27,7 @@ func TestLocalizeCommandHelp_TranslatesShortLongExample(t *testing.T) {
 
 	cat := makeMoCatalog(t, "nb",
 		[3]string{"cli.commands.kapi.short", "A toolkit", "Et verktøysett"},
-		[3]string{"cli.commands.kapi.tm.short", "Manage translation memory", "Administrer oversettelsesminne"},
+		[3]string{"cli.commands.kapi.tm.short", "Manage content memory", "Administrer oversettelsesminne"},
 		[3]string{"cli.commands.kapi.tm.import.short", "Import a TMX file", "Importer en TMX-fil"},
 		[3]string{"cli.commands.kapi.tm.import.long", "Line one.\nLine two.", "Linje én.\nLinje to."},
 	)
@@ -42,7 +42,7 @@ func TestLocalizeCommandHelp_TranslatesShortLongExample(t *testing.T) {
 }
 
 // TestLocalizeCommandHelp_GuardsCollapsedMultiline verifies that a
-// translation that lost the source's line structure (the project TM's
+// translation that lost the source's line structure (the project content memory's
 // plain-text fast path collapses whitespace) is rejected in favor of the
 // English source — a one-line blob is worse than untranslated help.
 func TestLocalizeCommandHelp_GuardsCollapsedMultiline(t *testing.T) {

@@ -380,11 +380,11 @@ export function ProjectDetailRoute() {
             },
           })
         }
-        onOpenTM={() =>
+        onOpenMemory={() =>
           navigate({ to: "/$workspace/memory", params: { workspace: workspace ?? ws } })
         }
         onOpenTerms={() =>
-          navigate({ to: "/$workspace/termbase", params: { workspace: workspace ?? ws } })
+          navigate({ to: "/$workspace/terms", params: { workspace: workspace ?? ws } })
         }
         // The "Open in Bowrain Desktop" banner is a web-only upsell — never show
         // it inside the desktop app itself (window.location.origin there is the

@@ -1,19 +1,19 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { Run } from "@neokapi/kapi-format";
-import type { TMAdapter } from "./adapters";
+import type { MemoryAdapter } from "./adapters";
 import type {
-  TMEntryDTO,
-  TMFacets,
+  MemoryEntryDTO,
+  MemoryFacets,
   EntityAnnotationDTO,
   EntityPatternRequest,
   VariantInputDTO,
 } from "./types";
 import { BulkActionBar } from "./BulkActionBar";
-import { TMSearchBar, type FilterToken } from "./TMSearchBar";
-import { TMFacetSidebar, EMPTY_FACETS, type FacetSelection } from "./TMFacetSidebar";
-import { TMBrowserToolbar } from "./TMBrowserToolbar";
-import { TMEntryList } from "./TMEntryList";
-import { TMAddEntryDialog } from "./TMAddEntryDialog";
+import { MemorySearchBar, type FilterToken } from "./MemorySearchBar";
+import { MemoryFacetSidebar, EMPTY_FACETS, type FacetSelection } from "./MemoryFacetSidebar";
+import { MemoryBrowserToolbar } from "./MemoryBrowserToolbar";
+import { MemoryEntryList } from "./MemoryEntryList";
+import { MemoryAddEntryDialog } from "./MemoryAddEntryDialog";
 import { EntityAnnotationDialog } from "./EntityAnnotationDialog";
 import { resolveLocaleName, type LocaleInfo } from "../composites/locale-select";
 import { Button } from "../ui/button";
@@ -25,8 +25,8 @@ import {
   type ViewMode,
 } from "./tm-browser-helpers";
 
-interface TMBrowserProps {
-  adapter: TMAdapter;
+interface MemoryBrowserProps {
+  adapter: MemoryAdapter;
   /** Default source locale for the bilingual toggle. */
   sourceLocale?: string;
   /** Default target locale candidates for the bilingual toggle. */
@@ -43,17 +43,17 @@ interface TMBrowserProps {
   onError?: (message: string, details?: unknown) => void;
 }
 
-export function TMBrowser({
+export function MemoryBrowser({
   adapter,
   sourceLocale: propSourceLocale = "",
   targetLocales: propTargetLocales = [],
   locales,
   scopeLocales,
   onError,
-}: TMBrowserProps) {
+}: MemoryBrowserProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("multilang");
 
-  const [entries, setEntries] = useState<TMEntryDTO[]>([]);
+  const [entries, setEntries] = useState<MemoryEntryDTO[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [searchText, setSearchText] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -64,7 +64,7 @@ export function TMBrowser({
   const [showAnnotateDialog, setShowAnnotateDialog] = useState(false);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
-  const [facets, setFacets] = useState<TMFacets | null>(null);
+  const [facets, setFacets] = useState<MemoryFacets | null>(null);
   const [facetsLoading, setFacetsLoading] = useState(false);
   const [facetSelection, setFacetSelection] = useState<FacetSelection>(EMPTY_FACETS);
 
@@ -278,7 +278,7 @@ export function TMBrowser({
 
   // --- CRUD ---
   const handleEditVariant = useCallback(
-    async (entry: TMEntryDTO, locale: string, runs: Run[]) => {
+    async (entry: MemoryEntryDTO, locale: string, runs: Run[]) => {
       try {
         const nextVariants: Record<string, VariantInputDTO> = {};
         for (const [l, v] of Object.entries(entry.variants)) {
@@ -298,7 +298,7 @@ export function TMBrowser({
         void fetchEntries(debouncedSearch, page);
         void fetchFacets();
       } catch (err) {
-        onError?.("Failed to save TM entry", err);
+        onError?.("Failed to save content-memory entry", err);
       }
     },
     [adapter, fetchEntries, fetchFacets, debouncedSearch, page, onError],
@@ -316,7 +316,7 @@ export function TMBrowser({
         void fetchEntries(debouncedSearch, page);
         void fetchFacets();
       } catch (err) {
-        onError?.("Failed to delete TM entry", err);
+        onError?.("Failed to delete content-memory entry", err);
       }
     },
     [adapter, fetchEntries, fetchFacets, debouncedSearch, page, onError],
@@ -334,7 +334,7 @@ export function TMBrowser({
       void fetchEntries(debouncedSearch, page);
       void fetchFacets();
     } catch (err) {
-      onError?.("Failed to delete TM entries", err);
+      onError?.("Failed to delete content-memory entries", err);
     }
   }, [
     adapter,
@@ -364,7 +364,7 @@ export function TMBrowser({
       void fetchEntries(debouncedSearch, page);
       void fetchFacets();
     } catch (err) {
-      onError?.("Failed to add TM entry", err);
+      onError?.("Failed to add content-memory entry", err);
     }
   }, [
     adapter,
@@ -419,7 +419,7 @@ export function TMBrowser({
     <div data-testid="tm-browser">
       {/* Google-style search bar */}
       <div className="mb-4">
-        <TMSearchBar
+        <MemorySearchBar
           value={searchText}
           onChange={handleSearchSubmit}
           filters={filterTokens}
@@ -436,7 +436,7 @@ export function TMBrowser({
         {/* Left: facet filters */}
         {adapter.getFacets && (
           <div className="w-56 shrink-0">
-            <TMFacetSidebar
+            <MemoryFacetSidebar
               facets={facets}
               selection={facetSelection}
               onSelectionChange={setFacetSelection}
@@ -468,7 +468,7 @@ export function TMBrowser({
           </div>
 
           {/* Selection + locale controls + view toggle */}
-          <TMBrowserToolbar
+          <MemoryBrowserToolbar
             isEmpty={isEmpty}
             allVisibleSelected={allVisibleSelected}
             someVisibleSelected={someVisibleSelected}
@@ -486,7 +486,7 @@ export function TMBrowser({
           />
 
           {/* Loading skeleton + empty state + entries + pagination */}
-          <TMEntryList
+          <MemoryEntryList
             entries={entries}
             loading={loading}
             initialLoadDone={initialLoadDone}
@@ -526,7 +526,7 @@ export function TMBrowser({
       />
 
       {/* Add entry dialog */}
-      <TMAddEntryDialog
+      <MemoryAddEntryDialog
         open={showAddForm}
         onOpenChange={setShowAddForm}
         source={addSource}

@@ -122,8 +122,8 @@ func buildCommandSubtree() *cobra.Command {
 	cmd.AddCommand(cli.NewFormatsCmd(app))
 	cmd.AddCommand(cli.NewRegistryCmd(app))
 	cmd.AddCommand(cli.NewPresetsCmd(app))
-	cmd.AddCommand(cli.NewTermbaseCmd(app))
-	cmd.AddCommand(cli.NewTMCmd(app))
+	cmd.AddCommand(cli.NewTermsCmd(app))
+	cmd.AddCommand(cli.NewMemoryCmd(app))
 	cmd.AddCommand(cli.NewCredentialsCmd(app))
 	cmd.AddCommand(cli.NewCompletionCmd(app))
 

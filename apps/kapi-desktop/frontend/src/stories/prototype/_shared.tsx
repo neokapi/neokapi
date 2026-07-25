@@ -110,7 +110,7 @@ const localizationRows: NavRow[] = [
   },
   {
     view: "memories",
-    label: "Translation Memories",
+    label: "Content Memories",
     icon: <Database size={17} strokeWidth={SW} />,
   },
   {
@@ -257,7 +257,7 @@ export interface SourceFirstSidebarProps {
 
 /**
  * The v2 source-first sidebar. One project shape: the content workspace always
- * shows; the localization tools (Translate / Translation Memory / Termbases) are
+ * shows; the localization tools (Translate / Content Memory / Terms stores) are
  * simply present once the project has target languages — a plain group, with
  * nothing announcing the change. The header states the languages as a fact, not
  * a status.
@@ -473,7 +473,7 @@ export const configuredFlows: FlowDef[] = [
   },
   {
     name: "Translate & QA",
-    description: "Translate from TM + AI, then run terminology and placeholder QA on the targets.",
+    description: "Translate from content memory + AI, then run terminology and placeholder QA on the targets.",
     steps: ["recycle", "translate", "qa-check"],
     kind: "localization",
   },

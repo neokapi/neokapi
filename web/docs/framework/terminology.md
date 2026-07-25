@@ -8,7 +8,7 @@ keywords: [terminology, termbase, TBX, concepts, glossary, term enforcement, loc
 # Terminology
 
 neokapi manages terminology with a concept-oriented model inspired by the TBX
-(TermBase eXchange) standard: language-neutral concepts group multi-locale
+(Terminology eXchange) standard: language-neutral concepts group multi-locale
 terms, each carrying a lifecycle status and optional grammatical metadata. The
 same model backs the `kapi termbase` commands, the `term-lookup` and
 `term-enforce` pipeline tools, and the `termbase/` Go library.
@@ -102,14 +102,14 @@ requires.
 ## Storage backends
 
 Two backends ship in the `termbase/` package, both thread-safe
-(RWMutex-protected) and implementing the full `TermBase` interface:
+(RWMutex-protected) and implementing the full `Terminology` interface:
 
-1. **In-memory** (`termbase.NewInMemoryTermBase`) — fast and ephemeral, used
+1. **In-memory** (`termbase.NewInMemoryStore`) — fast and ephemeral, used
    for session-scoped batch processing.
-2. **SQLite** (`termbase.NewSQLiteTermBase`) — persistent file-based storage
+2. **SQLite** (`termbase.NewSQLiteStore`) — persistent file-based storage
    for CLI workflows, with fuzzy matching via SQL-based Levenshtein distance.
 
-The `TermBase` interface also accommodates server-side backends for multi-user
+The `Terminology` interface also accommodates server-side backends for multi-user
 deployments with project scoping, terminology streams, and workspace isolation.
 
 ## CLI usage
@@ -172,7 +172,7 @@ Two pipeline tools bring terminology into the translation flow:
 ### Interface
 
 ```go
-type TermBase interface {
+type Terminology interface {
     AddConcept(concept Concept) error
     GetConcept(id string) (Concept, bool)
     DeleteConcept(id string) error
@@ -265,11 +265,11 @@ import (
     "fmt"
 
     "github.com/neokapi/neokapi/core/model"
-    "github.com/neokapi/neokapi/termbase"
+    "github.com/neokapi/neokapi/terms"
 )
 
 func main() {
-    tb := termbase.NewInMemoryTermBase()
+    tb := termbase.NewInMemoryStore()
     defer tb.Close()
 
     tb.AddConcept(termbase.Concept{

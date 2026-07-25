@@ -34,7 +34,7 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "up",
 		Description: "Bring a kapi project up to date against its ship gates: re-extract drifted sources, run the " +
-			"default flow (TM reuse then AI translate) over every target language — concurrently per language — " +
+			"default flow (content memory reuse then AI translate) over every target language — concurrently per language — " +
 			"loop until every gated scope is shippable or parks for a human, and run the project's bound checks " +
 			"each pass. Never fails on pending target work: parked units are reported, not thrown. Returns the " +
 			"structured result (per-locale standing, parked scopes, materialized files). Use up_plan " +
@@ -60,7 +60,7 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "up_plan",
 		Description: "Dry-run the catch-up work for a kapi project: per (collection, locale), the units " +
-			"missing a target, exact-TM leverage, the remaining AI work, and a rough token estimate. No provider " +
+			"missing a target, exact-content-memory leverage, the remaining AI work, and a rough token estimate. No provider " +
 			"calls, nothing written. The pre-flight for the up tool.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in upPlanMCPInput) (*mcp.CallToolResult, *UpPlanOutput, error) {
 		path, err := a.mcpProjectPath(in.Project)

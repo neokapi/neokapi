@@ -4,7 +4,7 @@
 // (the source binding) and where results go (the sink binding) are resolved from
 // invocation context, not baked into the flow graph. A binding is named by a small
 // scheme vocabulary shared with the resource URIs the tool resolver understands
-// (tm:, termbase:, srx: in resolve.go):
+// (tm:, terms:, srx: in resolve.go):
 //
 //	file       a DataFormat reader/writer over file bytes (the default)
 //	store/kpz  a persistent block store — the project store or a .kpz workspace

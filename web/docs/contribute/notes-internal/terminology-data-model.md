@@ -44,10 +44,10 @@ so the two populations can share one termbase while staying filterable.
 
 Progressive disclosure: CSV import auto-creates Concepts with a single preferred Term per locale -- no extra complexity required.
 
-## TermBase Interface
+## Terminology Interface
 
 ```go
-type TermBase interface {
+type Terminology interface {
     AddConcept(concept Concept) error
     GetConcept(id string) (Concept, bool)
     DeleteConcept(id string) error
@@ -64,7 +64,7 @@ Import and export are standalone functions rather than interface methods:
 `ImportJSON`/`ExportJSON`, `ImportCSV`/`ExportCSV`, and `ImportTBX`/`ExportTBX`
 (the ISO TBX interchange format, with `TBXImportOptions`/`TBXExportOptions`).
 Framework backends: in-memory (CLI batch) and SQLite (persistent). The
-`TermBase` interface supports server-side backends for multi-user deployments.
+`Terminology` interface supports server-side backends for multi-user deployments.
 
 ## Fuzzy Matching and Search
 
@@ -95,7 +95,7 @@ Related AI and redaction tools (registered in `core/ai/tools/` and
 
 **`term-extract`** (Enrich, AI) -- LLM extraction of candidate terms. Uses an AI provider from [AD-011](/contribute/architecture/011-ai-providers).
 
-**`entity-extract`** (Enrich, AI) -- Named entity annotation (people, organizations, products, dates, locations). Serves multiple purposes: TM generalization in Sievepen ([AD-009](/contribute/architecture/009-translation-memory)), do-not-translate markers, localization hints, and terminology candidate discovery. Should run early in the pipeline -- before `recycle`.
+**`entity-extract`** (Enrich, AI) -- Named entity annotation (people, organizations, products, dates, locations). Serves multiple purposes: TM generalization in Memory ([AD-009](/contribute/architecture/009-translation-memory)), do-not-translate markers, localization hints, and terminology candidate discovery. Should run early in the pipeline -- before `recycle`.
 
 **`redact`** (Transform) -- Privacy tool replacing entity values with typed placeholders (e.g., "John" -> `\{PERSON\}`) before external services. See [AD-020](/contribute/architecture/020-redaction).
 
@@ -122,7 +122,7 @@ type ConceptRelation struct {
 `RelationType` draws its values from the `graph.Label*` constants, so relation
 edges share the vocabulary used by the rest of the graph layer.
 `KnownRelationType` and `ValidateRelation` reject an unknown type or a missing
-ID before a write. The `TermBase` interface persists and queries edges:
+ID before a write. The `Terminology` interface persists and queries edges:
 
 ```go
 AddRelation(ctx, rel ConceptRelation) error            // upsert by ID

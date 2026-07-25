@@ -24,10 +24,10 @@ import (
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/kpz"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/sievepen/kmb"
-	"github.com/neokapi/neokapi/termbase"
-	"github.com/neokapi/neokapi/termbase/ktb"
+	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/memory/kmb"
+	"github.com/neokapi/neokapi/terms"
+	"github.com/neokapi/neokapi/terms/ktb"
 )
 
 // ExtractCmdOptions lets callers (like the bowrain binary) inject extra
@@ -128,7 +128,7 @@ func (a *App) RunExtract(cmd Command) error {
 		return fmt.Errorf("extract: unsupported --xliff-version %q (expected %v)", xliffVersion, xliff2.SupportedXLIFFVersions)
 	}
 
-	noTM, _ := cmd.Flags().GetBool("no-tm")
+	noMemory, _ := cmd.Flags().GetBool("no-tm")
 	only, _ := cmd.Flags().GetString("only")
 	pattern, _ := cmd.Flags().GetString("pattern")
 
@@ -176,15 +176,15 @@ func (a *App) RunExtract(cmd Command) error {
 		redactionVault = layout.RedactionSidecarPath(batchID)
 	}
 
-	var tm sievepen.TranslationMemory
-	if !noTM {
-		if a.TMBackend != nil {
-			tm = a.TMBackend
+	var tm memory.TranslationMemory
+	if !noMemory {
+		if a.MemoryBackend != nil {
+			tm = a.MemoryBackend
 		} else {
-			tmPath := filepath.Join(layout.StateDir, "tm.db")
-			loaded, err := sievepen.NewSQLiteTM(tmPath)
+			memoryPath := filepath.Join(layout.StateDir, "tm.db")
+			loaded, err := memory.NewSQLiteStore(memoryPath)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: extract: open project TM at %s: %v (continuing with no TM)\n", tmPath, err)
+				fmt.Fprintf(os.Stderr, "Warning: extract: open project content memory at %s: %v (continuing with no content memory)\n", memoryPath, err)
 			} else {
 				defer loaded.Close()
 				tm = loaded
@@ -205,7 +205,7 @@ func (a *App) RunExtract(cmd Command) error {
 		Options: project.ExtractionOptions{
 			Format:       format,
 			XLIFFVersion: effectiveXLIFFVersion(xliffVersion),
-			NoTM:         noTM,
+			NoMemory:     noMemory,
 			Only:         only,
 			Pattern:      pattern,
 			Segmentation: pctx.Project != nil && pctx.Project.Defaults.Segmentation.Source,
@@ -215,7 +215,7 @@ func (a *App) RunExtract(cmd Command) error {
 	manifest.InputsHash = project.ExtractionInputsHash(layout, manifest.Options)
 
 	// Incremental: reuse the latest prior batch's result for any source whose
-	// bytes AND inputs (recipe, TM, options) are unchanged, so a re-extract only
+	// bytes AND inputs (recipe, content memory, options) are unchanged, so a re-extract only
 	// re-parses what actually changed. --force re-extracts everything.
 	force, _ := cmd.Flags().GetBool("force")
 	prior := loadReusablePrior(layout, manifest.InputsHash, force)
@@ -375,9 +375,9 @@ type extractTask struct {
 	batchID      string
 	format       string // xliff2 | po
 	xliffVersion string
-	tm           sievepen.TranslationMemory
+	tm           memory.TranslationMemory
 
-	// redaction, when non-nil, redacts source blocks before TM pre-fill and
+	// redaction, when non-nil, redacts source blocks before content memory pre-fill and
 	// write; originals are persisted to redactionVault for merge.
 	redaction      *project.RedactionSpec
 	redactionVault string
@@ -385,7 +385,7 @@ type extractTask struct {
 
 // extractOne processes a single source file for a single target locale:
 // reads blocks (capturing the source skeleton to the batch dir), applies
-// TM pre-fill, and writes an XLIFF 2.x file stamped with the batch id.
+// content memory pre-fill, and writes an XLIFF 2.x file stamped with the batch id.
 func (a *App) extractOne(ctx context.Context, task extractTask) (project.ExtractionFile, error) {
 	reader, err := a.FormatReg.NewReader(registry.FormatID(task.source.Format))
 	if err != nil {
@@ -468,8 +468,8 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 	}
 
 	// Redaction: replace sensitive source spans with protected placeholders
-	// before TM pre-fill and write, persisting the originals to the batch
-	// vault sidecar. Running before TM keeps the redacted text out of TM
+	// before content memory pre-fill and write, persisting the originals to the batch
+	// vault sidecar. Running before content memory keeps the redacted text out of content memory
 	// lookups (and thus out of pre-filled targets), so nothing sensitive
 	// reaches the XLIFF.
 	if task.redaction != nil {
@@ -479,7 +479,7 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 	}
 
 	// Segmentation overlay: when the recipe opts in, run the SRX tool
-	// over each block's source before TM pre-fill. Block identity is
+	// over each block's source before content memory pre-fill. Block identity is
 	// preserved (hash is over SourceText(), which concatenates segments),
 	// so on/off toggles between extractions are safe.
 	if task.ctx.Project != nil && task.ctx.Project.Defaults.Segmentation.Source {
@@ -488,16 +488,16 @@ func (a *App) extractOne(ctx context.Context, task extractTask) (project.Extract
 		}
 	}
 
-	// TM pre-fill: fill block.Targets[targetLocale] for any exact/fuzzy
+	// content memory pre-fill: fill block.Targets[targetLocale] for any exact/fuzzy
 	// match. Leverage stats reflect one decision per block (counting the
 	// first segment's pre-fill outcome for that block).
 	leverage := project.ExtractionLeverageStats{}
-	threshold := float64(task.ctx.Project.Defaults.TM.ResolvedFuzzyThreshold()) / 100.0
+	threshold := float64(task.ctx.Project.Defaults.Memory.ResolvedFuzzyThreshold()) / 100.0
 	for _, b := range blocks {
 		if !b.Translatable {
 			continue
 		}
-		outcome := applyTMPrefill(ctx, task.tm, b, task.ctx.SourceLocale, task.targetLocale, threshold)
+		outcome := applyMemoryPrefill(ctx, task.tm, b, task.ctx.SourceLocale, task.targetLocale, threshold)
 		switch outcome {
 		case prefillExact:
 			leverage.Exact++
@@ -594,17 +594,17 @@ const (
 	prefillFuzzy
 )
 
-// applyTMPrefill queries the TM and fills the block's target for the locale
+// applyMemoryPrefill queries the content memory and fills the block's target for the locale
 // with the best match when it exceeds the threshold. Returns whether the
 // block was covered by an exact or fuzzy match. The source segment spans are
 // the unit of lookup — one lookup per span — and the pre-filled target is
 // written as a run sequence plus a target segmentation overlay index-aligned
 // to the source spans (so a segmented block round-trips per-segment targets).
-func applyTMPrefill(ctx context.Context, tm sievepen.TranslationMemory, block *model.Block, source, target model.LocaleID, threshold float64) prefillOutcome {
+func applyMemoryPrefill(ctx context.Context, tm memory.TranslationMemory, block *model.Block, source, target model.LocaleID, threshold float64) prefillOutcome {
 	if tm == nil || block == nil || len(block.Source) == 0 {
 		return prefillNone
 	}
-	opts := sievepen.LookupOptions{MinScore: threshold, MaxResults: 1}
+	opts := memory.LookupOptions{MinScore: threshold, MaxResults: 1}
 
 	segCount := block.SourceSegmentCount()
 	srcSeg := block.SourceSegmentation() // nil when unsegmented (one implicit span)
@@ -918,10 +918,10 @@ func effectiveXLIFFVersion(flag string) string {
 // ─── bilingual interchange .kpz (kind=kapi-interchange) ─────────
 //
 // `kapi extract --format kpz` emits one task-scoped .kpz per source→target
-// pair (AD-025 §7): the source blocks' targets pre-filled from TM (as
+// pair (AD-025 §7): the source blocks' targets pre-filled from content memory (as
 // `targets/<locale>` overlays, hydrated by `kapi merge` exactly like the
 // workspace flow), the per-source round-trip skeleton, a minimal recipe
-// carrying the locale pair, and the relevant TM/termbase context subset. It is
+// carrying the locale pair, and the relevant content memory/terms context subset. It is
 // neokapi's lossless interchange format for a translator or reviewer.
 
 // RunExtractKpz drives the bilingual-interchange extract over a project's
@@ -944,7 +944,7 @@ func (a *App) RunExtractKpz(cmd Command) error {
 		return err
 	}
 
-	noTM, _ := cmd.Flags().GetBool("no-tm")
+	noMemory, _ := cmd.Flags().GetBool("no-tm")
 	only, _ := cmd.Flags().GetString("only")
 	pattern, _ := cmd.Flags().GetString("pattern")
 
@@ -977,19 +977,19 @@ func (a *App) RunExtractKpz(cmd Command) error {
 		return fmt.Errorf("extract: create out dir: %w", err)
 	}
 
-	var tm sievepen.TranslationMemory
-	if !noTM {
-		if a.TMBackend != nil {
-			tm = a.TMBackend
-		} else if loaded, lerr := sievepen.NewSQLiteTM(filepath.Join(layout.StateDir, "tm.db")); lerr == nil {
+	var tm memory.TranslationMemory
+	if !noMemory {
+		if a.MemoryBackend != nil {
+			tm = a.MemoryBackend
+		} else if loaded, lerr := memory.NewSQLiteStore(filepath.Join(layout.StateDir, "tm.db")); lerr == nil {
 			defer loaded.Close()
 			tm = loaded
 		}
 	}
 
-	// Termbase context (optional): bound termbase or project termbase.db.
-	var tb termbase.TermBase
-	if tbLoaded, terr := termbase.NewSQLiteTermBase(filepath.Join(layout.StateDir, "termbase.db")); terr == nil {
+	// Terms context (optional): bound terms or project termbase.db.
+	var tb terms.Terminology
+	if tbLoaded, terr := terms.NewSQLiteStore(filepath.Join(layout.StateDir, "termbase.db")); terr == nil {
 		defer tbLoaded.Close()
 		tb = tbLoaded
 	}
@@ -1017,14 +1017,14 @@ type kpzInterchangeTask struct {
 	source       project.ResolvedFile
 	targetLocale model.LocaleID
 	outputPath   string
-	tm           sievepen.TranslationMemory
-	tb           termbase.TermBase
+	tm           memory.TranslationMemory
+	tb           terms.Terminology
 }
 
 // extractOneKpz assembles a KindInterchange package for one (source, target)
-// pair: reads the source blocks (capturing the skeleton), TM-pre-fills the
+// pair: reads the source blocks (capturing the skeleton), content memory-pre-fills the
 // target as a `targets/<locale>` overlay per block, attaches the relevant
-// TM/termbase context, and writes the .kpz.
+// content memory/terms context, and writes the .kpz.
 func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error {
 	srcAbs := task.source.Path
 	data, err := os.ReadFile(srcAbs)
@@ -1051,21 +1051,21 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 		})
 	}
 
-	// TM pre-fill the target as a per-block overlay (keyed by block ID, so
+	// content memory pre-fill the target as a per-block overlay (keyed by block ID, so
 	// `kapi merge`'s hydrate step applies it the same way the workspace flow
-	// does). Also gather the TM entries actually consulted as inline context.
-	threshold := float64(task.ctx.Project.Defaults.TM.ResolvedFuzzyThreshold()) / 100.0
+	// does). Also gather the content-memory entries actually consulted as inline context.
+	threshold := float64(task.ctx.Project.Defaults.Memory.ResolvedFuzzyThreshold()) / 100.0
 	srcArchive := "source/" + filepath.Base(task.source.Relative)
 	var overlays []kpz.OverlayDoc
-	contextEntries := map[string]sievepen.TMEntry{}
+	contextEntries := map[string]memory.Entry{}
 	for _, b := range blocks {
 		if !b.Translatable || b.ID == "" {
 			continue
 		}
 		if task.tm != nil {
-			if matches, merr := task.tm.Lookup(ctx, b, task.ctx.SourceLocale, task.targetLocale, sievepen.LookupOptions{MinScore: threshold, MaxResults: 1}); merr == nil && len(matches) > 0 && !matches[0].Ambiguous {
+			if matches, merr := task.tm.Lookup(ctx, b, task.ctx.SourceLocale, task.targetLocale, memory.LookupOptions{MinScore: threshold, MaxResults: 1}); merr == nil && len(matches) > 0 && !matches[0].Ambiguous {
 				if text := matches[0].Entry.VariantText(task.targetLocale); text != "" {
-					// A TM-leveraged prefill is a draft; carry that status so the
+					// A content memory-leveraged prefill is a draft; carry that status so the
 					// workspace → merge round-trip preserves it (the matching read
 					// is applyTargetOverlay).
 					payload, _ := json.Marshal(map[string]string{
@@ -1081,18 +1081,18 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 		}
 	}
 
-	// TM context subset (the consulted entries) so the package is
+	// content memory context subset (the consulted entries) so the package is
 	// self-contained for offline review.
-	var tmFile *kmb.File
+	var memoryFile *kmb.File
 	if len(contextEntries) > 0 {
-		entries := make([]sievepen.TMEntry, 0, len(contextEntries))
+		entries := make([]memory.Entry, 0, len(contextEntries))
 		for _, e := range contextEntries {
 			entries = append(entries, e)
 		}
-		tmFile = kmb.FromModel(entries, nil)
+		memoryFile = kmb.FromModel(entries, nil)
 	}
 
-	// Termbase context: the whole bound termbase (terms are small and the
+	// Terms context: the whole bound terms (terms are small and the
 	// reviewer needs the glossary).
 	var tbFile *ktb.File
 	if task.tb != nil {
@@ -1109,8 +1109,8 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 		Recipe:    recipe,
 		Skeletons: skeletons,
 		Overlays:  overlays,
-		TM:        tmFile,
-		Termbase:  tbFile,
+		Memory:    memoryFile,
+		Terms:     tbFile,
 		Sources: []kpz.SourceIdentity{{
 			SourcePath: task.source.Relative, FormatID: task.source.Format,
 			ContentHash: sourceHash, SkeletonPath: skelMember,

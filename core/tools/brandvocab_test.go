@@ -8,7 +8,7 @@ import (
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tools"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,38 +22,38 @@ func (m *mockProfileResolver) ResolveProfile(_ context.Context, _ brand.ResolveC
 	return m.profile, nil
 }
 
-// fakeTermBase serves a fixed set of LookupAll matches and is otherwise an inert
-// termbase.TermBase. It lets the brand-vocab tool's termbase branch run with a
+// fakeTerminology serves a fixed set of LookupAll matches and is otherwise an inert
+// terms.Terminology. It lets the brand-vocab tool's terms branch run with a
 // concept-bearing match under full test control, without a SQLite store.
-type fakeTermBase struct {
-	matches []termbase.TermMatch
+type fakeTerminology struct {
+	matches []terms.TermMatch
 }
 
-func (f *fakeTermBase) LookupAll(context.Context, string, termbase.LookupOptions) ([]termbase.TermMatch, error) {
+func (f *fakeTerminology) LookupAll(context.Context, string, terms.LookupOptions) ([]terms.TermMatch, error) {
 	return f.matches, nil
 }
-func (f *fakeTermBase) Lookup(context.Context, string, termbase.LookupOptions) ([]termbase.TermMatch, error) {
+func (f *fakeTerminology) Lookup(context.Context, string, terms.LookupOptions) ([]terms.TermMatch, error) {
 	return f.matches, nil
 }
-func (f *fakeTermBase) AddConcept(context.Context, termbase.Concept) error { return nil }
-func (f *fakeTermBase) GetConcept(context.Context, string) (termbase.Concept, bool, error) {
-	return termbase.Concept{}, false, nil
+func (f *fakeTerminology) AddConcept(context.Context, terms.Concept) error { return nil }
+func (f *fakeTerminology) GetConcept(context.Context, string) (terms.Concept, bool, error) {
+	return terms.Concept{}, false, nil
 }
-func (f *fakeTermBase) DeleteConcept(context.Context, string) error { return nil }
-func (f *fakeTermBase) Search(context.Context, string, model.LocaleID, model.LocaleID, int, int) ([]termbase.Concept, int, error) {
+func (f *fakeTerminology) DeleteConcept(context.Context, string) error { return nil }
+func (f *fakeTerminology) Search(context.Context, string, model.LocaleID, model.LocaleID, int, int) ([]terms.Concept, int, error) {
 	return nil, 0, nil
 }
-func (f *fakeTermBase) Count(context.Context) (int, error)                          { return 0, nil }
-func (f *fakeTermBase) Concepts(context.Context) ([]termbase.Concept, error)        { return nil, nil }
-func (f *fakeTermBase) AddRelation(context.Context, termbase.ConceptRelation) error { return nil }
-func (f *fakeTermBase) DeleteRelation(context.Context, string) error                { return nil }
-func (f *fakeTermBase) RelationsOf(context.Context, string, *graph.Scope) ([]termbase.ConceptRelation, error) {
+func (f *fakeTerminology) Count(context.Context) (int, error)                       { return 0, nil }
+func (f *fakeTerminology) Concepts(context.Context) ([]terms.Concept, error)        { return nil, nil }
+func (f *fakeTerminology) AddRelation(context.Context, terms.ConceptRelation) error { return nil }
+func (f *fakeTerminology) DeleteRelation(context.Context, string) error             { return nil }
+func (f *fakeTerminology) RelationsOf(context.Context, string, *graph.Scope) ([]terms.ConceptRelation, error) {
 	return nil, nil
 }
-func (f *fakeTermBase) ListRelations(context.Context, *graph.Scope) ([]termbase.ConceptRelation, error) {
+func (f *fakeTerminology) ListRelations(context.Context, *graph.Scope) ([]terms.ConceptRelation, error) {
 	return nil, nil
 }
-func (f *fakeTermBase) Close() error { return nil }
+func (f *fakeTerminology) Close() error { return nil }
 
 func TestBrandVocabCheckForbiddenTerms(t *testing.T) {
 	t.Parallel()
@@ -234,22 +234,22 @@ func TestBrandVocabCheckStandaloneOmitsConceptID(t *testing.T) {
 	assert.Equal(t, "affordable", bvAnn.Findings[0].Metadata["replacement"])
 }
 
-func TestBrandVocabCheckTermbaseConceptID(t *testing.T) {
+func TestBrandVocabCheckTermsConceptID(t *testing.T) {
 	t.Parallel()
-	// A forbidden brand-vocabulary term found via the termbase carries its
+	// A forbidden brand-vocabulary term found via the terms store carries its
 	// knowledge-graph concept; when the concept holds a preferred term in the
 	// source locale, that surfaces as the structured replacement — symmetric with
 	// the profile path.
-	tb := &fakeTermBase{matches: []termbase.TermMatch{{
-		Concept: termbase.Concept{
+	tb := &fakeTerminology{matches: []terms.TermMatch{{
+		Concept: terms.Concept{
 			ID:     "concept-cheap",
-			Source: termbase.TermSourceBrandVocabulary,
-			Terms: []termbase.Term{
+			Source: terms.TermSourceBrandVocabulary,
+			Terms: []terms.Term{
 				{Text: "cheap", Locale: "", Status: model.TermForbidden},
 				{Text: "affordable", Locale: "", Status: model.TermPreferred},
 			},
 		},
-		Term:     termbase.Term{Text: "cheap", Status: model.TermForbidden},
+		Term:     terms.Term{Text: "cheap", Status: model.TermForbidden},
 		Position: model.TextRange{Start: 10, End: 15},
 	}}}
 
@@ -273,18 +273,18 @@ func TestBrandVocabCheckTermbaseConceptID(t *testing.T) {
 	f := bvAnn.Findings[0]
 	assert.Contains(t, f.Message, "cheap")
 	assert.Equal(t, "concept-cheap", f.Metadata["concept_id"],
-		"a termbase-sourced finding must carry its concept id, like the profile path")
+		"a terms store-sourced finding must carry its concept id, like the profile path")
 	assert.Equal(t, "affordable", f.Metadata["replacement"])
 	assert.Contains(t, f.Suggestion, "affordable")
 }
 
-func TestBrandVocabCheckTermbaseStandaloneConcept(t *testing.T) {
+func TestBrandVocabCheckTermsStandaloneConcept(t *testing.T) {
 	t.Parallel()
-	// A termbase match whose concept carries no ID (a degenerate / store that does
+	// A terms store match whose concept carries no ID (a degenerate / store that does
 	// not populate it) yields a finding without a concept_id key.
-	tb := &fakeTermBase{matches: []termbase.TermMatch{{
-		Concept:  termbase.Concept{Source: termbase.TermSourceBrandVocabulary},
-		Term:     termbase.Term{Text: "cheap", Status: model.TermForbidden},
+	tb := &fakeTerminology{matches: []terms.TermMatch{{
+		Concept:  terms.Concept{Source: terms.TermSourceBrandVocabulary},
+		Term:     terms.Term{Text: "cheap", Status: model.TermForbidden},
 		Position: model.TextRange{Start: 10, End: 15},
 	}}}
 
@@ -302,7 +302,7 @@ func TestBrandVocabCheckTermbaseStandaloneConcept(t *testing.T) {
 	require.True(t, bvOK)
 	require.Len(t, bvAnn.Findings, 1)
 	_, hasConcept := bvAnn.Findings[0].Metadata["concept_id"]
-	assert.False(t, hasConcept, "a concept-less termbase match must not carry a concept_id")
+	assert.False(t, hasConcept, "a concept-less terms match must not carry a concept_id")
 }
 
 func TestBrandVocabCheckNoViolations(t *testing.T) {

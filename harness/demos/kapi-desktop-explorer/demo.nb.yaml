@@ -1,6 +1,6 @@
 id: kapi-desktop-explorer
-title: Browse a termbase and translation memory
-subtitle: A visual tour of terminology and translation memory in Kapi Desktop.
+title: Browse a terms store and content memory
+subtitle: A visual tour of terminology and content memory in Kapi Desktop.
 tagline: the visual companion to the kapi command line
 kind: use-case
 publishAs: kapi-desktop-explorer
@@ -10,8 +10,8 @@ needsAi: false
 # One continuous narration read — uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - Termbases
-  - Translation memory
+  - Terms stores
+  - Content memory
   - Multi-locale terms
   - Inline formatting
   - Entity placeholders
@@ -31,12 +31,12 @@ narration:
     beat: intro
     text: >-
       Den åpner til en rolig startskjerm. Alt en oversetter støtter seg på — ordlistene og de lagrede oversettelsene — ligger ett klikk unna i sidefeltet.
-  - id: termbases
+  - id: terms stores
     kind: desktop
-    beat: open-termbases
-    caption: Termbase-seksjonen lister hver ordliste på disk.
+    beat: open-terms stores
+    caption: Terms-seksjonen lister hver ordliste på disk.
     text: >-
-      Termbase-seksjonen lister hver ordliste lagret på disk, med størrelsen og når den sist ble endret.
+      Terms-seksjonen lister hver ordliste lagret på disk, med størrelsen og når den sist ble endret.
   - id: glossary
     kind: desktop
     beat: open-glossary

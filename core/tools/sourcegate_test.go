@@ -86,9 +86,9 @@ func TestProducersSkipHeldSource(t *testing.T) {
 	const fr = model.LocaleID("fr")
 
 	newRecycle := func() tool.Tool {
-		return NewTMLeverageTool(&TMLeverageConfig{
+		return NewMemoryLeverageTool(&MemoryLeverageConfig{
 			SourceLocale: "en", TargetLocale: fr,
-			FuzzyThreshold: 70, Provider: staticTMProvider{"Hello": "Bonjour"},
+			FuzzyThreshold: 70, Provider: staticMemoryProvider{"Hello": "Bonjour"},
 		})
 	}
 
@@ -115,14 +115,14 @@ func applyProduce(t *testing.T, tl tool.Tool, b *model.Block) error {
 	return tl.Process(context.Background(), in, out)
 }
 
-// staticTMProvider is a minimal exact-match TM for the producer-skip test.
-type staticTMProvider map[string]string
+// staticMemoryProvider is a minimal exact-match content memory for the producer-skip test.
+type staticMemoryProvider map[string]string
 
-func (m staticTMProvider) LookupExact(src string, _, _ model.LocaleID) (string, bool) {
+func (m staticMemoryProvider) LookupExact(src string, _, _ model.LocaleID) (string, bool) {
 	v, ok := m[src]
 	return v, ok
 }
 
-func (m staticTMProvider) LookupFuzzy(_ string, _, _ model.LocaleID, _ int) (string, int, bool) {
+func (m staticMemoryProvider) LookupFuzzy(_ string, _, _ model.LocaleID, _ int) (string, int, bool) {
 	return "", 0, false
 }

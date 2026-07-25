@@ -9,8 +9,8 @@ import (
 // Schema returns the JSON Schema metadata for the TMX format.
 func (c *Config) Schema() *schema.FormatSchema {
 	return &schema.FormatSchema{
-		Title:       "TMX (Translation Memory eXchange)",
-		Description: "Configuration for the native TMX translation memory format reader/writer",
+		Title:       "TMX (Content Memory eXchange)",
+		Description: "Configuration for the native TMX content memory format reader/writer",
 		Type:        "object",
 		FormatMeta: schema.FormatMeta{
 			ID:         "tmx",

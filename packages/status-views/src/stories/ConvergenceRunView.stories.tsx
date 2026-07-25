@@ -27,9 +27,9 @@ const runningModel: ConvergenceRunModel = {
       maxPasses: 6,
       settled: false,
       rows: [
-        { locale: "de-DE", units: 42, done: 42, viaTM: 30, viaAI: 12, state: "done" },
-        { locale: "ja-JP", units: 42, done: 18, viaTM: 6, viaAI: 12, state: "running" },
-        { locale: "nb-NO", units: 0, done: 0, viaTM: 0, viaAI: 0, state: "queued" },
+        { locale: "de-DE", units: 42, done: 42, viaMemory: 30, viaAI: 12, state: "done" },
+        { locale: "ja-JP", units: 42, done: 18, viaMemory: 6, viaAI: 12, state: "running" },
+        { locale: "nb-NO", units: 0, done: 0, viaMemory: 0, viaAI: 0, state: "queued" },
       ],
     },
   ],
@@ -48,8 +48,8 @@ const settledModel: ConvergenceRunModel = {
       failingChecks: 2,
       pending: ["ja-JP"],
       rows: [
-        { locale: "de-DE", units: 42, done: 42, viaTM: 30, viaAI: 12, state: "done" },
-        { locale: "ja-JP", units: 42, done: 40, viaTM: 8, viaAI: 32, state: "done" },
+        { locale: "de-DE", units: 42, done: 42, viaMemory: 30, viaAI: 12, state: "done" },
+        { locale: "ja-JP", units: 42, done: 40, viaMemory: 8, viaAI: 32, state: "done" },
       ],
     },
   ],

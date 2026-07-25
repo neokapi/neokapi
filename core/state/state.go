@@ -3,7 +3,7 @@
 // ladder (draft→translated→reviewed→signed-off), who approved a unit and when,
 // parking, and the content hash of the specific translation a decision blesses.
 //
-// This is distinct from the translation memory (a recycle/leverage corpus, keyed
+// This is distinct from the content memory (a recycle/leverage corpus, keyed
 // by content) and from the document cache (a derived, rebuildable optimization).
 // State is authored decision data: its durable home is a committed, diff-friendly
 // serialization (the source of truth); a working store is a derived index over

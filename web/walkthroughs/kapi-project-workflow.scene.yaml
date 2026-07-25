@@ -14,9 +14,9 @@
 # that loop automates — one flow pass (`run`), materializing files (`merge`),
 # and the bilingual handoff (`extract`).
 #
-# Offline contract: the recipe's tm-recycle flow leverages translation memory
+# Offline contract: the recipe's tm-recycle flow leverages content memory
 # only (no LLM), and `tm import` tops up the wasm build's pre-seeded in-memory
-# TM — so every runnable step works in the browser embed. `kapi up` itself is
+# content memory — so every runnable step works in the browser embed. `kapi up` itself is
 # not wired into the wasm build (kapi/cmd/kapi-wasm-cli); it is offline: false
 # and appears in the tape + narration only. The run → merge beats do the same
 # work in the embed, so both venues end on the same up-to-date grid.
@@ -26,7 +26,7 @@ scene: project-workflow
 mode: interactive
 
 # messages.json is the kit fixture (greeting / farewell / cart). project.tmx
-# carries the matching French so the TM fills real targets offline. kapi.yaml
+# carries the matching French so the content memory fills real targets offline. kapi.yaml
 # is the recipe `kapi init` scaffolds — here pre-written with the content
 # already declared (a target template is what makes coverage derivable) and a
 # tm-recycle flow as defaults.flow. Flow names must not shadow the built-in
@@ -82,24 +82,24 @@ steps:
   - command: kapi ls
     narration: ls lists the files the recipe's content tracks. Here one JSON catalog, mapped to a messages.{lang}.json target per locale.
     smoke: true
-  - comment: Seed the project translation memory so the flow has matches to reuse.
+  - comment: Seed the project content memory so the flow has matches to reuse.
   - command: kapi tm import project.tmx
-    narration: tm import loads existing translations into the project TM (.kapi/tm.db). The flow leverages it before any AI is asked.
+    narration: tm import loads existing translations into the project content memory (.kapi/tm.db). The flow leverages it before any AI is asked.
     smoke: true
   - command: kapi status
     narration: status derives each locale's standing from the working tree. fr is at zero — pending work, never a build failure.
     smoke: true
   - comment: One verb brings the project up to date.
   - command: kapi up
-    narration: up treats the recipe as the desired state. It runs the project's flow across every target locale, pass after pass, until each ship gate is met or the rest parks for a person. Here the TM covers everything, so fr catches up in one pass.
+    narration: up treats the recipe as the desired state. It runs the project's flow across every target locale, pass after pass, until each ship gate is met or the rest parks for a person. Here the content memory covers everything, so fr catches up in one pass.
     # offline:false — `up` is not wired into the wasm build; the run → merge
     # beats below do the same work in the embed.
     offline: false
   - comment: Under the hood, up loops plumbing you can run by hand.
   - command: kapi run tm-recycle -i messages.json
     narration: run executes one pass of one named flow. In a project the pass is process-only — it commits results to the project store, not to files.
-    # smoke:false — consumes the TM seeded by the prior tm import step; W7 would
-    # run it in isolation (no TM) and leverage nothing.
+    # smoke:false — consumes the content memory seeded by the prior tm import step; W7 would
+    # run it in isolation (no content memory) and leverage nothing.
     smoke: false
   - command: kapi merge
     narration: merge materializes the localized files from the store — it replays the stored fr targets onto the source and writes messages.fr.json.
@@ -111,5 +111,5 @@ steps:
     smoke: false
   - comment: extract and merge are also the interchange doors when a person translates.
   - command: kapi extract --target-lang fr
-    narration: extract emits a bilingual XLIFF per target locale, pre-filled from the TM — the handoff a human translator works in. merge applies the returned file. up automates this loop; the plumbing stays addressable.
+    narration: extract emits a bilingual XLIFF per target locale, pre-filled from the content memory — the handoff a human translator works in. merge applies the returned file. up automates this loop; the plumbing stays addressable.
     smoke: true

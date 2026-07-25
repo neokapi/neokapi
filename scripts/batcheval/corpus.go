@@ -156,7 +156,7 @@ func Corpus() TestCorpus {
 		{"docs.caching", "A translation is cached against the content of the block and the configuration that produced it. Change the model, the glossary, or the prompt, and the affected strings are translated again rather than served from a cache a different configuration produced."},
 		{"docs.review", "Review does not replace the checks. The checks are deterministic and cheap and run on every block; review is a judgement call, made by a model, on the blocks the checks could not settle."},
 		{"docs.plugins", "A plugin is a separate binary that the engine launches as a subprocess and speaks to over gRPC. It can contribute formats, tools, and commands, and it cannot corrupt the engine's memory if it crashes."},
-		{"docs.terminology", "Terminology is enforced at generation time, not merely checked afterwards. A term in the termbase is rendered into the prompt, so the model is asked for the right word rather than corrected for using the wrong one."},
+		{"docs.terminology", "Terminology is enforced at generation time, not merely checked afterwards. A term in the terms store is rendered into the prompt, so the model is asked for the right word rather than corrected for using the wrong one."},
 		{"docs.gates", "A ship gate is a question about a locale, not about a file: is every block that must be translated translated, and does every block that must be reviewed carry a review? A build that cannot answer yes does not ship that locale."},
 	}
 	for _, p := range prose {

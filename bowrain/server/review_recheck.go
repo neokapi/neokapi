@@ -12,7 +12,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // This file closes the review loop's fan-out to translations (RV-E + RV-F). The
@@ -36,7 +36,7 @@ import (
 //     case after a glossary term is added or marked preferred.
 //
 // Both directions reuse the canonical terminology matchers (a single-concept
-// in-memory termbase + LookupAll, plus the concept's per-locale target terms) so
+// in-memory terms + LookupAll, plus the concept's per-locale target terms) so
 // no check logic is reimplemented. The subscriber publishes nothing back onto the
 // bus and deliberately does not start a convergence run — it only pulls the
 // affected work back into the review queue; the human (or bulk approve-passing)
@@ -134,12 +134,12 @@ func (s *Server) handleReviewRecheckEvent(ev platev.Event) {
 // now violate it in EITHER direction: a forbidden/competitor term now PRESENT in
 // the target (RV-E), or a mandated preferred/approved rendering now ABSENT from a
 // target whose source uses the concept (RV-F). It reuses the concept where-used
-// machinery's approach (a single-concept in-memory termbase + LookupAll, exactly
+// machinery's approach (a single-concept in-memory terms + LookupAll, exactly
 // as knowledge.Engine.ConceptUsage) as the violation oracle.
 func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, actor string) {
-	tb, err := s.workspaceTermbaseByID(ctx, wsID)
+	tb, err := s.workspaceTermsByID(ctx, wsID)
 	if err != nil || tb == nil {
-		slog.WarnContext(ctx, "review recheck: workspace termbase unavailable", "workspace", wsID, "error", err)
+		slog.WarnContext(ctx, "review recheck: workspace terms unavailable", "workspace", wsID, "error", err)
 		return
 	}
 	concept, ok, err := tb.GetConcept(ctx, conceptID)
@@ -156,14 +156,14 @@ func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, 
 	if !hasForbidden && !hasMandated {
 		return
 	}
-	// Single-concept termbase so LookupAll matches only this concept's terms — the
+	// Single-concept terms so LookupAll matches only this concept's terms — the
 	// same isolation ConceptUsage uses behind GET /concepts/:cid/blast-radius.
-	cTB := termbase.NewInMemoryTermBase()
+	cTB := terms.NewInMemoryStore()
 	if err := cTB.AddConcept(ctx, concept); err != nil {
 		return
 	}
 	// A target violates the concept when it is NOT term-compliant against a
-	// termbase holding only this concept — the SAME predicate the dashboard
+	// terms holding only this concept — the SAME predicate the dashboard
 	// ship/on-brand pass and bulk approve-passing run (blockTermCompliant), so the
 	// re-check oracle and the ship gate can never disagree. Scoping to cTB (this
 	// one concept) keeps the re-check from sweeping up targets that only trip an
@@ -301,10 +301,10 @@ func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Proj
 	s.createReviewTasksForLocales(ctx, proj, locales, event.AutomationAction{Config: map[string]string{"mode": "review"}}, ev, "")
 }
 
-// workspaceTermbaseByID resolves the workspace termbase from a workspace ID. The
-// event bus carries the workspace id, but the per-workspace TM/termbase stores are
+// workspaceTermsByID resolves the workspace terms from a workspace ID. The
+// event bus carries the workspace id, but the per-workspace content memory/terms stores are
 // keyed by slug, so this bridges id → slug via the auth store.
-func (s *Server) workspaceTermbaseByID(ctx context.Context, wsID string) (termbase.TBStore, error) {
+func (s *Server) workspaceTermsByID(ctx context.Context, wsID string) (terms.Store, error) {
 	if s.AuthStore == nil || s.wsStores == nil {
 		return nil, errKnowledgeUnavailable
 	}
@@ -321,7 +321,7 @@ func (s *Server) workspaceTermbaseByID(ctx context.Context, wsID string) (termba
 
 // conceptHasForbiddenTerm reports whether a concept carries any forbidden or
 // competitor term — the only kind a target can violate by containing it.
-func conceptHasForbiddenTerm(c termbase.Concept) bool {
+func conceptHasForbiddenTerm(c terms.Concept) bool {
 	for _, term := range c.Terms {
 		if term.Status == model.TermForbidden || term.CompetitorTerm {
 			return true
@@ -336,7 +336,7 @@ func conceptHasForbiddenTerm(c termbase.Concept) bool {
 // cheap pre-filter that lets the re-check skip the whole workspace scan for a
 // concept nothing can violate; the per-block ABSENCE check (blockTermCompliant →
 // targetMissingMandatedTerm) scopes the mandate to the actual target locale.
-func conceptHasMandatedTerm(c termbase.Concept) bool {
+func conceptHasMandatedTerm(c terms.Concept) bool {
 	for _, term := range c.Terms {
 		if term.Status == model.TermPreferred || term.Status == model.TermApproved {
 			return true

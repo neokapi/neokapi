@@ -351,7 +351,7 @@ func TestProjectAccessMiddleware(t *testing.T) {
 	})
 
 	t.Run("workspace-level resource resolves from workspace role", func(t *testing.T) {
-		// No project ID in the path (e.g. /:ws/translation-memory): permissions
+		// No project ID in the path (e.g. /:ws/content-memory): permissions
 		// resolve from the user's workspace role so requirePermission enforces.
 		e := echo.New()
 		req := httptest.NewRequest(http.MethodGet, "/other", nil)

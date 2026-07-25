@@ -62,10 +62,10 @@ func FrameworkContent(framework string) ([]scaffoldContent, error) {
 }
 
 // FrameworkBindings returns the standing project-context bindings a framework
-// preset declares — a brand voice profile file and a termbase source — for the
+// preset declares — a brand voice profile file and a terms store source — for the
 // scaffolder to write under defaults:. Both are empty when the framework
 // declares none (or is unknown/empty).
-func FrameworkBindings(framework string) (brandVoiceProfile, termbaseSource string) {
+func FrameworkBindings(framework string) (brandVoiceProfile, termsSource string) {
 	if framework == "" {
 		return "", ""
 	}
@@ -75,7 +75,7 @@ func FrameworkBindings(framework string) (brandVoiceProfile, termbaseSource stri
 	if fp == nil {
 		return "", ""
 	}
-	return fp.BrandVoiceProfile, fp.TermbaseSource
+	return fp.BrandVoiceProfile, fp.TermsSource
 }
 
 // ─── helpers ────────────────────────────────────────────────────
@@ -107,7 +107,7 @@ func RecipeExists(dir string) (bool, error) {
 	return false, err
 }
 
-func ScaffoldRecipe(name, sourceLocale string, targetLocales []string, content []scaffoldContent, brandVoiceProfile, termbaseSource string) []byte {
+func ScaffoldRecipe(name, sourceLocale string, targetLocales []string, content []scaffoldContent, brandVoiceProfile, termsSource string) []byte {
 	var b strings.Builder
 	b.WriteString("version: v1\n")
 	b.WriteString("name: ")
@@ -128,14 +128,14 @@ func ScaffoldRecipe(name, sourceLocale string, targetLocales []string, content [
 		}
 	}
 	// Standing project-context bindings the stack declares — a brand voice
-	// profile and a committed native termbase source — so project-scoped brand
+	// profile and a committed native terms source — so project-scoped brand
 	// and terminology checks need no flags.
 	if brandVoiceProfile != "" {
 		b.WriteString("  brand_voice:\n")
 		fmt.Fprintf(&b, "    profile_file: %s\n", brandVoiceProfile)
 	}
-	if termbaseSource != "" {
-		fmt.Fprintf(&b, "  termbase_source: %s\n", termbaseSource)
+	if termsSource != "" {
+		fmt.Fprintf(&b, "  termbase_source: %s\n", termsSource)
 	}
 
 	if len(content) > 0 {
@@ -185,7 +185,7 @@ flows: {}
 // ScaffoldContentRecipe builds the default content recipe: a project whose job
 // is keeping its source content on brand and on-terminology, with no target
 // languages. It binds a brand voice profile (a built-in starter pack) and the
-// project termbase under defaults: so project-scoped checks need no flags, and
+// project terms store under defaults: so project-scoped checks need no flags, and
 // ships a `check` flow that scores content with the deterministic
 // brand-vocabulary check. Passing --target-locale or --framework scaffolds a
 // translation project (ScaffoldRecipe) instead.
@@ -198,7 +198,7 @@ func ScaffoldContentRecipe(name, sourceLocale string) []byte {
 	b.WriteString("  source_language: ")
 	b.WriteString(sourceLocale)
 	b.WriteByte('\n')
-	// brand_voice and termbase are framework bindings under defaults: — standing
+	// brand_voice and terms are framework bindings under defaults: — standing
 	// project context for brand and terminology checks. No target_languages: this
 	// project governs its source content, it does not translate it.
 	b.WriteString("  brand_voice:\n")

@@ -3,18 +3,18 @@ import { t } from "@neokapi/i18n-react/runtime";
 import type {
   EntityAdaptationDTO,
   EntityAnnotationDTO,
-  TMMatchDTO,
-  LookupTMRequest,
+  MemoryMatchDTO,
+  LookupMemoryRequest,
 } from "./types";
 import { ENTITY_TYPES } from "./types";
 import { CodedTextDisplay } from "./CodedTextDisplay";
 import { MatchScoreBar } from "./MatchScoreBar";
 import { LocalePill } from "./LocalePill";
 
-interface TMLookupPanelProps {
+interface MemoryLookupPanelProps {
   sourceLocale: string;
   targetLocale: string;
-  onLookup: (req: LookupTMRequest) => Promise<TMMatchDTO[]>;
+  onLookup: (req: LookupMemoryRequest) => Promise<MemoryMatchDTO[]>;
 }
 
 interface MarkedEntity extends EntityAnnotationDTO {
@@ -22,15 +22,15 @@ interface MarkedEntity extends EntityAnnotationDTO {
 }
 
 /**
- * Entity-aware TM lookup panel.
+ * Entity-aware content-memory lookup panel.
  * Users type text, select portions to mark as entities, then lookup.
  * Results show match scores and entity adaptation indicators.
  */
-export function TMLookupPanel({ sourceLocale, targetLocale, onLookup }: TMLookupPanelProps) {
+export function MemoryLookupPanel({ sourceLocale, targetLocale, onLookup }: MemoryLookupPanelProps) {
   const [text, setText] = useState("");
   const [entities, setEntities] = useState<MarkedEntity[]>([]);
   const [minScore, setMinScore] = useState(0.7);
-  const [matches, setMatches] = useState<TMMatchDTO[]>([]);
+  const [matches, setMatches] = useState<MemoryMatchDTO[]>([]);
   const [loading, setLoading] = useState(false);
   const [showEntityPopover, setShowEntityPopover] = useState(false);
   const [selectionRange, setSelectionRange] = useState<{
@@ -224,7 +224,7 @@ export function TMLookupPanel({ sourceLocale, targetLocale, onLookup }: TMLookup
           <div className="text-[11px] text-muted-foreground">
             {matches.length} {matches.length === 1 ? "match" : "matches"}
           </div>
-          {matches.map((m: TMMatchDTO, i: number) => {
+          {matches.map((m: MemoryMatchDTO, i: number) => {
             const srcKey = m.entry.hint_src_lang || sourceLocale;
             const src = srcKey ? m.entry.variants[srcKey] : undefined;
             const tgt = targetLocale ? m.entry.variants[targetLocale] : undefined;

@@ -163,7 +163,7 @@ func (p TermExtract) Turns(text string) []Turn {
 // blocks, and proposes terminology candidates.
 type EntityExtract struct {
 	Locale model.LocaleID
-	// KnownTerms are terms already in the termbase; the model is told not to
+	// KnownTerms are terms already in the terms store; the model is told not to
 	// re-propose them.
 	KnownTerms []string
 }
@@ -189,7 +189,7 @@ Given text blocks, identify:
    - Dates/times/currencies/measurements: usually NOT DNT (they need locale-specific formatting)
    - Locations: context-dependent
 
-2. Terminology candidates: domain-specific terms that should be translated consistently across the project. These are words/phrases that carry specific meaning in this context and would benefit from a termbase entry. Exclude common words.
+2. Terminology candidates: domain-specific terms that should be translated consistently across the project. These are words/phrases that carry specific meaning in this context and would benefit from a terms entry. Exclude common words.
    - "dnt" = never translate (brand names, acronyms that stay in source language)
    - "consistent" = translate, but the same way everywhere
    - "free" = translate naturally, no consistency requirement
@@ -197,13 +197,13 @@ Given text blocks, identify:
 Report character offsets relative to each block's text. Only report genuinely useful entities and terms — quality over quantity.`,
 	}}
 
-	// Sorted, so the same termbase renders the same prompt every run. This used
+	// Sorted, so the same terms renders the same prompt every run. This used
 	// to range over a map, which reordered the prompt on every invocation.
 	if len(p.KnownTerms) > 0 {
 		terms := slices.Sorted(slices.Values(p.KnownTerms))
 		system = append(system, Section{
 			Kind:    KindGlossary,
-			Origin:  fmt.Sprintf("termbase (%s)", plural(len(terms), "known term")),
+			Origin:  fmt.Sprintf("terms (%s)", plural(len(terms), "known term")),
 			Heading: "Existing terms (do not re-propose):",
 			Text:    strings.Join(terms, ", "),
 		})

@@ -21,7 +21,7 @@ import (
 // byte cap and exercise the budget-exceeded path without streaming 1 GiB.
 var docBudget = safeio.DefaultBudget()
 
-// Reader implements DataFormatReader for TMX (Translation Memory eXchange) files.
+// Reader implements DataFormatReader for TMX (Content Memory eXchange) files.
 type Reader struct {
 	format.BaseFormatReader
 	cfg           *Config

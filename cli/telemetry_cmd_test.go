@@ -27,8 +27,8 @@ func telemetryTestTree() (root *cobra.Command, lookup map[string]*cobra.Command,
 	root = &cobra.Command{Use: "kapi"}
 	stats := &cobra.Command{Use: "stats"}
 	tm := &cobra.Command{Use: "tm"}
-	tmImport := &cobra.Command{Use: "import"}
-	tm.AddCommand(tmImport)
+	memoryImport := &cobra.Command{Use: "import"}
+	tm.AddCommand(memoryImport)
 	help := &cobra.Command{Use: "help"}
 	completion := &cobra.Command{Use: "completion"}
 	telemetryCmd := &cobra.Command{Use: "telemetry"}
@@ -49,7 +49,7 @@ func telemetryTestTree() (root *cobra.Command, lookup map[string]*cobra.Command,
 
 	lookup = map[string]*cobra.Command{
 		"stats":         stats,
-		"tm.import":     tmImport,
+		"tm.import":     memoryImport,
 		"push":          push,
 		"push.remote":   pushRemote,
 		"help":          help,

@@ -214,7 +214,7 @@ describe("humanizeKey", () => {
   });
 
   it("keeps acronym runs together", () => {
-    expect(humanizeKey("enableTMLookup")).toBe("Enable TM Lookup");
+    expect(humanizeKey("enableMemoryLookup")).toBe("Enable content memory Lookup");
   });
 
   it("title-cases a single lowercase word", () => {

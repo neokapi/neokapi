@@ -16,8 +16,8 @@ func TestStanding_ConvergedRun(t *testing.T) {
 		{Type: convergence.EventPassStart, Pass: 1, Pending: []string{"fr-FR", "de-DE"}},
 		{Type: convergence.EventLocaleStart, Pass: 1, Locale: "fr-FR", Units: 10},
 		{Type: convergence.EventLocaleStart, Pass: 1, Locale: "de-DE", Units: 4},
-		{Type: convergence.EventUnitProgress, Pass: 1, Locale: "fr-FR", Done: 6, ViaTM: 2, ViaAI: 4},
-		{Type: convergence.EventLocaleDone, Pass: 1, Locale: "fr-FR", Units: 10, Done: 10, ViaTM: 3, ViaAI: 7},
+		{Type: convergence.EventUnitProgress, Pass: 1, Locale: "fr-FR", Done: 6, ViaMemory: 2, ViaAI: 4},
+		{Type: convergence.EventLocaleDone, Pass: 1, Locale: "fr-FR", Units: 10, Done: 10, ViaMemory: 3, ViaAI: 7},
 		{Type: convergence.EventLocaleDone, Pass: 1, Locale: "de-DE", Units: 4, Done: 4, ViaAI: 4},
 		{Type: convergence.EventPassDone, Pass: 1, Produced: 14, ProducedDelta: 14},
 		{Type: convergence.EventMaterialized, Files: 2},
@@ -40,7 +40,7 @@ func TestStanding_ConvergedRun(t *testing.T) {
 	assert.Equal(t, convergence.LocaleShippable, locales[0].State)
 	assert.Equal(t, convergence.LocaleStanding{
 		Locale: "fr-FR", State: convergence.LocaleShippable,
-		Units: 10, Produced: 10, ViaTM: 3, ViaAI: 7,
+		Units: 10, Produced: 10, ViaMemory: 3, ViaAI: 7,
 	}, locales[0])
 }
 

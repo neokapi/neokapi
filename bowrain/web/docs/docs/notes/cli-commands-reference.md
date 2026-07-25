@@ -269,14 +269,14 @@ service EditorService {
     rpc ReviewBlock(ReviewBlockRequest) returns (google.protobuf.Empty);
 
     // Context lookups
-    rpc LookupTMForBlock(TMLookupRequest) returns (TMLookupResponse);
+    rpc LookupMemoryForBlock(MemoryLookupRequest) returns (MemoryLookupResponse);
     rpc LookupTermsForBlock(TermLookupRequest) returns (TermLookupResponse);
 
     // TM and terminology CRUD
-    rpc GetTMEntries(TMEntriesRequest) returns (TMEntriesResponse);
-    rpc AddTMEntry(AddTMEntryRequest) returns (TMEntryResponse);
-    rpc UpdateTMEntry(UpdateTMEntryRequest) returns (google.protobuf.Empty);
-    rpc DeleteTMEntry(DeleteTMEntryRequest) returns (google.protobuf.Empty);
+    rpc GetMemoryEntries(MemoryEntriesRequest) returns (MemoryEntriesResponse);
+    rpc AddMemoryEntry(AddMemoryEntryRequest) returns (MemoryEntryResponse);
+    rpc UpdateMemoryEntry(UpdateMemoryEntryRequest) returns (google.protobuf.Empty);
+    rpc DeleteMemoryEntry(DeleteMemoryEntryRequest) returns (google.protobuf.Empty);
     rpc GetTerms(TermsRequest) returns (TermsResponse);
     rpc AddConcept(AddConceptRequest) returns (ConceptResponse);
     rpc UpdateConcept(UpdateConceptRequest) returns (google.protobuf.Empty);

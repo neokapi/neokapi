@@ -20,7 +20,7 @@ narration:
     kind: title
     text: >-
       A project needs no flow definitions to translate: Kapi ships a built-in
-      default flow — translation-memory reuse, then AI translation, then
+      default flow — content-memory reuse, then AI translation, then
       checks.
 
   - id: intro
@@ -79,6 +79,6 @@ narration:
       anywhere.
 
 # Norwegian Bokmål narration (full coverage — required for published demos).
-# Follows l10n/brand-voice.yaml (nb) and l10n/termbase.csv terminology
+# Follows l10n/brand-voice.yaml (nb) and l10n/terms.csv terminology
 # (flow → flyt; "pipeline" stays English in nb).
 #

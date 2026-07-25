@@ -14,7 +14,7 @@ import (
 //   - brand://profiles/{id}             — full voice profile
 //   - brand://profiles/{id}/vocabulary  — preferred/forbidden/competitor terms
 //   - brand://profiles/{id}/examples    — before/after pairs
-//   - brand://terminology/{workspace}   — workspace termbase
+//   - brand://terminology/{workspace}   — workspace terms
 func (s *MCPServer) registerResources() {
 	// Full voice profile by ID.
 	s.server.AddResourceTemplate(

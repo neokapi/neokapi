@@ -8,7 +8,7 @@ import "./diagram.css";
 
       authored source ─► extract ─► XLIFF/PO ─► translator        (forward, →)
                             │
-                       project TM   (hub: pre-fill on extract, absorb on merge)
+                       project content memory   (hub: pre-fill on extract, absorb on merge)
                             ▲
       kapi merge  ◄─ translated XLIFF/PO ◄─ returned by translator (return, ←)
 
@@ -163,7 +163,7 @@ export function RoundTripDiagram({
   backIndex = 0,
   forwardLabel,
   backLabel,
-  ariaLabel = "Round-trip: extract forward, merge back, sharing a translation memory",
+  ariaLabel = "Round-trip: extract forward, merge back, sharing a content memory",
   caption,
   animated = false,
 }: RoundTripDiagramProps): React.ReactElement {

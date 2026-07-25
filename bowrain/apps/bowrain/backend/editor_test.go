@@ -281,12 +281,12 @@ func TestHTMLFileBlocks(t *testing.T) {
 	assert.NotEmpty(t, sources)
 }
 
-func TestTMTranslateFile(t *testing.T) {
+func TestMemoryTranslateFile(t *testing.T) {
 	app, info, itemName := setupProjectWithFile(t)
 
-	// TM is empty so no matches expected, but should not error
-	stats, err := app.TMTranslateItem(info.ID, itemName, "fr")
+	// content memory is empty so no matches expected, but should not error
+	stats, err := app.MemoryTranslateItem(info.ID, itemName, "fr")
 	require.NoError(t, err)
 	assert.Greater(t, stats.TotalBlocks, 0)
-	assert.Equal(t, 0, stats.TranslatedBlocks) // Empty TM = no matches
+	assert.Equal(t, 0, stats.TranslatedBlocks) // Empty Memory = no matches
 }

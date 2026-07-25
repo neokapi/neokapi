@@ -98,7 +98,7 @@ const shoppingCart: Block = {
 };
 const file: File = {
   schemaVersion: "1.0",
-  kind: "kapi-localization-format",
+  kind: "kapi-bundle",
   created: "2026-04-15T10:00:00Z",
   generator: { id: "@neokapi/kapi-format-examples", version: "0.0.1", capabilities: ["extract", "preview"] },
   project: { id: "neokapi-kapi-format-examples", sourceLocale: "en" },
@@ -117,7 +117,7 @@ ok("Go canonical sha == TS canonical sha", goRound.sha256 === tsSha, `go=${Strin
 // plus a sub run.
 const edge: File = {
   schemaVersion: "1.0",
-  kind: "kapi-localization-format",
+  kind: "kapi-bundle",
   generator: { id: "edge", version: "1" },
   project: { id: "edge", sourceLocale: "en" },
   documents: [

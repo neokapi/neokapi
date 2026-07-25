@@ -4,7 +4,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 
-interface TMAddEntryDialogProps {
+interface MemoryAddEntryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   source: string;
@@ -20,8 +20,8 @@ interface TMAddEntryDialogProps {
   onSubmit: () => void;
 }
 
-/** Add-entry dialog of the TM browser. Form state is owned by the parent. */
-export function TMAddEntryDialog({
+/** Add-entry dialog of the content memory browser. Form state is owned by the parent. */
+export function MemoryAddEntryDialog({
   open,
   onOpenChange,
   source,
@@ -34,12 +34,12 @@ export function TMAddEntryDialog({
   onTgtLocaleChange,
   locales,
   onSubmit,
-}: TMAddEntryDialogProps) {
+}: MemoryAddEntryDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add TM Entry</DialogTitle>
+          <DialogTitle>Add Memory Entry</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <div>

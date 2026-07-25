@@ -65,7 +65,7 @@ defaults:
     fuzzy_threshold: 75
   segmentation:
     source: true
-  termbase: glossary/terms.db
+  termbase: glossary/termbase.db
 ```
 
 ## Fields
@@ -173,7 +173,7 @@ content:
 | `exclude`          | string[]            | Glob patterns skipped during content scanning (e.g. `**/*.generated.json`)                                               |
 | `formats`          | map                 | Per-format `preset`, `config`, and detection `priority` overrides (see [formats](#formats))                              |
 | `merge`            | MergeDefaults       | How `kapi merge` resolves a translator's target against an existing target or TM entry (see [merge](#merge))             |
-| `tm`               | TMDefaults          | TM pre-fill on `kapi extract` and write-back on `kapi merge` (see [tm](#tm))                                             |
+| `tm`               | MemoryDefaults          | TM pre-fill on `kapi extract` and write-back on `kapi merge` (see [tm](#tm))                                             |
 | `segmentation`     | SegmentationDefaults | Opt-in sentence-level segmentation overlay applied on extract (see [segmentation](#segmentation))                       |
 | `redaction`        | RedactionSpec       | Replace sensitive content with protected placeholders before processing and restore it afterwards (see [redaction](#redaction)) |
 | `brand_voice`      | BrandVoiceBinding   | Bind a brand voice profile as standing project context (see [brand_voice](#brand_voice))                                |

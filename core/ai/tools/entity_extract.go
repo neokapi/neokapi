@@ -26,7 +26,7 @@ type AIEntityExtractTool struct {
 	llm         aiprovider.LLMProvider
 	nerProvider ner.Provider // optional; nil means LLM-only
 	locale      model.LocaleID
-	knownTerms  map[string]bool // terms already in termbase (skip during extraction)
+	knownTerms  map[string]bool // terms already in terms (skip during extraction)
 	batchSize   int
 	concurrency int
 }
@@ -51,7 +51,7 @@ type AIEntityExtractConfig struct {
 	APIKey      string         `json:"apiKey,omitempty" schema:"title=API Key,description=API key for the AI provider,group=provider"`
 	Model       string         `json:"model,omitempty" schema:"title=Model,description=AI model name,group=provider"`
 	Locale      model.LocaleID `json:"locale,omitempty" schema:"description=Locale of the source content"`
-	KnownTerms  []string       `json:"knownTerms,omitempty" schema:"description=Terms to exclude from extraction (already in termbase)"`                       // terms to exclude from extraction (already in termbase)
+	KnownTerms  []string       `json:"knownTerms,omitempty" schema:"description=Terms to exclude from extraction (already in the terms store)"`                          // terms to exclude from extraction (already in terms)
 	BatchSize   int            `json:"batchSize,omitempty" schema:"description=Number of blocks per LLM call (0 or 1 = one block per call),default=1,min=1"`   // Blocks per LLM call. 0 or 1 = one block per call.
 	Concurrency int            `json:"batchConcurrency,omitempty" schema:"description=Number of concurrent batch calls (0 or 1 = sequential),default=1,min=1"` // Concurrent batch calls. 0 or 1 = sequential.
 }

@@ -147,18 +147,18 @@ segTool := tools.NewSegmentationTool(&tools.SegmentationConfig{})
 qaTool := tools.NewQACheckTool(tools.NewQACheckConfig(model.LocaleID("fr")))
 
 // TM leverage with a custom fuzzy threshold and a TM provider
-tmTool := tools.NewTMLeverageTool(&tools.TMLeverageConfig{
+memoryTool := tools.NewMemoryLeverageTool(&tools.MemoryLeverageConfig{
     TargetLocale:   "fr",
     FuzzyThreshold: 80, // 0-100
-    Provider:       tmProvider,
+    Provider:       memoryProvider,
 })
 ```
 
-The terminology tools live in the `termbase` package and take a `TermBase`
+The terminology tools live in the `termbase` package and take a `Terminology`
 alongside their config:
 
 ```go
-import "github.com/neokapi/neokapi/termbase"
+import "github.com/neokapi/neokapi/terms"
 
 // Term lookup — scans source text and attaches terminology annotations
 termLookupTool := termbase.NewTermLookupTool(tb, termbase.TermLookupConfig{

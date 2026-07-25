@@ -113,7 +113,7 @@ func (a *App) settleAndCountHeldSource(ctx context.Context, gateLevel model.Sour
 // invalidates it and the unit drops back to the `translated` presence baseline
 // (a rejected unit re-enters review once retranslated). This is the
 // authoritative carrier for review state (a plain target file holds no status),
-// replacing the old content-keyed .kmb overload — the TM is now the recycle
+// replacing the old content-keyed .kmb overload — the content memory is now the recycle
 // corpus only.
 type reviewedIndex struct {
 	byUnit map[string]reviewedEntry

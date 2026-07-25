@@ -6,7 +6,7 @@ directory is gitignored and rebuilt from these seeds with `make l10n-seed`.
 
 Seeds are committed in the **native Kapi-family forms** — deterministic,
 lossless JSON that preserves entry identity, so a wipe-and-reseed
-reproduces the TM/termbase state exactly (see `sievepen/kmb` and
+reproduces the content memory/termbase state exactly (see `sievepen/kmb` and
 `termbase/ktb`). TMX/CSV/TBX are the lossy interchange tier; emit
 disposable review views with `make l10n-review-export` (→ `l10n/review/`,
 gitignored).
@@ -20,14 +20,14 @@ gitignored).
   `.kapi/termbase.db`.
 - `tm/<surface>-<lang>.kmb` — reviewed translations, one file per
   surface and locale (e.g. `builtins-nb.kmb`). Imported into
-  `.kapi/tm.db`; every localized output is produced from the TM by
+  `.kapi/tm.db`; every localized output is produced from the content memory by
   `recycle`, so generated catalogs only ever contain reviewed strings.
   The docs sites have one seed each: `docs-nb.kmb` for the kapi site
   (surface `docs`: `web/docs/**` → `web/i18n/nb/...`, `make l10n-docs`)
   and `bowrain-docs-nb.kmb` for the bowrain site (surface
   `docs-bowrain`: `bowrain/web/docs/docs/**` →
   `bowrain/web/docs/i18n/nb/...`, `make l10n-bowrain-docs`); the
-  termbase is shared. The bowrain UIs have one seed per surface —
+  terms is shared. The bowrain UIs have one seed per surface —
   `bowrain-app-nb.kmb` (surface `bowrain-app-ui`: the shared SPA in
   `bowrain/packages/{app,ui}` + web/desktop shells,
   `make l10n-bowrain-app`), `bowrain-ctrl-nb.kmb` and
@@ -47,13 +47,13 @@ gitignored).
 Workflow for a new or changed surface string:
 
 1. Translate it (human, or `kapi translate` with credentials — the brand
-   voice profile and termbase are bound project-wide) and merge the pair
+   voice profile and terms are bound project-wide) and merge the pair
    into the surface's seed: import the seed plus the new pairs (any
-   supported form, e.g. a small TMX) into a scratch TM, then
+   supported form, e.g. a small TMX) into a scratch content memory, then
    `kapi tm export -o l10n/tm/<surface>-<lang>.kmb`. Small wording fixes
    can also be edited directly in the `.kmb` JSON — it is the source of
    truth.
-2. `make l10n-seed` to rebuild the TM, then the surface target
+2. `make l10n-seed` to rebuild the content memory, then the surface target
    (e.g. `make l10n-builtins`, or `make l10n` for everything).
 3. `make l10n-builtins-check` runs the terminology gate (`kapi term-check`)
    over the result.
@@ -70,7 +70,7 @@ baked into a variant's text it leaks verbatim into every other surface
 that happens to share the words (the docs "`{=m0} Installer`" class of
 bug). Store such tokens as real inline-code runs — `ph` for a standalone
 element, `pcOpen`/`pcClose` for a paired one, with the literal token text
-as `data` — in **both** the source and target variants, so the TM matches
+as `data` — in **both** the source and target variants, so the content memory matches
 them structurally (same code structure scores 1.0; a bare-text lookalike
 caps below it) and `recycle` fills targets with the entry's runs,
 tokens intact. Named parameters like `{count}` are not markup and stay
@@ -92,8 +92,8 @@ committed PO would be a second translation workflow with no audience.
 If external locale contributions become a goal, PO enters **through the
 project, not beside it**: `kapi extract --format po` emits the bilingual
 files for a translator and `kapi merge -i` applies them back (updating the
-TM, which updates the seeds). There is exactly one translation loop —
-seeds → TM → extract/merge — and PO is an interchange format of that loop,
+content memory, which updates the seeds). There is exactly one translation loop —
+seeds → content memory → extract/merge — and PO is an interchange format of that loop,
 never a parallel gettext workflow (no committed `po/` tree, no msgmerge).
 
 ## What is committed where (and why)
@@ -129,9 +129,9 @@ intermediates, `l10n/review/`).
    docs pages under `web/i18n/<locale>/.../current/` (kapi docs site,
    `make l10n-docs`) and `bowrain/web/docs/i18n/<locale>/.../current/`
    (bowrain docs site, `make l10n-bowrain-docs`). Derived from source +
-   TM; gitignored build artefacts, because committing them made every
+   content memory; gitignored build artefacts, because committing them made every
    source-doc edit go stale and hard-fail the nb build (see CLAUDE.md
-   "Target-language drift must never block the build"). TM misses fall
+   "Target-language drift must never block the build"). content memory misses fall
    back to English, and both Docusaurus sites build with the tree absent.
    Corrections land in the seeds, never in the pages. The docs gate (the
    `docs-l10n-drift` job in `reference-data-drift.yml`) re-materializes

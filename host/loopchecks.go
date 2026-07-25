@@ -61,7 +61,7 @@ func (e *CheckExclusions) totalFailing() int {
 // computeLoopCheckExclusions runs the project's bound target-side checks over
 // the produced units — the same engines `kapi check --ship` gates on: the QA
 // checkset (placeholder/tag integrity, plus the default placeholder patterns)
-// always, and the terminology check when the project binds a termbase. A unit
+// always, and the terminology check when the project binds a terms. A unit
 // whose findings fail the ship predicate (any critical/major finding, or an
 // integrity category like pattern-mismatch) enters the exclusion set.
 //
@@ -72,7 +72,7 @@ func (e *CheckExclusions) totalFailing() int {
 func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, units []VerifyUnit) (*CheckExclusions, error) {
 	excl := &CheckExclusions{Failing: map[string]bool{}, ByLocale: map[string]int{}}
 
-	// Glossary per locale, resolved once (opens the termbase).
+	// Glossary per locale, resolved once (opens the terms store).
 	glossaryByLocale := map[string][]coretools.GlossaryEntry{}
 	glossaryFor := func(locale string) ([]coretools.GlossaryEntry, error) { //nolint:contextcheck // ctx flows via the Command (CmdContext), not a detached context
 		if g, ok := glossaryByLocale[locale]; ok {

@@ -41,7 +41,7 @@ narration:
     caption: Or start from the KapiMart sample.
     text: >-
       Or start from KapiMart — a ready-made sample project with content
-      collections, target languages, and a stocked translation memory.
+      collections, target languages, and a stocked content memory.
 
   - id: project-home
     kind: desktop

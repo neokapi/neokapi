@@ -569,7 +569,7 @@ features:
   - id: alt_trans_extraction
     name: <alt-trans> stored as annotation
     description: |
-      `<alt-trans>` elements (TM matches, MT suggestions, …) inside a
+      `<alt-trans>` elements (content-memory matches, MT suggestions, …) inside a
       trans-unit are surfaced as AltTranslation annotations on the
       Block. They carry `match-quality` and `origin`, plus the
       alternative source/target text. The trans-unit's primary source

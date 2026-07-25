@@ -14,7 +14,7 @@ import { PipelineDiagram } from "@neokapi/docs-shared";
 
 neokapi's terminology system is concept-oriented: a `Concept` groups terms
 across locales with per-term metadata (status, part of speech, grammatical
-gender). The `TermBase` interface (`termbase/` package) supports in-memory
+gender). The `Terminology` interface (`termbase/` package) supports in-memory
 and SQLite backends, a tiered lookup pipeline, and TBX import/export.
 Terminology flows through the streaming pipeline via first-class annotation
 types whose positions are run-anchored (`RunRange`) for precise inline
@@ -90,10 +90,10 @@ Progressive disclosure: CSV import auto-creates Concepts with a single
 preferred Term per locale. No extra complexity is imposed on users who want
 a flat glossary.
 
-### TermBase interface
+### Terminology interface
 
 ```go
-type TermBase interface {
+type Terminology interface {
     AddConcept(concept Concept) error
     GetConcept(id string) (Concept, bool)
     DeleteConcept(id string) error
@@ -119,7 +119,7 @@ Import and export are standalone functions rather than interface methods:
   tools. Pure Go via `modernc.org/sqlite`.
 
 A PostgreSQL backend with workspace isolation and terminology streams can be
-supplied by a platform layer behind the same `TermBase` interface.
+supplied by a platform layer behind the same `Terminology` interface.
 
 ### The termbase is source; the store is a rebuildable read-cache
 
@@ -168,14 +168,14 @@ Term lookup follows a cascading pipeline:
 4. **AI-assisted** (opt-in) — LLM proposes candidate term mappings that
    produce `TermCandidateAnnotation` entries for human review.
 
-The fuzzy tier uses the same SQLite FTS5 trigram tokenizer as Sievepen
+The fuzzy tier uses the same SQLite FTS5 trigram tokenizer as Memory
 ([AD-009: Translation Memory](009-translation-memory.md)), keeping lookup
 cost sub-linear in termbase size. Text is normalized with Unicode NFC via
 `NormalizeTerm()` before comparison. Character-level Levenshtein (on
 `[]rune`) is correct for all scripts including CJK.
 
 Which tiers run is selected per call through `LookupOptions.MatchModes`
-(`[]model.MatchStrategy`) on `TermBase.Lookup`/`LookupAll`, alongside
+(`[]model.MatchStrategy`) on `Terminology.Lookup`/`LookupAll`, alongside
 `CaseSensitive`, `MinScore`, and scope filters — so a caller can request, for
 example, exact-only or exact-plus-fuzzy without changing the pipeline.
 
@@ -206,7 +206,7 @@ organizations, products, dates, locations) with run-anchored `RunRange`
 positions and optional DNT (do-not-translate) flags. Entity annotations
 serve multiple purposes:
 
-- Input to Sievepen TM generalization ([AD-009: Translation Memory](009-translation-memory.md)).
+- Input to Memory TM generalization ([AD-009: Translation Memory](009-translation-memory.md)).
 - Do-not-translate markers consumed by AI translation.
 - Locale formatting hints (dates, numbers) for downstream tools.
 - Terminology candidate discovery.

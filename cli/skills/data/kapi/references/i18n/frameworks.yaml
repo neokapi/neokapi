@@ -103,7 +103,7 @@ frameworks:
       recommended: { w: 3, x: 1, s: 1, r: 1, e: 2 }
       grade: T3
       buys:
-        - "s: TMS/TM pipeline absorbing hash-ID churn + formatjs CI extract"
+        - "s: TMS/content memory pipeline absorbing hash-ID churn + formatjs CI extract"
     watch: { repo: https://github.com/formatjs/formatjs, latest_verified: "10.x", verified: 2026-07-10 }
     notes: "Maximum per-string boilerplate; hash IDs churn on copy edits. Right only for ICU-standardized enterprises with a TMS."
 

@@ -9,7 +9,7 @@ fit together — lives in the documentation under
 
 neokapi is a multi-module Go monorepo coordinated by a `go.work` file at the
 root, plus a pnpm workspace for the frontend packages. The framework
-(`core/`, `sievepen/`, `termbase/`, `providers/`) stays platform-agnostic; the
+(`core/`, `memory/`, `terms/`, `providers/`) stays platform-agnostic; the
 `bowrain/` platform attaches through the extension and plugin-registry
 mechanisms rather than direct imports. See [`CLAUDE.md`](CLAUDE.md) for the
 module map.
@@ -30,7 +30,7 @@ frontend packages, use `vp` (viteplus) rather than `npx` — e.g.
 ## Go conventions
 
 **Constructor style.** Match the constructor to the audience. Framework public
-API — the exported surface under `core/`, `sievepen/`, `termbase/`, `providers/`
+API — the exported surface under `core/`, `memory/`, `terms/`, `providers/`
 that external callers and plugins build against — takes **functional options**
 (`New(required, ...Option)`), so a call site stays source-compatible as options
 grow and defaults stay centralised. Internal services — application wiring in

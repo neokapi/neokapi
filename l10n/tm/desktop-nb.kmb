@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "kind": "kapi-tm-format",
+  "kind": "kapi-memory",
   "entries": [
     {
       "id": "desktop-nb:00b5cda48b",

@@ -12,7 +12,7 @@ export default meta;
 type Story = StoryObj<typeof ConvergenceHero>;
 
 const PLAN_NOTE =
-  "TM leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining units (no tokenizer, no provider calls).";
+  "content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 for the remaining units (no tokenizer, no provider calls).";
 
 const DRIFTED_PLAN: ConvergePlan = {
   plan: {
@@ -22,7 +22,7 @@ const DRIFTED_PLAN: ConvergePlan = {
         locale: "nb-NO",
         collection: "docs",
         missingTarget: 34,
-        tmExact: 12,
+        memoryExact: 12,
         aiRemaining: 22,
         tokenEstimate: 1840,
       },
@@ -30,7 +30,7 @@ const DRIFTED_PLAN: ConvergePlan = {
         locale: "nb-NO",
         collection: "ui-strings",
         missingTarget: 8,
-        tmExact: 5,
+        memoryExact: 5,
         aiRemaining: 3,
         tokenEstimate: 120,
       },
@@ -38,12 +38,12 @@ const DRIFTED_PLAN: ConvergePlan = {
         locale: "de-DE",
         collection: "docs",
         missingTarget: 34,
-        tmExact: 2,
+        memoryExact: 2,
         aiRemaining: 32,
         tokenEstimate: 2710,
       },
     ],
-    totals: { missingTarget: 76, tmExact: 19, aiRemaining: 57, tokenEstimate: 4670 },
+    totals: { missingTarget: 76, memoryExact: 19, aiRemaining: 57, tokenEstimate: 4670 },
     note: PLAN_NOTE,
   },
   changedFiles: 5,
@@ -83,7 +83,7 @@ const CONVERGED_PLAN: ConvergePlan = {
   plan: {
     flow: "translate",
     scopes: null,
-    totals: { missingTarget: 0, tmExact: 0, aiRemaining: 0, tokenEstimate: 0 },
+    totals: { missingTarget: 0, memoryExact: 0, aiRemaining: 0, tokenEstimate: 0 },
     note: PLAN_NOTE,
   },
   changedFiles: 0,
@@ -137,7 +137,7 @@ export const Converged: Story = {
 };
 
 /** The pre-flight plan dialog on its own: per-(collection, locale) missing /
- *  TM-exact / AI-remainder counts, the token estimate, and its heuristic note. */
+ *  content memory-exact / AI-remainder counts, the token estimate, and its heuristic note. */
 export const PlanDialog: StoryObj<typeof ConvergePlanDialog> = {
   render: () => (
     <ConvergePlanDialog open onOpenChange={() => {}} plan={DRIFTED_PLAN} onConfirm={() => {}} />
@@ -150,7 +150,7 @@ const SUBSCRIPTION_PLAN: ConvergePlan = {
     ...DRIFTED_PLAN.plan,
     provider: "claude-code",
     subscription: true,
-    note: "AI work runs on your Claude subscription — the token estimate is scale, not a metered cost. TM leverage counts exact-hash hits only; token estimate is source chars / 4 (no tokenizer, no provider calls).",
+    note: "AI work runs on your Claude subscription — the token estimate is scale, not a metered cost. content-memory leverage counts exact-hash hits only; token estimate is source chars / 4 (no tokenizer, no provider calls).",
   },
 };
 

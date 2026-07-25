@@ -22,7 +22,7 @@ func runHookStopCapture(t *testing.T, stdin string) (StopHookDecision, string) {
 	cmd := newHookStopCmd(a)
 	cmd.SetIn(strings.NewReader(stdin))
 	// Invoking RunHookStop directly bypasses cobra's Execute, which normally
-	// seeds cmd.Context(); set it so the ctx-aware termbase/TM lookups in the
+	// seeds cmd.Context(); set it so the ctx-aware terms/content-memory lookups in the
 	// verify gate get a real context instead of nil.
 	cmd.SetContext(t.Context())
 	var buf bytes.Buffer

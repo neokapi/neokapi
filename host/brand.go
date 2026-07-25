@@ -192,7 +192,7 @@ examples:
 
 // OpenBrandStore opens the local SQLite brand store using the standard
 // --name/--local/--file resource flags (default ./brand.db), mirroring the
-// termbase/tm pattern.
+// terms/tm pattern.
 func (a *App) OpenBrandStore(cmd Command) (*brandstore.SQLiteBrandStore, string, error) {
 	dbPath, err := resolveResourcePath(cmd, "brands", "brand.db")
 	if err != nil {

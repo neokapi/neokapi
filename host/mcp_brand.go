@@ -11,14 +11,14 @@ import (
 	"github.com/neokapi/neokapi/core/brand/packs"
 	"github.com/neokapi/neokapi/core/model"
 	coretools "github.com/neokapi/neokapi/core/tools"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
 )
 
-// init registers the offline brand/terminology/TM tools on the shared `mcp`
+// init registers the offline brand/terminology/content memory tools on the shared `mcp`
 // stdio server. These mirror the cloud bowrain MCP brand tools so non-Claude
 // MCP clients (Cursor, generic) get parity locally. They are hand-authored
-// because they wrap resources (a brand profile, a termbase/TM file) rather than
+// because they wrap resources (a brand profile, a terms/content-memory file) rather than
 // a single processing tool; the registry's processing tools are exposed
 // generically alongside them (see mcp_tools.go), so the MCP surface now mirrors
 // the CLI rather than being a curated subset of it.
@@ -78,18 +78,18 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "term_lookup",
-		Description: "Look up a term in a local termbase to enforce consistent terminology",
+		Description: "Look up a term in a local terms to enforce consistent terminology",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in termLookupInput) (*mcp.CallToolResult, termLookupMCPOutput, error) {
-		path := in.Termbase
+		path := in.Terms
 		if path == "" {
 			path = "termbase.db"
 		}
-		tb, err := termbase.NewSQLiteTermBase(path)
+		tb, err := terms.NewSQLiteStore(path)
 		if err != nil {
-			return nil, termLookupMCPOutput{}, fmt.Errorf("open termbase: %w", err)
+			return nil, termLookupMCPOutput{}, fmt.Errorf("open terms: %w", err)
 		}
 		defer tb.Close()
-		opts := termbase.LookupOptions{
+		opts := terms.LookupOptions{
 			SourceLocale: model.LocaleID(in.SourceLang),
 			TargetLocale: model.LocaleID(in.TargetLang),
 			MatchModes:   []model.MatchStrategy{model.MatchStrategyExact, model.MatchStrategyNormalized},
@@ -113,15 +113,15 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "tm_search",
-		Description: "Search a local translation memory for prior translations of source text",
+		Description: "Search a local content memory for prior translations of source text",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in tMSearchInput) (*mcp.CallToolResult, tMSearchMCPOutput, error) {
-		path := in.TM
+		path := in.Memory
 		if path == "" {
 			path = "tm.db"
 		}
-		tm, err := sievepen.NewSQLiteTM(path)
+		tm, err := memory.NewSQLiteStore(path)
 		if err != nil {
-			return nil, tMSearchMCPOutput{}, fmt.Errorf("open TM: %w", err)
+			return nil, tMSearchMCPOutput{}, fmt.Errorf("open content memory: %w", err)
 		}
 		defer tm.Close()
 		minScore := in.MinScore
@@ -130,7 +130,7 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 		}
 		src := model.LocaleID(in.SourceLang)
 		tgt := model.LocaleID(in.TargetLang)
-		matches, err := tm.LookupText(ctx, in.Text, src, tgt, sievepen.LookupOptions{MinScore: minScore, MaxResults: 10})
+		matches, err := tm.LookupText(ctx, in.Text, src, tgt, memory.LookupOptions{MinScore: minScore, MaxResults: 10})
 		if err != nil {
 			return nil, tMSearchMCPOutput{}, fmt.Errorf("tm lookup: %w", err)
 		}
@@ -206,7 +206,7 @@ type termLookupInput struct {
 	Term       string `json:"term" jsonschema:"the term to look up"`
 	SourceLang string `json:"source_lang,omitempty" jsonschema:"source locale (e.g. en)"`
 	TargetLang string `json:"target_lang,omitempty" jsonschema:"target locale (e.g. fr)"`
-	Termbase   string `json:"termbase,omitempty" jsonschema:"path to the termbase db (default: termbase.db)"`
+	Terms      string `json:"termbase,omitempty" jsonschema:"path to the terms store db (default: termbase.db)"`
 }
 
 type termMatchMCP struct {
@@ -226,7 +226,7 @@ type tMSearchInput struct {
 	SourceLang string  `json:"source_lang" jsonschema:"source locale (e.g. en)"`
 	TargetLang string  `json:"target_lang" jsonschema:"target locale (e.g. fr)"`
 	MinScore   float64 `json:"min_score,omitempty" jsonschema:"minimum match score 0-1 (default 0.7)"`
-	TM         string  `json:"tm,omitempty" jsonschema:"path to the TM db (default: tm.db)"`
+	Memory     string  `json:"tm,omitempty" jsonschema:"path to the content memory db (default: tm.db)"`
 }
 
 type tMMatchMCP struct {

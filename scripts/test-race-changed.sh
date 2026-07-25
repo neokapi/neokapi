@@ -64,10 +64,10 @@ module_of() {
   local f="$1" m
   for m in "${MODULES[@]}"; do
     if [ "$m" = "." ]; then
-      # Framework module: any core/sievepen/termbase/providers/bench path not
+      # Framework module: any core/memory/terms/providers/bench path not
       # claimed by a longer module prefix above.
       case "$f" in
-        core/*|sievepen/*|termbase/*|providers/*|bench/*) echo "."; return ;;
+        core/*|memory/*|terms/*|providers/*|bench/*) echo "."; return ;;
       esac
     elif [[ "$f" == "$m"/* ]]; then
       echo "$m"

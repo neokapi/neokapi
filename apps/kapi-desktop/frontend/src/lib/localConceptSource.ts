@@ -1,9 +1,9 @@
 // LocalConceptDataSource — drives @neokapi/concept-ui against a LOCAL SQLite
-// termbase through the Wails backend bindings. This is the desktop replacement
+// terms through the Wails backend bindings. This is the desktop replacement
 // for the deleted CLI relation commands: the framework concept UI browses,
 // relates, and re-statuses concepts against the author's own local copy.
 //
-// The source is bound to one open termbase handle and supplies the required
+// The source is bound to one open terms handle and supplies the required
 // CORE reads (concepts, terms, relations) plus the editable-core mutations
 // (addRelation/removeRelation/setTermStatus/updateTerm). It supplies NONE of the
 // rich reads (markets/observations/comments/timeline/whereUsed) — a local copy
@@ -30,7 +30,7 @@ import type {
 } from "@neokapi/concept-ui";
 import { call } from "../hooks/useApi";
 
-// The local termbase Search supports free-text + paging only (no server-side
+// The local terms Search supports free-text + paging only (no server-side
 // status/domain/market facets), and the concept list has no pager, so list reads
 // fetch a generous first page; users narrow with the search box.
 const DEFAULT_LIST_LIMIT = 200;
@@ -56,7 +56,7 @@ export interface TermDTO {
   validity?: ValidityDTO;
 }
 
-/** A termbase concept (mirrors backend ConceptDTO). */
+/** A terms store concept (mirrors backend ConceptDTO). */
 export interface ConceptDTO {
   id: string;
   project_id: string;
@@ -227,7 +227,7 @@ function relationFromDTO(r: RelationDTO): Relation {
 // ── Source factory ─────────────────────────────────────────────────────────────
 
 /**
- * Build a {@link ConceptDataSource} bound to one open termbase `handle`. The
+ * Build a {@link ConceptDataSource} bound to one open terms `handle`. The
  * supplied edit methods make deriveCapabilities report editRelations + editTerms;
  * the absence of any rich read keeps every rich flag false.
  */

@@ -159,7 +159,7 @@ func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *Ext
 		locale = proj.DefaultSourceLanguage
 	}
 
-	// Collect known terms from the project's termbase to avoid re-proposing.
+	// Collect known terms from the project's terms to avoid re-proposing.
 	var knownTerms []string
 	if deps.KnownTermsLoader != nil {
 		loaded, err := deps.KnownTermsLoader.LoadKnownTerms(ctx, job.ProjectID, string(locale))

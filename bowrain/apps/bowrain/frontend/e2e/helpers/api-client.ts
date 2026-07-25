@@ -1,7 +1,7 @@
 /**
  * API client for seeding the real bowrain-server backend for desktop recordings.
  * Ported from bowrain/apps/web/e2e/helpers/api-client.ts.
- * Handles device auth flow, workspace/project CRUD, file upload, TM, and terminology seeding.
+ * Handles device auth flow, workspace/project CRUD, file upload, content memory, and terminology seeding.
  */
 import * as fs from "fs";
 import * as path from "path";
@@ -205,23 +205,23 @@ export async function pseudoTranslateFile(
   );
 }
 
-// --- TM Seeding ---
+// --- content memory Seeding ---
 
-interface TMEntry {
+interface Entry {
   source: string;
   target: string;
   source_locale: string;
   target_locale: string;
 }
 
-export async function seedTMEntries(
+export async function seedMemoryEntries(
   token: string,
   wsSlug: string,
   entriesPath?: string,
 ): Promise<number> {
   const filePath =
     entriesPath || path.resolve(__dirname, "../../../../web/e2e/seed/tm-entries.json");
-  const entries: TMEntry[] = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  const entries: Entry[] = JSON.parse(fs.readFileSync(filePath, "utf-8"));
   for (const entry of entries) {
     await apiPost(`/workspaces/${wsSlug}/tm`, token, entry);
   }
@@ -263,7 +263,7 @@ export async function seedConcepts(
 export interface SeedResult {
   context: SeedContext;
   projects: Array<{ id: string; name: string; files: string[] }>;
-  tmCount: number;
+  memoryCount: number;
   conceptCount: number;
 }
 
@@ -272,7 +272,7 @@ export interface SeedResult {
  * 1. Authenticates via device auth
  * 2. Creates workspace "Acme Inc." (slug: acme)
  * 3. Creates projects with uploaded files
- * 4. Seeds TM entries and terminology concepts
+ * 4. Seeds content-memory entries and terminology concepts
  */
 export async function fullSeed(): Promise<SeedResult> {
   console.log("Authenticating...");
@@ -297,20 +297,20 @@ export async function fullSeed(): Promise<SeedResult> {
   await uploadSeedFiles(token, ws.slug, p3.id, ["release-notes.md"]);
   projects.push({ id: p3.id, name: p3.name, files: ["release-notes.md"] });
 
-  console.log("Seeding TM entries...");
-  const tmCount = await seedTMEntries(token, ws.slug);
+  console.log("Seeding content-memory entries...");
+  const memoryCount = await seedMemoryEntries(token, ws.slug);
 
   console.log("Seeding terminology concepts...");
   const conceptCount = await seedConcepts(token, ws.slug);
 
   console.log(
-    `Seed complete: ${projects.length} projects, ${tmCount} TM entries, ${conceptCount} concepts`,
+    `Seed complete: ${projects.length} projects, ${memoryCount} content-memory entries, ${conceptCount} concepts`,
   );
 
   return {
     context: { token, workspaceSlug: ws.slug, workspaceId: ws.id },
     projects,
-    tmCount,
+    memoryCount,
     conceptCount,
   };
 }

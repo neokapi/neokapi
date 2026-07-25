@@ -15,15 +15,15 @@ export interface ProjectExplorerProps {
 }
 
 // The project's declared target locale. fr is a real shipping target — the
-// `translate` flow leverages the project TM to fill it. (qps, the
+// `translate` flow leverages the project content memory to fill it. (qps, the
 // pseudo-translate test locale, is NOT a shipping target and must never appear
 // in a recipe's target_languages.)
 export const TARGETS = ["fr"] as const;
 type Target = (typeof TARGETS)[number];
 
-// Flows the recipe declares. Both leverage translation memory (recycle) and
-// run offline — no LLM, no network: the project TM (seeded via `kapi tm import`
-// before extract) supplies the French. `translate` fills any TM match;
+// Flows the recipe declares. Both leverage content memory (recycle) and
+// run offline — no LLM, no network: the project content memory (seeded via `kapi tm import`
+// before extract) supplies the French. `translate` fills any content-memory match;
 // `translate-exact` only fills 100% matches, so picking it visibly changes the
 // merged output, demonstrating that a project is a multi-flow contract.
 export interface FlowDef {
@@ -35,14 +35,14 @@ export interface FlowDef {
 export const FLOWS: FlowDef[] = [
   {
     id: "translate",
-    label: "translate — TM leverage (exact + fuzzy)",
+    label: "translate — content-memory leverage (exact + fuzzy)",
     yaml: `  translate:
     steps:
       - tool: recycle`,
   },
   {
     id: "translate-exact",
-    label: "translate-exact — TM leverage (100% only)",
+    label: "translate-exact — content-memory leverage (100% only)",
     yaml: `  translate-exact:
     steps:
       - tool: recycle
@@ -86,11 +86,11 @@ ${FLOWS.map((f) => f.yaml).join("\n")}
 
 // ProjectExplorer teaches the .kapi *project* model — config-as-code in a
 // committed recipe (content + multiple flows + a real fr target) plus a .kapi/
-// state dir (the persistent project store + TM) — and runs the project
-// lifecycle in WASM: import the project TM → extract → run a declared
+// state dir (the persistent project store + content memory) — and runs the project
+// lifecycle in WASM: import the project content memory → extract → run a declared
 // translate flow (recycle, process-only, commits real fr targets to the
 // store) → merge (materialize the localized file). The translation is genuine
-// TM leverage — no LLM, no network — so the merged output is a real fr file,
+// content-memory leverage — no LLM, no network — so the merged output is a real fr file,
 // never a pseudo/qps test artifact. It is the multi-file, team/server
 // counterpart to the single-file .kpz workspace (AD-026 / AD-025 §5). In the
 // browser the state dir is an in-memory store, so it is shown as regenerable
@@ -173,15 +173,15 @@ export default function ProjectExplorer({
       try {
         // Seed the project (recipe + source + TMX) before extract so a
         // sample/flow switch starts clean, and import the TMX into the project
-        // TM so the translate (recycle) flow has matches to pull.
+        // content memory so the translate (recycle) flow has matches to pull.
         if (step === "extract") {
           runtime.mkdir(dir);
           runtime.writeFile(`${dir}/demo.kapi`, recipe);
           runtime.writeFile(`${dir}/${sample.filename}`, sample.bytes());
           runtime.writeFile(`${dir}/project.tmx`, sample.tmx);
-          const tmCode = await runtime.run(["tm", "import", tmxPath, "-s", "en", "-t", "fr"]);
-          if (tmCode !== 0) {
-            setErr(`\`kapi tm import ${tmxPath}\` exited ${tmCode}`);
+          const memoryCode = await runtime.run(["tm", "import", tmxPath, "-s", "en", "-t", "fr"]);
+          if (memoryCode !== 0) {
+            setErr(`\`kapi tm import ${tmxPath}\` exited ${memoryCode}`);
             return;
           }
         }
@@ -190,7 +190,7 @@ export default function ProjectExplorer({
           extract: ["extract", "-p", recipePath],
           // A run inside a project is process-only: it commits target overlays
           // to the store rather than writing files (AD-026). The translate flow
-          // leverages the project TM (seeded above) to fill real fr targets.
+          // leverages the project content memory (seeded above) to fill real fr targets.
           run: ["run", flowId, "-p", recipePath, "-i", srcPath],
           // merge replays the stored translations onto each source.
           merge: ["merge", "-p", recipePath],
@@ -375,7 +375,7 @@ export default function ProjectExplorer({
         rebuilds it. The one thing it can&rsquo;t rebuild is your{" "}
         <strong>authored decisions</strong>: approving a translation lands in a committed{" "}
         <code>.kapi-state.json</code> state store you keep in git, separate from the cache and the
-        translation memory.
+        content memory.
       </p>
 
       <GateOverlay

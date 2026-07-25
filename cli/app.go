@@ -33,7 +33,7 @@ func AddPersistentFlags(a *App, cmd *cobra.Command) {
 // Porcelain comes first: "Work:" holds the everyday project verbs
 // (init, add, up, status, apply, check), "Localization:" the flow-backed
 // produce verbs (translate, pseudo-translate — guardrailed built-in flows,
-// not raw tools), and "Assets:" the standing resources (tm, termbase,
+// not raw tools), and "Assets:" the standing resources (tm, terms,
 // brand, models, credentials). "Advanced:" collects the plumbing (run,
 // flows, exec, tools, extract, merge, pack/unpack/info, inspect, stats,
 // formats, plugin, config, hook, mcp). Standard commands (version, update,

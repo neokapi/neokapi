@@ -1,16 +1,16 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
-  TMFacetSidebar,
+  MemoryFacetSidebar,
   EMPTY_FACETS,
   type FacetSelection,
-} from "../../components/resource-browser/TMFacetSidebar";
-import type { TMFacets } from "../../components/resource-browser/types";
+} from "../../components/resource-browser/MemoryFacetSidebar";
+import type { MemoryFacets } from "../../components/resource-browser/types";
 
 const now = new Date().toISOString();
 const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-const SAMPLE_FACETS: TMFacets = {
+const SAMPLE_FACETS: MemoryFacets = {
   locales: [
     { locale: "en-US", count: 128 },
     { locale: "fr-FR", count: 42 },
@@ -50,9 +50,9 @@ const SAMPLE_FACETS: TMFacets = {
   no_codes: 83,
 };
 
-const meta: Meta<typeof TMFacetSidebar> = {
-  title: "Resource Browser/TMFacetSidebar",
-  component: TMFacetSidebar,
+const meta: Meta<typeof MemoryFacetSidebar> = {
+  title: "Resource Browser/MemoryFacetSidebar",
+  component: MemoryFacetSidebar,
   tags: ["autodocs"],
   decorators: [
     (Story: React.ComponentType) => (
@@ -65,14 +65,14 @@ const meta: Meta<typeof TMFacetSidebar> = {
     docs: {
       description: {
         component:
-          "Left sidebar showing faceted filters for the TM browser. Sections: Languages, Project, Entity Types, Import Sessions, Inline Codes.",
+          "Left sidebar showing faceted filters for the content memory browser. Sections: Languages, Project, Entity Types, Import Sessions, Inline Codes.",
       },
     },
   },
 };
 
 export default meta;
-type Story = StoryObj<typeof TMFacetSidebar>;
+type Story = StoryObj<typeof MemoryFacetSidebar>;
 
 export const Default: Story = {
   args: {
@@ -99,7 +99,7 @@ export const Interactive: Story = {
     const [selection, setSelection] = useState<FacetSelection>(EMPTY_FACETS);
     return (
       <div>
-        <TMFacetSidebar
+        <MemoryFacetSidebar
           facets={SAMPLE_FACETS}
           selection={selection}
           onSelectionChange={setSelection}

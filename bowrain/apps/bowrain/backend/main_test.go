@@ -8,7 +8,7 @@ import (
 	"github.com/zalando/go-keyring"
 
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
 func TestMain(m *testing.M) {
@@ -42,7 +42,7 @@ func TestMain(m *testing.M) {
 }
 
 // newTestApp creates a Bowrain backend with an in-memory SQLite store
-// and no shared TM/TB state. Each call returns a fully isolated App
+// and no shared content memory/TB state. Each call returns a fully isolated App
 // suitable for a single test.
 func newTestApp(t *testing.T) *App {
 	t.Helper()
@@ -51,12 +51,12 @@ func newTestApp(t *testing.T) *App {
 		t.Fatalf("create in-memory store: %v", err)
 	}
 	app := newAppWithStore(cs)
-	// Use a temp directory for the TM and TB so tests don't share state.
+	// Use a temp directory for the content memory and TB so tests don't share state.
 	tmpDir := t.TempDir()
-	app.tmPath = filepath.Join(tmpDir, "test.db")
-	tb, err := termbase.NewSQLiteTermBase(filepath.Join(tmpDir, "test-tb.db"))
+	app.memoryPath = filepath.Join(tmpDir, "test.db")
+	tb, err := terms.NewSQLiteStore(filepath.Join(tmpDir, "test-tb.db"))
 	if err != nil {
-		t.Fatalf("create test termbase: %v", err)
+		t.Fatalf("create test terms: %v", err)
 	}
 	app.tb = tb
 	t.Cleanup(func() {

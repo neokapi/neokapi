@@ -161,7 +161,7 @@ type ConceptRevision struct {
 	WorkspaceID string          `json:"workspace_id"`
 	ConceptID   string          `json:"concept_id"`
 	Rev         int64           `json:"rev"`
-	Snapshot    json.RawMessage `json:"snapshot"` // termbase.Concept + relations delta
+	Snapshot    json.RawMessage `json:"snapshot"` // terms.Concept + relations delta
 	Summary     string          `json:"summary,omitempty"`
 	Actor       string          `json:"actor"`
 	ChangesetID string          `json:"changeset_id,omitempty"`

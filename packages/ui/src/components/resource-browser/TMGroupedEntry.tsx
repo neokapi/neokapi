@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import type { Run } from "@neokapi/kapi-format";
-import type { TMEntryDTO, VariantDTO } from "./types";
+import type { MemoryEntryDTO, VariantDTO } from "./types";
 import type { SpanInfo } from "../../types/span";
 import { CodedTextDisplay } from "./CodedTextDisplay";
 import { InlineCodeEditor } from "../editor/InlineCodeEditor";
@@ -31,8 +31,8 @@ import { cn } from "../../lib/utils";
 
 const AUTO_EXPAND_THRESHOLD = 10;
 
-interface TMGroupedEntryProps {
-  entry: TMEntryDTO;
+interface MemoryGroupedEntryProps {
+  entry: MemoryEntryDTO;
   selected: boolean;
   onToggleSelect: () => void;
   /** Called when a variant is edited inline. The first arg is the edited locale. */
@@ -47,19 +47,19 @@ interface TMGroupedEntryProps {
 }
 
 /**
- * Card for a single multilingual TM entry. The source variant (selected via
+ * Card for a single multilingual content-memory entry. The source variant (selected via
  * `entry.hint_src_lang`) is shown as the card header and every other variant
  * is rendered below. Auto-expands when the entry has fewer than 10 other
  * variants; otherwise collapsible.
  */
-export function TMGroupedEntry({
+export function MemoryGroupedEntry({
   entry,
   selected,
   onToggleSelect,
   onEditVariant,
   onDelete,
   visibleLocales,
-}: TMGroupedEntryProps) {
+}: MemoryGroupedEntryProps) {
   const locales = useMemo(() => Object.keys(entry.variants), [entry.variants]);
 
   // Resolve the "source" variant: honour hint_src_lang if present, otherwise

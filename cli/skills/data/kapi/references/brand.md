@@ -86,7 +86,7 @@ context. Load it first:
 
 ```bash
 kapi brand guide                       # the voice to follow — your context
-kapi termbase lookup "<term>" -t en     # the approved wording for a flagged term
+kapi terms lookup "<term>" -t en     # the approved wording for a flagged term
 ```
 
 Rewrite each flagged block, then apply your edits with `kapi apply` — the one

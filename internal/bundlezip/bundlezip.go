@@ -9,7 +9,7 @@
 //
 // It differs from `.kpz` in one respect. `.kpz` stores its members
 // uncompressed so the archive bytes cannot depend on a compressor version; the
-// memory and term archives exist *for* compression (a project TM serialized as
+// memory and term archives exist *for* compression (a project content memory serialized as
 // `.kmb` JSON is far larger than its deflated form, and these archives are the
 // at-rest/handoff form), so their single member is deflated. The content
 // identity that matters — the member payload, which is the deterministic

@@ -38,7 +38,7 @@ export const GermanGermany: Story = {
   args: { locale: "de-DE" },
 };
 
-/** Multiple locale pills displayed together as they would appear in a TM entry row. */
+/** Multiple locale pills displayed together as they would appear in a content-memory entry row. */
 export const AllLocales: Story = {
   render: () => (
     <div className="flex items-center gap-2">

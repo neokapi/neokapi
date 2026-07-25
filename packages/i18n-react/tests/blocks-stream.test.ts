@@ -59,7 +59,7 @@ describe("neokapi-i18n extract", () => {
 
       const raw = readFileSync(join(dir, "i18n", "src", "App.kbf"), "utf8");
       const file = JSON.parse(raw) as File;
-      expect(file.kind).toBe("kapi-localization-format");
+      expect(file.kind).toBe("kapi-bundle");
       expect(file.documents).toHaveLength(1);
       expect(file.documents[0].path).toBe("src/App.tsx");
       expect(file.documents[0].blocks.length).toBeGreaterThan(0);

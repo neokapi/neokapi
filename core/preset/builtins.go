@@ -39,7 +39,7 @@ func RegisterBuiltins(reg *PresetRegistry) {
 //
 // Source lives in i18n/src/ so the source glob (i18n/src/**/*.kbf) never matches
 // the per-locale target dirs — the collision that otherwise forces sibling
-// i18n-<lang>/ trees. Translation memory and pseudo-locale output are
+// i18n-<lang>/ trees. Content memory and pseudo-locale output are
 // rebuildable state and live under .kapi/ (gitignored), never committed
 // siblings.
 func neokapiI18nPreset() *FrameworkPreset {
@@ -52,7 +52,7 @@ func neokapiI18nPreset() *FrameworkPreset {
 		},
 		Exclude:           []string{"node_modules/**", "dist/**", "build/**"},
 		BrandVoiceProfile: "i18n/brand-voice.yaml",
-		TermbaseSource:    "i18n/termbase.ktb",
+		TermsSource:       "i18n/termbase.ktb",
 		Source:            sourceBuiltIn,
 	}
 }

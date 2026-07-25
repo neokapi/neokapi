@@ -10,7 +10,7 @@ overview: |
   read-only: it annotates findings and never rewrites content.
 
   The list of protected terms is supplied programmatically rather than as a
-  schema field — a project, recipe, or checkset provides them, and the termbase
+  schema field — a project, recipe, or checkset provides them, and the terms store
   can contribute more. A target locale is required; blocks without a target for
   that locale are skipped. The only schema-level option controls whether a
   case-folded match in the target is accepted.

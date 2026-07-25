@@ -11,7 +11,7 @@ needsAi: false
 # One continuous narration read — uniform voice across scenes.
 oneshot: true
 aspects:
-  - Shared translation memory
+  - Shared content memory
   - Terminology as concepts
   - Multi-locale terms
   - Stewarded across a team
@@ -20,22 +20,22 @@ narration:
   - id: title
     kind: title
     text: >-
-      Bowrain — where a team's terminology and translation memory live, shared
+      Bowrain — where a team's terminology and content memory live, shared
       and governed.
 
   - id: intro
     kind: desktop
     beat: intro
     text: >-
-      With kapi, a glossary and a translation memory are local files one builder
+      With kapi, a glossary and a content memory are local files one builder
       owns. Bowrain holds them on the server, shared across everyone.
 
   - id: open-memory
     kind: desktop
     beat: open-memory
-    caption: The workspace translation memory.
+    caption: The workspace content memory.
     text: >-
-      The translation memory keeps every approved translation, available to every
+      The content memory keeps every approved translation, available to every
       project and every translator in the workspace.
 
   - id: tm-list

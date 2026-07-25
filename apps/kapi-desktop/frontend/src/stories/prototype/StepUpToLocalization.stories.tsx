@@ -63,7 +63,7 @@ function StepUp() {
                     <h3 className="text-sm font-semibold">Add localization</h3>
                     <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                       Turn this content project into a localization project. You get target
-                      languages, AI translation, QA, translation memory, and a termbase — your brand
+                      languages, AI translation, QA, content memory, and a terms store — your brand
                       voice and checks carry over unchanged.
                     </p>
 
@@ -76,8 +76,8 @@ function StepUp() {
                         <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                           Adds
                           <span className="font-medium text-foreground">Translate</span>,
-                          <span className="font-medium text-foreground">TM</span>, and
-                          <span className="font-medium text-foreground">Termbases</span>
+                          <span className="font-medium text-foreground">Memory</span>, and
+                          <span className="font-medium text-foreground">Terms stores</span>
                           to the sidebar
                         </span>
                       </div>

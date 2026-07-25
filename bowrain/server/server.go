@@ -70,7 +70,7 @@ type Server struct {
 	EventBus       platev.EventBus
 	Echo           *echo.Echo
 
-	// wsStores manages per-workspace TM and terminology stores.
+	// wsStores manages per-workspace content memory and terminology stores.
 	wsStores *workspaceStores
 
 	// CredentialStore manages AI provider credentials.
@@ -819,8 +819,8 @@ func NewServer(cfg Config) *Server {
 		var mcpOpts []mcpserver.Option
 		if s.wsStores != nil {
 			mcpOpts = append(mcpOpts,
-				mcpserver.WithTMResolver(&tmResolverAdapter{ws: s.wsStores}),
-				mcpserver.WithTBResolver(&tbResolverAdapter{ws: s.wsStores}),
+				mcpserver.WithMemoryResolver(&memoryResolverAdapter{ws: s.wsStores}),
+				mcpserver.WithTermsResolver(&tbResolverAdapter{ws: s.wsStores}),
 			)
 		}
 		if s.Services != nil && s.Services.Connector != nil {
@@ -1461,7 +1461,7 @@ func serveSPAFile(c echo.Context, dir string) error {
 // on the given route group (mounted at /:ws).
 //
 // Bowrain AD-011 URL patterns:
-//   - Workspace-level: /:ws/translation-memory, /:ws/terms, /:ws/providers, etc.
+//   - Workspace-level: /:ws/content-memory, /:ws/terms, /:ws/providers, etc.
 //   - Project collection: /:ws/projects (list/create)
 //   - Project-specific: /:ws/:id (bare slug, get/update/delete)
 //   - Ref-scoped content: /:ws/:id/blocks/:ref, /:ws/:id/sync/:ref, etc.
@@ -1488,12 +1488,12 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// Workspace-level resources (no project context)
 	// -----------------------------------------------------------------------
 
-	// TM CRUD — Bowrain AD-011: /:ws/translation-memory
-	g.GET("/translation-memory", s.HandleGetTMEntries)
-	g.GET("/translation-memory/count", s.HandleGetTMCount)
-	g.POST("/translation-memory", s.HandleAddTMEntry)
-	g.PUT("/translation-memory/:eid", s.HandleUpdateTMEntry)
-	g.DELETE("/translation-memory/:eid", s.HandleDeleteTMEntry)
+	// content memory CRUD — Bowrain AD-011: /:ws/content-memory
+	g.GET("/translation-memory", s.HandleGetMemoryEntries)
+	g.GET("/translation-memory/count", s.HandleGetMemoryCount)
+	g.POST("/translation-memory", s.HandleAddMemoryEntry)
+	g.PUT("/translation-memory/:eid", s.HandleUpdateMemoryEntry)
+	g.DELETE("/translation-memory/:eid", s.HandleDeleteMemoryEntry)
 
 	// Brand knowledge graph — Bowrain AD-021. The concept API (/:ws/concepts)
 	// is the workspace terminology surface; it replaces the former /:ws/terms
@@ -1713,7 +1713,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.GET("/:id/blocks/:ref/:bid/notes", s.HandleListBlockNotes)
 	g.POST("/:id/blocks/:ref/:bid/notes", s.HandleAddBlockNote)
 	g.DELETE("/:id/blocks/:ref/:bid/notes/:nid", s.HandleDeleteBlockNote)
-	g.GET("/:id/blocks/:ref/:bid/tm-matches", s.HandleLookupTMForBlock)
+	g.GET("/:id/blocks/:ref/:bid/tm-matches", s.HandleLookupMemoryForBlock)
 	g.GET("/:id/blocks/:ref/:bid/term-matches", s.HandleLookupTermsForBlock)
 	g.GET("/:id/blocks/:ref/:bid/html", s.HandleRenderBlockHTML)
 
@@ -1731,7 +1731,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// bring-your-own-key requests, which the middleware cannot see in the body.
 	// A per-IP AI throttle (003) still fronts it so a client cannot burst spend.
 	g.POST("/:id/actions/:ref/ai-translate", s.HandleAITranslate, aiLimit)
-	g.POST("/:id/actions/:ref/tm-translate", s.HandleTMTranslate)
+	g.POST("/:id/actions/:ref/tm-translate", s.HandleMemoryTranslate)
 	g.POST("/:id/actions/:ref/export", s.HandleExportTranslatedFile)
 	g.POST("/:id/actions/:ref/qa-check", s.HandleQACheckFile)
 	g.POST("/:id/actions/:ref/qa-check-block", s.HandleQACheckBlock)

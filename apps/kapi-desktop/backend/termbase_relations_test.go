@@ -32,9 +32,9 @@ func addConceptAndID(t *testing.T, app *App, handle, domain, text, locale string
 	return ""
 }
 
-func TestTermbase_RelationsRoundTrip(t *testing.T) {
+func TestTerms_RelationsRoundTrip(t *testing.T) {
 	app := newTestApp(t)
-	handle := openTestTermbase(t, app)
+	handle := openTestTerms(t, app)
 
 	c1 := addConceptAndID(t, app, handle, "software", "file", "en-US")
 	c2 := addConceptAndID(t, app, handle, "software", "document", "en-US")
@@ -79,9 +79,9 @@ func TestTermbase_RelationsRoundTrip(t *testing.T) {
 	assert.Empty(t, relsTo)
 }
 
-func TestTermbase_AddRelationValidates(t *testing.T) {
+func TestTerms_AddRelationValidates(t *testing.T) {
 	app := newTestApp(t)
-	handle := openTestTermbase(t, app)
+	handle := openTestTerms(t, app)
 
 	c1 := addConceptAndID(t, app, handle, "software", "file", "en-US")
 	c2 := addConceptAndID(t, app, handle, "software", "document", "en-US")
@@ -106,9 +106,9 @@ func TestTermbase_AddRelationValidates(t *testing.T) {
 	assert.Equal(t, "RELATED", rel.Type)
 }
 
-func TestTermbase_AddRelationWithValidity(t *testing.T) {
+func TestTerms_AddRelationWithValidity(t *testing.T) {
 	app := newTestApp(t)
-	handle := openTestTermbase(t, app)
+	handle := openTestTerms(t, app)
 
 	c1 := addConceptAndID(t, app, handle, "brand", "old name", "en-US")
 	c2 := addConceptAndID(t, app, handle, "brand", "new name", "en-US")
@@ -135,9 +135,9 @@ func TestTermbase_AddRelationWithValidity(t *testing.T) {
 	assert.Equal(t, "dach", rels[0].Validity.Tags["market"])
 }
 
-func TestTermbase_SetTermStatus(t *testing.T) {
+func TestTerms_SetTermStatus(t *testing.T) {
 	app := newTestApp(t)
-	handle := openTestTermbase(t, app)
+	handle := openTestTerms(t, app)
 
 	c1 := addConceptAndID(t, app, handle, "brand", "Hello", "en-US")
 
@@ -172,9 +172,9 @@ func TestTermbase_SetTermStatus(t *testing.T) {
 	}))
 }
 
-func TestTermbase_GetConceptForView_Missing(t *testing.T) {
+func TestTerms_GetConceptForView_Missing(t *testing.T) {
 	app := newTestApp(t)
-	handle := openTestTermbase(t, app)
+	handle := openTestTerms(t, app)
 
 	// Missing concept → (nil, nil): the adapter reads this as "no longer exists".
 	view, err := app.GetConceptForView(handle, "does-not-exist")

@@ -41,7 +41,7 @@ Every data exchange kapi touches falls into one of six categories:
 | 1   | Authored source        | In                       | JSON, YAML, HTML, .strings, .properties, .docx, .xml, .md, …                                         |
 | 2   | Translated output      | Out                      | Same as #1                                                                                           |
 | 3   | **Bilingual exchange** | Out/In                   | **Bilingual `.kpz`** (neokapi-native, lossless — for a kapi-equipped translator/reviewer); **XLIFF 2.x, PO** (industry interop); XLIFF 1.2, Qt TS, XLSX-bilingual, SRT, TTML as format support |
-| 4   | **Translation memory** | In (loop) / Out/In (TMX) | Project TM (`sievepen/`), TMX for interop                                                            |
+| 4   | **Translation memory** | In (loop) / Out/In (TMX) | Project TM (`memory/`), TMX for interop                                                            |
 | 5   | Terminology            | In (loop) / Out/In       | Project termbase (`termbase/`), TBX/CSV/JSON                                                         |
 | 6   | Project portability    | Out/In                   | project folder (`kapi.yaml` recipe + `.kapi/` state)                                                 |
 
@@ -206,7 +206,7 @@ splices the target runs into place — the block hash is the join key,
 so a project can flip segmentation on or off between extractions
 without breaking TM, QA overlays, or manifest bookkeeping.
 
-Per-segment TM lookup is the matching widening: `sievepen.Lookup`
+Per-segment TM lookup is the matching widening: `memory.Lookup`
 keys on the whole block when there is no segmentation overlay. When
 one is present, extract iterates its spans and looks each up
 independently for sentence-level leverage via the `LookupSegment`
@@ -235,7 +235,7 @@ batchId: 6f2e8a1c-...
 generator: { id: kapi, version: v1.x }
 createdAt: 2026-04-24T10:00:00Z
 sourceLocale: en-US
-options: { format: xliff2, xliffVersion: "2.2", noTM: false }
+options: { format: xliff2, xliffVersion: "2.2", noMemory: false }
 pairs:
   - targetLocale: fr-FR
     output: out/myapp-en-to-fr.xliff
@@ -270,7 +270,7 @@ without touching the emitted target.
 - Fuzzy match ≥ `tm.fuzzy_threshold` (default 75) → pre-fill with
   `state="fuzzy"` and a `matchQuality` sub-state attribute.
 - Ambiguous match (several full-score exacts with differing targets —
-  `TMMatch.Ambiguous`) → never pre-filled. An unattended merge would turn
+  `Match.Ambiguous`) → never pre-filled. An unattended merge would turn
   an arbitrary pick into published content; left empty, the segment
   surfaces as untranslated for a human to decide.
 - Sub-threshold matches → `suggestions.jsonl`, not inlined.

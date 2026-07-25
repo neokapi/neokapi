@@ -669,7 +669,7 @@ func finishInit(cwd string, recipe *project.Recipe) (*output.InitOutput, error) 
 
 // writeStateGitignore drops a .gitignore inside the .kapi/ state dir so its
 // regenerable contents are excluded from version control: the cache root, plus
-// the rebuildable SQLite stores (translation memory, termbase, block store) and
+// the rebuildable SQLite stores (content memory, terms, block store) and
 // their WAL sidecars. These are derived state — rebuilt from committed source
 // (recipe, target catalogs, the .ktb/.kmb sources) — never source of truth,
 // so they stay out of git. Committed state (manifest.yaml, flows/) is not
@@ -742,13 +742,13 @@ func applyFrameworkPreset(recipe *project.Recipe, presetName string) error {
 	recipe.Defaults.Exclude = append(recipe.Defaults.Exclude, fp.Exclude...)
 
 	// Standing project-context bindings the stack declares — a brand voice
-	// profile and a committed native termbase source — scaffolded under
+	// profile and a committed native terms source — scaffolded under
 	// defaults: so project-scoped brand and terminology checks need no flags.
 	if fp.BrandVoiceProfile != "" && recipe.Defaults.BrandVoice == nil {
 		recipe.Defaults.BrandVoice = &coreproj.BrandVoiceBinding{ProfileFile: fp.BrandVoiceProfile}
 	}
-	if fp.TermbaseSource != "" && recipe.Defaults.TermbaseSource == "" {
-		recipe.Defaults.TermbaseSource = fp.TermbaseSource
+	if fp.TermsSource != "" && recipe.Defaults.TermsSource == "" {
+		recipe.Defaults.TermsSource = fp.TermsSource
 	}
 
 	// Apply format preset overrides as Defaults.Formats entries.

@@ -74,7 +74,7 @@ func assertNoRunSideEffects(t *testing.T, root string, locales ...string) {
 	assert.True(t, os.IsNotExist(err), "explain must not create the project cache (%s)", cache)
 	tm := filepath.Join(root, project.StateDirName, "tm.db")
 	_, err = os.Stat(tm)
-	assert.True(t, os.IsNotExist(err), "explain must not create the project TM (%s)", tm)
+	assert.True(t, os.IsNotExist(err), "explain must not create the project content memory (%s)", tm)
 }
 
 // TestRunProjectFlow_ExplainIsDryRun reproduces #1295: `kapi run

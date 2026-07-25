@@ -23,8 +23,8 @@ import (
 	clii18n "github.com/neokapi/neokapi/host/i18n"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/host/pluginhost"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // App holds shared CLI state that is initialized during PersistentPreRun.
@@ -57,16 +57,16 @@ type App struct {
 	SourceLang string
 	TargetLang string
 
-	// TMBackend, when non-nil, is returned by OpenTMSQLite instead of
+	// MemoryBackend, when non-nil, is returned by OpenMemorySQLite instead of
 	// opening a SQLite database. Used by the WASM browser build to inject
-	// a pre-seeded InMemoryTM so the tm / extract commands work without cgo.
-	TMBackend sievepen.TMStore
+	// a pre-seeded InMemoryStore so the tm / extract commands work without cgo.
+	MemoryBackend memory.Store
 
-	// TBBackend, when non-nil, is returned by OpenTermbaseSQLite instead
+	// TermsBackend, when non-nil, is returned by OpenTermsSQLite instead
 	// of opening a SQLite database. Used by the WASM browser build to
-	// inject a pre-seeded InMemoryTermBase so termbase / term-check work
+	// inject a pre-seeded InMemoryStore so terms / term-check work
 	// without cgo.
-	TBBackend termbase.TermBase
+	TermsBackend terms.Terminology
 
 	// Credentials is the shared credential store for AI provider keys.
 	Credentials *credentials.Store
@@ -123,7 +123,7 @@ type App struct {
 	// everywhere else.
 	convergeProgressTap tool.Tool
 
-	// ProjectBindings carries the standing brand-voice + termbase context
+	// ProjectBindings carries the standing brand-voice + terms context
 	// resolved from a .kapi project (defaults.brand_voice / defaults.termbase).
 	// Set temporarily by RunFromProject so project-flow steps can be made
 	// brand- and terminology-aware with no flags. nil for ad-hoc runs.

@@ -81,7 +81,7 @@ neokapi/
 │   ├── plugin/                      # Plugin system (gRPC, loader, bridge, registry)
 │   └── testutil/                    # Shared test helpers
 │
-├── sievepen/                        # Translation memory (interface, in-memory, SQLite)
+├── memory/                        # Translation memory (interface, in-memory, SQLite)
 ├── termbase/                        # Terminology (interface, in-memory, SQLite)
 ├── providers/
 │   ├── ai/                          # package aiprovider — LLM backends
@@ -96,7 +96,7 @@ neokapi/
 └── docs/                            # Architecture decisions, notes
 ```
 
-The framework module (repo root) stays platform-agnostic. `sievepen/`,
+The framework module (repo root) stays platform-agnostic. `memory/`,
 `termbase/`, and `providers/` are top-level framework packages — not nested
 under `core/`. Front-ends such as the CLI and the desktop app, and any other
 consumer, attach through the plugin and extension registries rather than by

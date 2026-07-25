@@ -186,7 +186,7 @@ test.describe("Rich Editor -- Review surface", () => {
 });
 
 test.describe("Rich Editor -- Pre-process surface", () => {
-  test("should expose pseudo-translate and TM leverage operations", async ({ page }) => {
+  test("should expose pseudo-translate and content-memory leverage operations", async ({ page }) => {
     await openEditorInTable(page);
 
     await clickTestId(page, "surface-tab-pre-process");

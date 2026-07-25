@@ -81,7 +81,7 @@ function seedKbfTree(dir: string): string {
     join(dir, "i18n", "src", "Page.kbf"),
     JSON.stringify({
       schemaVersion: "1.0",
-      kind: "kapi-localization-format",
+      kind: "kapi-bundle",
       generator: { id: "@neokapi/i18n-react", version: "0.0.0" },
       project: { id: "test", sourceLocale: "en" },
       documents: [doc],

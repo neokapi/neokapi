@@ -2,14 +2,14 @@
 import { render, screen, waitFor, within } from "./testUtils";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { TMBrowser } from "@neokapi/ui-primitives";
-import type { TMAdapter, TMEntryDTO, VariantDTO } from "@neokapi/ui-primitives";
+import { MemoryBrowser } from "@neokapi/ui-primitives";
+import type { MemoryAdapter, MemoryEntryDTO, VariantDTO } from "@neokapi/ui-primitives";
 
 function v(locale: string, text: string): VariantDTO {
   return { locale, text, runs: [{ text }] };
 }
 
-function makeTMEntry(overrides: Partial<TMEntryDTO> = {}): TMEntryDTO {
+function makeMemoryEntry(overrides: Partial<MemoryEntryDTO> = {}): MemoryEntryDTO {
   return {
     id: "tm-1",
     project_id: "",
@@ -24,7 +24,7 @@ function makeTMEntry(overrides: Partial<TMEntryDTO> = {}): TMEntryDTO {
   };
 }
 
-function createMockAdapter(entries: TMEntryDTO[] = [], totalCount?: number): TMAdapter {
+function createMockAdapter(entries: MemoryEntryDTO[] = [], totalCount?: number): MemoryAdapter {
   return {
     search: vi.fn().mockResolvedValue({
       entries,
@@ -38,16 +38,16 @@ function createMockAdapter(entries: TMEntryDTO[] = [], totalCount?: number): TMA
   };
 }
 
-describe("TMBrowser", () => {
-  let adapter: TMAdapter;
+describe("MemoryBrowser", () => {
+  let adapter: MemoryAdapter;
 
   describe("rendering entries", () => {
     const entries = [
-      makeTMEntry({
+      makeMemoryEntry({
         id: "1",
         variants: { "en-US": v("en-US", "Hello"), "fr-FR": v("fr-FR", "Bonjour") },
       }),
-      makeTMEntry({
+      makeMemoryEntry({
         id: "2",
         variants: { "en-US": v("en-US", "Goodbye"), "fr-FR": v("fr-FR", "Au revoir") },
       }),
@@ -58,7 +58,7 @@ describe("TMBrowser", () => {
     });
 
     it("renders entries from adapter", async () => {
-      render(<TMBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<MemoryBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("Hello")).toBeInTheDocument();
@@ -69,7 +69,7 @@ describe("TMBrowser", () => {
     });
 
     it("calls adapter.search on mount", async () => {
-      render(<TMBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<MemoryBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(adapter.search).toHaveBeenCalledWith("", "", "", 0, 50);
@@ -77,7 +77,7 @@ describe("TMBrowser", () => {
     });
 
     it("displays entry count", async () => {
-      render(<TMBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<MemoryBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("2 entries")).toBeInTheDocument();
@@ -86,7 +86,7 @@ describe("TMBrowser", () => {
 
     it("displays singular entry count", async () => {
       const singleAdapter = createMockAdapter([entries[0]], 1);
-      render(<TMBrowser adapter={singleAdapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<MemoryBrowser adapter={singleAdapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("1 entry")).toBeInTheDocument();
@@ -97,9 +97,9 @@ describe("TMBrowser", () => {
   describe("search", () => {
     it("triggers adapter.search with submitted query", async () => {
       adapter = createMockAdapter([]);
-      render(<TMBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<MemoryBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
-      const input = screen.getByPlaceholderText("Search translation memory...");
+      const input = screen.getByPlaceholderText("Search content memory...");
       await userEvent.type(input, "test query{Enter}");
 
       await waitFor(() => {
@@ -111,7 +111,7 @@ describe("TMBrowser", () => {
   describe("empty state", () => {
     it("shows empty state when no entries", async () => {
       adapter = createMockAdapter([]);
-      render(<TMBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<MemoryBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("No entries yet.")).toBeInTheDocument();
@@ -119,20 +119,20 @@ describe("TMBrowser", () => {
     });
 
     it("shows search empty state with clear button", async () => {
-      const emptyAdapter: TMAdapter = {
+      const emptyAdapter: MemoryAdapter = {
         ...createMockAdapter([]),
         search: vi
           .fn()
           .mockResolvedValueOnce({ entries: [], total_count: 0 })
           .mockResolvedValue({ entries: [], total_count: 0 }),
       };
-      render(<TMBrowser adapter={emptyAdapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<MemoryBrowser adapter={emptyAdapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("No entries yet.")).toBeInTheDocument();
       });
 
-      const input = screen.getByPlaceholderText("Search translation memory...");
+      const input = screen.getByPlaceholderText("Search content memory...");
       await userEvent.type(input, "nonexistent{Enter}");
 
       await waitFor(() => {
@@ -144,7 +144,7 @@ describe("TMBrowser", () => {
   describe("pagination", () => {
     it("shows pagination when total exceeds page size", async () => {
       const entries = Array.from({ length: 50 }, (_, i) =>
-        makeTMEntry({
+        makeMemoryEntry({
           id: `e-${i}`,
           variants: {
             "en-US": v("en-US", `Source ${i}`),
@@ -153,7 +153,7 @@ describe("TMBrowser", () => {
         }),
       );
       adapter = createMockAdapter(entries, 60);
-      render(<TMBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<MemoryBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("Next")).toBeInTheDocument();
@@ -164,13 +164,13 @@ describe("TMBrowser", () => {
 
     it("navigates to next page", async () => {
       const entries = Array.from({ length: 50 }, (_, i) =>
-        makeTMEntry({
+        makeMemoryEntry({
           id: `e-${i}`,
           variants: { "en-US": v("en-US", `Source ${i}`), "fr-FR": v("fr-FR", `T${i}`) },
         }),
       );
       adapter = createMockAdapter(entries, 60);
-      render(<TMBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<MemoryBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("Next")).toBeInTheDocument();
@@ -186,13 +186,13 @@ describe("TMBrowser", () => {
 
   describe("edit flow", () => {
     it("enters edit mode and shows inline code editor", async () => {
-      const entry = makeTMEntry({
+      const entry = makeMemoryEntry({
         id: "e1",
         variants: { "en-US": v("en-US", "Hello"), "fr-FR": v("fr-FR", "Bonjour") },
       });
       adapter = createMockAdapter([entry]);
 
-      render(<TMBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<MemoryBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("Hello")).toBeInTheDocument();
@@ -208,13 +208,13 @@ describe("TMBrowser", () => {
 
   describe("delete", () => {
     it("calls adapter.deleteEntry when clicking delete on an entry", async () => {
-      const entry = makeTMEntry({
+      const entry = makeMemoryEntry({
         id: "e1",
         variants: { "en-US": v("en-US", "Hello"), "fr-FR": v("fr-FR", "Bonjour") },
       });
       adapter = createMockAdapter([entry]);
 
-      render(<TMBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<MemoryBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("Hello")).toBeInTheDocument();
@@ -232,18 +232,18 @@ describe("TMBrowser", () => {
   describe("bulk select + delete", () => {
     it("shows bulk action bar when entries are selected", async () => {
       const entries = [
-        makeTMEntry({
+        makeMemoryEntry({
           id: "e1",
           variants: { "en-US": v("en-US", "Hello"), "fr-FR": v("fr-FR", "Bonjour") },
         }),
-        makeTMEntry({
+        makeMemoryEntry({
           id: "e2",
           variants: { "en-US": v("en-US", "World"), "fr-FR": v("fr-FR", "Monde") },
         }),
       ];
       adapter = createMockAdapter(entries);
 
-      render(<TMBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<MemoryBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("Hello")).toBeInTheDocument();
@@ -257,18 +257,18 @@ describe("TMBrowser", () => {
 
     it("bulk delete requires confirmation then calls adapter.deleteEntries", async () => {
       const entries = [
-        makeTMEntry({
+        makeMemoryEntry({
           id: "e1",
           variants: { "en-US": v("en-US", "Hello"), "fr-FR": v("fr-FR", "Bonjour") },
         }),
-        makeTMEntry({
+        makeMemoryEntry({
           id: "e2",
           variants: { "en-US": v("en-US", "World"), "fr-FR": v("fr-FR", "Monde") },
         }),
       ];
       adapter = createMockAdapter(entries);
 
-      render(<TMBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<MemoryBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("Hello")).toBeInTheDocument();
@@ -296,8 +296,8 @@ describe("TMBrowser", () => {
 
   describe("facet sidebar", () => {
     it("shows facet sidebar when adapter has getFacets", async () => {
-      const facetAdapter: TMAdapter = {
-        ...createMockAdapter([makeTMEntry()]),
+      const facetAdapter: MemoryAdapter = {
+        ...createMockAdapter([makeMemoryEntry()]),
         getFacets: vi.fn().mockResolvedValue({
           locales: [
             { locale: "en-US", count: 1 },
@@ -311,7 +311,7 @@ describe("TMBrowser", () => {
         }),
       };
 
-      render(<TMBrowser adapter={facetAdapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<MemoryBrowser adapter={facetAdapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("Filters")).toBeInTheDocument();
@@ -322,7 +322,7 @@ describe("TMBrowser", () => {
   describe("add entry", () => {
     it("opens add form and calls adapter.addEntry with variants map", async () => {
       adapter = createMockAdapter([]);
-      render(<TMBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(<MemoryBrowser adapter={adapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
 
       await waitFor(() => {
         expect(screen.getByText("Add Entry")).toBeInTheDocument();
@@ -330,7 +330,7 @@ describe("TMBrowser", () => {
 
       await userEvent.click(screen.getByText("Add Entry"));
 
-      expect(screen.getByText("Add TM Entry")).toBeInTheDocument();
+      expect(screen.getByText("Add content memory Entry")).toBeInTheDocument();
 
       const sourceInput = screen.getByPlaceholderText("Source text");
       const targetInput = screen.getByPlaceholderText("Target text");

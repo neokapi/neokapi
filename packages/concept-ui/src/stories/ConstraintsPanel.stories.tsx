@@ -45,7 +45,7 @@ export const CoreOnly: Story = {
 };
 
 /**
- * A flat termbase: no validity windows at all, so the time chart is skipped and
+ * A flat terms: no validity windows at all, so the time chart is skipped and
  * the panel falls back to the banned/preferred summary alone.
  */
 export const SummaryOnly: Story = {

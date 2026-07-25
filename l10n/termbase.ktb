@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "kind": "kapi-termbase-format",
+  "kind": "kapi-terms",
   "concepts": [
     {
       "id": "term:01d30c44ec",

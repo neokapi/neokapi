@@ -16,7 +16,7 @@ const CRED = "harness-gemini";
 
 /**
  * Give the harness its own isolated kapi state so recordings don't depend on this
- * machine's installed plugins / flows / TMs. The okapi-bridge plugin is copied from
+ * machine's installed plugins / flows / Memories. The okapi-bridge plugin is copied from
  * the machine install if present (fast), else installed fresh into the isolated dir.
  */
 async function setupIsolatedKapi(): Promise<void> {
@@ -51,7 +51,7 @@ async function buildKapiIfMissing(): Promise<void> {
   // Find an icu4c pkgconfig dir from Homebrew.
   const icu = await sh("brew --prefix icu4c 2>/dev/null");
   const pkgPath = icu.code === 0 ? `${icu.stdout.trim()}/lib/pkgconfig` : "/opt/homebrew/opt/icu4c/lib/pkgconfig";
-  // -tags fts5 is required by mattn/go-sqlite3 for the termbase/TM full-text search.
+  // -tags fts5 is required by mattn/go-sqlite3 for the terms/content memory full-text search.
   const r = await sh(`mkdir -p "${REPO_ROOT}/bin" && cd "${REPO_ROOT}/kapi" && go build -tags fts5 -o "${REPO_ROOT}/bin/kapi" ./cmd/kapi`, {
     env: { ...process.env, PKG_CONFIG_PATH: `${pkgPath}:${process.env.PKG_CONFIG_PATH ?? ""}` },
     timeoutMs: 600_000,

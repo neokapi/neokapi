@@ -13,7 +13,7 @@ interface EntityAnnotationDialogProps {
 }
 
 /**
- * Dialog for batch entity annotation on selected TM entries.
+ * Dialog for batch entity annotation on selected content-memory entries.
  * Lets the user define text→entity mappings and apply them.
  */
 export function EntityAnnotationDialog({

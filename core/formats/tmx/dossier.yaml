@@ -7,9 +7,9 @@ spec_sources:
     url: https://www.gala-global.org/tmx-14b
     watch: null
     notes: >-
-      Translation Memory eXchange (LISA OSCAR, now stewarded by GALA). Dormant
+      Content Memory eXchange (LISA OSCAR, now stewarded by GALA). Dormant
       upstream; the <tu>/<tuv>/<seg> structure and inline <bpt>/<ept>/<ph>
-      markup are stable. neokapi treats TMX as a TM interchange format.
+      markup are stable. neokapi treats TMX as a content memory interchange format.
 implementations:
   - name: Okapi TMX Filter (okf_tmx)
     kind: okapi

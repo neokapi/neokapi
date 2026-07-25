@@ -22,7 +22,7 @@ type Story = StoryObj;
 
 export const PageHeaderBasic: Story = {
   name: "PageHeader / Basic",
-  render: () => <PageHeader title="Translation Memories" />,
+  render: () => <PageHeader title="Content Memories" />,
 };
 
 export const PageHeaderWithActions: Story = {
@@ -95,11 +95,11 @@ export const EmptyStateWithIcon: Story = {
     <div style={{ maxWidth: 500 }}>
       <EmptyState
         icon={<Database size={32} />}
-        title="No translation memories"
-        description="Import a TMX file or create a new TM to get started."
+        title="No content memories"
+        description="Import a TMX file or create a new content memory to get started."
         action={
           <Button size="sm">
-            <Plus size={12} /> Create TM
+            <Plus size={12} /> Create Memory
           </Button>
         }
       />

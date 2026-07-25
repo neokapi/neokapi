@@ -54,7 +54,7 @@ Three artifacts, all plain files the user can review before anything binds:
 
 - **Content mapping** — which files the gates will watch: the `content:` paths
   and formats, with `target:` patterns where translations already exist. Those
-  existing translations need no import step — the loop recycles them as TM
+  existing translations need no import step — the loop recycles them as content memory
   leverage, and `kapi push` carries them as block targets.
 
 ## 3. Review with the user
@@ -77,7 +77,7 @@ or bans the user didn't confirm.
 Create the project (or adopt the existing recipe — `kapi init` is idempotent):
 
 ```bash
-kapi init --name my-app                                        # content project: brand + termbase + check flow
+kapi init --name my-app                                        # content project: brand + terms + check flow
 kapi init --name my-app --target-locale fr --target-locale de  # translation project
 ```
 
@@ -87,7 +87,7 @@ Bind the pack in the recipe:
 defaults:
   brand_voice:
     profile_file: brand.yaml   # file binding, so `kapi apply` brand rules land in it
-  termbase: .kapi/termbase.db
+  terms: .kapi/termbase.db
 content:
   - path: "docs/**/*.md"
     format: markdown
@@ -100,8 +100,8 @@ Materialize the terminology seed, now that the project exists:
 # and compiles the .kapi/termbase.db cache in one verb
 kapi apply terms.jsonl
 # bulk path for a handed-over glossary file (csv, tsv, json, tbx, ktb):
-kapi termbase import glossary.csv -s en -t fr --header
-kapi termbase import vocab.csv -s en --monolingual --header
+kapi terms import glossary.csv -s en -t fr --header
+kapi terms import vocab.csv -s en --monolingual --header
 ```
 
 ```jsonl
@@ -109,7 +109,7 @@ kapi termbase import vocab.csv -s en --monolingual --header
 {"kind":"term","op":"upsert","term":"control panel","locale":"en","status":"deprecated","replacement":"dashboard"}
 ```
 
-The `apply` route keeps a committed source of truth; a bulk `termbase import`
+The `apply` route keeps a committed source of truth; a bulk `terms import`
 writes only the compiled store, so commit the glossary file itself. Then verify
 the whole pack locally before pushing:
 
@@ -167,7 +167,7 @@ workspace URL):
 
 ```bash
 kapi pull               # establish the concept baseline
-kapi push --concepts    # reconcile the local termbase into the server's terminology hub
+kapi push --concepts    # reconcile the local terms into the server's terminology hub
 ```
 
 **The bound voice profile travels with the push.** On a workspace project,
@@ -183,7 +183,7 @@ machines, CI).
 
 End by telling the user, concretely:
 
-- **What exists** — `kapi.yaml`, `brand.yaml`, the committed termbase source,
+- **What exists** — `kapi.yaml`, `brand.yaml`, the committed terms source,
   the content mapping, and (if pushed) the server project.
 - **The URLs** — the claim URL while unclaimed; the project and review URLs
   once claimed.
@@ -206,7 +206,7 @@ says:
 
 ```bash
 kapi brand guide                            # the bound profile, rendered (no flag in a project)
-kapi termbase export --format json          # every concept; or --format csv -s en -t fr for one pair
+kapi terms export --format json          # every concept; or --format csv -s en -t fr for one pair
 ```
 
 `brand.yaml` itself is the profile baseline — read it directly for the exact

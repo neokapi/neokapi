@@ -1,13 +1,13 @@
 import { t } from "@neokapi/i18n-react/runtime";
 import type { Run } from "@neokapi/kapi-format";
-import type { TMEntryDTO } from "./types";
+import type { MemoryEntryDTO } from "./types";
 import { Pagination } from "./Pagination";
-import { TMGroupedEntry } from "./TMGroupedEntry";
+import { MemoryGroupedEntry } from "./MemoryGroupedEntry";
 import { ItemCard } from "../ui/item-card";
 import { withHint, PAGE_SIZE } from "./tm-browser-helpers";
 
-interface TMEntryListProps {
-  entries: TMEntryDTO[];
+interface MemoryEntryListProps {
+  entries: MemoryEntryDTO[];
   loading: boolean;
   initialLoadDone: boolean;
   /** Submitted search text — drives the empty-state copy and clear affordance. */
@@ -19,15 +19,15 @@ interface TMEntryListProps {
   visibleLocales: string[] | undefined;
   selected: Set<string>;
   onToggleSelect: (id: string) => void;
-  onEditVariant: (entry: TMEntryDTO, locale: string, runs: Run[]) => void;
+  onEditVariant: (entry: MemoryEntryDTO, locale: string, runs: Run[]) => void;
   onDelete: (id: string) => void;
   page: number;
   totalCount: number;
   onPageChange: (page: number) => void;
 }
 
-/** Loading skeleton, empty state, entry cards, and pagination of the TM browser. */
-export function TMEntryList({
+/** Loading skeleton, empty state, entry cards, and pagination of the content memory browser. */
+export function MemoryEntryList({
   entries,
   loading,
   initialLoadDone,
@@ -42,7 +42,7 @@ export function TMEntryList({
   page,
   totalCount,
   onPageChange,
-}: TMEntryListProps) {
+}: MemoryEntryListProps) {
   const isEmpty = entries.length === 0;
 
   return (
@@ -77,7 +77,7 @@ export function TMEntryList({
       {!isEmpty && (
         <div className="flex flex-col gap-1.5">
           {entries.map((entry) => (
-            <TMGroupedEntry
+            <MemoryGroupedEntry
               key={entry.id}
               entry={withHint(entry, hintLocale)}
               selected={selected.has(entry.id)}

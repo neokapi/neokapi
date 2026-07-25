@@ -1,11 +1,11 @@
 // Command seed-demo populates a Kapi Desktop config dir with a real, coherent
-// sample termbase + translation memory, using the same framework packages the
-// app reads (termbase, sievepen). It honors KAPI_CONFIG_DIR (the desktop's
+// sample terms + content memory, using the same framework packages the
+// app reads (terms, memory). It honors KAPI_CONFIG_DIR (the desktop's
 // config override) so it can target an isolated root:
 //
 //	KAPI_CONFIG_DIR=/tmp/iso/kapi go run -tags fts5 ./cmd/seed-demo
 //
-// Both the termbase and TM search order by updated_at DESC, so entries are
+// Both the terms store and content-memory search order by updated_at DESC, so entries are
 // written newest-first in the order the walkthrough narration expects.
 package main
 
@@ -18,8 +18,8 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
 )
 
 func hoursAgo(h int) time.Time { return time.Now().Add(-time.Duration(h) * time.Hour) }
@@ -43,17 +43,17 @@ func main() {
 		root = filepath.Join(cfg, "kapi")
 	}
 	tbDir := filepath.Join(root, "termbases")
-	tmDir := filepath.Join(root, "tm")
+	memoryDir := filepath.Join(root, "tm")
 	must(os.MkdirAll(tbDir, 0o755))
-	must(os.MkdirAll(tmDir, 0o755))
+	must(os.MkdirAll(memoryDir, 0o755))
 
-	seedTermbase(filepath.Join(tbDir, "product-glossary.db"))
-	seedSecondaryTermbase(filepath.Join(tbDir, "brand-terms.db"))
-	seedTM(filepath.Join(tmDir, "acme-app.db"))
-	seedSecondaryTM(filepath.Join(tmDir, "global-tm.db"))
+	seedTerms(filepath.Join(tbDir, "product-glossary.db"))
+	seedSecondaryTerms(filepath.Join(tbDir, "brand-termbase.db"))
+	seedMemory(filepath.Join(memoryDir, "acme-app.db"))
+	seedSecondaryMemory(filepath.Join(memoryDir, "global-tm.db"))
 	seedProviders(filepath.Join(root, "providers.json"))
 
-	fmt.Println("seeded:", tbDir, tmDir)
+	fmt.Println("seeded:", tbDir, memoryDir)
 }
 
 // seedProviders writes demo AI-provider configs (names + types only, no API
@@ -78,16 +78,16 @@ func seedProviders(path string) {
 	must(os.WriteFile(path, data, 0o644))
 }
 
-func seedTermbase(path string) {
+func seedTerms(path string) {
 	_ = os.Remove(path)
-	tb, err := termbase.NewSQLiteTermBase(path)
+	tb, err := terms.NewSQLiteStore(path)
 	must(err)
 	// Display order (newest updated_at first). "seat" leads so the concept
 	// spotlight lands on a card showing both approved and deprecated terms.
-	concepts := []termbase.Concept{
+	concepts := []terms.Concept{
 		{
 			Domain: "Billing", Definition: "A paid licence assigned to one member of a workspace.",
-			Terms: []termbase.Term{
+			Terms: []terms.Term{
 				{Text: "seat", Locale: "en-US", Status: model.TermPreferred},
 				{Text: "siège", Locale: "fr-FR", Status: model.TermApproved},
 				{Text: "licence", Locale: "fr-FR", Status: model.TermDeprecated, Note: "Use 'siège'."},
@@ -96,7 +96,7 @@ func seedTermbase(path string) {
 		},
 		{
 			Domain: "Product", Definition: "The landing screen summarising a workspace's key metrics.",
-			Terms: []termbase.Term{
+			Terms: []terms.Term{
 				{Text: "dashboard", Locale: "en-US", Status: model.TermPreferred, PartOfSpeech: "noun"},
 				{Text: "tableau de bord", Locale: "fr-FR", Status: model.TermApproved},
 				{Text: "Dashboard", Locale: "de-DE", Status: model.TermApproved},
@@ -105,7 +105,7 @@ func seedTermbase(path string) {
 		},
 		{
 			Domain: "Product", Definition: "A container that groups projects, members and billing.",
-			Terms: []termbase.Term{
+			Terms: []terms.Term{
 				{Text: "workspace", Locale: "en-US", Status: model.TermPreferred},
 				{Text: "espace de travail", Locale: "fr-FR", Status: model.TermApproved},
 				{Text: "Arbeitsbereich", Locale: "de-DE", Status: model.TermApproved},
@@ -113,7 +113,7 @@ func seedTermbase(path string) {
 		},
 		{
 			Domain: "Marketing", Definition: "The guided first-run experience for new members.",
-			Terms: []termbase.Term{
+			Terms: []terms.Term{
 				{Text: "onboarding", Locale: "en-US", Status: model.TermPreferred},
 				{Text: "intégration", Locale: "fr-FR", Status: model.TermApproved},
 				{Text: "Einarbeitung", Locale: "de-DE", Status: model.TermProposed},
@@ -121,7 +121,7 @@ func seedTermbase(path string) {
 		},
 		{
 			Domain: "Engineering", Definition: "An HTTP callback fired when an event occurs.",
-			Terms: []termbase.Term{
+			Terms: []terms.Term{
 				{Text: "webhook", Locale: "en-US", Status: model.TermPreferred},
 				{Text: "webhook", Locale: "fr-FR", Status: model.TermApproved, Note: "Keep in English."},
 				{Text: "Webhook", Locale: "de-DE", Status: model.TermApproved},
@@ -129,7 +129,7 @@ func seedTermbase(path string) {
 		},
 		{
 			Domain: "Analytics", Definition: "The share of users who return over a period.",
-			Terms: []termbase.Term{
+			Terms: []terms.Term{
 				{Text: "retention", Locale: "en-US", Status: model.TermPreferred},
 				{Text: "rétention", Locale: "fr-FR", Status: model.TermApproved},
 				{Text: "Bindung", Locale: "de-DE", Status: model.TermApproved},
@@ -137,7 +137,7 @@ func seedTermbase(path string) {
 		},
 		{
 			Domain: "Billing", Definition: "A document itemising charges for a billing period.",
-			Terms: []termbase.Term{
+			Terms: []terms.Term{
 				{Text: "invoice", Locale: "en-US", Status: model.TermPreferred},
 				{Text: "facture", Locale: "fr-FR", Status: model.TermApproved},
 				{Text: "Rechnung", Locale: "de-DE", Status: model.TermApproved},
@@ -145,7 +145,7 @@ func seedTermbase(path string) {
 		},
 		{
 			Domain: "Product", Definition: "Downloading data out of the app in a portable format.",
-			Terms: []termbase.Term{
+			Terms: []terms.Term{
 				{Text: "export", Locale: "en-US", Status: model.TermPreferred},
 				{Text: "exporter", Locale: "fr-FR", Status: model.TermApproved, PartOfSpeech: "verb"},
 				{Text: "Export", Locale: "de-DE", Status: model.TermApproved},
@@ -154,7 +154,7 @@ func seedTermbase(path string) {
 	}
 	for i, c := range concepts {
 		c.ID = fmt.Sprintf("c-%02d", i+1)
-		c.Source = termbase.TermSourceTerminology
+		c.Source = terms.TermSourceTerminology
 		// Spread created_at across ~2 weeks so the Activity chart has points;
 		// updated_at stays near-now (small offsets) to drive display order.
 		c.CreatedAt = hoursAgo(i*42 + 18)
@@ -163,31 +163,31 @@ func seedTermbase(path string) {
 	}
 }
 
-func seedSecondaryTermbase(path string) {
+func seedSecondaryTerms(path string) {
 	_ = os.Remove(path)
-	tb, err := termbase.NewSQLiteTermBase(path)
+	tb, err := terms.NewSQLiteStore(path)
 	must(err)
-	concepts := []termbase.Concept{
-		{Domain: "Brand", Definition: "The product name — never translated.", Terms: []termbase.Term{
+	concepts := []terms.Concept{
+		{Domain: "Brand", Definition: "The product name — never translated.", Terms: []terms.Term{
 			{Text: "Acme", Locale: "en-US", Status: model.TermPreferred},
 			{Text: "Acme", Locale: "fr-FR", Status: model.TermForbidden, Note: "Do not translate."},
 		}},
-		{Domain: "Brand", Definition: "The tone we use with customers.", Terms: []termbase.Term{
+		{Domain: "Brand", Definition: "The tone we use with customers.", Terms: []terms.Term{
 			{Text: "friendly", Locale: "en-US", Status: model.TermPreferred},
 		}},
 	}
 	for i, c := range concepts {
 		c.ID = fmt.Sprintf("b-%02d", i+1)
-		c.Source = termbase.TermSourceTerminology
+		c.Source = terms.TermSourceTerminology
 		c.CreatedAt = hoursAgo(72)
 		c.UpdatedAt = hoursAgo(48)
 		must(tb.AddConcept(context.Background(), c))
 	}
 }
 
-func seedTM(path string) {
+func seedMemory(path string) {
 	_ = os.Remove(path)
-	tm, err := sievepen.NewSQLiteTM(path)
+	tm, err := memory.NewSQLiteStore(path)
 	must(err)
 	// Display order (newest updated_at first): a simple multilingual string,
 	// then one carrying inline bold, then the entity-bearing one, then the
@@ -226,7 +226,7 @@ func seedTM(path string) {
 		},
 	}
 	for i, v := range variants {
-		must(tm.Add(context.Background(), sievepen.TMEntry{
+		must(tm.Add(context.Background(), memory.Entry{
 			ID:          fmt.Sprintf("tm-%02d", i+1),
 			Variants:    v,
 			HintSrcLang: "en-US",
@@ -238,11 +238,11 @@ func seedTM(path string) {
 	}
 }
 
-func seedSecondaryTM(path string) {
+func seedSecondaryMemory(path string) {
 	_ = os.Remove(path)
-	tm, err := sievepen.NewSQLiteTM(path)
+	tm, err := memory.NewSQLiteStore(path)
 	must(err)
-	must(tm.Add(context.Background(), sievepen.TMEntry{
+	must(tm.Add(context.Background(), memory.Entry{
 		ID:          "g-01",
 		Variants:    map[model.LocaleID][]model.Run{"en-US": {text("Save changes")}, "fr-FR": {text("Enregistrer les modifications")}},
 		HintSrcLang: "en-US",

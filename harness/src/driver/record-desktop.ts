@@ -2,7 +2,7 @@
  * record-desktop.ts — record a Kapi Desktop walkthrough screencast.
  *
  * Drives the REAL Kapi Desktop UI (apps/kapi-desktop/frontend `demo.html`,
- * which mounts the genuine IconSidebar + TermbaseBrowser + TMBrowser with
+ * which mounts the genuine IconSidebar + TermsBrowser + MemoryBrowser with
  * in-browser sample data) in Chromium via Playwright, with a visible human-like
  * cursor and ripple clicks (see cursor-helper.ts). Records a light + dark
  * `.webm` and a `screencast.json` of timed beats (+ zoom regions) into
@@ -483,7 +483,7 @@ function makeCtx(page: Page, t0: number, beats: Beat[], peer?: PeerSession): Wal
   return { page, beat, beatEls, cursorTo, sidebar, peer };
 }
 
-/** Termbase + translation-memory explorer. */
+/** Terms + content-memory explorer. */
 async function explorerWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo, sidebar } = c;
   await beat("intro", null, async () => {
@@ -508,7 +508,7 @@ async function explorerWalk(c: WalkCtx): Promise<void> {
     await page.waitForTimeout(1500);
   });
   await beat("open-tm", { x: 0, y: 0.04, w: 0.34, h: 0.66 }, async () => {
-    await humanClick(page, sidebar("Translation Memories"));
+    await humanClick(page, sidebar("Content Memories"));
     await page.waitForTimeout(600);
     await humanClick(page, page.locator('button:has-text("acme-app")'));
     await page.waitForTimeout(1100);
@@ -751,8 +751,8 @@ async function dismissOpenInDesktop(page: Page): Promise<void> {
   }
 }
 
-/** Bowrain web: shared translation memory + terminology governed as concepts
- *  (Brand → Concepts — the old standalone termbase nav is gone; /termbase now
+/** Bowrain web: shared content memory + terminology governed as concepts
+ *  (Brand → Concepts — the old standalone terms nav is gone; /terms now
  *  redirects into the Brand hub's Concepts section). */
 async function bowrainGovernanceWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls } = c;
@@ -760,7 +760,7 @@ async function bowrainGovernanceWalk(c: WalkCtx): Promise<void> {
   await beat("intro", null, async () => {
     await idle(page, 2200);
   });
-  // Open the workspace translation memory.
+  // Open the workspace content memory.
   await beat("open-memory", null, async () => {
     await tap("nav-memory");
     await page.waitForSelector('[data-testid="tm-browser"]', { timeout: 20_000 }).catch(() => {});
@@ -803,7 +803,7 @@ async function bowrainGovernanceWalk(c: WalkCtx): Promise<void> {
 }
 
 /** Web translation editor: split source/target grid, live preview, the shared
- *  TM/terminology context panel, and per-locale switching — on files a team
+ *  content memory/terminology context panel, and per-locale switching — on files a team
  *  synced from kapi into the workspace. */
 async function bowrainEditorWalk(c: WalkCtx): Promise<void> {
   const { page, beat, beatEls, cursorTo } = c;
@@ -830,8 +830,8 @@ async function bowrainEditorWalk(c: WalkCtx): Promise<void> {
     await moveTo(page, WIDTH * 0.42, HEIGHT * 0.42, 700);
     await page.waitForTimeout(1200);
   });
-  // Spotlight the shared TM + terminology context, surfaced inline as you edit:
-  // the visual card's "TM Matches" expander (tm-toggle) opens the context panel,
+  // Spotlight the shared content memory + terminology context, surfaced inline as you edit:
+  // the visual card's "content memory Matches" expander (tm-toggle) opens the context panel,
   // and term matches dock in the term sidebar on the right.
   await beat("context", { x: 0.43, y: 0.16, w: 0.56, h: 0.62 }, async () => {
     const tm = page.getByTestId("tm-toggle");
@@ -1504,7 +1504,7 @@ export async function recordDesktop(id: string, opts: RecordOptions = {}): Promi
 
   // Reset created projects (isolated home) before each theme so state-mutating
   // walkthroughs (e.g. project creation) start clean on both passes. The seeded
-  // termbases/TMs/providers under ISO_DIR are left intact.
+  // termbases/Memories/providers under ISO_DIR are left intact.
   const resetHome = () => {
     fs.rmSync(ISO_HOME, { recursive: true, force: true });
     fs.mkdirSync(ISO_HOME, { recursive: true });

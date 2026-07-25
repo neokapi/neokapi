@@ -97,7 +97,7 @@ func doPush(ctx context.Context, opts connector.PushOptions, args []string) (*Pu
 }
 
 func runPush(cmd *cobra.Command, args []string) error {
-	// --concepts: terminology-only transport. Reconcile local termbase edits
+	// --concepts: terminology-only transport. Reconcile local terms edits
 	// against the pulled baseline (direct edits + governed change-set) without
 	// moving any content blocks and without firing push hooks — the mirror of
 	// `kapi pull --concepts`.

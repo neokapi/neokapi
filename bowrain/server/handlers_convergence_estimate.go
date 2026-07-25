@@ -9,14 +9,14 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/jobs"
-	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/memory"
 )
 
 // This file is the server-computed pre-flight ESTIMATE (roadmap epic 019, theme
 // B): the source-readiness-first, provider-free preview the Run-now dialog and
 // `kapi up` show before starting a run. It answers "what would a run do and
 // cost" without starting one — source readiness (settle first), then the
-// per-locale TM/AI split and credit cost for the ready source, then the
+// per-locale content memory/AI split and credit cost for the ready source, then the
 // workspace balance and how much of the AI work it covers.
 
 // convergenceEstimateView is the REST shape of a convergence estimate. It wraps
@@ -27,7 +27,7 @@ type convergenceEstimateView struct {
 	// shown FIRST: "M of K blocks ready; N held — settle first".
 	Source jobs.SourceReadiness `json:"source"`
 	// Locales is the per-locale translation work over the READY source (pending,
-	// TM-recyclable, paid-AI, ~tokens).
+	// content memory-recyclable, paid-AI, ~tokens).
 	Locales []jobs.EstimateLocaleWork `json:"locales"`
 	// Totals rolls the per-locale work up across locales.
 	Totals jobs.EstimateTotals `json:"totals"`
@@ -69,9 +69,9 @@ const (
 // starts no run.
 func (o *convergenceOrchestrator) buildConvergenceEstimate(ctx context.Context, proj *platstore.Project) (convergenceEstimateView, error) {
 	s := o.server
-	var tm sievepen.TMStore
+	var tm memory.Store
 	if s.wsStores != nil {
-		if resolved, err := s.wsStores.getTM(o.workspaceSlug(ctx, proj)); err == nil {
+		if resolved, err := s.wsStores.getMemory(o.workspaceSlug(ctx, proj)); err == nil {
 			tm = resolved
 		}
 	}
@@ -128,7 +128,7 @@ func (o *convergenceOrchestrator) creditsEstimate(ctx context.Context, proj *pla
 }
 
 // HandleConvergenceEstimate returns the provider-free pre-flight estimate for a
-// project's convergence run: source readiness first, then the per-locale TM/AI
+// project's convergence run: source readiness first, then the per-locale content memory/AI
 // split and credit cost for the ready source, then the workspace balance. It
 // starts no run and calls no AI provider.
 // GET /…/projects/:id/convergence/estimate

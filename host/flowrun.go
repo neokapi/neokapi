@@ -83,8 +83,8 @@ type FlowRunOptions struct {
 	// Project is the loaded recipe; when nil it is loaded from ProjectPath.
 	Project *project.KapiProject
 	// ProjectPath is the recipe path. It anchors the project context (content
-	// targets, format config) and binds resource resolution (project TM,
-	// termbase, brand profile) to this recipe rather than a cwd discovery.
+	// targets, format config) and binds resource resolution (project content memory,
+	// terms, brand profile) to this recipe rather than a cwd discovery.
 	ProjectPath string
 	// InputPaths are the source files to process. Required.
 	InputPaths []string
@@ -154,7 +154,7 @@ const flowMetricsIntervalDefault = 200 * time.Millisecond
 //     applies the flow; convergence reconciles remaining work.
 //   - Per-pass tool assembly: the CLI's project tool-building semantics
 //     (buildProjectFlowTools) — resource-ref resolution, project bindings,
-//     TM injection, the AD-006 placement gate — including the per-tool
+//     content memory injection, the AD-006 placement gate — including the per-tool
 //     cleanup contract the desktop's former copy leaked.
 //   - Per-file execution: sequential, file-writing (output paths resolved
 //     through the canonical project target resolver). The CLI's in-project
@@ -211,8 +211,8 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 
 	// The tool builders speak cobra (flag lookups, project discovery); an
 	// embedded run drives them through a synthetic command bound to this
-	// recipe — the RunUp pattern — so resource resolution (project TM,
-	// termbase, brand profile) binds to THIS project, never a cwd walk.
+	// recipe — the RunUp pattern — so resource resolution (project content memory,
+	// terms, brand profile) binds to THIS project, never a cwd walk.
 	cmd := NewEnvCommand(ctx, "flow-run")
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
@@ -418,10 +418,10 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 // flow-run (runProjectStepsOver) and the multi-locale orchestrator
 // (RunFlowAllLocales). It runs the AD-006 placement gate over the compiled
 // steps graph, resolves each step's config (resource references + project
-// bindings/presets, via toolFromStep), injects the project TM into
-// TM-requiring steps, and optionally wires a live AI progress callback into
+// bindings/presets, via toolFromStep), injects the project content memory into
+// content memory-requiring steps, and optionally wires a live AI progress callback into
 // every step. The returned cleanup releases every resource the assembly
-// opened (e.g. SQLite TM handles); callers must run it after the pass — the
+// opened (e.g. SQLite content memory handles); callers must run it after the pass — the
 // desktop's former hand-rolled copy leaked exactly this contract.
 //
 // Step failures are returned wrapped in a *FlowToolBuildError (transparent
@@ -454,23 +454,23 @@ func (a *App) buildProjectFlowTools(cmd Command, flowName string, spec *flow.Ste
 		}
 	}
 
-	// Tools that require a TM (e.g. recycle) need the project's TM provider
+	// Tools that require a content memory (e.g. recycle) need the project's content-memory provider
 	// injected: toolFromStep can't read the schema-hidden Provider/SourceLocale
-	// from the step config, so it would default to a no-match NullTMProvider.
-	injectTM := func(step flow.FlowStep, t tool.Tool) error {
-		if !ToolRequires(a.ToolReg.Schema(registry.ToolID(step.Tool)), schema.RequiresTM) {
+	// from the step config, so it would default to a no-match NullMemoryProvider.
+	injectMemory := func(step flow.FlowStep, t tool.Tool) error {
+		if !ToolRequires(a.ToolReg.Schema(registry.ToolID(step.Tool)), schema.RequiresMemory) {
 			return nil
 		}
-		cfg, ok := t.Config().(*coretools.TMLeverageConfig)
+		cfg, ok := t.Config().(*coretools.MemoryLeverageConfig)
 		if !ok {
 			return nil
 		}
-		provider, tmCleanup, err := a.OpenToolTM(cmd)
+		provider, memoryCleanup, err := a.OpenToolMemory(cmd)
 		if err != nil {
 			return err
 		}
-		if tmCleanup != nil {
-			cleanups = append(cleanups, tmCleanup)
+		if memoryCleanup != nil {
+			cleanups = append(cleanups, memoryCleanup)
 		}
 		if provider != nil {
 			cfg.Provider = provider
@@ -494,7 +494,7 @@ func (a *App) buildProjectFlowTools(cmd Command, flowName string, spec *flow.Ste
 			cleanup()
 			return nil, nil, fmt.Errorf("flow %q: %w", flowName, &FlowToolBuildError{Tool: step.Tool, Locale: a.TargetLang, Err: err})
 		}
-		if err := injectTM(step, t); err != nil {
+		if err := injectMemory(step, t); err != nil {
 			cleanup()
 			return nil, nil, fmt.Errorf("flow %q: %w", flowName, &FlowToolBuildError{Tool: step.Tool, Locale: a.TargetLang, Err: err})
 		}

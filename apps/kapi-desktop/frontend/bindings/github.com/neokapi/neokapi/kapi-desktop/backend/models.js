@@ -342,14 +342,14 @@ export class AddRelationRequest {
 }
 
 /**
- * AddTMEntryRequest is the request to add a new multilingual TM entry.
+ * AddMemoryEntryRequest is the request to add a new multilingual content-memory entry.
  * Callers populate Variants with one VariantInput per locale; the server uses
  * each variant's Run sequence, falling back to plain Text when Runs is empty.
  */
-export class AddTMEntryRequest {
+export class AddMemoryEntryRequest {
     /**
-     * Creates a new AddTMEntryRequest instance.
-     * @param {Partial<AddTMEntryRequest>} [$$source = {}] - The source object to create the AddTMEntryRequest.
+     * Creates a new AddMemoryEntryRequest instance.
+     * @param {Partial<AddMemoryEntryRequest>} [$$source = {}] - The source object to create the AddMemoryEntryRequest.
      */
     constructor($$source = {}) {
         if (!("variants" in $$source)) {
@@ -392,9 +392,9 @@ export class AddTMEntryRequest {
     }
 
     /**
-     * Creates a new AddTMEntryRequest instance from a string or object.
+     * Creates a new AddMemoryEntryRequest instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {AddTMEntryRequest}
+     * @returns {AddMemoryEntryRequest}
      */
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType7;
@@ -406,7 +406,7 @@ export class AddTMEntryRequest {
         if ("origins" in $$parsedSource) {
             $$parsedSource["origins"] = $$createField4_0($$parsedSource["origins"]);
         }
-        return new AddTMEntryRequest(/** @type {Partial<AddTMEntryRequest>} */($$parsedSource));
+        return new AddMemoryEntryRequest(/** @type {Partial<AddMemoryEntryRequest>} */($$parsedSource));
     }
 }
 
@@ -454,7 +454,7 @@ export class AdoptFlowResult {
 }
 
 /**
- * AnnotateEntitiesRequest is the request to batch-annotate entities on TM entries.
+ * AnnotateEntitiesRequest is the request to batch-annotate entities on content-memory entries.
  */
 export class AnnotateEntitiesRequest {
     /**
@@ -478,7 +478,7 @@ export class AnnotateEntitiesRequest {
         }
         if (/** @type {any} */(false)) {
             /**
-             * optional: cross-ref entities against this termbase
+             * optional: cross-ref entities against this terms
              * @member
              * @type {string | undefined}
              */
@@ -1062,7 +1062,7 @@ export class CollectionStatus {
 }
 
 /**
- * ConceptDTO is the frontend-facing termbase concept.
+ * ConceptDTO is the frontend-facing terms concept.
  */
 export class ConceptDTO {
     /**
@@ -1160,7 +1160,7 @@ export class ConceptDTO {
 /**
  * ConvergePlan is the desktop's pre-flight picture for "Bring up to date": the
  * dry-run work plan `kapi up --plan` computes (per (collection, locale):
- * missing targets, exact TM leverage, remaining AI work, token estimate) plus
+ * missing targets, exact content-memory leverage, remaining AI work, token estimate) plus
  * the block-store drift the run's auto-extract would heal. Both derivations
  * are cheap and read-only — stat checks, file reads, no provider calls.
  */
@@ -1604,7 +1604,7 @@ export class EntityMappingDTO {
         }
         if (/** @type {any} */(false)) {
             /**
-             * optional termbase cross-reference
+             * optional terms cross-reference
              * @member
              * @type {string | undefined}
              */
@@ -2608,12 +2608,12 @@ export class LocaleFacetDTO {
 }
 
 /**
- * LookupTMRequest is the request for entity-aware TM lookup.
+ * LookupMemoryRequest is the request for entity-aware content-memory lookup.
  */
-export class LookupTMRequest {
+export class LookupMemoryRequest {
     /**
-     * Creates a new LookupTMRequest instance.
-     * @param {Partial<LookupTMRequest>} [$$source = {}] - The source object to create the LookupTMRequest.
+     * Creates a new LookupMemoryRequest instance.
+     * @param {Partial<LookupMemoryRequest>} [$$source = {}] - The source object to create the LookupMemoryRequest.
      */
     constructor($$source = {}) {
         if (!("text" in $$source)) {
@@ -2663,9 +2663,9 @@ export class LookupTMRequest {
     }
 
     /**
-     * Creates a new LookupTMRequest instance from a string or object.
+     * Creates a new LookupMemoryRequest instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {LookupTMRequest}
+     * @returns {LookupMemoryRequest}
      */
     static createFrom($$source = {}) {
         const $$createField1_0 = $$createType30;
@@ -2673,12 +2673,12 @@ export class LookupTMRequest {
         if ("entities" in $$parsedSource) {
             $$parsedSource["entities"] = $$createField1_0($$parsedSource["entities"]);
         }
-        return new LookupTMRequest(/** @type {Partial<LookupTMRequest>} */($$parsedSource));
+        return new LookupMemoryRequest(/** @type {Partial<LookupMemoryRequest>} */($$parsedSource));
     }
 }
 
 /**
- * OriginDTO is the frontend-facing TM entry origin (provenance).
+ * OriginDTO is the frontend-facing content-memory entry origin (provenance).
  */
 export class OriginDTO {
     /**
@@ -3478,9 +3478,9 @@ export class ProjectFilters {
 }
 
 /**
- * ProjectHandles bundles the project-scoped TM and termbase handle IDs for a
+ * ProjectHandles bundles the project-scoped content memory and terms handle IDs for a
  * tab so the frontend can preselect both in a single call. Each id is the
- * string handle the TM/termbase Wails methods (and handleStore.Get) accept;
+ * string handle the content memory/terms Wails methods (and handleStore.Get) accept;
  * an empty id means the project has no auto-opened resource of that kind.
  */
 export class ProjectHandles {
@@ -3496,19 +3496,19 @@ export class ProjectHandles {
              */
             this["tabID"] = "";
         }
-        if (!("tmHandle" in $$source)) {
+        if (!("memoryHandle" in $$source)) {
             /**
              * @member
              * @type {string}
              */
-            this["tmHandle"] = "";
+            this["memoryHandle"] = "";
         }
-        if (!("termbaseHandle" in $$source)) {
+        if (!("termsHandle" in $$source)) {
             /**
              * @member
              * @type {string}
              */
-            this["termbaseHandle"] = "";
+            this["termsHandle"] = "";
         }
 
         Object.assign(this, $$source);
@@ -3980,7 +3980,7 @@ export class RelationDTO {
 }
 
 /**
- * ResourceInfo describes a named resource (TM or termbase) in KAPI_HOME.
+ * ResourceInfo describes a named resource (Memory or terms) in KAPI_HOME.
  */
 export class ResourceInfo {
     /**
@@ -4076,8 +4076,8 @@ export class ReviewAIActionResult {
  * ReviewUnitDetail is the full picture of one review-queue unit for the Review
  * page: the rendered source and target text, the unit's check findings (the
  * registered checkers run on demand for just this block), the recorded review
- * state and provenance from the project state store, and the best TM match when
- * the project TM is open. It is read-derived — nothing here is cached.
+ * state and provenance from the project state store, and the best content-memory match when
+ * the project content memory is open. It is read-derived — nothing here is cached.
  */
 export class ReviewUnitDetail {
     /**
@@ -4164,8 +4164,8 @@ export class ReviewUnitDetail {
         }
         if (/** @type {any} */(false)) {
             /**
-             * TMScore is the best TM match percent for the source (0 = none found or
-             * no project TM open).
+             * MemoryScore is the best content-memory match percent for the source (0 = none found or
+             * no project content memory open).
              * @member
              * @type {number | undefined}
              */
@@ -4632,12 +4632,12 @@ export class SetTermStatusRequest {
 }
 
 /**
- * TMEntryDTO is the frontend-facing multilingual TM entry.
+ * MemoryEntryDTO is the frontend-facing multilingual content-memory entry.
  */
-export class TMEntryDTO {
+export class MemoryEntryDTO {
     /**
-     * Creates a new TMEntryDTO instance.
-     * @param {Partial<TMEntryDTO>} [$$source = {}] - The source object to create the TMEntryDTO.
+     * Creates a new MemoryEntryDTO instance.
+     * @param {Partial<MemoryEntryDTO>} [$$source = {}] - The source object to create the MemoryEntryDTO.
      */
     constructor($$source = {}) {
         if (!("id" in $$source)) {
@@ -4715,9 +4715,9 @@ export class TMEntryDTO {
     }
 
     /**
-     * Creates a new TMEntryDTO instance from a string or object.
+     * Creates a new MemoryEntryDTO instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {TMEntryDTO}
+     * @returns {MemoryEntryDTO}
      */
     static createFrom($$source = {}) {
         const $$createField2_0 = $$createType60;
@@ -4737,17 +4737,17 @@ export class TMEntryDTO {
         if ("origins" in $$parsedSource) {
             $$parsedSource["origins"] = $$createField7_0($$parsedSource["origins"]);
         }
-        return new TMEntryDTO(/** @type {Partial<TMEntryDTO>} */($$parsedSource));
+        return new MemoryEntryDTO(/** @type {Partial<MemoryEntryDTO>} */($$parsedSource));
     }
 }
 
 /**
- * TMFacets is the frontend-facing facet data for the sidebar.
+ * MemoryFacets is the frontend-facing facet data for the sidebar.
  */
-export class TMFacets {
+export class MemoryFacets {
     /**
-     * Creates a new TMFacets instance.
-     * @param {Partial<TMFacets>} [$$source = {}] - The source object to create the TMFacets.
+     * Creates a new MemoryFacets instance.
+     * @param {Partial<MemoryFacets>} [$$source = {}] - The source object to create the MemoryFacets.
      */
     constructor($$source = {}) {
         if (!("locales" in $$source)) {
@@ -4797,9 +4797,9 @@ export class TMFacets {
     }
 
     /**
-     * Creates a new TMFacets instance from a string or object.
+     * Creates a new MemoryFacets instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {TMFacets}
+     * @returns {MemoryFacets}
      */
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType64;
@@ -4819,25 +4819,25 @@ export class TMFacets {
         if ("import_sessions" in $$parsedSource) {
             $$parsedSource["import_sessions"] = $$createField3_0($$parsedSource["import_sessions"]);
         }
-        return new TMFacets(/** @type {Partial<TMFacets>} */($$parsedSource));
+        return new MemoryFacets(/** @type {Partial<MemoryFacets>} */($$parsedSource));
     }
 }
 
 /**
- * TMMatchDTO is a single match from entity-aware TM lookup.
+ * MemoryMatchDTO is a single match from entity-aware content-memory lookup.
  */
-export class TMMatchDTO {
+export class MemoryMatchDTO {
     /**
-     * Creates a new TMMatchDTO instance.
-     * @param {Partial<TMMatchDTO>} [$$source = {}] - The source object to create the TMMatchDTO.
+     * Creates a new MemoryMatchDTO instance.
+     * @param {Partial<MemoryMatchDTO>} [$$source = {}] - The source object to create the MemoryMatchDTO.
      */
     constructor($$source = {}) {
         if (!("entry" in $$source)) {
             /**
              * @member
-             * @type {TMEntryDTO}
+             * @type {MemoryEntryDTO}
              */
-            this["entry"] = (new TMEntryDTO());
+            this["entry"] = (new MemoryEntryDTO());
         }
         if (!("score" in $$source)) {
             /**
@@ -4865,9 +4865,9 @@ export class TMMatchDTO {
     }
 
     /**
-     * Creates a new TMMatchDTO instance from a string or object.
+     * Creates a new MemoryMatchDTO instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {TMMatchDTO}
+     * @returns {MemoryMatchDTO}
      */
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType71;
@@ -4879,17 +4879,17 @@ export class TMMatchDTO {
         if ("entity_adaptations" in $$parsedSource) {
             $$parsedSource["entity_adaptations"] = $$createField3_0($$parsedSource["entity_adaptations"]);
         }
-        return new TMMatchDTO(/** @type {Partial<TMMatchDTO>} */($$parsedSource));
+        return new MemoryMatchDTO(/** @type {Partial<MemoryMatchDTO>} */($$parsedSource));
     }
 }
 
 /**
- * TMSearchFilter is the frontend-facing search filter.
+ * MemorySearchFilter is the frontend-facing search filter.
  */
-export class TMSearchFilter {
+export class MemorySearchFilter {
     /**
-     * Creates a new TMSearchFilter instance.
-     * @param {Partial<TMSearchFilter>} [$$source = {}] - The source object to create the TMSearchFilter.
+     * Creates a new MemorySearchFilter instance.
+     * @param {Partial<MemorySearchFilter>} [$$source = {}] - The source object to create the MemorySearchFilter.
      */
     constructor($$source = {}) {
         if (/** @type {any} */(false)) {
@@ -4940,9 +4940,9 @@ export class TMSearchFilter {
     }
 
     /**
-     * Creates a new TMSearchFilter instance from a string or object.
+     * Creates a new MemorySearchFilter instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {TMSearchFilter}
+     * @returns {MemorySearchFilter}
      */
     static createFrom($$source = {}) {
         const $$createField2_0 = $$createType2;
@@ -4958,23 +4958,23 @@ export class TMSearchFilter {
         if ("entity_values" in $$parsedSource) {
             $$parsedSource["entity_values"] = $$createField4_0($$parsedSource["entity_values"]);
         }
-        return new TMSearchFilter(/** @type {Partial<TMSearchFilter>} */($$parsedSource));
+        return new MemorySearchFilter(/** @type {Partial<MemorySearchFilter>} */($$parsedSource));
     }
 }
 
 /**
- * TMSearchResult is the paginated result from SearchTMEntries.
+ * MemorySearchResult is the paginated result from SearchMemoryEntries.
  */
-export class TMSearchResult {
+export class MemorySearchResult {
     /**
-     * Creates a new TMSearchResult instance.
-     * @param {Partial<TMSearchResult>} [$$source = {}] - The source object to create the TMSearchResult.
+     * Creates a new MemorySearchResult instance.
+     * @param {Partial<MemorySearchResult>} [$$source = {}] - The source object to create the MemorySearchResult.
      */
     constructor($$source = {}) {
         if (!("entries" in $$source)) {
             /**
              * @member
-             * @type {TMEntryDTO[]}
+             * @type {MemoryEntryDTO[]}
              */
             this["entries"] = [];
         }
@@ -4990,9 +4990,9 @@ export class TMSearchResult {
     }
 
     /**
-     * Creates a new TMSearchResult instance from a string or object.
+     * Creates a new MemorySearchResult instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {TMSearchResult}
+     * @returns {MemorySearchResult}
      */
     static createFrom($$source = {}) {
         const $$createField0_0 = $$createType76;
@@ -5000,17 +5000,17 @@ export class TMSearchResult {
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
         }
-        return new TMSearchResult(/** @type {Partial<TMSearchResult>} */($$parsedSource));
+        return new MemorySearchResult(/** @type {Partial<MemorySearchResult>} */($$parsedSource));
     }
 }
 
 /**
- * TMStats is the stats response for an open TM.
+ * MemoryStats is the stats response for an open Memory.
  */
-export class TMStats {
+export class MemoryStats {
     /**
-     * Creates a new TMStats instance.
-     * @param {Partial<TMStats>} [$$source = {}] - The source object to create the TMStats.
+     * Creates a new MemoryStats instance.
+     * @param {Partial<MemoryStats>} [$$source = {}] - The source object to create the MemoryStats.
      */
     constructor($$source = {}) {
         if (!("count" in $$source)) {
@@ -5039,13 +5039,13 @@ export class TMStats {
     }
 
     /**
-     * Creates a new TMStats instance from a string or object.
+     * Creates a new MemoryStats instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {TMStats}
+     * @returns {MemoryStats}
      */
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new TMStats(/** @type {Partial<TMStats>} */($$parsedSource));
+        return new MemoryStats(/** @type {Partial<MemoryStats>} */($$parsedSource));
     }
 }
 
@@ -5224,12 +5224,12 @@ export class TermSearchResult {
 }
 
 /**
- * TermbaseStats is the stats response for an open termbase.
+ * TermsStats is the stats response for an open terms.
  */
-export class TermbaseStats {
+export class TermsStats {
     /**
-     * Creates a new TermbaseStats instance.
-     * @param {Partial<TermbaseStats>} [$$source = {}] - The source object to create the TermbaseStats.
+     * Creates a new TermsStats instance.
+     * @param {Partial<TermsStats>} [$$source = {}] - The source object to create the TermsStats.
      */
     constructor($$source = {}) {
         if (!("count" in $$source)) {
@@ -5251,13 +5251,13 @@ export class TermbaseStats {
     }
 
     /**
-     * Creates a new TermbaseStats instance from a string or object.
+     * Creates a new TermsStats instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {TermbaseStats}
+     * @returns {TermsStats}
      */
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new TermbaseStats(/** @type {Partial<TermbaseStats>} */($$parsedSource));
+        return new TermsStats(/** @type {Partial<TermsStats>} */($$parsedSource));
     }
 }
 
@@ -5485,13 +5485,13 @@ export class UpdateConceptRequest {
 }
 
 /**
- * UpdateTMEntryRequest is the request to update a TM entry. The Variants map
+ * UpdateMemoryEntryRequest is the request to update a content-memory entry. The Variants map
  * replaces the stored variants wholesale.
  */
-export class UpdateTMEntryRequest {
+export class UpdateMemoryEntryRequest {
     /**
-     * Creates a new UpdateTMEntryRequest instance.
-     * @param {Partial<UpdateTMEntryRequest>} [$$source = {}] - The source object to create the UpdateTMEntryRequest.
+     * Creates a new UpdateMemoryEntryRequest instance.
+     * @param {Partial<UpdateMemoryEntryRequest>} [$$source = {}] - The source object to create the UpdateMemoryEntryRequest.
      */
     constructor($$source = {}) {
         if (!("entry_id" in $$source)) {
@@ -5541,9 +5541,9 @@ export class UpdateTMEntryRequest {
     }
 
     /**
-     * Creates a new UpdateTMEntryRequest instance from a string or object.
+     * Creates a new UpdateMemoryEntryRequest instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {UpdateTMEntryRequest}
+     * @returns {UpdateMemoryEntryRequest}
      */
     static createFrom($$source = {}) {
         const $$createField1_0 = $$createType7;
@@ -5555,7 +5555,7 @@ export class UpdateTMEntryRequest {
         if ("origins" in $$parsedSource) {
             $$parsedSource["origins"] = $$createField5_0($$parsedSource["origins"]);
         }
-        return new UpdateTMEntryRequest(/** @type {Partial<UpdateTMEntryRequest>} */($$parsedSource));
+        return new UpdateMemoryEntryRequest(/** @type {Partial<UpdateMemoryEntryRequest>} */($$parsedSource));
     }
 }
 
@@ -5741,7 +5741,7 @@ export class ValidityDTO {
 }
 
 /**
- * VariantDTO is a single language variant of a multilingual TM entry. Inline
+ * VariantDTO is a single language variant of a multilingual content-memory entry. Inline
  * markup travels as an RFC 0001 Run sequence; Text is the flattened plain form.
  */
 export class VariantDTO {
@@ -5952,7 +5952,7 @@ const $$createType67 = EntityTypeFacetDTO.createFrom;
 const $$createType68 = $Create.Array($$createType67);
 const $$createType69 = ImportSessionFacetDTO.createFrom;
 const $$createType70 = $Create.Array($$createType69);
-const $$createType71 = TMEntryDTO.createFrom;
+const $$createType71 = MemoryEntryDTO.createFrom;
 const $$createType72 = EntityAdaptationDTO.createFrom;
 const $$createType73 = $Create.Array($$createType72);
 const $$createType74 = EntityValueFilter.createFrom;

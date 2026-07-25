@@ -139,7 +139,7 @@ export function createDesktopPlatform(): PlatformAdapter {
         "flow-changed": "flow.changed",
         "membership-changed": "member.changed",
         "brand-voice-changed": "brand.changed",
-        "termbase-changed": "term.changed",
+        "terms-changed": "term.changed",
         "stream-changed": "stream.changed",
       };
       const cancels = Object.keys(fallbackType).map((name) =>

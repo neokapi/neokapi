@@ -55,8 +55,8 @@ neokapi/                              ── Framework Module Tests (repo root) 
 │   ├── tools/                        # Built-in utility tools, with *_test.go + testdata/
 │   └── internal/testutil/            # Shared test helpers (INTERNAL to the framework module)
 │       └── helpers.go                # RawDocFromString, CollectParts, CollectBlocks, FindFirstBlock, …
-├── sievepen/                         # TM tests (in-memory + SQLite, matching)
-├── termbase/                         # Terminology tests (in-memory + SQLite, import/export)
+├── memory/                         # content memory tests (in-memory + SQLite, matching)
+├── terms/                         # Terminology tests (in-memory + SQLite, import/export)
 ├── providers/
 │   ├── ai/                           # package aiprovider — provider + AI tool tests (demo provider for CI)
 │   └── mt/                           # package mtprovider — provider + MT tool tests
@@ -223,7 +223,7 @@ user flow — for example:
 
 ```
 bowrain/apps/bowrain/frontend/e2e/
-├── context-panel.spec.ts       — TM/term context panel in editor
+├── context-panel.spec.ts       — content memory/term context panel in editor
 ├── flow-builder.spec.ts        — Visual flow builder
 ├── inline-codes.spec.ts        — Inline tag editing with coded text
 ├── project-dashboard.spec.ts   — Project creation and listing
@@ -231,8 +231,8 @@ bowrain/apps/bowrain/frontend/e2e/
 ├── rich-editor.spec.ts         — Lexical editor behavior
 ├── settings.spec.ts            — Settings page, theme toggle
 ├── term-explorer.spec.ts       — Terminology CRUD
-├── tm-explorer.spec.ts         — Translation memory CRUD
-├── recycle.spec.ts         — TM leverage in translation
+├── tm-explorer.spec.ts         — Content memory CRUD
+├── recycle.spec.ts         — content-memory leverage in translation
 └── translation-editor.spec.ts  — Block editing, status, word count
 ```
 
@@ -264,7 +264,7 @@ vp run e2e:screenshots   # requires Docker backend (bowrain-server)
 vp run e2e:recordings    # requires Docker backend
 ```
 
-**Configuration:** `playwright.config.ts` — connects to the real backend (defaults to `http://localhost:8080`, overridable via `BOWRAIN_URL` env var). Tests authenticate via device auth flow, create workspaces/projects, seed TM entries and terminology, then capture screenshots in both `dark/` and `light/` subdirectories for the documentation site.
+**Configuration:** `playwright.config.ts` — connects to the real backend (defaults to `http://localhost:8080`, overridable via `BOWRAIN_URL` env var). Tests authenticate via device auth flow, create workspaces/projects, seed content-memory entries and terminology, then capture screenshots in both `dark/` and `light/` subdirectories for the documentation site.
 
 #### neokapi-i18n (`packages/i18n-react`)
 

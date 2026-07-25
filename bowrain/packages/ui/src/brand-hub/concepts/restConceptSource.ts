@@ -1,7 +1,7 @@
 // RestConceptDataSource — drives the framework concept UI (@neokapi/concept-ui)
 // against bowrain's REST surface through an ApiAdapter (AD-021). This is the
 // bowrain replacement for the deleted whole-graph view: the SAME components that
-// kapi-desktop runs against a local termbase here get the FULL feature set —
+// kapi-desktop runs against a local terms here get the FULL feature set —
 // every rich read (named markets, observations, comments, a revision timeline,
 // where-used) and governance-aware editing.
 //

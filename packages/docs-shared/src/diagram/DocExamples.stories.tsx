@@ -44,7 +44,7 @@ export const ContentPreparation: Story = {
         { label: "segment", sub: "sentence overlay", role: "annotate" },
         { label: "recognize", sub: "terms · entities", role: "annotate" },
         { label: "check", sub: "QA findings", role: "qa" },
-        { label: "translate", sub: "TM · AI · MT", role: "translate" },
+        { label: "translate", sub: "Memory · AI · MT", role: "translate" },
       ]}
     />
   ),

@@ -8,7 +8,7 @@ neokapi is an AI-native reimagining of the [Okapi Framework](https://okapiframew
 
 The repository is a **multi-module monorepo** whose Go modules are:
 
-- **Framework** (`github.com/neokapi/neokapi`) — the open-source localization engine: content model, format readers/writers, processing tools, pipeline executor, plugin system, SQLite-backed TM and termbase (`sievepen/`, `termbase/`), shared SQLite infrastructure (`core/storage/`), `kapi.yaml` project file format (`core/project/`), AI providers (`providers/ai/`, package `aiprovider`), MT providers (`providers/mt/`, package `mtprovider`). Framework packages live under `core/`, `sievepen/`, `termbase/`, and `providers/`. No bowrain dependencies (no Wails, Echo, Cobra, OIDC).
+- **Framework** (`github.com/neokapi/neokapi`) — the open-source localization engine: content model, format readers/writers, processing tools, pipeline executor, plugin system, SQLite-backed content memory and terms (`memory/`, `terms/`), shared SQLite infrastructure (`core/storage/`), `kapi.yaml` project file format (`core/project/`), AI providers (`providers/ai/`, package `aiprovider`), MT providers (`providers/mt/`, package `mtprovider`). Framework packages live under `core/`, `memory/`, `terms/`, and `providers/`. No bowrain dependencies (no Wails, Echo, Cobra, OIDC).
 - **Host** (`github.com/neokapi/neokapi/host`) — the cobra-free application runtime + service layer shared by the kapi CLI, the kapi-bowrain plugin binary, and Kapi Desktop: the `host.App` runtime (registries, Viper app config in `host/config/`, OS keychain credential store in `host/credentials/`, plugin host in `host/pluginhost/`), the workflow services (flow runs/`RunFlowAllLocales`, convergence, checks/coverage/review, project state, up planning, brand resolution, toolbox engines, model assets, MCP tools), the built-in flow catalog + filesystem flow store (`host/flowdef/`), the engine gRPC service (`host/engineserve/`), output formatting (`host/output/`), CLI i18n catalogs (`host/i18n/`), and the SQLite brand/graph stores (`host/storage/`). Command threading is the `host.Command` interface (context + `*pflag.FlagSet` + IO), which `*cobra.Command` satisfies natively; embedded runs use `host.EnvCommand`. Depends on framework only — **no cobra, no bowrain**.
 - **CLI** (`github.com/neokapi/neokapi/cli`) — the thin Cobra presentation shell over host, used by both kapi and bowrain: command factories (plain funcs taking `*cli.App`), flag registration, RunE dispatch, exit-code plumbing, plugin command attachment (`cli/pluginattach/`), the self-update client (`cli/selfupdate/`), the parity harness (`cli/parity/`), and the help-string generator (`cli/i18ngen/`). Re-exports the host API under the historical `package cli` names (`cli.App = host.App`, …) via `cli/aliases.go`. Depends on framework + host. No bowrain dependency.
 - **Bowrain Core** (`github.com/neokapi/neokapi/bowrain/core`) — shared bowrain platform types and interfaces: Recipe wrapper around the framework's `KapiProject` (with type aliases re-exported from `bowrain/plugin/schema`), Project facade, auth types, connector interfaces, REST client (incl. the Merkle-diff push client), store interfaces, event types, plus the low sync packages the push client needs — `bowrain/core/sync` (pure model↔protobuf converters + content-hash helpers) and `bowrain/core/proto/sync/v1` (the sync-protocol protobuf messages). Depends on framework only (+ `bowrain/plugin/schema`); no CLI dependency (no Cobra, Viper) and **no dependency on the main `bowrain` module** — the redis-backed sync hash cache and the store-backed diff engine stay in `bowrain/sync`, which re-exports the pure converters so server-side callers keep one import.
@@ -18,7 +18,7 @@ The repository is a **multi-module monorepo** whose Go modules are:
 - **Bowrain** (`github.com/neokapi/neokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, web app, connectors, persistent SQLite/PostgreSQL storage. Depends on framework + host (for the `host/flowdef` flow catalog) + bowrain/core.
 - **SaT plugin** (`github.com/neokapi/neokapi/plugins/sat`) — the `kapi-sat` segmenter plugin: runs wtpsplit *Segment any Text* ONNX models in-process (cgo onnxruntime + XLM-RoBERTa tokenizer, gated behind `-tags onnx`) and speaks a line-delimited JSON segmentation protocol on stdin/stdout. Isolated so its native ML stack never enters the `kapi` binary; the host module's plugin host discovers it via the manifest segmenter capability and drives it over the Mode-C segment RPC. The pure-Go `satproto` package + protocol/algorithm tests build with no native deps.
 
-Both **kapi** and **bowrain** binaries share a common base: the cobra-free runtime + services in `host/` and the Cobra shell in `cli/`. The shell provides core commands (run, extract, merge, flows, tools, formats, plugins, presets, termbase, tm, mcp, version) plus four plugin registries: `cli.RegisterCommandFactory`, `cli.RegisterAppInitializer` (CLI-side), `cli.RegisterMCPToolFactory` (re-exported from host), and `core/project.RegisterExtension` (framework, for recipe schema). Plugins blank-imported into a binary contribute commands, MCP tools, and recipe schema via `init()` registration. See [Note: Plugin model](web/docs/contribute/notes-internal/plugin-model.md).
+Both **kapi** and **bowrain** binaries share a common base: the cobra-free runtime + services in `host/` and the Cobra shell in `cli/`. The shell provides core commands (run, extract, merge, flows, tools, formats, plugins, presets, terms, tm, mcp, version) plus four plugin registries: `cli.RegisterCommandFactory`, `cli.RegisterAppInitializer` (CLI-side), `cli.RegisterMCPToolFactory` (re-exported from host), and `core/project.RegisterExtension` (framework, for recipe schema). Plugins blank-imported into a binary contribute commands, MCP tools, and recipe schema via `init()` registration. See [Note: Plugin model](web/docs/contribute/notes-internal/plugin-model.md).
 
 A `go.work` file at the root coordinates the modules for local development. The framework (`core/`) stays platform-agnostic — bowrain attaches via the extension mechanism and the CLI plugin registries, not via direct imports from `core/` to bowrain.
 
@@ -232,8 +232,8 @@ neokapi/
 │   ├── tools/             # Built-in utility tools
 │   ├── plugin/            # go-plugin + gRPC plugin system + Java bridge
 │   └── internal/testutil/ # Shared test helpers (RawDocFromString, CollectBlocks, …)
-├── sievepen/              # Translation memory (interface + in-memory + SQLite + matching)
-├── termbase/              # Terminology (interface + in-memory + SQLite + import)
+├── memory/              # Content memory (interface + in-memory + SQLite + matching)
+├── terms/              # Terminology (interface + in-memory + SQLite + import)
 ├── providers/
 │   ├── ai/                # package aiprovider — LLM providers + AI tools
 │   └── mt/                # package mtprovider — MT providers + MT tools
@@ -252,7 +252,7 @@ neokapi/
 │   ├── output/            # Shared output formatting + types (used by kapi & bowrain)
 │   ├── i18n/              # CLI help-string catalogs (generated by cli/i18ngen)
 │   ├── desktopmenu/       # Shared desktop menu model
-│   └── storage/           # SQLite-backed brand and graph stores (TM/termbase come from the framework's sievepen/ and termbase/)
+│   └── storage/           # SQLite-backed brand and graph stores (content memory/terms come from the framework's memory/ and terms/)
 │
 │   ── CLI Module (thin Cobra shell over host) ──
 ├── cli/
@@ -305,8 +305,8 @@ neokapi/
 │   ├── brand/             # Brand management
 │   ├── graph/             # Graph data structures
 │   ├── analytics/         # Analytics and reporting
-│   ├── sievepen/          # SQLite + PostgreSQL TM implementation
-│   ├── termbase/          # SQLite + PostgreSQL TermBase implementation
+│   ├── memory/          # SQLite + PostgreSQL content memory implementation
+│   ├── terms/          # SQLite + PostgreSQL Terminology implementation
 │   ├── proto/             # gRPC protobuf definitions
 │   ├── cmd/bowrain-server/ # Echo v4 REST API server
 │   ├── cmd/bowrain-worker/ # Background worker
@@ -349,8 +349,8 @@ my-app/
 ├── kapi.yaml               # Recipe (committed) — fixed conventional YAML filename, includes server: block
 ├── .kapi/                  # State (gitignored)
 │   ├── manifest.yaml
-│   ├── tm.db               # authoritative project TM
-│   ├── termbase.db         # authoritative project termbase
+│   ├── tm.db               # authoritative project content memory
+│   ├── termbase.db         # authoritative project terms store
 │   ├── flows/              # optional file-per-flow definitions (committed)
 │   │   └── pseudo.yaml
 │   └── cache/              # all regenerable caches under one roof
@@ -406,9 +406,9 @@ The `kapi.yaml` recipe is a portable YAML document — see [AD-008](web/docs/con
 - **Kapi** = standalone file-processing tool, demonstrates neokapi's power as open-source toolchain
 - **Kapi** = GUI companion for kapi — visual flow editor, runner, plugin manager, credential vault
 - **kapi-bowrain plugin** (manifest-driven, dispatched via `kapi`) = project sync companion CLI, focuses on DX and project simplicity for Bowrain
-- **Shared base** (`host/` runtime + services, `cli/` cobra shell) = common commands (run, flows, tools, formats, plugins, presets, termbase, version) and top-level tool commands used by both kapi and bowrain; the desktop links `host/` directly
+- **Shared base** (`host/` runtime + services, `cli/` cobra shell) = common commands (run, flows, tools, formats, plugins, presets, terms, version) and top-level tool commands used by both kapi and bowrain; the desktop links `host/` directly
 - **Bowrain Server** = integration platform (CMS connectors, automation, ContentStore)
-- **Bowrain desktop app** (`bowrain/apps/bowrain/`) = a real-time **working copy of the server**, not a local-file/project authoring tool. Its local footprint is cache and speed only — a content cache, an offline edit queue, and TM/termbase mirrors — and is never a source of truth. It offers only **remote/CMS connectors** (wordpress, figma, hubspot); the local-filesystem connectors (file, git) are registered **server-side only** (`bowrain/connector.RegisterAll` for the server/worker vs `RegisterRemote` for the desktop). Sourcing from a filesystem or git checkout is a server-side concern.
+- **Bowrain desktop app** (`bowrain/apps/bowrain/`) = a real-time **working copy of the server**, not a local-file/project authoring tool. Its local footprint is cache and speed only — a content cache, an offline edit queue, and content memory/terms mirrors — and is never a source of truth. It offers only **remote/CMS connectors** (wordpress, figma, hubspot); the local-filesystem connectors (file, git) are registered **server-side only** (`bowrain/connector.RegisterAll` for the server/worker vs `RegisterRemote` for the desktop). Sourcing from a filesystem or git checkout is a server-side concern.
 
 **Product boundary (canonical):** kapi owns local files + project configuration — the `kapi.yaml` recipe (content/flows/plugins/languages/brand + `server:` block) is authored and versioned locally with kapi, including configuring projects pushed to Bowrain via `kapi push` / `kapi sync`. Bowrain's local footprint is cache/speed/implementation only — never source of truth.
 

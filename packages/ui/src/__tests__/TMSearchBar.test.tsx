@@ -3,7 +3,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
-import { TMSearchBar } from "../components/resource-browser/TMSearchBar";
+import { MemorySearchBar } from "../components/resource-browser/MemorySearchBar";
 
 function renderToContainer(el: React.ReactElement): HTMLDivElement {
   const container = document.createElement("div");
@@ -14,7 +14,7 @@ function renderToContainer(el: React.ReactElement): HTMLDivElement {
   return container;
 }
 
-describe("TMSearchBar", () => {
+describe("MemorySearchBar", () => {
   afterEach(() => {
     while (document.body.firstChild) {
       document.body.removeChild(document.body.firstChild);
@@ -23,22 +23,22 @@ describe("TMSearchBar", () => {
 
   it("renders search input with placeholder", () => {
     const c = renderToContainer(
-      createElement(TMSearchBar, {
+      createElement(MemorySearchBar, {
         value: "",
         onChange: vi.fn(),
         sourceLocale: "en-US",
         targetLocale: "fr-FR",
-        placeholder: "Search TM...",
+        placeholder: "Search content memory...",
       }),
     );
     const input = c.querySelector("input") as HTMLInputElement;
     expect(input).toBeTruthy();
-    expect(input.placeholder).toBe("Search TM...");
+    expect(input.placeholder).toBe("Search content memory...");
   });
 
   it("renders with value", () => {
     const c = renderToContainer(
-      createElement(TMSearchBar, {
+      createElement(MemorySearchBar, {
         value: "hello",
         onChange: vi.fn(),
         sourceLocale: "en-US",
@@ -51,7 +51,7 @@ describe("TMSearchBar", () => {
 
   it("renders filter tokens", () => {
     const c = renderToContainer(
-      createElement(TMSearchBar, {
+      createElement(MemorySearchBar, {
         value: "",
         onChange: vi.fn(),
         filters: [{ key: "language", value: "fr-FR" }],
@@ -66,7 +66,7 @@ describe("TMSearchBar", () => {
 
   it("does not show entity popover initially", () => {
     const c = renderToContainer(
-      createElement(TMSearchBar, {
+      createElement(MemorySearchBar, {
         value: "hello world",
         onChange: vi.fn(),
         onLookup: vi.fn().mockResolvedValue([]),
@@ -80,7 +80,7 @@ describe("TMSearchBar", () => {
   it("invokes onEntitiesChange with empty array on mount", () => {
     const onEntitiesChange = vi.fn();
     renderToContainer(
-      createElement(TMSearchBar, {
+      createElement(MemorySearchBar, {
         value: "",
         onChange: vi.fn(),
         onEntitiesChange,
@@ -94,7 +94,7 @@ describe("TMSearchBar", () => {
   it("does not show entity popover when onLookup is not provided, even with selection", () => {
     // Without onLookup, text selection should not trigger the popover.
     const c = renderToContainer(
-      createElement(TMSearchBar, {
+      createElement(MemorySearchBar, {
         value: "John works at Acme",
         onChange: vi.fn(),
         sourceLocale: "en-US",

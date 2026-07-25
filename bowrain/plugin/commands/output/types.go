@@ -157,7 +157,7 @@ type PullOutput struct {
 	DryRun       bool   `json:"dry_run,omitempty"`
 	UpToDate     bool   `json:"up_to_date,omitempty"`
 
-	// Concept sync (governed terminology pulled into the local termbase).
+	// Concept sync (governed terminology pulled into the local terms).
 	ConceptsPulled         int `json:"concepts_pulled,omitempty"`
 	ConceptRelationsPulled int `json:"concept_relations_pulled,omitempty"`
 }
@@ -182,7 +182,7 @@ func (o PullOutput) FormatText(w io.Writer) error {
 		if o.DryRun {
 			verb = "Would pull"
 		}
-		fmt.Fprintf(w, "%s %d governed concept(s), %d relation(s) into the local termbase\n",
+		fmt.Fprintf(w, "%s %d governed concept(s), %d relation(s) into the local terms\n",
 			verb, o.ConceptsPulled, o.ConceptRelationsPulled)
 	}
 	return nil

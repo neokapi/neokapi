@@ -28,11 +28,11 @@ type TranslationJob struct {
 	Progress         int       `json:"progress"` // 0-100
 	TotalBlocks      int       `json:"total_blocks"`
 	DoneBlocks       int       `json:"done_blocks"`
-	// ViaTM/ViaAI record the TM-first split for this job: how many blocks were
-	// recycled from the project TM vs. sent to the AI translator. The
+	// ViaMemory/ViaAI record the content memory-first split for this job: how many blocks were
+	// recycled from the project content memory vs. sent to the AI translator. The
 	// convergence produce emitter sums these across a locale's jobs to report a
-	// truthful "TM N · AI M" (theme A2).
-	ViaTM       int       `json:"via_tm"`
+	// truthful "content memory N · AI M" (theme A2).
+	ViaMemory   int       `json:"via_tm"`
 	ViaAI       int       `json:"via_ai"`
 	BatchSize   int       `json:"batch_size,omitempty"`
 	Concurrency int       `json:"concurrency,omitempty"`

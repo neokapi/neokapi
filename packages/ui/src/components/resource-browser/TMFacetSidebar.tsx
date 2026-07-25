@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import type { TMFacets, ImportSessionFacet } from "./types";
+import type { MemoryFacets, ImportSessionFacet } from "./types";
 import { ENTITY_TYPES } from "./types";
 import { Checkbox } from "../ui/checkbox";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "../ui/collapsible";
@@ -25,8 +25,8 @@ export const EMPTY_FACETS: FacetSelection = {
   codeFilter: "all",
 };
 
-interface TMFacetSidebarProps {
-  facets: TMFacets | null;
+interface MemoryFacetSidebarProps {
+  facets: MemoryFacets | null;
   selection: FacetSelection;
   onSelectionChange: (selection: FacetSelection) => void;
   loading?: boolean;
@@ -41,12 +41,12 @@ const PROJECT_VISIBLE_COUNT = 5;
 
 // ─── Root component ───────────────────────────────────────────────────────────
 
-export function TMFacetSidebar({
+export function MemoryFacetSidebar({
   facets,
   selection,
   onSelectionChange,
   loading,
-}: TMFacetSidebarProps) {
+}: MemoryFacetSidebarProps) {
   if (!facets && !loading) return null;
 
   const toggleLocale = useCallback(
@@ -193,7 +193,7 @@ function LocalesSection({
   selectedLocales,
   onToggle,
 }: {
-  locales: TMFacets["locales"];
+  locales: MemoryFacets["locales"];
   selectedLocales: string[];
   onToggle: (locale: string) => void;
 }) {
@@ -246,7 +246,7 @@ function ProjectsSection({
   selectedProjects,
   onToggle,
 }: {
-  projects: TMFacets["projects"];
+  projects: MemoryFacets["projects"];
   selectedProjects: string[];
   onToggle: (projectId: string) => void;
 }) {

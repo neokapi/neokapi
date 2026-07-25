@@ -206,7 +206,7 @@ func (a *App) RunVerify(cmd Command, args []string) error {
 func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 	a.InitRegistries()
 
-	// The verify path threads cmd.Context() into ctx-aware TM/termbase lookups
+	// The verify path threads cmd.Context() into ctx-aware content memory/terms lookups
 	// (e.g. ResolveProjectGlossary). When computeVerify runs outside cobra's
 	// Execute — the Stop hook builds a fresh EnvCommand with the verify flags, and tests call
 	// RunVerify directly — that context is nil, which panics deep in
@@ -263,12 +263,12 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 	}
 
 	// --- terminology gate binding check ----------------------------------
-	// The terminology gate needs a bound termbase to enforce against. When one
+	// The terminology gate needs a bound terms to enforce against. When one
 	// is bound it runs; when not, an explicitly requested gate fails (loud
 	// misconfiguration) while a default run skips it silently.
 	runTerms := false
 	if sel.terms {
-		bound, err := a.projectTermbaseBound(cmd)
+		bound, err := a.projectTermsBound(cmd)
 		if err != nil {
 			return verifyOutput{}, err
 		}
@@ -438,21 +438,21 @@ func unboundGate(gate, binding, flag string) verifyGateResult {
 	}
 }
 
-// projectTermbaseBound reports whether the terminology gate has a termbase to
-// enforce against: a --termbase flag, a defaults.termbase binding, the
+// projectTermsBound reports whether the terminology gate has a terms store to
+// enforce against: a --terms flag, a defaults.termbase binding, the
 // convention .kapi/termbase.db, or a committed defaults.termbase_source
 // (.ktb) resolved directly at check time. It mirrors the resolution the gate
-// itself uses (resolveProjectTermbasePath / resolveProjectTermbaseSourcePath),
+// itself uses (resolveProjectTermsPath / resolveProjectTermsSourcePath),
 // so "bound" means the same thing here and there.
-func (a *App) projectTermbaseBound(cmd Command) (bool, error) {
-	tbPath, err := a.resolveProjectTermbasePath(cmd)
+func (a *App) projectTermsBound(cmd Command) (bool, error) {
+	tbPath, err := a.resolveProjectTermsPath(cmd)
 	if err != nil {
 		return false, err
 	}
 	if tbPath != "" {
 		return true, nil
 	}
-	srcPath, err := a.resolveProjectTermbaseSourcePath(cmd)
+	srcPath, err := a.resolveProjectTermsSourcePath(cmd)
 	if err != nil {
 		return false, err
 	}
@@ -745,14 +745,14 @@ func expandTargetTemplate(itemPath, base, tmpl, sourceRel, locale, root string) 
 
 // verifyTerminology term-checks each target file against the project glossary,
 // reusing core/tools.NewTermCheckTool. The glossary is resolved per target
-// locale from the project termbase (ResolveProjectGlossary). A locale with no
+// locale from the project terms store (ResolveProjectGlossary). A locale with no
 // glossary entries contributes no findings; a missing target file
 // (untranslated) is flagged by the QA gate, so terminology skips it.
 func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResult, error) {
 	ctx := CmdContext(cmd)
 	gate := verifyGateResult{Gate: gateTerms, Pass: true, Findings: []verifyFinding{}}
 
-	// Cache the glossary per locale — building it opens the termbase.
+	// Cache the glossary per locale — building it opens the terms.
 	glossaryByLocale := map[string][]coretools.GlossaryEntry{}
 	glossaryFor := func(locale string) ([]coretools.GlossaryEntry, error) {
 		if g, ok := glossaryByLocale[locale]; ok {
@@ -1280,7 +1280,7 @@ func AddVerifyFlags(cmd Command) {
 	cmd.Flags().Bool("qa", false, "run only the QA gate")
 	cmd.Flags().Int("min-score", DefaultBrandMinScore, "brand compliance score below which the brand gate fails")
 	cmd.Flags().String("locale", "", "scope terminology and QA to a single target locale (e.g. fr)")
-	cmd.Flags().String("termbase", "", "named termbase or path to a glossary (defaults to the project termbase)")
+	cmd.Flags().String("termbase", "", "named terms or path to a glossary (defaults to the project terms store)")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
 	cmd.Flags().Bool("ship", false, "also enforce the project's ship gates: fail if any locale's coverage is below its gate (the pre-release bar). Off by default — target drift is non-blocking; see 'kapi status'.")
 	cmd.Flags().Bool("no-fail", false, "report only: exit 0 even when a gate fails (verdict is in the output/--json). Use inside an assistant fix-loop; omit for CI gating.")

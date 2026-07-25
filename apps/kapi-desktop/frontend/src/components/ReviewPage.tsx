@@ -113,7 +113,7 @@ function severityBadgeClass(severity: string): string {
  * three-pane page — the queue on the left (findings-first, filterable by
  * findings/locale/collection), the unit in the center (read-only SOURCE,
  * editable TARGET), and the unit's CHECKS findings + CONTEXT (state, note,
- * provenance, TM match, AI review score) below. Every decision (a approve /
+ * provenance, content-memory match, AI review score) below. Every decision (a approve /
  * r reject / s sign off) records through cli.ApplyReviewDecision, hash-bound
  * to the translation it judged; editing the target re-runs the unit's checks
  * and re-bases the next approval on the new text.
@@ -1161,7 +1161,7 @@ export function ReviewPage({
                   </CardContent>
                 </Card>
 
-                {/* CONTEXT: provenance, prior decision, TM match. */}
+                {/* CONTEXT: provenance, prior decision, content-memory match. */}
                 <Card data-slot="review-context">
                   <CardContent className="space-y-1 p-3 text-xs">
                     <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1178,7 +1178,7 @@ export function ReviewPage({
                     )}
                     {(unit?.tm_score ?? 0) > 0 && (
                       <div className="flex items-center gap-1.5" data-slot="review-tm-score">
-                        <span className="text-muted-foreground">{t("TM best match")}</span>
+                        <span className="text-muted-foreground">{t("content memory best match")}</span>
                         <span className="tabular-nums">{unit?.tm_score}%</span>
                       </div>
                     )}

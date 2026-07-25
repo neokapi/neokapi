@@ -9,7 +9,7 @@ import "github.com/neokapi/neokapi/core/model"
 const SchemaVersion = "1.0"
 
 // Kind is the magic string on the root of a .kbf JSON document.
-const Kind = "kapi-localization-format"
+const Kind = "kapi-bundle"
 
 // The Run-based content model is canonical in core/model. kbf
 // re-exports the types so downstream consumers using `kbf.Run`,

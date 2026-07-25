@@ -7,7 +7,7 @@ import (
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -33,13 +33,13 @@ func TestValidateOp(t *testing.T) {
 	}{
 		// concept.create
 		{"concept.create valid", mustOp(t, 1, OpConceptCreate, ConceptCreatePayload{
-			Concept: termbase.Concept{ID: "c1", Terms: []termbase.Term{{Text: "widget", Locale: "en", Status: model.TermApproved}}},
+			Concept: terms.Concept{ID: "c1", Terms: []terms.Term{{Text: "widget", Locale: "en", Status: model.TermApproved}}},
 		}), false},
 		{"concept.create missing id", mustOp(t, 1, OpConceptCreate, ConceptCreatePayload{
-			Concept: termbase.Concept{Definition: "no id"},
+			Concept: terms.Concept{Definition: "no id"},
 		}), true},
 		{"concept.create bad term status", mustOp(t, 1, OpConceptCreate, ConceptCreatePayload{
-			Concept: termbase.Concept{ID: "c1", Terms: []termbase.Term{{Text: "x", Locale: "en", Status: "bogus"}}},
+			Concept: terms.Concept{ID: "c1", Terms: []terms.Term{{Text: "x", Locale: "en", Status: "bogus"}}},
 		}), true},
 
 		// concept.update
@@ -51,14 +51,14 @@ func TestValidateOp(t *testing.T) {
 		{"concept.delete missing id", mustOp(t, 1, OpConceptDelete, ConceptDeletePayload{}), true},
 
 		// term.add
-		{"term.add valid", mustOp(t, 1, OpTermAdd, TermAddPayload{ConceptID: "c1", Term: termbase.Term{Text: "x", Locale: "en"}}), false},
-		{"term.add missing concept", mustOp(t, 1, OpTermAdd, TermAddPayload{Term: termbase.Term{Text: "x", Locale: "en"}}), true},
-		{"term.add missing text", mustOp(t, 1, OpTermAdd, TermAddPayload{ConceptID: "c1", Term: termbase.Term{Locale: "en"}}), true},
-		{"term.add missing locale", mustOp(t, 1, OpTermAdd, TermAddPayload{ConceptID: "c1", Term: termbase.Term{Text: "x"}}), true},
-		{"term.add bad status", mustOp(t, 1, OpTermAdd, TermAddPayload{ConceptID: "c1", Term: termbase.Term{Text: "x", Locale: "en", Status: "nope"}}), true},
+		{"term.add valid", mustOp(t, 1, OpTermAdd, TermAddPayload{ConceptID: "c1", Term: terms.Term{Text: "x", Locale: "en"}}), false},
+		{"term.add missing concept", mustOp(t, 1, OpTermAdd, TermAddPayload{Term: terms.Term{Text: "x", Locale: "en"}}), true},
+		{"term.add missing text", mustOp(t, 1, OpTermAdd, TermAddPayload{ConceptID: "c1", Term: terms.Term{Locale: "en"}}), true},
+		{"term.add missing locale", mustOp(t, 1, OpTermAdd, TermAddPayload{ConceptID: "c1", Term: terms.Term{Text: "x"}}), true},
+		{"term.add bad status", mustOp(t, 1, OpTermAdd, TermAddPayload{ConceptID: "c1", Term: terms.Term{Text: "x", Locale: "en", Status: "nope"}}), true},
 
 		// term.update
-		{"term.update valid", mustOp(t, 1, OpTermUpdate, TermUpdatePayload{ConceptID: "c1", Locale: "en", Text: "x", Term: termbase.Term{Text: "y", Locale: "en"}}), false},
+		{"term.update valid", mustOp(t, 1, OpTermUpdate, TermUpdatePayload{ConceptID: "c1", Locale: "en", Text: "x", Term: terms.Term{Text: "y", Locale: "en"}}), false},
 		{"term.update missing locale", mustOp(t, 1, OpTermUpdate, TermUpdatePayload{ConceptID: "c1", Text: "x"}), true},
 		{"term.update missing text", mustOp(t, 1, OpTermUpdate, TermUpdatePayload{ConceptID: "c1", Locale: "en"}), true},
 
@@ -74,9 +74,9 @@ func TestValidateOp(t *testing.T) {
 		{"term.status missing text", mustOp(t, 1, OpTermStatus, TermStatusPayload{ConceptID: "c1", Locale: "en", From: model.TermApproved, To: model.TermPreferred}), true},
 
 		// relation.add
-		{"relation.add valid", mustOp(t, 1, OpRelationAdd, RelationAddPayload{Relation: termbase.ConceptRelation{ID: "r1", SourceID: "c1", TargetID: "c2", RelationType: graph.LabelReplacedBy}}), false},
-		{"relation.add missing id", mustOp(t, 1, OpRelationAdd, RelationAddPayload{Relation: termbase.ConceptRelation{SourceID: "c1", TargetID: "c2", RelationType: graph.LabelRelated}}), true},
-		{"relation.add unknown type", mustOp(t, 1, OpRelationAdd, RelationAddPayload{Relation: termbase.ConceptRelation{ID: "r1", SourceID: "c1", TargetID: "c2", RelationType: "WAT"}}), true},
+		{"relation.add valid", mustOp(t, 1, OpRelationAdd, RelationAddPayload{Relation: terms.ConceptRelation{ID: "r1", SourceID: "c1", TargetID: "c2", RelationType: graph.LabelReplacedBy}}), false},
+		{"relation.add missing id", mustOp(t, 1, OpRelationAdd, RelationAddPayload{Relation: terms.ConceptRelation{SourceID: "c1", TargetID: "c2", RelationType: graph.LabelRelated}}), true},
+		{"relation.add unknown type", mustOp(t, 1, OpRelationAdd, RelationAddPayload{Relation: terms.ConceptRelation{ID: "r1", SourceID: "c1", TargetID: "c2", RelationType: "WAT"}}), true},
 
 		// relation.remove
 		{"relation.remove valid", mustOp(t, 1, OpRelationRemove, RelationRemovePayload{RelationID: "r1"}), false},
@@ -121,12 +121,12 @@ func TestIsGovernedOp(t *testing.T) {
 		{"term.status to preferred is governed", mustOp(t, 1, OpTermStatus, TermStatusPayload{From: model.TermApproved, To: model.TermPreferred}), true, false},
 		{"term.status from forbidden is governed", mustOp(t, 1, OpTermStatus, TermStatusPayload{From: model.TermForbidden, To: model.TermDeprecated}), true, false},
 		{"term.status ordinary", mustOp(t, 1, OpTermStatus, TermStatusPayload{From: model.TermProposed, To: model.TermApproved}), false, false},
-		{"relation.add REPLACED_BY governed", mustOp(t, 1, OpRelationAdd, RelationAddPayload{Relation: termbase.ConceptRelation{RelationType: graph.LabelReplacedBy}}), true, false},
-		{"relation.add RELATED ordinary", mustOp(t, 1, OpRelationAdd, RelationAddPayload{Relation: termbase.ConceptRelation{RelationType: graph.LabelRelated}}), false, false},
+		{"relation.add REPLACED_BY governed", mustOp(t, 1, OpRelationAdd, RelationAddPayload{Relation: terms.ConceptRelation{RelationType: graph.LabelReplacedBy}}), true, false},
+		{"relation.add RELATED ordinary", mustOp(t, 1, OpRelationAdd, RelationAddPayload{Relation: terms.ConceptRelation{RelationType: graph.LabelRelated}}), false, false},
 		{"concept.delete governed", mustOp(t, 1, OpConceptDelete, ConceptDeletePayload{ConceptID: "c1"}), true, false},
 		{"voice.rule.add governed", mustOp(t, 1, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: corebrand.TermRule{Term: "x"}}), true, false},
 		{"voice.rule.remove governed", mustOp(t, 1, OpVoiceRuleRemove, VoiceRuleRemovePayload{ProfileID: "p1", List: VoiceListForbidden, Term: "x"}), true, false},
-		{"concept.create ordinary", mustOp(t, 1, OpConceptCreate, ConceptCreatePayload{Concept: termbase.Concept{ID: "c1"}}), false, false},
+		{"concept.create ordinary", mustOp(t, 1, OpConceptCreate, ConceptCreatePayload{Concept: terms.Concept{ID: "c1"}}), false, false},
 		{"concept.update ordinary", mustOp(t, 1, OpConceptUpdate, ConceptUpdatePayload{ConceptID: "c1"}), false, false},
 		{"term.add ordinary", mustOp(t, 1, OpTermAdd, TermAddPayload{ConceptID: "c1"}), false, false},
 		{"term.update ordinary", mustOp(t, 1, OpTermUpdate, TermUpdatePayload{ConceptID: "c1"}), false, false},
@@ -151,7 +151,7 @@ func TestIsGovernedOp(t *testing.T) {
 
 func TestChangeSetIsGoverned(t *testing.T) {
 	ordinary1 := mustOp(t, 1, OpConceptUpdate, ConceptUpdatePayload{ConceptID: "c1"})
-	ordinary2 := mustOp(t, 2, OpTermAdd, TermAddPayload{ConceptID: "c1", Term: termbase.Term{Text: "x", Locale: "en"}})
+	ordinary2 := mustOp(t, 2, OpTermAdd, TermAddPayload{ConceptID: "c1", Term: terms.Term{Text: "x", Locale: "en"}})
 	governed := mustOp(t, 3, OpConceptDelete, ConceptDeletePayload{ConceptID: "c1"})
 	broken := ChangeSetOp{Seq: 4, Op: OpType("bogus")}
 
@@ -328,14 +328,14 @@ func TestCheckBaseRev(t *testing.T) {
 		op   ChangeSetOp
 		want string
 	}{
-		{"concept.create", mustOp(t, 1, OpConceptCreate, ConceptCreatePayload{Concept: termbase.Concept{ID: "cc"}}), "cc"},
+		{"concept.create", mustOp(t, 1, OpConceptCreate, ConceptCreatePayload{Concept: terms.Concept{ID: "cc"}}), "cc"},
 		{"concept.update", mustOp(t, 1, OpConceptUpdate, ConceptUpdatePayload{ConceptID: "cu"}), "cu"},
 		{"concept.delete", mustOp(t, 1, OpConceptDelete, ConceptDeletePayload{ConceptID: "cd"}), "cd"},
 		{"term.add", mustOp(t, 1, OpTermAdd, TermAddPayload{ConceptID: "ta"}), "ta"},
 		{"term.update", mustOp(t, 1, OpTermUpdate, TermUpdatePayload{ConceptID: "tu"}), "tu"},
 		{"term.remove", mustOp(t, 1, OpTermRemove, TermRemovePayload{ConceptID: "tr"}), "tr"},
 		{"term.status", mustOp(t, 1, OpTermStatus, TermStatusPayload{ConceptID: "ts"}), "ts"},
-		{"relation.add has no concept id", mustOp(t, 1, OpRelationAdd, RelationAddPayload{Relation: termbase.ConceptRelation{ID: "r1"}}), ""},
+		{"relation.add has no concept id", mustOp(t, 1, OpRelationAdd, RelationAddPayload{Relation: terms.ConceptRelation{ID: "r1"}}), ""},
 		{"voice.rule.add has no concept id", mustOp(t, 1, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1"}), ""},
 	}
 	for _, tt := range conceptIDCases {

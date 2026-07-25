@@ -23,16 +23,16 @@ const (
 type SideEffect string
 
 const (
-	SideEffectTMRead        SideEffect = "tm-read"
-	SideEffectTMWrite       SideEffect = "tm-write"
-	SideEffectTermbaseRead  SideEffect = "termbase-read"
-	SideEffectTermbaseWrite SideEffect = "termbase-write"
-	SideEffectAPICall       SideEffect = "api-call"
-	SideEffectAnalytics     SideEffect = "analytics"
+	SideEffectMemoryRead  SideEffect = "tm-read"
+	SideEffectMemoryWrite SideEffect = "tm-write"
+	SideEffectTermsRead   SideEffect = "termbase-read"
+	SideEffectTermsWrite  SideEffect = "termbase-write"
+	SideEffectAPICall     SideEffect = "api-call"
+	SideEffectAnalytics   SideEffect = "analytics"
 
 	// SideEffectRemoteSourceEgress marks a tool that sends source content to a
 	// remote system (a cloud LLM or MT provider). It is deliberately distinct
-	// from SideEffectAPICall: a local detector, termbase, or TM lookup calls no
+	// from SideEffectAPICall: a local detector, terms, or content-memory lookup calls no
 	// remote sink and must not carry it, while every cloud-provider call must.
 	// The flow placement pass (AD-006) keys its redaction-safety rule off this
 	// effect — a recoverable transformer (redact) must run before any step that

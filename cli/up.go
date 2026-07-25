@@ -35,7 +35,7 @@ the gates that decide shippable; kapi up runs the project's default flow
 (defaults.flow) over every target language, looping until every gated scope is
 shippable or parked for a human.
 
-Without defaults.flow, up runs the built-in default flow — TM reuse (recycle)
+Without defaults.flow, up runs the built-in default flow — Memory reuse (recycle)
 followed by AI translate — so a recipe needs no flow YAML at all to catch up.
 Setting defaults.flow replaces the built-in default.
 
@@ -59,7 +59,7 @@ all shippable; the default ('manual') leaves that to 'kapi merge'.
 
 Venue: in a server-connected project (a recipe with a server: block, with the
 bowrain plugin installed) the loop runs on the Bowrain server by default — on
-the org's keys, against the org's shared TM and terminology — and this command
+the org's keys, against the org's shared Memory and terminology — and this command
 pushes local changes, streams the server run's live progress, and pulls the
 produced targets. --local keeps the loop on this machine and then pushes the
 results so the server never goes stale; --server fails rather than falling
@@ -67,7 +67,7 @@ back to a local run. The resolved venue is printed first whenever a server:
 block is present. Without a server: block, up is purely local.
 
 --plan is a dry run in every venue: instead of running anything, up reports
-the pending work per (collection, locale) — units missing a target, exact TM
+the pending work per (collection, locale) — units missing a target, exact Memory
 leverage, the remaining AI work, and a rough token estimate — computed locally
 against the working tree, with no provider calls and no writes. Combine with
 --json for agents.
@@ -80,7 +80,7 @@ gates (e.g. before a release tag).
 --passes 1 runs a single pass (the behavior of the bare 'kapi run');
 --passes N caps the loop at N passes.`,
 		Example: `  kapi up                # loop the default flow until every gated scope ships or parks
-  kapi up --plan         # dry run: pending work, TM leverage, and a token estimate per locale
+  kapi up --plan         # dry run: pending work, content-memory leverage, and a token estimate per locale
   kapi up --passes 1     # a single pass over every locale that needs work
   kapi up --materialize  # also write localized files for the shippable locales
   kapi up --local        # connected project: run the loop on this machine, then push the results

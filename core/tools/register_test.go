@@ -55,14 +55,14 @@ func TestBilingualToolCount(t *testing.T) {
 		"expected at least 10 bilingual tools, got: %v", bilingual)
 }
 
-func TestTMLeverageHasSideEffects(t *testing.T) {
+func TestMemoryLeverageHasSideEffects(t *testing.T) {
 	reg := registry.NewToolRegistry()
 	RegisterAll(reg)
 
 	for _, info := range reg.ListWithSchemas() {
 		if info.Name == "recycle" {
-			assert.Contains(t, info.SideEffects, schema.SideEffectTMRead)
-			assert.Contains(t, info.Produces, schema.IOPort{Type: model.AnnoTMMatch, Side: model.SideSource})
+			assert.Contains(t, info.SideEffects, schema.SideEffectMemoryRead)
+			assert.Contains(t, info.Produces, schema.IOPort{Type: model.AnnoMemoryMatch, Side: model.SideSource})
 			return
 		}
 	}

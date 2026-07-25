@@ -125,7 +125,7 @@ export function EditorSkeleton() {
   );
 }
 
-/** Skeleton for table-based views (audit log, bin, termbase, memory). */
+/** Skeleton for table-based views (audit log, bin, terms, memory). */
 export function TablePageSkeleton() {
   return (
     <div className="mx-auto w-full max-w-5xl p-4 md:p-6 space-y-4">
@@ -353,7 +353,7 @@ export function TaskBoardSkeleton() {
   );
 }
 
-/** Skeleton for explorer views (termbase, memory) with search + table. */
+/** Skeleton for explorer views (terms, memory) with search + table. */
 export function ExplorerSkeleton() {
   return (
     <div className="mx-auto w-full max-w-5xl p-4 md:p-6 space-y-4">

@@ -526,7 +526,7 @@ export interface ReviewUnitDetail {
   review_state?: string;
   note?: string;
   origin?: TargetOrigin;
-  /** Best TM match percent (absent/0 = none found or no project TM open). */
+  /** Best content-memory match percent (absent/0 = none found or no project content memory open). */
   tm_score?: number;
   findings: DesktopFinding[];
   /** Whether the target is a single plain-text run (safe to edit in place). */
@@ -583,9 +583,9 @@ export interface UpPlanScope {
   collection?: string;
   /** Translatable units with no committed target for the locale. */
   missingTarget: number;
-  /** Missing units covered by an exact-hash TM hit. */
-  tmExact: number;
-  /** Missing units left for AI translation after TM leverage. */
+  /** Missing units covered by an exact-hash content-memory hit. */
+  memoryExact: number;
+  /** Missing units left for AI translation after content-memory leverage. */
   aiRemaining: number;
   /** Rough input-token estimate for the remaining AI work (chars/4). */
   tokenEstimate: number;
@@ -601,7 +601,7 @@ export interface UpPlanOutput {
   /** True when that provider bills a personal subscription (claude-code) —
    * the token estimate is scale, not a metered API cost. */
   subscription?: boolean;
-  /** Discloses the estimation heuristic (TM exact-hash only, chars/4 tokens). */
+  /** Discloses the estimation heuristic (Memory exact-hash only, chars/4 tokens). */
   note: string;
 }
 
@@ -685,8 +685,8 @@ export interface AdoptFlowResult {
 /** Project-scoped resource handles ("" when none). */
 export interface ProjectHandles {
   tabID: string;
-  tmHandle: string;
-  termbaseHandle: string;
+  memoryHandle: string;
+  termsHandle: string;
 }
 
 // Sidebar items for Ad-Hoc mode

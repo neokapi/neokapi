@@ -200,32 +200,32 @@ func TestGetServerWorkspacesOffline(t *testing.T) {
 	assert.Contains(t, err.Error(), "not connected")
 }
 
-func TestTMOperationsOffline(t *testing.T) {
+func TestMemoryOperationsOffline(t *testing.T) {
 	app := newTestApp(t)
 
 	proj, err := app.CreateProject("Test", "en", []string{"fr"})
 	require.NoError(t, err)
 
-	// Add TM entry.
-	entry, err := app.AddTMEntry(proj.ID, "Hello", "Bonjour", "en", "fr")
+	// Add content-memory entry.
+	entry, err := app.AddMemoryEntry(proj.ID, "Hello", "Bonjour", "en", "fr")
 	require.NoError(t, err)
 	assert.NotEmpty(t, entry.ID)
 
 	// Get count.
-	count, err := app.GetTMCount(proj.ID)
+	count, err := app.GetMemoryCount(proj.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 1, count)
 
 	// Search.
-	result, err := app.GetTMEntries(proj.ID, "", "en", "fr", 0, 10)
+	result, err := app.GetMemoryEntries(proj.ID, "", "en", "fr", 0, 10)
 	require.NoError(t, err)
 	assert.Len(t, result.Entries, 1)
 
 	// Delete.
-	err = app.DeleteTMEntry(proj.ID, entry.ID)
+	err = app.DeleteMemoryEntry(proj.ID, entry.ID)
 	require.NoError(t, err)
 
-	count, err = app.GetTMCount(proj.ID)
+	count, err = app.GetMemoryCount(proj.ID)
 	require.NoError(t, err)
 	assert.Equal(t, 0, count)
 }

@@ -10,7 +10,7 @@ import (
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 )
@@ -20,9 +20,9 @@ import (
 //
 // Following "accept interfaces, return structs", the blast-radius engine depends
 // only on the narrow slices of the platform stores it actually calls. The real
-// PostgreSQL ContentStore, the framework termbase, and the brand store satisfy
+// PostgreSQL ContentStore, the framework terms, and the brand store satisfy
 // these directly (or via thin adapters); tests inject in-memory fakes and the
-// framework in-memory termbase so the whole read side runs without a database.
+// framework in-memory terms so the whole read side runs without a database.
 // ---------------------------------------------------------------------------
 
 // BlockSource is the slice of the content store the engine walks to gather the
@@ -48,15 +48,15 @@ type CollectionResolver interface {
 	GetCollection(ctx context.Context, projectID, collectionID string) (*store.Collection, error)
 }
 
-// ConceptStore is the slice of the framework termbase the engine reads to build
-// the before/after candidate termbases. The framework termbase (in-memory and
-// SQLite TBStore) satisfies it.
+// ConceptStore is the slice of the framework terms the engine reads to build
+// the before/after candidate terms stores. The framework terms (in-memory and
+// SQLite Store) satisfies it.
 type ConceptStore interface {
 	// GetConcept returns a concept by ID; ok is false when it is absent.
-	GetConcept(ctx context.Context, id string) (termbase.Concept, bool, error)
+	GetConcept(ctx context.Context, id string) (terms.Concept, bool, error)
 	// RelationsOf returns every relation touching the concept (either
 	// direction); a nil scope means no validity filtering.
-	RelationsOf(ctx context.Context, conceptID string, scope *graph.Scope) ([]termbase.ConceptRelation, error)
+	RelationsOf(ctx context.Context, conceptID string, scope *graph.Scope) ([]terms.ConceptRelation, error)
 }
 
 // ProfileStore is the slice of the brand store the engine reads (and the merge
@@ -74,12 +74,12 @@ type ProfileStore interface {
 
 // Compile-time proof that the production stores satisfy the engine's interfaces,
 // so the read side runs against the real platform without adapters: the bowrain
-// ContentStore is a BlockSource and a CollectionResolver, the framework termbase
+// ContentStore is a BlockSource and a CollectionResolver, the framework terms
 // store is a ConceptStore, and the brand store is a ProfileStore.
 var (
 	_ BlockSource        = (store.ContentStore)(nil)
 	_ CollectionResolver = (store.ContentStore)(nil)
-	_ ConceptStore       = (termbase.TBStore)(nil)
+	_ ConceptStore       = (terms.Store)(nil)
 	_ ProfileStore       = (corebrand.BrandStore)(nil)
 )
 
@@ -113,11 +113,11 @@ func NewEngine(blocks BlockSource, concepts ConceptStore, profiles ProfileStore,
 // persisted by the preview").
 // ---------------------------------------------------------------------------
 
-// ApplyOpsToTermbase returns a new in-memory termbase equal to base with the
+// ApplyOpsToTerms returns a new in-memory terms equal to base with the
 // concept, term, and relation ops in ops applied — the "after" snapshot a
 // change-set would produce. base is treated as read-only: it is deep-copied
-// first, so the returned termbase is fully independent and base is never
-// mutated. Voice ops are ignored (they apply to a profile, not the termbase);
+// first, so the returned terms is fully independent and base is never
+// mutated. Voice ops are ignored (they apply to a profile, not the terms store);
 // callers route them through ApplyVoiceOpsToProfile. Nothing is persisted.
 //
 // term.* ops set/replace/remove a term on its concept; term.status sets the
@@ -125,26 +125,26 @@ func NewEngine(blocks BlockSource, concepts ConceptStore, profiles ProfileStore,
 // concept.create/update/delete adjust concepts. An op that references a concept
 // absent from base is an error for the mutating term ops (the concept must
 // exist to be edited); concept.create inserts a new concept regardless.
-func ApplyOpsToTermbase(ctx context.Context, base *termbase.InMemoryTermBase, ops []ChangeSetOp) (*termbase.InMemoryTermBase, error) {
-	after, err := cloneInMemoryTermbase(ctx, base)
+func ApplyOpsToTerms(ctx context.Context, base *terms.InMemoryStore, ops []ChangeSetOp) (*terms.InMemoryStore, error) {
+	after, err := cloneInMemoryTerms(ctx, base)
 	if err != nil {
-		return nil, fmt.Errorf("clone base termbase: %w", err)
+		return nil, fmt.Errorf("clone base terms: %w", err)
 	}
 	for _, op := range ops {
-		if err := applyTermbaseOp(ctx, after, op); err != nil {
+		if err := applyTermsOp(ctx, after, op); err != nil {
 			return nil, err
 		}
 	}
 	return after, nil
 }
 
-// applyTermbaseOp applies a single concept/term/relation op to tb. Voice ops and
-// op types that do not touch the termbase are no-ops. tb is the minimal
-// TermBase write surface (GetConcept/AddConcept/DeleteConcept/AddRelation/
+// applyTermsOp applies a single concept/term/relation op to tb. Voice ops and
+// op types that do not touch the terms store are no-ops. tb is the minimal
+// Terminology write surface (GetConcept/AddConcept/DeleteConcept/AddRelation/
 // DeleteRelation), so the same op-application logic drives both the in-memory
-// candidate snapshot (ApplyOpsToTermbase) and the live workspace termbase at
+// candidate snapshot (ApplyOpsToTerms) and the live workspace terms at
 // merge time (MergeChangeSet).
-func applyTermbaseOp(ctx context.Context, tb termbase.TermBase, op ChangeSetOp) error {
+func applyTermsOp(ctx context.Context, tb terms.Terminology, op ChangeSetOp) error {
 	switch op.Op {
 	case OpConceptCreate:
 		var p ConceptCreatePayload
@@ -277,7 +277,7 @@ func applyTermbaseOp(ctx context.Context, tb termbase.TermBase, op ChangeSetOp) 
 		return nil
 
 	case OpVoiceRuleAdd, OpVoiceRuleRemove:
-		// Voice ops apply to a profile, not the termbase.
+		// Voice ops apply to a profile, not the terms.
 		return nil
 
 	default:
@@ -287,36 +287,36 @@ func applyTermbaseOp(ctx context.Context, tb termbase.TermBase, op ChangeSetOp) 
 
 // getConceptForEdit loads a concept that an op edits, returning a descriptive
 // error when it is absent.
-func getConceptForEdit(ctx context.Context, tb termbase.TermBase, op OpType, conceptID string) (termbase.Concept, error) {
+func getConceptForEdit(ctx context.Context, tb terms.Terminology, op OpType, conceptID string) (terms.Concept, error) {
 	c, ok, err := tb.GetConcept(ctx, conceptID)
 	if err != nil {
-		return termbase.Concept{}, err
+		return terms.Concept{}, err
 	}
 	if !ok {
-		return termbase.Concept{}, fmt.Errorf("%s: concept %q not found", op, conceptID)
+		return terms.Concept{}, fmt.Errorf("%s: concept %q not found", op, conceptID)
 	}
 	return c, nil
 }
 
-// findTerm returns the index of the term identified by (locale, text) in terms,
+// findTerm returns the index of the term identified by (locale, text) in list,
 // matched case-insensitively on text, or -1 when absent.
-func findTerm(terms []termbase.Term, locale model.LocaleID, text string) int {
-	for i := range terms {
-		if terms[i].Locale == locale && strings.EqualFold(terms[i].Text, text) {
+func findTerm(list []terms.Term, locale model.LocaleID, text string) int {
+	for i := range list {
+		if list[i].Locale == locale && strings.EqualFold(list[i].Text, text) {
 			return i
 		}
 	}
 	return -1
 }
 
-// copyTerms returns an independent copy of a term slice so an "after" termbase
+// copyTerms returns an independent copy of a term slice so an "after" concept
 // can be mutated without touching the "before" snapshot's backing array.
-func copyTerms(terms []termbase.Term) []termbase.Term {
-	return append([]termbase.Term(nil), terms...)
+func copyTerms(list []terms.Term) []terms.Term {
+	return append([]terms.Term(nil), list...)
 }
 
 // isNotFound reports whether err looks like a "not found" error from the
-// in-memory termbase (used to make delete ops idempotent against a pruned
+// in-memory terms (used to make delete ops idempotent against a pruned
 // candidate snapshot).
 func isNotFound(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "not found")
@@ -406,14 +406,14 @@ func removeRuleFromList(p *corebrand.VoiceProfile, list VoiceRuleList, term stri
 }
 
 // ---------------------------------------------------------------------------
-// Termbase snapshot helpers
+// Terms snapshot helpers
 // ---------------------------------------------------------------------------
 
-// cloneInMemoryTermbase returns a deep, independent copy of src: every concept's
+// cloneInMemoryTerms returns a deep, independent copy of src: every concept's
 // terms and properties are copied so the clone can be mutated without affecting
 // src, and every relation is carried over.
-func cloneInMemoryTermbase(ctx context.Context, src *termbase.InMemoryTermBase) (*termbase.InMemoryTermBase, error) {
-	dst := termbase.NewInMemoryTermBase()
+func cloneInMemoryTerms(ctx context.Context, src *terms.InMemoryStore) (*terms.InMemoryStore, error) {
+	dst := terms.NewInMemoryStore()
 	if src == nil {
 		return dst, nil
 	}
@@ -440,7 +440,7 @@ func cloneInMemoryTermbase(ctx context.Context, src *termbase.InMemoryTermBase) 
 
 // deepCopyConcept copies a concept's mutable collection fields (terms,
 // properties) so it can be edited independently of any shared backing array.
-func deepCopyConcept(c termbase.Concept) termbase.Concept {
+func deepCopyConcept(c terms.Concept) terms.Concept {
 	c.Terms = copyTerms(c.Terms)
 	if c.Properties != nil {
 		props := make(map[string]string, len(c.Properties))
@@ -450,13 +450,13 @@ func deepCopyConcept(c termbase.Concept) termbase.Concept {
 	return c
 }
 
-// buildBeforeTermbase seeds an in-memory termbase with the current state of
+// buildBeforeTerms seeds an in-memory terms with the current state of
 // every concept an op touches (and the endpoints of every relation those
 // concepts carry), so a before/after diff can be computed without pulling the
 // whole workspace graph into memory. Concepts absent from the store are simply
 // not seeded (a concept.create op introduces them only on the "after" side).
-func (e *Engine) buildBeforeTermbase(ctx context.Context, ops []ChangeSetOp) (*termbase.InMemoryTermBase, error) {
-	tb := termbase.NewInMemoryTermBase()
+func (e *Engine) buildBeforeTerms(ctx context.Context, ops []ChangeSetOp) (*terms.InMemoryStore, error) {
+	tb := terms.NewInMemoryStore()
 	if e.concepts == nil {
 		return tb, nil
 	}
@@ -491,7 +491,7 @@ func (e *Engine) buildBeforeTermbase(ctx context.Context, ops []ChangeSetOp) (*t
 // seedConcept loads a concept by ID into tb once. A missing or empty ID, or a
 // concept absent from the store, leaves tb unchanged (but still marks the ID
 // seeded so it is not queried again).
-func (e *Engine) seedConcept(ctx context.Context, tb *termbase.InMemoryTermBase, id string, seeded map[string]bool) error {
+func (e *Engine) seedConcept(ctx context.Context, tb *terms.InMemoryStore, id string, seeded map[string]bool) error {
 	if id == "" || seeded[id] {
 		return nil
 	}

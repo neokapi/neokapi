@@ -91,7 +91,7 @@ describe("stepsToGraph with parallel branches", () => {
           tool: "",
           parallel: [
             { tool: "qa", label: "Quality Check", config: { strict: true } },
-            { tool: "tm", label: "TM Lookup" },
+            { tool: "tm", label: "Memory Lookup" },
           ],
         },
       ],
@@ -106,7 +106,7 @@ describe("stepsToGraph with parallel branches", () => {
     }>;
     expect(branches[0].label).toBe("Quality Check");
     expect(branches[0].config).toEqual({ strict: true });
-    expect(branches[1].label).toBe("TM Lookup");
+    expect(branches[1].label).toBe("content memory Lookup");
   });
 });
 

@@ -193,14 +193,14 @@ func TestPseudoTranslateItemOfflineEnqueues(t *testing.T) {
 	assert.Contains(t, flattenTargetRuns(blocks[0], "fr"), "[")
 }
 
-func TestTMTranslateItemOnlineHitsServer(t *testing.T) {
+func TestMemoryTranslateItemOnlineHitsServer(t *testing.T) {
 	app, hits := itemOpServer(t, map[string]func(http.ResponseWriter, *http.Request){
 		"POST /actions/main/tm-translate": func(w http.ResponseWriter, _ *http.Request) {
 			_ = json.NewEncoder(w).Encode(apiclient.EditorTranslationStats{TotalBlocks: 2, TranslatedBlocks: 1, WordCount: 4})
 		},
 	})
 
-	stats, err := app.TMTranslateItem("p1", "hello.txt", "fr")
+	stats, err := app.MemoryTranslateItem("p1", "hello.txt", "fr")
 	require.NoError(t, err)
 	assert.Equal(t, 2, stats.TotalBlocks)
 	assert.True(t, hitsContain(*hits, "POST", "/actions/main/tm-translate"), "hits=%v", *hits)

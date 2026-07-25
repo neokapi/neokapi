@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { TMGroupedEntry } from "../../components/resource-browser/TMGroupedEntry";
-import type { TMEntryDTO, VariantDTO } from "../../components/resource-browser/types";
+import { MemoryGroupedEntry } from "../../components/resource-browser/MemoryGroupedEntry";
+import type { MemoryEntryDTO, VariantDTO } from "../../components/resource-browser/types";
 import { fn } from "storybook/test";
 
 const now = new Date().toISOString();
@@ -9,7 +9,7 @@ function v(locale: string, text: string): VariantDTO {
   return { locale, text, runs: [{ text }] };
 }
 
-const basicEntry: TMEntryDTO = {
+const basicEntry: MemoryEntryDTO = {
   id: "tm-basic",
   project_id: "webapp",
   hint_src_lang: "en-US",
@@ -32,7 +32,7 @@ const basicEntry: TMEntryDTO = {
   updated_at: now,
 };
 
-const singleTarget: TMEntryDTO = {
+const singleTarget: MemoryEntryDTO = {
   id: "tm-single",
   project_id: "",
   hint_src_lang: "en-US",
@@ -44,7 +44,7 @@ const singleTarget: TMEntryDTO = {
   updated_at: now,
 };
 
-const manyTargets: TMEntryDTO = {
+const manyTargets: MemoryEntryDTO = {
   ...basicEntry,
   id: "tm-many",
   variants: {
@@ -62,9 +62,9 @@ const manyTargets: TMEntryDTO = {
   },
 };
 
-const meta: Meta<typeof TMGroupedEntry> = {
-  title: "Resource Browser/TMGroupedEntry",
-  component: TMGroupedEntry,
+const meta: Meta<typeof MemoryGroupedEntry> = {
+  title: "Resource Browser/MemoryGroupedEntry",
+  component: MemoryGroupedEntry,
   tags: ["autodocs"],
   decorators: [
     (Story: React.ComponentType) => (
@@ -77,14 +77,14 @@ const meta: Meta<typeof TMGroupedEntry> = {
     docs: {
       description: {
         component:
-          "Expandable card for a multilingual TM entry. The hint_src_lang variant is shown as the header; every other variant is rendered beneath.",
+          "Expandable card for a multilingual content-memory entry. The hint_src_lang variant is shown as the header; every other variant is rendered beneath.",
       },
     },
   },
 };
 
 export default meta;
-type Story = StoryObj<typeof TMGroupedEntry>;
+type Story = StoryObj<typeof MemoryGroupedEntry>;
 
 export const AutoExpanded: Story = {
   args: {
@@ -154,14 +154,14 @@ export const ManyTargetsCollapsed: Story = {
 export const MultipleEntries: Story = {
   render: () => (
     <div className="space-y-2">
-      <TMGroupedEntry
+      <MemoryGroupedEntry
         entry={basicEntry}
         selected={false}
         onToggleSelect={fn()}
         onEditVariant={fn()}
         onDelete={fn()}
       />
-      <TMGroupedEntry
+      <MemoryGroupedEntry
         entry={singleTarget}
         selected={true}
         onToggleSelect={fn()}

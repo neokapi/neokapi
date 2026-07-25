@@ -59,7 +59,7 @@ export const WithDemoPanels: Story = {
 };
 
 /**
- * A core-only source (local termbase): no markets/observations/comments/timeline
+ * A core-only source (local terms): no markets/observations/comments/timeline
  * and no edit affordance. The demo panels degrade — geography is derived from
  * validity tags, the timeline is synthesised from timestamps.
  */

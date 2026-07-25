@@ -471,7 +471,7 @@ The `Builder` provides a fluent API for constructing flows:
 
 ```go
 f, err := flow.NewFlow("translate").
-    AddTool(tools.NewTMLeverageTool(tmCfg)).
+    AddTool(tools.NewMemoryLeverageTool(memoryCfg)).
     AddTool(aitools.NewAITranslateTool(llmProvider, translateCfg)).
     Build()
 

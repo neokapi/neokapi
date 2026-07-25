@@ -18,17 +18,17 @@ var errKnowledgeUnavailable = errors.New("brand knowledge graph not configured")
 
 // knowledgeEngineFor builds a knowledge.Engine bound to one workspace. The
 // engine is store-agnostic: it depends on a narrow BlockSource (the content
-// store), a ConceptStore (the workspace termbase), a ProfileStore (the brand
+// store), a ConceptStore (the workspace terms), a ProfileStore (the brand
 // store), and the governance Store. The production stores satisfy those small
 // interfaces directly — the compile-time checks in knowledge/engine.go and
 // knowledge/pilot.go prove the content store is a BlockSource /
-// CollectionResolver / StreamBindingStore, the framework termbase is a
+// CollectionResolver / StreamBindingStore, the framework terms is a
 // ConceptStore, and the brand store is a ProfileStore — so no adapters are
 // needed. An engine holds only pointers, so building a fresh one per request is
-// cheap; the workspace termbase it carries is cached by workspaceStores.
+// cheap; the workspace terms it carries is cached by workspaceStores.
 //
 // wsSlug is the workspace slug (c.Param("ws")), which keys the workspace
-// termbase; the read-side walk methods (EvaluateChangeSet, ConceptUsage) take
+// terms; the read-side walk methods (EvaluateChangeSet, ConceptUsage) take
 // the workspace ID separately so they can filter stored projects by
 // Project.WorkspaceID.
 func (s *Server) knowledgeEngineFor(wsSlug string) (*knowledge.Engine, error) {

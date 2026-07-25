@@ -12,13 +12,13 @@ import (
 
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // --- DTOs ---
 
-// ResourceInfo describes a named resource (TM or termbase) in KAPI_HOME.
+// ResourceInfo describes a named resource (content memory or terms) in KAPI_HOME.
 type ResourceInfo struct {
 	Name     string `json:"name"`
 	Path     string `json:"path"`
@@ -26,7 +26,7 @@ type ResourceInfo struct {
 	Modified string `json:"modified"` // ISO 8601
 }
 
-// OriginDTO is the frontend-facing TM entry origin (provenance).
+// OriginDTO is the frontend-facing content-memory entry origin (provenance).
 type OriginDTO struct {
 	Source    string `json:"source"`
 	Key       string `json:"key,omitempty"`
@@ -36,7 +36,7 @@ type OriginDTO struct {
 	SessionID string `json:"session_id,omitempty"`
 }
 
-// VariantDTO is a single language variant of a multilingual TM entry. Inline
+// VariantDTO is a single language variant of a multilingual content-memory entry. Inline
 // markup travels as an RFC 0001 Run sequence; Text is the flattened plain form.
 type VariantDTO struct {
 	Locale string      `json:"locale"`
@@ -57,11 +57,11 @@ type EntityMappingDTO struct {
 	PlaceholderID string                    `json:"placeholder_id"`
 	Type          string                    `json:"type"`
 	Values        map[string]EntityValueDTO `json:"values"`
-	ConceptID     string                    `json:"concept_id,omitempty"` // optional termbase cross-reference
+	ConceptID     string                    `json:"concept_id,omitempty"` // optional terms cross-reference
 }
 
-// TMEntryDTO is the frontend-facing multilingual TM entry.
-type TMEntryDTO struct {
+// MemoryEntryDTO is the frontend-facing multilingual content-memory entry.
+type MemoryEntryDTO struct {
 	ID          string                `json:"id"`
 	ProjectID   string                `json:"project_id"`
 	Variants    map[string]VariantDTO `json:"variants"`
@@ -74,22 +74,22 @@ type TMEntryDTO struct {
 	UpdatedAt   string                `json:"updated_at"`
 }
 
-// TMSearchResult is the paginated result from SearchTMEntries.
-type TMSearchResult struct {
-	Entries    []TMEntryDTO `json:"entries"`
-	TotalCount int          `json:"total_count"`
+// MemorySearchResult is the paginated result from SearchMemoryEntries.
+type MemorySearchResult struct {
+	Entries    []MemoryEntryDTO `json:"entries"`
+	TotalCount int              `json:"total_count"`
 }
 
-// TMStats is the stats response for an open TM.
-type TMStats struct {
+// MemoryStats is the stats response for an open content memory.
+type MemoryStats struct {
 	Count int    `json:"count"`
 	Path  string `json:"path"`
 	Size  int64  `json:"size"`
 }
 
-// TMMatchDTO is a single match from entity-aware TM lookup.
-type TMMatchDTO struct {
-	Entry             TMEntryDTO            `json:"entry"`
+// MemoryMatchDTO is a single match from entity-aware content-memory lookup.
+type MemoryMatchDTO struct {
+	Entry             MemoryEntryDTO        `json:"entry"`
 	Score             float64               `json:"score"`
 	MatchType         string                `json:"match_type"`
 	EntityAdaptations []EntityAdaptationDTO `json:"entity_adaptations,omitempty"`
@@ -103,8 +103,8 @@ type EntityAdaptationDTO struct {
 	CurrentValue  string `json:"current_value"`
 }
 
-// LookupTMRequest is the request for entity-aware TM lookup.
-type LookupTMRequest struct {
+// LookupMemoryRequest is the request for entity-aware content-memory lookup.
+type LookupMemoryRequest struct {
 	Text         string                `json:"text"`
 	Entities     []EntityAnnotationDTO `json:"entities"`
 	SourceLocale string                `json:"source_locale"`
@@ -121,10 +121,10 @@ type EntityAnnotationDTO struct {
 	End   int    `json:"end"`
 }
 
-// AddTMEntryRequest is the request to add a new multilingual TM entry.
+// AddMemoryEntryRequest is the request to add a new multilingual content-memory entry.
 // Callers populate Variants with one VariantInput per locale; the server uses
 // each variant's Run sequence, falling back to plain Text when Runs is empty.
-type AddTMEntryRequest struct {
+type AddMemoryEntryRequest struct {
 	Variants    map[string]VariantInputDTO `json:"variants"`
 	HintSrcLang string                     `json:"hint_src_lang"`
 	ProjectID   string                     `json:"project_id"`
@@ -140,9 +140,9 @@ type VariantInputDTO struct {
 	Runs []model.Run `json:"runs,omitempty"`
 }
 
-// UpdateTMEntryRequest is the request to update a TM entry. The Variants map
+// UpdateMemoryEntryRequest is the request to update a content-memory entry. The Variants map
 // replaces the stored variants wholesale.
-type UpdateTMEntryRequest struct {
+type UpdateMemoryEntryRequest struct {
 	EntryID     string                     `json:"entry_id"`
 	Variants    map[string]VariantInputDTO `json:"variants"`
 	HintSrcLang string                     `json:"hint_src_lang"`
@@ -157,11 +157,11 @@ type ImportResult struct {
 	Count     int    `json:"count"`
 }
 
-// AnnotateEntitiesRequest is the request to batch-annotate entities on TM entries.
+// AnnotateEntitiesRequest is the request to batch-annotate entities on content-memory entries.
 type AnnotateEntitiesRequest struct {
-	EntryIDs       []string               `json:"entry_ids"`
-	Patterns       []EntityPatternRequest `json:"patterns"`
-	TermbaseHandle string                 `json:"termbase_handle,omitempty"` // optional: cross-ref entities against this termbase
+	EntryIDs    []string               `json:"entry_ids"`
+	Patterns    []EntityPatternRequest `json:"patterns"`
+	TermsHandle string                 `json:"termbase_handle,omitempty"` // optional: cross-ref entities against this terms
 }
 
 // EntityPatternRequest defines a text→entity mapping for batch annotation.
@@ -177,8 +177,8 @@ type AnnotateResult struct {
 	EntitiesAdded  int `json:"entities_added"`
 }
 
-// TMFacets is the frontend-facing facet data for the sidebar.
-type TMFacets struct {
+// MemoryFacets is the frontend-facing facet data for the sidebar.
+type MemoryFacets struct {
 	Locales        []LocaleFacetDTO        `json:"locales"`
 	Projects       []ProjectFacetDTO       `json:"projects"`
 	EntityTypes    []EntityTypeFacetDTO    `json:"entity_types"`
@@ -234,8 +234,8 @@ type ImportSessionDTO struct {
 	Properties       map[string]string `json:"properties,omitempty"`
 }
 
-// TMSearchFilter is the frontend-facing search filter.
-type TMSearchFilter struct {
+// MemorySearchFilter is the frontend-facing search filter.
+type MemorySearchFilter struct {
 	ProjectID    string              `json:"project_id,omitempty"`
 	Locale       string              `json:"locale,omitempty"` // require this locale variant
 	SessionIDs   []string            `json:"session_ids,omitempty"`
@@ -278,8 +278,8 @@ func runsToVariantDTO(locale model.LocaleID, runs []model.Run) VariantDTO {
 	}
 }
 
-// originsToDTO converts sievepen.Origin values to OriginDTO for the frontend.
-func originsToDTO(in []sievepen.Origin) []OriginDTO {
+// originsToDTO converts memory.Origin values to OriginDTO for the frontend.
+func originsToDTO(in []memory.Origin) []OriginDTO {
 	if len(in) == 0 {
 		return nil
 	}
@@ -297,20 +297,20 @@ func originsToDTO(in []sievepen.Origin) []OriginDTO {
 	return out
 }
 
-// originsFromDTO converts request OriginDTOs to sievepen.Origin values,
+// originsFromDTO converts request OriginDTOs to memory.Origin values,
 // defaulting AddedAt to time.Now() when not supplied.
-func originsFromDTO(in []OriginDTO) []sievepen.Origin {
+func originsFromDTO(in []OriginDTO) []memory.Origin {
 	if len(in) == 0 {
 		return nil
 	}
-	out := make([]sievepen.Origin, 0, len(in))
+	out := make([]memory.Origin, 0, len(in))
 	now := time.Now()
 	for _, o := range in {
 		addedAt, _ := time.Parse(time.RFC3339, o.AddedAt)
 		if addedAt.IsZero() {
 			addedAt = now
 		}
-		out = append(out, sievepen.Origin{
+		out = append(out, memory.Origin{
 			Source:    o.Source,
 			Key:       o.Key,
 			Reference: o.Reference,
@@ -323,7 +323,7 @@ func originsFromDTO(in []OriginDTO) []sievepen.Origin {
 }
 
 // entitiesToDTO converts stored entities to the frontend shape.
-func entitiesToDTO(in []sievepen.EntityMapping) []EntityMappingDTO {
+func entitiesToDTO(in []memory.EntityMapping) []EntityMappingDTO {
 	if len(in) == 0 {
 		return nil
 	}
@@ -343,12 +343,12 @@ func entitiesToDTO(in []sievepen.EntityMapping) []EntityMappingDTO {
 	return out
 }
 
-func tmEntryToDTO(entry sievepen.TMEntry) TMEntryDTO {
+func memoryEntryToDTO(entry memory.Entry) MemoryEntryDTO {
 	variants := make(map[string]VariantDTO, len(entry.Variants))
 	for loc, runs := range entry.Variants {
 		variants[string(loc)] = runsToVariantDTO(loc, runs)
 	}
-	return TMEntryDTO{
+	return MemoryEntryDTO{
 		ID:          entry.ID,
 		ProjectID:   entry.ProjectID,
 		Variants:    variants,
@@ -375,7 +375,7 @@ func variantsFromInput(in map[string]VariantInputDTO) map[model.LocaleID][]model
 
 // --- Resource discovery ---
 
-func (a *App) ListNamedTMs() []ResourceInfo {
+func (a *App) ListNamedMemories() []ResourceInfo {
 	return listNamedResources("tm")
 }
 
@@ -425,20 +425,20 @@ func (a *App) RecoverResource(path string) (string, error) {
 
 // --- Lifecycle ---
 
-func (a *App) OpenTM(path string) (string, error) {
-	tm, err := sievepen.NewSQLiteTM(path)
+func (a *App) OpenMemory(path string) (string, error) {
+	tm, err := memory.NewSQLiteStore(path)
 	if err != nil {
-		return "", fmt.Errorf("open TM %q: %w", path, err)
+		return "", fmt.Errorf("open Memory %q: %w", path, err)
 	}
-	return a.tmHandles.Open(tm), nil
+	return a.memoryHandles.Open(tm), nil
 }
 
-func (a *App) OpenTMDialog() (string, error) {
+func (a *App) OpenMemoryDialog() (string, error) {
 	if a.app == nil {
 		return "", nil
 	}
 	path, err := a.app.Dialog.OpenFile().
-		AddFilter("Translation Memory", "*.db").
+		AddFilter("Content Memory", "*.db").
 		AddFilter("All Files", "*").
 		PromptForSingleSelection()
 	if err != nil {
@@ -447,31 +447,31 @@ func (a *App) OpenTMDialog() (string, error) {
 	if path == "" {
 		return "", nil
 	}
-	return a.OpenTM(path)
+	return a.OpenMemory(path)
 }
 
-func (a *App) CreateTM(path string) (string, error) {
+func (a *App) CreateMemory(path string) (string, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return "", fmt.Errorf("create directory: %w", err)
 	}
-	return a.OpenTM(path)
+	return a.OpenMemory(path)
 }
 
-func (a *App) CreateNamedTM(name string) (string, error) {
+func (a *App) CreateNamedMemory(name string) (string, error) {
 	dir := namedResourceDir("tm")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", fmt.Errorf("create TM directory: %w", err)
+		return "", fmt.Errorf("create Memory directory: %w", err)
 	}
 	path := filepath.Join(dir, name+".db")
-	return a.OpenTM(path)
+	return a.OpenMemory(path)
 }
 
-func (a *App) CloseTM(handle string) {
-	_ = a.tmHandles.Close(handle)
+func (a *App) CloseMemory(handle string) {
+	_ = a.memoryHandles.Close(handle)
 }
 
-func (a *App) GetTMStats(handle string) *TMStats {
-	tm, ok := a.tmHandles.Get(handle)
+func (a *App) GetMemoryStats(handle string) *MemoryStats {
+	tm, ok := a.memoryHandles.Get(handle)
 	if !ok {
 		return nil
 	}
@@ -479,12 +479,12 @@ func (a *App) GetTMStats(handle string) *TMStats {
 	if err != nil {
 		return nil
 	}
-	return &TMStats{Count: count}
+	return &MemoryStats{Count: count}
 }
 
-// GetTMActivityStats returns daily entry counts over time.
-func (a *App) GetTMActivityStats(handle string) []sievepen.ActivityStat {
-	tm, ok := a.tmHandles.Get(handle)
+// GetMemoryActivityStats returns daily entry counts over time.
+func (a *App) GetMemoryActivityStats(handle string) []memory.ActivityStat {
+	tm, ok := a.memoryHandles.Get(handle)
 	if !ok {
 		return nil
 	}
@@ -495,11 +495,11 @@ func (a *App) GetTMActivityStats(handle string) []sievepen.ActivityStat {
 	return stats
 }
 
-// GetTMLocaleStats returns per-locale entry counts. The legacy API name is
+// GetMemoryLocaleStats returns per-locale entry counts. The legacy API name is
 // preserved for frontend compatibility; the response is now a flat list of
 // single-locale counts, not locale pairs.
-func (a *App) GetTMLocaleStats(handle string) []sievepen.LocaleFacet {
-	tm, ok := a.tmHandles.Get(handle)
+func (a *App) GetMemoryLocaleStats(handle string) []memory.LocaleFacet {
+	tm, ok := a.memoryHandles.Get(handle)
 	if !ok {
 		return nil
 	}
@@ -512,15 +512,15 @@ func (a *App) GetTMLocaleStats(handle string) []sievepen.LocaleFacet {
 
 // --- CRUD ---
 
-// SearchTMEntries searches TM entries by query with pagination.
+// SearchMemoryEntries searches content-memory entries by query with pagination.
 // anyLocale restricts the text search to entries with a variant in that
 // locale; requireLocale additionally requires that variant to exist.
-func (a *App) SearchTMEntries(handle, query, anyLocale, requireLocale string, offset, limit int) *TMSearchResult {
-	tm, ok := a.tmHandles.Get(handle)
+func (a *App) SearchMemoryEntries(handle, query, anyLocale, requireLocale string, offset, limit int) *MemorySearchResult {
+	tm, ok := a.memoryHandles.Get(handle)
 	if !ok {
-		return &TMSearchResult{}
+		return &MemorySearchResult{}
 	}
-	entries, total, err := tm.SearchEntries(context.Background(), sievepen.SearchParams{
+	entries, total, err := tm.SearchEntries(context.Background(), memory.SearchParams{
 		Query:         query,
 		AnyLocale:     anyLocale,
 		RequireLocale: requireLocale,
@@ -528,22 +528,22 @@ func (a *App) SearchTMEntries(handle, query, anyLocale, requireLocale string, of
 		Limit:         limit,
 	})
 	if err != nil {
-		return &TMSearchResult{}
+		return &MemorySearchResult{}
 	}
-	dtos := make([]TMEntryDTO, 0, len(entries))
+	dtos := make([]MemoryEntryDTO, 0, len(entries))
 	for _, e := range entries {
-		dtos = append(dtos, tmEntryToDTO(e))
+		dtos = append(dtos, memoryEntryToDTO(e))
 	}
-	return &TMSearchResult{Entries: dtos, TotalCount: total}
+	return &MemorySearchResult{Entries: dtos, TotalCount: total}
 }
 
-// SearchTMEntriesFiltered searches TM entries with facet filters.
-func (a *App) SearchTMEntriesFiltered(handle, query, anyLocale, requireLocale string, filter TMSearchFilter, offset, limit int) *TMSearchResult {
-	tm, ok := a.tmHandles.Get(handle)
+// SearchMemoryEntriesFiltered searches content-memory entries with facet filters.
+func (a *App) SearchMemoryEntriesFiltered(handle, query, anyLocale, requireLocale string, filter MemorySearchFilter, offset, limit int) *MemorySearchResult {
+	tm, ok := a.memoryHandles.Get(handle)
 	if !ok {
-		return &TMSearchResult{}
+		return &MemorySearchResult{}
 	}
-	entries, total, err := tm.SearchEntriesFiltered(context.Background(), sievepen.SearchParams{
+	entries, total, err := tm.SearchEntriesFiltered(context.Background(), memory.SearchParams{
 		Query:         query,
 		AnyLocale:     anyLocale,
 		RequireLocale: requireLocale,
@@ -552,18 +552,18 @@ func (a *App) SearchTMEntriesFiltered(handle, query, anyLocale, requireLocale st
 		Limit:         limit,
 	})
 	if err != nil {
-		return &TMSearchResult{}
+		return &MemorySearchResult{}
 	}
-	dtos := make([]TMEntryDTO, 0, len(entries))
+	dtos := make([]MemoryEntryDTO, 0, len(entries))
 	for _, e := range entries {
-		dtos = append(dtos, tmEntryToDTO(e))
+		dtos = append(dtos, memoryEntryToDTO(e))
 	}
-	return &TMSearchResult{Entries: dtos, TotalCount: total}
+	return &MemorySearchResult{Entries: dtos, TotalCount: total}
 }
 
-// GetTMEntry returns a single TM entry by ID.
-func (a *App) GetTMEntry(handle, entryID string) *TMEntryDTO {
-	tm, ok := a.tmHandles.Get(handle)
+// GetMemoryEntry returns a single content-memory entry by ID.
+func (a *App) GetMemoryEntry(handle, entryID string) *MemoryEntryDTO {
+	tm, ok := a.memoryHandles.Get(handle)
 	if !ok {
 		return nil
 	}
@@ -571,18 +571,18 @@ func (a *App) GetTMEntry(handle, entryID string) *TMEntryDTO {
 	if err != nil || !found {
 		return nil
 	}
-	dto := tmEntryToDTO(entry)
+	dto := memoryEntryToDTO(entry)
 	return &dto
 }
 
-// AddTMEntry adds a new multilingual TM entry.
-func (a *App) AddTMEntry(handle string, req AddTMEntryRequest) error {
-	tm, ok := a.tmHandles.Get(handle)
+// AddMemoryEntry adds a new multilingual content-memory entry.
+func (a *App) AddMemoryEntry(handle string, req AddMemoryEntryRequest) error {
+	tm, ok := a.memoryHandles.Get(handle)
 	if !ok {
-		return fmt.Errorf("TM handle %q not found", handle)
+		return fmt.Errorf("content-memory handle %q not found", handle)
 	}
 	now := time.Now()
-	entry := sievepen.TMEntry{
+	entry := memory.Entry{
 		ID:          id.New(),
 		ProjectID:   req.ProjectID,
 		Variants:    variantsFromInput(req.Variants),
@@ -595,11 +595,11 @@ func (a *App) AddTMEntry(handle string, req AddTMEntryRequest) error {
 	return tm.Add(context.Background(), entry)
 }
 
-// UpdateTMEntry updates an existing multilingual TM entry.
-func (a *App) UpdateTMEntry(handle string, req UpdateTMEntryRequest) error {
-	tm, ok := a.tmHandles.Get(handle)
+// UpdateMemoryEntry updates an existing multilingual content-memory entry.
+func (a *App) UpdateMemoryEntry(handle string, req UpdateMemoryEntryRequest) error {
+	tm, ok := a.memoryHandles.Get(handle)
 	if !ok {
-		return fmt.Errorf("TM handle %q not found", handle)
+		return fmt.Errorf("content-memory handle %q not found", handle)
 	}
 	existing, found, err := tm.GetEntry(context.Background(), req.EntryID)
 	if err != nil {
@@ -623,20 +623,20 @@ func (a *App) UpdateTMEntry(handle string, req UpdateTMEntryRequest) error {
 	return tm.Add(context.Background(), existing)
 }
 
-// DeleteTMEntry deletes a single TM entry.
-func (a *App) DeleteTMEntry(handle, entryID string) error {
-	tm, ok := a.tmHandles.Get(handle)
+// DeleteMemoryEntry deletes a single content-memory entry.
+func (a *App) DeleteMemoryEntry(handle, entryID string) error {
+	tm, ok := a.memoryHandles.Get(handle)
 	if !ok {
-		return fmt.Errorf("TM handle %q not found", handle)
+		return fmt.Errorf("content-memory handle %q not found", handle)
 	}
 	return tm.Delete(context.Background(), entryID)
 }
 
-// DeleteTMEntries deletes multiple TM entries.
-func (a *App) DeleteTMEntries(handle string, entryIDs []string) error {
-	tm, ok := a.tmHandles.Get(handle)
+// DeleteMemoryEntries deletes multiple content-memory entries.
+func (a *App) DeleteMemoryEntries(handle string, entryIDs []string) error {
+	tm, ok := a.memoryHandles.Get(handle)
 	if !ok {
-		return fmt.Errorf("TM handle %q not found", handle)
+		return fmt.Errorf("content-memory handle %q not found", handle)
 	}
 	for _, eid := range entryIDs {
 		if err := tm.Delete(context.Background(), eid); err != nil {
@@ -648,9 +648,9 @@ func (a *App) DeleteTMEntries(handle string, entryIDs []string) error {
 
 // --- Entity-aware lookup ---
 
-// LookupTM performs entity-aware TM lookup using the full tiered matching pipeline.
-func (a *App) LookupTM(handle string, req LookupTMRequest) []TMMatchDTO {
-	tm, ok := a.tmHandles.Get(handle)
+// LookupMemory performs entity-aware content-memory lookup using the full tiered matching pipeline.
+func (a *App) LookupMemory(handle string, req LookupMemoryRequest) []MemoryMatchDTO {
+	tm, ok := a.memoryHandles.Get(handle)
 	if !ok {
 		return nil
 	}
@@ -673,7 +673,7 @@ func (a *App) LookupTM(handle string, req LookupTMRequest) []TMMatchDTO {
 		})
 	}
 
-	opts := sievepen.LookupOptions{
+	opts := memory.LookupOptions{
 		MinScore:   req.MinScore,
 		MaxResults: req.MaxResults,
 	}
@@ -686,14 +686,14 @@ func (a *App) LookupTM(handle string, req LookupTMRequest) []TMMatchDTO {
 
 	matches, err := tm.Lookup(context.Background(), block, model.LocaleID(req.SourceLocale), model.LocaleID(req.TargetLocale), opts)
 	if err != nil {
-		a.logger.Printf("TM lookup error: %v", err)
+		a.logger.Printf("content-memory lookup error: %v", err)
 		return nil
 	}
 
-	result := make([]TMMatchDTO, 0, len(matches))
+	result := make([]MemoryMatchDTO, 0, len(matches))
 	for _, m := range matches {
-		dto := TMMatchDTO{
-			Entry:     tmEntryToDTO(m.Entry),
+		dto := MemoryMatchDTO{
+			Entry:     memoryEntryToDTO(m.Entry),
 			Score:     m.Score,
 			MatchType: string(m.MatchType),
 		}
@@ -759,16 +759,16 @@ func buildRunsWithEntities(text string, entities []EntityAnnotationDTO) []model.
 
 // --- Import / Export ---
 
-// ImportTMXDialog shows a file dialog and imports a TMX file into the TM.
+// ImportTMXDialog shows a file dialog and imports a TMX file into the content memory.
 // The importer creates one multilingual entry per TU with all TUVs as
 // variants. A new ImportSession row is created for each invocation.
 func (a *App) ImportTMXDialog(handle string) (*ImportResult, error) {
 	if a.app == nil {
 		return nil, nil
 	}
-	tm, ok := a.tmHandles.Get(handle)
+	tm, ok := a.memoryHandles.Get(handle)
 	if !ok {
-		return nil, fmt.Errorf("TM handle %q not found", handle)
+		return nil, fmt.Errorf("content-memory handle %q not found", handle)
 	}
 
 	path, err := a.app.Dialog.OpenFile().
@@ -788,7 +788,7 @@ func (a *App) ImportTMXDialog(handle string) (*ImportResult, error) {
 	}
 	defer f.Close()
 
-	sid, count, err := sievepen.ImportTMXSession(context.Background(), tm, f, sievepen.ImportTMXOptions{
+	sid, count, err := memory.ImportTMXSession(context.Background(), tm, f, memory.ImportTMXOptions{
 		OriginKey:     filepath.Base(path),
 		OriginAddedBy: "tmx-import",
 	})
@@ -798,15 +798,15 @@ func (a *App) ImportTMXDialog(handle string) (*ImportResult, error) {
 	return &ImportResult{SessionID: sid, Count: count}, nil
 }
 
-// ExportTMXDialog shows a save dialog and exports the TM as TMX. When
+// ExportTMXDialog shows a save dialog and exports the content memory as TMX. When
 // locales is empty, every variant present on each entry is emitted.
 func (a *App) ExportTMXDialog(handle string, locales []string) error {
 	if a.app == nil {
 		return nil
 	}
-	tm, ok := a.tmHandles.Get(handle)
+	tm, ok := a.memoryHandles.Get(handle)
 	if !ok {
-		return fmt.Errorf("TM handle %q not found", handle)
+		return fmt.Errorf("content-memory handle %q not found", handle)
 	}
 
 	path, err := a.app.Dialog.SaveFile().
@@ -833,21 +833,21 @@ func (a *App) ExportTMXDialog(handle string, locales []string) error {
 	for _, l := range locales {
 		localeIDs = append(localeIDs, model.LocaleID(l))
 	}
-	return sievepen.ExportTMX(context.Background(), tm, f, localeIDs)
+	return memory.ExportTMX(context.Background(), tm, f, localeIDs)
 }
 
 // --- Facets ---
 
-func (a *App) GetTMFacets(handle string) *TMFacets {
-	return a.GetTMFacetsFiltered(handle, "", "", "", TMSearchFilter{})
+func (a *App) GetMemoryFacets(handle string) *MemoryFacets {
+	return a.GetMemoryFacetsFiltered(handle, "", "", "", MemorySearchFilter{})
 }
 
-func (a *App) GetTMFacetsFiltered(handle, query, anyLocale, requireLocale string, filter TMSearchFilter) *TMFacets {
-	tm, ok := a.tmHandles.Get(handle)
+func (a *App) GetMemoryFacetsFiltered(handle, query, anyLocale, requireLocale string, filter MemorySearchFilter) *MemoryFacets {
+	tm, ok := a.memoryHandles.Get(handle)
 	if !ok {
 		return nil
 	}
-	data, err := tm.FacetStatsFiltered(context.Background(), sievepen.SearchParams{
+	data, err := tm.FacetStatsFiltered(context.Background(), memory.SearchParams{
 		Query:         query,
 		AnyLocale:     anyLocale,
 		RequireLocale: requireLocale,
@@ -856,11 +856,11 @@ func (a *App) GetTMFacetsFiltered(handle, query, anyLocale, requireLocale string
 	if err != nil {
 		return nil
 	}
-	return buildTMFacetsDTO(data)
+	return buildMemoryFacetsDTO(data)
 }
 
-func buildTMFacetsDTO(data sievepen.FacetData) *TMFacets {
-	result := &TMFacets{HasCodes: data.HasCodes, NoCodes: data.NoCodes}
+func buildMemoryFacetsDTO(data memory.FacetData) *MemoryFacets {
+	result := &MemoryFacets{HasCodes: data.HasCodes, NoCodes: data.NoCodes}
 	for _, lf := range data.Locales {
 		result.Locales = append(result.Locales, LocaleFacetDTO{Locale: lf.Locale, Count: lf.Count})
 	}
@@ -882,18 +882,18 @@ func buildTMFacetsDTO(data sievepen.FacetData) *TMFacets {
 	return result
 }
 
-// toSearchFilter converts the frontend DTO to the sievepen filter type.
-func toSearchFilter(f TMSearchFilter) sievepen.SearchFilter {
-	sf := sievepen.SearchFilter{
+// toSearchFilter converts the frontend DTO to the memory filter type.
+func toSearchFilter(f MemorySearchFilter) memory.SearchFilter {
+	sf := memory.SearchFilter{
 		ProjectID:   f.ProjectID,
 		SessionIDs:  f.SessionIDs,
 		EntityTypes: f.EntityTypes,
 		HasCodes:    f.HasCodes,
 	}
 	if len(f.EntityValues) > 0 {
-		sf.EntityValues = make([]sievepen.EntityValueFilter, len(f.EntityValues))
+		sf.EntityValues = make([]memory.EntityValueFilter, len(f.EntityValues))
 		for i, ev := range f.EntityValues {
-			sf.EntityValues[i] = sievepen.EntityValueFilter{Value: ev.Value, Type: ev.Type}
+			sf.EntityValues[i] = memory.EntityValueFilter{Value: ev.Value, Type: ev.Type}
 		}
 	}
 	return sf
@@ -901,9 +901,9 @@ func toSearchFilter(f TMSearchFilter) sievepen.SearchFilter {
 
 // --- Import session CRUD ---
 
-// ListTMImportSessions returns every session row in imported_at DESC order.
-func (a *App) ListTMImportSessions(handle string) []ImportSessionDTO {
-	tm, ok := a.tmHandles.Get(handle)
+// ListMemoryImportSessions returns every session row in imported_at DESC order.
+func (a *App) ListMemoryImportSessions(handle string) []ImportSessionDTO {
+	tm, ok := a.memoryHandles.Get(handle)
 	if !ok {
 		return nil
 	}
@@ -918,9 +918,9 @@ func (a *App) ListTMImportSessions(handle string) []ImportSessionDTO {
 	return out
 }
 
-// GetTMImportSession fetches a single session by ID.
-func (a *App) GetTMImportSession(handle, sessionID string) *ImportSessionDTO {
-	tm, ok := a.tmHandles.Get(handle)
+// GetMemoryImportSession fetches a single session by ID.
+func (a *App) GetMemoryImportSession(handle, sessionID string) *ImportSessionDTO {
+	tm, ok := a.memoryHandles.Get(handle)
 	if !ok {
 		return nil
 	}
@@ -932,17 +932,17 @@ func (a *App) GetTMImportSession(handle, sessionID string) *ImportSessionDTO {
 	return &dto
 }
 
-// DeleteTMImportSession removes a session; its origins keep pointing at
-// empty session_id (see sievepen.DeleteImportSession).
-func (a *App) DeleteTMImportSession(handle, sessionID string) error {
-	tm, ok := a.tmHandles.Get(handle)
+// DeleteMemoryImportSession removes a session; its origins keep pointing at
+// empty session_id (see memory.DeleteImportSession).
+func (a *App) DeleteMemoryImportSession(handle, sessionID string) error {
+	tm, ok := a.memoryHandles.Get(handle)
 	if !ok {
-		return fmt.Errorf("TM handle %q not found", handle)
+		return fmt.Errorf("content-memory handle %q not found", handle)
 	}
 	return tm.DeleteImportSession(context.Background(), sessionID)
 }
 
-func importSessionToDTO(s sievepen.ImportSession) ImportSessionDTO {
+func importSessionToDTO(s memory.ImportSession) ImportSessionDTO {
 	return ImportSessionDTO{
 		ID:               s.ID,
 		FileKey:          s.FileKey,
@@ -965,24 +965,24 @@ func importSessionToDTO(s sievepen.ImportSession) ImportSessionDTO {
 
 // --- Batch entity annotation ---
 
-// AnnotateEntities applies entity annotations to selected TM entries. The
+// AnnotateEntities applies entity annotations to selected content-memory entries. The
 // patterns are searched across every variant's plain text and entity spans
 // are inserted where matches are found. Entity values are populated per
 // locale from the matching variant.
 //
-// When TermbaseHandle is set, each new entity's text is looked up in the
-// termbase; if a concept matches, its ID is stored on the EntityMapping
-// so the TM entry cross-references the termbase.
+// When TermsHandle is set, each new entity's text is looked up in the
+// terms; if a concept matches, its ID is stored on the EntityMapping
+// so the content-memory entry cross-references the terms.
 func (a *App) AnnotateEntities(handle string, req AnnotateEntitiesRequest) (*AnnotateResult, error) {
-	tm, ok := a.tmHandles.Get(handle)
+	tm, ok := a.memoryHandles.Get(handle)
 	if !ok {
-		return nil, fmt.Errorf("TM handle %q not found", handle)
+		return nil, fmt.Errorf("content-memory handle %q not found", handle)
 	}
 
-	// Optionally resolve concept IDs from the termbase.
-	var tb *termbase.SQLiteTermBase
-	if req.TermbaseHandle != "" {
-		tb, _ = a.tbHandles.Get(req.TermbaseHandle)
+	// Optionally resolve concept IDs from the terms.
+	var tb *terms.SQLiteStore
+	if req.TermsHandle != "" {
+		tb, _ = a.tbHandles.Get(req.TermsHandle)
 	}
 
 	var entriesUpdated, entitiesAdded int
@@ -1028,18 +1028,18 @@ func (a *App) AnnotateEntities(handle string, req AnnotateEntitiesRequest) (*Ann
 	return &AnnotateResult{EntriesUpdated: entriesUpdated, EntitiesAdded: entitiesAdded}, nil
 }
 
-// ResolveEntityConcepts re-links entities on TM entries to termbase concepts.
-// Useful after a termbase import or when entities were created without a
-// termbase available. Entries whose entities already have a ConceptID are
+// ResolveEntityConcepts re-links entities on content-memory entries to terms concepts.
+// Useful after a terms store import or when entities were created without a
+// terms available. Entries whose entities already have a ConceptID are
 // skipped unless force is true.
-func (a *App) ResolveEntityConcepts(tmHandle, tbHandle string, entryIDs []string, force bool) (int, error) {
-	tm, ok := a.tmHandles.Get(tmHandle)
+func (a *App) ResolveEntityConcepts(memoryHandle, tbHandle string, entryIDs []string, force bool) (int, error) {
+	tm, ok := a.memoryHandles.Get(memoryHandle)
 	if !ok {
-		return 0, fmt.Errorf("TM handle %q not found", tmHandle)
+		return 0, fmt.Errorf("content-memory handle %q not found", memoryHandle)
 	}
 	tb, ok := a.tbHandles.Get(tbHandle)
 	if !ok {
-		return 0, fmt.Errorf("termbase handle %q not found", tbHandle)
+		return 0, fmt.Errorf("terms handle %q not found", tbHandle)
 	}
 
 	updated := 0
@@ -1154,7 +1154,7 @@ func findPatternOccurrences(text, pattern string, caseSensitive bool) []int {
 // (materialised on demand from its Run sequence) and produces a unified
 // EntityMapping list indexed by PlaceholderID. Values are populated per
 // locale from the corresponding variant's entity span.
-func buildEntityMappingsFromVariantRuns(variants map[model.LocaleID][]model.Run) []sievepen.EntityMapping {
+func buildEntityMappingsFromVariantRuns(variants map[model.LocaleID][]model.Run) []memory.EntityMapping {
 	if len(variants) == 0 {
 		return nil
 	}
@@ -1162,7 +1162,7 @@ func buildEntityMappingsFromVariantRuns(variants map[model.LocaleID][]model.Run)
 		id    string
 		eType string
 	}
-	byKey := make(map[entKey]*sievepen.EntityMapping)
+	byKey := make(map[entKey]*memory.EntityMapping)
 	var order []entKey
 	for loc, runs := range variants {
 		for _, r := range runs {
@@ -1172,45 +1172,45 @@ func buildEntityMappingsFromVariantRuns(variants map[model.LocaleID][]model.Run)
 			key := entKey{id: r.Ph.ID, eType: r.Ph.Type}
 			em, ok := byKey[key]
 			if !ok {
-				em = &sievepen.EntityMapping{
+				em = &memory.EntityMapping{
 					PlaceholderID: r.Ph.ID,
 					Type:          model.EntityType(r.Ph.Type),
-					Values:        make(map[model.LocaleID]sievepen.EntityValue),
+					Values:        make(map[model.LocaleID]memory.EntityValue),
 				}
 				byKey[key] = em
 				order = append(order, key)
 			}
-			em.Values[loc] = sievepen.EntityValue{Text: r.Ph.Data}
+			em.Values[loc] = memory.EntityValue{Text: r.Ph.Data}
 		}
 	}
-	out := make([]sievepen.EntityMapping, 0, len(order))
+	out := make([]memory.EntityMapping, 0, len(order))
 	for _, k := range order {
 		out = append(out, *byKey[k])
 	}
 	return out
 }
 
-// resolveConceptIDs looks up each entity mapping's text in the termbase
+// resolveConceptIDs looks up each entity mapping's text in the terms store
 // and sets ConceptID when a concept matches. Looks up the first locale
 // value that returns a hit.
-func resolveConceptIDs(entities []sievepen.EntityMapping, tb *termbase.SQLiteTermBase) {
+func resolveConceptIDs(entities []memory.EntityMapping, tb *terms.SQLiteStore) {
 	for i := range entities {
 		resolveOneConceptID(&entities[i], tb)
 	}
 }
 
 // resolveOneConceptID looks up one entity mapping's text values in the
-// termbase and sets ConceptID if a concept with a matching term is found.
-func resolveOneConceptID(em *sievepen.EntityMapping, tb *termbase.SQLiteTermBase) {
+// terms and sets ConceptID if a concept with a matching term is found.
+func resolveOneConceptID(em *memory.EntityMapping, tb *terms.SQLiteStore) {
 	if tb == nil {
 		return
 	}
-	// Try each locale's entity value text against the termbase.
+	// Try each locale's entity value text against the terms.
 	for loc, val := range em.Values {
 		if val.Text == "" {
 			continue
 		}
-		matches, err := tb.Lookup(context.Background(), val.Text, termbase.LookupOptions{
+		matches, err := tb.Lookup(context.Background(), val.Text, terms.LookupOptions{
 			SourceLocale:  loc,
 			CaseSensitive: false,
 			MinScore:      1.0, // exact or normalized match only

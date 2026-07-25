@@ -28,10 +28,10 @@ const (
 	TagProtect        registry.ToolID = "tag-protect"
 
 	// Enrich
-	// TMLeverage's id is "recycle" (the canonical command). The Go const
+	// MemoryLeverage's id is "recycle" (the canonical command). The Go const
 	// name is unchanged.
-	TMLeverage   registry.ToolID = "recycle"
-	DiffLeverage registry.ToolID = "diff-leverage"
+	MemoryLeverage registry.ToolID = "recycle"
+	DiffLeverage   registry.ToolID = "diff-leverage"
 
 	// Analyze
 	EncodingDetect registry.ToolID = "encoding-detect"

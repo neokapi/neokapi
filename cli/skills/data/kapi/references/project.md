@@ -9,7 +9,7 @@ current directory, like git.
 
 Set up a project when the work is ongoing: many files or a whole app, the same
 target locales repeatedly, a brand voice or glossary to keep consistent, recurring
-runs (CI, re-translate on change), or translation memory to reuse. For a true
+runs (CI, re-translate on change), or content memory to reuse. For a true
 one-off, skip it and run the command directly.
 
 ## Create it
@@ -36,15 +36,15 @@ content:
 defaults:
   brand_voice:
     profile_file: brand.yaml   # or: profile: <store name> | pack: marketing-blog
-  termbase: .kapi/termbase.db  # bound glossary (this is also the default location)
+  terms: .kapi/termbase.db  # bound glossary (this is also the default location)
 ```
 
 - **Brand voice** — bind it under `defaults.brand_voice`, or just keep a
   `brand.yaml` (or `.kapi/brand.yaml`) in the project; `kapi brand check <file>`,
   `brand rewrite`, and `brand guide` then resolve it with no flag.
-- **Glossary / termbase** — import terms into the project termbase
-  (`kapi termbase import glossary.csv -s en -t fr`); `kapi exec term-check <file>` and
-  the translation flow enforce it with no `--termbase` flag.
+- **Glossary / terms** — import terms into the project terms store
+  (`kapi terms import glossary.csv -s en -t fr`); `kapi exec term-check <file>` and
+  the translation flow enforce it with no `--terms` flag.
 - **Locales + content** — `kapi run <flow>`, `kapi extract`, and `kapi merge`
   apply the project's locales and content globs without `-i` / `--target-lang`.
 
@@ -58,15 +58,15 @@ and format stay enforced:
 ```bash
 kapi extract --target-lang fr        # writes out/<...>-to-fr.xliff (source + empty targets)
 kapi brand guide                     # the voice to follow (project-bound)
-kapi termbase lookup "<term>" -t fr  # the approved wording
+kapi terms lookup "<term>" -t fr  # the approved wording
 ```
 
 Fill the `<target>` of each unit in the bilingual file, following the brand guide
 and the glossary and preserving placeholders; reuse any targets kapi pre-filled
-from translation memory. Then:
+from content memory. Then:
 
 ```bash
-kapi merge -i out/*.xliff            # writes translations into the target files + project TM
+kapi merge -i out/*.xliff            # writes translations into the target files + project content memory
 ```
 
 ## Verify, and fix until it passes

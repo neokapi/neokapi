@@ -54,11 +54,11 @@ seed: []
 files: []
 
 steps:
-  - comment: 1. Seed the project TM from a corporate TMX
+  - comment: 1. Seed the project content memory from a corporate TMX
   - command: kapi tm import corporate.tmx --file .kapi/tm.db --all-pairs
-    narration: One-time setup — warm the TM so extract can pre-fill matches.
+    narration: One-time setup — warm the content memory so extract can pre-fill matches.
     offline: false
-  - comment: 2. kapi extract — one XLIFF per target locale, with TM pre-fill
+  - comment: 2. kapi extract — one XLIFF per target locale, with Memory pre-fill
   - command: kapi extract -p kapi.yaml --no-tm
     narration: >-
       Extract emits a bilingual XLIFF per target locale. This step runs live in
@@ -75,7 +75,7 @@ steps:
   - command: kapi merge -i out/
     narration: Merge reconciles targets onto the source files with full provenance.
     offline: false
-  - comment: 5. kapi tm audit — trace what this merge wrote into the TM
+  - comment: 5. kapi tm audit — trace what this merge wrote into the content memory
   - command: kapi tm audit --file .kapi/tm.db --batch $(ls .kapi/cache/extractions | head -1) --limit 10
     narration: Every merge is provenance-tagged — proof of what came from which return.
     offline: false

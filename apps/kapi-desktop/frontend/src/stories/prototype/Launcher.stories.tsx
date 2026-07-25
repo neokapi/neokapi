@@ -66,12 +66,12 @@ function Launcher() {
               icon={<Languages size={22} />}
               eyebrow="Localization"
               title="Localize content"
-              description="Source and target languages, AI translation, QA, and translation memory — on top of the same brand tooling."
+              description="Source and target languages, AI translation, QA, and content memory — on top of the same brand tooling."
               chips={
                 <>
                   <Chip>Translate</Chip>
                   <Chip>QA</Chip>
-                  <Chip>Translation memory</Chip>
+                  <Chip>Content memory</Chip>
                 </>
               }
               footer={

@@ -18,10 +18,10 @@ import type {
   WordCountResult,
   ProviderConfig,
   ProviderConfigWithKey,
-  TMEntryInfo,
-  TMSearchResult,
-  TMUpdateRequest,
-  TMMatchInfo,
+  MemoryEntryInfo,
+  MemorySearchResult,
+  MemoryUpdateRequest,
+  MemoryMatchInfo,
   ConceptInfo,
   TermSearchResult,
   AddConceptRequest,
@@ -1409,7 +1409,7 @@ export class RestApiAdapter implements ApiAdapter {
     );
   }
 
-  async tmTranslateFile(
+  async memoryTranslateFile(
     workspaceSlug: string,
     projectId: string,
     fileName: string,
@@ -1469,14 +1469,14 @@ export class RestApiAdapter implements ApiAdapter {
     );
   }
 
-  async lookupTMForBlock(
+  async lookupMemoryForBlock(
     workspaceSlug: string,
     projectId: string,
     itemName: string,
     blockId: string,
     targetLocale: string,
     stream?: string,
-  ): Promise<TMMatchInfo[]> {
+  ): Promise<MemoryMatchInfo[]> {
     return this.fetchJSON(
       `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}/${blockId}/tm-matches?item=${encodeURIComponent(itemName)}&target_locale=${targetLocale}`,
     );
@@ -1856,20 +1856,20 @@ export class RestApiAdapter implements ApiAdapter {
     );
   }
 
-  // ── Translation Memory ───────────────────────────────────────────────────
+  // ── Content Memory ───────────────────────────────────────────────────
 
-  private tmEp(ws: string) {
+  private memoryEp(ws: string) {
     return `/api/v1/${ws}/translation-memory`;
   }
 
-  async getTMEntries(
+  async getMemoryEntries(
     workspaceSlug: string,
     query: string,
     defaultSourceLanguage: string,
     targetLocale: string,
     offset: number,
     limit: number,
-  ): Promise<TMSearchResult> {
+  ): Promise<MemorySearchResult> {
     const params = new URLSearchParams({
       q: query,
       default_source_language: defaultSourceLanguage,
@@ -1877,22 +1877,22 @@ export class RestApiAdapter implements ApiAdapter {
       offset: String(offset),
       limit: String(limit),
     });
-    return this.fetchJSON(`${this.tmEp(workspaceSlug)}?${params}`);
+    return this.fetchJSON(`${this.memoryEp(workspaceSlug)}?${params}`);
   }
 
-  async getTMCount(workspaceSlug: string): Promise<number> {
-    const resp: { count: number } = await this.fetchJSON(`${this.tmEp(workspaceSlug)}/count`);
+  async getMemoryCount(workspaceSlug: string): Promise<number> {
+    const resp: { count: number } = await this.fetchJSON(`${this.memoryEp(workspaceSlug)}/count`);
     return resp.count;
   }
 
-  async addTMEntry(
+  async addMemoryEntry(
     workspaceSlug: string,
     source: string,
     target: string,
     defaultSourceLanguage: string,
     targetLocale: string,
-  ): Promise<TMEntryInfo> {
-    return this.fetchJSON(this.tmEp(workspaceSlug), {
+  ): Promise<MemoryEntryInfo> {
+    return this.fetchJSON(this.memoryEp(workspaceSlug), {
       method: "POST",
       body: JSON.stringify({
         source,
@@ -1903,15 +1903,15 @@ export class RestApiAdapter implements ApiAdapter {
     });
   }
 
-  async updateTMEntry(workspaceSlug: string, req: TMUpdateRequest): Promise<void> {
-    await this.fetchJSON(`${this.tmEp(workspaceSlug)}/${req.entry_id}`, {
+  async updateMemoryEntry(workspaceSlug: string, req: MemoryUpdateRequest): Promise<void> {
+    await this.fetchJSON(`${this.memoryEp(workspaceSlug)}/${req.entry_id}`, {
       method: "PUT",
       body: JSON.stringify(req),
     });
   }
 
-  async deleteTMEntry(workspaceSlug: string, entryId: string): Promise<void> {
-    await this.fetchJSON(`${this.tmEp(workspaceSlug)}/${entryId}`, {
+  async deleteMemoryEntry(workspaceSlug: string, entryId: string): Promise<void> {
+    await this.fetchJSON(`${this.memoryEp(workspaceSlug)}/${entryId}`, {
       method: "DELETE",
     });
   }
@@ -3165,7 +3165,7 @@ export class RestApiAdapter implements ApiAdapter {
 
   private conceptEp(ws: string, conceptId: string) {
     // Concept IDs are path segments that may carry a colon (e.g. the
-    // termbase's `term:<hash>` IDs). `:` is path-legal (RFC 3986 pchar) and the
+    // terms's `term:<hash>` IDs). `:` is path-legal (RFC 3986 pchar) and the
     // server stores/matches IDs raw, so we must NOT percent-encode it —
     // encodeURIComponent's `%3A` would 404. Encode everything else (notably `/`).
     return `${this.termsEp(ws)}/${encodeConceptSegment(conceptId)}`;

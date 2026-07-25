@@ -101,7 +101,7 @@ async function jpost<T>(p: string, body: unknown, token: string): Promise<T> {
   return (await r.json()) as T;
 }
 
-/** Best-effort POST — used for TM/terms whose duplicates are visually harmless. */
+/** Best-effort POST — used for Memory/terms whose duplicates are visually harmless. */
 async function jpostSoft(p: string, body: unknown, token: string): Promise<void> {
   try {
     await jpost(p, body, token);
@@ -328,7 +328,7 @@ const MARKETING_HTML = `<!doctype html>
 </html>
 `;
 
-const TM_ENTRIES = [
+const MEMORY_ENTRIES = [
   {
     source: "About Acme Inc.",
     target: "À propos d'Acme Inc.",
@@ -441,9 +441,9 @@ async function main(): Promise<void> {
     aliceToken,
   );
 
-  // TM + terminology: the governance walk (TM search "mission", multi-locale
+  // content memory + terminology: the governance walk (content-memory search "mission", multi-locale
   // concepts) + the editor context panel. Best-effort, sequential.
-  for (const e of TM_ENTRIES)
+  for (const e of MEMORY_ENTRIES)
     await jpostSoft(`/${ws}/translation-memory`, { ...e, project_id: projectId }, aliceToken);
   for (const c of CONCEPTS)
     await jpostSoft(`/${ws}/terms`, { ...c, project_id: projectId }, aliceToken);

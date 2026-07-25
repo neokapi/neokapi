@@ -19,7 +19,7 @@ import (
 
 // changeKind discriminates a change-set entry. `apply` is the single write verb:
 // every deliberate, reviewed change Claude proposes — a content edit or an asset
-// edit (glossary term, TM pair, brand rule, recipe field) — is one typed entry,
+// edit (glossary term, content memory pair, brand rule, recipe field) — is one typed entry,
 // so "is this change reviewed?" has one answer for everything and the backing
 // stores are written by exactly one code path.
 type changeKind string
@@ -27,7 +27,7 @@ type changeKind string
 const (
 	kindContent changeKind = "content"
 	kindTerm    changeKind = "term"
-	kindTM      changeKind = "tm"
+	kindMemory  changeKind = "tm"
 	kindBrand   changeKind = "brand"
 	kindRecipe  changeKind = "recipe"
 	kindReview  changeKind = "review"
@@ -130,7 +130,7 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 				fileOrder = append(fileOrder, e.File)
 			}
 			byFile[e.File] = append(byFile[e.File], e)
-		case kindTerm, kindTM, kindBrand, kindRecipe:
+		case kindTerm, kindMemory, kindBrand, kindRecipe:
 			res := a.applyAssetEntry(ctx, cmd, e)
 			out.Assets = append(out.Assets, res)
 		case kindReview:

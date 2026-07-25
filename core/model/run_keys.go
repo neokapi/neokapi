@@ -7,7 +7,7 @@ import (
 // RunsStructuralText renders a Run sequence with inline-code runs
 // replaced by numbered placeholders like {1}, {/1}, {2/}. Pure
 // structural projection — abstract away the actual markup so two
-// segments with the same shape match. Used as a TM secondary key.
+// segments with the same shape match. Used as a content memory secondary key.
 //
 // Plural / Select runs render their 'other' branch (or the first
 // branch present); Sub runs render as `[id]`.
@@ -63,7 +63,7 @@ func appendRunsStructural(buf *strings.Builder, runs []Run) {
 // RunsGeneralizedText renders a Run sequence with entity-typed Ph runs
 // replaced by typed placeholders like {PERSON}, {PRODUCT} and other
 // inline-code runs replaced by numbered placeholders. This enables
-// maximum TM reuse — entities are interchangeable between segments
+// maximum content memory reuse — entities are interchangeable between segments
 // with identical structure.
 //
 // Entity Ph runs are identified by their Type field matching an
@@ -139,7 +139,7 @@ func RunsEntityValues(runs []Run) map[string]string {
 
 // RunsPlainText returns the textual projection of a Run sequence
 // (TextRun content concatenated, inline-code runs dropped). Suitable
-// for plain-text TM matching keys.
+// for plain-text content memory matching keys.
 func RunsPlainText(runs []Run) string {
 	var buf strings.Builder
 	for _, r := range runs {

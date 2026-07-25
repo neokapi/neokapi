@@ -21,7 +21,7 @@ concrete formats. Section 2.1 of the spec enumerates the full set
 5. Language Information (language of content)
 6. Elements Within Text (inline vs block vs nested-flow semantics — i.e. neokapi's "is this a
    sub-flow or inline code" question)
-7. Domain (subject-matter for MT/TM routing)
+7. Domain (subject-matter for MT/content memory routing)
 8. Text Analysis (entity/concept annotation)
 9. Locale Filter (content applies only to certain locales — conditional text)
 10. Provenance (who/what touched the content — human/MT/reviser agents)

@@ -467,7 +467,7 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 	reg.RegisterWriter("vtt", func() format.DataFormatWriter { return vtt.NewWriter() })
 	registerSchemaAndDecoder(o, reg, "vtt", func() format.DataFormatReader { return vtt.NewReader() })
 
-	// TMX (Translation Memory eXchange)
+	// TMX (Content Memory eXchange)
 	reg.RegisterReader("tmx",
 		func() format.DataFormatReader { return tmx.NewReader() },
 		format.FormatSignature{
@@ -628,7 +628,7 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 			MIMETypes:  []string{"application/vnd.neokapi.kbf+json"},
 			Extensions: []string{".kbf"},
 			Sniff: func(data []byte) bool {
-				return bytes.Contains(data, []byte(`"kapi-localization-format"`))
+				return bytes.Contains(data, []byte(`"kapi-bundle"`))
 			},
 		}, "Kapi Bundle Format (KBF)")
 	reg.RegisterWriter(registry.FormatID(jsx.FormatName), func() format.DataFormatWriter { return jsx.NewWriter() })

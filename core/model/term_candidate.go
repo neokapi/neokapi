@@ -47,7 +47,7 @@ const (
 // and by manual marking in the translation editor.
 //
 // Distinct from TermAnnotation, which represents a confirmed match against
-// an existing termbase entry.
+// an existing terms entry.
 type TermCandidateAnnotation struct {
 	Text            string           // the term text as found in source
 	Definition      string           // AI-proposed or user-provided definition

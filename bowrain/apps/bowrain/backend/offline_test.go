@@ -290,7 +290,7 @@ func TestEnqueueWithNilQueue(t *testing.T) {
 	}
 
 	// Should not panic.
-	app.enqueue(deleteTMEntryOp{EntryID: "e1"})
+	app.enqueue(deleteMemoryEntryOp{EntryID: "e1"})
 }
 
 func TestEnqueueAddsToQueue(t *testing.T) {
@@ -301,6 +301,6 @@ func TestEnqueueAddsToQueue(t *testing.T) {
 	}
 	app.offlineQueue = q
 
-	app.enqueue(deleteTMEntryOp{EntryID: "e1"})
+	app.enqueue(deleteMemoryEntryOp{EntryID: "e1"})
 	assert.Equal(t, 1, q.PendingCount())
 }

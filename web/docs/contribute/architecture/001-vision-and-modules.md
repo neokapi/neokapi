@@ -192,7 +192,7 @@ core/
     set/              Generic set container
     internal/
         testutil/     Shared test helpers
-sievepen/             Translation memory (interface + in-memory + SQLite + matching)
+memory/             Translation memory (interface + in-memory + SQLite + matching)
 termbase/             Terminology (interface + in-memory + SQLite + import)
 providers/
     ai/               package aiprovider — LLM providers
@@ -276,7 +276,7 @@ their boundaries so invalid codes never propagate silently.
   it stays small and fast to build.
 - CLI module evolves independently of consumer modules — CLI changes do not
   force kapi or kapi-desktop rebuilds of unrelated code.
-- Framework packages are organized under `core/`, `sievepen/`, `termbase/`,
+- Framework packages are organized under `core/`, `memory/`, `termbase/`,
   `providers/`, giving a clean separation of concerns at the directory level.
 - Four `go.mod` files need maintenance, but `go.work` resolves cross-module
   imports during daily development and the `release.yml` workflow handles

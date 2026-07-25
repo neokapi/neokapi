@@ -40,15 +40,20 @@ var ReservedWorkspaceSlugs = map[string]bool{
 // ReservedProjectSlugs are workspace-level route segments that cannot be used
 // as project slugs.
 var ReservedProjectSlugs = map[string]bool{
-	"members":                  true,
-	"invites":                  true,
-	"roles":                    true,
-	"tokens":                   true,
-	"billing":                  true,
-	"audit-log":                true,
-	"providers":                true,
+	"members":   true,
+	"invites":   true,
+	"roles":     true,
+	"tokens":    true,
+	"billing":   true,
+	"audit-log": true,
+	"providers": true,
+	// Both vocabularies stay reserved: the routes still use the legacy segments
+	// (a URL is a contract), and the new names must not become claimable before
+	// the routes move.
+	"termbase":                 true,
 	"terms":                    true,
 	"translation-memory":       true,
+	"content-memory":           true,
 	"connectors":               true,
 	"tasks":                    true,
 	"jobs":                     true,

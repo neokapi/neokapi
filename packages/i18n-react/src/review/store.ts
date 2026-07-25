@@ -182,7 +182,7 @@ export class ReviewStore {
    * Write a target edit back into the block's `.kbf` file. The
    * edited text is stored as a single text run — the same shape a
    * translator editing the file by hand produces; kapi's validators
-   * and TM treat it as any other unstructured target.
+   * and content memory treat it as any other unstructured target.
    */
   put(hash: string, locale: string, text: string): ReviewPayload | null {
     this.refresh();

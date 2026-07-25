@@ -1,22 +1,22 @@
 import { useMemo } from "react";
 import { api } from "./useApi";
 import type {
-  TMAdapter,
-  TMSearchResult,
-  TMEntryDTO,
-  TMMatchDTO,
-  AddTMEntryRequest,
-  UpdateTMEntryRequest,
+  MemoryAdapter,
+  MemorySearchResult,
+  MemoryEntryDTO,
+  MemoryMatchDTO,
+  AddMemoryEntryRequest,
+  UpdateMemoryEntryRequest,
   AnnotateEntitiesRequest,
   AnnotateResult,
-  LookupTMRequest,
+  LookupMemoryRequest,
   ImportResult,
-  TMStats,
-  TMFacets,
+  MemoryStats,
+  MemoryFacets,
   ImportSessionDTO,
 } from "@neokapi/ui-primitives";
 
-const EMPTY_FACETS: TMFacets = {
+const EMPTY_FACETS: MemoryFacets = {
   locales: [],
   projects: [],
   entity_types: [],
@@ -25,18 +25,18 @@ const EMPTY_FACETS: TMFacets = {
   no_codes: 0,
 };
 
-/** Creates a TMAdapter that delegates to Wails IPC for a given TM handle. */
-export function useTMAdapter(handle: string | null): TMAdapter | null {
+/** Creates a MemoryAdapter that delegates to Wails IPC for a given content-memory handle. */
+export function useMemoryAdapter(handle: string | null): MemoryAdapter | null {
   return useMemo(() => {
     if (!handle) return null;
-    return createWailsTMAdapter(handle);
+    return createWailsMemoryAdapter(handle);
   }, [handle]);
 }
 
-function createWailsTMAdapter(handle: string): TMAdapter {
+function createWailsMemoryAdapter(handle: string): MemoryAdapter {
   return {
     async search(query, anyLocale, requireLocale, offset, limit) {
-      const result = await api.searchTMEntries(
+      const result = await api.searchMemoryEntries(
         handle,
         query,
         anyLocale,
@@ -44,30 +44,30 @@ function createWailsTMAdapter(handle: string): TMAdapter {
         offset,
         limit,
       );
-      return (result as TMSearchResult) ?? { entries: [], total_count: 0 };
+      return (result as MemorySearchResult) ?? { entries: [], total_count: 0 };
     },
     async getEntry(id) {
-      return (await api.getTMEntry(handle, id)) as TMEntryDTO | null;
+      return (await api.getMemoryEntry(handle, id)) as MemoryEntryDTO | null;
     },
-    async addEntry(req: AddTMEntryRequest) {
-      await api.addTMEntry(handle, req);
+    async addEntry(req: AddMemoryEntryRequest) {
+      await api.addMemoryEntry(handle, req);
     },
-    async updateEntry(req: UpdateTMEntryRequest) {
-      await api.updateTMEntry(handle, req);
+    async updateEntry(req: UpdateMemoryEntryRequest) {
+      await api.updateMemoryEntry(handle, req);
     },
     async deleteEntry(id) {
-      await api.deleteTMEntry(handle, id);
+      await api.deleteMemoryEntry(handle, id);
     },
     async deleteEntries(ids) {
-      await api.deleteTMEntries(handle, ids);
+      await api.deleteMemoryEntries(handle, ids);
     },
     async annotateEntities(req: AnnotateEntitiesRequest) {
       const result = await api.annotateEntities(handle, req);
       return (result as AnnotateResult) ?? { entries_updated: 0, entities_added: 0 };
     },
-    async lookup(req: LookupTMRequest) {
-      const result = await api.lookupTM(handle, req);
-      return (result as TMMatchDTO[]) ?? [];
+    async lookup(req: LookupMemoryRequest) {
+      const result = await api.lookupMemory(handle, req);
+      return (result as MemoryMatchDTO[]) ?? [];
     },
     async importTMX() {
       return (await api.importTMXDialog(handle)) as ImportResult | null;
@@ -76,19 +76,19 @@ function createWailsTMAdapter(handle: string): TMAdapter {
       await api.exportTMXDialog(handle, locales);
     },
     async getStats() {
-      const result = await api.getTMStats(handle);
-      return (result as TMStats) ?? { count: 0 };
+      const result = await api.getMemoryStats(handle);
+      return (result as MemoryStats) ?? { count: 0 };
     },
     async getFacets() {
-      const result = await api.getTMFacets(handle);
-      return (result as TMFacets) ?? EMPTY_FACETS;
+      const result = await api.getMemoryFacets(handle);
+      return (result as MemoryFacets) ?? EMPTY_FACETS;
     },
     async getFacetsFiltered(query, anyLocale, requireLocale, filter) {
-      const result = await api.getTMFacetsFiltered(handle, query, anyLocale, requireLocale, filter);
-      return (result as TMFacets) ?? EMPTY_FACETS;
+      const result = await api.getMemoryFacetsFiltered(handle, query, anyLocale, requireLocale, filter);
+      return (result as MemoryFacets) ?? EMPTY_FACETS;
     },
     async searchFiltered(query, anyLocale, requireLocale, filter, offset, limit) {
-      const result = await api.searchTMEntriesFiltered(
+      const result = await api.searchMemoryEntriesFiltered(
         handle,
         query,
         anyLocale,
@@ -97,17 +97,17 @@ function createWailsTMAdapter(handle: string): TMAdapter {
         offset,
         limit,
       );
-      return (result as TMSearchResult) ?? { entries: [], total_count: 0 };
+      return (result as MemorySearchResult) ?? { entries: [], total_count: 0 };
     },
     async listImportSessions() {
-      const result = await api.listTMImportSessions(handle);
+      const result = await api.listMemoryImportSessions(handle);
       return (result as ImportSessionDTO[]) ?? [];
     },
     async getImportSession(id: string) {
-      return (await api.getTMImportSession(handle, id)) as ImportSessionDTO | null;
+      return (await api.getMemoryImportSession(handle, id)) as ImportSessionDTO | null;
     },
     async deleteImportSession(id: string) {
-      await api.deleteTMImportSession(handle, id);
+      await api.deleteMemoryImportSession(handle, id);
     },
   };
 }

@@ -23,7 +23,7 @@ func TestConvergeRenderer_PlainStream(t *testing.T) {
 	r.OnEvent(convergence.Event{Type: convergence.EventPassStart, Pass: 1, MaxPasses: 5, Pending: []string{"nb-NO", "de-DE"}})
 	r.OnEvent(convergence.Event{Type: convergence.EventLocaleStart, Pass: 1, Locale: "nb-NO", Units: 2})
 	r.OnEvent(convergence.Event{Type: convergence.EventUnitProgress, Pass: 1, Locale: "nb-NO", Done: 1})
-	r.OnEvent(convergence.Event{Type: convergence.EventLocaleDone, Pass: 1, Locale: "nb-NO", Units: 2, Done: 2, ViaTM: 1, ViaAI: 1})
+	r.OnEvent(convergence.Event{Type: convergence.EventLocaleDone, Pass: 1, Locale: "nb-NO", Units: 2, Done: 2, ViaMemory: 1, ViaAI: 1})
 	r.OnEvent(convergence.Event{Type: convergence.EventPassDone, Pass: 1, MaxPasses: 5, Produced: 4, ProducedDelta: 4, FailingChecks: 1})
 	r.OnEvent(convergence.Event{Type: convergence.EventMaterialized, Files: 3})
 	r.OnEvent(convergence.Event{Type: convergence.EventDone, State: convergence.RunConverged})
@@ -32,7 +32,7 @@ func TestConvergeRenderer_PlainStream(t *testing.T) {
 	assert.NotContains(t, got, "\x1b[", "plain stream must carry no ANSI control sequences")
 	assert.Contains(t, got, "Extracted 4 block(s).")
 	assert.Contains(t, got, "pass 1/5 · catching up nb-NO, de-DE")
-	assert.Contains(t, got, "nb-NO      2/2 units  (TM 1 · AI 1)")
+	assert.Contains(t, got, "nb-NO      2/2 units  (content memory 1 · AI 1)")
 	assert.Contains(t, got, "pass 1 done · produced 4 (+4) · 1 failing check(s)")
 	assert.Contains(t, got, "materialized 3 localized file(s)")
 	// unit_progress is TTY-only detail; a plain stream stays line-per-outcome.

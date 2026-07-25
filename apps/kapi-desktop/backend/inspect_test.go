@@ -10,7 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -42,15 +42,15 @@ vocabulary:
 `
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "brand.yaml"), []byte(brandYAML), 0o644))
 
-	// Seed a project termbase so the term annotator has data to match.
+	// Seed a project terms store so the term annotator has data to match.
 	stateDir := filepath.Join(dir, ".kapi")
 	require.NoError(t, os.MkdirAll(stateDir, 0o755))
-	tb, err := termbase.NewSQLiteTermBase(filepath.Join(stateDir, "termbase.db"))
+	tb, err := terms.NewSQLiteStore(filepath.Join(stateDir, "termbase.db"))
 	require.NoError(t, err)
-	require.NoError(t, tb.AddConcept(context.Background(), termbase.Concept{
+	require.NoError(t, tb.AddConcept(context.Background(), terms.Concept{
 		ID:     "c1",
 		Domain: "ui",
-		Terms: []termbase.Term{
+		Terms: []terms.Term{
 			{Text: "dashboard", Locale: model.LocaleID("en"), Status: model.TermPreferred},
 			{Text: "tableau de bord", Locale: model.LocaleID("fr"), Status: model.TermPreferred},
 		},
@@ -155,7 +155,7 @@ func TestInspectFileAnnotatedPopulatesOverlays(t *testing.T) {
 			}
 		}
 	}
-	assert.True(t, sawTerm, "expected a term overlay for the seeded termbase term")
+	assert.True(t, sawTerm, "expected a term overlay for the seeded terms term")
 	assert.True(t, sawBrand, "expected a brand-vocabulary overlay for the forbidden term")
 	assert.True(t, sawDoubledWord, "expected a doubled-word QA overlay (\"the the\")")
 }

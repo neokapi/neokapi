@@ -23,11 +23,11 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/bowrain/jobs"
+	sqltm "github.com/neokapi/neokapi/bowrain/memory"
 	"github.com/neokapi/neokapi/bowrain/resilience/aiguard"
-	sqltm "github.com/neokapi/neokapi/bowrain/sievepen"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
-	sqltb "github.com/neokapi/neokapi/bowrain/termbase"
+	sqltb "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/editor"
@@ -36,9 +36,9 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/memory"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
 var (
@@ -46,59 +46,59 @@ var (
 )
 
 // ---------------------------------------------------------------------------
-// Workspace TM/TB management (persistent, PostgreSQL-backed)
+// Workspace content memory/TB management (persistent, PostgreSQL-backed)
 // ---------------------------------------------------------------------------
 
-// workspaceTMTB holds workspace-scoped TM and terminology stores.
-type workspaceTMTB struct {
-	tm sievepen.TMStore
-	tb termbase.TBStore
+// workspaceMemoryTerms holds workspace-scoped content memory and terminology stores.
+type workspaceMemoryTerms struct {
+	tm memory.Store
+	tb terms.Store
 }
 
-// workspaceStores manages per-workspace TM and terminology stores.
+// workspaceStores manages per-workspace content memory and terminology stores.
 type workspaceStores struct {
 	mu     sync.RWMutex
-	stores map[string]*workspaceTMTB
+	stores map[string]*workspaceMemoryTerms
 	pgDB   *storage.PgDB // PostgreSQL database (required in production)
 
-	// tmFactory and tbFactory are optional factory functions for creating
-	// TM/TB stores without PostgreSQL. Used by tests to inject in-memory stores.
-	tmFactory func() sievepen.TMStore
-	tbFactory func() termbase.TBStore
+	// memoryFactory and tbFactory are optional factory functions for creating
+	// content memory/TB stores without PostgreSQL. Used by tests to inject in-memory stores.
+	memoryFactory func() memory.Store
+	tbFactory     func() terms.Store
 }
 
 func newWorkspaceStores() *workspaceStores {
 	return &workspaceStores{
-		stores: make(map[string]*workspaceTMTB),
+		stores: make(map[string]*workspaceMemoryTerms),
 	}
 }
 
-func (ws *workspaceStores) getOrCreate(wsSlug string) *workspaceTMTB {
+func (ws *workspaceStores) getOrCreate(wsSlug string) *workspaceMemoryTerms {
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
 	w, ok := ws.stores[wsSlug]
 	if !ok {
-		w = &workspaceTMTB{}
+		w = &workspaceMemoryTerms{}
 		ws.stores[wsSlug] = w
 	}
 	return w
 }
 
-func (ws *workspaceStores) getTM(wsSlug string) (sievepen.TMStore, error) {
+func (ws *workspaceStores) getMemory(wsSlug string) (memory.Store, error) {
 	w := ws.getOrCreate(wsSlug)
 	if w.tm != nil {
 		return w.tm, nil
 	}
 
 	if ws.pgDB == nil {
-		if ws.tmFactory != nil {
-			w.tm = ws.tmFactory()
+		if ws.memoryFactory != nil {
+			w.tm = ws.memoryFactory()
 			return w.tm, nil
 		}
 		return nil, errNoPgDB
 	}
 
-	tm, err := sqltm.NewPostgresTMFromDB(ws.pgDB, wsSlug)
+	tm, err := sqltm.NewPostgresStoreFromDB(ws.pgDB, wsSlug)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func (ws *workspaceStores) getTM(wsSlug string) (sievepen.TMStore, error) {
 	return tm, nil
 }
 
-func (ws *workspaceStores) getTB(wsSlug string) (termbase.TBStore, error) {
+func (ws *workspaceStores) getTB(wsSlug string) (terms.Store, error) {
 	w := ws.getOrCreate(wsSlug)
 	if w.tb != nil {
 		return w.tb, nil
@@ -120,7 +120,7 @@ func (ws *workspaceStores) getTB(wsSlug string) (termbase.TBStore, error) {
 		return nil, errNoPgDB
 	}
 
-	tb, err := sqltb.NewPostgresTermBaseFromDB(ws.pgDB, wsSlug)
+	tb, err := sqltb.NewPostgresStoreFromDB(ws.pgDB, wsSlug)
 	if err != nil {
 		return nil, err
 	}
@@ -286,8 +286,8 @@ type WordCountResponse struct {
 	TargetChars map[string]int `json:"target_chars"`
 }
 
-// TMMatchInfoResponse is a TM match result.
-type TMMatchInfoResponse struct {
+// MemoryMatchInfoResponse is a content-memory match result.
+type MemoryMatchInfoResponse struct {
 	Source    string  `json:"source"`
 	Target    string  `json:"target"`
 	Score     float64 `json:"score"`
@@ -306,10 +306,10 @@ type BlockTermMatchResponse struct {
 	ProjectID   string   `json:"project_id,omitempty"` // scope info
 }
 
-// --- TM types ---
+// --- content memory types ---
 
-// TMEntryInfoResponse is the API response for a TM entry.
-type TMEntryInfoResponse struct {
+// MemoryEntryInfoResponse is the API response for a content-memory entry.
+type MemoryEntryInfoResponse struct {
 	ID             string `json:"id"`
 	Source         string `json:"source"`
 	Target         string `json:"target"`
@@ -319,14 +319,14 @@ type TMEntryInfoResponse struct {
 	UpdatedAt      string `json:"updated_at"`
 }
 
-// TMSearchResponse holds a page of TM search results.
-type TMSearchResponse struct {
-	Entries    []TMEntryInfoResponse `json:"entries"`
-	TotalCount int                   `json:"total_count"`
+// MemorySearchResponse holds a page of content-memory search results.
+type MemorySearchResponse struct {
+	Entries    []MemoryEntryInfoResponse `json:"entries"`
+	TotalCount int                       `json:"total_count"`
 }
 
-// TMAddRequest holds parameters for adding a TM entry.
-type TMAddRequest struct {
+// MemoryAddRequest holds parameters for adding a content-memory entry.
+type MemoryAddRequest struct {
 	Source       string `json:"source"`
 	Target       string `json:"target"`
 	SourceLocale string `json:"source_locale"`
@@ -334,8 +334,8 @@ type TMAddRequest struct {
 	ProjectID    string `json:"project_id"` // which project to associate with
 }
 
-// TMUpdateRequest holds parameters for updating a TM entry.
-type TMUpdateRequest struct {
+// MemoryUpdateRequest holds parameters for updating a content-memory entry.
+type MemoryUpdateRequest struct {
 	Source       string `json:"source"`
 	Target       string `json:"target"`
 	SourceLocale string `json:"source_locale"`
@@ -757,7 +757,7 @@ type editorBrandContext struct {
 	// profile — the base rung of the brandscope resolution ladder. Nil skips
 	// the workspace rung.
 	WorkspaceDefault brandscope.WorkspaceDefault
-	// Stores yields the per-workspace termbase the glossary derives from. Nil
+	// Stores yields the per-workspace terms the glossary derives from. Nil
 	// translates without a glossary.
 	Stores *workspaceStores
 }
@@ -766,7 +766,7 @@ type editorBrandContext struct {
 // interactive editor path, binding the same standing brand context the worker
 // binds via jobTranslateConfig (jobs/worker.go): the brand voice profile
 // resolved through the brandscope ladder, the per-locale terminology glossary
-// from the workspace termbase, and the project's do-not-translate terms from
+// from the workspace terms, and the project's do-not-translate terms from
 // settings. All bindings are best-effort — absence or a resolution failure
 // leaves the field unset and the translation runs bare, never fails.
 func editorTranslateConfig(
@@ -831,9 +831,9 @@ func editorBrandProfile(
 }
 
 // editorGlossary builds the source→target glossary for an editor translation
-// from the workspace termbase, sharing the derivation with the worker
-// (jobs.GlossaryFromTermbase) so both surfaces mandate identical renderings.
-// Returns nil (and logs) when no termbase resolves or a read fails:
+// from the workspace terms, sharing the derivation with the worker
+// (jobs.GlossaryFromTerms) so both surfaces mandate identical renderings.
+// Returns nil (and logs) when no terms resolves or a read fails:
 // terminology must never fail an interactive translation.
 func editorGlossary(
 	ctx context.Context,
@@ -847,14 +847,14 @@ func editorGlossary(
 	tb, err := brandCtx.Stores.getTB(workspaceSlug)
 	if err != nil || tb == nil {
 		if err != nil {
-			slog.WarnContext(ctx, "termbase resolution failed; translating without glossary",
+			slog.WarnContext(ctx, "terms resolution failed; translating without glossary",
 				"workspace", workspaceSlug, "error", err)
 		}
 		return nil
 	}
-	glossary, err := jobs.GlossaryFromTermbase(ctx, tb, projectID, sourceLocale, targetLocale)
+	glossary, err := jobs.GlossaryFromTerms(ctx, tb, projectID, sourceLocale, targetLocale)
 	if err != nil {
-		slog.WarnContext(ctx, "termbase read failed; translating without glossary",
+		slog.WarnContext(ctx, "terms read failed; translating without glossary",
 			"workspace", workspaceSlug, "error", err)
 		return nil
 	}
@@ -994,8 +994,8 @@ func editorAITranslate(
 	return editorComputeStats(outParts, req.TargetLocale), nil
 }
 
-// editorTMTranslate leverages translation memory to translate blocks.
-func editorTMTranslate(ctx context.Context, cs store.ContentStore, wsStores *workspaceStores, ws, projectID, stream, itemName, targetLocale string) (*TranslationStatsResponse, error) {
+// editorMemoryTranslate leverages content memory to translate blocks.
+func editorMemoryTranslate(ctx context.Context, cs store.ContentStore, wsStores *workspaceStores, ws, projectID, stream, itemName, targetLocale string) (*TranslationStatsResponse, error) {
 	proj, err := cs.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, err
@@ -1010,23 +1010,23 @@ func editorTMTranslate(ctx context.Context, cs store.ContentStore, wsStores *wor
 		return nil, err
 	}
 
-	tm, err := wsStores.getTM(ws)
+	tm, err := wsStores.getMemory(ws)
 	if err != nil {
-		return nil, fmt.Errorf("init TM: %w", err)
+		return nil, fmt.Errorf("init content memory: %w", err)
 	}
 
 	parts := storedBlocksToParts(storedBlocks)
 
-	tmTool := sievepen.NewTMLeverageTool(tm, sievepen.TMLeverageConfig{
+	memoryTool := memory.NewMemoryLeverageTool(tm, memory.MemoryLeverageConfig{
 		MinScore:     0.7,
 		MaxResults:   5,
 		SourceLocale: proj.DefaultSourceLanguage,
 		TargetLocale: model.LocaleID(targetLocale),
 	})
 
-	outParts, err := runToolOnParts(ctx, tmTool, parts)
+	outParts, err := runToolOnParts(ctx, memoryTool, parts)
 	if err != nil {
-		return nil, fmt.Errorf("TM translate: %w", err)
+		return nil, fmt.Errorf("content memory translate: %w", err)
 	}
 
 	blocks := partsToBlocks(outParts)
@@ -1041,7 +1041,7 @@ func editorTMTranslate(ctx context.Context, cs store.ContentStore, wsStores *wor
 
 // TermEnforceResultResponse represents a terminology violation in a block —
 // the API shape for POST /:ws/:id/actions/:ref/term-enforce. The server owns
-// the check by running the framework termbase.TermEnforceTool, so the desktop
+// the check by running the framework terms.TermEnforceTool, so the desktop
 // no longer hand-reimplements the matching logic.
 type TermEnforceResultResponse struct {
 	BlockID      string   `json:"block_id"`
@@ -1065,7 +1065,7 @@ func editorTermEnforce(ctx context.Context, cs store.ContentStore, wsStores *wor
 
 	tb, err := wsStores.getTB(ws)
 	if err != nil {
-		return nil, fmt.Errorf("init termbase: %w", err)
+		return nil, fmt.Errorf("init terms: %w", err)
 	}
 	if count, cerr := tb.Count(ctx); cerr != nil {
 		return nil, cerr
@@ -1086,7 +1086,7 @@ func editorTermEnforce(ctx context.Context, cs store.ContentStore, wsStores *wor
 	tgtLocale := model.LocaleID(targetLocale)
 
 	parts := storedBlocksToParts(storedBlocks)
-	enforceTool := termbase.NewTermEnforceTool(tb, termbase.TermEnforceConfig{
+	enforceTool := terms.NewTermEnforceTool(tb, terms.TermEnforceConfig{
 		SourceLocale: srcLocale,
 		TargetLocale: tgtLocale,
 	})
@@ -1097,7 +1097,7 @@ func editorTermEnforce(ctx context.Context, cs store.ContentStore, wsStores *wor
 
 	var results []TermEnforceResultResponse
 	for _, block := range partsToBlocks(outParts) {
-		for _, v := range termbase.ViolationsFromBlock(block) {
+		for _, v := range terms.ViolationsFromBlock(block) {
 			results = append(results, TermEnforceResultResponse{
 				BlockID:      block.ID,
 				SourceTerm:   v.SourceTerm,
@@ -1156,16 +1156,16 @@ func editorExportTranslatedFile(_ context.Context, _ store.ContentStore, _ *regi
 	return "", fmt.Errorf("server-side export not available for %q: use 'kapi pull' for translated file export", itemName)
 }
 
-// editorLookupTMForBlock looks up TM matches for a specific block.
-func editorLookupTMForBlock(ctx context.Context, cs store.ContentStore, wsStores *workspaceStores, ws, projectID, stream, blockID, targetLocale string) ([]TMMatchInfoResponse, error) {
+// editorLookupMemoryForBlock looks up content-memory matches for a specific block.
+func editorLookupMemoryForBlock(ctx context.Context, cs store.ContentStore, wsStores *workspaceStores, ws, projectID, stream, blockID, targetLocale string) ([]MemoryMatchInfoResponse, error) {
 	proj, err := cs.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
 
-	tm, err := wsStores.getTM(ws)
+	tm, err := wsStores.getMemory(ws)
 	if err != nil {
-		return nil, fmt.Errorf("init TM: %w", err)
+		return nil, fmt.Errorf("init content memory: %w", err)
 	}
 	if count, err := tm.Count(ctx); err != nil {
 		return nil, err
@@ -1178,7 +1178,7 @@ func editorLookupTMForBlock(ctx context.Context, cs store.ContentStore, wsStores
 		return nil, err
 	}
 
-	opts := sievepen.DefaultLookupOptions()
+	opts := memory.DefaultLookupOptions()
 	opts.MaxResults = 5
 	opts.ProjectID = projectID // for scoring boost
 	matches, err := tm.Lookup(ctx, sb.Block, proj.DefaultSourceLanguage, model.LocaleID(targetLocale), opts)
@@ -1188,9 +1188,9 @@ func editorLookupTMForBlock(ctx context.Context, cs store.ContentStore, wsStores
 
 	srcLoc := proj.DefaultSourceLanguage
 	tgtLoc := model.LocaleID(targetLocale)
-	result := make([]TMMatchInfoResponse, len(matches))
+	result := make([]MemoryMatchInfoResponse, len(matches))
 	for i, m := range matches {
-		result[i] = TMMatchInfoResponse{
+		result[i] = MemoryMatchInfoResponse{
 			Source:    m.Entry.VariantText(srcLoc),
 			Target:    m.Entry.VariantText(tgtLoc),
 			Score:     m.Score,
@@ -1210,7 +1210,7 @@ func editorLookupTermsForBlock(ctx context.Context, cs store.ContentStore, wsSto
 
 	tb, err := wsStores.getTB(ws)
 	if err != nil {
-		return nil, fmt.Errorf("init termbase: %w", err)
+		return nil, fmt.Errorf("init terms: %w", err)
 	}
 	if count, err := tb.Count(ctx); err != nil {
 		return nil, err
@@ -1228,7 +1228,7 @@ func editorLookupTermsForBlock(ctx context.Context, cs store.ContentStore, wsSto
 		return nil, nil
 	}
 
-	matches, err := tb.LookupAll(ctx, sourceText, termbase.LookupOptions{
+	matches, err := tb.LookupAll(ctx, sourceText, terms.LookupOptions{
 		SourceLocale: proj.DefaultSourceLanguage,
 		TargetLocale: model.LocaleID(targetLocale),
 		ProjectID:    projectID,
@@ -1705,11 +1705,11 @@ func (s *Server) platformProviderConfigForWorkspace(ctx context.Context, wsID st
 	return cfg
 }
 
-// editorEntryToInfo projects a multilingual TMEntry onto a bilingual
+// editorEntryToInfo projects a multilingual Entry onto a bilingual
 // response view for the requested (src, tgt) locale pair. When the source
 // is empty, it falls back to the entry's HintSrcLang. When the target is
 // empty, it picks any other variant on the entry.
-func editorEntryToInfo(e sievepen.TMEntry, sourceLocale, targetLocale string) TMEntryInfoResponse {
+func editorEntryToInfo(e memory.Entry, sourceLocale, targetLocale string) MemoryEntryInfoResponse {
 	srcLoc := model.LocaleID(sourceLocale)
 	tgtLoc := model.LocaleID(targetLocale)
 	if srcLoc == "" && e.HintSrcLang != "" {
@@ -1723,7 +1723,7 @@ func editorEntryToInfo(e sievepen.TMEntry, sourceLocale, targetLocale string) TM
 			}
 		}
 	}
-	return TMEntryInfoResponse{
+	return MemoryEntryInfoResponse{
 		ID:             e.ID,
 		Source:         e.VariantText(srcLoc),
 		Target:         e.VariantText(tgtLoc),
@@ -1734,7 +1734,7 @@ func editorEntryToInfo(e sievepen.TMEntry, sourceLocale, targetLocale string) TM
 	}
 }
 
-func editorConceptToInfo(c termbase.Concept) ConceptInfoResponse {
+func editorConceptToInfo(c terms.Concept) ConceptInfoResponse {
 	terms := make([]TermInfoResponse, len(c.Terms))
 	for i, t := range c.Terms {
 		terms[i] = TermInfoResponse{
@@ -1758,10 +1758,10 @@ func editorConceptToInfo(c termbase.Concept) ConceptInfoResponse {
 	}
 }
 
-func editorTermsFromInfo(terms []TermInfoResponse) []termbase.Term {
-	result := make([]termbase.Term, len(terms))
-	for i, t := range terms {
-		result[i] = termbase.Term{
+func editorTermsFromInfo(infos []TermInfoResponse) []terms.Term {
+	result := make([]terms.Term, len(infos))
+	for i, t := range infos {
+		result[i] = terms.Term{
 			Text:         t.Text,
 			Locale:       model.LocaleID(t.Locale),
 			Status:       model.TermStatus(t.Status),

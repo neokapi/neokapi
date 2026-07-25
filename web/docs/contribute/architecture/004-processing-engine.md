@@ -224,7 +224,7 @@ definitions include:
 | `translate-qa`     | Translation followed by QA validation                   |
 | `pseudo-translate` | Pseudo-translation for internationalization testing     |
 | `qa`               | Quality assurance checks on existing translations       |
-| `recycle`      | Translation memory leveraging from Sievepen TM          |
+| `recycle`      | Translation memory leveraging from Memory TM          |
 | `secure-translate` | Redact sensitive content, AI-translate, then restore the originals locally ([AD-020](020-redaction.md)) |
 
 `kapi flows` lists only the *composed* (multi-tool) built-in flows —

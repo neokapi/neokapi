@@ -334,7 +334,7 @@ function scopeName(s: UpPlanScope) {
 
 /**
  * The pre-flight plan dialog: the dry-run work `kapi up --plan` derives — per
- * (collection, locale): units missing a target, exact TM leverage, remaining
+ * (collection, locale): units missing a target, exact content-memory leverage, remaining
  * AI work — with the total token estimate and its disclosed heuristic. Nothing
  * runs until the user confirms.
  */
@@ -408,7 +408,7 @@ export function ConvergePlanDialog({
                   {t("Missing")}
                 </TableHead>
                 <TableHead className="h-auto px-2 py-1.5 text-right text-muted-foreground">
-                  {t("TM exact")}
+                  {t("content memory exact")}
                 </TableHead>
                 <TableHead className="h-auto px-2 py-1.5 text-right text-muted-foreground">
                   {t("AI work")}
@@ -428,7 +428,7 @@ export function ConvergePlanDialog({
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
                     {s.missingTarget}
                   </TableCell>
-                  <TableCell className="px-2 py-1.5 text-right tabular-nums">{s.tmExact}</TableCell>
+                  <TableCell className="px-2 py-1.5 text-right tabular-nums">{s.memoryExact}</TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
                     {s.aiRemaining}
                   </TableCell>
@@ -444,7 +444,7 @@ export function ConvergePlanDialog({
                     {totals.missingTarget}
                   </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
-                    {totals.tmExact}
+                    {totals.memoryExact}
                   </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
                     {totals.aiRemaining}

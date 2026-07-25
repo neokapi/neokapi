@@ -9,11 +9,11 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // processDecisionSideEffects handles the downstream effects of a review decision.
-// For approved term candidates → creates a termbase concept.
+// For approved term candidates → creates a terms store concept.
 // For rejected term candidates → adds to rejected_terms list.
 // For approved entities with DNT → adds to dnt_entries list.
 func (s *Server) processDecisionSideEffects(ctx context.Context, item *bstore.ReviewItem, wsSlug string) {
@@ -56,7 +56,7 @@ func (s *Server) processRejection(ctx context.Context, item *bstore.ReviewItem) 
 	}
 }
 
-// approveTermCandidate creates a termbase concept from an approved term candidate.
+// approveTermCandidate creates a terms store concept from an approved term candidate.
 func (s *Server) approveTermCandidate(ctx context.Context, item *bstore.ReviewItem, wsSlug string) {
 	if s.wsStores == nil {
 		return
@@ -90,11 +90,11 @@ func (s *Server) approveTermCandidate(ctx context.Context, item *bstore.ReviewIt
 		termStatus = model.TermPreferred
 	}
 
-	concept := termbase.Concept{
+	concept := terms.Concept{
 		ID:         id.New(),
 		Domain:     string(candidate.Category),
 		Definition: candidate.Definition,
-		Terms: []termbase.Term{
+		Terms: []terms.Term{
 			{
 				Text:   candidate.Text,
 				Locale: candidate.Locale,
@@ -111,7 +111,7 @@ func (s *Server) approveTermCandidate(ctx context.Context, item *bstore.ReviewIt
 
 	tb, tbErr := s.wsStores.getTB(wsSlug)
 	if tbErr != nil {
-		slog.Error("review-effects: failed to init termbase", "workspace", wsSlug, "error", tbErr)
+		slog.Error("review-effects: failed to init terms", "workspace", wsSlug, "error", tbErr)
 		return
 	}
 	if err := tb.AddConcept(ctx, concept); err != nil {

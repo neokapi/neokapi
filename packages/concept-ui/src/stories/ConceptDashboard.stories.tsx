@@ -39,7 +39,7 @@ export const Full: Story = {
   render: () => <Harness source={richSource} />,
 };
 
-/** Framework path: a local termbase only — core concept, terms, relations,
+/** Framework path: a local terms only — core concept, terms, relations,
  *  tag-derived geography, constraints, and a synthesized timeline. Observations
  *  and discussion are absent and simply do not render. */
 export const CoreOnly: Story = {

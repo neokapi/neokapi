@@ -51,7 +51,7 @@ const FILTERS: StatusFilter[] = ["all", "not-started", "draft", "translated", "r
 /**
  * ReviewSurface is the block-level translation review/QA surface — a sibling
  * route to the Translate editor. It lists translatable blocks by status with
- * filtering, bulk actions (mark reviewed, apply TM), per-block approve/reject,
+ * filtering, bulk actions (mark reviewed, apply content memory), per-block approve/reject,
  * and a QA findings panel (reused ProblemsPanel). Mark-reviewed and QA were
  * moved out of the Translate toolbar into here. (Brand-rule promotion lives in
  * the separate brand-review surface; this is about translation review.)
@@ -263,13 +263,13 @@ export function ReviewSurface({
     }
   }, [selected, blocks, api, capture, project.id, fileName, targetLocale]);
 
-  const bulkApplyTM = useCallback(async () => {
+  const bulkApplyMemory = useCallback(async () => {
     if (selected.size === 0) return;
     let applied = 0;
     for (const block of blocks) {
       if (!selected.has(block.id) || !block.translatable) continue;
       try {
-        const matches = await api.lookupTMForBlock(project.id, fileName, block.id, targetLocale);
+        const matches = await api.lookupMemoryForBlock(project.id, fileName, block.id, targetLocale);
         const best = matches?.[0];
         if (best && best.score >= 1) {
           await api.updateBlockTarget({
@@ -285,7 +285,7 @@ export function ReviewSurface({
         // skip individual failures; continue the batch
       }
     }
-    setMessage(`Applied ${applied} exact TM match(es)`);
+    setMessage(`Applied ${applied} exact content-memory match(es)`);
     setSelected(new Set());
     await loadBlocks();
   }, [selected, blocks, api, project.id, fileName, targetLocale, loadBlocks]);
@@ -392,11 +392,11 @@ export function ReviewSurface({
         <Button
           variant="outline"
           size="sm"
-          onClick={bulkApplyTM}
+          onClick={bulkApplyMemory}
           disabled={selected.size === 0}
           data-testid="bulk-apply-tm"
         >
-          Apply exact TM
+          Apply exact Memory
         </Button>
         <Button
           size="sm"

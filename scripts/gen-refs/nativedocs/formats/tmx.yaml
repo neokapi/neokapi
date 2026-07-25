@@ -2,10 +2,10 @@
 # Schema source: core/formats/tmx/config.go (Config).
 # Behaviour grounded in core/formats/tmx/reader.go, writer.go and spec.yaml,
 # mirroring Okapi's TMX filter (okf_tmx) and the LISA TMX 1.4 standard.
-description: Read and write TMX translation-memory exchange files, one block per translation unit.
+description: Read and write TMX content-memory exchange files, one block per translation unit.
 overview: |
-  TMX (Translation Memory eXchange) is the XML interchange format for
-  translation memories. A TMX document holds a header declaring the
+  TMX (Content Memory eXchange) is the XML interchange format for
+  content memories. A TMX document holds a header declaring the
   source language (`srclang`) and a body of `<tu>` translation units;
   each unit carries one `<tuv>` translation-unit variant per language,
   with optional unit- and header-level `<note>` and `<prop>` metadata.
@@ -56,7 +56,7 @@ parameters:
     help: |
       A list of regular expressions; each match within a translatable
       block is protected as an inline code rather than translated. Used to
-      shield placeholders or markup carried inside TM segments. Only takes
+      shield placeholders or markup carried inside Memory segments. Only takes
       effect when `useCodeFinder` is enabled; invalid patterns are skipped.
     values: "Array of regular-expression strings"
     examples:

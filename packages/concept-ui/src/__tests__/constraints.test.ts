@@ -168,7 +168,7 @@ describe("constraintSummary", () => {
     expect(voucher.active).toBe(true); // always-banned
   });
 
-  it("works on a flat termbase with no dates or markets", () => {
+  it("works on a flat terms with no dates or markets", () => {
     const flat: Concept = {
       id: "x",
       terms: [term("Voucher", "en-US", "forbidden"), term("Coupon", "en-US", "preferred")],

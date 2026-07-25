@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { t } from "@neokapi/i18n-react/runtime";
-import type { EntityAnnotationDTO, TMMatchDTO, LookupTMRequest } from "./types";
+import type { EntityAnnotationDTO, MemoryMatchDTO, LookupMemoryRequest } from "./types";
 import { ENTITY_TYPES } from "./types";
 import { CodedTextDisplay } from "./CodedTextDisplay";
 import { MatchScoreBar } from "./MatchScoreBar";
@@ -38,7 +38,7 @@ export interface FilterField {
   values?: { value: string; label: string }[];
 }
 
-interface TMSearchBarProps {
+interface MemorySearchBarProps {
   /** Current submitted search value (drives the results). */
   value: string;
   /** Called when the user submits a search (Enter or icon click). */
@@ -49,8 +49,8 @@ interface TMSearchBarProps {
   onFiltersChange?: (filters: FilterToken[]) => void;
   /** Available filter fields for tokens (e.g. language, concept). */
   filterFields?: FilterField[];
-  /** Optional fuzzy TM lookup — triggered when entities are marked + Enter. */
-  onLookup?: (req: LookupTMRequest) => Promise<TMMatchDTO[]>;
+  /** Optional fuzzy content-memory lookup — triggered when entities are marked + Enter. */
+  onLookup?: (req: LookupMemoryRequest) => Promise<MemoryMatchDTO[]>;
   /** Called whenever the marked entity list changes — used for filter wiring. */
   onEntitiesChange?: (entities: EntityAnnotationDTO[]) => void;
   sourceLocale: string;
@@ -59,13 +59,13 @@ interface TMSearchBarProps {
 }
 
 /**
- * Google-style search bar for the TM browser.
+ * Google-style search bar for the content memory browser.
  * - Centered, rounded, large input.
  * - Search is submitted on Enter or search icon click (NOT as you type).
  * - Filter tokens appear as inline badges at the left of the input.
  * - Select text to mark as entities; entities feed into the parent's filter.
  */
-export function TMSearchBar({
+export function MemorySearchBar({
   value,
   onChange,
   filters = [],
@@ -75,8 +75,8 @@ export function TMSearchBar({
   onEntitiesChange,
   sourceLocale,
   targetLocale,
-  placeholder = t("Search translation memory..."),
-}: TMSearchBarProps) {
+  placeholder = t("Search content memory..."),
+}: MemorySearchBarProps) {
   const [draft, setDraft] = useState(value);
   const [entities, setEntities] = useState<MarkedEntity[]>([]);
   const [showEntityPopover, setShowEntityPopover] = useState(false);
@@ -85,7 +85,7 @@ export function TMSearchBar({
     end: number;
     text: string;
   } | null>(null);
-  const [matches, setMatches] = useState<TMMatchDTO[]>([]);
+  const [matches, setMatches] = useState<MemoryMatchDTO[]>([]);
   const [showMatches, setShowMatches] = useState(false);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [showFilterMenu, setShowFilterMenu] = useState(false);

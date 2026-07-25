@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { setupLocalApp } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
-// Quarantined in CI (#867): this TM-leverage suite passes locally but
+// Quarantined in CI (#867): this content memory-leverage suite passes locally but
 // flakes/times out under headless CI. Still runs locally.
 test.beforeEach(() => {
   test.skip(!!process.env.CI, "Quarantined in CI — see #867");
@@ -16,10 +16,10 @@ function clickTestId(page: any, testId: string) {
 }
 
 /**
- * Bulk TM leverage moved out of the per-block Translate toolbar onto the
+ * Bulk content-memory leverage moved out of the per-block Translate toolbar onto the
  * Pre-process surface. This navigates there and runs the leverage op.
  */
-async function leverageTMViaPreProcess(page: any) {
+async function leverageMemoryViaPreProcess(page: any) {
   await clickTestId(page, "surface-tab-pre-process");
   await page.getByTestId("preprocess-run-tm").waitFor({ state: "visible", timeout: 5000 });
   await clickTestId(page, "preprocess-run-tm");
@@ -34,19 +34,19 @@ async function leverageTMViaPreProcess(page: any) {
 }
 
 /**
- * Sets up a project with TM entries covering all blocks, adds a file, and opens the editor.
+ * Sets up a project with content-memory entries covering all blocks, adds a file, and opens the editor.
  */
-async function openEditorWithTM(page: any) {
+async function openEditorWithMemory(page: any) {
   await setupLocalApp(page);
 
   // Create project
   await page.getByText("Upload files").click();
-  await page.getByTestId("project-name-input").fill("TM Leverage Test");
+  await page.getByTestId("project-name-input").fill("content memory Leverage Test");
   await selectMultiLocales(page, "target-langs-input", ["fr"]);
   await page.getByTestId("create-project-submit").click();
   await expect(page.getByTestId("file-drop-zone")).toBeVisible();
 
-  // Seed TM entries exactly matching the auto-generated block sources
+  // Seed content-memory entries exactly matching the auto-generated block sources
   await page.evaluate(async () => {
     const backend = (window as any).__wailsMockByName;
     const projects = await backend.ListProjects();
@@ -54,15 +54,15 @@ async function openEditorWithTM(page: any) {
     if (!pid) return;
 
     // These match the AddItems-generated block sources exactly
-    backend.AddTMEntry(pid, "Hello from page.html", "Bonjour depuis page.html", "en", "fr");
-    backend.AddTMEntry(
+    backend.AddMemoryEntry(pid, "Hello from page.html", "Bonjour depuis page.html", "en", "fr");
+    backend.AddMemoryEntry(
       pid,
       "Welcome to our application",
       "Bienvenue dans notre application",
       "en",
       "fr",
     );
-    backend.AddTMEntry(pid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
+    backend.AddMemoryEntry(pid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
 
     // Add file
     await backend.AddItems(pid, ["/content/page.html"]);
@@ -71,7 +71,7 @@ async function openEditorWithTM(page: any) {
   // Navigate back to projects list and re-enter to refresh
   await page.getByTestId("back-to-projects").click();
   await page.waitForTimeout(200);
-  await page.getByText("TM Leverage Test").first().click();
+  await page.getByText("content memory Leverage Test").first().click();
   await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
 
   // Open file in editor
@@ -86,25 +86,25 @@ async function openEditorWithTM(page: any) {
   await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 }
 
-test.describe("TM Leverage", () => {
-  test("should translate blocks using TM Lookup", async ({ page }) => {
-    await openEditorWithTM(page);
+test.describe("content memory Leverage", () => {
+  test("should translate blocks using content memory Lookup", async ({ page }) => {
+    await openEditorWithMemory(page);
 
     // Verify blocks are untranslated initially (progress at 0%)
     await expect(page.getByTestId("progress-text")).toContainText("0%");
 
-    // Run bulk TM leverage from the Pre-process surface.
-    await leverageTMViaPreProcess(page);
+    // Run bulk content-memory leverage from the Pre-process surface.
+    await leverageMemoryViaPreProcess(page);
 
-    // Progress should update (3/3 blocks matched from TM)
+    // Progress should update (3/3 blocks matched from content memory)
     await expect(page.getByTestId("progress-text")).toContainText("100%");
   });
 
-  test("should show TM-translated blocks with targets", async ({ page }) => {
-    await openEditorWithTM(page);
+  test("should show content memory-translated blocks with targets", async ({ page }) => {
+    await openEditorWithMemory(page);
 
-    // Run bulk TM leverage from the Pre-process surface.
-    await leverageTMViaPreProcess(page);
+    // Run bulk content-memory leverage from the Pre-process surface.
+    await leverageMemoryViaPreProcess(page);
 
     // Reload blocks to see translated targets
     // Navigate back to project view and re-open file
@@ -130,21 +130,21 @@ test.describe("TM Leverage", () => {
     await expect(page.getByTestId("target-text-2")).toContainText("Cliquez ici pour continuer");
   });
 
-  test("should update progress after TM translate", async ({ page }) => {
-    await openEditorWithTM(page);
+  test("should update progress after content memory translate", async ({ page }) => {
+    await openEditorWithMemory(page);
 
-    // Only 2 TM entries matching (remove one)
+    // Only 2 content-memory entries matching (remove one)
     await page.evaluate(() => {
       const backend = (window as any).__wailsMock;
       const IDS = (window as any).__wailsIDs;
-      const origTM = backend[IDS.TMTranslateItem];
-      backend[IDS.TMTranslateItem] = (
+      const origMemory = backend[IDS.MemoryTranslateItem];
+      backend[IDS.MemoryTranslateItem] = (
         projectID: string,
         fileName: string,
         targetLocale: string,
       ) => {
         // Only translate 2 of 3 blocks
-        const result = origTM(projectID, fileName, targetLocale);
+        const result = origMemory(projectID, fileName, targetLocale);
         return result;
       };
     });
@@ -152,12 +152,12 @@ test.describe("TM Leverage", () => {
     // Verify initial state
     await expect(page.getByTestId("progress-text")).toContainText("0%");
 
-    // Run bulk TM leverage from the Pre-process surface.
-    await leverageTMViaPreProcess(page);
+    // Run bulk content-memory leverage from the Pre-process surface.
+    await leverageMemoryViaPreProcess(page);
 
     // Progress should reflect translated blocks
     const progressText = await page.getByTestId("progress-text").textContent();
-    // Should be 100% since all 3 TM entries match
+    // Should be 100% since all 3 content-memory entries match
     expect(progressText).toContain("100%");
   });
 });

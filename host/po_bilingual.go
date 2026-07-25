@@ -80,8 +80,8 @@ func WritePOExtract(out io.Writer, target model.LocaleID, batchID, sourceRel, so
 			fmt.Fprintf(bw, "#. %s%s\n", poBlockCommentPrefix, b.ID)
 		}
 
-		// Fuzzy flag when TM pre-fill populated a fuzzy match for this
-		// block. We piggyback on block.Properties set by applyTMPrefill
+		// Fuzzy flag when content memory pre-fill populated a fuzzy match for this
+		// block. We piggyback on block.Properties set by applyMemoryPrefill
 		// (see extract.go) — missing means no pre-fill or exact.
 		if b.Properties["kapi-tm-match"] == "fuzzy" {
 			fmt.Fprintln(bw, "#, fuzzy")

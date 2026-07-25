@@ -176,7 +176,7 @@ func TestReaderSniffsKBFEnvelope(t *testing.T) {
 	sig := r.Signature()
 	require.NotNil(t, sig.Sniff)
 	// A .kbf envelope.
-	assert.True(t, sig.Sniff([]byte(`{"schemaVersion":"1.0","kind":"kapi-localization-format"}`)))
+	assert.True(t, sig.Sniff([]byte(`{"schemaVersion":"1.0","kind":"kapi-bundle"}`)))
 	// Random JSON isn't a match.
 	assert.False(t, sig.Sniff([]byte(`{"foo":1}`)))
 }

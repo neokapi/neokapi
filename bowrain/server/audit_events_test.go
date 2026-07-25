@@ -75,8 +75,8 @@ func TestPhase1_AuthzDenialEmitted(t *testing.T) {
 	snapshot, stop := collectEvents(t, s)
 	defer stop()
 
-	// Member is denied a TM mutation (requires PermManageTM).
-	code := do(t, s, http.MethodPost, "/api/v1/test/translation-memory", memberToken,
+	// Member is denied a content memory mutation (requires PermManageMemory).
+	code := do(t, s, http.MethodPost, "/api/v1/test/content-memory", memberToken,
 		`{"source":"x","target":"y","source_locale":"en","target_locale":"fr"}`)
 	require.Equal(t, http.StatusForbidden, code)
 

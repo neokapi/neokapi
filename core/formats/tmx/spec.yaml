@@ -18,7 +18,7 @@
 format: okf_tmx
 mime_type: application/x-tmx+xml
 description: |
-  Translation Memory eXchange (TMX) — XML-based bilingual / multilingual
+  Content Memory eXchange (TMX) — XML-based bilingual / multilingual
   TM interchange. The reader walks `<tu>` translation units, emits one
   Block per TU with a Source segment matching the header `srclang` and
   one Target segment per non-source `<tuv>`. Header attributes plus any

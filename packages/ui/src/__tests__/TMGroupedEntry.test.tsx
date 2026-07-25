@@ -3,14 +3,14 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
-import { TMGroupedEntry } from "../components/resource-browser/TMGroupedEntry";
-import type { TMEntryDTO, VariantDTO } from "../components/resource-browser/types";
+import { MemoryGroupedEntry } from "../components/resource-browser/MemoryGroupedEntry";
+import type { MemoryEntryDTO, VariantDTO } from "../components/resource-browser/types";
 
 function v(locale: string, text: string): VariantDTO {
   return { locale, text, runs: [{ text }] };
 }
 
-function makeEntry(overrides: Partial<TMEntryDTO> = {}): TMEntryDTO {
+function makeEntry(overrides: Partial<MemoryEntryDTO> = {}): MemoryEntryDTO {
   const now = new Date().toISOString();
   return {
     id: "tm-1",
@@ -36,7 +36,7 @@ function renderToContainer(el: React.ReactElement): HTMLDivElement {
   return container;
 }
 
-describe("TMGroupedEntry", () => {
+describe("MemoryGroupedEntry", () => {
   afterEach(() => {
     while (document.body.firstChild) {
       document.body.removeChild(document.body.firstChild);
@@ -45,7 +45,7 @@ describe("TMGroupedEntry", () => {
 
   it("renders source text and translation count", () => {
     const c = renderToContainer(
-      createElement(TMGroupedEntry, {
+      createElement(MemoryGroupedEntry, {
         entry: makeEntry(),
         selected: false,
         onToggleSelect: vi.fn(),
@@ -59,7 +59,7 @@ describe("TMGroupedEntry", () => {
 
   it("renders source locale pill", () => {
     const c = renderToContainer(
-      createElement(TMGroupedEntry, {
+      createElement(MemoryGroupedEntry, {
         entry: makeEntry(),
         selected: false,
         onToggleSelect: vi.fn(),
@@ -78,7 +78,7 @@ describe("TMGroupedEntry", () => {
       },
     });
     const c = renderToContainer(
-      createElement(TMGroupedEntry, {
+      createElement(MemoryGroupedEntry, {
         entry,
         selected: false,
         onToggleSelect: vi.fn(),
@@ -91,7 +91,7 @@ describe("TMGroupedEntry", () => {
 
   it("auto-expands when fewer than 10 non-source variants", () => {
     const c = renderToContainer(
-      createElement(TMGroupedEntry, {
+      createElement(MemoryGroupedEntry, {
         entry: makeEntry(),
         selected: false,
         onToggleSelect: vi.fn(),
@@ -107,7 +107,7 @@ describe("TMGroupedEntry", () => {
 
   it("collapses when clicking source on auto-expanded entry", () => {
     const c = renderToContainer(
-      createElement(TMGroupedEntry, {
+      createElement(MemoryGroupedEntry, {
         entry: makeEntry(),
         selected: false,
         onToggleSelect: vi.fn(),
@@ -126,7 +126,7 @@ describe("TMGroupedEntry", () => {
 
   it("filters variants by visibleLocales", () => {
     const c = renderToContainer(
-      createElement(TMGroupedEntry, {
+      createElement(MemoryGroupedEntry, {
         entry: makeEntry(),
         selected: false,
         onToggleSelect: vi.fn(),
@@ -143,7 +143,7 @@ describe("TMGroupedEntry", () => {
   it("calls onToggleSelect when checkbox clicked", () => {
     const onToggle = vi.fn();
     const c = renderToContainer(
-      createElement(TMGroupedEntry, {
+      createElement(MemoryGroupedEntry, {
         entry: makeEntry(),
         selected: false,
         onToggleSelect: onToggle,
@@ -167,7 +167,7 @@ describe("TMGroupedEntry", () => {
       },
     });
     const c = renderToContainer(
-      createElement(TMGroupedEntry, {
+      createElement(MemoryGroupedEntry, {
         entry,
         selected: false,
         onToggleSelect: vi.fn(),

@@ -391,56 +391,56 @@ export const api = {
   recoverResource: (path: string) => call<string>("RecoverResource", path),
 
   // Project resource handles
-  getProjectTMHandle: (tabID: string) => call<string>("GetProjectTMHandle", tabID),
-  getProjectTermbaseHandle: (tabID: string) => call<string>("GetProjectTermbaseHandle", tabID),
+  getProjectMemoryHandle: (tabID: string) => call<string>("GetProjectMemoryHandle", tabID),
+  getProjectTermsHandle: (tabID: string) => call<string>("GetProjectTermsHandle", tabID),
   getProjectHandles: (tabID: string) => call<ProjectHandles>("GetProjectHandles", tabID),
 
   // Adopt a user/ad-hoc flow into the active project's recipe.
   adoptUserFlowIntoProject: (tabID: string, flowID: string) =>
     call<AdoptFlowResult>("AdoptUserFlowIntoProject", tabID, flowID),
 
-  // TM
-  listNamedTMs: () =>
-    call<Array<{ name: string; path: string; size: number; modified: string }>>("ListNamedTMs"),
-  getTMStats: (handle: string) => call<{ count: number; path: string }>("GetTMStats", handle),
-  getTMLocaleStats: (handle: string) =>
-    call<Array<{ locale: string; count: number }>>("GetTMLocaleStats", handle),
-  getTMActivityStats: (handle: string) =>
-    call<Array<{ date: string; count: number }>>("GetTMActivityStats", handle),
-  openTM: (path: string) => call<string>("OpenTM", path),
-  openTMDialog: () => call<string>("OpenTMDialog"),
-  createTM: (path: string) => call<string>("CreateTM", path),
-  createNamedTM: (name: string) => call<string>("CreateNamedTM", name),
-  closeTM: (handle: string) => call<void>("CloseTM", handle),
-  searchTMEntries: (
+  // content memory
+  listNamedMemories: () =>
+    call<Array<{ name: string; path: string; size: number; modified: string }>>("ListNamedMemories"),
+  getMemoryStats: (handle: string) => call<{ count: number; path: string }>("GetMemoryStats", handle),
+  getMemoryLocaleStats: (handle: string) =>
+    call<Array<{ locale: string; count: number }>>("GetMemoryLocaleStats", handle),
+  getMemoryActivityStats: (handle: string) =>
+    call<Array<{ date: string; count: number }>>("GetMemoryActivityStats", handle),
+  openMemory: (path: string) => call<string>("OpenMemory", path),
+  openMemoryDialog: () => call<string>("OpenMemoryDialog"),
+  createMemory: (path: string) => call<string>("CreateMemory", path),
+  createNamedMemory: (name: string) => call<string>("CreateNamedMemory", name),
+  closeMemory: (handle: string) => call<void>("CloseMemory", handle),
+  searchMemoryEntries: (
     handle: string,
     query: string,
     anyLocale: string,
     requireLocale: string,
     offset: number,
     limit: number,
-  ) => call<unknown>("SearchTMEntries", handle, query, anyLocale, requireLocale, offset, limit),
-  getTMEntry: (handle: string, id: string) => call<unknown>("GetTMEntry", handle, id),
-  addTMEntry: (handle: string, req: unknown) => call<void>("AddTMEntry", handle, req),
-  updateTMEntry: (handle: string, req: unknown) => call<void>("UpdateTMEntry", handle, req),
-  deleteTMEntry: (handle: string, id: string) => call<void>("DeleteTMEntry", handle, id),
-  deleteTMEntries: (handle: string, ids: string[]) => call<void>("DeleteTMEntries", handle, ids),
-  lookupTM: (handle: string, req: unknown) => call<unknown[]>("LookupTM", handle, req),
+  ) => call<unknown>("SearchMemoryEntries", handle, query, anyLocale, requireLocale, offset, limit),
+  getMemoryEntry: (handle: string, id: string) => call<unknown>("GetMemoryEntry", handle, id),
+  addMemoryEntry: (handle: string, req: unknown) => call<void>("AddMemoryEntry", handle, req),
+  updateMemoryEntry: (handle: string, req: unknown) => call<void>("UpdateMemoryEntry", handle, req),
+  deleteMemoryEntry: (handle: string, id: string) => call<void>("DeleteMemoryEntry", handle, id),
+  deleteMemoryEntries: (handle: string, ids: string[]) => call<void>("DeleteMemoryEntries", handle, ids),
+  lookupMemory: (handle: string, req: unknown) => call<unknown[]>("LookupMemory", handle, req),
   annotateEntities: (handle: string, req: unknown) =>
     call<unknown>("AnnotateEntities", handle, req),
   importTMXDialog: (handle: string) =>
     call<{ session_id: string; count: number }>("ImportTMXDialog", handle),
   exportTMXDialog: (handle: string, locales: string[]) =>
     call<void>("ExportTMXDialog", handle, locales),
-  getTMFacets: (handle: string) => call<unknown>("GetTMFacets", handle),
-  getTMFacetsFiltered: (
+  getMemoryFacets: (handle: string) => call<unknown>("GetMemoryFacets", handle),
+  getMemoryFacetsFiltered: (
     handle: string,
     query: string,
     anyLocale: string,
     requireLocale: string,
     filter: unknown,
-  ) => call<unknown>("GetTMFacetsFiltered", handle, query, anyLocale, requireLocale, filter),
-  searchTMEntriesFiltered: (
+  ) => call<unknown>("GetMemoryFacetsFiltered", handle, query, anyLocale, requireLocale, filter),
+  searchMemoryEntriesFiltered: (
     handle: string,
     query: string,
     anyLocale: string,
@@ -450,7 +450,7 @@ export const api = {
     limit: number,
   ) =>
     call<unknown>(
-      "SearchTMEntriesFiltered",
+      "SearchMemoryEntriesFiltered",
       handle,
       query,
       anyLocale,
@@ -459,27 +459,27 @@ export const api = {
       offset,
       limit,
     ),
-  listTMImportSessions: (handle: string) => call<unknown[]>("ListTMImportSessions", handle),
-  getTMImportSession: (handle: string, sessionID: string) =>
-    call<unknown>("GetTMImportSession", handle, sessionID),
-  deleteTMImportSession: (handle: string, sessionID: string) =>
-    call<void>("DeleteTMImportSession", handle, sessionID),
+  listMemoryImportSessions: (handle: string) => call<unknown[]>("ListMemoryImportSessions", handle),
+  getMemoryImportSession: (handle: string, sessionID: string) =>
+    call<unknown>("GetMemoryImportSession", handle, sessionID),
+  deleteMemoryImportSession: (handle: string, sessionID: string) =>
+    call<void>("DeleteMemoryImportSession", handle, sessionID),
 
-  // Termbase
-  listNamedTermbases: () =>
+  // Terms
+  listNamedTerms: () =>
     call<Array<{ name: string; path: string; size: number; modified: string }>>(
-      "ListNamedTermbases",
+      "ListNamedTerms",
     ),
-  getTermbaseStats: (handle: string) => call<{ count: number }>("GetTermbaseStats", handle),
-  getTermbaseLocaleStats: (handle: string) =>
-    call<Array<{ locale: string; count: number }>>("GetTermbaseLocaleStats", handle),
-  getTermbaseActivityStats: (handle: string) =>
-    call<Array<{ date: string; count: number }>>("GetTermbaseActivityStats", handle),
-  openTermbase: (path: string) => call<string>("OpenTermbase", path),
-  openTermbaseDialog: () => call<string>("OpenTermbaseDialog"),
-  createTermbase: (path: string) => call<string>("CreateTermbase", path),
-  createNamedTermbase: (name: string) => call<string>("CreateNamedTermbase", name),
-  closeTermbase: (handle: string) => call<void>("CloseTermbase", handle),
+  getTermsStats: (handle: string) => call<{ count: number }>("GetTermsStats", handle),
+  getTermsLocaleStats: (handle: string) =>
+    call<Array<{ locale: string; count: number }>>("GetTermsLocaleStats", handle),
+  getTermsActivityStats: (handle: string) =>
+    call<Array<{ date: string; count: number }>>("GetTermsActivityStats", handle),
+  openTerms: (path: string) => call<string>("OpenTerms", path),
+  openTermsDialog: () => call<string>("OpenTermsDialog"),
+  createTerms: (path: string) => call<string>("CreateTerms", path),
+  createNamedTerms: (name: string) => call<string>("CreateNamedTerms", name),
+  closeTerms: (handle: string) => call<void>("CloseTerms", handle),
   searchTerms: (
     handle: string,
     query: string,
@@ -493,12 +493,12 @@ export const api = {
   updateConcept: (handle: string, req: unknown) => call<void>("UpdateConcept", handle, req),
   deleteConcept: (handle: string, id: string) => call<void>("DeleteConcept", handle, id),
   deleteConcepts: (handle: string, ids: string[]) => call<void>("DeleteConcepts", handle, ids),
-  importTermbaseCSVDialog: (handle: string, srcLocale: string, tgtLocale: string, domain: string) =>
-    call<{ count: number }>("ImportTermbaseCSVDialog", handle, srcLocale, tgtLocale, domain),
-  importTermbaseJSONDialog: (handle: string) =>
-    call<{ count: number }>("ImportTermbaseJSONDialog", handle),
-  exportTermbaseJSONDialog: (handle: string, name: string) =>
-    call<void>("ExportTermbaseJSONDialog", handle, name),
+  importTermsCSVDialog: (handle: string, srcLocale: string, tgtLocale: string, domain: string) =>
+    call<{ count: number }>("ImportTermsCSVDialog", handle, srcLocale, tgtLocale, domain),
+  importTermsJSONDialog: (handle: string) =>
+    call<{ count: number }>("ImportTermsJSONDialog", handle),
+  exportTermsJSONDialog: (handle: string, name: string) =>
+    call<void>("ExportTermsJSONDialog", handle, name),
 
   // Inspect — returns the editor ContentTree (as JSON) for a project content
   // file, the structure the PreviewKit (DocumentViewer) renders. The annotated

@@ -42,7 +42,7 @@ type PresenceUser struct {
 }
 
 // ChangeEvent is emitted to the frontend for non-block, non-presence external
-// changes (project/item/connector/flow/membership/brand/termbase/stream) so
+// changes (project/item/connector/flow/membership/brand/terms/stream) so
 // any open view can refresh itself. EventType carries the raw platform event
 // type (e.g. "connector.sync.completed", "flow.completed").
 type ChangeEvent struct {
@@ -196,7 +196,7 @@ func (w *ProjectWatcher) handleEvent(ev apiclient.EditorChangeEvent) {
 		w.app.emit("brand-voice-changed", ChangeEvent{EventType: t})
 
 	case strings.HasPrefix(t, "term."), strings.HasPrefix(t, "concept."):
-		w.app.emit("termbase-changed", ChangeEvent{EventType: t})
+		w.app.emit("terms-changed", ChangeEvent{EventType: t})
 
 	case strings.HasPrefix(t, "stream."):
 		w.app.emit("stream-changed", ChangeEvent{EventType: t, Stream: ev.Stream})

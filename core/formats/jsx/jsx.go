@@ -180,13 +180,13 @@ func NewReader() *Reader {
 }
 
 // Signature returns detection metadata — .kbf files are JSON
-// bearing the canonical `kapi-localization-format` kind marker.
+// bearing the canonical `kapi-bundle` kind marker.
 func (r *Reader) Signature() format.FormatSignature {
 	return format.FormatSignature{
 		MIMETypes:  MimeTypes,
 		Extensions: Extensions,
 		Sniff: func(data []byte) bool {
-			return bytes.Contains(data, []byte(`"kapi-localization-format"`))
+			return bytes.Contains(data, []byte(`"kapi-bundle"`))
 		},
 	}
 }

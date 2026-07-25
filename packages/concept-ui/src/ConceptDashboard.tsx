@@ -1,8 +1,8 @@
 // ConceptDashboard — the per-concept view fully composed (Apache-2.0). This is
 // the surface a consuming app renders: it wires the production section panels
-// into the ConceptView shell, so kapi-desktop (local termbase) and bowrain
+// into the ConceptView shell, so kapi-desktop (local terms) and bowrain
 // (REST) both get the identical dashboard from just a data source. Sections
-// gate themselves on capabilities, so the local-termbase-only path degrades to
+// gate themselves on capabilities, so the local-terms-only path degrades to
 // terms, relations, geography (from tags), constraints, and the synthesized
 // timeline — observations and discussion appear only when the source supplies
 // them.

@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func foTMCount(t *testing.T, s *Server, token string) int {
+func fetchMemoryCount(t *testing.T, s *Server, token string) int {
 	t.Helper()
-	r := httptest.NewRequest(http.MethodGet, "/api/v1/test/translation-memory/count", nil)
+	r := httptest.NewRequest(http.MethodGet, "/api/v1/test/content-memory/count", nil)
 	r.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	s.GetEcho().ServeHTTP(rec, r)
@@ -33,15 +33,15 @@ func TestFailOpenCheck(t *testing.T) {
 	s, ownerToken := newTestServer(t)
 	memberToken := addWorkspaceMember(t, s, "fo-mem", "fo-mem@example.com", platauth.RoleMember)
 
-	cntBefore := foTMCount(t, s, ownerToken)
+	cntBefore := fetchMemoryCount(t, s, ownerToken)
 
-	r := httptest.NewRequest(http.MethodPost, "/api/v1/test/translation-memory", strings.NewReader(tmBody))
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/test/content-memory", strings.NewReader(memoryBody))
 	r.Header.Set("Authorization", "Bearer "+memberToken)
 	r.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	s.GetEcho().ServeHTTP(rec, r)
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 
-	cntAfter := foTMCount(t, s, ownerToken)
-	assert.Equal(t, cntBefore, cntAfter, "denied POST must NOT create a TM entry (fail-open check)")
+	cntAfter := fetchMemoryCount(t, s, ownerToken)
+	assert.Equal(t, cntBefore, cntAfter, "denied POST must NOT create a content-memory entry (fail-open check)")
 }

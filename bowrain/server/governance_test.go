@@ -9,28 +9,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const tmBody = `{"source":"hello","target":"bonjour","source_locale":"en","target_locale":"fr"}`
+const memoryBody = `{"source":"hello","target":"bonjour","source_locale":"en","target_locale":"fr"}`
 
 // TestPhase3_DenyRuleOverridesGrant proves a deny rule subtracts a permission
 // even from an owner (PermAll).
 func TestPhase3_DenyRuleOverridesGrant(t *testing.T) {
 	s, ownerToken := newTestServer(t)
 
-	// Owner can add a TM entry initially.
+	// Owner can add a content-memory entry initially.
 	require.NotEqual(t, http.StatusForbidden,
-		do(t, s, http.MethodPost, "/api/v1/test/translation-memory", ownerToken, tmBody))
+		do(t, s, http.MethodPost, "/api/v1/test/content-memory", ownerToken, memoryBody))
 
 	// Deny manage_tm for the owner user, workspace-wide.
 	require.NoError(t, s.AuthStore.CreateDenyRule(t.Context(), &platauth.DenyRule{
 		WorkspaceID: "test-ws",
 		SubjectType: platauth.DenySubjectUser,
 		SubjectID:   "test-user",
-		DeniedPerms: platauth.PermManageTM,
+		DeniedPerms: platauth.PermManageMemory,
 	}))
 
 	// Now the same action is denied.
 	assert.Equal(t, http.StatusForbidden,
-		do(t, s, http.MethodPost, "/api/v1/test/translation-memory", ownerToken, tmBody),
+		do(t, s, http.MethodPost, "/api/v1/test/content-memory", ownerToken, memoryBody),
 		"deny rule must override the owner's grant")
 }
 
@@ -40,16 +40,16 @@ func TestPhase3_DenyRuleViaAPI(t *testing.T) {
 	s, ownerToken := newTestServer(t)
 	memberToken := addWorkspaceMember(t, s, "deny-mem", "deny-mem@example.com", platauth.RoleMember)
 
-	// A member can translate (view+translate) — POST a pseudo? Use TM read (allowed) baseline.
+	// A member can translate (view+translate) — POST a pseudo? Use content memory read (allowed) baseline.
 	require.NotEqual(t, http.StatusForbidden,
-		do(t, s, http.MethodGet, "/api/v1/test/translation-memory", memberToken, ""))
+		do(t, s, http.MethodGet, "/api/v1/test/content-memory", memberToken, ""))
 
 	// Owner creates a deny rule for the "member" role removing view_content.
 	body := `{"subject_type":"role","subject_id":"member","permissions":["view_content"]}`
 	require.Equal(t, http.StatusCreated,
 		do(t, s, http.MethodPost, "/api/v1/test/deny-rules", ownerToken, body))
 
-	// Member now lacks view_content → reading the TM (which needs no explicit
+	// Member now lacks view_content → reading the content memory (which needs no explicit
 	// check) still works, but a view-gated route is denied. Use audit read as a
 	// proxy is wrong (needs audit_read); instead verify the deny is listed.
 	code := do(t, s, http.MethodGet, "/api/v1/test/deny-rules", ownerToken, "")
@@ -66,18 +66,18 @@ func TestPhase3_WorkspaceRoleOverride(t *testing.T) {
 	s, ownerToken := newTestServer(t)
 	memberToken := addWorkspaceMember(t, s, "ovr-mem", "ovr-mem@example.com", platauth.RoleMember)
 
-	// Baseline: a member cannot add a TM entry (lacks manage_tm).
+	// Baseline: a member cannot add a content-memory entry (lacks manage_tm).
 	require.Equal(t, http.StatusForbidden,
-		do(t, s, http.MethodPost, "/api/v1/test/translation-memory", memberToken, tmBody))
+		do(t, s, http.MethodPost, "/api/v1/test/content-memory", memberToken, memoryBody))
 
 	// Owner overrides the member role to include manage_tm (+ baseline perms).
 	body := `{"permissions":["view_content","translate","manage_files","run_flows","manage_tm"]}`
 	require.Equal(t, http.StatusOK,
 		do(t, s, http.MethodPut, "/api/v1/test/role-overrides/member", ownerToken, body))
 
-	// Now the member can add a TM entry.
+	// Now the member can add a content-memory entry.
 	assert.NotEqual(t, http.StatusForbidden,
-		do(t, s, http.MethodPost, "/api/v1/test/translation-memory", memberToken, tmBody),
+		do(t, s, http.MethodPost, "/api/v1/test/content-memory", memberToken, memoryBody),
 		"member should gain manage_tm via the workspace role override")
 }
 

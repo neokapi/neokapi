@@ -1,5 +1,5 @@
-// Package storage provides shared SQLite infrastructure for Sievepen (TM)
-// and TermBase. Both systems use this layer for connection management,
+// Package storage provides shared SQLite infrastructure for Memory (content memory)
+// and Terminology. Both systems use this layer for connection management,
 // WAL mode, and common pragmas.
 package storage
 

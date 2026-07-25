@@ -11,7 +11,7 @@
 // native binary's cli.KapiCommandSet verb for verb: browser-safe commands are
 // built for real, and the ones needing a subprocess (plugins), the OS keychain
 // (credentials), the network (models, update) or a socket (engine, mcp) report
-// that limitation instead of going missing. tm and termbase run against the
+// that limitation instead of going missing. tm and terms run against the
 // in-memory backends seeded from embedded fixtures (see wasm_backends.go) — no
 // cgo or SQLite needed.
 package main
@@ -123,8 +123,8 @@ func main() {
 	aiprovider.SetDemoNoticeWriter(os.Stderr)
 	mtprovider.SetDemoNoticeWriter(os.Stderr)
 
-	// Seed in-memory TM and termbase from embedded fixture data so the tm,
-	// termbase, term-check, and extract commands work in the browser build.
+	// Seed in-memory content memory and terms from embedded fixture data so the tm,
+	// terms, term-check, and extract commands work in the browser build.
 	seedBackends()
 
 	registerEngineABI()

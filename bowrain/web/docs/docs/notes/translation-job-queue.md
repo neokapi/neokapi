@@ -36,7 +36,7 @@ type TranslationJob struct {
     BatchSize        int           // blocks per LLM call (default 20)
     Concurrency      int           // parallel batch calls (default 5)
     TokensUsed       int
-    ViaTM            int           // blocks recycled from the project TM
+    ViaMemory            int           // blocks recycled from the project TM
     ViaAI            int           // blocks sent to the AI translator
     Error            string
     CreatedAt        time.Time
@@ -84,14 +84,14 @@ failures.
    - Platform → Azure OpenAI with Managed Identity
    - User-configured → credentials store lookup
 8. Recycle from the project TM first (recycleBlocks): fill matching
-   blocks (exact by default), record ViaTM; the remainder goes to AI
+   blocks (exact by default), record ViaMemory; the remainder goes to AI
 9. Create AITranslateTool with batch/concurrency config
 10. Process the AI remainder in chunks of 50:
     a. Run tool on chunk
     b. Record token usage in QuotaStore
     c. Update progress in JobStore
 11. Store translated blocks in ContentStore
-12. Record the TM-first split (ViaTM/ViaAI) via UpdateJobTMSplit
+12. Record the TM-first split (ViaMemory/ViaAI) via UpdateJobMemorySplit
 13. Mark status = "completed" with total token count
 14. Always ack (no retry on permanent failures)
 ```
@@ -101,11 +101,11 @@ failures.
 Each job recycles the project TM before calling paid AI, using the same
 content-aware recycle the local `translate` flow runs (`recycleBlocks`,
 exact matches by default; the threshold reads from the project recipe).
-It records the split — `ViaTM` blocks filled from the TM, `ViaAI` blocks
-sent to the translator — via `UpdateJobTMSplit`. A server convergence run
+It records the split — `ViaMemory` blocks filled from the TM, `ViaAI` blocks
+sent to the translator — via `UpdateJobMemorySplit`. A server convergence run
 ([AD-022](/architecture-decisions/022-convergence-as-a-service)) sums
-`ViaTM` across its jobs and `reconcileSplit` takes the AI share as the
-remainder (so `ViaTM + ViaAI = Done`), letting the run report a truthful
+`ViaMemory` across its jobs and `reconcileSplit` takes the AI share as the
+remainder (so `ViaMemory + ViaAI = Done`), letting the run report a truthful
 `TM N · AI M` split server-side rather than attributing everything to AI.
 
 ## Provider Resolution

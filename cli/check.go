@@ -89,7 +89,7 @@ Exit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits
 	AddProjectFlag(cmd)
 	f.Bool("ship", false, "project gate mode: run the project's bound gates (brand, terminology, QA) plus its ship/source coverage gates; exit non-zero when unmet — the pre-release bar")
 	f.String("locale", "", "with --ship: scope the target-side gates to a single target locale (e.g. fr)")
-	f.String("termbase", "", "with --ship: named termbase or glossary path for the terminology gate (defaults to the project termbase)")
+	f.String("termbase", "", "with --ship: named terms or glossary path for the terminology gate (defaults to the project terms store)")
 
 	cmd.MarkFlagsMutuallyExclusive("strict", "lenient")
 	cmd.MarkFlagsMutuallyExclusive("ship", "target")

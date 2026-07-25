@@ -1,23 +1,23 @@
-# Native reference doc for the built-in `recycle` tool (TM leverage).
-# Schema source: core/tools/tmleverage.go (TMLeverageConfig).
-description: Pre-fill translations from a translation memory using exact and fuzzy matching.
+# Native reference doc for the built-in `recycle` tool (content-memory leverage).
+# Schema source: core/tools/tmleverage.go (MemoryLeverageConfig).
+description: Pre-fill translations from a content memory using exact and fuzzy matching.
 overview: |
-  The **Recycle** tool queries a translation memory (TM) for each block's
+  The **Recycle** tool queries a content memory (Memory) for each block's
   source text and pre-fills the target with the best match. It tries an exact
   match first, then a fuzzy match above a configurable threshold, recording the
   match score and type (`exact` or `fuzzy`) on the block. It requires a target
-  language and a TM provider; without a TM the tool has nothing to leverage.
+  language and a content-memory provider; without a content memory the tool has nothing to leverage.
 
   Whether a match is written into the target is governed by a fill threshold
   and an "only if empty" option, so high-confidence matches can be applied while
   weaker ones are recorded but left for review. A no-query threshold lets the
-  tool skip the TM lookup when an existing candidate already scores high enough.
+  tool skip the content-memory lookup when an existing candidate already scores high enough.
   Optionally, all leveraged matches can be written to a TMX file.
 parameters:
   fuzzyThreshold:
     description: Minimum score for a fuzzy match to be considered.
     help: |
-      The lowest fuzzy-match score (0-100) the TM lookup will return. Matches
+      The lowest fuzzy-match score (0-100) the content-memory lookup will return. Matches
       below this score are ignored.
     values: "integer 0-100 (default `70`)"
   fillTarget:
@@ -44,10 +44,10 @@ parameters:
       empty, so existing translations are never overwritten.
     values: "`true` / `false` (default `false`)"
   noQueryThreshold:
-    description: Skip the TM query when an existing candidate scores high enough.
+    description: Skip the content memory query when an existing candidate scores high enough.
     help: |
-      If the block already carries a match score at or above this value, the TM
-      lookup is skipped. The default of 101 means the TM is always queried.
+      If the block already carries a match score at or above this value, the content memory
+      lookup is skipped. The default of 101 means the content memory is always queried.
     values: "integer 0-101 (default `101`)"
   makeTmx:
     description: Generate a TMX document of leveraged matches.
@@ -68,15 +68,15 @@ parameters:
   downgradeIdenticalBestMatches:
     description: Reduce the score when multiple identical exact matches exist.
     help: |
-      When enabled, an exact match is scored 99 instead of 100 if the TM returns
+      When enabled, an exact match is scored 99 instead of 100 if the content memory returns
       multiple identical best matches, flagging the ambiguity for review.
     values: "`true` / `false` (default `false`)"
 limitations:
-  - Requires a target language and a TM provider; with no TM there is nothing to leverage.
+  - Requires a target language and a content-memory provider; with no Memory there is nothing to leverage.
 processingNotes:
   - Operates on translatable blocks with a non-empty source; other parts pass through unchanged.
   - Exact matches are tried before fuzzy matches; the match score and type are recorded as block properties.
-  - With a structure-aware TM provider, matching runs against the block's inline-code structure and fills carry the matched entry's runs, so markup placeholders survive the fill; a 100% match means text and structure agree.
+  - With a structure-aware content-memory provider, matching runs against the block's inline-code structure and fills carry the matched entry's runs, so markup placeholders survive the fill; a 100% match means text and structure agree.
   - Ambiguous matches (several full-score entries with differing targets) are recorded but never fill the target — the choice surfaces for review instead of being picked by storage order.
 examples:
   - title: Apply only high-confidence matches

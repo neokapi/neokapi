@@ -46,7 +46,7 @@ export const Glass: Story = {
         <TabsTrigger value="terms">Terminology</TabsTrigger>
       </TabsList>
       <TabsContent value="tm">
-        <p className="text-sm text-muted-foreground p-4">TM matches will appear here</p>
+        <p className="text-sm text-muted-foreground p-4">content-memory matches will appear here</p>
       </TabsContent>
       <TabsContent value="terms">
         <p className="text-sm text-muted-foreground p-4">Term suggestions will appear here</p>

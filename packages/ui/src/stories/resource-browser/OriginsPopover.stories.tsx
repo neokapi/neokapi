@@ -59,7 +59,7 @@ const meta: Meta<typeof OriginsPopover> = {
     docs: {
       description: {
         component:
-          "Provenance popover for TM entries. Shows a count badge of origins (file, tool, import, user) and an optional translator note. Click to expand.",
+          "Provenance popover for content-memory entries. Shows a count badge of origins (file, tool, import, user) and an optional translator note. Click to expand.",
       },
     },
   },

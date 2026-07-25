@@ -100,7 +100,7 @@ type Origin struct {
 	Kind      string `json:"kind,omitempty"`      // human | tm | mt | ai | ocr | asr
 	Engine    string `json:"engine,omitempty"`    // MT/AI/OCR/ASR engine name
 	Tool      string `json:"tool,omitempty"`      // tool id that produced it
-	Reference string `json:"reference,omitempty"` // batch id, TM entry, etc.
+	Reference string `json:"reference,omitempty"` // batch id, content-memory entry, etc.
 	Timestamp string `json:"timestamp,omitempty"` // RFC 3339
 	// Confidence is the recognizer's confidence in [0,1] for content produced by
 	// extraction (ocr, asr); 0 = unset/not applicable. A confidence-gated
@@ -117,7 +117,7 @@ type Origin struct {
 // preserved in Origin.Engine; the refining tool/provider lives in Tool/Reference.
 const (
 	OriginHuman      = "human"
-	OriginTM         = "tm"
+	OriginMemory     = "tm"
 	OriginMT         = "mt"
 	OriginAI         = "ai"
 	OriginOCR        = "ocr"

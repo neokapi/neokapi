@@ -18,7 +18,7 @@
 # it. Every runnable step works in the wasm embed.
 #
 # Deliberately NOT shown here: the glossary and brand-voice sections. Both are
-# project-level bindings (defaults.termbase / defaults.brand_voice) backed by
+# project-level bindings (defaults.terms / defaults.brand_voice) backed by
 # SQLite, which the browser build does not carry — demonstrating them here would
 # mean a step that works on the desktop and silently does nothing in the embed.
 # The docs page shows them in recipe form instead.

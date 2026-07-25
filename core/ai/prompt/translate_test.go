@@ -234,7 +234,7 @@ func TestSectionsAreAttributed(t *testing.T) {
 	// the tag rule this block earned.
 	assert.Equal(t, []string{"framework", "framework (block has inline codes)", "framework"}, origins[KindConstraint])
 	assert.Equal(t, []string{"brand voice profile"}, origins[KindVoice])
-	assert.Equal(t, []string{"termbase (1 term)"}, origins[KindGlossary])
+	assert.Equal(t, []string{"terms (1 term)"}, origins[KindGlossary])
 	assert.Equal(t, []string{"--instruction / recipe"}, origins[KindInstruction])
 
 	// The content is its own turn, and carries no instruction.

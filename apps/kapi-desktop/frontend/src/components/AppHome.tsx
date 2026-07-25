@@ -133,7 +133,7 @@ export function AppHome({
               <div className="text-sm font-medium">KapiMart</div>
               <p className="mt-1 text-xs text-muted-foreground font-normal">
                 A realistic localization project with docs, store UI, Office documents, and
-                templates — 4 content collections, 5 target languages, 1000+ TM entries. No plugins
+                templates — 4 content collections, 5 target languages, 1000+ content-memory entries. No plugins
                 needed.
               </p>
             </Button>

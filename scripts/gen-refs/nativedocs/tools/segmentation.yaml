@@ -3,7 +3,7 @@
 description: Split block text into sentence-level segments using SRX-style rules.
 overview: |
   The **Segmentation** tool splits a block's text into sentence-level segments.
-  Segmentation determines the unit of translation and of translation-memory
+  Segmentation determines the unit of translation and of content-memory
   matching, so consistent segmentation is important for leverage and review.
   By default the tool segments source text using built-in SRX-style rules that
   handle common sentence boundaries and abbreviations; rules can also be loaded

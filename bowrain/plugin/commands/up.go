@@ -31,7 +31,7 @@ var (
 // The built-in up owns the verb in every install (the no-shadowing rule) and
 // dispatches here — with the user's flags forwarded — when the recipe
 // declares a server: block: the loop runs on the Bowrain server by default
-// (org keys, shared TM/terminology, always-on); --local runs it on this
+// (org keys, shared content memory/terminology, always-on); --local runs it on this
 // machine and then pushes the results so the server never goes stale. The
 // local paths delegate to the same ExecuteUp as the built-in, so a
 // disconnected recipe behaves byte-identically either way.
@@ -45,7 +45,7 @@ flow over all content across every target language, looping until every gated
 scope ships or is parked for a human.
 
 In a server-connected project (a recipe with a server: block) the loop runs on
-the Bowrain server by default — on the org's keys, against the org's TM and
+the Bowrain server by default — on the org's keys, against the org's Memory and
 terminology — and this command pushes local changes, streams the server run's
 live progress, and pulls the produced targets when the run finishes. Parked
 units land in the team's review queue on the server.
@@ -61,7 +61,7 @@ Without a server: block the command is the local loop, identical to kapi up in
 the open-source binary.
 
 --plan is always computed locally against the working tree (no server call): it
-reports the pending work, TM leverage, and a token estimate per locale.`,
+reports the pending work, content-memory leverage, and a token estimate per locale.`,
 	Example: `  kapi up            # connected project: run the loop on the server, stream progress, pull results
   kapi up --local    # run the loop on this machine, then push the results to the server
   kapi up --plan     # dry run: pending work and a token estimate (computed locally)`,
@@ -445,8 +445,8 @@ func printEstimate(w io.Writer, est *apiclient.ConvergenceEstimate) {
 		fmt.Fprintln(w, "  Translate: nothing pending over the ready source.")
 		return
 	}
-	fmt.Fprintf(w, "  Translate (ready source): %d pending · TM %d (free) · AI %d · ~%d tokens.\n",
-		est.Totals.Pending, est.Totals.ViaTM, est.Totals.ViaAI, est.Totals.TokenEstimate)
+	fmt.Fprintf(w, "  Translate (ready source): %d pending · content memory %d (free) · AI %d · ~%d tokens.\n",
+		est.Totals.Pending, est.Totals.ViaMemory, est.Totals.ViaAI, est.Totals.TokenEstimate)
 	if c := est.Credits; c != nil {
 		fmt.Fprintf(w, "  Credits: ~%d credits (~$%.2f) for the AI work; balance %d",
 			c.EstimatedCredits, c.EstimatedUSD, c.Balance)

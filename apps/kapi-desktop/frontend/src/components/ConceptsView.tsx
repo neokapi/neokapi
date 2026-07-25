@@ -3,7 +3,7 @@ import { ConceptList, ConceptDashboard, type ConceptDataSource } from "@neokapi/
 import { createLocalConceptSource } from "../lib/localConceptSource";
 
 export interface ConceptsViewProps {
-  /** The open termbase handle this view is bound to. */
+  /** The open terms handle this view is bound to. */
   handle: string;
   /**
    * Pre-built source for Storybook/tests (skips the Wails backend). When omitted
@@ -15,7 +15,7 @@ export interface ConceptsViewProps {
 }
 
 /**
- * The visual concept/relation workspace over a LOCAL termbase. The list is the
+ * The visual concept/relation workspace over a LOCAL terms. The list is the
  * entry surface; opening a concept shows its dashboard (terms, relations,
  * tag-derived geography, constraints, synthesized timeline); a relation
  * re-centres the dashboard on its neighbour; Back returns to the list. Relations

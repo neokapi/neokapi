@@ -262,7 +262,7 @@ The stand-off types a tool consumes and produces are typed string constants
 `OverlayType` constants (`OverlaySegmentation`, `OverlayTerm`, `OverlayEntity`,
 `OverlayQA`, `OverlayAlignment`, `OverlayTermCandidate`); block-scoped metadata
 uses the annotation-key constants (`AnnoNote`, `AnnoAltTranslation`,
-`AnnoTMMatch`, `AnnoWordCount`, …). Both an overlay span's `Value` and an
+`AnnoMemoryMatch`, `AnnoWordCount`, …). Both an overlay span's `Value` and an
 annotation value are typed payloads; the framework registers the well-known
 content payloads, and formats and plugins register additional types and their
 constructors via one payload registry (`model.RegisterPayload` / `NewPayload`):
@@ -282,7 +282,7 @@ const (
 const (
     AnnoNote           = "note"
     AnnoAltTranslation = "alt-translation"
-    AnnoTMMatch        = "tm-match"
+    AnnoMemoryMatch        = "tm-match"
     AnnoWordCount      = "word-count"
     // …char-count, seg-count, comparison, repetition, brand-voice, …
 )
@@ -310,10 +310,10 @@ Side effects are a closed set of known external interactions:
 type SideEffect string
 
 const (
-    SideEffectTMRead        SideEffect = "tm-read"
-    SideEffectTMWrite       SideEffect = "tm-write"
-    SideEffectTermbaseRead  SideEffect = "termbase-read"
-    SideEffectTermbaseWrite SideEffect = "termbase-write"
+    SideEffectMemoryRead        SideEffect = "tm-read"
+    SideEffectMemoryWrite       SideEffect = "tm-write"
+    SideEffectTermsRead  SideEffect = "termbase-read"
+    SideEffectTermsWrite SideEffect = "termbase-write"
     SideEffectAPICall       SideEffect = "api-call"
     SideEffectAnalytics     SideEffect = "analytics"
 
@@ -326,7 +326,7 @@ const (
 
 Most side-effect declarations are informational metadata for the flow editor
 and documentation. They are not enforced at runtime — a tool with
-`SideEffects: [SideEffectTMWrite]` still runs normally even if no TM is
+`SideEffects: [SideEffectMemoryWrite]` still runs normally even if no TM is
 configured (it simply skips the write). This keeps the tool interface
 simple while giving the UI enough information to warn meaningfully. The one
 exception is `RemoteSourceEgress`: the transformer placement pass (below) keys
@@ -591,7 +591,7 @@ All built-in tools register via `RegisterAll()` in `core/tools/register.go`.
 | Tool                  | Description                                                                |
 | --------------------- | -------------------------------------------------------------------------- |
 | `segmentation`        | Annotate blocks with a sentence-segmentation overlay (SRX-like rules)      |
-| `recycle`         | Pre-fill translations from Sievepen TM                                     |
+| `recycle`         | Pre-fill translations from Memory TM                                     |
 | `diff-leverage`       | Compare against previous version, preserve translations for unchanged text |
 
 **Validate tools** — check quality without modifying:
@@ -659,10 +659,10 @@ interface and work identically in flows.
 
 | Tool           | Description                                         |
 | -------------- | --------------------------------------------------- |
-| `term-lookup`  | Annotate blocks with matching terms from a TermBase |
+| `term-lookup`  | Annotate blocks with matching terms from a Terminology |
 | `term-enforce` | Verify correct terminology usage in translations    |
 
-**TM tools** (`sievepen/`):
+**TM tools** (`memory/`):
 
 | Tool          | Description                                                                |
 | ------------- | -------------------------------------------------------------------------- |

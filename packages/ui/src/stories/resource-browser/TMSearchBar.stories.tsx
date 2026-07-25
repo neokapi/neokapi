@@ -1,10 +1,10 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { TMSearchBar } from "../../components/resource-browser/TMSearchBar";
+import { MemorySearchBar } from "../../components/resource-browser/MemorySearchBar";
 
-const meta: Meta<typeof TMSearchBar> = {
-  title: "Resource Browser/TMSearchBar",
-  component: TMSearchBar,
+const meta: Meta<typeof MemorySearchBar> = {
+  title: "Resource Browser/MemorySearchBar",
+  component: MemorySearchBar,
   tags: ["autodocs"],
   decorators: [
     (Story: React.ComponentType) => (
@@ -17,20 +17,20 @@ const meta: Meta<typeof TMSearchBar> = {
     docs: {
       description: {
         component:
-          "Combined search bar with inline entity annotation. Select text to mark entities; press Enter to trigger fuzzy TM lookup.",
+          "Combined search bar with inline entity annotation. Select text to mark entities; press Enter to trigger fuzzy content-memory lookup.",
       },
     },
   },
 };
 
 export default meta;
-type Story = StoryObj<typeof TMSearchBar>;
+type Story = StoryObj<typeof MemorySearchBar>;
 
 export const Default: Story = {
   render: () => {
     const [value, setValue] = useState("");
     return (
-      <TMSearchBar value={value} onChange={setValue} sourceLocale="en-US" targetLocale="fr-FR" />
+      <MemorySearchBar value={value} onChange={setValue} sourceLocale="en-US" targetLocale="fr-FR" />
     );
   },
 };
@@ -44,7 +44,7 @@ export const WithFilterTokens: Story = {
       { key: "project", value: "webapp" },
     ]);
     return (
-      <TMSearchBar
+      <MemorySearchBar
         value={value}
         onChange={setValue}
         filters={filters}
@@ -87,7 +87,7 @@ export const WithLookup: Story = {
   render: () => {
     const [value, setValue] = useState("John works at Acme Corp");
     return (
-      <TMSearchBar
+      <MemorySearchBar
         value={value}
         onChange={setValue}
         sourceLocale="en-US"
@@ -134,7 +134,7 @@ export const CustomPlaceholder: Story = {
   render: () => {
     const [value, setValue] = useState("");
     return (
-      <TMSearchBar
+      <MemorySearchBar
         value={value}
         onChange={setValue}
         sourceLocale="en-US"
@@ -164,7 +164,7 @@ export const EntityValueFilter: Story = {
     >([]);
     return (
       <div>
-        <TMSearchBar
+        <MemorySearchBar
           value={value}
           onChange={setValue}
           onEntitiesChange={setEntities}
@@ -193,7 +193,7 @@ export const EntityValueFilter: Story = {
     docs: {
       description: {
         story:
-          "Select 'Acme Corp' and mark as Organization, then 'John' as Person. The Filter state panel updates live, showing how the parent component would build a TMSearchFilter to pass to the backend.",
+          "Select 'Acme Corp' and mark as Organization, then 'John' as Person. The Filter state panel updates live, showing how the parent component would build a MemorySearchFilter to pass to the backend.",
       },
     },
   },

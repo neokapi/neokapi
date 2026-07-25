@@ -40,7 +40,7 @@ export LDFLAGS     := -ldflags "$(LDFLAGS_X)"
 
 GO := go
 # FTS5 build tag is required by mattn/go-sqlite3 to enable FTS5 full-text
-# search. Without it, TM and termbase migrations fail at runtime.
+# search. Without it, content memory and terms migrations fail at runtime.
 #
 # ICU requirement: The FTS5 ICU tokenizer requires ICU development libraries.
 #   Linux:  sudo apt-get install libicu-dev pkg-config
@@ -257,7 +257,7 @@ test-parallel: ## Run all tests in parallel
 # ── Framework test/quality internals ────────────────────────────────────────
 
 _fw-fmt:
-	$(GOFMT) -w -s core/ cli/ kapi/ sievepen/ termbase/ providers/
+	$(GOFMT) -w -s core/ cli/ kapi/ memory/ terms/ providers/
 
 _fw-test:
 	$(GOTEST_BASE) ./... -count=1
@@ -1161,19 +1161,19 @@ kapi-i18n-translations: kapi-i18n-pseudo-translate ## Regenerate + pseudo-transl
 # ── Dogfood localization (root recipe: kapi.yaml) ────────────────────────
 # These targets ARE the dogfood workflow, so they deliberately run WITHOUT
 # $(KAPI_ISO_ENV): they bind to the repo-root project and its .kapi/ state.
-# Reviewed translations are committed as TMX under l10n/tm/; the project TM
-# and termbase are rebuilt from those seeds (l10n-seed), then each surface is
-# produced by TM leverage so output only ever contains reviewed strings.
+# Reviewed translations are committed as TMX under l10n/tm/; the project content memory
+# and terms are rebuilt from those seeds (l10n-seed), then each surface is
+# produced by content-memory leverage so output only ever contains reviewed strings.
 L10N_LANGS := nb
 
 # Seeds are committed in the native Kapi-family forms (.kmb / .ktb):
 # deterministic, lossless, and identity-preserving, so wipe-and-reseed
-# reproduces the TM/termbase state exactly. TMX/CSV are the lossy
+# reproduces the content memory/terms state exactly. TMX/CSV are the lossy
 # interchange tier — emit them on demand with l10n-review-export.
-l10n-seed: bin/kapi ## Rebuild .kapi/ termbase + TM from the committed l10n/ seeds
+l10n-seed: bin/kapi ## Rebuild .kapi/ terms + Memory from the committed l10n/ seeds
 	@mkdir -p .kapi/cache
-	@rm -f .kapi/termbase.db .kapi/tm.db
-	./bin/kapi termbase import l10n/termbase.ktb
+	@rm -f .kapi/terms.db .kapi/tm.db
+	./bin/kapi terms import l10n/terms.ktb
 	@for f in l10n/tm/*.kmb; do \
 		[ -e "$$f" ] || continue; \
 		./bin/kapi tm import "$$f"; \
@@ -1182,10 +1182,10 @@ l10n-seed: bin/kapi ## Rebuild .kapi/ termbase + TM from the committed l10n/ see
 l10n-review-export: l10n-seed ## Emit disposable TMX/CSV review views of the native seeds → l10n/review/
 	@mkdir -p l10n/review
 	./bin/kapi tm export --format tmx -o l10n/review/tm-all.tmx
-	./bin/kapi termbase export --format csv -s en -t nb -o l10n/review/termbase-en-nb.csv
+	./bin/kapi terms export --format csv -s en -t nb -o l10n/review/terms-en-nb.csv
 	@echo "Review views written to l10n/review/ (gitignored; the .kmb/.ktb seeds are the source of truth)"
 
-l10n-builtins: l10n-seed kapi-i18n-generate ## Builtin tool/format metadata → core/i18n/catalogs/<lang>.mo (TM-driven)
+l10n-builtins: l10n-seed kapi-i18n-generate ## Builtin tool/format metadata → core/i18n/catalogs/<lang>.mo (Memory-driven)
 	@for lang in $(L10N_LANGS); do \
 		./bin/kapi exec recycle core/i18n/builtins/metadata.json -f json \
 			--target-lang $$lang -o core/i18n/catalogs/$$lang.mo || exit 1; \
@@ -1199,7 +1199,7 @@ l10n-builtins-check: bin/kapi ## Terminology gate over the builtin metadata tran
 			--source-lang en --target-lang $$lang || exit 1; \
 	done
 
-l10n-desktop: l10n-seed kapi-desktop-extract ## Kapi Desktop UI strings → public/translations/<lang>.json (TM-driven)
+l10n-desktop: l10n-seed kapi-desktop-extract ## Kapi Desktop UI strings → public/translations/<lang>.json (Memory-driven)
 	@for lang in $(L10N_LANGS); do \
 		./bin/kapi exec recycle $(KAPI_DESKTOP_DIR)/frontend/i18n \
 			--target-lang $$lang \
@@ -1207,7 +1207,7 @@ l10n-desktop: l10n-seed kapi-desktop-extract ## Kapi Desktop UI strings → publ
 		(cd $(KAPI_DESKTOP_DIR)/frontend && vp run compile:$$lang) || exit 1; \
 	done
 
-l10n-bowrain-app: l10n-seed bowrain-app-extract ## Bowrain app UI strings → both shells' public/translations/<lang>.json (TM-driven)
+l10n-bowrain-app: l10n-seed bowrain-app-extract ## Bowrain app UI strings → both shells' public/translations/<lang>.json (Memory-driven)
 	@for lang in $(L10N_LANGS); do \
 		./bin/kapi exec recycle $(BOWRAIN_APP_DIR)/i18n \
 			--target-lang $$lang \
@@ -1216,7 +1216,7 @@ l10n-bowrain-app: l10n-seed bowrain-app-extract ## Bowrain app UI strings → bo
 		(cd $(BOWRAIN_APP_DIR) && $(NEOKAPI_I18N_CLI) compile i18n-$$lang/ --out ../../apps/bowrain/frontend/public/translations --locale $$lang) || exit 1; \
 	done
 
-l10n-bowrain-ctrl: l10n-seed bowrain-ctrl-extract ## ctrl admin-app strings → public/translations/<lang>.json (TM-driven)
+l10n-bowrain-ctrl: l10n-seed bowrain-ctrl-extract ## ctrl admin-app strings → public/translations/<lang>.json (Memory-driven)
 	@for lang in $(L10N_LANGS); do \
 		./bin/kapi exec recycle bowrain/apps/ctrl/i18n \
 			--target-lang $$lang \
@@ -1224,7 +1224,7 @@ l10n-bowrain-ctrl: l10n-seed bowrain-ctrl-extract ## ctrl admin-app strings → 
 		(cd bowrain/apps/ctrl && $(NEOKAPI_I18N_CLI) compile i18n-$$lang/ --out public/translations --locale $$lang) || exit 1; \
 	done
 
-l10n-bowrain-pulse: l10n-seed bowrain-pulse-extract ## pulse dashboard strings → public/translations/<lang>.json (TM-driven)
+l10n-bowrain-pulse: l10n-seed bowrain-pulse-extract ## pulse dashboard strings → public/translations/<lang>.json (Memory-driven)
 	@for lang in $(L10N_LANGS); do \
 		./bin/kapi exec recycle bowrain/apps/pulse/i18n \
 			--target-lang $$lang \
@@ -1235,7 +1235,7 @@ l10n-bowrain-pulse: l10n-seed bowrain-pulse-extract ## pulse dashboard strings �
 kapi-cli-i18n-generate: ## Regenerate host/i18n/commands.json from the cobra command tree
 	cd cli && go generate ./i18ngen/...
 
-l10n-cli: l10n-seed kapi-cli-i18n-generate ## CLI help + output chrome → host/i18n/catalogs/<lang>.mo (TM-driven)
+l10n-cli: l10n-seed kapi-cli-i18n-generate ## CLI help + output chrome → host/i18n/catalogs/<lang>.mo (Memory-driven)
 	@for lang in $(L10N_LANGS); do \
 		./bin/kapi exec recycle host/i18n/commands.json -f json \
 			--target-lang $$lang -o host/i18n/catalogs/$$lang.mo || exit 1; \
@@ -1249,13 +1249,13 @@ l10n-cli: l10n-seed kapi-cli-i18n-generate ## CLI help + output chrome → host/
 # so the yaml keyPathPatterns in kapi.yaml bind (only narration/caption/
 # title/subtitle are translatable — never ids, beats, commands, or timings).
 # Sidecars are generated only for the demos listed here — the ones with
-# reviewed nb narration in the TM (l10n/tm/demo-narration-nb.kmb); add a
+# reviewed nb narration in the content memory (l10n/tm/demo-narration-nb.kmb); add a
 # demo dir once its narration has been translated.
 L10N_DEMO_DIRS := 05-ai-checks-guardrail 09-toolbox-find-replace \
 	kapi-bilingual-workflow kapi-desktop-config kapi-desktop-content \
 	kapi-desktop-explorer kapi-desktop-flows kapi-desktop-projects
 
-l10n-demos: l10n-seed ## Demo narration → harness/demos/<id>/demo.<lang>.yaml sidecars (TM-driven)
+l10n-demos: l10n-seed ## Demo narration → harness/demos/<id>/demo.<lang>.yaml sidecars (Memory-driven)
 	@for lang in $(L10N_LANGS); do \
 		for d in $(L10N_DEMO_DIRS); do \
 			./bin/kapi run tm-recycle -i harness/demos/$$d/demo.yaml \
@@ -1263,20 +1263,20 @@ l10n-demos: l10n-seed ## Demo narration → harness/demos/<id>/demo.<lang>.yaml 
 		done; \
 	done
 
-# Docs sites: TM-recycle the markdown/mdx sources into each site's gitignored
+# Docs sites: Memory-recycle the markdown/mdx sources into each site's gitignored
 # i18n/<lang>/ tree (never committed — see CLAUDE.md "Target-language drift
-# must never block the build"; TM misses fall back to English and the sites
+# must never block the build"; Memory misses fall back to English and the sites
 # build with the tree absent). Scoped to the surface by passing its source
 # files as -i; with no -o, the flow-run path resolves every output from the
 # matching content item's target template in kapi.yaml. Frontmatter keys
 # bind via defaults.formats (the flow-run path reads only the defaults).
-l10n-docs: l10n-seed ## kapi docs site → web/i18n/<lang>/... (TM-driven, gitignored)
+l10n-docs: l10n-seed ## kapi docs site → web/i18n/<lang>/... (Memory-driven, gitignored)
 	@for lang in $(L10N_LANGS); do \
 		./bin/kapi run tm-recycle --target-lang $$lang -q \
 			-i "$$(find web/docs -type f \( -name '*.md' -o -name '*.mdx' \) | sort | paste -sd, -)" || exit 1; \
 	done
 
-l10n-bowrain-docs: l10n-seed ## bowrain docs site → bowrain/web/docs/i18n/<lang>/... (TM-driven, gitignored)
+l10n-bowrain-docs: l10n-seed ## bowrain docs site → bowrain/web/docs/i18n/<lang>/... (Memory-driven, gitignored)
 	@for lang in $(L10N_LANGS); do \
 		./bin/kapi run tm-recycle --target-lang $$lang -q \
 			-i "$$(find bowrain/web/docs/docs -type f \( -name '*.md' -o -name '*.mdx' \) | sort | paste -sd, -)" || exit 1; \
@@ -1286,7 +1286,7 @@ l10n: l10n-builtins l10n-desktop l10n-cli l10n-demos l10n-docs l10n-bowrain-docs
 
 # ── Transactional emails (bowrain/emails → bowrain/mailer) ──────────────────
 # neokapi-i18n extraction over the React Email templates; qps via pseudo, nb via
-# TM recycle from l10n/tm/emails-nb.kmb; compiled catalogs are inlined into
+# Memory recycle from l10n/tm/emails-nb.kmb; compiled catalogs are inlined into
 # per-locale template renders (bowrain/mailer/templates/<lang>/*.html) and the
 # subject catalogs (bowrain/mailer/subjects/<lang>.json) — both committed and
 # embedded into the server binary, so they are drift-gated (emails-l10n-verify).
@@ -1310,7 +1310,7 @@ emails-pseudo-translate: emails-extract bin/kapi ## Pseudo-translate email strin
 		-o bowrain/mailer/subjects/qps.json \
 		-q
 
-l10n-emails: l10n-seed emails-pseudo-translate ## Transactional emails → bowrain/mailer/{templates/<lang>/,subjects/<lang>.json} (TM-driven)
+l10n-emails: l10n-seed emails-pseudo-translate ## Transactional emails → bowrain/mailer/{templates/<lang>/,subjects/<lang>.json} (Memory-driven)
 	@for lang in $(L10N_LANGS); do \
 		./bin/kapi exec recycle $(EMAILS_DIR)/i18n \
 			--target-lang $$lang \
@@ -1347,7 +1347,7 @@ landing-pseudo-translate: landing-extract bin/kapi ## Pseudo-translate landing s
 		-o $(LANDING_DIR)/i18n-qps \
 		-q
 
-l10n-landing: l10n-seed landing-pseudo-translate ## Landing page strings → bowrain/web/landing/translations/<lang>.json (TM-driven, committed)
+l10n-landing: l10n-seed landing-pseudo-translate ## Landing page strings → bowrain/web/landing/translations/<lang>.json (Memory-driven, committed)
 	cd $(LANDING_DIR) && $(NEOKAPI_I18N_CLI) compile i18n-qps/ --out translations
 	@for lang in $(L10N_LANGS); do \
 		./bin/kapi exec recycle $(LANDING_DIR)/i18n \
@@ -1896,7 +1896,7 @@ web-wasm-cli: web-pdfium-wasm ## Build the in-browser kapi CLI (wasm) → web/st
 # re-running `docs-dev` rebuilds automatically, instead of silently serving an
 # old binary (which surfaced as missing exports / unsegmented output). Force a
 # rebuild anytime with `make web-wasm-demo web-wasm-cli`.
-WASM_SRC_DIRS := core cli kapi providers sievepen termbase cmd
+WASM_SRC_DIRS := core cli kapi providers memory terms cmd
 docs-wasm:
 	@if [ -f $(WASM_DEMO_DIR)/kapi.wasm ] && [ -f $(WASM_DEMO_DIR)/kapi-cli.wasm.gz ] && \
 	   [ -z "$$(find $(WASM_SRC_DIRS) -name '*.go' -newer $(WASM_DEMO_DIR)/kapi-cli.wasm.gz 2>/dev/null | head -1)" ]; then \

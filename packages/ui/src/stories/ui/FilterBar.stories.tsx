@@ -7,7 +7,7 @@ import {
   type FilterPreset,
 } from "../../components/composites/filter-bar";
 
-const tmFields: FilterField[] = [
+const memoryFields: FilterField[] = [
   {
     key: "source",
     label: "Source Language",
@@ -42,7 +42,7 @@ const tmFields: FilterField[] = [
   },
 ];
 
-const tmPresets: FilterPreset[] = [
+const memoryPresets: FilterPreset[] = [
   {
     label: "Recent French",
     filters: [
@@ -54,7 +54,7 @@ const tmPresets: FilterPreset[] = [
   { label: "Today's work", filters: [{ key: "age", value: "today" }] },
 ];
 
-const termbaseFields: FilterField[] = [
+const termsFields: FilterField[] = [
   {
     key: "locale",
     label: "Language",
@@ -91,7 +91,7 @@ const termbaseFields: FilterField[] = [
   },
 ];
 
-function TMFilterDemo() {
+function MemoryFilterDemo() {
   const [filters, setFilters] = useState<FilterToken[]>([]);
   const [search, setSearch] = useState("");
   return (
@@ -101,9 +101,9 @@ function TMFilterDemo() {
         onFiltersChange={setFilters}
         search={search}
         onSearchChange={setSearch}
-        fields={tmFields}
-        presets={tmPresets}
-        placeholder="Search translation memory..."
+        fields={memoryFields}
+        presets={memoryPresets}
+        placeholder="Search content memory..."
       />
       <pre className="rounded bg-muted p-2 font-mono text-xs">
         filters: {JSON.stringify(filters)}
@@ -113,7 +113,7 @@ function TMFilterDemo() {
   );
 }
 
-function TermbaseFilterDemo() {
+function TermsFilterDemo() {
   const [filters, setFilters] = useState<FilterToken[]>([{ key: "status", value: "preferred" }]);
   const [search, setSearch] = useState("");
   return (
@@ -123,7 +123,7 @@ function TermbaseFilterDemo() {
         onFiltersChange={setFilters}
         search={search}
         onSearchChange={setSearch}
-        fields={termbaseFields}
+        fields={termsFields}
         placeholder="Search terminology..."
       />
       <pre className="rounded bg-muted p-2 font-mono text-xs">
@@ -142,7 +142,7 @@ const meta: Meta<typeof FilterBar> = {
     docs: {
       description: {
         component:
-          "GitHub-style filter bar with key:value syntax, autocomplete, presets, and free-text search. Use for TM, termbase, and any list filtering.",
+          "GitHub-style filter bar with key:value syntax, autocomplete, presets, and free-text search. Use for content memory, terms, and any list filtering.",
       },
     },
   },
@@ -152,11 +152,11 @@ export default meta;
 type Story = StoryObj<typeof FilterBar>;
 
 export const TranslationMemory: Story = {
-  name: "Translation Memory Filters",
-  render: () => <TMFilterDemo />,
+  name: "Content Memory Filters",
+  render: () => <MemoryFilterDemo />,
 };
 
-export const Termbase: Story = {
-  name: "Termbase Filters",
-  render: () => <TermbaseFilterDemo />,
+export const Terms: Story = {
+  name: "Terms Filters",
+  render: () => <TermsFilterDemo />,
 };

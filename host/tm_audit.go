@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/memory"
 )
 
-// auditRow represents one TM entry touched by a given merge batch.
+// auditRow represents one content-memory entry touched by a given merge batch.
 type auditRow struct {
 	EntryID       string
 	SourceFile    string
@@ -18,18 +18,18 @@ type auditRow struct {
 	Timestamp     time.Time
 }
 
-// CollectAuditRows iterates the TM, keeping only entries with an Origin
+// CollectAuditRows iterates the content memory, keeping only entries with an Origin
 // whose Source="merge" and Reference matches the given batch id. Results
 // are capped at `limit` when > 0.
-func CollectAuditRows(ctx context.Context, tm sievepen.TMStore, batch string, limit int) ([]auditRow, error) {
+func CollectAuditRows(ctx context.Context, tm memory.Store, batch string, limit int) ([]auditRow, error) {
 	var rows []auditRow
 	entries, err := tm.Entries(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("read TM entries: %w", err)
+		return nil, fmt.Errorf("read content-memory entries: %w", err)
 	}
 	for _, entry := range entries {
 		matched := false
-		var origin sievepen.Origin
+		var origin memory.Origin
 		for _, o := range entry.Origins {
 			if o.Source == "merge" && o.Reference == batch {
 				matched = true

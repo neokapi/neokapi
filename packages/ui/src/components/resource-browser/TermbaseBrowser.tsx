@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { t } from "@neokapi/i18n-react/runtime";
-import type { TermbaseAdapter } from "./adapters";
+import type { TermsAdapter } from "./adapters";
 import type { ConceptDTO, TermDTO } from "./types";
 import { BulkActionBar } from "./BulkActionBar";
 import { ConceptCard } from "./ConceptCard";
@@ -13,8 +13,8 @@ import {
 } from "../composites/filter-bar";
 import { LocaleSelect, resolveLocaleName, type LocaleInfo } from "../composites/locale-select";
 
-interface TermbaseBrowserProps {
-  adapter: TermbaseAdapter;
+interface TermsBrowserProps {
+  adapter: TermsAdapter;
   sourceLocale?: string;
   targetLocales?: string[];
   projectId?: string;
@@ -30,7 +30,7 @@ interface TermbaseBrowserProps {
 const PAGE_SIZE = 50;
 const STATUS_OPTIONS = ["preferred", "approved", "admitted", "proposed", "deprecated", "forbidden"];
 
-export function TermbaseBrowser({
+export function TermsBrowser({
   adapter,
   sourceLocale: propSourceLocale = "",
   targetLocales: propTargetLocales = [],
@@ -39,7 +39,7 @@ export function TermbaseBrowser({
   filterPresets,
   locales,
   onError,
-}: TermbaseBrowserProps) {
+}: TermsBrowserProps) {
   const [concepts, setConcepts] = useState<ConceptDTO[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [searchText, setSearchText] = useState("");
@@ -231,7 +231,7 @@ export function TermbaseBrowser({
   ]);
 
   return (
-    <div data-testid="termbase-browser">
+    <div data-testid="terms-browser">
       {/* Search + Actions */}
       <div className="flex items-center gap-2 mb-4">
         {filterFields ? (

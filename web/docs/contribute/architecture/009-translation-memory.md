@@ -1,19 +1,19 @@
 ---
 id: 009-translation-memory
 sidebar_position: 9
-title: "AD-009: Translation Memory (Sievepen)"
-description: "Architecture decision: Sievepen is neokapi's TM library — it stores multilingual entries as Run sequences with inline markup and matches in three tiers (plain, structural, source-entity) to return the highest-quality match first."
-keywords: [Sievepen, translation memory, runs, multilingual, matching tiers, SQLite, architecture decision, neokapi]
+title: "AD-009: Translation Memory (Memory)"
+description: "Architecture decision: Memory is neokapi's TM library — it stores multilingual entries as Run sequences with inline markup and matches in three tiers (plain, structural, source-entity) to return the highest-quality match first."
+keywords: [Memory, translation memory, runs, multilingual, matching tiers, SQLite, architecture decision, neokapi]
 ---
 
 import { PipelineDiagram } from "@neokapi/docs-shared";
 
-# AD-009: Translation Memory (Sievepen)
+# AD-009: Translation Memory (Memory)
 
 ## Summary
 
-Sievepen is neokapi's built-in translation memory library, living in
-`sievepen/`. It stores multilingual entries as per-locale `[]model.Run`
+Memory is neokapi's built-in translation memory library, living in
+`memory/`. It stores multilingual entries as per-locale `[]model.Run`
 sequences — preserving inline markup and entity metadata — rather than flat
 strings, and uses a tiered matching pipeline (generalized exact, structural
 exact, plain exact, fuzzy) — complemented by semantic retrieval for paraphrase
@@ -53,7 +53,7 @@ information so translators receive pre-adapted targets.
 
 ### Content-aware, multilingual storage
 
-Sievepen stores per-locale `[]model.Run` sequences — the same inline-content
+Memory stores per-locale `[]model.Run` sequences — the same inline-content
 representation used throughout the pipeline ([AD-002: Content
 Model](002-content-model.md)) — rather than strings. A TM entry is
 **multilingual**: each language is a peer variant in a `Variants` map, with no
@@ -62,7 +62,7 @@ supplied at the call site. Each variant preserves inline-code runs (markup
 codes) and the entry carries entity mappings.
 
 ```go
-type TMEntry struct {
+type Entry struct {
     ID          string
     ProjectID   string
     Variants    map[model.LocaleID][]model.Run // peer language variants
@@ -80,7 +80,7 @@ type TMEntry struct {
 TMX header `srclang`, or the locale a translator started from); it is used for
 display and entity-direction purposes only. An `EntityMapping` records a typed
 entity across all variants (`Values map[LocaleID]EntityValue`) with its
-per-locale value and position. `TMEntry` helpers project a single variant:
+per-locale value and position. `Entry` helpers project a single variant:
 `Variant(locale)` returns its runs, `VariantText` / `VariantStructural` /
 `VariantGeneralized` return the corresponding text keys.
 
@@ -121,7 +121,7 @@ Two cross-cutting rules apply to the exact tiers:
 
 - **Ambiguity demotion.** When several entries match at full score but
   disagree on the target text, none of them is *the* translation: all are
-  demoted to `ScoreNearExact` and flagged `TMMatch.Ambiguous`. Full-score
+  demoted to `ScoreNearExact` and flagged `Match.Ambiguous`. Full-score
   policies (`MinScore: 1.0` lookups, `fillTargetThreshold: 100` leverage,
   extract pre-fill) therefore get nothing rather than a coin flip; the
   choice surfaces for review. Identical targets at full score are not
@@ -151,8 +151,8 @@ that substitutes entity values from the current source into the stored
 target:
 
 ```go
-type TMMatch struct {
-    Entry             TMEntry
+type Match struct {
+    Entry             Entry
     Score             float64
     MatchType         MatchType
     ProjectID         string
@@ -169,11 +169,11 @@ already substituted.
 
 ```go
 type TranslationMemory interface {
-    Add(entry TMEntry) error
+    Add(entry Entry) error
     Lookup(source *model.Block, sourceLocale, targetLocale model.LocaleID,
-        opts LookupOptions) ([]TMMatch, error)
+        opts LookupOptions) ([]Match, error)
     LookupSegment(source *model.Block, segmentIdx int,
-        sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error)
+        sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]Match, error)
     Delete(id string) error
     Count() int
     Close() error
@@ -186,7 +186,7 @@ runs needed for the structural key; no separate pre-processing step is
 required. By default `Lookup` keys on the block's whole content — the verbatim
 lookup case when no segmentation overlay is present. Matches are found among
 entries whose `Variants[sourceLocale]` exists and matches the source;
-`TMMatch.Entry.Variant(targetLocale)` is the translation.
+`Match.Entry.Variant(targetLocale)` is the translation.
 
 `LookupSegment` keys on a single segment span — `segmentIdx` indexes the
 block's segmentation overlay ([AD-002](002-content-model.md)) — for the
@@ -198,9 +198,9 @@ recipe sets `segmentation.source: true` (see
 
 The framework provides two tiers:
 
-- **In-memory** (`sievepen/memory.go`) — fast, ephemeral; session-scoped
+- **In-memory** (`memory/memory.go`) — fast, ephemeral; session-scoped
   leverage during batch processing.
-- **SQLite** (`sievepen/sqlite.go`) — persistent file-based storage for CLI
+- **SQLite** (`memory/sqlite.go`) — persistent file-based storage for CLI
   tools. Same matching algorithm as the in-memory tier, with FTS5 indexes
   for fuzzy candidate retrieval. Uses `modernc.org/sqlite` (pure Go, no CGo)
   for cross-compilation.
@@ -287,7 +287,7 @@ Latin (e + combining acute vs. é).
 
 ### TMX import and export
 
-Sievepen imports and exports TMX files for interchange with external
+Memory imports and exports TMX files for interchange with external
 tooling. The element mapping (TMX inline element ↔ `model.Run` kind):
 
 | TMX element | Run kind     |

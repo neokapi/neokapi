@@ -5,7 +5,7 @@ import { List, Languages } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { triStateChecked, type ViewMode } from "./tm-browser-helpers";
 
-interface TMBrowserToolbarProps {
+interface MemoryBrowserToolbarProps {
   isEmpty: boolean;
   allVisibleSelected: boolean;
   someVisibleSelected: boolean;
@@ -23,8 +23,8 @@ interface TMBrowserToolbarProps {
   onDisplayLocalesChange: (locales: string[] | undefined) => void;
 }
 
-/** Selection checkbox + locale controls + view toggle row of the TM browser. */
-export function TMBrowserToolbar({
+/** Selection checkbox + locale controls + view toggle row of the content memory browser. */
+export function MemoryBrowserToolbar({
   isEmpty,
   allVisibleSelected,
   someVisibleSelected,
@@ -39,7 +39,7 @@ export function TMBrowserToolbar({
   displayLocales,
   onToggleDisplayLocale,
   onDisplayLocalesChange,
-}: TMBrowserToolbarProps) {
+}: MemoryBrowserToolbarProps) {
   return (
     <div className="flex items-center gap-2 mb-2 pl-3 min-h-7">
       {!isEmpty && (

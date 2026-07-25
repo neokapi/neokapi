@@ -134,7 +134,7 @@ export function ConvergenceRunNowDialog({
                   Translate (ready source)
                 </h3>
                 <p className="text-sm tabular-nums">
-                  {pending.toLocaleString()} pending · TM {(totals?.via_tm ?? 0).toLocaleString()}{" "}
+                  {pending.toLocaleString()} pending · Memory {(totals?.via_tm ?? 0).toLocaleString()}{" "}
                   (free) · AI {viaAI.toLocaleString()}
                 </p>
                 {estimate && creditLine(estimate) && (

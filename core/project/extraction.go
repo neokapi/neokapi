@@ -52,9 +52,9 @@ type ExtractionManifest struct {
 	CreatedAt     string              `yaml:"createdAt" json:"createdAt"`
 	// InputsHash fingerprints everything besides a source file's own bytes that
 	// shapes its extracted output — the recipe (format config, redaction,
-	// segmentation), the TM the prefill drew from, and the output options. An
+	// segmentation), the content memory the prefill drew from, and the output options. An
 	// incremental re-extract skips a file only when this matches a prior batch
-	// AND the file's SourceHash matches, so a changed recipe or TM re-extracts.
+	// AND the file's SourceHash matches, so a changed recipe or content memory re-extracts.
 	InputsHash   string                  `yaml:"inputsHash,omitempty" json:"inputsHash,omitempty"`
 	SourceLocale model.LocaleID          `yaml:"sourceLocale,omitempty" json:"sourceLocale,omitempty"`
 	Options      ExtractionOptions       `yaml:"options,omitempty" json:"options,omitzero"`
@@ -74,7 +74,7 @@ type ExtractionGenerator struct {
 type ExtractionOptions struct {
 	Format       string `yaml:"format,omitempty" json:"format,omitempty"`
 	XLIFFVersion string `yaml:"xliffVersion,omitempty" json:"xliffVersion,omitempty"`
-	NoTM         bool   `yaml:"noTM,omitempty" json:"noTM,omitempty"`
+	NoMemory     bool   `yaml:"noTM,omitempty" json:"noTM,omitempty"`
 	Only         string `yaml:"only,omitempty" json:"only,omitempty"`
 	Pattern      string `yaml:"pattern,omitempty" json:"pattern,omitempty"`
 	Segmentation bool   `yaml:"segmentation,omitempty" json:"segmentation,omitempty"`
@@ -100,7 +100,7 @@ type ExtractionFile struct {
 	Skeleton   string                  `yaml:"skeleton,omitempty" json:"skeleton,omitempty"` // filename inside the batch dir
 }
 
-// ExtractionLeverageStats summarize TM pre-fill outcomes.
+// ExtractionLeverageStats summarize content memory pre-fill outcomes.
 type ExtractionLeverageStats struct {
 	Exact int `yaml:"exact" json:"exact"`
 	Fuzzy int `yaml:"fuzzy" json:"fuzzy"`
@@ -251,17 +251,17 @@ func HashBytes(b []byte) string {
 // matches a prior batch AND the file's own SourceHash is unchanged — so editing
 // the recipe correctly forces a re-extract.
 //
-// It deliberately omits the TM. The TM affects only the *prefilled* targets (a
+// It deliberately omits the content memory. The content memory affects only the *prefilled* targets (a
 // leverage convenience), not the source blocks or skeleton, and extract itself
-// touches the TM cache on the first run — folding it in would make the hash
+// touches the content memory cache on the first run — folding it in would make the hash
 // differ every time and defeat reuse. A reused file therefore keeps the prefill
 // it had when it was first extracted; `--force` re-extracts to refresh it from a
-// changed TM.
+// changed content memory.
 func ExtractionInputsHash(layout Layout, opts ExtractionOptions) string {
 	h := sha256.New()
 	if rb, err := os.ReadFile(layout.RecipePath); err == nil {
 		h.Write(rb)
 	}
-	fmt.Fprintf(h, "\x00%s\x00%v\x00%v\x00%s", opts.XLIFFVersion, opts.NoTM, opts.Segmentation, opts.Format)
+	fmt.Fprintf(h, "\x00%s\x00%v\x00%v\x00%s", opts.XLIFFVersion, opts.NoMemory, opts.Segmentation, opts.Format)
 	return "sha256:" + hex.EncodeToString(h.Sum(nil))
 }

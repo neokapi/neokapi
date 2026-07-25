@@ -59,7 +59,7 @@ message SyncPushInitResponse {
   // New items the client has that server doesn't.
   repeated string new_items = 5;
 
-  // Whether terms/TM need re-syncing.
+  // Whether terms/content memory need re-syncing.
   bool terms_changed = 6;
   bool tm_changed = 7;
 
@@ -136,7 +136,7 @@ message SyncChunk {
   // Exactly one of these is populated (determined by content_type).
   repeated SyncBlock blocks = 10;
   repeated SyncTerm terms = 11;
-  repeated SyncTMEntry tm_entries = 12;
+  repeated SyncMemoryEntry tm_entries = 12;
   repeated SyncMedia media = 13;
   // Future: repeated SyncQAResult qa_results = 14;
   // Future: repeated SyncActivity activities = 15;
@@ -233,8 +233,8 @@ message SyncTermTranslation {
   string status = 3;
 }
 
-// SyncTMEntry carries a translation memory entry.
-message SyncTMEntry {
+// SyncMemoryEntry carries a content memory entry.
+message SyncMemoryEntry {
   string id = 1;
   string source_locale = 2;
   string target_locale = 3;
@@ -302,6 +302,6 @@ message SyncPullResponse {
   // Mixed content types in a single response.
   repeated SyncBlock blocks = 10;
   repeated SyncTerm terms = 11;
-  repeated SyncTMEntry tm_entries = 12;
+  repeated SyncMemoryEntry tm_entries = 12;
   repeated SyncMedia media = 13;
 }
