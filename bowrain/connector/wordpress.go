@@ -14,6 +14,7 @@ import (
 	"time"
 
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
+	"github.com/neokapi/neokapi/bowrain/resilience"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -62,7 +63,7 @@ func NewWordPressConnector(config map[string]string) (*WordPressConnector, error
 		baseURL:  baseURL,
 		username: config["username"],
 		password: config["password"],
-		client:   &http.Client{Timeout: 30 * time.Second},
+		client:   resilience.Client("connector:wordpress", resilience.KindConnector, 30*time.Second),
 		config:   config,
 	}, nil
 }

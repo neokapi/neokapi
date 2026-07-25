@@ -6,6 +6,9 @@ import (
 	"errors"
 	"slices"
 	"sync"
+	"time"
+
+	"github.com/neokapi/neokapi/bowrain/resilience"
 )
 
 // errNoStore is returned when a write is attempted on an env-only service (no
@@ -200,6 +203,57 @@ func (s *Service) SignupsOpen() bool { return s.getBool(KeySignupsOpen, s.defaul
 // and the worker's consumption of a measured recommendation gate on it.
 func (s *Service) ModelSweepsEnabled() bool { return s.getBool(KeyModelSweeps, false) }
 
+// ResilienceOverrides returns the admin-set circuit-breaker thresholds as
+// optional overrides. A key that has never been written yields a nil field, so
+// the breaker keeps the default compiled in for its dependency class rather
+// than being flattened to a single global number.
+func (s *Service) ResilienceOverrides() resilience.Overrides {
+	var o resilience.Overrides
+	if v, ok := s.raw(KeyResilienceEnabled); ok {
+		var b bool
+		if json.Unmarshal(v, &b) == nil {
+			o.Enabled = &b
+		}
+	}
+	if v, ok := s.raw(KeyResilienceFailureRatio); ok {
+		var f float64
+		if json.Unmarshal(v, &f) == nil {
+			o.FailureRatio = &f
+		}
+	}
+	for key, dst := range map[string]**int{
+		KeyResilienceMinRequests:     &o.MinimumRequests,
+		KeyResilienceWindowSeconds:   &o.WindowSeconds,
+		KeyResilienceCooldownSeconds: &o.CooldownSeconds,
+		KeyResilienceHalfOpenProbes:  &o.HalfOpenProbes,
+	} {
+		if v, ok := s.raw(key); ok {
+			var n int
+			if json.Unmarshal(v, &n) == nil {
+				*dst = &n
+			}
+		}
+	}
+	return o
+}
+
+// ResilienceSettings returns the resolved circuit-breaker configuration for the
+// admin UI: the overrides layered onto the generic baseline, so the numbers
+// shown are the numbers enforced. Per-class variations (identity cools down
+// faster than mail, and so on) are applied on top of these by
+// resilience.DefaultsFor.
+func (s *Service) ResilienceSettings() ResilienceSettings {
+	r := resilience.DefaultsFor("").Apply(s.ResilienceOverrides())
+	return ResilienceSettings{
+		Enabled:         r.Enabled,
+		FailureRatio:    r.FailureRatio,
+		MinimumRequests: int(r.MinimumRequests),
+		WindowSeconds:   int(r.Window / time.Second),
+		CooldownSeconds: int(r.Cooldown / time.Second),
+		HalfOpenProbes:  int(r.HalfOpenProbes),
+	}
+}
+
 func (s *Service) Maintenance() Maintenance {
 	return Maintenance{
 		Enabled: s.getBool(KeyMaintenanceOn, false),
@@ -256,6 +310,7 @@ func (s *Service) Snapshot() Snapshot {
 		WorkspaceDefaults: WorkspaceDefaults{Plan: s.DefaultPlan(), TrialDays: s.TrialDays()},
 		Features:          s.GlobalFeatures(),
 		ModelSweeps:       ModelSweepSettings{Enabled: s.ModelSweepsEnabled()},
+		Resilience:        s.ResilienceSettings(),
 		ModelCatalog:      Catalog(s.AIProvider()),
 	}
 }

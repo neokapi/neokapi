@@ -75,6 +75,39 @@ type platformConfigUpdate struct {
 	ModelSweeps *struct {
 		Enabled *bool `json:"enabled,omitempty"`
 	} `json:"model_sweeps,omitempty"`
+	// Resilience tunes the outbound circuit breakers. Enabled is the kill
+	// switch: an operator can make every breaker a pass-through instantly, on
+	// every server and worker, without a redeploy.
+	Resilience *struct {
+		Enabled         *bool    `json:"enabled,omitempty"`
+		FailureRatio    *float64 `json:"failure_ratio,omitempty"`
+		MinimumRequests *int     `json:"minimum_requests,omitempty"`
+		WindowSeconds   *int     `json:"window_seconds,omitempty"`
+		CooldownSeconds *int     `json:"cooldown_seconds,omitempty"`
+		HalfOpenProbes  *int     `json:"half_open_probes,omitempty"`
+	} `json:"resilience,omitempty"`
+}
+
+// setIfPresent writes key only when the pointer v holds a value, dereferencing
+// it so the stored JSON is the bare value rather than a pointer. It keeps the
+// resilience block's six optional knobs from becoming six near-identical
+// nil-check blocks.
+func setIfPresent(set func(string, any) error, key string, v any) error {
+	switch p := v.(type) {
+	case *bool:
+		if p != nil {
+			return set(key, *p)
+		}
+	case *float64:
+		if p != nil {
+			return set(key, *p)
+		}
+	case *int:
+		if p != nil {
+			return set(key, *p)
+		}
+	}
+	return nil
 }
 
 // HandleAdminUpdatePlatformConfig applies a partial platform-config update,
@@ -205,6 +238,40 @@ func (s *Server) HandleAdminUpdatePlatformConfig(c echo.Context) error {
 	if req.ModelSweeps != nil && req.ModelSweeps.Enabled != nil {
 		if err := set(platformconfig.KeyModelSweeps, *req.ModelSweeps.Enabled); err != nil {
 			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		}
+	}
+
+	if r := req.Resilience; r != nil {
+		// Validation refuses values that would make a breaker harm a healthy
+		// dependency — a ratio outside (0,1] trips on success, and a zero
+		// window/cooldown/probe count either spins or never recovers. The
+		// resilience package refuses them too; rejecting here means the admin is
+		// told, rather than having the value silently ignored.
+		if r.FailureRatio != nil && (*r.FailureRatio <= 0 || *r.FailureRatio > 1) {
+			return apiErr(c, http.StatusBadRequest, "failure_ratio must be greater than 0 and at most 1")
+		}
+		for label, v := range map[string]*int{
+			"minimum_requests": r.MinimumRequests,
+			"window_seconds":   r.WindowSeconds,
+			"cooldown_seconds": r.CooldownSeconds,
+			"half_open_probes": r.HalfOpenProbes,
+		} {
+			if v != nil && *v < 1 {
+				return apiErr(c, http.StatusBadRequest, label+" must be at least 1")
+			}
+		}
+
+		for key, v := range map[string]any{
+			platformconfig.KeyResilienceEnabled:         r.Enabled,
+			platformconfig.KeyResilienceFailureRatio:    r.FailureRatio,
+			platformconfig.KeyResilienceMinRequests:     r.MinimumRequests,
+			platformconfig.KeyResilienceWindowSeconds:   r.WindowSeconds,
+			platformconfig.KeyResilienceCooldownSeconds: r.CooldownSeconds,
+			platformconfig.KeyResilienceHalfOpenProbes:  r.HalfOpenProbes,
+		} {
+			if err := setIfPresent(set, key, v); err != nil {
+				return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+			}
 		}
 	}
 

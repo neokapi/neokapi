@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/neokapi/neokapi/bowrain/resilience"
 )
 
 // GitHubApp authenticates as a registered GitHub App: a short-lived RS256 JWT
@@ -69,7 +70,7 @@ func NewGitHubApp(appID, privateKeyPEM, webhookSecret string) (*GitHubApp, error
 		appID:         appID,
 		key:           key,
 		webhookSecret: webhookSecret,
-		http:          &http.Client{Timeout: 30 * time.Second},
+		http:          resilience.Client("forge:github-app", resilience.KindForge, 30*time.Second),
 		tokens:        map[int64]installationToken{},
 	}, nil
 }

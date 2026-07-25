@@ -290,7 +290,19 @@ export interface PlatformSnapshot {
   workspace_defaults: WorkspaceDefaults;
   features: Record<string, boolean>;
   model_sweeps: { enabled: boolean };
+  resilience: ResilienceSettings;
   model_catalog: CatalogModel[];
+}
+
+// ResilienceSettings are the circuit-breaker thresholds as resolved (overrides
+// layered onto the built-in baseline), so what is shown is what is enforced.
+export interface ResilienceSettings {
+  enabled: boolean;
+  failure_ratio: number;
+  minimum_requests: number;
+  window_seconds: number;
+  cooldown_seconds: number;
+  half_open_probes: number;
 }
 
 export interface PlatformDefaults {
@@ -323,6 +335,14 @@ export interface PlatformConfigUpdate {
   workspace_defaults?: { plan?: string; trial_days?: number };
   features?: Record<string, boolean>;
   model_sweeps?: { enabled?: boolean };
+  resilience?: {
+    enabled?: boolean;
+    failure_ratio?: number;
+    minimum_requests?: number;
+    window_seconds?: number;
+    cooldown_seconds?: number;
+    half_open_probes?: number;
+  };
 }
 
 export function getPlatformConfig(): Promise<PlatformConfigResponse> {
@@ -375,9 +395,22 @@ export interface ObservabilityLinks {
   cloudwatch?: string;
 }
 
+// CircuitBreakerStatus is one outbound dependency's breaker, as the server is
+// currently enforcing it. Dependencies never called yet are absent — there is
+// nothing truthful to report about them.
+export interface CircuitBreakerStatus {
+  dependency: string;
+  kind: string;
+  state: "closed" | "half_open" | "open";
+  healthy: boolean;
+  enabled: boolean;
+  retry_after_seconds?: number;
+}
+
 export interface AdminHealth {
   server: Readiness;
   worker?: WorkerHealth;
+  circuit_breakers?: CircuitBreakerStatus[];
   links: ObservabilityLinks;
 }
 

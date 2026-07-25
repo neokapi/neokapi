@@ -47,6 +47,9 @@ func (s *stubJobStore) RenewLease(ctx context.Context, id string, epoch int64) (
 func (s *stubJobStore) RetryOrFail(ctx context.Context, id string, epoch int64, maxAttempts int, errMsg string) (bool, error) {
 	return false, nil
 }
+func (s *stubJobStore) DeferJob(ctx context.Context, id string, epoch int64, maxDeferrals int, errMsg string) (bool, error) {
+	return false, nil
+}
 func (s *stubJobStore) SweepStaleProcessing(ctx context.Context, olderThan time.Duration, maxAttempts int) ([]string, int, error) {
 	return nil, 0, nil
 }

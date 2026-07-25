@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neokapi/neokapi/bowrain/resilience/aiguard"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
@@ -67,7 +68,7 @@ func (c PlatformProviderConfig) Build(jobModel string) (aiprovider.LLMProvider, 
 		if model == "" {
 			model = jobModel
 		}
-		prov, err := aiprovider.NewProvider(aiprovider.ProviderID(c.Provider), aiprovider.Config{
+		prov, err := aiguard.NewProvider(aiprovider.ProviderID(c.Provider), aiprovider.Config{
 			APIKey:  c.APIKey,
 			Model:   model,
 			BaseURL: c.BaseURL,

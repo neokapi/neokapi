@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/bowrain/observe"
+	"github.com/neokapi/neokapi/bowrain/resilience/aiguard"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
@@ -65,6 +66,10 @@ type WorkerDeps struct {
 	// MaxJobAttempts bounds transient-failure retries before a job is failed.
 	// Zero uses defaultMaxJobAttempts.
 	MaxJobAttempts int
+	// MaxJobDeferrals bounds how many times a job may be parked on an
+	// unavailable dependency before it is failed. Zero uses
+	// defaultMaxJobDeferrals.
+	MaxJobDeferrals int
 	// TMResolver returns the project's server TM for a workspace, so a
 	// convergence translation job can recycle exact/near-exact matches before
 	// paying for AI (TM-first convergence). Optional; when nil the job falls
@@ -120,6 +125,25 @@ func (d *WorkerDeps) maxJobAttempts() int {
 		return d.MaxJobAttempts
 	}
 	return defaultMaxJobAttempts
+}
+
+// maxJobDeferrals returns how many times a job may be parked on an unavailable
+// dependency before it is failed. Separate from the retry budget by design:
+// waiting out an outage must not consume the attempts the job needs once the
+// dependency is back.
+func (d *WorkerDeps) maxJobDeferrals() int {
+	if d.MaxJobDeferrals > 0 {
+		return d.MaxJobDeferrals
+	}
+	return defaultMaxJobDeferrals
+}
+
+// queueLabel is this worker's bounded metric label.
+func (d *WorkerDeps) queueLabel() string {
+	if d.QueueName == "" {
+		return "translation"
+	}
+	return d.QueueName
 }
 
 // jobHeartbeatInterval is how often a running translation refreshes its job's
@@ -190,6 +214,27 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 		processErr := processJobWithDeps(jobCtx, deps, jobID)
 		observe.JobsInFlight.WithLabelValues(queueLabel).Dec()
 		if processErr != nil {
+			var de *deferredError
+			if errors.As(processErr, &de) {
+				observe.JobsProcessedTotal.WithLabelValues(queueLabel, "deferred").Inc()
+				// Parked on a known-down dependency. Re-enqueue with a delay
+				// matched to the breaker's cooldown, so the redelivery arrives
+				// when a probe is due rather than immediately — an outage must
+				// not turn into a queue-spinning hot loop. Same fresh-message
+				// rationale as the transient path: never trust nack() to
+				// reproduce a delivery whose visibility may already have lapsed.
+				if eqErr := enqueueAfter(ctx, deps.Queue, jobID, de.retryAfter); eqErr != nil {
+					slog.WarnContext(jobCtx, "job deferred; re-enqueue failed, nacking instead",
+						"job_id", jobID, "dependency", de.dependency, "enqueue_error", eqErr)
+					nack()
+				} else {
+					slog.InfoContext(jobCtx, "job deferred until dependency recovers",
+						"job_id", jobID, "dependency", de.dependency,
+						"retry_after", de.retryAfter.Round(time.Second).String())
+					ack()
+				}
+				continue
+			}
 			var te *transientError
 			if errors.As(processErr, &te) {
 				observe.JobsProcessedTotal.WithLabelValues(queueLabel, "transient").Inc()
@@ -304,6 +349,30 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 			slog.InfoContext(ctx, "job lease lost mid-run; abandoning to fresh owner",
 				"job_id", jobID)
 			return nil
+		}
+		// Dependency known-down: the breaker rejected the call, so nothing was
+		// attempted upstream. Park the job instead of retrying it — waiting is
+		// the honest cost of an outage, and spending the retry budget on calls
+		// that were never made would fail work that is perfectly translatable
+		// the moment the provider returns.
+		if d := deferralFor(err); d != nil {
+			deferred, derr := deps.JobStore.DeferJob(ctx, jobID, epoch, deps.maxJobDeferrals(),
+				"deferred: "+d.dependency+" unavailable")
+			if derr != nil {
+				slog.WarnContext(ctx, "defer bookkeeping failed", "job_id", jobID, "error", derr)
+			}
+			if deferred {
+				observe.JobsDeferredTotal.WithLabelValues(deps.queueLabel(), d.dependency).Inc()
+				emitLog(deps, job.StepID, "warn",
+					"Waiting for "+d.dependency+" to recover; this job is queued and will resume automatically.",
+					map[string]string{"item": job.ItemName, "locale": job.TargetLocale, "dependency": d.dependency})
+				return d
+			}
+			// Deferral budget exhausted — DeferJob marked the job failed.
+			emitLog(deps, job.StepID, "error",
+				d.dependency+" did not recover; giving up on this job.",
+				map[string]string{"item": job.ItemName, "locale": job.TargetLocale, "dependency": d.dependency})
+			return err
 		}
 		if isTransientError(err) {
 			retry, rerr := deps.JobStore.RetryOrFail(ctx, jobID, epoch, deps.maxJobAttempts(), err.Error())
@@ -724,7 +793,7 @@ func resolveProvider(ctx context.Context, deps *WorkerDeps, job *TranslationJob)
 	if model == "" {
 		model = job.Model
 	}
-	prov, err := aiprovider.NewProvider(aiprovider.ProviderID(cfg.Type), aiprovider.Config{
+	prov, err := aiguard.NewProvider(aiprovider.ProviderID(cfg.Type), aiprovider.Config{
 		APIKey:  cfg.APIKey,
 		Model:   model,
 		BaseURL: cfg.BaseURL,

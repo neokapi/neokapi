@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/neokapi/neokapi/bowrain/resilience"
 )
 
 const resendAPIURL = "https://api.resend.com/emails"
@@ -27,7 +29,7 @@ func NewResendSender(apiKey, from string) *ResendSender {
 	return &ResendSender{
 		apiKey: apiKey,
 		from:   from,
-		client: &http.Client{Timeout: 15 * time.Second},
+		client: resilience.Client("mail:resend", resilience.KindMail, 15*time.Second),
 	}
 }
 

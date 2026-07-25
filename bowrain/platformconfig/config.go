@@ -21,6 +21,19 @@ const (
 	// ctrl when ready. Platform QC: sweeps run on the platform provider and
 	// never deduct customer credits.
 	KeyModelSweeps = "model_sweeps.enabled" // bool: enable model recommendation sweeps
+
+	// Circuit-breaker thresholds for outbound dependencies (bowrain/resilience).
+	// Unset keys keep the per-dependency-class defaults compiled into
+	// resilience.DefaultsFor, so an un-tuned instance behaves as designed.
+	// KeyResilienceEnabled is the kill switch: setting it false makes every
+	// breaker a pass-through immediately, on every server and worker, without a
+	// redeploy. It exists so a misbehaving breaker is never an outage.
+	KeyResilienceEnabled         = "resilience.enabled"          // bool: circuit breakers active
+	KeyResilienceFailureRatio    = "resilience.failure_ratio"    // float: share of failures that opens a circuit
+	KeyResilienceMinRequests     = "resilience.minimum_requests" // int: volume floor before a circuit may open
+	KeyResilienceWindowSeconds   = "resilience.window_seconds"   // int: rolling failure-count window
+	KeyResilienceCooldownSeconds = "resilience.cooldown_seconds" // int: open-state duration before a probe
+	KeyResilienceHalfOpenProbes  = "resilience.half_open_probes" // int: concurrent probes admitted while half-open
 )
 
 // Defaults are the bootstrap values used when a key is not set in the DB. They
@@ -67,7 +80,20 @@ type Snapshot struct {
 	WorkspaceDefaults WorkspaceDefaults  `json:"workspace_defaults"`
 	Features          map[string]bool    `json:"features"`
 	ModelSweeps       ModelSweepSettings `json:"model_sweeps"`
+	Resilience        ResilienceSettings `json:"resilience"`
 	ModelCatalog      []Model            `json:"model_catalog"`
+}
+
+// ResilienceSettings is the resolved circuit-breaker configuration. The zero
+// values are never served: unset keys resolve to the compiled-in defaults, so
+// what the admin UI shows is always what the breakers are actually enforcing.
+type ResilienceSettings struct {
+	Enabled         bool    `json:"enabled"`
+	FailureRatio    float64 `json:"failure_ratio"`
+	MinimumRequests int     `json:"minimum_requests"`
+	WindowSeconds   int     `json:"window_seconds"`
+	CooldownSeconds int     `json:"cooldown_seconds"`
+	HalfOpenProbes  int     `json:"half_open_probes"`
 }
 
 // SignupSettings is the resolved signup gate.

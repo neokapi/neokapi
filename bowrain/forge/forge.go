@@ -21,6 +21,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/neokapi/neokapi/bowrain/resilience"
 )
 
 // Kind identifies a supported forge.
@@ -94,10 +96,17 @@ type Client interface {
 // with rights to read and create pull/merge requests on the repository —
 // a GitHub fine-grained PAT (contents + pull requests) or a GitLab project
 // access token (api scope).
+// The client is circuit-broken per forge kind, so a GitHub outage never
+// short-circuits GitLab delivery (and vice versa). An injected client is
+// guarded too rather than trusted: a caller supplying a transport is
+// customising how we reach the forge, not opting out of the platform's
+// failure policy.
 func NewClient(kind Kind, token string, httpClient *http.Client) Client {
-	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 30 * time.Second}
+	name := "forge:gitlab"
+	if kind == KindGitHub {
+		name = "forge:github"
 	}
+	httpClient = resilience.Guard(httpClient, name, resilience.KindForge, 30*time.Second)
 	switch kind {
 	case KindGitHub:
 		return &githubClient{token: token, http: httpClient}

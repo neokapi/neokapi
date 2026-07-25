@@ -13,6 +13,7 @@ import (
 	"time"
 
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
+	"github.com/neokapi/neokapi/bowrain/resilience"
 	"github.com/neokapi/neokapi/core/httputil"
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -56,8 +57,11 @@ func NewHubSpotConnector(config map[string]string) (*HubSpotConnector, error) {
 		id:       id,
 		connName: config["name"],
 		apiKey:   apiKey,
-		client:   httputil.NewResilientClient(),
-		config:   config,
+		// Breaker outermost, above the retrying transport: one HubSpot call is
+		// one observation, not one per retry attempt.
+		client: resilience.Guard(httputil.NewResilientClient(),
+			"connector:hubspot", resilience.KindConnector, 30*time.Second),
+		config: config,
 	}, nil
 }
 

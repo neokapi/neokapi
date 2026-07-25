@@ -123,6 +123,33 @@ func (q *SQSQueue) Enqueue(ctx context.Context, jobID string) error {
 	return nil
 }
 
+// sqsMaxDelaySeconds is SQS's hard ceiling on DelaySeconds (15 minutes). A
+// longer deferral is clamped to it: the job simply re-checks the circuit sooner
+// than asked, finds it still open, and defers again.
+const sqsMaxDelaySeconds = 900
+
+// EnqueueAfter sends the job ID with an SQS delivery delay, making SQSQueue a
+// [DelayedQueue]. This is the broker doing the waiting rather than the worker —
+// no goroutine is held, and the deferral survives a worker restart.
+func (q *SQSQueue) EnqueueAfter(ctx context.Context, jobID string, delay time.Duration) error {
+	secs := int32(delay.Round(time.Second) / time.Second)
+	if secs <= 0 {
+		return q.Enqueue(ctx, jobID)
+	}
+	if secs > sqsMaxDelaySeconds {
+		secs = sqsMaxDelaySeconds
+	}
+	_, err := q.client.SendMessage(ctx, &sqs.SendMessageInput{
+		QueueUrl:     aws.String(q.queueURL),
+		MessageBody:  aws.String(jobID),
+		DelaySeconds: secs,
+	})
+	if err != nil {
+		return fmt.Errorf("sqs: enqueue job %s with %ds delay: %w", jobID, secs, err)
+	}
+	return nil
+}
+
 // Dequeue long-polls for one message. Empty polls are retried internally (SQS
 // long-poll returns nothing when idle) so the caller only sees a message or a
 // real error — no per-poll error churn. ack deletes the message; nack makes it
