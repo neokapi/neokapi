@@ -49,15 +49,17 @@ narration:
     caption: Mønstrene er gruppert i navngitte samlinger.
     text: >-
       Mønstrene er gruppert i samlinger — nettstedet, nettbutikken, kontraktene og malene — hvert et glob-mønster som motoren leser fra og skriver tilbake til.
+  # The matched-files table is two levels since #1442: one row per output
+  # pattern, opening to the source file and the per-locale language files.
   - id: files
     kind: desktop
     beat: files
-    caption: Each matched file carries its detected format.
+    caption: Each pattern opens to its source and language files.
     text: >-
-      Inside a collection, every matched file is listed with the format Kapi
+      Inside a collection, each output pattern is one row. Open it and the
+      source file sits above the language files, every one with the format Kapi
       detected for it — Markdown, JSON, properties, Office documents and more.
-      On a server-connected project, a sync column shows what still has to be
-      pushed.
+      A locale that hasn't been generated yet stays listed, marked pending.
 
   - id: outro
     kind: outro

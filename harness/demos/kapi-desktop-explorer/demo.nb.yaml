@@ -1,6 +1,6 @@
 id: kapi-desktop-explorer
-title: Browse a termbase and translation memory
-subtitle: A visual tour of terminology and translation memory in Kapi Desktop.
+title: Browse terms and content memory
+subtitle: A visual tour of terminology and content memory in Kapi Desktop.
 tagline: the visual companion to the kapi command line
 kind: use-case
 publishAs: kapi-desktop-explorer
@@ -10,8 +10,8 @@ needsAi: false
 # One continuous narration read — uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - Termbases
-  - Translation memory
+  - Terms
+  - Content memory
   - Multi-locale terms
   - Inline formatting
   - Entity placeholders
@@ -30,19 +30,28 @@ narration:
     kind: desktop
     beat: intro
     text: >-
-      Den åpner til en rolig startskjerm. Alt en oversetter støtter seg på — ordlistene og de lagrede oversettelsene — ligger ett klikk unna i sidefeltet.
+      It opens to a calm home screen. Everything a translator leans on — the
+      agreed terms and the remembered translations — sits one click away in the
+      sidebar.
+
+  # The sidebar sections are Terms and Content Memory (renamed in #1442); the
+  # `beat` ids stay as recorded.
   - id: termbases
     kind: desktop
     beat: open-termbases
-    caption: Termbase-seksjonen lister hver ordliste på disk.
+    caption: The Terms section lists each terms file on disk.
     text: >-
-      Termbase-seksjonen lister hver ordliste lagret på disk, med størrelsen og når den sist ble endret.
+      The Terms section lists each terms file stored on disk, with its size
+      and when it last changed.
+
   - id: glossary
     kind: desktop
     beat: open-glossary
-    caption: En åpnet ordliste viser hvert begrep den inneholder.
+    caption: Opening one shows every concept it holds.
     text: >-
-      Åpner du produktordlisten, får du opp hvert begrep den inneholder — åtte her — med et aktivitetsdiagram over de siste endringene øverst.
+      Opening the product terms brings up every concept it holds — eight here
+      — with an activity chart of recent edits across the top.
+
   - id: concept
     kind: desktop
     beat: inspect-concept
@@ -58,9 +67,11 @@ narration:
   - id: open-tm
     kind: desktop
     beat: open-tm
-    caption: Oversettelsesminnet fungerer på samme måte.
+    caption: Content Memory works the same way.
     text: >-
-      Oversettelsesminnet fungerer på samme måte. Vi går over og åpner minnet for Acme-appen.
+      Content Memory works the same way. We cross over and open the memory for
+      the Acme app.
+
   - id: inspect-tm
     kind: desktop
     beat: inspect-tm
@@ -82,4 +93,5 @@ narration:
   - id: outro
     kind: outro
     text: >-
-      Det er terminologien og oversettelsesminnet i hjertet av kapi — å bla i på ett sted.
+      That's the terminology and content memory at the heart of kapi,
+      browsable in one place.

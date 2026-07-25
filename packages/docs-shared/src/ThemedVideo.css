@@ -14,3 +14,9 @@
 [data-theme="dark"] .themed-video--dark {
   display: block;
 }
+
+/* The outdated banner sits directly above the player and inherits the player's
+   maxWidth (set inline) so the two read as one block. */
+.themed-video__notice {
+  margin: 0 0 0.7rem;
+}

@@ -41,7 +41,7 @@ narration:
     caption: Appearance follows the system, or pin light or dark.
     text: >-
       Appearance follows your system, or you can pin light or dark. The
-      interface itself can even run in pseudo-English for localisation testing.
+      interface itself can even run in pseudo-English for language testing.
 
   - id: credentials
     kind: desktop

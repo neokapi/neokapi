@@ -77,7 +77,7 @@ const META = {
   subtitle: "Govern AI-translated content, together.",
   tagline: "Shared memory, terminology, and checks that learn from every correction.",
   aspects: ["Shared editor", "Real-time collaboration", "Terminology", "Review", "Quality checks"],
-  outroTitle: "The team localization platform",
+  outroTitle: "The team platform for multilingual content",
   outroTagline: "Built on the open kapi framework.",
 };
 

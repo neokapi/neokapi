@@ -43,7 +43,7 @@ narration:
     caption: Open a file in the Translate surface.
     text: >-
       One translator opens a file in the Translate surface — source and target
-      side by side, with the live preview of the page being localized.
+      side by side, with the live preview of the page being translated.
 
   - id: teammate-joins
     kind: desktop
