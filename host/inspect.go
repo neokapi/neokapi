@@ -35,7 +35,14 @@ func (a *App) RunInspect(ctx context.Context, cmd Command, args []string, outFor
 	for _, file := range files {
 		prog.Step(DisplayName(file))
 		_, ferr := a.StreamBlocks(ctx, file, func(_ int, b *model.Block) error {
-			if b.SourceText() == "" {
+			// Skip blocks with no source content. The predicate is the shape
+			// flattening, not SourceText(): a block whose only run is an inline
+			// code flattens to "" there and was dropped from the output
+			// entirely — `kapi inspect` is the tool you reach for to see what the
+			// reader produced, so a silently absent record is the worst answer it
+			// can give. The threshold itself is unchanged (a whitespace-only
+			// source still emits a record), only the string it reads.
+			if model.RunsHygieneText(b.SourceRuns()) == "" {
 				return nil
 			}
 			n++

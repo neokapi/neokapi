@@ -163,6 +163,55 @@ func TestQACheck_RunAwareShapeRules(t *testing.T) {
 	}
 }
 
+// TestQACheck_TargetSameAsSourceWithCodes pins the knob that was declared,
+// documented and defaulted true but read by nothing, so every comparison silently
+// took the `false` branch (#1463). It is Okapi's targetSameAsSourceWithCodes:
+// CODE_DATA_ONLY when set (text AND codes must match), IGNORE_CODE when clear
+// (text and code positions only) — see GeneralChecker.java and its
+// testTARGET_SAME_AS_SOURCE_WithDiffCodes / _WithDiffCodesTurnedOff pair.
+func TestQACheck_TargetSameAsSourceWithCodes(t *testing.T) {
+	// Same words, different placeholder: the shapes are equal (one code, same
+	// position) but the codes are not.
+	source := []model.Run{qaTx("src text "), qaPh("1", "code")}
+	target := []model.Run{qaTx("src text "), qaPh("1", "etc")}
+
+	t.Run("set (the default) — a different code means not identical", func(t *testing.T) {
+		cfg := tools.NewQACheckConfig(model.LocaleFrench)
+		require.True(t, cfg.TargetSameAsSourceWithCodes, "Reset must default the knob on")
+		assert.NotContains(t, qaCategoriesWith(t, cfg, source, target), "target-same-as-source",
+			"swapping {code} for {etc} is a change; reporting it as untranslated points a reviewer at the wrong defect")
+	})
+
+	t.Run("clear — codes ignored, so the text alone makes it identical", func(t *testing.T) {
+		cfg := tools.NewQACheckConfig(model.LocaleFrench)
+		cfg.TargetSameAsSourceWithCodes = false
+		assert.Contains(t, qaCategoriesWith(t, cfg, source, target), "target-same-as-source")
+	})
+
+	t.Run("set — matching codes still report identical", func(t *testing.T) {
+		cfg := tools.NewQACheckConfig(model.LocaleFrench)
+		same := []model.Run{qaTx("src text "), qaPh("1", "code")}
+		assert.Contains(t, qaCategoriesWith(t, cfg, source, same), "target-same-as-source")
+	})
+}
+
+// qaCategoriesWith is qaRunCategories with a caller-supplied config.
+func qaCategoriesWith(t *testing.T, cfg *tools.QACheckConfig, sourceRuns, targetRuns []model.Run) []string {
+	t.Helper()
+	b := &model.Block{ID: "u1", Translatable: true, Source: sourceRuns, Properties: map[string]string{}}
+	b.SetTargetRuns(cfg.TargetLocale, targetRuns)
+
+	out := processPart(t, tools.NewQACheckTool(cfg), &model.Part{Type: model.PartBlock, Resource: b})
+	blk, ok := out.Resource.(*model.Block)
+	require.True(t, ok)
+
+	cats := make([]string, 0, 4)
+	for _, f := range qaFindings(blk) {
+		cats = append(cats, f.Category)
+	}
+	return cats
+}
+
 // TestQACheck_SentinelNeverReachesCharacterRules is the guard for the boundary
 // this fix deliberately draws: a sentinel is a stand-in for a run, not a
 // character in the content, so the character-level rules must never see it.

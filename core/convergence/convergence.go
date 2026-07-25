@@ -121,10 +121,15 @@ func BlockKey(b *model.Block) string {
 // A committed Target.Status is authoritative; otherwise a present, non-empty
 // target counts as `translated` (the presence baseline) and an absent/empty
 // target is untranslated (below every rung).
+//
+// Presence is model.RunsHaveContent, so a target whose only run is an inline
+// code counts as produced. Read through TargetText() it flattened to "" and the
+// unit read as untranslated forever: below every rung, dragging its scope's
+// coverage down, and so permanently short of the ship gate.
 func TargetState(b *model.Block, locale string) string {
 	loc := model.LocaleID(locale)
 	t := b.Target(loc)
-	if t == nil || strings.TrimSpace(b.TargetText(loc)) == "" {
+	if t == nil || !model.RunsHaveContent(b.TargetRuns(loc)) {
 		return ""
 	}
 	if t.Status != "" {
@@ -136,8 +141,12 @@ func TargetState(b *model.Block, locale string) string {
 // SourceState derives a translatable block's source-authoring state: a committed
 // SourceStatus is authoritative, else a present, non-empty source counts as
 // `authored` (the presence baseline).
+//
+// Presence is model.RunsHaveContent — the same run-aware question the source
+// readiness gate asks (check.NewSourceReadinessTool), so a placeholder-only unit
+// is authored content here too rather than a hole in the source ladder.
 func SourceState(b *model.Block) string {
-	if strings.TrimSpace(b.SourceText()) == "" {
+	if !model.RunsHaveContent(b.SourceRuns()) {
 		return ""
 	}
 	if b.SourceStatus != "" {

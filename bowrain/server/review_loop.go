@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"log/slog"
-	"strings"
 	"time"
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -45,7 +44,11 @@ func targetPendingReview(b *model.Block, loc model.LocaleID) bool {
 		return false
 	}
 	t := b.Target(loc)
-	if t == nil || strings.TrimSpace(b.TargetText(loc)) == "" {
+	// Presence is the shared run-aware predicate, matching
+	// convergence.TargetState: a target whose only run is an inline code is
+	// produced content. Read through TargetText() it flattened to "" and the unit
+	// never entered the review queue, so no reviewer could ever approve it.
+	if t == nil || !model.RunsHaveContent(b.TargetRuns(loc)) {
 		return false
 	}
 	return t.Status.Rank() < model.TargetStatusReviewed.Rank()
