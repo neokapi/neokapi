@@ -97,7 +97,7 @@ func (a *App) ExtractToKpz(ctx context.Context, sources []string, outKpz, target
 			return fmt.Errorf("read %q: %w", filepath.Base(f), rerr)
 		}
 		base := filepath.Base(f)
-		archivePath := "source/" + base
+		archivePath := kpz.SourceDir + base
 		formatID := ""
 		if det := a.kpzDetectFormat(f); det != nil {
 			formatID = string(det(f))
@@ -337,10 +337,25 @@ func (o workspaceInfo) FormatText(w io.Writer) error {
 	return nil
 }
 
-// InfoKpz prints the workspace's state (text, or JSON with --json). Named
-// `info` rather than `status` (which the bowrain plugin owns).
+// InfoKpz prints a `.kpz`'s state (text, or JSON with --json). Named `info`
+// rather than `status` (which the bowrain plugin owns).
+//
+// Two archive profiles, two answers. A **workspace** `.kpz` is a live thing with
+// a shadow cache, so the question worth asking is whether that cache holds work
+// not yet packed back — which is what this reports. A **project snapshot** has no
+// cache and no such state; asking it produces one anyway (building a cache the
+// snapshot never had, then calling it "dirty" moments after `pack` wrote it).
+// A snapshot is answered by [App.RunArchiveInfo] instead: the same parts, in the
+// same words, as `kapi info` on the project it came from.
 func (a *App) InfoKpz(cmd Command, kpzPath string) error {
 	ctx := cmd.Context()
+	pkg, err := LoadWorkspace(kpzPath)
+	if err != nil {
+		return err
+	}
+	if !isWorkspacePackage(pkg) {
+		return a.RunArchiveInfo(cmd, kpzPath, pkg)
+	}
 	c, err := a.ensureKpzCache(ctx, kpzPath)
 	if err != nil {
 		return err
@@ -358,12 +373,14 @@ func (a *App) InfoKpz(cmd Command, kpzPath string) error {
 		info.TargetLangs = recipeTargetLangs(c.meta.Recipe)
 		info.Out = recipeOut(c.meta.Recipe)
 	}
-	// Per-locale translated-block counts (overlays of kind targets/<locale>).
-	pkg, err := c.toPackage(ctx)
+	// Per-locale translated-block counts (overlays of kind targets/<locale>),
+	// read from the *cache* rather than the on-disk archive — the point of a
+	// workspace report is the work the cache holds.
+	cached, err := c.toPackage(ctx)
 	if err != nil {
 		return err
 	}
-	for _, ov := range pkg.Overlays {
+	for _, ov := range cached.Overlays {
 		if l, ok := strings.CutPrefix(ov.Kind, "targets/"); ok {
 			info.Overlays[l]++
 		}

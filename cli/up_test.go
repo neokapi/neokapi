@@ -305,7 +305,10 @@ func TestUp_FirstRunInlineWizard(t *testing.T) {
 		IsTTY:     func() bool { return true },
 		Detect:    func(context.Context) AIDetection { return AIDetection{ClaudeCode: true} },
 		LiveCheck: func(context.Context, string, string, string) error { return nil },
-		SetConfig: func(key, value string) error { saved[key] = value; return nil },
+		SetDefault: func(provider, model string) error {
+			saved["ai.provider"], saved["ai.model"] = provider, model
+			return nil
+		},
 	}
 	a.AISetupIOOverride = &wiz
 	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": {Pct: 100}})

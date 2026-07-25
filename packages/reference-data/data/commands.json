@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-25T04:40:19Z",
+  "generatedAt": "2026-07-25T08:10:21Z",
   "commands": [
     {
       "id": "add",
@@ -4390,8 +4390,9 @@
       "path": [
         "info"
       ],
-      "use": "info \u003cwork.kpz\u003e",
-      "short": "Show a .kpz workspace's state (dirty?)",
+      "use": "info [work.kpz]",
+      "short": "Report a project's packable state, or a .kpz archive's contents",
+      "long": "With no argument, reports the project in scope: its languages, how many files\nit tracks, and the parts a `kapi pack` snapshot would capture — each with\nwhether it is present and how many items it holds — plus what the snapshot\ndeliberately leaves out (regenerable caches, credentials, sync tokens).\n\nWith a .kpz argument, reports that archive. A project snapshot is reported as the\nsame parts, in the same words, so comparing the two is the round-trip check. A\nworkspace .kpz (the ad-hoc parcel with a working cache) instead reports its\ndocuments, locales, and whether the cache holds work not yet packed back.\n\nBoth forms support --output-format json|yaml.",
       "groupID": "advanced",
       "flags": [
         {
@@ -4417,6 +4418,12 @@
           "type": "string"
         },
         {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
           "name": "text",
           "usage": "Output in text format (default)",
           "default": "false",
@@ -4424,7 +4431,8 @@
         }
       ],
       "examples": [
-        "kapi info work.kpz"
+        "kapi info              # the project: what a snapshot would capture",
+        "kapi info handoff.kpz  # the archive: what it holds"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -4685,9 +4693,37 @@
       "long": "With no argument, prints the configured default AI provider and model.\n\nWith a model argument, sets it as the default used by AI tools and flows\nwhen no --provider/--model flag or recipe default is given. The provider is\ninferred from the model name by convention (claude-* → anthropic, gpt-* →\nopenai, gemini-* → gemini, an Ollama tag like gemma3:4b → ollama); pass\n--provider to choose it explicitly (e.g. Azure OpenAI). Writes ai.provider\nand ai.model to the global config (see `kapi config path`), so the setting\nis shared with Kapi Desktop.",
       "flags": [
         {
+          "name": "color",
+          "usage": "colorize output: auto, always, never",
+          "default": "auto",
+          "type": "string"
+        },
+        {
+          "name": "jq",
+          "usage": "filter JSON output through a jq expression (implies --json)",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "Output in JSON format",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "output-format",
+          "usage": "Output format: text (alias: table), json, yaml",
+          "type": "string"
+        },
+        {
           "name": "provider",
           "usage": "set the provider explicitly instead of inferring it from the model name",
           "type": "string"
+        },
+        {
+          "name": "text",
+          "usage": "Output in text format (default)",
+          "default": "false",
+          "type": "bool"
         }
       ],
       "examples": [
@@ -4847,6 +4883,23 @@
       "groupID": "advanced",
       "flags": [
         {
+          "name": "color",
+          "usage": "colorize output: auto, always, never",
+          "default": "auto",
+          "type": "string"
+        },
+        {
+          "name": "jq",
+          "usage": "filter JSON output through a jq expression (implies --json)",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "Output in JSON format",
+          "default": "false",
+          "type": "bool"
+        },
+        {
           "name": "log",
           "usage": "stamp a tamper-evident provenance line into the snapshot's advisory history",
           "default": "false",
@@ -4859,10 +4912,21 @@
           "type": "string"
         },
         {
+          "name": "output-format",
+          "usage": "Output format: text (alias: table), json, yaml",
+          "type": "string"
+        },
+        {
           "name": "project",
           "shorthand": "p",
           "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
           "type": "string"
+        },
+        {
+          "name": "text",
+          "usage": "Output in text format (default)",
+          "default": "false",
+          "type": "bool"
         },
         {
           "name": "with-source",
@@ -6676,10 +6740,38 @@
       "groupID": "advanced",
       "flags": [
         {
+          "name": "color",
+          "usage": "colorize output: auto, always, never",
+          "default": "auto",
+          "type": "string"
+        },
+        {
+          "name": "jq",
+          "usage": "filter JSON output through a jq expression (implies --json)",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "Output in JSON format",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "output-format",
+          "usage": "Output format: text (alias: table), json, yaml",
+          "type": "string"
+        },
+        {
           "name": "project",
           "shorthand": "p",
           "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
           "type": "string"
+        },
+        {
+          "name": "text",
+          "usage": "Output in text format (default)",
+          "default": "false",
+          "type": "bool"
         }
       ],
       "examples": [

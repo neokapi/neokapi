@@ -83,8 +83,17 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 	}
 	t.Rowf("total", o.Totals.MissingTarget, o.Totals.TMExact, o.Totals.AIRemaining, o.Totals.TokenEstimate)
 	t.Render()
-	if o.Subscription {
+	// Always name the provider a run would resolve. A plan exists to answer
+	// "what will this do", and which provider does the work is part of that —
+	// it is also the fastest way to see that a configured default is being
+	// picked up, which is exactly what silently failed before.
+	switch {
+	case o.Subscription:
 		fmt.Fprintf(w, "\n  AI provider: %s — runs on your Claude subscription (no per-token API cost).\n", o.Provider)
+	case o.Provider != "":
+		fmt.Fprintf(w, "\n  AI provider: %s\n", o.Provider)
+	default:
+		fmt.Fprintf(w, "\n  AI provider: none configured — `kapi models setup`, or `kapi models default <model>`.\n")
 	}
 	fmt.Fprintf(w, "\n%s\n", o.Note)
 	return nil
@@ -152,13 +161,11 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 // personal subscription (claude-code), the plan swaps the metered-cost framing
 // for "runs on your Claude subscription" in both text and JSON.
 func (a *App) applyPlanProvider(plan *UpPlanOutput) {
-	if a.Config == nil {
+	def := config.ResolveAIDefault(a.Config)
+	if !def.Configured() {
 		return
 	}
-	prov := a.Config.GetString(config.KeyAIProvider)
-	if prov == "" {
-		return
-	}
+	prov := def.Provider
 	plan.Provider = prov
 	if info, ok := aiprovider.ProviderInfoFor(aiprovider.ProviderID(prov)); ok && info.Subscription {
 		plan.Subscription = true

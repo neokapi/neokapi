@@ -28,8 +28,9 @@ const (
 	AIModelFromLocalePreset AIModelOrigin = "locale-preset"
 	// AIModelFromProjectPreset — `defaults.tools.<tool>` in the recipe.
 	AIModelFromProjectPreset AIModelOrigin = "project-preset"
-	// AIModelFromAppConfig — `ai.provider` / `ai.model` in ~/.config/kapi/kapi.yaml,
-	// which is what `kapi models setup` and `kapi models default` write.
+	// AIModelFromAppConfig — the stored `ai.provider` / `ai.model` (the file at
+	// config.GlobalConfigFilePath, or the KAPI_AI_* environment overrides), which
+	// is what `kapi models setup` and `kapi models default` write.
 	AIModelFromAppConfig AIModelOrigin = "app-config"
 	// AIModelFromBuiltIn — nothing configured; the tool's own default applies.
 	AIModelFromBuiltIn AIModelOrigin = "built-in"
@@ -78,12 +79,19 @@ func EffectiveAIModel(
 
 	// Lowest configured layer first, so each higher layer simply overwrites and
 	// records itself — the precedence reads top-to-bottom in one direction.
-	if cfg != nil {
-		if v := strings.TrimSpace(cfg.GetString(appconfig.KeyAIProvider)); v != "" {
-			res.Provider, res.ProviderOrigin = v, AIModelFromAppConfig
+	//
+	// The app-config layer comes from appconfig.ResolveAIDefault, not from reading
+	// ai.provider / ai.model here: this query and the run must agree about what is
+	// stored, and they can only be guaranteed to agree by asking the same
+	// function. (ResolveAIDefault also attributes KAPI_AI_PROVIDER /
+	// KAPI_AI_MODEL, which this layer previously reached only by accident of
+	// viper's AutomaticEnv.)
+	if def := appconfig.ResolveAIDefault(cfg); def.Any() {
+		if def.Provider != "" {
+			res.Provider, res.ProviderOrigin = def.Provider, AIModelFromAppConfig
 		}
-		if v := strings.TrimSpace(cfg.GetString(appconfig.KeyAIModel)); v != "" {
-			res.Model, res.ModelOrigin = v, AIModelFromAppConfig
+		if def.Model != "" {
+			res.Model, res.ModelOrigin = def.Model, AIModelFromAppConfig
 		}
 	}
 

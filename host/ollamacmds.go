@@ -121,21 +121,19 @@ func (a *App) EnsureOllamaForTool(cmd Command, toolSchemaArg *schema.ComponentSc
 		return nil // not a provider-backed AI tool
 	}
 
-	provider := ""
+	def := config.ResolveAIDefault(a.Config)
+
+	provider := def.Provider
 	if f := cmd.Flags().Lookup("provider"); f != nil && cmd.Flags().Changed("provider") {
 		provider, _ = cmd.Flags().GetString("provider")
-	} else if a.Config != nil {
-		provider = a.Config.GetString(config.KeyAIProvider)
 	}
 	if provider != string(aiprovider.Ollama) {
 		return nil
 	}
 
-	model := ""
+	model := def.Model
 	if f := cmd.Flags().Lookup("model"); f != nil && cmd.Flags().Changed("model") {
 		model, _ = cmd.Flags().GetString("model")
-	} else if a.Config != nil {
-		model = a.Config.GetString(config.KeyAIModel)
 	}
 	if model == "" {
 		model = aiprovider.DefaultOllamaModel

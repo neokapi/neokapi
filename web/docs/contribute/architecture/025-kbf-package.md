@@ -215,6 +215,13 @@ only on request (`pack --with-source` / `extract --with-source`), keeping a
 default `.kpz` from duplicating git-tracked source. The skeleton is the *derived
 extract*, not the original document.
 
+`unpack` writes those raw bytes back into the working tree under their logical
+paths, because being able to re-extract on the far side is the whole reason to
+carry them — a flag that packed bytes nobody could get out again was a one-way
+trip. A file already present is left alone (the working tree is authoritative on
+its own sources, the same rule the recipe follows), and a member whose logical
+path would escape the project root is refused rather than written.
+
 | Concern | In a `.kapi` project | In a `.kpz` | Disposition |
 | --- | --- | --- | --- |
 | flows | `flows:` + `.kapi/flows/` | recipe `flows` | **travels** |

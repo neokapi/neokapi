@@ -33,7 +33,11 @@ func fakeSetupIO(stdin string, det AIDetection) (AISetupIO, *bytes.Buffer, map[s
 			checks = append(checks, provider+"/"+model)
 			return nil
 		},
-		SetConfig: func(key, value string) error { saved[key] = value; return nil },
+		SetDefault: func(provider, model string) error {
+			saved[config.KeyAIProvider] = provider
+			saved[config.KeyAIModel] = model
+			return nil
+		},
 	}
 	return io, out, saved, &checks
 }
@@ -245,4 +249,190 @@ func TestEnsureAIProviderInteractive(t *testing.T) {
 		require.NoError(t, a.EnsureAIProviderInteractive(cmd))
 		assert.Empty(t, out.String())
 	})
+}
+
+// ---------------------------------------------------------------------------
+// Interactive experience: the prompter seam
+// ---------------------------------------------------------------------------
+
+// scriptedPrompter answers the three questions without a terminal, and records
+// what it was asked — so a test can assert on the *questions* rather than on the
+// bytes some particular renderer emits.
+type scriptedPrompter struct {
+	pick    int
+	key     string
+	confirm bool
+
+	sawChoices []string
+	sawDefault int
+	sawKeyFor  string
+	sawConfirm string
+}
+
+func (p *scriptedPrompter) SelectProvider(choices []AISetupChoice, def int) (int, error) {
+	for _, c := range choices {
+		p.sawChoices = append(p.sawChoices, c.Label())
+	}
+	p.sawDefault = def
+	return p.pick, nil
+}
+
+func (p *scriptedPrompter) APIKey(providerLabel string) (string, error) {
+	p.sawKeyFor = providerLabel
+	return p.key, nil
+}
+
+func (p *scriptedPrompter) Confirm(prompt string, _ bool) (bool, error) {
+	p.sawConfirm = prompt
+	return p.confirm, nil
+}
+
+// TestSetupPrompterDrivesTheWizard: with a prompter installed the wizard asks
+// through it and never reads stdin, which is what lets the CLI render the
+// questions as forms while host keeps owning the decisions.
+func TestSetupPrompterDrivesTheWizard(t *testing.T) {
+	det := AIDetection{ClaudeCode: true}
+	io, _, saved, _ := fakeSetupIO("", det) // empty stdin: a line reader would fail
+	p := &scriptedPrompter{pick: 0, confirm: false}
+	io.Prompter = p
+	a := &App{Config: config.NewAppConfig()}
+
+	provider, err := a.RunAISetupWizard(context.Background(), io, false)
+	require.NoError(t, err)
+	assert.Equal(t, "claude-code", provider)
+	assert.Equal(t, "claude-code", saved[config.KeyAIProvider])
+
+	assert.NotEmpty(t, p.sawChoices, "the prompter must be handed host's labels")
+	assert.Equal(t, 0, p.sawDefault, "the first (best-detected) choice is the default")
+	assert.Contains(t, p.sawConfirm, "test call")
+}
+
+// TestSetupPrompterIsNotConsultedOffATTY: the form renderer needs a terminal, so
+// the TTY gate must come first — a piped or CI invocation gets the actionable
+// error, never a half-drawn form.
+func TestSetupPrompterIsNotConsultedOffATTY(t *testing.T) {
+	io, _, _, _ := fakeSetupIO("", AIDetection{})
+	io.IsTTY = func() bool { return false }
+	io.Prompter = panicPrompter{}
+	a := &App{}
+
+	_, err := a.RunAISetupWizard(context.Background(), io, false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not a terminal")
+}
+
+// indexOfProvider locates a provider in host's ordered choices, so a test names
+// the provider it means instead of a position that reordering would silently
+// change.
+func indexOfProvider(t *testing.T, choices []AISetupChoice, provider string) int {
+	t.Helper()
+	for i, c := range choices {
+		if c.Provider == provider {
+			return i
+		}
+	}
+	t.Fatalf("provider %q is not among the setup choices", provider)
+	return -1
+}
+
+// panicPrompter fails loudly if any question is asked.
+type panicPrompter struct{}
+
+func (panicPrompter) SelectProvider([]AISetupChoice, int) (int, error) {
+	panic("the prompter must not be reached off a TTY")
+}
+func (panicPrompter) APIKey(string) (string, error) {
+	panic("the prompter must not be reached off a TTY")
+}
+func (panicPrompter) Confirm(string, bool) (bool, error) {
+	panic("the prompter must not be reached off a TTY")
+}
+
+// TestFormPrompterIsInstalledByTheInitializer: both wizard entry points must get
+// the same renderer, which they do by it being registered on the app rather than
+// per-command.
+func TestFormPrompterIsInstalledByTheInitializer(t *testing.T) {
+	a := &App{}
+	installAISetupPrompter(a)
+	require.NotNil(t, a.AISetupPrompter)
+
+	// It reaches the wizard's IO for any command, so `kapi models setup` and the
+	// inline wizard mid-`kapi up` cannot diverge.
+	cmd := newTestUpLikeCmd()
+	assert.Equal(t, a.AISetupPrompter, a.DefaultAISetupIO(cmd).Prompter)
+}
+
+// TestWizardClearsAStaleModelForAModellessProvider: choosing a provider that
+// brings no model must clear the stored one, not leave the previous provider's
+// model attached to it. The wizard delegates that to the one writer, so the
+// contract observable here is that the write *is* delegated with an empty model.
+func TestWizardClearsAStaleModelForAModellessProvider(t *testing.T) {
+	det := AIDetection{} // nothing detected → demo is the last choice
+	choices := BuildAISetupChoices(det)
+	demoIdx := indexOfProvider(t, choices, "demo")
+	require.Empty(t, choices[demoIdx].Model(), "the demo engine names no model")
+
+	io, _, saved, _ := fakeSetupIO("", det)
+	io.Prompter = &scriptedPrompter{pick: demoIdx}
+	a := &App{Config: config.NewAppConfig()}
+	a.Config.Set(config.KeyAIModel, "gemma4:e2b") // a model left by a previous provider
+
+	_, err := a.RunAISetupWizard(context.Background(), io, false)
+	require.NoError(t, err)
+	assert.Equal(t, "demo", saved[config.KeyAIProvider])
+	assert.Empty(t, saved[config.KeyAIModel], "the stale model must be cleared, not kept")
+	assert.Empty(t, a.Config.GetString(config.KeyAIModel),
+		"and the running process must not keep resolving it either")
+}
+
+// TestWizardNeverClaimsNothingIsConfigured is the message-accuracy guard: the
+// founder's report was a wizard asserting no provider was configured while the
+// config file said otherwise. Whatever else changes, a wizard that can see a
+// standing default must say so.
+func TestWizardNeverClaimsNothingIsConfigured(t *testing.T) {
+	det := AIDetection{
+		DefaultProvider: "ollama",
+		DefaultModel:    "gemma4:e2b",
+		DefaultSource: config.AIDefault{
+			Provider: "ollama", Model: "gemma4:e2b",
+			Source: config.AIDefaultConfig, File: "/somewhere/kapi.yaml",
+		},
+	}
+
+	// Pick the demo engine so the run needs neither a key nor a live check; the
+	// assertion here is about the header, not the branch taken afterwards.
+	demoIdx := indexOfProvider(t, BuildAISetupChoices(det), "demo")
+
+	for _, compact := range []bool{false, true} {
+		io, out, _, _ := fakeSetupIO("", det)
+		io.Prompter = &scriptedPrompter{pick: demoIdx}
+		a := &App{Config: config.NewAppConfig()}
+		_, err := a.RunAISetupWizard(context.Background(), io, compact)
+		require.NoError(t, err)
+
+		text := out.String()
+		assert.NotContainsf(t, text, "No AI provider is configured",
+			"compact=%v: must not deny a configured default", compact)
+		assert.Containsf(t, text, "ollama", "compact=%v: name what is configured", compact)
+		assert.Containsf(t, text, "/somewhere/kapi.yaml",
+			"compact=%v: say which file holds it", compact)
+	}
+}
+
+// TestStandingLineAccountsForEverySignal: the three things detection looks at
+// each have to be nameable, or "nothing is configured" can be wrong in three
+// different ways.
+func TestStandingLineAccountsForEverySignal(t *testing.T) {
+	assert.Equal(t, "no AI provider configured", AIDetection{}.StandingLine())
+
+	line := AIDetection{
+		DefaultProvider:          "ollama",
+		DefaultSource:            config.AIDefault{Provider: "ollama", Source: config.AIDefaultConfig, File: "/c/kapi.yaml"},
+		SavedCredentialProviders: []string{"anthropic"},
+		EnvKeyProviders:          []string{"openai"},
+	}.StandingLine()
+	assert.Contains(t, line, "ollama")
+	assert.Contains(t, line, "/c/kapi.yaml")
+	assert.Contains(t, line, "anthropic")
+	assert.Contains(t, line, "openai")
 }

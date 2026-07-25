@@ -107,6 +107,41 @@ func TestEffectiveAIModel_ModelOnlyConfigKeepsBuiltInProvider(t *testing.T) {
 	assert.Equal(t, AIModelFromBuiltIn, res.ProviderOrigin)
 }
 
+// TestEffectiveAIModel_AgreesWithTheSharedResolver: this query and the run must
+// return the same app-config layer, and the only way to guarantee that is for
+// both to go through config.ResolveAIDefault. The assertion is the agreement
+// itself, so a future second reader here fails the test.
+func TestEffectiveAIModel_AgreesWithTheSharedResolver(t *testing.T) {
+	t.Setenv(appconfig.EnvAIProvider, "")
+	t.Setenv(appconfig.EnvAIModel, "")
+	cfg := cfgWith("ollama", "gemma4:e2b")
+
+	def := appconfig.ResolveAIDefault(cfg)
+	res := EffectiveAIModel(cfg, nil, "translate", "")
+
+	assert.Equal(t, def.Provider, res.Provider)
+	assert.Equal(t, def.Model, res.Model)
+	assert.Equal(t, AIModelFromAppConfig, res.ProviderOrigin)
+
+	// And the same for what the run's tool-config preprocessor would apply.
+	toolCfg := appconfig.ApplyAIToolDefaults(cfg, "ai-translate", []string{"credentials"}, nil)
+	assert.Equal(t, res.Provider, toolCfg["provider"], "display and run must not disagree")
+	assert.Equal(t, res.Model, toolCfg["model"])
+}
+
+// TestEffectiveAIModel_EnvOverrideIsVisible: KAPI_AI_* must reach the displayed
+// answer too, or the desktop's model panel promises one provider while the run
+// uses another.
+func TestEffectiveAIModel_EnvOverrideIsVisible(t *testing.T) {
+	t.Setenv(appconfig.EnvAIProvider, "openai")
+	t.Setenv(appconfig.EnvAIModel, "gpt-4o")
+
+	res := EffectiveAIModel(appconfig.NewAppConfig(), nil, "translate", "")
+	assert.Equal(t, "openai", res.Provider)
+	assert.Equal(t, "gpt-4o", res.Model)
+	assert.Equal(t, AIModelFromAppConfig, res.ProviderOrigin)
+}
+
 func TestEffectiveAIModel_NonStringPresetValuesAreIgnored(t *testing.T) {
 	proj := &project.KapiProject{
 		Defaults: project.Defaults{

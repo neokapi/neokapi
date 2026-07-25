@@ -111,6 +111,34 @@ kapi merge bundle.fr.kpz
 
 Source travels as identity + a round-trip skeleton by default; `--with-source` embeds the raw originals. [Pause & resume a big run](/kapi/recipes/resumable-workspace) walks the `.kpz` workspace lifecycle.
 
+### What a snapshot carries
+
+`kapi info` answers this for the project you are standing in — before you pack it — and for an archive you have been handed. Both list the same parts:
+
+| Part | What it is |
+| --- | --- |
+| `recipe` | the project's `kapi.yaml`, with `server`/`hooks`/`automations` stripped so they travel inert |
+| `sources` | source identity + per-file round-trip skeletons (raw bytes only with `--with-source`) |
+| `blocks` | the extracted content blocks (`.kbf`) |
+| `overlays` | committed target overlays, one per locale |
+| `memory` | the authoritative content memory (`.kmb`) |
+| `terms` | the authoritative terms (`.ktb`) |
+| `history` | an advisory provenance chain (`--log`) |
+
+Deliberately **not** carried: `.kapi/cache/` (regenerable — block store, extractions, collections), credentials (they live in the OS keychain), and server sync tokens. A snapshot is state you could not recompute, never secrets and never derived data.
+
+```bash
+kapi info                        # this project: what a snapshot would capture
+kapi info handoff.kpz            # this archive: what it holds
+kapi info --output-format json   # either form, machine-readable
+```
+
+Each part reports whether it is present and how many items it holds, measured the way `pack` collects it — `sources` counts what the extraction manifests record, not what the recipe tracks, so a project that has never been extracted honestly reports none. A part that is absent says what would produce it.
+
+A *workspace* `.kpz` — the ad-hoc parcel with a shadow cache, not a project snapshot — answers a different question, so `kapi info work.kpz` on one reports its documents, locales and whether the cache holds work not yet packed back into the file.
+
+`pack` writes exactly the parts `info` lists and `unpack` restores exactly those parts: the content memory, the terms, the blocks and overlays, the skeletons, and — with `--with-source` — the raw source files, which `unpack` writes back into the tree without overwriting anything already there. Agreement between `kapi info` on a project and on its snapshot is therefore the round-trip check. `pack` refuses to write a content-less archive rather than hand over an empty file.
+
 ## Do the modes mix?
 
 Yes — same commands, different bindings:

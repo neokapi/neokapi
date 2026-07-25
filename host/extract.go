@@ -1069,7 +1069,7 @@ func (a *App) extractOneKpz(ctx context.Context, task kpzInterchangeTask) error 
 	// `kapi merge`'s hydrate step applies it the same way the workspace flow
 	// does). Also gather the TM entries actually consulted as inline context.
 	threshold := float64(task.ctx.Project.Defaults.TM.ResolvedFuzzyThreshold()) / 100.0
-	srcArchive := "source/" + filepath.Base(task.source.Relative)
+	srcArchive := kpz.SourceDir + filepath.Base(task.source.Relative)
 	var overlays []kpz.OverlayDoc
 	contextEntries := map[string]sievepen.TMEntry{}
 	for _, b := range blocks {
