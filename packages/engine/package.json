@@ -62,7 +62,8 @@
     "dist",
     "src",
     "!src/*.test.ts",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "node build.mjs",

@@ -846,6 +846,8 @@ jobs:
         run: ./scripts/check-docs-bowrain-clean.sh
       - name: Guard — no absolute home paths in tracked files
         run: ./scripts/check-abs-paths.sh
+      - name: Guard — publishable packages declare a license and ship its text
+        run: ./scripts/check-package-licenses.sh
 
       # gofmt needs a toolchain, but no modules — gofmt is purely syntactic, so
       # this is a bare setup-go with the cache off and adds ~10s.
