@@ -472,6 +472,10 @@ cover: ## Run platform tests with coverage
 
 # ── Code Quality ─────────────────────────────────────────────────────────────
 
+# NOTE: a FIXER, not a check — it rewrites files and exits 0, so `make check`
+# below can pass while leaving the fix as an unstaged edit that never reaches
+# your commit. That is how nine files in this module drifted. The check is
+# `make -C .. check-gofmt` (scripts/check-gofmt.sh), which CI gates on.
 fmt: ## Format Go source files
 	$(GOFMT) -w -s .
 

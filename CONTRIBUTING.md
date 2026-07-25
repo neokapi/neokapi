@@ -20,12 +20,32 @@ module map.
 make build       # Build the kapi CLI -> bin/kapi
 make test        # Run all tests (framework + bowrain)
 make check       # fmt + vet + lint
+make check-gofmt # Guard: every tracked .go file is gofmt-clean (CI gates on this)
 make pre-push    # Run the checks relevant to your changes (mirrors CI)
 ```
 
 Run a single test with `go test ./core/flow/ -run TestName -v`. For the
 frontend packages, use `vp` (viteplus) rather than `npx` — e.g.
 `vp check --fix` before committing.
+
+### Formatting: `make fmt` is a fixer, `make check-gofmt` is the check
+
+`make fmt` runs `gofmt -w -s` over the tree. It **rewrites files and exits 0**,
+so it can never fail a build — the check that does is `make check-gofmt`
+(`scripts/check-gofmt.sh`), which runs in the *Repo guards* CI job and in
+`make lint` / `make pre-push`.
+
+**Review the comment diff of a tree-wide format sweep, not just the code
+diff.** `gofmt` canonicalises **doc comments**, and its canonicaliser reads
+`''` and ` `` ` as TeX-style quotes, rewriting them to `”` and `“`. A sweep can
+therefore silently change *prose meaning*: in #1444 a comment reading
+`SetupTrial inserted ''` — describing an empty SQL string literal — became
+`SetupTrial inserted ”`, which is valid Go and says nothing. Nothing failed.
+
+When a comment needs to mention such a literal, word it (`an empty string`) or
+use `""`; both survive gofmt. `make check-gofmt` warns explicitly when an
+offending file contains `''` or ` `` ` in a comment, so take that warning as
+"reword this", not "run `make fmt`".
 
 ## Go conventions
 

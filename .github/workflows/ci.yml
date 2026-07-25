@@ -829,10 +829,9 @@ jobs:
   docs-guard:
     name: Repo guards
     runs-on: ubuntu-latest
-    # No path gate and no toolchain: these guards are ~seconds of bash, so
-    # running them on every PR is cheap belt-and-suspenders — a stray bowrain
-    # reference or absolute home path (or a stale guard) can't merge and
-    # surface only post-merge.
+    # No path gate: these guards are ~seconds, so running them on every PR is
+    # cheap belt-and-suspenders — a stray bowrain reference, absolute home path,
+    # or gofmt drift (or a stale guard) can't merge and surface only post-merge.
     steps:
       - uses: actions/checkout@v7
       - name: Guard — neokapi docs must stay bowrain-clean
@@ -841,6 +840,23 @@ jobs:
         run: ./scripts/check-abs-paths.sh
       - name: Guard — pnpm lockfile keeps its registry provenance
         run: ./scripts/check-lockfile-provenance.sh
+
+      # gofmt needs a toolchain, but no modules — gofmt is purely syntactic, so
+      # this is a bare setup-go with the cache off and adds ~10s.
+      #
+      # This guard lives here, ungated, rather than in the Go-gated `tidy-check`
+      # job on purpose. `any_go` is the OR of the six module filters in the
+      # `changes` job (core/, cli|host/, bowrain/core|plugin/, kapi/, bowrain/),
+      # none of which match apps/kapi-desktop/, plugins/sat/, harness/ or
+      # scripts/*eval/. A PR touching only those would report any_go == false
+      # and skip the check on a Go-only change. Format drift can come from any
+      # Go file, so the check must not inherit that hole.
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.0"
+          cache: false
+      - name: Guard — every tracked .go file is gofmt-clean
+        run: make check-gofmt
 
   # ── GitHub Actions Lint ──────────────────────────────────────────────────
   gha-lint:

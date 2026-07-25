@@ -69,6 +69,12 @@ echo ""
 
 run_check "Absolute home paths" ./scripts/check-abs-paths.sh
 
+# Ungated for the same reason, plus one specific to this repo: the bowrain
+# checks below are gated on ^bowrain/core/ and ^bowrain/plugin/ only, so the
+# main bowrain module has no local format gate at all — which is how nine files
+# there drifted. ~1s for the whole tree.
+run_check "Go formatting (gofmt -l -s)" ./scripts/check-gofmt.sh
+
 # ── Go checks ──────────────────────────────────────────────────────────────
 
 if matches '^core/' '^go\.(mod|sum)$' '^cli/' '^kapi/' '^go\.work'; then
