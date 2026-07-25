@@ -1,18 +1,24 @@
 name: Dependabot pnpm Relock
 
-# Dependabot resolves pnpm-lock.yaml with its own bundled pnpm, which does not
-# match the version pinned in package.json#packageManager (pnpm@11.5.0). The
-# mismatch silently rewrites the entire lockfile alongside the intended bump —
-# most visibly stripping the `tarball:` provenance URL from every registry
-# resolution (2319 entries, as shipped by #1414 and reverted here).
+# Dependabot resolves pnpm-lock.yaml with its own bundled pnpm, which omits the
+# `tarball:` provenance URL that the pinned pnpm (package.json#packageManager)
+# records on every registry resolution. `scripts/check-lockfile-provenance.sh`
+# now fails on that, so without this workflow every npm Dependabot PR would be
+# permanently unmergeable.
 #
-# Nothing catches it: the rewritten lockfile is internally consistent, so
-# `vp install --frozen-lockfile` succeeds and every check goes green. The cost
-# is silent — explicit registry-URL pinning disappears for the whole tree, and
-# every npm PR conflicts with every other npm PR on those 2319 lines.
+# The subtlety that broke the first attempt at this workflow: the pinned pnpm is
+# format-preserving in BOTH directions. Re-resolving the PR's own (already
+# stripped) lockfile does nothing — pnpm never adds the field back, so the job
+# reported "already matches" and passed while the provenance stayed gone.
 #
-# This is the npm counterpart of `dependabot-go-tidy.yml`: re-resolve with the
-# pinned toolchain and push, so a Dependabot PR diff contains only its bump.
+# The fix is the checkout order below: take the lockfile from the BASE branch,
+# which still has the provenance, and re-resolve THAT against the PR's
+# package.json. pnpm then applies the dependency change while preserving the
+# fields it already sees. Verified by hand on #1418's @types/node bump — base
+# lockfile (2319 entries) + bumped package.json re-resolved to 2320 entries,
+# provenance intact and the bump applied.
+#
+# This is the npm counterpart of dependabot-go-tidy.yml.
 
 on: pull_request
 
@@ -29,9 +35,11 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
+          # Need the base commit too, to recover its lockfile.
+          fetch-depth: 0
 
-      # Mirrors .github/actions/setup-node-ui, but with run-install: false and
-      # no i18n-react build — relocking needs the toolchain, not the workspace.
+      # Mirrors .github/actions/setup-node-ui, minus run-install and the
+      # i18n-react build — relocking needs the toolchain, not the workspace.
       - uses: voidzero-dev/setup-vp@v1
         with:
           version: "0.1.23"
@@ -40,19 +48,32 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
           run-install: false
 
-      - name: Re-resolve the lockfile with the pinned pnpm
+      # Order matters: the base lockfile carries the provenance the PR's does
+      # not. Re-resolving from here applies the PR's package.json change while
+      # keeping the `tarball:` fields.
+      - name: Recover the base branch lockfile
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --no-tags origin "$BASE_REF"
+          git checkout "origin/$BASE_REF" -- pnpm-lock.yaml
+          echo "provenance entries recovered from $BASE_REF: $(grep -c 'tarball: ' pnpm-lock.yaml || true)"
+
+      - name: Re-resolve against the PR's package.json
         env:
           # Required by .npmrc for @neokapi scoped packages on npm.pkg.github.com.
           GITHUB_TOKEN: ${{ github.token }}
         run: vp install --lockfile-only
 
+      - name: Verify the provenance survived
+        run: ./scripts/check-lockfile-provenance.sh
+
       - name: Push if the lockfile changed
         run: |
           if git diff --quiet -- pnpm-lock.yaml; then
-            echo "Lockfile already matches the pinned pnpm"
+            echo "Lockfile already matches the pinned pnpm's resolution"
             exit 0
           fi
-          echo "Lockfile differed from the pinned pnpm's resolution — relocking."
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add pnpm-lock.yaml
