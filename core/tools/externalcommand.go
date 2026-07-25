@@ -56,6 +56,38 @@ func (c *ExternalCommandConfig) Validate() error {
 	return nil
 }
 
+// NewExternalCommandConfig creates an ExternalCommandConfig at its documented
+// defaults for the given target locale.
+func NewExternalCommandConfig(targetLocale model.LocaleID) *ExternalCommandConfig {
+	cfg := &ExternalCommandConfig{}
+	cfg.Reset()
+	cfg.TargetLocale = targetLocale
+	return cfg
+}
+
+// NewExternalCommandFromConfig creates an external-command tool from a config
+// map.
+//
+// Command and Args are the tool's entire behaviour and can only come from the
+// step. Without this factory the tool was built with an empty Command, so every
+// block's run failed with "exec: no command" and the failure was recorded as a
+// block property nothing reads — the config that named the program to run was
+// discarded before it got there (#1476). Validate() is enforced here so a step
+// with no command fails at construction, naming the tool, instead of failing
+// once per block.
+func NewExternalCommandFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	cfg := NewExternalCommandConfig(model.LocaleID(targetLang))
+	if err := applyStepConfig("external-command", config, cfg, targetLang, setExternalCommandLocale); err != nil {
+		return nil, err
+	}
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+	return NewExternalCommandTool(cfg), nil
+}
+
+func setExternalCommandLocale(c *ExternalCommandConfig, loc model.LocaleID) { c.TargetLocale = loc }
+
 // NewExternalCommandTool creates a new external command tool.
 // It executes an external command-line program on block text, capturing stdout as the result.
 func NewExternalCommandTool(cfg *ExternalCommandConfig) *tool.BaseTool {

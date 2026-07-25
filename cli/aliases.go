@@ -161,6 +161,7 @@ var (
 	NewConvergeEventRenderer     = host.NewConvergeEventRenderer
 	NewConvergeRenderer          = host.NewConvergeRenderer
 	NewEnvCommand                = host.NewEnvCommand
+	NewFindingsCollectorFor      = host.NewFindingsCollectorFor
 	RecipeConfigGet              = host.RecipeConfigGet
 	RecipeConfigSet              = host.RecipeConfigSet
 	RecipeExists                 = host.RecipeExists

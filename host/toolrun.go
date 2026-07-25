@@ -641,6 +641,22 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		}
 	}
 
+	// Feed the collector before the writer branch, and whether or not this run
+	// writes a file: a check tool's findings are its result, and a tool that
+	// also writes output (qa declares WritesOutput) must still be able to report
+	// them. The old placement was after an early `return nil` in the writer
+	// branch, so any run that produced a file reported nothing.
+	// Skip if a streaming collector already observed the parts inline.
+	if collector != nil && streamingCollector == nil {
+		item := &flow.Item{
+			Input:        doc,
+			TargetLocale: model.LocaleID(cfg.TargetLang),
+		}
+		if err := collector.Collect(ctx, item, outputParts); err != nil {
+			return fmt.Errorf("collect %s: %w", filePath, err)
+		}
+	}
+
 	if producesOutput && writer != nil {
 		if err := writer.SetOutput(outputPath); err != nil {
 			return fmt.Errorf("set output %s: %w", outputPath, err)
@@ -684,17 +700,6 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 			fmt.Fprintf(os.Stderr, "%s → %s\n", filePath, outputPath)
 		}
 		return nil
-	}
-
-	// Feed collector — skip if streaming collector already observed inline.
-	if collector != nil && streamingCollector == nil {
-		item := &flow.Item{
-			Input:        doc,
-			TargetLocale: model.LocaleID(cfg.TargetLang),
-		}
-		if err := collector.Collect(ctx, item, outputParts); err != nil {
-			return fmt.Errorf("collect %s: %w", filePath, err)
-		}
 	}
 
 	return nil

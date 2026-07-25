@@ -9,7 +9,6 @@ import (
 	coretools "github.com/neokapi/neokapi/core/tools"
 
 	"github.com/mattn/go-isatty"
-	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
@@ -254,7 +253,11 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 				return t, nil
 			}
 
-			var collector func() flow.Collector
+			// A tool that produces check findings reports them at the end of the
+			// run; without this a `kapi exec <check>` run annotated the blocks in
+			// memory, exited 0, and printed nothing (#1476). A bespoke entry in
+			// CollectorFactories still wins.
+			collector := NewFindingsCollectorFor(ToolSchema)
 			if cf, ok := CollectorFactories[toolName]; ok {
 				collector = cf
 			}

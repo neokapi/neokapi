@@ -299,6 +299,9 @@ func MediaRefineSchema() *schema.ComponentSchema {
 		Tags:        []string{"ai-powered", "vision"},
 		Requires:    []string{schema.RequiresCredentials},
 		SideEffects: []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
+		// The refined lines replace the OCR/ASR source text, so the exec run needs
+		// an -o — without it it paid for the LLM calls and wrote nothing (#1476).
+		WritesOutput: true,
 	})
 	injectProviderOptions(s)
 	return s

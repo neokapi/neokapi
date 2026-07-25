@@ -604,6 +604,63 @@
     }
   },
   {
+    "name": "create-target",
+    "input_schema": {
+      "$id": "create-target",
+      "properties": {
+        "copySource": {
+          "default": false,
+          "description": "Copy the source runs into the new target",
+          "title": "Copy Source",
+          "type": "boolean"
+        },
+        "createOnNonTranslatable": {
+          "default": true,
+          "description": "Create a target even for non-translatable text units",
+          "title": "Create on Non-Translatable",
+          "type": "boolean"
+        },
+        "overwrite": {
+          "default": false,
+          "description": "Overwrite the existing target if one already exists",
+          "title": "Overwrite Existing",
+          "type": "boolean"
+        },
+        "targetLocale": {
+          "description": "Target locale to create",
+          "title": "Target Locale",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Create Target",
+      "toolMeta": {
+        "cardinality": "bilingual",
+        "category": "text-processing",
+        "displayName": "Create Target",
+        "id": "create-target",
+        "requires": [
+          "target-language"
+        ],
+        "tags": [
+          "l10n"
+        ],
+        "writesOutput": true
+      },
+      "type": "object"
+    }
+  },
+  {
     "name": "detect_format",
     "input_schema": {
       "additionalProperties": false,
@@ -668,6 +725,69 @@
           "l10n"
         ],
         "writesOutput": true
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "dnt-check",
+    "input_schema": {
+      "$id": "dnt-check",
+      "properties": {
+        "caseInsensitive": {
+          "default": false,
+          "description": "Accept a case-folded match in the target instead of requiring exact case",
+          "title": "Case-insensitive preservation",
+          "type": "boolean"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "terms": {
+          "description": "Strings that must survive verbatim into the target (product names",
+          "items": {
+            "type": "string"
+          },
+          "title": "Do-Not-Translate Terms",
+          "type": "array"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Do-Not-Translate Check",
+      "toolMeta": {
+        "aliases": [
+          "dnt"
+        ],
+        "cardinality": "bilingual",
+        "category": "quality",
+        "consumes": [
+          {
+            "side": "target",
+            "type": "target"
+          }
+        ],
+        "displayName": "Do-Not-Translate Check",
+        "id": "dnt-check",
+        "produces": [
+          {
+            "side": "target",
+            "type": "qa"
+          }
+        ],
+        "requires": [
+          "target-language"
+        ],
+        "tags": [
+          "quality",
+          "l10n"
+        ]
       },
       "type": "object"
     }
@@ -894,6 +1014,84 @@
     }
   },
   {
+    "name": "external-command",
+    "input_schema": {
+      "$id": "external-command",
+      "properties": {
+        "applySource": {
+          "default": false,
+          "description": "Process source text",
+          "title": "Apply to Source",
+          "type": "boolean"
+        },
+        "applyTarget": {
+          "default": true,
+          "description": "Process target text",
+          "title": "Apply to Target",
+          "type": "boolean"
+        },
+        "args": {
+          "description": "Command arguments; use ${source} and ${target} as placeholders",
+          "items": {
+            "type": "string"
+          },
+          "title": "Arguments",
+          "type": "array"
+        },
+        "command": {
+          "description": "The command to execute",
+          "title": "Command Line",
+          "type": "string"
+        },
+        "sendAsStdin": {
+          "default": true,
+          "description": "Send text via stdin instead of command arguments",
+          "title": "Send as Stdin",
+          "type": "boolean"
+        },
+        "targetLocale": {
+          "description": "Target locale for processing",
+          "title": "Target Locale",
+          "type": "string",
+          "ui:visible": {
+            "empty": false,
+            "field": "ApplyTarget"
+          }
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        },
+        "timeout": {
+          "default": 30,
+          "description": "Timeout in seconds",
+          "minimum": 1,
+          "title": "Timeout",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "External Command",
+      "toolMeta": {
+        "cardinality": "monolingual",
+        "category": "text-processing",
+        "displayName": "External Command",
+        "id": "external-command",
+        "tags": [
+          "configurable"
+        ],
+        "writesOutput": true
+      },
+      "type": "object"
+    }
+  },
+  {
     "name": "extract_content",
     "input_schema": {
       "additionalProperties": false,
@@ -918,6 +1116,70 @@
       "required": [
         "path"
       ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "inline-codes-remove",
+    "input_schema": {
+      "$id": "inline-codes-remove",
+      "properties": {
+        "applySource": {
+          "default": false,
+          "description": "Apply to the source text",
+          "title": "Apply to Source",
+          "type": "boolean"
+        },
+        "applyTarget": {
+          "default": true,
+          "description": "Apply to the target text",
+          "title": "Apply to Target",
+          "type": "boolean"
+        },
+        "includeNonTranslatable": {
+          "default": true,
+          "description": "Apply the removal action even to text units marked as non-translatable",
+          "title": "Include Non-Translatable",
+          "type": "boolean"
+        },
+        "replaceWithSpace": {
+          "default": false,
+          "description": "Replace line-break inline codes with spaces instead of removing them entirely",
+          "title": "Replace With Space",
+          "type": "boolean"
+        },
+        "targetLocale": {
+          "description": "Target locale for processing",
+          "title": "Target Locale",
+          "type": "string",
+          "ui:visible": {
+            "empty": false,
+            "field": "ApplyTarget"
+          }
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Inline Codes Remove",
+      "toolMeta": {
+        "cardinality": "monolingual",
+        "category": "text-processing",
+        "displayName": "Inline Codes Remove",
+        "id": "inline-codes-remove",
+        "tags": [
+          "text-processing"
+        ],
+        "writesOutput": true
+      },
       "type": "object"
     }
   },
@@ -1028,7 +1290,8 @@
         "tags": [
           "ai-powered",
           "vision"
-        ]
+        ],
+        "writesOutput": true
       },
       "type": "object",
       "ui:groups": [
@@ -1042,6 +1305,58 @@
           "label": "Provider"
         }
       ]
+    }
+  },
+  {
+    "name": "placeholder-check",
+    "input_schema": {
+      "$id": "placeholder-check",
+      "properties": {
+        "flagExtra": {
+          "default": true,
+          "description": "Report placeholders present in the target but absent from the source",
+          "title": "Flag extra placeholders",
+          "type": "boolean"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Placeholder Check",
+      "toolMeta": {
+        "cardinality": "bilingual",
+        "category": "quality",
+        "consumes": [
+          {
+            "side": "target",
+            "type": "target"
+          }
+        ],
+        "displayName": "Placeholder Check",
+        "id": "placeholder-check",
+        "produces": [
+          {
+            "side": "target",
+            "type": "qa"
+          }
+        ],
+        "requires": [
+          "target-language"
+        ],
+        "tags": [
+          "quality",
+          "l10n"
+        ]
+      },
+      "type": "object"
     }
   },
   {
@@ -1787,7 +2102,8 @@
         "tags": [
           "security",
           "redaction"
-        ]
+        ],
+        "writesOutput": true
       },
       "type": "object"
     }
@@ -1823,6 +2139,62 @@
         "file",
         "key"
       ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "remove-target",
+    "input_schema": {
+      "$id": "remove-target",
+      "properties": {
+        "filterByIDs": {
+          "default": true,
+          "description": "When true filter text units by ID; when false filter by target locale",
+          "title": "Filter by IDs",
+          "type": "boolean"
+        },
+        "removeBlockIfEmpty": {
+          "default": false,
+          "description": "Remove the text unit entirely if it has no remaining targets after removal",
+          "title": "Remove Empty Text Units",
+          "type": "boolean"
+        },
+        "targetLocale": {
+          "description": "Target locale to remove (if empty all targets are removed)",
+          "title": "Target Locale",
+          "type": "string"
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        },
+        "textUnitIDs": {
+          "description": "Comma-delimited list of text unit IDs whose targets should be removed; empty removes all targets",
+          "title": "Text Unit IDs for Removal",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Remove Target",
+      "toolMeta": {
+        "cardinality": "bilingual",
+        "category": "text-processing",
+        "displayName": "Remove Target",
+        "id": "remove-target",
+        "requires": [
+          "target-language"
+        ],
+        "tags": [
+          "l10n"
+        ],
+        "writesOutput": true
+      },
       "type": "object"
     }
   },
@@ -3006,7 +3378,8 @@
         "tags": [
           "security",
           "redaction"
-        ]
+        ],
+        "writesOutput": true
       },
       "type": "object"
     }
@@ -3177,6 +3550,69 @@
           "label": "Whitespace-types"
         }
       ]
+    }
+  },
+  {
+    "name": "xml-validation",
+    "input_schema": {
+      "$id": "xml-validation",
+      "properties": {
+        "checkSource": {
+          "default": true,
+          "description": "Validate source text for XML well-formedness",
+          "title": "Check Source",
+          "type": "boolean"
+        },
+        "checkTarget": {
+          "default": false,
+          "description": "Validate target text for XML well-formedness",
+          "title": "Check Target",
+          "type": "boolean"
+        },
+        "locale": {
+          "description": "Target locale for validation",
+          "title": "Target Locale",
+          "type": "string",
+          "ui:visible": {
+            "empty": false,
+            "field": "CheckTarget"
+          }
+        },
+        "target_lang": {
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project.",
+          "type": "string"
+        },
+        "text": {
+          "description": "The content (text) to run the tool over.",
+          "type": "string"
+        },
+        "wrapRoot": {
+          "default": true,
+          "description": "Wrap text in a root element before validating",
+          "title": "Wrap in Root Element",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "XML Validation",
+      "toolMeta": {
+        "cardinality": "monolingual",
+        "category": "quality",
+        "displayName": "XML Validation",
+        "id": "xml-validation",
+        "produces": [
+          {
+            "side": "target",
+            "type": "qa"
+          }
+        ],
+        "tags": [
+          "quality"
+        ]
+      },
+      "type": "object"
     }
   }
 ]

@@ -27,6 +27,25 @@ func (c *BatchConfig) Validate() error {
 	return nil
 }
 
+// NewBatchFromConfig creates a batch tool from a config map.
+//
+// Size is read once at construction, so a flow that asked for batches of 50 got
+// batches of 10 — the default — because the step's config was discarded (#1476).
+// batch stays Internal (it is pipeline plumbing, not a standalone command), but
+// internal and unconfigurable are different things: a flow may name it as a step
+// and must be able to size it. Monolingual: no locale to pin.
+func NewBatchFromConfig(config map[string]any, _ string) (tool.Tool, error) {
+	cfg := &BatchConfig{}
+	cfg.Reset()
+	if err := applyStepConfig("batch", config, cfg, "", nil); err != nil {
+		return nil, err
+	}
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+	return NewBatchTool(cfg), nil
+}
+
 // NewBatchTool creates a tool that collects blocks into batches.
 // Non-block parts pass through immediately. Blocks are buffered and
 // forwarded together every Size blocks, with a BatchAnnotation on the

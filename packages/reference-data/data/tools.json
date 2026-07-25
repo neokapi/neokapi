@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-25T12:23:00Z",
+  "generatedAt": "2026-07-25T14:07:26Z",
   "kind": "tool",
   "entries": [
     {
@@ -757,7 +757,8 @@
           "tags": [
             "batch"
           ],
-          "cardinality": "monolingual"
+          "cardinality": "monolingual",
+          "internal": true
         },
         "properties": {
           "size": {
@@ -833,7 +834,8 @@
               "type": "brand-voice",
               "side": "target"
             }
-          ]
+          ],
+          "internal": true
         }
       },
       "doc": {
@@ -986,7 +988,8 @@
           "requires": [
             "target-language"
           ],
-          "cardinality": "bilingual"
+          "cardinality": "bilingual",
+          "writesOutput": true
         },
         "properties": {
           "copySource": {
@@ -1208,6 +1211,14 @@
             "title": "Case-insensitive preservation",
             "description": "Accept a case-folded match in the target instead of requiring exact case",
             "default": false
+          },
+          "terms": {
+            "type": "array",
+            "title": "Do-Not-Translate Terms",
+            "description": "Strings that must survive verbatim into the target (product names",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -1299,7 +1310,8 @@
           "tags": [
             "configurable"
           ],
-          "cardinality": "monolingual"
+          "cardinality": "monolingual",
+          "writesOutput": true
         },
         "properties": {
           "applySource": {
@@ -1447,7 +1459,8 @@
           "tags": [
             "text-processing"
           ],
-          "cardinality": "monolingual"
+          "cardinality": "monolingual",
+          "writesOutput": true
         },
         "properties": {
           "applySource": {
@@ -1562,7 +1575,8 @@
           "id": "layer-processor",
           "category": "text-processing",
           "displayName": "Layer Processor",
-          "cardinality": "monolingual"
+          "cardinality": "monolingual",
+          "internal": true
         }
       },
       "doc": {
@@ -1616,7 +1630,8 @@
           "sideEffects": [
             "api-call",
             "remote-source-egress"
-          ]
+          ],
+          "writesOutput": true
         },
         "ui:groups": [
           {
@@ -1793,7 +1808,8 @@
           "tags": [
             "configurable"
           ],
-          "cardinality": "monolingual"
+          "cardinality": "monolingual",
+          "internal": true
         },
         "properties": {
           "onlyTranslatable": {
@@ -2926,7 +2942,8 @@
               "type": "redaction.secret"
             }
           ],
-          "recoverable": true
+          "recoverable": true,
+          "writesOutput": true
         },
         "properties": {
           "detectors": {
@@ -3045,7 +3062,8 @@
           "requires": [
             "target-language"
           ],
-          "cardinality": "bilingual"
+          "cardinality": "bilingual",
+          "writesOutput": true
         },
         "properties": {
           "filterByIDs": {
@@ -3915,7 +3933,8 @@
           "tags": [
             "text-processing"
           ],
-          "cardinality": "monolingual"
+          "cardinality": "monolingual",
+          "internal": true
         }
       },
       "doc": {
@@ -3954,7 +3973,8 @@
             "regex",
             "configurable"
           ],
-          "cardinality": "monolingual"
+          "cardinality": "monolingual",
+          "internal": true
         },
         "properties": {
           "patterns": {
@@ -4482,7 +4502,8 @@
               "type": "target",
               "side": "target"
             }
-          ]
+          ],
+          "writesOutput": true
         }
       },
       "doc": {

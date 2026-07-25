@@ -100,6 +100,12 @@ func RedactSchema() *schema.ComponentSchema {
 		Description: "Replace sensitive spans with protected placeholders before processing",
 		Tags:        []string{"security", "redaction"},
 		Cardinality: schema.Monolingual,
+		// The redacted content is the point, so `kapi exec redact` needs
+		// somewhere to put it. Without WritesOutput the command has no -o at all
+		// ("unknown shorthand flag: 'o'"), so it redacted in memory, exited 0, and
+		// wrote nothing — #1471 §3, caught here by the invariant that generalizes
+		// it (#1476).
+		WritesOutput: true,
 		// Recoverable transformer (AD-006): vaults the originals it removes and
 		// restores them via unredact, so the placement pass holds it to the
 		// remote-egress rule.

@@ -117,6 +117,20 @@ type ToolMeta struct {
 
 	// Aliases lists alternative CLI command names (e.g., "dnt" for "dnt-check").
 	Aliases []string `json:"aliases,omitempty"`
+
+	// Internal marks a pipeline-internal tool: a flow may still name it as a
+	// step and configure it, but it is not offered as a standalone
+	// `kapi exec <tool>` command, in `kapi tools list`, or on the MCP surface.
+	// Either its whole output is consumed by later steps in the same flow
+	// (properties and annotations no writer serializes), or its input comes
+	// from the host rather than from step config.
+	//
+	// It is declared, never inferred. Before this field, the absence of a
+	// ConfigFactory doubled as "internal": a tool that simply never registered
+	// one was indistinguishable from one deliberately withheld, and its step
+	// config was silently dropped either way (#1476). Withholding a tool from
+	// the CLI and dropping its configuration are now separate decisions.
+	Internal bool `json:"internal,omitempty"`
 }
 
 // StepMeta holds metadata for Okapi bridge pipeline steps. Parsed from the

@@ -72,6 +72,14 @@ func withAliases(aliases ...string) func(*schema.ToolMeta) {
 	return func(m *schema.ToolMeta) { m.Aliases = aliases }
 }
 
+// withInternal withholds a tool from `kapi exec` / `kapi tools list` / the MCP
+// surface. It says nothing about configurability — an internal tool still needs
+// a ConfigFactory if it declares settable schema fields, because a flow may name
+// it as a step. See schema.ToolMeta.Internal for why the two are separate.
+func withInternal() func(*schema.ToolMeta) {
+	return func(m *schema.ToolMeta) { m.Internal = true }
+}
+
 // toolSchema is a shorthand for generating a tool schema from a config struct.
 func toolSchema(cfg any, meta schema.ToolMeta) *schema.ComponentSchema {
 	return schema.FromStruct(cfg, meta)
@@ -104,8 +112,8 @@ func RegisterAll(reg *registry.ToolRegistry) {
 		withTags("quality", schema.TagL10n), withRequires("target-language", "termbase"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(srcF(model.OverlayTerm)), withSideEffects(schema.SideEffectTermsRead))))
 
 	reg.RegisterWithSchema("xml-validation", func() tool.Tool {
-		return NewXMLValidationTool(&XMLValidationConfig{CheckSource: true, WrapRoot: true})
-	}, toolSchema(&XMLValidationConfig{CheckSource: true, WrapRoot: true}, toolMeta("xml-validation", "XML Validation", schema.CategoryQuality,
+		return NewXMLValidationTool(NewXMLValidationConfig(""))
+	}, toolSchema(NewXMLValidationConfig(""), toolMeta("xml-validation", "XML Validation", schema.CategoryQuality,
 		withTags("quality"), withCardinality(schema.Monolingual), withProduces(tgtF(model.OverlayQA)))))
 
 	// ── Transform ───────────────────────────────────────────────────
@@ -138,25 +146,32 @@ func RegisterAll(reg *registry.ToolRegistry) {
 
 	RegisterSegmentation(reg)
 
+	// create-target / remove-target write and clear the target container, so
+	// they declare WritesOutput: `kapi exec` grows -o / --output-dir only for
+	// tools that do, and without it the exec run mutates the content in memory,
+	// exits 0, and writes nothing (#1471 §3).
 	reg.RegisterWithSchema("create-target", func() tool.Tool {
-		return NewCreateTargetTool(&CreateTargetConfig{CreateOnNonTranslatable: true})
-	}, toolSchema(&CreateTargetConfig{CreateOnNonTranslatable: true}, toolMeta("create-target", "Create Target", schema.CategoryTextProcessing,
-		withTags(schema.TagL10n), withRequires("target-language"), withCardinality(schema.Bilingual))))
+		return NewCreateTargetTool(NewCreateTargetConfig(""))
+	}, toolSchema(NewCreateTargetConfig(""), toolMeta("create-target", "Create Target", schema.CategoryTextProcessing,
+		withTags(schema.TagL10n), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual))))
 
 	reg.RegisterWithSchema("remove-target", func() tool.Tool {
-		return NewRemoveTargetTool(&RemoveTargetConfig{FilterByIDs: true})
-	}, toolSchema(&RemoveTargetConfig{FilterByIDs: true}, toolMeta("remove-target", "Remove Target", schema.CategoryTextProcessing,
-		withTags(schema.TagL10n), withRequires("target-language"), withCardinality(schema.Bilingual))))
+		return NewRemoveTargetTool(NewRemoveTargetConfig(""))
+	}, toolSchema(NewRemoveTargetConfig(""), toolMeta("remove-target", "Remove Target", schema.CategoryTextProcessing,
+		withTags(schema.TagL10n), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual))))
 
 	reg.RegisterWithSchema("inline-codes-remove", func() tool.Tool {
-		return NewInlineCodesRemoveTool(&InlineCodesRemoveConfig{ApplyTarget: true, IncludeNonTranslatable: true})
-	}, toolSchema(&InlineCodesRemoveConfig{ApplyTarget: true, IncludeNonTranslatable: true}, toolMeta("inline-codes-remove", "Inline Codes Remove", schema.CategoryTextProcessing,
-		withTags("text-processing"), withCardinality(schema.Monolingual))))
+		return NewInlineCodesRemoveTool(NewInlineCodesRemoveConfig(""))
+	}, toolSchema(NewInlineCodesRemoveConfig(""), toolMeta("inline-codes-remove", "Inline Codes Remove", schema.CategoryTextProcessing,
+		withTags("text-processing"), withWritesOutput(), withCardinality(schema.Monolingual))))
 
+	// properties-set writes arbitrary block properties. No writer serializes
+	// them — they exist for the steps downstream in the same flow — so it is a
+	// flow-internal step, not an `exec` command that could show a result.
 	reg.RegisterWithSchema("properties-set", func() tool.Tool {
-		return NewPropertiesSetTool(&PropertiesSetConfig{Overwrite: true, OnlyTranslatable: true})
-	}, toolSchema(&PropertiesSetConfig{Overwrite: true, OnlyTranslatable: true}, toolMeta("properties-set", "Properties Set", schema.CategoryTextProcessing,
-		withTags("configurable"), withCardinality(schema.Monolingual))))
+		return NewPropertiesSetTool(NewPropertiesSetConfig())
+	}, toolSchema(NewPropertiesSetConfig(), toolMeta("properties-set", "Properties Set", schema.CategoryTextProcessing,
+		withTags("configurable"), withCardinality(schema.Monolingual), withInternal())))
 
 	// withWritesOutput is what gives `kapi exec whitespace-correct` its -o /
 	// --output-dir flags. The tool rewrites the target, so without it the exec
@@ -168,10 +183,13 @@ func RegisterAll(reg *registry.ToolRegistry) {
 		toolMeta("whitespace-correct", "Whitespace Correct", schema.CategoryTextProcessing,
 			withTags("text-processing", schema.TagL10n), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual))))
 
+	// tag-protect marks spans for the steps downstream (an MT connector that must
+	// keep them). Like properties-set, its whole output is a block annotation no
+	// writer serializes, so it is a flow-internal step.
 	reg.RegisterWithSchema("tag-protect", func() tool.Tool {
 		return NewTagProtectTool(&TagProtectConfig{})
 	}, toolSchema(&TagProtectConfig{}, toolMeta("tag-protect", "Tag Protect", schema.CategoryTextProcessing,
-		withTags("regex", "configurable"), withCardinality(schema.Monolingual))))
+		withTags("regex", "configurable"), withCardinality(schema.Monolingual), withInternal())))
 
 	reg.RegisterWithSchema("redact", func() tool.Tool {
 		t, _ := NewRedactTool(&RedactConfig{Detectors: []string{DetectRules}})
@@ -206,24 +224,37 @@ func RegisterAll(reg *registry.ToolRegistry) {
 
 	// ── Pipeline ────────────────────────────────────────────────────
 
+	// span-classify normalizes inline-code types after a bridge reader. It has no
+	// settable parameters at all (SpanClassifyConfig is an empty struct), so it
+	// needs no config factory — and it is pipeline plumbing, so it is internal.
 	reg.RegisterWithSchema("span-classify", func() tool.Tool {
 		return NewSpanClassifyTool(&SpanClassifyConfig{})
 	}, toolSchema(&SpanClassifyConfig{}, toolMeta("span-classify", "Span Classify", schema.CategoryTextProcessing,
-		withTags("text-processing"), withCardinality(schema.Monolingual))))
+		withTags("text-processing"), withCardinality(schema.Monolingual), withInternal())))
 
+	// layer-processor's only parameter is a map of format → []tool.Tool, which no
+	// YAML can express (its own ApplyMap refuses), so it has no schema properties
+	// and no config factory. Programmatic, and internal.
 	reg.RegisterWithSchema("layer-processor", func() tool.Tool {
 		return NewLayerProcessorTool(&LayerProcessorConfig{})
 	}, &schema.ComponentSchema{ToolMeta: &schema.ToolMeta{
 		ID: "layer-processor", DisplayName: "Layer Processor", Category: schema.CategoryTextProcessing,
 		Cardinality: schema.Monolingual,
+		Internal:    true,
 	}})
 
+	// external-command rewrites the text with the output of the program it runs,
+	// so it declares WritesOutput.
 	reg.RegisterWithSchema("external-command", func() tool.Tool {
-		return NewExternalCommandTool(&ExternalCommandConfig{ApplyTarget: true, SendAsStdin: true, Timeout: 30})
-	}, toolSchema(&ExternalCommandConfig{ApplyTarget: true, SendAsStdin: true, Timeout: 30},
+		return NewExternalCommandTool(NewExternalCommandConfig(""))
+	}, toolSchema(NewExternalCommandConfig(""),
 		toolMeta("external-command", "External Command", schema.CategoryTextProcessing,
-			withTags("configurable"), withCardinality(schema.Monolingual))))
+			withTags("configurable"), withWritesOutput(), withCardinality(schema.Monolingual))))
 
+	// brand-vocab-check's input is a brand voice profile the host resolves from
+	// the project/brand pack, never from step config — hence no schema properties
+	// and no config factory. A recipe names it as a step (`kapi init` scaffolds
+	// exactly that); the standalone command is `kapi check --profile`.
 	reg.RegisterWithSchema("brand-vocab-check", func() tool.Tool {
 		return NewBrandVocabCheckTool(nil, nil)
 	}, &schema.ComponentSchema{ToolMeta: &schema.ToolMeta{
@@ -232,14 +263,17 @@ func RegisterAll(reg *registry.ToolRegistry) {
 		Consumes:    []schema.IOPort{{Type: schema.PortTarget, Side: model.SideTarget}},
 		Produces:    []schema.IOPort{{Type: model.AnnoBrandVoice, Side: model.SideTarget}},
 		Requires:    []string{"target-language"},
+		Internal:    true,
 	}})
 
 	// ── Utility ─────────────────────────────────────────────────────
 
+	// batch regroups parts for a downstream batching tool — plumbing, so internal,
+	// but its size is still a step's to choose (see NewBatchFromConfig).
 	reg.RegisterWithSchema("batch", func() tool.Tool {
 		return NewBatchTool(&BatchConfig{Size: 10})
 	}, toolSchema(&BatchConfig{Size: 10}, toolMeta("batch", "Batch Collector", schema.CategoryTextProcessing,
-		withTags("batch"), withCardinality(schema.Monolingual))))
+		withTags("batch"), withCardinality(schema.Monolingual), withInternal())))
 
 	reg.RegisterWithSchema("script", func() tool.Tool {
 		return NewScriptTool(&ScriptConfig{})
@@ -251,9 +285,25 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	registerConfigFactories(reg)
 }
 
+// registerConfigFactories attaches the config-map factory for every built-in
+// tool that declares settable schema fields.
+//
+// This list is not optional decoration. ToolRegistry.NewToolWithConfig applies a
+// step's `config:` map only through a ConfigFactory; with just the zero-arg
+// Factory it calls that and throws the map away without a word, and any locale
+// the zero-arg factory hardcoded stands whatever the run's --target-lang says.
+// A missing entry here also removes the tool from `kapi tools list`,
+// `kapi exec` and the MCP surface, because registry.CLITools requires a config
+// factory. Thirteen tools sat in that state (#1476).
+//
+// TestEveryConfigurableBuiltInToolHasAConfigFactory asserts this list is
+// complete over the populated registry, so the omission cannot recur silently.
 func registerConfigFactories(reg *registry.ToolRegistry) {
 	reg.SetConfigFactory("qa", NewQACheckFromConfig)
+	reg.SetConfigFactory("dnt-check", NewDNTCheckFromConfig)
+	reg.SetConfigFactory("placeholder-check", NewPlaceholderCheckFromConfig)
 	reg.SetConfigFactory("term-check", NewTermCheckFromConfig)
+	reg.SetConfigFactory("xml-validation", NewXMLValidationFromConfig)
 	reg.SetConfigFactory("encoding-detect", NewEncodingDetectFromConfig)
 	reg.SetConfigFactory("pseudo-translate", NewPseudoTranslateFromConfig)
 	reg.SetConfigFactory("redact", NewRedactFromConfig)
@@ -264,9 +314,18 @@ func registerConfigFactories(reg *registry.ToolRegistry) {
 	reg.SetConfigFactory("search-replace", NewSearchReplaceFromConfig)
 	reg.SetConfigFactory("case-transform", NewCaseTransformFromConfig)
 	reg.SetConfigFactory("whitespace-correct", NewWhitespaceCorrectFromConfig)
+	reg.SetConfigFactory("create-target", NewCreateTargetFromConfig)
+	reg.SetConfigFactory("remove-target", NewRemoveTargetFromConfig)
+	reg.SetConfigFactory("inline-codes-remove", NewInlineCodesRemoveFromConfig)
+	reg.SetConfigFactory("tag-protect", NewTagProtectFromConfig)
+	reg.SetConfigFactory("external-command", NewExternalCommandFromConfig)
 	// segmentation's ConfigFactory is set by RegisterGroup (it's a ToolGroup).
 	reg.SetConfigFactory("source-gate", NewSourceGateFromConfig)
 	reg.SetConfigFactory("recycle", NewMemoryLeverageFromConfig)
 	reg.SetConfigFactory("diff-leverage", NewDiffLeverageFromConfig)
 	reg.SetConfigFactory("script", NewScriptFromConfig)
+	// Internal tools (withInternal) still need their step config applied — being
+	// withheld from the CLI is not the same as being unconfigurable.
+	reg.SetConfigFactory("properties-set", NewPropertiesSetFromConfig)
+	reg.SetConfigFactory("batch", NewBatchFromConfig)
 }

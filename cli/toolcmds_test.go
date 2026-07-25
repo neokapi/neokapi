@@ -112,19 +112,30 @@ func TestNewToolCommands_GeneratesExpectedTools(t *testing.T) {
 		// from `kapi exec`, from `kapi tools list`, and from the MCP surface —
 		// unreachable except as an inner flow step whose config was dropped.
 		"whitespace-correct",
+		// The same registration, for the rest of the family (#1476). These four
+		// rewrite content, so they also declare WritesOutput — an exec run with
+		// nowhere to write is the other half of the same silence.
+		"create-target", "remove-target", "inline-codes-remove", "external-command",
+		"dnt-check", "placeholder-check", "xml-validation",
 	}
 	for _, name := range expectedTools {
 		assert.True(t, names[name], "expected CLI command for %q", name)
 	}
 
-	// Internal tools should NOT be present anywhere.
-	internalTools := []string{
-		"create-target", "remove-target", "layer-processor",
-		"span-classify", "batch",
+	// Internal tools are absent — and absent *because they say so*, not because
+	// someone forgot a config factory. The registry is the source of truth for
+	// which those are (schema.ToolMeta.Internal), so this reads the declaration
+	// rather than restating a list that could drift from it.
+	internal := 0
+	for _, info := range app.ToolReg.ListWithSchemas() {
+		if !info.Internal {
+			continue
+		}
+		internal++
+		assert.False(t, names[string(info.Name)],
+			"tool %q declares itself internal, so it must not be a CLI command", info.Name)
 	}
-	for _, name := range internalTools {
-		assert.False(t, names[name], "internal tool %q should not be a CLI command", name)
-	}
+	assert.Positive(t, internal, "the internal set must not be empty — it is a real distinction")
 }
 
 // The old localization/analysis help-group routing retired with the curated
@@ -154,9 +165,21 @@ func execChildren(t *testing.T, app *App) map[string]*cobra.Command {
 // grows -o / --output-dir only for tools that declare WritesOutput, so a
 // content-rewriting tool without it corrects the content in memory, exits 0,
 // and writes nothing — the same silent success as the defects in #1471.
+// The tool-side invariant (a content-rewriting tool must declare WritesOutput at
+// all) is asserted generically over the registry in
+// core/tools.TestContentRewritingCLIToolsDeclareWritesOutput; this one holds the
+// CLI end — that the declaration actually becomes an -o on the exec command.
 func TestExecContentWritingToolsExposeAnOutput(t *testing.T) {
 	tools := execChildren(t, newTestApp())
-	for _, name := range []string{"whitespace-correct", "pseudo-translate", "case-transform", "search-replace", "recycle"} {
+	for _, name := range []string{
+		"whitespace-correct", "pseudo-translate", "case-transform", "search-replace", "recycle",
+		// #1476: registering these made them CLI-visible for the first time, which
+		// is when "and it has nowhere to write" becomes reachable. redact,
+		// unredact and media-refine were already visible and already had nowhere —
+		// found by the generic invariant, not by inspection.
+		"create-target", "remove-target", "inline-codes-remove", "external-command",
+		"redact", "unredact", "media-refine",
+	} {
 		cmd := tools[name]
 		require.NotNil(t, cmd, "expected `exec %s`", name)
 		assert.NotNil(t, cmd.Flags().Lookup("output"),
@@ -164,6 +187,19 @@ func TestExecContentWritingToolsExposeAnOutput(t *testing.T) {
 		assert.NotNil(t, cmd.Flags().Lookup("output-dir"),
 			"`exec %s` rewrites content, so it must accept --output-dir", name)
 	}
+}
+
+// A check whose verdict depends entirely on one input must be able to receive
+// it. dnt-check's Terms list was hidden from the schema (`schema:"-"`), so the
+// generated command had no --terms flag at all: `kapi exec dnt-check` could only
+// ever run with an empty list, which is a do-not-translate check that cannot
+// fail. Visibility without the decisive input is not reachability (#1476).
+func TestExecChecksAcceptTheirDecisiveInput(t *testing.T) {
+	tools := execChildren(t, newTestApp())
+	dnt := tools["dnt-check"]
+	require.NotNil(t, dnt, "expected `exec dnt-check`")
+	assert.NotNil(t, dnt.Flags().Lookup("terms"),
+		"`exec dnt-check` checks nothing without its terms, so --terms must exist")
 }
 
 func TestRecycleAlias(t *testing.T) {

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-25T12:23:00Z",
+  "generatedAt": "2026-07-25T14:07:26Z",
   "commands": [
     {
       "id": "add",
@@ -1651,6 +1651,140 @@
       "demoMode": false
     },
     {
+      "id": "exec.create-target",
+      "path": [
+        "exec",
+        "create-target"
+      ],
+      "use": "create-target [files...]",
+      "short": "Create Target",
+      "flags": [
+        {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "max parallel files (0 = auto)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "copy-source",
+          "usage": "Copy the source runs into the new target",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "create-on-non-translatable",
+          "usage": "Create a target even for non-translatable text units",
+          "default": "true",
+          "type": "bool"
+        },
+        {
+          "name": "encoding",
+          "shorthand": "e",
+          "usage": "input file encoding",
+          "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "fail-on-unknown",
+          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "override input format detection",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "output results as JSON",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "map",
+          "shorthand": "m",
+          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "no-warn",
+          "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "output",
+          "shorthand": "o",
+          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "type": "string"
+        },
+        {
+          "name": "output-dir",
+          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "type": "string"
+        },
+        {
+          "name": "overwrite",
+          "usage": "Overwrite the existing target if one already exists",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "parallel-blocks",
+          "usage": "fan out block processing across N goroutines (0 = off)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "progress",
+          "shorthand": "p",
+          "usage": "show progress bar",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US)",
+          "default": "en",
+          "type": "string"
+        },
+        {
+          "name": "strict",
+          "usage": "alias for --fail-on-unknown",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "target-lang",
+          "usage": "target language (e.g. fr, de-DE)",
+          "type": "string"
+        },
+        {
+          "name": "target-locale",
+          "usage": "Target locale to create",
+          "type": "string"
+        },
+        {
+          "name": "trace",
+          "usage": "write flow trace JSON to file (for flow visualization)",
+          "type": "string"
+        }
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
       "id": "exec.diff-leverage",
       "path": [
         "exec",
@@ -1762,6 +1896,121 @@
           "name": "target-lang",
           "usage": "target language (e.g. fr, de-DE)",
           "type": "string"
+        },
+        {
+          "name": "trace",
+          "usage": "write flow trace JSON to file (for flow visualization)",
+          "type": "string"
+        }
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "exec.dnt-check",
+      "path": [
+        "exec",
+        "dnt-check"
+      ],
+      "use": "dnt-check [files...]",
+      "short": "Do-Not-Translate Check",
+      "aliases": [
+        "dnt"
+      ],
+      "flags": [
+        {
+          "name": "case-insensitive",
+          "usage": "Accept a case-folded match in the target instead of requiring exact case",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "max parallel files (0 = auto)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "encoding",
+          "shorthand": "e",
+          "usage": "input file encoding",
+          "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "fail-on-unknown",
+          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "override input format detection",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "output results as JSON",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "map",
+          "shorthand": "m",
+          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "no-warn",
+          "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "parallel-blocks",
+          "usage": "fan out block processing across N goroutines (0 = off)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "progress",
+          "shorthand": "p",
+          "usage": "show progress bar",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US)",
+          "default": "en",
+          "type": "string"
+        },
+        {
+          "name": "strict",
+          "usage": "alias for --fail-on-unknown",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "target-lang",
+          "usage": "target language (e.g. fr, de-DE)",
+          "type": "string"
+        },
+        {
+          "name": "terms",
+          "usage": "Strings that must survive verbatim into the target (product names",
+          "default": "[]",
+          "type": "stringSlice"
         },
         {
           "name": "trace",
@@ -2024,6 +2273,297 @@
       "demoMode": true
     },
     {
+      "id": "exec.external-command",
+      "path": [
+        "exec",
+        "external-command"
+      ],
+      "use": "external-command [files...]",
+      "short": "External Command",
+      "flags": [
+        {
+          "name": "apply-source",
+          "usage": "Process source text",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "apply-target",
+          "usage": "Process target text",
+          "default": "true",
+          "type": "bool"
+        },
+        {
+          "name": "args",
+          "usage": "Command arguments; use ${source} and ${target} as placeholders",
+          "default": "[]",
+          "type": "stringSlice"
+        },
+        {
+          "name": "command",
+          "usage": "The command to execute",
+          "type": "string"
+        },
+        {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "max parallel files (0 = auto)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "encoding",
+          "shorthand": "e",
+          "usage": "input file encoding",
+          "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "fail-on-unknown",
+          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "override input format detection",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "output results as JSON",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "map",
+          "shorthand": "m",
+          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "no-warn",
+          "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "output",
+          "shorthand": "o",
+          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "type": "string"
+        },
+        {
+          "name": "output-dir",
+          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "type": "string"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "parallel-blocks",
+          "usage": "fan out block processing across N goroutines (0 = off)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "progress",
+          "shorthand": "p",
+          "usage": "show progress bar",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "send-as-stdin",
+          "usage": "Send text via stdin instead of command arguments",
+          "default": "true",
+          "type": "bool"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US)",
+          "default": "en",
+          "type": "string"
+        },
+        {
+          "name": "strict",
+          "usage": "alias for --fail-on-unknown",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "target-lang",
+          "usage": "target language (e.g. fr, de-DE)",
+          "type": "string"
+        },
+        {
+          "name": "target-locale",
+          "usage": "Target locale for processing",
+          "type": "string"
+        },
+        {
+          "name": "timeout",
+          "usage": "Timeout in seconds",
+          "default": "30",
+          "type": "int"
+        },
+        {
+          "name": "trace",
+          "usage": "write flow trace JSON to file (for flow visualization)",
+          "type": "string"
+        }
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "exec.inline-codes-remove",
+      "path": [
+        "exec",
+        "inline-codes-remove"
+      ],
+      "use": "inline-codes-remove [files...]",
+      "short": "Inline Codes Remove",
+      "flags": [
+        {
+          "name": "apply-source",
+          "usage": "Apply to the source text",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "apply-target",
+          "usage": "Apply to the target text",
+          "default": "true",
+          "type": "bool"
+        },
+        {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "max parallel files (0 = auto)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "encoding",
+          "shorthand": "e",
+          "usage": "input file encoding",
+          "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "fail-on-unknown",
+          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "override input format detection",
+          "type": "string"
+        },
+        {
+          "name": "include-non-translatable",
+          "usage": "Apply the removal action even to text units marked as non-translatable",
+          "default": "true",
+          "type": "bool"
+        },
+        {
+          "name": "json",
+          "usage": "output results as JSON",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "map",
+          "shorthand": "m",
+          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "no-warn",
+          "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "output",
+          "shorthand": "o",
+          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "type": "string"
+        },
+        {
+          "name": "output-dir",
+          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "type": "string"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "parallel-blocks",
+          "usage": "fan out block processing across N goroutines (0 = off)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "progress",
+          "shorthand": "p",
+          "usage": "show progress bar",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "replace-with-space",
+          "usage": "Replace line-break inline codes with spaces instead of removing them entirely",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US)",
+          "default": "en",
+          "type": "string"
+        },
+        {
+          "name": "strict",
+          "usage": "alias for --fail-on-unknown",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "target-lang",
+          "usage": "target language (e.g. fr, de-DE)",
+          "type": "string"
+        },
+        {
+          "name": "target-locale",
+          "usage": "Target locale for processing",
+          "type": "string"
+        },
+        {
+          "name": "trace",
+          "usage": "write flow trace JSON to file (for flow visualization)",
+          "type": "string"
+        }
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
       "id": "exec.media-refine",
       "path": [
         "exec",
@@ -2093,6 +2633,17 @@
           "type": "bool"
         },
         {
+          "name": "output",
+          "shorthand": "o",
+          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "type": "string"
+        },
+        {
+          "name": "output-dir",
+          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "type": "string"
+        },
+        {
           "name": "pack",
           "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
@@ -2149,6 +2700,112 @@
       "offlineCapable": false,
       "runnableInBrowser": true,
       "demoMode": true
+    },
+    {
+      "id": "exec.placeholder-check",
+      "path": [
+        "exec",
+        "placeholder-check"
+      ],
+      "use": "placeholder-check [files...]",
+      "short": "Placeholder Check",
+      "flags": [
+        {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "max parallel files (0 = auto)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "encoding",
+          "shorthand": "e",
+          "usage": "input file encoding",
+          "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "fail-on-unknown",
+          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "flag-extra",
+          "usage": "Report placeholders present in the target but absent from the source",
+          "default": "true",
+          "type": "bool"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "override input format detection",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "output results as JSON",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "map",
+          "shorthand": "m",
+          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "no-warn",
+          "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "parallel-blocks",
+          "usage": "fan out block processing across N goroutines (0 = off)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "progress",
+          "shorthand": "p",
+          "usage": "show progress bar",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US)",
+          "default": "en",
+          "type": "string"
+        },
+        {
+          "name": "strict",
+          "usage": "alias for --fail-on-unknown",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "target-lang",
+          "usage": "target language (e.g. fr, de-DE)",
+          "type": "string"
+        },
+        {
+          "name": "trace",
+          "usage": "write flow trace JSON to file (for flow visualization)",
+          "type": "string"
+        }
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
     },
     {
       "id": "exec.pseudo-translate",
@@ -2877,6 +3534,17 @@
           "type": "bool"
         },
         {
+          "name": "output",
+          "shorthand": "o",
+          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "type": "string"
+        },
+        {
+          "name": "output-dir",
+          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "type": "string"
+        },
+        {
           "name": "pack",
           "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
@@ -2920,6 +3588,139 @@
         {
           "name": "target-lang",
           "usage": "target language (e.g. fr, de-DE)",
+          "type": "string"
+        },
+        {
+          "name": "trace",
+          "usage": "write flow trace JSON to file (for flow visualization)",
+          "type": "string"
+        }
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "exec.remove-target",
+      "path": [
+        "exec",
+        "remove-target"
+      ],
+      "use": "remove-target [files...]",
+      "short": "Remove Target",
+      "flags": [
+        {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "max parallel files (0 = auto)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "encoding",
+          "shorthand": "e",
+          "usage": "input file encoding",
+          "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "fail-on-unknown",
+          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "filter-by-i-ds",
+          "usage": "When true filter text units by ID; when false filter by target locale",
+          "default": "true",
+          "type": "bool"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "override input format detection",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "output results as JSON",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "map",
+          "shorthand": "m",
+          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "no-warn",
+          "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "output",
+          "shorthand": "o",
+          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "type": "string"
+        },
+        {
+          "name": "output-dir",
+          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "type": "string"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "parallel-blocks",
+          "usage": "fan out block processing across N goroutines (0 = off)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "progress",
+          "shorthand": "p",
+          "usage": "show progress bar",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "remove-block-if-empty",
+          "usage": "Remove the text unit entirely if it has no remaining targets after removal",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US)",
+          "default": "en",
+          "type": "string"
+        },
+        {
+          "name": "strict",
+          "usage": "alias for --fail-on-unknown",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "target-lang",
+          "usage": "target language (e.g. fr, de-DE)",
+          "type": "string"
+        },
+        {
+          "name": "target-locale",
+          "usage": "Target locale to remove (if empty all targets are removed)",
+          "type": "string"
+        },
+        {
+          "name": "text-unit-i-ds",
+          "usage": "Comma-delimited list of text unit IDs whose targets should be removed; empty removes all targets",
           "type": "string"
         },
         {
@@ -4144,6 +4945,17 @@
           "type": "bool"
         },
         {
+          "name": "output",
+          "shorthand": "o",
+          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "type": "string"
+        },
+        {
+          "name": "output-dir",
+          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "type": "string"
+        },
+        {
           "name": "pack",
           "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
           "default": "false",
@@ -4364,6 +5176,129 @@
           "name": "trim-trailing",
           "usage": "Remove trailing whitespace from target text",
           "default": "false",
+          "type": "bool"
+        }
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "exec.xml-validation",
+      "path": [
+        "exec",
+        "xml-validation"
+      ],
+      "use": "xml-validation [files...]",
+      "short": "XML Validation",
+      "flags": [
+        {
+          "name": "check-source",
+          "usage": "Validate source text for XML well-formedness",
+          "default": "true",
+          "type": "bool"
+        },
+        {
+          "name": "check-target",
+          "usage": "Validate target text for XML well-formedness",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "max parallel files (0 = auto)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "encoding",
+          "shorthand": "e",
+          "usage": "input file encoding",
+          "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "fail-on-unknown",
+          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "override input format detection",
+          "type": "string"
+        },
+        {
+          "name": "json",
+          "usage": "output results as JSON",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "locale",
+          "usage": "Target locale for validation",
+          "type": "string"
+        },
+        {
+          "name": "map",
+          "shorthand": "m",
+          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "no-warn",
+          "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "parallel-blocks",
+          "usage": "fan out block processing across N goroutines (0 = off)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "progress",
+          "shorthand": "p",
+          "usage": "show progress bar",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US)",
+          "default": "en",
+          "type": "string"
+        },
+        {
+          "name": "strict",
+          "usage": "alias for --fail-on-unknown",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "target-lang",
+          "usage": "target language (e.g. fr, de-DE)",
+          "type": "string"
+        },
+        {
+          "name": "trace",
+          "usage": "write flow trace JSON to file (for flow visualization)",
+          "type": "string"
+        },
+        {
+          "name": "wrap-root",
+          "usage": "Wrap text in a root element before validating",
+          "default": "true",
           "type": "bool"
         }
       ],

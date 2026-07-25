@@ -7,7 +7,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -17,7 +16,12 @@ type DNTCheckConfig struct {
 	// Terms are the do-not-translate strings (product names, trademarks, code
 	// identifiers) that must survive verbatim into the target. Sourced from the
 	// recipe or a checkset; the terms store can supply more.
-	Terms []string `json:"terms,omitempty" schema:"-"`
+	//
+	// Schema-visible, because it is the only input that makes the check do
+	// anything: hidden from the schema it had no CLI flag, so `kapi exec
+	// dnt-check` could only ever run with an empty list — a check that cannot
+	// fail. `kapi check --dnt` is the same list on the porcelain verb.
+	Terms []string `json:"terms,omitempty" schema:"title=Do-Not-Translate Terms,description=Strings that must survive verbatim into the target (product names, trademarks, identifiers)"`
 	// CaseInsensitive accepts a case-folded match in the target. Off by default:
 	// do-not-translate is usually case-sensitive ("iPhone", not "Iphone").
 	CaseInsensitive bool `json:"caseInsensitive,omitempty" schema:"title=Case-insensitive preservation,description=Accept a case-folded match in the target instead of requiring exact case"`
@@ -47,16 +51,21 @@ func NewDNTCheckConfig(targetLocale model.LocaleID) *DNTCheckConfig {
 }
 
 // NewDNTCheckFromConfig creates a dnt-check tool from a config map.
+//
+// The Terms list is the tool's entire behaviour, and it can only arrive here.
+// Written but never registered as the registry's ConfigFactory, dnt-check ran
+// from every flow with no terms at all and an `en` target locale — a
+// do-not-translate guardrail that could not fail, which is worse than none
+// because it reports reassurance (#1476).
 func NewDNTCheckFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	cfg := NewDNTCheckConfig(model.LocaleID(targetLang))
-	if err := schema.ApplyConfig(config, cfg); err != nil {
-		return nil, fmt.Errorf("dnt-check config: %w", err)
-	}
-	if targetLang != "" {
-		cfg.TargetLocale = model.LocaleID(targetLang)
+	if err := applyStepConfig("dnt-check", config, cfg, targetLang, setDNTCheckLocale); err != nil {
+		return nil, err
 	}
 	return NewDNTCheckTool(cfg), nil
 }
+
+func setDNTCheckLocale(c *DNTCheckConfig, loc model.LocaleID) { c.TargetLocale = loc }
 
 // NewDNTCheckTool creates a do-not-translate checker: for every configured term
 // that appears in the source as a whole word, it verifies the term survives

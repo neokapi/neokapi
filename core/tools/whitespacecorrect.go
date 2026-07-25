@@ -2,13 +2,11 @@ package tools
 
 import (
 	"errors"
-	"fmt"
 	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -83,15 +81,14 @@ func NewWhitespaceCorrectConfig(targetLocale model.LocaleID) *WhitespaceCorrectC
 // English regardless of what the run was for.
 func NewWhitespaceCorrectFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	cfg := NewWhitespaceCorrectConfig(model.LocaleID(targetLang))
-	if err := schema.ApplyConfig(config, cfg); err != nil {
-		return nil, fmt.Errorf("whitespace-correct config: %w", err)
-	}
-	// The run's target language wins over a locale spelled in the step config:
-	// the same flow has to serve every locale it is run for.
-	if targetLang != "" {
-		cfg.TargetLocale = model.LocaleID(targetLang)
+	if err := applyStepConfig("whitespace-correct", config, cfg, targetLang, setWhitespaceCorrectLocale); err != nil {
+		return nil, err
 	}
 	return NewWhitespaceCorrectTool(cfg), nil
+}
+
+func setWhitespaceCorrectLocale(c *WhitespaceCorrectConfig, loc model.LocaleID) {
+	c.TargetLocale = loc
 }
 
 // NewWhitespaceCorrectTool creates a tool that normalizes and fixes whitespace

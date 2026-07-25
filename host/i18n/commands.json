@@ -109,8 +109,14 @@
             "example": "  kapi case-transform messages.json --mode upper\n  kapi case-transform messages.json --mode lower",
             "short": "Case Transform"
           },
+          "create-target": {
+            "short": "Create Target"
+          },
           "diff-leverage": {
             "short": "Diff Leverage"
+          },
+          "dnt-check": {
+            "short": "Do-Not-Translate Check"
           },
           "encoding-detect": {
             "short": "Encoding Detect"
@@ -118,9 +124,18 @@
           "entity-extract": {
             "short": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both"
           },
+          "external-command": {
+            "short": "External Command"
+          },
+          "inline-codes-remove": {
+            "short": "Inline Codes Remove"
+          },
           "long": "Execute any CLI-visible registry tool on files — one tool, one pass, no\nguardrails around it. The top-level verbs are porcelain workflows over this\nlayer: 'kapi translate' wraps recycle → translate → checks, 'kapi up'\nbrings a whole project up to date, 'kapi check' verifies, 'kapi stats' measures.\nReach for exec when you want exactly one tool's behavior — a bare\n'exec translate' with no Memory pass, a single 'exec term-check', a format\nconverter. The verb pairs with 'kapi run \u003cflow\u003e' the way 'kapi tools' pairs\nwith 'kapi flows': run composes a pipeline, exec executes one tool.\n\nDiscover tools and their options with 'kapi tools list' and\n'kapi tools schema \u003cname\u003e'.",
           "media-refine": {
             "short": "Re-read low-confidence OCR/ASR lines with a configurable multimodal LLM"
+          },
+          "placeholder-check": {
+            "short": "Placeholder Check"
           },
           "pseudo-translate": {
             "example": "  kapi pseudo-translate messages.json -o messages.pseudo.json\n  kapi pseudo-translate app.xliff -o app.pseudo.xliff --target-lang qps",
@@ -136,6 +151,9 @@
           },
           "redact": {
             "short": "Replace sensitive spans with protected placeholders before processing"
+          },
+          "remove-target": {
+            "short": "Remove Target"
           },
           "review": {
             "example": "  kapi review app.xliff --target-lang fr\n  kapi review messages.json --target-lang de",
@@ -173,6 +191,9 @@
           },
           "whitespace-correct": {
             "short": "Whitespace Correct"
+          },
+          "xml-validation": {
+            "short": "XML Validation"
           }
         },
         "extract": {

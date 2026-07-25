@@ -34,6 +34,29 @@ func (c *CreateTargetConfig) Validate() error {
 	return nil
 }
 
+// NewCreateTargetConfig creates a CreateTargetConfig at its documented defaults
+// for the given target locale.
+func NewCreateTargetConfig(targetLocale model.LocaleID) *CreateTargetConfig {
+	cfg := &CreateTargetConfig{}
+	cfg.Reset()
+	cfg.TargetLocale = targetLocale
+	return cfg
+}
+
+// NewCreateTargetFromConfig creates a create-target tool from a config map.
+// Without it the tool's target locale came from a zero-arg factory that left it
+// empty, so `create-target` from a flow wrote its container under the empty
+// locale, and `copySource` / `overwrite` were discarded (#1476).
+func NewCreateTargetFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	cfg := NewCreateTargetConfig(model.LocaleID(targetLang))
+	if err := applyStepConfig("create-target", config, cfg, targetLang, setCreateTargetLocale); err != nil {
+		return nil, err
+	}
+	return NewCreateTargetTool(cfg), nil
+}
+
+func setCreateTargetLocale(c *CreateTargetConfig, loc model.LocaleID) { c.TargetLocale = loc }
+
 // NewCreateTargetTool creates a new create-target tool.
 // It creates a target for blocks, optionally copying the source runs.
 func NewCreateTargetTool(cfg *CreateTargetConfig) *tool.BaseTool {

@@ -8,7 +8,6 @@ import (
 
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -51,16 +50,19 @@ func NewPlaceholderCheckConfig(targetLocale model.LocaleID) *PlaceholderCheckCon
 }
 
 // NewPlaceholderCheckFromConfig creates a placeholder-check tool from a config map.
+//
+// Also written but never registered (#1476): from a flow the tool was pinned to
+// an `en` target, so the check that exists to catch a dropped `{count}` in a
+// translation never looked at one.
 func NewPlaceholderCheckFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	cfg := NewPlaceholderCheckConfig(model.LocaleID(targetLang))
-	if err := schema.ApplyConfig(config, cfg); err != nil {
-		return nil, fmt.Errorf("placeholder-check config: %w", err)
-	}
-	if targetLang != "" {
-		cfg.TargetLocale = model.LocaleID(targetLang)
+	if err := applyStepConfig("placeholder-check", config, cfg, targetLang, setPlaceholderCheckLocale); err != nil {
+		return nil, err
 	}
 	return NewPlaceholderCheckTool(cfg), nil
 }
+
+func setPlaceholderCheckLocale(c *PlaceholderCheckConfig, loc model.LocaleID) { c.TargetLocale = loc }
 
 // NewPlaceholderCheckTool creates a checker that verifies every interpolation
 // placeholder in the source survives, by count, into the target: a dropped

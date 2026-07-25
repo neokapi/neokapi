@@ -139,6 +139,28 @@
         }
       }
     },
+    "create-target": {
+      "displayName": "Create Target",
+      "category": "text-processing",
+      "properties": {
+        "copySource": {
+          "title": "Copy Source",
+          "description": "Copy the source runs into the new target"
+        },
+        "createOnNonTranslatable": {
+          "title": "Create on Non-Translatable",
+          "description": "Create a target even for non-translatable text units"
+        },
+        "overwrite": {
+          "title": "Overwrite Existing",
+          "description": "Overwrite the existing target if one already exists"
+        },
+        "targetLocale": {
+          "title": "Target Locale",
+          "description": "Target locale to create"
+        }
+      }
+    },
     "diff-leverage": {
       "displayName": "Diff Leverage",
       "category": "translation",
@@ -150,6 +172,20 @@
         "fuzzyMatch": {
           "title": "Fuzzy Match",
           "description": "Enable fuzzy matching for similar texts"
+        }
+      }
+    },
+    "dnt-check": {
+      "displayName": "Do-Not-Translate Check",
+      "category": "quality",
+      "properties": {
+        "caseInsensitive": {
+          "title": "Case-insensitive preservation",
+          "description": "Accept a case-folded match in the target instead of requiring exact case"
+        },
+        "terms": {
+          "title": "Do-Not-Translate Terms",
+          "description": "Strings that must survive verbatim into the target (product names"
         }
       }
     },
@@ -242,6 +278,66 @@
         }
       }
     },
+    "external-command": {
+      "displayName": "External Command",
+      "category": "text-processing",
+      "properties": {
+        "applySource": {
+          "title": "Apply to Source",
+          "description": "Process source text"
+        },
+        "applyTarget": {
+          "title": "Apply to Target",
+          "description": "Process target text"
+        },
+        "args": {
+          "title": "Arguments",
+          "description": "Command arguments; use ${source} and ${target} as placeholders"
+        },
+        "command": {
+          "title": "Command Line",
+          "description": "The command to execute"
+        },
+        "sendAsStdin": {
+          "title": "Send as Stdin",
+          "description": "Send text via stdin instead of command arguments"
+        },
+        "targetLocale": {
+          "title": "Target Locale",
+          "description": "Target locale for processing"
+        },
+        "timeout": {
+          "title": "Timeout",
+          "description": "Timeout in seconds"
+        }
+      }
+    },
+    "inline-codes-remove": {
+      "displayName": "Inline Codes Remove",
+      "category": "text-processing",
+      "properties": {
+        "applySource": {
+          "title": "Apply to Source",
+          "description": "Apply to the source text"
+        },
+        "applyTarget": {
+          "title": "Apply to Target",
+          "description": "Apply to the target text"
+        },
+        "includeNonTranslatable": {
+          "title": "Include Non-Translatable",
+          "description": "Apply the removal action even to text units marked as non-translatable"
+        },
+        "replaceWithSpace": {
+          "title": "Replace With Space",
+          "description": "Replace line-break inline codes with spaces instead of removing them entirely"
+        },
+        "targetLocale": {
+          "title": "Target Locale",
+          "description": "Target locale for processing"
+        }
+      }
+    },
     "media-refine": {
       "displayName": "Media Refine",
       "description": "Re-read low-confidence OCR/ASR lines with a configurable multimodal LLM",
@@ -290,6 +386,16 @@
       "groups": {
         "provider": {
           "label": "Provider"
+        }
+      }
+    },
+    "placeholder-check": {
+      "displayName": "Placeholder Check",
+      "category": "quality",
+      "properties": {
+        "flagExtra": {
+          "title": "Flag extra placeholders",
+          "description": "Report placeholders present in the target but absent from the source"
         }
       }
     },
@@ -603,6 +709,28 @@
         "rulesPath": {
           "title": "Rules File",
           "description": "Path to a redaction rules YAML file"
+        }
+      }
+    },
+    "remove-target": {
+      "displayName": "Remove Target",
+      "category": "text-processing",
+      "properties": {
+        "filterByIDs": {
+          "title": "Filter by IDs",
+          "description": "When true filter text units by ID; when false filter by target locale"
+        },
+        "removeBlockIfEmpty": {
+          "title": "Remove Empty Text Units",
+          "description": "Remove the text unit entirely if it has no remaining targets after removal"
+        },
+        "targetLocale": {
+          "title": "Target Locale",
+          "description": "Target locale to remove (if empty all targets are removed)"
+        },
+        "textUnitIDs": {
+          "title": "Text Unit IDs for Removal",
+          "description": "Comma-delimited list of text unit IDs whose targets should be removed; empty removes all targets"
         }
       }
     },
@@ -1072,6 +1200,28 @@
         },
         "whitespace-types": {
           "label": "Whitespace-types"
+        }
+      }
+    },
+    "xml-validation": {
+      "displayName": "XML Validation",
+      "category": "quality",
+      "properties": {
+        "checkSource": {
+          "title": "Check Source",
+          "description": "Validate source text for XML well-formedness"
+        },
+        "checkTarget": {
+          "title": "Check Target",
+          "description": "Validate target text for XML well-formedness"
+        },
+        "locale": {
+          "title": "Target Locale",
+          "description": "Target locale for validation"
+        },
+        "wrapRoot": {
+          "title": "Wrap in Root Element",
+          "description": "Wrap text in a root element before validating"
         }
       }
     }
