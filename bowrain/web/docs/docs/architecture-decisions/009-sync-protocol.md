@@ -9,7 +9,7 @@ title: "AD-009: Sync Protocol"
 ## Summary
 
 The sync protocol is Bowrain's single, extensible transport for project
-data — blocks, terms, TM entries, media, QA results, and automation
+data — blocks, terms, content memory entries, media, QA results, and automation
 outputs. It uses a two-level Merkle tree for minimal-transfer diff
 negotiation, a typed `SyncChunk` envelope for extensibility, zstd
 compression (with an optional, not-yet-shipped dictionary hook),
@@ -23,7 +23,7 @@ transaction per item.
 
 The sync protocol is the primary data exchange path between bowrain CLI,
 bowrain-server, and any other client that speaks to the platform. It
-carries the full Block model (not just text), terminology, TM, binary
+carries the full Block model (not just text), terminology, content memory, binary
 assets, and automation results. It must scale to 100K+ blocks per
 project, survive unreliable networks, detect concurrent writes, and stay
 extensible as new content types arrive.
@@ -116,7 +116,7 @@ message SyncPushInit {
   // Fast path: root hash of all item hashes
   string root_hash = 5;
 
-  // Terms/TM have their own collection hashes
+  // Terms and content memory have their own collection hashes
   string terms_hash = 6;
   string tm_hash = 7;
 }
@@ -524,7 +524,7 @@ deployments pass `AZURE_STORAGE_ACCOUNT_URL` and
   to `SyncChunk` and a worker handler, with no transport changes.
 - The full Block model survives the sync boundary — annotations,
   properties, skeleton, display hints, and connector data all round-trip.
-- Terminology, TM, and binary assets sync through the same protocol.
+- Terminology, content memory, and binary assets sync through the same protocol.
 - Per-chunk zstd reduces transfer and storage costs; an optional trained
   dictionary is supported by the compression pool but not yet shipped.
 - Async ingestion keeps the API responsive under any push load; the
@@ -537,4 +537,4 @@ deployments pass `AZURE_STORAGE_ACCOUNT_URL` and
 - [AD-005: Streams](005-streams.md)
 - [AD-007: Media and Blob Storage](007-media-and-blob-storage.md)
 - [AD-008: Connector System](008-connector-system.md)
-- [AD-framework-002: Content Model](https://neokapi.github.io/web/neokapi/contribute/architecture/002-content-model)
+- [AD-framework-002: Content Model](https://neokapi.github.io/contribute/architecture/002-content-model)

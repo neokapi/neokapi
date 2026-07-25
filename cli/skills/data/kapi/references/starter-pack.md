@@ -87,7 +87,7 @@ Bind the pack in the recipe:
 defaults:
   brand_voice:
     profile_file: brand.yaml   # file binding, so `kapi apply` brand rules land in it
-  terms: .kapi/termbase.db
+  termbase: .kapi/termbase.db   # the bound terms store
 content:
   - path: "docs/**/*.md"
     format: markdown
@@ -99,8 +99,8 @@ Materialize the terminology seed, now that the project exists:
 # preferred: term entries — maintains the committed l10n/termbase.ktb source
 # and compiles the .kapi/termbase.db cache in one verb
 kapi apply terms.jsonl
-# bulk path for a handed-over glossary file (csv, tsv, json, tbx, ktb):
-kapi terms import glossary.csv -s en -t fr --header
+# bulk path for a handed-over term list (csv, tsv, json, tbx, ktb):
+kapi terms import terms.csv -s en -t fr --header
 kapi terms import vocab.csv -s en --monolingual --header
 ```
 
@@ -110,8 +110,8 @@ kapi terms import vocab.csv -s en --monolingual --header
 ```
 
 The `apply` route keeps a committed source of truth; a bulk `terms import`
-writes only the compiled store, so commit the glossary file itself. Then verify
-the whole pack locally before pushing:
+writes only the compiled store, so commit the imported term list itself. Then
+verify the whole pack locally before pushing:
 
 ```bash
 kapi check --ship --json     # brand + terminology (+ QA) gates — all green
@@ -120,8 +120,8 @@ kapi check --ship --json     # brand + terminology (+ QA) gates — all green
 The recipe carries the bindings; the thresholds ride on the check itself: the
 brand gate's score bar is `--min-score` (default 80), not a recipe field, and a
 translation-coverage bar is an optional top-level `ship_gate:` (see
-[localize.md](localize.md)). Commit the pack: the recipe, `brand.yaml`, the
-`l10n/` sources, any glossary file. `.kapi/` state stays gitignored.
+[translate.md](translate.md)). Commit the pack: the recipe, `brand.yaml`, the
+`l10n/` sources, any imported term list. `.kapi/` state stays gitignored.
 
 ## 5. Push to Bowrain
 
@@ -191,7 +191,7 @@ End by telling the user, concretely:
   once claimed.
 - **The standing instruction** — run `kapi check --ship` before shipping
   content and fix what it flags ([project.md](project.md)); in a translation
-  project, `kapi up` catches locales up ([localize.md](localize.md)).
+  project, `kapi up` catches locales up ([translate.md](translate.md)).
 
 ---
 

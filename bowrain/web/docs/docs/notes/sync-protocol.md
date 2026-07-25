@@ -277,4 +277,4 @@ Workspace-scoped equivalents are also available at `/api/v1/workspaces/:ws/proje
 
 The server maintains an append-only change log (`change_log` table) that records every mutation to a project's blocks. Each entry has a monotonic sequence number (`seq`). Sync queries are O(changes) via indexed cursor lookup -- the server never needs to diff entire version snapshots.
 
-Authentication uses the token from `kapi auth login` stored at `~/.config/bowrain/auth.json` ([AD-002](/architecture-decisions/002-authentication-and-workspaces)).
+Authentication uses the token from `kapi auth login`, held in the OS keychain ([AD-002](/architecture-decisions/002-authentication-and-workspaces)).

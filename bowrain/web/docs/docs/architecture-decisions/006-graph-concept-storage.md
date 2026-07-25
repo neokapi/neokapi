@@ -234,8 +234,8 @@ rebuilt from the relational stores at any time.
 
 ### Terminology Integration
 
-The `ConceptRelation` type in the termbase package bridges termbase and
-graph systems:
+The `ConceptRelation` type in the `terms` package bridges the terms store and
+the graph:
 
 ```go
 type ConceptRelation struct {
@@ -250,7 +250,7 @@ status-on-edge model, where term lifecycle status (approved, pending,
 deprecated) can be time-bounded or tag-scoped.
 
 Terminology updates emit events consumed by the `GraphSyncer`, keeping
-concept relationships reflected in the graph without direct termbase →
+concept relationships reflected in the graph without direct terms →
 graph coupling.
 
 ### Brand Voice and Billing
@@ -303,4 +303,4 @@ plan transitions without destructive updates.
 
 - [AD-004: Content Store and Versioning](004-content-store.md)
 - [AD-005: Streams](005-streams.md)
-- [Framework terminology](https://neokapi.github.io/web/neokapi/framework/terminology)
+- [Framework terminology](https://neokapi.github.io/framework/terminology)

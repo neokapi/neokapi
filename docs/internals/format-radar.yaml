@@ -34,8 +34,8 @@ candidates:
       - https://github.com/Netflix/ttal-dapt-conv
     notes: >-
       DAPT (dubbing/audio-description TTML2 profile) is the active W3C
-      timed-text spec, CR heading to Rec in 2026; pure-l10n dubbing/AD script
-      exchange. Netflix published a TTAL-to-DAPT converter — TTAL rides along.
+      timed-text spec, CR heading to Rec in 2026; a translation-only
+      dubbing/AD script exchange. Netflix published a TTAL-to-DAPT converter — TTAL rides along.
     status: proposed
   - id: portable-text-contentful-richtext
     as: format
@@ -88,8 +88,8 @@ candidates:
     notes: >-
       Docs-as-notebooks. .ipynb is tractable as a configured JSON reader with
       embedded-markdown child layers (prefer-configured-readers compliant);
-      .qmd/marimo via markdown/comment-aware readers. Localizable payload is
-      markdown cells plus output alt-text
+      .qmd/marimo via markdown/comment-aware readers. The translatable payload
+      is markdown cells plus output alt-text
       (docs/internals/research/format-ops/format-watch-trends.md).
     status: proposed
   - id: llmstxt-agentsmd
@@ -99,7 +99,7 @@ candidates:
       - https://llmstxt.org/
       - https://agents.md/
     notes: >-
-      Trivially parseable; the value is detection plus localized-variant
+      Trivially parseable; the value is detection plus per-language variant
       conventions, and a strong AI-native positioning fit.
     status: proposed
   - id: mf2-in-catalogs
@@ -135,8 +135,8 @@ candidates:
       - https://www.easygenerator.com/en/blog/results-tracking/cmi5-what-it-is-and-why-you-need-it/
     notes: >-
       cmi5 (an xAPI profile) is the designated SCORM successor on an IEEE
-      standards track; packages still wrap HTML/JS content, so the l10n unit
-      of work is the package manifest plus embedded html — connector
+      standards track; packages still wrap HTML/JS content, so the unit of
+      translation work is the package manifest plus embedded html — connector
       orchestration over the existing html reader, not a new parser.
     status: proposed
   - id: usd
@@ -147,7 +147,7 @@ candidates:
     notes: >-
       AOUSD published OpenUSD Core Specification 1.0 (2025-12-17), the first
       step toward ISO standardization; Core Spec 1.1 on the 2026 roadmap.
-      Localizable strings in 3D scenes are a long-tail target — watch only.
+      Translatable strings in 3D scenes are a long-tail target — watch only.
     status: proposed
   - id: gltf
     as: watch

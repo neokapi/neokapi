@@ -43,7 +43,7 @@ overlays/annotations only — never content.
 
 ## The deterministic kernel
 
-The kernel is the set of checks a localization owner keeps enabled because they
+The kernel is the set of checks a content owner keeps enabled because they
 are objective and high-confidence:
 
 - **Terminology** — preferred/forbidden term usage, matched on whole words with
@@ -56,7 +56,7 @@ are objective and high-confidence:
 - **Placeholder and tag integrity** — every interpolation placeholder and
   numbered tag in the source must survive, by count, into the target
   (`{name}`, `{{name}}`, `${name}`, `%s`/`%d`/`%1$s`/`%@`, `%(name)s`,
-  `<0>…</0>`). A dropped placeholder breaks a localized build at runtime.
+  `<0>…</0>`). A dropped placeholder breaks a translated build at runtime.
 - **Register** — formality requirements per locale (for example, formal forms in
   de/ja). A lexical layer covers the cheap cases; a small model covers the rest.
 

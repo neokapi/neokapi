@@ -16,7 +16,7 @@ export default function LabPage(): React.ReactElement {
   return (
     <Layout
       title="Content Model Workspace"
-      description="See how neokapi reads a document, breaks it into translatable pieces, and runs a localization flow over it — step by step, on real files, right in your browser. No install."
+      description="See how neokapi reads a document, extracts its text into blocks, and runs a flow over it — step by step, on real files, right in your browser. No install."
       noFooter
       wrapperClassName="lab-app-wrapper"
     >
@@ -24,9 +24,9 @@ export default function LabPage(): React.ReactElement {
         <header className={styles.appHeader}>
           <h1 className={styles.appTitle}>Content Model Workspace</h1>
           <p className={styles.appLede}>
-            Pick a lesson and follow along as neokapi reads a file, breaks it into translatable
-            pieces, and runs a flow over it — live, in your browser. It&rsquo;s the real engine, so
-            what you build here is what you&rsquo;d get on your own files.
+            Pick a lesson and follow along as neokapi reads a file, extracts its text into blocks,
+            and runs a flow over it — live, in your browser. It&rsquo;s the real engine, so what you
+            build here is what you&rsquo;d get on your own files.
           </p>
         </header>
         <div className={styles.appWorkspace}>

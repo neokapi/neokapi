@@ -16,7 +16,7 @@ Going multilingual is one loop: declare the target locales, let `kapi up` catch 
 <TabItem value="desktop" label="Desktop" default>
 
 1. **Add the locales.** In **Project Settings**, add the target languages you translate into (for example `fr`, `de`).
-2. **Bring up to date.** Back on the project view, the coverage panel now shows one row per locale against the ship gate. **Plan…** previews the pending work first — TM leverage, remaining AI work, a token estimate, nothing written. Then click **Bring up to date** — kapi runs the default flow over every locale that is short of its gate, looping until each scope ships or parks.
+2. **Bring up to date.** Back on the project view, the coverage panel now shows one row per locale against the ship gate. **Plan…** previews the pending work first — content-memory leverage, remaining AI work, a token estimate, nothing written. Then click **Bring up to date** — kapi runs the default flow over every locale that is short of its gate, looping until each scope ships or parks.
 3. **Review.** Click a ship-gate cell to open the **Review** queue for that locale: inspect each translation, edit if needed, approve or reject. Approvals raise the `reviewed` coverage that a `{ reviewed: … }` gate measures.
 
 <PendingMedia kind="video" scene="harness/demos/kapi-desktop-projects/demo.yaml">
@@ -68,5 +68,5 @@ Each translation climbs a ladder — draft, translated, reviewed, signed-off —
 ## Next
 
 - [Translate with your AI](/kapi/recipes/translate-content) — the translation loop in depth.
-- [Ship gates & CI](/kapi/recipes/gate-localization-in-ci) — run `kapi check --ship` on every PR.
+- [Ship gates & CI](/kapi/recipes/ship-gates-and-ci) — run `kapi check --ship` on every PR.
 - [Review & approve](/kapi/recipes/review-and-approve) — the human half of the loop.

@@ -4,7 +4,7 @@ import type { WalkthroughEmbedConfig } from "./types";
 
 const config: WalkthroughEmbedConfig = {
   id: "kapi-terminology-pretranslation",
-  scene: "termbase-pretranslation",
+  scene: "terms-pretranslation",
   mode: "interactive",
   seed: [],
   files: [
@@ -23,18 +23,18 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi memory import project.tmx -s en -t fr",
       narration:
-        "Load existing translation memory — the store up leverages before any AI is asked.",
+        "Load the existing content memory — the store `kapi up` leverages before any AI is asked.",
     },
     {
       command:
         "kapi exec recycle messages_en.json -o step1_tm.json --source-lang en --target-lang fr",
       narration:
-        "recycle is the first step of up's default flow. Exact and fuzzy matches fill from the TM; the rest stay untranslated.",
+        "recycle is the first step of up's default flow. Exact and fuzzy matches fill from the content memory; the rest stay untranslated.",
     },
     {
       command: "kapi pseudo-translate step1_tm.json -o step2_translated.json",
       narration:
-        "Everything the TM did not cover gets a locale-shaped placeholder — in up's default flow, this is where AI translation runs instead.",
+        "Everything the content memory did not cover gets a locale-shaped placeholder — in up's default flow, this is where AI translation runs instead.",
     },
     {
       command: "kapi exec term-check step2_translated.json --source-lang en --target-lang fr",

@@ -2,7 +2,7 @@
 sidebar_position: 2
 title: QA Checks
 description: Quality assurance in neokapi — deterministic rule-based checks and LLM-assisted review that annotate translated blocks with findings without modifying content, composable as pipeline stages.
-keywords: [QA checks, quality assurance, translation QA, rule-based, LLM review, pipeline, localization]
+keywords: [QA checks, quality assurance, translation QA, rule-based, LLM review, pipeline, multilingual content]
 ---
 
 import RunnableSnippet from "@site/src/components/KapiPlayground/RunnableSnippet";
@@ -20,8 +20,8 @@ approaches: fast, deterministic rule-based checks, and LLM-assisted review.
 
 Run as a gate, these checks behave like tests for AI output: deterministic and
 repeatable, they read translated content against its source and report exactly
-what broke — a dropped placeholder, a translated do-not-translate term, an
-inconsistent glossary term. `kapi check` runs them over a file or a
+what broke — a dropped placeholder, a translated do-not-translate term, a term
+that drifts from the project's terms store. `kapi check` runs them over a file or a
 source/target pair and exits non-zero when the gate fails, so a regression is
 caught in CI, or in an assistant's fix-loop, the same way a failing test is.
 
@@ -102,7 +102,7 @@ kapi run translate-qa -i app.xliff --target-lang fr
 Both kinds of check use the [Block annotation system](/framework/content-model)
 rather than rewriting text. Rule-based findings are recorded in block properties;
 LLM findings are attached as an annotation. This is the same shared channel that
-[TM matches](/framework/translation-memory),
+[memory matches](/framework/content-memory),
 [terminology](/framework/terminology), and [brand-voice](/framework/checks/brand-voice)
 results use, so a single downstream consumer — a report, an editor view, a CI
 gate — can read every kind of finding from one place.

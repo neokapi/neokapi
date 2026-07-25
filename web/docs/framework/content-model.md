@@ -2,7 +2,7 @@
 sidebar_position: 3
 title: Content Model
 description: The neokapi content model — documents as a stream of Parts (Layer, Block, Data, Media); a Block carries a flat Run sequence, variant-keyed Targets, and stand-off Overlays, so tools and translations work independently of the source file format.
-keywords: [content model, Part, Block, Run, Overlay, variant target, Layer, localization, format-independent]
+keywords: [content model, Part, Block, Run, Overlay, variant target, Layer, multilingual content, format-independent]
 ---
 
 import { BlockPreview } from "@site/src/components/curated";
@@ -14,7 +14,7 @@ import { StreamDiagram } from "@neokapi/docs-shared";
 The content model is the vocabulary every part of neokapi shares. Whatever the
 input format — JSON, HTML, Markdown, a Word document — a [reader](/framework/formats)
 turns it into the same handful of types, so [tools](/framework/tools),
-[flows](/framework/flows), [translation memory](/framework/translation-memory),
+[flows](/framework/flows), [content memory](/framework/content-memory),
 and editors all work against one representation rather than against each format's
 quirks. It is a deliberate, format-independent abstraction over the content inside
 a document — the unit you read, check, edit, and write back.
@@ -23,7 +23,7 @@ a document — the unit you read, check, edit, and write back.
 in one tree), where each translatable node is a *record with variants* (one source,
 many keyed targets) and annotations are *margin notes* pinned to spans rather than
 edits to the text. Every term below — Part, Layer, Block, Run, Target, Overlay,
-VariantKey — is defined once in the [Glossary](/framework/glossary); this page
+VariantKey — is defined once in [Concepts](/framework/concepts); this page
 develops them.
 
 :::tip Try it — the content model, every way
@@ -123,7 +123,7 @@ classDiagram
   it and inline markup is preserved at every level rather than being flattened.
 - **Block** — the primary modifiable content unit. Its
   `Source` is a single flat `[]Run` — the content you read, check, and edit. When
-  a workflow localizes, its translations are first-class `Target` records keyed by
+  a workflow translates, the results are first-class `Target` records keyed by
   a **VariantKey** (locale plus optional tone and channel); a monolingual pass
   leaves `Targets` empty. It carries a `Translatable` flag (a parse-time
   classification marking content the reader extracted versus inert skeleton),
@@ -188,7 +188,7 @@ The built-in stand-off types:
 | Annotation     | `relations`         | whole block | typed cross-block edges (caption-of, footnote-of, continues, …) |
 | Annotation     | `note`              | whole block | translator / reviewer note                        |
 | Annotation     | `alt-translation`   | whole block | alternative-translation candidates                |
-| Annotation     | `tm-match`          | whole block | translation-memory match metadata                 |
+| Annotation     | `tm-match`          | whole block | content-memory match metadata                     |
 | Annotation     | `word-count`        | whole block | word-count analysis result                        |
 | Annotation     | `char-count`        | whole block | character-count analysis result                   |
 | Annotation     | `seg-count`         | whole block | segment-count analysis result                     |
@@ -214,7 +214,7 @@ canonical keys live in `core/model/structure.go`.
 ## Runs keep inline markup out of the way
 
 The Run sequence is where neokapi solves a hard problem: how to let a tool, a
-translation engine, or a TM operate on the words while keeping inline markup like
+translation engine, or content memory operate on the words while keeping inline markup like
 `<b>`, `**`, or `{count}` intact. A block's source (and each target) is a flat
 `[]Run` — a discriminated union where each run is exactly one of:
 
@@ -255,7 +255,7 @@ metadata they carry.
 ## See it on a real file
 
 The clearest way to understand the content model is to watch a reader produce it.
-Below, kapi parses a small JSON localization file into blocks — each with an
+Below, kapi parses a small JSON message catalog into blocks — each with an
 identifier and its source text:
 
 <BlockPreview
@@ -299,7 +299,7 @@ Block "intro"
 ```
 
 A [check](/framework/checks) reads each block's `SourceText()`, compares it
-against a brand-voice profile or the project [termbase](/framework/terminology),
+against a brand-voice profile or the project [terms store](/framework/terminology),
 and records each problem as a stand-off `qa` overlay anchored to the offending
 runs — it annotates, it does not rewrite (see
 [the immutability model](/framework/tools)):

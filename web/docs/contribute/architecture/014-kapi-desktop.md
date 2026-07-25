@@ -20,7 +20,7 @@ workspaces.
 
 ## Context
 
-Engineers run localization workflows from the kapi CLI. Localization
+Engineers run these workflows from the kapi CLI. Content
 specialists and translators benefit from a visual interface: drag-and-drop
 flow construction, live progress while tools run, clickable plugin
 installation, and a GUI for entering API keys.
@@ -60,7 +60,7 @@ apps/kapi-desktop/
 │   ├── runner.go            # flow execution with event streaming
 │   ├── credentials.go       # OS keychain wrapper
 │   ├── plugins.go           # plugin search, install, update
-│   ├── tm.go / termbase.go  # TM and terminology operations
+│   ├── tm.go / termbase.go  # content-memory and terminology operations
 │   └── sample/              # bundled sample project
 ├── frontend/                # React 19 + Vite + TailwindCSS
 │   ├── bindings/            # Wails-generated TypeScript
@@ -110,22 +110,22 @@ bindings. The main groups:
   update plugins, uninstall plugins. Uses the plugin system
   ([AD-007: Plugin System](007-plugin-system.md)).
 - **Credential vault** — add, edit, and remove AI/MT provider
-  configurations. Provider configs live as JSON at
-  `~/.config/kapi/providers.json`; API keys live in the OS keychain
-  under the `"kapi"` service name (shared with the kapi CLI).
+  configurations. Provider configs live as JSON at `providers.json` under the
+  kapi config home (the platform `UserConfigDir` + `kapi`, so
+  `~/.config/kapi` on Linux and `~/Library/Application Support/kapi` on macOS);
+  API keys live in the OS keychain under the `"kapi"` service name (shared with
+  the kapi CLI).
 - **Content matching** — resolves a project's content patterns against
   the filesystem via `ProjectContext.ResolveContent`, showing matched
   files grouped by collection.
-- **Recents and settings** — persists recent files at
-  `~/.config/kapi-desktop/recent.json` and settings at
-  `~/.config/kapi-desktop/settings.json` (theme, UI language,
-  hidden/custom locales, samples-dismissed). The path is the platform
-  `UserConfigDir` + `kapi-desktop` (e.g.
-  `~/Library/Application Support/kapi-desktop` on macOS) — a desktop-only
-  root distinct from the kapi CLI's `~/.config/kapi` root, overridable via
+- **Recents and settings** — persists `recent.json` and `settings.json` (theme,
+  UI language, hidden/custom locales, samples-dismissed) under the platform
+  `UserConfigDir` + `kapi-desktop` — `~/.config/kapi-desktop` on Linux,
+  `~/Library/Application Support/kapi-desktop` on macOS — a desktop-only root
+  distinct from the kapi CLI's own config root, overridable via
   `KAPI_DESKTOP_CONFIG_DIR`. The plugin directory is not a persisted
   setting; it is resolved at startup from `KAPI_PLUGIN_DIR`, defaulting to
-  `~/.config/kapi/plugins`.
+  `plugins/` under the kapi config home.
 
 ### Frontend views
 

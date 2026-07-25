@@ -10,17 +10,17 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 The translation editor is the core editing surface for a file. It is one of
 three per-file surfaces, each with a single concern:
 
-- **Translate** — edit blocks with AI/TM assistance and terminology insertion.
+- **Translate** — edit blocks with AI and memory assistance, and terminology insertion.
 - **[Review](/server/review)** — work through blocks by status, run QA, and
   approve or reject translations.
 - **[Pre-process](/server/pre-process)** — file-wide source-prep (pseudo-translate,
-  bulk TM leverage) before editing begins.
+  bulk reuse from memory) before editing begins.
 
 A switcher at the top of each surface moves between the three. The same switcher
 appears in the web app and the desktop app.
 
 Opening a file gives a side-by-side editor: source, target, live preview, and
-per-block TM and terminology matches.
+per-block memory and terminology matches.
 
 <ThemedVideo
   sources={{
@@ -52,7 +52,7 @@ The default view places an inline editing card over a formatted document
 preview, so you edit each block in the context it appears in. The card shows the
 source with its natural formatting (bold is bold, links are underlined,
 placeholders render as chips), the target editor, optional reference locales,
-and per-block context — translation-memory matches and terminology. Navigate
+and per-block context — content memory matches and terminology. Navigate
 block to block with the card's arrows or `j`/`k`; the preview scrolls to keep
 the active block in view. The preview can render source, target, or pseudo
 content.
@@ -98,16 +98,16 @@ When editing translations with inline tags:
 The editor provides the same experience regardless of file format — HTML,
 Markdown, XLIFF, and all other formats present tags identically because they
 share the same vocabulary system. See
-[Inline Formatting](https://neokapi.github.io/web/neokapi/framework/inline-formatting)
+[Inline Formatting](https://neokapi.github.io/framework/inline-formatting)
 for more details.
 
 ## Per-block context
 
 The Visual card surfaces the linguistic context for the selected block:
 
-### TM matches
+### Memory matches
 
-Translation-memory matches for the block, each with a score (green for a 100%
+Content memory matches for the block, each with a score (green for a 100%
 exact match, yellow for fuzzy), the match type, the stored source and target,
 and an **Apply** button that copies the match into the target.
 

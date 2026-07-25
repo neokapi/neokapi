@@ -102,7 +102,7 @@ steps:
     # run it in isolation (no content memory) and leverage nothing.
     smoke: false
   - command: kapi merge
-    narration: merge materializes the localized files from the store — it replays the stored fr targets onto the source and writes messages.fr.json.
+    narration: merge materializes the translated files from the store — it replays the stored fr targets onto the source and writes messages.fr.json.
     # smoke:false — consumes the overlays committed by the prior run step.
     smoke: false
   - command: kapi status

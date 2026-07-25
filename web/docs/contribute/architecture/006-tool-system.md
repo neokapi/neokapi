@@ -45,7 +45,7 @@ uniformly for CLI, flow editor, and plugin consumers:
 - What parameters does this tool accept, and what are their types?
 - How many locales does it operate on? Which ones?
 - What stand-off layers does it produce? Which does it consume?
-- What external systems does it touch (TM, termbase, APIs)?
+- What external systems does it touch (content memory, terms, APIs)?
 
 ## Decision
 
@@ -88,7 +88,7 @@ typed handler over a held block via `tool.NewBlockView`/`NewVariantView`.
 
 The channel-based `Tool.Process` is a forward-only transform. Some tools
 need random access to the project's block state — lookup by content hash,
-reading prior overlays (TM matches, QA findings, previously-produced
+reading prior overlays (memory matches, QA findings, previously-produced
 targets) to skip work that's already done, or writing annotations that
 downstream tools in the same or a later run will consult. Those tools
 opt into the `SessionTool` interface alongside `Tool`:
@@ -132,7 +132,7 @@ ordering:
 | Category      | Responsibility                  | Examples                                          |
 | ------------- | ------------------------------- | ------------------------------------------------- |
 | **Transform** | Modify content in place         | case change, search/replace, redaction            |
-| **Enrich**    | Add metadata or overlays        | segmentation, TM leveraging, AI translation, terminology lookup |
+| **Enrich**    | Add metadata or overlays        | segmentation, memory leveraging, AI translation, terminology lookup |
 | **Validate**  | Check quality without modifying | QA checks, word count, character count            |
 | **Convert**   | Transform representations       | Encoding conversion, line-break normalization     |
 
@@ -310,24 +310,24 @@ Side effects are a closed set of known external interactions:
 type SideEffect string
 
 const (
-    SideEffectMemoryRead        SideEffect = "tm-read"
-    SideEffectMemoryWrite       SideEffect = "tm-write"
-    SideEffectTermsRead  SideEffect = "termbase-read"
-    SideEffectTermsWrite SideEffect = "termbase-write"
-    SideEffectAPICall       SideEffect = "api-call"
-    SideEffectAnalytics     SideEffect = "analytics"
+    SideEffectMemoryRead  SideEffect = "tm-read"
+    SideEffectMemoryWrite SideEffect = "tm-write"
+    SideEffectTermsRead   SideEffect = "termbase-read"
+    SideEffectTermsWrite  SideEffect = "termbase-write"
+    SideEffectAPICall     SideEffect = "api-call"
+    SideEffectAnalytics   SideEffect = "analytics"
 
     // RemoteSourceEgress marks a tool that sends source content to a remote
-    // system — deliberately distinct from APICall: a local detector or TM
-    // lookup must not carry it, every cloud-provider call must.
+    // system — deliberately distinct from APICall: a local detector, terms, or
+    // content-memory lookup must not carry it, every cloud-provider call must.
     SideEffectRemoteSourceEgress SideEffect = "remote-source-egress"
 )
 ```
 
 Most side-effect declarations are informational metadata for the flow editor
 and documentation. They are not enforced at runtime — a tool with
-`SideEffects: [SideEffectMemoryWrite]` still runs normally even if no TM is
-configured (it simply skips the write). This keeps the tool interface
+`SideEffects: [SideEffectMemoryWrite]` still runs normally even if no content
+memory is configured (it simply skips the write). This keeps the tool interface
 simple while giving the UI enough information to warn meaningfully. The one
 exception is `RemoteSourceEgress`: the transformer placement pass (below) keys
 a hard build/load error off it, and a tool whose remoteness depends on
@@ -427,14 +427,15 @@ Schema-driven features:
   against the schema.
 - **JSON export** — `kapi tools schema <name>` prints the schema for any
   tool.
-- **MCP exposure** — `cli/mcp_tools.go` registers every CLI-visible tool on
+- **MCP exposure** — `host/mcp_tools.go` registers every CLI-visible tool on
   the `kapi mcp` stdio server, projecting the tool's schema (plus a `text`
   input) into the MCP input schema and running the tool over the supplied text.
   The exposed set is **scoped by mode**, mirroring the desktop's `ListTools` vs
   `ListProjectTools` split: inside a kapi project only the tools the project
   declares are advertised (with the project's target language as the default);
   ad-hoc (no project resolved), the full set is exposed. Resource-wrapping
-  helpers (brand profile, termbase, TM) stay hand-authored in `cli/mcp_brand.go`.
+  helpers (brand profile, terms, content memory) stay hand-authored in
+  `host/mcp_brand.go`.
 
 AI tool schemas include provider fields (Provider, APIKey, Model with enum
 support for provider selection), so AI-tool CLI flags are generated the
@@ -591,7 +592,7 @@ All built-in tools register via `RegisterAll()` in `core/tools/register.go`.
 | Tool                  | Description                                                                |
 | --------------------- | -------------------------------------------------------------------------- |
 | `segmentation`        | Annotate blocks with a sentence-segmentation overlay (SRX-like rules)      |
-| `recycle`         | Pre-fill translations from Memory TM                                     |
+| `recycle`             | Pre-fill translations from content memory                                  |
 | `diff-leverage`       | Compare against previous version, preserve translations for unchanged text |
 
 **Validate tools** — check quality without modifying:
@@ -602,7 +603,7 @@ All built-in tools register via `RegisterAll()` in `core/tools/register.go`.
 | `dnt-check`              | Flag do-not-translate spans that were translated in the target (alias `dnt`)            |
 | `placeholder-check`      | Verify placeholders/variables are preserved between source and target                   |
 | `brand-vocab-check`      | Check target text against brand vocabulary / preferred-term rules                       |
-| `term-check`             | Verify terminology usage in translations against a glossary                             |
+| `term-check`             | Verify terminology usage in translations against the terms store                        |
 | `xml-validation`         | Validate XML well-formedness of block text                                              |
 
 The `qa` checkset also carries the rule families that used to be standalone
@@ -655,18 +656,18 @@ interface and work identically in flows.
 | ---------------------- | ------------------------------------------------------------------------------------ |
 | `{provider}-translate` | Translate blocks using an MT provider (DeepL, Google, Microsoft, ModernMT, MyMemory) |
 
-**Terminology tools** (`termbase/`):
+**Terminology tools** (`terms/`):
 
 | Tool           | Description                                         |
 | -------------- | --------------------------------------------------- |
 | `term-lookup`  | Annotate blocks with matching terms from a Terminology |
 | `term-enforce` | Verify correct terminology usage in translations    |
 
-**TM tools** (`memory/`):
+**Content-memory tools** (`memory/`):
 
-| Tool          | Description                                                                |
-| ------------- | -------------------------------------------------------------------------- |
-| `recycle` | Content-aware TM leverage with generalized, structural, and plain matching |
+| Tool      | Description                                                                    |
+| --------- | ------------------------------------------------------------------------------ |
+| `recycle` | Content-aware memory leverage with generalized, structural, and plain matching |
 
 ### Flow steps format
 
@@ -710,8 +711,8 @@ deliberate trade-off:
   streaming; zero allocation per tool for pass-through Part types.
 - **Simplicity** — tools read and write fields on the same Block. No
   immutable builders, lenses, or patch application.
-- **Proven pattern** — Okapi Framework uses the same mutable-event model
-  across thousands of localization workflows.
+- **Proven pattern** — the Okapi Framework, a Java localization framework, uses
+  the same mutable-event model across thousands of production workflows.
 
 Document-level immutability is achieved by external storage layers that
 version entire Block states. Within a single pipeline execution, mutable
@@ -784,7 +785,7 @@ using the `Capability` and `SideEffects` a tool already declares:
 
 The remote-egress rule keys off a *remote source egress* side-effect
 (`schema.SideEffectRemoteSourceEgress`), distinct from a plain API call, so a
-local detector or termbase lookup does not trip it while a cloud-provider call
+local detector or term lookup does not trip it while a cloud-provider call
 does. The effect itself is config-refined: an AI tool pointed at a local
 provider (Ollama, the offline demo) carries no remote egress. Tools — including
 plugins — contribute their own placement diagnostics through the same

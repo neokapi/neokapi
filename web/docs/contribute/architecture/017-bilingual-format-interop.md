@@ -2,8 +2,8 @@
 id: 017-bilingual-format-interop
 sidebar_position: 17
 title: "AD-017: Bilingual Format Interop"
-description: "Architecture decision: kapi supports a full bilingual round-trip — extract emits a bilingual file for a translator or reviewer, merge applies their changes back, and TM is updated on every merge for compounding leverage. neokapi's native interchange format is the lossless bilingual .kpz (for kapi-equipped recipients); XLIFF 2.x / PO is the industry-interop tier for third-party CAT tools."
-keywords: [bilingual format, XLIFF, PO, CAT tool, extract, merge, TM, architecture decision, neokapi]
+description: "Architecture decision: kapi supports a full bilingual round-trip — extract emits a bilingual file for a translator or reviewer, merge applies their changes back, and content memory is updated on every merge for compounding leverage. neokapi's native interchange format is the lossless bilingual .kpz (for kapi-equipped recipients); XLIFF 2.x / PO is the industry-interop tier for third-party CAT tools."
+keywords: [bilingual format, XLIFF, PO, CAT tool, extract, merge, content memory, architecture decision, neokapi]
 ---
 
 # AD-017: Bilingual Format Interop
@@ -12,8 +12,8 @@ keywords: [bilingual format, XLIFF, PO, CAT tool, extract, merge, TM, architectu
 
 Kapi ships an end-to-end bilingual round-trip — `kapi extract` emits a
 bilingual file for a translator or reviewer, `kapi merge` applies the
-returned file back onto the source — with the project TM participating
-on both sides of the loop (pre-fill on extract, absorb on merge).
+returned file back onto the source — with the project's content memory
+participating on both sides of the loop (pre-fill on extract, absorb on merge).
 neokapi's **native interchange format is the lossless bilingual `.kpz`**
 (for recipients working in kapi or the standalone neokapi review tool);
 **XLIFF 2.x / PO** is the industry-interop tier for third-party CAT
@@ -24,14 +24,14 @@ deterministic and portable via `git`.
 
 ## Context
 
-Serious localization shops run on bilingual exchange formats. XLIFF
+Serious translation shops run on bilingual exchange formats. XLIFF
 2.x (OASIS; 2.0 in 2014, 2.1 in 2018, 2.2 in 2023) and PO (gettext)
 are the lingua franca between authored sources, CAT tools (Trados,
 memoQ, OmegaT, Smartcat, Phrase, Crowdin, Lokalise, Weblate, Poedit,
 …) and everything else a translation project touches. Kapi already
 had high-quality _format support_ for bilingual formats — full
 readers and writers with byte-exact roundtripping (AD-005) — but no
-workflow glue tying extract, translate, merge, and the TM
+workflow glue tying extract, translate, merge, and the content-memory
 touchpoints on each into one integrated feature.
 
 Every data exchange kapi touches falls into one of six categories:
@@ -41,12 +41,12 @@ Every data exchange kapi touches falls into one of six categories:
 | 1   | Authored source        | In                       | JSON, YAML, HTML, .strings, .properties, .docx, .xml, .md, …                                         |
 | 2   | Translated output      | Out                      | Same as #1                                                                                           |
 | 3   | **Bilingual exchange** | Out/In                   | **Bilingual `.kpz`** (neokapi-native, lossless — for a kapi-equipped translator/reviewer); **XLIFF 2.x, PO** (industry interop); XLIFF 1.2, Qt TS, XLSX-bilingual, SRT, TTML as format support |
-| 4   | **Translation memory** | In (loop) / Out/In (TMX) | Project TM (`memory/`), TMX for interop                                                            |
-| 5   | Terminology            | In (loop) / Out/In       | Project termbase (`termbase/`), TBX/CSV/JSON                                                         |
+| 4   | **Content memory**     | In (loop) / Out/In (TMX) | Project content memory (`memory/`), TMX for interop                                                  |
+| 5   | Terminology            | In (loop) / Out/In       | Project terms store (`terms/`), TBX/CSV/JSON                                                         |
 | 6   | Project portability    | Out/In                   | project folder (`kapi.yaml` recipe + `.kapi/` state)                                                 |
 
 Boundary 3 is the headline gap this AD closes; **boundary 4 is the
-silent one**. The TM exists, TMX ships in and out, but the loop that
+silent one**. The memory exists, TMX ships in and out, but the loop that
 matters — _leverage on extract, absorb on merge_ — has to be wired
 or the most valuable asset a translation project accumulates over
 time goes unused.
@@ -66,25 +66,27 @@ store for faithful reconstruction — but sit on opposite boundaries: extract/me
 on boundary 3 (bilingual exchange), inspect/apply on boundaries 1–2 (authored
 source in, edited source out).
 
-**`kapi apply` is deliberate, reviewed edits; `kapi merge` is operational TM
+**`kapi apply` is deliberate, reviewed edits; `kapi merge` is operational memory
 accretion — keep them distinct.** They look superficially similar (both write
 edits onto source files using the block hash to address blocks), but they answer
 different questions and must not be unified:
 
 - `kapi apply` lands a **human/assistant-reviewed** change-set — a content fix, or
-  an asset edit (term, TM pair, brand rule, recipe field) — with a `content_hash`
-  drift guard and an inline-code fidelity guard, exiting on the gate code when an
-  edit is stale or rejected so a fix loop re-inspects. It is the write half of the
-  inspect/apply loop and never touches a target locale or absorbs TM as a
-  side effect. (Adding a TM pair via an `apply` `tm` entry is itself a *reviewed*
-  edit to the committed `.kmb` source, not the automatic merge-time absorb.)
+  an asset edit (term, memory pair, brand rule, recipe field) — with a
+  `content_hash` drift guard and an inline-code fidelity guard, exiting on the gate
+  code when an edit is stale or rejected so a fix loop re-inspects. It is the write
+  half of the inspect/apply loop and never touches a target locale or absorbs into
+  the memory as a side effect. (Adding a pair via an `apply` entry of kind `tm` is
+  itself a *reviewed* edit to the committed `.kmb` source, not the automatic
+  merge-time absorb.)
 - `kapi merge` applies a **translator's returned targets** and, by default,
-  **absorbs** every accepted target segment into the project TM (TM-out, below).
-  That accretion is the point of merge and the engine of compounding leverage; it
-  is operational, not a reviewed edit, and is governed by `merge.conflict_policy`
-  and stale-segment detection rather than a per-block drift guard.
+  **absorbs** every accepted target segment into the project's content memory
+  (memory-out, below). That accretion is the point of merge and the engine of
+  compounding leverage; it is operational, not a reviewed edit, and is governed by
+  `merge.conflict_policy` and stale-segment detection rather than a per-block drift
+  guard.
 
-Folding `apply` into `merge` would either contaminate the TM with monolingual
+Folding `apply` into `merge` would either contaminate the memory with monolingual
 source edits or strip merge of its absorb behavior; folding `merge` into `apply`
 would lose the conflict policy and the bilingual span mapping. They are separate
 verbs by design.
@@ -152,11 +154,11 @@ Interchange has two tiers, chosen by **who receives the file**:
 - **neokapi-native — the bilingual `.kpz`.** A task-scoped profile of the `.kpz`
   container ([AD-025](025-kbf-package.md) §7): one source→target pair, the blocks
   with faithful inline codes, the segmentation/alignment overlays, the per-source
-  skeleton for round-trip, and the relevant TM-match + termbase context — one
+  skeleton for round-trip, and the relevant memory-match + term context — one
   lossless, deterministic, content-addressed file. This is the format kapi
   distributes to a translator or reviewer working in kapi or the standalone
-  neokapi review tool. It is lossless where XLIFF is lossy, carries TM and term
-  context inline rather than as separate TMX/TBX attachments, and — being
+  neokapi review tool. It is lossless where XLIFF is lossy, carries memory and
+  term context inline rather than as separate TMX/TBX attachments, and — being
   Merkle-hashable — gives **integrity-verified, diffable** review (exactly what
   changed is visible and tamper-evident). It is *ecosystem* interchange (both ends
   need a neokapi reader); making it a cross-vendor standard is an open-spec +
@@ -204,9 +206,9 @@ ids (`s1`, `s2`, …); the writer materializes one `<segment>` /
 returned target back to its source span via the alignment overlay and
 splices the target runs into place — the block hash is the join key,
 so a project can flip segmentation on or off between extractions
-without breaking TM, QA overlays, or manifest bookkeeping.
+without breaking the memory, QA overlays, or manifest bookkeeping.
 
-Per-segment TM lookup is the matching widening: `memory.Lookup`
+Per-segment memory lookup is the matching widening: `memory.Lookup`
 keys on the whole block when there is no segmentation overlay. When
 one is present, extract iterates its spans and looks each up
 independently for sentence-level leverage via the `LookupSegment`
@@ -258,13 +260,13 @@ guessing from file name.
   content `batch:<uuid>`.
 - **PO**: file-header extracted comment `#. kapi-batch: <uuid>`.
 
-Sub-threshold TM matches are written to
+Sub-threshold memory matches are written to
 `.kapi/cache/extractions/<batch-id>/suggestions.jsonl` for later analysis
 without touching the emitted target.
 
-### TM-in on extract (v1, on by default)
+### Memory-in on extract (v1, on by default)
 
-`kapi extract` queries the project TM for every segment it emits.
+`kapi extract` queries the project's content memory for every segment it emits.
 
 - Exact match → pre-fill `<target>` with `state="translated"`.
 - Fuzzy match ≥ `tm.fuzzy_threshold` (default 75) → pre-fill with
@@ -275,26 +277,26 @@ without touching the emitted target.
   surfaces as untranslated for a human to decide.
 - Sub-threshold matches → `suggestions.jsonl`, not inlined.
 
-Disable with `--no-tm`. Additional read-only TMs can be declared in
+Disable with `--no-tm`. Additional read-only memories can be declared in
 the recipe via `tm.read: [path, …]` and are consulted alongside the
-project TM during pre-fill.
+project's own memory during pre-fill.
 
-### TM-out on merge (v1, on by default)
+### Memory-out on merge (v1, on by default)
 
-`kapi merge` writes every accepted target segment into the project
-TM. TUs carry provenance:
+`kapi merge` writes every accepted target segment into the project's
+content memory. Entries carry provenance:
 
 - `Origin.Source = "merge"`
 - `Origin.Reference = <batch-id>`
 - `Origin.Key = <source-file-path>`
 - Block-hash and originating XLIFF filename as properties
 
-Disable with `--no-tm-update`. Combined with TM-in on the next
-extract, this is the "memory" part of translation memory — without
-it TM leverage decays to zero.
+Disable with `--no-tm-update`. Combined with memory-in on the next
+extract, this is what makes the memory a *memory* — without the
+write-back, leverage decays to zero.
 
-**Write-back only to the project TM.** Imported read-only TMs
-(`tm.read`) are never written to; this keeps imported TMX
+**Write-back only to the project's own memory.** Imported read-only
+memories (`tm.read`) are never written to; this keeps imported TMX
 reproducible from its source.
 
 ### Conflict policy
@@ -303,15 +305,15 @@ reproducible from its source.
 
 - Applying the translator's target to the source file when an
   existing target is present on disk;
-- Writing back to the TM when a TU already carries a translation.
+- Writing back to the memory when an entry already carries a translation.
 
 Values:
 
 - `translator-wins` (default) — the translator's target always
   replaces the existing one.
-- `existing-wins` — existing on-disk / on-TM target is preserved;
-  translator's target is skipped with a warning.
-- `newest-wins` — compare timestamps (file mtime / TU
+- `existing-wins` — the existing on-disk / in-memory target is preserved;
+  the translator's target is skipped with a warning.
+- `newest-wins` — compare timestamps (file mtime / entry
   `UpdatedAt`) and pick the newer.
 
 No interactive prompting — keeps merge scriptable in CI.
@@ -321,7 +323,7 @@ No interactive prompting — keeps merge scriptable in CI.
 Merge detects stale segments by comparing the incoming XLIFF's
 recorded source hash (captured at extract time) against the current
 source. Stale segments are **reported**, **not silently applied**,
-and **not TM-absorbed** even when the conflict policy would
+and **not absorbed into the memory** even when the conflict policy would
 otherwise accept the target.
 
 Partial returns are fine: merge finds the extraction manifest by
@@ -338,9 +340,9 @@ defaults:
   target_languages: [fr, de, es]
   merge:
     conflict_policy: translator-wins # | existing-wins | newest-wins
-  tm:
+  tm: # content memory (recipe key retained as `tm`)
     fuzzy_threshold: 75 # int 0..100
-    read: # optional read-only TMs
+    read: # optional read-only memories
       - /path/to/corporate.tmx
   segmentation:
     source: false # opt-in
@@ -360,13 +362,13 @@ is absent.
   under `.kapi/cache/extractions/<id>/`. Conflict policy is a new
   `Defaults.Merge` section. Auto-discovery uses the existing
   `project.ResolveLayout` entry point.
-- **AD-009 (Translation Memory)** — `Lookup` becomes load-bearing
+- **AD-009 (Content memory)** — `Lookup` becomes load-bearing
   for extract pre-fill. A `LookupSegment` method is added for
   per-span matching when a segmentation overlay is present. Merge
   extends the `Origin` provenance story with a `"merge"` source and
   the batch id in `Reference`.
-- **AD-010 (Terminology)** — termbase-informed glossary hints on
-  extract are a natural follow-up (analogous to TM pre-fill). Not
+- **AD-010 (Terminology)** — term hints on extract, drawn from the terms
+  store, are a natural follow-up (analogous to memory pre-fill). Not
   in v1.
 - **AD-013 (Kapi CLI)** — adds `extract` and `merge` top-level
   commands and describes the auto-discovery resolution order.
@@ -380,7 +382,7 @@ is absent.
 ## Rationale
 
 **Why extract/merge as top-level commands rather than flows?**
-Discoverability. A localization engineer looking at `kapi --help`
+Discoverability. An engineer looking at `kapi --help`
 sees them immediately alongside `run`. Building them as flows would
 hide them a layer deeper and make their specialized flag shapes
 (`--only`, `--pattern`, `-i` repeatable, conflict policy) awkward to
@@ -394,17 +396,17 @@ between extractions without breaking merge. Segment span ids (`s1`,
 `s2`, …) ride _inside_ the segmentation overlay.
 
 **Why project-state skeletons (not embedded)?** Keeps the emitted
-XLIFF small and CAT-friendly. Makes TM absorb cheap (no skeleton
+XLIFF small and CAT-friendly. Makes the memory absorb cheap (no skeleton
 to unpack on merge). The project folder is already the unit of
 portability — `git push` ships it. Embedded skeleton remains an
 opt-in escape hatch for workflows that can't ship the project.
 
-**Why TM-in + TM-out on by default?** Without the loop, TM is a
-sidecar — interesting, not load-bearing. The moment the loop is on,
-the TM is the memory: each merge makes the next extract cheaper.
-Making it opt-in would leave most users' TMs empty or stale.
+**Why memory-in + memory-out on by default?** Without the loop, the memory is a
+sidecar — interesting, not load-bearing. The moment the loop is on, each merge
+makes the next extract cheaper. Making it opt-in would leave most users'
+memories empty or stale.
 
-**Why write-back only to the project TM?** Imported TMX should be
+**Why write-back only to the project's own memory?** Imported TMX should be
 reproducible from its source file; writing into it turns it into a
-living artifact that drifts from the TMX on disk. The project TM
+living artifact that drifts from the TMX on disk. The project's own memory
 is the editable thing.

@@ -2,7 +2,7 @@
 sidebar_position: 5
 title: kconv
 description: kconv converts the content of any supported format into another — Markdown, HTML, DocLang — driven by the structural role layer rather than the source bytes.
-keywords: [kconv, convert, markdown, html, doclang, docx, docling, format conversion, localization]
+keywords: [kconv, convert, markdown, html, doclang, docx, docling, format conversion, multilingual content]
 ---
 
 # kconv

@@ -6,7 +6,7 @@ Claude Code plugin, captures the transcript, screenshots the artifacts kapi prod
 generates a voice-over, and composes everything into an MP4 with [Remotion](https://remotion.dev).
 
 Nothing here is mocked: the Claude sessions are live, the kapi commands run for real
-(translating with Gemini, checking brand voice, importing glossaries…), and the
+(translating with Gemini, checking brand voice, importing terms…), and the
 before/after artifacts are screenshots of kapi's actual output.
 
 ## What it produces
@@ -24,17 +24,18 @@ with a continuous British-English narration track explaining the story.
 | # | id | Aspect of the kapi skill it exercises |
 |---|----|----------------------------------------|
 | 1 | `01-localize-landing-page`        | AI translation + HTML format round-trip (zero-to-hero) |
-| 2 | `02-brand-voice-guardrail`        | Brand voice: guide, check (0–100), rewrite, quality gate |
-| 3 | `03-terminology-consistency`      | Terminology: import a glossary, look up terms, enforce them |
+| 2 | `02-nextjs-zero-to-i18n`          | A Next.js app wired up with `neokapi-i18n` and shipped in Japanese |
+| 3 | `03-translate-docx`               | A Word document translated with headings, lists and formatting intact |
 | 4 | `04-i18n-react-catalogs`          | i18n setup: react-i18next catalogs, presets, pseudo readiness, fr+de |
-| 5 | `05-pseudo-translate-preflight`   | Pseudo-translation QA (offline) on a UI dialog |
+| 5 | `05-ai-checks-guardrail`          | Checks read an AI translation against its source — a **scripted shell** demo |
 | 6 | `06-multi-format-publishing`      | Format breadth: Markdown + Java `.properties` round-trip |
 | 7 | `07-global-launch-many-languages` | Multi-locale incl. non-Latin (de/es/fr/**ja**) |
 | 8 | `08-mcp-tools`                    | The MCP integration path: kapi run as an MCP server |
 | 9 | `09-toolbox-find-replace`         | The toolbox (kcat/kgrep/ksed) — a **scripted shell** demo, no Claude |
 
-Demos 1–8 cover all four sections of the kapi skill (`brand`, `localize`, `i18n`,
-and the MCP/cloud path) plus the MCP tool surface.
+Between them the demos exercise the task sections of the kapi skill —
+`references/localize.md`, `references/i18n.md`, `references/brand.md`,
+`references/toolbox.md` — plus the MCP tool surface.
 
 ### Scripted shell demos (no Claude)
 
@@ -92,19 +93,19 @@ not env vars.
 
 Switch with `NARRATION_BACKEND=elevenlabs pnpm run demo <id> -- --only=narrate --force`.
 
-## Localized videos (`--locale`)
+## Videos in other locales (`--locale`)
 
 Demos carry their narration in English in `narration:` (the master — scene
 structure, beats, holds and timing all come from it), and `demo.yaml` is
-English-only. Localized narration lives in **generated** sidecar files next to
-it — `demo.<locale>.yaml`, a content memory-driven localized copy produced by the repo's
-dogfood l10n pipeline:
+English-only. Translated narration lives in **generated** sidecar files next to
+it — `demo.<locale>.yaml`, a content-memory-driven copy produced by the repo's
+dogfood pipeline (the `l10n-*` make targets):
 
 ```bash
 make -C .. l10n-demos    # regenerate the committed demo.<lang>.yaml sidecars
 ```
 
-At load time the harness overlays a sidecar's localized narration text /
+At load time the harness overlays a sidecar's translated narration text /
 captions (and title/subtitle) onto the English master by scene `id`; sidecar
 entries still identical to the English text are content memory misses (pending
 translation) and simply fall back to English. Never hand-edit a sidecar or
@@ -131,7 +132,7 @@ pnpm run demo kapi-desktop-explorer -- --locale=nb --only=narrate,render,publish
 
 The docs `ThemedVideo` component automatically prefers the `-<locale>` asset
 variant when the Docusaurus page locale isn't `en`, and falls back to the
-English asset when the localized one hasn't been published.
+English asset when the translated one hasn't been published.
 
 Narration TTS is locale-aware: the Gemini style prompt and Live narrator
 instruction ask for a native narrator in the locale's language (the kapi /
@@ -144,13 +145,13 @@ single-language).
 Desktop walkthroughs: `--locale` is passed through to the recorder
 (`record-desktop.ts` `uiLocale`), which persists the language on the recording
 backend (wbridge `SetUILanguage`) and appends `&lang=` to the recording URL.
-Note the screencast files are NOT locale-suffixed — a localized recording pass
+Note the screencast files are NOT locale-suffixed — a non-English recording pass
 overwrites `public/<id>/screencast.*`, so record → render → publish one locale
-at a time. Recording an actually-localized UI additionally needs (in
+at a time. Recording a genuinely translated UI additionally needs (in
 `apps/kapi-desktop`) the recorder entry `real-main.tsx` to honor `?lang=` via
 `loadTranslations()` and a compiled catalog at
-`frontend/public/translations/<locale>.json`; until then a localized pass
-records the English UI with fully localized narration/captions.
+`frontend/public/translations/<locale>.json`; until then a non-English pass
+records the English UI with fully translated narration/captions.
 
 ## Usage
 
@@ -168,7 +169,7 @@ pnpm run demo all
 # run a single stage (each stage is idempotent; --force re-runs it)
 pnpm run demo all -- --only=capture          # just the live Claude sessions
 pnpm run demo all -- --only=artifacts,narrate,render
-pnpm run demo 02-brand-voice-guardrail -- --only=render --force
+pnpm run demo 02-nextjs-zero-to-i18n -- --only=render --force
 
 pnpm run list                                 # list demos
 pnpm run studio                               # open the Remotion studio to preview
@@ -183,7 +184,7 @@ Prerequisites: a logged-in `claude` CLI, Node ≥ 22, `ffmpeg`, Go + Homebrew `i
 2. Write `demos/<id>/demo.yaml` (see any existing demo). Pin output filenames in the
    `prompt` and point `artifacts[].path` at them. Keep prompts to the **reliable
    standalone** kapi surface: `translate`, `pseudo-translate`, `brand`, `terms`,
-   `stats`, `formats`, `extract-content`, or the MCP tools.
+   `stats`, `formats`, `extract`, or the MCP tools.
 3. `pnpm run demo <id>`.
 
 `captures/`, `public/`, `out/`, `sandbox/` and `.env` are git-ignored. The authored

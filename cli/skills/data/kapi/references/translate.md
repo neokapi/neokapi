@@ -2,7 +2,7 @@
 
 Translate content, enforce terminology, and round-trip the result back into its
 original format with the local `kapi` CLI. For ongoing work, bind the locales,
-brand voice, and glossary in a project first — see [project.md](project.md).
+brand voice, and terms in a project first — see [project.md](project.md).
 
 ## First decide: one-off file, or a project?
 
@@ -19,18 +19,19 @@ kapi translate <file> --target-lang <lang> -o <out>  # reads the format, transla
 kapi preserves structure, tags, and placeholders (round-trip). Add `--credential
 <name>` when it needs a model provider. That's the whole task for a one-off file.
 
-**Ongoing / app localization, or translating it yourself under brand + terminology
-guardrails** — bind a project first (`kapi init`), then `kapi extract → fill the
-targets → kapi merge → kapi check --ship` (below). `kapi extract` and `kapi merge` operate
-on a project; run them inside one (or with `-p <recipe>`), never on a bare file path.
+**Ongoing work (a whole app, the same locales repeatedly), or translating it
+yourself under brand + terminology guardrails** — bind a project first
+(`kapi init`), then `kapi extract → fill the targets → kapi merge →
+kapi check --ship` (below). `kapi extract` and `kapi merge` operate on a project;
+run them inside one (or with `-p <recipe>`), never on a bare file path.
 
 ## Commands at a glance (use these exact forms)
 
 Run these as written — don't guess flags. When in doubt, `kapi <cmd> --help`.
 
 ```bash
-kapi extract --target-lang fr                  # → out/<name>.en-to-fr.xliff (one --target-lang)
-kapi merge -i out/*.xliff                       # -i is REQUIRED and repeatable; positional paths are ignored
+kapi extract --target-lang fr                  # → out/<name>.en-to-fr.xliff (comma-separate for several locales)
+kapi merge -i out/*.xliff                       # XLIFF/PO come via -i (repeatable); only a .kpz may be positional
 kapi check --ship --json                              # the gate: brand + terminology + QA in one shot (prefer this)
 kapi exec term-check ./locales/fr.json --target-lang fr   # file is POSITIONAL; there is no --source/--target
 kapi terms lookup "board" -t fr              # approved wording; terms uses -s/-t, not --*-lang
@@ -58,14 +59,14 @@ kapi brand guide                     # the voice to follow (no flag inside a pro
 kapi terms lookup "<term>" -t fr  # the approved wording
 ```
 
-Fill each unit's `<target>` following the brand guide and glossary, preserving
-placeholders; reuse any content memory-prefilled targets. Then merge it back, and treat the task
-as unfinished until kapi confirms the result:
+Fill each unit's `<target>` following the brand guide and the approved terminology,
+preserving placeholders; reuse any targets prefilled from content memory. Then merge
+it back, and treat the task as unfinished until kapi confirms the result:
 
 ```bash
 kapi merge -i out/*.xliff            # write translations back into the target files + content memory
 kapi check --ship --json                   # in a project: brand + terminology + QA in one gate
-kapi exec term-check ./locales/fr.json    # one-off, no project: terminology check on the file
+kapi exec term-check ./locales/fr.json --termbase <store>   # one-off, no project: name the terms store
 ```
 
 `kapi check --ship` is the gate inside a project — read its findings, fix them, and re-run
@@ -105,7 +106,7 @@ kapi up --json               # NDJSON event stream (one event per line, final
 
 `kapi up` is the one verb that runs the loop. With no `defaults.flow` in the recipe it
 runs the built-in default flow (content memory recycle → AI translate) and materializes the
-localized files. Drift is never an error — a behind locale is *pending*, and work
+translated files. Drift is never an error — a behind locale is *pending*, and work
 a machine can't finish *parks* (reported, exit 0), so neither blocks you. Use
 `--json` for the machine-readable event stream; the `up` and `up_plan` MCP tools
 expose the same loop and dry run to an assistant. `kapi run <flow>` is only for a
@@ -135,13 +136,13 @@ target drift never blocks.
 ## Keep terminology consistent
 
 ```bash
-kapi terms import glossary.csv --format csv -s en -t fr --local   # also: json, tbx
+kapi terms import terms.csv --format csv -s en -t fr --local   # also: json, tbx
 kapi terms lookup "checkout" -s en -t fr --json
 kapi exec term-check ./locales/fr.json --json                            # flag wrong/missing terms
 ```
 
 Use the approved (preferred) term; avoid deprecated/forbidden ones. A bound
-terms also feeds the translation step.
+terms store also feeds the translation step.
 
 ## Publish (format round-trip)
 
@@ -159,7 +160,7 @@ kapi extract -p kapi.yaml --target-lang fr --format xliff2          # emit XLIFF
 kapi merge -i ./out/*.fr.xlf -p kapi.yaml                          # merge back
 ```
 
-Native readers/writers cover localization, document, data, and office formats —
+Native readers/writers cover document, data, catalog, and office formats —
 offline, with no plugin. This includes mobile/app catalogs (Apple String Catalog
 `.xcstrings`, `.strings`/`.stringsdict`, Android `strings.xml`, Flutter `.arb`,
 i18next JSON, `.resx`) and content formats like Markdown and MDX. A few

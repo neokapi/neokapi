@@ -14,8 +14,8 @@ my-app/
 ├── kapi.yaml               # the recipe (committed) — fixed, conventional filename
 ├── .kapi/                  # state (gitignored)
 │   ├── manifest.yaml       # bookkeeping: block counts, fingerprints
-│   ├── tm.db               # authoritative project TM
-│   ├── termbase.db         # authoritative project termbase
+│   ├── tm.db               # authoritative project content memory
+│   ├── termbase.db         # authoritative project terms store
 │   ├── flows/              # optional file-per-flow definitions (committed)
 │   │   └── pseudo.yaml
 │   └── cache/              # all regenerable caches under one roof
@@ -35,7 +35,7 @@ Three ownership zones at the project root:
 
 - **`kapi.yaml`** — hand-edited, committed to git. The recipe is the single source of truth for project configuration. Its fixed, conventional filename means every editor and code host (GitHub, GitLab) applies YAML syntax highlighting to diffs and previews with no configuration.
 - **`.kapi/cache/`** — CLI-owned, gitignored. Contains everything that's cheaply regenerable: the block store, the kapi sync cache, extraction intermediates, overlay layers. Safe to delete at any time.
-- **`.kapi/tm.db`, `.kapi/termbase.db`, `.kapi/manifest.yaml`** — kapi-owned, authoritative. Gitignored by default; opt in to commit the TM/termbase when cross-clone reproducibility matters.
+- **`.kapi/tm.db`, `.kapi/termbase.db`, `.kapi/manifest.yaml`** — kapi-owned, authoritative. The first two are the project's content memory and terms store. Gitignored by default; opt in to commit them when cross-clone reproducibility matters.
 - **`.kapi/flows/*.yaml`** — optional file-per-flow definitions, hand-edited, committed. Bowrain reads these in addition to inline `flows:` declared on the recipe.
 
 The pairing keeps the git-like shape of a committed config file beside a tool-managed state directory: `kapi.yaml` alongside `.kapi/` at the same root.
@@ -99,7 +99,7 @@ automations:
     trigger: run-parked
     actions:
       - type: slack
-        config: { channel: "#localization" }
+        config: { channel: "#translation" }
 
 # Top-level governance / asset policy:
 assets:
@@ -149,7 +149,7 @@ Only the connection coordinates sit under `server:`:
 
 Lifecycle (`hooks`, `automations`) and content/governance (`assets`, `brand_voice`) live at the **top level** of the recipe, not under `server:` — they describe project-owned policy, not server identity.
 
-The framework has no built-in notion of a server: `server:` (and `hooks:`, `automations:`, `assets:`, `brand_voice:`) are bowrain **recipe extensions** decoded only when the `kapi-bowrain` plugin is installed (the framework round-trips them verbatim otherwise). So `kapi init` / `kapi init-connect` (and `kapi config server.url …`) declare `requires: { bowrain: "*" }` whenever they write a `server:` block. A plain `kapi` binary without the plugin then refuses the recipe with an actionable "requires the bowrain plugin" error rather than silently ignoring the connection. See [AD-framework-008: Project model — recipe extension mechanism](https://neokapi.github.io/web/neokapi/contribute/architecture/008-project-model).
+The framework has no built-in notion of a server: `server:` (and `hooks:`, `automations:`, `assets:`, `brand_voice:`) are bowrain **recipe extensions** decoded only when the `kapi-bowrain` plugin is installed (the framework round-trips them verbatim otherwise). So `kapi init` / `kapi init-connect` (and `kapi config server.url …`) declare `requires: { bowrain: "*" }` whenever they write a `server:` block. A plain `kapi` binary without the plugin then refuses the recipe with an actionable "requires the bowrain plugin" error rather than silently ignoring the connection. See [AD-framework-008: Project model — recipe extension mechanism](https://neokapi.github.io/contribute/architecture/008-project-model).
 
 ## Content Collections
 
@@ -283,7 +283,7 @@ The whole `.kapi/` directory is gitignored by default by `kapi init`:
 
 - `.kapi/cache/` — block store, sync cache, extraction intermediates
 - `.kapi/manifest.yaml` — regenerable bookkeeping
-- `.kapi/tm.db`, `.kapi/termbase.db` — authoritative but local-only by default; opt in to commit when cross-clone reproducibility matters
+- `.kapi/tm.db`, `.kapi/termbase.db` — the content memory and terms store: authoritative but local-only by default; opt in to commit when cross-clone reproducibility matters
 
 ## Initialization
 
@@ -359,7 +359,7 @@ The active server URL is resolved from (first match wins):
 
 1. `server.url` field on the recipe
 2. `--server` flag
-3. `BOWRAIN_SERVER_URL` environment variable / `server.url` in `~/.config/bowrain/bowrain.yaml`
+3. `BOWRAIN_SERVER_URL` environment variable / `server.url` in the per-machine [bowrain config](/cli/commands/config)
 4. Existing auth state (from `kapi auth login`)
 5. The hosted service (`https://app.bowrain.cloud`) — commands that contact a
    server fall back to it; self-hosted deployments configure one of the above

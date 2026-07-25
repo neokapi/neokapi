@@ -10,14 +10,14 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Your first project
 
-A project is a committed recipe (`kapi.yaml`) plus a store that remembers your work — approvals, translation memory, terminology. Set it up once and every surface works the same project: the desktop app, your AI assistant, and the CLI. A new project starts source-only (checks, brand, terminology); [add languages](/kapi/get-started/add-languages) when you want them.
+A project is a committed recipe (`kapi.yaml`) plus a store that remembers your work — approvals, content memory, terminology. Set it up once and every surface works the same project: the desktop app, your AI assistant, and the CLI. A new project starts source-only (checks, brand, terminology); [add languages](/kapi/get-started/add-languages) when you want them.
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
 Install [Kapi Desktop](/kapi/get-started/installation#install-kapi-desktop) and open it. On first open, the **Connect your AI** card offers whatever it detects — a Claude Code sign-in ([uses your Claude subscription](/kapi/get-started/use-with-claude#let-kapi-run-claude), no key), a local Ollama model, or a stored API key — one click; or skip and use the demo engine.
 
-1. **Create the project.** On the home screen, click **New Project**, name it, and pick a source language. Or click **KapiMart** under *sample projects* to explore a realistic, pre-seeded project first — content collections, five target languages, and a stocked translation memory.
+1. **Create the project.** On the home screen, click **New Project**, name it, and pick a source language. Or click **KapiMart** under *sample projects* to explore a realistic, pre-seeded project first — content collections, five target languages, and a stocked content memory.
 2. **Add content.** In the **Project** view, add a pattern that matches your source files (for example `docs/**/*.md`). Kapi lists the matched files and the detected format, grouped into a collection.
 3. **Bring it up to date.** The project view shows per-locale coverage and each scope's ship-gate standing. **Bring up to date** runs the project's default flow until every gated scope is shippable or parked for a person — the desktop form of `kapi up`.
 4. **Review what parked.** Anything a machine can't decide lands in the **Review** queue — open it from a ship-gate cell. See [Review & approve](/kapi/recipes/review-and-approve).
@@ -34,7 +34,7 @@ With the [Kapi skill or MCP server](/kapi/get-started/use-with-claude) connected
 
 > Set kapi up for this project.
 
-Claude detects the stack, runs `kapi init` (with `--preset <stack>` for a known i18n layout), adds the content patterns it finds, drafts a brand profile from your existing copy, and proposes glossary terms for you to approve. The result is committed: a recipe, a brand profile, a glossary. From there your prompts stay short — "check this is on brand" needs no flags, because the recipe carries them.
+Claude detects the stack, runs `kapi init` (with `--preset <stack>` for a known i18n layout), adds the content patterns it finds, drafts a brand profile from your existing copy, and proposes terms for you to approve. The result is committed: a recipe, a brand profile, and a terms source. From there your prompts stay short — "check this is on brand" needs no flags, because the recipe carries them.
 
 </TabItem>
 <TabItem value="cli" label="CLI">

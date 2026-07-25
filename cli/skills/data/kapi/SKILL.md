@@ -1,6 +1,6 @@
 ---
 name: kapi
-description: Read, edit, check, and localize the content inside any file format with the kapi CLI. kapi parses formats an editor can't open directly — Word, PowerPoint, JSON, XLIFF, Markdown, HTML, YAML — into one content model; reads, searches, and compares the text (kcat/kgrep/ksed/kdiff); edits it in place through a faithful round-trip you drive with `kapi inspect` + `kapi apply` (structure and inline codes preserved, no second model); authors new content and checks it against a brand voice profile and terminology, looping until it passes; and translates into other languages with glossary enforcement and multi-format publishing. Use when the task involves reading or editing the content of a document the editor can't open (.docx/.pptx/.json/.xliff), authoring or rewriting on-brand copy, brand voice/tone, forbidden/competitor terms, a glossary or consistent terminology, checking content, setting up or onboarding a brand ("set up my brand", "create a starter pack", "refresh our brand context"), connecting or onboarding a project to Bowrain, translating or localizing (to fr/de/ja…), making a project multilingual, adding or setting up i18n, internationalizing an existing app, choosing an i18n library or framework (React, Next.js, Vue, Angular, Svelte, Flutter, iOS, Android, Rails, Django, Go…), or finding hardcoded strings that should be translatable.
+description: Read, edit, check, and translate the content inside any file format with the kapi CLI. kapi parses formats an editor can't open directly — Word, PowerPoint, JSON, XLIFF, Markdown, HTML, YAML — into one content model; reads, searches, and compares the text (kcat/kgrep/ksed/kdiff); edits it in place through a faithful round-trip you drive with `kapi inspect` + `kapi apply` (structure and inline codes preserved, no second model); authors new content and checks it against a brand voice profile and terminology, looping until it passes; and translates into other languages with terminology enforcement and multi-format publishing. Use when the task involves reading or editing the content of a document the editor can't open (.docx/.pptx/.json/.xliff), authoring or rewriting on-brand copy, brand voice/tone, forbidden/competitor terms, consistent terminology or a glossary, checking content, setting up or onboarding a brand ("set up my brand", "create a starter pack", "refresh our brand context"), connecting or onboarding a project to Bowrain, translating or localizing (to fr/de/ja…), making a project multilingual, adding or setting up i18n, internationalizing an existing app, choosing an i18n library or framework (React, Next.js, Vue, Angular, Svelte, Flutter, iOS, Android, Rails, Django, Go…), or finding hardcoded strings that should be translatable.
 ---
 
 # kapi
@@ -22,10 +22,10 @@ Before reaching for a command, judge whether this is a one-off or ongoing work:
   exploration, one or no target language. Just run the command; no setup. kapi
   works without a project.
 - **Project** — many files or a whole app; the same target locales repeatedly; a
-  brand voice or glossary that must stay consistent; recurring work (CI,
+  brand voice or terminology that must stay consistent; recurring work (CI,
   re-translate on change); content memory you want to reuse. Bind that
   context **once** in a `.kapi` project, then issue plain requests — kapi applies
-  the project's locales, content, brand voice, and glossary with no flags.
+  the project's locales, content, brand voice, and terms with no flags.
 
 If a `.kapi` project already exists (kapi walks up from the cwd to find it), use
 it. If the task is project-shaped and there's no project, offer to set one up;
@@ -76,11 +76,11 @@ kapi check --ship --json        # whole project; or: kapi check --ship <files> [
   against the bound pack as an approve-then-apply change-set. See
   [references/starter-pack.md](references/starter-pack.md).
 - **Translate, enforce terminology, publish** — translate content into other
-  languages and round-trip it back into its original format, with a glossary for
-  consistency. Translate it yourself, but route it **through kapi** (extract →
+  languages and round-trip it back into its original format, with a terms store
+  for consistency. Translate it yourself, but route it **through kapi** (extract →
   translate → merge) and then verify — don't hand-translate files and write them
   back, or terminology, placeholders, and format go unchecked. A provider is only
-  needed for unattended runs. See [references/localize.md](references/localize.md).
+  needed for unattended runs. See [references/translate.md](references/translate.md).
 
   Across all of these, do the writing/editing/translating yourself and route it
   through kapi — don't reach for a provider. The provider-backed modes

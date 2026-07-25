@@ -1,18 +1,18 @@
 ---
-id: 029-vision-and-image-localization
+id: 029-vision-and-image-adaptation
 sidebar_position: 29
-title: "AD-029: Vision and Image Localization"
-description: "Architecture decision: images are first-class localizable assets, and the kapi-vision plugin adds optional document-vision enrichment — OCR (PP-OCRv5) and ML layout detection (PP-DocLayoutV3) — out-of-core, path-based, with localization modes from whole-image replacement to in-image text extraction."
-keywords: [vision, OCR, layout detection, PP-OCRv5, PP-DocLayoutV3, image localization, kapi-vision, onnxruntime, plugin, reading order, architecture decision, neokapi]
+title: "AD-029: Vision and image adaptation"
+description: "Architecture decision: images are first-class per-locale assets, and the kapi-vision plugin adds optional document-vision enrichment — OCR (PP-OCRv5) and ML layout detection (PP-DocLayoutV3) — out-of-core, path-based, with adaptation modes from whole-image replacement to in-image text extraction."
+keywords: [vision, OCR, layout detection, PP-OCRv5, PP-DocLayoutV3, image adaptation, kapi-vision, onnxruntime, plugin, reading order, architecture decision, neokapi]
 ---
 
-# AD-029: Vision and Image Localization
+# AD-029: Vision and image adaptation
 
 ## Summary
 
-An **image is a localizable asset**, not merely a carrier of text. The `image`
+An **image is an adaptable asset**, not merely a carrier of text. The `image`
 format reads PNG/JPEG and always emits the picture as a `model.Media` part — the
-unit a localization flow can **replace wholesale** with a per-locale variant.
+unit a flow can **replace wholesale** with a per-locale variant.
 On top of that base, the out-of-core **`kapi-vision`** plugin adds optional
 *document-vision* enrichment:
 
@@ -30,19 +30,19 @@ with both off, an image is a Media asset only.
 
 ## Context
 
-Localizing a document that contains images is not one problem but several, and
+Adapting a document that contains images is not one problem but several, and
 treating "image" as "OCR" conflates them. The distinct modes are:
 
-| Mode | What it localizes | Mechanism |
+| Mode | What it adapts | Mechanism |
 |---|---|---|
-| **Whole-image replacement** | the pixels | a localized image file per locale swaps the source (screenshots, graphics with baked-in text); pseudo-localization (a visible watermark variant) ships today |
-| **Alt-text / caption** | accessible text, not pixels | the alt text is emitted as a translatable caption Block linked to the image (`RoleCaption` + `RelCaptionOf`) and localized through the normal block path |
+| **Whole-image replacement** | the pixels | a per-locale image file swaps the source (screenshots, graphics with baked-in text); a pseudo variant (a visible watermark) ships today |
+| **Alt-text / caption** | accessible text, not pixels | the alt text is emitted as a translatable caption Block linked to the image (`RoleCaption` + `RelCaptionOf`) and translated through the normal block path |
 | **Metadata** | embedded title/description/keywords | translatable metadata fields → metadata-plane Blocks; non-translatable fields → namespaced Layer properties (`core/docmeta`) |
 | **In-image text (OCR)** | text rendered into the image | extract → translate → (optionally) re-render |
 | **Layout / structure** | the document's regions | detect regions + reading order, with table regions reconstructed into row/column cell structure, for faithful reconstruction |
 
 Whole-image replacement is the most common and the simplest to reason about: the
-translator (or an automated pipeline) supplies a localized picture. The others
+translator (or an automated pipeline) supplies a per-locale picture. The others
 are enrichment. The content model already carries what these need —
 `model.Media{Data│BlobKey│URI, AltText}` + `PartMedia`, and the structure/role
 annotations ([AD-002](002-content-model.md)) — so the architecture's job is to
@@ -55,48 +55,48 @@ they live in a plugin, never in `kapi`.
 
 ## Decision
 
-### The image format is a localizable asset
+### The image format is an adaptable asset
 
 `core/formats/image` reads PNG/JPEG and **always** emits the image as a `Media`
 part referenced by URI (never inline bytes — the binary never travels through the
-kapi part stream). This alone supports whole-image localization: the Media is the
-asset; a localized variant is a different file. A matching **image writer** emits
-a `Media` part's bytes — the whole-image localization *sink* — so a transform
-that produces a localized image variant can be written back out.
+kapi part stream). This alone supports whole-image adaptation: the Media is the
+asset; a per-locale variant is a different file. A matching **image writer** emits
+a `Media` part's bytes — the whole-image *sink* — so a transform that produces a
+per-locale image variant can be written back out.
 
 #### Alt-text / caption
 
-An image's accessible text is localized as content, not as a Media field. When an
+An image's accessible text is translated as content, not as a Media field. When an
 `<image>.alt.txt` sidecar sits beside the source, the reader attaches its text to
 the `Media` (`AltText`, for display) **and** emits it as a translatable caption
 `Block` linked to the image (`RoleCaption` + a `caption-of` relation to the Media
-ID). That block flows through the ordinary block path — TM, AI translate, brand
-voice, sessions, batching — with no special tool support, and gets per-locale
-`Targets` like any other block. The image writer folds the localized target (or
-the source text, as a round-trip fallback) back into a per-locale
-`<output>.alt.txt` sidecar beside the written image. Modeling alt-text as a
-linked block (rather than mutating the single `Media.AltText` field in place)
+ID). That block flows through the ordinary block path — content memory, AI
+translate, brand voice, sessions, batching — with no special tool support, and
+gets per-locale `Targets` like any other block. The image writer folds the
+translated target (or the source text, as a round-trip fallback) back into a
+per-locale `<output>.alt.txt` sidecar beside the written image. Modeling alt-text
+as a linked block (rather than mutating the single `Media.AltText` field in place)
 keeps it per-locale and reuses the whole translation stack; `Media.AltText`
 remains the source value for display.
 
-#### Pseudo-localization
+#### Pseudo image variants
 
-The first localized-image transform is **pseudo-localization** — the visual
-analog of text pseudo-translation. The `pseudo-translate` tool, on encountering
-an image `Media` part, replaces it with a clearly-visible watermarked variant (a
-color wash + a solid border + a diagonal band; `core/imageops.PseudoLocalize`)
-and pseudo-translates the alt-text. Read an image → pseudo-translate → write, and
-the output is an unmistakably-marked image — proof, in a UI or build artifact,
-that image localization actually swapped the asset. It is deterministic and
+The first image transform is the **pseudo variant** — the visual analog of text
+pseudo-translation. The `pseudo-translate` tool, on encountering an image `Media`
+part, replaces it with a clearly-visible watermarked variant (a color wash + a
+solid border + a diagonal band; `core/imageops.PseudoLocalize`) and
+pseudo-translates the alt-text. Read an image → pseudo-translate → write, and the
+output is an unmistakably-marked image — proof, in a UI or build artifact, that
+the asset was actually swapped rather than passed through. It is deterministic and
 dependency-free (standard-library raster ops only).
 
 #### Metadata
 
-Embedded document metadata is localized the same way, via the shared
+Embedded document metadata is handled the same way, via the shared
 **`core/docmeta`** helper. Metadata is document-level — not anchored to any run —
 so it lives on the **Layer**, never in a run-anchored overlay: translatable
 fields (title, description, keywords) become Blocks on the metadata plane
-(`StructureAnnotation.Layer == LayerMetadata`) that localize through the normal
+(`StructureAnnotation.Layer == LayerMetadata`) that travel the normal
 block path, while non-translatable fields (author, copyright, software, dates)
 are recorded as namespaced `Layer.Properties` (`png:author`, `xmp:dc:creator`,
 …) — never translated, kept for inspection. This mirrors the OOXML reader's
@@ -108,13 +108,14 @@ loading the pixel data — it stops scanning at the first image-data chunk. The
 same `core/docmeta` path carries the PDF Info dictionary
 ([AD-028](028-pdf-reader-plugin.md)).
 
-Scope: extraction surfaces metadata for translation, TM, and inspection. Whether
-the *localized* metadata is re-embedded depends on the writer — a skeleton-based
-format (OOXML) re-applies the translated field, and a cross-format conversion
-(PDF → Markdown/HTML) carries the metadata blocks into the output document. The
-byte-copy image writer preserves the source image's *original* embedded metadata
-unchanged; re-encoding localized PNG text chunks / XMP back into the raster, like
-binary EXIF/IPTC parsing, is a documented follow-up.
+Scope: extraction surfaces metadata for translation, content memory, and
+inspection. Whether the *translated* metadata is re-embedded depends on the writer
+— a skeleton-based format (OOXML) re-applies the translated field, and a
+cross-format conversion (PDF → Markdown/HTML) carries the metadata blocks into the
+output document. The byte-copy image writer preserves the source image's
+*original* embedded metadata unchanged; re-encoding translated PNG text chunks /
+XMP back into the raster, like binary EXIF/IPTC parsing, is a documented
+follow-up.
 
 Two config toggles gate the enrichment, both default-on:
 
@@ -197,7 +198,7 @@ configurable if a CDN is ever preferred.
 
 ## Consequences
 
-- "Image" stays a generic, localizable format; OCR and layout are optional layers
+- "Image" stays a generic, adaptable format; OCR and layout are optional layers
   that degrade gracefully (absent plugin, or toggled off) to whole-image Media.
 - The portable `kapi` binary stays pure-Go and small; the onnxruntime stack is
   confined to the plugin, and image bytes never enter the host.
@@ -205,13 +206,13 @@ configurable if a CDN is ever preferred.
   and — once a page rasterizer is wired — for the PDF tier-3 slot in
   [AD-028](028-pdf-reader-plugin.md), since the vision engine is format-agnostic
   over rasters.
-- **Whole-image replacement** is supported end-to-end: the image is emitted as a
-  localizable Media, a writer emits localized bytes, pseudo-localization produces
+- **Whole-image replacement** is supported end-to-end: the image is emitted as an
+  adaptable Media, a writer emits per-locale bytes, the pseudo transform produces
   a visible variant, and the **target-asset** model pairs a source image with its
   per-locale files. `project.ResolveAssetVariants` resolves each locale's target
   path (via the recipe's `target:` template) and reports which variants exist —
   the local counterpart of Bowrain's server-side asset-variant model (AD-007).
-  Because kapi cannot regenerate a *real* image localization, a localized variant
+  Because kapi cannot regenerate a *genuinely* adapted image, a per-locale variant
   already on disk is **authoritative**: `kapi run`/`kapi merge` keep it rather
   than clobber it by reprocessing the source (`project.IsBinaryAssetFormat`
   gates this for binary-asset formats), while a missing variant falls through to

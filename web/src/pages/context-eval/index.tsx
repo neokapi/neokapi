@@ -4,7 +4,7 @@ import Layout from "@theme/Layout";
 import history from "./_contexteval.json";
 
 // The context-eval dashboard. kapi's value proposition is injecting context —
-// a glossary, a brand voice guide, an instruction — to steer model output. This
+// terminology, a brand voice guide, an instruction — to steer model output. This
 // page measures whether that context is actually followed, per model, as a
 // differential: the same engineered corpus translated with and without the
 // context, both passes scored by kapi's own check tools. Regenerate with
@@ -509,7 +509,7 @@ function ExperimentSection({ e }: { e: Experiment }): ReactElement {
 
       <h3 style={{ marginTop: 24 }}>Per-trap breakdown</h3>
       <p style={{ fontSize: "0.9rem", color: "var(--ifm-color-emphasis-700)" }}>
-        Adherence with context, by the kind of trap the fixture set. A model can hold the glossary
+        Adherence with context, by the kind of trap the fixture set. A model can hold the terms
         and still translate the product name; this is where that shows.
       </p>
       {plotted.map((r) => (
@@ -693,12 +693,12 @@ export default function ContextEval(): ReactElement {
   return (
     <Layout
       title="Context eval"
-      description="Whether models actually follow the context kapi injects — glossary, brand voice, instruction — measured as lift: adherence with the context minus adherence without it, per model, per dimension, tracked over time."
+      description="Whether models actually follow the context kapi injects — terms, brand voice, instruction — measured as lift: adherence with the context minus adherence without it, per model, per dimension, tracked over time."
     >
       <main style={{ maxWidth: 940, margin: "0 auto", padding: "2.5rem 1.25rem 4rem" }}>
         <h1>Context eval</h1>
         <p style={{ fontSize: "1.05rem", color: "var(--ifm-color-emphasis-700)" }}>
-          kapi steers model output by injecting context: a glossary that mandates terms, a brand
+          kapi steers model output by injecting context: a terms store that mandates renderings, a brand
           voice guide, an instruction. This page measures whether each model actually follows that
           context — not whether it translates well, which is a different question. The sibling{" "}
           <Link to="/batch-eval">batch eval</Link> measures structural integrity and cost; this one
@@ -709,7 +709,7 @@ export default function ContextEval(): ReactElement {
         <p>
           The core metric is a <strong>differential</strong>. An engineered corpus is translated
           twice through the production pipeline — once <em>bare</em> (no context) and once{" "}
-          <em>steered</em> (glossary + voice profile + instruction, injected exactly as production
+          <em>steered</em> (terms + voice profile + instruction, injected exactly as production
           injects them) — and both passes are scored with kapi&rsquo;s own deterministic check tools
           (term-check, dnt-check, brand-vocab-check, pattern-check). Two numbers fall out per
           dimension: <strong>absolute adherence</strong> (did the steered output satisfy the
@@ -719,11 +719,11 @@ export default function ContextEval(): ReactElement {
           lift is genuinely <em>steerable</em>, which is what context injection is buying.
         </p>
         <p>
-          Every fixture is a trap: a naive translation violates the context. A glossary term whose
+          Every fixture is a trap: a naive translation violates the context. A mandated term whose
           natural rendering differs from the mandate, a product name that reads like a common noun,
           casual English tempting an informal register, a source that ends in the exclamation mark
           the instruction forbids. There are distractors (a lowercase &ldquo;compass&rdquo; that is
-          a real compass and must be translated) and declared-winner conflicts (the glossary pins a
+          a real compass and must be translated) and declared-winner conflicts (the terms store pins a
           compound containing a forbidden word — the pin wins, and the scorer knows it). Results are
           reported <strong>per dimension</strong> — terminology, voice, instruction — never as one
           collapsed score: a model can be excellent at terminology and poor at voice, and the

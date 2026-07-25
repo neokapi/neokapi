@@ -18,7 +18,7 @@ kapi mcp
 This launches a JSON-RPC server on stdio. You don't run it manually — your AI tool starts it as a subprocess. The server requires a `.kapi` project (it walks upward looking for a `kapi.yaml` recipe, like git).
 
 :::tip
-For ad-hoc file processing without a project, use the [Kapi MCP server](https://neokapi.github.io/web/neokapi/reference/mcp) instead.
+For ad-hoc file processing without a project, use the [Kapi MCP server](https://neokapi.github.io/reference/mcp) instead.
 :::
 
 ## Setup
@@ -168,7 +168,7 @@ The assistant calls `project_status` and returns a summary: how many files, word
 
 ### "Which files have changed?"
 
-> Which localization files have local changes?
+> Which content files have local changes?
 
 The assistant calls `project_ls` with `dirty: true` and returns only files with uncommitted changes, along with block and word counts.
 
@@ -290,4 +290,4 @@ No server process, ports, or additional authentication is needed. Your AI tool s
 - [CLI Overview](/cli/overview)
 - [Project Model](/cli/project-model)
 - [Commands Reference](/cli/commands/init)
-- [kapi MCP Server](https://neokapi.github.io/web/neokapi/reference/mcp) — for standalone file processing
+- [kapi MCP Server](https://neokapi.github.io/reference/mcp) — for standalone file processing

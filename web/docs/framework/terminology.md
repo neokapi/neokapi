@@ -2,7 +2,7 @@
 sidebar_position: 11
 title: Terminology
 description: neokapi's concept-oriented terminology system groups multi-locale terms under language-neutral concepts with lifecycle status and grammatical metadata — backing the kapi terms commands and the term-check pipeline tool.
-keywords: [terminology, termbase, TBX, concepts, glossary, term enforcement, localization QA]
+keywords: [terminology, terms, TBX, concepts, term enforcement, quality checks]
 ---
 
 # Terminology
@@ -10,8 +10,8 @@ keywords: [terminology, termbase, TBX, concepts, glossary, term enforcement, loc
 neokapi manages terminology with a concept-oriented model inspired by the TBX
 (TermBase eXchange) standard: language-neutral concepts group multi-locale
 terms, each carrying a lifecycle status and optional grammatical metadata. The
-same model backs the `kapi termbase` commands, the `term-lookup` and
-`term-enforce` pipeline tools, and the `termbase/` Go library.
+same model backs the `kapi terms` commands, the `term-lookup` and
+`term-enforce` pipeline tools, and the `terms/` Go library.
 
 ## Concept-oriented model
 
@@ -31,7 +31,7 @@ Concept (e.g., "cloud storage")
 └── Term: "クラウドストレージ"   (ja, preferred)
 ```
 
-This differs from a flat glossary (source→target pairs) and is what enables
+This differs from a flat list of source→target pairs and is what enables
 multiple terms per locale, status-driven enforcement, and rich metadata
 attached to a single language-neutral concept.
 
@@ -48,7 +48,7 @@ attached to a single language-neutral concept.
 
 ## Concept relations
 
-Concepts are not islands. A termbase persists typed, directed **relations**
+Concepts are not islands. A terms store persists typed, directed **relations**
 between concepts, so a renamed product points at its replacement and a
 deprecated term points at the one to use instead. The relation vocabulary is
 aligned with [SKOS](https://www.w3.org/2004/02/skos/):
@@ -72,7 +72,7 @@ graph LR
 
 A relation is a first-class record with an ID, a source and target concept, a
 type from the vocabulary above, an optional note, and an optional validity
-(below). The termbase validates that the type is known and that both concepts
+(below). The terms store validates that the type is known and that both concepts
 exist before persisting an edge.
 
 ### Relation and term validity
@@ -83,7 +83,7 @@ a **scope** — a point in time and a set of tags — and only edges and terms w
 validity matches the scope are returned. A nil validity is unbounded (it matches
 every scope); a nil scope applies no filtering.
 
-This makes the same termbase answer scope-dependent questions: which terms were
+This makes the same terms store answer scope-dependent questions: which terms were
 preferred *as of* last quarter, or which relations hold *within* a given market.
 Tags are open-ended (the framework assigns them no meaning); a caller chooses a
 tag vocabulary — for example a `market` key — and uses it consistently. A nil
@@ -101,12 +101,12 @@ requires.
 
 ## Storage backends
 
-Two backends ship in the `termbase/` package, both thread-safe
+Two backends ship in the `terms/` package, both thread-safe
 (RWMutex-protected) and implementing the full `Terminology` interface:
 
-1. **In-memory** (`termbase.NewInMemoryStore`) — fast and ephemeral, used
+1. **In-memory** (`terms.NewInMemoryStore`) — fast and ephemeral, used
    for session-scoped batch processing.
-2. **SQLite** (`termbase.NewSQLiteStore`) — persistent file-based storage
+2. **SQLite** (`terms.NewSQLiteStore`) — persistent file-based storage
    for CLI workflows, with fuzzy matching via SQL-based Levenshtein distance.
 
 The `Terminology` interface also accommodates server-side backends for multi-user
@@ -116,16 +116,20 @@ deployments with project scoping, terminology streams, and workspace isolation.
 
 ### Resource location
 
-All termbase commands (except `list`) accept these mutually exclusive flags:
+All `kapi terms` commands (except `list`) accept these mutually exclusive flags:
 
 | Flag            | Resolves to                         | Example                      |
 | --------------- | ----------------------------------- | ---------------------------- |
 | `--name <n>`    | `~/.config/kapi/termbases/<n>.db`   | `--name project-terms`       |
 | `--local`       | `./termbase.db` (current directory) | `--local`                    |
-| `--file <path>` | Explicit file path                  | `--file /shared/glossary.db` |
+| `--file <path>` | Explicit file path                  | `--file /shared/terms.db`    |
 | _(no flag)_     | Same as `--local`                   |                              |
 
-Databases are created on demand if they don't exist.
+Databases are created on demand if they don't exist. The `termbases/` and
+`termbase.db` names above are retained on-disk paths from an earlier release;
+`~/.config/kapi` is the user config directory on Linux, and resolves to
+`~/Library/Application Support/kapi` on macOS. `kapi config path` prints the
+resolved location.
 
 ```bash
 # Import terms (CSV or JSON)
@@ -139,20 +143,20 @@ kapi terms export --name project-terms --format csv -o terms.csv -s en -t fr
 kapi terms lookup "encryption" --name project-terms -s en -t fr
 kapi terms lookup "authenticating users" -s en -t fr --fuzzy
 
-# Search concepts, view statistics, list named termbases
+# Search concepts, view statistics, list named terms stores
 kapi terms search "auth" -s en --limit 50
 kapi terms stats --name project-terms
 kapi terms list
 ```
 
-The `kapi termbase` commands cover import, export, lookup, search,
+The `kapi terms` commands cover import, export, lookup, search,
 statistics, and listing. Concept **relations** are not edited from the
 command line: they are authored visually. Kapi Desktop opens a per-concept
 dashboard — the `@neokapi/concept-ui` component, which shows a concept's
 terms, geography, constraints, a local relations widget, and a timeline —
-over a local termbase, where an editor adds, retypes, scopes, and removes
+over a local terms store, where an editor adds, retypes, scopes, and removes
 edges directly. The relation data this produces is the same
-`ConceptRelation` records persisted by the termbase and read through the [Go
+`ConceptRelation` records persisted by the terms store and read through the [Go
 API](#go-library) below.
 
 ## Pipeline integration
@@ -192,8 +196,8 @@ type Terminology interface {
 }
 ```
 
-(Methods take a `context.Context` in the real interface; it is elided here for
-readability.)
+(Methods, and the import/export helpers below, take a `context.Context` as their
+first argument in the real API; it is elided here for readability.)
 
 `Lookup` finds the best match for a single term. `LookupAll` scans running text
 and returns every term occurrence with positions — this is what powers the
@@ -269,14 +273,14 @@ import (
 )
 
 func main() {
-    tb := termbase.NewInMemoryStore()
+    tb := terms.NewInMemoryStore()
     defer tb.Close()
 
-    tb.AddConcept(termbase.Concept{
+    tb.AddConcept(terms.Concept{
         ID:         "c1",
         Domain:     "security",
         Definition: "Process of encoding information",
-        Terms: []termbase.Term{
+        Terms: []terms.Term{
             {Text: "encryption", Locale: "en", Status: model.TermPreferred},
             {Text: "chiffrement", Locale: "fr", Status: model.TermPreferred},
         },
@@ -284,7 +288,7 @@ func main() {
 
     matches := tb.LookupAll(
         "The encryption module handles end-to-end encryption",
-        termbase.LookupOptions{SourceLocale: "en", TargetLocale: "fr"},
+        terms.LookupOptions{SourceLocale: "en", TargetLocale: "fr"},
     )
     for _, m := range matches {
         fmt.Printf("Found %q at [%d:%d] → %s (%s)\n",
@@ -298,15 +302,15 @@ func main() {
 
 ```go
 // JSON preserves the full concept-oriented structure
-count, err := termbase.ImportJSON(tb, reader)
-err = termbase.ExportJSON(tb, writer, "My Termbase")
+count, err := terms.ImportJSON(tb, reader)
+err = terms.ExportJSON(tb, writer, "Project Terms")
 
 // CSV is a flat source/target form with optional metadata
-opts := termbase.CSVImportOptions{
+opts := terms.CSVImportOptions{
     SourceLocale: "en", TargetLocale: "fr", Domain: "general", HasHeader: true,
 }
-count, err = termbase.ImportCSV(tb, reader, opts)
-err = termbase.ExportCSV(tb, writer, "en", "fr", true)
+count, err = terms.ImportCSV(tb, reader, opts)
+err = terms.ExportCSV(tb, writer, "en", "fr", true)
 ```
 
 CSV columns are `source,target,domain` (domain optional). JSON carries the full
@@ -330,17 +334,17 @@ concept structure:
 }
 ```
 
-## Terminology and translation memory
+## Terminology and content memory
 
-Terminology and [translation memory](/framework/translation-memory) are
+Terminology and [content memory](/framework/content-memory) are
 deliberately separate systems because they answer different questions:
 
-- **TM** — "How was this sentence translated before?" (segment pairs).
+- **Content memory** — "How was this sentence rendered before?" (segment pairs).
 - **Terminology** — "What is the correct term for this concept?" (multi-locale
   knowledge units).
 
 They share the `Block` annotation system as their integration point, so both
-TM matches and term matches are available to any downstream tool or editor.
+memory matches and term matches are available to any downstream tool or editor.
 
 Terminology and [segmentation](/framework/segmentation) are run-anchored overlays
 produced in the [content-preparation](/framework/content-preparation) pass that

@@ -1,24 +1,24 @@
 ---
 sidebar_position: 1
 title: Kapi Desktop Overview
-description: Kapi Desktop is the visual companion to the kapi CLI — a native app for building localization flows, running tools, managing plugins, and storing AI credentials without writing YAML or remembering flags.
-keywords: [Kapi, desktop app, Wails, flow editor, flow runner, plugin manager, credential vault, localization GUI]
+description: Kapi Desktop is the visual companion to the kapi CLI — a native app for building content flows, running tools, managing plugins, and storing AI credentials without writing YAML or remembering flags.
+keywords: [Kapi, desktop app, Wails, flow editor, flow runner, plugin manager, credential vault, content GUI]
 ---
 
 # Kapi Desktop
 
-Kapi Desktop is the visual companion for the [kapi CLI](/kapi/cli). It provides a native desktop interface for building localization flows, running tools, managing plugins, and storing AI credentials — all without writing YAML or remembering CLI flags.
+Kapi Desktop is the visual companion for the [kapi CLI](/kapi/cli). It provides a native desktop interface for building content flows, running tools, managing plugins, and storing AI credentials — all without writing YAML or remembering CLI flags.
 
-Like the CLI, the desktop is **project-first**: it opens to your projects and reopens the ones you had last time, so a `.kapi` project — its languages, content, flows, translation memory, and termbase — is the home you work from. One-off file runs still live a click away as **quick tools** (the ad-hoc mode), for when you just want to push a single file through a tool without setting up a project.
+Like the CLI, the desktop is **project-first**: it opens to your projects and reopens the ones you had last time, so a `.kapi` project — its languages, content, flows, content memory, and terms store — is the home you work from. One-off file runs still live a click away as **quick tools** (the ad-hoc mode), for when you just want to push a single file through a tool without setting up a project.
 
 A **[guided tour](/kapi/desktop/tour)** walks each surface in motion — creating
 and managing a project, its content and flows, settings and providers, the
-terminology and translation-memory explorer, and the plugin manager. The kapi
+terminology and content-memory explorer, and the plugin manager. The kapi
 [CLI recipes](/kapi/cli) note, task by task, how each maps to Kapi Desktop.
 
 ## Features
 
-- **Project dashboard** — Open to your projects and pick up where you left off. Each project home shows its languages, content collections, and each locale's standing against its ship gate, with **Bring up to date** a click away — and **Plan…** beside it, a pre-flight dialog showing the pending work, TM leverage, and a token estimate before anything runs (the desktop form of `kapi up --plan`).
+- **Project dashboard** — Open to your projects and pick up where you left off. Each project home shows its languages, content collections, and each locale's standing against its ship gate, with **Bring up to date** a click away — and **Plan…** beside it, a pre-flight dialog showing the pending work, content-memory leverage, and a token estimate before anything runs (the desktop form of `kapi up --plan`).
 - **Review surface** — Work the queue of translations awaiting a person: inspect source and target with findings, edit, then approve, reject, or sign off — keyboard-first, with an optional AI pre-review to triage the queue. See [Review & approve](/kapi/recipes/review-and-approve).
 - **Flow editor** — Build multi-tool pipelines visually. Chain AI translation, quality checks, pseudo-translation, and more into reusable flows saved in the project.
 - **Flow runner** — Execute a project's flows with live progress visualization: per-file status, node highlighting, and timing. Runs use the recipe's languages and content, so there are no flags to repeat.

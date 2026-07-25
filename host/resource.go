@@ -89,7 +89,11 @@ func resolveNamedResource(kind, name string) (string, error) {
 	return filepath.Join(dir, name+".db"), nil
 }
 
-// ListNamedResources lists all .db files in ~/.config/kapi/<kind>/.
+// ListNamedResources lists all .db files in <ConfigDir>/<kind>/. ConfigDir is
+// platform-dependent (os.UserConfigDir), so this is ~/.config/kapi/<kind>/ on
+// Linux but ~/Library/Application Support/kapi/<kind>/ on macOS. Unlike the
+// app-config file there is no legacy fallback location here — a named store is
+// only ever resolved under ConfigDir.
 func ListNamedResources(kind string) ([]ResourceInfo, error) {
 	dir := filepath.Join(ConfigDir(), kind)
 	entries, err := os.ReadDir(dir)

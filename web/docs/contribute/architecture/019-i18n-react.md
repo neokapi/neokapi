@@ -24,7 +24,7 @@ flags i18n anti-patterns in JSX source so strings extract cleanly.
 
 ## Context
 
-A React-native localization story has two hard parts:
+A React-native multilingual story has two hard parts:
 
 1. **Authoring.** Developers write JSX. Translators want sentences with
    inline structure (`<a>`, `<strong>`, variables, icons) — not opaque
@@ -40,8 +40,8 @@ neokapi-i18n addresses both: an SWC-based AST walker extracts translatable
 JSX into `Run[]` at build time; a small runtime function re-attaches the
 extracted React elements when the runtime resolves the target. The
 extracted Block participates in the same neokapi pipeline as any other
-format — TM, AI translation, MT, lint — through `Run[]` as the canonical
-form.
+format — content memory, AI translation, MT, lint — through `Run[]` as the
+canonical form.
 
 The framework requires extractors to follow the **structural-canonical
 with projections at boundaries** convention from AD-002: emit `Run[]`,
@@ -354,7 +354,7 @@ neokapi-i18n CLI (`packages/i18n-react/src/cli.ts`) routes those through
 ## Consequences
 
 - **One Block per translatable element.** Inline structure no longer
-  produces a separate sub-Block per `<a>`, so TM keys on full sentences
+  produces a separate sub-Block per `<a>`, so the memory keys on full sentences
   and translators see sentences with inline context. AI/MT quality
   improves measurably for sentences with inline links and emphasis.
 - **Single emit path.** Inline-with-children → paired pair, regardless of
@@ -374,7 +374,7 @@ neokapi-i18n CLI (`packages/i18n-react/src/cli.ts`) routes those through
   `Run[]` model as the HTML reader, the same paired-code semantics
   (`PcOpenRun` / `PcCloseRun`), and the same projections at boundaries.
   Tooling that already understands neokapi Blocks (the visual editor,
-  XLIFF round-trip, TM matching, AI translate) works for neokapi-i18n
+  XLIFF round-trip, memory matching, AI translate) works for neokapi-i18n
   output without special cases.
 
 ## Related

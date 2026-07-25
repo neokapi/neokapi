@@ -1,11 +1,11 @@
 ---
 title: Dogfood sync — neokapi as bowrain.cloud customer #1
-description: How to activate (and deactivate) the customer-#1 dogfood that syncs neokapi's own localization to Bowrain.
+description: How to activate (and deactivate) the customer-#1 dogfood that syncs neokapi's own multilingual content to Bowrain.
 ---
 
 # Dogfood sync (customer #1)
 
-neokapi localizes its own surfaces with kapi (the root `kapi.yaml` recipe).
+neokapi translates its own surfaces with kapi (the root `kapi.yaml` recipe).
 The next step in the dogfood is to become the **first real workspace on
 Bowrain**: push those surfaces to a bowrain-server, let the nb drafts land in
 the governed review queue, and round-trip approved segments back into

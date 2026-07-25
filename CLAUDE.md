@@ -1,8 +1,10 @@
 # CLAUDE.md
 
 neokapi is an AI-native reimagining of the [Okapi Framework](https://okapiframework.org/)
-in Go: format-aware document parsing, channel-based concurrent processing flows,
-and pluggable tools for localization and translation.
+in Go — a content and language intelligence framework: format-aware document
+parsing into one content model, channel-based concurrent processing flows,
+faithful write-back, and pluggable tools that edit, check and translate the
+content inside.
 
 This file covers what you can't learn by reading the tree. Architecture,
 interfaces, and how-to guides live in the docs — see [Where things are
@@ -156,9 +158,18 @@ Runbooks: [regenerating docs assets](docs/internals/regenerating-docs-assets.md)
 ## Writing user-facing prose
 
 Follow [brand-communication.md](docs/internals/brand-communication.md): an
-academic, restrained register — no marketing superlatives, no emoji. Two rules
+academic, restrained register — no marketing superlatives, no emoji. Three rules
 that bite most often:
 
+- **The vocabulary is fixed.** Content memory, not *translation memory*/*TM*.
+  Terms, not *termbase*/*glossary*. Multilingual content or language, not
+  *localization*/*l10n*; recast the sentence rather than substituting a word for
+  *localize*. *Translate*, *locale*, *language* and *parity* are real words and
+  stay. `grep -niE 'localiz|localis|l10n|termbase|glossar|translation memor'`
+  before you commit prose — inflections are what a noun-only search misses.
+  Retained identifiers (recipe keys `tm:`/`termbase:`, `--termbase`, `tm.db`,
+  `l10n-*` targets, `/translation-memory`, `TMX`/`TBX`) keep their spelling:
+  describe the new concept and quote the old identifier verbatim.
 - **Never hardcode counts the code controls** (formats, tools, providers,
   filters). Name the category and link to the generated reference.
 - **Diagrams are real React components, never ASCII art.** The themed light/dark

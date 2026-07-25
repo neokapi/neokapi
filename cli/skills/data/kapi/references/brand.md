@@ -154,4 +154,4 @@ kapi brand check RELEASE.md --pack professional-b2b --min-score 90 --json
 ```
 
 To translate the on-brand result into other languages, bind the same profile and
-see [localize.md](localize.md).
+see [translate.md](translate.md).

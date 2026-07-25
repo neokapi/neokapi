@@ -115,7 +115,7 @@ categories. Each item below is a category, not an exhaustive list.
 | Collab            | `/:ws/:proj`     | `collab/:ref` (WebSocket)                                    |
 | Connectors        | `/:ws`           | `connectors/:id/{fetch,publish,status}`                      |
 | Automations       | `/:ws/:proj`     | Rules + `/automations/runs/:runId/*`                          |
-| TM                | `/:ws`           | `translation-memory`, `translation-memory/:eid`              |
+| Content memory    | `/:ws`           | `translation-memory`, `translation-memory/:eid`              |
 | Terms             | `/:ws`           | `terms`, `terms/import`, `terms/export`                      |
 | Providers         | `/:ws`           | `providers`, `providers/test`                                 |
 | Brand profiles    | `/:ws`           | `brand-profiles`, `brand-profiles/:id/check`                 |
@@ -128,6 +128,15 @@ categories. Each item below is a category, not an exhaustive list.
 | Pulse             | public (opt-in)  | `/pulse/:ws/{projects,activity,leaderboard,terms}` — unmounted unless `BOWRAIN_PULSE_ENABLED=true` |
 | Admin             | `/api/admin/…`   | `workspaces`, `users`, `metrics`, `events`, `overrides`, `upsells` |
 | Webhooks          | `/api/webhooks/…`| `/api/webhooks/stripe`                                        |
+
+The content memory's routes keep their historical `translation-memory` /
+`tm-` spelling — `translation-memory`, `translation-memory/:eid`,
+`blocks/:ref/:bid/tm-matches`, `actions/:ref/tm-translate`. A path is a public
+contract, and a kapi client syncs against an independently deployed server, so
+renaming them would break every client not upgraded in lockstep — the same
+reasoning that keeps `SyncTMEntry` on the wire
+([AD-009](009-sync-protocol.md)). Prose says *content memory*; the routes keep
+`TM`.
 
 ### Items and blocks
 

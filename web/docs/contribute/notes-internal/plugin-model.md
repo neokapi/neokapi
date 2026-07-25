@@ -175,7 +175,7 @@ requires:
   gitlab: "*"
 gitlab:
   url: https://gitlab.example.com/team/project
-  branch: localization
+  branch: main
 content:
   - path: src/locales/**/*.json
     format: json

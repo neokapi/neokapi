@@ -3,7 +3,7 @@ id: 030-multimodal-extraction-and-llm-refinement
 sidebar_position: 30
 title: "AD-030: Multimodal Extraction and LLM Refinement"
 description: "Architecture decision: extracting translatable content from images, audio, and video is one pattern — a fast local extractor produces confidence-scored Blocks anchored to a slice of the source media, and a configurable multimodal LLM refines only the low-confidence units. The anchor facets and source provenance are the content model's (AD-002); the multimodal message is the provider's (AD-011); this AD adds the confidence-gated escalation pattern, the generic media-refine Transform, and the kapi-asr/video plugin symmetry."
-keywords: [multimodal, OCR, ASR, speech recognition, video localization, audio localization, subtitles, WebVTT, SubRip, TTML, target-asset, whole-asset replacement, LLM refinement, confidence cascade, media-refine, MediaSlicer, vision LLM, Whisper, kapi-vision, kapi-asr, architecture decision, neokapi]
+keywords: [multimodal, OCR, ASR, speech recognition, video adaptation, audio adaptation, subtitles, WebVTT, SubRip, TTML, target-asset, whole-asset replacement, LLM refinement, confidence cascade, media-refine, MediaSlicer, vision LLM, Whisper, kapi-vision, kapi-asr, architecture decision, neokapi]
 ---
 
 # AD-030: Multimodal Extraction and LLM Refinement
@@ -48,7 +48,7 @@ plugins, mirroring `kapi-vision` and the SaT segmenter
 
 ## Context
 
-The vision work ([AD-029](029-vision-and-image-localization.md)) establishes an OCR
+The vision work ([AD-029](029-vision-and-image-adaptation.md)) establishes an OCR
 pipeline and an in-browser handwriting cascade — PP-OCRv5 reads every line fast,
 and lines below a confidence threshold are re-read by a handwriting model (TrOCR).
 That cascade is the seed of a general idea: a frontier multimodal LLM reads hard
@@ -170,17 +170,17 @@ slicer holds the source ref), not as an arbitrary downstream tool.
 
 ### Two output modes: round-trip the text, or replace the asset
 
-Extraction feeds two distinct localization modes — the same split
-[AD-029](029-vision-and-image-localization.md) draws for images, generalized to
+Extraction feeds two distinct adaptation modes — the same split
+[AD-029](029-vision-and-image-adaptation.md) draws for images, generalized to
 timed media. They are independent, and an asset can use both at once.
 
-**Round-trip the text.** The anchored Blocks localize as text and return to where
-they came from. The path depends on how the text lives in the asset:
+**Round-trip the text.** The anchored Blocks are translated as text and return to
+where they came from. The path depends on how the text lives in the asset:
 
 - **Text track / sidecar — full round-trip today.** WebVTT, SubRip, and TTML are
   first-class formats with reader *and* writer (`core/formats/{vtt,srt,ttml}`,
   registered), so audio/video cues extract → translate → merge back into a
-  localized track the source platform ingests. For raw audio/video, ASR produces
+  per-locale track the source platform ingests. For raw audio/video, ASR produces
   the cues and the **`timing` anchor** is the hand-off into the timed-text writer.
   Registered built-in flows compose this end to end — `audio-to-subtitles`,
   `video-to-subtitles`, and `image-ocr-translate`. Video extraction emits *both*
@@ -190,21 +190,21 @@ they came from. The path depends on how the text lives in the asset:
   re-apply targets through the format's writer (the skeleton mechanism, AD-029).
 - **Baked into pixels or waveform.** OCR text burned into an image, or speech in
   an audio track, cannot return to the *same rendered asset* without re-rendering
-  (out of scope, AD-029) or TTS (not designed). The localization is delivered as a
-  **companion** instead — e.g. a generated localized subtitle track, itself a
+  (out of scope, AD-029) or TTS (not designed). The result is delivered as a
+  **companion** instead — e.g. a generated per-locale subtitle track, itself a
   VTT/SRT write.
 
-**Replace the asset.** Independently, the whole file is a localizable `Media`
+**Replace the asset.** Independently, the whole file is an adaptable `Media`
 asset: the **target-asset variant model** (AD-029 — `IsBinaryAssetFormat`,
 `ResolveAssetVariants`) pairs a source image/audio/video with per-locale files and
-treats a localized variant on disk as authoritative. This is medium-agnostic:
+treats a per-locale variant on disk as authoritative. This is medium-agnostic:
 `IsBinaryAssetFormat` covers image, audio, and video, each with a passthrough
 writer that emits the supplied per-locale bytes — audio and video swap wholesale
-exactly as images do. The engine never *synthesizes* localized media (no TTS, no
+exactly as images do. The engine never *synthesizes* per-locale media (no TTS, no
 re-encode); a replacement is a file the user or a connector provides.
 
 The modes compose on one asset: a video's subtitle track round-trips as text while
-the file itself stays replaceable; an image carries localized OCR/alt-text Blocks
+the file itself stays replaceable; an image carries translated OCR/alt-text Blocks
 and is swappable.
 
 ### Plugin and pipeline symmetry
@@ -213,7 +213,7 @@ and is swappable.
   `-tags onnx` (whisper.cpp / ONNX) binary loading its native stack at runtime,
   isolated from the portable `kapi` binary, driven over a stdin/stdout protocol,
   and **path-based** — the host passes a media path, never bytes
-  ([AD-021](021-sat-segmenter-plugin.md), [AD-029](029-vision-and-image-localization.md)).
+  ([AD-021](021-sat-segmenter-plugin.md), [AD-029](029-vision-and-image-adaptation.md)).
 - **Video** is a demux format reader that emits an **audio child Layer** (→ ASR)
   and a **visual child Layer** (→ frame OCR), reusing the Layer-nesting model that
   already handles embedded content (HTML-in-JSON → child Layer,
@@ -264,4 +264,4 @@ not a browser one.
 - [AD-020 Content Redaction](020-redaction.md) — the recoverable-Transform precedent
 - [AD-021 SaT Segmenter Plugin](021-sat-segmenter-plugin.md) — native-stack plugin isolation template
 - [AD-027 Visual Editor](027-visual-editor-data-model.md) — renders source provenance and qa review findings
-- [AD-029 Vision and Image Localization](029-vision-and-image-localization.md) — the image instance of this pattern
+- [AD-029 Vision and image adaptation](029-vision-and-image-adaptation.md) — the image instance of this pattern

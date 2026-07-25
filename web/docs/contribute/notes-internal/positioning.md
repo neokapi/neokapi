@@ -7,8 +7,9 @@ description: The single source of truth for how we describe neokapi and kapi in 
 
 > Internal contributor note. When you write or edit user-facing prose (docs, landing,
 > README, CLI help, UI copy, the kapi Agent Skill, MCP tool descriptions), match this.
-> It supersedes older l10n-first phrasing **and** the earlier "dual-heart" framing. Pairs
-> with the repo-root `docs/internals/brand-communication.md` guide.
+> neokapi is positioned as a **content and language intelligence** framework. This canon
+> supersedes both the older translation-first phrasing **and** the earlier "dual-heart"
+> framing. Pairs with the repo-root `docs/internals/brand-communication.md` guide.
 
 ## What neokapi is (the one sentence)
 
@@ -24,11 +25,11 @@ language. There is no second story.
 ## Who it's for
 
 The **forward-looking builder** — developers, AI builders, and content people who ship
-across formats and languages and want it to **just work**, without becoming localization
+across formats and languages and want it to **just work**, without becoming translation
 engineers.
 
-We are **not** optimizing for the traditional localization engineer / CAT-tool / agency
-buyer, and we do not court them with their own jargon. We **use localization technology as
+We are **not** optimizing for the traditional translation engineer / CAT-tool / agency
+buyer, and we do not court them with their own jargon. We **use language technology as
 the machinery that makes content just work** — it is the engine room, never the product
 identity or the headline. A builder should reach "and now it's in French, with the tags
 and placeholders intact" without ever learning what a TMX file is.
@@ -42,7 +43,7 @@ files → **and it works in every language**, automatically → ship it back unc
   a fork, not a ceremony, not a "Languages" nav header. A monolingual builder has a
   complete tool after "get it right"; languages are simply the next thing the same engine
   does.
-- The hard l10n tech — byte-for-byte round-trip, translation memory, segmentation,
+- The hard language tech — byte-for-byte round-trip, content memory, segmentation,
   bilingual interchange — is the **under-the-hood reason it just works**. Name it once in
   depth/reference and link to it; never lead with it, never make the visitor learn it.
 
@@ -102,7 +103,7 @@ parse-accuracy benchmark or enter a parsing leaderboard (PDF is an off-core plug
 | Builders editing structured files | the **Edit** wedge | `kapi inspect`/`kapi apply`, the format-aware toolbox |
 | AI / agent builders | kapi as an MCP tool / Agent Skill | use-with-Claude, the agent loop |
 | AI / RAG engineers | the **Parse** verb (`inspect`, anchored JSONL) | OSS mindshare |
-| Builders shipping in many languages | "and in every language" — it just works | the translate/TM/segmentation recipes, neokapi-i18n i18n |
+| Builders shipping in many languages | "and in every language" — it just works | the translate / content-memory / segmentation recipes, the `neokapi-i18n` CLI |
 
 Every destination is an open-source page on the project site. There is **no** sales funnel.
 
@@ -116,8 +117,8 @@ On the neokapi project site it appears only as **neutral, admonition-style
    `kapi-bowrain` plugin is documented like any other plugin.
 2. **Review** — the review & approve recipe (`kapi/recipes/review-and-approve.mdx`), where
    local review's single-reviewer limits are described.
-3. **Memory** — the TM/termbase storage recipe (`kapi/recipes/tm-termbase-storage.mdx`),
-   where the storage models are enumerated.
+3. **Memory** — the content-memory and terms storage recipe
+   (`kapi/recipes/memory-and-terms-storage.mdx`), where the storage models are enumerated.
 4. **CI / the loop** — the kapi-loop-in-CI page (`kapi/convergence-in-ci.mdx`).
 
 Callout rules: factual register, a plain link to
@@ -141,14 +142,17 @@ translations, corrections) that every project, person, and agent draws from and 
 **Retired — never reintroduce:** "Kapi drafts, Bowrain governs"; "converges it for your
 whole team, all the time" and any "whole team" venue phrasing.
 
-**Naming:** customer-facing surfaces say **content memory** (with *recycling* as the verb),
-never "translation memory" — TM/memory stay engine/internal terms (framework docs and
-code keep them).
+**Naming:** all prose — framework docs included — says **content memory** (with
+*recycling* as the verb), never "translation memory". The legacy identifiers survive in
+code and on the wire only: the recipe keys `tm:` / `tm_source:` / `termbase:`, the `--tm`
+and `--termbase` flags, and the on-disk `tm.db` / `termbase.db`. Prose that has to name one
+describes the concept in the new vocabulary and quotes the identifier in backticks — "the
+project's content memory (`.kapi/tm.db`)", "the terms store (`termbase.db`)".
 
 **Headline register:** brand, voice, on-brand, agents, governed review, delivery, the kapi
-loop. l10n vocabulary ("Lokalise alternative", "translate XLIFF") belongs only on
-bowrain.cloud SEO surfaces — never in headlines, nav, or docs titles. Never disparage
-competitors.
+loop. Search-keyword vocabulary — "Lokalise alternative", "localization platform",
+"translate XLIFF" — belongs only on bowrain.cloud SEO surfaces; never in headlines, nav,
+or docs titles. Never disparage competitors.
 
 ## Vocabulary (write the left as the right)
 
@@ -156,21 +160,25 @@ competitors.
 |---|---|
 | "primary translatable content unit" | "primary modifiable content unit" |
 | "the translatable text of any format" | "the text/content inside any format" |
+| "translation memory" / "TM" (the product noun) | "**content memory**" — the store; *recycling* is the verb |
+| "termbase" / "glossary" (the store) | "the **terms store**" — keep a head noun; a bare "terms" needs an article |
+| "localization" / "l10n" (as the framing) | recast the sentence: "**multilingual content**", "**language**", or plain "translation" where that is what is meant |
 | "a localization and translation toolkit" | "a format-aware content engine — parse, edit, check any format, in any language" |
-| "Source / Target" (to non-l10n readers) | "canonical content + variants" (axes: locale, tone, channel) |
+| "Source / Target" (to non-specialist readers) | "canonical content + variants" (axes: locale, tone, channel) |
 | "everyone else only extracts" | "the only OSS, format-agnostic engine that round-trips the long tail …" |
 | "faithful" (as a brand adjective) | drop it — use the concrete "**byte-for-byte**" / "write it back unchanged" |
 | "faithful content model" | "**unified content model**" |
 | "at heart, a localization engine and the tool that keeps your source content on brand" (dual-heart) | one continuum: "**get your content right, then get it everywhere**" — multilingualism woven in, not a second heart |
 | "Add a language" / "Localize" / "Languages" as a nav header or ceremonious stage | weave it as a natural outcome: "**and in every language**" — part of the journey, not a separate destination |
-| l10n-engineer jargon in the lead (XLIFF, TMX, "Okapi alternative", "translation memory") | builder outcomes ("it works in every language"); keep the jargon in depth/reference only |
+| specialist jargon in the lead (XLIFF, TMX, "Okapi alternative", "translation memory") | builder outcomes ("it works in every language"); keep the jargon in depth/reference only |
 | a lone narrow format in a generic example (XLIFF, `.docx`) | a broad/recognizable set ("JSON, HTML, Markdown, config, office formats"); keep XLIFF/PO only in explicit multilingual copy |
 
-**Code-level (DONE — bounded rename):** the generic tool capability was de-l10n-coded —
-`CapTranslate` → `CapProduce`, the `Translate(TargetView)` handler → `Produce(VariantView)`,
-`TargetView` → `VariantView` (~24 files; build + tests green; the ITS `Translate` field untouched).
-**Keep** the user-facing `translate` tool and `kapi translate` command — that is the l10n
-*application*. **Do not** rename `Source`/`Targets`/`VariantKey`/`Block.Translatable`
+**Code-level (DONE — bounded rename):** the generic tool capability was moved to neutral
+vocabulary — `CapTranslate` → `CapProduce`, the `Translate(TargetView)` handler →
+`Produce(VariantView)`, `TargetView` → `VariantView` (build + tests green; the ITS
+`Translate` field untouched). **Keep** the user-facing `translate` tool and
+`kapi translate` command — that is the translation *application*. **Do not** rename
+`Source`/`Targets`/`VariantKey`/`Block.Translatable`
 (good generic names, wire-bound, or — for `Translatable` — a parse-time extraction
 classifier, not an editability flag).
 
@@ -181,8 +189,8 @@ classifier, not an editability flag).
 - Don't sell or mention Bowrain on the project site outside the four R9 seams (see above).
 - Don't make "Languages"/"Localize" a nav header or a ceremonious "add a language" step;
   weave multilingualism into the journey as a natural outcome.
-- Don't court the traditional localization engineer with their own jargon — serve the
-  builder who wants it to "just work," and keep l10n tech under the hood.
+- Don't court the traditional translation engineer with their own jargon — serve the
+  builder who wants it to "just work," and keep the language machinery under the hood.
 - Don't put "the content layer your AI assistant orchestrates" (or similar AI-orchestration
   slogans) in the hero. The tagline's "for people and AI agents" carries it; the slogan
   decays fast.

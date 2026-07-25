@@ -12,8 +12,8 @@ signatures, and other reference material. They exist alongside the
 [Architecture Decisions](/architecture-decisions/index), which describe
 the design choices; notes describe the implementation.
 
-Framework-level notes (formats, plugin bridge, TM matching, etc.) live in the
-framework's [Implementation Notes](https://neokapi.github.io/web/neokapi/contribute/notes-internal/index).
+Framework-level notes (formats, plugin bridge, memory matching, etc.) live in the
+framework's [Implementation Notes](https://neokapi.github.io/contribute/notes-internal/index).
 
 | Note                                                      | Parent AD                                                 | Content                                                     |
 | --------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------- |

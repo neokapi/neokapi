@@ -7,7 +7,7 @@ keywords: [ship gate, verified gate, ship.json, language picker, verified, AI ba
 
 # Ship-aware language picker
 
-A project decides which localized versions to offer its users. neokapi models
+A project decides which translated versions to offer its users. neokapi models
 that decision with **two gates**, both declared in `kapi.yaml`, both evaluated
 the same way against the target status ladder
 (`draft → translated → reviewed → signed-off`):

@@ -2,7 +2,7 @@
 id: 033-project-state-model
 sidebar_position: 33
 title: "AD-033: Project State Model"
-description: "Architecture decision: a project's authored workflow decisions — the review ladder, approvals, sign-off, parking — live in a first-class core/state store, distinct from the derived cache and the recycle TM. The committed, diff-friendly serialization is the source of truth; an in-memory working set is transient until an explicit Export materializes it to a binding (a committed file in git mode, the server in bowrain mode)."
+description: "Architecture decision: a project's authored workflow decisions — the review ladder, approvals, sign-off, parking — live in a first-class core/state store, distinct from the derived cache and the recycle content memory. The committed, diff-friendly serialization is the source of truth; an in-memory working set is transient until an explicit Export materializes it to a binding (a committed file in git mode, the server in bowrain mode)."
 keywords: [project state, state store, core/state, review, approval, convergence, kapi-state.json, defaults.state, transient, export, targetHash, architecture decision, neokapi]
 ---
 
@@ -25,7 +25,7 @@ Authored decisions need a carrier that a plain target file (JSON, `.properties`)
 cannot provide: such a file records that a target *exists*, but not that a human
 *blessed* it. The `core/state` package is that carrier — a first-class,
 format-independent, committed record of per-unit workflow decisions, distinct
-from both the derived cache and the recycle translation memory ([AD-009](009-translation-memory.md)).
+from both the derived cache and the recycle content memory ([AD-009](009-content-memory.md)).
 
 The end-user view of what this state *means* — the ladders, gates, and the
 review queue derived from it — is [Convergence](/kapi/convergence) and
@@ -33,7 +33,7 @@ review queue derived from it — is [Convergence](/kapi/convergence) and
 
 ## Context
 
-The convergence model derives a project's localization state — per `(unit,
+The convergence model derives a project's per-locale state — per `(unit,
 locale)`, a monotone ladder (`draft → translated → reviewed → signed-off`) and a
 symmetric source ladder (`authored → checked → approved`). The lower rungs are
 derivable from content: an absent target is below the ladder; a present, non-empty
@@ -52,7 +52,7 @@ rungs a decision writes here are load-bearing, not informational.
 The model already expresses these facts (`model.TargetStatus`,
 `model.SourceStatus`, `model.Origin`). What was missing was a *persistence* for
 them that is independent of the deliverable format. The danger is to overload an
-existing store — in particular the `.kmb` translation memory, which is
+existing store — in particular the `.kmb` content memory, which is
 content-keyed leverage, not project state. Conflating "have we ever translated
 this string?" (recycle, content-keyed) with "is *this* unit signed off, by whom?"
 (decision, unit-keyed) is a category error: the two have different keys and
@@ -73,15 +73,15 @@ two kinds of state are separated:
 The cache may *mirror* an authored decision in transit, but it never *owns* one.
 Every decision's durable home is the committed state store.
 
-### The TM is recycle, not the state carrier
+### Content memory is recycle, not the state carrier
 
-The `.kmb` translation memory ([AD-009](009-translation-memory.md)) is the
+The `.kmb` content memory ([AD-009](009-content-memory.md)) is the
 **recycle corpus** — a content-keyed pool of source→target pairs reused to
 pre-fill and leverage future translation. It does **not** record review
-decisions. Adding a pair to the TM (`kapi apply` with `kind:"tm"`) is recycle
+decisions. Adding a pair to the memory (`kapi apply` with `kind:"tm"`) is recycle
 leverage; approving a unit (`kapi apply` with `kind:"review"`) writes the state
-store. An approved pair may *also* land in the TM as leverage, but that is a side
-effect, not where the decision lives.
+store. An approved pair may *also* land in the memory as leverage, but that is a
+side effect, not where the decision lives.
 
 ### The committed serialization is the truth; the working set is an index
 
@@ -146,8 +146,9 @@ locale plus optional tone/channel — not by content. Each decision additionally
 records a `targetHash`: the content hash of the *specific* translation it
 blesses. A decision is **stale** when the current translation's hash differs from
 the one the decision recorded, so editing an approved translation drops the unit
-back below *reviewed* on its own. A content-keyed index (the shape the old TM hack
-used) structurally cannot express this — unit-keying plus `targetHash` is what
+back below *reviewed* on its own. A content-keyed index (the shape the old
+memory-based hack used) structurally cannot express this — unit-keying plus
+`targetHash` is what
 makes an approval unable to silently outlive the text it approved.
 
 ### Layering — the model in `core/`, the IO with its surface
@@ -172,8 +173,8 @@ project model relies on elsewhere.
   a decision in the state store, addressed by `(file, id, locale)` exactly as
   `kapi status --review` lists it. The desktop "approve" action and the CLI verb
   share the same `ApproveReviewUnit` path.
-- **Coverage derives from the state store + target files**, never from TM
-  properties. The TM is recycle-only.
+- **Coverage derives from the state store + target files**, never from
+  content-memory properties. The memory is recycle-only.
 - **Exchange and parcels carry state.** The committed serialization maps to XLIFF
   for third-party exchange and rides inside a `.kpz` parcel's bilingual profile
   for hand-off ([AD-017](017-bilingual-format-interop.md)).
@@ -185,7 +186,7 @@ project model relies on elsewhere.
 
 - [AD-008: Project Model](008-project-model.md) — the project layout and where
   `.kapi-state.json` sits among the ownership zones.
-- [AD-009: Translation Memory](009-translation-memory.md) — the recycle corpus
+- [AD-009: Content memory](009-content-memory.md) — the recycle corpus
   this state store is deliberately *not*.
 - [AD-017: Bilingual Format Interop](017-bilingual-format-interop.md) — XLIFF /
   `.kpz` exchange that carries state across a hand-off.

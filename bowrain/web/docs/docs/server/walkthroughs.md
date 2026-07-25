@@ -72,37 +72,38 @@ Reuse previous translations to maintain consistency and reduce effort.
 ### Steps
 
 1. Navigate to **Content memory** in the sidebar to open the content memory browser
-2. Click **Add Entry** to add some TM entries:
+2. Click **Add Entry** to add some memory entries:
    - Source: "Welcome to our website" / Target: "Bienvenue sur notre site" (en → fr)
    - Source: "Contact us" / Target: "Contactez-nous" (en → fr)
 3. Return to the **Translate** view and open your project
-4. Open a file in the translation editor
-5. Click **TM Lookup** in the toolbar
-6. The system matches source blocks against TM entries and fills in matches
-7. Check the progress bar — matched blocks show as "translated"
-8. Toggle the **Context panel** to see per-block TM match details:
+4. Open a file, then switch to [Pre-process](/server/pre-process) and choose
+   **Recycle from memory**
+5. The system matches source blocks against the memory entries and fills in matches
+6. Check the progress bar — matched blocks show as "translated"
+7. Back in the translation editor, toggle the **Context panel** to see per-block
+   memory match details:
    - Match score (100% for exact matches)
    - Match type (generalized, structural, or plain)
    - Source and target text
-9. For partial matches, click **Apply** in the context panel to accept the suggestion
-10. Edit the applied translation if needed
+8. For partial matches, click **Apply** in the context panel to accept the suggestion
+9. Edit the applied translation if needed
 
 ### What You Learned
 
 - Adding entries to the content memory
-- Bulk TM lookup across an entire file
+- Bulk reuse from memory across an entire file
 - Understanding match scores and match types
-- Applying TM suggestions from the context panel
+- Applying memory suggestions from the context panel
 
 ---
 
 ## Manage Terminology
 
-Build a termbase to enforce consistent vocabulary across translations.
+Build a terms store to enforce consistent vocabulary across translations.
 
 ### Steps
 
-1. Navigate to **Termbase** in the sidebar to open the Terminology Explorer
+1. Navigate to **Brand → Concepts** in the sidebar to open the Terminology Explorer
 2. Click **Add Concept** to create terminology entries:
    - Source: "dashboard" / Target: "tableau de bord" / Domain: "UI" / Status: "preferred"
    - Source: "login" / Target: "connexion" / Domain: "UI" / Status: "approved"
@@ -138,16 +139,16 @@ Bulk-load terminology from a spreadsheet export.
    dashboard,tableau de bord,en,fr,UI,preferred
    settings,paramètres,en,fr,UI,approved
    ```
-2. Navigate to **Termbase** in the sidebar
+2. Navigate to **Brand → Concepts** in the sidebar
 3. Click **Import CSV**
 4. Select your CSV file
-5. The concepts appear in the termbase list
+5. The concepts appear in the concept list
 6. Verify the imported terms, statuses, and domains
 
 ### What You Learned
 
 - CSV format for terminology import
-- Bulk-loading terminology into the workspace termbase
+- Bulk-loading terminology into the workspace terms store
 - Verifying imported concepts
 
 ---

@@ -1,22 +1,21 @@
 ---
 sidebar_position: 10
-title: Translation Memory
-description: Memory is neokapi's built-in translation memory. It stores multilingual entries as Run sequences with inline markup and matches them in three tiers — plain, structural, and source-entity — so high-quality matches are returned first.
-keywords: [translation memory, Memory, TM leverage, fuzzy matching, runs, inline markup, SQLite]
+title: Content memory
+description: Content memory is neokapi's store of previously settled content. It holds multilingual entries as Run sequences with inline markup and matches them in three tiers — plain, structural, and source-entity — so high-quality matches are returned first.
+keywords: [content memory, reuse, leverage, fuzzy matching, runs, inline markup, SQLite]
 ---
 
-# Translation Memory
+# Content memory
 
-neokapi's translation memory is **Memory** (`memory/`). Unlike traditional
-TMs that store plain strings, Memory works with the full content model — each
-entry holds multilingual variants as `Run` sequences (text plus inline markup)
-and matches them in three tiers with entity-aware adaptation. The same engine
-backs the `kapi tm` commands, the `recycle` pipeline tool, and the Go
-library.
+neokapi's **content memory** lives in the `memory/` package. Unlike stores that
+keep plain strings, it works with the full content model — each entry holds
+multilingual variants as `Run` sequences (text plus inline markup) and matches
+them in three tiers with entity-aware adaptation. The same engine backs the
+`kapi memory` commands, the `recycle` pipeline tool, and the Go library.
 
-In the CLI, the TM is the engine under `kapi exec recycle` — the single-tool
-leverage pass — and under the first step of `kapi up`'s default flow, which
-recycles from memory before any AI translation runs. See
+In the CLI, content memory is the engine under `kapi exec recycle` — the
+single-tool leverage pass — and under the first step of `kapi up`'s default flow,
+which recycles from memory before any AI translation runs. See
 [Understanding the CLI layers](/kapi/direct-execution-layer) for how the
 single-tool, flow, and project-loop surfaces relate.
 
@@ -42,8 +41,8 @@ The typed placeholders the generalized tier keys on (`{PERSON}`, `{PRODUCT}`, �
 come from entity detection — a fast local model or an LLM that recognizes the
 named things in a block. You don't run detection as a separate task: it happens
 as part of preparing content, and the same detection also powers
-[redaction](/framework/redaction). Annotate entities once and both generalized TM
-reuse and redaction follow.
+[redaction](/framework/redaction). Annotate entities once and both generalized
+memory reuse and redaction follow.
 
 ## Storage backends
 
@@ -64,47 +63,51 @@ matching uses Levenshtein edit distance with a configurable threshold (default
 
 ### Resource location
 
-All TM commands (except `list`) accept these mutually exclusive flags:
+All `kapi memory` commands (except `list`) accept these mutually exclusive flags:
 
 | Flag            | Resolves to                   | Example                    |
 | --------------- | ----------------------------- | -------------------------- |
-| `--name <n>`    | `~/.config/kapi/tm/<n>.db`    | `--name project-tm`        |
+| `--name <n>`    | `~/.config/kapi/tm/<n>.db`    | `--name project-memory`    |
 | `--local`       | `./tm.db` (current directory) | `--local`                  |
 | `--file <path>` | Explicit file path            | `--file /shared/memory.db` |
 | _(no flag)_     | Same as `--local`             |                            |
 
-Databases are created on demand if they don't exist.
+Databases are created on demand if they don't exist. The `tm/` and `tm.db` names
+above are retained on-disk paths from an earlier release; `~/.config/kapi` is the
+user config directory on Linux, and resolves to
+`~/Library/Application Support/kapi` on macOS. `kapi config path` prints the
+resolved location.
 
 ```bash
-kapi memory import translations.tmx --name project-tm -s en -t fr
-kapi memory export --name project-tm -s en -t fr -o output.tmx
-kapi memory lookup "Welcome to our platform" --name project-tm -s en -t fr
-kapi memory search "welcome" --name project-tm -s en
-kapi memory stats --name project-tm
+kapi memory import translations.tmx --name project-memory -s en -t fr
+kapi memory export --name project-memory -s en -t fr -o output.tmx
+kapi memory lookup "Welcome to our platform" --name project-memory -s en -t fr
+kapi memory search "welcome" --name project-memory -s en
+kapi memory stats --name project-memory
 kapi memory list
 ```
 
 ## Pipeline integration
 
-The `recycle` tool queries the TM for each Block's source segments and
+The `recycle` tool queries content memory for each Block's source segments and
 applies matches. Every match — exact or fuzzy — is recorded as an
-`AltTranslation` annotation (matched source/target runs, score, match type,
-`tm` origin), and a filled target is committed with provenance
+`AltTranslation` annotation (matched source/target runs, score, match type, and
+the `tm` origin kind), and a filled target is committed with provenance
 (`Origin{Kind: "tm", Tool: "recycle"}`), its score, and `draft` status, so
 the leverage is auditable rather than an opaque overwrite. Exact matches skip AI
 translation, reducing cost and latency.
 
 **Segment-aware leverage.** When a block carries a multi-segment
 [segmentation](/framework/segmentation) overlay (a prose paragraph split into
-sentences), `recycle` looks up the TM **per sentence**. This recovers
-leverage for multi-sentence blocks that would never match the sentence-keyed TM
-as a single unit. A single-segment block (most software-localization strings)
-takes the whole-block path unchanged.
+sentences), `recycle` looks up content memory **per sentence**. This recovers
+leverage for multi-sentence blocks that would never match the sentence-keyed
+memory as a single unit. A single-segment block — most UI strings — takes the
+whole-block path unchanged.
 
 The result is recorded so it is **auditable, not blind**:
 
 - Each matching sentence is attached as an `AltTranslation` annotation (matched
-  source and target runs, score, exact/fuzzy match type, `tm` origin) — kept
+  source and target runs, score, exact/fuzzy match type, `tm` origin kind) — kept
   whether or not the block target is filled, so **partial** leverage (some
   sentences matched, some new) is preserved for a reviewer or a later
   translation stage rather than discarded.
@@ -117,7 +120,7 @@ The result is recorded so it is **auditable, not blind**:
 Run [segmentation](/framework/segmentation) before `recycle` to enable this.
 
 ```bash
-kapi exec recycle -i input.html -o output.html --source-lang en --target-lang fr --tm project-tm
+kapi exec recycle input.html -o output.html --source-lang en --target-lang fr --tm project-memory
 ```
 
 ```yaml
@@ -146,12 +149,15 @@ type ContentMemory interface {
 }
 ```
 
+(Methods, and the TMX helpers below, take a `context.Context` as their first
+argument in the real API; it is elided here for readability.)
+
 `Lookup` takes a full `*model.Block` and uses its Run content (and entity
 annotations) for tiered matching; `LookupText` takes a plain string and
 performs plain-tier matching only. `LookupSegment` matches a single segment of
 a block for sentence-level leverage. Both SQLite and in-memory backends also
-implement `EntryProvider` (`Entries()` and paginated `SearchEntries(...)`) for
-export and browsing.
+implement `EntryProvider` (`Entries()`), which is how TMX export enumerates a
+store, and offer paginated `SearchEntries(...)` for browsing.
 
 ### Key types
 
@@ -236,16 +242,23 @@ func main() {
 ### TMX import / export
 
 ```go
-count, err := memory.ImportTMX(tm, reader, "en", "fr")
+// Importing keeps only the named bilingual pair; ImportTMXLocalePairs keeps an
+// arbitrary set of locales, and an empty set keeps every <tuv> present.
+count, err := memory.ImportTMXWithOptions(tm, reader, "en", "fr",
+    memory.ImportTMXOptions{OriginKey: "corpus.tmx"})
+
 err = memory.ExportTMXBilingual(tm, writer, "en", "fr") // src/tgt pair
-// or, for all locales in the TM:
+// or, for a set of locales held in the store:
 err = memory.ExportTMX(tm, writer, []model.LocaleID{"en", "fr", "de"})
 ```
 
-## Translation memory and terminology
+Import requires a backend that supports import sessions — that is, one
+implementing the persistent `Store` interface.
 
-TM and [terminology](/framework/terminology) are deliberately separate systems
-with different data shapes — TM stores segment pairs, terminology stores
-multi-locale concepts. They share the `Block` annotation system as their
-integration point, so both kinds of match are available to any downstream tool
-or editor.
+## Content memory and terminology
+
+Content memory and [terminology](/framework/terminology) are deliberately
+separate systems with different data shapes — memory stores segment pairs,
+terminology stores multi-locale concepts. They share the `Block` annotation
+system as their integration point, so both kinds of match are available to any
+downstream tool or editor.

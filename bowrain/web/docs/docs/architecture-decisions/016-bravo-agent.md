@@ -23,7 +23,7 @@ a per-workspace feature override for internal dogfooding. See the
 
 ## Context
 
-Many localization workflows are repetitive (batch-translating, running
+Many content workflows are repetitive (batch-translating, running
 QA across streams, reformatting terminology imports, auditing brand
 voice) or require scripting around platform operations. Users benefit
 from an assistant that understands their workspace, calls platform
@@ -110,8 +110,8 @@ registers the available tools as native tools in the agent loop.
 | ------------- | ----------------------------------------------------------------------------------------- |
 | **Content**   | `list_projects`, `get_project`, `create_project`, `update_project`, `list_blocks`, `get_block`, `update_block`, `create_version`, `list_streams`, `diff_streams`, `merge_stream` |
 | **Flow**      | `list_flows`, `run_flow`, `get_flow_status`                                               |
-| **TM**        | `tm_search`, `tm_import`                                                                  |
-| **Termbase**  | `term_search`, `term_add`                                                                 |
+| **Memory**    | `tm_search`, `tm_import`                                                                  |
+| **Terms**     | `term_search`, `term_add`                                                                 |
 | **Connector** | `connector_pull`, `connector_push`, `connector_status`                                    |
 | **Sandbox**   | `execute_script`                                                                          |
 | **Brand**     | `check_vocabulary`, `list_profiles`, `get_voice_guide`                                    |
@@ -196,8 +196,8 @@ Sandbox properties:
 - Ephemeral Docker containers with seccomp profiles.
 - No network access by default.
 - Read-only root filesystem; writable `/workspace` mount.
-- Pre-built images include localization libraries (Python: `polib`,
-  `babel`, `lxml`; Node: `i18next`, `icu`).
+- Pre-built images include the common translation libraries (Python:
+  `polib`, `babel`, `lxml`; Node: `i18next`, `icu`).
 - Defaults: 60 s timeout (max 5 min), 256 MB memory, 1.0 core CPU.
 - Admin-togglable per workspace via `AgentConfig.CodeExecEnabled`.
 

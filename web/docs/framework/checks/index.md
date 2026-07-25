@@ -34,7 +34,7 @@ drafts, the checks tell it which block and which rule broke, it fixes that block
 (often via the [`rewrite`](/framework/tools) moat), and the file ships only when
 the gate is green.
 
-Bilingual localization checks — do-not-translate and placeholder integrity, which
+Bilingual checks — do-not-translate and placeholder integrity, which
 compare a translated target against its source — are an opt-in: pass
 `kapi check src.json --target src.de.json --target-lang de`.
 
@@ -97,14 +97,14 @@ checkset):
   [brand voice](/framework/checks/brand-voice) profile; plus an optional
   LLM-judged style/voice check.
 
-**Bilingual localization checks** (opt-in, with `--target` — a translated target
+**Bilingual checks** (opt-in, with `--target` — a translated target
 against its source):
 
 - **Placeholder integrity** — catch a dropped `{count}` or a corrupted `<b>` in
   the translation.
 - **Do-not-translate** — terms that must survive verbatim into the target.
 - **Terminology enforcement** — verifies the right term was used, drawing on the
-  project [termbase](/framework/terminology).
+  project [terms store](/framework/terminology).
 
 The full QA family (whitespace, inline-code integrity, cross-block consistency,
 optional LLM review) is documented under [QA Checks](/framework/checks/qa-checks).
@@ -125,4 +125,4 @@ the findings for one-click fixes. A check never blocks the pipeline by mutating
 content; it annotates, and the gate decides.
 
 For a worked example of gating a pull request on a project's bound checks with
-GitHub Actions, see [Gate localization in CI](/kapi/recipes/gate-localization-in-ci).
+GitHub Actions, see [Ship gates &amp; CI](/kapi/recipes/ship-gates-and-ci).

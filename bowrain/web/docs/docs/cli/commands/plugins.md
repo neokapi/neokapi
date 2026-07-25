@@ -6,12 +6,12 @@ title: plugins
 # kapi plugin
 
 Manage plugins and bundles that add formats and tools. Plugins are a
-[neokapi engine](https://neokapi.github.io/web/neokapi/) feature shared by every
+[neokapi engine](https://neokapi.github.io/) feature shared by every
 kapi installation — this page covers what a Bowrain user typically needs. For
 the full command surface and the plugin model, see the neokapi reference:
 
-- [`kapi plugin` command reference](https://neokapi.github.io/web/neokapi/reference/commands/plugin)
-- [Plugin system](https://neokapi.github.io/web/neokapi/contribute/plugins)
+- [`kapi plugin` command reference](https://neokapi.github.io/reference/commands/plugin)
+- [Plugin system](https://neokapi.github.io/contribute/plugins)
 
 ## Synopsis
 
@@ -66,5 +66,5 @@ plugins:
 Installed plugins live under the kapi data directory
 (`$XDG_DATA_HOME/kapi/plugins`, or the system plugin roots), with multiple
 versions side by side. See the
-[plugin system](https://neokapi.github.io/web/neokapi/contribute/plugins)
+[plugin system](https://neokapi.github.io/contribute/plugins)
 reference for discovery details and for writing your own plugins.

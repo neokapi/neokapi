@@ -9,8 +9,8 @@ references (`cli/skills/data/kapi/references/i18n/`), the
 in `strategy/i18n-skill/research-*.md` (harvested and dated; re-verified by the
 triage workflow).
 
-The thesis it operationalizes is the repo's own: **l10n must be ambient, not
-requested** (`strategy/skill-dogfood/translation-loop.md`). A source edit
+The thesis it operationalizes is the repo's own: **translation must be ambient,
+not requested** (`strategy/skill-dogfood/translation-loop.md`). A source edit
 creates pending target work that tooling absorbs; a human having to remember an
 i18n chore is the failure mode. The Toil Index grades how close a given
 framework — *in the configuration the skill recommends* — gets to that.
@@ -37,10 +37,10 @@ Derived from the `recommended` vector: `total` = sum of the five axes.
 
 | Grade | Meaning (agent-facing) | Criteria |
 |---|---|---|
-| **T0 — add and forget** | A dev who has never heard of the i18n setup ships a correctly localized feature by writing plain source-language UI text; extraction, fill, QA, and sync happen in the build/CI. Residual human work: approving translation review. | total ≤ 2, no axis > 1, **and W = 0** (a wrap habit, however light, is T1 by definition) |
+| **T0 — add and forget** | A dev who has never heard of the i18n setup ships a correctly translated feature by writing plain source-language UI text; extraction, fill, QA, and sync happen in the build/CI. Residual human work: approving translation review. | total ≤ 2, no axis > 1, **and W = 0** (a wrap habit, however light, is T1 by definition) |
 | **T1 — one habit** | One habitual step per feature (wrap with source text, run extract); tooling catches everything else. | total 3–5 **and** no axis = 3 |
-| **T2 — standing chore** | Someone owns key hygiene and catalog sync; localization shows up in sprint planning. | total 6–9 **and** no axis = 3 |
-| **T3 — recurring project** | Releases gate on manual localization passes; drift and untranslated leakage reach prod routinely. Warn the user. | total 10–12, **or** any axis = 3 |
+| **T2 — standing chore** | Someone owns key hygiene and catalog sync; translation work shows up in sprint planning. | total 6–9 **and** no axis = 3 |
+| **T3 — recurring project** | Releases gate on manual translation passes; drift and untranslated leakage reach prod routinely. Warn the user. | total 10–12, **or** any axis = 3 |
 | **T4 — you're on your own** | Hand-edited per-locale files, no validation: expect dead keys, part-translated locales, and the documented 2–5× retrofit bill later. Warn explicitly and offer the nearest lower-toil path. | total ≥ 13, **or** (X = 3 and S ≥ 2) |
 
 The grade is capped by the worst axis, never averaged past it — one manual
@@ -54,7 +54,7 @@ Score what the tooling enforces, not what a disciplined team could do.
 
 ### 2.1 W — Marking toil *(who ensures new strings enter the system?)*
 
-- **0** — Strings are localizable by default or compiler-detected; no wrapper
+- **0** — Strings are translatable by default or compiler-detected; no wrapper
   needed (SwiftUI `Text` literals; neokapi-i18n plain JSX). Opting *out* is the
   explicit act (`Text(verbatim:)`).
 - **1** — A wrapper is required but carries only the source text — no key
@@ -95,9 +95,9 @@ Score what the tooling enforces, not what a disciplined team could do.
 
 - **0** — Guaranteed graceful degradation: fallback chain to source language
   (never raw keys), CLDR-correct plurals, placeholder/message syntax validated
-  before merge, pseudo-localization runnable in CI.
+  before merge, pseudo-translation runnable in CI.
 - **1** — Fallback configured and plurals CLDR-correct, but placeholder
-  validation or pseudo-loc is missing.
+  validation or pseudo-translation is missing.
 - **2** — Raw keys can reach users on a missing translation, or pluralization
   invites string concatenation; a translator can break a view (unvalidated
   placeholders).
@@ -136,7 +136,7 @@ Score what the tooling enforces, not what a disciplined team could do.
 4. **"We use a TMS" without repo-side automation is S2, not S1.** Sync counts
    as scripted only when it runs in CI/build, not when a human remembers to
    export.
-5. **No pseudo-localization path caps R at 1** (never 0). kapi's
+5. **No pseudo-translation path caps R at 1** (never 0). kapi's
    `pseudo-translate` supplies this for any catalog format kapi reads — note
    it in the recommended config where the stack lacks its own.
 6. **Evidence or it didn't happen.** Version claims, maintenance status, and

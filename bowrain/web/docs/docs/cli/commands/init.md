@@ -5,7 +5,7 @@ sidebar_position: 1
 
 # kapi init
 
-Initialize a new Bowrain project in the current directory. Creates a `kapi.yaml` recipe at the project root and a sibling `.kapi/` state directory for the block store, sync cache, TM, and termbase.
+Initialize a new Bowrain project in the current directory. Creates a `kapi.yaml` recipe at the project root and a sibling `.kapi/` state directory for the block store, sync cache, content memory, and terms store.
 
 ## Usage
 
@@ -139,7 +139,7 @@ The server URL is resolved from (first match wins):
 
 1. `--server` flag
 2. `BOWRAIN_SERVER_URL` environment variable
-3. `server.url` in global config (`~/.config/bowrain/bowrain.yaml`)
+3. `server.url` in the per-machine [bowrain config](/cli/commands/config)
 4. Existing auth state (from `kapi auth login`)
 5. The hosted service (`https://app.bowrain.cloud`) — used only when init
    contacts a server (sign-in, `--anonymous`, `--email`, `--project`); a plain
@@ -172,9 +172,9 @@ kapi status  # finds kapi.yaml up the tree
 
 - `.kapi/cache/` — block store, sync cache, extraction intermediates (auto-gitignored)
 - `.kapi/manifest.yaml` — regenerable bookkeeping
-- `.kapi/tm.db`, `.kapi/termbase.db` — local-only by default; opt in to commit when cross-clone reproducibility matters
+- `.kapi/tm.db`, `.kapi/termbase.db` — the content memory and terms store: local-only by default; opt in to commit when cross-clone reproducibility matters
 
-Auth tokens are never written to the project. They live in the OS keychain (keys `bowrain-auth:<server-url>` and `bowrain-refresh:<server-url>`); non-secret metadata sits at `~/.config/bowrain/auth.json`.
+Auth tokens are never written to the project. They live in the OS keychain (keys `bowrain-auth:<server-url>` and `bowrain-refresh:<server-url>`); non-secret metadata sits in `auth.json` in the bowrain config directory (`~/.config/bowrain` on Linux, `~/Library/Application Support/bowrain` on macOS).
 
 `kapi init` automatically adds `.kapi/` to `.gitignore`.
 

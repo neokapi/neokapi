@@ -6,9 +6,9 @@
 
 > **Experimental.** Neokapi is an ongoing experiment and not yet recommended for production use.
 
-neokapi is a format-aware content engine in Go: parse any format — JSON, Markdown, HTML, config, office formats — into one unified content model, edit the content inside it, check it, and write it back byte-for-byte. At heart, it is both a localization engine and the tool that keeps your source content on brand.
+neokapi is a format-aware content engine in Go: parse any format — JSON, Markdown, HTML, config, office formats — into one unified content model, edit the content inside it, check it, and write it back byte-for-byte. The same engine keeps source content on brand and makes that content work in every language.
 
-The engine carries the [Okapi Framework](https://okapiframework.org/) heritage forward — channel-based concurrent processing and pluggable tools — in an AI-native design. Localization is the flagship application: extraction, translation, TM and termbase, XLIFF/PO interchange, and an Okapi-parity fidelity story. The same engine also serves on-brand source content, AI ingestion, and programmatic editing.
+The engine carries the [Okapi Framework](https://okapiframework.org/) heritage forward — channel-based concurrent processing and pluggable tools — in an AI-native design. Multilingual content is the flagship application: extraction, translation, content memory and a terms store, XLIFF/PO interchange, and an Okapi-parity fidelity story. The same engine also serves on-brand source content, AI ingestion, and programmatic editing.
 
 The bowrain platform — the shared brand memory for your team and your agents, built on neokapi — lives under [`bowrain/`](bowrain/) with its own [README](bowrain/README.md).
 
@@ -19,22 +19,23 @@ brew install neokapi/tap/kapi-cli  # macOS/Linux
 winget install Neokapi.KapiCli     # Windows
 ```
 
-Pre-built binaries for Linux, macOS, and Windows (amd64 + arm64) are on the [Releases](https://github.com/neokapi/neokapi/releases) page. Kapi Desktop ships a signed Windows installer and a macOS cask — see the [installation guide](https://neokapi.github.io/web/neokapi/kapi/get-started/installation).
+Pre-built binaries for Linux, macOS, and Windows (amd64 + arm64) are on the [Releases](https://github.com/neokapi/neokapi/releases) page. Kapi Desktop ships a signed Windows installer and a macOS cask — see the [installation guide](https://neokapi.github.io/kapi/get-started/installation).
 
-## Repository Layout
+## Repository layout
 
 The framework + kapi CLI live at the root. Companion areas are clearly marked.
 
 ```
 core/                       Framework: content model, formats, tools, flows, plugin system
-memory/                   Translation memory (interface + in-memory + SQLite + matching)
-termbase/                   Terminology (interface + in-memory + SQLite + import)
+memory/                     Content memory (interface + in-memory + SQLite + matching)
+terms/                      Terminology (interface + in-memory + SQLite + import)
 providers/                  AI + MT provider integrations
-cli/                        Shared CLI base (commands, output, config, credentials)
+host/                       Cobra-free runtime + services (config, credentials, plugin host)
+cli/                        Thin Cobra shell over host (command factories, flags, dispatch)
 kapi/                       Standalone CLI tool — github.com/neokapi/neokapi/kapi
 apps/kapi-desktop/          Wails v3 desktop app (Go + React/TS)
-packages/                   Apache-licensed npm workspaces (UI, neokapi-i18n, docs-shared, ...)
-web/                   Docusaurus docs + landing home → /web/neokapi/
+packages/                   Apache-licensed pnpm workspace packages (ui, i18n-react, docs-shared, ...)
+web/                        Docusaurus docs + landing home → published at the site root
 storybook/                  Kapi Storybook (UI primitives + flow editor)
 bench/                      Benchmarks
 examples/                   Plugin examples
@@ -46,15 +47,16 @@ The Go side is a multi-module workspace coordinated by `go.work`:
 
 | Module          | Path                  | Purpose                                              |
 | --------------- | --------------------- | ---------------------------------------------------- |
-| **Framework**   | `.` (root)            | Engine — `core/`, `memory/`, `termbase/`, `providers/` |
-| **CLI base**    | `cli/`                | Shared CLI commands + output formatting              |
+| **Framework**   | `.` (root)            | Engine — `core/`, `memory/`, `terms/`, `providers/`  |
+| **Host**        | `host/`               | Cobra-free runtime + services (config, credentials)  |
+| **CLI base**    | `cli/`                | Shared Cobra commands + output formatting            |
 | **Kapi**        | `kapi/`               | Standalone file-processing CLI                       |
 | **Kapi Desktop**| `apps/kapi-desktop/`  | Wails v3 desktop app                                 |
 | **Bowrain Core**| `bowrain/core/`       | Shared platform types (see bowrain/README.md)        |
 | **Bowrain plugin**| `bowrain/plugin/`   | `kapi-bowrain` plugin — project sync, run as `kapi <cmd>` |
 | **Bowrain**     | `bowrain/`             | Full platform                                        |
 
-## Quick Start
+## Quick start
 
 ```bash
 make build              # Build kapi CLI → bin/kapi
@@ -68,19 +70,19 @@ For the bowrain platform (server, desktop app, web app), see [`bowrain/README.md
 
 ### Frontend / docs site
 
-A single root npm workspace coordinates the kapi side:
+A single root pnpm workspace coordinates the kapi side:
 
 ```bash
 vp install                    # at the repo root
-cd web && vp run start  # Docusaurus dev server (kapi docs + landing)
+cd web && vp run start        # Docusaurus dev server (kapi docs + landing)
 make kapi-storybook           # Storybook on :6007
 ```
 
 ## Documentation
 
-- **[kapi docs](https://neokapi.github.io/web/neokapi/)** — published Docusaurus site
-- **[Architecture](web/docs/architecture/)** — ADs, one per architectural concern
-- **[Implementation notes](web/docs/notes-internal/)** — schemas, protocols, algorithms
+- **[kapi docs](https://neokapi.github.io/)** — published Docusaurus site
+- **[Architecture](web/docs/contribute/architecture/)** — ADs, one per architectural concern
+- **[Implementation notes](web/docs/contribute/notes-internal/)** — schemas, protocols, algorithms
 - **[Internals (root)](docs/internals/)** — repo-wide testing, interfaces, release process
 
 ## Make targets

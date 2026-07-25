@@ -65,7 +65,7 @@ Verify a download against [`checksums.txt`](https://github.com/neokapi/neokapi/r
 ## The kapi CLI (the developer route)
 
 To sync a local codebase, install the bowrain plugin for the
-[`kapi`](https://neokapi.github.io/web/neokapi/kapi/get-started/installation)
+[`kapi`](https://neokapi.github.io/kapi/get-started/installation)
 CLI — there is no separate `bowrain` binary. Once installed, run every bowrain
 command as `kapi <command>` (e.g. `kapi init`, `kapi push`, `kapi up`). This is
 the local-files/git connector — one of several ways content reaches Bowrain.

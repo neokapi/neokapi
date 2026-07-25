@@ -1,7 +1,7 @@
 ---
 sidebar_position: 5
 title: "Terminology Data Model"
-description: Implementation note for AD-010 — the Go struct layout for Concept, Term, and their context dimensions, plus the SQL schema for the SQLite termbase and the import pipeline from TBX and CSV sources.
+description: Implementation note for AD-010 — the Go struct layout for Concept, Term, and their context dimensions, plus the SQL schema for the SQLite terms store and the import pipeline from TBX and CSV sources.
 keywords: [terminology data model, Concept, Term, SQLite, TBX import, CSV, implementation note, neokapi]
 ---
 
@@ -40,7 +40,7 @@ type Concept struct {
 
 `TermSource` distinguishes traditional terminology
 (`TermSourceTerminology`) from brand vocabulary (`TermSourceBrandVocabulary`),
-so the two populations can share one termbase while staying filterable.
+so the two populations can share one terms store while staying filterable.
 
 Progressive disclosure: CSV import auto-creates Concepts with a single preferred Term per locale -- no extra complexity required.
 
@@ -95,7 +95,7 @@ Related AI and redaction tools (registered in `core/ai/tools/` and
 
 **`term-extract`** (Enrich, AI) -- LLM extraction of candidate terms. Uses an AI provider from [AD-011](/contribute/architecture/011-ai-providers).
 
-**`entity-extract`** (Enrich, AI) -- Named entity annotation (people, organizations, products, dates, locations). Serves multiple purposes: TM generalization in Memory ([AD-009](/contribute/architecture/009-translation-memory)), do-not-translate markers, localization hints, and terminology candidate discovery. Should run early in the pipeline -- before `recycle`.
+**`entity-extract`** (Enrich, AI) -- Named entity annotation (people, organizations, products, dates, locations). Serves multiple purposes: content-memory generalization ([AD-009](/contribute/architecture/009-content-memory)), do-not-translate markers, translation hints, and terminology candidate discovery. Should run early in the pipeline -- before `recycle`.
 
 **`redact`** (Transform) -- Privacy tool replacing entity values with typed placeholders (e.g., "John" -> `\{PERSON\}`) before external services. See [AD-020](/contribute/architecture/020-redaction).
 

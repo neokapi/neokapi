@@ -12,7 +12,7 @@ interface CsvTableProps {
 type View = "table" | "raw";
 
 /**
- * Parse CSV text into rows of fields. Handles the common cases this docs glossary
+ * Parse CSV text into rows of fields. Handles the common cases this docs table
  * needs: a header row, plain values, and quoted fields that may contain commas
  * or escaped double-quotes (`""`). Apostrophes inside unquoted values (e.g.
  * `nom d'utilisateur`) are left untouched. Blank lines are skipped.
@@ -104,7 +104,7 @@ export default function CsvTable({ csv, caption }: CsvTableProps): React.ReactEl
     <figure className={styles.figure}>
       <div className={styles.toolbar}>
         {caption && <figcaption className={styles.caption}>{caption}</figcaption>}
-        <div className={styles.toggle} role="group" aria-label="Glossary view">
+        <div className={styles.toggle} role="group" aria-label="CSV view">
           <button
             type="button"
             className={view === "table" ? styles.toggleActive : styles.toggleButton}

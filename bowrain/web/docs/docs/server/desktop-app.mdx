@@ -12,7 +12,7 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 Everything in this section describes one product served from one place — the
 Bowrain server. You reach a workspace through two clients: a browser and a
 native **desktop app**. They are equal real-time clients of the same server, so
-presence, edits, reviews, terminology, and translation memory are shared live
+presence, edits, reviews, terminology, and content memory are shared live
 across both. The pages on workspaces, the editor, memory, terminology, brand
 governance, and connectors apply to both clients; this page covers only what is
 **different** about the desktop app.
@@ -30,7 +30,7 @@ dashboard, editor, and reviews as the browser.
 ## A working copy of the server
 
 The desktop app is a **working copy of the server, never a separate source of
-truth**. The authoritative content, translation memory, terminology, and project
+truth**. The authoritative content, content memory, terminology, and project
 configuration live on the server; the desktop holds only:
 
 - a **content cache**, so a project opens fast and stays readable offline, and
@@ -62,11 +62,11 @@ for is a matter of where you work, not what you can do.
 | --- | --- | --- |
 | Install | Nothing — open a URL | Native app (macOS / Linux / Windows) |
 | Real-time presence & live updates | Yes | Yes |
-| Translation editor, TM & terminology explorers | Yes | Yes |
-| Brand, terminology & TM context | Yes | Yes |
+| Translation editor, memory & terminology explorers | Yes | Yes |
+| Brand, terminology & memory context | Yes | Yes |
 | AI/MT translation | Yes | Yes |
 | Works offline | No (always online) | **Yes** — edits queue, sync on reconnect |
-| Local footprint | Browser session | **Cache only** — content cache, offline edit queue, TM/termbase mirrors |
+| Local footprint | Browser session | **Cache only** — content cache, offline edit queue, memory and terms mirrors |
 | Best for | Quick access, reviewers, occasional contributors | Daily translators, large files, unreliable connectivity |
 
 ## Installation

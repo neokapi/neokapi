@@ -159,7 +159,7 @@ So these all work out of the box:
 <img alt="Company logo" />
 <button title="Save draft">💾</button>
 
-<PageHeader title="Translation Memories" subtitle="Glossaries" />
+<PageHeader title="Content Memory" subtitle="Approved terms and past translations" />
 <EmptyState title="No projects yet" description="Create one to get started." />
 <LoadingSpinner helpText="Contacting the server…" />
 <Tooltip tooltip="Retry the last operation" />

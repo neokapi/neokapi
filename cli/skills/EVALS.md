@@ -48,12 +48,12 @@ catalogs; the app is not booted, so in-locale *rendering* is not verified here
 | 3 | "Check `README.md` against our brand voice and fix what's off." | brand | yes | yes — `kapi brand check` gate |
 | 4 | "Find every 'utilize' across `docs/` and change it to 'use'." (`docs/` **must** hold at least one opaque file — a `.docx`/`.json` — or the skill correctly won't fire; see above) | edit / toolbox | yes | yes — replaced across `.docx`+`.json`+`.md` |
 | 5 | "Set up a brand voice for us from our landing page." | brand create | yes | yes — `brand.yaml` + `brand check --min-score` |
-| 6 | "Translate `announcement.docx` into Japanese." | localize | yes | yes — round-trip → `kapi check` |
-| 7 | "Localize `src/locales/en.json` into fr and de using our glossary." | localize | yes | partial — fr/de translated + checked, but the fixture shipped **no glossary**, so the term dimension wasn't exercised (fixture gap, not a skill miss) |
-| 8 | "Get `report.docx` ready for a translation vendor in French." | localize (interchange) | yes | yes — `pack`/extract → merge, content memory seeded (~45 turns; exploratory) |
+| 6 | "Translate `announcement.docx` into Japanese." | translate | yes | yes — round-trip → `kapi check` |
+| 7 | "Localize `src/locales/en.json` into fr and de using our glossary." | translate | yes | partial — fr/de translated + checked, but the fixture shipped **no terms**, so the term dimension wasn't exercised (fixture gap, not a skill miss) |
+| 8 | "Get `report.docx` ready for a translation vendor in French." | translate (interchange) | yes | yes — `pack`/extract → merge, content memory seeded (~45 turns; exploratory) |
 | 9 | "Add i18n to this React app." | i18n | yes | blocked — correct Path A workflow, but `@neokapi/i18n-react*` npm is served from a private registry (`localhost:4873`) absent in the sandbox; extraction can't install its toolchain |
 | 10 | "Set kapi up for this project." | bootstrap | yes | yes — `kapi init` scaffolded recipe + state (needs ≥25 turns; below that it reads as full i18n adoption) |
-| 11 | "Bring our project's Norwegian translations up to date and flag what still needs review." | localize (kapi loop) | yes | yes — drove `kapi status`, caught nb up to 100%, surfaced the review queue |
+| 11 | "Bring our project's Norwegian translations up to date and flag what still needs review." | translate (kapi loop) | yes | yes — drove `kapi status`, caught nb up to 100%, surfaced the review queue |
 | 12 | "Which i18n library should we use for our Next.js app?" | i18n (advice — must quote toil grades, not just pick one) | yes | partial — read the registry + `react.md` and gave a sound next-intl vs neokapi-i18n recommendation, but did **not** quote the toil grades to the user (the stated bar) |
 | 13 | "Internationalize this Flutter app and translate it to German." | i18n (detect → flutter.md → gen_l10n + preset) | yes | yes (catalog) — `check --ship` green, de 100%; SDK codegen/render not run in sandbox |
 | 14 | "Our app has hardcoded strings everywhere — make it translatable." | i18n (retrofit; lint/pseudo-translate sweep) | yes | blocked — same `@neokapi/i18n-react*` private-registry limit as #9; retrofit lint can't install |
@@ -61,11 +61,11 @@ catalogs; the app is not booted, so in-locale *rendering* is not verified here
 | 16 | "Set up our brand from this repo and connect the project to Bowrain." (fixture: a fresh repo with a README + a few marketing `.md`/`.docx` files) | starter pack (onboard) | — | — (not yet run) |
 
 Completion summary: **12/15 green** at catalog-gate depth, **2 partial** (#7
-glossary fixture gap, #12 didn't surface grades), **2 blocked** on the
+terms fixture gap, #12 didn't surface grades), **2 blocked** on the
 `@neokapi/i18n-react` private npm registry being unavailable in the sandbox
 (#9, #14 — the same root cause; not a skill defect). The two blocked and the
 Flutter render step are the residual manual pass. Two scenario-shape lessons
-worth folding back into the fixtures: **give #7 a real glossary** (else it
+worth folding back into the fixtures: **give #7 a real term seed** (else it
 tests nothing it claims to), and **the neokapi-i18n Path A rows can only reach a
 green gate where `@neokapi/i18n-react*` is installable** — either run the local
 registry or complete them against a catalog-library path.

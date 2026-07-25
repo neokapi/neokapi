@@ -8,7 +8,7 @@ keywords: [kapi, bowrain, boundary, toolchain, platform, connector, open source]
 
 # How Bowrain and kapi fit together
 
-[Kapi](https://neokapi.github.io/web/neokapi/) is the Apache-2.0 toolchain
+[Kapi](https://neokapi.github.io/) is the Apache-2.0 toolchain
 Bowrain is built on: it reads and writes content formats, runs checks, drafts
 and adapts text, and works entirely from local files with no server or account.
 Bowrain is the governed platform — shared voice, vocabulary, and content memory,

@@ -25,12 +25,12 @@ main translation state.
 Without branching, every push overwrites the same content set, which makes
 working on multiple versions simultaneously impractical and breaks the
 "translate the feature before merge" workflow that makes continuous
-localization valuable. Teams work around the gap with separate projects
+translation valuable. Teams work around the gap with separate projects
 per version (duplicating config, losing shared translations) or by
 deferring translation until after code merges (losing parallelism).
 
 Streams solve the gap at the content layer, so the rest of the stack —
-connectors, flows, TM, terminology, automation — operates unchanged.
+connectors, flows, content memory, terminology, automation — operates unchanged.
 
 ## Decision
 
@@ -81,7 +81,7 @@ Key properties:
 - **Visibility.** Streams can be `public` (all project members), `private`
   (creator only), or `shared` (creator plus an explicit `stream_members`
   list). Visibility is enforced at the API layer.
-- **TM and terminology scoping.** TM and terminology lookups walk the
+- **Memory and terminology scoping.** Content memory and terminology lookups walk the
   parent chain (stream → parent → grandparent → main → workspace),
   enabling isolated terminology experiments that inherit from the parent
   while overriding specific entries.

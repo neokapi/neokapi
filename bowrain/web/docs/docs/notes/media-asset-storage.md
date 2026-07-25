@@ -196,7 +196,7 @@ CREATE TABLE asset_variants (
 );
 ```
 
-**status values**: `pending` (needs localization), `draft` (variant uploaded, not reviewed), `approved` (ready for inclusion in localized output).
+**status values**: `pending` (needs a locale variant), `draft` (variant uploaded, not reviewed), `approved` (ready for inclusion in target output).
 
 ### block_asset_refs table
 

@@ -56,7 +56,7 @@ Credits are spent by the AI operations Bowrain runs on your behalf:
   requested inline in the translation editor.
 - **Brand scans** — analyzing content to build or update a brand-voice profile.
 
-Editing, reviewing, running non-AI checks, and reading translation memory or
+Editing, reviewing, running non-AI checks, and reading content memory or
 terminology do not consume credits. Only the operations that call an AI model
 draw down the balance.
 

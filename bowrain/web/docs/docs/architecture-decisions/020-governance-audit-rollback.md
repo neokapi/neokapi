@@ -23,7 +23,7 @@ these surfaces through workspace-scoped REST routes and is itself audited.
 [AD-003](003-permissions.md) computes effective permissions by intersecting
 base permissions, token scopes, and session grants — every layer can only
 narrow what the one above allows. That model answers "what is this principal
-allowed to do," but a regulated localization workspace also needs to answer:
+allowed to do," but a regulated content workspace also needs to answer:
 
 - **How does an administrator take a capability away** from a specific user, a
   whole workspace role, or a team — independent of the role templates a user

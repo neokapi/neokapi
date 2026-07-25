@@ -48,7 +48,7 @@ auto-detection — and `kapi run --explain` always shows the resolved
 
 ## Context
 
-A localization pipeline runs at many origins and destinations. The same
+A pipeline runs at many origins and destinations. The same
 translation flow processes a loose file on a laptop, the blocks already held in a
 project's store, a `.kpz` workspace, or content imported from an interchange
 file; and its results land in a translated file, as overlays committed to the
@@ -203,8 +203,9 @@ inside the run.
 ### 5. Resolving a binding across the CLI and flow surfaces
 
 A binding is named by the same small scheme vocabulary (§1) on every surface —
-the CLI, the flow document, and the resource URIs the tool resolver understands
-(`tm:`, `termbase:`, `srx:` in `core/flow/resolve.go`). This follows two
+the CLI, the flow document, and the resource URIs the tool resolver understands:
+the content memory (`tm:`), the terms store (`termbase:`), and segmentation rules
+(`srx:`), all resolved in `core/flow/resolve.go`. This follows two
 conventions a user already knows: *detect-by-extension with an explicit override*
 (as in format-converting tools) and *scheme-prefixed endpoints* (as in file-sync
 tools).
@@ -268,7 +269,7 @@ workspace, or a project, and `--explain` shows where a given run's content lands
 
 **In a project, a run lands in the store.** When a `kapi.yaml` recipe is in scope, a
 run with no explicit sink commits its work as overlays to the project block store
-and emits no document. Materializing the localized files is a separate, explicit
+and emits no document. Materializing the per-locale files is a separate, explicit
 step (`kapi merge`). The store is the working copy: a re-run reuses the overlays
 already present and recomputes only what changed
 ([AD-025](025-kbf-package.md) §5).
@@ -309,7 +310,7 @@ The fan-out and repack are a small, provider-agnostic substrate (`core/container
 dependency on the format registry or the flow engine; the per-entry *processing*
 is injected by the caller. A read-only `archive` reader is kept as the
 **inspection** face only — it surfaces each entry's content so `kapi inspect
-bundle.zip` shows what is inside — but it has no writer, because localizing a
+bundle.zip` shows what is inside — but it has no writer, because processing a
 container is the binding above, not a format round-trip.
 
 **Memory: the whole archive is never loaded.** `Transform` opens a ZIP with

@@ -2,7 +2,7 @@
 sidebar_position: 4
 title: The kapi loop in CI
 description: Run the kapi loop where the work already lives — your CI. Catch up on a schedule and deliver a pull request, gate merges on content quality, and report the translation cost of a change on its PR, on GitHub, GitLab, or any container-based runner.
-keywords: [kapi, kapi loop, convergence, CI, CD, continuous localization, GitHub Actions, GitLab CI, pipeline, ship gate, kapi up, container image, multilingual publishing]
+keywords: [kapi, kapi loop, convergence, CI, CD, continuous translation, GitHub Actions, GitLab CI, pipeline, ship gate, kapi up, container image, multilingual publishing]
 ---
 
 import Tabs from "@theme/Tabs";
@@ -26,7 +26,7 @@ translation coverage and QA.
     { label: "change", sub: "a merge or a schedule tick", role: "io" },
     {
       label: "catch up",
-      sub: "kapi up — TM first, then AI, then checks",
+      sub: "kapi up — memory first, then AI, then checks",
       role: "translate",
       loop: ["each pass re-derives", "coverage and repeats"],
     },
@@ -171,14 +171,14 @@ threaded MR note with the failing gates and findings; the full
 </TabItem>
 </Tabs>
 
-The [Ship gates & CI](/kapi/recipes/gate-localization-in-ci) recipe walks the
+The [Ship gates & CI](/kapi/recipes/ship-gates-and-ci) recipe walks the
 gate end to end, including the committed state store that lets a `reviewed`
 threshold pass on a runner.
 
 ## Report the cost of a change on its pull request
 
-`kapi up --plan` dry-runs the loop: pending units, TM leverage, and a token
-estimate — no writes, no provider calls, no keys. Posted on the pull request
+`kapi up --plan` dry-runs the loop: pending units, content-memory leverage, and a
+token estimate — no writes, no provider calls, no keys. Posted on the pull request
 that created the work, it answers "what does this change cost in translation?"
 before anyone merges:
 
@@ -209,7 +209,7 @@ include:
 </Tabs>
 
 > This change leaves **42 unit(s)** of pending translation work: 30
-> recoverable from TM, 12 for AI (~450 tokens estimated).
+> recoverable from content memory, 12 for AI (~450 tokens estimated).
 
 ## Credentials and state on a runner
 
@@ -245,6 +245,6 @@ Everything on this page runs the loop inside your own CI. A project whose recipe
 ## Next
 
 - [The kapi loop](/kapi/convergence) — the loop and the derived-state model behind `status`, `up`, and the gates.
-- [Ship gates & CI](/kapi/recipes/gate-localization-in-ci) — the enforcement recipe, end to end.
+- [Ship gates & CI](/kapi/recipes/ship-gates-and-ci) — the enforcement recipe, end to end.
 - [Estimate a run's cost](/kapi/recipes/estimate-cost) — sizing a job with `kapi stats` before commissioning it.
 - [Review & approve](/kapi/recipes/review-and-approve) — the human half of a parked run.

@@ -152,8 +152,8 @@ escaping) so it lands directly inside `<m:t>…</m:t>`. An untranslated span
 therefore reproduces the original bytes exactly; a translated one splices the
 translation in place while the surrounding math is replayed byte-for-byte. The
 cross-format writers (markdown, doclang) **skip** `omml-nor` blocks — the prose
-already rides inside the formula's LaTeX carrier — so the spans are localized for
-DOCX round-trip without being duplicated on export.
+already rides inside the formula's LaTeX carrier — so the spans are translated for
+the DOCX round-trip without being duplicated on export.
 
 ## HTML tokenizer reader (`core/formats/html/tokenreader.go`)
 

@@ -1,14 +1,14 @@
 ---
 sidebar_position: 16
 title: Prompts
-description: What the engine sends to a language model on your behalf — how a prompt is composed from framework rules, your brand voice, and your glossary; how to see the exact text with --explain-prompts; and how to steer it without replacing it.
+description: What the engine sends to a language model on your behalf — how a prompt is composed from framework rules, your brand voice, and your terminology; how to see the exact text with --explain-prompts; and how to steer it without replacing it.
 keywords:
   [
     prompt,
     LLM,
     explain,
     brand voice,
-    glossary,
+    terminology,
     instruction,
     determinism,
     Anthropic,
@@ -80,7 +80,7 @@ provider: anthropic  model: claude-sonnet-5
   Instruction (apply when translating):
   Informal register. Keep product names in English.
 
-  [glossary · termbase (12 terms)]
+  [glossary · terms (12 terms)]
   Glossary:
   - utilize → use
 
@@ -121,7 +121,7 @@ that have **different owners**, and the distinction is the whole design:
       steps: [
         "instruction — from --instruction or the recipe",
         "brand voice — from your voice profile",
-        "glossary — from your termbase",
+        "glossary — from your terms store",
       ],
     },
     {
@@ -144,9 +144,9 @@ file — it breaks the round-trip that makes kapi useful at all. These rules are
 not a configuration surface, and there is no flag to remove them.
 
 **Your project owns the steering.** The instruction, the brand voice and the
-glossary are what make the output _yours_ rather than merely correct. They are
+pinned terms are what make the output _yours_ rather than merely correct. They are
 declared in the recipe, the [brand voice profile](/framework/checks/brand-voice)
-and the [termbase](/framework/terminology) — never typed into a prompt.
+and the [terms store](/framework/terminology) — never typed into a prompt.
 
 **Your document owns the content — and the context.** The source text is the
 entire user turn: data, never instruction. Its *key* and its *neighbours* travel
@@ -163,7 +163,7 @@ sections — not to replace the prompt.
 | A one-off directive for this run      | `--instruction "informal register"`                    |
 | A standing directive for the project  | `defaults.tools.translate.instruction` in the recipe   |
 | Consistent tone and phrasing          | A [brand voice profile](/framework/checks/brand-voice) |
-| Specific terms translated a fixed way | A [termbase](/framework/terminology)                   |
+| Specific terms translated a fixed way | A [terms store](/framework/terminology)                |
 | The model to know what a string *is*  | `--context key` (default) or `--context neighbours`    |
 
 ```yaml title="kapi.yaml"
@@ -179,7 +179,7 @@ defaults:
 ```
 
 Everything in that recipe is visible in the prompt, and `--explain-prompts` will
-show you which section each line landed in. If a glossary term is not reaching
+show you which section each line landed in. If a pinned term is not reaching
 the model, this is how you find out.
 
 ## Prompts are provider-neutral
@@ -222,13 +222,13 @@ provider interface, where it belongs. Switching `--provider anthropic` to
 
 ## Determinism, and why it matters for cost
 
-The same inputs always render byte-identical prompt text. Glossary terms are
-sorted rather than emitted in map order, and no timestamp, run id or machine
-detail is ever interpolated.
+The same inputs always render byte-identical prompt text. Terms in the `glossary`
+section are sorted rather than emitted in map order, and no timestamp, run id or
+machine detail is ever interpolated.
 
 This is not tidiness. kapi caches translations, and the cache key is derived
 **from the text the prompt actually renders**. Change your instruction, your
-brand voice, your glossary, or the prompt itself, and the fingerprint moves, so
+brand voice, your terms, or the prompt itself, and the fingerprint moves, so
 the affected strings are re-translated instead of served from a cache that a
 different prompt produced. Change nothing, and nothing is re-bought.
 
@@ -271,7 +271,7 @@ kapi translate messages.json --target-lang fr --context neighbours
 
 Worth stating plainly, because prompts are easy to imagine bigger than they are:
 
-- **No translation memory matches.** TM reuse is a separate, deterministic step
+- **No content-memory matches.** Memory reuse is a separate, deterministic step
   (`recycle`) that runs _before_ translate and fills what it can. Matches are
   not offered to the model as examples.
 - **No rolling document context.** Reference material is a bounded window around

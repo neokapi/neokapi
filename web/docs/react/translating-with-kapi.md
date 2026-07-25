@@ -2,7 +2,7 @@
 sidebar_position: 9
 title: Translating neokapi-i18n Projects with kapi
 description: How to use the kapi CLI to translate a neokapi-i18n KBF archive — pseudo-translation for QA, AI translation with Claude or GPT-4, and review and QA flows that write results back to the archive in place.
-keywords: [kapi, translate, KBF, pseudo-translate, AI translation, neokapi-i18n, localization workflow]
+keywords: [kapi, translate, KBF, pseudo-translate, AI translation, neokapi-i18n, translation workflow]
 ---
 
 # Translating with `kapi`
@@ -74,22 +74,22 @@ Where the element alone isn't enough to disambiguate — two buttons both readin
 
 ### Translate a subset
 
-For incremental translations (only the strings that changed), re-extract into the same archive and translate only the untranslated blocks. `neokapi-i18n extract` is locale-additive, so re-running it adds new source blocks without disturbing existing targets; `translate --skip-matched` then skips any block that already has a target for the locale:
+For incremental translations (only the strings that changed), re-extract into the same archive and translate only the untranslated blocks. `neokapi-i18n extract` is locale-additive, so re-running it adds new source blocks without disturbing existing targets; `kapi exec translate --skip-matched` then skips any block that already has a target for the locale:
 
 ```bash
 vp neokapi-i18n extract                          # refresh i18n/ with new/changed blocks
-kapi translate i18n/ --target-lang fr --skip-matched
+kapi exec translate i18n/ --target-lang fr --skip-matched
 ```
 
 Only the blocks added since the last pass are sent to the LLM; everything already translated is left as-is.
 
 ## Quality assurance
 
-`kapi exec qa` runs placeholder, inline-code, whitespace, and length checks against a translated archive; `kapi exec term-check` enforces a glossary:
+`kapi exec qa` runs placeholder, inline-code, whitespace, and length checks against a translated archive; `kapi exec term-check` enforces approved terminology:
 
 ```bash
-kapi exec qa i18n/ --target-lang fr                                # placeholder, code, length, consistency
-kapi exec term-check i18n/ --target-lang fr --termbase fr-termbase.csv   # terminology
+kapi exec qa i18n/ --target-lang fr                              # placeholder, code, length, consistency
+kapi exec term-check i18n/ --target-lang fr --termbase terms/fr.db   # terminology
 ```
 
 `qa` covers:
@@ -98,37 +98,37 @@ kapi exec term-check i18n/ --target-lang fr --termbase fr-termbase.csv   # termi
 - **Length bounds** — flag targets that grow or shrink beyond configurable percentages of the source (useful for fixed-width UI containers).
 - **Consistency** — double spaces, doubled words, leading/trailing whitespace, target-identical-to-source, and more (each individually toggleable).
 
-`term-check` flags targets that violate the glossary — e.g. a brand term that must stay untranslated. (`kapi exec qa --check-terminology` folds the project termbase into the QA pass instead of running a separate command.)
+`term-check` flags targets that diverge from an approved term — e.g. a brand term that must stay untranslated. (`kapi exec qa --check-terminology` folds the project terms store into the QA pass instead of running a separate command.)
 
 QA results can fail your build — a common CI pattern is `extract → translate → qa`, exiting non-zero on any category you gate on.
 
-## Translation memory leverage
+## Content memory leverage
 
-`kapi` has a built-in SQLite translation memory. Feed past translations in:
-
-```bash
-kapi memory import historical-translations.xliff -s en -t fr
-```
-
-Then pre-fill matches before the AI pass: `kapi exec recycle` writes exact and high-scoring fuzzy matches into the target, and `translate --skip-matched` translates only what's left:
+`kapi` has a built-in SQLite content memory. Feed past translations in:
 
 ```bash
-kapi exec recycle i18n/ --target-lang fr            # fill targets from the TM (defaults to the project TM)
-kapi translate i18n/ --target-lang fr --skip-matched
+kapi memory import historical-translations.tmx -s en -t fr
 ```
 
-Pass `--tm <name-or-path>` to leverage a specific TM. See [Translation memory](/framework/translation-memory) for the match and fill thresholds.
+Then pre-fill matches before the AI pass: `kapi exec recycle` writes exact and high-scoring fuzzy matches into the target, and `kapi exec translate --skip-matched` translates only what's left:
+
+```bash
+kapi exec recycle i18n/ --target-lang fr   # fill targets from the project content memory
+kapi exec translate i18n/ --target-lang fr --skip-matched
+```
+
+Pass `--tm <name-or-path>` to `kapi exec recycle` to draw on a specific content memory. See [Content memory](/framework/content-memory) for the match and fill thresholds.
 
 ## Terminology consistency
 
-For apps with a large product vocabulary, keep terms rendered consistently with a termbase. Import the glossary, then gate translations with `kapi exec term-check` so any target that diverges from an approved term is flagged:
+For apps with a large product vocabulary, keep terms rendered consistently with a terms store. Import the term list into a named store, then gate translations with `kapi exec term-check` so any target that diverges from an approved term is flagged:
 
 ```bash
-kapi terms import product-terms.csv -s en -t fr
-kapi exec term-check i18n/ --target-lang fr --termbase product-terms.csv
+kapi terms import product-terms.csv -s en -t fr --name product-terms
+kapi exec term-check i18n/ --target-lang fr --termbase product-terms
 ```
 
-To feed terminology into the translation step itself rather than only checking it afterward, compose a [flow](/framework/flows) that runs term lookup before `translate` — the matched terms become glossary context in the prompt.
+To feed terminology into the translation step itself rather than only checking it afterward, compose a [flow](/framework/flows) that runs term lookup before `translate` — the matched terms become the prompt's `glossary` section.
 
 See [Terminology](/framework/terminology).
 
@@ -153,7 +153,7 @@ The commands above are ad-hoc — flags on every call, fine for a quick run. For
 app you translate every release, a [`kapi.yaml` project file](/contribute/architecture/008-project-model)
 is the working model worth adopting: it captures the content patterns, target
 languages, flows, and defaults once, so you drive everything through named flows
-instead of repeating flags, and the project store accumulates translation memory
+instead of repeating flags, and the project store accumulates content memory
 and terminology across releases.
 
 `kapi init --framework neokapi-i18n` scaffolds the recommended layout, in which
@@ -186,7 +186,7 @@ i18n/
 └── brand-voice.yaml   brand voice profile (git source)
 ```
 
-Translation memory and pseudo-locale output are rebuildable state, so they live
+Content memory and pseudo-locale output are rebuildable state, so they live
 under `.kapi/` (gitignored) — never committed siblings. Define a `translate` flow
 in the recipe (for example `recycle` → `translate` → `qa`), then:
 

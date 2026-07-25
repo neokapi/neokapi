@@ -2,7 +2,7 @@
 sidebar_position: 15
 title: Translation
 description: neokapi exposes translation as a single LLM-backed tool — Anthropic, OpenAI, Gemini, Azure OpenAI, or on-device Ollama — selected with one --provider flag under a shared command, flag, and credential model. Plugins can add machine-translation engines.
-keywords: [translation, LLM, AI translation, Anthropic, OpenAI, Gemini, Ollama, provider, machine translation, localization]
+keywords: [translation, LLM, AI translation, Anthropic, OpenAI, Gemini, Ollama, provider, machine translation, multilingual content]
 ---
 
 # Translation
@@ -56,8 +56,8 @@ switches to LLM-judged review when a provider is given. See
 ## Composing in flows
 
 The `translate` tool composes into [flows](/framework/flows) like any other
-stage. A production flow typically chains [TM leverage](/framework/translation-memory),
-a translate pass, and a review step:
+stage. A production flow typically chains
+[memory leverage](/framework/content-memory), a translate pass, and a review step:
 
 ```yaml
 steps:
@@ -78,11 +78,11 @@ Every prompt kapi sends is built in `core/ai/prompt/`, composed from framework
 rules (return only the translation; preserve placeholders and inline tags) plus
 the steering your project declares — an instruction, a
 [brand voice profile](/framework/checks/brand-voice), and a
-[termbase](/framework/terminology). The prompt is the same for every provider;
+[terms store](/framework/terminology). The prompt is the same for every provider;
 only the transport differs.
 
 You do not have to take that on trust: `--explain-prompts` prints the exact text
 sent to the model, attributed section by section. See [Prompts](/framework/prompts).
 
-[TM matches](/framework/translation-memory) are *not* part of the prompt —
+[Memory matches](/framework/content-memory) are *not* part of the prompt —
 recycling is a separate deterministic step that runs before translation.

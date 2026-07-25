@@ -75,7 +75,7 @@ drift; the gate is the explicit, opt-in enforcement point.
 
 ## Report the cost of a change on its merge request
 
-With `plan: true` the job dry-runs the loop — pending units, TM leverage, and
+With `plan: true` the job dry-runs the loop — pending units, memory reuse, and
 a token estimate; no writes, no provider calls — and posts the result as one
 threaded MR note that re-runs update in place:
 

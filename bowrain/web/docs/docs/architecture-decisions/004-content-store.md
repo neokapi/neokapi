@@ -25,7 +25,7 @@ like.
 
 Content-addressable storage is the well-established pattern for this:
 blocks are objects, projects are streams of state, and versions are named
-points along the stream. Git works this way for source code; a localization
+points along the stream. Git works this way for source code; a content
 platform benefits from the same pattern one granularity finer — at the
 translatable block level rather than the line or file level.
 
@@ -77,13 +77,13 @@ shared types don't need to import the heavy `bowrain/store/` implementation.
 
 Blocks are keyed by content hash, computed from `BlockIdentity` in the
 framework content model — see
-[AD-framework-002: Content Model](https://neokapi.github.io/web/neokapi/contribute/architecture/002-content-model).
+[AD-framework-002: Content Model](https://neokapi.github.io/contribute/architecture/002-content-model).
 Identical content produces the same hash and is stored once.
 
 This gives:
 
 - **Deduplication.** "Click OK" appearing 50 times across documents costs
-  one row. TM lookups happen once per unique block. Memory usage scales
+  one row. Memory lookups happen once per unique block. RAM usage scales
   with unique content, not total occurrences.
 - **Diffing.** Two versions differ exactly where their hash sets differ;
   re-parsing documents is unnecessary.
@@ -135,7 +135,7 @@ type VersionDiff struct {
 `Diff` compares two versions by hash sets. Blocks with the same
 `ContextHash` but different `ContentHash` appear as modifications — the
 content at that position changed. This produces a semantically meaningful
-diff for localization, which cares about translatable units rather than
+diff that cares about translatable units rather than
 line-level changes.
 
 ### Schema
@@ -209,7 +209,7 @@ CREATE TABLE translations (
     PRIMARY KEY (project_id, stream, block_id, locale)
 );
 
--- Semantic annotations (TM hits, term hits, QA findings, translator notes).
+-- Semantic annotations (memory hits, term hits, QA findings, translator notes).
 -- Access pattern: "all QA findings for this project, newest first".
 CREATE TABLE annotations (
     project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -285,7 +285,7 @@ The `streams` table and per-stream change log scoping are defined in
 ### Storage Backend
 
 **PostgreSQL** via `pgx` is the production backend. All six persistence
-modules — ContentStore, AuthStore, Memory (TM), Terminology, JobStore,
+modules — ContentStore, AuthStore, Memory, Terminology, JobStore,
 QuotaStore — share a single connection pool, each managing its own schema
 namespace via an independent migration table
 (`store_schema_migrations`, `auth_schema_migrations`, etc.).
@@ -375,7 +375,7 @@ Because block identity is `BlockIdentity`-derived and not connector- or
 format-specific, identical content across projects can reference the same
 block. A marketing tagline that lives in a CMS entry and a design file
 produces the same block hash and, within a workspace, can share
-translations and TM scoring.
+translations and memory scoring.
 
 ### Incremental Extraction
 
@@ -392,9 +392,9 @@ see exactly what moved.
 - PostgreSQL is the production backend with connection pooling, concurrent
   writes, and Azure Managed Identity support. SQLite serves single-instance
   and self-hosted.
-- TM, terminology, auth, jobs, and quotas are co-located in the same
+- Content memory, terminology, auth, jobs, and quotas are co-located in the same
   storage infrastructure and share the connection pool.
-- Block-level granularity is the right level for localization — not too
+- Block-level granularity is the right level for translation — not too
   fine (characters or words) and not too coarse (documents or pages).
 - Every project is workspace-scoped; every block is project-scoped.
 - The ContentStore interface is stable; additional backends require only a
@@ -409,4 +409,4 @@ see exactly what moved.
 - [AD-007: Media and Blob Storage](007-media-and-blob-storage.md)
 - [AD-008: Connector System](008-connector-system.md)
 - [AD-009: Sync Protocol](009-sync-protocol.md)
-- [AD-framework-002: Content Model](https://neokapi.github.io/web/neokapi/contribute/architecture/002-content-model)
+- [AD-framework-002: Content Model](https://neokapi.github.io/contribute/architecture/002-content-model)

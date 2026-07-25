@@ -8,7 +8,7 @@ title: "AD-001: Bowrain Vision and Module Architecture"
 
 ## Summary
 
-Bowrain is the full-stack localization platform built on the neokapi framework.
+Bowrain is the full-stack content platform built on the neokapi framework.
 It adds a versioned content store, bidirectional connectors to live systems,
 event-driven automation, multi-user workspaces, and collaborative editing on
 top of the framework's streaming pipeline. Bowrain ships as three Go modules —
@@ -20,9 +20,9 @@ Apache-2.0 `bowrain/plugin/schema` recipe-vocabulary sub-module.
 ## Context
 
 The neokapi framework is the Apache-licensed core: content model, formats,
-tools, pipeline executor, plugin system, TM, terminology, and AI/MT providers.
+tools, pipeline executor, plugin system, content memory, terminology, and AI/MT providers.
 It has zero platform dependencies — no database, no server, no authentication.
-See [AD-framework-001: Vision and Module Architecture](https://neokapi.github.io/web/neokapi/contribute/architecture/001-vision-and-modules).
+See [AD-framework-001: Vision and Module Architecture](https://neokapi.github.io/contribute/architecture/001-vision-and-modules).
 
 Bowrain is the commercial-grade platform layered on top. It persists content,
 syncs with live systems (CMS, design tools, code repos, marketing platforms),
@@ -39,7 +39,7 @@ this with `GOWORK=off` builds against the framework module.
 
 ### Identity
 
-Bowrain is a localization platform, dual-licensed under AGPL-3.0 and a
+Bowrain is a content platform, dual-licensed under AGPL-3.0 and a
 commercial license. It is available as a SaaS offering and for open-source
 self-hosting. Its job is to turn the framework's pipeline into a
 production-ready, multi-user system with persistent state, real-time
@@ -60,7 +60,7 @@ Design principles:
    workers subscribe to these events.
 4. **Real-time collaboration.** The desktop app, web UI, and embedded panels
    all connect to a single server instance via gRPC streaming. Block edits,
-   presence, and TM/terminology updates propagate to every connected client.
+   presence, and memory/terminology updates propagate to every connected client.
 5. **Per-workspace multi-tenancy.** Workspaces are the top-level isolation
    unit. Every project, token, connector, blob, and background job carries a
    workspace ID. See [AD-002: Authentication and Workspaces](002-authentication-and-workspaces.md).
@@ -150,8 +150,8 @@ imports `bowrain/core/project`.
 | `brand/`                 | Brand voice profiles, tag dimensions                          |
 | `graph/`                 | Brand knowledge graph — plain-SQL (default) and Apache AGE (opt-in) backends |
 | `analytics/`             | Usage analytics and reporting                                 |
-| `memory/`              | SQLite + PostgreSQL TM implementation                         |
-| `termbase/`              | SQLite + PostgreSQL termbase implementation                   |
+| `memory/`                | SQLite + PostgreSQL content memory implementation             |
+| `terms/`                 | SQLite + PostgreSQL terms store implementation                |
 | `proto/`                 | Protobuf definitions for gRPC and sync                        |
 | `apps/bowrain/`          | Wails v3 desktop app (Go + React/TypeScript)                  |
 | `apps/web/`              | SaaS web UI                                                   |
@@ -190,8 +190,8 @@ interfaces Bowrain uses:
 | `aiprovider.LLMProvider`         | AI translation, QA, and review tools use the same provider interface |
 | `mtprovider.MTProvider`          | MT translation tools likewise                                      |
 | `core/storage.BlobStore`         | Bowrain provides Azure Blob and local filesystem implementations. See [AD-007: Media and Blob Storage](007-media-and-blob-storage.md). |
-| `memory.TM`                    | Bowrain provides SQLite + PostgreSQL implementations               |
-| `termbase.Terminology`              | Bowrain provides SQLite + PostgreSQL implementations               |
+| `memory.ContentMemory`           | Bowrain provides SQLite + PostgreSQL implementations               |
+| `terms.Terminology`              | Bowrain provides SQLite + PostgreSQL implementations               |
 | `plugin` registries              | Bowrain hosts format and tool plugins via gRPC + Java bridge       |
 
 The framework never imports `bowrain/*`. Bowrain never forks framework types.
@@ -251,4 +251,4 @@ members.
 - [AD-004: Content Store and Versioning](004-content-store.md)
 - [AD-008: Connector System](008-connector-system.md)
 - [AD-009: Sync Protocol](009-sync-protocol.md)
-- [AD-framework-001: Vision and Module Architecture](https://neokapi.github.io/web/neokapi/contribute/architecture/001-vision-and-modules)
+- [AD-framework-001: Vision and Module Architecture](https://neokapi.github.io/contribute/architecture/001-vision-and-modules)

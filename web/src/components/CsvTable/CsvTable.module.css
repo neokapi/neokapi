@@ -1,4 +1,4 @@
-/* CsvTable — renders a CSV glossary as a themed table or its raw text, toggled
+/* CsvTable — renders a CSV file as a themed table or its raw text, toggled
  * by a small segmented control. Themed entirely with Infima (--ifm-*) variables
  * so light and dark both read well. Self-contained: no global CSS touched. */
 

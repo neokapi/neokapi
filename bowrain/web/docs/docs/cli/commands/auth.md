@@ -29,8 +29,8 @@ Waiting for authorization...
 Logged in as translator@example.com
 ```
 
-The access token is stored at `~/.config/bowrain/auth.json` and used
-automatically by other CLI commands.
+The access token is stored in the OS keychain and used automatically by other
+CLI commands — see [Token storage](#token-storage).
 
 ### auth status
 
@@ -77,13 +77,15 @@ redirect is not available.
 
 ## Token Storage
 
-Tokens are stored in `~/.config/bowrain/auth.json`:
+The access and refresh tokens live in the OS keychain, under the keys
+`bowrain-auth:<server-url>` and `bowrain-refresh:<server-url>`. Only non-secret
+metadata is written to `auth.json` in the bowrain config directory
+(`~/.config/bowrain` on Linux, `~/Library/Application Support/bowrain` on
+macOS; `BOWRAIN_CONFIG_DIR` overrides it):
 
 ```json
 {
   "server_url": "https://app.bowrain.cloud",
-  "access_token": "eyJ...",
-  "refresh_token": "...",
   "expiry": "2026-02-11T14:30:00Z",
   "user": {
     "id": "usr_abc123",

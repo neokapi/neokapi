@@ -2,7 +2,7 @@
 id: 008-project-model
 sidebar_position: 8
 title: "AD-008: Kapi Project Model"
-description: "Architecture decision: a kapi project is a folder with a kapi.yaml recipe at its root and a .kapi/ state directory. The recipe captures workflow defaults; the state directory holds the TM, termbase, and sync caches."
+description: "Architecture decision: a kapi project is a folder with a kapi.yaml recipe at its root and a .kapi/ state directory. The recipe captures workflow defaults; the state directory holds the content memory, the terms store, and sync caches."
 keywords: [kapi project, kapi.yaml, .kapi, YAML recipe, project model, state directory, architecture decision]
 ---
 
@@ -23,10 +23,10 @@ tools random-access storage beyond the streaming pipeline.
 
 ## Context
 
-Localization workflows need to persist more than an in-flight stream of parts:
+Real workflows need to persist more than an in-flight stream of parts:
 
 - Translators add targets over time, per locale.
-- Multiple tools (term lookup, TM leverage, QA) contribute independent
+- Multiple tools (term lookup, memory leverage, QA) contribute independent
   annotation layers.
 - Re-running a flow must not re-translate blocks whose source has not changed.
 - Content collections group heterogeneous source files with different formats,
@@ -60,8 +60,8 @@ my-app/
 ├── .kapi-state.json        ← STATE STORE (review decisions, committed like the recipe)
 ├── .kapi/                  ← WORKING STATE (kapi maintains)
 │   ├── manifest.yaml       ← bookkeeping: block counts, fingerprints, timestamps
-│   ├── tm.db               ← project translation memory (AD-009) — authoritative
-│   ├── termbase.db         ← project termbase — authoritative
+│   ├── tm.db               ← project content memory (AD-009) — authoritative
+│   ├── termbase.db         ← project terms store — authoritative
 │   ├── flows/              ← optional file-per-flow definitions (authored)
 │   │   └── <flow>.yaml
 │   └── cache/              ← all regenerable caches under one roof
@@ -71,7 +71,7 @@ my-app/
 │       │   └── <batch-id>/
 │       │       ├── manifest.yaml         ← source→output pairs, leverage, hashes
 │       │       ├── skel-<src-hash>.bin   ← per-source skeleton for merge
-│       │       └── suggestions.jsonl     ← sub-threshold TM matches
+│       │       └── suggestions.jsonl     ← sub-threshold memory matches
 │       └── collections/    ← overlay layers per collection
 │           └── ui/
 │               ├── targets/{fr,de}.json
@@ -97,14 +97,14 @@ Ownership:
   cannot hold. Authored by approvals (`kapi apply` with `kind:"review"`), not
   hand-edited; committed alongside the recipe, so a decision travels with the
   project. It is the export *sink* for state in git mode — a server-backed
-  project pushes this state to a remote instead. Distinct from the TM (AD-009),
-  which is recycle leverage, not a decision carrier. See
+  project pushes this state to a remote instead. Distinct from the content
+  memory (AD-009), which is recycle leverage, not a decision carrier. See
   [the project store](/kapi/project-store).
-- **`.kapi/`** — kapi's. Authoritative state (`tm.db`, `termbase.db`,
-  `manifest.yaml`) sits at the top level; all regenerable caches live under
-  `.kapi/cache/` so users can blow them away without losing translation work.
-  Gitignored by default; opt in to commit `.kapi/tm.db` / `.kapi/termbase.db`
-  when cross-clone reproducibility matters.
+- **`.kapi/`** — kapi's. Authoritative state — the content memory (`tm.db`), the
+  terms store (`termbase.db`), and `manifest.yaml` — sits at the top level; all
+  regenerable caches live under `.kapi/cache/` so users can blow them away
+  without losing translation work. Gitignored by default; opt in to commit
+  `.kapi/tm.db` / `.kapi/termbase.db` when cross-clone reproducibility matters.
 - **`src/**`** — user-authored content. Referenced by the recipe; never moved
 into `.kapi/`.
 - **Writer outputs** (e.g. `i18n/{locale}.json`) — produced by format writers
@@ -120,7 +120,7 @@ The recipe is a YAML document parsed into `core/project.KapiProject`:
 ```yaml
 # kapi.yaml
 version: v1
-name: My App Localization
+name: My App
 
 content:
   - name: ui
@@ -319,7 +319,7 @@ timestamps. Users do not hand-edit it. Deleting it is safe — it rebuilds from
 
 `.kapi/cache/extractions/<batch-id>/manifest.yaml` records each `kapi extract`
 run (see [AD-017](017-bilingual-format-interop.md)): the emitted
-source→output pairs, per-file source SHA-256, TM leverage counts, the
+source→output pairs, per-file source SHA-256, memory leverage counts, the
 XLIFF / PO version, and skeleton filenames. The batch id is stamped in
 each emitted bilingual file so `kapi merge` can resolve a returning
 file back to the right extraction without guessing from the filename.
@@ -327,9 +327,10 @@ Stale segments on merge are detected by comparing the manifest's
 recorded source hash against the current source content.
 
 The `Defaults.Merge` section of the recipe (`conflict_policy`) governs
-how merge applies a translator's target when an on-disk target or TM
-TU already exists. The `Defaults.TM` section (`fuzzy_threshold`,
-`read`) governs TM pre-fill on extract. The `Defaults.Segmentation`
+how merge applies a translator's target when an on-disk target or an
+existing memory entry is already present. The `Defaults.Memory` section
+(recipe key `tm:`; `fuzzy_threshold`, `read`) governs memory pre-fill on
+extract. The `Defaults.Segmentation`
 section (`source`, `srx`) toggles the SRX segmentation overlay — block
 identity is stable across toggles, so a project can change these
 fields between extractions safely.
@@ -582,8 +583,8 @@ its folder (which contains `kapi.yaml`) and operates on it.
 
 - Incremental work: re-running a flow translates only blocks whose source hash
   is not already in `targets/<locale>`.
-- Concurrent tools: term match and TM lookup run in parallel, each writing an
-  independent overlay layer.
+- Concurrent tools: term match and memory lookup run in parallel, each writing
+  an independent overlay layer.
 - Multi-pass tools: compute statistics across the whole store, then use them
   in a second pass.
 - Transaction semantics vary per provider: SQLite transaction for `cache`,

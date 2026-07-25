@@ -13,9 +13,10 @@ keywords: [kapi CLI, standalone, file processing, project file, manifest, archit
 `kapi` is a standalone file-processing CLI that demonstrates the neokapi
 framework. Most commands are one-shot and require no project; the `-p` flag
 enables project mode with a `kapi.yaml` recipe. Kapi builds on the shared CLI
-base (`cli/`), stores config under `~/.config/kapi/`, and uses an
-OS-keychain credential store. A `kapi mcp` subcommand exposes tools over
-stdio JSON-RPC for AI agents.
+base (`cli/`), stores config in the user config directory (`~/.config/kapi` on
+Linux, `~/Library/Application Support/kapi` on macOS — `kapi config path` prints
+the resolved location), and uses an OS-keychain credential store. A `kapi mcp`
+subcommand exposes tools over stdio JSON-RPC for AI agents.
 
 ## Context
 
@@ -83,18 +84,21 @@ kapi
 │   └── update               # update a plugin
 ├── presets
 │   └── list                 # list presets
-├── termbase                 # terminology management
-│   ├── list
-│   ├── lookup
-│   └── stats
-├── tm                       # translation memory management
+├── terms                    # terminology management
 │   ├── list
 │   ├── import
 │   ├── export
 │   ├── lookup
 │   ├── search
-│   ├── stats                # TU counts, locale breakdown, provenance (AD-017)
-│   └── audit                # trace a merge batch's TM impact (AD-017)
+│   └── stats
+├── memory                   # content memory management
+│   ├── list
+│   ├── import
+│   ├── export
+│   ├── lookup
+│   ├── search
+│   ├── stats                # entry counts, locale breakdown, provenance (AD-017)
+│   └── audit                # trace a merge batch's memory impact (AD-017)
 ├── version                  # version info (set via ldflags)
 └── mcp                      # MCP server for AI agent integration
 ```
@@ -108,7 +112,7 @@ Commands fall into categories:
   per-engine command; `kapi run <flow>`
 - **Plugins** — `kapi plugin list/install/update`
 - **Presets** — `kapi init --list-presets list`
-- **Terminology and TM** — `kapi termbase`, `kapi tm`
+- **Terminology and content memory** — `kapi terms`, `kapi memory`
 
 Tools run as top-level commands (`kapi pseudo-translate`); composed
 multi-tool flows run under `kapi run` (`kapi run translate-qa`). Both
@@ -146,7 +150,7 @@ With `--project`:
   project's declared plugins.
 
 Every project-aware command resolves `-p` in this order, matching the
-git-style semantics a localization engineer expects when running
+git-style semantics an engineer expects when running
 commands from inside a project tree:
 
 1. Explicit `-p <path>` flag.
@@ -172,15 +176,15 @@ where `AddProjectFlag` registers it. On ad-hoc tool commands (such as
 flag — the same `-p` shorthand is already taken by `--progress` (the
 progress-bar flag). So `kapi translate -p kapi.yaml` is parsed as
 `--progress` with `kapi.yaml` left as a positional argument, **not** as a
-load-project request. Tool commands pick up project context (TM, glossary,
-defaults) through git-style discovery instead — run them from inside the
+load-project request. Tool commands pick up project context (content memory,
+terms, defaults) through git-style discovery instead — run them from inside the
 project tree, or point `KAPI_PROJECT` at the recipe.
 :::
 
 ### Output format flags
 
 All commands that produce output support consistent format flags through
-the shared `cli/output/` package:
+the shared `host/output/` package:
 
 ```bash
 kapi memory stats --json                 # machine-readable JSON
@@ -243,10 +247,10 @@ structured objects:
 
 ### Credential store
 
-The credential store lives in `cli/credentials/` and is shared by kapi and
-kapi-desktop. Non-secret provider configs live as JSON at
-`~/.config/kapi/providers.json`; API keys are stored in the OS keychain
-under the service name `"kapi"`.
+The credential store lives in `host/credentials/` and is shared by kapi and
+kapi-desktop. Non-secret provider configs live as JSON at `providers.json` in the
+user config directory; API keys are stored in the OS keychain under the service
+name `"kapi"`.
 
 Platform backends:
 
@@ -260,13 +264,15 @@ environments without an OS keychain (containers, headless CI).
 
 ### App configuration
 
-App configuration uses [Viper](https://github.com/spf13/viper):
+App configuration uses [Viper](https://github.com/spf13/viper). The layout below
+sits in the user config directory — `~/.config/kapi` on Linux,
+`~/Library/Application Support/kapi` on macOS; a hand-written
+`$HOME/.config/kapi/kapi.yaml` is still read as a lower-precedence legacy layer:
 
 ```
-~/.config/kapi/
-├── kapi.yaml                # global settings
-├── providers.json           # AI/MT provider configs (keys in keychain)
-└── plugins/                 # installed plugins
+kapi.yaml                # global settings
+providers.json           # AI/MT provider configs (keys in keychain)
+plugins/                 # installed plugins
 ```
 
 `kapi.yaml` holds defaults for output format, logging level, plugin
@@ -340,7 +346,7 @@ implementation.
 - A single binary handles one-shot processing, project-based workflows,
   and AI-agent integration without feature flags or separate builds. The
   shared CLI base contributes the common commands for formats, tools,
-  flows, plugins, presets, termbase, and version.
+  flows, plugins, presets, terms, content memory, and version.
 - Output format consistency makes `jq`, `yq`, and language-specific
   parsers work uniformly across commands.
 - OS keychain storage keeps API keys out of environment variables,

@@ -260,7 +260,7 @@ export const TERMS: AnatomyTerm[] = [
     title: "Block",
     spec: "/reference/kbf/spec#block",
     body: [
-      "The unit of translation tracking — typically one JSX element, one HTML paragraph, one Markdown heading, or one attribute value. Translation memory, targets, review status, and annotations are all keyed on the block.",
+      "The unit of translation tracking — typically one JSX element, one HTML paragraph, one Markdown heading, or one attribute value. Content memory, targets, review status, and annotations are all keyed on the block.",
       "hash is a content hash over the source runs. Re-extractions match blocks by hash, which is how tracking survives edits to the surrounding file: an unchanged block keeps its identity, a changed one is flagged for retranslation.",
     ],
   },

@@ -4,7 +4,7 @@ import type { WalkthroughEmbedConfig } from "./types";
 
 const config: WalkthroughEmbedConfig = {
   id: "kapi-terminology-qa",
-  scene: "termbase-qa",
+  scene: "terms-qa",
   mode: "interactive",
   seed: [],
   files: [
@@ -22,7 +22,7 @@ const config: WalkthroughEmbedConfig = {
   steps: [
     {
       command: "kapi terms stats",
-      narration: "The browser build pre-seeds a termbase from the project glossary.",
+      narration: "The browser build pre-seeds a terms store from the project term list.",
     },
     {
       command: "kapi terms lookup password -s en -t fr",
@@ -30,7 +30,7 @@ const config: WalkthroughEmbedConfig = {
     },
     {
       command: "kapi terms search encrypt -s en",
-      narration: "Search across every concept in the termbase.",
+      narration: "Search across every concept in the terms store.",
     },
     {
       command: "kapi pseudo-translate messages_en.json -o pseudo_fr.json",

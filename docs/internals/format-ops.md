@@ -146,7 +146,7 @@ issues, listed in §9) and report `blocked` until those land.
 text/code: GitHub Octoverse growth data, standards-body announcements (W3C —
 including timed-text/DAPT, OASIS, Unicode, Khronos glTF, AOUSD/USD), TMS
 supported-format pages (demand signal), CMS rich-text schemas, subtitle/
-caption and dubbing-exchange ecosystems, game-engine l10n table formats,
+caption and dubbing-exchange ecosystems, game-engine string-table formats,
 design-tool format pages, llms.txt/AGENTS.md adoption trackers.
 
 **Corpus harvest sources** (ritual 7 reference): govdocs1 by-type tarballs

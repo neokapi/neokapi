@@ -69,7 +69,7 @@ check what's on the request context.
 | `translate`         | 2   | Add/edit translations (language-scoped)       |
 | `review`            | 3   | Approve/reject translations (language-scoped) |
 | `manage_terms`      | 4   | Edit terminology                              |
-| `manage_tm`         | 5   | Edit translation memory                       |
+| `manage_tm`         | 5   | Edit content memory                           |
 | `run_flows`         | 6   | Execute processing flows                      |
 | `manage_files`      | 7   | Upload/delete files                           |
 | `manage_streams`    | 8   | Create, merge, delete streams                 |
@@ -198,7 +198,7 @@ user's base permissions:
 
 | Mode          | Permission Ceiling                       | Description                                                                                                |
 | ------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| **Ask**       | `view_content`                           | Read-only. Can query projects, search TM/terms, explain content. Cannot modify anything.                   |
+| **Ask**       | `view_content`                           | Read-only. Can query projects, search memory and terms, explain content. Cannot modify anything.                   |
 | **Co-worker** | User's full permissions                  | Full access to all tools the user has permission for. Destructive operations require approval per `AgentConfig.RequireApproval`. |
 | **Voice**     | `view_content`, `manage_brand`, `review` | Brand voice focused. Can check voice compliance, review translations, manage brand profiles.               |
 

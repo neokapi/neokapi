@@ -261,7 +261,7 @@ outside the framework.
 ## Consequences
 
 - The editor has one documented contract shared by kapi-desktop and kapi-lab; a
-  new `RenderKind`, overlay accent, or inspector row is a localized change against
+  new `RenderKind`, overlay accent, or inspector row is a contained change against
   a known seam.
 - Rendering is a **pure projection** of the content model — the editor never
   diverges from what the engine holds, because it consumes the run-preserving

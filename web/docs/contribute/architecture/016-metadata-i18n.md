@@ -2,24 +2,24 @@
 id: 016-metadata-i18n
 sidebar_position: 16
 title: "AD-016: Metadata i18n for Go Surfaces"
-description: "Architecture decision: format and tool metadata (names, descriptions, parameter labels) is i18n-aware — stored in Go structs with locale fallback so CLI output, schema forms, and docs can be localized without runtime reflection."
-keywords: [metadata i18n, Go surfaces, localization, format metadata, tool schema, architecture decision, neokapi]
+description: "Architecture decision: format and tool metadata (names, descriptions, parameter labels) is i18n-aware — stored in Go structs with locale fallback so CLI output, schema forms, and docs can be translated without runtime reflection."
+keywords: [metadata i18n, Go surfaces, translation, format metadata, tool schema, architecture decision, neokapi]
 ---
 
 # AD-016: Metadata i18n for Go Surfaces
 
 ## Context
 
-The frontend packages ([AD-014](014-kapi-desktop.md)) are localized
+The frontend packages ([AD-014](014-kapi-desktop.md)) are translated
 through the KBF pipeline: extract translatable blocks from source, run
 them through `kapi pseudo-translate` / `kapi translate`, and compile
 per-locale runtime catalogs. The Go backends serving those frontends emit
 a metadata surface (tool / format / plugin `displayName`, `description`,
-parameter `title` / `description` / enum labels / group labels) that also
-needs matching localization, so the backend-sourced half of every screen
+parameter `title` / `description` / enum labels / group labels) that needs
+the same treatment, so the backend-sourced half of every screen
 lines up with the frontend.
 
-This AD describes a **metadata Translator** that localizes tool,
+This AD describes a **metadata Translator** that translates tool,
 format, and plugin metadata at API egress, fed by the same extraction
 pipeline as the frontend.
 
@@ -65,15 +65,14 @@ is a mature pure-Go loader. The `core/formats/mo/` format writer
 consumes `kbf.Block` streams and emits MO; `DetectByExtension(".mo")`
 picks it up when the output path's extension says `.mo`.
 
-### 4. Localize at the API boundary, not per-call-site
+### 4. Translate at the API boundary, not per-call-site
 
 One pass at metadata egress — `i18n.LocalizeComponentSchema(s, t)` —
 centralizes translation instead of scattering `T(...)` calls through tool
 constructors. Because tool and format metadata both serialize as a
-`ComponentSchema`, a single localizer over that type covers both. The surface
-is
+`ComponentSchema`, a single pass over that type covers both. The surface is
 finite and centralized (CLI `tools` / `formats` / `plugins` listings and
-the Wails metadata readers), so one localization pass at egress covers it.
+the Wails metadata readers), so one pass at egress covers it.
 
 ## End state
 
@@ -114,10 +113,11 @@ Builtin MO catalogs are embedded via `//go:embed` and merged in
 helpers `i18n.PluginCatalogPath` / `i18n.LoadPluginCatalog` exist on
 `core/i18n`, but with the legacy plugin loader retired (#438 phase 9)
 nothing currently populates `ResolveOptions.PluginCatalogs` — manifest-
-driven plugin discovery in `cli/pluginhost` does not yet feed catalogs
-into the Translator (see the TODO in `cli/app.go`). The "Plugin bundles"
-and "Plugins contribute their own localizations" material below
-describes the intended design rather than current behavior.
+driven plugin discovery in `host/pluginhost` does not yet feed catalogs
+into the Translator (see the note where the Translator is built, in
+`host/app.go`). The "Plugin bundles" and "Plugins contribute their own
+catalogs" material below describes the intended design rather than current
+behavior.
 
 ### Pipeline
 
@@ -175,7 +175,7 @@ many tools) stay isolated.
   artifact across the stack.
 - **Adding a locale is one `make kapi-i18n-translations` run + commit.**
   No tool registration changes, no schema edits.
-- **Plugins contribute their own localizations.** The platform does
+- **Plugins contribute their own catalogs.** The platform does
   not need a centralized plugin-translation database — each plugin
   release ships its own `i18n/` directory.
 - **English source text in registry structs stays authoritative.**
@@ -196,12 +196,12 @@ are plain text, so placeholder handling would be dead code. Revisit if
 a metadata surface grows interpolation.
 
 Schema deep-walk in `kapi-desktop`'s `GetToolSchema` (which returns
-raw JSON to preserve `x-*` extensions) is not localized at that path;
+raw JSON to preserve `x-*` extensions) is not translated at that path;
 the tool palette uses `ListTools`, which is.
 
 ## Related
 
 - [AD-005: Format System](005-format-system.md) — JSON reader and MO writer.
-- [AD-006: Tool System](006-tool-system.md) — the ComponentSchema surface being localized.
+- [AD-006: Tool System](006-tool-system.md) — the ComponentSchema surface being translated.
 - [AD-007: Plugin System](007-plugin-system.md) — plugin manifest and `i18n/` bundle layout.
 - [AD-014: Kapi Desktop](014-kapi-desktop.md) — frontend i18n this AD aligns with.

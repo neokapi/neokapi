@@ -1,20 +1,20 @@
 ---
-title: Multimodal localization — implementation map
+title: Multimodal content — implementation map
 ---
 
-# Multimodal localization — implementation map
+# Multimodal content — implementation map
 
 Tactical notes for the multimodal surface described in
 [AD-030](../architecture/030-multimodal-extraction-and-llm-refinement.md)
 (extraction + refinement) and
-[AD-029](../architecture/029-vision-and-image-localization.md) (vision). The
+[AD-029](../architecture/029-vision-and-image-adaptation.md) (vision). The
 content-model anchors are [AD-002](../architecture/002-content-model.md):
 a block carries a temporal `TimingAnnotation`, a spatial `GeometryAnnotation`,
 and a recognition `Origin` (OCR/ASR, with confidence).
 
-## Two axes of localization
+## Two axes of adaptation
 
-Every image / audio / video asset is localizable two ways, and both are
+Every image / audio / video asset can be adapted two ways, and both are
 first-class:
 
 - **Extracted content** — the text *inside* the asset (OCR text, speech,
@@ -25,7 +25,7 @@ first-class:
   and treats it as authoritative. `core/project.ResolveAssetVariants` +
   `IsBinaryAssetFormat` now cover `image`, `audio`, and `video`; the audio/video
   writers are passthrough sinks that emit the (replacement) bytes. The engine
-  does **not** synthesize localized media — no TTS / re-encode in core.
+  does **not** synthesize translated media — no TTS / re-encode in core.
 
 ## Readers, writers, round-trip
 

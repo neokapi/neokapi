@@ -57,7 +57,7 @@ Legacy (Options) API in new code: it is deprecated in v11 and removed in v12.
 
 - **Idiom:** same message-ID model as vue-i18n (it wraps vue-i18n v11), with
   per-locale files under `i18n/locales/` declared as
-  `locales: [{ code, file }]`, plus localized URLs — use `<NuxtLinkLocale>` /
+  `locales: [{ code, file }]`, plus per-locale URLs — use `<NuxtLinkLocale>` /
   `localePath()` for links, never hardcoded paths.
 - **Recommended config (what earns T2):**
   - **v10** (built for Nuxt 4): locale detection/redirects run in Nitro server

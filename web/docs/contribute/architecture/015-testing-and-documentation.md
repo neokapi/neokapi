@@ -22,7 +22,7 @@ narrated explainer videos, rendered by the `harness/` pipeline as per-theme
 
 ## Context
 
-A localization framework with a CLI, a desktop app, and an integration
+A framework with a CLI, a desktop app, and an integration
 platform must cover a wide testing surface. Fast unit tests protect
 refactors; roundtrip tests protect format fidelity; application E2E tests
 protect user workflows. Documentation must stay synchronized with actual
@@ -36,7 +36,7 @@ keeps the documented behavior honest.
 
 The documentation consumer is split in two:
 
-- **End users** — translators, localization engineers. They need
+- **End users** — translators, content and translation engineers. They need
   quickstart guides, command references, and workflow tutorials.
 - **Developers** — contributors implementing formats, tools, plugins,
   connectors. They need architecture documentation, interface

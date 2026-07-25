@@ -18,7 +18,7 @@ no webhook secret to manage; GitLab always uses a project access token.
 
 - Nobody owns the repository's CI — docs, marketing, and content
   repositories that have no pipeline to extend.
-- You want zero localization configuration in the repository: no workflow
+- You want zero translation configuration in the repository: no workflow
   file, no component include, no CI secrets to rotate.
 - Choose [GitHub Actions](/cli/use-cases/github-actions) or
   [GitLab CI](/cli/ci/gitlab) instead when the pipeline should own the job's

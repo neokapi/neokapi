@@ -33,7 +33,7 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi memory import project.tmx",
       narration:
-        "tm import loads existing translations into the project TM (.kapi/tm.db). The flow leverages it before any AI is asked.",
+        "tm import loads existing translations into the project content memory (.kapi/tm.db). The flow leverages it before any AI is asked.",
     },
     {
       command: "kapi status",
@@ -48,7 +48,7 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi merge",
       narration:
-        "merge materializes the localized files from the store — it replays the stored fr targets onto the source and writes messages.fr.json.",
+        "merge materializes the translated files from the store — it replays the stored fr targets onto the source and writes messages.fr.json.",
     },
     {
       command: "kapi status",
@@ -58,7 +58,7 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi extract --target-lang fr",
       narration:
-        "extract emits a bilingual XLIFF per target locale, pre-filled from the TM — the handoff a human translator works in. merge applies the returned file. up automates this loop; the plumbing stays addressable.",
+        "extract emits a bilingual XLIFF per target locale, pre-filled from the content memory — the handoff a human translator works in. merge applies the returned file. up automates this loop; the plumbing stays addressable.",
     },
   ],
 };

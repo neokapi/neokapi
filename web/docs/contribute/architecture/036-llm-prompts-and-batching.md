@@ -28,7 +28,8 @@ three hats.
 
 Every prompt kapi sends is rendered by a typed builder in `core/ai/prompt` from
 **attributed sections** — each section carries a `Kind` (task, constraint,
-instruction, voice, glossary, content) and an `Origin` saying what produced it.
+instruction, voice, terminology — pinned from the terms store, still spelled
+`glossary` on the wire — and content) and an `Origin` saying what produced it.
 
 This buys three things at once:
 
@@ -38,7 +39,7 @@ This buys three things at once:
   builders the binary uses, and a CI drift gate fails the build if the committed
   reference stops matching. The docs cannot describe a prompt kapi does not send.
   (They previously did: the old page claimed prompts carried surrounding blocks
-  and TM matches. Neither was ever true.)
+  and memory matches. Neither was ever true.)
 - **The prompt is fingerprinted** into the translate config, so rewording a prompt
   invalidates cached targets rather than silently serving a translation produced
   by a prompt that no longer exists.
@@ -157,7 +158,7 @@ honest boundary, and it is the one we document.
 and scores each N. It scores **structural integrity** — does every segment come
 back, under the id it was sent, with its placeholders and inline tags intact? —
 rather than wording, for two reasons: that is the failure the literature attributes
-to batching, and in a localization pipeline it is a correctness failure rather than
+to batching, and in this pipeline it is a correctness failure rather than
 a style complaint. A translation missing its `{0}` cannot be written back into the
 source file at all.
 
@@ -395,7 +396,7 @@ was itself conflating them. The digest is now part of the key.
   an API call — the CLI bills its own agent system prompt as cache creation,
   reporting 240 input tokens across sixty calls. Costing them needs a sweep against
   the metered Anthropic API.
-- **Context is limited to the key and immediate neighbours.** TM matches, the file
+- **Context is limited to the key and immediate neighbours.** Memory matches, the file
   path, and prior translations of the same key are all things the evidence says
   would help and that kapi already holds, and none of them reach the prompt.
 - **Streaming would lift the 16k output ceiling**, which is the only thing now

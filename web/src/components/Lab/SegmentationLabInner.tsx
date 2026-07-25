@@ -504,7 +504,7 @@ export default function SegmentationLabInner({
     const blocks = flattenBlocks(res.tree as ContentTree)
       .map((b) => ({ id: b.id, name: b.name, text: runsText(b.source) }))
       .filter((b) => b.text.trim().length > 0);
-    if (blocks.length === 0) throw new Error("the input has no translatable text");
+    if (blocks.length === 0) throw new Error("the input has no extractable text");
     return { path, blocks };
   }
 
@@ -763,8 +763,8 @@ export default function SegmentationLabInner({
             <FileSource value={file} onChange={onFile} label="Upload a file" />
             {file && (
               <p className="text-xs text-muted-foreground">
-                Source: <span className="text-foreground">{file.label}</span> — parsed by its own
-                reader into translatable blocks, then segmented.
+                Source: <span className="text-foreground">{file.label}</span> — extracted into
+                blocks by its own reader, then segmented.
               </p>
             )}
           </>

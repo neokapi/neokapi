@@ -36,7 +36,7 @@ function HeroKineticClient({ onOpen }: { onOpen: () => void }): React.ReactEleme
 // writes in (Write), green ✓ marks + a "brand ✓" chip appear (Check), and an "on
 // brand" seal stamps (Ship). It then goes multilingual — the verbs recede and
 // SHIP resolves as 出荷 / Versand / Envío while the asset gains a de·ja·fr
-// switcher, localizes a rule, and ships in every language. The abstract verbs
+// switcher, translates a rule, and ships in every language. The abstract verbs
 // act on a concrete artifact. Pure JS animation, no engine boot; guarded behind
 // BrowserOnly with a static SSR fallback. Under prefers-reduced-motion it shows a
 // static finished frame.
@@ -88,9 +88,9 @@ export default function TryNeokapi(): React.ReactElement {
               </DialogTitle>
               <DialogDescription asChild>
                 <p className={styles.modalSub}>
-                  One engine reads the translatable text out of any document, annotates and
-                  transforms it, and writes the file back — faithfully. Pick a file below: this runs
-                  the real kapi engine in your browser, live, across every format.
+                  One engine reads the text out of any document, annotates and transforms it, and
+                  writes the file back — faithfully. Pick a file below: this runs the real kapi
+                  engine in your browser, live, across every format.
                 </p>
               </DialogDescription>
             </div>

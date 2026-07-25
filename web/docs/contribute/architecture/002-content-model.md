@@ -30,7 +30,7 @@ or channel — not bare locale-keyed strings.
 
 ## Context
 
-A localization content model must represent translatable documents in a way
+The content model must represent translatable documents in a way
 that is format-independent, type-safe, extensible, and able to represent
 recursive embedded content naturally. Go's composition and interface system
 (no class inheritance) shapes the design toward discriminated unions and
@@ -38,14 +38,14 @@ explicit resource types rather than deep type hierarchies. Both the Part
 stream and the inline-content model are discriminated unions — one keyed by
 `PartType`, the other by which `Run` field is set.
 
-Beyond structural representation, real-world localization workflows demand:
+Beyond structural representation, real-world workflows demand:
 
 - **Stable content identity** across extraction cycles for incremental
   processing.
 - **Dynamic properties** for extensible metadata.
 - **Display hints** that guide UI rendering without coupling the model to any
   particular frontend.
-- **A format-independent inline code model** that supports TM matching, AI
+- **A format-independent inline code model** that supports memory matching, AI
   translation, and editor rendering across all source formats.
 
 ### The inline-code challenge
@@ -62,7 +62,7 @@ represents these constructs differently:
 | Placeholder | —              | —                    | —               | `<ph>`                              |
 
 A framework must make these constructs processable in a format-agnostic way —
-TM matching, AI translation, QA checks, and terminology lookup must not need
+memory matching, AI translation, QA checks, and terminology lookup must not need
 to know whether the bold text came from HTML or Markdown. At the same time,
 perfect roundtrip fidelity to the original format is required: a `<b
 class="emphasis">` must roundtrip as exactly that, not as a generic bold tag.
@@ -139,7 +139,7 @@ type Block struct {
 A Block holds one source run sequence and one target run sequence per locale —
 the whole content, unsegmented. There is no `Segment` container: most blocks
 *are* a single string and its translations, and the model says exactly that.
-When a workflow needs sentence boundaries (review UI, exact-match TM keys,
+When a workflow needs sentence boundaries (review UI, exact-match memory keys,
 XLIFF/TMX export), a flow tool computes them and attaches a **segmentation
 overlay** (see [Stand-off overlays](#stand-off-overlays-segmentation-terminology-entities)).
 The overlay is layered over the runs; the runs are never repartitioned, so
@@ -162,7 +162,7 @@ type VariantKey struct {
 }
 
 // Target is the committed translation for one variant: content plus its
-// lifecycle and provenance. Candidate/alternative translations (TM, MT, AI
+// lifecycle and provenance. Candidate/alternative translations (memory, MT, AI
 // proposals) remain `alt-translation` annotations; Target is the chosen one.
 type Target struct {
     Runs   []Run
@@ -202,7 +202,7 @@ The `ContentHash` is computed from normalized source text
 block's name, type, and sorted properties — this produces stable identity
 across extraction cycles: the same content always produces the same identity,
 so only blocks whose identity has changed need reprocessing. Identical blocks
-across documents share the same `ContentHash`, letting translation memory and
+across documents share the same `ContentHash`, letting content memory and
 AI tools avoid redundant work.
 
 Block identity also carries a separate project-unique internal ID tracked by
@@ -271,14 +271,14 @@ not a runtime flag. Annotations are reached through the
 | Entities         | overlay `entity`           | entity-extract     | Named entities (people, places, dates) |
 | QA findings      | overlay `qa`               | qa                    | Quality findings with severity         |
 | Alignment        | overlay `alignment`        | aligner, readers      | Source-span ↔ target-span links        |
-| Alt-translations | annotation `alt-translation` | TM leverage, AI tools | Candidate translations with scores     |
+| Alt-translations | annotation `alt-translation` | memory leverage, AI tools | Candidate translations with scores     |
 
 Both overlay span values and annotation values are typed payloads registered
 with a single payload registry (`RegisterPayload` / `NewPayload`) so the wire
 and store layers can rehydrate the typed value from its type name.
 
 `Properties` is opaque pass-through metadata only (connector keys, format
-hints). Analytic/interpretive results that a tool produces — TM match scores,
+hints). Analytic/interpretive results that a tool produces — memory match scores,
 word counts, QA findings — are overlays or annotations, not properties; the IO
 contract ([AD-006](006-tool-system.md)) declares which a tool consumes and
 produces.
@@ -435,7 +435,7 @@ baking them into structure:
   There is no inverse operation to get wrong and no inter-segment "ignorable"
   material to lose — the gaps between segment spans are simply runs no span
   covers. By default the engines **trim leading/trailing whitespace** from each
-  segment (matching Okapi's `defaultSegmentation.srx`, and keeping TM keys
+  segment (matching Okapi's `defaultSegmentation.srx`, and keeping memory keys
   stable), so the inter-sentence whitespace is exactly such an uncovered gap
   rather than being attached to either side of the break. The SRX engine reads
   this from the ruleset header (`okpsrx:options trimLeadingWhitespaces` /
@@ -445,7 +445,7 @@ baking them into structure:
 - **It is uniform.** Terminology, entities, and QA findings are the same kind
   of overlay, anchored the same run-aware way, rather than each re-detecting
   boundaries at render time.
-- **Leverage is hybrid.** TM matching works at the whole-block level (including
+- **Leverage is hybrid.** Memory matching works at the whole-block level (including
   embedding/semantic similarity) and, when a segmentation overlay is present,
   also computes exact and structural keys per segment span via the Run
   projections below.
@@ -603,8 +603,8 @@ Runs:  TextRun "Click "
        TextRun "."
 ```
 
-This produces stable structural keys for TM matching: HTML `<b>Click</b>`
-and Markdown `**Click**` both yield `{1}Click{/1}` — TM entries created from
+This produces stable structural keys for memory matching: HTML `<b>Click</b>`
+and Markdown `**Click**` both yield `{1}Click{/1}` — entries created from
 HTML match Markdown sources at the structural tier.
 
 ### Run text projections
@@ -621,11 +621,11 @@ provides (in `core/model/`):
 func FlattenRuns(runs []Run) string
 
 // Structural text — inline-code runs become numbered placeholders ({1},
-// {/1}, {2/}). Use: TM exact matching (structural tier).
+// {/1}, {2/}). Use: memory exact matching (structural tier).
 func RunsStructuralText(runs []Run) string
 
 // Generalized text — entity Ph runs become typed placeholders ({PERSON}),
-// other inline codes become numbered. Use: TM generalized matching.
+// other inline codes become numbered. Use: memory generalized matching.
 func RunsGeneralizedText(runs []Run) string
 
 // Markup-preserving render — re-emits each run's captured Data verbatim.
@@ -654,7 +654,7 @@ differently.
 The neokapi inline-code model is **structural-canonical**. `Run[]` is the
 single source of truth for a Block's content. Every other
 representation that crosses a boundary — to a translator, an LLM, an MT
-provider, a CAT tool, a runtime, a TM index — is a **projection** computed
+provider, a CAT tool, a runtime, a memory index — is a **projection** computed
 from `Run[]` on demand.
 
 This separation is deliberate:
@@ -672,8 +672,8 @@ The framework provides:
 | ------------------------------ | -------------------------------- | ------------------------------------------------------------------------- |
 | `Run[]` (no projection)        | `Block.Source` / `Targets`, KBF wire | Pipeline tools, store, format readers/writers                         |
 | `RenderRunsWithData(runs)`     | native source markup             | Format writers (HTML, Markdown, XLIFF fallback) — replays `Data` verbatim |
-| `RunsStructuralText(runs)`     | `Click {1}here{/1} for info`     | TM matching (structural tier) — cross-format leverage                     |
-| `RunsGeneralizedText(runs)`    | structural + entity placeholders | TM matching (generalized tier)                                            |
+| `RunsStructuralText(runs)`     | `Click {1}here{/1} for info`     | Memory matching (structural tier) — cross-format leverage                 |
+| `RunsGeneralizedText(runs)`    | structural + entity placeholders | Memory matching (generalized tier)                                        |
 | `RunsPlaceholderText(runs)`    | `<x id="1"/>here<x id="/1"/>`    | LLM prompts where tag preservation is critical                            |
 | `RunsSemanticHTML(runs, reg)`  | `<a href="…">here</a>`           | Commercial MT (DeepL, Google) and HTML-style LLM prompts                  |
 | `flattenRuns(runs)` (TS)       | `Click {=m0}here{/=m0}`          | ICU runtime, neokapi-i18n `__tx` re-attach                                  |
@@ -798,7 +798,7 @@ When a reader encounters content matching a subfilter pattern, it emits
 Writers buffer all parts between matching Layer boundaries, delegate to the
 sub-writer, and insert the rendered string into the parent format.
 
-### Integration with AI, MT, and TM
+### Integration with AI, MT, and content memory
 
 AI tools and MT providers pick the appropriate Run projection based on the
 backend's tag-handling capability:
@@ -809,9 +809,9 @@ backend's tag-handling capability:
 - **LLM translation** — use `RunsPlaceholderText` or `RunsSemanticHTML`
   depending on prompt strategy. The response is parsed back into a `[]Run` by
   matching placeholder tags to the source runs.
-- **TM matching** — three-tier matching uses `FlattenRuns`,
+- **Memory matching** — three-tier matching uses `FlattenRuns`,
   `RunsStructuralText`, and `RunsGeneralizedText` in order. Because structural
-  keys use run IDs and not native markup, TM entries created from HTML match
+  keys use run IDs and not native markup, entries created from HTML match
   Markdown at the structural tier.
 
 ## Consequences
@@ -828,7 +828,7 @@ backend's tag-handling capability:
   deduplication across documents.
 - Dynamic properties and annotations let tools and connectors carry metadata
   without content-model changes.
-- The semantic-type abstraction lets TM match across formats and lets AI
+- The semantic-type abstraction lets the memory match across formats and lets AI
   prompts receive consistent inline-code representations.
 - Writers replay `Run.Data` verbatim, so roundtrip fidelity is a property of
   the model, not of each format's implementation.
@@ -843,7 +843,7 @@ backend's tag-handling capability:
 - Anchoring is one idea with per-medium facets — run range (text), `geometry`
   (rendered), `timing` (timed) — so image, audio, and video content sit in the
   same Block model as text, and a recognized source carries the same `Origin`
-  (engine + confidence) a translation does. Vision ([AD-029](029-vision-and-image-localization.md))
+  (engine + confidence) a translation does. Vision ([AD-029](029-vision-and-image-adaptation.md))
   and multimodal extraction ([AD-030](030-multimodal-extraction-and-llm-refinement.md))
   add no new positional primitive.
 - Bilingual interchange formats that carry sentence segments (XLIFF 2.0
@@ -864,7 +864,7 @@ backend's tag-handling capability:
 - [AD-006: Tool System](006-tool-system.md) — tools that consume Parts
 - [AD-011: AI Providers](011-ai-providers.md) — multimodal messages that carry a Block's media anchor as content
 - [AD-017: Bilingual Format Interop](017-bilingual-format-interop.md) — XLIFF/TMX segment + alignment projection
-- [AD-029: Vision and Image Localization](029-vision-and-image-localization.md) — geometry as the spatial anchor facet
+- [AD-029: Vision and image adaptation](029-vision-and-image-adaptation.md) — geometry as the spatial anchor facet
 - [AD-030: Multimodal Extraction and LLM Refinement](030-multimodal-extraction-and-llm-refinement.md) — the temporal facet, source `Origin` confidence, and the refinement tier that reads them
 - [AD-031: Content-Fidelity Surfacing](031-content-fidelity-surfacing.md) — surfacing non-translatable content as `Block{Translatable:false}` with a role, for ingestion
 - [AD-032: Math and Equations](032-math-and-equations.md) — `RoleFormula`, `fmt:math`, and `Equiv`/`Disp` as portable math carriers

@@ -2,7 +2,7 @@
 id: 031-content-fidelity-surfacing
 sidebar_position: 31
 title: "AD-031: Content-Fidelity Surfacing"
-description: "Architecture decision: a format reader serves two consumers from one parse — the translation pipeline (MT/TM) and LLM/RAG ingestion that wants all textual context (code, captions, alt-text, do-not-translate strings, config-excluded values, comments). Readers surface non-translatable contextual content as content by default rather than burying it in opaque skeleton, via two channels — renderable content as Block{Translatable:false} carrying a SemanticRole and a skeleton ref, comment/metadata context as Data or a NoteAnnotation — gated by a default-ON, per-format opt-out (extractNonTranslatableContent). Byte-exact round-trip, MT-skip, and Okapi parity all hold."
+description: "Architecture decision: a format reader serves two consumers from one parse — the translation pipeline (MT and content memory) and LLM/RAG ingestion that wants all textual context (code, captions, alt-text, do-not-translate strings, config-excluded values, comments). Readers surface non-translatable contextual content as content by default rather than burying it in opaque skeleton, via two channels — renderable content as Block{Translatable:false} carrying a SemanticRole and a skeleton ref, comment/metadata context as Data or a NoteAnnotation — gated by a default-ON, per-format opt-out (extractNonTranslatableContent). Byte-exact round-trip, MT-skip, and Okapi parity all hold."
 keywords: [content fidelity, non-translatable content, surfacing, LLM ingestion, RAG, docling, semantic role, skeleton, Block, Translatable flag, extractNonTranslatableContent, alt-text, captions, code blocks, do-not-translate, config-excluded values, comments, parity-safe carrier, dual consumer, architecture decision, neokapi]
 ---
 
@@ -11,8 +11,8 @@ keywords: [content fidelity, non-translatable content, surfacing, LLM ingestion,
 ## Summary
 
 A format reader serves **two consumers** from a single parse. The first is the
-translation pipeline — MT, TM, the editor — which wants only the prose a human
-would localize. The second is **LLM/RAG ingestion**, which wants *all* textual
+translation pipeline — MT, the content memory, the editor — which wants only the
+prose a human would translate. The second is **LLM/RAG ingestion**, which wants *all* textual
 context: code listings, captions, image and shape alt-text, formulas,
 do-not-translate UI strings, config-excluded values, and developer/translator
 comments. Historically a reader was a hard binary — a fragment became either a
@@ -70,7 +70,7 @@ A reader classifies each fragment of its input three ways
 
 | Fragment | Destination |
 |---|---|
-| Translatable prose | `Block{Translatable: true}` — the pipeline localizes it |
+| Translatable prose | `Block{Translatable: true}` — the pipeline processes it |
 | Pure structure (delimiters, quoting, whitespace) | skeleton bytes |
 | Non-translatable but meaningful context | **surfaced** — see the two channels below |
 

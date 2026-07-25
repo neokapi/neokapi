@@ -9,7 +9,7 @@ This guide shows how to use kapi (with the bowrain plugin) in GitHub Actions wor
 
 ## Overview
 
-The [`setup-kapi`](https://github.com/neokapi/setup-kapi) GitHub Action installs kapi on any runner, with the bowrain plugin included by default. It handles platform detection, checksum verification, binary caching, and optional server authentication — so your workflow steps can focus on localization tasks.
+The [`setup-kapi`](https://github.com/neokapi/setup-kapi) GitHub Action installs kapi on any runner, with the bowrain plugin included by default. It handles platform detection, checksum verification, binary caching, and optional server authentication — so your workflow steps can focus on the content work.
 
 This page is the deep GitHub Actions guide. For the map of every CI and
 delivery surface — GitLab CI, container runners, and the no-pipeline Bowrain
@@ -103,7 +103,7 @@ With `command: up` (the default), the action runs `kapi up` — the kapi loop on
 | `command`        | `up`                                    | The `kapi` command to run                |
 | `args`           | `""`                                    | Additional arguments                     |
 | `project`        | `""`                                    | Path to the `kapi.yaml` recipe (`-p` flag)   |
-| `plan`           | `false`                                 | With `command: up`, dry-run instead (`kapi up --plan`): report pending work, TM leverage, and a token estimate — no writes, no provider calls. Pairs with `pr-comment` to post the cost of a change on its PR |
+| `plan`           | `false`                                 | With `command: up`, dry-run instead (`kapi up --plan`): report pending work, memory reuse, and a token estimate — no writes, no provider calls. Pairs with `pr-comment` to post the cost of a change on its PR |
 | `fail-on-parked` | `false`                                 | With `command: up`, fail the workflow when the run parks instead of committing partial progress |
 | `commit`         | `true`                                  | Whether to commit changes                |
 | `commit-message` | `chore: update translations via kapi`   | Commit message                           |
@@ -177,7 +177,7 @@ custom shape.
 
 ## Example: Ship Gate on Pull Request
 
-Gate pull requests on the project's release bar whenever localization files
+Gate pull requests on the project's release bar whenever content files
 change. `kapi check --ship` runs the project's bound quality gates (brand,
 terminology, QA) plus its ship/source coverage gates, and exits `3` — failing
 the job — when any gate is unmet:

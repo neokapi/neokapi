@@ -18,7 +18,7 @@ keyring storage, and CLIs via RFC 8628 device authorization.
 
 ## Context
 
-Bowrain is a multi-user platform. A localization team's translators,
+Bowrain is a multi-user platform. A content team's translators,
 reviewers, developers, project admins, and AI agents all need to access the
 same content with different levels of trust. Single-sign-on is mandatory for
 enterprise deployments, and identity needs to federate to whatever directory
@@ -156,7 +156,7 @@ refresh attacks.
 | ------------- | --------------------------------------------------------------------------------------- |
 | Web apps      | HttpOnly, Secure, SameSite=Lax cookies. JavaScript cannot read the token.               |
 | Desktop app   | Access + refresh tokens live in the OS keyring; metadata (user ID, workspace) in a config file |
-| CLI           | `~/.config/bowrain/auth.json`, file-permission-scoped                                   |
+| CLI           | Access + refresh tokens in the OS keychain; metadata in `auth.json`, file-permission-scoped |
 | Server-to-server | `Authorization: Bearer <token>` header                                                |
 
 HttpOnly cookies protect web app tokens from XSS. CLI and desktop clients use
@@ -217,7 +217,9 @@ is terminal-friendly and works over SSH:
    browser.
 4. The user authenticates via Keycloak and enters the user code.
 5. The CLI polls `POST /api/v1/auth/device/token` until the user authorizes.
-6. Tokens are stored at `~/.config/bowrain/auth.json`.
+6. Tokens are stored in the OS keychain; non-secret metadata goes to
+   `auth.json` in the bowrain config directory (`~/.config/bowrain` on Linux,
+   `~/Library/Application Support/bowrain` on macOS).
 
 The device authorization claim page is hosted in the web app with the same
 theme as the rest of Bowrain.

@@ -101,13 +101,13 @@ namesakes' contract.
 | `apply [changeset]` | positional or stdin | — | text·json·yaml | preferred | 3 drift |
 | `pack` / `unpack` / `info` | positional archive | — | text·json·yaml | preferred / — | 1 |
 | `add` / `ls` / `rm` | positional patterns | yes | text·json·yaml | required | 1 |
-| `exec <tool> <files…>` | positional | yes | text·json·yaml | tm/terms bound from project | 1 |
+| `exec <tool> <files…>` | positional | yes | text·json·yaml | memory + terms bound from project | 1 |
 | `kcat` / `kgrep` / `ksed` / `kconv` | positional, stdin | globs yes, dirs need `-r` | text·json·yaml | — | 2; kgrep 1 = no match |
 | `kdiff a [b]` | 1–2 positional | — | text·json·yaml | — | 1 differ |
 | `flows` / `tools` / `formats` | — | — | text·json·yaml | — | 1 |
 | `plugin …` | positional name | — | text·json·yaml | — | 1; doctor 1 unhealthy |
 | `models …` | positional model | — | text·json·yaml | — | 1 |
-| `tm …` / `termbase …` | positional / `--name`,`--local`,`--file` | `import-dir` walks | text·json·yaml | resource flags | 1 |
+| `memory …` / `terms …` | positional / `--name`,`--local`,`--file` | `import-dir` walks | text·json·yaml | resource flags | 1 |
 | `brand …` | positional / `--input-text` / stdin | — | text·json·yaml | profile flags | 3 min-score |
 | `credentials …` | positional name | — | text·json·yaml | — | 1 |
 | `config …` | positional key/value | — | text·json·yaml | positional form: required | 1 |

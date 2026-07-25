@@ -15,7 +15,7 @@ shippable or parks for a human.
 
 On a **server-connected** project (the recipe declares a `server:` block), `kapi
 up` runs the loop **on the Bowrain server** by default: it pushes drift, the
-server runs the loop on the organization's keys and shared TM and terminology,
+server runs the loop on the organization's keys and shared content memory and terminology,
 progress streams back live, results pull down, and parked units enter the team's
 review queue. `kapi up --local` runs the loop on this machine and pushes the
 results instead.
@@ -36,7 +36,7 @@ kapi up [flags]
 # Catch the project up on the server (connected project), streaming progress
 kapi up
 
-# Dry run: pending work, TM leverage, and a token estimate per locale — no writes
+# Dry run: pending work, memory reuse, and a token estimate per locale — no writes
 kapi up --plan
 
 # Catch up on this machine (your AI keys), then push the results
@@ -53,13 +53,13 @@ kapi up --passes 1
 
 | Flag           | Description                                                                 | Default        |
 | -------------- | --------------------------------------------------------------------------- | -------------- |
-| `--plan`       | Dry run: report pending work, TM leverage, and a token estimate — no writes | `false`        |
+| `--plan`       | Dry run: report pending work, memory reuse, and a token estimate — no writes | `false`        |
 | `--local`      | Catch up on this machine, then push the results (override the server venue)  | `false`        |
 | `--server`     | Require the server venue: fail rather than fall back to a local run          | `false`        |
 | `--timeout`    | Server venue: maximum time to wait for the server run before pulling available results | `15m` |
 | `--passes`     | Maximum reconciliation passes (`0` = loop until caught up or parked; `1` = one) | `0`          |
 | `--jobs`       | How many languages to catch up concurrently per pass                        | `4`            |
-| `--materialize`| After the loop, write localized files for every shippable locale            | `false`        |
+| `--materialize`| After the loop, write target files for every shippable locale               | `false`        |
 | `--no-extract` | Skip the pre-pass source-drift check and block-store re-extraction          | `false`        |
 | `--no-checks`  | Skip the bound checks in the loop                                           | `false`        |
 | `--json`       | Stream the convergence events as NDJSON, with the result as the last record | `false`        |

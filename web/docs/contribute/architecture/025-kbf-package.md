@@ -2,8 +2,8 @@
 id: 025-kbf-package
 sidebar_position: 25
 title: "AD-025: KBF Family and the .kpz Package"
-description: "Architecture decision: a family of deterministic, lossless KBF formats (blocks, translation memory, termbase) and a .kpz package container that bundles a project's authoritative content for portable, lossless pack/unpack — distinct from the lossy industry interchange formats (XLIFF/PO, TMX, TBX). A .kpz also carries a project's in-progress working state for hand-off and cached resume, with progress derived from content rather than an authoritative journal, plus the full project recipe (flows, plugins, defaults, content) so it is a runnable project in a file — near-full parity with a .kapi project, excluding secrets, caches, plugin binaries, and (by default) raw source. The same container serves two profiles — a whole-project snapshot (pack/unpack) and a task-scoped bilingual interchange file (extract/merge), neokapi's lossless interchange format for a translator or reviewer. A .kpz is always a parcel, never a workspace: day-to-day work is the ambient .kapi project."
-keywords: [KBF, kmb, ktb, kpz, package, translation memory, termbase, TMX, TBX, lossless, interchange, content store, cache, pack, unpack, working state, hand-off]
+description: "Architecture decision: a family of deterministic, lossless KBF formats (blocks, content memory, terms) and a .kpz package container that bundles a project's authoritative content for portable, lossless pack/unpack — distinct from the lossy industry interchange formats (XLIFF/PO, TMX, TBX). A .kpz also carries a project's in-progress working state for hand-off and cached resume, with progress derived from content rather than an authoritative journal, plus the full project recipe (flows, plugins, defaults, content) so it is a runnable project in a file — near-full parity with a .kapi project, excluding secrets, caches, plugin binaries, and (by default) raw source. The same container serves two profiles — a whole-project snapshot (pack/unpack) and a task-scoped bilingual interchange file (extract/merge), neokapi's lossless interchange format for a translator or reviewer. A .kpz is always a parcel, never a workspace: day-to-day work is the ambient .kapi project."
+keywords: [KBF, kmb, ktb, kpz, package, content memory, terms store, TMX, TBX, lossless, interchange, content store, cache, pack, unpack, working state, hand-off]
 ---
 
 # AD-025: KBF Family and the .kpz Package
@@ -19,14 +19,15 @@ authoritative content:
 | --- | --- | --- | --- |
 | blocks + targets | KBF (`core/kbf`, `.kbf`) | `blocks/*.kbf` | XLIFF / PO |
 | stand-off annotations | KBF annotations (`.overlays.jsonl`) | `annotations/*.overlays.jsonl` | — |
-| translation memory | KMB (`memory/kmb`, `.kmb`; archive `.kmz`) | `tm.kmb` | TMX |
-| termbase | KTB (`termbase/ktb`, `.ktb`; archive `.ktz`) | `termbase.ktb` | TBX |
+| content memory | KMB (`memory/kmb`, `.kmb`; archive `.kmz`) | `tm.kmb` | TMX |
+| terms | KTB (`terms/ktb`, `.ktb`; archive `.ktz`) | `termbase.ktb` | TBX |
 | media | opaque blobs | `media/*` | — |
 
 The package is a deterministic zip with a `manifest.json` carrying a per-member
 SHA-256 and a Merkle `rootHash`. It is the **at-rest twin** of the over-the-wire
 sync chunk set (`bowrain/core/proto/sync/v1`, content types
-`blocks / annotations / tm / termbase / media`).
+`blocks / terms / tm / media`, where `tm` is the wire spelling for content
+memory).
 
 ## Context
 
@@ -34,13 +35,13 @@ KBF (AD: the content model serialization) already gives blocks a deterministic,
 hashable, lossless on-disk form. But the other content a project owns had no
 equivalent:
 
-- **Translation memory** had only `memory` TMX export — an *interchange*
+- **Content memory** had only `memory` TMX export — an *interchange*
   format. TMX preserves the multilingual variants a CAT tool understands but
   **silently drops** the AI-native enrichments `memory.Entry` carries:
-  entity mappings (including the `ConceptID` cross-link to the termbase),
+  entity mappings (including the `ConceptID` cross-link to a term concept),
   provenance origins and import sessions, per-entry properties, and notes.
-- **Termbase** had TBX export and an ad-hoc JSON export. TBX maps the standard
-  terminology fields but **drops** `termbase.Concept`'s native fields: the term
+- **Terms** had TBX export and an ad-hoc JSON export. TBX maps the standard
+  terminology fields but **drops** `terms.Concept`'s native fields: the term
   `Source` (terminology vs `brand_vocabulary`), the `CompetitorTerm` flag, and
   the extensible `Properties` map.
 
@@ -51,7 +52,8 @@ faithfully **regenerate the caches** (`blocks.db`, sync hashes, the redis hash
 cache) the platform builds from this content.
 
 A second observation shaped the design: the project layout already separates
-**authoritative state** (TM, termbase, manifest at the top of `.kapi/`) from
+**authoritative state** (the content memory, the terms store, and the manifest at
+the top of `.kapi/`) from
 **regenerable cache** (`cache/blocks.db`, extractions, `sync-cache.json` — "safe
 to delete and rebuild"). The thing worth packaging is the *authoritative
 content*, never the cache or secrets.
@@ -71,8 +73,8 @@ newline) so output is stable for content hashing and git diffing.
   serialization, so inline codes, placeholders, and plural/select survive
   identically to KBF blocks. Carries entities (with `ConceptID`), origins,
   import sessions, properties, and notes.
-- **KTB** (`termbase/ktb`, `kind: kapi-terms`). Reuses the
-  already-JSON-tagged `termbase.Concept` directly — one source of truth, no
+- **KTB** (`terms/ktb`, `kind: kapi-terms`). Reuses the
+  already-JSON-tagged `terms.Concept` directly — one source of truth, no
   parallel wire type to drift — and so preserves `Source`, `CompetitorTerm`, and
   `Properties`.
 
@@ -81,10 +83,10 @@ Each store-shaped bundle also has a compressed **archive** spelling: `.kmz`
 member (`tm.kmb` / `termbase.ktb`) built by `internal/bundlezip`. The container
 follows the `.kpz` discipline — one member per payload, fixed DOS-epoch
 timestamps — but deflates its member rather than storing it, because size is the
-whole reason the tier exists: a project TM as `.kmb` JSON is far larger than its
-deflated form. Bundles are what a project **commits** (a reviewed TM or termbase
-has to diff line by line in git); archives are what it **ships**. `kapi tm
-export/import` and `kapi terms export/import` select the tier from the file
+whole reason the tier exists: a project's memory as `.kmb` JSON is far larger than
+its deflated form. Bundles are what a project **commits** (reviewed memory or
+terms have to diff line by line in git); archives are what it **ships**. `kapi
+memory export/import` and `kapi terms export/import` select the tier from the file
 extension, `--format` overrides.
 
 ### 2. The `.kpz` package container
@@ -101,9 +103,9 @@ root hash.
 
 - **Native (lossless)** — the Kapi format family and `.kpz`. Used for packing,
   caching, hashing, and any flow that must reconstruct project state exactly.
-- **Interchange (lossy)** — XLIFF/PO for blocks, TMX for TM, TBX for termbase.
-  Used to hand content across an organizational boundary into the wider
-  localization industry. These remain the export/handoff path and are **never**
+- **Interchange (lossy)** — XLIFF/PO for blocks, TMX for content memory, TBX for
+  terms. Used to hand content across an organizational boundary into the wider
+  translation industry. These remain the export/handoff path and are **never**
   package members, because they cannot represent neokapi's native fields.
 
 ### 4. Pack authoritative content, not caches
@@ -149,8 +151,8 @@ rather than a step-by-step CLI verb family:
   later run. Re-running a flow therefore **skips work already done**; the store
   *is* the workspace, resume is just running again.
 - **Project snapshot (`pack` / `unpack`).** For the whole project, `pack` exports
-  the block-store overlays, the authoritative TM and termbase, the source
-  identity + skeletons, and the **full project recipe** (flows, plugins,
+  the block-store overlays, the authoritative content memory and terms store, the
+  source identity + skeletons, and the **full project recipe** (flows, plugins,
   defaults, content — §6) into a portable `.kpz`; `unpack` rehydrates it into
   another machine's `.kapi/` state dir, reconstituting a complete, runnable
   `kapi.yaml`. A `.kpz` is to the state directory what a git *bundle* is to
@@ -208,7 +210,7 @@ composition, carrying no I/O of its own).
 records each source's **identity** (logical path, format, content hash) and the
 per-source **skeleton** — the round-trip template `merge` reuses. That is enough
 for the core loop: `transform`-in-place reads only blocks and overlays, `merge`
-rebuilds the localized files from the skeleton, and `info` / `status` detects
+rebuilds the per-locale files from the skeleton, and `info` / `status` detects
 drift from the source hash. The **raw source bytes** are needed only to
 *re-extract* (re-derive blocks under different settings), so they are embedded
 only on request (`pack --with-source` / `extract --with-source`), keeping a
@@ -228,7 +230,7 @@ path would escape the project root is refused rather than written.
 | plugins (declaration) + `requires` | recipe | recipe | travels (binaries re-resolved via registry) |
 | defaults, content, preset | recipe | recipe | travels |
 | `server:` / `hooks:` / `automations:` (Extras) | recipe Extras | recipe Extras | travels **inert** |
-| TM / termbase | `tm.db` / `termbase.db` (authoritative) | `tm.kmb` / `termbase.ktb` | travels (lossless) |
+| content memory / terms | `tm.db` / `termbase.db` (authoritative) | `tm.kmb` / `termbase.ktb` | travels (lossless) |
 | blocks + targets, annotations, in-progress overlays | `cache/blocks.db` (regenerable) | `blocks/*.kbf`, `annotations/*.overlays.jsonl`, `overlays.json` (authoritative) | travels |
 | source identity (path, format, hash) | working tree | `manifest.json` | travels |
 | source skeleton (round-trip template) | `cache/extractions/.../skel-*.bin` | `skeletons/<id>` | travels |
@@ -267,16 +269,16 @@ So one `.kpz` container carries **two profiles**, distinguished by the manifest
 `kind`:
 
 - **Project profile** (`kind: kapi-project`) — the whole project: all locales,
-  full recipe, TM, termbase, overlays, source identity + skeletons (§6). The
-  *snapshot / ecosystem payload*, moved by `pack` / `unpack`.
+  full recipe, content memory, terms, overlays, source identity + skeletons (§6).
+  The *snapshot / ecosystem payload*, moved by `pack` / `unpack`.
 - **Bilingual profile** (`kind: kapi-interchange`) — a task-scoped slice for one
   source→target pair: the blocks with faithful inline codes, the
   segmentation/alignment overlays, the per-source skeleton for round-trip, and the
-  relevant TM-match + termbase context. It excludes other locales, the full
+  relevant memory-match + term context. It excludes other locales, the full
   recipe, and raw source. This is **neokapi's interchange format** — the parcel
   `extract` sends to a translator or reviewer and `merge` ingests back
   ([AD-017](017-bilingual-format-interop.md)) — lossless where XLIFF is lossy, with
-  inline TM/term context and integrity-verified, diffable review. It is *ecosystem*
+  inline memory/term context and integrity-verified, diffable review. It is *ecosystem*
   interchange (read by a neokapi tool); XLIFF / PO remain the industry-interop
   tier, and turning this profile into a cross-vendor standard is an open-spec
   effort, not a property of the format.
@@ -287,7 +289,7 @@ Both profiles are parcels — neither is a workspace.
 
 - A project's full content can be serialized losslessly and rehydrated into
   fresh stores. The guarantee is enforced by a cache-internal round-trip test:
-  populate real `memory` / `termbase` stores → pack to `.kpz` → unpack into
+  populate real `memory` / `terms` stores → pack to `.kpz` → unpack into
   fresh stores → re-pack → assert byte-identical.
 - TMX/TBX keep their role unchanged (industry interchange), and their lossiness
   is now a documented, intentional property rather than an accident.
@@ -315,7 +317,7 @@ Both profiles are parcels — neither is a workspace.
 
 ## Implementation
 
-- Formats: `memory/kmb`, `termbase/ktb`, container `kpz/`.
+- Formats: `memory/kmb`, `terms/ktb`, container `kpz/`.
 - Tests: per-format lossless round-trip + determinism + envelope rejection, and
   `kpz` package round-trip + a cache-internal store round-trip.
 - The working-state / hand-off capability (§5) is implemented

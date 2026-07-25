@@ -48,7 +48,7 @@ Tier-2 is `core/structure.Analyze`/`ToParts` (format-agnostic, `analyze.go:1-12`
 
 ### 2b. Localization-mode table (AD-029, a capability enumeration)
 
-`web/docs/contribute/architecture/029-vision-and-image-localization.md:36-42` — "treating 'image' as 'OCR' conflates [several modes]":
+`web/docs/contribute/architecture/029-vision-and-image-adaptation.md:36-42` — "treating 'image' as 'OCR' conflates [several modes]":
 
 | Mode | What it localizes | Mechanism |
 |---|---|---|
@@ -166,4 +166,4 @@ A new **Structure/Geometry axis should DEFINE the R0–R5 richness ladder** (it 
 - `docling`/`doclang` are the **reference top-rung** (G5, native authority) and the natural conformance oracles for the role/layer/geometry vocabularies — every other format's structural output is expressed in the *same* `model.Role*`/`Layer*` vocabulary (`structure.go:34-67`) precisely so a reader, the editor, an exporter, and a DocLang writer "all speak the same role names" (`structure.go:31-33`). The axis should reuse that vocabulary as its rubric, not invent a parallel one.
 - Note the AD-029 mode table (whole-image / alt / metadata / OCR / layout) is a **localization-capability** enumeration that partly overlaps but is not identical to the richness ladder; keep it as a separate "what can we localize" capability list (it includes R0 asset-replacement and alt-text/metadata which are localization *targets*, not comprehension depth).
 
-Key files: `core/model/structure.go`, `core/structure/analyze.go`, `core/vision/{vision.go,layout.go}`, `core/formats/{image,pdf,docling,doclang}/`, `plugins/vision/` (manifest + `internal/ocr/layoutmap.go`), `plugins/pdfium/internal/pdfreader/structtree.go`, `cli/pluginhost/tier3_reader.go`, AD-028 `web/docs/contribute/architecture/028-pdf-reader-plugin.md`, AD-029 `029-vision-and-image-localization.md`, `.github/workflows/nightly.yml`.
+Key files: `core/model/structure.go`, `core/structure/analyze.go`, `core/vision/{vision.go,layout.go}`, `core/formats/{image,pdf,docling,doclang}/`, `plugins/vision/` (manifest + `internal/ocr/layoutmap.go`), `plugins/pdfium/internal/pdfreader/structtree.go`, `cli/pluginhost/tier3_reader.go`, AD-028 `web/docs/contribute/architecture/028-pdf-reader-plugin.md`, AD-029 `029-vision-and-image-adaptation.md`, `.github/workflows/nightly.yml`.

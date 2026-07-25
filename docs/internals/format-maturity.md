@@ -442,7 +442,7 @@ This is a **cumulative floor ladder with no quality dimensions** — every rung 
 a deterministic file grep, so the published level is fully pinned
 (`repro-check.mjs` asserts spread 0, exactly as for Editor and Security). Each
 rung adds one richer standoff payload, in value order; **geometry is the top
-rung** — the hardest to recover faithfully and, for localization, the least
+rung** — the hardest to recover faithfully and, for translation, the least
 directly useful (it is read-only reconstruction metadata that native writers
 ignore, `structure.go:124-126`), while logical structure is what a translation
 flow acts on.

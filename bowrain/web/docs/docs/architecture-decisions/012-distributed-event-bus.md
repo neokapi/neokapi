@@ -110,7 +110,7 @@ Registered event types include:
 | `connector.synced`              | Connector completion                                       |
 | `flow.completed` / `flow.failed`| Flow executor (type defined; not yet emitted)              |
 | `quality.gate.failed`           | Quality gate evaluation                                    |
-| `terminology.changed`           | Termbase mutations                                         |
+| `terminology.changed`           | Terms store mutations                                      |
 | `push.completed`                | Sync push commit                                           |
 | `push.automations.completed`    | PushCompletionTracker (AD-014)                             |
 | `project.updated`               | Project settings / locale additions                        |
@@ -187,4 +187,4 @@ interface.
 - [AD-013: Automation Engine](013-automation-engine.md) — primary event consumer
 - [AD-014: Translator Workflow](014-translator-workflow.md) — activities, tasks, notifications
 - [AD-015: Server-Side AI Operations](015-server-ai-operations.md) — translation job queue sibling
-- [AD-framework-004: Processing Engine](https://neokapi.github.io/web/neokapi/contribute/architecture/004-processing-engine) — in-process pipeline model
+- [AD-framework-004: Processing Engine](https://neokapi.github.io/contribute/architecture/004-processing-engine) — in-process pipeline model

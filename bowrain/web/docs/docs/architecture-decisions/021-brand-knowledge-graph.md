@@ -9,7 +9,7 @@ title: "AD-021: The brand knowledge graph"
 ## Summary
 
 Bowrain models a workspace's brand language as a knowledge graph whose nodes
-are **concepts** — the language-neutral units already used by the termbase —
+are **concepts** — the language-neutral units already used by the terms store —
 and whose edges are typed, time- and market-scoped **relations** between them.
 Brand vocabulary rules, terminology, observations about how others use a term,
 discussion threads, and revision history all attach to the same concept, so a
@@ -40,7 +40,7 @@ truth the hub shows.
 Brand language decays through drift, not decisions: a competitor name slips
 into a tagline, a renamed product survives in old docs, a market keeps a term
 the company retired. Before this decision, bowrain held the raw material in
-three disconnected systems. The termbase modeled concepts with per-locale terms
+three disconnected systems. The terms store modeled concepts with per-locale terms
 and lifecycle statuses but persisted no relations between concepts. Brand voice
 profiles enforced vocabulary as flat term strings with no link to the concepts
 those strings denote. A graph store existed with SKOS-aligned relation labels
@@ -59,7 +59,7 @@ with governance, not three flat tables.
 
 ### One node type: the concept
 
-The termbase `Concept` is the single node of the brand knowledge graph. Brand
+The `terms` package's `Concept` is the single node of the brand knowledge graph. Brand
 vocabulary is not a parallel system: a forbidden term is a concept whose term
 carries `forbidden` status, and the brand profile's vocabulary rules reference
 concepts by ID (`TermRule.ConceptID`). Concept-less rules exist only for
@@ -67,7 +67,7 @@ standalone kapi use, where a profile file travels without a workspace graph;
 on the platform every rule — including rules promoted by the
 correction-learning loop (AD-019) — is concept-backed.
 
-Relations are persisted with the termbase as first-class records. The relation
+Relations are persisted with the terms store as first-class records. The relation
 vocabulary reuses the framework's SKOS-aligned labels: hierarchy (`BROADER`,
 `NARROWER`, `PART_OF`, `HAS_PART`, `RELATED`), succession (`REPLACED_BY`),
 guidance (`USE_INSTEAD`), cross-scheme equivalence (`EXACT_MATCH`,
@@ -131,7 +131,7 @@ Two capabilities make a change-set an experiment rather than paperwork:
 - **Pilots.** A change-set may be bound to one or more content streams as a
   pilot. While the pilot is active, term lookups, enforcement, and brand checks
   in those streams resolve through the draft (a stream-scoped shadow over the
-  workspace graph, using the termbase's existing stream inheritance), so real
+  workspace graph, using the terms store's existing stream inheritance), so real
   content and real checks exercise the proposal. Merging the change-set applies
   the ops to the workspace graph and retires the shadows; abandoning it retires
   the shadows untouched.
@@ -178,7 +178,7 @@ the footprint of a concept before proposing anything.
   server, never authored offline.
 - **CLI and CI.** Governed terminology rides ordinary project sync through the
   bowrain plugin. `kapi pull` snapshots the workspace's governed concepts and
-  their relations into the project's local termbase, and — decisive for CI —
+  their relations into the project's local terms store, and — decisive for CI —
   `kapi check --ship --terms` then gates offline against the same truth the hub
   shows. `kapi push` sends local concept edits back: ordinary edits apply
   directly through the concept endpoints, while governed edits (a banned or
@@ -201,7 +201,7 @@ consumes framework types directly.
 
 ## Consequences
 
-- The termbase becomes the system of record for brand vocabulary; brand
+- The terms store becomes the system of record for brand vocabulary; brand
   profiles keep enforcement semantics but delegate identity to concepts. Two
   previously independent stores can no longer drift apart silently.
 - Relations and validity make queries scope-dependent: every consumer of term

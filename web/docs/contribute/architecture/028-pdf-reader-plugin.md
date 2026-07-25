@@ -48,7 +48,7 @@ contain:
 
 Beyond text, the visual editor ([AD-027](027-visual-editor-data-model.md)) and
 the browser Lab need each text fragment's **position on the page**, and
-downstream localization wants **document structure** — which lines are headings,
+downstream processing wants **document structure** — which lines are headings,
 which blocks form a table — so that a translated document can be reflowed and so
 that table cells are translated as cells. PDF carries none of this uniformly:
 some PDFs are *tagged* with an explicit logical structure tree; most are not, and
@@ -113,7 +113,7 @@ helper: `Title`/`Subject`/`Keywords` become translatable Blocks on the metadata
 plane (`LayerMetadata`), while `Author`/`Creator`/`Producer`/`CreationDate`/
 `ModDate` are recorded as `pdf:`-namespaced properties on the document layer —
 never translated, kept for inspection. This is the same metadata mechanism the
-image reader uses ([AD-029](029-vision-and-image-localization.md)).
+image reader uses ([AD-029](029-vision-and-image-adaptation.md)).
 
 ### Geometry model and coordinate flip
 
@@ -163,7 +163,7 @@ tier 2 as their fallback.
 cannot reach — borderless tables, multi-column reading order, scanned pages,
 figure and caption association. It is deliberately *not* part of the PDF format:
 it operates on a page raster plus blocks and so applies to any format that can
-produce them ([AD-029](029-vision-and-image-localization.md)). Enabled with the
+produce them ([AD-029](029-vision-and-image-adaptation.md)). Enabled with the
 `tier3` option, the plugin renders each page to a PNG at 72 DPI (so PDF points
 map 1:1 to raster pixels and the text geometry aligns) and emits it as a Media
 part marked `vision.PageRasterProperty` alongside the page's raw positioned
