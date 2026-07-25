@@ -105,9 +105,9 @@ If `qa` finds issues and `fail_on_error` is `true`, the push is aborted.
 ### Catching up on every push
 
 Catching the project up on push is not an automation — it is the project's
-`server.converge` policy. With the default `on-push`, the server runs the full
-kapi loop (translation, QA, terminology, gates, parking) after every push,
-recorded as a run anyone can watch:
+`server.converge` policy. With the default `on-push`, the server runs a full
+pass (reuse, drafting, QA, terms, gates, parking) after every push, recorded as
+a run anyone can watch:
 
 ```yaml
 # kapi.yaml
