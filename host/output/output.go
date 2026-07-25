@@ -15,17 +15,26 @@ import (
 	"github.com/mattn/go-isatty"
 	reflowtruncate "github.com/muesli/reflow/truncate"
 	"github.com/spf13/pflag"
+	"gopkg.in/yaml.v3"
 )
 
 // Format represents the output format for CLI commands.
 type Format string
 
 const (
-	// FormatText outputs human-readable text (default).
+	// FormatText outputs human-readable text (default) — a table for listings,
+	// a labeled summary for single records. "table" is an accepted alias.
 	FormatText Format = "text"
 	// FormatJSON outputs machine-readable JSON.
 	FormatJSON Format = "json"
+	// FormatYAML outputs the same structured record as JSON, in YAML. It is the
+	// third leg of the format axis so every structured result is available in
+	// the shape a recipe or a CI config is already written in.
+	FormatYAML Format = "yaml"
 )
+
+// FormatNames are the accepted --output-format values, in help order.
+var FormatNames = []string{"text", "table", "json", "yaml"}
 
 // TextFormatter is implemented by types that can render themselves as text.
 // Types that implement this interface will have their FormatText method called
@@ -54,10 +63,14 @@ type Command interface {
 func AddFlags(fs *pflag.FlagSet) {
 	fs.Bool("json", false, "Output in JSON format")
 	fs.Bool("text", false, "Output in text format (default)")
-	fs.String("output-format", "", "Output format: json, text")
+	fs.String("output-format", "", outputFormatUsage)
 	fs.String("jq", "", "filter JSON output through a jq expression (implies --json)")
 	fs.String("color", "auto", "colorize output: auto, always, never")
 }
+
+// outputFormatUsage is the one help string for the format axis, so every
+// command advertises the same values.
+const outputFormatUsage = "Output format: text (alias: table), json, yaml"
 
 // AddPersistentFlags registers output format flags on the given flag set
 // (pass cmd.PersistentFlags() on the root command to make the flags
@@ -65,7 +78,7 @@ func AddFlags(fs *pflag.FlagSet) {
 func AddPersistentFlags(fs *pflag.FlagSet) {
 	fs.Bool("json", false, "Output in JSON format")
 	fs.Bool("text", false, "Output in text format (default)")
-	fs.String("output-format", "", "Output format: json, text")
+	fs.String("output-format", "", outputFormatUsage)
 	fs.String("jq", "", "filter JSON output through a jq expression (implies --json)")
 	fs.String("color", "auto", "colorize output: auto, always, never")
 }
@@ -93,7 +106,12 @@ func ResolveFormat(cmd Command) Format {
 		switch format {
 		case "json":
 			return FormatJSON
-		case "text":
+		case "yaml", "yml":
+			return FormatYAML
+		// "table" is what text mode renders for a listing; accepting it means a
+		// user who asks for the shape they can see gets it, rather than an
+		// error about a word kapi happens to spell differently.
+		case "text", "table":
 			return FormatText
 		}
 	}
@@ -106,9 +124,12 @@ func ResolveFormat(cmd Command) Format {
 // --color.
 func Print(cmd Command, data any) error {
 	w := cmd.OutOrStdout()
-	if ResolveFormat(cmd) == FormatJSON {
+	switch ResolveFormat(cmd) {
+	case FormatJSON:
 		filter, _ := cmd.Flags().GetString("jq")
 		return RenderJSON(w, data, filter, Colorize(cmd, w))
+	case FormatYAML:
+		return printYAML(w, data)
 	}
 	// Resolve --color once, here, so FormatText (which only gets an io.Writer)
 	// can reach it via Theme/Renderer.
@@ -164,6 +185,8 @@ func PrintTo(w io.Writer, format Format, data any) error {
 	switch format {
 	case FormatJSON:
 		return printJSON(w, data)
+	case FormatYAML:
+		return printYAML(w, data)
 	default:
 		return printText(w, data)
 	}
@@ -194,6 +217,26 @@ func printJSON(w io.Writer, data any) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(data)
+}
+
+// printYAML renders the same structured record JSON mode emits, in YAML. It
+// round-trips through JSON first so the json struct tags — the single
+// definition of every result shape — govern both formats.
+func printYAML(w io.Writer, data any) error {
+	raw, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("marshal result: %w", err)
+	}
+	var v any
+	if err := json.Unmarshal(raw, &v); err != nil {
+		return fmt.Errorf("decode result: %w", err)
+	}
+	enc := yaml.NewEncoder(w)
+	enc.SetIndent(2)
+	if err := enc.Encode(v); err != nil {
+		return fmt.Errorf("encode yaml: %w", err)
+	}
+	return enc.Close()
 }
 
 func printText(w io.Writer, data any) error {

@@ -16,8 +16,8 @@ installed, every command below runs as `kapi <command>`.
 kapi
 +-- init             # Initialize a new .kapi project (recipe + state dir)
 |   +-- --name, --source, --targets, --server, --project, --anonymous, --email, --preset
-+-- config           # Built-in: recipe keys positionally (name, server.url, …)
-+-- bowrain config   # Plugin (group-scoped): --global ~/.config/bowrain/bowrain.yaml
++-- config           # The one config verb: recipe keys positionally (name, server.url, …)
+|   +-- get/set/unset/list/path  # per-machine app config; bowrain.* routes to ~/.config/bowrain/bowrain.yaml
 +-- ls               # List tracked files with optional stats
 |   +-- --stats/-s, --dirty/-d, [paths...]
 +-- add              # Add file patterns to track

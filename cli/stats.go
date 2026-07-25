@@ -19,12 +19,16 @@ by structural role (heading, paragraph, list-item, table-cell, …). Any format 
 a Word document, a JSON catalog, Markdown, HTML — yields the same shape.
 
 Word, character, and segment counts cover the translatable content; block and
-role counts cover the whole document. Prints a human table by default; --json
-emits the structured record for piping into a pipeline.
+role counts cover the whole document. Prints a human table by default;
+--output-format json|yaml emits the structured record for piping into a pipeline.
 
-With no FILE, or when FILE is "-", standard input is read.`,
+Positional paths accept glob patterns and directories, expanded by kapi itself —
+quote the pattern and ` + "`**`" + ` recurses identically in every shell. Inside a project,
+no FILE means the project's tracked content; FILE "-" reads standard input.`,
 		Example: `  kapi stats report.docx
-  kapi stats --json docs/*.md | jq '.total.words'
+  kapi stats 'src/**'                       # every file under src, any depth
+  kapi stats --output-format json 'docs/**/*.md' | jq '.total.words'
+  kapi stats                                # inside a project: its tracked content
   cat page.html | kapi stats -f html`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.RunStats(cmd, args)

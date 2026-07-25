@@ -140,9 +140,12 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 		commonDir = commonDirPrefix(files)
 	}
 
-	// Auto-enable progress bar for multi-file runs on a TTY (unless JSON output).
+	// Auto-enable the progress bar on a TTY (unless JSON output or --quiet):
+	// translating even one file routinely runs for seconds, which is exactly
+	// what the progress convention covers. It stays on stderr, so a redirected
+	// stdout is unaffected.
 	showProgress := cfg.Progress
-	if !showProgress && !cfg.JSONOutput && len(files) > 1 && isatty.IsTerminal(os.Stderr.Fd()) {
+	if !showProgress && !cfg.JSONOutput && !a.Quiet && len(files) > 0 && isatty.IsTerminal(os.Stderr.Fd()) {
 		showProgress = true
 	}
 
@@ -693,34 +696,25 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	return nil
 }
 
+// resolveFiles turns explicit `-i` patterns into a concrete file list. It is
+// the strict spelling of the shared expander in inputs.go: same glob (`**`
+// recursive) and directory semantics everywhere, but an argument that matches
+// nothing is an error rather than a skip — a flow told to process a file it
+// cannot find must not silently process zero files.
 func resolveFiles(patterns []string) ([]string, error) {
-	var files []string
-	for _, pattern := range patterns {
-		matches, err := filepath.Glob(pattern)
-		if err != nil {
-			return nil, fmt.Errorf("invalid glob pattern %q: %w", pattern, err)
-		}
-		if matches == nil {
-			matches = []string{pattern}
-		}
-		for _, m := range matches {
-			info, err := os.Stat(m)
-			if err != nil {
-				return nil, fmt.Errorf("stat %q: %w", m, err)
+	var firstMiss error
+	files, err := expandArgs(patterns, InputOptions{
+		OnSkip: func(path string, serr error) {
+			if firstMiss == nil {
+				firstMiss = fmt.Errorf("%s: %w", path, serr)
 			}
-			if info.IsDir() {
-				walked, err := walkDirFiles(m)
-				if err != nil {
-					return nil, err
-				}
-				files = append(files, walked...)
-				continue
-			}
-			if isJunkFile(filepath.Base(m)) {
-				continue
-			}
-			files = append(files, m)
-		}
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if firstMiss != nil {
+		return nil, firstMiss
 	}
 	return files, nil
 }

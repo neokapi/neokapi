@@ -13,9 +13,12 @@ import (
 
 func (a *App) RunInspect(ctx context.Context, cmd Command, args []string, outFormat string, project []string) error {
 	hadError := false
-	files, err := expandInputs(args, false, func(path string, err error) {
-		hadError = true
-		fmt.Fprintf(cmd.ErrOrStderr(), "kapi inspect: %s: %v\n", path, err)
+	files, err := a.ResolveInputs(cmd, args, InputOptions{
+		Command: "kapi inspect",
+		OnSkip: func(path string, err error) {
+			hadError = true
+			fmt.Fprintf(cmd.ErrOrStderr(), "kapi inspect: %s: %v\n", path, err)
+		},
 	})
 	if err != nil {
 		return err
@@ -26,7 +29,11 @@ func (a *App) RunInspect(ctx context.Context, cmd Command, args []string, outFor
 	var recs []structrec.Record // accumulated for the array (json/yaml) forms
 	n := 0
 
+	prog := a.NewProgress(cmd, "reading", len(files))
+	defer prog.Done()
+
 	for _, file := range files {
+		prog.Step(DisplayName(file))
 		_, ferr := a.StreamBlocks(ctx, file, func(_ int, b *model.Block) error {
 			if b.SourceText() == "" {
 				return nil

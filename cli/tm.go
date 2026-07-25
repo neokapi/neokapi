@@ -538,20 +538,7 @@ that added them so you can filter the TM by import source.`,
 			if err != nil {
 				return fmt.Errorf("list import sessions: %w", err)
 			}
-			if len(sessions) == 0 {
-				if !a.Quiet {
-					fmt.Fprintln(os.Stdout, "No import sessions.")
-				}
-				return nil
-			}
-			t := output.NewTable(os.Stdout).Accent(0).
-				Headers("SESSION", "FILE", "TOOL", "ENTRIES", "IMPORTED")
-			for _, s := range sessions {
-				t.Rowf(TruncateID(s.ID, 12), s.FileKey, s.ToolName, s.EntryCount,
-					s.ImportedAt.Format("2006-01-02 15:04"))
-			}
-			t.Render()
-			return nil
+			return output.Print(cmd, TMSessionListOutput{Sessions: TMSessionRows(sessions)})
 		},
 	}
 
@@ -572,27 +559,7 @@ that added them so you can filter the TM by import source.`,
 			if !ok {
 				return fmt.Errorf("session not found: %s", args[0])
 			}
-			fmt.Fprintf(os.Stdout, "ID:               %s\n", s.ID)
-			fmt.Fprintf(os.Stdout, "File key:         %s\n", s.FileKey)
-			fmt.Fprintf(os.Stdout, "File hash:        %s\n", s.FileHash)
-			fmt.Fprintf(os.Stdout, "File size:        %d bytes\n", s.FileSizeBytes)
-			fmt.Fprintf(os.Stdout, "Imported at:      %s\n", s.ImportedAt.Format("2006-01-02 15:04:05 MST"))
-			fmt.Fprintf(os.Stdout, "Imported by:      %s\n", s.ImportedBy)
-			fmt.Fprintf(os.Stdout, "Tool:             %s %s\n", s.ToolName, s.ToolVersion)
-			fmt.Fprintf(os.Stdout, "Segment type:     %s\n", s.SegType)
-			fmt.Fprintf(os.Stdout, "Admin language:   %s\n", s.AdminLang)
-			fmt.Fprintf(os.Stdout, "Source language:  %s\n", s.SrcLang)
-			fmt.Fprintf(os.Stdout, "Data type:        %s\n", s.DataType)
-			fmt.Fprintf(os.Stdout, "Original format:  %s\n", s.OriginalFormat)
-			fmt.Fprintf(os.Stdout, "Original encoding:%s\n", s.OriginalEncoding)
-			fmt.Fprintf(os.Stdout, "Entry count:      %d\n", s.EntryCount)
-			if len(s.Properties) > 0 {
-				fmt.Fprintln(os.Stdout, "Properties:")
-				for k, v := range s.Properties {
-					fmt.Fprintf(os.Stdout, "  %s = %s\n", k, v)
-				}
-			}
-			return nil
+			return output.Print(cmd, TMSessionDetailFrom(s))
 		},
 	}
 
@@ -609,10 +576,7 @@ that added them so you can filter the TM by import source.`,
 			if err := tm.DeleteImportSession(cmd.Context(), args[0]); err != nil {
 				return fmt.Errorf("delete session: %w", err)
 			}
-			if !a.Quiet {
-				fmt.Fprintf(os.Stdout, "Deleted session %s.\n", args[0])
-			}
-			return nil
+			return output.Print(cmd, TMSessionDeleteOutput{ID: args[0], Deleted: true})
 		},
 	}
 

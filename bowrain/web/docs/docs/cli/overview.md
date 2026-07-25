@@ -87,7 +87,7 @@ Ad-hoc file work stays available outside any project, for example
 ```bash
 kapi config name                                                   # print a project setting
 kapi config name "My App"                                          # set it
-kapi bowrain config --global server.url https://app.bowrain.cloud  # set the default server
+kapi config set bowrain.server.url https://app.bowrain.cloud       # set the default server
 ```
 
 See [`kapi config`](/cli/commands/config).

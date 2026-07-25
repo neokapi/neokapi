@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
@@ -353,13 +354,10 @@ func (a *App) applyFormatPriorities(priorities map[string]int) {
 }
 
 // isGlobPattern returns true if the string contains glob metacharacters.
+// `{` counts because the input resolver expands doublestar alternation
+// (`{a,b}`) alongside `*`, `?` and `[…]`.
 func isGlobPattern(s string) bool {
-	for _, c := range s {
-		if c == '*' || c == '?' || c == '[' {
-			return true
-		}
-	}
-	return false
+	return strings.ContainsAny(s, "*?[{")
 }
 
 // AddCommandGroups registers Cobra command groups on the root command for

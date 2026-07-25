@@ -95,18 +95,24 @@ func (a *App) RunStats(cmd Command, args []string) error {
 	ctx := CmdContext(cmd)
 
 	hadError := false
-	files, err := expandInputs(args, false, func(path string, err error) {
-		hadError = true
-		fmt.Fprintf(cmd.ErrOrStderr(), "kapi stats: %s: %v\n", path, err)
+	files, err := a.ResolveInputs(cmd, args, InputOptions{
+		Command: "kapi stats",
+		OnSkip: func(path string, err error) {
+			hadError = true
+			fmt.Fprintf(cmd.ErrOrStderr(), "kapi stats: %s: %v\n", path, err)
+		},
 	})
 	if err != nil {
 		return err
 	}
 
-	out, err := a.ComputeStats(ctx, files, func(file string, ferr error) {
+	prog := a.NewProgress(cmd, "reading", len(files))
+	defer prog.Done()
+	out, err := a.computeStats(ctx, files, prog, func(file string, ferr error) {
 		hadError = true
 		fmt.Fprintf(cmd.ErrOrStderr(), "kapi stats: %s: %v\n", DisplayName(file), ferr)
 	})
+	prog.Done()
 	if err != nil {
 		return err
 	}
@@ -126,9 +132,18 @@ func (a *App) RunStats(cmd Command, args []string) error {
 // with a nil onError the first failure is fatal. Context cancellation is
 // always fatal.
 func (a *App) ComputeStats(ctx context.Context, files []string, onError func(file string, err error)) (StatsOutput, error) {
+	return a.computeStats(ctx, files, nil, onError)
+}
+
+// computeStats is ComputeStats with an optional progress reporter — reading a
+// large content set is exactly the multi-second work the progress convention
+// exists for.
+func (a *App) computeStats(ctx context.Context, files []string, prog *Progress, onError func(file string, err error)) (StatsOutput, error) {
 	out := StatsOutput{Total: StatsRecord{ByRole: map[string]int{}}}
 	for _, file := range files {
+		prog.Step(DisplayName(file))
 		recs, ferr := a.fileStats(ctx, file)
+		prog.Advance()
 		if ferr != nil {
 			if ctx.Err() != nil {
 				return out, ferr

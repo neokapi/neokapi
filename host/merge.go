@@ -1086,55 +1086,53 @@ func absorbBlockIntoTM(ctx context.Context, tm *sievepen.SQLiteTM, block *model.
 	return 0, 0
 }
 
+// bilingualReturnExts are the bilingual file extensions a directory argument
+// contributes to `kapi merge`. A returned-translation directory routinely also
+// holds notes, zips and the translator's scratch files, so a bare directory
+// means "the bilingual files in here", not "everything in here".
+var bilingualReturnExts = map[string]bool{".xliff": true, ".xlf": true, ".po": true}
+
 // expandMergeInputs turns a mixed list of files/globs/dirs into a flat,
-// de-duplicated list of regular files.
+// de-duplicated list of regular files, relative to the project root. Globs and
+// directories expand through the shared resolver (inputs.go), so `**` recurses
+// here exactly as it does for every other command; a directory argument is
+// additionally narrowed to the bilingual extensions merge can actually read.
 func expandMergeInputs(inputs []string, root string) ([]string, error) {
 	seen := make(map[string]bool)
 	var out []string
+	add := func(p string) {
+		if !seen[p] {
+			seen[p] = true
+			out = append(out, p)
+		}
+	}
+
 	for _, in := range inputs {
 		abs := in
 		if !filepath.IsAbs(abs) {
 			abs = filepath.Join(root, in)
 		}
-		info, statErr := os.Stat(abs)
-		if statErr == nil && info.IsDir() {
-			// Directory: include every .xliff / .xlf within.
-			entries, err := os.ReadDir(abs)
-			if err != nil {
-				return nil, fmt.Errorf("merge: read dir %s: %w", abs, err)
+		if info, err := os.Stat(abs); err == nil && info.IsDir() {
+			walked, werr := walkDirFiles(abs)
+			if werr != nil {
+				return nil, fmt.Errorf("merge: %w", werr)
 			}
-			for _, e := range entries {
-				if e.IsDir() {
-					continue
-				}
-				name := e.Name()
-				ext := strings.ToLower(filepath.Ext(name))
-				if ext != ".xliff" && ext != ".xlf" && ext != ".po" {
-					continue
-				}
-				p := filepath.Join(abs, name)
-				if !seen[p] {
-					seen[p] = true
-					out = append(out, p)
+			for _, p := range walked {
+				if bilingualReturnExts[strings.ToLower(filepath.Ext(p))] {
+					add(p)
 				}
 			}
 			continue
 		}
-		// Try glob first.
-		matches, err := filepath.Glob(abs)
-		if err == nil && len(matches) > 0 {
-			for _, m := range matches {
-				if !seen[m] {
-					seen[m] = true
-					out = append(out, m)
-				}
-			}
-			continue
+		// A glob or a plain path: the shared expander handles both, and a
+		// pattern that matches nothing simply contributes nothing (merge
+		// reports the empty result itself).
+		matches, err := expandArgs([]string{abs}, InputOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("merge: %w", err)
 		}
-		// Fall through: treat as plain file path.
-		if statErr == nil && !info.IsDir() && !seen[abs] {
-			seen[abs] = true
-			out = append(out, abs)
+		for _, m := range matches {
+			add(m)
 		}
 	}
 	return out, nil
