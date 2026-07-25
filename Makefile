@@ -1074,22 +1074,26 @@ kapi-desktop-test: ## Run Kapi Desktop Go backend tests
 # notices: the shipped app gets fresh bindings while local dev, `wails3 dev` and
 # the CI typecheck all build against the committed copy.
 #
-# These targets are the single definition of that invocation — the release
-# workflows call them too, so the shipped bindings and the gated committed copy
-# cannot drift apart through two hand-maintained command lines.
-#
 # Bindings are a static analysis of the service API, so the output is invariant
-# to both the -ldflags content and CGO_ENABLED (verified byte-identical either
-# way, on both apps). Hence no version stamp is threaded here, and cgo is off:
-# with it on, the ICU cgo packages compile during the analysis, which is what got
-# the kapi-desktop generator SIGTERM'd on a CI runner (852 packages, ~46s cold vs
-# ~6s). release.yml already ran bindings with CGO_ENABLED=0 on Windows for the
-# same reason, noting the surface is cgo-independent; this just applies that
-# everywhere. If the two modes ever did diverge, the byte gate fails loudly
-# rather than shipping something unnoticed.
+# to the -ldflags content, to CGO_ENABLED, and to the wails3 CLI version — all
+# three verified byte-identical on both apps. That is what makes a byte gate
+# honest, and it is also why the release steps' cgo-on generation and this
+# cgo-off generation agree despite differing.
+#
+# Hence no version stamp is threaded here, and cgo is off: with it on, the ICU
+# cgo packages compile during the analysis, which is what got the kapi-desktop
+# generator SIGTERM'd on a CI runner (852 packages, ~46s cold vs ~6s).
+# release.yml already ran bindings cgo-off on Windows for the same reason, noting
+# the surface is cgo-independent.
 #
 # Unlike the release steps this deliberately does NOT run `go mod tidy`, which
 # would mutate go.mod/go.sum and collide with the `tidy-check` gate.
+#
+# NOTE: the release workflows still carry their own copy of this invocation and
+# install the wails3 CLI with `@latest`. Folding them onto these targets (and a
+# pinned CLI) is the obvious next step, but their desktop matrix includes Windows
+# runners where `make` is not reliably on PATH, and the release path only runs on
+# tags — so it is not verifiable from a PR and is deliberately left alone here.
 WAILS_BINDINGS_ENV   := CGO_ENABLED=0
 WAILS_BINDINGS_FLAGS := -f "-tags production,fts5 -trimpath -buildvcs=false -ldflags=\"\"" -clean=true
 BOWRAIN_DESKTOP_DIR  := bowrain/apps/bowrain
