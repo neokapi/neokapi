@@ -284,9 +284,17 @@ func parseStringSlice(raw any) []string {
 // for the given app name (e.g. ~/.config/kapi/kapi.yaml).
 // If no app name is provided, defaults to "kapi".
 //
-// The per-app env override is <NAME>_CONFIG_DIR with hyphens mapped to
-// underscores (e.g. "kapi-desktop" → KAPI_DESKTOP_CONFIG_DIR), so hyphenated
-// app names get a legal environment variable name.
+// Resolution order:
+//
+//  1. The per-app env override <NAME>_CONFIG_DIR, with hyphens mapped to
+//     underscores (e.g. "kapi-desktop" → KAPI_DESKTOP_CONFIG_DIR), so
+//     hyphenated app names get a legal environment variable name.
+//  2. KAPI_CONFIG_DIR, which nests a sibling app under kapi's config root
+//     ($KAPI_CONFIG_DIR/<name>/<name>.yaml). This is what makes the isolation
+//     contract whole: `kapi config set bowrain.…` writes a *plugin's* config
+//     file, so pinning KAPI_CONFIG_DIR must contain that write too — otherwise
+//     an isolated run reaches into the developer's real home.
+//  3. The OS user config dir.
 func GlobalConfigFilePath(appName ...string) string {
 	name := "kapi"
 	if len(appName) > 0 && appName[0] != "" {
@@ -295,6 +303,12 @@ func GlobalConfigFilePath(appName ...string) string {
 	envKey := strings.ToUpper(strings.ReplaceAll(name, "-", "_")) + "_CONFIG_DIR"
 	if dir := os.Getenv(envKey); dir != "" {
 		return filepath.Join(dir, name+".yaml")
+	}
+	if dir := os.Getenv("KAPI_CONFIG_DIR"); dir != "" {
+		if name == "kapi" {
+			return filepath.Join(dir, "kapi.yaml")
+		}
+		return filepath.Join(dir, name, name+".yaml")
 	}
 	configDir, err := os.UserConfigDir()
 	if err != nil {
@@ -323,6 +337,90 @@ func SetGlobalConfig(key, value string, appName ...string) error {
 		return err
 	}
 	return v.WriteConfigAs(path)
+}
+
+// UnsetGlobalConfig removes a key from the global config file, restoring the
+// built-in default. Viper has no delete, so the file is read, the key pruned
+// from the nested settings map, and the result written back. Removing the last
+// leaf of a nested block prunes the now-empty parent too, so an unset leaves no
+// hollow `ai: {}` behind. It reports whether the key was present.
+func UnsetGlobalConfig(key string, appName ...string) (bool, error) {
+	path := GlobalConfigFilePath(appName...)
+	if _, err := os.Stat(path); err != nil {
+		return false, nil // nothing stored: unsetting is a no-op, not an error
+	}
+
+	v := viper.New()
+	v.SetConfigFile(path)
+	v.SetConfigType("yaml")
+	if err := v.ReadInConfig(); err != nil {
+		return false, fmt.Errorf("read %s: %w", path, err)
+	}
+
+	settings := v.AllSettings()
+	if !pruneKey(settings, strings.Split(strings.ToLower(key), ".")) {
+		return false, nil
+	}
+
+	out := viper.New()
+	out.SetConfigFile(path)
+	out.SetConfigType("yaml")
+	for k, val := range settings {
+		out.Set(k, val)
+	}
+	if err := out.WriteConfigAs(path); err != nil {
+		return false, fmt.Errorf("write %s: %w", path, err)
+	}
+	return true, nil
+}
+
+// pruneKey deletes the dotted path from a nested settings map, dropping any
+// parent left empty. It reports whether something was removed.
+func pruneKey(m map[string]any, path []string) bool {
+	if len(path) == 0 {
+		return false
+	}
+	head := path[0]
+	if len(path) == 1 {
+		if _, ok := m[head]; !ok {
+			return false
+		}
+		delete(m, head)
+		return true
+	}
+	child, ok := m[head].(map[string]any)
+	if !ok {
+		return false
+	}
+	if !pruneKey(child, path[1:]) {
+		return false
+	}
+	if len(child) == 0 {
+		delete(m, head)
+	}
+	return true
+}
+
+// GlobalConfigValues reads the flat, dotted key → value map stored in an app's
+// global config file. Unlike AppConfig it reads only that one file — no env
+// vars, no defaults, no search path — so a listing can say what is actually
+// persisted and where, which is what `kapi config list` reports.
+func GlobalConfigValues(appName ...string) (map[string]string, error) {
+	path := GlobalConfigFilePath(appName...)
+	if _, err := os.Stat(path); err != nil {
+		return map[string]string{}, nil
+	}
+	v := viper.New()
+	v.SetConfigFile(path)
+	v.SetConfigType("yaml")
+	if err := v.ReadInConfig(); err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	out := make(map[string]string, len(v.AllKeys()))
+	for _, k := range v.AllKeys() {
+		out[k] = v.GetString(k)
+	}
+	return out, nil
 }
 
 // FormatPriorities returns the configured format priority overrides.

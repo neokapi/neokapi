@@ -248,6 +248,9 @@ func (a *App) RunExtract(cmd Command) error {
 	failures := 0
 	reused := 0
 
+	prog := a.NewProgress(cmd, "extracting", totalPairs)
+	defer prog.Done()
+
 	for _, tgt := range targets {
 		pair := project.ExtractionPair{TargetLocale: tgt}
 		pairOutDir := absOut
@@ -260,6 +263,8 @@ func (a *App) RunExtract(cmd Command) error {
 				Type: FlowEventProgress, Locale: string(tgt),
 				FileIndex: pairIndex, FileCount: totalPairs, FilePath: src.Path,
 			})
+			prog.Step(string(tgt) + " · " + src.Relative)
+			prog.Advance()
 			pairIndex++
 
 			sourceHash, err := project.HashFile(src.Path)
@@ -335,6 +340,8 @@ func (a *App) RunExtract(cmd Command) error {
 			Leverage:     output.LeverageOutput{Exact: lev.Exact, Fuzzy: lev.Fuzzy, New: lev.New},
 		})
 	}
+
+	prog.Done()
 
 	if err := project.SaveExtractionManifest(layout, manifest); err != nil {
 		return fmt.Errorf("extract: save manifest: %w", err)

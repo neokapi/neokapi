@@ -235,6 +235,11 @@ type Capabilities struct {
 	// plugin's handler when the contribution is engaged.
 	CommandContributions []CommandContribution `json:"command_contributions,omitempty"`
 
+	// ConfigNamespaces declares dotted key prefixes the plugin owns in
+	// `kapi config`. There is exactly one config verb; a plugin extends it by
+	// claiming a namespace rather than shipping its own config command.
+	ConfigNamespaces []ConfigNamespace `json:"config_namespaces,omitempty"`
+
 	// SelfCheck indicates the plugin implements the standard `<binary> doctor`
 	// self-check that `kapi plugins doctor` invokes. Plugins that bundle native
 	// binaries, models, or in-process engines set this so doctor can confirm
@@ -243,6 +248,41 @@ type Capabilities struct {
 	// replaces the per-plugin self-check verbs that used to clutter the
 	// top-level command surface.
 	SelfCheck bool `json:"selfcheck,omitempty"`
+}
+
+// ConfigNamespace declares a dotted key prefix a plugin owns in `kapi config`,
+// so a user configures every part of kapi through one verb:
+//
+//	kapi config set bowrain.server.url https://bowrain.example/acme/app
+//
+// The prefix is stripped and the remainder written to the plugin's own global
+// config file (App), which the plugin reads at startup exactly as before. This
+// is why plugins do not ship their own config command: the namespace is the
+// extension point.
+type ConfigNamespace struct {
+	// Prefix is the first dotted segment users type (e.g. "bowrain").
+	Prefix string `json:"prefix"`
+
+	// App is the config app name whose global file backs the namespace
+	// (config.GlobalConfigFilePath(App) — e.g. ~/.config/bowrain/bowrain.yaml).
+	// Defaults to Prefix when empty.
+	App string `json:"app,omitempty"`
+
+	// Description is a one-line summary shown in `kapi config list --all`.
+	Description string `json:"description,omitempty"`
+
+	// Keys documents the namespace's known keys (without the prefix). Purely
+	// declarative: `kapi config set` accepts any key in the namespace, but a
+	// documented key gets a description in listings and completion.
+	Keys []ConfigKey `json:"keys,omitempty"`
+}
+
+// ConfigKey documents one key inside a plugin's config namespace.
+type ConfigKey struct {
+	// Key is the dotted key relative to the namespace prefix (e.g. "server.url").
+	Key string `json:"key"`
+	// Description is the one-line help for the key.
+	Description string `json:"description,omitempty"`
 }
 
 // CommandContribution declares a plugin hook into a built-in kapi command.

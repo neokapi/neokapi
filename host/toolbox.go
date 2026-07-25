@@ -289,10 +289,14 @@ func (a *App) EditDocument(ctx context.Context, path string, t *tool.BaseTool, w
 	return nil
 }
 
-// expandInputs turns command-line file arguments into a concrete file list. No
-// args means "read standard input" ([StdinName]). With recursive, directory
-// arguments are walked (skipping hidden dirs and junk); without it, a directory
-// argument is reported as skipped, mirroring `grep` / `cat` on a directory.
+// expandInputs turns a Unix-filter utility's file arguments into a concrete
+// file list: the toolbox spelling of [App.ResolveInputs]. No args means "read
+// standard input" ([StdinName]) — but only when stdin is redirected, so `kcat`
+// on a bare terminal reports what it wants instead of blocking silently. With
+// recursive, directory arguments are walked; without it a directory argument is
+// reported as skipped, mirroring `grep` / `cat` on a directory. Glob patterns
+// expand in-process regardless, so a quoted `'src/**'` works the same in every
+// shell.
 //
 // Junk files (editor lock/metadata stubs such as Office's "~$…" owner files and
 // macOS "._…" AppleDouble files) are silently dropped however they arrive —
@@ -301,52 +305,20 @@ func (a *App) EditDocument(ctx context.Context, path string, t *tool.BaseTool, w
 // parse error; skipping keeps `kcat ~/Downloads/*` from tripping over a stray
 // "~$report.docx" that Word left behind.
 func expandInputs(args []string, recursive bool, onSkip func(path string, err error)) ([]string, error) {
+	opts := InputOptions{
+		Fallback:                FallbackStdinOnly,
+		RequireRecursiveForDirs: true,
+		Recursive:               recursive,
+		OnSkip:                  onSkip,
+	}
 	if len(args) == 0 {
-		return []string{StdinName}, nil
+		if stdinIsPipe() {
+			return []string{StdinName}, nil
+		}
+		return nil, WithExitCode(ExitUsage, fmt.Errorf(
+			"no input — pass files or a glob, pipe content in, or pass `-` to read standard input: %w", ErrNoInput))
 	}
-	var files []string
-	for _, arg := range args {
-		if arg == StdinName {
-			files = append(files, arg)
-			continue
-		}
-		// A `container!entry` locator (AD-026 §6) names one file inside an archive;
-		// keep it verbatim — os.Stat on the whole string would fail. The archive
-		// part's existence was already verified by parseEntryLocator.
-		if hasEntryLocator(arg) {
-			files = append(files, arg)
-			continue
-		}
-		info, err := os.Stat(arg)
-		if err != nil {
-			if onSkip != nil {
-				onSkip(arg, err)
-			}
-			continue
-		}
-		if info.IsDir() {
-			if !recursive {
-				if onSkip != nil {
-					onSkip(arg, errors.New("is a directory"))
-				}
-				continue
-			}
-			walked, werr := walkDirFiles(arg)
-			if werr != nil {
-				return nil, werr
-			}
-			files = append(files, walked...)
-			continue
-		}
-		// Drop editor lock/metadata stubs silently — they are never content, so
-		// skipping is not an error (exit status stays 0). walkDirFiles applies
-		// the same filter to recursively discovered files.
-		if isJunkFile(filepath.Base(arg)) {
-			continue
-		}
-		files = append(files, arg)
-	}
-	return files, nil
+	return expandArgs(args, opts)
 }
 
 // UseColor resolves the --color mode (auto/always/never) against the terminal

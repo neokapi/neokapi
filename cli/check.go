@@ -13,6 +13,7 @@ import (
 // CI can read the findings, fix the exact block, and re-run until it passes.
 //
 //	kapi check guide.md                              # default content checkset
+//	kapi check 'web/**/*.md'                         # glob, expanded in-process
 //	kapi check api.json --max-chars 60 --forbid TODO # length + forbidden-pattern
 //	kapi check post.md --pack marketing-blog         # + brand vocabulary
 //	kapi check api.json --target api.de.json --target-lang de  # + bilingual (l10n) checks
@@ -43,10 +44,13 @@ against its source.
 
 Each finding carries a stable rule id (<check>.<category>) and a block location,
 so an assistant can fix the exact block and track rules across iterations. Output
-is a human table by default; --json emits the kapi.check/v1 Report.
+is a human table by default; --output-format json|yaml emits the kapi.check/v1
+Report.
 
-Inside a .kapi project, check with no file arguments checks the project's
-declared content; naming files narrows it to those.
+Positional paths accept glob patterns and directories, expanded by kapi itself —
+quote the pattern and ` + "`**`" + ` recurses identically in every shell. Inside a .kapi
+project, check with no file arguments checks the project's declared content;
+naming files narrows it to those.
 
 Project gate mode (--ship): it runs the
 project's bound quality gates (brand, terminology, QA) plus its ship/source

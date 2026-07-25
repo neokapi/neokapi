@@ -46,7 +46,7 @@
           }
         },
         "check": {
-          "long": "Run content checks over one or more files and return structured findings\nplus a pass/fail, gating on severity — the content-first counterpart to a test\nrunner.\n\nThe default checkset is source-side and needs no translation: text hygiene\n(empty, doubled spaces/words, stray whitespace), length limits (--max-chars/\n--max-words), forbidden/required patterns (--forbid/--require), and brand\nvocabulary when a profile is bound (--profile/--pack/--profile-file).\n\nBilingual localization checks (do-not-translate, placeholder integrity) are an\nopt-in: pass --target \u003cfile\u003e --target-lang \u003clang\u003e to check a translated target\nagainst its source.\n\nEach finding carries a stable rule id (\u003ccheck\u003e.\u003ccategory\u003e) and a block location,\nso an assistant can fix the exact block and track rules across iterations. Output\nis a human table by default; --json emits the kapi.check/v1 Report.\n\nInside a .kapi project, check with no file arguments checks the project's\ndeclared content; naming files narrows it to those.\n\nProject gate mode (--ship): it runs the\nproject's bound quality gates (brand, terminology, QA) plus its ship/source\ncoverage gates over the project's content, and exits non-zero when any gate is\nunmet — the pre-release bar. Target drift never blocks an ordinary build (see\n'kapi status'); --ship is the explicit, opt-in enforcement point. With no file\narguments it inspects the project's content x target languages; pass files to\ngate just those.\n\nExit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits\n0 (report mode) for a fix-loop.",
+          "long": "Run content checks over one or more files and return structured findings\nplus a pass/fail, gating on severity — the content-first counterpart to a test\nrunner.\n\nThe default checkset is source-side and needs no translation: text hygiene\n(empty, doubled spaces/words, stray whitespace), length limits (--max-chars/\n--max-words), forbidden/required patterns (--forbid/--require), and brand\nvocabulary when a profile is bound (--profile/--pack/--profile-file).\n\nBilingual localization checks (do-not-translate, placeholder integrity) are an\nopt-in: pass --target \u003cfile\u003e --target-lang \u003clang\u003e to check a translated target\nagainst its source.\n\nEach finding carries a stable rule id (\u003ccheck\u003e.\u003ccategory\u003e) and a block location,\nso an assistant can fix the exact block and track rules across iterations. Output\nis a human table by default; --output-format json|yaml emits the kapi.check/v1\nReport.\n\nPositional paths accept glob patterns and directories, expanded by kapi itself —\nquote the pattern and `**` recurses identically in every shell. Inside a .kapi\nproject, check with no file arguments checks the project's declared content;\nnaming files narrows it to those.\n\nProject gate mode (--ship): it runs the\nproject's bound quality gates (brand, terminology, QA) plus its ship/source\ncoverage gates over the project's content, and exits non-zero when any gate is\nunmet — the pre-release bar. Target drift never blocks an ordinary build (see\n'kapi status'); --ship is the explicit, opt-in enforcement point. With no file\narguments it inspects the project's content x target languages; pass files to\ngate just those.\n\nExit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits\n0 (report mode) for a fix-loop.",
           "short": "Verify content against a checkset and gate on severity, like tests over code"
         },
         "completion": {
@@ -54,21 +54,24 @@
           "short": "Generate shell completion script"
         },
         "config": {
-          "example": "  kapi config set ai.provider ollama   # app config\n  kapi config get ai.provider\n  kapi config list\n  kapi config name                     # recipe: print the project name\n  kapi config name \"My Project\"        # recipe: set the project name\n  kapi config server.url https://bowrain.example/acme/app",
+          "example": "  kapi config set ai.provider ollama   # app config\n  kapi config get ai.provider\n  kapi config unset ai.model\n  kapi config list\n  kapi config set bowrain.server.url https://bowrain.example  # plugin namespace\n  kapi config name                     # recipe: print the project name\n  kapi config name \"My Project\"        # recipe: set the project name\n  kapi config server.url https://bowrain.example/acme/app",
           "get": {
             "short": "Print a single config value"
           },
           "list": {
-            "short": "List all configured values"
+            "short": "List every configured value, including plugin namespaces"
           },
-          "long": "Read and write configuration.\n\nApp configuration (the global config file, typically ~/.config/kapi/kapi.yaml)\nuses the subcommands. Common keys:\n  ai.provider   default AI provider for translate / qa / brand-voice-check / flows\n                (e.g. `ollama` to default to a free, on-device local model)\n  ai.model      default model for the AI provider\n\nAn explicit --provider/--model flag, inline config, or project recipe default always overrides these.\n\nProject recipe fields use the positional form: with one argument the key is\nprinted, with two it is set and the recipe saved. Core keys: name,\nsource_language, preset. Dotted keys edit a registered recipe block\n(e.g. server.url, server.stream on a connected project).",
+          "long": "Read and write configuration.\n\nApp configuration (the global config file, typically ~/.config/kapi/kapi.yaml)\nuses the subcommands. Common keys:\n  ai.provider   default AI provider for translate / qa / brand-voice-check / flows\n                (e.g. `ollama` to default to a free, on-device local model)\n  ai.model      default model for the AI provider\n\nAn explicit --provider/--model flag, inline config, or project recipe default always overrides these.\n\nInstalled plugins claim their own key namespaces, reached through the same\nsubcommands (e.g. `kapi config set bowrain.server.url https://…`); there is no\nseparate per-plugin config command. `kapi config list` shows every namespace.\n\nProject recipe fields use the positional form: with one argument the key is\nprinted, with two it is set and the recipe saved. Core keys: name,\nsource_language, preset. Dotted keys edit a registered recipe block\n(e.g. server.url, server.stream on a connected project).",
           "path": {
-            "short": "Print the global config file path"
+            "short": "Print the config file path (of kapi, or of a plugin namespace)"
           },
           "set": {
-            "short": "Set a config value (persists to the global config file)"
+            "short": "Set a config value (persists to the global config file, or a plugin's when the key is namespaced)"
           },
-          "short": "Get or set kapi configuration (app config subcommands, recipe keys positionally)"
+          "short": "Get or set kapi configuration (app config subcommands, recipe keys positionally)",
+          "unset": {
+            "short": "Remove a config value, restoring the built-in default"
+          }
         },
         "credentials": {
           "add": {
@@ -216,8 +219,8 @@
           "short": "Scaffold a new kapi project in the current directory"
         },
         "inspect": {
-          "example": "  kapi inspect report.docx\n  kapi inspect --jsonl docs/*.md | jq .content_hash\n  kapi inspect --yaml report.dclg.xml\n  kapi inspect report.docx --project html,markdown   # each block rendered per format\n  cat page.html | kapi inspect -f html",
-          "long": "Parse each file into one record per content block: the text, a stable\ncontent-hash anchor, and the block's structural role (heading, list-item,\ntable-cell, …) and nesting level. Any format — a Word document, a JSON catalog,\nMarkdown, HTML — yields the same shape, so an AI agent or RAG pipeline can read\ncontent, retrieve against the anchors, and write edits back to the same blocks.\n\nPrints a JSON array by default; --jsonl streams one JSON object per line (JSONL)\nfor piping into an ingestion pipeline; --yaml emits a YAML sequence.\nWith no FILE, or when FILE is \"-\", standard input is read.",
+          "example": "  kapi inspect report.docx\n  kapi inspect --jsonl 'docs/**/*.md' | jq .content_hash\n  kapi inspect --output-format yaml report.dclg.xml\n  kapi inspect report.docx --project html,markdown   # each block rendered per format\n  cat page.html | kapi inspect -f html",
+          "long": "Parse each file into one record per content block: the text, a stable\ncontent-hash anchor, and the block's structural role (heading, list-item,\ntable-cell, …) and nesting level. Any format — a Word document, a JSON catalog,\nMarkdown, HTML — yields the same shape, so an AI agent or RAG pipeline can read\ncontent, retrieve against the anchors, and write edits back to the same blocks.\n\nPrints a JSON array by default; --output-format yaml emits a YAML sequence, and\n--jsonl streams one JSON object per line (JSONL) for piping into an ingestion\npipeline.\n\nPositional paths take glob patterns (`**` recurses) and directories, expanded\nby kapi itself. Inside a project, no FILE means the project's tracked content;\nFILE \"-\" reads standard input.",
           "short": "Parse any format into anchored, structured content blocks"
         },
         "kcat": {
@@ -364,8 +367,8 @@
         },
         "short": "A format-aware content toolkit — parse, edit, check, and localize any format",
         "stats": {
-          "example": "  kapi stats report.docx\n  kapi stats --json docs/*.md | jq '.total.words'\n  cat page.html | kapi stats -f html",
-          "long": "Summarize the content of one or more files: total and translatable blocks,\nword and character counts (with and without spaces), segments, and a breakdown\nby structural role (heading, paragraph, list-item, table-cell, …). Any format —\na Word document, a JSON catalog, Markdown, HTML — yields the same shape.\n\nWord, character, and segment counts cover the translatable content; block and\nrole counts cover the whole document. Prints a human table by default; --json\nemits the structured record for piping into a pipeline.\n\nWith no FILE, or when FILE is \"-\", standard input is read.",
+          "example": "  kapi stats report.docx\n  kapi stats 'src/**'                       # every file under src, any depth\n  kapi stats --output-format json 'docs/**/*.md' | jq '.total.words'\n  kapi stats                                # inside a project: its tracked content\n  cat page.html | kapi stats -f html",
+          "long": "Summarize the content of one or more files: total and translatable blocks,\nword and character counts (with and without spaces), segments, and a breakdown\nby structural role (heading, paragraph, list-item, table-cell, …). Any format —\na Word document, a JSON catalog, Markdown, HTML — yields the same shape.\n\nWord, character, and segment counts cover the translatable content; block and\nrole counts cover the whole document. Prints a human table by default;\n--output-format json|yaml emits the structured record for piping into a pipeline.\n\nPositional paths accept glob patterns and directories, expanded by kapi itself —\nquote the pattern and `**` recurses identically in every shell. Inside a project,\nno FILE means the project's tracked content; FILE \"-\" reads standard input.",
           "short": "Summarize content metrics for files — blocks, words, characters, segments, by role"
         },
         "status": {

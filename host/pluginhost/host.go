@@ -62,12 +62,13 @@ type Host struct {
 	plugins []*Plugin
 
 	// Dispatch tables, built from plugins on construction.
-	commandDispatch   map[string]*CommandRoute      // command name → owning plugin + manifest entry
-	mcpDispatch       map[string]*MCPRoute          // MCP tool name → owning plugin + manifest entry
-	formatDispatch    map[string]*FormatRoute       // format name → owning plugin + manifest entry
-	segmenterDispatch map[string]*SegmenterRoute    // segmenter engine name → owning plugin + manifest entry
-	schemaExt         []SchemaExtensionRegistration // recipe schema extensions surfaced from manifests
-	contributions     []*ContributionRoute          // contributions to built-in commands
+	commandDispatch   map[string]*CommandRoute         // command name → owning plugin + manifest entry
+	mcpDispatch       map[string]*MCPRoute             // MCP tool name → owning plugin + manifest entry
+	formatDispatch    map[string]*FormatRoute          // format name → owning plugin + manifest entry
+	segmenterDispatch map[string]*SegmenterRoute       // segmenter engine name → owning plugin + manifest entry
+	schemaExt         []SchemaExtensionRegistration    // recipe schema extensions surfaced from manifests
+	contributions     []*ContributionRoute             // contributions to built-in commands
+	configNS          map[string]*ConfigNamespaceRoute // `kapi config` key prefix → owning plugin
 }
 
 // ContributionRoute names a command contribution and the plugin that owns it.
@@ -102,6 +103,22 @@ type SegmenterRoute struct {
 	Segmenter manifest.Segmenter
 }
 
+// ConfigNamespaceRoute names a `kapi config` key prefix and the plugin that
+// owns it. There is one config verb; a plugin claims a namespace under it
+// rather than shipping a competing config command.
+type ConfigNamespaceRoute struct {
+	Plugin    *Plugin
+	Namespace manifest.ConfigNamespace
+}
+
+// App is the config app name backing the namespace, defaulting to the prefix.
+func (r *ConfigNamespaceRoute) App() string {
+	if r.Namespace.App != "" {
+		return r.Namespace.App
+	}
+	return r.Namespace.Prefix
+}
+
 // SchemaExtensionRegistration pairs a discovered manifest schema_extension
 // entry with the plugin that owns it.
 type SchemaExtensionRegistration struct {
@@ -123,6 +140,7 @@ func NewHost(plugins []*Plugin, conflicts func(msg string)) *Host {
 		mcpDispatch:       map[string]*MCPRoute{},
 		formatDispatch:    map[string]*FormatRoute{},
 		segmenterDispatch: map[string]*SegmenterRoute{},
+		configNS:          map[string]*ConfigNamespaceRoute{},
 	}
 
 	// Sort plugins by source precedence (lower = higher priority), then
@@ -203,6 +221,17 @@ func NewHost(plugins []*Plugin, conflicts func(msg string)) *Host {
 		}
 		for _, cc := range p.Manifest.Capabilities.CommandContributions {
 			h.contributions = append(h.contributions, &ContributionRoute{Plugin: p, Contribution: cc})
+		}
+		for _, ns := range p.Manifest.Capabilities.ConfigNamespaces {
+			if ns.Prefix == "" {
+				continue
+			}
+			if existing, ok := h.configNS[ns.Prefix]; ok {
+				conflicts(fmt.Sprintf("config namespace %q is claimed by plugins %q and %q — neither will resolve until one is removed", ns.Prefix, existing.Plugin.Name(), p.Name()))
+				delete(h.configNS, ns.Prefix)
+				continue
+			}
+			h.configNS[ns.Prefix] = &ConfigNamespaceRoute{Plugin: p, Namespace: ns}
 		}
 	}
 
@@ -298,6 +327,11 @@ func (h *Host) dropPluginLocked(p *Plugin) {
 	for k, r := range h.segmenterDispatch {
 		if r.Plugin == p {
 			delete(h.segmenterDispatch, k)
+		}
+	}
+	for k, r := range h.configNS {
+		if r.Plugin == p {
+			delete(h.configNS, k)
 		}
 	}
 	keptExt := h.schemaExt[:0]
@@ -400,6 +434,29 @@ func (h *Host) MCPRoutes() []*MCPRoute {
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		return out[i].Tool.Name < out[j].Tool.Name
+	})
+	return out
+}
+
+// ConfigNamespaceRoute returns the plugin owning the given `kapi config` key
+// prefix, or nil when no installed plugin claims it.
+func (h *Host) ConfigNamespaceRoute(prefix string) *ConfigNamespaceRoute {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.configNS[prefix]
+}
+
+// ConfigNamespaceRoutes returns every claimed `kapi config` namespace, sorted
+// by prefix.
+func (h *Host) ConfigNamespaceRoutes() []*ConfigNamespaceRoute {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	out := make([]*ConfigNamespaceRoute, 0, len(h.configNS))
+	for _, r := range h.configNS {
+		out = append(out, r)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		return out[i].Namespace.Prefix < out[j].Namespace.Prefix
 	})
 	return out
 }

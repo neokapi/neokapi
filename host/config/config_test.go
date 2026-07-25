@@ -177,3 +177,71 @@ func TestNewAppConfigConfigDirPrecedence(t *testing.T) {
 	assert.Equal(t, "iso-lang", cfg.Language(),
 		"KAPI_CONFIG_DIR should take precedence over the working directory")
 }
+
+// TestGlobalConfigFilePathIsolatesPluginNamespaces asserts KAPI_CONFIG_DIR
+// contains plugin config files too. `kapi config set bowrain.…` writes a
+// plugin's file, so an isolated run (the in-repo dogfood contract) must keep
+// that write inside the pinned root rather than reaching into the real home.
+func TestGlobalConfigFilePathIsolatesPluginNamespaces(t *testing.T) {
+	iso := t.TempDir()
+	t.Setenv("KAPI_CONFIG_DIR", iso)
+	t.Setenv("BOWRAIN_CONFIG_DIR", "")
+
+	assert.Equal(t, filepath.Join(iso, "kapi.yaml"), GlobalConfigFilePath())
+	assert.Equal(t, filepath.Join(iso, "bowrain", "bowrain.yaml"), GlobalConfigFilePath("bowrain"),
+		"a plugin namespace must nest under the pinned kapi config root")
+}
+
+// TestGlobalConfigFilePathAppOverrideWins keeps the per-app override ahead of
+// the kapi root, so an app can still be pointed anywhere explicitly.
+func TestGlobalConfigFilePathAppOverrideWins(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	appDir := t.TempDir()
+	t.Setenv("BOWRAIN_CONFIG_DIR", appDir)
+	assert.Equal(t, filepath.Join(appDir, "bowrain.yaml"), GlobalConfigFilePath("bowrain"))
+}
+
+// TestUnsetGlobalConfigPrunesEmptyParents: removing the last leaf of a nested
+// block must not leave a hollow `ai: {}` behind.
+func TestUnsetGlobalConfigPrunesEmptyParents(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+
+	require.NoError(t, SetGlobalConfig(KeyAIProvider, "ollama"))
+	require.NoError(t, SetGlobalConfig(KeyAIModel, "gemma4:e2b"))
+
+	values, err := GlobalConfigValues()
+	require.NoError(t, err)
+	assert.Equal(t, "ollama", values[KeyAIProvider])
+	assert.Equal(t, "gemma4:e2b", values[KeyAIModel])
+
+	changed, err := UnsetGlobalConfig(KeyAIModel)
+	require.NoError(t, err)
+	assert.True(t, changed)
+
+	values, err = GlobalConfigValues()
+	require.NoError(t, err)
+	assert.Equal(t, "ollama", values[KeyAIProvider], "the sibling key survives")
+	assert.NotContains(t, values, KeyAIModel)
+
+	changed, err = UnsetGlobalConfig(KeyAIProvider)
+	require.NoError(t, err)
+	assert.True(t, changed)
+
+	raw, err := os.ReadFile(GlobalConfigFilePath())
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), "ai:", "the empty parent block is pruned")
+}
+
+// TestUnsetGlobalConfigMissingKeyIsNotAnError: unsetting what was never set is
+// a no-op that reports itself, not a failure.
+func TestUnsetGlobalConfigMissingKeyIsNotAnError(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", t.TempDir())
+	changed, err := UnsetGlobalConfig("ai.model")
+	require.NoError(t, err)
+	assert.False(t, changed)
+
+	require.NoError(t, SetGlobalConfig(KeyAIProvider, "ollama"))
+	changed, err = UnsetGlobalConfig("ai.model")
+	require.NoError(t, err)
+	assert.False(t, changed)
+}

@@ -22,11 +22,6 @@
         "short": "Emit per-file sync standing as JSON (plumbing for kapi ls)",
         "args": [{"name": "paths", "variadic": true, "optional": true}]},
       {"name": "diff",   "short": "Show differences between local and remote"},
-      {"name": "config", "short": "View or change bowrain project/server settings",
-        "args": [
-          {"name": "key", "optional": true},
-          {"name": "value", "optional": true}
-        ]},
       {"name": "auth",   "short": "Manage authentication with the server",
         "subcommands": [
           "login", "logout", "status", "claim",
@@ -53,6 +48,16 @@
     ],
     "source_connectors": [
       {"id": "bowrain-source", "description": "Sync .kapi projects with a Bowrain server (push, pull, status, ls)"}
+    ],
+    "config_namespaces": [
+      {
+        "prefix": "bowrain",
+        "app": "bowrain",
+        "description": "Per-machine Bowrain defaults (the project's own server: block lives in the recipe)",
+        "keys": [
+          {"key": "server.url", "description": "Default Bowrain server URL offered by `kapi init`"}
+        ]
+      }
     ],
     "command_contributions": [
       {

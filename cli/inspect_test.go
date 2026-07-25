@@ -10,6 +10,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/structrec"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	yamlv3 "gopkg.in/yaml.v3"
@@ -23,12 +24,18 @@ func runInspectFixture(t *testing.T, name, content string, args ...string) strin
 	path := filepath.Join(t.TempDir(), name)
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
 
-	cmd := NewInspectCmd(app)
+	// Parent it under a root carrying the persistent flags, because the shared
+	// output-format axis lives there — the same tree the user drives.
+	root := &cobra.Command{Use: "kapi"}
+	AddPersistentFlags(app, root)
+	AddCommandGroups(app, root)
+	root.AddCommand(NewInspectCmd(app))
+
 	var out bytes.Buffer
-	cmd.SetOut(&out)
-	cmd.SetErr(&out)
-	cmd.SetArgs(append(args, path))
-	require.NoError(t, cmd.Execute())
+	root.SetOut(&out)
+	root.SetErr(&out)
+	root.SetArgs(append([]string{"inspect"}, append(args, path)...))
+	require.NoError(t, root.Execute())
 	return out.String()
 }
 
@@ -61,8 +68,10 @@ func TestInspect_JSONLStreamsOnePerLine(t *testing.T) {
 	}
 }
 
+// TestInspect_YAMLSequence pins inspect to the shared format axis: YAML is
+// requested the same way as for every other command, not with a private flag.
 func TestInspect_YAMLSequence(t *testing.T) {
-	out := runInspectFixture(t, "en.json", `{"greeting":"Hello","farewell":"Bye"}`, "--yaml")
+	out := runInspectFixture(t, "en.json", `{"greeting":"Hello","farewell":"Bye"}`, "--output-format", "yaml")
 
 	var blocks []structrec.Record
 	require.NoError(t, yamlv3.Unmarshal([]byte(out), &blocks))

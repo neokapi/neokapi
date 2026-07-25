@@ -31,11 +31,16 @@ type (
 	FlowRunEvent                  = host.FlowRunEvent
 	FlowRunOptions                = host.FlowRunOptions
 	GrepOptions                   = host.GrepOptions
+	InputOptions                  = host.InputOptions
 	LoadProjectInteractiveOptions = host.LoadProjectInteractiveOptions
 	LocaleCoverage                = host.LocaleCoverage
 	Matcher                       = host.Matcher
 	MatcherOpts                   = host.MatcherOpts
 	MergeCmdOptions               = host.MergeCmdOptions
+	TMSessionDeleteOutput         = host.TMSessionDeleteOutput
+	TMSessionDetail               = host.TMSessionDetail
+	TMSessionListOutput           = host.TMSessionListOutput
+	TMSessionRow                  = host.TMSessionRow
 	ModelEnsureOptions            = host.ModelEnsureOptions
 	ParkedScope                   = host.ParkedScope
 	PluginModel                   = host.PluginModel
@@ -76,6 +81,9 @@ const (
 	ReviewDecisionApproved   = host.ReviewDecisionApproved
 	ReviewDecisionRejected   = host.ReviewDecisionRejected
 	ReviewDecisionSignedOff  = host.ReviewDecisionSignedOff
+	FallbackNone             = host.FallbackNone
+	FallbackProjectThenStdin = host.FallbackProjectThenStdin
+	FallbackStdinOnly        = host.FallbackStdinOnly
 	SentinelInPlace          = host.SentinelInPlace
 	StdinName                = host.StdinName
 )
@@ -106,6 +114,9 @@ var (
 	CollectFormatPresets         = host.CollectFormatPresets
 	CollectFrameworkPresets      = host.CollectFrameworkPresets
 	Confirm                      = host.Confirm
+	TMSessionDetailFrom          = host.TMSessionDetailFrom
+	TMSessionRows                = host.TMSessionRows
+	ErrNoInput                   = host.ErrNoInput
 	ContentTracks                = host.ContentTracks
 	DeduplicateVersionedFormats  = host.DeduplicateVersionedFormats
 	DemoteFailing                = host.DemoteFailing

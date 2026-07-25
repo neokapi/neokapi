@@ -30,8 +30,11 @@ plus one bilingual file per source → target pair in --out-dir (default "out/")
 			out, _ := cmd.Flags().GetString("output")
 			format, _ := cmd.Flags().GetString("format")
 			withSource, _ := cmd.Flags().GetBool("with-source")
-			// Bilingual interchange .kpz: `extract -i <src> --format kpz` emits a
-			// task-scoped (kind=kapi-interchange) package per source→target pair.
+			// Bilingual interchange .kpz: `extract --format kpz` emits a
+			// task-scoped (kind=kapi-interchange) package per source→target
+			// pair, over the project's content (extract has no -i flag; its
+			// sources are the recipe's, or positional paths for the ad-hoc
+			// workspace form below).
 			if format == ExtractFormatKPZ {
 				return a.RunExtractKpz(cmd)
 			}

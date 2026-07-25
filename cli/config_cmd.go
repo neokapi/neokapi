@@ -1,24 +1,28 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
-	"sort"
 
 	"github.com/spf13/cobra"
 
-	"github.com/neokapi/neokapi/host/config"
+	"github.com/neokapi/neokapi/host/output"
 )
 
-// NewConfigCmd creates the `kapi config` command. Two surfaces share the
-// verb, split by shape:
+// NewConfigCmd creates `kapi config` — the one configuration verb. Two scopes
+// share it, split by shape:
 //
-//   - Subcommands read/write kapi's app configuration (the global
-//     ~/.config/kapi/kapi.yaml): `kapi config set ai.provider ollama`.
-//   - The positional form reads/writes the project recipe:
+//   - Subcommands read and write kapi's app configuration (the global
+//     ~/.config/kapi/kapi.yaml): `kapi config set ai.provider ollama`. A key
+//     whose first segment names an installed plugin's declared namespace is
+//     routed to that plugin's own config file — `kapi config set
+//     bowrain.server.url …` — so plugins never ship a competing config command.
+//   - The positional form reads and writes the project recipe:
 //     `kapi config name`, `kapi config source_language nb`,
 //     `kapi config server.url https://…` — core fields natively, registered
 //     extension blocks (server, …) generically, validated before saving.
+//
+// The split is deliberate: app config is per-machine and uncommitted, the
+// recipe is the project's committed configuration.
 func NewConfigCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "config [key] [value]",
@@ -32,13 +36,18 @@ func NewConfigCmd(a *App) *cobra.Command {
 			"  ai.model      default model for the AI provider\n\n" +
 			"An explicit --provider/--model flag, inline config, or project recipe " +
 			"default always overrides these.\n\n" +
+			"Installed plugins claim their own key namespaces, reached through the same\n" +
+			"subcommands (e.g. `kapi config set bowrain.server.url https://…`); there is no\n" +
+			"separate per-plugin config command. `kapi config list` shows every namespace.\n\n" +
 			"Project recipe fields use the positional form: with one argument the key is\n" +
 			"printed, with two it is set and the recipe saved. Core keys: name,\n" +
 			"source_language, preset. Dotted keys edit a registered recipe block\n" +
 			"(e.g. server.url, server.stream on a connected project).",
 		Example: "  kapi config set ai.provider ollama   # app config\n" +
 			"  kapi config get ai.provider\n" +
+			"  kapi config unset ai.model\n" +
 			"  kapi config list\n" +
+			"  kapi config set bowrain.server.url https://bowrain.example  # plugin namespace\n" +
 			"  kapi config name                     # recipe: print the project name\n" +
 			"  kapi config name \"My Project\"        # recipe: set the project name\n" +
 			"  kapi config server.url https://bowrain.example/acme/app",
@@ -52,7 +61,7 @@ func NewConfigCmd(a *App) *cobra.Command {
 				return err
 			}
 			if projectPath == "" {
-				return fmt.Errorf("recipe key %q needs a project (run inside a kapi project or pass -p); app configuration uses 'kapi config get/set/list/path'", args[0])
+				return fmt.Errorf("recipe key %q needs a project (run inside a kapi project or pass -p); app configuration uses 'kapi config get/set/unset/list/path'", args[0])
 			}
 			if len(args) == 1 {
 				v, gerr := RecipeConfigGet(projectPath, args[0])
@@ -70,67 +79,97 @@ func NewConfigCmd(a *App) *cobra.Command {
 		},
 	}
 	AddProjectFlag(cmd)
-	cmd.AddCommand(newConfigGetCmd(a), newConfigSetCmd(a), newConfigListCmd(a), newConfigPathCmd(a))
+	cmd.AddCommand(
+		newConfigGetCmd(a),
+		newConfigSetCmd(a),
+		newConfigUnsetCmd(a),
+		newConfigListCmd(a),
+		newConfigPathCmd(a),
+	)
 	return cmd
 }
 
 func newConfigGetCmd(a *App) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "get <key>",
 		Short: "Print a single config value",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if a.Config == nil {
-				return errors.New("config not loaded")
+			res, err := a.ConfigGet(args[0])
+			if err != nil {
+				return err
 			}
-			fmt.Fprintln(cmd.OutOrStdout(), a.Config.GetString(args[0]))
-			return nil
+			return output.Print(cmd, res)
 		},
 	}
+	output.AddFlags(cmd.Flags())
+	return cmd
 }
 
 func newConfigSetCmd(a *App) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "set <key> <value>",
-		Short: "Set a config value (persists to the global config file)",
+		Short: "Set a config value (persists to the global config file, or a plugin's when the key is namespaced)",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := config.SetGlobalConfig(args[0], args[1]); err != nil {
-				return fmt.Errorf("set %s: %w", args[0], err)
+			res, err := a.ConfigSet(args[0], args[1])
+			if err != nil {
+				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "set %s = %s\n", args[0], args[1])
-			return nil
+			return output.Print(cmd, res)
 		},
 	}
+	output.AddFlags(cmd.Flags())
+	return cmd
+}
+
+func newConfigUnsetCmd(a *App) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "unset <key>",
+		Short: "Remove a config value, restoring the built-in default",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			res, err := a.ConfigUnset(args[0])
+			if err != nil {
+				return err
+			}
+			return output.Print(cmd, res)
+		},
+	}
+	output.AddFlags(cmd.Flags())
+	return cmd
 }
 
 func newConfigListCmd(a *App) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "List all configured values",
+		Short: "List every configured value, including plugin namespaces",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if a.Config == nil {
-				return errors.New("config not loaded")
+			out, err := a.ConfigList()
+			if err != nil {
+				return err
 			}
-			keys := a.Config.Viper().AllKeys()
-			sort.Strings(keys)
-			for _, k := range keys {
-				fmt.Fprintf(cmd.OutOrStdout(), "%s = %s\n", k, a.Config.GetString(k))
-			}
-			return nil
+			return output.Print(cmd, out)
 		},
 	}
+	output.AddFlags(cmd.Flags())
+	return cmd
 }
 
 func newConfigPathCmd(a *App) *cobra.Command {
-	return &cobra.Command{
-		Use:   "path",
-		Short: "Print the global config file path",
-		Args:  cobra.NoArgs,
+	cmd := &cobra.Command{
+		Use:   "path [namespace]",
+		Short: "Print the config file path (of kapi, or of a plugin namespace)",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Fprintln(cmd.OutOrStdout(), config.GlobalConfigFilePath())
-			return nil
+			ns := ""
+			if len(args) == 1 {
+				ns = args[0]
+			}
+			return output.Print(cmd, a.ConfigPath(ns))
 		},
 	}
+	output.AddFlags(cmd.Flags())
+	return cmd
 }

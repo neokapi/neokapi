@@ -162,6 +162,25 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 			return check.Report{}, perr
 		}
 		args = files
+	} else if targetFile == "" {
+		// Named inputs expand like every other content verb: globs resolve
+		// in-process (so `kapi check 'web/**/*.md'` works in any shell) and a
+		// directory means the files beneath it. --target is excluded: it pairs
+		// exactly one source with one target, so there is nothing to expand.
+		expanded, eerr := a.ResolveInputs(cmd, args, InputOptions{
+			Command:  "kapi check",
+			Fallback: FallbackNone,
+			OnSkip: func(path string, serr error) {
+				fmt.Fprintf(cmd.ErrOrStderr(), "kapi check: %s: %v\n", path, serr)
+			},
+		})
+		if eerr != nil {
+			return check.Report{}, eerr
+		}
+		if len(expanded) == 0 {
+			return check.Report{}, fmt.Errorf("no files matched %s", strings.Join(args, ", "))
+		}
+		args = expanded
 	}
 
 	profile, err := a.resolveCheckProfile(cmd)
@@ -219,14 +238,19 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 		// reader's structure/encoding diagnostics fold into the same Report; off
 		// (the default) keeps the lenient read where a malformed file is an
 		// operational error.
+		prog := a.NewProgress(cmd, "checking", len(args))
+		defer prog.Done()
 		for _, file := range args {
+			prog.Step(DisplayName(file))
 			blocks, fileDiags, ferr := a.checkFileBlocks(ctx, file, validateMode, opts)
+			prog.Advance()
 			if ferr != nil {
 				return check.Report{}, ferr
 			}
 			totalBlocks += len(blocks)
 			diags = append(diags, fileDiags...)
 		}
+		prog.Done()
 		if len(args) == 1 {
 			target.File = args[0]
 		} else {

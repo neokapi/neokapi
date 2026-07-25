@@ -141,9 +141,11 @@ With the plugin installed, `kapi` exposes:
   existing kapi verb means. New verbs attach top-level: `push`, `pull`,
   `diff` (local-vs-server block diff; the format-aware file differ's
   kapi-side spelling is `kdiff` only, so the name is free), `auth`,
-  `stream`, `ui`, `workspace`. The one group-scoped verb is
-  `kapi bowrain config`, kept for the `--global` bowrain.yaml niche — the
-  built-in `kapi config` covers the recipe keys positionally
+  `stream`, `ui`, `workspace`. The plugin ships no config command at all:
+  there is one `kapi config` verb, and the plugin extends it by claiming
+  the `bowrain.*` key namespace in its manifest
+  (`capabilities.config_namespaces`), which kapi routes to
+  `~/.config/bowrain/bowrain.yaml`. Recipe keys stay positional
   (`kapi config server.url …`). Participation in core verbs happens
   through a command contribution (`kapi init --server …`) and hidden
   dispatch plumbing (`server-status`, merged into `kapi status`;

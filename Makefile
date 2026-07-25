@@ -257,7 +257,7 @@ test-parallel: ## Run all tests in parallel
 # ── Framework test/quality internals ────────────────────────────────────────
 
 _fw-fmt:
-	$(GOFMT) -w -s core/ cli/ kapi/ sievepen/ termbase/ providers/
+	$(GOFMT) -w -s core/ host/ cli/ kapi/ sievepen/ termbase/ providers/
 
 _fw-test:
 	$(GOTEST_BASE) ./... -count=1
@@ -292,8 +292,12 @@ _fw-test-verbose:
 _fw-test-integration:
 	$(GOTEST_BASE) ./... -count=1 -tags=integration -run Integration
 
+# host/ carries the runtime and every service the CLI dispatches to, so it is
+# vetted and linted alongside the modules that import it — not left to the
+# module that happens to build it.
 _fw-vet:
 	$(GOVET) ./...
+	cd host && $(GOVET) ./...
 	cd cli && $(GOVET) ./...
 	cd kapi && $(GOVET) ./...
 	cd scripts/batcheval && $(GOVET) ./...
@@ -302,6 +306,7 @@ _fw-vet:
 _fw-lint:
 ifdef GOLANGCI_LINT
 	$(GOLANGCI_LINT) run ./...
+	cd host && $(GOLANGCI_LINT) run ./...
 	cd cli && $(GOLANGCI_LINT) run ./...
 	cd kapi && $(GOLANGCI_LINT) run ./...
 else
