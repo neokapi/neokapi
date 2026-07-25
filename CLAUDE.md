@@ -1,554 +1,195 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+neokapi is an AI-native reimagining of the [Okapi Framework](https://okapiframework.org/)
+in Go: format-aware document parsing, channel-based concurrent processing flows,
+and pluggable tools for localization and translation.
 
-## Project Overview
+This file covers what you can't learn by reading the tree. Architecture,
+interfaces, and how-to guides live in the docs — see [Where things are
+documented](#where-things-are-documented).
 
-neokapi is an AI-native reimagining of the [Okapi Framework](https://okapiframework.org/) in Go. It provides format-aware document parsing, channel-based concurrent processing flows, and pluggable tools for localization and translation.
+## Modules and the dependency direction
 
-The repository is a **multi-module monorepo** whose Go modules are:
+A multi-module Go monorepo coordinated by `go.work`. The dependency arrows are
+one-way and enforced; violating one breaks `make audit-modules`.
 
-- **Framework** (`github.com/neokapi/neokapi`) — the open-source localization engine: content model, format readers/writers, processing tools, pipeline executor, plugin system, SQLite-backed TM and termbase (`sievepen/`, `termbase/`), shared SQLite infrastructure (`core/storage/`), `kapi.yaml` project file format (`core/project/`), AI providers (`providers/ai/`, package `aiprovider`), MT providers (`providers/mt/`, package `mtprovider`). Framework packages live under `core/`, `sievepen/`, `termbase/`, and `providers/`. No bowrain dependencies (no Wails, Echo, Cobra, OIDC).
-- **Host** (`github.com/neokapi/neokapi/host`) — the cobra-free application runtime + service layer shared by the kapi CLI, the kapi-bowrain plugin binary, and Kapi Desktop: the `host.App` runtime (registries, Viper app config in `host/config/`, OS keychain credential store in `host/credentials/`, plugin host in `host/pluginhost/`), the workflow services (flow runs/`RunFlowAllLocales`, convergence, checks/coverage/review, project state, up planning, brand resolution, toolbox engines, model assets, MCP tools), the built-in flow catalog + filesystem flow store (`host/flowdef/`), the engine gRPC service (`host/engineserve/`), output formatting (`host/output/`), CLI i18n catalogs (`host/i18n/`), and the SQLite brand/graph stores (`host/storage/`). Command threading is the `host.Command` interface (context + `*pflag.FlagSet` + IO), which `*cobra.Command` satisfies natively; embedded runs use `host.EnvCommand`. Depends on framework only — **no cobra, no bowrain**.
-- **CLI** (`github.com/neokapi/neokapi/cli`) — the thin Cobra presentation shell over host, used by both kapi and bowrain: command factories (plain funcs taking `*cli.App`), flag registration, RunE dispatch, exit-code plumbing, plugin command attachment (`cli/pluginattach/`), the self-update client (`cli/selfupdate/`), the parity harness (`cli/parity/`), and the help-string generator (`cli/i18ngen/`). Re-exports the host API under the historical `package cli` names (`cli.App = host.App`, …) via `cli/aliases.go`. Depends on framework + host. No bowrain dependency.
-- **Bowrain Core** (`github.com/neokapi/neokapi/bowrain/core`) — shared bowrain platform types and interfaces: Recipe wrapper around the framework's `KapiProject` (with type aliases re-exported from `bowrain/plugin/schema`), Project facade, auth types, connector interfaces, REST client (incl. the Merkle-diff push client), store interfaces, event types, plus the low sync packages the push client needs — `bowrain/core/sync` (pure model↔protobuf converters + content-hash helpers) and `bowrain/core/proto/sync/v1` (the sync-protocol protobuf messages). Depends on framework only (+ `bowrain/plugin/schema`); no CLI dependency (no Cobra, Viper) and **no dependency on the main `bowrain` module** — the redis-backed sync hash cache and the store-backed diff engine stay in `bowrain/sync`, which re-exports the pure converters so server-side callers keep one import.
-- **Kapi** (`github.com/neokapi/neokapi/kapi`) — primary CLI binary (Apache-2.0). Contains zero vendor-plugin code. Plugins (bowrain, okapi-bridge, …) are discovered at runtime via the unified manifest model (#438) and dispatched as subprocesses. Depends on framework + host + CLI only.
-- **Kapi Desktop** (`github.com/neokapi/neokapi/kapi-desktop`) — Wails v3 desktop app for visual localization workflows. Blank-imports `bowrain/plugin/schema` (Apache-2.0) so it validates bowrain recipes on open. Depends on framework + host + bowrain/plugin/schema — all three Apache-2.0, so the desktop binary links no AGPL code. **No dependency on the cli module or cobra** (asserted by `make audit-modules` via `go list -deps`).
-- **Bowrain Plugin** (`github.com/neokapi/neokapi/bowrain/plugin`) — Go packages implementing bowrain's behavior plus the `kapi-bowrain` manifest-driven plugin binary itself (`cmd/kapi-bowrain/`, dispatched to by kapi under the unified plugin model; the legacy standalone `bowrain` binary has been retired — all bowrain commands flow through `kapi <command>` once `bowrain-cli` is brew-installed): `schema/` (recipe extension decoders, registers via `init()` against `core/project.RegisterExtension`), `commands/` (push, pull, sync, status, init, auth, …, registers via `cli.RegisterCommandFactory`), `connector/` (BowrainSourceConnector), `mcp/` (bowrain MCP tools, registers via `cli.RegisterMCPToolFactory`). These are blank-imported into the `kapi-bowrain` plugin binary; they are no longer imported by the default `kapi` binary. The `schema/` sub-package has its own go.mod **and is licensed Apache-2.0** (it is recipe *vocabulary* — typed specs + YAML decoders — importing only the framework, not any AGPL `bowrain/*` package), so kapi-desktop can blank-import it cheaply without taking on AGPL code. The rest of `bowrain/plugin` (`commands/`, `connector/`, `mcp/`) stays AGPL-3.0.
-- **Bowrain** (`github.com/neokapi/neokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, web app, connectors, persistent SQLite/PostgreSQL storage. Depends on framework + host (for the `host/flowdef` flow catalog) + bowrain/core.
-- **SaT plugin** (`github.com/neokapi/neokapi/plugins/sat`) — the `kapi-sat` segmenter plugin: runs wtpsplit *Segment any Text* ONNX models in-process (cgo onnxruntime + XLM-RoBERTa tokenizer, gated behind `-tags onnx`) and speaks a line-delimited JSON segmentation protocol on stdin/stdout. Isolated so its native ML stack never enters the `kapi` binary; the host module's plugin host discovers it via the manifest segmenter capability and drives it over the Mode-C segment RPC. The pure-Go `satproto` package + protocol/algorithm tests build with no native deps.
+| Module | Path | May depend on |
+| --- | --- | --- |
+| Framework | `.` (`core/`, `sievepen/`, `termbase/`, `providers/`) | — |
+| Host — cobra-free runtime + services | `host/` | framework |
+| CLI — thin Cobra shell over host | `cli/` | framework, host |
+| Kapi — the `kapi` binary | `kapi/` | framework, host, cli |
+| Kapi Desktop — Wails v3 app | `apps/kapi-desktop/` | framework, host, `bowrain/plugin/schema` |
+| Bowrain Core | `bowrain/core/` | framework, `bowrain/plugin/schema` |
+| Bowrain Plugin — `kapi-bowrain` binary | `bowrain/plugin/` | framework, host, cli, bowrain/core |
+| Bowrain — server/web/connectors | `bowrain/` | framework, host, bowrain/core |
+| SaT segmenter plugin | `plugins/sat/` | framework |
 
-Both **kapi** and **bowrain** binaries share a common base: the cobra-free runtime + services in `host/` and the Cobra shell in `cli/`. The shell provides core commands (run, extract, merge, flows, tools, formats, plugins, presets, termbase, tm, mcp, version) plus four plugin registries: `cli.RegisterCommandFactory`, `cli.RegisterAppInitializer` (CLI-side), `cli.RegisterMCPToolFactory` (re-exported from host), and `core/project.RegisterExtension` (framework, for recipe schema). Plugins blank-imported into a binary contribute commands, MCP tools, and recipe schema via `init()` registration. See [Note: Plugin model](web/docs/contribute/notes-internal/plugin-model.md).
+Non-obvious constraints:
 
-A `go.work` file at the root coordinates the modules for local development. The framework (`core/`) stays platform-agnostic — bowrain attaches via the extension mechanism and the CLI plugin registries, not via direct imports from `core/` to bowrain.
+- **The framework never imports bowrain.** No Wails, Echo, Cobra, or OIDC below
+  the root module. Bowrain attaches through the extension mechanism and the
+  plugin registries, never through a `core/` → bowrain import.
+- **Host is cobra-free.** Command threading is the `host.Command` interface
+  (context + `*pflag.FlagSet` + IO), which `*cobra.Command` satisfies natively;
+  embedded runs use `host.EnvCommand`.
+- **kapi-desktop links neither cobra nor the cli module** — asserted by
+  `make audit-modules` via `go list -deps ./backend/...`.
+- **License boundary.** Framework, host, cli, kapi, kapi-desktop and
+  `bowrain/plugin/schema` are Apache-2.0; the rest of `bowrain/` is AGPL-3.0.
+  `bowrain/plugin/schema` has its own `go.mod` precisely so kapi-desktop can
+  blank-import recipe vocabulary without taking on AGPL code. Keep it that way.
+- **`kapi` contains zero vendor-plugin code.** Plugins (bowrain, okapi-bridge,
+  sat, …) are discovered at runtime via the unified manifest model and
+  dispatched as subprocesses. `bowrain/plugin/*` is blank-imported into
+  `kapi-bowrain`, not into `kapi`. See
+  [Note: Plugin model](web/docs/contribute/notes-internal/plugin-model.md).
 
-## Build & Test Commands
+## Build
 
-```bash
-make build              # Build kapi CLI → bin/kapi
-make build-all          # Build all Go binaries
-make test               # Run all tests (framework + bowrain)
-make test-unit          # Unit tests only (-short flag)
-make test-race          # Tests with race detector
-make test-verbose       # Verbose test output
-make cover              # Coverage report → coverage/coverage.html
-make fmt                # Format Go source (gofmt -w -s)
-make vet                # Run go vet (all modules)
-make lint               # Run golangci-lint (all modules)
-make check              # fmt + vet + lint
-make pre-push           # Run checks relevant to your changes (mirrors CI)
-make pre-push-all       # Run all checks regardless of changes
-make frontend-check-all # Lint + format + typecheck all frontend projects
-make kapi-desktop-frontend-check  # Lint + format + typecheck Kapi Desktop
-make flow-editor-check  # Lint + format + typecheck flow-editor
-make deps               # Download and tidy Go modules (all modules)
-make proto              # Generate gRPC code from protobuf definitions
-make -C bowrain build-server   # Build bowrain server
-vp install              # Install all frontend workspace members (run at repo root)
-```
+`make help` is the catalog — it is self-documenting and current, so read it
+rather than guessing target names. `make pre-push` runs the checks relevant to
+your changes and mirrors CI.
 
-> **Note:** A single root pnpm workspace (`pnpm-workspace.yaml`) coordinates all frontend
-> packages (`packages/ui`, `packages/flow-editor`,
-> `apps/kapi-desktop/frontend`, `bowrain/apps/bowrain/frontend`,
-> `bowrain/apps/web`, `bowrain/apps/ctrl`, `website`). Run `vp install` at the
-> repo root — no per-directory installs are needed.
+Prefer `make` targets over raw `go build` / `go test`: the Makefile handles
+prerequisites (e.g. `make proto` before builds that need generated gRPC code)
+and puts binaries in `bin/`. Drop to `go test ./core/flow/ -run TestX -v` only
+when targeting one package or test.
 
-Run a single test: `go test ./core/flow/ -run TestExecutorCancellation -v`
+Frontend work runs off a single root pnpm workspace (`pnpm-workspace.yaml`) —
+`vp install` at the repo root, never per-directory installs. Module isolation is
+checked with `GOWORK=off` builds per module plus `make audit-modules`.
 
-**Kapi:**
+## Dogfooding kapi: the in-repo isolation contract
 
-```bash
-make kapi-desktop-test              # Run Go backend tests
-make kapi-desktop-frontend-deps     # Install frontend dependencies
-make kapi-desktop-frontend-test     # Run frontend vitest tests
-make kapi-desktop-frontend-check    # Lint + format + typecheck
-make kapi-storybook                 # Run Kapi Storybook on port 6007
-make kapi-storybook-build           # Build Kapi Storybook static site
-make bowrain-storybook              # Run Bowrain Storybook on port 6006
-make bowrain-storybook-build        # Build Bowrain Storybook static site
-```
+This repo dogfoods kapi. A `kapi.yaml` recipe at the repo root is driven by the
+**system-installed** kapi + plugins (real `kapi-bowrain`, real keychain auth,
+real server), and it is auto-discovered by a git-style **upward walk** from any
+cwd inside the tree (`core/project.ResolveLayout` → `cli.ResolveProjectPath`).
 
-**Bowrain web app (SaaS UI served by bowrain-server):**
+**Every in-repo kapi invocation that is not the dogfood workflow must isolate
+itself**, or it will silently bind to — and act on — the dogfood project. Set on
+the kapi process environment:
 
-```bash
-make -C bowrain web-deps                      # vp install for the web app
-make -C bowrain web-build                     # Build web app → bowrain/apps/web/dist/
-```
-
-**Bowrain (desktop GUI):**
-
-```bash
-cd bowrain/apps/bowrain && wails3 build       # Build native macOS/Linux/Windows app
-cd bowrain/apps/bowrain && wails3 dev         # Dev mode with hot reload
-make frontend-deps                            # vp install for frontend
-make frontend-build                           # Production frontend build
-```
-
-**Documentation site:**
-
-```bash
-cd web && vp run start           # Dev server with hot reload
-cd web && vp run build           # Production build → web/build/
-```
-
-## Build Conventions
-
-Always prefer `make` targets over raw `go build` / `go test` commands. The Makefile handles prerequisites (e.g. `make proto` regenerates gRPC code before a build that needs it) and places binaries in `bin/` rather than the repo root. Use direct `go test` only when targeting a specific package or test function.
-
-For the multi-module structure:
-
-- Framework packages build from the root: `go build ./...`
-- Host packages: `cd host && go build ./...`
-- CLI packages: `cd cli && go build ./...`
-- Bowrain Core packages: `cd bowrain/core && go build ./...`
-- Kapi CLI: `cd kapi && go build ./...`
-- Bowrain plugin (incl. the kapi-bowrain binary): `cd bowrain/plugin && go build ./...`
-- Bowrain packages: `cd bowrain && go build ./...`
-- Kapi Desktop: `cd apps/kapi-desktop && go build ./...`
-- With `go.work`, all modules resolve cross-module imports automatically
-- `GOWORK=off go build ./...` verifies framework module isolation
-- `GOWORK=off bash -c "cd host && go build ./..."` verifies host isolation (no cobra, no bowrain dep)
-- `GOWORK=off bash -c "cd cli && go build ./..."` verifies cli isolation (no bowrain dep)
-- `GOWORK=off bash -c "cd bowrain/core && go build ./..."` verifies bowrain/core isolation (no cli dep)
-- `GOWORK=off bash -c "cd kapi && go build ./..."` verifies kapi isolation (no bowrain dep)
-- `GOWORK=off bash -c "cd apps/kapi-desktop && go build ./..."` verifies kapi-desktop isolation (no bowrain dep, no cli/cobra dep — `make audit-modules` also asserts `go list -deps ./backend/...` is cobra-free)
-
-## Dogfooding kapi (in-repo isolation contract)
-
-This repo dogfoods kapi: a `kapi.yaml` recipe lives at the repo root and is driven
-by the **system/user-installed** kapi + plugins (the real `kapi-bowrain` plugin,
-real keychain auth, real server). That recipe is auto-discovered by a git-style
-**upward walk** from any cwd inside the tree (`core/project.ResolveLayout` →
-`cli.ResolveProjectPath`), so the dogfood project must never leak into the
-project's own tests, scripts, or docs recorders.
-
-**The contract: every in-repo kapi invocation that is _not_ the dogfood
-workflow must isolate itself.** Set, on the kapi process environment:
-
-- `KAPI_NO_PROJECT=1` — opt out of project discovery (an explicit `-p` still
-  wins). **Note:** `KAPI_PROJECT=""` does *not* disable discovery; only a
-  non-empty `KAPI_NO_PROJECT` does.
+- `KAPI_NO_PROJECT=1` — opt out of discovery (an explicit `-p` still wins).
+  `KAPI_PROJECT=""` does **not** disable discovery; only a non-empty
+  `KAPI_NO_PROJECT` does.
 - `KAPI_CONFIG_DIR`, `XDG_DATA_HOME`, `XDG_CACHE_HOME` → throwaway dirs, so kapi
-  can't read the developer's `~/.config/kapi`, user-installed plugins, or caches.
-- `KAPI_PLUGINS_DIR_ONLY=1` — discover plugins *only* from `$KAPI_PLUGINS_DIR`
-  (empty by default → none), skipping the user (XDG) **and** system (Homebrew,
-  `/usr/share`) plugin roots. `XDG_DATA_HOME` alone only isolates the user root,
-  so without this an in-repo kapi still picks up Homebrew-installed plugins.
-  Point `KAPI_PLUGINS_DIR` at a repo-local dir when a dogfood scenario needs one.
+  can't read the developer's `~/.config/kapi`, plugins, or caches.
+- `KAPI_PLUGINS_DIR_ONLY=1` — discover plugins only from `$KAPI_PLUGINS_DIR`
+  (empty → none). `XDG_DATA_HOME` alone isolates the *user* plugin root only;
+  without this, an in-repo kapi still picks up Homebrew-installed plugins.
 
-Where this is already wired:
-
-- **Makefile** — use the shared `$(KAPI_ISO_ENV)` (defined near the top) to
-  prefix any in-repo `bin/kapi` call (e.g. the `kapi-*-pseudo-translate`
-  targets): it applies config isolation and adds `KAPI_NO_PROJECT=1` for
-  invocations that don't own a `kapi.yaml` fixture (those that do keep discovery on
-  and rely on nearest-recipe-wins).
-- **`kapi/e2e`** — `TestMain` builds with `-tags fts5` and pins an isolated
-  config/data/cache home with `KAPI_NO_PROJECT=1` (see `isoEnv`).
-- **harness/** — already safe: its sandboxes live in `os.tmpdir()` (outside the
-  repo) and it sets `XDG_DATA_HOME` / `KAPI_CONFIG_DIR` via `kapiIsolationEnv()`.
-
-When adding a new in-repo kapi invocation, follow this contract or it may
-silently bind to (and act on) the dogfood project.
+Already wired: the Makefile's shared `$(KAPI_ISO_ENV)` prefix, `kapi/e2e`'s
+`isoEnv` in `TestMain`, and `harness/` (sandboxes in `os.tmpdir()` via
+`kapiIsolationEnv()`). Follow the contract when adding a new invocation.
 
 ## Never commit an absolute home path
 
-A path like `/Users/<name>/src/...` resolves on exactly one laptop. Locations
-outside this repository are named by environment variable with a repo-relative
-default, so a fresh clone in the conventional layout needs no environment at
-all:
+`/Users/<name>/src/...` resolves on exactly one laptop. Locations outside this
+repo are named by environment variable with a repo-relative default, so a fresh
+clone in the conventional layout needs no environment at all:
 
 | Variable | Default | What it names |
 | --- | --- | --- |
-| `NEOKAPI_WORKSPACE_DIR` | the parent of this repo | The multi-repo workspace — this repo plus `okapi-bridge/`, `registry/`, … |
-| `NEOKAPI_CHECKOUTS_DIR` | the parent of the workspace | Where unrelated reference checkouts live |
-| `NEOKAPI_OKAPI_DIR` | `$NEOKAPI_CHECKOUTS_DIR/okapi/Okapi` | The upstream Okapi Framework (Java) clone — parity, contract audit, fixture harvesting |
-| `NEOKAPI_DOCLANG_DIR` | `$NEOKAPI_CHECKOUTS_DIR/doclang-project/doclang` | The DocLang specification checkout |
+| `NEOKAPI_WORKSPACE_DIR` | parent of this repo | The multi-repo workspace — this repo plus `okapi-bridge/`, `registry/`, … |
+| `NEOKAPI_CHECKOUTS_DIR` | parent of the workspace | Unrelated reference checkouts |
+| `NEOKAPI_OKAPI_DIR` | `$NEOKAPI_CHECKOUTS_DIR/okapi/Okapi` | Upstream Okapi Framework (Java) clone |
+| `NEOKAPI_DOCLANG_DIR` | `$NEOKAPI_CHECKOUTS_DIR/doclang-project/doclang` | DocLang specification checkout |
 
-The root `Makefile` defines and exports all four; `make workspace-paths` prints
-what they resolve to. Shell scripts source the shared resolver
-(`. scripts/lib/workspace.sh && neokapi_init_workspace "$root"`), never
-`$HOME/src/...`. Both are worktree-aware: the workspace is the parent of the
-**main** checkout (via `git rev-parse --git-common-dir`), because inside
-`.claude/worktrees/<name>/` the parent directory is not a workspace. Prose
-names the variable, not a resolved path. Historical `OKAPI_REPO` /
-`OKAPI_BRIDGE_REPO` overrides still work; they now default off these variables.
+The root Makefile exports all four (`make workspace-paths` prints them); shell
+scripts source `scripts/lib/workspace.sh`. Both are worktree-aware — the
+workspace is the parent of the **main** checkout via `git rev-parse
+--git-common-dir`, because inside `.claude/worktrees/<name>/` the parent is not
+a workspace. Prose names the variable, not a resolved path.
 
-`scripts/check-abs-paths.sh` scans every tracked file for `/Users/<name>`,
-`/home/<name>/` and `C:\Users\<name>`, and runs in `make lint`, `make
-pre-push`, and the *Repo guards* CI job. Its allowlist (documentation
-placeholder names, fixed system paths, a few vendored/generated files) is small
-and commented — extend it only with the same specificity. Watch generated
-artefacts too: a Go subtest named after an absolute fixture path put 358 home
-paths into the committed contract-audit dataset. See
+`scripts/check-abs-paths.sh` enforces this over every tracked file in `make
+lint`, `make pre-push`, and the *Repo guards* CI job. Watch generated artefacts
+too — a Go subtest named after an absolute fixture path once put 358 home paths
+into a committed dataset. See
 [Workspace Paths](web/docs/contribute/workspace-paths.md).
 
 ## Target-language drift must never block the build
 
 A **source-language** change must never hard-fail a build (or kapi itself)
-because its **target-language** translations haven't caught up. That drift is
-normal, continuous toil — precisely what kapi exists to absorb — so failing on it
-is a last resort.
+because **target-language** translations haven't caught up. That drift is the
+normal, continuous toil kapi exists to absorb.
 
-- The natural outcome of a source change is **pending target-language work**: the
-  target locale falls back to source until regenerated, or shows partial
-  coverage. Not an error.
-- At worst, gate a **pre-release** check on a **translation-coverage bar** (e.g.
-  "nb ≥ X% before a release tag") — never the ordinary build or PR.
-- Build policy: the **source/default locale stays strict** (broken links throw —
-  source integrity matters); **target locales warn** (stale links from source
-  drift are pending work).
+- The natural outcome of a source change is pending target-language work: the
+  target locale falls back to source, or shows partial coverage. Not an error.
+- At worst, gate a *pre-release* check on a translation-coverage bar
+  ("nb ≥ X% before a release tag") — never the ordinary build or PR.
+- Build policy: source/default locale stays **strict** (broken links throw);
+  target locales **warn**.
 
-Target-language artefacts are **generated, not authored**: the root
-`kapi.yaml` dogfood recipe produces `web/i18n/nb/` from `web/docs/**`, just as
-the desktop catalogs under `apps/kapi-desktop/frontend/i18n-nb/` are generated.
-Treat them as build artefacts (gitignored + regenerated by kapi), never as files
-to hand-edit or to gate a source change on. Use English source for i18n; do not
-hand-translate target locales.
+Target-language artefacts are generated, not authored — `web/i18n/nb/` and
+`apps/kapi-desktop/frontend/i18n-nb/` are build artefacts (gitignored,
+regenerated by kapi). Never hand-edit them, never hand-translate a target
+locale, and never gate a source change on one.
 
-## Architecture
+## Documentation assets
 
-### Multi-Module Structure
+Walkthrough videos are documentation. **When UI- or CLI-surface code changes,
+re-record the affected walkthrough videos** before committing.
 
-```
-neokapi/
-├── go.work                # Workspace: framework, host, cli, kapi, apps/kapi-desktop, the bowrain/* modules (incl. plugin & plugin/schema), and the scripts/* tooling modules
-├── go.mod                 # module github.com/neokapi/neokapi (framework, Apache-2.0)
-│
-│   ── Framework Module (repo root) ──────
-├── core/
-│   ├── model/             # Content model (Part, Block, Run, Target, Overlay, Layer)
-│   ├── format/            # DataFormatReader/Writer interfaces
-│   ├── tool/              # Tool interface
-│   ├── flow/              # Executor, pipeline orchestration
-│   ├── registry/          # Format and tool registries
-│   ├── encoding/          # Character encoding detection/conversion
-│   ├── locale/            # BCP-47 locale utilities
-│   ├── editor/            # Block index serialization and preview generation
-│   ├── version/           # Version info (set via ldflags)
-│   ├── formats/           # Built-in format implementations (one package per format)
-│   ├── storage/           # Shared SQLite DB infrastructure (Open, Migrate)
-│   ├── project/           # kapi.yaml project file format (Load, Save, Validate)
-│   ├── tools/             # Built-in utility tools
-│   ├── plugin/            # go-plugin + gRPC plugin system + Java bridge
-│   └── internal/testutil/ # Shared test helpers (RawDocFromString, CollectBlocks, …)
-├── sievepen/              # Translation memory (interface + in-memory + SQLite + matching)
-├── termbase/              # Terminology (interface + in-memory + SQLite + import)
-├── providers/
-│   ├── ai/                # package aiprovider — LLM providers + AI tools
-│   └── mt/                # package mtprovider — MT providers + MT tools
-├── bench/                 # Benchmarks
-├── examples/              # Plugin examples
-│
-│   ── Host Module (cobra-free runtime + services) ──
-├── host/
-│   ├── go.mod             # module github.com/neokapi/neokapi/host (framework only; NO cobra)
-│   ├── *.go               # App runtime + services (flow runs, converge, checks, coverage, review, …)
-│   ├── config/            # Viper-based app configuration (~/.config/kapi/)
-│   ├── credentials/       # OS keychain credential store
-│   ├── pluginhost/        # Plugin discovery, dispatch, daemon pool, registry client
-│   ├── flowdef/           # Built-in flow catalog (BuiltInFlows) + filesystem FlowStore
-│   ├── engineserve/       # EngineService gRPC implementation (kapi engine serve)
-│   ├── output/            # Shared output formatting + types (used by kapi & bowrain)
-│   ├── i18n/              # CLI help-string catalogs (generated by cli/i18ngen)
-│   ├── desktopmenu/       # Shared desktop menu model
-│   └── storage/           # SQLite-backed brand and graph stores (TM/termbase come from the framework's sievepen/ and termbase/)
-│
-│   ── CLI Module (thin Cobra shell over host) ──
-├── cli/
-│   ├── go.mod             # module github.com/neokapi/neokapi/cli (framework + host)
-│   ├── *.go               # Cobra command factories + RunE dispatch + host API re-exports (aliases.go)
-│   ├── pluginattach/      # Attaches plugin commands/contributions to the cobra tree
-│   ├── selfupdate/        # CLI self-update client
-│   ├── parity/            # Parity harness vs okapi-bridge
-│   └── i18ngen/           # Generator for host/i18n/commands.json (needs the cobra tree)
-│
-│   ── Kapi Module ───────────────────────
-├── kapi/
-│   ├── go.mod             # module github.com/neokapi/neokapi/kapi (framework + host + cli)
-│   ├── cmd/kapi/          # Thin root cmd wiring shared CLI commands
-│   └── preset/            # Built-in preset definitions
-│
-│   ── Kapi Desktop Module ───────────────
-├── apps/
-│   └── kapi-desktop/      # Wails v3 desktop app (Go + React/TS)
-│       ├── go.mod         # module github.com/neokapi/neokapi/kapi-desktop (framework + host; no cli/cobra)
-│       ├── main.go        # Wails v3 entry point
-│       ├── backend/       # Go backend: project, flows, runner, credentials, plugins
-│       ├── frontend/      # React 19 + Vite + TailwindCSS
-│       └── build/         # Wails build config + platform-specific settings
-│
-│   ── Bowrain (AGPL-3.0, EXCEPT plugin/schema = Apache-2.0) ──────
-├── bowrain/
-│   ├── go.mod             # module github.com/neokapi/neokapi/bowrain (framework + host + bowrain/core)
-│   ├── Makefile           # Bowrain-specific build targets
-│   │
-│   │   ── Bowrain Core Module ───────────
-│   ├── core/              # module github.com/neokapi/neokapi/bowrain/core (framework only)
-│   │   └── auth/ store/ connector/ project/ event/ agent/ client/ config/
-│   │
-│   │   ── Bowrain Plugin Module ─────────
-│   ├── plugin/            # module github.com/neokapi/neokapi/bowrain/plugin (framework + host + cli + bowrain/core)
-│   │   ├── cmd/kapi-bowrain/   # Manifest-driven kapi-bowrain plugin binary (Mode A/B/C)
-│   │   ├── commands/ connector/ mcp/   # AGPL-3.0 plugin behavior
-│   │   └── schema/        # module bowrain/plugin/schema (Apache-2.0 recipe vocabulary)
-│   │
-│   ├── auth/              # OIDC, AuthStore, SQLite + PostgreSQL auth (server-specific)
-│   ├── connector/         # Concrete connector implementations (File, Git, etc.)
-│   ├── store/             # SQLite + PostgreSQL ContentStore implementations
-│   ├── storage/           # SQLite + PostgreSQL migration utilities
-│   ├── server/            # HTTP/gRPC server handlers
-│   ├── service/           # Auth, project, connector, flow services
-│   ├── event/             # Event bus implementation + automation
-│   ├── billing/           # Billing and subscription management
-│   ├── jobs/              # Background job processing
-│   ├── brand/             # Brand management
-│   ├── graph/             # Graph data structures
-│   ├── analytics/         # Analytics and reporting
-│   ├── sievepen/          # SQLite + PostgreSQL TM implementation
-│   ├── termbase/          # SQLite + PostgreSQL TermBase implementation
-│   ├── proto/             # gRPC protobuf definitions
-│   ├── cmd/bowrain-server/ # Echo v4 REST API server
-│   ├── cmd/bowrain-worker/ # Background worker
-│   ├── apps/
-│   │   ├── bowrain/       # Wails v3 desktop app (Go + React/TS)
-│   │   ├── web/           # SaaS web UI
-│   │   ├── ctrl/          # Admin control panel
-│   │   ├── pulse/         # Real-time dashboard
-│   │   └── keycloak-theme/ # Custom Keycloak theme
-│   ├── packages/ui/       # @neokapi/ui (AGPL)
-│   ├── storybook/         # Bowrain Storybook config (port 6006, aggregates Kapi + Bowrain stories)
-│   ├── docker/            # Docker configurations
-│   ├── deploy/            # Deployment configs
-│   ├── e2e/               # End-to-end tests
-│   ├── emails/            # Email templates
-│   ├── compose.yaml
-│   └── compose.override.yaml
-│
-│   ── Shared Frontend (Apache-2.0) ─────
-├── package.json           # Root package.json; workspace members live in pnpm-workspace.yaml
-├── .npmrc                 # pnpm registry/auth config (behavioral settings live in pnpm-workspace.yaml)
-├── storybook/             # Kapi Storybook config (port 6007, aggregates packages/ui + flow-editor + kapi-desktop)
-├── packages/
-│   ├── ui/                # @neokapi/ui-primitives — shadcn/ui primitives consumed by kapi-desktop and bowrain apps
-│   ├── flow-editor/       # @neokapi/flow-editor — shared React flow editor component library
-│   └── storybook-config/  # @neokapi/storybook-config — shared Storybook preview/main factories
-│
-│   ── Non-Go Assets ─────────────────────
-├── docs/                  # Architecture decisions, implementation notes
-├── web/               # Docusaurus site
-└── Makefile               # Multi-module build targets
-```
+Videos come from the **harness** (`harness/`): authored `demo.yaml` sequences
+driven against real infrastructure, screencast, TTS-narrated, rendered with
+Remotion into light + dark `.webm`. Two things are easy to get wrong:
 
-### Bowrain Project Model (`kapi.yaml` Recipe + `.kapi/` State Dir)
+- **Narration sidecars are generated.** `demo.<lang>.yaml` files come from the
+  dogfood recipe (`make l10n-demos`, drift-gated by `l10n-verify`). Fold fixes
+  into `l10n/tm/demo-narration-<lang>.kmb` and regenerate — never edit a sidecar
+  or author inline translations.
+- **Assets are not in git and not in GitHub releases.** They live only on the
+  S3 + CloudFront CDN (`$DOCS_CDN_URL`) and are referenced by URL via
+  `ThemedVideo` / `ThemedImage`; docs CI references them rather than recording.
+  See [CDN assets](web/docs/contribute/notes-internal/cdn-assets.md).
 
-Bowrain CLI uses the framework's unified `.kapi` project model — a `kapi.yaml` recipe at the project root with a `server:` block, plus a sibling `.kapi/` state directory ([Bowrain AD-010](bowrain/web/docs/docs/architecture-decisions/010-bowrain-cli-and-project-model.md)):
+Recordings and screenshots run against **real** neokapi infrastructure — real
+Keycloak OIDC via `compose.yaml`, the real `bowrain-server` binary, a real
+SQLite database. Never mock the auth flow or the API. Third-party services
+outside this project (MT providers, external LLM APIs) may be mocked.
 
-```
-my-app/
-├── kapi.yaml               # Recipe (committed) — fixed conventional YAML filename, includes server: block
-├── .kapi/                  # State (gitignored)
-│   ├── manifest.yaml
-│   ├── tm.db               # authoritative project TM
-│   ├── termbase.db         # authoritative project termbase
-│   ├── flows/              # optional file-per-flow definitions (committed)
-│   │   └── pseudo.yaml
-│   └── cache/              # all regenerable caches under one roof
-│       ├── blocks.db        # block store
-│       ├── sync-cache.json  # kapi push/pull state
-│       ├── extractions/
-│       └── collections/
-├── src/
-│   └── locales/
-│       ├── en-US.json
-│       └── fr-FR.json
-```
+Runbooks: [regenerating docs assets](docs/internals/regenerating-docs-assets.md),
+[video revision](docs/internals/video-revision-runbook.md).
 
-A bowrain project is just a kapi project whose recipe declares a `server:` block (compound URL, optional `stream`). Top-level recipe fields cover `defaults`, `content`, `plugins` (map form), `flows`, `hooks`, `automations`, `assets`, `brand_voice`. Auth tokens live in the OS keychain (`bowrain-auth:<server-url>`, `bowrain-refresh:<server-url>`); non-secret metadata sits at `~/.config/bowrain/auth.json`. `BOWRAIN_AUTH_TOKEN` env var works in CI.
+## Writing user-facing prose
 
-**Key bowrain plugin commands (run via `kapi` once the `kapi-bowrain` plugin is installed):**
+Follow [brand-communication.md](docs/internals/brand-communication.md): an
+academic, restrained register — no marketing superlatives, no emoji. Two rules
+that bite most often:
 
-```bash
-kapi init                       # Write kapi.yaml + .kapi/ state dir
-kapi status                     # Show sync state (like git status)
-kapi pull                       # Fetch from Bowrain Server → update local files
-kapi push                       # Send local files → update Bowrain Server
-kapi run <flow-name>            # Execute flow (inline on recipe or .kapi/flows/)
-```
+- **Never hardcode counts the code controls** (formats, tools, providers,
+  filters). Name the category and link to the generated reference.
+- **Diagrams are real React components, never ASCII art.** The themed light/dark
+  SVG kit is in `packages/docs-shared/src/diagram/` (`PipelineDiagram`,
+  `StreamDiagram`, `PhaseFlow`, `RoundTripDiagram`, `LanesDiagram`,
+  `SwimlaneDiagram`, `ArchitectureDiagram`, `RedactionDiagram`), each with a
+  story under **Diagrams** in the Kapi Storybook. Code fences are for code only:
+  CLI output, file trees, config snippets — not flows or relationships.
 
-**All bowrain plugin commands require a `.kapi` project with a `server:` block.** The CLI searches upward from the current directory (like git) to find the recipe.
+State each topic once and cross-link; verify every command, flag, import path,
+and flow name against the code before publishing.
 
-**Key kapi CLI commands (standalone, no project needed):**
+## Where things are documented
 
-```bash
-kapi translate -i file.xliff --target-lang fr    # Translate with AI
-kapi pseudo-translate file.json # Pseudo-translate for testing
-kapi stats file.json                          # Content metrics (words, chars, segments)
-kapi run translate-qa -i file.xliff --target-lang fr  # Run composed flow
-kapi formats list             # List available formats
-kapi tools                    # List available tools
-kapi flows                    # List available flows
-kapi plugins list             # List installed plugins
-```
+- **Architecture decisions** — `web/docs/contribute/architecture/`. Organized by
+  concern, not chronologically; each AD describes the *current* state of its
+  subsystem. When a subsystem evolves, **update the existing AD in place**
+  rather than appending a new one. Create a new AD only for a genuinely new
+  concern.
+- **Implementation notes** — `web/docs/contribute/notes-internal/`. Tactical
+  detail (SQL schemas, API routes, pseudocode) kept out of the ADs.
+- **Contributor guides** — `web/docs/contribute/`: `formats.md`,
+  `tool-authoring.md`, `flow-authoring.md`, `plugins.md`, `testing.md`,
+  `interfaces.md`, `workspace-paths.md`.
+- **Repo internals** — `docs/internals/`: format ops, testing strategy, i18n
+  toil, docs-asset runbooks, brand communication.
+- **kapi agent skill** — `cli/skills/data/kapi/` (`SKILL.md` + `references/`),
+  the shipped guidance for driving kapi itself.
 
-**Kapi with a project recipe (`kapi.yaml`):**
+Terminology maps from Okapi: Filter → DataFormat, Step → Tool, Pipeline → Flow,
+PipelineDriver → Executor, Event → Part, TextUnit → Block, TextFragment → `[]Run`.
 
-```bash
-# Use a kapi.yaml recipe for saved workflow defaults
-kapi run translate -p kapi.yaml
-kapi run translate-and-qa -p kapi.yaml --target-lang de
-```
-
-The `kapi.yaml` recipe is a portable YAML document — see [AD-008](web/docs/contribute/architecture/008-project-model.md). It works with both the kapi CLI (`-p` flag) and Kapi Desktop (which opens the project folder).
-
-**Role Separation:**
-
-- **Kapi** = standalone file-processing tool, demonstrates neokapi's power as open-source toolchain
-- **Kapi** = GUI companion for kapi — visual flow editor, runner, plugin manager, credential vault
-- **kapi-bowrain plugin** (manifest-driven, dispatched via `kapi`) = project sync companion CLI, focuses on DX and project simplicity for Bowrain
-- **Shared base** (`host/` runtime + services, `cli/` cobra shell) = common commands (run, flows, tools, formats, plugins, presets, termbase, version) and top-level tool commands used by both kapi and bowrain; the desktop links `host/` directly
-- **Bowrain Server** = integration platform (CMS connectors, automation, ContentStore)
-- **Bowrain desktop app** (`bowrain/apps/bowrain/`) = a real-time **working copy of the server**, not a local-file/project authoring tool. Its local footprint is cache and speed only — a content cache, an offline edit queue, and TM/termbase mirrors — and is never a source of truth. It offers only **remote/CMS connectors** (wordpress, figma, hubspot); the local-filesystem connectors (file, git) are registered **server-side only** (`bowrain/connector.RegisterAll` for the server/worker vs `RegisterRemote` for the desktop). Sourcing from a filesystem or git checkout is a server-side concern.
-
-**Product boundary (canonical):** kapi owns local files + project configuration — the `kapi.yaml` recipe (content/flows/plugins/languages/brand + `server:` block) is authored and versioned locally with kapi, including configuring projects pushed to Bowrain via `kapi push` / `kapi sync`. Bowrain's local footprint is cache/speed/implementation only — never source of truth.
-
-### Streaming Pipeline
-
-Documents flow through a channel-based concurrent pipeline:
-
-```
-RawDocument → DataFormatReader → [Tool 1] → [Tool 2] → ... → DataFormatWriter → Output
-                                    ↕            ↕
-                              chan *Part    chan *Part
-```
-
-Each tool runs in its own goroutine. Buffered channels (default 64) provide backpressure. `errgroup.Group` coordinates error handling. Context cancellation propagates to all stages.
-
-### Content Model (core/model/)
-
-The Part is the fundamental streaming unit, carrying a PartType discriminator and a Resource:
-
-- **Layer** — structural grouping (document, section, embedded content). Layers nest: embedded content (HTML inside JSON) becomes a child Layer with its own DataFormat.
-- **Block** — translatable content: a flat `Source []Run`, `Targets map[VariantKey]*Target` (variant = locale + optional tone/channel), and stand-off `Overlays` (segmentation, terms, entities, QA, alignment) anchored to run-index ranges. There is no structural `Segment` type — segmentation is an opt-in overlay (AD-002).
-- **Run** — the inline unit: a discriminated union (Text, Ph, PcOpen/PcClose, Sub, Plural, Select). Inline markup lives in runs, not in the text.
-- **Data** — non-translatable structure
-- **Media** — binary content
-
-### Key Interfaces
-
-- `format.DataFormatReader` — `Open(ctx, doc)` then `Read(ctx) <-chan PartResult`
-- `format.DataFormatWriter` — `SetOutput(path)`, `Write(ctx, <-chan *Part)`
-- `tool.Tool` — `Process(ctx, in <-chan *Part, out chan<- *Part) error`
-- `flow.Executor` — orchestrates tool chains with goroutines and channels
-- `registry.FormatRegistry` — factory registry for readers/writers with format detection
-- `aiprovider.LLMProvider` — interface for Anthropic, OpenAI, Azure OpenAI, Ollama, Gemini backends (`providers/ai/`)
-- `aiprovider.StreamingLLMProvider` — optional extension of LLMProvider with `ChatStream`/`ChatStructuredStream` for live thinking progress (streaming events: thinking, content, done)
-
-### Terminology Mapping from Okapi
-
-| Okapi (Java)                    | neokapi (Go)               |
-| ------------------------------- | -------------------------- |
-| Filter                          | DataFormat (Reader/Writer) |
-| Step                            | Tool                       |
-| Pipeline                        | Flow                       |
-| PipelineDriver                  | Executor                   |
-| Event                           | Part                       |
-| TextUnit                        | Block                      |
-| TextFragment                    | Run sequence (`[]Run`)     |
-| Code                            | Run                        |
-| StartSubDocument/StartSubFilter | Child Layer                |
-
-## Implementing a New Format
-
-Create a package under `core/formats/` with reader.go, writer.go, config.go. The reader must implement `format.DataFormatReader` (embed `format.BaseFormatReader`). The writer must implement `format.DataFormatWriter` (embed `format.BaseFormatWriter`). Register both in `core/formats/register.go` via `init()`. Format packages live in the framework module at the repo root.
-
-## Implementing a New Tool
-
-Create a type embedding `tool.BaseTool`. For Blocks, set exactly one capability-typed handler — `Annotate(BlockView)` (read-only; writes overlays/annotations/properties), `Produce(VariantView)` (writes target), or `Transform(SourceView)` (rewrites source) — the view type bounds what the tool may write (immutability model, AD-006). Other Part types use the untyped `HandleDataFn` / `HandleMediaFn` / `Handle{Layer,Group}{Start,End}Fn` fields. Parts you don't handle pass through unchanged. A tool that needs batching, 1→N fan-out, or stream control overrides `Process` instead. Register in the tool registry. Source-transform (`Transform`) tools belong in a flow's leading source-transform stage, which settles the source before annotation/translation.
-
-## Testing
-
-Tests use `github.com/stretchr/testify` (assert/require). Table-driven tests are the standard pattern. Format tests typically do roundtrip validation (read → write → compare). Test files colocate with implementation (`*_test.go`).
-
-## Documentation Assets (Walkthrough Videos)
-
-Walkthrough videos serve as documentation and are embedded on the website. **Whenever UI- or CLI-surface code changes, re-record the affected walkthrough videos** as part of the verification process before committing.
-
-Videos are produced by the **harness** (`harness/`): each demo is an authored `demo.yaml` — a real kapi/bowrain command sequence or a UI flow — that the harness drives against real infrastructure, screencasts, narrates (TTS), and renders with Remotion into theme-matched light + dark `.webm` files. Demo scripts are English-only: localized narration lives in **generated** `demo.<lang>.yaml` sidecars produced by the dogfood recipe (`make l10n-demos`, drift-gated by `l10n-verify`) and overlaid by the harness at load time — never edit a sidecar or author inline translations; fold fixes into `l10n/tm/demo-narration-<lang>.kmb` and regenerate. Published videos land under `web/static/video/` (kapi) and `bowrain/web/docs/static/video/` (bowrain); the MDX wires them in with `ThemedVideo` / `KapiPlayground` embeds. (The interactive in-browser explorers are a separate system — `{id}.scene.yaml` specs driving the WASM engine — not videos.)
-
-### How to regenerate
-
-```bash
-make harness-videos-staged        # full pass: stack up → seed → record → narrate → package (light + dark)
-make harness-videos               # render the kapi demo videos from existing captures
-make publish-cdn-all              # publish all desktop-produced assets (videos, images, models) → R2 CDN
-make publish-cdn-videos           # just the kapi videos → R2 (kapi/video/)
-make publish-cdn-bowrain-videos   # just the bowrain videos → R2 (bowrain/video/)
-make publish-cdn-images           # kapi images/screenshots → R2 (kapi/img/)
-make publish-cdn-bowrain-images   # bowrain images/screenshots → R2 (bowrain/img/)
-```
-
-Assets are **not stored in git and not in GitHub releases** — they live only on
-the S3 + CloudFront CDN (served at `$DOCS_CDN_URL`, `cdn.bowrain.cloud`) and are
-referenced by URL via `ThemedVideo` / `ThemedImage` / the Vision Lab. The sites
-build with `DOCS_CDN_URL` set for push and same-repo PRs; PR previews are served
-from a sibling S3 + CloudFront host (`preview.bowrain.cloud`), so they stay tiny.
-The Vision Lab model set is versioned by the committed
-`web/models.version` (bump it + `make publish-cdn-vision-models` to ship a new
-set). See `web/docs/contribute/notes-internal/cdn-assets.md`.
-
-See `harness/` (and its Makefile) for the phased seed → record → narrate → package pipeline; bring the stack up once and re-render freely.
-
-### In CI
-
-The docs build workflows (`.github/workflows/docs-kapi.yml`, `docs-bowrain.yml`) **reference** the `.webm` videos, screenshots, and ONNX models from the S3 + CloudFront CDN (`$DOCS_CDN_URL`) rather than recording or staging them in CI — recording happens on the desktop and is published via the `publish-cdn-*` targets. Assets are not stored in git or in GitHub releases. PR previews (served from a sibling S3 + CloudFront host, `preview.bowrain.cloud`) reference the same CDN assets, so they stay small.
-
-### Real systems, not mocks
-
-All screenshots and recordings must run against real neokapi infrastructure. Specifically:
-
-- **Authentication & identity**: Use the real Keycloak OIDC provider via `compose.yaml`. Never mock the auth flow.
-- **bowrain-server**: Use the real server binary (locally built). Never use a mock API server.
-- **Database & storage**: Use a real SQLite database (bowrain-server creates one automatically).
-- **External integrations** outside the scope of this project (e.g. third-party MT providers, external LLM APIs) may be mocked if needed for isolation.
-
-### Verification checklist for UI changes
-
-Before committing any UI-related change:
-
-1. TypeScript checks pass for the frontend projects (`packages/ui`, `bowrain/apps/web`, `bowrain/apps/bowrain/frontend`, `apps/kapi-desktop/frontend`)
-2. All unit tests pass (`cd packages/ui && vp test`)
-3. All frontend production builds succeed
-4. Affected walkthrough scenes re-recorded (see the walkthrough/scenes engine below) and assets land under `web/static/`
-5. Go build succeeds (`make build build-server`)
-
-## Writing & Brand Communication
-
-When writing or editing user-facing prose (docs site, landing pages, READMEs,
-release notes, CLI help, UI copy), follow
-[docs/internals/brand-communication.md](docs/internals/brand-communication.md).
-In short: use an academic, restrained register (no marketing superlatives or
-emoji); never hardcode counts that the code controls (formats, tools,
-providers, filters) — name categories and link to generated references; state
-each topic once and cross-link rather than duplicate; and verify every command,
-flag, import path, and flow name against the code before publishing.
-
-### Diagrams in docs: real React, not ASCII
-
-Documentation diagrams must be **real React diagram-kit components**, never ASCII
-art in a code fence. The themed, light/dark SVG kit lives in
-`@neokapi/docs-shared` (`packages/docs-shared/src/diagram/`): `PipelineDiagram`,
-`StreamDiagram`, `PhaseFlow`, `RoundTripDiagram`, `LanesDiagram`,
-`SwimlaneDiagram`, `ArchitectureDiagram`, and `RedactionDiagram` (censor-bar
-blackout). Import the component into the `.md`/`.mdx` page and pass the data as
-props. Every component has a story under **Diagrams** in the Kapi Storybook
-(`packages/docs-shared/src/diagram/*.stories.tsx`) — add or reuse one there when
-you introduce a diagram, and check it renders in both themes. ASCII code fences
-are only for *code*: CLI output, file/directory trees, and config snippets — not
-for flows, sequences, or relationships.
-
-## Architecture Decisions
-
-ADs live in `web/docs/contribute/architecture/`. They are organized by architectural concern (content model, plugin system, Java bridge, etc.), not by chronological order. Each AD should describe the current state of its subsystem as a self-contained document. When a subsystem evolves, update the existing AD in place rather than appending a new one. Only create a new AD when a genuinely new architectural concern is introduced.
-
-Implementation notes live in `web/docs/contribute/notes-internal/`. These contain tactical details (SQL schemas, API routes, algorithm pseudocode) extracted from ADs to keep decisions focused on the WHY and WHAT.
+Testing convention: `stretchr/testify` (assert/require), table-driven, `*_test.go`
+colocated with implementation, roundtrip validation for formats.
