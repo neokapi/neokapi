@@ -189,6 +189,19 @@ func TestExecContentWritingToolsExposeAnOutput(t *testing.T) {
 	}
 }
 
+// A check whose verdict depends entirely on one input must be able to receive
+// it. dnt-check's Terms list was hidden from the schema (`schema:"-"`), so the
+// generated command had no --terms flag at all: `kapi exec dnt-check` could only
+// ever run with an empty list, which is a do-not-translate check that cannot
+// fail. Visibility without the decisive input is not reachability (#1476).
+func TestExecChecksAcceptTheirDecisiveInput(t *testing.T) {
+	tools := execChildren(t, newTestApp())
+	dnt := tools["dnt-check"]
+	require.NotNil(t, dnt, "expected `exec dnt-check`")
+	assert.NotNil(t, dnt.Flags().Lookup("terms"),
+		"`exec dnt-check` checks nothing without its terms, so --terms must exist")
+}
+
 func TestRecycleAlias(t *testing.T) {
 	tools := execChildren(t, newTestApp())
 	recycle := tools["recycle"]

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-25T13:15:19Z",
+  "generatedAt": "2026-07-25T14:07:26Z",
   "kind": "tool",
   "entries": [
     {
@@ -432,7 +432,7 @@
           },
           "knownTerms": {
             "type": "array",
-            "description": "Terms to exclude from extraction (already in termbase)",
+            "description": "Terms to exclude from extraction (already in the terms store)",
             "items": {
               "type": "string"
             }
@@ -485,7 +485,7 @@
         }
       },
       "doc": {
-        "overview": "The **Entity Extract** tool analyses a block's source text with a large\nlanguage model and records two kinds of stand-off annotation: named entities\n(people, organizations, products, locations, and also dates, times,\ncurrencies, and measurements) and terminology candidates (domain-specific\nterms that would benefit from a termbase entry). Each entity carries a\nsuggested do-not-translate flag; each term candidate carries a category and a\ntranslatability classification (do-not-translate, consistent, or free). It is\nread-only — it writes annotations only and never changes the source or target.\n\nExtraction can optionally combine the LLM with a NER provider for fast entity\ndetection; the LLM classification is preferred where the two overlap. Blocks\ncan be analysed one at a time or grouped into batches sent in a single\nstructured call, and batches can run concurrently. Known terms already in the\ntermbase can be supplied so they are not re-proposed. A provider and, for\nhosted providers, credentials are required.\n",
+        "overview": "The **Entity Extract** tool analyses a block's source text with a large\nlanguage model and records two kinds of stand-off annotation: named entities\n(people, organizations, products, locations, and also dates, times,\ncurrencies, and measurements) and terminology candidates (domain-specific\nterms that would benefit from a terms entry). Each entity carries a\nsuggested do-not-translate flag; each term candidate carries a category and a\ntranslatability classification (do-not-translate, consistent, or free). It is\nread-only — it writes annotations only and never changes the source or target.\n\nExtraction can optionally combine the LLM with a NER provider for fast entity\ndetection; the LLM classification is preferred where the two overlap. Blocks\ncan be analysed one at a time or grouped into batches sent in a single\nstructured call, and batches can run concurrently. Known terms already in the\nterms can be supplied so they are not re-proposed. A provider and, for\nhosted providers, credentials are required.\n",
         "parameters": {
           "apiKey": {
             "description": "API key for the provider.",
@@ -503,7 +503,7 @@
             "values": "integer ≥ 1 (default `1`)"
           },
           "knownTerms": {
-            "description": "Terms to exclude from extraction (already in the termbase).",
+            "description": "Terms to exclude from extraction (already in the terms store).",
             "help": "Terms the LLM is told not to re-propose, so the candidate list focuses on\ngenuinely new terminology. Matching is case-insensitive.\n",
             "values": "list of strings"
           },
@@ -689,7 +689,7 @@
         }
       },
       "doc": {
-        "overview": "The **Term Extract** tool sends each block's source text to a\nconfigured LLM provider and asks it to return notable terms, each with a short\ndefinition and domain. The extracted entries are recorded on the block's\nproperties as a terminology list. Blocks whose source is empty are skipped, and\nblocks with no terms found are left unchanged.\n\nBecause the tool calls an external model, it requires provider credentials. An\noptional subject domain can be supplied to bias extraction toward that field\n(for example medical, legal, or technology terminology). The results are\ncandidate terms intended for review and curation into a termbase, not an\nauthoritative glossary.\n",
+        "overview": "The **Term Extract** tool sends each block's source text to a\nconfigured LLM provider and asks it to return notable terms, each with a short\ndefinition and domain. The extracted entries are recorded on the block's\nproperties as a terminology list. Blocks whose source is empty are skipped, and\nblocks with no terms found are left unchanged.\n\nBecause the tool calls an external model, it requires provider credentials. An\noptional subject domain can be supplied to bias extraction toward that field\n(for example medical, legal, or technology terminology). The results are\ncandidate terms intended for review and curation into a terms store, not an\nauthoritative glossary.\n",
         "parameters": {
           "apiKey": {
             "description": "API key for the AI provider.",
@@ -839,21 +839,21 @@
         }
       },
       "doc": {
-        "overview": "The **Brand Vocabulary Check** tool scans each block's source text for\nvocabulary violations defined by a brand voice profile. Forbidden terms are\nflagged at major severity, competitor terms at critical severity, and where a\nforbidden term has a preferred replacement, the finding includes that\nsuggestion. When a termbase is provided, the tool also looks up brand-vocabulary\nterms in it, flagging competitor and forbidden entries it finds. Matches are\ncase-insensitive.\n\nFindings are recorded on the block's properties and an overall brand-voice score\nis attached as an annotation. This is a rule-based check that needs no LLM\ncredentials, and it is designed to run before the LLM-based brand voice check.\nThe voice profile and termbase are supplied programmatically rather than as\nschema parameters; the profile can also be resolved lazily from an\norganizational context hierarchy.\n",
+        "overview": "The **Brand Vocabulary Check** tool scans each block's source text for\nvocabulary violations defined by a brand voice profile. Forbidden terms are\nflagged at major severity, competitor terms at critical severity, and where a\nforbidden term has a preferred replacement, the finding includes that\nsuggestion. When a terms store is provided, the tool also looks up brand-vocabulary\nterms in it, flagging competitor and forbidden entries it finds. Matches are\ncase-insensitive.\n\nFindings are recorded on the block's properties and an overall brand-voice score\nis attached as an annotation. This is a rule-based check that needs no LLM\ncredentials, and it is designed to run before the LLM-based brand voice check.\nThe voice profile and terms are supplied programmatically rather than as\nschema parameters; the profile can also be resolved lazily from an\norganizational context hierarchy.\n",
         "limitations": [
-          "The voice profile and termbase are configured programmatically; they are not exposed as schema parameters.",
+          "The voice profile and terms are configured programmatically; they are not exposed as schema parameters.",
           "Term matching is case-insensitive substring matching; it does not account for inflection or morphology.",
           "Evaluates source text."
         ],
         "processingNotes": [
           "Operates on blocks; blocks with empty source text are skipped.",
-          "Without a resolved profile or termbase, no findings are produced.",
+          "Without a resolved profile or terms, no findings are produced.",
           "Findings are stored on the block and a brand-voice annotation with an overall score is attached."
         ],
         "examples": [
           {
             "title": "Add to a flow",
-            "description": "The voice profile and termbase are supplied programmatically; reference the tool with an empty configuration.",
+            "description": "The voice profile and terms are supplied programmatically; reference the tool with an empty configuration.",
             "config": "{}\n"
           }
         ]
@@ -1223,7 +1223,7 @@
         }
       },
       "doc": {
-        "overview": "The **Do-Not-Translate Check** tool guards terms that must reach the target\nunchanged — product names, trademarks, code identifiers. For each configured\nterm that appears in the source as a whole word, it verifies the term is\npresent verbatim in the target; when it is missing, the block is flagged with a\ncritical finding (the \"the AI translated your product name\" case). It is\nread-only: it annotates findings and never rewrites content.\n\nThe list of protected terms is supplied programmatically rather than as a\nschema field — a project, recipe, or checkset provides them, and the termbase\ncan contribute more. A target locale is required; blocks without a target for\nthat locale are skipped. The only schema-level option controls whether a\ncase-folded match in the target is accepted.\n",
+        "overview": "The **Do-Not-Translate Check** tool guards terms that must reach the target\nunchanged — product names, trademarks, code identifiers. For each configured\nterm that appears in the source as a whole word, it verifies the term is\npresent verbatim in the target; when it is missing, the block is flagged with a\ncritical finding (the \"the AI translated your product name\" case). It is\nread-only: it annotates findings and never rewrites content.\n\nThe list of protected terms is supplied programmatically rather than as a\nschema field — a project, recipe, or checkset provides them, and the terms store\ncan contribute more. A target locale is required; blocks without a target for\nthat locale are skipped. The only schema-level option controls whether a\ncase-folded match in the target is accepted.\n",
         "parameters": {
           "caseInsensitive": {
             "description": "Accept a case-folded match in the target instead of requiring exact case.",
@@ -2689,7 +2689,7 @@
       "source": "built-in",
       "kind": "tool",
       "displayName": "Recycle",
-      "description": "Pre-fill translations from a translation memory using exact and fuzzy matching.",
+      "description": "Pre-fill translations from a content memory using exact and fuzzy matching.",
       "category": "translation",
       "tags": [
         "translation",
@@ -2795,7 +2795,7 @@
           "noQueryThreshold": {
             "type": "integer",
             "title": "No-Query Threshold",
-            "description": "Skip TM query if existing candidate scores at or above this value (101 = always query)",
+            "description": "Skip content-memory query if existing candidate scores at or above this value (101 = always query)",
             "default": 101,
             "minimum": 0,
             "maximum": 101
@@ -2808,11 +2808,11 @@
         }
       },
       "doc": {
-        "overview": "The **Recycle** tool queries a translation memory (TM) for each block's\nsource text and pre-fills the target with the best match. It tries an exact\nmatch first, then a fuzzy match above a configurable threshold, recording the\nmatch score and type (`exact` or `fuzzy`) on the block. It requires a target\nlanguage and a TM provider; without a TM the tool has nothing to leverage.\n\nWhether a match is written into the target is governed by a fill threshold\nand an \"only if empty\" option, so high-confidence matches can be applied while\nweaker ones are recorded but left for review. A no-query threshold lets the\ntool skip the TM lookup when an existing candidate already scores high enough.\nOptionally, all leveraged matches can be written to a TMX file.\n",
+        "overview": "The **Recycle** tool queries a content memory (Memory) for each block's\nsource text and pre-fills the target with the best match. It tries an exact\nmatch first, then a fuzzy match above a configurable threshold, recording the\nmatch score and type (`exact` or `fuzzy`) on the block. It requires a target\nlanguage and a content-memory provider; without a content memory the tool has nothing to leverage.\n\nWhether a match is written into the target is governed by a fill threshold\nand an \"only if empty\" option, so high-confidence matches can be applied while\nweaker ones are recorded but left for review. A no-query threshold lets the\ntool skip the content-memory lookup when an existing candidate already scores high enough.\nOptionally, all leveraged matches can be written to a TMX file.\n",
         "parameters": {
           "downgradeIdenticalBestMatches": {
             "description": "Reduce the score when multiple identical exact matches exist.",
-            "help": "When enabled, an exact match is scored 99 instead of 100 if the TM returns\nmultiple identical best matches, flagging the ambiguity for review.\n",
+            "help": "When enabled, an exact match is scored 99 instead of 100 if the content memory returns\nmultiple identical best matches, flagging the ambiguity for review.\n",
             "values": "`true` / `false` (default `false`)"
           },
           "fillIfTargetIsEmpty": {
@@ -2838,7 +2838,7 @@
           },
           "fuzzyThreshold": {
             "description": "Minimum score for a fuzzy match to be considered.",
-            "help": "The lowest fuzzy-match score (0-100) the TM lookup will return. Matches\nbelow this score are ignored.\n",
+            "help": "The lowest fuzzy-match score (0-100) the content-memory lookup will return. Matches\nbelow this score are ignored.\n",
             "values": "integer 0-100 (default `70`)"
           },
           "makeTmx": {
@@ -2853,8 +2853,8 @@
             ]
           },
           "noQueryThreshold": {
-            "description": "Skip the TM query when an existing candidate scores high enough.",
-            "help": "If the block already carries a match score at or above this value, the TM\nlookup is skipped. The default of 101 means the TM is always queried.\n",
+            "description": "Skip the content memory query when an existing candidate scores high enough.",
+            "help": "If the block already carries a match score at or above this value, the content memory\nlookup is skipped. The default of 101 means the content memory is always queried.\n",
             "values": "integer 0-101 (default `101`)"
           },
           "tmxPath": {
@@ -2870,12 +2870,12 @@
           }
         },
         "limitations": [
-          "Requires a target language and a TM provider; with no TM there is nothing to leverage."
+          "Requires a target language and a content-memory provider; with no Memory there is nothing to leverage."
         ],
         "processingNotes": [
           "Operates on translatable blocks with a non-empty source; other parts pass through unchanged.",
           "Exact matches are tried before fuzzy matches; the match score and type are recorded as block properties.",
-          "With a structure-aware TM provider, matching runs against the block's inline-code structure and fills carry the matched entry's runs, so markup placeholders survive the fill; a 100% match means text and structure agree.",
+          "With a structure-aware content-memory provider, matching runs against the block's inline-code structure and fills carry the matched entry's runs, so markup placeholders survive the fill; a 100% match means text and structure agree.",
           "Ambiguous matches (several full-score entries with differing targets) are recorded but never fill the target — the choice surfaces for review instead of being picked by storage order."
         ],
         "examples": [
@@ -3776,7 +3776,7 @@
         }
       },
       "doc": {
-        "overview": "The **Segmentation** tool splits a block's text into sentence-level segments.\nSegmentation determines the unit of translation and of translation-memory\nmatching, so consistent segmentation is important for leverage and review.\nBy default the tool segments source text using built-in SRX-style rules that\nhandle common sentence boundaries and abbreviations; rules can also be loaded\nfrom an SRX file.\n\nThe number of segments produced is recorded on each block. Already-segmented\ntext is left alone unless re-segmentation is requested. Target text can be\nsegmented independently, with its own rules file.\n",
+        "overview": "The **Segmentation** tool splits a block's text into sentence-level segments.\nSegmentation determines the unit of translation and of content-memory\nmatching, so consistent segmentation is important for leverage and review.\nBy default the tool segments source text using built-in SRX-style rules that\nhandle common sentence boundaries and abbreviations; rules can also be loaded\nfrom an SRX file.\n\nThe number of segments produced is recorded on each block. Already-segmented\ntext is left alone unless re-segmentation is requested. Target text can be\nsegmented independently, with its own rules file.\n",
         "parameters": {
           "overwriteSegmentation": {
             "description": "Re-segment already-segmented text.",
@@ -4090,7 +4090,7 @@
         }
       },
       "doc": {
-        "overview": "The **Terminology Check** tool checks each translation against a glossary of\nsource/target term pairs. For every entry, if the source term occurs in the\nblock's source text, the tool verifies that the required target term occurs in\nthe translation; when it does not, the block is flagged and the missing\nexpectations are recorded on its properties. A target locale is required, and a\ntermbase or glossary supplies the term pairs.\n\nThe glossary is supplied programmatically rather than as a schema field, so the\ntool is typically wired up by the host application or a project that binds a\ntermbase. The only schema-level option controls whether term matching respects\nletter case.\n",
+        "overview": "The **Terminology Check** tool checks each translation against a glossary of\nsource/target term pairs. For every entry, if the source term occurs in the\nblock's source text, the tool verifies that the required target term occurs in\nthe translation; when it does not, the block is flagged and the missing\nexpectations are recorded on its properties. A target locale is required, and a\nterms or glossary supplies the term pairs.\n\nThe glossary is supplied programmatically rather than as a schema field, so the\ntool is typically wired up by the host application or a project that binds a\nterms. The only schema-level option controls whether term matching respects\nletter case.\n",
         "parameters": {
           "caseSensitive": {
             "description": "Whether term matching is case-sensitive.",
@@ -4101,7 +4101,7 @@
         "limitations": [
           "The glossary of term pairs is configured programmatically; it is not exposed as a schema parameter.",
           "Matching is substring-based; it does not account for inflection or morphology.",
-          "Requires a configured target locale and a termbase; blocks without a translation are skipped."
+          "Requires a configured target locale and a terms store; blocks without a translation are skipped."
         ],
         "processingNotes": [
           "Operates on translatable blocks; non-translatable structure passes through unchanged.",

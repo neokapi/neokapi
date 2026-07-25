@@ -2,7 +2,7 @@ package tools_test
 
 import (
 	"reflect"
-	"sort"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -50,7 +50,7 @@ func builtInNames(t *testing.T, reg *registry.ToolRegistry) []registry.ToolID {
 			names = append(names, info.Name)
 		}
 	}
-	sort.Slice(names, func(i, j int) bool { return names[i] < names[j] })
+	slices.Sort(names)
 	require.NotEmpty(t, names)
 	return names
 }
@@ -170,7 +170,7 @@ func TestBilingualToolsTakeTheirLocaleFromTheRun(t *testing.T) {
 			continue
 		}
 		f := v.FieldByName("TargetLocale")
-		if !f.IsValid() || f.Type() != reflect.TypeOf(model.LocaleID("")) {
+		if !f.IsValid() || f.Type() != reflect.TypeFor[model.LocaleID]() {
 			continue
 		}
 		checked++

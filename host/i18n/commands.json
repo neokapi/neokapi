@@ -8,7 +8,7 @@
         },
         "apply": {
           "example": "  kapi inspect report.docx --jsonl | edit-the-text | kapi apply\n  kapi apply changeset.jsonl\n  kapi apply changeset.jsonl --diff\n  kapi status --review --json | approve-units | kapi apply\n  kapi apply changeset.jsonl --in-place=.bak",
-          "long": "Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is\none reviewed change — a content edit, an asset edit (glossary term, TM pair,\nbrand rule, recipe field), or a review decision (kind:\"review\"). Content edits\nland through the same byte-faithful round-trip the engine's writers use (structure and\ninline codes preserved), drift-guarded by content_hash; asset edits are written\ninto their committed source artifact and the existing import compiles them into\nthe cache; a review decision is recorded in the project state store.\n\nA TM pair (kind:\"tm\") is recycle leverage for future translation — it does not\npromote a unit to reviewed. To approve a translated unit, use a kind:\"review\"\nentry addressed by its file/id/locale (as 'kapi status --review' lists it), with\nstatus \"reviewed\" (default) or \"signed-off\"; the decision lands in the project\nstate store (defaults.state, default .kapi-state.json) and is bound to the\ntranslation's content hash, so a later edit drops the unit back below reviewed.\n\nThe change-set is JSONL (one entry per line), read from CHANGESET or, with no\nargument or \"-\", from standard input. Content entries name their own file, so\napply writes those files in place; --diff previews the content changes and\nwrites nothing. No AI provider is required.",
+          "long": "Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is\none reviewed change — a content edit, an asset edit (glossary term, content-memory pair,\nbrand rule, recipe field), or a review decision (kind:\"review\"). Content edits\nland through the same byte-faithful round-trip the engine's writers use (structure and\ninline codes preserved), drift-guarded by content_hash; asset edits are written\ninto their committed source artifact and the existing import compiles them into\nthe cache; a review decision is recorded in the project state store.\n\nA content memory pair (kind:\"tm\") is recycle leverage for future translation — it does not\npromote a unit to reviewed. To approve a translated unit, use a kind:\"review\"\nentry addressed by its file/id/locale (as 'kapi status --review' lists it), with\nstatus \"reviewed\" (default) or \"signed-off\"; the decision lands in the project\nstate store (defaults.state, default .kapi-state.json) and is bound to the\ntranslation's content hash, so a later edit drops the unit back below reviewed.\n\nThe change-set is JSONL (one entry per line), read from CHANGESET or, with no\nargument or \"-\", from standard input. Content entries name their own file, so\napply writes those files in place; --diff previews the content changes and\nwrites nothing. No AI provider is required.",
           "short": "Apply a typed change-set (content + asset edits) — the one write verb"
         },
         "brand": {
@@ -130,7 +130,7 @@
           "inline-codes-remove": {
             "short": "Inline Codes Remove"
           },
-          "long": "Execute any CLI-visible registry tool on files — one tool, one pass, no\nguardrails around it. The top-level verbs are porcelain workflows over this\nlayer: 'kapi translate' wraps recycle → translate → checks, 'kapi up'\nbrings a whole project up to date, 'kapi check' verifies, 'kapi stats' measures.\nReach for exec when you want exactly one tool's behavior — a bare\n'exec translate' with no TM pass, a single 'exec term-check', a format\nconverter. The verb pairs with 'kapi run \u003cflow\u003e' the way 'kapi tools' pairs\nwith 'kapi flows': run composes a pipeline, exec executes one tool.\n\nDiscover tools and their options with 'kapi tools list' and\n'kapi tools schema \u003cname\u003e'.",
+          "long": "Execute any CLI-visible registry tool on files — one tool, one pass, no\nguardrails around it. The top-level verbs are porcelain workflows over this\nlayer: 'kapi translate' wraps recycle → translate → checks, 'kapi up'\nbrings a whole project up to date, 'kapi check' verifies, 'kapi stats' measures.\nReach for exec when you want exactly one tool's behavior — a bare\n'exec translate' with no Memory pass, a single 'exec term-check', a format\nconverter. The verb pairs with 'kapi run \u003cflow\u003e' the way 'kapi tools' pairs\nwith 'kapi flows': run composes a pipeline, exec executes one tool.\n\nDiscover tools and their options with 'kapi tools list' and\n'kapi tools schema \u003cname\u003e'.",
           "media-refine": {
             "short": "Re-read low-confidence OCR/ASR lines with a configurable multimodal LLM"
           },
@@ -240,7 +240,7 @@
           "short": "Report a project's packable state, or a .kpz archive's contents"
         },
         "init": {
-          "long": "Create a new kapi project with a kapi.yaml recipe and an\nadjacent .kapi/ state directory.\n\nBy default kapi init scaffolds a content project that keeps your source on\nbrand — a brand-voice profile, the project termbase, and a check flow, with no\ntarget languages. Pass --target-locale (or --framework) to make it a\ntranslation project instead.\n\nThe project id defaults to the current directory's basename and the source\nlocale to en. Override with --name, --source-locale, --target-locale\n(repeatable).\n\n--preset \u003cname\u003e (alias: --framework) pre-fills the content mapping for a known\nstack's i18n catalogs: react-i18next, react-intl, nextjs, vue-i18n, flutter,\nangular — and scaffolds the translation project. List every preset (framework\nscaffolds plus per-format parsing presets) with --list-presets.",
+          "long": "Create a new kapi project with a kapi.yaml recipe and an\nadjacent .kapi/ state directory.\n\nBy default kapi init scaffolds a content project that keeps your source on\nbrand — a brand-voice profile, the project terms store, and a check flow, with no\ntarget languages. Pass --target-locale (or --framework) to make it a\ntranslation project instead.\n\nThe project id defaults to the current directory's basename and the source\nlocale to en. Override with --name, --source-locale, --target-locale\n(repeatable).\n\n--preset \u003cname\u003e (alias: --framework) pre-fills the content mapping for a known\nstack's i18n catalogs: react-i18next, react-intl, nextjs, vue-i18n, flutter,\nangular — and scaffolds the translation project. List every preset (framework\nscaffolds plus per-format parsing presets) with --list-presets.",
           "short": "Scaffold a new kapi project in the current directory"
         },
         "inspect": {
@@ -270,6 +270,56 @@
         },
         "mcp": {
           "short": "Start MCP server (stdio) exposing kapi's content tools (read, edit, check, brand, localize)"
+        },
+        "memory": {
+          "audit": {
+            "long": "Show every content-memory entry written (or updated) by a specific kapi merge batch,\nso you can see what a particular return from a translator contributed to\nthe project content memory.\n\nOrigin provenance is stamped by kapi merge (source=\"merge\",\nreference=\u003cbatch-id\u003e, key=\u003csource-rel\u003e). Audit iterates the project content memory,\nsurfaces only TUs with at least one matching Origin, and prints\nsource file, block hash, timestamp, and the originating XLIFF filename.\n\nExamples:\n\n  kapi memory audit --batch \u003cbatch-id\u003e             # full listing\n  kapi memory audit --batch \u003cbatch-id\u003e --limit 50  # cap rows\n\nUse \"kapi memory stats\" for global content-memory metrics (entry counts, per-locale\nbreakdown). Audit is narrow by design — it answers \"what did this\nmerge do?\".\n",
+            "short": "Trace content-memory entries by merge batch id"
+          },
+          "example": "  kapi memory stats\n  kapi memory lookup \"welcome back\" -s en -t fr\n  kapi memory import corpus.tmx -s en -t fr",
+          "export": {
+            "long": "Export the content memory to TMX 1.4 (default) or the native .kmb / .kmz form.\n\nTMX: each entry is written as a single \u003ctu\u003e with one \u003ctuv\u003e per language\nvariant present (or the subset requested via --locales). Inline markup is\npreserved as TMX \u003cph\u003e/\u003cbpt\u003e/\u003cept\u003e/\u003cit\u003e/\u003chi\u003e. TMX is the lossy interchange\ntier — entity mappings, provenance origins, properties, and notes are\ndropped.\n\nkmb (--format kmb, or a -o path ending in .kmb): the deterministic,\nlossless native serialization — the right form for committing a content memory to git\nand for seeding a fresh content memory exactly. --locales does not apply.\n\nkmz (--format kmz, or a -o path ending in .kmz): the same bundle inside a\ncompressed single-member container — the at-rest/handoff form for a large content memory.",
+            "short": "Export content memory to TMX, .kmb, or .kmz"
+          },
+          "import": {
+            "example": "  kapi memory import corpus.tmx -s en -t fr\n  kapi memory import corpus.tmx --all-pairs --locales en,fr,de --name my-tm\n  kapi memory import seeds/builtins-nb.kmb",
+            "long": "Import a single TMX file (plain or .gz), a native .kmb bundle, or a\n.kmz archive into the content memory.\n\nkmb (Kapi Memory Bundle) is the native content-memory form: a deterministic, lossless JSON\nserialization that round-trips every Entry field (entity mappings,\nprovenance origins, properties, notes) that TMX drops. Importing a .kmb\npreserves entry identity verbatim, so re-seeding a content memory from committed .kmb\nfiles is fully reproducible. A .kmz (Kapi Memory Archive) is the same bundle\ninside a compressed single-member container. The format is selected by file\nextension; --format overrides.\n\nBy default, imports entries matching the given --source-locale and --target-locale.\nUse --all-pairs to emit entries for every (src, tgt) language pair present in\neach TU — useful for multilingual TMX files (e.g. EUR-Lex Euramis exports where\na single TU may contain 24+ languages). Combine with --locales to restrict the\npair set (e.g. --all-pairs --locales en-GB,fr-FR,de-DE).\n\nThe importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work\nwithout pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV\n\u003cprop type=\"source-document\"\u003e URL is recorded as Origin.Reference.",
+            "short": "Import a TMX, .kmb, or .kmz file into content memory"
+          },
+          "import-dir": {
+            "long": "Walk a directory and import every matching TMX file into the content memory.\n\nAuto-detects plain .tmx and gzipped .tmx.gz files. The filename (without path)\nbecomes the Origin.Key on each imported entry so you can trace which file a\nsegment came from.\n\nBy default, imports entries matching --source-locale and --target-locale from\nevery file. Use --pattern to filter (glob against filename) and --all-pairs to\nemit the full language cross-product from multilingual files.\n\nExamples:\n  kapi memory import-dir ./tmx --name corpus --source-locale en --target-locale nb --pattern \"*en-nb*\"\n  kapi memory import-dir ./eurlex --name corpus --all-pairs --locales en-GB,fr-FR,de-DE",
+            "short": "Import all TMX files from a directory into content memory"
+          },
+          "list": {
+            "short": "List named Memories in KAPI_HOME"
+          },
+          "long": "Manage content memory.\n\nA content memory stores previously produced content — source segments with the\ntargets settled for them — as a SQLite database. Use these commands to\nimport/export TMX, look up matches, and manage entries.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named content memory in KAPI_HOME (~/.config/kapi/tm/\u003cn\u003e.db)\n  --local         Content memory in current directory (./tm.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./tm.db).",
+          "lookup": {
+            "example": "  kapi memory lookup \"welcome back\" -s en -t fr\n  kapi memory lookup \"save\" -s en -t de --min-score 0.8",
+            "short": "Look up text in content memory"
+          },
+          "search": {
+            "example": "  kapi memory search \"dashboard\" -s en -t fr\n  kapi memory search \"settings\" --limit 5",
+            "short": "Search content memory entries"
+          },
+          "sessions": {
+            "delete": {
+              "short": "Remove a session record (entries are retained, session_id cleared)"
+            },
+            "list": {
+              "short": "List all import sessions"
+            },
+            "long": "An import session is created every time a TMX file is imported.\nEach session records the file's SHA-256 hash, TMX header metadata, and the\nnumber of entries imported. Origins on content-memory entries point back to the session\nthat added them so you can filter the content memory by import source.",
+            "short": "Manage TMX import sessions",
+            "show": {
+              "short": "Show details for a single import session"
+            }
+          },
+          "short": "Manage content memory",
+          "stats": {
+            "example": "  kapi memory stats\n  kapi memory stats --name my-tm",
+            "short": "Show content memory statistics"
+          }
         },
         "merge": {
           "example": "  kapi merge                     # materialize localized files from the project store\n  kapi merge -i out/app.en-US-to-fr-FR.xliff\n  kapi merge -i file1.xliff -i file2.xliff\n  kapi merge -i vendor-return/ --no-tm-update\n  kapi merge work.kpz -o l10n/   # emit localized files from a .kpz workspace",
@@ -321,7 +371,7 @@
         },
         "pack": {
           "example": "  kapi pack -o snapshot.kpz   # a kapi project\n  kapi pack work.kpz         # eject a .kpz workspace's cache",
-          "long": "Snapshot a kapi project's working state — the block-store overlays, the\nauthoritative translation memory, and the termbase — into a portable .kpz.\nRegenerable caches and secrets are excluded. Move the snapshot to another\nmachine and \"kapi unpack\" it to resume work there.",
+          "long": "Snapshot a kapi project's working state — the block-store overlays, the\nauthoritative content memory, and the terms store — into a portable .kpz.\nRegenerable caches and secrets are excluded. Move the snapshot to another\nmachine and \"kapi unpack\" it to resume work there.",
           "short": "Snapshot a kapi project's working state into a .kpz"
         },
         "plugin": {
@@ -414,81 +464,31 @@
             "short": "Show whether telemetry is enabled, why, and the exact payload shape"
           }
         },
-        "termbase": {
-          "example": "  kapi termbase stats\n  kapi termbase lookup \"dashboard\" -s en -t fr\n  kapi termbase import glossary.csv -s en -t fr",
+        "terms": {
+          "example": "  kapi terms stats\n  kapi terms lookup \"dashboard\" -s en -t fr\n  kapi terms import glossary.csv -s en -t fr",
           "export": {
-            "short": "Export termbase to CSV, JSON, TBX, or a native .ktb / .ktz bundle"
+            "short": "Export terms to CSV, JSON, TBX, or a native .ktb / .ktz bundle"
           },
           "import": {
-            "example": "  kapi termbase import glossary.csv -s en -t fr --header\n  kapi termbase import vocab.csv -s en --monolingual --header\n  kapi termbase import terms.tbx --format tbx\n  kapi termbase import seeds/termbase.ktb\n  kapi termbase import seeds/termbase.ktz",
+            "example": "  kapi terms import glossary.csv -s en -t fr --header\n  kapi terms import vocab.csv -s en --monolingual --header\n  kapi terms import terms.tbx --format tbx\n  kapi terms import seeds/termbase.ktb\n  kapi terms import seeds/terms.ktz",
             "short": "Import terms from CSV, JSON, TBX, or a native .ktb / .ktz bundle"
           },
           "list": {
-            "short": "List named termbases in KAPI_HOME"
+            "short": "List named terms stores in KAPI_HOME"
           },
-          "long": "Manage project terminology.\n\nA termbase is a glossary of approved terms stored as a SQLite database.\nUse these commands to import, export, look up, and manage terms.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named termbase in KAPI_HOME (~/.config/kapi/termbases/\u003cn\u003e.db)\n  --local         Termbase in current directory (./termbase.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./termbase.db).",
+          "long": "Manage project terminology.\n\nA terms store holds approved terminology — concepts and their renderings per\nlocale — as a SQLite database. Use these commands to import, export, look up,\nand manage terms.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named terms store in KAPI_HOME (~/.config/kapi/termbases/\u003cn\u003e.db)\n  --local         Terms store in current directory (./termbase.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./termbase.db).",
           "lookup": {
-            "example": "  kapi termbase lookup \"dashboard\" -s en -t fr\n  kapi termbase lookup \"settings\" -s en -t de --fuzzy",
-            "short": "Look up a term in the termbase"
+            "example": "  kapi terms lookup \"dashboard\" -s en -t fr\n  kapi terms lookup \"settings\" -s en -t de --fuzzy",
+            "short": "Look up a term in the terms store"
           },
           "search": {
-            "example": "  kapi termbase search \"encrypt\" -s en\n  kapi termbase search \"log in\" -s en -t fr",
-            "short": "Search concepts in the termbase"
+            "example": "  kapi terms search \"encrypt\" -s en\n  kapi terms search \"log in\" -s en -t fr",
+            "short": "Search concepts in the terms store"
           },
           "short": "Manage terminology",
           "stats": {
-            "example": "  kapi termbase stats\n  kapi termbase stats --name product-terms",
-            "short": "Show termbase statistics"
-          }
-        },
-        "tm": {
-          "audit": {
-            "long": "Show every TM entry written (or updated) by a specific kapi merge batch,\nso you can see what a particular return from a translator contributed to\nthe project TM.\n\nOrigin provenance is stamped by kapi merge (source=\"merge\",\nreference=\u003cbatch-id\u003e, key=\u003csource-rel\u003e). Audit iterates the project TM,\nsurfaces only TUs with at least one matching Origin, and prints\nsource file, block hash, timestamp, and the originating XLIFF filename.\n\nExamples:\n\n  kapi tm audit --batch \u003cbatch-id\u003e             # full listing\n  kapi tm audit --batch \u003cbatch-id\u003e --limit 50  # cap rows\n\nUse \"kapi tm stats\" for global TM metrics (entry counts, per-locale\nbreakdown). Audit is narrow by design — it answers \"what did this\nmerge do?\".\n",
-            "short": "Trace TM entries by merge batch id"
-          },
-          "example": "  kapi tm stats\n  kapi tm lookup \"welcome back\" -s en -t fr\n  kapi tm import corpus.tmx -s en -t fr",
-          "export": {
-            "long": "Export the TM to TMX 1.4 (default) or the native .kmb / .kmz form.\n\nTMX: each entry is written as a single \u003ctu\u003e with one \u003ctuv\u003e per language\nvariant present (or the subset requested via --locales). Inline markup is\npreserved as TMX \u003cph\u003e/\u003cbpt\u003e/\u003cept\u003e/\u003cit\u003e/\u003chi\u003e. TMX is the lossy interchange\ntier — entity mappings, provenance origins, properties, and notes are\ndropped.\n\nkmb (--format kmb, or a -o path ending in .kmb): the deterministic,\nlossless native serialization — the right form for committing a TM to git\nand for seeding a fresh TM exactly. --locales does not apply.\n\nkmz (--format kmz, or a -o path ending in .kmz): the same bundle inside a\ncompressed single-member container — the at-rest/handoff form for a large TM.",
-            "short": "Export translation memory to TMX, .kmb, or .kmz"
-          },
-          "import": {
-            "example": "  kapi tm import corpus.tmx -s en -t fr\n  kapi tm import corpus.tmx --all-pairs --locales en,fr,de --name my-tm\n  kapi tm import seeds/builtins-nb.kmb",
-            "long": "Import a single TMX file (plain or .gz), a native .kmb bundle, or a\n.kmz archive into the TM.\n\nkmb (Kapi Memory Bundle) is the native TM form: a deterministic, lossless JSON\nserialization that round-trips every TMEntry field (entity mappings,\nprovenance origins, properties, notes) that TMX drops. Importing a .kmb\npreserves entry identity verbatim, so re-seeding a TM from committed .kmb\nfiles is fully reproducible. A .kmz (Kapi Memory Archive) is the same bundle\ninside a compressed single-member container. The format is selected by file\nextension; --format overrides.\n\nBy default, imports entries matching the given --source-locale and --target-locale.\nUse --all-pairs to emit entries for every (src, tgt) language pair present in\neach TU — useful for multilingual TMX files (e.g. EUR-Lex Euramis exports where\na single TU may contain 24+ languages). Combine with --locales to restrict the\npair set (e.g. --all-pairs --locales en-GB,fr-FR,de-DE).\n\nThe importer auto-detects UTF-8/UTF-16 from the BOM, so Euramis exports work\nwithout pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV\n\u003cprop type=\"source-document\"\u003e URL is recorded as Origin.Reference.",
-            "short": "Import a TMX, .kmb, or .kmz file into translation memory"
-          },
-          "import-dir": {
-            "long": "Walk a directory and import every matching TMX file into the TM.\n\nAuto-detects plain .tmx and gzipped .tmx.gz files. The filename (without path)\nbecomes the Origin.Key on each imported entry so you can trace which file a\nsegment came from.\n\nBy default, imports entries matching --source-locale and --target-locale from\nevery file. Use --pattern to filter (glob against filename) and --all-pairs to\nemit the full language cross-product from multilingual files.\n\nExamples:\n  kapi tm import-dir ./tmx --name corpus --source-locale en --target-locale nb --pattern \"*en-nb*\"\n  kapi tm import-dir ./eurlex --name corpus --all-pairs --locales en-GB,fr-FR,de-DE",
-            "short": "Import all TMX files from a directory into translation memory"
-          },
-          "list": {
-            "short": "List named TMs in KAPI_HOME"
-          },
-          "long": "Manage translation memory.\n\nA translation memory (TM) stores previously translated segments as a SQLite\ndatabase. Use these commands to import/export TMX, look up matches, and manage\nTM entries.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named TM in KAPI_HOME (~/.config/kapi/tm/\u003cn\u003e.db)\n  --local         TM in current directory (./tm.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./tm.db).",
-          "lookup": {
-            "example": "  kapi tm lookup \"welcome back\" -s en -t fr\n  kapi tm lookup \"save\" -s en -t de --min-score 0.8",
-            "short": "Look up text in translation memory"
-          },
-          "search": {
-            "example": "  kapi tm search \"dashboard\" -s en -t fr\n  kapi tm search \"settings\" --limit 5",
-            "short": "Search translation memory entries"
-          },
-          "sessions": {
-            "delete": {
-              "short": "Remove a session record (entries are retained, session_id cleared)"
-            },
-            "list": {
-              "short": "List all import sessions"
-            },
-            "long": "An import session is created every time a TMX file is imported.\nEach session records the file's SHA-256 hash, TMX header metadata, and the\nnumber of entries imported. Origins on TM entries point back to the session\nthat added them so you can filter the TM by import source.",
-            "short": "Manage TMX import sessions",
-            "show": {
-              "short": "Show details for a single import session"
-            }
-          },
-          "short": "Manage translation memory",
-          "stats": {
-            "example": "  kapi tm stats\n  kapi tm stats --name my-tm",
-            "short": "Show translation memory statistics"
+            "example": "  kapi terms stats\n  kapi terms stats --name product-terms",
+            "short": "Show terms statistics"
           }
         },
         "tools": {
@@ -505,16 +505,16 @@
         },
         "translate": {
           "example": "  kapi translate messages.json --target-lang fr\n  kapi translate docs/*.md --target-lang de -o out/{name}_{lang}.{ext}\n  kapi translate app.xliff --target-lang ja --provider ollama",
-          "long": "Translate files through the built-in translate flow: leverage a bound\ntranslation memory first (a no-op without one), translate the rest with the\nconfigured AI provider, then run the deterministic checks (placeholders,\ninline tags, untranslated text) over what was produced.\n\nThis is the guardrailed spelling — the same three-step flow 'kapi up' loops\nover a project, applied to ad-hoc files. The raw translate tool (no TM pass,\nno checks) stays available as 'kapi exec translate'. To bring a whole project\nup to date, use 'kapi up'.",
-          "short": "Translate files with guardrails — TM reuse, AI translate, then checks"
+          "long": "Translate files through the built-in translate flow: leverage a bound\ncontent memory first (a no-op without one), translate the rest with the\nconfigured AI provider, then run the deterministic checks (placeholders,\ninline tags, untranslated text) over what was produced.\n\nThis is the guardrailed spelling — the same three-step flow 'kapi up' loops\nover a project, applied to ad-hoc files. The raw translate tool (no Memory pass,\nno checks) stays available as 'kapi exec translate'. To bring a whole project\nup to date, use 'kapi up'.",
+          "short": "Translate files with guardrails — content memory reuse, AI translate, then checks"
         },
         "unpack": {
           "example": "  kapi unpack snapshot.kpz",
           "short": "Rehydrate a project's working state from a .kpz snapshot"
         },
         "up": {
-          "example": "  kapi up                # loop the default flow until every gated scope ships or parks\n  kapi up --plan         # dry run: pending work, TM leverage, and a token estimate per locale\n  kapi up --passes 1     # a single pass over every locale that needs work\n  kapi up --materialize  # also write localized files for the shippable locales\n  kapi up --local        # connected project: run the loop on this machine, then push the results\n  kapi up -p kapi.yaml   # bring an explicit project recipe up to date",
-          "long": "Bring the project up to date: the recipe declares the languages, the flow, and\nthe gates that decide shippable; kapi up runs the project's default flow\n(defaults.flow) over every target language, looping until every gated scope is\nshippable or parked for a human.\n\nWithout defaults.flow, up runs the built-in default flow — TM reuse (recycle)\nfollowed by AI translate — so a recipe needs no flow YAML at all to catch up.\nSetting defaults.flow replaces the built-in default.\n\nBefore each pass, up re-syncs the project block store with the working tree:\nedited source files, a store written by another kapi version, or a missing\nstore trigger a re-extraction (the same shared path behind the desktop's\nRe-extract). --no-extract opts out.\n\nEach pass re-derives coverage from the working tree, runs the flow only for\nthe locales still short of their gate, and stops when everything ships, a pass\nmakes no progress (the remainder parks — it needs a human), or the pass cap is\nreached. After each pass the project's bound checks run over what was\nproduced: a unit with failing findings (dropped placeholders, glossary\nviolations) counts as drafted, not translated, so it cannot lift its locale\nover the gate until fixed. --no-checks opts out.\n\nWhen the loop ends, the materialize policy decides whether localized files\nare written from the project store: 'defaults.materialize: on-converge' (or\nthe --materialize flag) writes them for every locale whose gated scopes are\nall shippable; the default ('manual') leaves that to 'kapi merge'.\n\nVenue: in a server-connected project (a recipe with a server: block, with the\nbowrain plugin installed) the loop runs on the Bowrain server by default — on\nthe org's keys, against the org's shared TM and terminology — and this command\npushes local changes, streams the server run's live progress, and pulls the\nproduced targets. --local keeps the loop on this machine and then pushes the\nresults so the server never goes stale; --server fails rather than falling\nback to a local run. The resolved venue is printed first whenever a server:\nblock is present. Without a server: block, up is purely local.\n\n--plan is a dry run in every venue: instead of running anything, up reports\nthe pending work per (collection, locale) — units missing a target, exact TM\nleverage, the remaining AI work, and a rough token estimate — computed locally\nagainst the working tree, with no provider calls and no writes. Combine with\n--json for agents.\n\nup never fails the build on target drift: parked, pending target content is\nnormal toil, reported rather than thrown. Use 'kapi status' to inspect\nstanding without running anything, and 'kapi check --ship' to enforce the\ngates (e.g. before a release tag).\n\n--passes 1 runs a single pass (the behavior of the bare 'kapi run');\n--passes N caps the loop at N passes.",
+          "example": "  kapi up                # loop the default flow until every gated scope ships or parks\n  kapi up --plan         # dry run: pending work, content-memory leverage, and a token estimate per locale\n  kapi up --passes 1     # a single pass over every locale that needs work\n  kapi up --materialize  # also write localized files for the shippable locales\n  kapi up --local        # connected project: run the loop on this machine, then push the results\n  kapi up -p kapi.yaml   # bring an explicit project recipe up to date",
+          "long": "Bring the project up to date: the recipe declares the languages, the flow, and\nthe gates that decide shippable; kapi up runs the project's default flow\n(defaults.flow) over every target language, looping until every gated scope is\nshippable or parked for a human.\n\nWithout defaults.flow, up runs the built-in default flow — Memory reuse (recycle)\nfollowed by AI translate — so a recipe needs no flow YAML at all to catch up.\nSetting defaults.flow replaces the built-in default.\n\nBefore each pass, up re-syncs the project block store with the working tree:\nedited source files, a store written by another kapi version, or a missing\nstore trigger a re-extraction (the same shared path behind the desktop's\nRe-extract). --no-extract opts out.\n\nEach pass re-derives coverage from the working tree, runs the flow only for\nthe locales still short of their gate, and stops when everything ships, a pass\nmakes no progress (the remainder parks — it needs a human), or the pass cap is\nreached. After each pass the project's bound checks run over what was\nproduced: a unit with failing findings (dropped placeholders, glossary\nviolations) counts as drafted, not translated, so it cannot lift its locale\nover the gate until fixed. --no-checks opts out.\n\nWhen the loop ends, the materialize policy decides whether localized files\nare written from the project store: 'defaults.materialize: on-converge' (or\nthe --materialize flag) writes them for every locale whose gated scopes are\nall shippable; the default ('manual') leaves that to 'kapi merge'.\n\nVenue: in a server-connected project (a recipe with a server: block, with the\nbowrain plugin installed) the loop runs on the Bowrain server by default — on\nthe org's keys, against the org's shared Memory and terminology — and this command\npushes local changes, streams the server run's live progress, and pulls the\nproduced targets. --local keeps the loop on this machine and then pushes the\nresults so the server never goes stale; --server fails rather than falling\nback to a local run. The resolved venue is printed first whenever a server:\nblock is present. Without a server: block, up is purely local.\n\n--plan is a dry run in every venue: instead of running anything, up reports\nthe pending work per (collection, locale) — units missing a target, exact Memory\nleverage, the remaining AI work, and a rough token estimate — computed locally\nagainst the working tree, with no provider calls and no writes. Combine with\n--json for agents.\n\nup never fails the build on target drift: parked, pending target content is\nnormal toil, reported rather than thrown. Use 'kapi status' to inspect\nstanding without running anything, and 'kapi check --ship' to enforce the\ngates (e.g. before a release tag).\n\n--passes 1 runs a single pass (the behavior of the bare 'kapi run');\n--passes N caps the loop at N passes.",
           "short": "Bring the project up to date (run the default flow until every gated scope ships or parks)"
         },
         "update": {
@@ -595,7 +595,7 @@
           "size": "SIZE"
         }
       },
-      "termbase": {
+      "terms": {
         "header": {
           "concept": "CONCEPT",
           "concepts": "CONCEPTS",
