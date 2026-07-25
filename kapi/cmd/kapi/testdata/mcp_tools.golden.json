@@ -3153,7 +3153,8 @@
         "tags": [
           "text-processing",
           "l10n"
-        ]
+        ],
+        "writesOutput": true
       },
       "type": "object",
       "ui:groups": [

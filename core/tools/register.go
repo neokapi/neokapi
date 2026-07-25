@@ -158,11 +158,15 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	}, toolSchema(&PropertiesSetConfig{Overwrite: true, OnlyTranslatable: true}, toolMeta("properties-set", "Properties Set", schema.CategoryTextProcessing,
 		withTags("configurable"), withCardinality(schema.Monolingual))))
 
+	// withWritesOutput is what gives `kapi exec whitespace-correct` its -o /
+	// --output-dir flags. The tool rewrites the target, so without it the exec
+	// run had nowhere to put the result: it corrected the content in memory,
+	// exited 0, and wrote nothing.
 	reg.RegisterWithSchema("whitespace-correct", func() tool.Tool {
 		return NewWhitespaceCorrectTool(NewWhitespaceCorrectConfig(model.LocaleEnglish))
 	}, toolSchema(&WhitespaceCorrectConfig{NormalizeSpaces: true, MatchSourceWhitespace: true, RemoveZeroWidthChars: true, CorrectFullStop: true, CorrectComma: true, CorrectExclamation: true, CorrectQuestion: true, IncludeVerticalWS: true, IncludeHorizontalWS: true},
 		toolMeta("whitespace-correct", "Whitespace Correct", schema.CategoryTextProcessing,
-			withTags("text-processing", schema.TagL10n), withRequires("target-language"), withCardinality(schema.Bilingual))))
+			withTags("text-processing", schema.TagL10n), withWritesOutput(), withRequires("target-language"), withCardinality(schema.Bilingual))))
 
 	reg.RegisterWithSchema("tag-protect", func() tool.Tool {
 		return NewTagProtectTool(&TagProtectConfig{})

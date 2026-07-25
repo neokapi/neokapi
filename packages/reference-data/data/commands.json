@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-25T08:10:21Z",
+  "generatedAt": "2026-07-25T11:32:36Z",
   "commands": [
     {
       "id": "add",
@@ -4183,6 +4183,188 @@
           "name": "trace",
           "usage": "write flow trace JSON to file (for flow visualization)",
           "type": "string"
+        }
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "exec.whitespace-correct",
+      "path": [
+        "exec",
+        "whitespace-correct"
+      ],
+      "use": "whitespace-correct [files...]",
+      "short": "Whitespace Correct",
+      "flags": [
+        {
+          "name": "concurrency",
+          "shorthand": "j",
+          "usage": "max parallel files (0 = auto)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "correct-comma",
+          "usage": "Correct whitespace after commas",
+          "default": "true",
+          "type": "bool"
+        },
+        {
+          "name": "correct-exclamation",
+          "usage": "Correct whitespace after exclamation marks",
+          "default": "true",
+          "type": "bool"
+        },
+        {
+          "name": "correct-full-stop",
+          "usage": "Correct whitespace after full stops (periods)",
+          "default": "true",
+          "type": "bool"
+        },
+        {
+          "name": "correct-question",
+          "usage": "Correct whitespace after question marks",
+          "default": "true",
+          "type": "bool"
+        },
+        {
+          "name": "encoding",
+          "shorthand": "e",
+          "usage": "input file encoding",
+          "default": "UTF-8",
+          "type": "string"
+        },
+        {
+          "name": "fail-on-unknown",
+          "usage": "exit with error if any file cannot be processed (default: skip with warning)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "format",
+          "shorthand": "f",
+          "usage": "override input format detection",
+          "type": "string"
+        },
+        {
+          "name": "include-horizontal-w-s",
+          "usage": "Include horizontal tab characters in corrections",
+          "default": "true",
+          "type": "bool"
+        },
+        {
+          "name": "include-vertical-w-s",
+          "usage": "Include vertical whitespace (line feeds and carriage returns) in corrections",
+          "default": "true",
+          "type": "bool"
+        },
+        {
+          "name": "json",
+          "usage": "output results as JSON",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "map",
+          "shorthand": "m",
+          "usage": "map glob pattern to format (e.g. '*.docx=okf_openxml:test')",
+          "default": "[]",
+          "type": "stringArray"
+        },
+        {
+          "name": "match-source-whitespace",
+          "usage": "Copy source leading/trailing whitespace to target",
+          "default": "true",
+          "type": "bool"
+        },
+        {
+          "name": "no-warn",
+          "usage": "suppress warnings for skipped files",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "normalize-spaces",
+          "usage": "Collapse multiple spaces to a single space",
+          "default": "true",
+          "type": "bool"
+        },
+        {
+          "name": "output",
+          "shorthand": "o",
+          "usage": "output path template (variables: {dir}, {name}, {ext}, {lang})",
+          "type": "string"
+        },
+        {
+          "name": "output-dir",
+          "usage": "write outputs under DIR/{lang}/ (default: beside the input, mirroring its locale layout)",
+          "type": "string"
+        },
+        {
+          "name": "pack",
+          "usage": "when transforming a .kpz, also eject the result to the .kpz (auto-pack)",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "parallel-blocks",
+          "usage": "fan out block processing across N goroutines (0 = off)",
+          "default": "0",
+          "type": "int"
+        },
+        {
+          "name": "progress",
+          "shorthand": "p",
+          "usage": "show progress bar",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "remove-zero-width-chars",
+          "usage": "Remove zero-width spaces and joiners",
+          "default": "true",
+          "type": "bool"
+        },
+        {
+          "name": "source-lang",
+          "usage": "source language (e.g. en, en-US)",
+          "default": "en",
+          "type": "string"
+        },
+        {
+          "name": "strict",
+          "usage": "alias for --fail-on-unknown",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "target-lang",
+          "usage": "target language (e.g. fr, de-DE)",
+          "type": "string"
+        },
+        {
+          "name": "target-locale",
+          "usage": "Target locale for processing",
+          "type": "string"
+        },
+        {
+          "name": "trace",
+          "usage": "write flow trace JSON to file (for flow visualization)",
+          "type": "string"
+        },
+        {
+          "name": "trim-leading",
+          "usage": "Remove leading whitespace from target text",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "trim-trailing",
+          "usage": "Remove trailing whitespace from target text",
+          "default": "false",
+          "type": "bool"
         }
       ],
       "offlineCapable": true,
