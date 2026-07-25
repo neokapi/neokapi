@@ -19,8 +19,9 @@ its freshness contract.
 
 - `make parity-sandbox` — builds the sandbox (kapi + okapi-bridge plugin).
   Prerequisite; needs Java + the pinned Okapi version.
-- `make parity-publish` — runs the parity suite and publishes
-  `web/static/data/parity-report.json`.
+- `make parity-publish` — runs the parity suite and writes the per-filter
+  summary to `.parity/parity-report.json`. It is a local maintainer artifact:
+  parity data is no longer published to the documentation site (#1073).
 - Environment: `fts5` build tag wiring and icu4c on `PKG_CONFIG_PATH` are
   handled by the make targets; do not hand-roll `go test` invocations here.
 
@@ -32,8 +33,10 @@ make parity-publish
 ```
 
 1. Run the two targets above. `make parity-publish` regenerates
-   `web/static/data/parity-report.json` with a fresh `generated_at`.
-2. Diff the new report against the previous one (`git diff -- web/static/data/parity-report.json`).
+   `.parity/parity-report.json` with a fresh `generated_at`.
+2. Diff the new report against the copy from the previous run. The sandbox is
+   gitignored, so keep the prior report aside before re-running (`cp
+   .parity/parity-report.json /tmp/parity-prev.json`) and `diff` against it.
    Tier movements are findings, not noise: a bridge that stayed byte-stable
    while a native tier moved means **native regressed** — file it as a
    followup for `remediate` (or fix immediately if within budget).
@@ -52,12 +55,12 @@ make parity-publish
 - `last_run` = today.
 - `watermarks.report_generated_at` = the new report's `generated_at`.
 - `watermarks.main_sha` = `git rev-parse HEAD`.
-- `runs[]` entry; commit the regenerated JSON + ledger together.
+- `runs[]` entry; commit the ledger (the report itself is gitignored).
 
 ## Outputs
 
-Fresh `web/static/data/parity-report.json`; followups for regressions and
-stale xfails.
+Fresh `.parity/parity-report.json`; followups for regressions and stale
+xfails. Nothing is committed — the report lives in the gitignored sandbox.
 
 ## Failure → blocked
 

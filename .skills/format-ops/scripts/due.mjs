@@ -204,7 +204,7 @@ function hasRunSince(ritual, date) {
 
 // Shared cheap signals.
 const dash = readJSON(path.join(root, artifactById['maturity-dashboard']?.path ?? 'web/static/data/format-maturity.json'));
-const parity = readJSON(path.join(root, artifactById['parity-report']?.path ?? 'web/static/data/parity-report.json'));
+const parity = readJSON(path.join(root, artifactById['parity-report']?.path ?? '.parity/parity-report.json'));
 const caudit = readJSON(path.join(root, artifactById['contract-audit-report']?.path ?? 'web/static/data/contract-audit.json'));
 
 // 3. Model check (blocking per §2.1).

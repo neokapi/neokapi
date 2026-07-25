@@ -31,7 +31,7 @@ asset_type: markdown
 loop_stage: brand-rewrite
 domain: marketing
 brand_pack: marketing-blog
-reader: native           # native | okapi  (which format reader the cell exercises)
+reader: native           # native | plugin  (which format reader the cell exercises)
 signal: high
 summary: One-line description of what the cell demonstrates.
 expect:                  # the delta gate — a cell must show a real difference
@@ -49,12 +49,12 @@ expect:                  # the delta gate — a cell must show a real difference
 - The numbers in `scorecard.json` come from real `kapi brand check --json` output —
   the same scorer the product ships.
 
-## Native AND okapi
+## Readers
 
-Format cells set `reader: native` or `reader: okapi`. The okapi cells exercise the
-okapi-bridge filters (`--map '*.ext=okf_*'`) so the campaign demonstrates kapi's
-format coverage both ways. `run.sh` skips okapi cells gracefully if the
-okapi-bridge plugin is not installed.
+Format cells set `reader: native` for a format kapi ships, or `reader: plugin`
+for one a format plugin provides. A `plugin` cell names the plugin it needs and
+its `run.sh` skips gracefully when that plugin is not installed, so the gallery
+still builds on a bare checkout.
 
 ## Parallelization
 

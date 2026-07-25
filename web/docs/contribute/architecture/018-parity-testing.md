@@ -197,19 +197,18 @@ parity report renders it as a per-filter / per-step status table.
    `parity.Report` — it is not assigned by hand in the test.
 4. Run `make parity-test` locally; iterate until green.
 
-## How the dashboard is wired
+## How the summary is wired
 
 `scripts/testcompare/main.go` reads `.parity/test-comparison.json` (the
 raw report written by the `cli/parity/` test packages) and emits a
-narrower per-row published shape at
-`web/static/data/parity-report.json`, one row per filter / step
-with its current status, mode, and skip detail. Run
+narrower per-row summary at `.parity/parity-report.json`, one row per
+filter / step with its current status, mode, and skip detail. Run
 `make parity-publish` to refresh both files locally.
 
-The output path is deliberately separate from the legacy
-`/test-comparison` page's data file (`web/static/data/test-comparison.json`),
-which is kept temporarily so that page's per-test-class view still
-works.
+Both files are local maintainer artifacts inside the (gitignored) parity
+sandbox. Nothing parity-related is published to the documentation site:
+the `/parity` dashboard was retired when the bridge left the product
+surface, and `/format-maturity` carries the public quality story.
 
 ## Pre-release gate
 

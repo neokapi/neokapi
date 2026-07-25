@@ -224,8 +224,9 @@ cd cli && KAPI_PARITY_SANDBOX=<p> KAPI_PARITY_REPORT=<p> \
 
 `make parity-test` builds the sandbox + exports the env; a missing sandbox
 **hard-fails** via `RequireSandbox` unless `KAPI_PARITY_SKIP=1`.
-`make parity-publish` runs `scripts/testcompare` for the dashboard JSON. Local
-runs need `icu4c` on `PKG_CONFIG_PATH` + the `fts5` tag.
+`make parity-publish` runs `scripts/testcompare` for the per-filter summary
+under `.parity/` (a local artifact — no parity data is published to the docs
+site). Local runs need `icu4c` on `PKG_CONFIG_PATH` + the `fts5` tag.
 
 **Proves:** same input + same semantic config → native and the Okapi Java filter
 extract the same translatable block text (byte-equal serialization when

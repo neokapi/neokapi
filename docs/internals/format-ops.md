@@ -79,7 +79,7 @@ Four durable channels, each with a distinct job:
 |---|---|---|
 | Git history | commits, one per ritual outcome (artifact + ledger together) | What changed, attributable and diffable (`git diff <runs[].commit>..HEAD -- core/formats`) |
 | Ops ledger | `docs/internals/format-ops-ledger.json` | Watermarks per ritual, `pending[]` approval queue, append-only `runs[]` log |
-| Machine-readable status | `web/static/data/format-maturity{,-history}.json`, `parity-report.json`, `contract-audit.json`, `core/formats/support.yaml` | Current scores, trends, promises |
+| Machine-readable status | `web/static/data/format-maturity{,-history}.json`, `web/static/data/contract-audit.json`, `.parity/parity-report.json` (local, unpublished), `core/formats/support.yaml` | Current scores, trends, promises |
 | Learnings | `docs/internals/format-ops-learnings.md` | Brief, factual, dated lessons (failure modes, fix patterns, model quirks). Pruned by `process-health`; pruned entries are archived at the bottom, not deleted. |
 
 The artifact map (§7) is single-sourced as machine-readable

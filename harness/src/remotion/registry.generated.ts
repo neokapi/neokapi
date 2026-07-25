@@ -78,10 +78,6 @@ export const DEMOS: RegistryEntry[] = [
     "title": "Compose flows for a project"
   },
   {
-    "id": "kapi-desktop-okapi",
-    "title": "Using the Okapi plugin"
-  },
-  {
     "id": "kapi-desktop-projects",
     "title": "Create and manage a project"
   }

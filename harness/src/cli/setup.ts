@@ -6,40 +6,23 @@
  *  - install the Playwright Chromium browser
  */
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { loadEnv } from "../lib/env.ts";
-import { KAPI_BIN, KAPI_ISO_DATA, KAPI_ISO_HOME, KAPI_ISO_PLUGINS, PLUGIN_DIR, REPO_ROOT, ensureDir } from "../lib/paths.ts";
+import { KAPI_BIN, KAPI_ISO_HOME, KAPI_ISO_PLUGINS, PLUGIN_DIR, REPO_ROOT, ensureDir } from "../lib/paths.ts";
 import { run, sh } from "../lib/exec.ts";
 
 const CRED = "harness-gemini";
 
 /**
  * Give the harness its own isolated kapi state so recordings don't depend on this
- * machine's installed plugins / flows / TMs. The okapi-bridge plugin is copied from
- * the machine install if present (fast), else installed fresh into the isolated dir.
+ * machine's installed plugins / flows / TMs. Demos that need a plugin install it
+ * themselves into this dir (the plugin-manager walkthroughs record the real
+ * download), so setup only has to make the isolated roots exist.
  */
-async function setupIsolatedKapi(): Promise<void> {
+function setupIsolatedKapi(): void {
   ensureDir(KAPI_ISO_HOME);
   ensureDir(KAPI_ISO_PLUGINS);
-  const bridgeDst = path.join(KAPI_ISO_PLUGINS, "okapi-bridge");
-  if (fs.existsSync(bridgeDst)) {
-    console.log(`✓ isolated okapi-bridge present (${KAPI_ISO_PLUGINS})`);
-    return;
-  }
-  const machineBridge = path.join(os.homedir(), ".local/share/kapi/plugins/okapi-bridge");
-  if (fs.existsSync(machineBridge)) {
-    fs.cpSync(machineBridge, bridgeDst, { recursive: true });
-    console.log(`✓ copied okapi-bridge into isolated plugin dir (${KAPI_ISO_PLUGINS})`);
-    return;
-  }
-  console.log("· installing okapi-bridge into isolated plugin dir …");
-  const r = await run(KAPI_BIN, ["plugin", "install", "okapi-bridge", "-y"], {
-    env: { ...process.env, XDG_DATA_HOME: KAPI_ISO_DATA, KAPI_CONFIG_DIR: KAPI_ISO_HOME, KAPI_PLUGINS_DIR: KAPI_ISO_PLUGINS },
-    timeoutMs: 600_000,
-  });
-  if (r.code !== 0) console.warn(`! okapi-bridge install exited ${r.code}: ${r.stderr.slice(-300)}`);
-  else console.log("✓ installed okapi-bridge (isolated)");
+  console.log(`✓ isolated kapi state ready (${KAPI_ISO_HOME}, plugins: ${KAPI_ISO_PLUGINS})`);
 }
 
 async function buildKapiIfMissing(): Promise<void> {
@@ -103,7 +86,7 @@ async function main() {
   await buildKapiIfMissing();
   await regenPluginBundle();
   await ensureCredential();
-  await setupIsolatedKapi();
+  setupIsolatedKapi();
   await installChromium();
   console.log("\nSetup complete. Run a demo with:  pnpm run demo <demo-id>   (or: pnpm run demo all)");
 }

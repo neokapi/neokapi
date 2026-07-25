@@ -14,8 +14,8 @@ offenders.
 
 Naming rules:
 
-- The product name (`KapiMart`, `OkapiMart`, or `BowMart` depending on the
-  surface) is do-not-translate. Keep it in Latin script in every locale.
+- The product name (`KapiMart` or `BowMart` depending on the surface) is
+  do-not-translate. Keep it in Latin script in every locale.
 - Prefer "AI assistant" over "Copilot", "bot", or "agent" in customer-facing
   copy.
 

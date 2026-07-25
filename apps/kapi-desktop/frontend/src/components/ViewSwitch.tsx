@@ -217,9 +217,10 @@ export function ViewSwitch({
   const tabID = activeTab.info.id;
 
   // Render the active project view, guarded by an error boundary so a single
-  // un-openable project (e.g. OkapiMart without okapi-bridge — issue #4) shows
-  // a recoverable install prompt instead of crashing the webview. The boundary
-  // key includes pluginsResolved so a successful install remounts the view.
+  // un-openable project (e.g. a recipe whose formats come from a plugin that is
+  // not installed — issue #4) shows a recoverable install prompt instead of
+  // crashing the webview. The boundary key includes pluginsResolved so a
+  // successful install remounts the view.
   const projectView = ((): ReactNode => {
     switch (effectiveView) {
       // `content` folds into the merged project home (issue #1068). Kept as an

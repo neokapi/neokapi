@@ -673,68 +673,6 @@ async function flowsWalk(c: WalkCtx): Promise<void> {
   });
 }
 
-/** Install and use the okapi-bridge plugin from the UI. */
-async function okapiWalk(c: WalkCtx): Promise<void> {
-  const { page, beat, beatEls, cursorTo, sidebar } = c;
-  const tab = (label: string) => page.locator(`[role="tab"]:has-text("${label}")`);
-  // The plugin starts uninstalled on each theme pass — see resetPlugins() in
-  // recordDesktop, which clears the isolated plugin dir and re-scans the backend.
-  await beat("intro", null, async () => {
-    await idle(page, 2000);
-  });
-  // App Settings → Plugins → Available, where the registry is browsable.
-  await beat("open-plugins", { x: 0, y: 0.04, w: 0.34, h: 0.66 }, async () => {
-    await humanClick(page, sidebar("App Settings"));
-    await page.waitForTimeout(700);
-    await humanClick(page, tab("Plugins"));
-    await page.waitForTimeout(800);
-    await humanClick(page, tab("Available"));
-    await page.waitForSelector('[data-testid="available-plugin-okapi-bridge"]', { timeout: 30_000 });
-    await page.waitForTimeout(800);
-  });
-  // The Okapi bridge entry in the registry.
-  await beatEls_okapiCard(c, "registry");
-  // Click Install — the genuine download runs with a live progress bar (streamed
-  // plugin-progress events). Stay on the beat, zoomed on the card, through the
-  // whole download so the recording captures the bar filling and the flip to
-  // installed.
-  await beatEls("install", ['[data-testid="available-plugin-okapi-bridge"]'], async () => {
-    await humanClick(page, page.getByTestId("install-okapi-bridge"));
-    await page.waitForSelector('[data-testid="install-okapi-bridge"]', { state: "detached", timeout: 300_000 });
-    await page.waitForTimeout(700);
-  });
-  // The Installed tab now lists okapi-bridge with its Okapi filter formats.
-  await beat("installed", { x: 0.02, y: 0.08, w: 0.96, h: 0.7 }, async () => {
-    await humanClick(page, tab("Installed"));
-    await page.waitForSelector('[data-testid="installed-plugin-okapi-bridge"]', { timeout: 30_000 });
-    await cursorTo('[data-testid="installed-plugin-okapi-bridge"]');
-    await page.waitForTimeout(2400);
-  });
-  // Back home → open the OkapiMart sample, which needs these filters.
-  await beat("open-okapimart", null, async () => {
-    await humanClick(page, sidebar("Home"));
-    await openSample(page, "sample-okapimart", "Content");
-  });
-  // Its Content resolves through the Okapi filters (okf_* formats).
-  await beat("content", null, async () => {
-    await humanClick(page, sidebar("Content"));
-    await page.waitForTimeout(1600);
-  });
-  await beat("okf-formats", { x: 0.02, y: 0.1, w: 0.96, h: 0.84 }, async () => {
-    await moveTo(page, WIDTH * 0.5, HEIGHT * 0.45, 700);
-    await page.waitForTimeout(2500);
-  });
-}
-
-/** A beat zoomed onto the okapi-bridge registry card. */
-async function beatEls_okapiCard(c: WalkCtx, id: string): Promise<void> {
-  const { page, beatEls, cursorTo } = c;
-  await beatEls(id, ['[data-testid="available-plugin-okapi-bridge"]'], async () => {
-    await cursorTo('[data-testid="available-plugin-okapi-bridge"]');
-    await page.waitForTimeout(2200);
-  });
-}
-
 // ── Bowrain web walkthroughs ─────────────────────────────────────────────────
 // These record the real bowrain web app (target: "web"); nav is via data-testid
 // (the bowrain sidebar uses testids, not aria-labels).
@@ -1204,7 +1142,6 @@ const WALKTHROUGHS: Record<string, (c: WalkCtx) => Promise<void>> = {
   "kapi-desktop-content": contentWalk,
   "kapi-desktop-config": configWalk,
   "kapi-desktop-flows": flowsWalk,
-  "kapi-desktop-okapi": okapiWalk,
   "bowrain-web-governance": bowrainGovernanceWalk,
   "bowrain-web-editor": bowrainEditorWalk,
   "bowrain-web-review": bowrainReviewWalk,
