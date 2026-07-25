@@ -34,7 +34,7 @@ cache is rebuilt — `kapi push --force` re-uploads every block and
 these only when you specifically want to bypass the content-hash shortcut; they do
 more work and are not the normal path.
 
-See [Project sync](/cli/overview) for the full command set.
+See [the developer route](/cli/overview) for the full command set.
 
 ## AI operations are blocked ("out of credits")
 

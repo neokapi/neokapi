@@ -1,77 +1,80 @@
 ---
-sidebar_position: 2
-title: Kapi vs Bowrain
-sidebar_label: Kapi vs Bowrain
-description: When to use kapi (the local, single-user toolchain) and when to reach for Bowrain (the hosted, multi-user, governed platform on top of it). It is the same relationship as git and GitHub.
-keywords: [kapi vs bowrain, when to use, comparison, platform, toolchain]
+sidebar_position: 5
+title: How Bowrain and kapi fit together
+sidebar_label: Bowrain and kapi
+description: Bowrain is the governed platform; kapi is the open toolchain it is built on and one of the connectors into it. Where the boundary runs, and which surface owns what.
+keywords: [kapi, bowrain, boundary, toolchain, platform, connector, open source]
 ---
 
-# Kapi vs Bowrain
+# How Bowrain and kapi fit together
 
-[Kapi](https://neokapi.github.io/web/neokapi/) and Bowrain are not alternatives —
-Bowrain is built on kapi. The split is the same as **git and GitHub**: the
-toolchain runs anywhere and belongs to you; the platform adds the persistent,
-governed layer that keeps working when you are not at the keyboard — for one
-builder with many projects and surfaces as much as for a team.
+[Kapi](https://neokapi.github.io/web/neokapi/) is the Apache-2.0 toolchain
+Bowrain is built on: it reads and writes content formats, runs checks, drafts
+and adapts text, and works entirely from local files with no server or account.
+Bowrain is the governed platform — shared voice, vocabulary, and content memory,
+collaborative editing, review, automation, connectors, and version history.
 
-- **Kapi** is the open-source, single-user toolchain. It reads, translates, and
-  ships content in any format, runs checks (terminology, QA, brand voice), and
-  leverages translation memory — all locally, from files you own, with no server
-  or account. It is also where your AI assistant plugs in, over MCP.
-- **Bowrain** is the server platform. It hosts the brand-voice profile,
-  terminology, and translation memory once for everyone; adds real-time
-  collaboration, connectors, automation, and versioned history; and turns your
-  corrections into enforced checks. You keep using kapi — the bowrain
-  plugin connects a kapi project to a server and runs [`kapi up`](/cli/commands/up)
-  on it.
+kapi appears in two roles here, and they are worth keeping apart:
 
-The boundary is sharp: **kapi owns the local files and the project
-configuration** — the `kapi.yaml` recipe (content, flows, plugins, languages,
-brand, and the `server:` block) is authored and versioned locally with kapi,
-including the configuration of projects you push to Bowrain via `kapi push` /
-`kapi up`. **Bowrain's local footprint is cache and speed only, never a
-source of truth.** The Bowrain desktop app is a working copy of the server: a
-content cache, an offline edit queue, and TM/termbase mirrors. It does not
-author local files or source projects from your filesystem — that is kapi's
-job. Sourcing content from a filesystem or a git checkout happens *server-side*
-through [connectors](/server/connectors), on the host the server runs on.
+- **The engine underneath.** The same format handling, checks, and flow
+  execution run inside Bowrain's server. This is invisible in day-to-day use;
+  it is why the platform behaves identically whether content arrived from a
+  content platform or from a repository.
+- **One connector into the platform.** With the bowrain plugin installed, kapi
+  connects a developer's checkout to a workspace — the developer and CI route
+  described in [the kapi connector](/server/connectors/kapi). It sits alongside
+  the content-platform, design, and repository connectors rather than in front
+  of them.
+
+## The boundary
+
+**kapi owns the local files and the project configuration.** The `kapi.yaml`
+recipe — content collections, flows, plugins, languages, brand, and the
+`server:` block — is authored and versioned in the repository with everything
+else. Bowrain never writes it.
+
+**Bowrain's local footprint is cache and speed only, never a source of truth.**
+The Bowrain desktop app is a working copy of the server: a content cache, an
+offline edit queue, and memory and vocabulary mirrors. It does not author local
+files or source projects from a filesystem — sourcing from a filesystem or a git
+checkout happens *server-side* through [connectors](/server/connectors), on the
+host the server runs on.
 
 ## At a glance
 
-| | **Kapi** | **Bowrain** |
+| | **kapi** | **Bowrain** |
 | --- | --- | --- |
 | Shape | A CLI + desktop app you install | A server + web and desktop clients |
 | Users | One person, one checkout | One workspace — you, and your team when you have one |
-| State | Local files + local TM/termbase | Hosted, versioned content store (desktop holds a local **cache** only) |
-| Brand & terminology | A profile/glossary you carry in files | Shared, governed, and **learned from corrections** |
-| Collaboration | — | [Real-time presence & co-editing](/server/collaboration) |
-| Content sources | Local files you own | Server-side [connectors](/server/connectors) — CMS, git, design tools, files |
+| State | Local files + local memory and terms | Hosted, versioned content store (the desktop holds a **cache** only) |
+| Brand & vocabulary | A profile you carry in files | Shared, governed, and **learned from corrections** |
+| Content sources | Local files you own | Every [connector](/server/connectors) — content platforms, design tools, repositories, checkouts |
 | Automation | Local recipe hooks | Server-side, event-driven |
 | Cost | Free, open source | Hosted plans / self-host |
 
-## Use kapi when
+## kapi on its own is enough when
 
-- You are a solo builder or a small team working from a repository you own.
-- You want to localize files, check content, or pseudo-translate from the
-  terminal or a desktop app — no account, offline by default.
-- You are wiring localization and brand checks into CI, or into an AI assistant
-  over MCP.
+- One person works from one repository they own.
+- The work is drafting, checking, or pseudo-translating files from a terminal or
+  a desktop app — no account, offline by default.
+- Checks and language work are being wired into CI, or into an AI assistant over
+  MCP.
 
 ## Reach for Bowrain when
 
-- You run **several projects or publish on several surfaces** — an app, a site,
-  a blog — and want one memory, glossary, and voice that compound across all of
-  them, catching up continuously on the server rather than only when you run kapi.
-- Several people — writers, translators, reviewers — work on the same content
-  and need to [see each other and edit together](/server/collaboration).
-- One brand voice, glossary, and translation memory should be **shared and
-  governed** across everyone and every AI tool, with history and audit.
-- Content lives in systems beyond your local files (a CMS, a git host, a design
-  tool) and should sync through server-side [connectors](/server/connectors).
+- Content lives in systems beyond one checkout — a content platform, a design
+  tool, a repository nobody wants a pipeline in — and should sync through
+  [connectors](/server/connectors).
+- Several projects or several surfaces should draw on **one** memory,
+  vocabulary, and voice that compound across all of them, kept current on the
+  server rather than only when someone runs a command.
+- Several people — writers, reviewers, editors — work on the same content and
+  need to [see each other and edit together](/server/collaboration).
+- One brand voice and vocabulary should be **shared and governed** across
+  everyone and every AI tool, with history and audit.
 - Corrections should compound: a fix made once becomes a
   [versioned, enforced check](/server/brand-voice).
 
-You do not choose one forever. Start in kapi; connect a project to Bowrain when
-the work should outlive a single run — more projects, more surfaces, a team, or
-all three. See the
-[introduction](/introduction) for how the two fit together.
+The two are not alternatives, and neither is a stage you graduate from. See the
+[introduction](/introduction) for what the platform does, and
+[Connectors](/server/connectors) for every route into it.

@@ -46,7 +46,7 @@ no webhook secret to manage; GitLab always uses a project access token.
 
 The connector is created through the workspace connectors API
 (`manage-connectors` permission); the full field reference lives at
-[Connectors → forge delivery](/server/connectors#forge-delivery-github--gitlab).
+[the GitHub / GitLab connector](/server/connectors/github).
 A minimal GitHub connector in token mode:
 
 ```json
@@ -119,6 +119,6 @@ GITHUB_APP_WEBHOOK_SECRET=<webhook secret>
 ## Related
 
 - [The loop in CI](/cli/ci/overview) — the surfaces map and when to prefer a pipeline
-- [Connectors](/server/connectors#forge-delivery-github--gitlab) — the full forge connector configuration reference
+- [GitHub / GitLab connector](/server/connectors/github) — the full forge connector configuration reference
 - [Automation](/server/automation) — the on-push convergence policy and server-side rules
-- [The kapi loop on Bowrain](/the-loop) — produce, promote, release
+- [Keeping content caught up](/the-loop) — produce, promote, release

@@ -43,7 +43,7 @@ const CAPABILITIES = [
     icon: Zap,
     title: t("Automation that keeps pace"),
     body: t(
-      "When content arrives, translation starts; reviewers get tasks; people get notified. Runs are visible with per-step logs, and the server runs the kapi loop, keeping every locale caught up.",
+      "When content arrives, drafting starts; reviewers get tasks; people get notified. Runs are visible with per-step logs, and the server keeps every language caught up on its own clock.",
     ),
     detail: [t("Translate on push"), t("Review tasks & notifications"), t("Run logs")],
   },
@@ -51,9 +51,9 @@ const CAPABILITIES = [
     icon: Plug,
     title: t("Connected to where content lives"),
     body: t(
-      "WordPress, Figma, and HubSpot connectors sync content in and publish translations back. Files and git repositories connect through the server — or push and pull from any repo or CI with kapi.",
+      "WordPress, Figma, and HubSpot connectors sync content in and publish approved text back. A GitHub or GitLab repository connects with no pipeline at all — or a developer drives it from their own checkout with kapi.",
     ),
-    detail: [t("WordPress · Figma · HubSpot"), t("Files & git"), t("kapi push / pull")],
+    detail: [t("WordPress · Figma · HubSpot"), t("GitHub · GitLab"), t("kapi (developer & CI)")],
   },
 ];
 

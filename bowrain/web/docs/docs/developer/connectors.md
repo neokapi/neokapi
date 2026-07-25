@@ -91,7 +91,7 @@ config := map[string]string{
 
 ### ForgeConnector
 
-Wraps the git connector for GitHub/GitLab repositories and adds branch-and-pull-request delivery: a push webhook triggers the server, and translations come back as one pull/merge request that every delivery updates in place. See [Forge delivery](/server/connectors#forge-delivery-github--gitlab) for configuration.
+Wraps the git connector for GitHub/GitLab repositories and adds branch-and-pull-request delivery: a push webhook triggers the server, and translations come back as one pull/merge request that every delivery updates in place. See [GitHub / GitLab connector](/server/connectors/github) for configuration.
 
 ### WordPressConnector
 

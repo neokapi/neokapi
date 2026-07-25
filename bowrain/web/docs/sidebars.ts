@@ -2,10 +2,13 @@ import type { SidebarsConfig } from "@docusaurus/plugin-content-docs";
 
 // One sidebar per top-level navbar section.
 //
-//   gettingStartedSidebar  — install, quickstart; anchored to the site root
+//   gettingStartedSidebar  — what the platform is, how content stays current,
+//                            and the routes in; anchored to the site root
 //   usingBowrainSidebar    — the product, organized by what you do; shared
 //                            across the browser and desktop clients
-//   cliSidebar             — connect a project and keep it up to date via kapi + the bowrain plugin
+//   cliSidebar             — the developer/CI connector: kapi + the bowrain
+//                            plugin. One route among the connectors, not the
+//                            default way into the platform.
 //   forDevelopersSidebar   — self-hosting + the engineering docs (developer/,
 //                            architecture-decisions/, notes/)
 //
@@ -20,19 +23,10 @@ const sidebars: SidebarsConfig = {
       className: "sidebar-section-heading",
       items: [
         "getting-started/introduction",
-        "getting-started/kapi-vs-bowrain",
         "getting-started/the-loop",
-        "getting-started/installation",
         "getting-started/quickstart",
-      ],
-    },
-    {
-      type: "category",
-      label: "Walkthroughs",
-      collapsible: false,
-      className: "sidebar-section-heading",
-      items: [
-        "walkthroughs/bowrain-getting-started",
+        "getting-started/installation",
+        "getting-started/kapi-vs-bowrain",
       ],
     },
   ],
@@ -100,10 +94,12 @@ const sidebars: SidebarsConfig = {
       className: "sidebar-section-heading",
       items: [
         "server/connectors",
-        "server/publish-on-brand",
         "server/connectors/wordpress",
-        "server/connectors/figma",
         "server/connectors/hubspot",
+        "server/connectors/figma",
+        "server/connectors/github",
+        "server/connectors/kapi",
+        "server/publish-on-brand",
         "server/flows",
         "server/automation",
       ],
@@ -201,6 +197,7 @@ const sidebars: SidebarsConfig = {
       collapsible: false,
       className: "sidebar-section-heading",
       items: [
+        "walkthroughs/bowrain-getting-started",
         "walkthroughs/bowrain-auth",
         "walkthroughs/bowrain-automation",
       ],

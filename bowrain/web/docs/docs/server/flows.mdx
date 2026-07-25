@@ -92,8 +92,9 @@ The Bowrain web app exposes a **superset flow + automation editor** under
    validated when the flow is built.
 
 Flows are **connector-agnostic**: a flow runs server-side on content from any
-connector. The graph never names a connector — Kapi is one content source
-among many.
+[connector](/server/connectors). The graph never names one — content that
+arrived from a content platform, a design tool, a repository, or a developer's
+checkout is handled identically.
 
 ## Monitoring Executions
 
@@ -147,7 +148,9 @@ curl "https://app.bowrain.cloud/api/v1/projects/:id/flows/executions?status=fail
 
 ## Event Flow Diagram
 
-A typical end-to-end flow involving CLI push, server-side translation, and CLI pull:
+One end-to-end example — the developer route, where a checkout pushes and the
+server runs the flow. Content arriving through any other connector follows the
+same server-side path:
 
 <SwimlaneDiagram
   actors={[
@@ -205,8 +208,9 @@ curl -X POST https://app.bowrain.cloud/api/v1/acme/proj-1/flows \
   }'
 ```
 
-Project flow definitions can also be pushed as part of a project's
-`.kapi/flows/` directory and authored with the kapi CLI.
+On the [developer route](/server/connectors/kapi), flow definitions can also
+live in a project's `.kapi/flows/` directory and be pushed with the rest of the
+project.
 
 ## Composing multi-step work
 
@@ -223,5 +227,6 @@ the automation engine bounds event-driven work.
 ## Related
 
 - [Automation](/server/automation) — event-driven automation rules
-- [Translation Flows (CLI)](/cli/flows/overview) — local flow execution
-- [kapi up](/cli/commands/up) — run the kapi loop on the server (push → catch up → pull)
+- [Connectors](/server/connectors) — where flow input comes from
+- [Flows on the developer route](/cli/flows/overview) — authoring flows in a project
+- [kapi up](/cli/commands/up) — catch a connected project up (push → run → pull)

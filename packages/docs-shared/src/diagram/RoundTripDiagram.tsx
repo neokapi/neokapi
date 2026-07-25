@@ -67,6 +67,12 @@ export interface RoundTripDiagramProps {
   forwardLabel?: string;
   /** Label on the hub→back edge (e.g. "absorb"). */
   backLabel?: string;
+  /**
+   * Accessible name for the SVG. Override when the diagram depicts something
+   * other than the default extract/merge round trip — the built-in label would
+   * otherwise mis-describe the figure to a screen reader.
+   */
+  ariaLabel?: string;
   caption?: string;
   animated?: boolean;
 }
@@ -157,6 +163,7 @@ export function RoundTripDiagram({
   backIndex = 0,
   forwardLabel,
   backLabel,
+  ariaLabel = "Round-trip: extract forward, merge back, sharing a translation memory",
   caption,
   animated = false,
 }: RoundTripDiagramProps): React.ReactElement {
@@ -180,7 +187,7 @@ export function RoundTripDiagram({
             viewBox={`0 0 ${totalW} ${totalH}`}
             xmlns="http://www.w3.org/2000/svg"
             role="img"
-            aria-label="Round-trip: extract forward, merge back, sharing a translation memory"
+            aria-label={ariaLabel}
           >
             <defs>
               <marker

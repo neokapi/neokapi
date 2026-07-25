@@ -1,17 +1,20 @@
 ---
-sidebar_position: 2
+sidebar_position: 4
 title: Installation
 slug: /installation
 ---
 
 # Installation
 
-Bowrain runs as a **server** your team connects to — from the web app, the
-desktop app, or, for a local codebase, the kapi CLI. Use the hosted service at
+Bowrain runs as a **server** your team connects to. Use the hosted service at
 [bowrain.cloud](https://bowrain.cloud), or run your own (see
-[For developers → Self-hosting](/server/installation)). Already have content in
-a CMS, Figma, or a git host? Connect those **server-side** — see
-[Connectors](/server/connectors); no install needed.
+[For developers → Self-hosting](/server/installation)).
+
+Most routes into a workspace need **nothing installed**: content in a content
+platform, a design tool, or a repository connects server-side — see
+[Connectors](/server/connectors). This page covers the pieces you do install:
+the desktop app, and the kapi CLI for the [developer
+route](/server/connectors/kapi).
 
 :::tip[Beta channel]
 During a release-candidate phase the **beta channel** carries the freshest
@@ -59,7 +62,7 @@ Direct downloads for **Bowrain Desktop 1.2.0-rc13**:
 Verify a download against [`checksums.txt`](https://github.com/neokapi/neokapi/releases/download/bowrain-v1.2.0-rc13/checksums.txt).
 <!-- END:downloads-bowrain-desktop -->
 
-## Connect with kapi (the CLI plugin)
+## The kapi CLI (the developer route)
 
 To sync a local codebase, install the bowrain plugin for the
 [`kapi`](https://neokapi.github.io/web/neokapi/kapi/get-started/installation)
@@ -119,6 +122,6 @@ and web images on the **same version tag**.
 ## Next steps
 
 - [Quick start](/quickstart) — get content in, from your systems or from a codebase
-- [The kapi loop on Bowrain](/the-loop) — how a connected project stays caught up
+- [Keeping content caught up](/the-loop) — how a project stays current
 - [Connectors](/server/connectors) — sync a CMS, design tool, or git host
 - [Walkthrough](/walkthroughs/bowrain-getting-started) — the kapi developer path

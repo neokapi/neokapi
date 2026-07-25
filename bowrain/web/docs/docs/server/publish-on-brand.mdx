@@ -1,7 +1,7 @@
 ---
 title: Publish on brand
 sidebar_position: 4
-description: Connect the CMS or design tool your content lives in, let the kapi loop translate and check it against your workspace's brand voice and terminology, review what needs a person, and publish back — no codebase required.
+description: Connect the content platform or design tool your content lives in, let the server draft and check it against your workspace's brand voice and vocabulary, review what needs a person, and publish back — no codebase required.
 keywords: [publish, brand voice, terminology, connectors, wordpress, hubspot, figma, review, bowrain]
 ---
 
@@ -16,10 +16,10 @@ below happens in the Bowrain web app, against the systems your content already
 lives in.
 
 By the end you will have a workspace that knows your brand's voice and
-vocabulary, a project connected to your CMS or design tool, [the kapi
-loop](/the-loop) translating and checking that content on the server, a review
-queue for what a machine cannot decide, and an explicit publish step that
-writes the result back where it came from.
+vocabulary, a project connected to your content platform or design tool,
+[server runs](/the-loop) drafting and checking that content, a review queue for
+what a machine cannot decide, and an explicit publish step that writes the
+result back where it came from.
 
 <PhaseFlow
   nodes={[
@@ -97,12 +97,12 @@ editor in its original format.
 
 ## 3. Translate and check
 
-Content fetched from a connector is ordinary project content, and [the kapi
-loop](/the-loop) is how it catches up: each run reuses what the workspace has
-translated before, drafts the rest with AI steered by the voice profile and
-terminology you established in step 1, checks everything it produced, and
-**parks** what a machine cannot decide for a person. Parked work is pending
-review, not an error.
+Content fetched from a connector is ordinary project content, and
+[a server run](/the-loop) is how it catches up: each run reuses what the
+workspace already remembers, drafts the rest with AI steered by the voice
+profile and vocabulary you established in step 1, checks everything it
+produced, and **parks** what a machine cannot decide for a person. Parked work
+is pending review, not an error.
 
 From the web app, start a run from the project's **Runs** view with **Run
 now**; the run's progress, pass count, and per-locale summary appear in the
@@ -148,7 +148,7 @@ what its publish writes.
 
 ## What's next
 
-- [The kapi loop on Bowrain](/the-loop) — what a run does, who starts it, and where parked work goes
+- [Keeping content caught up](/the-loop) — what a run does, who starts it, and where parked work goes
 - [Brand scan](/server/brand-scan) — draft a voice profile and glossary from material you already have
 - [Brand voice & corrections](/server/brand-voice) — how corrections become enforced rules
 - [Connectors](/server/connectors) — every connector, including repositories and local files

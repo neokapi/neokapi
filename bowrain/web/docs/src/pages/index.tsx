@@ -63,11 +63,11 @@ function HomepageHeader() {
             {siteConfig.title}
           </Heading>
           <p className={styles.heroSubtitle}>
-            Kapi converges your content on your machine. Bowrain keeps every project converging
-            &mdash; <strong>the shared brand memory for your team and your agents</strong>: brand
-            voice, terminology, approved translations, and corrections, versioned and learning
-            from every review. Plus collaborative editing, connectors to the systems your content
-            already lives in, and automation.
+            Govern and steward your multilingual content &mdash;{" "}
+            <strong>one shared brand memory for your team and your agents</strong>: voice,
+            vocabulary, approved text, and corrections, versioned and learning from every review.
+            Connected to the systems your content already lives in, with collaborative editing,
+            review, and automation around them.
           </p>
           <div className={styles.buttons}>
             <Link className={clsx("button button--lg", styles.tryButton)} to="/quickstart">
@@ -97,7 +97,7 @@ const BowrainFeatures: ProductItem[] = [
   {
     title: "The shared brand memory",
     description:
-      "One brand-voice profile, terminology base, and content memory, held on the server and drawn on by every project, person, and agent — versioned and auditable, and learning from every correction.",
+      "One brand-voice profile, one vocabulary, and one content memory, held on the server and drawn on by every project, person, and agent — versioned and auditable, and learning from every correction.",
     link: "/server/brand-voice",
     linkText: "Brand voice",
   },
@@ -111,16 +111,16 @@ const BowrainFeatures: ProductItem[] = [
   {
     title: "Connectors",
     description:
-      "Sync against the systems content already lives in — a CMS, a design tool, a git host, or a developer's local files via kapi. Most pull source in server-side, with no local checkout.",
+      "Content platforms, design tools, code repositories, and a developer's checkout are peer routes into one workspace. Most run server-side, with nothing installed and nothing checked out.",
     link: "/server/connectors",
     linkText: "Connectors",
   },
   {
-    title: "Bring a project up to date with kapi",
+    title: "Content that stays current",
     description:
-      "A kapi project whose recipe declares a server: block runs the kapi loop on the server in a single step. In CI, kapi up replaces a multi-job pipeline — one invocation from code change to translated files.",
-    link: "/cli/overview",
-    linkText: "Connect (CLI)",
+      "A connector sync, a push, or a developer's command starts a server run: reuse what memory holds, draft the rest, check everything, and park what needs a person into the review queue.",
+    link: "/the-loop",
+    linkText: "Keeping content caught up",
   },
 ];
 
@@ -155,7 +155,7 @@ export default function Home() {
   return (
     <Layout
       title={siteConfig.title}
-      description="Bowrain — the shared brand memory for your team and your agents, built on the kapi toolchain"
+      description="Bowrain — govern and steward your multilingual content: one shared brand memory for your team and your agents"
     >
       <HomepageHeader />
       <main>
