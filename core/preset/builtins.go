@@ -34,10 +34,10 @@ func RegisterBuiltins(reg *PresetRegistry) {
 //	i18n/
 //	├── src/               source KBF catalogs (bundler output)
 //	├── de/ fr/ ja/ nb/    per-locale targets (kapi output)
-//	├── termbase.ktb     brand vocabulary (git source)
+//	├── terms.json              brand vocabulary (git source)
 //	└── brand-voice.yaml   brand voice profile (git source)
 //
-// Source lives in i18n/src/ so the source glob (i18n/src/**/*.kbf) never matches
+// Source lives in i18n/src/ so the source glob (i18n/src/**/*.kbf.json) never matches
 // the per-locale target dirs — the collision that otherwise forces sibling
 // i18n-<lang>/ trees. Content memory and pseudo-locale output are
 // rebuildable state and live under .kapi/ (gitignored), never committed
@@ -48,11 +48,11 @@ func neokapiI18nPreset() *FrameworkPreset {
 		Description: "React with the @neokapi/i18n-react stack (zero-wrapper, KBF extraction)",
 		Detect:      []string{"package.json:@neokapi/i18n-react"},
 		Mappings: []MappingTemplate{
-			{Local: "i18n/src/**/*.kbf", Format: "kbf", TargetPath: "i18n/{lang}/{path}.kbf"},
+			{Local: "i18n/src/**/*.kbf.json", Format: "kbf", TargetPath: "i18n/{lang}/{path}.kbf.json"},
 		},
 		Exclude:           []string{"node_modules/**", "dist/**", "build/**"},
 		BrandVoiceProfile: "i18n/brand-voice.yaml",
-		TermsSource:       "i18n/termbase.ktb",
+		TermsSource:       "i18n/terms.json",
 		Source:            sourceBuiltIn,
 	}
 }

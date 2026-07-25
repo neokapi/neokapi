@@ -43,7 +43,7 @@ defaults:
   # termbase_source is the committed, git-tracked glossary (the review surface
   # `kapi apply` term-edits write to); terms is the gitignored cache the
   # source compiles into. Source of truth lives in git, never in the cache.
-  termbase_source: l10n/termbase.ktb
+  termbase_source: l10n/terms.json
   terms: .kapi/termbase.db
   tm:
     fuzzy_threshold: 75
@@ -96,19 +96,19 @@ content:
         target: core/i18n/catalogs/{lang}.mo
   - name: kapi-desktop-ui
     items:
-      - path: apps/kapi-desktop/frontend/i18n/**/*.kbf
+      - path: apps/kapi-desktop/frontend/i18n/**/*.kbf.json
         target: apps/kapi-desktop/frontend/i18n-{lang}/{filename}
   - name: bowrain-app-ui
     items:
-      - path: bowrain/packages/app/i18n/**/*.kbf
+      - path: bowrain/packages/app/i18n/**/*.kbf.json
         target: bowrain/packages/app/i18n-{lang}/{filename}
   - name: bowrain-ctrl-ui
     items:
-      - path: bowrain/apps/ctrl/i18n/**/*.kbf
+      - path: bowrain/apps/ctrl/i18n/**/*.kbf.json
         target: bowrain/apps/ctrl/i18n-{lang}/{filename}
   - name: bowrain-pulse-ui
     items:
-      - path: bowrain/apps/pulse/i18n/**/*.kbf
+      - path: bowrain/apps/pulse/i18n/**/*.kbf.json
         target: bowrain/apps/pulse/i18n-{lang}/{filename}
   - name: docs
     items:
@@ -144,7 +144,7 @@ content:
         target: bowrain/web/docs/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
   - name: emails
     items:
-      - path: bowrain/emails/i18n/**/*.kbf
+      - path: bowrain/emails/i18n/**/*.kbf.json
         target: bowrain/emails/i18n-{lang}/{filename}
   - name: email-subjects
     items:
@@ -154,7 +154,7 @@ content:
         target: bowrain/mailer/subjects/{lang}.json
   - name: landing
     items:
-      - path: bowrain/web/landing/i18n/**/*.kbf
+      - path: bowrain/web/landing/i18n/**/*.kbf.json
         target: bowrain/web/landing/i18n-{lang}/{filename}
   - name: demo-narration
     items:
@@ -162,7 +162,7 @@ content:
       # localized narration is GENERATED into committed demo.<lang>.yaml
       # sidecars (make l10n-demos, content memory-driven) that the harness overlays at
       # load time. Never hand-edit a sidecar — fix the content memory seed instead
-      # (l10n/tm/demo-narration-<lang>.kmb). Translatable keys are
+      # (l10n/tm/demo-narration-<lang>.memory.json). Translatable keys are
       # selected by defaults.formats.yaml.config.keyPathPatterns above.
       - path: harness/demos/*/demo.yaml
         format:
@@ -211,7 +211,7 @@ flows:
 #
 # neokapi is the first real workspace on Bowrain. `kapi push` sends every surface
 # above to the project below; nb drafts land in the governed review queue and
-# approved segments round-trip back into l10n/tm/*.kmb.
+# approved segments round-trip back into l10n/tm/*.memory.json.
 #
 # converge: manual — a push moves content but does NOT auto-start a server AI
 # convergence run. The first on-push run (2026-07-17) tried to AI-draft the whole

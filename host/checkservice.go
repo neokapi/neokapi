@@ -53,7 +53,7 @@ func OverlayTargets(sourceBlocks, targetBlocks []*model.Block, locale model.Loca
 		}
 		// Carry the translation onto the source block as the target locale so
 		// checkers can compare inline codes structurally. A bilingual target
-		// file (kapi's own .kbf interchange, which keeps the source in place and
+		// file (kapi's own .kbf.json interchange, which keeps the source in place and
 		// the translation under targets.<locale>) carries the translation as the
 		// block's target runs; prefer those. A monolingual target file (e.g.
 		// fr-FR.json, whose content IS the translation) has none, so fall back to

@@ -1,8 +1,8 @@
 ---
 sidebar_position: 3
 title: Examples
-description: Worked KBF examples — every run kind, a complete .kbf document with its .overlays.jsonl annotation overlay, and an embedded lab to edit them live in the browser.
-keywords: [KBF, examples, .kbf, .overlays.jsonl, runs, plural, select, sub, annotations]
+description: Worked KBF examples — every run kind, a complete .kbf.json document with its .overlays.jsonl annotation overlay, and an embedded lab to edit them live in the browser.
+keywords: [KBF, examples, .kbf.json, .overlays.jsonl, runs, plural, select, sub, annotations]
 ---
 
 import { KbfExplorer } from "@site/src/components/Lab/KbfExplorer";
@@ -278,7 +278,7 @@ points at it with a **`sub`** run:
 
 ## A complete document with an annotation overlay
 
-A full `.kbf` bundles documents and blocks under the envelope; a companion
+A full `.kbf.json` bundles documents and blocks under the envelope; a companion
 `.overlays.jsonl` overlay attaches stand-off annotations by anchor. The header below is one
 line; each annotation is one line. The `term-1` record anchors to the `label`
 run of `tag-chip`; `entity-1` anchors to a character range; `qa-1` anchors to the
@@ -296,7 +296,7 @@ run of `tag-chip`; `entity-1` anchors to a character range; `qa-1` anchors to th
 ## Try it live
 
 The lab below runs the real `core/kbf` engine in your browser. Pick a sample or
-edit the `.kbf` directly — it re-parses, canonicalizes, renders each block, and
+edit the `.kbf.json` directly — it re-parses, canonicalizes, renders each block, and
 validates the run structure as you type. Edit the `.overlays.jsonl` overlay and click an
 annotation to resolve it against the live document and see exactly what it points
 at (or why it does not resolve).

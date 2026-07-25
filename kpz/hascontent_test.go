@@ -26,7 +26,7 @@ func TestPackageHasContent(t *testing.T) {
 
 	// Any real content member makes it non-empty.
 	cases := map[string]*Package{
-		"blocks":    {Blocks: []BlockDoc{{Path: "blocks/x.kbf"}}},
+		"blocks":    {Blocks: []BlockDoc{{Path: "blocks/x.kbf.json"}}},
 		"overlays":  {Overlays: []OverlayDoc{{Kind: "targets/fr", Source: "a.json"}}},
 		"skeletons": {Skeletons: []SkeletonDoc{{Path: "skeletons/x", SourcePath: "a.json"}}},
 		"source":    {Source: []SourceDoc{{Path: "source/a.json", Content: BytesContent([]byte("{}"))}}},

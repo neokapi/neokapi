@@ -110,7 +110,8 @@ captions (and title/subtitle) onto the English master by scene `id`; sidecar
 entries still identical to the English text are content memory misses (pending
 translation) and simply fall back to English. Never hand-edit a sidecar or
 author an inline `locales:` block (the loader rejects it) — corrections go
-into the content memory seed `l10n/tm/demo-narration-<lang>.kmb`, then regenerate.
+into the content memory seed `l10n/tm/demo-narration-<lang>.memory.json`, then
+regenerate.
 Freshness is CI-gated by `make l10n-verify`.
 
 Scenes without a translated override fall back to English — except for

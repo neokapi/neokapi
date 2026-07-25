@@ -217,7 +217,7 @@ fixture-only code (`src/stories/**`, test helpers) out of the catalog
 — your lint config should agree (see [Linting → Excluding fixture
 code](./linting#excluding-fixture-code)).
 
-`neokapi-i18n compile` (accepts `.kbf`, `.kbf` directory, or `-` for NDJSON stdin):
+`neokapi-i18n compile` (accepts a `.kbf.json` file, a directory of them, or `-` for NDJSON stdin):
 
 ```bash
 neokapi-i18n compile \
@@ -392,13 +392,13 @@ The convention props (`label`, `description`, `heading`, …) only extract on Pa
 
 ### Per file (glob-based)
 
-Use the CLI `--src` flag to scope extraction. The plugin still runs for the Vite build, but omitted files produce no `.kbf` entries.
+Use the CLI `--src` flag to scope extraction. The plugin still runs for the Vite build, but omitted files produce no `.kbf.json` entries.
 
 ## Debugging
 
 ### "I changed a string but translations still load the old text"
 
-Hash changed; run `neokapi-i18n extract` and update the translation dict. A stale `.kbf` means stale hashes.
+Hash changed; run `neokapi-i18n extract` and update the translation dict. A stale `.kbf.json` means stale hashes.
 
 ### "My custom component's text isn't getting translated"
 
@@ -414,7 +414,7 @@ You're probably building Storybook or running tests with the plugin active. Rout
 
 ### "Hash mismatch between extract and transform"
 
-Almost always a `componentMap` desync — the plugin and the CLI computed different keys because they were configured differently. [Share one config file](#share-one-config-between-the-cli-and-the-plugin) between them. `neokapi-i18n explain` prints the hash each element gets, so you can compare it against the `.kbf` directly.
+Almost always a `componentMap` desync — the plugin and the CLI computed different keys because they were configured differently. [Share one config file](#share-one-config-between-the-cli-and-the-plugin) between them. `neokapi-i18n explain` prints the hash each element gets, so you can compare it against the `.kbf.json` directly.
 
 ### "A string renders in English in a pseudo build, but the component looks translatable"
 
@@ -469,4 +469,4 @@ compile`, or whatever script your project wires up).
 ## Next
 
 - [AD-008 Kapi Project Model](/contribute/architecture/008-project-model) — project layout and block store.
-- [kapi CLI overview](/kapi/cli) — translation commands that consume your `.kbf`.
+- [kapi CLI overview](/kapi/cli) — translation commands that consume your `.kbf.json`.

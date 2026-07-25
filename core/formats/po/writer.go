@@ -237,7 +237,7 @@ func (w *Writer) writeBlockAsMsgstr(blocks map[string]*model.Block, refID string
 // With NO active locale the writer is reproducing the catalog rather than merging
 // into it, and the msgstr slot still belongs to the locale the reader attached it
 // under. The model's target for that locale is then the authority — the rule
-// #1471 established for .kbf, here under a non-write locale (#1482). Before this,
+// #1471 established for .kbf.json, here under a non-write locale (#1482). Before this,
 // "no active locale" resolved to the empty string, so every translated msgstr was
 // rewritten empty: `kapi apply` and the MCP edit tool pass no write locale at
 // all, and `kapi ksed -i` passes one only with --target-lang, so editing a source

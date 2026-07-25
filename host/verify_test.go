@@ -265,7 +265,7 @@ func TestVerify_GateSelection(t *testing.T) {
 }
 
 // writeTermsSourceProject creates a project that binds a committed
-// termbase_source (a .ktb) but NO compiled .kapi/termbase.db, so the check
+// termbase_source (a .terms.json) but NO compiled .kapi/termbase.db, so the check
 // path must resolve the glossary straight from the source. The terms store carries
 // two concepts: a do-not-translate brand term (KapiMart, identical in en/fr) and
 // a translated term (Save -> Enregistrer). The fr target keeps the brand term
@@ -283,7 +283,7 @@ name: verifysrc
 defaults:
   source_language: en
   target_languages: [fr]
-  termbase_source: l10n/termbase.ktb
+  termbase_source: l10n/terms.json
 content:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
@@ -322,7 +322,7 @@ content:
 	})
 	data, err := ktb.Marshal(file)
 	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(filepath.Join(root, "l10n", "termbase.ktb"), data, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "l10n", "terms.json"), data, 0o644))
 
 	// Assert the fallback path is the one under test: no compiled db exists.
 	_, statErr := os.Stat(filepath.Join(root, ".kapi", "termbase.db"))
@@ -332,7 +332,7 @@ content:
 }
 
 // TestVerify_GlossaryFromTermsSource asserts the terminology gate resolves
-// the project glossary directly from the committed termbase_source (.ktb) when
+// the project glossary directly from the committed termbase_source (.terms.json) when
 // the compiled .kapi/termbase.db is absent — the common case at check time in
 // CI. The gate must run and fail on the mistranslated "Save".
 func TestVerify_GlossaryFromTermsSource(t *testing.T) {
@@ -348,7 +348,7 @@ func TestVerify_GlossaryFromTermsSource(t *testing.T) {
 	assert.False(t, terms.Pass, "terminology gate must fail on Save -> Sauvegarder")
 	require.NotEmpty(t, terms.Findings)
 	assert.Contains(t, terms.Findings[0].Message, "Enregistrer",
-		"the finding must name the preferred term resolved from the .ktb source")
+		"the finding must name the preferred term resolved from the .terms.json source")
 }
 
 // TestVerify_DoNotTranslateNotFlagged asserts that a do-not-translate glossary
@@ -366,4 +366,102 @@ func TestVerify_DoNotTranslateNotFlagged(t *testing.T) {
 		assert.NotContains(t, f.Message, "identical to source",
 			"the do-not-translate brand term must not be flagged as untranslated")
 	}
+}
+
+// writeTermsProjectUnbound builds the same project as writeTermsSourceProject
+// but with NO defaults.termbase_source binding, committing the glossary at the
+// conventional location rel instead.
+func writeTermsProjectUnbound(t *testing.T, rel string) string {
+	t.Helper()
+	t.Setenv("KAPI_NO_PROJECT", "")
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "en"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "fr"), 0o755))
+
+	recipe := `version: v1
+name: verifyconv
+defaults:
+  source_language: en
+  target_languages: [fr]
+content:
+  - path: "locales/en/*.json"
+    target: "locales/{lang}/*.json"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
+	require.NotContains(t, recipe, "termbase_source",
+		"this test must exercise the convention ladder, not a binding")
+
+	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "en", "app.json"),
+		[]byte("{\n  \"save\": \"Save\"\n}\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "locales", "fr", "app.json"),
+		[]byte("{\n  \"save\": \"Sauvegarder\"\n}\n"), 0o644))
+
+	file := ktb.FromConcepts([]terms.Concept{{
+		ID: "save",
+		Terms: []terms.Term{
+			{Text: "Save", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+			{Text: "Enregistrer", Locale: model.LocaleFrench, Status: model.TermPreferred},
+		},
+	}})
+	data, err := ktb.Marshal(file)
+	require.NoError(t, err)
+	dest := filepath.Join(root, rel)
+	require.NoError(t, os.MkdirAll(filepath.Dir(dest), 0o755))
+	require.NoError(t, os.WriteFile(dest, data, 0o644))
+
+	return root
+}
+
+// TestVerify_GlossaryFromConventionalLocation covers the well-known-location
+// ladder for terms: with no defaults.termbase_source binding, a glossary
+// committed at the conventional path is still found and still gates.
+//
+// The repository root is searched before .kapi/ deliberately. The bundle is
+// committed source, and .kapi/ is ignored by both the repository .gitignore and
+// core/ignore's defaults — so a glossary kept there would never be committed or
+// reviewed. .kapi/ stays as the second rung only so a project that treats its
+// glossary as local state still resolves.
+func TestVerify_GlossaryFromConventionalLocation(t *testing.T) {
+	tests := []struct {
+		name string
+		rel  string
+	}{
+		{"repository root", "terms.json"},
+		{"state directory", filepath.Join(".kapi", "terms.json")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := writeTermsProjectUnbound(t, tt.rel)
+			t.Chdir(root)
+
+			_, runErr := runVerifyJSON(t)
+			require.ErrorIs(t, runErr, ErrQualityGate,
+				"an unbound project must find the conventional glossary and fail on the mistranslated term")
+		})
+	}
+}
+
+// TestVerify_ConventionalGlossaryPrefersRoot pins the ordering when both rungs
+// are present: the committed root copy wins over the gitignored state copy.
+func TestVerify_ConventionalGlossaryPrefersRoot(t *testing.T) {
+	root := writeTermsProjectUnbound(t, "terms.json")
+
+	// A state-directory glossary that would PASS the gate. If the ladder
+	// preferred .kapi/, the run would come back clean and this test would fail.
+	stray := ktb.FromConcepts([]terms.Concept{{
+		ID: "save",
+		Terms: []terms.Term{
+			{Text: "Save", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+			{Text: "Sauvegarder", Locale: model.LocaleFrench, Status: model.TermPreferred},
+		},
+	}})
+	data, err := ktb.Marshal(stray)
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".kapi"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".kapi", "terms.json"), data, 0o644))
+
+	t.Chdir(root)
+	_, runErr := runVerifyJSON(t)
+	require.ErrorIs(t, runErr, ErrQualityGate,
+		"the committed root glossary must win over the gitignored state copy")
 }

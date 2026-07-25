@@ -13,7 +13,7 @@ import (
 func TestRegisterAlias_ReaderResolves(t *testing.T) {
 	reg := NewFormatRegistry()
 	regStubSig(reg, "kbf", "Kapi Bundle Format (KBF)",
-		[]string{"application/vnd.neokapi.kbf+json"}, []string{".kbf"})
+		[]string{"application/vnd.neokapi.kbf+json"}, []string{".kbf.json"})
 	reg.RegisterAlias("jsx", "kbf")
 
 	// Canonical id resolves.
@@ -30,7 +30,7 @@ func TestRegisterAlias_ReaderResolves(t *testing.T) {
 func TestRegisterAlias_WriterResolves(t *testing.T) {
 	reg := NewFormatRegistry()
 	regStubSig(reg, "kbf", "Kapi Bundle Format (KBF)",
-		[]string{"application/vnd.neokapi.kbf+json"}, []string{".kbf"})
+		[]string{"application/vnd.neokapi.kbf+json"}, []string{".kbf.json"})
 	reg.RegisterWriter("kbf", func() format.DataFormatWriter { return newStubWriter("kbf") })
 	reg.RegisterAlias("jsx", "kbf")
 
@@ -76,7 +76,7 @@ func TestRegisterAlias_ResolveReaderWriter(t *testing.T) {
 func TestRegisterAlias_NotListed(t *testing.T) {
 	reg := NewFormatRegistry()
 	regStubSig(reg, "kbf", "Kapi Bundle Format (KBF)",
-		[]string{"application/vnd.neokapi.kbf+json"}, []string{".kbf"})
+		[]string{"application/vnd.neokapi.kbf+json"}, []string{".kbf.json"})
 	reg.RegisterAlias("jsx", "kbf")
 
 	infos := reg.FormatInfos()
@@ -98,10 +98,10 @@ func TestRegisterAlias_NotListed(t *testing.T) {
 func TestRegisterAlias_DetectionReturnsCanonical(t *testing.T) {
 	reg := NewFormatRegistry()
 	regStubSig(reg, "kbf", "Kapi Bundle Format (KBF)",
-		[]string{"application/vnd.neokapi.kbf+json"}, []string{".kbf"})
+		[]string{"application/vnd.neokapi.kbf+json"}, []string{".kbf.json"})
 	reg.RegisterAlias("jsx", "kbf")
 
-	byExt, err := reg.DetectByExtension(".kbf")
+	byExt, err := reg.DetectByExtension(".kbf.json")
 	require.NoError(t, err)
 	assert.Equal(t, FormatID("kbf"), byExt)
 

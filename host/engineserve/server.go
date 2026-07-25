@@ -618,7 +618,7 @@ func (s *Server) resolveFormat(explicit, name, srcPath string, content []byte) (
 func (s *Server) detect(name string, sample []byte) (registry.FormatID, error) {
 	path := name
 	if len(sample) > 0 {
-		tmp, err := os.CreateTemp("", "kapi-engine-detect-*"+filepath.Ext(name))
+		tmp, err := os.CreateTemp("", "kapi-engine-detect-*"+format.Ext(name))
 		if err != nil {
 			return "", err
 		}

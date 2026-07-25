@@ -3,13 +3,13 @@
 /**
  * neokapi-i18n CLI.
  *
- *   neokapi-i18n extract   Walk JSX/TSX source and produce one .kbf per
+ *   neokapi-i18n extract   Walk JSX/TSX source and produce one .kbf.json per
  *                        source file under --out (default: i18n/),
  *                        mirroring the source tree — so `src/**` lands
  *                        catalogs under i18n/src/, leaving i18n/{lang}/
  *                        for kapi's per-locale targets.
  *
- *   neokapi-i18n compile   Consume a translated .kbf directory (kapi or
+ *   neokapi-i18n compile   Consume a translated .kbf.json directory (kapi or
  *                        another tool filled in block.targets[locale]),
  *                        flatten each block's target runs into the
  *                        {hash: text} shape the runtime loader reads
@@ -64,7 +64,7 @@ neokapi-i18n — zero-config i18n for React
 
 Commands:
   extract       Extract translatable strings from JSX/TSX source files
-  compile       Flatten a translated .kbf directory into runtime dictionaries
+  compile       Flatten a translated .kbf.json directory into runtime dictionaries
   split         Slice per-locale dicts into per-chunk subsets for lazy loading
   explain       Print each element's translatability decision (ITS audit)
 

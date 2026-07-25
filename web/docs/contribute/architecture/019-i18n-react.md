@@ -286,7 +286,7 @@ didn't — without a source change.
 ### One template builder, two consumers
 
 Extract and transform must agree on the flat template **byte for
-byte**: extract hashes it into the `.kbf`, transform hashes it to look
+byte**: extract hashes it into the `.kbf.json`, transform hashes it to look
 the translation back up. They are two walks over the same AST in two
 files, and for a while they were two *implementations* — which drifted,
 and shipped two correctness bugs to prove it (paired inline elements

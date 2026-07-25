@@ -34,7 +34,7 @@ Hold **ALT** — hovering now outlines every translatable element. **ALT+click**
 
 Type a fix, save, and the app repaints immediately. You are not previewing the change; you are looking at it.
 
-The fix is written into the `.kbf` file the string came from — so it shows up as a line in `git diff`, travels through review in a pull request like any other change, and is picked up by the next `neokapi-i18n compile` with no extra step. A reviewer's edit takes exactly the same path as a translator's, because it is the same file.
+The fix is written into the `.kbf.json` file the string came from — so it shows up as a line in `git diff`, travels through review in a pull request like any other change, and is picked up by the next `neokapi-i18n compile` with no extra step. A reviewer's edit takes exactly the same path as a translator's, because it is the same file.
 
 ## Head and SEO strings
 
@@ -57,7 +57,7 @@ function Head() {
 
 Each hook translates its source through the runtime dictionary — the same lookup `t()` uses — sets the real head element, and registers the string for review. Nothing scrapes arbitrary head markup; only strings the pipeline translated appear.
 
-A **head/SEO** button appears in the review toolbar whenever a page has such strings. It opens a panel listing each one — its slot (`title`, `description`, `og:title`, …), the source, and the current target — with the same editable field and save the inline panel uses. An edit writes back through the same `.kbf` file and repaints the head in place. When a page registers no head strings, the button stays hidden.
+A **head/SEO** button appears in the review toolbar whenever a page has such strings. It opens a panel listing each one — its slot (`title`, `description`, `og:title`, …), the source, and the current target — with the same editable field and save the inline panel uses. An edit writes back through the same `.kbf.json` file and repaints the head in place. When a page registers no head strings, the button stays hidden.
 
 Head translation resolves through the runtime dictionary, so it applies in OTA / [runtime mode](./modes). Identically-worded slots — a `<title>` and its `og:title` — share one translation.
 
@@ -100,7 +100,7 @@ neokapi-i18n compile i18n --out public/translations --review
 
 ## Reviewers without a checkout
 
-Review talks to an endpoint, and the local one — reading and writing the `.kbf` files in your repository — is simply the endpoint that needs no infrastructure. Point it at a different endpoint on a staging deployment and a reviewer with no repository and no toolchain can review the app in place:
+Review talks to an endpoint, and the local one — reading and writing the `.kbf.json` files in your repository — is simply the endpoint that needs no infrastructure. Point it at a different endpoint on a staging deployment and a reviewer with no repository and no toolchain can review the app in place:
 
 ```ts
 initKapiReview({ endpoint: "https://staging.example.com/review" });

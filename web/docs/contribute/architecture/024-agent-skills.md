@@ -220,15 +220,16 @@ through a single command, `kapi apply` (the write sibling of `kapi inspect`):
 | `kind` | What it edits | How it lands |
 |---|---|---|
 | `content` | a block's text in a named `file` | byte-faithful format round-trip, drift- and inline-code guarded |
-| `term` | a term | committed `.ktb` source → terms import → the terms store (`.kapi/termbase.db`) |
-| `tm` | a content-memory pair | committed `.kmb` source → memory import → the memory (`.kapi/tm.db`) |
+| `term` | a term | committed `.terms.json` source → terms import → the terms store (`.kapi/termbase.db`) |
+| `tm` | a content-memory pair | committed `.memory.json` source → memory import → the memory (`.kapi/tm.db`) |
 | `brand` | a brand vocabulary rule | committed brand profile YAML → brand-store import ([AD-022](022-brand-voice.md)) |
 | `recipe` | an allowlisted recipe field | the `kapi.yaml` recipe, via project load/save |
 
 Two properties make this one verb rather than five:
 
 - **Asset edits write the committed source, then compile the cache.** An asset is
-  edited in the git-tracked artifact the recipe binds (the `.ktb`/`.kmb`,
+  edited in the git-tracked artifact the recipe binds (the
+  `.terms.json`/`.memory.json` bundle,
   the brand YAML, the recipe), and the *existing* importer refreshes the
   gitignored SQLite cache from it. The backing store is therefore written by
   exactly one path, `git diff` is the uniform review surface for every kind, and

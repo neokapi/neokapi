@@ -52,7 +52,7 @@ rungs a decision writes here are load-bearing, not informational.
 The model already expresses these facts (`model.TargetStatus`,
 `model.SourceStatus`, `model.Origin`). What was missing was a *persistence* for
 them that is independent of the deliverable format. The danger is to overload an
-existing store — in particular the `.kmb` content memory, which is
+existing store — in particular the `.memory.json` content memory, which is
 content-keyed leverage, not project state. Conflating "have we ever translated
 this string?" (recycle, content-keyed) with "is *this* unit signed off, by whom?"
 (decision, unit-keyed) is a category error: the two have different keys and
@@ -75,7 +75,7 @@ Every decision's durable home is the committed state store.
 
 ### Content memory is recycle, not the state carrier
 
-The `.kmb` content memory ([AD-009](009-content-memory.md)) is the
+The `.memory.json` content memory ([AD-009](009-content-memory.md)) is the
 **recycle corpus** — a content-keyed pool of source→target pairs reused to
 pre-fill and leverage future translation. It does **not** record review
 decisions. Adding a pair to the memory (`kapi apply` with `kind:"tm"`) is recycle
@@ -132,7 +132,7 @@ binding is the unification of the file and server worlds:
 
 - **git mode** — export writes the committed state file (`defaults.state`,
   default `.kapi-state.json`, beside the recipe), mirroring how `tm_source` binds
-  the committed `.kmb`. CI (or the user) commits it.
+  the committed `.memory.json`. CI (or the user) commits it.
 - **server mode** — export is `kapi push`; `kapi pull` imports server state into
   the working set.
 

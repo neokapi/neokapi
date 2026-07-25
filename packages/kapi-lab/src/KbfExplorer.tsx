@@ -46,7 +46,7 @@ interface AnyAnchor {
   key?: string;
 }
 
-// KbfExplorer is the KBF Lab: edit a `.kbf` document and watch the canonical Go
+// KbfExplorer is the KBF Lab: edit a `.kbf.json` document and watch the canonical Go
 // engine (core/kbf, compiled to WASM) parse it, canonicalize the bytes, render
 // each block to its Level-1 HTML preview, validate the run structure, and
 // resolve a companion `.overlays.jsonl` annotation overlay anchor-by-anchor. Everything
@@ -191,7 +191,7 @@ export default function KbfExplorer({
       <p className={styles.status}>{kbfSampleById(sampleId).blurb}</p>
 
       <div className={styles.section}>
-        <span className={styles.label}>.kbf document (editable)</span>
+        <span className={styles.label}>.kbf.json document (editable)</span>
         <textarea
           className={`${styles.editor} ${parsed.error ? styles.editorError : ""}`}
           spellCheck={false}
@@ -244,7 +244,9 @@ export default function KbfExplorer({
 
       {!hideAnnotations && (
         <div className={styles.section}>
-          <span className={styles.label}>.overlays.jsonl annotation overlay — stand-off anchors</span>
+          <span className={styles.label}>
+            .overlays.jsonl annotation overlay — stand-off anchors
+          </span>
           <textarea
             className={`${styles.editor} ${styles.editorSmall}`}
             spellCheck={false}

@@ -8,7 +8,7 @@ import "github.com/neokapi/neokapi/core/model"
 // RFC 0001 §Versioning).
 const SchemaVersion = "1.0"
 
-// Kind is the magic string on the root of a .kbf JSON document.
+// Kind is the magic string on the root of a .kbf.json document.
 const Kind = "kapi-bundle"
 
 // The Run-based content model is canonical in core/model. kbf
@@ -101,25 +101,25 @@ type Document struct {
 	Blocks       []Block      `json:"blocks"`
 }
 
-// GeneratorInfo identifies the extractor that produced a .kbf.
+// GeneratorInfo identifies the extractor that produced a .kbf.json.
 type GeneratorInfo struct {
 	ID           string   `json:"id"`
 	Version      string   `json:"version"`
 	Capabilities []string `json:"capabilities,omitempty"`
 }
 
-// ProjectInfo identifies the project a .kbf belongs to.
+// ProjectInfo identifies the project a .kbf.json belongs to.
 type ProjectInfo struct {
 	ID           string   `json:"id"`
 	SourceLocale LocaleID `json:"sourceLocale"`
 }
 
-// Vocabulary lists vocabulary files this .kbf depends on.
+// Vocabulary lists vocabulary files this .kbf.json depends on.
 type Vocabulary struct {
 	Extends []string `json:"extends,omitempty"`
 }
 
-// File is the top-level shape of a .kbf JSON document.
+// File is the top-level shape of a .kbf.json document.
 type File struct {
 	SchemaVersion string        `json:"schemaVersion"`
 	Kind          string        `json:"kind"`

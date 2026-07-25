@@ -1193,7 +1193,7 @@ KAPI_DESKTOP_EXTRACT_SRC := --src "src/**/*.{tsx,jsx}" --src "../../../packages/
 i18n-react-build: ## Build @neokapi/i18n-react (runtime + vite plugin + CLI) into dist/
 	cd packages/i18n-react && vp run build
 
-kapi-desktop-extract: kapi-desktop-frontend-deps i18n-react-build ## Extract translatable blocks to i18n/ (per-file .kbf)
+kapi-desktop-extract: kapi-desktop-frontend-deps i18n-react-build ## Extract translatable blocks to i18n/ (per-file .kbf.json)
 	cd $(KAPI_DESKTOP_DIR)/frontend && $(NEOKAPI_I18N_CLI) extract --out i18n/ --target-locale qps $(KAPI_DESKTOP_EXTRACT_SRC)
 
 kapi-desktop-pseudo-translate: kapi-desktop-extract bin/kapi ## Pseudo-translate i18n/ → i18n-qps/
@@ -1221,7 +1221,7 @@ BOWRAIN_APP_DIR := bowrain/packages/app
 BOWRAIN_UI_IGNORES := --ignore "**/*.stories.tsx" --ignore "**/*.test.tsx" --ignore "**/__tests__/**" --ignore "**/stories/**" --ignore "**/demo/**"
 BOWRAIN_APP_EXTRACT_SRC := --src "src/**/*.{tsx,jsx}" --src "../ui/src/**/*.tsx" --src "../../apps/web/src/**/*.tsx" --src "../../apps/bowrain/frontend/src/**/*.tsx" $(BOWRAIN_UI_IGNORES)
 
-bowrain-app-extract: i18n-react-build ## Extract bowrain app+ui+shell strings to bowrain/packages/app/i18n/ (per-file .kbf)
+bowrain-app-extract: i18n-react-build ## Extract bowrain app+ui+shell strings to bowrain/packages/app/i18n/ (per-file .kbf.json)
 	cd $(BOWRAIN_APP_DIR) && $(NEOKAPI_I18N_CLI) extract --config neokapi-i18n.config.json --out i18n/ --target-locale qps $(BOWRAIN_APP_EXTRACT_SRC)
 
 bowrain-app-pseudo-translate: bowrain-app-extract bin/kapi ## Pseudo-translate bowrain app i18n/ → i18n-qps/
@@ -1293,13 +1293,13 @@ kapi-i18n-translations: kapi-i18n-pseudo-translate ## Regenerate + pseudo-transl
 #
 # These targets ARE the dogfood workflow, so they deliberately run WITHOUT
 # $(KAPI_ISO_ENV): they bind to the repo-root project and its .kapi/ state.
-# Reviewed translations are committed as native .kmb bundles under l10n/tm/; the
+# Reviewed translations are committed as native .memory.json bundles under l10n/tm/; the
 # project content memory and terms are rebuilt from those seeds (l10n-seed), then
 # each surface is produced by content-memory leverage, so output only ever
 # contains reviewed strings.
 L10N_LANGS := nb
 
-# Seeds are committed in the native Kapi-family forms (.kmb / .ktb):
+# Seeds are committed in the native Kapi-family forms (.memory.json / .terms.json):
 # deterministic, lossless, and identity-preserving, so wipe-and-reseed
 # reproduces the content memory/terms state exactly. TMX/CSV are the lossy
 # interchange tier — emit them on demand with l10n-review-export.
@@ -1308,8 +1308,8 @@ l10n-seed: bin/kapi ## Rebuild .kapi/ terms + content memory from the committed 
 	@# The state filenames stay tm.db / termbase.db — that is what the Go code
 	@# opens, and existing projects already have them.
 	@rm -f .kapi/termbase.db .kapi/tm.db
-	./bin/kapi terms import l10n/terms.ktb
-	@for f in l10n/tm/*.kmb; do \
+	./bin/kapi terms import l10n/terms.terms.json
+	@for f in l10n/tm/*.memory.json; do \
 		[ -e "$$f" ] || continue; \
 		./bin/kapi memory import "$$f"; \
 	done
@@ -1318,7 +1318,7 @@ l10n-review-export: l10n-seed ## Emit disposable TMX/CSV review views of the nat
 	@mkdir -p l10n/review
 	./bin/kapi memory export --format tmx -o l10n/review/tm-all.tmx
 	./bin/kapi terms export --format csv -s en -t nb -o l10n/review/terms-en-nb.csv
-	@echo "Review views written to l10n/review/ (gitignored; the .kmb/.ktb seeds are the source of truth)"
+	@echo "Review views written to l10n/review/ (gitignored; the .memory.json/.terms.json seeds are the source of truth)"
 
 l10n-builtins: l10n-seed kapi-i18n-generate ## Builtin tool/format metadata → core/i18n/catalogs/<lang>.mo (content-memory-driven)
 	@for lang in $(L10N_LANGS); do \
@@ -1384,7 +1384,7 @@ l10n-cli: l10n-seed kapi-cli-i18n-generate ## CLI help + output chrome → host/
 # so the yaml keyPathPatterns in kapi.yaml bind (only narration/caption/
 # title/subtitle are translatable — never ids, beats, commands, or timings).
 # Sidecars are generated only for the demos listed here — the ones with
-# reviewed nb narration in the content memory (l10n/tm/demo-narration-nb.kmb); add a
+# reviewed nb narration in the content memory (l10n/tm/demo-narration-nb.memory.json); add a
 # demo dir once its narration has been translated.
 L10N_DEMO_DIRS := 05-ai-checks-guardrail 09-toolbox-find-replace \
 	kapi-bilingual-workflow kapi-desktop-config kapi-desktop-content \
@@ -1421,7 +1421,7 @@ l10n: l10n-builtins l10n-desktop l10n-cli l10n-demos l10n-docs l10n-bowrain-docs
 
 # ── Transactional emails (bowrain/emails → bowrain/mailer) ──────────────────
 # neokapi-i18n extraction over the React Email templates; qps via pseudo, nb via
-# Memory recycle from l10n/tm/emails-nb.kmb; compiled catalogs are inlined into
+# Memory recycle from l10n/tm/emails-nb.memory.json; compiled catalogs are inlined into
 # per-locale template renders (bowrain/mailer/templates/<lang>/*.html) and the
 # subject catalogs (bowrain/mailer/subjects/<lang>.json) — both committed and
 # embedded into the server binary, so they are drift-gated (emails-l10n-verify).
@@ -1431,7 +1431,7 @@ KAPI_EMAILS_EXTRACT_SRC := --src "src/*.tsx" --ignore "src/*.stories.tsx" --igno
 emails-frontend-deps: ## Install email template dependencies
 	cd $(EMAILS_DIR) && vp install
 
-emails-extract: emails-frontend-deps i18n-react-build ## Extract translatable email blocks → bowrain/emails/i18n/ (per-file .kbf)
+emails-extract: emails-frontend-deps i18n-react-build ## Extract translatable email blocks → bowrain/emails/i18n/ (per-file .kbf.json)
 	cd $(EMAILS_DIR) && $(NEOKAPI_I18N_CLI) extract --config neokapi-i18n.config.json --out i18n/ --target-locale qps $(KAPI_EMAILS_EXTRACT_SRC)
 
 emails-pseudo-translate: emails-extract bin/kapi ## Pseudo-translate email strings + subjects → qps

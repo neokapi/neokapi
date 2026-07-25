@@ -401,7 +401,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	// Create writer early so we can wire skeleton store before reading.
 	// Writer format defaults to the reader's format (same-in / same-out
 	// round-trip) but a different output extension selects a different
-	// writer — that's how "convert .json → .kbf → .mo" works without a
+	// writer — that's how "convert .json → .kbf.json → .mo" works without a
 	// dedicated --writer flag. The output path's extension IS the user's
 	// intent declaration.
 	var writer format.DataFormatWriter
@@ -412,8 +412,8 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		// keep the reader's format so an ambiguous extension that was content-
 		// detected (e.g. .xliff → xliff2) isn't downgraded to the 1.x writer.
 		if !cfg.InPlace {
-			outExt := strings.ToLower(filepath.Ext(outputPath))
-			inExt := strings.ToLower(filepath.Ext(filePath))
+			outExt := format.Ext(outputPath)
+			inExt := format.Ext(filePath)
 			if outExt != "" && outExt != inExt {
 				if det, err := a.FormatReg.Detect(outputPath, registry.DetectOptions{ExtensionOnly: true}); err == nil && det != "" {
 					writerFormatName = string(det)
@@ -534,7 +534,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	var traceNodes []flow.TraceNode
 	resolvedTracePath := cfg.TracePath
 	if resolvedTracePath != "" {
-		ext := filepath.Ext(filePath)
+		ext := format.Ext(filePath)
 		name := strings.TrimSuffix(filepath.Base(filePath), ext)
 		extNoDot := strings.TrimPrefix(ext, ".")
 		resolvedTracePath = strings.ReplaceAll(resolvedTracePath, "{name}", name)
@@ -889,7 +889,7 @@ func swapLocaleSegment(filePath, sourceLang, targetLang string) (string, bool) {
 // "app.en.json" → "app.fr.json", "en.json" → "fr.json", "app_en.arb" →
 // "app_fr.arb".
 func swapLocaleToken(base, sourceLang, targetLang string) (string, bool) {
-	ext := filepath.Ext(base)
+	ext := format.Ext(base)
 	name := strings.TrimSuffix(base, ext)
 	if name == "" {
 		return "", false

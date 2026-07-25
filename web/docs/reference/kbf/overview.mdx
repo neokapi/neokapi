@@ -1,12 +1,12 @@
 ---
 sidebar_position: 1
 title: Overview
-description: What the Kapi Bundle Format (.kbf) is, the role it plays in the content pipeline, and how the canonical Go engine and the TypeScript mirror relate.
+description: What the Kapi Bundle Format (.kbf.json) is, the role it plays in the content pipeline, and how the canonical Go engine and the TypeScript mirror relate.
 keywords:
   [
     KBF,
     kapi bundle format,
-    .kbf,
+    .kbf.json,
     exchange format,
     content model,
     multilingual content,
@@ -25,9 +25,11 @@ toolchains: a structured exchange format that moves extracted content between an
 extractor, a translation step, and a merge step without losing inline markup,
 placeholders, or plural/select structure.
 
-KBF files use the `.kbf` extension and the MIME type
-`application/vnd.neokapi.kbf+json`. Stand-off annotations live in a companion
-`.overlays.jsonl` overlay file.
+KBF files use the `.kbf.json` extension and the MIME type
+`application/vnd.neokapi.kbf+json`. The suffix is compound because the file is
+JSON: the `.json` tail keeps `jq`, GitHub, and editor syntax highlighting
+working, and the `.kbf` segment says which JSON it is. Stand-off annotations live
+in a companion `.overlays.jsonl` overlay file.
 
 ## What it is for
 
@@ -73,13 +75,13 @@ both implementations in your browser.
   envelope, the run discriminated union, per-locale targets, validation rules,
   and the `.overlays.jsonl` annotation overlay.
 - **[Examples](/reference/kbf/examples)** — worked examples of every run kind,
-  a full `.kbf` + `.overlays.jsonl` pair, and an embedded lab to edit them live.
+  a full `.kbf.json` + `.overlays.jsonl` pair, and an embedded lab to edit them live.
 - **[KBF vs XLIFF](/reference/kbf/vs-xliff)** — how KBF maps onto XLIFF 2.x, and
   where the two formats differ in philosophy.
 - **[The Kapi format family & .kpz package](/reference/kbf/package)** — the native
   lossless formats for content memory and terms, and the `.kpz` package that
   bundles a whole project — versus the lossy interchange formats
   (XLIFF/PO, TMX, TBX).
-- **[KBF anatomy](/kbf-lab)** — a worked reading of one realistic `.kbf`
+- **[KBF anatomy](/kbf-lab)** — a worked reading of one realistic `.kbf.json`
   document, part by part, with a live round-trip through the real engine.
 - **[KBF Tests](/kbf-tests)** — the cross-engine conformance suite.

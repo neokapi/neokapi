@@ -7,10 +7,10 @@
 // (blocks, annotations, tm, terms, media):
 //
 //	manifest.json                    inventory + per-member sha256 + Merkle rootHash
-//	blocks/<id>.kbf                  core/kbf     (blocks + targets)
-//	annotations/<id>.overlays.jsonl  core/kbf     (stand-off annotation overlays)
-//	tm.kmb                           memory/kmb (content memory, lossless)
-//	termbase.ktb                     terms/ktb (terminology, lossless)
+//	blocks/<id>.kbf.json             core/kbf   (blocks + targets)
+//	annotations/<id>.overlays.jsonl  core/kbf   (stand-off annotation overlays)
+//	memory.json                      memory/kmb (content memory, lossless)
+//	terms.json                       terms/ktb  (terminology, lossless)
 //	media/<name>                     opaque blobs
 //
 // Every member is a *native* Kapi-family format, so the package is lossless:

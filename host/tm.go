@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	"github.com/neokapi/neokapi/core/format"
 	"io"
 	"os"
 	"path/filepath"
@@ -69,17 +70,30 @@ func (a *App) resolveProjectMemoryPath(cmd Command) (string, error) {
 	return filepath.Join(root, project.StateDirName, "tm.db"), nil
 }
 
+// CheckRetiredBundlePath rejects a path carrying an extension this project
+// retired, explaining the replacement instead of letting the file fall through.
+//
+// Without it a stale file is not merely unread, it is misread: `.kmb` is not a
+// registered extension any more, so the memory importer's TMX fallback claims
+// it and reports "Imported 0 entries" — a silent no-op that looks like an empty
+// content memory. The terms importer's CSV fallback is worse: it reports a
+// column-parse error from deep inside a CSV reader. A hard rename is only
+// defensible if the dead end names the convention that replaced it.
+func CheckRetiredBundlePath(path string) error {
+	if hint := format.RetiredExtHint(path); hint != "" {
+		return fmt.Errorf("%s: %s", filepath.Base(path), hint)
+	}
+	return nil
+}
+
 // ResolveMemoryFileFormat maps the --format flag (or, for "auto", the file
-// extension) to a content-memory file format name. Anything that is neither .kmb nor .kmz
-// is treated as TMX, matching the historical default.
+// extension) to a content-memory file format name. Anything that is not a
+// native bundle is treated as TMX, matching the historical default.
 func ResolveMemoryFileFormat(flag, path string) string {
 	switch strings.ToLower(flag) {
 	case "", "auto":
-		switch {
-		case strings.HasSuffix(strings.ToLower(path), kmb.Ext):
-			return "kmb"
-		case strings.HasSuffix(strings.ToLower(path), kmb.ArchiveExt):
-			return "kmz"
+		if kmb.IsBundlePath(path) {
+			return "bundle"
 		}
 		return "tmx"
 	default:
@@ -87,7 +101,7 @@ func ResolveMemoryFileFormat(flag, path string) string {
 	}
 }
 
-// ImportKMBFile imports a native .kmb document. Entries keep their
+// ImportKMBFile imports a native .memory.json document. Entries keep their
 // serialized identity (BulkAddWithStream upserts by entry ID), and any
 // import sessions recorded in the file are recreated when absent, so a
 // wipe-and-reseed produces a byte-identical content memory state.
@@ -99,20 +113,6 @@ func ImportKMBFile(ctx context.Context, tm memory.Store, path string) (int, erro
 	defer f.Close()
 
 	file, err := kmb.Decode(f)
-	if err != nil {
-		return 0, fmt.Errorf("parse %s: %w", path, err)
-	}
-	return importKMB(ctx, tm, path, file)
-}
-
-// ImportKMZFile imports a .kmz archive — the compressed single-member container
-// around a .kmb bundle. Semantics are identical to ImportKMBFile.
-func ImportKMZFile(ctx context.Context, tm memory.Store, path string) (int, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return 0, fmt.Errorf("open %s: %w", path, err)
-	}
-	file, err := kmb.UnmarshalArchive(data)
 	if err != nil {
 		return 0, fmt.Errorf("parse %s: %w", path, err)
 	}
@@ -144,16 +144,11 @@ func importKMB(ctx context.Context, tm memory.Store, path string, file *kmb.File
 	return len(entries), nil
 }
 
-// ExportKMB writes the whole content memory as a deterministic, lossless .kmb document —
-// the native form for committing a content memory to git and for re-seeding one exactly.
+// ExportKMB writes the whole content memory as a deterministic, lossless
+// .memory.json bundle — the native form for committing a content memory to git
+// and for re-seeding one exactly.
 func ExportKMB(ctx context.Context, tm memory.Store, w io.Writer) error {
 	return exportMemory(ctx, tm, w, kmb.Marshal)
-}
-
-// ExportKMZ writes the whole content memory as a .kmz archive: the same .kmb bytes inside
-// the compressed single-member container.
-func ExportKMZ(ctx context.Context, tm memory.Store, w io.Writer) error {
-	return exportMemory(ctx, tm, w, kmb.MarshalArchive)
 }
 
 func exportMemory(ctx context.Context, tm memory.Store, w io.Writer, marshal func(*kmb.File) ([]byte, error)) error {

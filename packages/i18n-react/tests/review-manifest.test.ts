@@ -40,16 +40,16 @@ describe("buildReviewManifest", () => {
     const dir = tempDir("review");
     // Source catalog: source only, carries the properties.
     mkdirSync(join(dir, "i18n"), { recursive: true });
-    writeFileSync(join(dir, "i18n", "App.kbf"), marshalFile(fileWith(block())));
+    writeFileSync(join(dir, "i18n", "App.kbf.json"), marshalFile(fileWith(block())));
     // Two locale trees, each with just its own target.
     mkdirSync(join(dir, "i18n-de"), { recursive: true });
     writeFileSync(
-      join(dir, "i18n-de", "App.kbf"),
+      join(dir, "i18n-de", "App.kbf.json"),
       marshalFile(fileWith(block({ targets: { de: [{ text: "Willkommen" }] } }))),
     );
     mkdirSync(join(dir, "i18n-fr"), { recursive: true });
     writeFileSync(
-      join(dir, "i18n-fr", "App.kbf"),
+      join(dir, "i18n-fr", "App.kbf.json"),
       marshalFile(fileWith(block({ targets: { fr: [{ text: "Bienvenue" }] } }))),
     );
 
@@ -70,7 +70,7 @@ describe("buildReviewManifest", () => {
   it("attaches .overlays.jsonl term/QA annotations to the matching block", () => {
     const dir = tempDir("review-ann");
     mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, "App.kbf"), marshalFile(fileWith(block())));
+    writeFileSync(join(dir, "App.kbf.json"), marshalFile(fileWith(block())));
     // A stand-off annotation file referencing the block hash.
     const kbfl =
       JSON.stringify({ type: "header", annotationType: "kapi/term" }) +
@@ -94,10 +94,10 @@ describe("runCompile --review", () => {
     const dir = tempDir("compile-review");
     const outDir = join(dir, "out");
     mkdirSync(join(dir, "i18n"), { recursive: true });
-    writeFileSync(join(dir, "i18n", "App.kbf"), marshalFile(fileWith(block())));
+    writeFileSync(join(dir, "i18n", "App.kbf.json"), marshalFile(fileWith(block())));
     mkdirSync(join(dir, "i18n-de"), { recursive: true });
     writeFileSync(
-      join(dir, "i18n-de", "App.kbf"),
+      join(dir, "i18n-de", "App.kbf.json"),
       marshalFile(fileWith(block({ targets: { de: [{ text: "Willkommen" }] } }))),
     );
 

@@ -50,17 +50,17 @@ func TestNeokapiI18nPresetUsesKBF(t *testing.T) {
 func TestNeokapiI18nPresetCleanNestedLayout(t *testing.T) {
 	p := neokapiI18nPreset()
 	m := p.Mappings[0]
-	if m.Local != "i18n/src/**/*.kbf" {
-		t.Errorf("source glob = %q, want i18n/src/**/*.kbf", m.Local)
+	if m.Local != "i18n/src/**/*.kbf.json" {
+		t.Errorf("source glob = %q, want i18n/src/**/*.kbf.json", m.Local)
 	}
-	if m.TargetPath != "i18n/{lang}/{path}.kbf" {
-		t.Errorf("target template = %q, want i18n/{lang}/{path}.kbf", m.TargetPath)
+	if m.TargetPath != "i18n/{lang}/{path}.kbf.json" {
+		t.Errorf("target template = %q, want i18n/{lang}/{path}.kbf.json", m.TargetPath)
 	}
 	if p.BrandVoiceProfile != "i18n/brand-voice.yaml" {
 		t.Errorf("brand voice profile = %q, want i18n/brand-voice.yaml", p.BrandVoiceProfile)
 	}
-	if p.TermsSource != "i18n/termbase.ktb" {
-		t.Errorf("terms source = %q, want i18n/termbase.ktb", p.TermsSource)
+	if p.TermsSource != "i18n/terms.json" {
+		t.Errorf("terms source = %q, want i18n/terms.json", p.TermsSource)
 	}
 }
 

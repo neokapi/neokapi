@@ -459,8 +459,8 @@ export class Defaults {
         if (/** @type {any} */(false)) {
             /**
              * TermsSource binds the committed, git-tracked native source artifact
-             * (a .ktb document) the project terms store is compiled from. This is the
-             * authored, reviewable form: `kapi apply` edits the .ktb here and then
+             * (a .terms.json document) the project terms store is compiled from. This is the
+             * authored, reviewable form: `kapi apply` edits the .terms.json here and then
              * re-imports it into the gitignored Terms (.db) cache, so the SQLite
              * store is written by exactly one path and `git diff` is the review
              * surface. The path resolves relative to the project root. Empty means no
@@ -473,8 +473,8 @@ export class Defaults {
         if (/** @type {any} */(false)) {
             /**
              * MemorySource binds the committed, git-tracked native source artifact (a
-             * .kmb document) the project content memory is compiled from, the content memory
-             * analogue of TermsSource. `kapi apply` edits the .kmb here and
+             * .memory.json document) the project content memory is compiled from, the content memory
+             * analogue of TermsSource. `kapi apply` edits the .memory.json here and
              * re-imports it into the gitignored .kapi/tm.db cache. The path resolves
              * relative to the project root. Empty means no bound content memory source.
              * @member

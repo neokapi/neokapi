@@ -3,7 +3,7 @@ id: 025-kbf-package
 sidebar_position: 25
 title: "AD-025: KBF Family and the .kpz Package"
 description: "Architecture decision: a family of deterministic, lossless KBF formats (blocks, content memory, terms) and a .kpz package container that bundles a project's authoritative content for portable, lossless pack/unpack — distinct from the lossy industry interchange formats (XLIFF/PO, TMX, TBX). A .kpz also carries a project's in-progress working state for hand-off and cached resume, with progress derived from content rather than an authoritative journal, plus the full project recipe (flows, plugins, defaults, content) so it is a runnable project in a file — near-full parity with a .kapi project, excluding secrets, caches, plugin binaries, and (by default) raw source. The same container serves two profiles — a whole-project snapshot (pack/unpack) and a task-scoped bilingual interchange file (extract/merge), neokapi's lossless interchange format for a translator or reviewer. A .kpz is always a parcel, never a workspace: day-to-day work is the ambient .kapi project."
-keywords: [KBF, kmb, ktb, kpz, package, content memory, terms store, TMX, TBX, lossless, interchange, content store, cache, pack, unpack, working state, hand-off]
+keywords: [KBF, memory bundle, terms bundle, kpz, package, content memory, terms store, TMX, TBX, lossless, interchange, content store, cache, pack, unpack, working state, hand-off]
 ---
 
 # AD-025: KBF Family and the .kpz Package
@@ -17,11 +17,24 @@ authoritative content:
 
 | Atom | Native format (lossless) | Package member | Interchange format (lossy) |
 | --- | --- | --- | --- |
-| blocks + targets | KBF (`core/kbf`, `.kbf`) | `blocks/*.kbf` | XLIFF / PO |
+| blocks + targets | KBF (`core/kbf`, `.kbf.json`) | `blocks/*.kbf.json` | XLIFF / PO |
 | stand-off annotations | KBF annotations (`.overlays.jsonl`) | `annotations/*.overlays.jsonl` | — |
-| content memory | KMB (`memory/kmb`, `.kmb`; archive `.kmz`) | `tm.kmb` | TMX |
-| terms | KTB (`terms/ktb`, `.ktb`; archive `.ktz`) | `termbase.ktb` | TBX |
+| content memory | memory bundle (`memory/kmb`, `.memory.json`) | `memory.json` | TMX |
+| terms | terms bundle (`terms/ktb`, `.terms.json`) | `terms.json` | TBX |
 | media | opaque blobs | `media/*` | — |
+
+Every member of the family is JSON, and its suffix says so. A marker segment
+ahead of `.json` (`.kbf.json`, `.memory.json`, `.terms.json`) keeps the file
+self-describing while `jq`, GitHub, and editor syntax highlighting still see
+what they are looking at; a bare `.kbf` or `.kmb` bought the marker at the cost
+of every tool that reads JSON by extension. Only `.kpz` keeps a dedicated
+extension, because it is a binary zip nobody hand-edits.
+
+The memory and terms members carry the conventional bare names rather than the
+compound suffix, so unzipping a package by hand yields the spelling the rest of
+the tooling teaches. The names are **presentation only**: `Unmarshal` routes
+every member by its manifest `contentType`, never by filename, so a member's
+path can change without changing how a package is read.
 
 The package is a deterministic zip with a `manifest.json` carrying a per-member
 SHA-256 and a Merkle `rootHash`. It is the **at-rest twin** of the over-the-wire
@@ -68,26 +81,34 @@ shares the KBF discipline — a `kind` magic string, a `MAJOR.MINOR`
 and a **deterministic** encoder (sorted keys/records, no HTML escaping, trailing
 newline) so output is stable for content hashing and git diffing.
 
-- **KMB** (`memory/kmb`, `kind: kapi-memory`). Wire DTOs mapped
+- **Content-memory bundle** (`memory/kmb`, `.memory.json`,
+  `kind: kapi-memory`). Wire DTOs mapped
   to/from `memory.Entry`; variant content reuses the canonical `model.Run`
   serialization, so inline codes, placeholders, and plural/select survive
   identically to KBF blocks. Carries entities (with `ConceptID`), origins,
   import sessions, properties, and notes.
-- **KTB** (`terms/ktb`, `kind: kapi-terms`). Reuses the
+- **Terms bundle** (`terms/ktb`, `.terms.json`, `kind: kapi-terms`). Reuses the
   already-JSON-tagged `terms.Concept` directly — one source of truth, no
   parallel wire type to drift — and so preserves `Source`, `CompetitorTerm`, and
   `Properties`.
 
-Each store-shaped bundle also has a compressed **archive** spelling: `.kmz`
-(Kapi Memory Archive) and `.ktz` (Kapi Term Archive), a zip holding exactly one
-member (`tm.kmb` / `termbase.ktb`) built by `internal/bundlezip`. The container
-follows the `.kpz` discipline — one member per payload, fixed DOS-epoch
-timestamps — but deflates its member rather than storing it, because size is the
-whole reason the tier exists: a project's memory as `.kmb` JSON is far larger than
-its deflated form. Bundles are what a project **commits** (reviewed memory or
-terms have to diff line by line in git); archives are what it **ships**. `kapi
-memory export/import` and `kapi terms export/import` select the tier from the file
-extension, `--format` overrides.
+There is **one tier per store**: the bundle. A project **commits** it, because
+reviewed memory and terms have to diff line by line in git, and the compound
+`.json` suffix is what makes that diff readable in a browser and greppable with
+`jq`. An earlier design added a second, compressed spelling per store — a zip
+holding exactly one deflated member. It is withdrawn: `.kpz` already packages a
+whole project's state for shipping, and a single bundle that wants to travel
+small is what `zip` and `gzip` are for. A dedicated extension bought nothing the
+general-purpose tools do not already give.
+
+The **suffix**, not the location, is what identifies a bundle, because a project
+is not limited to one per store. Terms is the exception that proves it: a project
+has exactly one glossary, so it gets a conventional location
+([AD-010](010-terminology.md)) — `<root>/terms.json`, then
+`<root>/.kapi/terms.json`. Content memory gets none, because a project
+accumulates a bundle per content surface (this repository's own dogfood commits
+one per surface under `l10n/tm/`) and a fallback would have nothing single to
+name.
 
 ### 2. The `.kpz` package container
 
@@ -230,8 +251,8 @@ path would escape the project root is refused rather than written.
 | plugins (declaration) + `requires` | recipe | recipe | travels (binaries re-resolved via registry) |
 | defaults, content, preset | recipe | recipe | travels |
 | `server:` / `hooks:` / `automations:` (Extras) | recipe Extras | recipe Extras | travels **inert** |
-| content memory / terms | `tm.db` / `termbase.db` (authoritative) | `tm.kmb` / `termbase.ktb` | travels (lossless) |
-| blocks + targets, annotations, in-progress overlays | `cache/blocks.db` (regenerable) | `blocks/*.kbf`, `annotations/*.overlays.jsonl`, `overlays.json` (authoritative) | travels |
+| content memory / terms | `tm.db` / `termbase.db` (authoritative) | `memory.json` / `terms.json` | travels (lossless) |
+| blocks + targets, annotations, in-progress overlays | `cache/blocks.db` (regenerable) | `blocks/*.kbf.json`, `annotations/*.overlays.jsonl`, `overlays.json` (authoritative) | travels |
 | source identity (path, format, hash) | working tree | `manifest.json` | travels |
 | source skeleton (round-trip template) | `cache/extractions/.../skel-*.bin` | `skeletons/<id>` | travels |
 | raw source bytes | working tree `src/` | `source/<name>` | opt-in (`--with-source`) |

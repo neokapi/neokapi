@@ -27,7 +27,7 @@
  *      no cross-file merge semantics.
  *   3. Annotations are derivable. Losing an annotation file costs
  *      only regeneration; the authoritative content in the
- *      `.kbf` blocks is unchanged.
+ *      `.kbf.json` blocks is unchanged.
  *   4. Annotations can become stale when blocks change. Validators
  *      detect orphans (anchors that no longer resolve) and flag
  *      them. Producers re-run to refresh.

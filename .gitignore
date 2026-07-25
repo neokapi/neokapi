@@ -55,13 +55,13 @@ dist/
 # Extraction artifacts — regenerated via `make kapi-desktop-translations`.
 # The per-locale runtime dictionaries under public/translations/ are
 # committed so the app ships with translations; the intermediate
-# per-file .kbf extract output is ephemeral and gitignored.
+# per-file .kbf.json extract output is ephemeral and gitignored.
 apps/kapi-desktop/frontend/i18n/
 apps/kapi-desktop/frontend/i18n-qps/
 apps/kapi-desktop/frontend/i18n-nb/
 
 # Same policy for the bowrain UI surfaces (make bowrain-{app,ctrl,pulse}-translations):
-# compiled public/translations/ dictionaries are committed, .kbf intermediates are not.
+# compiled public/translations/ dictionaries are committed, .kbf.json intermediates are not.
 bowrain/packages/app/i18n/
 bowrain/packages/app/i18n-qps/
 bowrain/packages/app/i18n-nb/

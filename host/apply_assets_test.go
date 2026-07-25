@@ -57,13 +57,13 @@ func TestApplyTermEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	res := a.applyAssetEntry(ctx, cmd, e)
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
 
-	// 1. The committed .ktb source was written and bound in the recipe.
-	srcPath := filepath.Join(root, "l10n", "termbase.ktb")
+	// 1. The committed .terms.json source was written and bound in the recipe.
+	srcPath := filepath.Join(root, "l10n", "terms.json")
 	require.FileExists(t, srcPath)
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	require.Equal(t, filepath.Join("l10n", "termbase.ktb"), proj.Defaults.TermsSource)
+	require.Equal(t, filepath.Join("l10n", "terms.json"), proj.Defaults.TermsSource)
 	require.NotEmpty(t, proj.Defaults.Terms, "the compiled cache should be bound too")
 
 	data, err := os.ReadFile(srcPath)
@@ -122,12 +122,12 @@ func TestApplyMemoryEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	res := a.applyAssetEntry(ctx, cmd, e)
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
 
-	srcPath := filepath.Join(root, "l10n", "tm.kmb")
+	srcPath := filepath.Join(root, "l10n", "memory.json")
 	require.FileExists(t, srcPath)
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	require.Equal(t, filepath.Join("l10n", "tm.kmb"), proj.Defaults.MemorySource)
+	require.Equal(t, filepath.Join("l10n", "memory.json"), proj.Defaults.MemorySource)
 
 	// Cache compiled, contains the pair.
 	dbPath := filepath.Join(root, project.StateDirName, "tm.db")

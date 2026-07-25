@@ -119,10 +119,10 @@ Source travels as identity + a round-trip skeleton by default; `--with-source` e
 | --- | --- |
 | `recipe` | the project's `kapi.yaml`, with `server`/`hooks`/`automations` stripped so they travel inert |
 | `sources` | source identity + per-file round-trip skeletons (raw bytes only with `--with-source`) |
-| `blocks` | the extracted content blocks (`.kbf`) |
+| `blocks` | the extracted content blocks (`.kbf.json`) |
 | `overlays` | committed target overlays, one per locale |
-| `memory` | the authoritative content memory (`.kmb`) |
-| `terms` | the authoritative terms (`.ktb`) |
+| `memory` | the authoritative content memory (`.memory.json`) |
+| `terms` | the authoritative terms (`.terms.json`) |
 | `history` | an advisory provenance chain (`--log`) |
 
 Deliberately **not** carried: `.kapi/cache/` (regenerable — block store, extractions, collections), credentials (they live in the OS keychain), and server sync tokens. A snapshot is state you could not recompute, never secrets and never derived data.

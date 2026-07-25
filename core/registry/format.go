@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -436,7 +435,7 @@ type DetectOptions struct {
 // DetectFileWithPriorities ladder, which remains as deprecated wrappers.
 func (r *FormatRegistry) Detect(path string, opts DetectOptions) (FormatID, error) {
 	if opts.ExtensionOnly {
-		ext := strings.ToLower(filepath.Ext(path))
+		ext := format.Ext(path)
 		return r.detectByExtension(ext, opts.AllowedSources, opts.PriorityOverrides)
 	}
 	return r.detectFile(path, opts.AllowedSources, opts.PriorityOverrides)
@@ -536,7 +535,8 @@ func (r *FormatRegistry) detectByExtension(ext string, allowedSources []string, 
 	if bestName != "" {
 		return bestName, nil
 	}
-	return "", fmt.Errorf("no format found for extension %q with allowed sources", ext)
+	return "", format.ErrorWithRetiredExtHint(
+		fmt.Errorf("no format found for extension %q with allowed sources", ext), ext)
 }
 
 // detectByExtensionAny is the unrestricted extension lookup: it asks the
@@ -550,7 +550,8 @@ func (r *FormatRegistry) detectByExtensionAny(ext string) (FormatID, error) {
 		name, err := r.detector.DetectByExtension(ext)
 		return FormatID(name), err
 	}
-	return "", fmt.Errorf("no format found for extension %q", ext)
+	return "", format.ErrorWithRetiredExtHint(
+		fmt.Errorf("no format found for extension %q", ext), ext)
 }
 
 // detectFile detects a format for a file by extension AND, when that extension
@@ -559,7 +560,7 @@ func (r *FormatRegistry) detectByExtensionAny(ext string) (FormatID, error) {
 // file head is read; on any read error it falls back to extension-only
 // detection.
 func (r *FormatRegistry) detectFile(path string, allowedSources []string, overrides map[string]int) (FormatID, error) {
-	ext := strings.ToLower(filepath.Ext(path))
+	ext := format.Ext(path)
 	if ext == "" {
 		return "", fmt.Errorf("no extension to detect: %q", path)
 	}

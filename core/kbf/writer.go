@@ -10,7 +10,7 @@ import (
 
 // Marshal encodes a File to deterministic UTF-8 JSON: 2-space indent,
 // no HTML escaping, trailing newline. Deterministic output is what
-// makes .kbf git-diffable and hashable.
+// makes .kbf.json git-diffable and hashable.
 func Marshal(f *File) ([]byte, error) {
 	if f == nil {
 		return nil, errors.New("kbf: marshal nil file")

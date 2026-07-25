@@ -16,7 +16,7 @@
 #   The result was silent accumulation. Nine files across the bowrain module
 #   (bowrain/billing/, bowrain/connector/, bowrain/core/event/, bowrain/server/,
 #   bowrain/store/) were gofmt-dirty on main as of 4c13e26af. They were then
-#   cleared by ACCIDENT: the unrelated .klf→.kbf rename sweep (#1444) ran a
+#   cleared by ACCIDENT: the unrelated .klf→.kbf.json rename sweep (#1444) ran a
 #   tree-wide `gofmt -w -s` and incidentally reformatted them. No one fixed
 #   them, and nothing would have stopped them re-accumulating.
 #

@@ -3,25 +3,29 @@ package host
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"slices"
-	"strings"
 
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/format"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
 // AllKBF returns true when every positional input path carries the
-// `.kbf` extension. Used to decide whether a tool run defaults to
+// `.kbf.json` extension. Used to decide whether a tool run defaults to
 // in-place output (the KBF writer is locale-additive — accumulates
 // target translations on each block) or the sibling `./out/...`
 // template (every other format).
+//
+// The test must go through [format.HasExt]: `.kbf.json` is a compound suffix,
+// and path/filepath.Ext reports only ".json" for one, so comparing its result
+// to ".kbf.json" never matches and every KBF run silently loses its in-place
+// default.
 func AllKBF(paths []string) bool {
 	if len(paths) == 0 {
 		return false
 	}
 	for _, p := range paths {
-		if !strings.EqualFold(filepath.Ext(p), ".kbf") {
+		if !format.HasExt(p, format.KBFExt) {
 			return false
 		}
 	}

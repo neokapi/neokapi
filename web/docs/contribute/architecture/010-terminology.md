@@ -128,23 +128,51 @@ decisions belong in review and version control alongside the recipe and the
 brand-voice profile ([AD-022](022-brand-voice.md)). So the split is source vs.
 cache, not a two-way sync:
 
-- the committed **`.ktb` is the source** — a diff-friendly, reviewable,
-  mergeable text document bound by the recipe's `defaults.termbase_source`,
+- the committed **`.terms.json` bundle is the source** — a diff-friendly,
+  reviewable, mergeable JSON document bound by the recipe's
+  `defaults.termbase_source`,
   edited directly (`kapi apply` with `kind:"term"` writes the file first),
-  reviewed in a PR, and versioned with the code.
+  reviewed in a PR, and versioned with the code. It is plain JSON under a
+  compound suffix, so a reviewer reads it in a browser diff and `jq` reads it on
+  the command line.
 - the **terms store (`.kapi/termbase.db`) is a rebuildable read-cache** over it,
-  under the gitignored cache, rebuilt when the committed `.ktb` changes
-  (content-hash guarded). Discard it, rebuild from the `.ktb`, lose nothing —
+  under the gitignored cache, rebuilt when the committed bundle changes
+  (content-hash guarded). Discard it, rebuild from the bundle, lose nothing —
   **nothing authoritative ever lives only in the db**. Committing the binary
   SQLite would be git-hostile (opaque, conflict-prone) and would defeat
   interchange.
 
-Read-only consumers read the committed `.ktb` directly — the terminology check
+A project that binds nothing still resolves, through a fallback ladder. The
+ordering follows from the bundle being *committed source*, so read it that way
+rather than as an exception to the "state lives in `.kapi/`" rule:
+**`.kapi/` is gitignored** (this repository's own `.gitignore` carries `/.kapi/`,
+and it is inside kapi's default ignore set), so a glossary kept there would never
+be committed, never appear in a diff, and never reach review — which is the one
+thing the terms source exists to do. The repository root therefore comes first:
+
+1. `<root>/terms.json` — the committed glossary.
+2. `<root>/.kapi/terms.json` — second, and only so a project that deliberately
+   treats its glossary as local, uncommitted state still resolves.
+
+An explicit `defaults.termbase_source` wins over both. This is the same ladder
+shape the brand-voice profile uses ([AD-022](022-brand-voice.md)), and the same
+distinction the recipe draws in its own comments: `termbase_source` is the
+committed glossary, `terms` is the gitignored cache it compiles into. Confusing
+the two — treating the portable JSON *bundle* as if it were the SQLite *store* —
+is what puts a glossary under `.kapi/` in the first place.
+
+A ladder works here because **a project has exactly one glossary**. Content
+memory has no equivalent convention, and deliberately so — a project accumulates
+*many* memory bundles, one per content surface ([AD-009](009-content-memory.md)),
+so there is no single bundle for a fallback to name. That asymmetry is a
+consequence of what each store is, not an omission to be tidied away.
+
+Read-only consumers read the committed bundle directly — the terminology check
 gate decodes it without materializing the cache, which is why it holds on a fresh
 CI checkout where the gitignored `.db` is absent. The cache earns its keep only
 for the heavy indexed lookups (fuzzy, FTS) during translation. **CI reads the
 terms; it never writes them back** — humans author them through git; a pulled new
-`.ktb` just rebuilds the read-cache, so there is nothing to reconcile.
+bundle just rebuilds the read-cache, so there is nothing to reconcile.
 
 In bowrain (server mode) terminology is managed in the platform database and
 edited through the app; git is not in the loop.

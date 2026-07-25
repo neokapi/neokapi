@@ -1,7 +1,7 @@
-// Package kbf implements the Kapi Bundle Format (.kbf) — a JSON
+// Package kbf implements the Kapi Bundle Format (.kbf.json) — a JSON
 // serialization of the Block / Run model specified in Framework AD-002.
 //
-// A .kbf file is a UTF-8 JSON document carrying one or more extracted
+// A .kbf.json file is a UTF-8 JSON document carrying one or more extracted
 // documents, each with a flat sequence of Blocks. Blocks carry a
 // Run[] source (and optional per-locale targets), Placeholder[]
 // metadata, and translator-facing Properties. Run is a discriminated

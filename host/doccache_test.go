@@ -140,14 +140,14 @@ func TestDocCache_NoSkeletonRecorded_IsNotAnError(t *testing.T) {
 // streaming cache serializes each block's stand-off annotations and, on replay,
 // drops any whose payload type is not registered (see fromCachedAnnotations). A
 // block served from cache must come back with its annotations intact. The
-// jsx/.kbf reader stashes the block's content hash (plus placeholders and
+// jsx/.kbf.json reader stashes the block's content hash (plus placeholders and
 // preview) in a KBFAnnotation; if that type isn't registered, cache replay
-// silently strips it and reconstructed .kbf targets lose their hashes — which
+// silently strips it and reconstructed .kbf.json targets lose their hashes — which
 // broke `kapi up` non-deterministically, since its concurrent per-locale
 // converge workers share the cache and race on the same cached source document.
 func TestDocCache_PreservesBlockAnnotations(t *testing.T) {
 	dir := t.TempDir()
-	src := filepath.Join(dir, "App.kbf")
+	src := filepath.Join(dir, "App.kbf.json")
 	require.NoError(t, os.WriteFile(src, []byte(`{"schemaVersion":"1.0"}`), 0o644))
 
 	c, err := OpenDocCache(filepath.Join(dir, "cache"))

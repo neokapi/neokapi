@@ -55,17 +55,16 @@ Default (no flag): same as --local (uses ./tm.db).`,
 func newMemoryImportCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "import [file]",
-		Short: "Import a TMX, .kmb, or .kmz file into content memory",
-		Long: `Import a single TMX file (plain or .gz), a native .kmb bundle, or a
-.kmz archive into the content memory.
+		Short: "Import a TMX file or a native .memory.json bundle into content memory",
+		Long: `Import a single TMX file (plain or .gz) or a native .memory.json
+bundle into the content memory.
 
-kmb (Kapi Memory Bundle) is the native content-memory form: a deterministic, lossless JSON
-serialization that round-trips every Entry field (entity mappings,
-provenance origins, properties, notes) that TMX drops. Importing a .kmb
-preserves entry identity verbatim, so re-seeding a content memory from committed .kmb
-files is fully reproducible. A .kmz (Kapi Memory Archive) is the same bundle
-inside a compressed single-member container. The format is selected by file
-extension; --format overrides.
+The bundle is the native content-memory form: a deterministic, lossless JSON
+serialization that round-trips every Entry field (entity mappings, provenance
+origins, properties, notes) that TMX drops. Importing one preserves entry
+identity verbatim, so re-seeding a content memory from committed bundles is
+fully reproducible. The format is selected by file extension; --format
+overrides.
 
 By default, imports entries matching the given --source-locale and --target-locale.
 Use --all-pairs to emit entries for every (src, tgt) language pair present in
@@ -78,7 +77,7 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 <prop type="source-document"> URL is recorded as Origin.Reference.`,
 		Example: `  kapi memory import corpus.tmx -s en -t fr
   kapi memory import corpus.tmx --all-pairs --locales en,fr,de --name my-tm
-  kapi memory import seeds/builtins-nb.kmb`,
+  kapi memory import seeds/builtins-nb.memory.json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			srcLocale, _ := cmd.Flags().GetString("source-locale")
@@ -86,6 +85,10 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 			allPairs, _ := cmd.Flags().GetBool("all-pairs")
 			localesRaw, _ := cmd.Flags().GetString("locales")
 			format, _ := cmd.Flags().GetString("format")
+
+			if err := CheckRetiredBundlePath(args[0]); err != nil {
+				return err
+			}
 
 			tm, dbPath, err := a.OpenMemorySQLite(cmd)
 			if err != nil {
@@ -95,14 +98,12 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 
 			var count int
 			switch ResolveMemoryFileFormat(format, args[0]) {
-			case "kmb":
+			case "bundle":
 				count, err = ImportKMBFile(cmd.Context(), tm, args[0])
-			case "kmz":
-				count, err = ImportKMZFile(cmd.Context(), tm, args[0])
 			case "tmx":
 				count, err = ImportTMXFile(cmd.Context(), tm, args[0], srcLocale, tgtLocale, allPairs, ParseLocaleList(localesRaw))
 			default:
-				return fmt.Errorf("unsupported format: %s (use tmx, kmb, or kmz)", format)
+				return fmt.Errorf("unsupported format: %s (use tmx or bundle)", format)
 			}
 			if err != nil {
 				return err
@@ -134,7 +135,7 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 	cmd.Flags().StringP("target-locale", "t", "", "target locale")
 	cmd.Flags().Bool("all-pairs", false, "emit entries for every (src,tgt) pair present in each TU (multilingual TMX)")
 	cmd.Flags().String("locales", "", "comma-separated locale subset for --all-pairs (empty = all languages in file)")
-	cmd.Flags().String("format", "auto", "input format (auto, tmx, kmb, kmz); auto selects by file extension")
+	cmd.Flags().String("format", "auto", "input format (auto, tmx, bundle); auto selects by file extension")
 
 	return cmd
 }
@@ -248,8 +249,9 @@ Examples:
 func newMemoryExportCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export",
-		Short: "Export content memory to TMX, .kmb, or .kmz",
-		Long: `Export the content memory to TMX 1.4 (default) or the native .kmb / .kmz form.
+		Short: "Export content memory to TMX or a native .memory.json bundle",
+		Long: `Export the content memory to TMX 1.4 (default) or the native
+.memory.json bundle.
 
 TMX: each entry is written as a single <tu> with one <tuv> per language
 variant present (or the subset requested via --locales). Inline markup is
@@ -257,16 +259,18 @@ preserved as TMX <ph>/<bpt>/<ept>/<it>/<hi>. TMX is the lossy interchange
 tier — entity mappings, provenance origins, properties, and notes are
 dropped.
 
-kmb (--format kmb, or a -o path ending in .kmb): the deterministic,
-lossless native serialization — the right form for committing a content memory to git
-and for seeding a fresh content memory exactly. --locales does not apply.
-
-kmz (--format kmz, or a -o path ending in .kmz): the same bundle inside a
-compressed single-member container — the at-rest/handoff form for a large content memory.`,
+bundle (--format bundle, or a -o path ending in .memory.json): the
+deterministic, lossless native serialization — the right form for committing a
+content memory to git and for seeding a fresh content memory exactly. It stays
+plain JSON, so it reviews line by line in a diff. --locales does not apply.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputPath, _ := cmd.Flags().GetString("output")
 			localesRaw, _ := cmd.Flags().GetString("locales")
 			format, _ := cmd.Flags().GetString("format")
+
+			if err := CheckRetiredBundlePath(outputPath); err != nil {
+				return err
+			}
 
 			tm, _, err := a.OpenMemorySQLite(cmd)
 			if err != nil {
@@ -284,12 +288,8 @@ compressed single-member container — the at-rest/handoff form for a large cont
 			}
 
 			switch ResolveMemoryFileFormat(format, outputPath) {
-			case "kmb":
+			case "bundle":
 				if err := ExportKMB(cmd.Context(), tm, w); err != nil {
-					return err
-				}
-			case "kmz":
-				if err := ExportKMZ(cmd.Context(), tm, w); err != nil {
 					return err
 				}
 			case "tmx":
@@ -298,7 +298,7 @@ compressed single-member container — the at-rest/handoff form for a large cont
 					return fmt.Errorf("export TMX: %w", err)
 				}
 			default:
-				return fmt.Errorf("unsupported format: %s (use tmx, kmb, or kmz)", format)
+				return fmt.Errorf("unsupported format: %s (use tmx or bundle)", format)
 			}
 
 			if !a.Quiet && outputPath != "" {
@@ -317,7 +317,7 @@ compressed single-member container — the at-rest/handoff form for a large cont
 
 	cmd.Flags().StringP("output", "o", "", "output file (default: stdout)")
 	cmd.Flags().String("locales", "", "comma-separated locale subset (default: all variants present)")
-	cmd.Flags().String("format", "auto", "output format (auto, tmx, kmb, kmz); auto selects by the -o extension")
+	cmd.Flags().String("format", "auto", "output format (auto, tmx, bundle); auto selects by the -o extension")
 
 	return cmd
 }

@@ -99,7 +99,7 @@ export function loadManifest(id: string): DemoManifest {
   // overlays load from demo.<locale>.yaml sidecars instead.
   if (m.locales) {
     throw new Error(
-      `demo ${id}: inline "locales:" blocks are no longer supported — localized narration lives in generated demo.<lang>.yaml sidecars (make l10n-demos). Fold the translations into l10n/tm/demo-narration-<lang>.kmb and delete the block.`,
+      `demo ${id}: inline "locales:" blocks are no longer supported — localized narration lives in generated demo.<lang>.yaml sidecars (make l10n-demos). Fold the translations into l10n/tm/demo-narration-<lang>.memory.json and delete the block.`,
     );
   }
   m.locales = loadLocaleSidecars(id, m);

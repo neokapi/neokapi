@@ -14,7 +14,7 @@ Translations are reviewed **on the running app**, not in a file. A
 build-time transform stamps each extracted element with its block hash;
 a dev-server middleware serves and writes the local KBF tree; a
 framework-free browser overlay maps a click back to a block, edits its
-target, and writes it into the `.kbf` on disk. Terminology and QA
+target, and writes it into the `.kbf.json` on disk. Terminology and QA
 findings from stand-off `*.overlays.jsonl` files are painted onto the live text
 with the CSS Custom Highlight API — no DOM mutation.
 
@@ -101,24 +101,24 @@ register, and a page with none shows no panel.
 `/__kapi/review` (mounted by the Vite plugin, plain Node `http` so it
 ports to any dev server) over the local KBF directory:
 
-| Route              | Purpose                                       |
-| ------------------ | --------------------------------------------- |
-| `GET /{hash}`      | block payload — source runs, targets, notes   |
-| `PUT /{hash}`      | write a target back into the `.kbf`           |
-| `GET /annotations` | stand-off findings, keyed by block hash       |
-| `GET /events`      | SSE — updates broadcast to every open tab     |
+| Route              | Purpose                                         |
+| ------------------ | ----------------------------------------------- |
+| `GET /{hash}`      | block payload — source runs, targets, notes     |
+| `PUT /{hash}`      | write a target back into the `.kbf.json`        |
+| `GET /annotations` | stand-off findings, keyed by block hash         |
+| `GET /events`      | SSE — updates broadcast to every open tab       |
 
-The index is rebuilt whenever any `.kbf` / `.overlays.jsonl` mtime drifts, so an
+The index is rebuilt whenever any `.kbf.json` / `.overlays.jsonl` mtime drifts, so an
 out-of-band `kapi translate` or `kapi exec qa` shows up without a
 restart.
 
-### Write back to the `.kbf`, not to a database
+### Write back to the `.kbf.json`, not to a database
 
-A reviewed target is written into the block's `.kbf` file as a target
+A reviewed target is written into the block's `.kbf.json` file as a target
 run. The obvious alternative — a review database with comments,
 states, and an approve button — was rejected.
 
-The `.kbf` tree is *already* the contract between developers and
+The `.kbf.json` tree is *already* the contract between developers and
 translators: `extract` produces it, `kapi translate` fills it, QA reads
 it, `compile` ships it. Writing a reviewed target into it makes the
 review a **git diff** — reviewable in a PR, revertable, attributable,
@@ -190,7 +190,7 @@ are offsets into the same flat text the block already carries.
   are about — which is the only form in which a reviewer will act on
   them.
 - **The stamp is the seam.** The same `data-kapi-id` that lets the
-  local overlay find a `.kbf` block lets a staging overlay find a
+  local overlay find a `.kbf.json` block lets a staging overlay find a
   platform block. The Tier-2 (Bowrain) surface is a different backend
   behind the same client contract, not a different feature.
 - **Render-mode-independent.** Because the id is a content hash, the

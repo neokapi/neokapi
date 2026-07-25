@@ -217,7 +217,7 @@ func TestInspectFileAnnotatedShapeOverlaysAreRunAware(t *testing.T) {
 	app := NewApp()
 	tabID, src := setupInspectProject(t, app, `{"greeting":"Hello world"}`, "")
 
-	kbfPath := filepath.Join(filepath.Dir(src), "App.kbf")
+	kbfPath := filepath.Join(filepath.Dir(src), "App.kbf.json")
 	require.NoError(t, os.WriteFile(kbfPath, []byte(kbfShapeFixture), 0o644))
 
 	out, err := app.InspectFileAnnotated(tabID, kbfPath)

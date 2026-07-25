@@ -189,7 +189,7 @@ func TestFileRunner_EmitOnCloseWriterFlushes(t *testing.T) {
 	formats.RegisterAll(reg)
 
 	dir := t.TempDir()
-	inputPath := filepath.Join(dir, "input.kbf")
+	inputPath := filepath.Join(dir, "input.kbf.json")
 	kbfFile := &kbf.File{
 		SchemaVersion: kbf.SchemaVersion,
 		Kind:          kbf.Kind,
@@ -210,7 +210,7 @@ func TestFileRunner_EmitOnCloseWriterFlushes(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(inputPath, kbfBytes, 0o644))
 
-	outputPath := filepath.Join(dir, "out", "input.kbf")
+	outputPath := filepath.Join(dir, "out", "input.kbf.json")
 
 	pseudoTool, err := tools.NewPseudoTranslateFromConfig(map[string]any{
 		"target_locale": "qps",

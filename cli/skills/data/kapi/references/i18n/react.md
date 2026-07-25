@@ -82,7 +82,7 @@ app; add them as config and don't block translation on them.
    kapi translate i18n/ --target-lang fr             # translated KBF → out/ (brand-aware if a profile is bound)
    npm run compile                                   # compile out/ → public/translations
    ```
-   `kapi translate <dir>` writes translated `.kbf` to `out/`, so `compile`
+   `kapi translate <dir>` writes translated `.kbf.json` to `out/`, so `compile`
    reads `out/`, not the source `i18n/`.
 6. Load at runtime: in Vite,
    `await loadTranslations("fr", "/translations/fr.json")` in `main.tsx`

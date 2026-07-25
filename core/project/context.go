@@ -80,7 +80,7 @@ func NewProjectContext(proj *KapiProject, projectPath string) *ProjectContext {
 // DetectFormat detects the format for a file path, scoped to the project's
 // allowed plugin sources. Returns empty string if no format matches.
 func (ctx *ProjectContext) DetectFormat(reg *registry.FormatRegistry, path string) string {
-	if filepath.Ext(path) == "" {
+	if format.Ext(path) == "" {
 		return ""
 	}
 	// DetectFile is content-aware: when an extension is shared by several

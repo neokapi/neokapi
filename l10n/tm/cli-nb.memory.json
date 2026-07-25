@@ -80,12 +80,12 @@
       "variants": {
         "en": [
           {
-            "text": "Export translation memory to TMX or .kmb"
+            "text": "Export translation memory to TMX or .memory.json"
           }
         ],
         "nb": [
           {
-            "text": "Eksporter oversettelsesminnet til TMX eller .kmb"
+            "text": "Eksporter oversettelsesminnet til TMX eller .memory.json"
           }
         ]
       },
@@ -1268,12 +1268,12 @@
       "variants": {
         "en": [
           {
-            "text": "Export termbase to CSV, JSON, TBX, or native .ktb"
+            "text": "Export termbase to CSV, JSON, TBX, or native .terms.json"
           }
         ],
         "nb": [
           {
-            "text": "Eksporter termbasen til CSV, JSON, TBX eller internformatet .ktb"
+            "text": "Eksporter termbasen til CSV, JSON, TBX eller internformatet .terms.json"
           }
         ]
       },
@@ -1286,12 +1286,12 @@
       "variants": {
         "en": [
           {
-            "text": "Import a TMX or .kmb file into translation memory"
+            "text": "Import a TMX or .memory.json file into translation memory"
           }
         ],
         "nb": [
           {
-            "text": "Importer en TMX- eller .kmb-fil til oversettelsesminnet"
+            "text": "Importer en TMX- eller .memory.json-fil til oversettelsesminnet"
           }
         ]
       },
@@ -2420,12 +2420,12 @@
       "variants": {
         "en": [
           {
-            "text": "Import terms from CSV, JSON, TBX, or native .ktb into a termbase"
+            "text": "Import terms from CSV, JSON, TBX, or native .terms.json into a termbase"
           }
         ],
         "nb": [
           {
-            "text": "Importer termer fra CSV, JSON, TBX eller internformatet .ktb til en termbase"
+            "text": "Importer termer fra CSV, JSON, TBX eller internformatet .terms.json til en termbase"
           }
         ]
       },

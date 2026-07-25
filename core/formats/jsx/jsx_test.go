@@ -42,14 +42,14 @@ func TestFlattenRunsPlural(t *testing.T) {
 }
 
 func TestReaderReadsKBF(t *testing.T) {
-	// Build a .kbf in memory and feed it through the reader.
+	// Build a .kbf.json in memory and feed it through the reader.
 	doc := makeKBFFile()
 	buf, err := kbf.Marshal(doc)
 	require.NoError(t, err)
 
 	r := NewReader()
 	raw := &model.RawDocument{
-		URI:    "inline.kbf",
+		URI:    "inline.kbf.json",
 		Reader: io.NopCloser(bytes.NewReader(buf)),
 	}
 	require.NoError(t, r.Open(context.Background(), raw))
@@ -72,7 +72,7 @@ func TestWriterRoundTripKBF(t *testing.T) {
 	require.NoError(t, err)
 
 	r := NewReader()
-	require.NoError(t, r.Open(context.Background(), &model.RawDocument{URI: "in.kbf", Reader: io.NopCloser(bytes.NewReader(inBuf))}))
+	require.NoError(t, r.Open(context.Background(), &model.RawDocument{URI: "in.kbf.json", Reader: io.NopCloser(bytes.NewReader(inBuf))}))
 	blocks := collectBlocks(t, r)
 	require.Len(t, blocks, 3)
 
@@ -113,7 +113,7 @@ func TestWriterPreservesStructuredTargetRuns(t *testing.T) {
 
 	r := NewReader()
 	require.NoError(t, r.Open(context.Background(), &model.RawDocument{
-		URI:    "in.kbf",
+		URI:    "in.kbf.json",
 		Reader: io.NopCloser(bytes.NewReader(inBuf)),
 	}))
 	blocks := collectBlocks(t, r)
@@ -128,7 +128,7 @@ func TestWriterPreservesStructuredTargetRuns(t *testing.T) {
 		})
 	}
 
-	outPath := filepath.Join(t.TempDir(), "with-targets.kbf")
+	outPath := filepath.Join(t.TempDir(), "with-targets.kbf.json")
 	w := NewWriter()
 	w.SetLocale("qps")
 	require.NoError(t, w.SetOutput(outPath))
@@ -162,7 +162,7 @@ func TestPreviewBuilder(t *testing.T) {
 	require.NoError(t, err)
 
 	r := NewReader()
-	require.NoError(t, r.Open(context.Background(), &model.RawDocument{URI: "inline.kbf", Reader: io.NopCloser(bytes.NewReader(buf))}))
+	require.NoError(t, r.Open(context.Background(), &model.RawDocument{URI: "inline.kbf.json", Reader: io.NopCloser(bytes.NewReader(buf))}))
 	blocks := collectBlocks(t, r)
 
 	pb := NewPreviewBuilder()
@@ -175,7 +175,7 @@ func TestReaderSniffsKBFEnvelope(t *testing.T) {
 	r := NewReader()
 	sig := r.Signature()
 	require.NotNil(t, sig.Sniff)
-	// A .kbf envelope.
+	// A .kbf.json envelope.
 	assert.True(t, sig.Sniff([]byte(`{"schemaVersion":"1.0","kind":"kapi-bundle"}`)))
 	// Random JSON isn't a match.
 	assert.False(t, sig.Sniff([]byte(`{"foo":1}`)))
@@ -192,7 +192,7 @@ func TestReaderSniffsRetiredKBFEnvelope(t *testing.T) {
 	require.NotNil(t, sig.Sniff)
 	assert.True(t, sig.Sniff([]byte(`{"schemaVersion":"1.0","kind":"kapi-localization-format"}`)),
 		"a bundle with the retired kind must still be detected so the reader can explain the rename")
-	// The other two retired kinds belong to .kmb / .ktb, not to a bundle.
+	// The other two retired kinds belong to .memory.json / .terms.json, not to a bundle.
 	assert.False(t, sig.Sniff([]byte(`{"kind":"kapi-tm-format"}`)))
 	assert.False(t, sig.Sniff([]byte(`{"kind":"kapi-termbase-format"}`)))
 }
@@ -215,7 +215,7 @@ func collectBlocks(t *testing.T, r *Reader) []*model.Block {
 	return blocks
 }
 
-// makeKBFFile builds an in-memory .kbf with the three canonical
+// makeKBFFile builds an in-memory .kbf.json with the three canonical
 // example blocks. This is the Go-side mirror of the TS fixtures in
 // packages/kapi-format/examples.
 func makeKBFFile() *kbf.File {

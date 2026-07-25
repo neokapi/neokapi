@@ -138,7 +138,7 @@ func locale(o StatusOutput, loc string) (LocaleCoverage, bool) {
 }
 
 // writeReviewProject writes a project with a fully-translated nb target and a
-// gate that needs 50% reviewed, plus a bound (initially absent) .kmb source.
+// gate that needs 50% reviewed, plus a bound (initially absent) .memory.json source.
 func writeReviewProject(t *testing.T) string {
 	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "")
@@ -148,7 +148,7 @@ name: rev
 defaults:
   source_language: en
   target_languages: [nb]
-  tm_source: tm.kmb
+  tm_source: tm.memory.json
 content:
   - path: en.json
     target: "{lang}.json"
@@ -166,7 +166,7 @@ ship_gate: { translated: 100, reviewed: 50 }
 // through the real state-store approval path — ApproveReviewUnit records the
 // decision in the project state store, the authoritative carrier of review state.
 // The target argument is ignored: approval blesses the translation already in the
-// file. (Named for historical continuity with the prior .kmb-based helper.)
+// file. (Named for historical continuity with the prior .memory.json-based helper.)
 func writeReviewedCorrection(t *testing.T, root, srcText, _ string) {
 	t.Helper()
 	a := &App{}

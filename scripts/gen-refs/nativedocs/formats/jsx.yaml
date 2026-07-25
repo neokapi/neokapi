@@ -1,9 +1,9 @@
 # Native reference doc for the built-in `jsx` format.
 # Source: core/formats/jsx/{jsx.go,spec.yaml}; KBF wire schema in core/kbf/README.md.
-# Native-only: reads/writes the Kapi Bundle Format (.kbf). No configurable parameters.
-description: Read and write the Kapi Bundle Format (.kbf), the JSON envelope for strings extracted from source code.
+# Native-only: reads/writes the Kapi Bundle Format (.kbf.json). No configurable parameters.
+description: Read and write the Kapi Bundle Format (.kbf.json), the JSON envelope for strings extracted from source code.
 overview: |
-  This format reads and writes the Kapi Bundle Format (`.kbf`), a
+  This format reads and writes the Kapi Bundle Format (`.kbf.json`), a
   structured JSON envelope for translatable strings extracted from
   source code such as JSX / React components. A KBF document is a
   `kind: kapi-bundle` envelope holding one or more
@@ -31,7 +31,7 @@ processingNotes:
 examples:
   - title: Round-trip a KBF document
     description: |
-      No configuration is required. Declare the format to read a `.kbf`
+      No configuration is required. Declare the format to read a `.kbf.json`
       envelope and write it back after translation.
     config: |
       format:

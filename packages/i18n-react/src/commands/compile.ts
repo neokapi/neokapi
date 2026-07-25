@@ -3,8 +3,8 @@
  *
  * Accepts any of three input shapes:
  *
- *   1. A single `.kbf` file.
- *   2. A directory of `.kbf` files (the default output of
+ *   1. A single `.kbf.json` file.
+ *   2. A directory of `.kbf.json` files (the default output of
  *      `neokapi-i18n extract`).
  *   3. NDJSON block records on stdin (pass `-` as input) — for
  *      one-shot pipelines.
@@ -14,10 +14,10 @@
  */
 
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from "node:fs";
-import { dirname, extname, join } from "node:path";
+import { dirname, join } from "node:path";
 
 import type { Block, File } from "@neokapi/kapi-format";
-import { flattenRuns } from "@neokapi/kapi-format";
+import { flattenRuns, isKbfPath } from "@neokapi/kapi-format";
 
 import { buildReviewManifest } from "../review/manifest.ts";
 
@@ -45,7 +45,7 @@ export async function runCompile(args: string[]) {
   }
 
   if (inputs.length === 0) {
-    console.error("error: missing input (.kbf file, .kbf directory, or - for stdin)\n");
+    console.error("error: missing input (.kbf.json file, .kbf.json directory, or - for stdin)\n");
     console.log(usage);
     process.exit(1);
   }
@@ -151,7 +151,7 @@ function walkKBFs(dir: string, visit: (path: string) => void) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) walkKBFs(path, visit);
-    else if (entry.isFile() && extname(path).toLowerCase() === ".kbf") visit(path);
+    else if (entry.isFile() && isKbfPath(path)) visit(path);
   }
 }
 
@@ -183,8 +183,8 @@ Usage:
   neokapi-i18n compile <input>... [--locale <lang>]... [--out <dir>] [--review]
 
 <input> can be (one or more):
-  <dir/>               a directory of .kbf files (recursive)
-  <file.kbf>           a single .kbf file
+  <dir/>               a directory of .kbf.json files (recursive)
+  <file.kbf.json>      a single .kbf.json file
   -                    NDJSON block records on stdin
 
 Options:

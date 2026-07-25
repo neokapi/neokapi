@@ -115,10 +115,10 @@ func countLabel(n int) string {
 var archivePartNotes = map[string]string{
 	"recipe":   "the project's kapi.yaml, with server/hooks/automations stripped inert",
 	"sources":  "source identity + per-file skeletons (raw bytes only with --with-source)",
-	"blocks":   "extracted content blocks (.kbf)",
+	"blocks":   "extracted content blocks (.kbf.json)",
 	"overlays": "committed target overlays, one per locale",
-	"memory":   "the authoritative content memory (.kmb)",
-	"terms":    "the authoritative terms (.ktb)",
+	"memory":   "the authoritative content memory (.memory.json)",
+	"terms":    "the authoritative terms (.terms.json)",
 	"history":  "advisory provenance chain (--log)",
 }
 
@@ -198,7 +198,11 @@ func (a *App) RunProjectInfo(cmd Command) error {
 	out.Parts = append(out.Parts,
 		part("memory", relativeToCwd(tmPath), countTMEntries(ctx, tmPath), fileSize(tmPath)))
 
-	tbPath := filepath.Join(layout.StateDir, "terms.db")
+	// The state file is termbase.db, not terms.db: the *concept* was renamed to
+	// "terms" (#1462) but the file was not, because an existing project already
+	// has termbase.db on disk. This site had followed the rename and so always
+	// measured a file that does not exist, reporting the terms store as absent.
+	tbPath := filepath.Join(layout.StateDir, "termbase.db")
 	out.Parts = append(out.Parts,
 		part("terms", relativeToCwd(tbPath), countTermConcepts(ctx, tbPath), fileSize(tbPath)))
 

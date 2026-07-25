@@ -2,7 +2,7 @@
 sidebar_position: 5
 title: The Kapi format family & .kpz package
 description: The Kapi format family of native lossless formats (blocks, content memory, terms) and the .kpz package that bundles a project's authoritative content — distinct from the lossy interchange formats (XLIFF/PO, TMX, TBX).
-keywords: [KBF, kmb, ktb, kpz, package, content memory, terms store, TMX, TBX, lossless, interchange, pack, unpack]
+keywords: [KBF, memory bundle, terms bundle, kpz, package, content memory, terms store, TMX, TBX, lossless, interchange, pack, unpack]
 ---
 
 # The Kapi format family & the `.kpz` package
@@ -20,11 +20,17 @@ XLIFF play for blocks (see [KBF vs XLIFF](/reference/kbf/vs-xliff)):
 
 | Atom | **Native** (lossless — pack, cache, hash) | **Interchange** (lossy — industry handoff) |
 | --- | --- | --- |
-| blocks + targets | **KBF** — Kapi Bundle Format, `.kbf` | XLIFF / PO |
+| blocks + targets | **KBF** — Kapi Bundle Format, `.kbf.json` | XLIFF / PO |
 | stand-off annotations | **KBF annotations** — `.overlays.jsonl` | — |
-| content memory | **KMB** — Kapi Memory Bundle, `.kmb` | TMX |
-| terms store | **KTB** — Kapi Term Bundle, `.ktb` | TBX |
+| content memory | **content-memory bundle**, `.memory.json` | TMX |
+| terms store | **terms bundle**, `.terms.json` | TBX |
 | whole project | **KPZ** — Kapi Project Archive, `.kpz` | — |
+
+Every native form except `.kpz` is JSON, and the suffix says so. The marker
+segment ahead of `.json` keeps the file self-describing; the `.json` tail means
+`jq`, GitHub, and an editor's syntax highlighting all recognise it without
+configuration. `.kpz` keeps a dedicated extension because it is a binary zip,
+not something anyone opens by hand.
 
 The native forms round-trip **every** field of the internal model. The
 interchange forms map only the standard, industry-portable subset — which is
@@ -36,40 +42,59 @@ exactly why they cannot be used to pack a project losslessly:
 - **TBX drops** the term `source` (terminology vs `brand_vocabulary`), the
   `competitorTerm` flag, and the extensible properties.
 
-KMB and KTB preserve all of these. They share the KBF discipline: a `kind`
+The bundles preserve all of these. They share the KBF discipline: a `kind`
 magic string, a `MAJOR.MINOR` `schemaVersion` with the same forward-compatibility
 contract as [KBF](/reference/kbf/spec#versioning), and a deterministic serializer
 (sorted records, no HTML escaping, trailing newline) so the bytes are stable for
-content hashing and git diffing. KMB even reuses the same `Run` model as KBF
-blocks for its variant content, so inline codes, placeholders, and plural/select
-constructs serialize identically.
+content hashing and git diffing. The content-memory bundle reuses the same `Run`
+model as KBF blocks for its variant content, so inline codes, placeholders, and
+plural/select constructs serialize identically.
 
-## Bundle vs archive
+## One bundle per store
 
-Each store-shaped native form has two spellings of the same content — a
-**bundle** and an **archive**:
-
-| Store | Bundle (readable, git-diffable) | Archive (compressed, at-rest / handoff) |
-| --- | --- | --- |
-| content memory | `.kmb` — Kapi Memory Bundle | `.kmz` — Kapi Memory Archive |
-| terms store | `.ktb` — Kapi Term Bundle | `.ktz` — Kapi Term Archive |
-| whole project | — | `.kpz` — Kapi Project Archive |
-
-An archive is a zip holding exactly one member — `tm.kmb` for a `.kmz`,
-`termbase.ktb` for a `.ktz` — so unzipping one by hand yields the bundle
-unchanged. `kapi memory export` / `kapi memory import` and `kapi terms export` /
-`kapi terms import` pick the tier from the file extension:
+Each store has exactly one native spelling — the bundle — and a project commits
+it:
 
 ```bash
-kapi memory export -o l10n/tm/cli-nb.kmb    # bundle: commit this
-kapi memory export -o snapshots/tm.kmz      # archive: hand this off
-kapi terms import seeds/termbase.ktz        # detected from the extension
+kapi memory export -o l10n/tm/cli-nb.memory.json
+kapi terms import seeds/terms.json    # format detected from the extension
+kapi terms export --format bundle -o glossary.terms.json   # or name it explicitly
 ```
 
-Commit bundles; ship archives. A bundle diffs line by line in git, which is what
-makes a reviewed content memory or terms store reviewable at all; an archive
-exists for size, and a large content memory compresses by roughly an order of
-magnitude.
+The explicit spelling is `--format bundle` for both stores. It is not called
+`json`, because `kapi terms --format json` already means something else — a
+separate, lossy JSON export that predates the native tier and does not preserve
+concept identity. Reach for `bundle` when you want the lossless form.
+
+A bundle diffs line by line in git, which is what makes a reviewed content memory
+or terms store reviewable at all. There is no separate compressed spelling: a
+whole project that needs to travel is a `.kpz`, and a single bundle that needs to
+travel small is what `zip` and `gzip` are for.
+
+The suffix, not the location, is what identifies a bundle — a project puts one
+wherever it likes and may keep several. Which bundle a given project uses is set
+by the recipe
+([`defaults.termbase_source` / `defaults.tm_source`](/reference/project-file)) or
+by an explicit `-o` path.
+
+### Where terms live when nothing is bound
+
+Your glossary belongs at the **repository root**, as `terms.json` — not under
+`.kapi/`. `.kapi/` is gitignored, so a glossary kept there would never be
+committed, never show up in a diff, and never get reviewed, which defeats the
+point of keeping terminology as source. The bundle is the committed source;
+`.kapi/termbase.db` is the throwaway cache it compiles into.
+
+So the fallback ladder is `<root>/terms.json` first, then
+`<root>/.kapi/terms.json` — the second rung only for a project that deliberately
+keeps its glossary local and uncommitted.
+
+Content memory has no such fallback, and that asymmetry is deliberate: **a
+project has one glossary but many content-memory bundles**, typically one per
+content surface. This repository's own dogfood commits a bundle per surface
+under `l10n/tm/` against a single `l10n/terms.json`. A convention needs one
+obvious answer to point at; terms has one and memory does not, so a memory seed
+is always named rather than guessed.
 
 ## The `.kpz` package
 
@@ -80,10 +105,10 @@ one member per content type — the same content-type set the
 ```
 project.kpz
 ├── manifest.json          inventory: per-member sha256 + Merkle rootHash
-├── blocks/<id>.kbf        KBF              (blocks + targets)
+├── blocks/<id>.kbf.json   KBF              (blocks + targets)
 ├── annotations/<id>.overlays.jsonl  KBF annotations  (stand-off overlays)
-├── tm.kmb               KMB           (content memory)
-├── termbase.ktb         KTB           (terminology)
+├── memory.json            content memory
+├── terms.json             terminology
 ├── media/<name>           opaque blobs
 │
 │   ── working-state members (AD-025 §5) ──
@@ -91,6 +116,11 @@ project.kpz
 ├── overlays.json          in-progress overlays  (targets, annotations, …)
 └── history.jsonl          advisory provenance log (opt-in; excluded from rootHash)
 ```
+
+The memory and terms members use the conventional bare names, not the compound
+suffix, so unzipping a package by hand gives you the spelling the rest of the
+tooling teaches. Member names are cosmetic: unpacking routes each member by the
+manifest's `contentType`, never by its filename.
 
 (A `.kpz` also carries the project **recipe** in `manifest.json` — flows, plugins,
 defaults, content — kept out of the `rootHash`, so the package is a *runnable
@@ -207,4 +237,4 @@ a TMS — and the lossy, standards-based subset is what the other side expects.
 - [AD-025: KBF Family and the .kpz Package](/contribute/architecture/025-kbf-package) — the decision and rationale.
 - [Specification](/reference/kbf/spec) — the KBF block format the family is built around.
 - [KBF vs XLIFF](/reference/kbf/vs-xliff) — the native-vs-interchange split for blocks.
-- Reference implementations: [`memory/kmb`](https://github.com/neokapi/neokapi/tree/main/memory/kmb) (KMB), [`terms/ktb`](https://github.com/neokapi/neokapi/tree/main/terms/ktb) (KTB), [`kpz`](https://github.com/neokapi/neokapi/tree/main/kpz) (the package container).
+- Reference implementations: [`memory/kmb`](https://github.com/neokapi/neokapi/tree/main/memory/kmb) (the content-memory bundle), [`terms/ktb`](https://github.com/neokapi/neokapi/tree/main/terms/ktb) (the terms bundle), [`kpz`](https://github.com/neokapi/neokapi/tree/main/kpz) (the package container).

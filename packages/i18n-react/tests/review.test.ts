@@ -78,7 +78,7 @@ function seedKbfTree(dir: string): string {
   doc.blocks[0].targets = { de: [{ text: "Willkommen zurück" }] } as never;
   mkdirSync(join(dir, "i18n", "src"), { recursive: true });
   writeFileSync(
-    join(dir, "i18n", "src", "Page.kbf"),
+    join(dir, "i18n", "src", "Page.kbf.json"),
     JSON.stringify({
       schemaVersion: "1.0",
       kind: "kapi-bundle",
@@ -124,7 +124,7 @@ describe("ReviewStore", () => {
     expect(payload.annotations[0].annotationType).toBe("@neokapi/term-detector");
   });
 
-  it("writes target edits back into the .kbf and broadcasts", () => {
+  it("writes target edits back into the .kbf.json and broadcasts", () => {
     const dir = scratch();
     const hash = seedKbfTree(dir);
     const store = new ReviewStore(join(dir, "i18n"));
@@ -135,7 +135,7 @@ describe("ReviewStore", () => {
     expect(updated.targets.de.text).toBe("Willkommen zurück!");
     expect(events).toEqual([{ hash, locale: "de", text: "Willkommen zurück!" }]);
 
-    const onDisk = JSON.parse(readFileSync(join(dir, "i18n", "src", "Page.kbf"), "utf-8"));
+    const onDisk = JSON.parse(readFileSync(join(dir, "i18n", "src", "Page.kbf.json"), "utf-8"));
     expect(onDisk.documents[0].blocks[0].targets.de[0].text).toBe("Willkommen zurück!");
   });
 
@@ -147,14 +147,14 @@ describe("ReviewStore", () => {
     expect(store.put("nope", "de", "x")).toBeNull();
   });
 
-  it("picks up external .kbf edits via mtime refresh", async () => {
+  it("picks up external .kbf.json edits via mtime refresh", async () => {
     const dir = scratch();
     const hash = seedKbfTree(dir);
     const store = new ReviewStore(join(dir, "i18n"));
     expect(store.get(hash)!.targets.de.text).toBe("Willkommen zurück");
 
     // Simulate `kapi translate` rewriting the file.
-    const path = join(dir, "i18n", "src", "Page.kbf");
+    const path = join(dir, "i18n", "src", "Page.kbf.json");
     const raw = JSON.parse(readFileSync(path, "utf-8"));
     raw.documents[0].blocks[0].targets.de = [{ text: "extern" }];
     await new Promise((r) => setTimeout(r, 5)); // ensure mtime moves

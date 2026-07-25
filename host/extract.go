@@ -785,7 +785,7 @@ func filterFiles(files []project.ResolvedFile, only, pattern, root string) []pro
 // extension wins.
 func bilingualOutputName(src project.ResolvedFile, source, target model.LocaleID, ext string) string {
 	stem := src.Relative
-	stem = strings.TrimSuffix(stem, filepath.Ext(stem))
+	stem = format.TrimExt(stem)
 	slug := strings.ReplaceAll(stem, string(filepath.Separator), "-")
 	slug = strings.ReplaceAll(slug, "/", "-")
 	out := fmt.Sprintf("%s.%s-to-%s", slug, source, target)

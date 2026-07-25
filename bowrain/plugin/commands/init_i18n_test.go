@@ -20,14 +20,14 @@ func TestApplyFrameworkPreset_NeokapiI18nCleanLayout(t *testing.T) {
 	require.NoError(t, applyFrameworkPreset(recipe, "neokapi-i18n"))
 
 	require.Len(t, recipe.Content, 1)
-	assert.Equal(t, "i18n/src/**/*.kbf", recipe.Content[0].Path)
-	assert.Equal(t, "i18n/{lang}/{path}.kbf", recipe.Content[0].Target)
+	assert.Equal(t, "i18n/src/**/*.kbf.json", recipe.Content[0].Path)
+	assert.Equal(t, "i18n/{lang}/{path}.kbf.json", recipe.Content[0].Target)
 	require.NotNil(t, recipe.Content[0].Format)
 	assert.Equal(t, "kbf", recipe.Content[0].Format.Name)
 
 	require.NotNil(t, recipe.Defaults.BrandVoice)
 	assert.Equal(t, "i18n/brand-voice.yaml", recipe.Defaults.BrandVoice.ProfileFile)
-	assert.Equal(t, "i18n/termbase.ktb", recipe.Defaults.TermsSource)
+	assert.Equal(t, "i18n/terms.json", recipe.Defaults.TermsSource)
 
 	// Full init round-trip: the recipe writes, the state dir scaffolds, and the
 	// generated .gitignore keeps rebuildable state (content memory/terms/block stores and

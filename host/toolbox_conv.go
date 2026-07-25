@@ -227,7 +227,7 @@ func (a *App) writerForOutputPath(path string) registry.FormatID {
 	if strings.HasSuffix(strings.ToLower(path), ".dclg.xml") && a.FormatReg.HasWriter("doclang") {
 		return "doclang"
 	}
-	return a.writerByExt(filepath.Ext(strings.ToLower(path)))
+	return a.writerByExt(format.Ext(path))
 }
 
 // writerByExt returns the highest-priority writable format registered for ext,

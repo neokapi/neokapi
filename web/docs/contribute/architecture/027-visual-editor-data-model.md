@@ -245,7 +245,7 @@ Within the content model and its KBF interchange ([AD-025](025-kbf-package.md)):
 - **Targets** are first-class records — runs plus `Status`, `Origin`, `Score`
   ([AD-002](002-content-model.md)).
 - **Annotations** are the block-scoped typed carrier
-  ([AD-002](002-content-model.md)); `.kbf` carries blocks, targets, and
+  ([AD-002](002-content-model.md)); `.kbf.json` carries blocks, targets, and
   properties, and the `.overlays.jsonl` JSON-Lines sidecar carries annotation overlays
   (anchor kinds `block` / `run` / `range` / `form`).
 - **Skeleton** is the binary `SkeletonStore` ([AD-005](005-format-system.md)).
@@ -308,4 +308,4 @@ outside the framework.
 - [AD-008: Project Model](008-project-model.md) — the `BlockStore` that a host persists edits through
 - [AD-014: Kapi Desktop](014-kapi-desktop.md) — the desktop application that hosts the preview kit
 - [AD-017: Bilingual Format Interop](017-bilingual-format-interop.md) — the standalone-kapi `extract`/`merge` faithful round-trip
-- [AD-025: KBF Family and `.kpz` Package](025-kbf-package.md) — `.kbf` blocks and the `.overlays.jsonl` annotation sidecar
+- [AD-025: KBF Family and `.kpz` Package](025-kbf-package.md) — `.kbf.json` blocks and the `.overlays.jsonl` annotation sidecar

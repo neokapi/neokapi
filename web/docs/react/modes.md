@@ -286,7 +286,7 @@ Mixing modes within a single build is not supported — you pick one per deploy.
 
 ## What doesn't change between modes
 
-- The extractor (`neokapi-i18n extract`) produces the same `.kbf` regardless of mode.
+- The extractor (`neokapi-i18n extract`) produces the same `.kbf.json` regardless of mode.
 - Hashes are mode-independent.
 - `<Plural>` / `<Select>` / `t()` all work the same in authoring.
 - Unmapped-component warnings fire identically.

@@ -44,7 +44,7 @@ const { instance } = await WebAssembly.instantiate(
 void go.run(instance);
 await ready;
 
-const kbf = (req: unknown): any => JSON.parse((globalThis as any).kbf(JSON.stringify(req)) as string);
+const kbf = (req: unknown): any => JSON.parse((globalThis as any).kbf.json(JSON.stringify(req)) as string);
 const sha = (b: Uint8Array): string => createHash("sha256").update(b).digest("hex");
 
 let failures = 0;

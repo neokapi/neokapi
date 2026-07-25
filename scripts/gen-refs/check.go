@@ -58,6 +58,10 @@ func checkDrift(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) e
 	if diff := compareModels(filepath.Join(outDir, "models.json"), wantModels); diff != "" {
 		problems = append(problems, "models.json: "+diff)
 	}
+	wantCommands := collectCommandDataset("")
+	if diff := compareCommands(filepath.Join(outDir, "commands.json"), wantCommands); diff != "" {
+		problems = append(problems, "commands.json: "+diff)
+	}
 
 	if len(problems) > 0 {
 		for _, p := range problems {
@@ -201,6 +205,41 @@ func comparePrompts(path string, want PromptDataset) string {
 	}
 	if string(gotJSON) != string(wantJSON) {
 		return "the committed prompt reference no longer matches the prompts kapi sends"
+	}
+	return ""
+}
+
+// compareCommands compares the committed command reference against the live
+// cobra tree.
+//
+// Without this the gate was hollow for commands.json: every other dataset was
+// gated, so a change to a command's help text — the flag list, the examples, the
+// file extensions a command documents — regenerated cleanly but was never
+// required to be committed, and web/docs/reference/commands/*.mdx kept
+// publishing whatever the last regeneration happened to capture.
+func compareCommands(path string, want CommandDataset) string {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Sprintf("cannot read %s: %v", path, err)
+	}
+	var got CommandDataset
+	if err := json.Unmarshal(raw, &got); err != nil {
+		return fmt.Sprintf("cannot parse %s: %v", path, err)
+	}
+
+	// generatedAt changes every run and is not part of the contract.
+	got.GeneratedAt = ""
+	want.GeneratedAt = ""
+
+	if len(got.Commands) != len(want.Commands) {
+		return fmt.Sprintf("command count changed: committed %d, regenerated %d",
+			len(got.Commands), len(want.Commands))
+	}
+	for i := range want.Commands {
+		if !jsonEqual(want.Commands[i], got.Commands[i]) {
+			return fmt.Sprintf("command %q is stale (help text, flags, or examples changed)",
+				want.Commands[i].ID)
+		}
 	}
 	return ""
 }

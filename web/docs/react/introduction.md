@@ -65,7 +65,7 @@ The source text is the identifier. When the copy changes, you change the JSX —
 - **No `t()` wrapping for normal JSX.** `<h1>Welcome</h1>` is translatable as written — so are element children and translatable props on your own components.
 - **No key invention.** The hash of the source text + the element's own tag is the key. The runtime dict is `{ "aB3": "Bienvenue", ... }` — not `{ "welcome.heading": "Bienvenue", ... }`.
 - **No orphaned translations when you refactor.** Ancestors are deliberately *not* part of the key: wrap a `<p>` in a new `<div>`, move it into a `<Card>`, restructure the page around it — the key is unchanged and the translations follow. Keys change when the words change, which is exactly when a translator should look again.
-- **No translation-file edits from developers.** Developers write JSX. Translators write translations. The `.kbf` archive is the contract between them.
+- **No translation-file edits from developers.** Developers write JSX. Translators write translations. The `.kbf.json` archive is the contract between them.
 - **One explicit marker — `t()` — for strings that legitimately live in JS data** (button-label arrays, error messages returned from reducers, refs). That's it.
 
 ## What you get in the box
@@ -76,7 +76,7 @@ The source text is the identifier. When the copy changes, you change the JSX —
 - **`<Plural>` / `<Select>` authoring components** with CLDR-aware runtime resolution via `Intl.PluralRules`, and ICU number/date/time formatting through `Intl` — so a translator can write `{n, number}` or `{d, date, long}` into a target without a code change.
 - **`t()` escape hatch** for the small set of strings that genuinely belong in data.
 - **Two build modes** — inline (zero runtime, builds per locale) and runtime (single bundle, dict loaded OTA).
-- **[In-context review](./in-context-review) on the running app** — ALT+click any string to see its source, edit its translation, and write it straight back to the `.kbf`; terms and QA findings paint onto the live text.
+- **[In-context review](./in-context-review) on the running app** — ALT+click any string to see its source, edit its translation, and write it straight back to the `.kbf.json`; terms and QA findings paint onto the live text.
 - **A proper exchange format** — KBF (see [AD-008](/contribute/architecture/008-project-model)) — that carries structural context, placeholders, plural forms, and annotation overlays. Not a flat key-value JSON.
 - **Full integration with `kapi`** for pseudo-translation, AI translation, QA, content-memory leverage, and terminology. The same toolchain that handles XLIFF, JSON, Markdown, HTML, and every other format kapi supports.
 

@@ -15,11 +15,11 @@ import (
 
 // The writer seeded each output block's targets from the KBFAnnotation — the
 // block *as read* — and then filled in the model's target only for locales the
-// annotation lacked. So whenever the input .kbf already carried a target for
+// annotation lacked. So whenever the input .kbf.json already carried a target for
 // the write locale, whatever the pipeline produced was thrown away and the
 // original re-emitted, byte for byte. The tool reported success; the edit was
 // simply gone. Any tool that edits an existing target was a silent no-op
-// through .kbf: a whitespace correction, a post-edit pass, a re-translation, an
+// through .kbf.json: a whitespace correction, a post-edit pass, a re-translation, an
 // unredact, a removal.
 //
 // These tests drive the real reader → edit → writer path, because the reader is
@@ -28,7 +28,7 @@ import (
 // nbTgt is the locale these tests edit.
 const nbTgt = model.LocaleID("nb")
 
-// translatedKBF builds a .kbf that already carries an `nb` target, with inline
+// translatedKBF builds a .kbf.json that already carries an `nb` target, with inline
 // codes on both sides — the shape a catalog has after one translation pass, and
 // the shape a second pass has to be able to change.
 func translatedKBF() *kbf.File {
@@ -74,7 +74,7 @@ func editThroughKBF(t *testing.T, file *kbf.File, locale model.LocaleID, edit fu
 
 	r := NewReader()
 	require.NoError(t, r.Open(context.Background(), &model.RawDocument{
-		URI: "in.kbf", Reader: io.NopCloser(bytes.NewReader(in)),
+		URI: "in.kbf.json", Reader: io.NopCloser(bytes.NewReader(in)),
 	}))
 	blocks := collectBlocks(t, r)
 	require.NotEmpty(t, blocks)
@@ -209,7 +209,7 @@ func TestWriterEmitsAnAddedLocaleAlongsideTheExistingOne(t *testing.T) {
 		"the locale nothing touched is unchanged")
 }
 
-// A tone- or channel-qualified variant has no slot in the .kbf wire shape,
+// A tone- or channel-qualified variant has no slot in the .kbf.json wire shape,
 // which keys targets by bare locale. It must not silently overwrite the plain
 // target for that locale.
 func TestWriterIgnoresToneQualifiedVariants(t *testing.T) {

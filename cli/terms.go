@@ -53,8 +53,8 @@ Default (no flag): same as --local (uses ./termbase.db).`,
 func newTermsImportCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "import [file]",
-		Short:   "Import terms from CSV, JSON, TBX, or a native .ktb / .ktz bundle",
-		Example: "  kapi terms import glossary.csv -s en -t fr --header\n  kapi terms import vocab.csv -s en --monolingual --header\n  kapi terms import terms.tbx --format tbx\n  kapi terms import seeds/termbase.ktb\n  kapi terms import seeds/terms.ktz",
+		Short:   "Import terms from CSV, JSON, TBX, or a native .terms.json bundle",
+		Example: "  kapi terms import glossary.csv -s en -t fr --header\n  kapi terms import vocab.csv -s en --monolingual --header\n  kapi terms import terms.tbx --format tbx\n  kapi terms import seeds/terms.json",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, _ := cmd.Flags().GetString("format")
@@ -66,6 +66,9 @@ func newTermsImportCmd(a *App) *cobra.Command {
 			monolingual, _ := cmd.Flags().GetBool("monolingual")
 			// A native extension wins over the csv default when the user did
 			// not ask for a format explicitly.
+			if err := CheckRetiredBundlePath(args[0]); err != nil {
+				return err
+			}
 			format = ResolveTermsFileFormat(format, args[0], cmd.Flags().Changed("format"))
 
 			tb, dbPath, err := a.OpenTermsSQLite(cmd)
@@ -102,12 +105,10 @@ func newTermsImportCmd(a *App) *cobra.Command {
 				count, err = terms.ImportTBX(cmd.Context(), tb, f, terms.TBXImportOptions{
 					Domain: domain,
 				})
-			case "ktb":
+			case "bundle":
 				count, err = ImportKTBFile(cmd.Context(), tb, f)
-			case "ktz":
-				count, err = ImportKTZFile(cmd.Context(), tb, f)
 			default:
-				return fmt.Errorf("unsupported format: %s (use csv, tsv, json, tbx, ktb, or ktz)", format)
+				return fmt.Errorf("unsupported format: %s (use csv, tsv, json, tbx, or bundle)", format)
 			}
 
 			if err != nil {
@@ -129,7 +130,7 @@ func newTermsImportCmd(a *App) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String("format", "csv", "import format (csv, tsv, json, tbx, ktb, ktz); a .ktb / .ktz input is detected automatically")
+	cmd.Flags().String("format", "csv", "import format (csv, tsv, json, tbx, bundle); a .terms.json input is detected automatically")
 	cmd.Flags().StringP("source-locale", "s", "en", "source locale for CSV import")
 	cmd.Flags().StringP("target-locale", "t", "", "target locale for CSV import")
 	cmd.Flags().String("domain", "", "domain to assign to imported concepts")
@@ -143,7 +144,7 @@ func newTermsImportCmd(a *App) *cobra.Command {
 func newTermsExportCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export",
-		Short: "Export terms to CSV, JSON, TBX, or a native .ktb / .ktz bundle",
+		Short: "Export terms to CSV, JSON, TBX, or a native .terms.json bundle",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, _ := cmd.Flags().GetString("format")
 			outputPath, _ := cmd.Flags().GetString("output")
@@ -166,6 +167,9 @@ func newTermsExportCmd(a *App) *cobra.Command {
 				defer w.Close()
 			}
 
+			if err := CheckRetiredBundlePath(outputPath); err != nil {
+				return err
+			}
 			format = ResolveTermsFileFormat(format, outputPath, cmd.Flags().Changed("format"))
 			switch strings.ToLower(format) {
 			case "csv":
@@ -179,12 +183,10 @@ func newTermsExportCmd(a *App) *cobra.Command {
 				err = terms.ExportTBX(cmd.Context(), tb, w, terms.TBXExportOptions{
 					SourceLocale: model.LocaleID(srcLocale),
 				})
-			case "ktb":
+			case "bundle":
 				err = ExportKTB(cmd.Context(), tb, w)
-			case "ktz":
-				err = ExportKTZ(cmd.Context(), tb, w)
 			default:
-				return fmt.Errorf("unsupported format: %s (use csv, json, tbx, ktb, or ktz)", format)
+				return fmt.Errorf("unsupported format: %s (use csv, json, tbx, or bundle)", format)
 			}
 
 			if err != nil {
@@ -206,7 +208,7 @@ func newTermsExportCmd(a *App) *cobra.Command {
 	}
 
 	cmd.Flags().StringP("output", "o", "", "output file (default: stdout)")
-	cmd.Flags().String("format", "json", "export format (csv, json, tbx, ktb, ktz); a .ktb / .ktz -o path is detected automatically")
+	cmd.Flags().String("format", "json", "export format (csv, json, tbx, bundle); a .terms.json -o path is detected automatically")
 	cmd.Flags().StringP("source-locale", "s", "en", "source locale for CSV export")
 	cmd.Flags().StringP("target-locale", "t", "", "target locale for CSV export")
 	cmd.Flags().String("export-name", "", "terms name for JSON export")

@@ -824,11 +824,11 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 
 	// Writer format defaults to the reader's format (same-in / same-out
 	// round-trip) but a different output extension selects a different
-	// writer. This is how "convert file.json → file.kbf → file.mo" works
+	// writer. This is how "convert file.json → file.kbf.json → file.mo" works
 	// without a dedicated --writer flag — the output path is already the
 	// user's intent declaration.
 	writerFormatName := registryName
-	if ext := filepath.Ext(outputPath); ext != "" {
+	if ext := format.Ext(outputPath); ext != "" {
 		if det, err := a.FormatReg.Detect(outputPath, registry.DetectOptions{ExtensionOnly: true}); err == nil && det != "" {
 			writerFormatName = string(det)
 		}
@@ -892,7 +892,7 @@ func (a *App) resolveOutputPathFrom(inputPath, outputTemplate, base string) stri
 			ensureParentDir(out)
 			return out
 		}
-		ext := filepath.Ext(inputPath)
+		ext := format.Ext(inputPath)
 		name := filepath.Base(inputPath[:len(inputPath)-len(ext)])
 		return filepath.Join(filepath.Dir(inputPath), fmt.Sprintf("%s_%s%s", name, a.TargetLang, ext))
 	}
@@ -967,7 +967,7 @@ func expandAdhocOutputTemplate(tmpl, inputPath, base, lang string) string {
 		return filepath.Join(resolved, rel)
 	}
 	out := project.ExpandTemplate(resolved, inputPath)
-	name := strings.TrimSuffix(filepath.Base(inputPath), filepath.Ext(inputPath))
+	name := format.Stem(inputPath)
 	out = strings.ReplaceAll(out, "*", name)
 	return filepath.FromSlash(out)
 }
@@ -987,7 +987,7 @@ func isDirTemplate(s string) bool {
 	if strings.ContainsAny(last, "*?[{") {
 		return false
 	}
-	return filepath.Ext(last) == ""
+	return format.Ext(last) == ""
 }
 
 // ensureParentDir best-effort creates the parent directory of p so a template
@@ -1594,7 +1594,7 @@ func (a *App) resolveProjectTermsPath(cmd Command) (string, error) {
 
 // ResolveProjectGlossary builds a source→target glossary from the project's
 // terms, for the active source and target locales. It reads the committed
-// .ktb serialization — the terms store's durable form (AD-010) — directly, so the
+// .terms.json serialization — the terms store's durable form (AD-010) — directly, so the
 // terminology gate validates the committed state and works at check time in CI,
 // where the gitignored working-store .db doesn't exist (see projectConcepts for
 // the full precedence). Returns nil when no terms is in scope or it has
@@ -1632,7 +1632,7 @@ func (a *App) ResolveProjectGlossary(cmd Command, targetLang string) ([]coretool
 }
 
 // projectConcepts loads the project's terms concepts for the read-only check
-// gates. Per the terms store model (AD-010), the committed .ktb is the authored
+// gates. Per the terms store model (AD-010), the committed .terms.json is the authored
 // source and the SQLite .db is only a rebuildable read-cache over it — so a ship
 // gate validates the *committed* source: when the recipe binds a termbase_source
 // we decode it directly, no cache required. That is also why the terminology
@@ -1649,7 +1649,7 @@ func (a *App) projectConcepts(cmd Command) ([]sqltb.Concept, error) {
 		}
 	}
 
-	// Source of truth: the committed .ktb serialization.
+	// Source of truth: the committed .terms.json serialization.
 	if !explicitStore {
 		srcPath, err := a.resolveProjectTermsSourcePath(cmd)
 		if err != nil {
@@ -1684,7 +1684,7 @@ func (a *App) projectConcepts(cmd Command) ([]sqltb.Concept, error) {
 	return nil, nil
 }
 
-// conceptsFromKTB decodes the committed .ktb terms serialization into
+// conceptsFromKTB decodes the committed .terms.json terms serialization into
 // concepts — the read-only fast path a check gate uses to validate the
 // committed source of truth without materializing the SQLite working index.
 func conceptsFromKTB(path string) ([]sqltb.Concept, error) {
@@ -1701,8 +1701,12 @@ func conceptsFromKTB(path string) ([]sqltb.Concept, error) {
 }
 
 // resolveProjectTermsSourcePath returns the absolute path of the project's
-// committed termbase_source (a .ktb document), or "" when none is bound or the
-// bound file is missing.
+// committed terms bundle, or "" when there is none.
+//
+// An explicit defaults.termbase_source binding wins. With none, the well-known
+// locations are searched, mirroring the ladder the brand voice profile already
+// uses (<root>/brand.yaml, then <root>/.kapi/brand.yaml): a project that keeps
+// its glossary at the conventional path needs no recipe entry at all.
 func (a *App) resolveProjectTermsSourcePath(cmd Command) (string, error) {
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil || projectPath == "" {
@@ -1712,25 +1716,47 @@ func (a *App) resolveProjectTermsSourcePath(cmd Command) (string, error) {
 	if lerr != nil {
 		return "", fmt.Errorf("load project for terms source: %w", lerr)
 	}
+	root := filepath.Dir(projectPath)
+
 	src := proj.Defaults.TermsSource
 	if src == "" {
-		return "", nil
+		return firstExistingTermsBundle(root), nil
 	}
-	// Only the canonical .ktb terms document is resolved live at check
-	// time. Lossy interchange sources (CSV, TBX) are import formats: they're
-	// compiled into .kapi/termbase.db by up/apply and read from there, so we
-	// don't try to decode them here.
-	if !strings.EqualFold(filepath.Ext(src), ".ktb") {
+	// Only the canonical terms bundle is resolved live at check time. Lossy
+	// interchange sources (CSV, TBX) are import formats: they're compiled into
+	// .kapi/termbase.db by up/apply and read from there, so we don't try to
+	// decode them here.
+	if !ktb.IsBundlePath(src) {
 		return "", nil
 	}
 	if !filepath.IsAbs(src) {
-		src = filepath.Join(filepath.Dir(projectPath), src)
+		src = filepath.Join(root, src)
 	}
 	if _, statErr := os.Stat(src); statErr != nil {
 		// Bound but missing — no glossary to enforce, not an error.
 		return "", nil
 	}
 	return src, nil
+}
+
+// firstExistingTermsBundle returns the first well-known terms bundle present
+// under root, or "" when none is.
+//
+// The repository-root spelling is listed first because the bundle is a
+// committed source: .kapi/ is kapi's state directory and is ignored by git and
+// by kapi's own default ignore set, so a glossary kept there would never be
+// reviewed. It is searched second only so a project that deliberately treats
+// its glossary as local state still resolves.
+func firstExistingTermsBundle(root string) string {
+	for _, candidate := range []string{
+		filepath.Join(root, ktb.ConventionalName),
+		filepath.Join(root, project.StateDirName, ktb.ConventionalName),
+	} {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	return ""
 }
 
 // runProjectStepsOver runs a project flow's steps over an explicit input set.

@@ -1,6 +1,6 @@
 /**
  * neokapi-i18n extract has two modes:
- *   1. Default — writes per-file .kbf under --out.
+ *   1. Default — writes per-file .kbf.json under --out.
  *   2. --stream — NDJSON block records to stdout, reads NUL-separated
  *      paths from stdin. This is the exec-format wire protocol.
  *
@@ -48,16 +48,16 @@ function stringSink(): { stream: Writable; read: () => string } {
 }
 
 describe("neokapi-i18n extract", () => {
-  it("writes per-file .kbf under --out by default", async () => {
+  it("writes per-file .kbf.json under --out by default", async () => {
     const dir = tempProject();
     const cwd = process.cwd();
     process.chdir(dir);
     try {
       await runExtract(["--src", "src/**/*.tsx", "--out", "i18n"]);
       const entries = readdirSync(join(dir, "i18n", "src"));
-      expect(entries).toContain("App.kbf");
+      expect(entries).toContain("App.kbf.json");
 
-      const raw = readFileSync(join(dir, "i18n", "src", "App.kbf"), "utf8");
+      const raw = readFileSync(join(dir, "i18n", "src", "App.kbf.json"), "utf8");
       const file = JSON.parse(raw) as File;
       expect(file.kind).toBe("kapi-bundle");
       expect(file.documents).toHaveLength(1);
@@ -71,7 +71,7 @@ describe("neokapi-i18n extract", () => {
   it("contains workspace sources outside the project root inside --out", async () => {
     // An app that pulls translatable JSX from sibling workspace
     // packages passes e.g. --src "../../packages/ui/src/**/*.tsx".
-    // The .kbf for those files must not escape --out through the
+    // The .kbf.json for those files must not escape --out through the
     // leading "../" segments.
     const root = mkdtempSync(join(tmpdir(), "i18n-react-workspace-"));
     mkdirSync(join(root, "app"));
@@ -85,12 +85,12 @@ describe("neokapi-i18n extract", () => {
     try {
       await runExtract(["--src", "../packages/ui/src/**/*.tsx", "--out", "i18n"]);
       const raw = readFileSync(
-        join(root, "app", "i18n", "packages", "ui", "src", "Button.kbf"),
+        join(root, "app", "i18n", "packages", "ui", "src", "Button.kbf.json"),
         "utf8",
       );
       const file = JSON.parse(raw) as File;
       // The document keeps its real relative path; only the on-disk
-      // .kbf location is contained.
+      // .kbf.json location is contained.
       expect(file.documents[0].path).toBe("../packages/ui/src/Button.tsx");
       expect(file.documents[0].blocks.length).toBeGreaterThan(0);
     } finally {
@@ -105,7 +105,7 @@ describe("neokapi-i18n extract", () => {
     try {
       // KBF-default path — reference set of hashes.
       await runExtract(["--src", "src/**/*.tsx", "--out", "i18n"]);
-      const raw = readFileSync(join(dir, "i18n", "src", "App.kbf"), "utf8");
+      const raw = readFileSync(join(dir, "i18n", "src", "App.kbf.json"), "utf8");
       const file = JSON.parse(raw) as File;
       const kbfBlocks = file.documents.flatMap((d) => d.blocks);
 

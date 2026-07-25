@@ -134,9 +134,7 @@ var (
 	ExclusionKey                 = host.ExclusionKey
 	ExitCode                     = host.ExitCode
 	ExportKMB                    = host.ExportKMB
-	ExportKMZ                    = host.ExportKMZ
 	ExportKTB                    = host.ExportKTB
-	ExportKTZ                    = host.ExportKTZ
 	FilterFormats                = host.FilterFormats
 	FrameworkBindings            = host.FrameworkBindings
 	FrameworkContent             = host.FrameworkContent
@@ -144,9 +142,7 @@ var (
 	HasTag                       = host.HasTag
 	HumanBytes                   = host.HumanBytes
 	ImportKMBFile                = host.ImportKMBFile
-	ImportKMZFile                = host.ImportKMZFile
 	ImportKTBFile                = host.ImportKTBFile
-	ImportKTZFile                = host.ImportKTZFile
 	ImportTMXFile                = host.ImportTMXFile
 	IsKpzPath                    = host.IsKpzPath
 	KapiVersion                  = host.KapiVersion
@@ -191,6 +187,7 @@ var (
 	ResetMCPToolFactoriesForTest = host.ResetMCPToolFactoriesForTest
 	ResolveDir                   = host.ResolveDir
 	ResolveProjectPath           = host.ResolveProjectPath
+	CheckRetiredBundlePath       = host.CheckRetiredBundlePath
 	ResolveMemoryFileFormat      = host.ResolveMemoryFileFormat
 	ResolveTermsFileFormat       = host.ResolveTermsFileFormat
 	RmPattern                    = host.RmPattern

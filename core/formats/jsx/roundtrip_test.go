@@ -18,10 +18,10 @@ import (
 // dogfood pipeline — the thing that breaks first if the KBF reader/writer
 // regresses:
 //
-//   - extractor-*.kbf   written by @neokapi/i18n-react `extract`
-//     (`apps/kapi-desktop/frontend/i18n/**/*.kbf`), the source side of the
+//   - extractor-*.kbf.json   written by @neokapi/i18n-react `extract`
+//     (`apps/kapi-desktop/frontend/i18n/**/*.kbf.json`), the source side of the
 //     dogfood recipe's kapi-desktop-ui collection.
-//   - kapi-*.kbf        written by kapi itself (`i18n-nb/**/*.kbf`), the
+//   - kapi-*.kbf.json        written by kapi itself (`i18n-nb/**/*.kbf.json`), the
 //     target side the recipe recycles into and `neokapi-i18n compile` reads.
 //
 // Two different producers matter: the extractor emits fields kapi normalizes
@@ -29,15 +29,15 @@ import (
 // only the contract for catalogs kapi wrote. For the extractor's output the
 // contract is that nothing is *lost* and that kapi's own output is then stable.
 var roundTripFixtures = []string{
-	"extractor-plain.kbf",
-	"extractor-inline-codes.kbf",
-	"kapi-translated.kbf",
-	"kapi-translated-placeholders.kbf",
+	"extractor-plain.kbf.json",
+	"extractor-inline-codes.kbf.json",
+	"kapi-translated.kbf.json",
+	"kapi-translated-placeholders.kbf.json",
 }
 
-// readWriteKBF drives the real reader and writer over one .kbf payload and
+// readWriteKBF drives the real reader and writer over one .kbf.json payload and
 // returns the emitted bytes — the exact path `kapi exec` / `kapi run` takes for
-// a `.kbf` input and output.
+// a `.kbf.json` input and output.
 func readWriteKBF(t *testing.T, name string, in []byte) []byte {
 	t.Helper()
 	r := NewReader()
@@ -66,13 +66,13 @@ func readWriteKBF(t *testing.T, name string, in []byte) []byte {
 // translated `i18n-<lang>/` tree must not rewrite the files, or every run
 // churns git and invalidates the block cache.
 func TestRoundTripKapiWrittenCatalogIsByteIdentical(t *testing.T) {
-	for _, name := range []string{"kapi-translated.kbf", "kapi-translated-placeholders.kbf"} {
+	for _, name := range []string{"kapi-translated.kbf.json", "kapi-translated-placeholders.kbf.json"} {
 		t.Run(name, func(t *testing.T) {
 			in, err := os.ReadFile(filepath.Join("testdata", name))
 			require.NoError(t, err)
 			out := readWriteKBF(t, name, in)
 			assert.Equal(t, string(in), string(out),
-				"a kapi-written .kbf must round-trip byte-for-byte")
+				"a kapi-written .kbf.json must round-trip byte-for-byte")
 		})
 	}
 }
@@ -128,18 +128,18 @@ func TestRoundTripPreservesEveryBlock(t *testing.T) {
 // downstream (`neokapi-i18n compile` keys runtime dictionaries by block hash),
 // so assert the fixtures really are the shapes the comment above claims.
 func TestFixturesCoverBothProducers(t *testing.T) {
-	extractor, err := kbf.Unmarshal(readFixture(t, "extractor-plain.kbf"))
+	extractor, err := kbf.Unmarshal(readFixture(t, "extractor-plain.kbf.json"))
 	require.NoError(t, err)
 	assert.Equal(t, "@neokapi/i18n-react", extractor.Generator.ID,
-		"extractor-*.kbf must be i18n-react output")
+		"extractor-*.kbf.json must be i18n-react output")
 
-	translated, err := kbf.Unmarshal(readFixture(t, "kapi-translated.kbf"))
+	translated, err := kbf.Unmarshal(readFixture(t, "kapi-translated.kbf.json"))
 	require.NoError(t, err)
-	assert.Equal(t, "neokapi", translated.Generator.ID, "kapi-*.kbf must be kapi output")
+	assert.Equal(t, "neokapi", translated.Generator.ID, "kapi-*.kbf.json must be kapi output")
 	require.NotEmpty(t, allBlocks(translated))
-	assert.NotEmpty(t, allBlocks(translated)[0].Targets, "kapi-*.kbf must carry targets")
+	assert.NotEmpty(t, allBlocks(translated)[0].Targets, "kapi-*.kbf.json must carry targets")
 
-	inline, err := kbf.Unmarshal(readFixture(t, "extractor-inline-codes.kbf"))
+	inline, err := kbf.Unmarshal(readFixture(t, "extractor-inline-codes.kbf.json"))
 	require.NoError(t, err)
 	var sawPaired bool
 	for _, b := range allBlocks(inline) {
@@ -149,9 +149,9 @@ func TestFixturesCoverBothProducers(t *testing.T) {
 			}
 		}
 	}
-	assert.True(t, sawPaired, "extractor-inline-codes.kbf must carry paired inline codes")
+	assert.True(t, sawPaired, "extractor-inline-codes.kbf.json must carry paired inline codes")
 
-	placeholders, err := kbf.Unmarshal(readFixture(t, "kapi-translated-placeholders.kbf"))
+	placeholders, err := kbf.Unmarshal(readFixture(t, "kapi-translated-placeholders.kbf.json"))
 	require.NoError(t, err)
 	var sawPh bool
 	for _, b := range allBlocks(placeholders) {
@@ -161,7 +161,7 @@ func TestFixturesCoverBothProducers(t *testing.T) {
 			}
 		}
 	}
-	assert.True(t, sawPh, "kapi-translated-placeholders.kbf must carry placeholder runs")
+	assert.True(t, sawPh, "kapi-translated-placeholders.kbf.json must carry placeholder runs")
 }
 
 func readFixture(t *testing.T, name string) []byte {
