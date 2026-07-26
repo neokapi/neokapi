@@ -287,13 +287,13 @@ func TestIdentifiableImportIsNotRejected(t *testing.T) {
 		"seeds/cli-nb.memory.json", "memory.json", ".kapi/memory.json", "corpus.tmx", "corpus.tmx.gz",
 	} {
 		_, err := ResolveMemoryImportFormat("auto", path)
-		assert.NoError(t, err, "%s names a format the memory importer reads", path)
+		require.NoError(t, err, "%s names a format the memory importer reads", path)
 	}
 	for _, path := range []string{
 		"seeds/glossary.terms.json", "terms.json", ".kapi/terms.json",
 		"glossary.csv", "glossary.tsv", "vocab.json", "terms.tbx",
 	} {
 		_, err := ResolveTermsImportFormat("auto", path)
-		assert.NoError(t, err, "%s names a format the terms importer reads", path)
+		require.NoError(t, err, "%s names a format the terms importer reads", path)
 	}
 }
