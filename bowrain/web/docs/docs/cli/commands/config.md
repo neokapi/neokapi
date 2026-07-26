@@ -8,8 +8,7 @@ sidebar_position: 2
 There is one configuration command, `kapi config`. The bowrain plugin does not
 ship its own: it claims the `bowrain.*` key namespace in its manifest
 (`capabilities.config_namespaces`), and kapi routes those keys to the plugin's
-own config file. The retired `kapi bowrain config` had no capability this does
-not cover.
+own config file.
 
 Two scopes share the verb, split by shape:
 
@@ -20,9 +19,9 @@ Two scopes share the verb, split by shape:
 
 The user config directory is `~/.config/kapi` on Linux and
 `~/Library/Application Support/kapi` on macOS. A hand-written file at
-`$HOME/.config/kapi/kapi.yaml` keeps working on either platform — it is read as
-a lower-precedence legacy layer — and `kapi config path` prints the location
-that is actually in force.
+`$HOME/.config/kapi/kapi.yaml` is read on either platform as a
+lower-precedence layer, and `kapi config path` prints the location that is
+actually in force.
 
 ## Per-machine bowrain defaults
 

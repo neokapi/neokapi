@@ -39,21 +39,15 @@ truth the hub shows.
 
 Brand language decays through drift, not decisions: a competitor name slips
 into a tagline, a renamed product survives in old docs, a market keeps a term
-the company retired. Before this decision, bowrain held the raw material in
-three disconnected systems. The terms store modeled concepts with per-locale terms
-and lifecycle statuses but persisted no relations between concepts. Brand voice
-profiles enforced vocabulary as flat term strings with no link to the concepts
-those strings denote. A graph store existed with SKOS-aligned relation labels
-and temporal validity on edges, but nothing wrote to it and no surface read
-from it.
+the company retired.
 
-The result was that the questions a brand steward actually asks had no home:
-*what replaced this term, and when?* *Is this banned everywhere or only in
-Germany?* *Who decided that, and what did they discuss?* *If we rename this
-concept, how much published content moves?* Each question touches identity
-(concepts), history (versions and audit), scope (markets and time), and
-consequence (content impact) at once — which is exactly the shape of a graph
-with governance, not three flat tables.
+The questions a brand steward actually asks need a home: *what replaced this
+term, and when?* *Is this banned everywhere or only in Germany?* *Who decided
+that, and what did they discuss?* *If we rename this concept, how much
+published content moves?* Each question touches identity (concepts), history
+(versions and audit), scope (markets and time), and consequence (content
+impact) at once — which is the shape of a governed graph, not of flat tables
+holding terms, voice rules, and relations apart from one another.
 
 ## Decision
 
@@ -201,9 +195,9 @@ consumes framework types directly.
 
 ## Consequences
 
-- The terms store becomes the system of record for brand vocabulary; brand
-  profiles keep enforcement semantics but delegate identity to concepts. Two
-  previously independent stores can no longer drift apart silently.
+- The terms store is the system of record for brand vocabulary; brand
+  profiles keep enforcement semantics but delegate identity to concepts, so
+  vocabulary and enforcement cannot drift apart silently.
 - Relations and validity make queries scope-dependent: every consumer of term
   data must decide its scope (time, market, stream). Defaults are "now,
   everywhere, main".

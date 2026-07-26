@@ -34,15 +34,7 @@ workspace / contoso
 
 ## When to run a server
 
-Deploy Bowrain Server when a team needs:
-
-- Several people sharing the same project
-- Connectors to content platforms, design tools, or code repositories
-- Server-side automation triggered by content changes
-- A single governed content memory shared across projects
-- Role-based access control
-
-For solo work on files in one checkout, the [kapi toolchain](/getting-started/kapi-vs-bowrain) on its own is sufficient — no server required.
+Deploy Bowrain Server when the work outlives a single run: several people on the same project, content spread across systems, or vocabulary and memory that should compound rather than be rebuilt each time. For solo work on files in one checkout, the [kapi toolchain](/getting-started/kapi-vs-bowrain) on its own is sufficient — no server required.
 
 ## Deployment
 

@@ -224,13 +224,12 @@ support. The Azure adapter always uses direct SAS upload and download.
 
 **Alignment constraint:** the API server and background worker must use
 the same blob store, or push jobs fail silently with "chunk download
-failed". Both now resolve the backend through the shared
+failed". Both resolve the backend through the shared
 `bowrain/storage/blobcfg` contract, so the S3 configuration is identical
-on both by construction. For the legacy local backend, the worker accepts
-`BLOB_STORAGE_LOCAL_DIR` in addition to its historical `LOCAL_BLOB_DIR`,
-closing the one env-var name split that used to cause this. In production
-on AWS, both point at the same S3 bucket; in docker-compose, both point at
-the same MinIO bucket.
+on both by construction. For the local backend, the worker accepts either
+`BLOB_STORAGE_LOCAL_DIR` or `LOCAL_BLOB_DIR`, so the two names cannot
+split the server and the worker apart. In production on AWS, both point at
+the same S3 bucket; in docker-compose, both point at the same MinIO bucket.
 
 ### Asset Metadata in the ContentStore
 

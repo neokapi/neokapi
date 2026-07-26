@@ -95,7 +95,7 @@ surface.
 | **Context**          | `LookupMemoryForBlock`, `LookupTermsForBlock`                                                                           |
 | **Memory CRUD**      | `GetMemoryEntries`, `GetMemoryCount`, `AddMemoryEntry`, `UpdateMemoryEntry`, `DeleteMemoryEntry`                                       |
 | **Terminology**      | `GetTerms`, `GetTermCount`, `AddConcept`, `UpdateConcept`, `DeleteConcept`, `ImportTermsCSV`, `ImportTermsJSON`, `ExportTermsJSON` |
-| **Change relay**     | `WatchProject` (server-streaming), `UpdatePresence` (legacy presence)                                              |
+| **Change relay**     | `WatchProject` (server-streaming), `UpdatePresence` (coarse presence)                                              |
 
 **Real-time co-editing (Yjs/CRDT over WebSocket).** Live co-editing of a
 block's target — multiple editors typing into the same content with
@@ -120,9 +120,12 @@ sync, an automation). The frontend's `useBackendEvents` bus translates
 these into targeted refetches, and re-runs every refreshable listener
 after an offline gap on reconnect.
 
-The gRPC `UpdatePresence` unary RPC and the `PresenceChangeEvent` it
-feeds are the **legacy** presence path, superseded by Yjs awareness for
-live co-editing and retained only while clients migrate.
+Presence runs at two granularities, on the two channels that already
+exist. The `UpdatePresence` unary RPC and the `PresenceChangeEvent` it
+feeds carry the coarse signal — who is looking at which item and block —
+which the change relay fans out to every watcher on the project, including
+clients with no block open. Character-level cursor and selection presence
+rides the Yjs awareness channel, and so exists only inside an open block.
 
 **Connection state machine.**
 

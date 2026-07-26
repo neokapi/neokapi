@@ -9,8 +9,8 @@ This note provides implementation details for [AD-010](/architecture-decisions/0
 
 ## kapi (with bowrain plugin) command tree
 
-The standalone `bowrain` binary is retired; once the `kapi-bowrain` plugin is
-installed, every command below runs as `kapi <command>`.
+Once the `kapi-bowrain` plugin is installed, every command below runs as
+`kapi <command>`.
 
 ```
 kapi

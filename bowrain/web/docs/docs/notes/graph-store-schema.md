@@ -9,8 +9,7 @@ This note provides implementation details for [AD-006](/architecture-decisions/0
 
 The server runs the plain-SQL backend on standard PostgreSQL
 (`SQLGraphStore`), a port of the framework's SQLite adjacency-table
-reference. (An opt-in Apache AGE backend existed historically and was
-removed — see the history note in AD-006 and `bowrain/graph/NOTES.md`.)
+reference. See `bowrain/graph/NOTES.md` for behavior notes.
 
 ## Framework: SQLite Adjacency Table DDL
 

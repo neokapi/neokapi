@@ -22,10 +22,8 @@ installed plugin at runtime by reading its `manifest.json`, then dispatches
 `kapi push`, `kapi pull`, … to `kapi-bowrain` as a subprocess. The
 discovery and dispatch mechanics are the framework's unified plugin model —
 see [AD-framework-007: Plugin System](https://neokapi.github.io/contribute/architecture/007-plugin-system).
-The legacy standalone `bowrain` binary, the build-time blank-import of
-`bowrain/plugin` into `kapi`, and the `-tags pure` / `kapi-pure` split are
-all retired: there is one user-facing CLI, `kapi`, and bowrain is something
-you install into it (`kapi plugins install bowrain`, or
+There is one user-facing CLI, `kapi`, and bowrain is something you install
+into it (`kapi plugins install bowrain`, or
 `brew install neokapi/tap/bowrain-cli`).
 
 A bowrain project is just a kapi project with a `server:` block on its
@@ -218,9 +216,7 @@ Ownership:
 - **`kapi.yaml`** — hand-edited, committed to git. The single source of
   truth for project configuration. The recipe is a fixed, conventional YAML
   config filename, so every editor and every code host (GitHub, GitLab) applies
-  YAML syntax highlighting to diffs and previews with no configuration. This is
-  a breaking change introduced in kapi 1.2 — earlier builds named the recipe
-  after the project directory (`<dir-name>.kapi`). See
+  YAML syntax highlighting to diffs and previews with no configuration. See
   [AD-framework-008](https://neokapi.github.io/contribute/architecture/008-project-model)
   for the full rationale.
 - **`.kapi/cache/`** — CLI-owned, gitignored. Contains everything that's
