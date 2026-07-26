@@ -21,36 +21,77 @@ id: kapi-under-the-hood
 scene: under-the-hood
 mode: interactive
 
-# messages.json is the kit fixture (greeting / farewell / cart). project.tmx
-# carries the matching French so recycle has real leverage. kapi.yaml declares
+# messages.json is the kit fixture (greeting / farewell / cart).
+# project.memory.json is the committed content-memory bundle carrying the
+# matching French so recycle has real leverage. kapi.yaml declares
 # the content (with a target template) and two non-shadowing flows: tm-recycle
 # (the single content memory step) and leverage-check (recycle composed with the
 # deterministic qa checks).
 seed:
   - messages.json
 files:
-  - path: project.tmx
+  - path: project.memory.json
     content: |
-      <?xml version="1.0" encoding="UTF-8"?>
-      <tmx version="1.4">
-        <header creationtool="neokapi" creationtoolversion="1.0"
-                segtype="sentence" o-tmf="unknown" adminlang="en"
-                srclang="en" datatype="plaintext"/>
-        <body>
-          <tu>
-            <tuv xml:lang="en"><seg>Hello, World!</seg></tuv>
-            <tuv xml:lang="fr"><seg>Bonjour le monde !</seg></tuv>
-          </tu>
-          <tu>
-            <tuv xml:lang="en"><seg>See you tomorrow</seg></tuv>
-            <tuv xml:lang="fr"><seg>À demain</seg></tuv>
-          </tu>
-          <tu>
-            <tuv xml:lang="en"><seg>Your cart is empty</seg></tuv>
-            <tuv xml:lang="fr"><seg>Votre panier est vide</seg></tuv>
-          </tu>
-        </body>
-      </tmx>
+      {
+        "schemaVersion": "1.0",
+        "kind": "kapi-memory",
+        "entries": [
+          {
+            "id": "mem:en-fr:hello-world",
+            "hintSrcLang": "en",
+            "variants": {
+              "en": [
+                {
+                  "text": "Hello, World!"
+                }
+              ],
+              "fr": [
+                {
+                  "text": "Bonjour le monde !"
+                }
+              ]
+            },
+            "created": "2026-01-01T00:00:00Z",
+            "updated": "2026-01-01T00:00:00Z"
+          },
+          {
+            "id": "mem:en-fr:see-you-tomorrow",
+            "hintSrcLang": "en",
+            "variants": {
+              "en": [
+                {
+                  "text": "See you tomorrow"
+                }
+              ],
+              "fr": [
+                {
+                  "text": "À demain"
+                }
+              ]
+            },
+            "created": "2026-01-01T00:00:00Z",
+            "updated": "2026-01-01T00:00:00Z"
+          },
+          {
+            "id": "mem:en-fr:your-cart-is-empty",
+            "hintSrcLang": "en",
+            "variants": {
+              "en": [
+                {
+                  "text": "Your cart is empty"
+                }
+              ],
+              "fr": [
+                {
+                  "text": "Votre panier est vide"
+                }
+              ]
+            },
+            "created": "2026-01-01T00:00:00Z",
+            "updated": "2026-01-01T00:00:00Z"
+          }
+        ]
+      }
   - path: kapi.yaml
     content: |
       version: v1
@@ -73,8 +114,8 @@ files:
 
 steps:
   - comment: kapi up is porcelain. This is the layer underneath — one tool, one flow pass, and the interchange files.
-  - command: kapi memory import project.tmx
-    narration: Seed the project content memory so the plumbing has leverage to work with. up tops up the same store on every merge.
+  - command: kapi memory import project.memory.json
+    narration: Seed the project content memory from the committed bundle so the plumbing has leverage to work with. up tops up the same store on every merge.
     smoke: true
   - comment: One tool, one pass — kapi exec.
   - command: kapi exec recycle messages.json -o step1.json --source-lang en --target-lang fr
@@ -83,7 +124,7 @@ steps:
   - comment: One named pipeline, one pass — kapi run.
   - command: kapi run leverage-check -i messages.json
     narration: run executes a composed flow once — recycle, then the deterministic qa checks. In a project the pass commits to the project store. up is this pass, looped until every gate is met or the rest parks.
-    # smoke:false — consumes the content memory seeded by the prior tm import step; W7 would
+    # smoke:false — consumes the content memory seeded by the prior memory import step; W7 would
     # run it in isolation (no content memory) and leverage nothing.
     smoke: false
   - comment: The interchange doors — extract and merge.

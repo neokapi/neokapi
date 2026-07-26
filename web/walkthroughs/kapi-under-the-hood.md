@@ -10,7 +10,7 @@ scenes:
     fixtures:
       - messages.json
     smoke_contract:
-      - kapi memory import project.tmx
+      - kapi memory import project.memory.json
       - kapi exec recycle messages.json -o step1.json --source-lang en --target-lang fr
       - kapi extract --target-lang fr
 ---

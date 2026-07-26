@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-memory",
+  "entries": [
+    {
+      "id": "mem:en-fr:file-upload",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "File upload"
+          }
+        ],
+        "fr": [
+          {
+            "text": "Téléversement de fichier"
+          }
+        ]
+      },
+      "created": "2026-01-01T00:00:00Z",
+      "updated": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "mem:en-fr:settings",
+      "hintSrcLang": "en",
+      "variants": {
+        "en": [
+          {
+            "text": "Settings"
+          }
+        ],
+        "fr": [
+          {
+            "text": "Paramètres"
+          }
+        ]
+      },
+      "created": "2026-01-01T00:00:00Z",
+      "updated": "2026-01-01T00:00:00Z"
+    }
+  ]
+}

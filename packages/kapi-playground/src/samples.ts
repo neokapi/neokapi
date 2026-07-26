@@ -7,7 +7,7 @@
 //      command against (pseudo-translate, word-count, extract …). These reuse
 //      the kit fixtures (fixtures.ts) so the bytes are not duplicated.
 //   2. Sample projects — a ready-made `.kapi` recipe + its content + a seeded
-//      project TMX, so a reader can run the project funnel offline
+//      project content-memory bundle, so a reader can run the project funnel offline
 //      (init/add/extract/run/merge) and get a real localized file via content memory
 //      leverage (no LLM, no network).
 //
@@ -85,31 +85,42 @@ export const LOOSE_SAMPLES: LooseSample[] = [
 
 const enc = new TextEncoder();
 
-// A minimal en→fr TMX. Each <tu> pairs a source segment with its French
-// translation; the project funnel imports this into the project content memory so the
-// `translate` (recycle) flow fills real fr targets offline.
-function tmx(pairs: [string, string][]): string {
-  const tus = pairs
-    .map(
-      ([en, fr]) =>
-        `    <tu>\n      <tuv xml:lang="en"><seg>${en}</seg></tuv>\n      <tuv xml:lang="fr"><seg>${fr}</seg></tuv>\n    </tu>`,
-    )
-    .join("\n");
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<tmx version="1.4">
-  <header creationtool="neokapi" creationtoolversion="1.0"
-          segtype="sentence" o-tmf="unknown" adminlang="en"
-          srclang="en" datatype="plaintext"/>
-  <body>
-${tus}
-  </body>
-</tmx>
-`;
+// Fixed timestamp so a regenerated bundle is byte-stable (the serialization is
+// content-hashed and diffed; a wall clock would churn it on every build).
+const SEED_TIMESTAMP = "2026-01-01T00:00:00Z";
+
+function slug(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+// A minimal en→fr content-memory bundle (.memory.json) — the native, lossless
+// serialization a project actually commits. Each entry pairs a source segment
+// with its French variant; the project funnel imports this into the project
+// content memory so the `translate` (recycle) flow fills real fr targets offline.
+//
+// Native, not TMX: TMX is the interchange tier, for crossing a boundary into or
+// out of kapi. Seeding a kapi project from its own committed memory is not that
+// boundary, so the samples teach the bundle — no `-s`/`-t`/`--format` flags, as
+// `kapi memory import` resolves the format from the compound suffix.
+function memoryBundle(pairs: [string, string][]): string {
+  const entries = pairs
+    .map(([en, fr]) => ({
+      id: `mem:en-fr:${slug(en)}`,
+      hintSrcLang: "en",
+      variants: { en: [{ text: en }], fr: [{ text: fr }] },
+      created: SEED_TIMESTAMP,
+      updated: SEED_TIMESTAMP,
+    }))
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return JSON.stringify({ schemaVersion: "1.0", kind: "kapi-memory", entries }, null, 2) + "\n";
 }
 
 /**
  * A ready-made `.kapi` sample project: a recipe + its content file(s) + a seeded
- * project TMX. Seeding all three into the cwd lets a reader run the offline
+ * project content-memory bundle. Seeding all three into the cwd lets a reader run the offline
  * project funnel (`kapi add` / `kapi extract` / `kapi run translate` /
  * `kapi merge`) and produce a genuine localized file via content-memory leverage.
  */
@@ -126,7 +137,7 @@ export interface ProjectSample {
   binary: boolean;
   /** Bytes for a binary content file (Office), if any. */
   contentBytes?: () => Uint8Array;
-  /** The committed project files (recipe + text content + TMX). */
+  /** The committed project files (recipe + text content + content-memory bundle). */
   files: KapiFile[];
 }
 
@@ -144,21 +155,21 @@ const JSON_PROJECT_CONTENT = `{
 }
 `;
 
-const JSON_PROJECT_TMX = tmx([
+const JSON_PROJECT_MEMORY = memoryBundle([
   ["Welcome to Acme", "Bienvenue chez Acme"],
   ["Sign up today", "Inscrivez-vous aujourd'hui"],
   ["Talk soon", "À bientôt"],
 ]);
 
 // Matches the translatable text baked into DOCX_B64's word/document.xml.
-const DOCX_PROJECT_TMX = tmx([
+const DOCX_PROJECT_MEMORY = memoryBundle([
   ["Welcome to Acme", "Bienvenue chez Acme"],
   ["Your account is ready.", "Votre compte est prêt."],
   ["Sign in to continue", "Connectez-vous pour continuer"],
 ]);
 
 // Matches the shared strings baked into XLSX_B64's xl/sharedStrings.xml.
-const XLSX_PROJECT_TMX = tmx([
+const XLSX_PROJECT_MEMORY = memoryBundle([
   ["Total revenue", "Chiffre d'affaires total"],
   ["Net profit", "Bénéfice net"],
 ]);
@@ -195,7 +206,7 @@ flows:
 
 /**
  * The curated sample projects. The JSON project is fully text (recipe + content
- * + TMX all inline). The Office project ships a tiny binary .docx whose bytes
+ * + memory bundle all inline). The Office project ships a tiny binary .docx whose bytes
  * are seeded separately.
  */
 export const PROJECT_SAMPLES: ProjectSample[] = [
@@ -208,7 +219,7 @@ export const PROJECT_SAMPLES: ProjectSample[] = [
     binary: false,
     files: [
       { path: "messages.json", content: JSON_PROJECT_CONTENT },
-      { path: "project.tmx", content: JSON_PROJECT_TMX },
+      { path: "project.memory.json", content: JSON_PROJECT_MEMORY },
       {
         path: "demo.kapi",
         content: recipeYaml({
@@ -228,7 +239,7 @@ export const PROJECT_SAMPLES: ProjectSample[] = [
     binary: true,
     contentBytes: () => bytesFromBase64(DOCX_B64),
     files: [
-      { path: "project.tmx", content: DOCX_PROJECT_TMX },
+      { path: "project.memory.json", content: DOCX_PROJECT_MEMORY },
       {
         path: "demo.kapi",
         content: recipeYaml({
@@ -248,7 +259,7 @@ export function projectSampleById(id: string): ProjectSample {
 // ── Back-compat: the WorkspaceSample shape used by kapi-lab explorers ────────
 //
 // kapi-lab's WorkspaceExplorer/ProjectExplorer (and their tests + stories)
-// consume a flat `WorkspaceSample` with `bytes()` + `tmx`. We synthesize that
+// consume a flat `WorkspaceSample` with `bytes()` + `memory`. We synthesize that
 // from the same source data here so there is exactly one copy of every byte;
 // kapi-lab's `workspaceSamples.ts` re-exports these.
 
@@ -263,15 +274,15 @@ export interface WorkspaceSample {
   /** True for binary formats (don't render the raw bytes as text). */
   binary: boolean;
   /**
-   * A project TMX (en→fr) whose source segments match this sample's
-   * translatable text, so `kapi memory import` + the `translate` (recycle) flow
-   * fill real `fr` targets offline — no LLM.
+   * A project content-memory bundle (en→fr, .memory.json) whose source
+   * segments match this sample's translatable text, so `kapi memory import` +
+   * the `translate` (recycle) flow fill real `fr` targets offline — no LLM.
    */
-  tmx: string;
+  memory: string;
 }
 
-function tmxOf(files: KapiFile[]): string {
-  return files.find((f) => f.path === "project.tmx")?.content ?? "";
+function memoryOf(files: KapiFile[]): string {
+  return files.find((f) => f.path === "project.memory.json")?.content ?? "";
 }
 
 export const WORKSPACE_SAMPLES: WorkspaceSample[] = [
@@ -282,7 +293,7 @@ export const WORKSPACE_SAMPLES: WorkspaceSample[] = [
     kind: "text · JSON",
     bytes: () => enc.encode(JSON_PROJECT_CONTENT),
     binary: false,
-    tmx: JSON_PROJECT_TMX,
+    memory: JSON_PROJECT_MEMORY,
   },
   {
     id: "docx",
@@ -291,7 +302,7 @@ export const WORKSPACE_SAMPLES: WorkspaceSample[] = [
     kind: "binary · OOXML (.docx)",
     bytes: () => bytesFromBase64(DOCX_B64),
     binary: true,
-    tmx: DOCX_PROJECT_TMX,
+    memory: DOCX_PROJECT_MEMORY,
   },
   {
     id: "xlsx",
@@ -300,7 +311,7 @@ export const WORKSPACE_SAMPLES: WorkspaceSample[] = [
     kind: "binary · OOXML (.xlsx)",
     bytes: () => bytesFromBase64(XLSX_B64),
     binary: true,
-    tmx: XLSX_PROJECT_TMX,
+    memory: XLSX_PROJECT_MEMORY,
   },
 ];
 
@@ -436,4 +447,4 @@ export function heroSampleById(id: string): HeroSample {
   return HERO_SAMPLES.find((s) => s.id === id) ?? HERO_SAMPLES[0];
 }
 
-export { JSON_PROJECT_CONTENT as JSON_SAMPLE, tmxOf };
+export { JSON_PROJECT_CONTENT as JSON_SAMPLE, memoryOf };

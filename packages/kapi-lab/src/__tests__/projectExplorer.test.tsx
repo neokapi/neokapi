@@ -50,14 +50,24 @@ describe("ProjectExplorer helpers", () => {
     }
   });
 
-  it("provides a per-sample en→fr TMX matching the sample's source text", () => {
+  it("provides a per-sample en→fr content-memory bundle matching the sample's source text", () => {
     const json = workspaceSampleById("json");
-    expect(json.tmx).toContain('<tuv xml:lang="en"><seg>Welcome to Acme</seg></tuv>');
-    expect(json.tmx).toContain('xml:lang="fr"');
+    // The native bundle, not TMX: this is what `kapi memory import` loads, and
+    // parsing it here proves the samples ship a real, decodable serialization.
+    const bundle = JSON.parse(json.memory);
+    expect(bundle.kind).toBe("kapi-memory");
+    expect(bundle.schemaVersion).toBe("1.0");
+    const welcome = bundle.entries.find(
+      (e: { variants: Record<string, { text: string }[]> }) =>
+        e.variants.en?.[0]?.text === "Welcome to Acme",
+    );
+    expect(welcome).toBeDefined();
+    expect(welcome.variants.fr[0].text).toBe("Bienvenue chez Acme");
+
     const docx = workspaceSampleById("docx");
-    expect(docx.tmx).toContain("Sign in to continue");
+    expect(docx.memory).toContain("Sign in to continue");
     const xlsx = workspaceSampleById("xlsx");
-    expect(xlsx.tmx).toContain("Total revenue");
+    expect(xlsx.memory).toContain("Total revenue");
   });
 
   it("renders a recipe for a binary (Office) sample as openxml", () => {

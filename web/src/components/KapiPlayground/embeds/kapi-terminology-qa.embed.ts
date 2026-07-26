@@ -9,9 +9,9 @@ const config: WalkthroughEmbedConfig = {
   seed: [],
   files: [
     {
-      path: "glossary.csv",
+      path: "terms.json",
       content:
-        "source,target,domain\npassword,mot de passe,security\nusername,nom d'utilisateur,security\nlog in,se connecter,ui\ndashboard,tableau de bord,ui\nsettings,paramètres,ui\nencryption,chiffrement,security\nfile upload,téléversement de fichier,ui\n",
+        '{\n  "schemaVersion": "1.0",\n  "kind": "kapi-terms",\n  "concepts": [\n    {\n      "id": "term:en:dashboard",\n      "domain": "ui",\n      "source": "terminology",\n      "terms": [\n        {\n          "text": "dashboard",\n          "locale": "en",\n          "status": "approved"\n        },\n        {\n          "text": "tableau de bord",\n          "locale": "fr",\n          "status": "approved"\n        }\n      ],\n      "created_at": "2026-01-01T00:00:00Z",\n      "updated_at": "2026-01-01T00:00:00Z"\n    },\n    {\n      "id": "term:en:encryption",\n      "domain": "security",\n      "source": "terminology",\n      "terms": [\n        {\n          "text": "encryption",\n          "locale": "en",\n          "status": "approved"\n        },\n        {\n          "text": "chiffrement",\n          "locale": "fr",\n          "status": "approved"\n        }\n      ],\n      "created_at": "2026-01-01T00:00:00Z",\n      "updated_at": "2026-01-01T00:00:00Z"\n    },\n    {\n      "id": "term:en:file-upload",\n      "domain": "ui",\n      "source": "terminology",\n      "terms": [\n        {\n          "text": "file upload",\n          "locale": "en",\n          "status": "approved"\n        },\n        {\n          "text": "téléversement de fichier",\n          "locale": "fr",\n          "status": "approved"\n        }\n      ],\n      "created_at": "2026-01-01T00:00:00Z",\n      "updated_at": "2026-01-01T00:00:00Z"\n    },\n    {\n      "id": "term:en:log-in",\n      "domain": "ui",\n      "source": "terminology",\n      "terms": [\n        {\n          "text": "log in",\n          "locale": "en",\n          "status": "approved"\n        },\n        {\n          "text": "se connecter",\n          "locale": "fr",\n          "status": "approved"\n        }\n      ],\n      "created_at": "2026-01-01T00:00:00Z",\n      "updated_at": "2026-01-01T00:00:00Z"\n    },\n    {\n      "id": "term:en:password",\n      "domain": "security",\n      "source": "terminology",\n      "terms": [\n        {\n          "text": "password",\n          "locale": "en",\n          "status": "approved"\n        },\n        {\n          "text": "mot de passe",\n          "locale": "fr",\n          "status": "approved"\n        }\n      ],\n      "created_at": "2026-01-01T00:00:00Z",\n      "updated_at": "2026-01-01T00:00:00Z"\n    },\n    {\n      "id": "term:en:settings",\n      "domain": "ui",\n      "source": "terminology",\n      "terms": [\n        {\n          "text": "settings",\n          "locale": "en",\n          "status": "approved"\n        },\n        {\n          "text": "paramètres",\n          "locale": "fr",\n          "status": "approved"\n        }\n      ],\n      "created_at": "2026-01-01T00:00:00Z",\n      "updated_at": "2026-01-01T00:00:00Z"\n    },\n    {\n      "id": "term:en:username",\n      "domain": "security",\n      "source": "terminology",\n      "terms": [\n        {\n          "text": "username",\n          "locale": "en",\n          "status": "approved"\n        },\n        {\n          "text": "nom d\'utilisateur",\n          "locale": "fr",\n          "status": "approved"\n        }\n      ],\n      "created_at": "2026-01-01T00:00:00Z",\n      "updated_at": "2026-01-01T00:00:00Z"\n    }\n  ]\n}\n',
     },
     {
       path: "messages_en.json",
@@ -22,7 +22,7 @@ const config: WalkthroughEmbedConfig = {
   steps: [
     {
       command: "kapi terms stats",
-      narration: "The browser build pre-seeds a terms store from the project term list.",
+      narration: "The browser build pre-seeds a terms store from the project terms bundle.",
     },
     {
       command: "kapi terms lookup password -s en -t fr",

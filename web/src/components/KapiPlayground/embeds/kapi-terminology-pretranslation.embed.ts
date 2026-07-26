@@ -9,9 +9,9 @@ const config: WalkthroughEmbedConfig = {
   seed: [],
   files: [
     {
-      path: "project.tmx",
+      path: "project.memory.json",
       content:
-        '<?xml version="1.0" encoding="UTF-8"?>\n<tmx version="1.4">\n  <header creationtool="neokapi" creationtoolversion="1.0"\n          segtype="sentence" o-tmf="unknown" adminlang="en"\n          srclang="en" datatype="plaintext"/>\n  <body>\n    <tu>\n      <tuv xml:lang="en"><seg>Settings</seg></tuv>\n      <tuv xml:lang="fr"><seg>Paramètres</seg></tuv>\n    </tu>\n    <tu>\n      <tuv xml:lang="en"><seg>File upload</seg></tuv>\n      <tuv xml:lang="fr"><seg>Téléversement de fichier</seg></tuv>\n    </tu>\n  </body>\n</tmx>\n',
+        '{\n  "schemaVersion": "1.0",\n  "kind": "kapi-memory",\n  "entries": [\n    {\n      "id": "mem:en-fr:file-upload",\n      "hintSrcLang": "en",\n      "variants": {\n        "en": [\n          {\n            "text": "File upload"\n          }\n        ],\n        "fr": [\n          {\n            "text": "Téléversement de fichier"\n          }\n        ]\n      },\n      "created": "2026-01-01T00:00:00Z",\n      "updated": "2026-01-01T00:00:00Z"\n    },\n    {\n      "id": "mem:en-fr:settings",\n      "hintSrcLang": "en",\n      "variants": {\n        "en": [\n          {\n            "text": "Settings"\n          }\n        ],\n        "fr": [\n          {\n            "text": "Paramètres"\n          }\n        ]\n      },\n      "created": "2026-01-01T00:00:00Z",\n      "updated": "2026-01-01T00:00:00Z"\n    }\n  ]\n}\n',
     },
     {
       path: "messages_en.json",
@@ -21,9 +21,9 @@ const config: WalkthroughEmbedConfig = {
   ],
   steps: [
     {
-      command: "kapi memory import project.tmx -s en -t fr",
+      command: "kapi memory import project.memory.json",
       narration:
-        "Load the existing content memory — the store `kapi up` leverages before any AI is asked.",
+        "Load the committed content memory — the store `kapi up` leverages before any AI is asked.",
     },
     {
       command:

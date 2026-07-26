@@ -2,11 +2,12 @@
 # full schema. Regenerate with:
 #   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-terminology-pretranslation
 #
-# The wasm build pre-seeds an in-memory content memory (from project.tmx) and a
-# terms store (from glossary.csv — a retained fixture filename); the inline files
-# below provide the source catalogue and a visible TMX. The three-step pipeline —
-# content-memory leverage, pseudo-translate the misses, term-check — all run
-# offline against those real in-memory backends.
+# The wasm build pre-seeds an in-memory content memory and terms store from the
+# native bundles it embeds (kapi/cmd/kapi-wasm-cli/fixtures/{memory,terms}.json);
+# the inline files below provide the source catalogue and a visible copy of that
+# same content memory. The three-step pipeline — content-memory leverage,
+# pseudo-translate the misses, term-check — all run offline against those real
+# in-memory backends.
 
 id: kapi-terminology-pretranslation
 scene: terms-pretranslation
@@ -14,24 +15,50 @@ mode: interactive
 
 seed: []
 files:
-  - path: project.tmx
+  - path: project.memory.json
     content: |
-      <?xml version="1.0" encoding="UTF-8"?>
-      <tmx version="1.4">
-        <header creationtool="neokapi" creationtoolversion="1.0"
-                segtype="sentence" o-tmf="unknown" adminlang="en"
-                srclang="en" datatype="plaintext"/>
-        <body>
-          <tu>
-            <tuv xml:lang="en"><seg>Settings</seg></tuv>
-            <tuv xml:lang="fr"><seg>Paramètres</seg></tuv>
-          </tu>
-          <tu>
-            <tuv xml:lang="en"><seg>File upload</seg></tuv>
-            <tuv xml:lang="fr"><seg>Téléversement de fichier</seg></tuv>
-          </tu>
-        </body>
-      </tmx>
+      {
+        "schemaVersion": "1.0",
+        "kind": "kapi-memory",
+        "entries": [
+          {
+            "id": "mem:en-fr:file-upload",
+            "hintSrcLang": "en",
+            "variants": {
+              "en": [
+                {
+                  "text": "File upload"
+                }
+              ],
+              "fr": [
+                {
+                  "text": "Téléversement de fichier"
+                }
+              ]
+            },
+            "created": "2026-01-01T00:00:00Z",
+            "updated": "2026-01-01T00:00:00Z"
+          },
+          {
+            "id": "mem:en-fr:settings",
+            "hintSrcLang": "en",
+            "variants": {
+              "en": [
+                {
+                  "text": "Settings"
+                }
+              ],
+              "fr": [
+                {
+                  "text": "Paramètres"
+                }
+              ]
+            },
+            "created": "2026-01-01T00:00:00Z",
+            "updated": "2026-01-01T00:00:00Z"
+          }
+        ]
+      }
   - path: messages_en.json
     content: |
       {
@@ -44,11 +71,12 @@ files:
 
 steps:
   - comment: This is the front half of the default flow `kapi up` loops — run here one move at a time.
-  # tm import / recycle run against the scene's inline project.tmx /
+  # memory import / recycle run against the scene's inline project.memory.json /
   # messages_en.json — W7 seeds the same sandbox the embed does, so both
-  # venues run them live.
-  - command: kapi memory import project.tmx -s en -t fr
-    narration: Load the existing content memory — the store `kapi up` leverages before any AI is asked.
+  # venues run them live. The bundle is the native serialization, so the import
+  # needs no locale or format flags — the .memory.json suffix resolves it.
+  - command: kapi memory import project.memory.json
+    narration: Load the committed content memory — the store `kapi up` leverages before any AI is asked.
   - comment: Step 1 — leverage content memory
   - command: kapi exec recycle messages_en.json -o step1_tm.json --source-lang en --target-lang fr
     narration: recycle is the first step of up's default flow. Exact and fuzzy matches fill from the content memory; the rest stay untranslated.

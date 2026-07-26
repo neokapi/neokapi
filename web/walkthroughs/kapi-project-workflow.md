@@ -12,7 +12,7 @@ scenes:
     smoke_contract:
       - kapi init --name demo --source-locale en --target-locale fr
       - kapi ls
-      - kapi memory import project.tmx
+      - kapi memory import project.memory.json
       - kapi status
       - kapi extract --target-lang fr
 ---
