@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/neokapi/neokapi/terms/ktb"
 )
@@ -45,10 +47,48 @@ func (a *App) ResolveTermsCmdPath(cmd Command) (string, error) {
 	return resolveResourcePath(cmd, "termbases", "termbase.db")
 }
 
-// ResolveTermsFileFormat maps the --format flag to a terms store file format
-// name. An unset flag lets a native bundle path win over the caller's default,
-// so `kapi terms import seeds/terms.json` needs no --format.
-func ResolveTermsFileFormat(flag, path string, explicit bool) string {
+// TermsFileFormats names the terms file formats, in the order they are offered
+// to a user who has to pick one.
+var TermsFileFormats = []string{"bundle", "csv", "tsv", "json", "tbx"}
+
+// ResolveTermsImportFormat maps the --format flag (or, for "auto", the file
+// extension) to the format `kapi terms import` should read path as.
+//
+// "auto" identifies the file; it never guesses. Falling back to CSV would not
+// even fail loudly: the CSV reader skips every row it cannot turn into a
+// concept, so a zip archive imports as "0 concepts" and exits 0 — success-shaped
+// output for a file that was never read.
+func ResolveTermsImportFormat(flag, path string) (string, error) {
+	if name := strings.ToLower(flag); name != "" && name != "auto" {
+		return name, nil
+	}
+	if ktb.IsBundlePath(path) {
+		return "bundle", nil
+	}
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".csv":
+		return "csv", nil
+	case ".tsv":
+		return "tsv", nil
+	case ".json":
+		return "json", nil
+	case ".tbx":
+		return "tbx", nil
+	}
+	return "", fmt.Errorf(
+		"cannot identify %s: %q is not a terms extension (expected %s, .csv, .tsv, .json or .tbx); pass --format (%s) to say what it is",
+		filepath.Base(path), format.Ext(path), ktb.Ext, strings.Join(TermsFileFormats, ", "))
+}
+
+// ResolveTermsExportFormat maps the --format flag (or, for "auto", the -o
+// extension) to the format `kapi terms export` should write.
+//
+// Unlike import, "auto" may fall back to a default: an output path says what
+// the caller wants written, not what an unread file already is, and stdout
+// carries no extension at all. A native bundle path wins over the default even
+// when the flag is set, so `kapi terms export -o seeds/terms.json` writes the
+// lossless bundle rather than the lossy JSON interchange doc.
+func ResolveTermsExportFormat(flag, path string, explicit bool) string {
 	if explicit {
 		return strings.ToLower(flag)
 	}

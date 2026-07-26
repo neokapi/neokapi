@@ -26,8 +26,8 @@ authoritative content:
 Every member of the family is JSON, and its suffix says so. A marker segment
 ahead of `.json` (`.kbf.json`, `.memory.json`, `.terms.json`) keeps the file
 self-describing while `jq`, GitHub, and editor syntax highlighting still see
-what they are looking at; a bare `.kbf` or `.kmb` bought the marker at the cost
-of every tool that reads JSON by extension. Only `.kpz` keeps a dedicated
+what they are looking at; a bare `.kbf` or `.kmb` would buy the marker at the
+cost of every tool that reads JSON by extension. Only `.kpz` keeps a dedicated
 extension, because it is a binary zip nobody hand-edits.
 
 The memory and terms members carry the conventional bare names rather than the

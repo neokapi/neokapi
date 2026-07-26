@@ -439,7 +439,7 @@ func unboundGate(gate, binding, flag string) verifyGateResult {
 }
 
 // projectTermsBound reports whether the terminology gate has a terms store to
-// enforce against: a --terms flag, a defaults.termbase binding, the
+// enforce against: a --termstore flag, a defaults.termbase binding, the
 // convention .kapi/termbase.db, or a committed defaults.termbase_source
 // (.terms.json) resolved directly at check time. It mirrors the resolution the gate
 // itself uses (resolveProjectTermsPath / resolveProjectTermsSourcePath),
@@ -1341,7 +1341,7 @@ func AddVerifyFlags(cmd Command) {
 	cmd.Flags().Bool("qa", false, "run only the QA gate")
 	cmd.Flags().Int("min-score", DefaultBrandMinScore, "brand compliance score below which the brand gate fails")
 	cmd.Flags().String("locale", "", "scope terminology and QA to a single target locale (e.g. fr)")
-	cmd.Flags().String("termbase", "", "named terms or path to a glossary (defaults to the project terms store)")
+	cmd.Flags().String("termstore", "", "named terms or path to a terms store (defaults to the project terms store)")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
 	cmd.Flags().Bool("ship", false, "also enforce the project's ship gates: fail if any locale's coverage is below its gate (the pre-release bar). Off by default — target drift is non-blocking; see 'kapi status'.")
 	cmd.Flags().Bool("no-fail", false, "report only: exit 0 even when a gate fails (verdict is in the output/--json). Use inside an assistant fix-loop; omit for CI gating.")

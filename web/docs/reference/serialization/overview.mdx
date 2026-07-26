@@ -122,6 +122,33 @@ questions:
 - **The extension** — answers *what should I expect?* before the file is
   opened, which is what lets a command route a path without reading it.
 
+The two are checked independently, so a file that is not what it claims to be
+is caught by whichever mechanism notices first: a wrong `kind` by the reader
+that owns the envelope, a wrong extension by the command that had to choose a
+reader before opening anything.
+
+## Import identifies the file, or says that it cannot
+
+`kapi memory import` and `kapi terms import` resolve `--format auto` from the
+extension, and they refuse to guess. Guessing looks harmless and is not. The
+TMX reader handed a file with no translation units returns zero entries, and
+the CSV reader skips every row it cannot turn into a concept — so a file the
+importer never actually read reports `Imported 0 entries` and exits 0, which is
+indistinguishable from an empty content memory.
+
+An extension the command does not recognise is therefore an error, and one that
+names the file, the extensions that are supported, and the `--format` flag that
+settles the question:
+
+```
+cannot identify seed.dat: ".dat" is not a content-memory extension
+(expected .memory.json, .tmx or .tmx.gz); pass --format (bundle, tmx) to say what it is
+```
+
+Export works the other way round. An output path expresses what the caller
+wants written rather than what an unread file already is, and stdout carries no
+extension at all, so there `auto` falls back to the interchange default.
+
 ## See also
 
 - [Choosing a format](/reference/serialization/choosing) — including when an interchange format is the right answer instead.

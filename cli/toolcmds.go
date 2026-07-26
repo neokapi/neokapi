@@ -315,7 +315,7 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 			case "credentials":
 				cmd.Flags().String("credential", "", "saved credential name to use (see 'kapi credentials list')")
 			case "termbase":
-				cmd.Flags().String("termbase", "", "named terms or path to a glossary (defaults to the project terms store)")
+				cmd.Flags().String("termstore", "", "named terms or path to a terms store (defaults to the project terms store)")
 			case "tm":
 				cmd.Flags().String("tm", "", "named Memory or path to a .db (defaults to the project content memory at .kapi/tm.db)")
 			}

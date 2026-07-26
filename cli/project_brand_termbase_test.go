@@ -162,7 +162,7 @@ func seedProjectTerms(t *testing.T, root string) {
 }
 
 // TestResolveProjectGlossary_FromConventionTerms asserts that with no
-// --terms flag and no defaults.termbase, the convention
+// --termstore flag and no defaults.termbase, the convention
 // <root>/.kapi/termbase.db is used to build the project glossary.
 func TestResolveProjectGlossary_FromConventionTerms(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
@@ -175,7 +175,7 @@ defaults:
 	t.Chdir(root)
 
 	a := &App{SourceLang: "en"}
-	// A command without a --terms flag still resolves the project terms.
+	// A command without a --termstore flag still resolves the project terms.
 	cmd := newBrandCheckCmd(a)
 
 	glossary, err := a.ResolveProjectGlossary(cmd, "fr")

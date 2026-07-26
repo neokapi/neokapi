@@ -66,7 +66,7 @@ it back, and treat the task as unfinished until kapi confirms the result:
 ```bash
 kapi merge -i out/*.xliff            # write translations back into the target files + content memory
 kapi check --ship --json                   # in a project: brand + terminology + QA in one gate
-kapi exec term-check ./locales/fr.json --termbase <store>   # one-off, no project: name the terms store
+kapi exec term-check ./locales/fr.json --termstore <store>   # one-off, no project: name the terms store
 ```
 
 `kapi check --ship` is the gate inside a project — read its findings, fix them, and re-run

@@ -78,8 +78,8 @@ func TestSourceRetentionOptIn(t *testing.T) {
 	assert.True(t, got2.Sources[0].HasRawSource)
 }
 
-// TestKindRoundTrip verifies the kind discriminator round-trips and that the
-// legacy kind alias maps to KindProject.
+// TestKindRoundTrip verifies the kind discriminator round-trips and that an
+// unset kind marshals as KindProject.
 func TestKindRoundTrip(t *testing.T) {
 	// Default → KindProject.
 	pkg := &Package{Overlays: sampleOverlays()}
@@ -103,17 +103,6 @@ func TestKindRoundTrip(t *testing.T) {
 	require.NotNil(t, got.InterchangeTask)
 	assert.Equal(t, "fr", got.InterchangeTask.TargetLocale)
 	assert.Equal(t, []string{"a.json"}, got.InterchangeTask.SourceFiles)
-}
-
-// TestKindAliasAcceptsLegacy verifies a package written with the legacy Kind
-// magic string still loads as KindProject.
-func TestKindAliasAcceptsLegacy(t *testing.T) {
-	pkg := &Package{Kind: Kind, Overlays: sampleOverlays()}
-	data, err := pkg.Marshal()
-	require.NoError(t, err)
-	got, err := Unmarshal(data)
-	require.NoError(t, err)
-	assert.Equal(t, KindProject, got.Kind)
 }
 
 // TestUnmarshalRejectsUnknownKind verifies a manifest with an unrecognized

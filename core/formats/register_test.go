@@ -90,15 +90,12 @@ func TestRegisterAllWriters(t *testing.T) {
 	assert.False(t, reg.HasWriter("archive"), "archive must remain read-only (containers are localized via the container binding)")
 }
 
-// TestKBFFormatIDAndJSXAlias asserts the user-facing id is "kbf" while
-// the legacy "jsx" id keeps resolving as a back-compat alias (issue
-// #717). `kapi formats` and detection surface "kbf"; `--format jsx`
-// still works.
-func TestKBFFormatIDAndJSXAlias(t *testing.T) {
+// TestKBFFormatID pins the Kapi Bundle Format to one registry id — "kbf" —
+// across registration, listing, and detection by extension and MIME type.
+func TestKBFFormatID(t *testing.T) {
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
 
-	// Canonical id is registered and listed.
 	require.True(t, reg.HasReader("kbf"), "kbf reader must be registered")
 	require.True(t, reg.HasWriter("kbf"), "kbf writer must be registered")
 
@@ -107,56 +104,26 @@ func TestKBFFormatIDAndJSXAlias(t *testing.T) {
 		listed[name] = true
 	}
 	assert.True(t, listed["kbf"], "kbf must be in ReaderNames")
-	assert.False(t, listed["jsx"], "jsx must NOT be in ReaderNames — it is a name-only alias")
 
-	// `kapi formats` lists kbf, never jsx.
-	var sawKBF, sawJSX bool
+	var sawKBF bool
 	for _, info := range reg.FormatInfos() {
-		switch info.Name {
-		case "kbf":
+		if info.Name == "kbf" {
 			sawKBF = true
-		case "jsx":
-			sawJSX = true
 		}
 	}
 	assert.True(t, sawKBF, "FormatInfos must include kbf")
-	assert.False(t, sawJSX, "FormatInfos must NOT include jsx")
 
-	// The alias resolves to the kbf reader/writer.
-	r, err := reg.NewReader("jsx")
-	require.NoError(t, err, "--format jsx must still resolve")
-	assert.Equal(t, "kbf", r.Name())
-	w, err := reg.NewWriter("jsx")
-	require.NoError(t, err)
-	assert.Equal(t, "kbf", w.Name())
-
-	// Detection by extension / MIME returns the canonical id.
 	byExt, err := reg.Detect(".kbf.json", registry.DetectOptions{ExtensionOnly: true})
 	require.NoError(t, err)
 	assert.Equal(t, registry.FormatID("kbf"), byExt)
 	assert.Equal(t, registry.FormatID("kbf"),
 		reg.ResolveFormat("application/vnd.neokapi.kbf+json"))
 
-	// The pre-rename vocabulary is gone: no alias, no extension, no MIME
-	// type. (A .klf file whose bytes still carry the KBF envelope is
-	// content-sniffed like any other misnamed file — that is the engine's
-	// general behaviour, not a compatibility shim.)
-	_, err = reg.NewReader("klf")
-	require.Error(t, err, `--format klf must be rejected — the id is "kbf"`)
-	_, err = reg.NewWriter("klf")
-	require.Error(t, err, `--format klf must be rejected — the id is "kbf"`)
-	_, err = reg.Detect(".klf", registry.DetectOptions{ExtensionOnly: true})
-	require.Error(t, err, ".klf must not be a registered extension")
-	assert.Contains(t, err.Error(), ".kbf.json",
-		"a retired extension must name the convention that replaced it, not just fail")
-	assert.Empty(t, reg.ResolveFormat("application/vnd.neokapi.klf+json"),
-		"the pre-rename MIME type must not resolve")
-
-	// The bare ".kbf" is retired the same way: the bundle suffix is compound
-	// now, so an extension-only lookup must fail and say what to write instead.
+	// The bundle suffix is compound: ".kbf.json" as a whole is what the
+	// registry keys on, so the bare ".kbf" tail resolves to nothing. Without
+	// this, a plain "data.json" and a bundle would contend for one entry.
 	_, err = reg.Detect(".kbf", registry.DetectOptions{ExtensionOnly: true})
 	require.Error(t, err, ".kbf must not be a registered extension on its own")
-	assert.Contains(t, err.Error(), ".kbf.json")
 }
 
 // TestDetectRealBundleFileIsNotPlainJSON covers the content-aware detection

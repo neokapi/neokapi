@@ -9,7 +9,6 @@ import (
 	"sort"
 
 	"github.com/neokapi/neokapi/core/graph"
-	"github.com/neokapi/neokapi/internal/bundlekind"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -139,8 +138,11 @@ func Unmarshal(data []byte) (*File, error) {
 	if err := json.Unmarshal(data, &f); err != nil {
 		return nil, fmt.Errorf("ktb: decode: %w", err)
 	}
+	if f.Kind == "" {
+		return nil, fmt.Errorf("ktb: missing kind (want %q)", Kind)
+	}
 	if f.Kind != Kind {
-		return nil, bundlekind.Unexpected("ktb", f.Kind, Kind, "kapi terms export")
+		return nil, fmt.Errorf("ktb: unexpected kind %q (want %q)", f.Kind, Kind)
 	}
 	major, ok := majorVersion(f.SchemaVersion)
 	if !ok {

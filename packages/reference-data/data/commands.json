@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-25T17:22:17Z",
+  "generatedAt": "2026-07-26T01:59:51Z",
   "commands": [
     {
       "id": "add",
@@ -871,8 +871,8 @@
           "type": "string"
         },
         {
-          "name": "termbase",
-          "usage": "with --ship: named terms or glossary path for the terminology gate (defaults to the project terms store)",
+          "name": "termstore",
+          "usage": "with --ship: named terms or terms-store path for the terminology gate (defaults to the project terms store)",
           "type": "string"
         },
         {
@@ -4564,8 +4564,8 @@
           "type": "string"
         },
         {
-          "name": "termbase",
-          "usage": "named terms or path to a glossary (defaults to the project terms store)",
+          "name": "termstore",
+          "usage": "named terms or path to a terms store (defaults to the project terms store)",
           "type": "string"
         },
         {
@@ -6970,8 +6970,8 @@
           "type": "string"
         },
         {
-          "name": "termbase",
-          "usage": "named terms for term-lookup/enforce (resolves from KAPI_HOME)",
+          "name": "termstore",
+          "usage": "named terms store for term-lookup/enforce (resolves from KAPI_HOME)",
           "type": "string"
         },
         {
@@ -7168,8 +7168,8 @@
           "type": "string"
         },
         {
-          "name": "termbase",
-          "usage": "named terms for term-lookup/enforce (resolves from KAPI_HOME)",
+          "name": "termstore",
+          "usage": "named terms store for term-lookup/enforce (resolves from KAPI_HOME)",
           "type": "string"
         },
         {
@@ -7442,8 +7442,8 @@
         },
         {
           "name": "format",
-          "usage": "import format (csv, tsv, json, tbx, bundle); a .terms.json input is detected automatically",
-          "default": "csv",
+          "usage": "input format (auto, csv, tsv, json, tbx, bundle); auto selects by file extension",
+          "default": "auto",
           "type": "string"
         },
         {
@@ -7822,8 +7822,8 @@
           "type": "string"
         },
         {
-          "name": "termbase",
-          "usage": "named terms for term-lookup/enforce (resolves from KAPI_HOME)",
+          "name": "termstore",
+          "usage": "named terms store for term-lookup/enforce (resolves from KAPI_HOME)",
           "type": "string"
         },
         {
@@ -8072,8 +8072,8 @@
           "type": "string"
         },
         {
-          "name": "termbase",
-          "usage": "named terms for term-lookup/enforce (resolves from KAPI_HOME)",
+          "name": "termstore",
+          "usage": "named terms store for term-lookup/enforce (resolves from KAPI_HOME)",
           "type": "string"
         },
         {

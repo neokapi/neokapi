@@ -16,6 +16,7 @@
 package jsx
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -28,7 +29,6 @@ import (
 	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/safeio"
-	"github.com/neokapi/neokapi/internal/bundlekind"
 )
 
 // AnnotationType is the discriminator key the KBFAnnotation
@@ -36,19 +36,10 @@ import (
 // understand KBF look it up by this key to read structured Runs.
 const AnnotationType = "neokapi-kbf-block"
 
-// FormatName is the canonical registry ID this format registers
-// under. It is the user-facing id surfaced by `kapi formats`, the
-// `--format kbf` flag, and the generated reference page. The legacy
-// id "jsx" remains a back-compat alias (see FormatAlias and the
-// registration in core/formats/register.go).
+// FormatName is the registry ID this format registers under. It is
+// the user-facing id surfaced by `kapi formats`, the `--format kbf`
+// flag, and the generated reference page.
 const FormatName = "kbf"
-
-// FormatAlias is the legacy registry ID this format also resolves
-// under. `--format jsx` (and any older recipe / script referencing
-// "jsx") keeps working: the alias is a name-only lookup that resolves
-// to FormatName. It is NOT a detection signature, so auto-detection
-// always reports the canonical "kbf" id.
-const FormatAlias = "jsx"
 
 // Extensions this reader responds to.
 //
@@ -187,18 +178,13 @@ func NewReader() *Reader {
 }
 
 // Signature returns detection metadata — .kbf.json files are JSON
-// bearing the canonical `kapi-bundle` kind marker.
-//
-// Detection also matches the retired kind this one replaced, so a bundle written
-// by an earlier release is still recognised as a bundle and gets the reader's
-// explanatory "regenerate it with …" error rather than failing as an unknown
-// format. Detecting it is not the same as accepting it: Open still rejects it.
+// bearing the `kapi-bundle` kind marker.
 func (r *Reader) Signature() format.FormatSignature {
 	return format.FormatSignature{
 		MIMETypes:  MimeTypes,
 		Extensions: Extensions,
 		Sniff: func(data []byte) bool {
-			return bundlekind.SniffKind(data, kbf.Kind)
+			return bytes.Contains(data, []byte(`"`+kbf.Kind+`"`))
 		},
 	}
 }

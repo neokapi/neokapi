@@ -167,9 +167,9 @@ that bite most often:
   *localize*. *Translate*, *locale*, *language* and *parity* are real words and
   stay. `grep -niE 'localiz|localis|l10n|termbase|glossar|translation memor'`
   before you commit prose — inflections are what a noun-only search misses.
-  Retained identifiers (recipe keys `tm:`/`termbase:`, `--termbase`, `tm.db`,
-  `l10n-*` targets, `/translation-memory`, `TMX`/`TBX`) keep their spelling:
-  describe the new concept and quote the old identifier verbatim.
+  Retained identifiers (recipe keys `tm:`/`termbase:`, `tm.db`, `l10n-*`
+  targets, `/translation-memory`, `TMX`/`TBX`) keep their spelling: describe the
+  new concept and quote the old identifier verbatim.
 - **Never hardcode counts the code controls** (formats, tools, providers,
   filters). Name the category and link to the generated reference.
 - **Diagrams are real React components, never ASCII art.** The themed light/dark
