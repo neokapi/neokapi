@@ -220,7 +220,7 @@ export async function seedMemoryEntries(
   entriesPath?: string,
 ): Promise<number> {
   const filePath =
-    entriesPath || path.resolve(__dirname, "../../../../web/e2e/seed/tm-entries.json");
+    entriesPath || path.resolve(__dirname, "../../../../web/e2e/seed/memory-entries.json");
   const entries: Entry[] = JSON.parse(fs.readFileSync(filePath, "utf-8"));
   for (const entry of entries) {
     await apiPost(`/workspaces/${wsSlug}/tm`, token, entry);

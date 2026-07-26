@@ -172,7 +172,7 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 			totalStored += stored
 			allItemNames = append(allItemNames, itemNames...)
 
-		case "terms", "tm", "media":
+		case "terms", "memory", "media":
 			// These content types are not yet implemented. Rather than silently
 			// dropping the payload and marking the job Completed (which would lose
 			// data for any client that emits them), fail the job explicitly.

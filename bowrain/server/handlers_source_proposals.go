@@ -25,7 +25,7 @@ import (
 // new source and CLEARS the block's targets for every locale, then starts a
 // convergence run. Clearing the targets (not merely demoting their status) is
 // what forces the re-draft: the translation worker skips any block that still
-// carries a non-empty target (tm_recycle.hasLocaleTarget), so a demoted-but-kept
+// carries a non-empty target (memory_recycle.hasLocaleTarget), so a demoted-but-kept
 // target would never be regenerated. This mirrors the CLI's source-drift
 // mechanism, where a changed source mints a new block identity whose targets do
 // not carry over, leaving it untranslated → re-drafted on the next pass.
@@ -213,7 +213,7 @@ func (s *Server) HandleDecideSourceProposal(c echo.Context) error {
 // nudge that makes the fan-out happen without a second user action).
 //
 // Why CLEAR the targets rather than demote them: the translation worker skips any
-// block that still carries a non-empty target for a locale (tm_recycle
+// block that still carries a non-empty target for a locale (memory_recycle
 // hasLocaleTarget), so a target kept at draft would never be regenerated. Clearing
 // the targets removes them from every locale's coverage, the locale re-enters the
 // pending set, and the next convergence pass re-drafts the block from the new

@@ -231,8 +231,8 @@ bowrain/apps/bowrain/frontend/e2e/
 ├── rich-editor.spec.ts         — Lexical editor behavior
 ├── settings.spec.ts            — Settings page, theme toggle
 ├── term-explorer.spec.ts       — Terminology CRUD
-├── tm-explorer.spec.ts         — Content memory CRUD
-├── recycle.spec.ts         — content-memory leverage in translation
+├── memory-explorer.spec.ts     — Content memory CRUD
+├── memory-leverage.spec.ts     — content-memory leverage in translation
 └── translation-editor.spec.ts  — Block editing, status, word count
 ```
 
