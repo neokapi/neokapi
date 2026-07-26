@@ -63,8 +63,8 @@ kapi terms export --format bundle -o brand.terms.json   # or name it explicitly
 
 The explicit spelling is `--format bundle` for both stores. It is not called
 `json`, because `kapi terms --format json` already means something else — a
-separate, lossy JSON export that predates the native tier and does not preserve
-concept identity. Reach for `bundle` when you want the lossless form.
+separate, lossy JSON export that does not preserve concept identity. Reach for
+`bundle` when you want the lossless form.
 
 A bundle diffs line by line in git, which is what makes a reviewed content memory
 or terms store reviewable at all. There is no separate compressed spelling: a
@@ -79,22 +79,18 @@ by an explicit `-o` path.
 
 ### Where terms live when nothing is bound
 
-Your terms bundle belongs at the **repository root**, as `terms.json` — not
-under `.kapi/`. `.kapi/` is gitignored, so a terms bundle kept there would never be
-committed, never show up in a diff, and never get reviewed, which defeats the
-point of keeping terminology as source. The bundle is the committed source;
-`.kapi/termbase.db` is the throwaway cache it compiles into.
+Your terms bundle belongs at the **repository root**, as `terms.json`. `.kapi/`
+is gitignored, so a terms bundle kept there would never be committed, never show
+up in a diff, and never get reviewed, which defeats the point of keeping
+terminology as source. The bundle is the committed source; `.kapi/termbase.db`
+is the throwaway cache it compiles into. The
+[terms page](/reference/serialization/terms#the-lookup-ladder) specifies the
+ladder.
 
-So the fallback ladder is `<root>/terms.json` first, then
-`<root>/.kapi/terms.json` — the second rung only for a project that deliberately
-keeps its terms bundle local and uncommitted.
-
-Content memory has no such fallback, and that asymmetry is deliberate: **a
-project has one terms bundle but many content-memory bundles**, typically one per
-content surface. This repository's own dogfood commits a bundle per surface
-under `l10n/tm/` against a single `l10n/terms.json`. A convention needs one
-obvious answer to point at; terms has one and memory does not, so a memory seed
-is always named rather than guessed.
+Content memory has no matching convention: **a project has one terms bundle but
+many content-memory bundles**, typically one per content surface. This
+repository's own dogfood commits a bundle per surface under `l10n/tm/` against a
+single `l10n/terms.json`, so a memory seed is always named rather than guessed.
 
 ## The `.kpz` package
 

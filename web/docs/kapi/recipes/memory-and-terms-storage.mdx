@@ -38,8 +38,8 @@ the ad-hoc model — useful for a quick, throwaway store you don't intend to
 reuse.
 
 ```bash
-kapi memory import corpus.tmx -s en -t fr    # → ./tm.db
-kapi terms import glossary.csv -s en -t fr   # → ./termbase.db
+kapi memory import corpus.memory.json    # → ./tm.db
+kapi terms import terms.json             # → ./termbase.db
 ```
 
 Point at an explicit path with `--file`, or write `--local` to be explicit about
@@ -59,9 +59,9 @@ sessions and is reusable across directories — a content memory at
 terms or a memory outlives any single working directory.
 
 ```bash
-kapi terms import glossary.csv --name product-terms -s en -t fr
+kapi terms import terms.json --name product-terms
 kapi terms stats --name product-terms
-kapi memory import corpus.tmx --name corporate-en-fr -s en -t fr
+kapi memory import corpus.memory.json --name corporate-en-fr
 ```
 
 List what you have:
@@ -73,9 +73,9 @@ kapi terms list
 
 > The config home follows `KAPI_CONFIG_DIR` when set, otherwise the OS user
 > config directory — `~/.config/kapi` on Linux, `~/Library/Application
-> Support/kapi` on macOS. Unlike the app-config file, a named store has no legacy
-> fallback location: it is resolved only under the config home above, so on macOS
-> there is nothing under `~/.config/kapi`. `kapi memory list` and `kapi terms list`
+> Support/kapi` on macOS. A named store is resolved only under that config home,
+> so on macOS there is nothing under `~/.config/kapi`.
+> `kapi memory list` and `kapi terms list`
 > print the absolute path of every store they find. A name may not contain a path
 > separator.
 
@@ -97,7 +97,7 @@ exactly the store the round-trip uses, with no flag needed. See
 
 ```bash
 # Inside a project directory:
-kapi memory import ./corporate-en-fr.tmx     # → <project-root>/.kapi/tm.db
+kapi memory import ./corporate-en-fr.memory.json  # → <project-root>/.kapi/tm.db
 kapi memory stats                            # reads the project content memory
 kapi terms lookup "dashboard" -s en -t fr    # reads the project terms store
 ```

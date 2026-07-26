@@ -24,8 +24,8 @@ import { KbfExplorer } from "@site/src/components/Lab/KbfExplorer";
 The **content bundle** is the JSON serialization of neokapi's
 [content model](/framework/content-model): a set of `Document`s, each holding
 `Block`s whose content is a flat sequence of `Run`s, with optional per-locale
-`targets`. Historically it is the Kapi Bundle Format, and `kbf` remains its
-package and marker name.
+`targets`. Its marker segment and Go package are both `kbf`, for Kapi Bundle
+Format.
 
 This page is the normative schema, followed by
 [worked examples](#worked-examples) of every run kind. For where the bundle
@@ -87,15 +87,6 @@ every file. Versions follow a `MAJOR.MINOR` contract:
 A reader validates the envelope on load: it rejects any document whose `kind` is
 not `kapi-bundle` and any `schemaVersion` whose major does not match
 the version the build speaks.
-
-`kind` was previously `kapi-localization-format` (and `kapi-tm-format` /
-`kapi-termbase-format` for the content-memory and terms bundles). Those values
-are **not** accepted:
-reinterpreting a file written by an earlier release would make the envelope
-useless as a version marker. A stale file is still *detected* as the format it
-is, so the reader can name the rename and the command that rewrites it rather
-than failing as an unknown format — regenerate it with `kapi extract`,
-`kapi memory export`, or `kapi terms export`.
 
 ## File envelope
 

@@ -22,7 +22,7 @@ settings,paramètres,ui`;
 
 **Goal:** decide once how your key terms carry across languages — product names, UI actions, the words your domain depends on — and have kapi flag anything that drifts before it ships. The same terms store guides translation up front and validates it after. Concepts: [Terminology](/framework/terminology); storage models: [Memory & terms storage](/kapi/recipes/memory-and-terms-storage).
 
-The working artifact is the term list your team already maintains, for example a CSV:
+kapi keeps terms in a [terms bundle](/reference/serialization/terms) (`terms.json`). To bring in a list your team already maintains elsewhere, import it across the boundary — a spreadsheet exported to CSV, for example:
 
 <CsvTable csv={glossaryCsv} caption="glossary.csv" />
 

@@ -125,19 +125,18 @@ All `kapi terms` commands (except `list`) accept these mutually exclusive flags:
 | `--file <path>` | Explicit file path                  | `--file /shared/terms.db`    |
 | _(no flag)_     | Same as `--local`                   |                              |
 
-Databases are created on demand if they don't exist. The `termbases/` and
-`termbase.db` names above are retained on-disk paths from an earlier release;
-`~/.config/kapi` is the user config directory on Linux, and resolves to
+Databases are created on demand if they don't exist. `termbases/` and
+`termbase.db` are the on-disk names for the terms store. `~/.config/kapi` is the
+user config directory on Linux, and resolves to
 `~/Library/Application Support/kapi` on macOS. `kapi config path` prints the
 resolved location.
 
 ```bash
-# Import terms (CSV or JSON)
-kapi terms import terms.csv --name project-terms --format csv -s en -t fr
-kapi terms import glossary.json --format json
+# Import terms
+kapi terms import terms.json --name project-terms
 
 # Export terms
-kapi terms export --name project-terms --format csv -o terms.csv -s en -t fr
+kapi terms export --name project-terms --format bundle -o terms.json
 
 # Look up a term (exact, or --fuzzy)
 kapi terms lookup "encryption" --name project-terms -s en -t fr
