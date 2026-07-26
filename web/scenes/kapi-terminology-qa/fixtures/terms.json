@@ -1,0 +1,139 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-terms",
+  "concepts": [
+    {
+      "id": "term:en:dashboard",
+      "domain": "ui",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "dashboard",
+          "locale": "en",
+          "status": "approved"
+        },
+        {
+          "text": "tableau de bord",
+          "locale": "fr",
+          "status": "approved"
+        }
+      ],
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "term:en:encryption",
+      "domain": "security",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "encryption",
+          "locale": "en",
+          "status": "approved"
+        },
+        {
+          "text": "chiffrement",
+          "locale": "fr",
+          "status": "approved"
+        }
+      ],
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "term:en:file-upload",
+      "domain": "ui",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "file upload",
+          "locale": "en",
+          "status": "approved"
+        },
+        {
+          "text": "téléversement de fichier",
+          "locale": "fr",
+          "status": "approved"
+        }
+      ],
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "term:en:log-in",
+      "domain": "ui",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "log in",
+          "locale": "en",
+          "status": "approved"
+        },
+        {
+          "text": "se connecter",
+          "locale": "fr",
+          "status": "approved"
+        }
+      ],
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "term:en:password",
+      "domain": "security",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "password",
+          "locale": "en",
+          "status": "approved"
+        },
+        {
+          "text": "mot de passe",
+          "locale": "fr",
+          "status": "approved"
+        }
+      ],
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "term:en:settings",
+      "domain": "ui",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "settings",
+          "locale": "en",
+          "status": "approved"
+        },
+        {
+          "text": "paramètres",
+          "locale": "fr",
+          "status": "approved"
+        }
+      ],
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "term:en:username",
+      "domain": "security",
+      "source": "terminology",
+      "terms": [
+        {
+          "text": "username",
+          "locale": "en",
+          "status": "approved"
+        },
+        {
+          "text": "nom d'utilisateur",
+          "locale": "fr",
+          "status": "approved"
+        }
+      ],
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  ]
+}

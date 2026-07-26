@@ -9,9 +9,9 @@ const config: WalkthroughEmbedConfig = {
   seed: ["messages.json"],
   files: [
     {
-      path: "project.tmx",
+      path: "project.memory.json",
       content:
-        '<?xml version="1.0" encoding="UTF-8"?>\n<tmx version="1.4">\n  <header creationtool="neokapi" creationtoolversion="1.0"\n          segtype="sentence" o-tmf="unknown" adminlang="en"\n          srclang="en" datatype="plaintext"/>\n  <body>\n    <tu>\n      <tuv xml:lang="en"><seg>Hello, World!</seg></tuv>\n      <tuv xml:lang="fr"><seg>Bonjour le monde !</seg></tuv>\n    </tu>\n    <tu>\n      <tuv xml:lang="en"><seg>See you tomorrow</seg></tuv>\n      <tuv xml:lang="fr"><seg>À demain</seg></tuv>\n    </tu>\n    <tu>\n      <tuv xml:lang="en"><seg>Your cart is empty</seg></tuv>\n      <tuv xml:lang="fr"><seg>Votre panier est vide</seg></tuv>\n    </tu>\n  </body>\n</tmx>\n',
+        '{\n  "schemaVersion": "1.0",\n  "kind": "kapi-memory",\n  "entries": [\n    {\n      "id": "mem:en-fr:hello-world",\n      "hintSrcLang": "en",\n      "variants": {\n        "en": [\n          {\n            "text": "Hello, World!"\n          }\n        ],\n        "fr": [\n          {\n            "text": "Bonjour le monde !"\n          }\n        ]\n      },\n      "created": "2026-01-01T00:00:00Z",\n      "updated": "2026-01-01T00:00:00Z"\n    },\n    {\n      "id": "mem:en-fr:see-you-tomorrow",\n      "hintSrcLang": "en",\n      "variants": {\n        "en": [\n          {\n            "text": "See you tomorrow"\n          }\n        ],\n        "fr": [\n          {\n            "text": "À demain"\n          }\n        ]\n      },\n      "created": "2026-01-01T00:00:00Z",\n      "updated": "2026-01-01T00:00:00Z"\n    },\n    {\n      "id": "mem:en-fr:your-cart-is-empty",\n      "hintSrcLang": "en",\n      "variants": {\n        "en": [\n          {\n            "text": "Your cart is empty"\n          }\n        ],\n        "fr": [\n          {\n            "text": "Votre panier est vide"\n          }\n        ]\n      },\n      "created": "2026-01-01T00:00:00Z",\n      "updated": "2026-01-01T00:00:00Z"\n    }\n  ]\n}\n',
     },
     {
       path: "kapi.yaml",
@@ -31,9 +31,9 @@ const config: WalkthroughEmbedConfig = {
         "ls lists the files the recipe's content tracks. Here one JSON catalog, mapped to a messages.{lang}.json target per locale.",
     },
     {
-      command: "kapi memory import project.tmx",
+      command: "kapi memory import project.memory.json",
       narration:
-        "tm import loads existing translations into the project content memory (.kapi/tm.db). The flow leverages it before any AI is asked.",
+        "memory import loads the committed content-memory bundle into the project content memory (.kapi/tm.db). The flow leverages it before any AI is asked.",
     },
     {
       command: "kapi status",

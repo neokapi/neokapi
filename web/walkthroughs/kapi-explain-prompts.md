@@ -36,7 +36,7 @@ provider would receive, so you can inspect exactly what kapi would send before
 spending anything, without an API key and without the content leaving the
 machine.
 
-The two sections the scene does not show — the glossary and the brand voice —
+The two sections the scene does not show — the term list and the brand voice —
 are project bindings rather than flags: they come from your terms and your
 voice profile, declared in the recipe. The [Prompts](/framework/prompts) page
 shows them in place.

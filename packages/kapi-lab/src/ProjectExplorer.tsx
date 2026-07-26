@@ -120,7 +120,7 @@ export default function ProjectExplorer({
   const absDir = `/project/${dir}`;
   const recipePath = `${absDir}/demo.kapi`;
   const srcPath = `${absDir}/${sample.filename}`;
-  const tmxPath = `${absDir}/project.tmx`;
+  const memoryPath = `${absDir}/project.memory.json`;
   const outPath = useCallback(
     (lang: Target) => `${absDir}/out/${lang}/${sample.filename}`,
     [absDir, sample.filename],
@@ -171,17 +171,20 @@ export default function ProjectExplorer({
       setBusy(step);
       setErr(null);
       try {
-        // Seed the project (recipe + source + TMX) before extract so a
-        // sample/flow switch starts clean, and import the TMX into the project
-        // content memory so the translate (recycle) flow has matches to pull.
+        // Seed the project (recipe + source + content-memory bundle) before
+        // extract so a sample/flow switch starts clean, and import the bundle
+        // into the project content memory so the translate (recycle) flow has
+        // matches to pull. The bundle is the native serialization, so the
+        // import needs no locale or format flags — the compound suffix
+        // (.memory.json) resolves it.
         if (step === "extract") {
           runtime.mkdir(dir);
           runtime.writeFile(`${dir}/demo.kapi`, recipe);
           runtime.writeFile(`${dir}/${sample.filename}`, sample.bytes());
-          runtime.writeFile(`${dir}/project.tmx`, sample.tmx);
-          const memoryCode = await runtime.run(["tm", "import", tmxPath, "-s", "en", "-t", "fr"]);
+          runtime.writeFile(`${dir}/project.memory.json`, sample.memory);
+          const memoryCode = await runtime.run(["memory", "import", memoryPath]);
           if (memoryCode !== 0) {
-            setErr(`\`kapi memory import ${tmxPath}\` exited ${memoryCode}`);
+            setErr(`\`kapi memory import ${memoryPath}\` exited ${memoryCode}`);
             return;
           }
         }
@@ -212,7 +215,7 @@ export default function ProjectExplorer({
         setBusy(null);
       }
     },
-    [runtime, sample, dir, recipe, recipePath, srcPath, tmxPath, flowId, outPath, readMerged],
+    [runtime, sample, dir, recipe, recipePath, srcPath, memoryPath, flowId, outPath, readMerged],
   );
 
   const stepEnabled = (i: number): boolean => {

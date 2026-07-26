@@ -8,11 +8,11 @@ scenes:
     binary: kapi
     duration_budget_seconds: 75
     fixtures:
-      - glossary.csv
-      - project.tmx
+      - terms.json
+      - project.memory.json
       - messages_en.json
     smoke_contract:
-      - kapi memory import project.tmx -s en -t fr
+      - kapi memory import project.memory.json
       - kapi exec recycle messages_en.json -o step1_tm.json --source-lang en --target-lang fr
 ---
 

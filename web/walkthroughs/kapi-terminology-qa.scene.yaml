@@ -3,11 +3,11 @@
 #   node --experimental-strip-types scripts/walkthrough-gen/gen.ts kapi-terminology-qa
 #
 # The browser (wasm) build pre-seeds an in-memory terms store from the same
-# term list used here (kapi/cmd/kapi-wasm-cli/fixtures/glossary.csv — a retained
-# fixture filename), so the terms stats/lookup/search/import commands operate on
-# a real backend with no SQLite. The inline `files` below give the embed the
-# source catalogue and a visible copy of the term list; `term-check` enforces the
-# seeded terms.
+# native terms bundle used here (kapi/cmd/kapi-wasm-cli/fixtures/terms.json), so
+# the terms stats/lookup/search/import commands operate on a real backend with no
+# SQLite. The inline `files` below give the embed the source catalogue and a
+# visible copy of the terms bundle — the committed, reviewable form the terms
+# store compiles from; `term-check` enforces the seeded terms.
 
 id: kapi-terminology-qa
 scene: terms-qa
@@ -15,16 +15,147 @@ mode: interactive
 
 seed: []
 files:
-  - path: glossary.csv
+  - path: terms.json
     content: |
-      source,target,domain
-      password,mot de passe,security
-      username,nom d'utilisateur,security
-      log in,se connecter,ui
-      dashboard,tableau de bord,ui
-      settings,paramètres,ui
-      encryption,chiffrement,security
-      file upload,téléversement de fichier,ui
+      {
+        "schemaVersion": "1.0",
+        "kind": "kapi-terms",
+        "concepts": [
+          {
+            "id": "term:en:dashboard",
+            "domain": "ui",
+            "source": "terminology",
+            "terms": [
+              {
+                "text": "dashboard",
+                "locale": "en",
+                "status": "approved"
+              },
+              {
+                "text": "tableau de bord",
+                "locale": "fr",
+                "status": "approved"
+              }
+            ],
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
+          },
+          {
+            "id": "term:en:encryption",
+            "domain": "security",
+            "source": "terminology",
+            "terms": [
+              {
+                "text": "encryption",
+                "locale": "en",
+                "status": "approved"
+              },
+              {
+                "text": "chiffrement",
+                "locale": "fr",
+                "status": "approved"
+              }
+            ],
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
+          },
+          {
+            "id": "term:en:file-upload",
+            "domain": "ui",
+            "source": "terminology",
+            "terms": [
+              {
+                "text": "file upload",
+                "locale": "en",
+                "status": "approved"
+              },
+              {
+                "text": "téléversement de fichier",
+                "locale": "fr",
+                "status": "approved"
+              }
+            ],
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
+          },
+          {
+            "id": "term:en:log-in",
+            "domain": "ui",
+            "source": "terminology",
+            "terms": [
+              {
+                "text": "log in",
+                "locale": "en",
+                "status": "approved"
+              },
+              {
+                "text": "se connecter",
+                "locale": "fr",
+                "status": "approved"
+              }
+            ],
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
+          },
+          {
+            "id": "term:en:password",
+            "domain": "security",
+            "source": "terminology",
+            "terms": [
+              {
+                "text": "password",
+                "locale": "en",
+                "status": "approved"
+              },
+              {
+                "text": "mot de passe",
+                "locale": "fr",
+                "status": "approved"
+              }
+            ],
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
+          },
+          {
+            "id": "term:en:settings",
+            "domain": "ui",
+            "source": "terminology",
+            "terms": [
+              {
+                "text": "settings",
+                "locale": "en",
+                "status": "approved"
+              },
+              {
+                "text": "paramètres",
+                "locale": "fr",
+                "status": "approved"
+              }
+            ],
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
+          },
+          {
+            "id": "term:en:username",
+            "domain": "security",
+            "source": "terminology",
+            "terms": [
+              {
+                "text": "username",
+                "locale": "en",
+                "status": "approved"
+              },
+              {
+                "text": "nom d'utilisateur",
+                "locale": "fr",
+                "status": "approved"
+              }
+            ],
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z"
+          }
+        ]
+      }
   - path: messages_en.json
     content: |
       {
@@ -38,7 +169,7 @@ files:
 steps:
   - comment: A terms store keeps terminology consistent across locales
   - command: kapi terms stats
-    narration: The browser build pre-seeds a terms store from the project term list.
+    narration: The browser build pre-seeds a terms store from the project terms bundle.
   - command: kapi terms lookup password -s en -t fr
     narration: Look up a single term and its approved translation.
   - command: kapi terms search encrypt -s en

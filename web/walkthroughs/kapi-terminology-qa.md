@@ -8,7 +8,7 @@ scenes:
     binary: kapi
     duration_budget_seconds: 60
     fixtures:
-      - glossary.csv
+      - terms.json
       - messages_en.json
     smoke_contract:
       - kapi terms stats
@@ -19,11 +19,11 @@ scenes:
 
 ## Story
 
-A glossary makes terminology consistent across your translations and across
-locales. `kapi terms` ingests CSVs and exposes lookup/search;
-`kapi exec term-check` flags terminology drift in target files before they
-ship — the same check `kapi up` binds after every pass, so a violating unit
-cannot lift its locale over the ship gate.
+A terms store makes terminology consistent across your translations and across
+locales. `kapi terms` compiles the committed terms bundle and exposes
+lookup/search; `kapi exec term-check` flags terminology drift in target files
+before they ship — the same check `kapi up` binds after every pass, so a
+violating unit cannot lift its locale over the ship gate.
 
 ## Scene 1 — terms-qa (terminal)
 

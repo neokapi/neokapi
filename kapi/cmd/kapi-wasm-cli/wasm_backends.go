@@ -9,9 +9,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/brand"
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/memory/kmb"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -35,37 +36,38 @@ var brandProfile = &brand.VoiceProfile{
 	},
 }
 
-//go:embed fixtures/project.tmx
-var fixtureTMX []byte
+// The seeds are native bundles, not TMX/CSV. The interchange tier is for
+// crossing a boundary into or out of kapi; seeding kapi's own demo backends is
+// not that boundary, and a lossless bundle is what a project actually commits.
+// It also means the browser build parses the same serialization the docs teach.
 
-//go:embed fixtures/glossary.csv
-var fixtureGlossaryCSV []byte
+//go:embed fixtures/memory.json
+var fixtureMemory []byte
+
+//go:embed fixtures/terms.json
+var fixtureTerms []byte
 
 // seedBackends initialises the in-memory content memory and terms on app and
-// assigns them to app.MemoryBackend / app.TermsBackend so that the tm,
+// assigns them to app.MemoryBackend / app.TermsBackend so that the memory,
 // terms, term-check, and extract commands work in the browser build
 // without cgo / SQLite.
 func seedBackends() {
+	ctx := context.Background()
+
 	tm := memory.NewInMemoryStore()
-	opts := memory.ImportTMXOptions{
-		OriginKey:     "fixture/project.tmx",
-		OriginAddedBy: "kapi-wasm-cli",
-		WarnFunc: func(msg string) {
-			fmt.Fprintln(os.Stderr, "warning:", msg)
-		},
-	}
-	if _, err := memory.ImportTMXWithOptions(context.Background(), tm, bytes.NewReader(fixtureTMX), model.LocaleID("en"), model.LocaleID("fr"), opts); err != nil {
-		fmt.Fprintln(os.Stderr, "wasm: seed content memory:", err)
+	if file, err := kmb.Decode(bytes.NewReader(fixtureMemory)); err != nil {
+		fmt.Fprintln(os.Stderr, "wasm: parse content memory bundle:", err)
+	} else {
+		for _, e := range file.ModelEntries() {
+			if err := tm.AddWithStream(ctx, e, ""); err != nil {
+				fmt.Fprintln(os.Stderr, "wasm: seed content memory:", err)
+			}
+		}
 	}
 	app.MemoryBackend = tm
 
 	tb := terms.NewInMemoryStore()
-	csvOpts := terms.CSVImportOptions{
-		SourceLocale: model.LocaleID("en"),
-		TargetLocale: model.LocaleID("fr"),
-		HasHeader:    true,
-	}
-	if _, err := terms.ImportCSV(context.Background(), tb, bytes.NewReader(fixtureGlossaryCSV), csvOpts); err != nil {
+	if _, err := cli.ImportKTBFile(ctx, tb, bytes.NewReader(fixtureTerms)); err != nil {
 		fmt.Fprintln(os.Stderr, "wasm: seed terms:", err)
 	}
 	app.TermsBackend = tb

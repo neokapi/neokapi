@@ -77,34 +77,75 @@ tape:
   padding: 20
   fontSize: 16
 
-# Recording fixtures: the kit catalog, the content memory that supplies the French, the
+# Recording fixtures: the kit catalog, the committed content-memory bundle that
+# supplies the French, the
 # recipe with a translated+reviewed ship gate, and the reviewer's change-set.
 # The recording starts from an unproduced project — `kapi up` does the work.
 seed:
   - messages.json
 files:
-  - path: project.tmx
+  - path: project.memory.json
     content: |
-      <?xml version="1.0" encoding="UTF-8"?>
-      <tmx version="1.4">
-        <header creationtool="neokapi" creationtoolversion="1.0"
-                segtype="sentence" o-tmf="unknown" adminlang="en"
-                srclang="en" datatype="plaintext"/>
-        <body>
-          <tu>
-            <tuv xml:lang="en"><seg>Hello, World!</seg></tuv>
-            <tuv xml:lang="fr"><seg>Bonjour le monde !</seg></tuv>
-          </tu>
-          <tu>
-            <tuv xml:lang="en"><seg>See you tomorrow</seg></tuv>
-            <tuv xml:lang="fr"><seg>À demain</seg></tuv>
-          </tu>
-          <tu>
-            <tuv xml:lang="en"><seg>Your cart is empty</seg></tuv>
-            <tuv xml:lang="fr"><seg>Votre panier est vide</seg></tuv>
-          </tu>
-        </body>
-      </tmx>
+      {
+        "schemaVersion": "1.0",
+        "kind": "kapi-memory",
+        "entries": [
+          {
+            "id": "mem:en-fr:hello-world",
+            "hintSrcLang": "en",
+            "variants": {
+              "en": [
+                {
+                  "text": "Hello, World!"
+                }
+              ],
+              "fr": [
+                {
+                  "text": "Bonjour le monde !"
+                }
+              ]
+            },
+            "created": "2026-01-01T00:00:00Z",
+            "updated": "2026-01-01T00:00:00Z"
+          },
+          {
+            "id": "mem:en-fr:see-you-tomorrow",
+            "hintSrcLang": "en",
+            "variants": {
+              "en": [
+                {
+                  "text": "See you tomorrow"
+                }
+              ],
+              "fr": [
+                {
+                  "text": "À demain"
+                }
+              ]
+            },
+            "created": "2026-01-01T00:00:00Z",
+            "updated": "2026-01-01T00:00:00Z"
+          },
+          {
+            "id": "mem:en-fr:your-cart-is-empty",
+            "hintSrcLang": "en",
+            "variants": {
+              "en": [
+                {
+                  "text": "Your cart is empty"
+                }
+              ],
+              "fr": [
+                {
+                  "text": "Votre panier est vide"
+                }
+              ]
+            },
+            "created": "2026-01-01T00:00:00Z",
+            "updated": "2026-01-01T00:00:00Z"
+          }
+        ]
+      }
   - path: kapi.yaml
     content: |
       version: v1
@@ -130,8 +171,8 @@ files:
 
 steps:
   - comment: The ship gate wants translated 100% and reviewed 100%. A machine can meet the first; only a person can meet the second.
-  - command: kapi memory import project.tmx
-    narration: Seed the project content memory. The recipe's flow leverages it before any AI is asked — this scene never calls a provider.
+  - command: kapi memory import project.memory.json
+    narration: Seed the project content memory from the committed bundle. The recipe's flow leverages it before any AI is asked — this scene never calls a provider.
     offline: false
   - command: kapi up --plan
     narration: --plan previews the work without doing any. Per locale it reports the pending units, the exact content-memory leverage, what remains for AI, and a token estimate. No provider calls, no writes.
