@@ -25,9 +25,6 @@ Implemented in Go at
 
 ## The working set is transient until you export it
 
-This is the first thing to understand about the format, because it is the part
-that surprises people.
-
 Mutations are **in transit and not durable**. Recording a decision puts it in an
 in-memory working set; nothing reaches disk until an explicit export
 materializes it to its durable home. The model is deliberately the one you
@@ -58,9 +55,7 @@ gitignored. A record of who approved what is precisely the kind of thing that
 must be reviewable and must survive a clone. Putting it inside `.kapi/` would
 make it disappear.
 
-Two different artifacts arrived at the same placement independently. That is
-the rule, not a coincidence — see the
-[overview](/reference/serialization/overview).
+The [overview](/reference/serialization/overview) states the general rule.
 
 The path is configurable in the recipe; `.kapi-state.json` is the default.
 

@@ -420,8 +420,8 @@ machine and then pushing the results so the server is never left stale;
 `kapi up --server` requires the server venue, failing rather than falling back
 to a local run (for CI that must never spend local keys).
 
-Because transport is pure, **`kapi push` no longer translates behind your back**:
-a server that keeps the project continuously caught up (`server.converge`) is an
+Transport is pure: **`kapi push` does not translate behind your back.** A
+server that keeps the project continuously caught up (`server.converge`) is an
 explicit, per-project policy the way `git push` triggering CI is a repository
 policy, not a property of `git`.
 

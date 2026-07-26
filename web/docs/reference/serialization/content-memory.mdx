@@ -21,11 +21,11 @@ A content-memory bundle is the portable, lossless serialization of a project's
 content memory: the multilingual entries kapi reuses to avoid re-translating
 text it has already seen, together with where each entry came from.
 
-It is a **bundle**, not a store. The working store is SQLite — the file is
-still named `tm.db`, under the gitignored `.kapi/` state directory — and a
-bundle is what you get when you export that store into a single reviewable,
-hashable file. See the [overview](/reference/serialization/overview) for why
-kapi keeps that distinction.
+It is a **bundle**, not a store. The working store is SQLite — `tm.db`, under
+the gitignored `.kapi/` state directory — and a bundle is what you get when you
+export that store into a single reviewable, hashable file. See the
+[overview](/reference/serialization/overview) for why kapi keeps that
+distinction.
 
 Implemented in Go at
 [`memory/kmb`](https://github.com/neokapi/neokapi/tree/main/memory/kmb).
@@ -118,13 +118,13 @@ answer where it came from.
 
 ## Why JSON and not JSON Lines
 
-Overlays ship in both `.overlays.json` and `.overlays.jsonl`, so the obvious
-question is why content memory has no line-delimited form.
+Overlays ship in both `.overlays.json` and `.overlays.jsonl`; content memory has
+no line-delimited form.
 
 `kapi memory export` re-serializes the whole store and **canonicalizes** it on
 every write — entries sorted by id, timestamps normalized, deterministic
 formatting — so the bytes are stable for hashing and diff cleanly under git.
-There is no append path to optimize for. An append-only file would defeat
+There is no append path to optimize for, and an append-only file would defeat
 exactly the byte-stability that makes the bundle hashable as a unit.
 
 The shape is also not a flat record stream. A bundle is an envelope plus two
@@ -132,13 +132,6 @@ correlated arrays — `entries` and the `importSessions` they reference by id �
 and JSON expresses that directly. JSON Lines would mean inventing a framing
 convention to say which line is the envelope and how the two record types
 interleave.
-
-The conditional is worth stating, because it is the thing that would change the
-answer: **if content memory ever becomes an appended journal rather than an
-exported snapshot, JSON Lines becomes the right serialization**, and a
-`.memory.jsonl` could join the JSON form exactly as overlays already carry
-both. The current shape reflects how the file is produced, not a preference for
-JSON.
 
 ## What is deliberately not in it
 

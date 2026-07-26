@@ -291,10 +291,10 @@ instruction on a large batch.
 How many blocks share a call is **not a number you set**. It depends on what your
 model can emit, on how long your segments happen to be, and on a
 quality-versus-batch-size curve that nobody has published — so kapi sizes each
-call against the model's real output limit rather than asking you to guess. (The
-guess used to be 100, and on anything longer than a UI string it produced a reply
-too large for the model to finish.) The choice you _do_ get is `batching: auto`
-or `batching: single`.
+call against the model's real output limit rather than asking you to guess. A
+fixed batch size would overrun that limit on anything longer than a UI string,
+producing a reply the model cannot finish. The choice you _do_ get is
+`batching: auto` or `batching: single`.
 
 How much more to send is still an open question — the evidence favours a large
 non-translated context with a small translation unit, and `--context neighbours
