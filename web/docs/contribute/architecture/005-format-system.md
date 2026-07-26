@@ -174,10 +174,10 @@ kapi's own on-disk conventions use **compound suffixes** — `.kbf.json`,
 `.memory.json`, `.terms.json`, `.overlays.jsonl` — so the marker survives while
 the file still reads as the JSON it is. `path/filepath.Ext` reports `.json` for
 all of them, so extension-driven code goes through `format.Ext` / `TrimExt` /
-`Stem` instead, which return the most specific registered suffix. A retired
-extension (a file written by an earlier release) is still recognised well enough
-to name what replaced it and the command that rewrites it, rather than failing
-as an unknown format.
+`Stem` instead, which return the most specific registered suffix. A suffix kapi
+does not read resolves through `format.RetiredExtHint` to a diagnostic naming the
+suffix that supersedes it and the command that rewrites the file, rather than
+failing as an unknown format.
 
 ### Skeleton strategies
 
@@ -216,9 +216,9 @@ bounded window, not the document size. Three edges cooperate:
    buffer up front. A line/record reader pulls bytes on demand and never holds
    the whole input; a whole-document reader still `io.ReadAll`s, but only once.
 2. **Reader → executor.** When the reader declares the **`StreamingReader`**
-   capability, its `Read` channel is fed straight into the executor — the Part
-   stream is no longer collected into a `[]*Part` slice between reader and tools.
-   The reader runs concurrently with the writer. This is gated on the capability
+   capability, its `Read` channel is fed straight into the executor rather than
+   being collected into a `[]*Part` slice between reader and tools, so the
+   reader runs concurrently with the writer. This is gated on the capability
    because it overlaps the read and the write: only in-process, pure-Go readers
    may opt in, never a daemon-backed plugin (those keep the
    read-fully-then-write order their one-Process-stream-at-a-time contract

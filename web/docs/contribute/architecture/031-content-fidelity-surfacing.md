@@ -15,9 +15,9 @@ translation pipeline — MT, the content memory, the editor — which wants only
 prose a human would translate. The second is **LLM/RAG ingestion**, which wants *all* textual
 context: code listings, captions, image and shape alt-text, formulas,
 do-not-translate UI strings, config-excluded values, and developer/translator
-comments. Historically a reader was a hard binary — a fragment became either a
-translatable `Block` or opaque skeleton bytes — so everything the first consumer
-skips was invisible to the second.
+comments. A two-way classification — a fragment becomes either a translatable
+`Block` or opaque skeleton bytes — makes everything the first consumer skips
+invisible to the second.
 
 This AD makes surfacing that contextual content a **cross-cutting reader
 convention**: every reader classifies a fragment three ways, not two, and emits
@@ -26,8 +26,8 @@ channels carry it — renderable content as a `Block{Translatable:false}` bearin
 `SemanticRole` and a skeleton ref; comment and metadata context as a `Data` part
 or a `NoteAnnotation`. The behaviour is gated per format by a default-ON opt-out,
 `extractNonTranslatableContent`. Byte-exact round-trip, MT-skip semantics, and
-Okapi parity are all preserved unchanged — the surfaced content is additive over
-a parity-faithful core.
+Okapi parity are unaffected — the surfaced content is additive over a
+parity-faithful core.
 
 This rests on primitives defined elsewhere and introduces no new content-model
 type: the `Translatable` flag, the `SemanticRole` taxonomy, `Data`, and notes are
@@ -74,11 +74,10 @@ A reader classifies each fragment of its input three ways
 | Pure structure (delimiters, quoting, whitespace) | skeleton bytes |
 | Non-translatable but meaningful context | **surfaced** — see the two channels below |
 
-The first two are unchanged. The decision is that the third category — code,
-verbatim/literal text, captions, alt-text, formulas, do-not-translate strings,
-config-excluded values, comments — is no longer collapsed into the second. It
-becomes content the ingestion consumer can read, while staying outside the MT
-payload.
+The third category — code, verbatim/literal text, captions, alt-text, formulas,
+do-not-translate strings, config-excluded values, comments — is surfaced rather
+than collapsed into the second. It becomes content the ingestion consumer can
+read, while staying outside the MT payload.
 
 ### Two surfacing channels
 

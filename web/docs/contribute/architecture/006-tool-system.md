@@ -534,9 +534,9 @@ two renderings from one definition:
   of a group, not the model.
 
 The discriminator carries a default, so the bare tool works with no
-configuration. A tool that historically inferred its backend from another field
-(e.g. `qa` from whether a `provider` was set) keeps that inference as a fallback
-when the discriminator is unset, so existing recipes and flags are unaffected.
+configuration. Where a tool can infer its backend from another field (e.g. `qa`
+from whether a `provider` is set), that inference is the fallback when the
+discriminator is unset.
 
 ### Annotation-based communication
 
@@ -606,10 +606,10 @@ All built-in tools register via `RegisterAll()` in `core/tools/register.go`.
 | `term-check`             | Verify terminology usage in translations against the terms store                        |
 | `xml-validation`         | Validate XML well-formedness of block text                                              |
 
-The `qa` checkset also carries the rule families that used to be standalone
-fragment tools: length constraints (ratio and absolute character/word limits),
-invalid or forbidden characters and charset conformance, regex pattern rules
-(required and forbidden), and cross-block translation consistency.
+The `qa` checkset also carries length constraints (ratio and absolute
+character/word limits), invalid or forbidden characters and charset conformance,
+regex pattern rules (required and forbidden), and cross-block translation
+consistency, rather than splitting each rule family into its own tool.
 
 **Analyze tools** — inspect byte-level characteristics:
 

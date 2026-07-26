@@ -226,9 +226,9 @@ model, and it puts the decision where it belongs: with the author who
 knows the two strings differ, not with an incidental fact about the
 DOM tree.
 
-64 bits (over the old 32) gives collision headroom for
-million-string corpora; a 32-bit hash reaches ~50% birthday-collision
-odds around 80k strings, which is inside the range a large app can hit.
+The hash is 64 bits: a 32-bit hash reaches ~50% birthday-collision odds
+around 80k strings, inside the range a large app can hit, so 64 gives
+headroom for million-string corpora.
 
 ### Hash and runtime dictionary
 
@@ -286,20 +286,19 @@ didn't — without a source change.
 ### One template builder, two consumers
 
 Extract and transform must agree on the flat template **byte for
-byte**: extract hashes it into the `.kbf.json`, transform hashes it to look
-the translation back up. They are two walks over the same AST in two
-files, and for a while they were two *implementations* — which drifted,
-and shipped two correctness bugs to prove it (paired inline elements
-leaking a literal `{/=m0}` into the DOM, and `<Plural>` emitting
-unparseable JSX).
+byte**: extract hashes it into the `.kbf.json`, transform hashes it to
+look the translation back up. They are two walks over the same AST in
+two files, and as two *implementations* they drift silently — a paired
+inline element leaking a literal `{/=m0}` into the DOM, `<Plural>`
+emitting unparseable JSX — because nothing compares them.
 
-The decision is therefore structural, not a fix: `extract/runs.ts`
-owns the single `buildRuns()` builder, and the transform **consumes**
-it (`plugin/transform.ts`), taking both the flat text and a list of
+The decision is therefore structural: `extract/runs.ts` owns the single
+`buildRuns()` builder, and the transform **consumes** it
+(`plugin/transform.ts`), taking both the flat text and a list of
 per-appearance `Occurrence` spans it maps back onto the source to
-rewrite JSX. Parity is now a property of the code shape rather than of
-two authors remembering to keep two walks in step. Any future front
-end (MDX, another framework) plugs in at the same seam.
+rewrite JSX. Parity is a property of the code shape rather than of two
+authors remembering to keep two walks in step. Any future front end
+(MDX, another framework) plugs in at the same seam.
 
 ### Inline mode: reconstruction, and the ICU exception
 
@@ -353,10 +352,10 @@ neokapi-i18n CLI (`packages/i18n-react/src/cli.ts`) routes those through
 
 ## Consequences
 
-- **One Block per translatable element.** Inline structure no longer
-  produces a separate sub-Block per `<a>`, so the memory keys on full sentences
-  and translators see sentences with inline context. AI/MT quality
-  improves measurably for sentences with inline links and emphasis.
+- **One Block per translatable element.** Inline structure stays inside the
+  Block — an `<a>` does not split off a sub-Block — so the memory keys on full
+  sentences and translators see sentences with their inline context. AI/MT
+  quality is measurably better for sentences with inline links and emphasis.
 - **Single emit path.** Inline-with-children → paired pair, regardless of
   whether the inner content is text, expressions, or icons. No special
   case for "only icons inside" or "only one variable inside."

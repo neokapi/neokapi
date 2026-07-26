@@ -92,8 +92,8 @@ Each variant is indexed under three keys, derived from its Run sequence and
 pre-computed at write time:
 
 - **plain** — `model.FlattenRuns(runs)` with inline-code runs contributing
-  their text equivalents. Enables matching against legacy memories and
-  unanalyzed content.
+  their text equivalents. Enables matching against plain-text memories imported
+  from other tools, and against unanalyzed content.
 - **structural** — `model.RunsStructuralText(runs)`: inline-code runs rendered
   as numbered placeholders (`{1}`, `{/1}`). Preserves inline-code position
   awareness.

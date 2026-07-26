@@ -156,13 +156,13 @@ The models kapi supports are described in one place: `providers/ai/models.json`,
 a curated catalog embedded into the framework and read as `aiprovider.Models()`.
 It is the single source of truth, and the rest derives from it.
 
-**Why data, and why curated.** Model knowledge used to be scattered across four
-places — a `DefaultXModel` constant per provider, a prefix→ceilings map in
-`limits.go`, a price table under `scripts/batcheval`, and nothing at all for the
-question a user actually asks: *is this model current, superseded, or retired, and
-since when?* The catalog folds the first two in (`LimitsForModel` resolves through
-it; a test asserts every provider default is catalogued and marked `default_for`
-that provider) and adds the lifecycle the others never carried. It is **data**
+**Why data, and why curated.** One catalog rather than model knowledge spread
+over a `DefaultXModel` constant per provider, a prefix→ceilings map, and a price
+table under `scripts/batcheval` — none of which answers the question a user
+actually asks: *is this model current, superseded, or retired, and since when?*
+The catalog carries the defaults and the ceilings (`LimitsForModel` resolves
+through it; a test asserts every provider default is catalogued and marked
+`default_for` that provider) as well as the lifecycle. It is **data**
 because a model list hardcoded in Go goes stale silently; it is **curated**
 because the vendors' APIs return only what is live today as a flat list of ids —
 they do not say when a model entered neokapi, what replaced it, or when it retires.
@@ -397,18 +397,17 @@ alongside the value is what lets a diagnostic name the file or the environment
 variable to change, instead of asserting that nothing is configured.
 
 The app config file is pinned to `config.GlobalConfigFilePath()` — the same
-function the writers use — never resolved through a search path. A search path
-had put the working directory ahead of the user config dir, and a kapi project's
-recipe is named `kapi.yaml`: inside any project the *recipe* was loaded as the
-app config, and every stored default read as empty. The working directory is not
-a config location; a recipe is project configuration, app config is per-machine.
+function the writers use — never resolved through a search path. A recipe is
+project configuration and app config is per-machine, so the working directory is
+not a config location: a search path reaching it would load the *recipe* as the
+app config inside any project, since a kapi project's recipe is also named
+`kapi.yaml`, and every stored default would read as empty.
 
-The locations the old search path covered — `$HOME/.config/kapi/kapi.yaml` and
-`/etc/kapi/kapi.yaml` — are still read, as lower-precedence layers beneath the
-pinned file, so an existing hand-written config keeps working. What is removed
-is only the working directory. (On Linux the first of those *is* the pinned path,
-since `os.UserConfigDir` honours XDG; on macOS it resolves to
-`~/Library/Application Support`, which is why the two could differ at all.)
+`$HOME/.config/kapi/kapi.yaml` and `/etc/kapi/kapi.yaml` are read as
+lower-precedence layers beneath the pinned file, so a hand-written config works.
+(On Linux the first of those *is* the pinned path, since `os.UserConfigDir`
+honours XDG; on macOS it resolves to `~/Library/Application Support`, which is
+why the two differ at all.)
 
 ### Scope boundary
 

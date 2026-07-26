@@ -123,8 +123,8 @@ What fail-open needs is a way to **say so**, because the zero value of a hook
 payload is indistinguishable from a legitimate one. An empty `tool_input.file_path`
 reads as "no file to guard"; an empty `cwd` skips the `os.Chdir` and lets the
 upward project walk run from wherever the hook process started. Both allow, and
-neither used to leave a trace, so a guard that never ran looked exactly like a
-guard that passed (#1480).
+neither leaves a trace of its own, so without the protocol below a guard that
+never ran is indistinguishable from a guard that passed.
 
 The protocol every kapi hook follows:
 
@@ -292,7 +292,7 @@ output. The grep-style `ErrSilentExit` used by the toolbox
   in-repo dogfood by copy, so they never drift, and the source stays in lockstep
   with the CLI surface it documents (one PR changes the command and its skill).
 - Distribution is a Claude Code plugin via the `neokapi-plugins` marketplace,
-  self-updating through Claude Code; the binary no longer carries or installs the
+  self-updating through Claude Code; the binary neither carries nor installs the
   skill.
 - The skill's `description` — the sole triggering lever, loaded at startup across
   every `SKILL.md`-aware tool — is tracked against a maintainer eval checklist

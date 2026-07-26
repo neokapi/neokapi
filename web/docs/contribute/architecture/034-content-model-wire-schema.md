@@ -68,9 +68,9 @@ The encoding is locked by golden files under `core/proto/content/v1/testdata/`
 (`json_test.go`): marshal must reproduce the checked-in bytes, and the
 checked-in bytes must keep decoding to the same messages. A failure there is a
 wire-compatibility break. `core/model`'s own JSON struct tags follow the same
-camelCase convention (`model.AltTranslation` was converted from snake_case;
-its `UnmarshalJSON` accepts the legacy keys for payloads persisted before the
-switch and for released okapi-bridge JARs).
+camelCase convention; `model.AltTranslation.UnmarshalJSON` additionally accepts
+the snake_case spelling that released okapi-bridge JARs emit, camelCase winning
+where a document carries both.
 
 Note that the model's in-process Run JSON (`model.Run.MarshalJSON`, RFC 0001 —
 flat `{"text":"literal"}` text runs) is a distinct, stable encoding used

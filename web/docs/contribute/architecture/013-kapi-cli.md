@@ -267,7 +267,7 @@ environments without an OS keychain (containers, headless CI).
 App configuration uses [Viper](https://github.com/spf13/viper). The layout below
 sits in the user config directory — `~/.config/kapi` on Linux,
 `~/Library/Application Support/kapi` on macOS; a hand-written
-`$HOME/.config/kapi/kapi.yaml` is still read as a lower-precedence legacy layer:
+`$HOME/.config/kapi/kapi.yaml` is also read, as a lower-precedence layer:
 
 ```
 kapi.yaml                # global settings

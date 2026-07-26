@@ -312,8 +312,8 @@ Both profiles are parcels — neither is a workspace.
   fresh stores. The guarantee is enforced by a cache-internal round-trip test:
   populate real `memory` / `terms` stores → pack to `.kpz` → unpack into
   fresh stores → re-pack → assert byte-identical.
-- TMX/TBX keep their role unchanged (industry interchange), and their lossiness
-  is now a documented, intentional property rather than an accident.
+- TMX/TBX keep their role as industry interchange, and their lossiness is a
+  documented, intentional property.
 - The Kapi format family stays cohesive: every member is deterministic and hashable, so
   a `.kpz` — and each member — has a stable content hash, and the same Merkle
   diff the sync engine runs over the wire applies to packages at rest.

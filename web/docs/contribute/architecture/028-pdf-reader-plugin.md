@@ -27,8 +27,8 @@ Both emit the same `Part` stream: positioned text Blocks carrying a
 lines by a shared algorithm, with document structure (headings, paragraphs,
 tables) recovered through a **tiered model** — an authoritative tagged-PDF
 structure tree where available, geometric inference otherwise, and a future ML
-layout tier. The hand-rolled pure-Go PDF reader that once lived in `core/formats/pdf`
-has been retired; PDFium is the only PDF path on every platform.
+layout tier. PDFium is the only PDF path on every platform; there is no
+hand-rolled pure-Go reader beside it.
 
 ## Context
 

@@ -9,18 +9,17 @@ description: How kapi builds the prompts it sends to a language model, how much 
 ## Context
 
 kapi sends the user's content to a language model on their behalf. Three questions
-follow, and for a long time we answered all three by accident:
+follow:
 
 1. **What is in a prompt, and who owns each part of it?**
 2. **How much content goes into one call?**
 3. **What happens when that content is hostile — or merely looks like it?**
 
-The prompts were written inline at each call site, so nothing could see them: not
-the user, not the docs, not a test. The batch size was a fixed 100, exposed as a
-form field. And the payload was a numbered text blob, mapped back by position.
-
-Each of those was a defect, and they turned out to be the same defect wearing
-three hats.
+Answered by accident, they are one defect wearing three hats. A prompt written
+inline at its call site is invisible to the user, to the docs and to any test. A
+batch size exposed as a form field asks a question nobody is equipped to answer.
+And a numbered text blob mapped back by position has no frame the content cannot
+forge.
 
 ## Decision
 
@@ -37,9 +36,9 @@ This buys three things at once:
   section attributed to the thing that produced it.
 - **The [Prompt Reference](/reference/prompts) is generated** from the same
   builders the binary uses, and a CI drift gate fails the build if the committed
-  reference stops matching. The docs cannot describe a prompt kapi does not send.
-  (They previously did: the old page claimed prompts carried surrounding blocks
-  and memory matches. Neither was ever true.)
+  reference stops matching. The docs cannot describe a prompt kapi does not send
+  — a hand-written page can, and the errors it invites (claiming a prompt carries
+  surrounding blocks, or memory matches) are invisible to a reader.
 - **The prompt is fingerprinted** into the translate config, so rewording a prompt
   invalidates cached targets rather than silently serving a translation produced
   by a prompt that no longer exists.
@@ -50,9 +49,8 @@ Gemini by `response_format`, Ollama by `format`) and in *capability* (schema
 subsets, output ceilings), and those differences are absorbed by the
 `ChatStructured(messages, JSONSchema)` seam and a declared `Limits()`. They are
 never absorbed by rewording a prompt. A provider-specific prompt would escape the
-drift gate, the reference and the fingerprint — and we know exactly what that
-costs, because Azure once quietly sent a different translate prompt than every
-other provider and nobody noticed for months.
+drift gate, the reference and the fingerprint: one provider could quietly send a
+different translate prompt than every other, and nothing would say so.
 
 ### Batch size is derived, not configured
 
@@ -68,35 +66,33 @@ strings or 200k tokens of prose. kapi packs each call against a token budget
 derived from the model's declared output limit, with a backstop on the number of
 segments (`MaxBlocksPerCall`).
 
-The block cap started at 16, borrowed from batch-prompting results on adjacent
-tasks. Having now measured translation itself (below), it is 64: the sweep found
-no structural degradation at any batch size up to 600, and the token budget binds
-first on anything longer than a UI string anyway. The cap is a backstop, not the
-decision.
+The block cap is 64. The sweep below finds no structural degradation at any batch
+size up to 600, and the token budget binds first on anything longer than a UI
+string, so the cap is a backstop rather than the decision.
 
 **And it is not a decidable question for a user.** The right count depends on the
 model's ceiling, on the length of *their* segments, and on a quality-versus-N
 curve that has never been published for segment translation. A form field
-defaulting to 100 did not give anyone control; it gave them a way to break their
-run. The user-facing choice is now `batching: auto | single` — a question they can
-actually answer. A numeric pin survives as a hidden override, for recipes that
+defaulting to a number gives nobody control; it gives them a way to break their
+run. The user-facing choice is `batching: auto | single` — a question they can
+actually answer. A numeric pin is a hidden override, for recipes that
 must reproduce a historical run and for the eval sweep that will measure the curve
 we currently take on faith.
 
-**Batching was assumed to be a cost optimisation with a quality cost. Measurement
-inverted both halves.** The quality cost did not materialise: structural integrity
-was perfect from N=32 to N=600 on every model swept, and the *only* breaks measured
-anywhere were at N=8 and N=16. And the cost saving is real but provider-dependent —
-it is the per-call fixed overhead (system prompt + JSON schema) being amortised, so
-it is large where that overhead is large (Bedrock, ~985 tokens per call) and
-negligible where it is small (Gemini, ~106).
+**Batching is commonly taken to be a cost optimisation with a quality cost.
+Measurement inverts both halves.** The quality cost does not materialise:
+structural integrity is perfect from N=32 to N=600 on every model swept, and the
+*only* breaks measured anywhere are at N=8 and N=16. The cost saving is real but
+provider-dependent — it is the per-call fixed overhead (system prompt + JSON
+schema) being amortised, so it is large where that overhead is large (Bedrock,
+~985 tokens per call) and negligible where it is small (Gemini, ~106).
 
 What batching genuinely costs is bounded by the **output ceiling**: a batch whose
 reply would exceed `NonStreamingMaxOutputTokens` (16k) comes back truncated,
 `splitAndRetry` halves it, and the work is redone. That is billed, not broken —
-which is why it hid behind a flat 100% integrity line until the tokens were looked
-at. A 600-block batch cost 2.4× the tokens and 6× the wall-clock of the same corpus
-at N=256.
+which is why a flat 100% integrity line hides it until the tokens are looked at. A
+600-block batch costs 2.4× the tokens and 6× the wall-clock of the same corpus at
+N=256.
 
 ### The payload is id-keyed JSON
 
@@ -147,10 +143,9 @@ honest boundary, and it is the one we document.
   as unknown and packed conservatively — smaller batches, not truncated replies.
 - Rewording any prompt moves the fingerprint (re-translating affected blocks) and
   fails the reference drift gate until the docs are regenerated. Both are intended.
-- `MaxBlocksPerCall` is now set from a measurement of translation itself
-  (`scripts/batcheval`, published at **/batch-eval**) rather than inferred from
-  adjacent tasks — and is re-measured as models move, because a ceiling checked once
-  decays into folklore.
+- `MaxBlocksPerCall` is set from a measurement of translation itself
+  (`scripts/batcheval`, published at **/batch-eval**), and re-measured as models
+  move, because a ceiling checked once decays into folklore.
 
 ## Measuring the ceiling
 
@@ -167,8 +162,8 @@ any corpus, in any language pair, for the price of the calls.
 
 The corpus deliberately carries what batching is documented to break: long prose
 (degradation is worst when items are long), placeholders and inline markup, and the
-same source text under two different keys — the case positional batch mapping used
-to corrupt silently.
+same source text under two different keys — the case positional batch mapping
+corrupts silently.
 
 A run against the demo stub exercises the plumbing and measures nothing about any
 model. Such runs are marked `"simulated": true` and the dashboard excludes them
@@ -193,11 +188,11 @@ choices in that record are what make it worth keeping:
 
 ### The dashboard plots cost, not quality
 
-The obvious chart — structural integrity against N — is the one this page led with,
-and it was the wrong one. Every point sits between 98.8% and 100%, so on a 0–100%
-axis it renders as a flat line at the ceiling: a null result drawn as if it were the
-finding, and the small real variation (batches of 8 break *more* than batches of 128)
-squeezed into invisibility.
+The obvious chart — structural integrity against N — is the wrong one. Every point
+sits between 98.8% and 100%, so on a 0–100% axis it renders as a flat line at the
+ceiling: a null result drawn as if it were the finding, with the small real
+variation (batches of 8 break *more* than batches of 128) squeezed into
+invisibility.
 
 So the lead chart is **cost per 1,000 source words against N**, on a log axis, which
 is the thing that actually moves: a slope down on the left where the per-call overhead
@@ -217,17 +212,16 @@ and never re-checked decays into folklore. Re-run the sweep when the models move
 
 ### The corpus is part of the experiment
 
-The first sweep used a 30-block corpus and reported a flat 100% line at every batch
-size to N=32. That result was an artefact, and a self-inflicted one: with 30 blocks,
-N=32 does not test a batch of thirty-two — it tests *the whole document in one
-call*, and N=16 tests two calls. The sweep had saturated. The ceiling being measured
-was the corpus's, not the models'.
+A corpus smaller than the batch size measures nothing about batching. With 30
+blocks, N=32 does not test a batch of thirty-two — it tests *the whole document in
+one call*, and N=16 tests two calls. A saturated sweep reports a flat 100% line at
+every size, and the ceiling it has measured is the corpus's, not the models'.
 
 The corpus therefore scales (`CorpusN`), holding the stressor mix roughly constant
 and generating every block distinct — duplicate source text would let a model
 translate one segment and copy it into the next, manufacturing the exact failure the
-eval exists to detect. The authored 30 are kept unchanged, so their digest is stable
-and the published runs stay comparable.
+eval exists to detect. The authored 30 keep a stable digest, so published runs stay
+comparable.
 
 The real sweep is 600 blocks (9,990 words), N ∈ {8,16,32,64,128,256,600}.
 
@@ -253,8 +247,8 @@ trend runs the other way. Measured as breaks per 1,000 blocks, the *small* batch
 are the worse ones, and the damage there is the kind that matters: `gemini-3.5-flash`
 broke placeholders at N=8 and N=16 (8–14 and 2–10 across runs) and broke none at any
 size from 32 up. More calls means more chances to fumble a placeholder and less
-context in which to recognise one — the opposite of the effect the ceiling was set to
-guard against.
+context in which to recognise one — the opposite of the effect a low block cap
+guards against.
 
 `gemini-3.1-flash-lite` and Sonnet on Bedrock were clean at every size on the latest
 sweep, which is worth stating plainly: the residual failures are one model's, not a
@@ -264,8 +258,8 @@ property of batching.
 prose, so it cannot go quietly out of date. A page that hardcodes "100% above N=32"
 is falsified by one unlucky run while its actual thesis stands.)
 
-`MaxBlocksPerCall` is accordingly raised 16 → 64, and demoted: it is a backstop, and
-the token budget is the decision.
+`MaxBlocksPerCall` is accordingly a backstop at 64, not the decision — the token
+budget is.
 
 **On Bedrock — the route the platform actually runs on — the binding constraint is
 requests, not tokens.** `eu.anthropic.claude-sonnet-4-6` came back 100% intact at
@@ -330,61 +324,53 @@ Two things follow, neither yet done:
   given workload, `global.anthropic.claude-sonnet-4-6` is the same model 10%
   cheaper.
 
-And four bugs in kapi, which is the more useful outcome and the reason to build the
-instrument before trusting the intuition.
+And five defects in the request path, which is the more useful outcome and the
+reason to build the instrument before trusting the intuition. Each is a rule the
+design holds to, and none of them is visible to a unit test.
 
-**Inline tags were reaching the model as escape sequences.** `encoding/json`
-escapes `<`, `>` and `&` by default (a defence for embedding JSON in a `<script>`
-tag, irrelevant to a prompt), so every `<ph id="1"/>` was sent as
-`<ph id="1"/>`. Anthropic's models decoded it; `gemini-3.5-flash` echoed
-back a literal `3cph id="1"/3e`, silently corrupting the markup of every tagged
-segment it translated. Batching was never the cause — the batch payload was. Fixed
-by turning HTML escaping off: the model is asked to reproduce a tag, so it must be
-shown a tag.
+**The batch payload is written without HTML escaping.** `encoding/json`
+escapes `<`, `>` and `&` by default — a defence for embedding JSON in a `<script>`
+tag, irrelevant to a prompt. With it on, every `<ph id="1"/>` reaches the model as
+`&lt;ph id="1"/&gt;`. Anthropic's models decode it, but `gemini-3.5-flash` echoes
+back a literal `\x3cph id="1"/\x3e` and corrupts the markup of every tagged
+segment it translates. The model is asked to reproduce a tag, so it is shown a tag.
 
-**No Gemini pro model worked at all.** kapi sent `thinkingBudget: 0` (translation
-is a transformation, not a reasoning problem), and the pro models reject that
-outright — "Budget 0 is invalid. This model only works in thinking mode". Every
-call, at every batch size, was a 400. Fixed by omitting the thinking config for
-that family.
+**The thinking config is omitted for the Gemini pro family.** kapi otherwise sends
+`thinkingBudget: 0` — translation is a transformation, not a reasoning problem —
+which those models reject outright ("Budget 0 is invalid. This model only works in
+thinking mode"), failing every call at every batch size with a 400.
 
-**Thinking models were being truncated mid-answer.** The batch packer sizes an
-output budget for the *answer* (`need*2+512`), but Gemini draws thoughts from the
-same `maxOutputTokens` allowance. The model thought its way through the budget and
-emitted a translation cut off mid-tag (`<ph id="2`), which the harness scored as
-the model mangling markup. Fixed: a thinking model gets the ceiling. You are billed
-for what is emitted, not for what is permitted, so the cap costs nothing and only
-removes a way to corrupt output silently.
+**A thinking model gets the output ceiling rather than a sized budget.** Gemini
+draws thoughts from the same `maxOutputTokens` allowance as the answer, so a budget
+sized for the answer alone (`need*2+512`) is spent thinking and the translation
+comes back cut off mid-tag (`<ph id="2`) — which reads as the model mangling
+markup. Billing is for what is emitted, not for what is permitted, so the ceiling
+costs nothing and removes a way to corrupt output silently.
 
-**The requested output cap never paid for the reply's shape.** The per-call budget
-was `sum(source_tokens)*2 + 512` — the translation's *words*, and nothing for the
-JSON scaffolding the schema wraps around each of them (`{"id":"s123","text":"…"},`),
-which is a cost per *item* rather than per word. On a batch of many short UI strings
-the scaffolding is most of the reply, so kapi asked for a cap smaller than the reply
-it had just requested and truncated itself. Fixed (`batchOutputBudget`): the budget
-now charges for the id and the envelope as well as the text. It is not what caused
-the N=600 splits above — the 16k ceiling did that — but it would have caused its own,
-on exactly the catalogs kapi is most often pointed at.
+**The output budget charges for the reply's shape, not only its words**
+(`batchOutputBudget`). The JSON scaffolding the schema wraps around each item
+(`{"id":"s123","text":"…"},`) costs per *item* rather than per word, and on a batch
+of many short UI strings it is most of the reply. A budget covering the
+translation's words alone (`sum(source_tokens)*2 + 512`) asks for a cap smaller
+than the reply it has just requested and truncates itself — on exactly the catalogs
+kapi is most often pointed at. (It is not what caused the N=600 splits above; the
+16k ceiling did that.)
 
-A fifth, found while wiring the model-availability check: **the provider registry
-advertised retired models as defaults.** `ProviderInfo.DefaultModel` said
-`gemini-3-flash-preview` (which the API now answers 404 "no longer available" for)
-and `claude-sonnet-4-20250514` (retired), while the constructors had moved on. Its
-doc comment claimed the two were the same value; nothing checked it, so `kapi
-models` was advertising a default that would 404 on a user's first call. The
-constructor constant is now the single source of truth, with a test.
+**A provider's constructor constant is the single source of truth for its default
+model**, with a test. A second copy in `ProviderInfo.DefaultModel` drifts from it
+silently — naming a `gemini-3-flash-preview` the API answers 404 "no longer
+available" for, or a retired `claude-sonnet-4-20250514` — and `kapi models` then
+advertises a default that 404s on a user's first call.
 
-All five were invisible to the unit tests, and three of them would have been
-published as *model* findings by a less suspicious harness — degradation curves for
-weaknesses the models did not have. That is why a break must be inspectable
-(`-dump`) rather than merely counted, and why a transient failure is retried before
-it is recorded as a cliff.
+Three of the five would be published as *model* findings by a less suspicious
+harness — degradation curves for weaknesses the models do not have. That is why a
+break must be inspectable (`-dump`) rather than merely counted, and why a transient
+failure is retried before it is recorded as a cliff.
 
-The harness had a matching bug of its own, worth recording because it is the same
-class: the history keyed a run on (date, model, target) and *not* on the corpus, so
-the 600-block sweep silently overwrote the 30-block sweep from the same morning —
-the file whose entire purpose is to enforce "different corpora are not comparable"
-was itself conflating them. The digest is now part of the key.
+The harness earns the same scrutiny, and the corpus digest is part of its history
+key for the same reason. Keying a run on (date, model, target) alone lets a
+600-block sweep overwrite a 30-block sweep from the same morning — the file whose
+entire purpose is to enforce "different corpora are not comparable" conflating them.
 
 ## Open
 

@@ -247,9 +247,8 @@ filter / step with its current status, mode, and skip detail. Run
 `make parity-publish` to refresh both files locally.
 
 Both files are local maintainer artifacts inside the (gitignored) parity
-sandbox. Nothing parity-related is published to the documentation site:
-the `/parity` dashboard was retired when the bridge left the product
-surface, and `/format-maturity` carries the public quality story.
+sandbox. Nothing parity-related is published to the documentation site;
+`/format-maturity` carries the public quality story.
 
 ## Pre-release gate
 

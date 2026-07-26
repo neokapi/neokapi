@@ -139,15 +139,16 @@ The frame behind it: kapi does the heavy lifting (parsing, drafting, checking, c
 Bowrain is the **brand memory** — cross-project, org-level (voice, terminology, approved
 translations, corrections) that every project, person, and agent draws from and improves.
 
-**Retired — never reintroduce:** "Kapi drafts, Bowrain governs"; "converges it for your
-whole team, all the time" and any "whole team" venue phrasing.
+**Never use:** "Kapi drafts, Bowrain governs"; "converges it for your whole team,
+all the time" and any "whole team" venue phrasing.
 
 **Naming:** all prose — framework docs included — says **content memory** (with
-*recycling* as the verb), never "translation memory". The legacy identifiers survive in
-code and on the wire only: the recipe keys `tm:` / `tm_source:` / `termbase:`, the `--tm`
-and `--termbase` flags, and the on-disk `tm.db` / `termbase.db`. Prose that has to name one
-describes the concept in the new vocabulary and quotes the identifier in backticks — "the
-project's content memory (`.kapi/tm.db`)", "the terms store (`termbase.db`)".
+*recycling* as the verb), never "translation memory". The identifiers keep their own
+spelling in code and on the wire: the recipe keys `tm:` / `tm_source:` / `termbase:`,
+the `--tm` and `--termbase` flags, and the on-disk `tm.db` / `termbase.db`. Prose that
+has to name one describes the concept in the settled vocabulary and quotes the
+identifier in backticks — "the project's content memory (`.kapi/tm.db`)", "the terms
+store (`termbase.db`)".
 
 **Headline register:** brand, voice, on-brand, agents, governed review, delivery, the kapi
 loop. Search-keyword vocabulary — "Lokalise alternative", "localization platform",
@@ -173,14 +174,13 @@ or docs titles. Never disparage competitors.
 | specialist jargon in the lead (XLIFF, TMX, "Okapi alternative", "translation memory") | builder outcomes ("it works in every language"); keep the jargon in depth/reference only |
 | a lone narrow format in a generic example (XLIFF, `.docx`) | a broad/recognizable set ("JSON, HTML, Markdown, config, office formats"); keep XLIFF/PO only in explicit multilingual copy |
 
-**Code-level (DONE — bounded rename):** the generic tool capability was moved to neutral
-vocabulary — `CapTranslate` → `CapProduce`, the `Translate(TargetView)` handler →
-`Produce(VariantView)`, `TargetView` → `VariantView` (build + tests green; the ITS
-`Translate` field untouched). **Keep** the user-facing `translate` tool and
-`kapi translate` command — that is the translation *application*. **Do not** rename
-`Source`/`Targets`/`VariantKey`/`Block.Translatable`
-(good generic names, wire-bound, or — for `Translatable` — a parse-time extraction
-classifier, not an editability flag).
+**Code-level:** the generic tool capability carries neutral vocabulary — `CapProduce`,
+the `Produce(VariantView)` handler, `VariantView` — while the ITS `Translate` field
+keeps its spec name. **Keep** the user-facing `translate` tool and `kapi translate`
+command: that is the translation *application*. **Do not** rename
+`Source`/`Targets`/`VariantKey`/`Block.Translatable` (good generic names, wire-bound,
+or — for `Translatable` — a parse-time extraction classifier, not an editability
+flag).
 
 ## Don'ts
 

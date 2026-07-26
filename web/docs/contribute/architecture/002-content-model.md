@@ -95,8 +95,8 @@ type Resource interface {
 `PartType` values are `PartTypeUnknown` (the zero value),
 `PartLayerStart`, `PartLayerEnd`, `PartGroupStart`, `PartGroupEnd`,
 `PartBlock`, `PartData`, `PartMedia`, `PartRawDocument`, and `PartCustom`.
-Constants carry explicit integer values for wire compatibility, so a few
-slots are reserved for retired batch types and are not renumbered.
+Constants carry explicit integer values for wire compatibility: numbers are
+never renumbered, and unused slots stay reserved.
 
 Resource types:
 
@@ -218,9 +218,9 @@ connectors attach as blocks flow through the pipeline. Examples:
 - `"word-count": 42` — a word-count annotation attached by a metrics pass (`kapi stats`)
 - `"cms-path": "/en/blog/post-1"` — source location in a CMS
 
-Properties are serialized and carried through the pipeline. Tools add
-metadata without content-model changes. This replaces the pattern of adding
-dedicated fields for every new piece of metadata.
+Properties are serialized and carried through the pipeline, so a tool adds
+metadata without a content-model change — there is no dedicated field per
+piece of metadata.
 
 #### Overlays and Annotations (two stand-off carriers)
 
