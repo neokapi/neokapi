@@ -957,17 +957,17 @@
       "updated": "2026-07-11T00:00:00Z"
     },
     {
-      "id": "demo-narration-nb:bf174f48c9",
+      "id": "demo-narration-nb:6b68fc132a",
       "hintSrcLang": "en",
       "variants": {
         "en": [
           {
-            "text": "The translator fills the remaining targets and returns the files. Merge applies them back onto the source, absorbs every accepted segment into the memory, and tm audit traces exactly which return each entry came from.\n"
+            "text": "The translator fills the remaining targets and returns the files. Merge applies them back onto the source, absorbs every accepted segment into the memory, and memory audit traces exactly which return each entry came from.\n"
           }
         ],
         "nb": [
           {
-            "text": "Oversetteren fyller ut resten og sender filene tilbake. Merge fletter dem tilbake i kilden, tar hvert godkjente segment opp i minnet, og tm audit sporer nøyaktig hvilken retur hver oppføring kom fra.\n"
+            "text": "Oversetteren fyller ut resten og sender filene tilbake. Merge fletter dem tilbake i kilden, tar hvert godkjente segment opp i minnet, og memory audit sporer nøyaktig hvilken retur hver oppføring kom fra.\n"
           }
         ]
       },
