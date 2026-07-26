@@ -47,7 +47,6 @@ import (
 	"github.com/neokapi/neokapi/core/formats/yaml"
 	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/internal/bundlekind"
 )
 
 // RegisterOptions configures optional registries populated during RegisterAll.
@@ -619,25 +618,18 @@ func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
 		format.FormatSignature{},
 		"Exec (subprocess extractor)")
 
-	// KBF — Kapi Bundle Format. Registered under the canonical
-	// id "kbf" (jsx.FormatName); the legacy id "jsx" stays a name-only
-	// back-compat alias so `--format jsx` keeps resolving. The alias
-	// carries no detection signature and no FormatInfo, so detection
-	// and `kapi formats` always surface "kbf".
+	// KBF — Kapi Bundle Format, registered under the id "kbf"
+	// (jsx.FormatName).
 	reg.RegisterReader(registry.FormatID(jsx.FormatName),
 		func() format.DataFormatReader { return jsx.NewReader() },
 		format.FormatSignature{
 			MIMETypes:  []string{"application/vnd.neokapi.kbf+json"},
 			Extensions: []string{".kbf.json"},
 			Sniff: func(data []byte) bool {
-				// Also matches the retired kind, so a bundle from an earlier
-				// release reaches the KBF reader and gets its explanatory
-				// "regenerate it with …" error instead of failing detection.
-				return bundlekind.SniffKind(data, kbf.Kind)
+				return bytes.Contains(data, []byte(`"`+kbf.Kind+`"`))
 			},
 		}, "Kapi Bundle Format (KBF)")
 	reg.RegisterWriter(registry.FormatID(jsx.FormatName), func() format.DataFormatWriter { return jsx.NewWriter() })
-	reg.RegisterAlias(registry.FormatID(jsx.FormatAlias), registry.FormatID(jsx.FormatName))
 
 	// PDF is read-only and provided out-of-core: on native builds by the
 	// kapi-pdfium plugin (cgo + PDFium, crash-isolated in a subprocess), and on

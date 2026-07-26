@@ -86,7 +86,8 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 			localesRaw, _ := cmd.Flags().GetString("locales")
 			format, _ := cmd.Flags().GetString("format")
 
-			if err := CheckRetiredBundlePath(args[0]); err != nil {
+			inputFormat, err := ResolveMemoryImportFormat(format, args[0])
+			if err != nil {
 				return err
 			}
 
@@ -97,13 +98,13 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 			defer tm.Close()
 
 			var count int
-			switch ResolveMemoryFileFormat(format, args[0]) {
+			switch inputFormat {
 			case "bundle":
 				count, err = ImportKMBFile(cmd.Context(), tm, args[0])
 			case "tmx":
 				count, err = ImportTMXFile(cmd.Context(), tm, args[0], srcLocale, tgtLocale, allPairs, ParseLocaleList(localesRaw))
 			default:
-				return fmt.Errorf("unsupported format: %s (use tmx or bundle)", format)
+				return fmt.Errorf("unsupported format: %s (use tmx or bundle)", inputFormat)
 			}
 			if err != nil {
 				return err
@@ -268,10 +269,6 @@ plain JSON, so it reviews line by line in a diff. --locales does not apply.`,
 			localesRaw, _ := cmd.Flags().GetString("locales")
 			format, _ := cmd.Flags().GetString("format")
 
-			if err := CheckRetiredBundlePath(outputPath); err != nil {
-				return err
-			}
-
 			tm, _, err := a.OpenMemorySQLite(cmd)
 			if err != nil {
 				return err
@@ -287,7 +284,7 @@ plain JSON, so it reviews line by line in a diff. --locales does not apply.`,
 				defer w.Close()
 			}
 
-			switch ResolveMemoryFileFormat(format, outputPath) {
+			switch ResolveMemoryExportFormat(format, outputPath) {
 			case "bundle":
 				if err := ExportKMB(cmd.Context(), tm, w); err != nil {
 					return err

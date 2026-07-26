@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -64,12 +65,10 @@ func newTermsImportCmd(a *App) *cobra.Command {
 			hasHeader, _ := cmd.Flags().GetBool("header")
 			delimiter, _ := cmd.Flags().GetString("delimiter")
 			monolingual, _ := cmd.Flags().GetBool("monolingual")
-			// A native extension wins over the csv default when the user did
-			// not ask for a format explicitly.
-			if err := CheckRetiredBundlePath(args[0]); err != nil {
+			format, err := ResolveTermsImportFormat(format, args[0])
+			if err != nil {
 				return err
 			}
-			format = ResolveTermsFileFormat(format, args[0], cmd.Flags().Changed("format"))
 
 			tb, dbPath, err := a.OpenTermsSQLite(cmd)
 			if err != nil {
@@ -112,7 +111,11 @@ func newTermsImportCmd(a *App) *cobra.Command {
 			}
 
 			if err != nil {
-				return fmt.Errorf("import: %w", err)
+				// Name the reader that ran: with --format left at auto the
+				// choice was made from the extension, so a parse error from
+				// inside a CSV or TBX reader is otherwise unattributable.
+				return fmt.Errorf("read %s as %s: %w — pass --format (%s) if that is the wrong reader",
+					filepath.Base(args[0]), format, err, strings.Join(TermsFileFormats, ", "))
 			}
 
 			if a.Quiet {
@@ -130,7 +133,7 @@ func newTermsImportCmd(a *App) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String("format", "csv", "import format (csv, tsv, json, tbx, bundle); a .terms.json input is detected automatically")
+	cmd.Flags().String("format", "auto", "input format (auto, csv, tsv, json, tbx, bundle); auto selects by file extension")
 	cmd.Flags().StringP("source-locale", "s", "en", "source locale for CSV import")
 	cmd.Flags().StringP("target-locale", "t", "", "target locale for CSV import")
 	cmd.Flags().String("domain", "", "domain to assign to imported concepts")
@@ -167,10 +170,7 @@ func newTermsExportCmd(a *App) *cobra.Command {
 				defer w.Close()
 			}
 
-			if err := CheckRetiredBundlePath(outputPath); err != nil {
-				return err
-			}
-			format = ResolveTermsFileFormat(format, outputPath, cmd.Flags().Changed("format"))
+			format = ResolveTermsExportFormat(format, outputPath, cmd.Flags().Changed("format"))
 			switch strings.ToLower(format) {
 			case "csv":
 				err = terms.ExportCSV(cmd.Context(), tb, w, model.LocaleID(srcLocale), model.LocaleID(tgtLocale), true)

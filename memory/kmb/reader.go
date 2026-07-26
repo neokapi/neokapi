@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/internal/bundlekind"
 	"github.com/neokapi/neokapi/memory"
 )
 
@@ -34,8 +33,11 @@ func Decode(r io.Reader) (*File, error) {
 }
 
 func checkEnvelope(f *File) error {
+	if f.Kind == "" {
+		return fmt.Errorf("kmb: missing kind (want %q)", Kind)
+	}
 	if f.Kind != Kind {
-		return bundlekind.Unexpected("kmb", f.Kind, Kind, "kapi memory export")
+		return fmt.Errorf("kmb: unexpected kind %q (want %q)", f.Kind, Kind)
 	}
 	major, ok := majorVersion(f.SchemaVersion)
 	if !ok {

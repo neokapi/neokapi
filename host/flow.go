@@ -138,7 +138,7 @@ func (a *App) addFlowRunFlags(cmd Command) {
 	cmd.Flags().Bool("pack", false, "when transforming a .kpz, also eject the result to the .kpz (auto-pack)")
 	cmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
 	cmd.Flags().String("tm", "", "named Memory for recycle flow (resolves from KAPI_HOME)")
-	cmd.Flags().String("termbase", "", "named terms for term-lookup/enforce (resolves from KAPI_HOME)")
+	cmd.Flags().String("termstore", "", "named terms store for term-lookup/enforce (resolves from KAPI_HOME)")
 	cmd.Flags().Bool("stats", false, "include part/block counts in output")
 	cmd.Flags().Bool("explain", false, "print the resolved source → sink bindings and exit without running")
 }
@@ -1371,7 +1371,7 @@ func (p *cliMemoryProvider) LookupFuzzy(source string, sourceLocale, targetLocal
 	return matches[0].Entry.VariantText(targetLocale), score, true
 }
 
-// openTerms resolves the --terms flag and opens a SQLite terms.
+// openTerms resolves the --termstore flag and opens a SQLite terms.
 // The flag value can be a named resource (no path separators) which resolves
 // via KAPI_HOME, or an explicit file path. When no flag is given but a .kapi
 // project is in scope with a bound terms (defaults.termbase) or a
@@ -1383,7 +1383,7 @@ func (a *App) openTerms(cmd ...Command) (*sqltb.SQLiteStore, func(), error) {
 	if len(cmd) == 0 || cmd[0] == nil {
 		return nil, noop, nil
 	}
-	tbValue, _ := cmd[0].Flags().GetString("termbase")
+	tbValue, _ := cmd[0].Flags().GetString("termstore")
 
 	var tbPath string
 	switch {
@@ -1544,7 +1544,7 @@ func ToolRequires(s *schema.ComponentSchema, req string) bool {
 // resolveProjectTermsPath returns the terms store path a project-aware tool
 // command should use, with no flag. Resolution order:
 //
-//  1. An explicit --terms flag (named resource or path).
+//  1. An explicit --termstore flag (named resource or path).
 //  2. defaults.termbase in the .kapi recipe (relative to the project root).
 //  3. <projectRoot>/.kapi/termbase.db when it exists.
 //
@@ -1552,7 +1552,7 @@ func ToolRequires(s *schema.ComponentSchema, req string) bool {
 // to the tool's default (no glossary).
 func (a *App) resolveProjectTermsPath(cmd Command) (string, error) {
 	if cmd != nil {
-		if tbValue, _ := cmd.Flags().GetString("termbase"); tbValue != "" {
+		if tbValue, _ := cmd.Flags().GetString("termstore"); tbValue != "" {
 			if strings.ContainsAny(tbValue, "/\\") || strings.HasSuffix(tbValue, ".db") {
 				return tbValue, nil
 			}
@@ -1638,13 +1638,13 @@ func (a *App) ResolveProjectGlossary(cmd Command, targetLang string) ([]coretool
 // we decode it directly, no cache required. That is also why the terminology
 // gate works on a fresh CI checkout, where the gitignored .db is absent.
 //
-// Precedence: an explicit --terms selects a specific store (honour it); else
+// Precedence: an explicit --termstore selects a specific store (honour it); else
 // the committed serialization wins; else the working index the recipe binds
 // directly (the legacy defaults.termbase-only case, with no serialization).
 func (a *App) projectConcepts(cmd Command) ([]sqltb.Concept, error) {
 	explicitStore := false
 	if cmd != nil {
-		if v, _ := cmd.Flags().GetString("termbase"); v != "" {
+		if v, _ := cmd.Flags().GetString("termstore"); v != "" {
 			explicitStore = true
 		}
 	}
@@ -1660,7 +1660,7 @@ func (a *App) projectConcepts(cmd Command) ([]sqltb.Concept, error) {
 		}
 	}
 
-	// Working index: an explicit --terms, a defaults.termbase binding, or the
+	// Working index: an explicit --termstore, a defaults.termbase binding, or the
 	// .kapi/termbase.db convention. Read directly only when no serialization is
 	// bound (or the user explicitly selected a store).
 	tbPath, err := a.resolveProjectTermsPath(cmd)
@@ -1845,7 +1845,7 @@ func (a *App) toolFromStep(step flow.FlowStep, cmd Command, rCtx *flow.ResourceC
 // never reached the model, while `kapi up` over the same recipe honored both.
 // One recipe, two behaviours, depending on the verb. Resolve them here instead.
 //
-// Outside a project there are no bindings — but `--terms` is an explicit
+// Outside a project there are no bindings — but `--termstore` is an explicit
 // request to use that terminology, and it used to reach only term-check (which
 // validates the output afterwards) and never translate (which could have got it
 // right the first time). That run now carries a binding set holding just the
@@ -1875,14 +1875,14 @@ func (a *App) resolveRunBindings(cmd ...Command) *ProjectBindings {
 		}
 	}
 
-	// No project: honor an explicit --terms on its own.
-	if tb, _ := c.Flags().GetString("termbase"); tb == "" {
+	// No project: honor an explicit --termstore on its own.
+	if tb, _ := c.Flags().GetString("termstore"); tb == "" {
 		return nil
 	}
 	glossary, err := a.ResolveProjectGlossary(c, a.TargetLang)
 	if err != nil {
 		if !a.Quiet {
-			fmt.Fprintf(os.Stderr, "Warning: --terms: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Warning: --termstore: %v\n", err)
 		}
 		return nil
 	}
@@ -1903,7 +1903,7 @@ func (a *App) ApplyProjectBindings(toolName string, s *schema.ComponentSchema, c
 }
 
 // applyBindings is ApplyProjectBindings over an explicit binding set, so a run
-// with no project (an ad-hoc `kapi translate --terms …`) can still carry the
+// with no project (an ad-hoc `kapi translate --termstore …`) can still carry the
 // terminology the user asked for.
 func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.ComponentSchema, config map[string]any) map[string]any {
 	if b == nil {

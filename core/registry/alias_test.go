@@ -12,84 +12,84 @@ import (
 // alias to the canonical format's factory.
 func TestRegisterAlias_ReaderResolves(t *testing.T) {
 	reg := NewFormatRegistry()
-	regStubSig(reg, "kbf", "Kapi Bundle Format (KBF)",
-		[]string{"application/vnd.neokapi.kbf+json"}, []string{".kbf.json"})
-	reg.RegisterAlias("jsx", "kbf")
+	regStubSig(reg, "yaml", "YAML",
+		[]string{"application/yaml"}, []string{".yaml"})
+	reg.RegisterAlias("yaml-catalog", "yaml")
 
 	// Canonical id resolves.
-	r, err := reg.NewReader("kbf")
+	r, err := reg.NewReader("yaml")
 	require.NoError(t, err)
-	assert.Equal(t, "kbf", r.Name())
+	assert.Equal(t, "yaml", r.Name())
 
 	// Alias resolves to the same canonical factory.
-	ra, err := reg.NewReader("jsx")
+	ra, err := reg.NewReader("yaml-catalog")
 	require.NoError(t, err)
-	assert.Equal(t, "kbf", ra.Name(), "--format jsx must resolve to the kbf reader")
+	assert.Equal(t, "yaml", ra.Name(), "--format yaml-catalog must resolve to the yaml reader")
 }
 
 func TestRegisterAlias_WriterResolves(t *testing.T) {
 	reg := NewFormatRegistry()
-	regStubSig(reg, "kbf", "Kapi Bundle Format (KBF)",
-		[]string{"application/vnd.neokapi.kbf+json"}, []string{".kbf.json"})
-	reg.RegisterWriter("kbf", func() format.DataFormatWriter { return newStubWriter("kbf") })
-	reg.RegisterAlias("jsx", "kbf")
+	regStubSig(reg, "yaml", "YAML",
+		[]string{"application/yaml"}, []string{".yaml"})
+	reg.RegisterWriter("yaml", func() format.DataFormatWriter { return newStubWriter("yaml") })
+	reg.RegisterAlias("yaml-catalog", "yaml")
 
-	w, err := reg.NewWriter("jsx")
+	w, err := reg.NewWriter("yaml-catalog")
 	require.NoError(t, err)
-	assert.Equal(t, "kbf", w.Name(), "--format jsx must resolve to the kbf writer")
+	assert.Equal(t, "yaml", w.Name(), "--format yaml-catalog must resolve to the yaml writer")
 }
 
 func TestRegisterAlias_HasReaderHasWriter(t *testing.T) {
 	reg := NewFormatRegistry()
-	regStub(reg, "kbf")
-	reg.RegisterWriter("kbf", func() format.DataFormatWriter { return newStubWriter("kbf") })
-	reg.RegisterAlias("jsx", "kbf")
+	regStub(reg, "yaml")
+	reg.RegisterWriter("yaml", func() format.DataFormatWriter { return newStubWriter("yaml") })
+	reg.RegisterAlias("yaml-catalog", "yaml")
 
-	assert.True(t, reg.HasReader("kbf"))
-	assert.True(t, reg.HasReader("jsx"), "alias should report a reader")
-	assert.True(t, reg.HasWriter("kbf"))
-	assert.True(t, reg.HasWriter("jsx"), "alias should report a writer")
+	assert.True(t, reg.HasReader("yaml"))
+	assert.True(t, reg.HasReader("yaml-catalog"), "alias should report a reader")
+	assert.True(t, reg.HasWriter("yaml"))
+	assert.True(t, reg.HasWriter("yaml-catalog"), "alias should report a writer")
 
 	assert.False(t, reg.HasReader("nope"))
 }
 
 func TestRegisterAlias_ResolveReaderWriter(t *testing.T) {
 	reg := NewFormatRegistry()
-	regStub(reg, "kbf")
-	reg.RegisterWriter("kbf", func() format.DataFormatWriter { return newStubWriter("kbf") })
-	reg.RegisterAlias("jsx", "kbf")
+	regStub(reg, "yaml")
+	reg.RegisterWriter("yaml", func() format.DataFormatWriter { return newStubWriter("yaml") })
+	reg.RegisterAlias("yaml-catalog", "yaml")
 
 	// SubfilterResolver entry points also resolve aliases.
-	r, err := reg.ResolveReader("jsx")
+	r, err := reg.ResolveReader("yaml-catalog")
 	require.NoError(t, err)
-	assert.Equal(t, "kbf", r.Name())
+	assert.Equal(t, "yaml", r.Name())
 
-	w, err := reg.ResolveWriter("jsx")
+	w, err := reg.ResolveWriter("yaml-catalog")
 	require.NoError(t, err)
-	assert.Equal(t, "kbf", w.Name())
+	assert.Equal(t, "yaml", w.Name())
 }
 
 // TestRegisterAlias_NotListed verifies the alias never appears in the
 // format listing or detection — only the canonical id does. A user
-// searching "kbf" finds the format; the alias stays an implementation
+// searching "yaml" finds the format; the alias stays an implementation
 // detail of name resolution.
 func TestRegisterAlias_NotListed(t *testing.T) {
 	reg := NewFormatRegistry()
-	regStubSig(reg, "kbf", "Kapi Bundle Format (KBF)",
-		[]string{"application/vnd.neokapi.kbf+json"}, []string{".kbf.json"})
-	reg.RegisterAlias("jsx", "kbf")
+	regStubSig(reg, "yaml", "YAML",
+		[]string{"application/yaml"}, []string{".yaml"})
+	reg.RegisterAlias("yaml-catalog", "yaml")
 
 	infos := reg.FormatInfos()
 	names := map[string]bool{}
 	for _, info := range infos {
 		names[string(info.Name)] = true
 	}
-	assert.True(t, names["kbf"], "kbf must be listed")
-	assert.False(t, names["jsx"], "the alias must not appear in the format listing")
+	assert.True(t, names["yaml"], "yaml must be listed")
+	assert.False(t, names["yaml-catalog"], "the alias must not appear in the format listing")
 
 	// FormatInfo for the alias is nil (no metadata entry).
-	assert.Nil(t, reg.FormatInfo("jsx"))
-	assert.NotNil(t, reg.FormatInfo("kbf"))
+	assert.Nil(t, reg.FormatInfo("yaml-catalog"))
+	assert.NotNil(t, reg.FormatInfo("yaml"))
 }
 
 // TestRegisterAlias_DetectionReturnsCanonical verifies that detection
@@ -97,28 +97,28 @@ func TestRegisterAlias_NotListed(t *testing.T) {
 // because the alias registers no signature.
 func TestRegisterAlias_DetectionReturnsCanonical(t *testing.T) {
 	reg := NewFormatRegistry()
-	regStubSig(reg, "kbf", "Kapi Bundle Format (KBF)",
-		[]string{"application/vnd.neokapi.kbf+json"}, []string{".kbf.json"})
-	reg.RegisterAlias("jsx", "kbf")
+	regStubSig(reg, "yaml", "YAML",
+		[]string{"application/yaml"}, []string{".yaml"})
+	reg.RegisterAlias("yaml-catalog", "yaml")
 
-	byExt, err := reg.DetectByExtension(".kbf.json")
+	byExt, err := reg.DetectByExtension(".yaml")
 	require.NoError(t, err)
-	assert.Equal(t, FormatID("kbf"), byExt)
+	assert.Equal(t, FormatID("yaml"), byExt)
 
-	byMime := reg.ResolveFormat("application/vnd.neokapi.kbf+json")
-	assert.Equal(t, FormatID("kbf"), byMime)
+	byMime := reg.ResolveFormat("application/yaml")
+	assert.Equal(t, FormatID("yaml"), byMime)
 }
 
 func TestRegisterAlias_AliasTarget(t *testing.T) {
 	reg := NewFormatRegistry()
-	regStub(reg, "kbf")
-	reg.RegisterAlias("jsx", "kbf")
+	regStub(reg, "yaml")
+	reg.RegisterAlias("yaml-catalog", "yaml")
 
-	target, ok := reg.AliasTarget("jsx")
+	target, ok := reg.AliasTarget("yaml-catalog")
 	require.True(t, ok)
-	assert.Equal(t, FormatID("kbf"), target)
+	assert.Equal(t, FormatID("yaml"), target)
 
-	_, ok = reg.AliasTarget("kbf")
+	_, ok = reg.AliasTarget("yaml")
 	assert.False(t, ok, "canonical id is not itself an alias")
 }
 
@@ -126,11 +126,11 @@ func TestRegisterAlias_AliasTarget(t *testing.T) {
 // the canonical id (or an empty alias) does nothing.
 func TestRegisterAlias_SelfIsNoop(t *testing.T) {
 	reg := NewFormatRegistry()
-	regStub(reg, "kbf")
-	reg.RegisterAlias("kbf", "kbf")
-	reg.RegisterAlias("", "kbf")
+	regStub(reg, "yaml")
+	reg.RegisterAlias("yaml", "yaml")
+	reg.RegisterAlias("", "yaml")
 
-	_, ok := reg.AliasTarget("kbf")
+	_, ok := reg.AliasTarget("yaml")
 	assert.False(t, ok)
 	_, ok = reg.AliasTarget("")
 	assert.False(t, ok)
@@ -142,8 +142,8 @@ func TestRegisterAlias_SelfIsNoop(t *testing.T) {
 // factory).
 func TestRegisterAlias_UnknownAliasStillUnknown(t *testing.T) {
 	reg := NewFormatRegistry()
-	reg.RegisterAlias("jsx", "kbf") // kbf never registered
+	reg.RegisterAlias("yaml-catalog", "yaml") // yaml never registered
 
-	_, err := reg.NewReader("jsx")
+	_, err := reg.NewReader("yaml-catalog")
 	require.Error(t, err)
 }

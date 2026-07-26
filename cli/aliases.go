@@ -187,9 +187,12 @@ var (
 	ResetMCPToolFactoriesForTest = host.ResetMCPToolFactoriesForTest
 	ResolveDir                   = host.ResolveDir
 	ResolveProjectPath           = host.ResolveProjectPath
-	CheckRetiredBundlePath       = host.CheckRetiredBundlePath
-	ResolveMemoryFileFormat      = host.ResolveMemoryFileFormat
-	ResolveTermsFileFormat       = host.ResolveTermsFileFormat
+	MemoryFileFormats            = host.MemoryFileFormats
+	ResolveMemoryExportFormat    = host.ResolveMemoryExportFormat
+	ResolveMemoryImportFormat    = host.ResolveMemoryImportFormat
+	ResolveTermsExportFormat     = host.ResolveTermsExportFormat
+	ResolveTermsImportFormat     = host.ResolveTermsImportFormat
+	TermsFileFormats             = host.TermsFileFormats
 	RmPattern                    = host.RmPattern
 	RuleRewrite                  = host.RuleRewrite
 	RunBlockTool                 = host.RunBlockTool

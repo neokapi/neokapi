@@ -70,35 +70,52 @@ func (a *App) resolveProjectMemoryPath(cmd Command) (string, error) {
 	return filepath.Join(root, project.StateDirName, "tm.db"), nil
 }
 
-// CheckRetiredBundlePath rejects a path carrying an extension this project
-// retired, explaining the replacement instead of letting the file fall through.
+// MemoryFileFormats names the content-memory file formats, in the order they
+// are offered to a user who has to pick one.
+var MemoryFileFormats = []string{"bundle", "tmx"}
+
+// ResolveMemoryImportFormat maps the --format flag (or, for "auto", the file
+// extension) to the format `kapi memory import` should read path as.
 //
-// Without it a stale file is not merely unread, it is misread: `.kmb` is not a
-// registered extension any more, so the memory importer's TMX fallback claims
-// it and reports "Imported 0 entries" — a silent no-op that looks like an empty
-// content memory. The terms importer's CSV fallback is worse: it reports a
-// column-parse error from deep inside a CSV reader. A hard rename is only
-// defensible if the dead end names the convention that replaced it.
-func CheckRetiredBundlePath(path string) error {
-	if hint := format.RetiredExtHint(path); hint != "" {
-		return fmt.Errorf("%s: %s", filepath.Base(path), hint)
+// "auto" identifies the file; it never guesses. An extension it does not
+// recognise is an error, because reading an unidentified file as TMX yields
+// "Imported 0 entries" — success-shaped output for a file the importer could
+// not read at all.
+func ResolveMemoryImportFormat(flag, path string) (string, error) {
+	if name := strings.ToLower(flag); name != "" && name != "auto" {
+		return name, nil
 	}
-	return nil
+	switch {
+	case kmb.IsBundlePath(path):
+		return "bundle", nil
+	case isTMXPath(path):
+		return "tmx", nil
+	}
+	return "", fmt.Errorf(
+		"cannot identify %s: %q is not a content-memory extension (expected %s, .tmx or .tmx.gz); pass --format (%s) to say what it is",
+		filepath.Base(path), format.Ext(path), kmb.Ext, strings.Join(MemoryFileFormats, ", "))
 }
 
-// ResolveMemoryFileFormat maps the --format flag (or, for "auto", the file
-// extension) to a content-memory file format name. Anything that is not a
-// native bundle is treated as TMX, matching the historical default.
-func ResolveMemoryFileFormat(flag, path string) string {
-	switch strings.ToLower(flag) {
-	case "", "auto":
-		if kmb.IsBundlePath(path) {
-			return "bundle"
-		}
-		return "tmx"
-	default:
-		return strings.ToLower(flag)
+// ResolveMemoryExportFormat maps the --format flag (or, for "auto", the -o
+// extension) to the format `kapi memory export` should write.
+//
+// Unlike import, "auto" may fall back to a default: an output path says what
+// the caller wants written, not what an unread file already is, and stdout
+// carries no extension at all. TMX is that default.
+func ResolveMemoryExportFormat(flag, path string) string {
+	if name := strings.ToLower(flag); name != "" && name != "auto" {
+		return name
 	}
+	if kmb.IsBundlePath(path) {
+		return "bundle"
+	}
+	return "tmx"
+}
+
+// isTMXPath reports whether path names a TMX file, plain or gzipped.
+func isTMXPath(path string) bool {
+	lower := strings.ToLower(path)
+	return strings.HasSuffix(lower, ".tmx") || strings.HasSuffix(lower, ".tmx.gz")
 }
 
 // ImportKMBFile imports a native .memory.json document. Entries keep their

@@ -25,7 +25,7 @@ import (
 // formats (stubs / internal helpers) and are exempt from the rubric.
 var nonFormats = map[string]bool{
 	"exec":       true, // command-exec pseudo reader
-	"jsx":        true, // kbf-rename alias stub
+	"jsx":        true, // Kapi Bundle Format — kapi's own serialization, not a document format
 	"memorytest": true, // in-memory test helper
 }
 

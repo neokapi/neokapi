@@ -1,7 +1,6 @@
 package format_test
 
 import (
-	"errors"
 	"path/filepath"
 	"testing"
 
@@ -105,62 +104,4 @@ func TestTrimExtAndStem(t *testing.T) {
 func TestStemDropsWholeCompoundSuffix(t *testing.T) {
 	assert.Equal(t, "en-US", format.Stem("i18n/en-US.kbf.json"))
 	assert.NotContains(t, format.Stem("i18n/en-US.kbf.json"), ".kbf")
-}
-
-// TestRetiredExtHintNamesReplacementAndCommand is the self-explaining-failure
-// contract: a hard rename is only defensible if the dead end says what to do.
-func TestRetiredExtHintNamesReplacementAndCommand(t *testing.T) {
-	tests := []struct {
-		path        string
-		wantsSubstr []string
-	}{
-		{"seeds/cli-nb.kmb", []string{".kmb", ".memory.json", "kapi memory export"}},
-		{"seeds/terms.ktb", []string{".ktb", ".terms.json", "kapi terms export"}},
-		{"i18n/en.kbf", []string{".kbf", ".kbf.json", "kapi extract"}},
-		{"old/catalog.klf", []string{".klf", ".kbf.json", "kapi extract"}},
-		{"old/tm.klftm", []string{".klftm", ".memory.json"}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.path, func(t *testing.T) {
-			hint := format.RetiredExtHint(tt.path)
-			require.NotEmpty(t, hint, "a retired extension must explain itself")
-			for _, want := range tt.wantsSubstr {
-				assert.Contains(t, hint, want)
-			}
-		})
-	}
-}
-
-// TestWithdrawnArchiveHintDoesNotPromiseARename separates the two kinds of
-// retirement: .kmz/.ktz were removed outright, so the message must not read as
-// if the file merely needs renaming.
-func TestWithdrawnArchiveHintDoesNotPromiseARename(t *testing.T) {
-	for _, path := range []string{"snap/tm.kmz", "snap/terms.ktz"} {
-		hint := format.RetiredExtHint(path)
-		require.NotEmpty(t, hint)
-		assert.Contains(t, hint, "withdrawn")
-		assert.NotContains(t, hint, "was renamed to")
-	}
-}
-
-func TestRetiredExtHintSilentOnLiveExtensions(t *testing.T) {
-	for _, path := range []string{
-		"i18n/en.kbf.json", "archive.kpz", "l10n/tm/cli-nb.memory.json",
-		"l10n/terms.json", "doc.xliff", "notes.md", "noext",
-	} {
-		assert.Empty(t, format.RetiredExtHint(path), "%s is a live path", path)
-	}
-}
-
-func TestErrorWithRetiredExtHint(t *testing.T) {
-	base := errors.New("unknown format")
-
-	wrapped := format.ErrorWithRetiredExtHint(base, "seeds/cli-nb.kmb")
-	require.Error(t, wrapped)
-	require.ErrorIs(t, wrapped, base, "the original error must stay inspectable")
-	assert.Contains(t, wrapped.Error(), ".memory.json")
-
-	assert.Equal(t, base, format.ErrorWithRetiredExtHint(base, "seeds/cli-nb.memory.json"),
-		"a live path must not be decorated")
-	assert.NoError(t, format.ErrorWithRetiredExtHint(nil, "seeds/cli-nb.kmb"))
 }

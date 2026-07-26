@@ -88,11 +88,6 @@ const (
 	// SchemaVersion is the package manifest version (MAJOR.MINOR, same
 	// forward-compatibility contract as core/kbf).
 	SchemaVersion = "1.0"
-	// Kind is the legacy magic string on the package manifest. It is the
-	// back-compat alias for KindProject (a whole-project snapshot) — older
-	// packages wrote this value and must still load.
-	Kind = "kapi-localization-package"
-
 	// KindProject marks a whole-project snapshot .kpz (the pack/unpack
 	// profile, AD-025 §7): all locales, the full recipe, content memory, terms,
 	// overlays, and source identity + skeletons. The default Kind.
@@ -596,13 +591,11 @@ func Unmarshal(data []byte) (*Package, error) {
 	if err := json.Unmarshal(manifestData, &manifest); err != nil {
 		return nil, fmt.Errorf("kpz: decode manifest: %w", err)
 	}
-	// Accept the project profile (KindProject), its legacy alias (Kind), and
-	// the interchange profile (KindInterchange); reject any other kind.
+	// Accept the project profile (KindProject) and the interchange profile
+	// (KindInterchange); reject any other kind.
 	kind := manifest.Kind
 	switch kind {
-	case Kind, KindProject:
-		kind = KindProject
-	case KindInterchange:
+	case KindProject, KindInterchange:
 		// keep
 	default:
 		return nil, fmt.Errorf("kpz: unknown kind %q (want %q or %q)", manifest.Kind, KindProject, KindInterchange)

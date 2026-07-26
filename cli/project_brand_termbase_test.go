@@ -162,7 +162,7 @@ func seedProjectTerms(t *testing.T, root string) {
 }
 
 // TestResolveProjectGlossary_FromConventionTerms asserts that with no
-// --terms flag and no defaults.termbase, the convention
+// --termstore flag and no defaults.termbase, the convention
 // <root>/.kapi/termbase.db is used to build the project glossary.
 func TestResolveProjectGlossary_FromConventionTerms(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
@@ -175,7 +175,7 @@ defaults:
 	t.Chdir(root)
 
 	a := &App{SourceLang: "en"}
-	// A command without a --terms flag still resolves the project terms.
+	// A command without a --termstore flag still resolves the project terms.
 	cmd := newBrandCheckCmd(a)
 
 	glossary, err := a.ResolveProjectGlossary(cmd, "fr")
@@ -216,6 +216,56 @@ defaults:
 	require.NoError(t, err)
 	require.Len(t, glossary, 1)
 	assert.Equal(t, "Cancel", glossary[0].Source)
+	assert.Equal(t, "Annuler", glossary[0].Target)
+}
+
+// TestTermstoreFlagIsRegisteredAndRead is the wiring guard for --termstore.
+//
+// The flag is registered on several surfaces and read back by string name, so
+// a rename that misses one site does not fail to compile. It reads empty, the
+// resolver silently falls back to the project store, and the user's explicit
+// choice is ignored with no diagnostic at all. Both halves are asserted here:
+// the real command surface registers the flag, and the resolver honours it over
+// the project binding.
+func TestTermstoreFlagIsRegisteredAndRead(t *testing.T) {
+	root := writeProjectRecipe(t, `version: v1
+name: proj
+defaults:
+  source_language: en
+  target_languages: [fr]
+`)
+	seedProjectTerms(t, root) // the project store: Save → Enregistrer
+
+	// A different store, selected explicitly.
+	named := filepath.Join(t.TempDir(), "named.db")
+	tb, err := terms.NewSQLiteStore(named)
+	require.NoError(t, err)
+	require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{
+		ID: "c1",
+		Terms: []terms.Term{
+			{Text: "Cancel", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+			{Text: "Annuler", Locale: model.LocaleFrench, Status: model.TermPreferred},
+		},
+	}))
+	require.NoError(t, tb.Close())
+	t.Chdir(root)
+
+	// A tool that requires a terms store gets the flag from its Requires
+	// metadata — the real `kapi exec term-check` surface.
+	termCheck := execChildren(t, newTestApp())["term-check"]
+	require.NotNil(t, termCheck, "expected `exec term-check`")
+	require.NotNil(t, termCheck.Flags().Lookup("termstore"),
+		"`exec term-check` selects a terms store, so --termstore must be registered")
+	require.Nil(t, termCheck.Flags().Lookup("termbase"),
+		"the flag is --termstore; the old spelling must not linger")
+	require.NoError(t, termCheck.Flags().Set("termstore", named))
+
+	a := &App{SourceLang: "en"}
+	glossary, err := a.ResolveProjectGlossary(termCheck, "fr")
+	require.NoError(t, err)
+	require.Len(t, glossary, 1)
+	assert.Equal(t, "Cancel", glossary[0].Source,
+		"--termstore must select the named store, not fall back to the project's")
 	assert.Equal(t, "Annuler", glossary[0].Target)
 }
 

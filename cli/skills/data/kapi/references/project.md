@@ -44,7 +44,7 @@ defaults:
   `brand rewrite`, and `brand guide` then resolve it with no flag.
 - **Terms** — import terms into the project terms store
   (`kapi terms import terms.csv -s en -t fr`); `kapi exec term-check <file>` and
-  the translation flow then enforce it with no `--termbase` flag.
+  the translation flow then enforce it with no `--termstore` flag.
 - **Locales + content** — `kapi run <flow>`, `kapi extract`, and `kapi merge`
   apply the project's locales and content globs without `-i` / `--target-lang`.
 

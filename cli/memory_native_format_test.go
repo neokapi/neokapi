@@ -15,33 +15,102 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestResolveMemoryFileFormat(t *testing.T) {
-	assert.Equal(t, "bundle", ResolveMemoryFileFormat("auto", "seeds/builtins-nb.memory.json"))
-	assert.Equal(t, "bundle", ResolveMemoryFileFormat("auto", "memory.json"), "the conventional bare name is a bundle")
-	assert.Equal(t, "bundle", ResolveMemoryFileFormat("auto", ".kapi/memory.json"))
-	assert.Equal(t, "tmx", ResolveMemoryFileFormat("auto", "corpus.tmx"))
-	assert.Equal(t, "tmx", ResolveMemoryFileFormat("auto", "corpus.tmx.gz"))
-	assert.Equal(t, "tmx", ResolveMemoryFileFormat("", ""))
-	// A plain .json file is not a bundle: the compound suffix is what identifies one.
-	assert.Equal(t, "tmx", ResolveMemoryFileFormat("auto", "messages.json"))
-	assert.Equal(t, "bundle", ResolveMemoryFileFormat("bundle", "anything.xml"))
-	assert.Equal(t, "tmx", ResolveMemoryFileFormat("TMX", "x.memory.json"))
+// TestResolveMemoryImportFormat pins the identify-or-fail contract: `auto`
+// names the format only when the extension actually says what the file is.
+// Guessing is what makes an unreadable file report "Imported 0 entries".
+func TestResolveMemoryImportFormat(t *testing.T) {
+	for _, tt := range []struct {
+		flag, path, want string
+	}{
+		{"auto", "seeds/builtins-nb.memory.json", "bundle"},
+		{"auto", "memory.json", "bundle"}, // the conventional bare name
+		{"auto", ".kapi/memory.json", "bundle"},
+		{"auto", "corpus.tmx", "tmx"},
+		{"auto", "corpus.tmx.gz", "tmx"},
+		{"auto", "CORPUS.TMX", "tmx"},
+		// An explicit --format always wins, extension notwithstanding.
+		{"bundle", "anything.xml", "bundle"},
+		{"TMX", "x.memory.json", "tmx"},
+	} {
+		got, err := ResolveMemoryImportFormat(tt.flag, tt.path)
+		require.NoError(t, err, "%s + %s", tt.flag, tt.path)
+		assert.Equal(t, tt.want, got)
+	}
+
+	// An extension that says nothing is an error, not a guess. A plain .json
+	// is one: the compound suffix is what identifies a bundle.
+	for _, path := range []string{"messages.json", "notes.txt", "archive.zip"} {
+		_, err := ResolveMemoryImportFormat("auto", path)
+		require.Error(t, err, "%s must not be guessed at", path)
+		assert.Contains(t, err.Error(), filepath.Base(path), "the error must name the file")
+		assert.Contains(t, err.Error(), ".memory.json", "the error must name what is supported")
+		assert.Contains(t, err.Error(), "--format", "the error must name the way out")
+	}
 }
 
-func TestResolveTermsFileFormat(t *testing.T) {
-	// Not explicit: a native bundle path wins over the caller's default.
-	assert.Equal(t, "bundle", ResolveTermsFileFormat("csv", "seeds/glossary.terms.json", false))
-	assert.Equal(t, "bundle", ResolveTermsFileFormat("csv", "terms.json", false), "the conventional bare name is a bundle")
-	assert.Equal(t, "bundle", ResolveTermsFileFormat("csv", ".kapi/terms.json", false))
-	assert.Equal(t, "csv", ResolveTermsFileFormat("csv", "glossary.csv", false))
-	assert.Equal(t, "json", ResolveTermsFileFormat("json", "", false))
-	// A plain .json file keeps the caller's default: `kapi terms export
-	// --format json` is a different, lossy serialization and must not be
-	// captured by the native bundle tier.
-	assert.Equal(t, "csv", ResolveTermsFileFormat("csv", "vocab.json", false))
+// TestResolveMemoryExportFormat pins the other direction: an output path
+// expresses intent rather than identity, so `auto` may fall back to the
+// interchange default — stdout has no extension at all.
+func TestResolveMemoryExportFormat(t *testing.T) {
+	assert.Equal(t, "bundle", ResolveMemoryExportFormat("auto", "seeds/builtins-nb.memory.json"))
+	assert.Equal(t, "bundle", ResolveMemoryExportFormat("auto", "memory.json"))
+	assert.Equal(t, "tmx", ResolveMemoryExportFormat("auto", "corpus.tmx"))
+	assert.Equal(t, "tmx", ResolveMemoryExportFormat("", ""), "stdout takes the default")
+	assert.Equal(t, "tmx", ResolveMemoryExportFormat("auto", "messages.json"))
+	assert.Equal(t, "bundle", ResolveMemoryExportFormat("bundle", "anything.xml"))
+	assert.Equal(t, "tmx", ResolveMemoryExportFormat("TMX", "x.memory.json"))
+}
+
+// TestResolveTermsImportFormat is the terms half of the identify-or-fail
+// contract. Guessing bites harder here than on the memory side: the CSV reader
+// skips rows it cannot use rather than failing, so an unidentified file imports
+// as zero concepts and exits 0.
+func TestResolveTermsImportFormat(t *testing.T) {
+	for _, tt := range []struct {
+		flag, path, want string
+	}{
+		{"auto", "seeds/glossary.terms.json", "bundle"},
+		{"auto", "terms.json", "bundle"}, // the conventional bare name
+		{"auto", ".kapi/terms.json", "bundle"},
+		{"auto", "glossary.csv", "csv"},
+		{"auto", "glossary.tsv", "tsv"},
+		{"auto", "vocab.json", "json"},
+		{"auto", "terms.tbx", "tbx"},
+		{"auto", "TERMS.TBX", "tbx"},
+		// An explicit --format always wins, even over a native bundle path.
+		{"tbx", "seeds/glossary.terms.json", "tbx"},
+		{"CSV", "out.terms.json", "csv"},
+	} {
+		got, err := ResolveTermsImportFormat(tt.flag, tt.path)
+		require.NoError(t, err, "%s + %s", tt.flag, tt.path)
+		assert.Equal(t, tt.want, got)
+	}
+
+	for _, path := range []string{"notes.txt", "archive.zip", "noext"} {
+		_, err := ResolveTermsImportFormat("auto", path)
+		require.Error(t, err, "%s must not be guessed at", path)
+		assert.Contains(t, err.Error(), filepath.Base(path), "the error must name the file")
+		assert.Contains(t, err.Error(), ".terms.json", "the error must name what is supported")
+		assert.Contains(t, err.Error(), "--format", "the error must name the way out")
+	}
+}
+
+// TestResolveTermsExportFormat pins the export direction: the caller's
+// --format is the default, and a native bundle path overrides it so
+// `kapi terms export -o seeds/terms.json` writes the lossless bundle rather
+// than the lossy JSON interchange doc.
+func TestResolveTermsExportFormat(t *testing.T) {
+	assert.Equal(t, "bundle", ResolveTermsExportFormat("json", "seeds/glossary.terms.json", false))
+	assert.Equal(t, "bundle", ResolveTermsExportFormat("json", "terms.json", false), "the conventional bare name is a bundle")
+	assert.Equal(t, "bundle", ResolveTermsExportFormat("json", ".kapi/terms.json", false))
+	assert.Equal(t, "csv", ResolveTermsExportFormat("csv", "glossary.csv", false))
+	assert.Equal(t, "json", ResolveTermsExportFormat("json", "", false), "stdout takes the default")
+	// A plain .json path is not a bundle: the compound suffix is what
+	// identifies one, and `--format json` is a different, lossy serialization.
+	assert.Equal(t, "json", ResolveTermsExportFormat("json", "vocab.json", false))
 	// Explicit --format always wins, even over a native bundle path.
-	assert.Equal(t, "tbx", ResolveTermsFileFormat("tbx", "seeds/glossary.terms.json", true))
-	assert.Equal(t, "csv", ResolveTermsFileFormat("CSV", "out.terms.json", true))
+	assert.Equal(t, "tbx", ResolveTermsExportFormat("tbx", "seeds/glossary.terms.json", true))
+	assert.Equal(t, "csv", ResolveTermsExportFormat("CSV", "out.terms.json", true))
 }
 
 // runMemoryExport drives the real `kapi memory export` RunE against the given db.
@@ -164,50 +233,36 @@ func TestTermsKTBRoundTrip(t *testing.T) {
 	assert.Equal(t, "flyt", nbTerm.Text)
 }
 
-// TestRetiredBundlePathIsRejectedWithGuidance is the self-explaining-failure
-// contract at the command surface.
+// TestUnidentifiedImportFailsRatherThanReportingSuccess is the honest-failure
+// contract at the command surface, and it matters more than it looks.
 //
-// It matters more than it looks. Neither importer *fails* on a retired
-// extension without the guard: `.kmb` is no longer registered, so the memory
-// importer's TMX fallback claims the file and reports "Imported 0 entries" — a
-// silent no-op indistinguishable from an empty content memory — while the terms
-// importer's CSV fallback reports a column-parse error from inside a CSV reader.
-// Both are worse than an error.
-func TestRetiredBundlePathIsRejectedWithGuidance(t *testing.T) {
+// Neither importer fails loudly on a file it cannot identify if it is allowed
+// to guess. Guessing TMX finds no translation units and reports "Imported 0
+// entries" — indistinguishable from an empty content memory. Guessing CSV is
+// worse: the CSV reader skips every row it cannot turn into a concept, so a zip
+// archive reports "Imported 0 concepts" and exits 0. Both are success-shaped
+// output for a file that was never read.
+func TestUnidentifiedImportFailsRatherThanReportingSuccess(t *testing.T) {
 	dir := t.TempDir()
 	a := &App{Quiet: true}
 
-	tests := []struct {
-		name     string
-		file     string
-		body     string
-		newCmd   func() *cobra.Command
-		wantsAll []string
+	for _, tt := range []struct {
+		name, file, body string
+		newCmd           func() *cobra.Command
 	}{
-		{
-			name:     "memory import .kmb",
-			file:     "seed.kmb",
-			body:     `{"schemaVersion":"1.0","kind":"kapi-memory","entries":[]}`,
-			newCmd:   func() *cobra.Command { return newMemoryImportCmd(a) },
-			wantsAll: []string{".kmb", ".memory.json", "kapi memory export"},
-		},
-		{
-			name:     "memory import withdrawn .kmz",
-			file:     "seed.kmz",
-			body:     "PK",
-			newCmd:   func() *cobra.Command { return newMemoryImportCmd(a) },
-			wantsAll: []string{".kmz", "withdrawn", ".memory.json"},
-		},
-		{
-			name:     "terms import .ktb",
-			file:     "glossary.ktb",
-			body:     `{"schemaVersion":"1.0","kind":"kapi-terms","concepts":[]}`,
-			newCmd:   func() *cobra.Command { return newTermsImportCmd(a) },
-			wantsAll: []string{".ktb", ".terms.json", "kapi terms export"},
-		},
-	}
-
-	for _, tt := range tests {
+		{"memory: json that is not a bundle", "seed.dat", `{"schemaVersion":"1.0","entries":[]}`,
+			func() *cobra.Command { return newMemoryImportCmd(a) }},
+		{"memory: binary", "seed.zip", "PK\x03\x04rubbish",
+			func() *cobra.Command { return newMemoryImportCmd(a) }},
+		{"memory: plain json", "messages.json", `{"hello":"world"}`,
+			func() *cobra.Command { return newMemoryImportCmd(a) }},
+		// Quote-free, comma-free prose is *valid* CSV — one column per row —
+		// so nothing downstream can catch it. Only refusing to guess does.
+		{"terms: prose", "glossary.dat", "hello world\nsecond line\n",
+			func() *cobra.Command { return newTermsImportCmd(a) }},
+		{"terms: binary", "glossary.zip", "PK\x03\x04rubbish",
+			func() *cobra.Command { return newTermsImportCmd(a) }},
+	} {
 		t.Run(tt.name, func(t *testing.T) {
 			path := filepath.Join(dir, tt.file)
 			require.NoError(t, os.WriteFile(path, []byte(tt.body), 0o644))
@@ -218,21 +273,27 @@ func TestRetiredBundlePathIsRejectedWithGuidance(t *testing.T) {
 			cmd.SetContext(t.Context())
 
 			err := cmd.RunE(cmd, []string{path})
-			require.Error(t, err, "a retired extension must be rejected, not silently mis-parsed")
-			for _, want := range tt.wantsAll {
-				assert.Contains(t, err.Error(), want)
-			}
+			require.Error(t, err, "an unidentified file must fail, not import zero rows")
+			assert.Contains(t, err.Error(), tt.file, "the error must name the file")
+			assert.Contains(t, err.Error(), "--format", "the error must name the way out")
 		})
 	}
 }
 
-// TestLiveBundlePathIsNotRejected pins the other half: the guard must reject
-// only retired spellings, never the conventions that replaced them.
-func TestLiveBundlePathIsNotRejected(t *testing.T) {
+// TestIdentifiableImportIsNotRejected pins the other half: every extension the
+// commands do understand must still import with no --format at all.
+func TestIdentifiableImportIsNotRejected(t *testing.T) {
 	for _, path := range []string{
-		"seeds/cli-nb.memory.json", "memory.json", ".kapi/terms.json",
-		"seeds/glossary.terms.json", "corpus.tmx", "glossary.csv", "app.kbf.json",
+		"seeds/cli-nb.memory.json", "memory.json", ".kapi/memory.json", "corpus.tmx", "corpus.tmx.gz",
 	} {
-		assert.NoError(t, CheckRetiredBundlePath(path), "%s is a live path", path)
+		_, err := ResolveMemoryImportFormat("auto", path)
+		require.NoError(t, err, "%s names a format the memory importer reads", path)
+	}
+	for _, path := range []string{
+		"seeds/glossary.terms.json", "terms.json", ".kapi/terms.json",
+		"glossary.csv", "glossary.tsv", "vocab.json", "terms.tbx",
+	} {
+		_, err := ResolveTermsImportFormat("auto", path)
+		require.NoError(t, err, "%s names a format the terms importer reads", path)
 	}
 }

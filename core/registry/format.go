@@ -535,8 +535,7 @@ func (r *FormatRegistry) detectByExtension(ext string, allowedSources []string, 
 	if bestName != "" {
 		return bestName, nil
 	}
-	return "", format.ErrorWithRetiredExtHint(
-		fmt.Errorf("no format found for extension %q with allowed sources", ext), ext)
+	return "", fmt.Errorf("no format found for extension %q with allowed sources", ext)
 }
 
 // detectByExtensionAny is the unrestricted extension lookup: it asks the
@@ -550,8 +549,7 @@ func (r *FormatRegistry) detectByExtensionAny(ext string) (FormatID, error) {
 		name, err := r.detector.DetectByExtension(ext)
 		return FormatID(name), err
 	}
-	return "", format.ErrorWithRetiredExtHint(
-		fmt.Errorf("no format found for extension %q", ext), ext)
+	return "", fmt.Errorf("no format found for extension %q", ext)
 }
 
 // detectFile detects a format for a file by extension AND, when that extension

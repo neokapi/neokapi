@@ -65,7 +65,7 @@ Three things are **not** ours to rename, and must stay factual:
   it. Say so; accurate provenance is not something to sanitize. The Okapi
   terminology mapping (Filter → DataFormat, Step → Tool, …) stays as recorded.
 - **Retained identifiers.** Recipe keys (`tm:`, `tm_source:`, `termbase:`,
-  `termbase_source:`, `noTM`), the `--termbase` flag, on-disk paths (`tm.db`,
+  `termbase_source:`, `noTM`), on-disk paths (`tm.db`,
   `termbase.db`, `l10n/`, `~/.config/kapi/termbases/`), `l10n-*` make targets,
   HTTP routes (`/translation-memory`, `/tm-matches`), proto fields (`tm_hash`,
   `tm_entries`), migration tables (`sievepen_migrations`, `termbase_migrations`)
