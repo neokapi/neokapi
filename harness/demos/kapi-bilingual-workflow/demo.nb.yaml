@@ -4,7 +4,7 @@ subtitle: kapi emits a clean bilingual XLIFF, accepts the translated one back, a
 tagline: the engineering glue around the translator hand-off — with full content-memory provenance.
 kind: use-case
 publishAs: bilingual-workflow
-# A scripted plain-shell demo (no Claude): extract/merge/tm are deterministic, so
+# A scripted plain-shell demo (no Claude): extract/merge/memory are deterministic, so
 # the commands run for real and their output is recorded exactly. KAPI_NO_PROJECT
 # is set by the shell harness, so extract/merge take the recipe via `-p kapi.yaml`.
 terminal: shell
@@ -23,7 +23,7 @@ script:
   - comment: A React app's English strings, ready to send out for translation.
   - command: cat src/locales/en/messages.json
   - comment: "One-time: seed the project content memory from a corporate TMX."
-  - command: kapi tm import corporate.tmx --file .kapi/tm.db --all-pairs
+  - command: kapi memory import corporate.tmx --file .kapi/tm.db --all-pairs
   - comment: kapi extract — one bilingual XLIFF per target locale, pre-filled from memory.
   - command: kapi extract -p kapi.yaml
   - command: ls out/
@@ -31,8 +31,8 @@ script:
   - command: ./fake-translator.sh out/*.xliff
   - comment: kapi merge — apply the returned XLIFFs back onto the source.
   - command: kapi merge -p kapi.yaml -i out/
-  - comment: kapi tm audit — trace exactly what this merge wrote into the memory.
-  - command: kapi tm audit --file .kapi/tm.db --batch $(ls .kapi/cache/extractions | head -1) --limit 10
+  - comment: kapi memory audit — trace exactly what this merge wrote into the memory.
+  - command: kapi memory audit --file .kapi/tm.db --batch $(ls .kapi/cache/extractions | head -1) --limit 10
   - comment: The catalog is now translated — French, ready to ship.
   - command: cat src/locales/fr-FR/messages.json
 
@@ -64,7 +64,7 @@ narration:
   - id: merge
     kind: terminal
     text: >
-      Oversetteren fyller ut resten og sender filene tilbake. Merge fletter dem tilbake i kilden, tar hvert godkjente segment opp i minnet, og tm audit sporer nøyaktig hvilken retur hver oppføring kom fra.
+      Oversetteren fyller ut resten og sender filene tilbake. Merge fletter dem tilbake i kilden, tar hvert godkjente segment opp i minnet, og memory audit sporer nøyaktig hvilken retur hver oppføring kom fra.
     caption: "merge reconciles the return and absorbs it into the memory, with provenance"
   - id: fr
     kind: artifact
