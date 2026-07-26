@@ -1,5 +1,5 @@
 # Native reference doc for the built-in `recycle` tool (content-memory leverage).
-# Schema source: core/tools/tmleverage.go (MemoryLeverageConfig).
+# Schema source: core/tools/memoryleverage.go (MemoryLeverageConfig).
 description: Pre-fill translations from a content memory using exact and fuzzy matching.
 overview: |
   The **Recycle** tool queries a content memory (Memory) for each block's

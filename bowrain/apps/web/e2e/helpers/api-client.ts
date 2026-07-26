@@ -289,7 +289,7 @@ export async function seedMemoryEntries(
   wsSlug: string,
   entriesPath?: string,
 ): Promise<number> {
-  const filePath = entriesPath || path.resolve(__dirname, "../seed/tm-entries.json");
+  const filePath = entriesPath || path.resolve(__dirname, "../seed/memory-entries.json");
   const entries: Entry[] = JSON.parse(fs.readFileSync(filePath, "utf-8"));
   for (const entry of entries) {
     await apiPost(`/${wsSlug}/translation-memory`, token, entry);

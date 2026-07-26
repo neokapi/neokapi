@@ -89,7 +89,7 @@ func Scaffold(name, targetDir string) error {
 var v2Targets = []model.LocaleID{"de", "fr", "ja", "nb", "ar"}
 
 func seedTMv2(dbPath string) error {
-	tmxData, err := assetsFS.ReadFile("kapimart/tm-seed.tmx")
+	tmxData, err := assetsFS.ReadFile("kapimart/memory-seed.tmx")
 	if err != nil {
 		return fmt.Errorf("read TMX: %w", err)
 	}
@@ -103,7 +103,7 @@ func seedTMv2(dbPath string) error {
 	// creates one multilingual entry per TU with every variant populated.
 	if _, _, err := memory.ImportTMXSession(context.Background(), tm, bytes.NewReader(tmxData),
 		memory.ImportTMXOptions{
-			OriginKey:     "tm-seed.tmx",
+			OriginKey:     "memory-seed.tmx",
 			OriginAddedBy: "kapi-sample",
 		}); err != nil {
 		return fmt.Errorf("import TMX: %w", err)

@@ -33,7 +33,7 @@ option go_package = "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1;syncv
 message SyncPushInit {
   string project_id = 1;
   string stream = 2;
-  repeated string content_types = 3;  // "blocks", "terms", "tm", "media"
+  repeated string content_types = 3;  // "blocks", "terms", "memory", "media"
 
   // Merkle tree: item-level hashes (item_name → hash of block hashes).
   map<string, string> item_hashes = 4;
@@ -43,7 +43,7 @@ message SyncPushInit {
 
   // Collection-level hashes for non-block content.
   string terms_hash = 6;
-  string tm_hash = 7;
+  string memory_hash = 7;
 }
 
 message SyncPushInitResponse {
@@ -61,7 +61,7 @@ message SyncPushInitResponse {
 
   // Whether terms/content memory need re-syncing.
   bool terms_changed = 6;
-  bool tm_changed = 7;
+  bool memory_changed = 7;
 
   int32 unchanged_item_count = 8;
 }
@@ -136,7 +136,7 @@ message SyncChunk {
   // Exactly one of these is populated (determined by content_type).
   repeated SyncBlock blocks = 10;
   repeated SyncTerm terms = 11;
-  repeated SyncTMEntry tm_entries = 12;
+  repeated SyncMemoryEntry memory_entries = 12;
   repeated SyncMedia media = 13;
   // Future: repeated SyncQAResult qa_results = 14;
   // Future: repeated SyncActivity activities = 15;
@@ -233,17 +233,18 @@ message SyncTermTranslation {
   string status = 3;
 }
 
-// SyncTMEntry carries a content memory entry.
+// SyncMemoryEntry carries a content memory entry.
 //
-// The message name keeps its historical `TM` spelling deliberately. Message and
-// field names are wire schema: the name is serialized into the descriptor and
-// into every protojson payload's type URL, and kapi clients sync against
-// independently deployed servers, so the two sides are never upgraded in
-// lockstep. Renaming it to match the "content memory" vocabulary would be a
-// breaking protocol change, not a cosmetic one. Prose says "content memory";
-// the wire keeps `TM`. Same for the `tm_entries`, `tm_hash`, and `tm_changed`
-// field names below.
-message SyncTMEntry {
+// This message and the `memory_entries` / `memory_hash` / `memory_changed`
+// fields were renamed from their historical `TM` spelling. Message and field
+// names are wire schema — serialized into the descriptor and into every
+// protojson payload — so this was a breaking protocol change, taken
+// deliberately while the sync protocol is pre-production. It was safe to take
+// because the content-memory sync path is declared but not yet implemented:
+// no producer populates these fields, and the server rejects the "memory"
+// content type as unsupported (see jobs/worker_sync.go). Renaming now, before
+// anything serializes them, avoids carrying the old vocabulary forever.
+message SyncMemoryEntry {
   string id = 1;
   string source_locale = 2;
   string target_locale = 3;
@@ -311,6 +312,6 @@ message SyncPullResponse {
   // Mixed content types in a single response.
   repeated SyncBlock blocks = 10;
   repeated SyncTerm terms = 11;
-  repeated SyncTMEntry tm_entries = 12;
+  repeated SyncMemoryEntry memory_entries = 12;
   repeated SyncMedia media = 13;
 }

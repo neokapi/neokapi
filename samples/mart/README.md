@@ -49,7 +49,7 @@ samples/mart/
 ├── brand/
 │   ├── forbidden-terms.txt   # one term per line, for a brand check
 │   └── README.md             # forbidden→preferred substitutions, naming rules
-└── tm.tmx               # TMX 1.4, en→fr, with exact and fuzzy matches
+└── memory.tmx           # TMX 1.4, en→fr, with exact and fuzzy matches
 ```
 
 Two source formats exercise the engine's round-trip: `src/en.json` for
