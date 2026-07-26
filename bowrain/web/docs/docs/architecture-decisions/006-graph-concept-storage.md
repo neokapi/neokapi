@@ -14,9 +14,7 @@ server backend: plain-SQL adjacency tables on standard PostgreSQL
 (`SQLGraphStore`). The graph is optional and derived — a `GraphSyncer`
 rebuilds it from relational events — and no consumer issues raw Cypher, so
 the backend runs on stock PostgreSQL with no extension. Edges carry
-temporal validity and tag-based scoping. (An opt-in Apache AGE backend
-existed historically and was removed; see
-[History](#history-the-apache-age-backend).)
+temporal validity and tag-based scoping.
 
 ## Context
 
@@ -190,18 +188,10 @@ A contract suite (`bowrain/graph/parity_test.go`) pins the operations
 bowrain uses against a real PostgreSQL testcontainer. See
 `bowrain/graph/NOTES.md` for behavior notes.
 
-### History: the Apache AGE backend
-
-An opt-in backend on PostgreSQL's Apache AGE extension (`AGEGraphStore`,
-selected with `BOWRAIN_GRAPH_BACKEND=age`) existed alongside the SQL store,
-with a `CypherStore` sub-interface for native Cypher, an `agtype` result
-parser, and a `pgx` `AfterConnect` search-path hook. It was removed: AGE is
-unavailable on managed RDS/Aurora, no consumer ever issued raw Cypher, and
-carrying a second backend cost contract-suite and image maintenance with no
-production user. If a workload ever needs native graph traversal (deep
-multi-hop Cypher, path algorithms), a native graph engine is the upgrade
-path — implemented behind the same `core/graph.GraphStore` interface, whose
-`CypherQuery`/`CypherExec` escape hatch remains for such a backend to fill.
+`CypherQuery` / `CypherExec` stay on the `core/graph.GraphStore` interface as
+the escape hatch for a workload that ever needs native graph traversal — deep
+multi-hop Cypher, path algorithms. Such a workload is served by adding a native
+graph engine behind the same interface, not by extending the SQL backend.
 
 ### SQLite reference (framework)
 

@@ -20,9 +20,8 @@ sees every event), which is what the SSE/gRPC relays need.
 Redis carries the bus because it is already a platform dependency
 (sessions, the sync-hash cache, agent pub/sub) and is managed on AWS as
 ElastiCache — the event bus needs no separate broker, so the compute node
-holds no queue state. (Historical backends on Azure Service Bus and NATS
-JetStream were removed with the managed-services redesign and the
-follow-up backend cut; see [History](#history-removed-backends).)
+holds no queue state. Self-hosted stacks run the same pair the cloud does: one
+broker story everywhere, one fewer container to operate.
 
 ## Context
 
@@ -155,18 +154,6 @@ lease table, no IsLeader gating, no polling to discover work.
 `ChannelEventBus` remains available for unit tests that exercise the
 event flow without external infrastructure. Integration tests against
 real behavior use Redis via Docker Compose.
-
-### History: removed backends
-
-Two further backends existed and were removed. `ServiceBusEventBus`
-(Azure Service Bus, a topic with one subscription per consumer) went with
-the Azure-to-AWS managed-services redesign. `NATSEventBus` (NATS
-JetStream, one durable consumer per component on an `EVENTS.>` stream)
-served self-hosted stacks until the backend cut consolidated self-hosting
-onto the same SQS-compatible queue + Redis Streams pair the cloud uses —
-one broker story everywhere, one fewer container to operate. Both
-implementations live in git history behind the unchanged `EventBus`
-interface.
 
 ## Consequences
 

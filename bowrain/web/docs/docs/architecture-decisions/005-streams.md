@@ -304,7 +304,7 @@ kapi status
 - Stream merging follows the same content-addressed diff model as version
   comparison.
 - Archived streams are soft-deleted: their content remains for reference
-  but they no longer accept pushes or appear in listings by default.
+  but they do not accept pushes or appear in listings by default.
 
 ## Related
 

@@ -235,9 +235,9 @@ notifications, SSE, desktop watch):
 
 ## REST API
 
-Workspace-scoped, AD-011 conventions. `/:ws/concepts` is the terminology API:
-it replaces the former `/:ws/terms` routes, and every consumer (web, desktop,
-Pulse, MCP) uses it. There is no whole-graph endpoint: relations are read one
+Workspace-scoped, AD-011 conventions. `/:ws/concepts` is the terminology API,
+and every consumer (web, desktop, Pulse, MCP) uses it. There is no whole-graph
+endpoint: relations are read one
 concept at a time through `GET /:ws/concepts/:cid/relations` (the concept and
 its direct, 1-hop edges), which is what the per-concept dashboard's relations
 widget consumes.

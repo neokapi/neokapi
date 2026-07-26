@@ -21,8 +21,8 @@ assignment queue.
 The server executes the **same** convergence engine the CLI runs locally
 (`core/convergence`), driven by server-backed dependencies — the block store, the
 translation job queue as its produce step, and the server's checks and gates.
-There is no second, parallel translation pipeline: the reactive
-translate-on-push automations collapse into the one goal-seeking loop.
+There is no second, parallel translation pipeline: producing the missing
+targets is the one goal-seeking loop's own work.
 
 A server run is **source-first**: before it translates a single locale it
 settles the source and holds at a source ship-gate. It never AI-translates a
@@ -33,24 +33,22 @@ every language.
 
 ## Context
 
-Two things were true before this decision, and they conflicted:
+A project converges in two very different settings. On a developer's machine
+the loop re-extracts drift, recycles from content memory, calls AI providers
+with that developer's keys, runs checks, and parks the remainder. On the
+server it must do the same job against the organization's keys, its shared
+content memory and terminology, its gate policy, and its review queue — and
+report progress to everyone watching, not just the person who started it.
 
-1. `kapi up` was a purely local loop. It re-extracted drift, recycled from content memory,
-   called AI providers with the developer's keys, ran checks, and parked the
-   remainder — all on the laptop, silent until done.
-2. The server already translated content, but through a *different* machine:
-   push landed a `push.completed` event, which fired an `auto-translate-on-push`
-   automation, which enqueued per-item translation jobs. This fired once — nothing
-   re-derived coverage, re-ran checks, demoted failing units, looped to the gates,
-   or parked. And it was an implicit side effect of `push`, a transport verb.
+The temptation is to build the server side as a set of reactive rules: a push
+lands, an automation fires, translation jobs enqueue. That produces a second
+machine with none of the loop's properties — it fires once rather than seeking
+a goal, so nothing re-derives coverage, re-runs checks, demotes failing units,
+loops back to the gates, or parks. It also makes translation an implicit side
+effect of `push`, a transport verb, and leaves two code paths that do the same
+job and tell unrelated progress stories.
 
-So the platform carried two convergence loops under two names — the local `up`
-and the push-triggered server automation — that did the same job with unrelated
-code and produced unrelated progress stories. The friction surfaced as the
-retired `sync` verb (push → wait for server translation → pull): a remote
-convergence loop wearing a transport name.
-
-The resolution separates three orthogonal concerns (see
+So the three concerns are kept orthogonal (see
 [AD-010](010-bowrain-cli-and-project-model.md)): **transport** (`push`/`pull`,
 pure data movement), **convergence** (`up`, the one loop), and **venue** (where
 the loop's compute runs). This AD specifies the server venue.
@@ -127,31 +125,29 @@ venue), and engine → SSE → the `kapi-bowrain` plugin → the same CLI render
 passes view. This single decision is what lets one verb span two venues without
 the caller being able to tell them apart.
 
-### 3. Trigger policy replaces reactive automations
+### 3. Trigger policy
 
 When the server converges is an explicit per-project policy, `server.converge`
 ([AD-010](010-bowrain-cli-and-project-model.md)):
 
-- `on-push` (default for connected projects) — every push starts a run. This is
-  the old translate-on-push behavior, but running the full engine (settle source,
-  gate, checks, target gates, parking) and recorded as a run anyone can watch —
-  and, being source-first, a push over an unsettled corpus holds on source rather
-  than fanning out. `kapi push` from CI just pushes; the server converges on its
-  own clock; `kapi up` is push + *watch the run* + pull. The analogy is
-  `git push` → CI → `gh pr checks --watch`.
+- `on-push` (default for connected projects) — every push starts a run of the
+  full engine (settle source, gate, checks, target gates, parking), recorded as
+  a run anyone can watch. Being source-first, a push over an unsettled corpus
+  holds on source rather than fanning out. `kapi push` from CI just pushes; the
+  server converges on its own clock; `kapi up` is push + *watch the run* + pull.
+  The analogy is `git push` → CI → `gh pr checks --watch`.
 - `manual` — the server converges only when `kapi up` is invoked (or a run is
   started from the Runs surface).
 
-The reactive translation automations collapse into the engine. Drift detection in
-the loop subsumes `auto-translate-on-push`, `auto-extract-on-push`, and
-`auto-translate-new-locale` (they were three triggers for the same "produce the
-missing targets" work); the engine's park step subsumes the review-task fan-out.
-User-defined automations that start a run, or react to run outcomes (a
-`run-parked` notification, a webhook `run_flow`), survive as first-class triggers.
+Producing missing targets is the engine's own work, not an automation:
+drift detection in the loop decides what to produce, and the park step fans out
+review tasks. Automations are for what a workspace adds on top — starting a run,
+or reacting to a run outcome (a `run-parked` notification, a webhook
+`run_flow`).
 
 ### 4. Relation to transport and to the review queue
 
-- **Transport stays pure.** `push` no longer translates as a side effect;
+- **Transport stays pure.** `push` moves content and nothing else;
   server-side convergence is the `server.converge` policy, not a property of
   `push`. `kapi up` on a connected project is, mechanically, push (transport) →
   start/attach a run → stream → pull (transport), with `--local` inverting the

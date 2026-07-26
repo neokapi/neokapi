@@ -145,15 +145,14 @@ Features are gated by plan using a compile-time matrix in
 
 The **Enforced at** column is part of the decision, not documentation colour: a
 feature in this matrix with nothing enforcing it is a plan boundary the product
-does not actually hold. Git connectors sat in that state until epic 005 — sold as
-Pro, available on Free. Rows marked *reserved* gate a capability that does not
-exist yet; they are inert by construction (there is no route to guard), and the
-pricing surfaces must not advertise them until there is.
+does not actually hold — sold on one plan, available on every plan. Rows marked
+*reserved* gate a capability that does not exist yet; they are inert by
+construction (there is no route to guard), and the pricing surfaces must not
+advertise them until there is.
 
-A feature flag that gates nothing real does not belong here at all: the
-`custom-mt-providers` flag was removed when MT providers were dropped from the
-product, rather than left in the matrix promising a capability the code no longer
-has.
+A flag that gates nothing real does not belong here at all: when a capability
+leaves the product, its flag leaves the matrix rather than staying behind to
+promise something the code cannot deliver.
 
 The matrix is the default authorization path: zero latency, no external
 calls, deployed with the binary.
@@ -264,8 +263,7 @@ When the deadline passes, the **trial sweeper** in `bowrain-worker`
 The sweeper is the *only* thing that can end this trial, which is why it is not
 optional and not gated on Stripe: no Stripe subscription exists for a card-free
 trial, so no Stripe event will ever downgrade the workspace. A deployment that
-grants trials without running the sweeper grants Pro forever — which is precisely
-what happened before epic 005.
+grants trials without running the sweeper grants Pro forever.
 
 The downgrade updates the subscription *and* the denormalized `workspaces.plan`
 cache in one statement (`ExpireTrials`). This is deliberate: the cache is what
@@ -415,8 +413,8 @@ CREATE TABLE credit_allocations (
     -- Allocation period bounds. plan rows: the calendar month (UTC);
     -- trial/purchased rows: a fixed non-expiring sentinel (1970..9999), which
     -- collapses each non-expiring source into one row per workspace via the
-    -- UNIQUE constraint. The column names are historical (the allowance was
-    -- once weekly); renaming them is not a zero-downtime change.
+    -- UNIQUE constraint. The week_* column names bound whatever period the
+    -- row's source defines; renaming them is not a zero-downtime change.
     week_start    TIMESTAMPTZ NOT NULL,
     week_end      TIMESTAMPTZ NOT NULL,
     source        TEXT NOT NULL DEFAULT 'plan',    -- 'plan' | 'trial' | 'purchased'
