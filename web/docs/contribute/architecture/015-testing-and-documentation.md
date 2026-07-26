@@ -217,9 +217,8 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 Harness-rendered explainer videos (`harness/`) supply matched light and dark
 `.webm`s; WebM is preferred for size and quality.
 
-The kapi docs site no longer generates screenshots: `web/static/img/`
-carries only static assets (logos, favicons) plus any image set staged from
-the assets tarball.
+The kapi docs site does not generate screenshots: `web/static/img/` carries only
+static assets (logos, favicons) plus any image set staged from the assets tarball.
 
 ### Real systems, not mocks
 

@@ -33,7 +33,7 @@ rendered pixel maps back to a source string.
 Two mechanisms were considered and not taken:
 
 - **Fiber inspection.** Reading React's internal tree for debug source
-  information is no longer viable — React 19 removed `_debugSource`.
+  information is not viable: React 19 exposes no `_debugSource`.
 - **In-band markers.** Encoding the identifier into the rendered *text*
   (invisible characters, private-use code points) needs no build step,
   but the rendered string is then not the string the app computed:

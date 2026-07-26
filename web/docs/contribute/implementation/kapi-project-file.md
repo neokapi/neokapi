@@ -177,7 +177,7 @@ require it.
     collection, an item inherits the collection's `base` when it sets none.
   - Tokens: `{lang}`, `{relpath}` (rel path with extension), `{path}` (rel path
     without extension), `{dir}`, `{filename}`, `{name}` (alias `{basename}`),
-    `{ext}`; a bare `*` is legacy shorthand for `{name}`. `{lang}` is handled by
+    `{ext}`; a bare `*` is shorthand for `{name}`. `{lang}` is handled by
     `ResolvePathPattern`; the rest by `ExpandTemplate`.
   - **Directory-mirror form:** when the target (after `{lang}` expansion) ends
     with `/`, is empty, or its final segment has no extension and no

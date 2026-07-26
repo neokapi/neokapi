@@ -20,8 +20,8 @@ framework's projection helpers in `core/model`:
   `Text` runs verbatim, renders `Ph` placeholders as `\{equiv\}` and `Sub` runs
   as `[equiv]`, emits paired-code (`PcOpen`/`PcClose`) inner content but not the
   wrappers, and takes the 'other' branch of plural/select constructs (or the
-  first form if 'other' is absent). Enables matching against memories imported
-  from legacy tools, and against unanalyzed content.
+  first form if 'other' is absent). Enables matching against plain-text memories
+  imported from other tools, and against unanalyzed content.
 - **structural**: `model.RunsStructuralText(runs)` -- renders inline-code runs as
   positional placeholders: `PcOpen` as `\{1\}`, `PcClose` as `\{/1\}`, and `Ph`
   as `\{1/\}`. Enables matching with inline-code position awareness.
@@ -72,7 +72,7 @@ The `recycle` tool ([AD-006](/contribute/architecture/006-tool-system)) applies 
 
 ## Fuzzy Candidate Retrieval
 
-Tiers 4-6 (fuzzy matching) previously scanned all entries for a locale pair and computed Levenshtein distance for each -- O(n) full table scan. This was replaced with trigram-based candidate retrieval that reduces 100K entries to ~200 candidates before Levenshtein scoring.
+Tiers 4-6 (fuzzy matching) use trigram-based candidate retrieval, which reduces 100K entries to ~200 candidates before Levenshtein scoring. Scoring every entry in a locale pair instead would be an O(n) full table scan.
 
 ### Unicode NFC Normalization
 
@@ -125,4 +125,4 @@ The import/export layer maps between inline-code runs and TMX inline elements:
 | `PcOpen`  | `<bpt>`     |
 | `PcClose` | `<ept>`     |
 
-Entity metadata is carried as `<prop>` elements on the TMX `<tu>`. When importing legacy TMX files that contain only plain text (no inline codes), entries are stored as `Text`-only run sequences with no entity mappings. They participate in plain matching only.
+Entity metadata is carried as `<prop>` elements on the TMX `<tu>`. A TMX file carrying only plain text (no inline codes) imports as `Text`-only run sequences with no entity mappings; those entries participate in plain matching only.

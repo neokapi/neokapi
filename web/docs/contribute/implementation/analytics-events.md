@@ -132,11 +132,8 @@ exactly none and exactly all.
 ## Billing funnel
 
 The distinct ID for webhook-driven events is the workspace ID (the epic-007
-anonymous-to-identified join happens on the workspace group). These names are
-normalized from the earlier `billing.*` prefixed events
-(`billing.checkout_started`, `billing.checkout_completed`,
-`billing.feature_gate_hit`, `billing.credits_exhausted`); the old names are
-retired rather than dual-fired.
+anonymous-to-identified join happens on the workspace group). The names are
+unprefixed, and each event is fired under exactly one name.
 
 | Event | Fired when | Properties |
 |---|---|---|

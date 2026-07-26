@@ -111,11 +111,10 @@ Builtin MO catalogs are embedded via `//go:embed` and merged in
 `i18n.Resolve`. The convention for plugin-provided catalogs
 (`<pluginDir>/<name>/<version>/<i18nDir>/<locale>.mo`) and the loader
 helpers `i18n.PluginCatalogPath` / `i18n.LoadPluginCatalog` exist on
-`core/i18n`, but with the legacy plugin loader retired (#438 phase 9)
-nothing currently populates `ResolveOptions.PluginCatalogs` — manifest-
-driven plugin discovery in `host/pluginhost` does not yet feed catalogs
-into the Translator (see the note where the Translator is built, in
-`host/app.go`). The "Plugin bundles" and "Plugins contribute their own
+`core/i18n`, but nothing populates `ResolveOptions.PluginCatalogs`:
+manifest-driven plugin discovery in `host/pluginhost` does not yet feed
+catalogs into the Translator (see the note where the Translator is built,
+in `host/app.go`). The "Plugin bundles" and "Plugins contribute their own
 catalogs" material below describes the intended design rather than current
 behavior.
 

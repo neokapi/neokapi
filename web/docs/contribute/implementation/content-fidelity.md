@@ -8,10 +8,10 @@ keywords: [content fidelity, surfacing, non-translatable content, ExtractNonTran
 # Content-Fidelity Surfacing
 
 Tactical guide for a format author adding *content-fidelity surfacing* — making
-previously skeleton-only context (image and shape alt-text, code blocks,
-captions, formulas, do-not-translate strings, config-excluded values, comments,
-document metadata) visible to ingestion and LLM/RAG consumers while machine
-translation continues to skip it and the round-trip stays byte-exact. Parent AD:
+contextual content (image and shape alt-text, code blocks, captions, formulas,
+do-not-translate strings, config-excluded values, comments, document metadata)
+visible to ingestion and LLM/RAG consumers while machine translation skips it and
+the round-trip stays byte-exact. Parent AD:
 [AD-031: Content-Fidelity Surfacing](/contribute/architecture/031-content-fidelity-surfacing).
 For the surrounding format-system contracts see
 [AD-005: Format System](/contribute/architecture/005-format-system), the general
@@ -23,7 +23,7 @@ skeleton mechanics in
 Surfacing is a richer *default*, not a new structural type. The roles it leans
 on (`RoleCode`, `RoleFormula`, `RoleCaption`, … in `core/model/structure.go`)
 already exist; what a format adds is a reader that *uses* them to emit content
-that previously lived only in the skeleton.
+that would otherwise be carried only as skeleton bytes.
 
 ## The surfacing toggle: an inverted private field
 
@@ -174,8 +174,8 @@ Pick the closest existing role from `core/model/structure.go` —
 equations, and so on. Do not invent a role for a surfacing case; the role is the
 stable handle that semantic export, the editor, and ingestion use to recognize
 the content without treating it as MT input. MT skips it because `Translatable`
-is `false` (AD-012); RAG sees it because it is now a part in the stream rather
-than buried in the skeleton.
+is `false` (AD-012); RAG sees it because it is a part in the stream rather than
+buried in the skeleton.
 
 Equations are the richer instance of this channel: an *inline* formula surfaces
 as a placeholder run carrying its portable rendering, a *standalone* equation as

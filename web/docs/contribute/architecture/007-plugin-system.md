@@ -449,12 +449,7 @@ here.
 A minimal Go reference plugin in `examples/plugins/hello/` covers
 Mode A + B with no third-party deps.
 
-## Status
-
-Implemented and merged in #438 (phases 1-9); protocol v1 was tagged and
-the conformance suite extracted in #1073. The legacy v1 plugin runtime —
-`core/plugin/{loader,host,server,shared,registry,cache}/` plus the `kapi
-plugins` (plural) command tree — has been deleted.
+## Code layout and distribution
 
 The framework module keeps the parts a plugin author needs:
 `core/plugin/manifest` (manifest types + embedded JSON Schema),
