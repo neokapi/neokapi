@@ -16,23 +16,23 @@
     "fmt": "vp fmt"
   },
   "dependencies": {
-    "@fontsource-variable/fraunces": "^5.2.8",
+    "@fontsource-variable/fraunces": "^5.3.0",
     "@neokapi/i18n-react": "*",
-    "@fontsource-variable/inter": "^5.2.8",
-    "@fontsource-variable/jetbrains-mono": "^5.2.8",
-    "lucide-react": "^1.24.0",
-    "posthog-js": "^1.399.2",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "lucide-react": "^1.27.0",
+    "posthog-js": "^1.407.3",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.3.2",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.3",
-    "tailwindcss": "^4.3.2",
+    "@vitejs/plugin-react": "^6.0.4",
+    "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
-    "vite-plus": "^0.2.4"
+    "vite-plus": "^0.2.6"
   }
 }

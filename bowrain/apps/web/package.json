@@ -15,28 +15,28 @@
     "test:watch": "vp test watch"
   },
   "dependencies": {
-    "@fontsource-variable/dm-sans": "^5.2.8",
-    "@fontsource/dm-mono": "^5.2.7",
+    "@fontsource-variable/dm-sans": "^5.3.0",
+    "@fontsource/dm-mono": "^5.3.0",
     "@neokapi/bowrain-app": "*",
     "@neokapi/i18n-react": "*",
     "@neokapi/ui": "*",
-    "@sentry/react": "^10.66.0",
-    "@tailwindcss/vite": "^4.3.2",
-    "posthog-js": "^1.399.2",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "tailwindcss": "^4.3.2"
+    "@sentry/react": "^10.68.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "posthog-js": "^1.407.3",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.1",
+    "@playwright/test": "^1.62.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.3",
+    "@vitejs/plugin-react": "^6.0.4",
     "jsdom": "^29.1.1",
     "typescript": "^7.0.2",
-    "vite-plus": "^0.2.4"
+    "vite-plus": "^0.2.6"
   }
 }
