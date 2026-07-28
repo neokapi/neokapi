@@ -60,9 +60,10 @@ Populate every one of these in the kitchen-sink fixture
 - **Source**: a `[]Run` with **every Run kind** — Text, Ph, PcOpen, PcClose,
   Sub, Plural, Select — including `Run.Attrs` (href/src/alt/title) on Ph/PcOpen.
 - **Targets**: multiple `VariantKey`s (locale-only and locale+tone), each with
-  `Status`, `Score`, and a full `Origin` (kind, engine, tool, reference,
-  timestamp, **confidence**). Tone/channel ride the target map key's text form;
-  status/origin/score ride the wire segment's properties.
+  `Status`, `Score`, and a full `Origin` — both halves of it: how the target was
+  made (kind, engine, tool, reference, timestamp, **confidence**) and what
+  governed it (**profile**, **profile version**). Tone/channel ride the target
+  map key's text form; status/origin/score ride the wire segment's properties.
 - **Overlays**: **every OverlayType** — segmentation (incl. an ignorable span),
   term, entity, qa, alignment (variant-scoped), term-candidate — with anchors,
   props, variant, and typed span `Value`. Typed values (`*EntityAnnotation`,
@@ -95,6 +96,12 @@ The parity contract is enforced by tests, not by review vigilance:
   `model.Block`'s exported fields and fails if any is left zero in the fixture —
   so a **new Block field** trips the test until it is populated (or allow-listed
   as derived).
+- **Provenance completeness guard** (`TestOriginFixtureIsComplete`): the same
+  walk one level down, over `model.Origin`. The Block-level guard only sees
+  Block's own fields, so a new `Origin` field sits zero inside a non-zero
+  `Targets` map and slips past it — and the round-trip then passes while
+  silently dropping it. Provenance is the one record that cannot be
+  reconstructed later, so it gets its own guard.
 - **Kind tables** (`synctest.AllRunKinds`, `synctest.AllOverlayKinds`): iterated
   by the round-trip tests; a **new Run/Overlay kind** trips them until it is
   added to the table, the fixture, and the converter.

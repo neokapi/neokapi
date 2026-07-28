@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync/atomic"
 
@@ -24,18 +25,25 @@ var _ tool.SessionTool = (*AITranslateTool)(nil)
 type AITranslateTool struct {
 	tool.BaseTool
 	usageAccumulator
-	provider      aiprovider.LLMProvider
-	streaming     aiprovider.StreamingLLMProvider // nil when provider doesn't support streaming
-	sourceLocale  model.LocaleID
-	targetLocale  model.LocaleID
-	glossary      map[string]string
-	dnt           []string // do-not-translate terms; masked before the model, restored after
-	voiceGuide    string   // compact brand voice guidance injected into every prompt
-	instruction   string   // caller-supplied directive injected into every prompt
-	skipMatched   bool
-	batchSize     int
-	contextPolicy string
-	contextWindow int
+	provider     aiprovider.LLMProvider
+	streaming    aiprovider.StreamingLLMProvider // nil when provider doesn't support streaming
+	sourceLocale model.LocaleID
+	targetLocale model.LocaleID
+	glossary     map[string]string
+	dnt          []string // do-not-translate terms; masked before the model, restored after
+	voiceGuide   string   // compact brand voice guidance injected into every prompt
+	instruction  string   // caller-supplied directive injected into every prompt
+	// profileID and profileVersion identify the context profile whose guidance
+	// went into voiceGuide, stamped onto every target this tool produces. The
+	// guidance itself is rendered once and the profile discarded, so these are
+	// kept separately — without them the governing context is unrecoverable
+	// after the profile is next edited.
+	profileID      string
+	profileVersion string
+	skipMatched    bool
+	batchSize      int
+	contextPolicy  string
+	contextWindow  int
 	// docEntries is the document in order, when the tool has it. The batched
 	// path buffers the stream, so it can offer a block its neighbours; the
 	// streaming path cannot, and there a block gets only its key.
@@ -241,6 +249,12 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 		batchSize:    cfg.BatchSize,
 		concurrency:  cfg.BatchConcurrency,
 		onProgress:   cfg.OnProgress,
+	}
+	if cfg.Profile != nil {
+		t.profileID = cfg.Profile.ID
+		if cfg.Profile.Version > 0 {
+			t.profileVersion = strconv.Itoa(cfg.Profile.Version)
+		}
 	}
 	if sp, ok := p.(aiprovider.StreamingLLMProvider); ok {
 		t.streaming = sp
@@ -802,15 +816,20 @@ func (t *AITranslateTool) annotateTranslation(v tool.VariantView, resp *aiprovid
 	// Stamp how the committed target was produced so coverage and ship gates can
 	// see it. A fresh machine translation lands at draft (produced, not yet
 	// verified); the convergence loop promotes it on a passing check / review.
-	v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, model.Origin{
-		Kind:   model.OriginAI,
-		Engine: string(t.provider.Name()),
-	})
+	v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin())
 }
 
-// aiOrigin describes a target produced by this AI tool.
+// aiOrigin describes a target produced by this AI tool: how it was made (the
+// provider), and which context profile governed it. The profile half is stamped
+// here because it is only knowable at production time — the profile is edited in
+// place, so a later reader cannot recover which version shaped this target.
 func (t *AITranslateTool) aiOrigin() model.Origin {
-	return model.Origin{Kind: model.OriginAI, Engine: string(t.provider.Name())}
+	return model.Origin{
+		Kind:           model.OriginAI,
+		Engine:         string(t.provider.Name()),
+		Profile:        t.profileID,
+		ProfileVersion: t.profileVersion,
+	}
 }
 
 // ---------------------------------------------------------------------------
