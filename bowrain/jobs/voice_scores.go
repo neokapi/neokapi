@@ -4,8 +4,8 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	brand "github.com/neokapi/neokapi/core/profile"
 )
 
 // persistDraftVoiceScores runs the profile's deterministic vocabulary check

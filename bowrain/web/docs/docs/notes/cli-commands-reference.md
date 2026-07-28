@@ -111,7 +111,7 @@ All paths support `--json` output for CI/CD integration.
 5. If the project is workspace-claimed, snapshot governed terminology: paginate
    `GET /api/v1/:ws/concepts`, fetch each concept's relations via
    `GET /api/v1/:ws/concepts/:cid/relations`, and write both into the project
-   terms store (`.kapi/termbase.db`) through `AddConcept`/`AddRelation`. Record a
+   terms store (`.kapi/terms.db`) through `AddConcept`/`AddRelation`. Record a
    `ConceptBaseline` in the sync cache so a later `kapi push` can diff local
    terminology edits against it.
 6. Run `post-pull` hooks (if configured)

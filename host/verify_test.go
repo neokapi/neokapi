@@ -79,7 +79,7 @@ content:
 	require.NoError(t, os.WriteFile(targetFile, []byte(bad), 0o644))
 
 	// Seed the project terms store: Save -> Enregistrer (approved).
-	tbPath := filepath.Join(root, ".kapi", "termbase.db")
+	tbPath := filepath.Join(root, ".kapi", "terms.db")
 	tb, err := terms.NewSQLiteStore(tbPath)
 	require.NoError(t, err)
 	require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{
@@ -142,8 +142,8 @@ func TestVerify_FailingProject(t *testing.T) {
 
 	brand, ok := gateByName(out, gateBrand)
 	require.True(t, ok, "brand gate must be present")
-	assert.False(t, brand.Pass, "brand gate must fail (competitor term Globex)")
-	require.NotEmpty(t, brand.Findings, "brand gate must produce findings")
+	assert.False(t, profile.Pass, "brand gate must fail (competitor term Globex)")
+	require.NotEmpty(t, profile.Findings, "brand gate must produce findings")
 
 	terms, ok := gateByName(out, gateTerms)
 	require.True(t, ok, "terminology gate must be present")
@@ -265,7 +265,7 @@ func TestVerify_GateSelection(t *testing.T) {
 }
 
 // writeTermsSourceProject creates a project that binds a committed
-// termbase_source (a .terms.json) but NO compiled .kapi/termbase.db, so the check
+// termbase_source (a .terms.json) but NO compiled .kapi/terms.db, so the check
 // path must resolve the glossary straight from the source. The terms store carries
 // two concepts: a do-not-translate brand term (KapiMart, identical in en/fr) and
 // a translated term (Save -> Enregistrer). The fr target keeps the brand term
@@ -283,7 +283,7 @@ name: verifysrc
 defaults:
   source_language: en
   target_languages: [fr]
-  termbase_source: l10n/terms.json
+  terms_source: context/terms.json
 content:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
@@ -325,7 +325,7 @@ content:
 	require.NoError(t, os.WriteFile(filepath.Join(root, "l10n", "terms.json"), data, 0o644))
 
 	// Assert the fallback path is the one under test: no compiled db exists.
-	_, statErr := os.Stat(filepath.Join(root, ".kapi", "termbase.db"))
+	_, statErr := os.Stat(filepath.Join(root, ".kapi", "terms.db"))
 	require.True(t, os.IsNotExist(statErr), "test must exercise the termbase_source fallback, not a compiled db")
 
 	return root
@@ -333,7 +333,7 @@ content:
 
 // TestVerify_GlossaryFromTermsSource asserts the terminology gate resolves
 // the project glossary directly from the committed termbase_source (.terms.json) when
-// the compiled .kapi/termbase.db is absent — the common case at check time in
+// the compiled .kapi/terms.db is absent — the common case at check time in
 // CI. The gate must run and fail on the mistranslated "Save".
 func TestVerify_GlossaryFromTermsSource(t *testing.T) {
 	root := writeTermsSourceProject(t)

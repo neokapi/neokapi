@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	corebrand "github.com/neokapi/neokapi/core/brand"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,10 +24,10 @@ func TestHandleCheckBrandVoice_WholeWordAndConceptID(t *testing.T) {
 	e := srv.GetEcho()
 	ctx := context.Background()
 
-	profile := &corebrand.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		ID: "p-check", WorkspaceID: "ws-check", Name: "Check",
-		Vocabulary: corebrand.VocabularyRules{
-			ForbiddenTerms: []corebrand.TermRule{
+		Vocabulary: coreprofile.VocabularyRules{
+			ForbiddenTerms: []coreprofile.TermRule{
 				{Term: "use", Replacement: "adopt", ConceptID: "c-use"},
 			},
 		},
@@ -74,10 +74,10 @@ func TestGetSuggestedRules_BackfillsConceptID(t *testing.T) {
 	ctx := context.Background()
 	const wsID = "ws-concept-backfill"
 
-	profile := &corebrand.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		ID: "p-backfill", WorkspaceID: wsID, Name: "Backfill",
-		Vocabulary: corebrand.VocabularyRules{
-			ForbiddenTerms: []corebrand.TermRule{
+		Vocabulary: coreprofile.VocabularyRules{
+			ForbiddenTerms: []coreprofile.TermRule{
 				{Term: "utilize", Replacement: "use", ConceptID: "c-utilize"},
 			},
 		},
@@ -86,15 +86,15 @@ func TestGetSuggestedRules_BackfillsConceptID(t *testing.T) {
 
 	// A concept-backed promotion that was later demoted keeps its concept on the
 	// durable decision even though the live profile no longer carries the term.
-	require.NoError(t, srv.BrandStore.RecordRuleDecision(ctx, &corebrand.RuleDecision{
+	require.NoError(t, srv.BrandStore.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
 		ProfileID: profile.ID, Term: "legacy", Replacement: "current",
-		Status: corebrand.RuleDecisionPromoted, ConceptID: "c-legacy",
+		Status: coreprofile.RuleDecisionPromoted, ConceptID: "c-legacy",
 		DecidedAt: time.Now().UTC(),
 	}))
 
 	store := func(term, repl string) {
-		require.NoError(t, srv.BrandStore.StoreCorrection(ctx, &corebrand.Correction{
-			ProfileID: profile.ID, Dimension: corebrand.DimensionVocabulary,
+		require.NoError(t, srv.BrandStore.StoreCorrection(ctx, &coreprofile.Correction{
+			ProfileID: profile.ID, Dimension: coreprofile.DimensionVocabulary,
 			OriginalText: term, CorrectedText: repl, CorrectedBy: "u1",
 		}))
 	}
@@ -106,7 +106,7 @@ func TestGetSuggestedRules_BackfillsConceptID(t *testing.T) {
 
 	rules, err := srv.BrandStore.GetSuggestedRules(ctx, wsID, 3)
 	require.NoError(t, err)
-	byTerm := map[string]*corebrand.SuggestedRule{}
+	byTerm := map[string]*coreprofile.SuggestedRule{}
 	for _, r := range rules {
 		byTerm[strings.ToLower(r.Term)] = r
 	}

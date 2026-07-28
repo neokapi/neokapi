@@ -12,7 +12,7 @@ import (
 )
 
 // writeUnboundProject creates a project that binds neither a brand voice nor a
-// terms (and has no convention brand.yaml / .kapi/termbase.db), with a clean
+// terms (and has no convention brand.yaml / .kapi/terms.db), with a clean
 // en→fr translation so the QA gate passes. The brand and terminology gates have
 // no binding to run against.
 func writeUnboundProject(t *testing.T) string {

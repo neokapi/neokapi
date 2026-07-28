@@ -140,7 +140,7 @@ Remotion into light + dark `.webm`. Two things are easy to get wrong:
 
 - **Narration sidecars are generated.** `demo.<lang>.yaml` files come from the
   dogfood recipe (`make l10n-demos`, drift-gated by `l10n-verify`). Fold fixes
-  into `l10n/tm/demo-narration-<lang>.memory.json` and regenerate — never edit a sidecar
+  into `context/memory/demo-narration-<lang>.memory.json` and regenerate — never edit a sidecar
   or author inline translations.
 - **Assets are not in git and not in GitHub releases.** They live only on the
   S3 + CloudFront CDN (`$DOCS_CDN_URL`) and are referenced by URL via
@@ -167,9 +167,18 @@ that bite most often:
   *localize*. *Translate*, *locale*, *language* and *parity* are real words and
   stay. `grep -niE 'localiz|localis|l10n|termbase|glossar|translation memor'`
   before you commit prose — inflections are what a noun-only search misses.
-  Retained identifiers (recipe keys `tm:`/`termbase:`, `tm.db`, `l10n-*`
-  targets, `/translation-memory`, `TMX`/`TBX`) keep their spelling: describe the
-  new concept and quote the old identifier verbatim.
+  **The identifiers now match the concepts.** The retired spellings were swept
+  out of recipe keys (`memory:`/`terms:`), state filenames (`memory.db`,
+  `terms.db`), CLI flags (`--memory`/`--terms`) and the package tree
+  (`core/profile`), finishing what #1462 and #1504 began. Do not reintroduce
+  `tm`/`termbase` as an identifier — if you find one, it is a leftover.
+
+  What genuinely stays: `TMX`/`TBX` (external file-format standards we do not
+  own), the `l10n-*` make targets (developer-facing internals on no user
+  surface), and `"tm"` as a **persisted discriminator** — `model.Origin.Kind`,
+  the KPZ content type, the sync `content_type`, apply change-set kinds. Those
+  last ones are values inside live data, so changing them is a migration rather
+  than a rename; see AD-037.
 - **Never hardcode counts the code controls** (formats, tools, providers,
   filters). Name the category and link to the generated reference.
 - **Diagrams are real React components, never ASCII art.** The themed light/dark

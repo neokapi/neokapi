@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore"
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -340,7 +340,7 @@ func TestRunBrandVocabOnBlock_MalformedFindingsPropertyIsAnError(t *testing.T) {
 	}
 	b.Properties["brand-vocab-findings"] = `[{"severity":`
 
-	findings, err := runBrandVocabOnBlock(context.Background(), coretools.NewBrandVocabCheckTool(&brand.VoiceProfile{}, nil), b)
+	findings, err := runBrandVocabOnBlock(context.Background(), coretools.NewBrandVocabCheckTool(&profile.VoiceProfile{}, nil), b)
 	require.Error(t, err, "an undecodable findings payload is a fault, not a clean block")
 	assert.Contains(t, err.Error(), "brand vocabulary findings")
 	assert.Empty(t, findings)
@@ -350,7 +350,7 @@ func TestRunBrandVocabOnBlock_MalformedFindingsPropertyIsAnError(t *testing.T) {
 // nothing recorded returns no findings and no error.
 func TestRunBrandVocabOnBlock_CleanBlockScoresEmpty(t *testing.T) {
 	b := mkBlock("a", "Apple")
-	findings, err := runBrandVocabOnBlock(context.Background(), coretools.NewBrandVocabCheckTool(&brand.VoiceProfile{}, nil), b)
+	findings, err := runBrandVocabOnBlock(context.Background(), coretools.NewBrandVocabCheckTool(&profile.VoiceProfile{}, nil), b)
 	require.NoError(t, err)
 	assert.Empty(t, findings)
 }

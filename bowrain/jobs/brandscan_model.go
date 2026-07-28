@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/ai/tools"
-	"github.com/neokapi/neokapi/core/brand"
+	brand "github.com/neokapi/neokapi/core/profile"
 )
 
 // BrandScanJobStatus represents the lifecycle state of a brand-scan job.

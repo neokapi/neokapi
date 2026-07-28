@@ -10,10 +10,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host/output"
@@ -363,7 +363,7 @@ func applyStrictValidationGate(report *check.Report) {
 
 // checkRunOptions carries the resolved generic-check configuration.
 type checkRunOptions struct {
-	profile  *brand.VoiceProfile
+	profile  *profile.VoiceProfile
 	maxChars int
 	maxWords int
 	forbid   []string
@@ -417,7 +417,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 			if err := RunCheckTool(ctx, vocab, b); err != nil {
 				return nil, fmt.Errorf("brand vocabulary check %s: %w", DisplayName(file), err)
 			}
-			if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
+			if ann, ok := model.AnnoAs[*profile.BrandVoiceAnnotation](b, "brand-voice"); ok {
 				loc := check.Location{File: DisplayName(file), Block: blockKey(b)}
 				for _, f := range ann.Findings {
 					diags = append(diags, check.DiagnosticFrom(f, "brand", loc))
@@ -543,7 +543,7 @@ func gateFromFlags(cmd Command) check.Gate {
 	return g
 }
 
-func (a *App) resolveCheckProfile(cmd Command) (*brand.VoiceProfile, error) {
+func (a *App) resolveCheckProfile(cmd Command) (*profile.VoiceProfile, error) {
 	name, _ := cmd.Flags().GetString("profile")
 	file, _ := cmd.Flags().GetString("profile-file")
 	pack, _ := cmd.Flags().GetString("pack")

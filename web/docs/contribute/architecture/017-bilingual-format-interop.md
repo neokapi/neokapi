@@ -340,7 +340,7 @@ defaults:
   target_languages: [fr, de, es]
   merge:
     conflict_policy: translator-wins # | existing-wins | newest-wins
-  tm: # content memory (recipe key retained as `tm`)
+  memory: # content memory (recipe key retained as `tm`)
     fuzzy_threshold: 75 # int 0..100
     read: # optional read-only memories
       - /path/to/corporate.tmx

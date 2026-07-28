@@ -73,7 +73,7 @@ func TestComputeProjectPlan_UnopenableStoreFailsThePlan(t *testing.T) {
 
 	// A real seam: a file standing where the SQLite content memory must be, whose bytes are
 	// not a database. No production hook, no test-only branch.
-	memoryPath := filepath.Join(layout.StateDir, "tm.db")
+	memoryPath := filepath.Join(layout.StateDir, "memory.db")
 	require.NoError(t, os.WriteFile(memoryPath, []byte("this is not a sqlite database at all"), 0o644))
 
 	proj, err := project.Load(recipe)
@@ -95,7 +95,7 @@ func TestComputeProjectPlan_AbsentStorePlansAtZeroLeverage(t *testing.T) {
 	a, recipe := newPlanProject(t)
 	layout, err := project.LayoutFor(recipe)
 	require.NoError(t, err)
-	require.NoFileExists(t, filepath.Join(layout.StateDir, "tm.db"))
+	require.NoFileExists(t, filepath.Join(layout.StateDir, "memory.db"))
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
@@ -105,7 +105,7 @@ func TestComputeProjectPlan_AbsentStorePlansAtZeroLeverage(t *testing.T) {
 	assert.Zero(t, plan.Totals.MemoryExact, "no memory store means no exact-hash leverage")
 
 	// And the plan must not have created the store it declined to open.
-	assert.NoFileExists(t, filepath.Join(layout.StateDir, "tm.db"),
+	assert.NoFileExists(t, filepath.Join(layout.StateDir, "memory.db"),
 		"a plan must not create files — that is why the stat guard exists")
 }
 
@@ -116,7 +116,7 @@ func TestComputeProjectPlan_HealthyStoreStillPlans(t *testing.T) {
 	require.NoError(t, err)
 
 	// A real, empty-but-valid project content memory, created the way kapi creates it.
-	memoryPath := filepath.Join(layout.StateDir, "tm.db")
+	memoryPath := filepath.Join(layout.StateDir, "memory.db")
 	tm, terr := memory.NewSQLiteStore(memoryPath)
 	require.NoError(t, terr)
 	require.NoError(t, tm.Close())
@@ -146,7 +146,7 @@ func TestRunExtractKpz_UnopenableMemoryAndTermsAreReported(t *testing.T) {
 	// to open can only mean present-but-unreadable — which is exactly why the
 	// absent case cannot be used as the control here and the assertion below is
 	// about the message, not about the extract failing.
-	for _, name := range []string{"tm.db", "termbase.db"} {
+	for _, name := range []string{"memory.db", "terms.db"} {
 		require.NoError(t, os.WriteFile(filepath.Join(layout.StateDir, name),
 			[]byte("not a sqlite database"), 0o644))
 	}

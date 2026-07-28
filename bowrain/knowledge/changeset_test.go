@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -83,9 +83,9 @@ func TestValidateOp(t *testing.T) {
 		{"relation.remove missing id", mustOp(t, 1, OpRelationRemove, RelationRemovePayload{}), true},
 
 		// voice.rule.add
-		{"voice.rule.add valid", mustOp(t, 1, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: corebrand.TermRule{Term: "synergy"}}), false},
-		{"voice.rule.add missing profile", mustOp(t, 1, OpVoiceRuleAdd, VoiceRuleAddPayload{List: VoiceListForbidden, Rule: corebrand.TermRule{Term: "synergy"}}), true},
-		{"voice.rule.add bad list", mustOp(t, 1, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: "nope", Rule: corebrand.TermRule{Term: "synergy"}}), true},
+		{"voice.rule.add valid", mustOp(t, 1, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "synergy"}}), false},
+		{"voice.rule.add missing profile", mustOp(t, 1, OpVoiceRuleAdd, VoiceRuleAddPayload{List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "synergy"}}), true},
+		{"voice.rule.add bad list", mustOp(t, 1, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: "nope", Rule: coreprofile.TermRule{Term: "synergy"}}), true},
 		{"voice.rule.add missing term", mustOp(t, 1, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListPreferred}), true},
 
 		// voice.rule.remove
@@ -124,7 +124,7 @@ func TestIsGovernedOp(t *testing.T) {
 		{"relation.add REPLACED_BY governed", mustOp(t, 1, OpRelationAdd, RelationAddPayload{Relation: terms.ConceptRelation{RelationType: graph.LabelReplacedBy}}), true, false},
 		{"relation.add RELATED ordinary", mustOp(t, 1, OpRelationAdd, RelationAddPayload{Relation: terms.ConceptRelation{RelationType: graph.LabelRelated}}), false, false},
 		{"concept.delete governed", mustOp(t, 1, OpConceptDelete, ConceptDeletePayload{ConceptID: "c1"}), true, false},
-		{"voice.rule.add governed", mustOp(t, 1, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: corebrand.TermRule{Term: "x"}}), true, false},
+		{"voice.rule.add governed", mustOp(t, 1, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "x"}}), true, false},
 		{"voice.rule.remove governed", mustOp(t, 1, OpVoiceRuleRemove, VoiceRuleRemovePayload{ProfileID: "p1", List: VoiceListForbidden, Term: "x"}), true, false},
 		{"concept.create ordinary", mustOp(t, 1, OpConceptCreate, ConceptCreatePayload{Concept: terms.Concept{ID: "c1"}}), false, false},
 		{"concept.update ordinary", mustOp(t, 1, OpConceptUpdate, ConceptUpdatePayload{ConceptID: "c1"}), false, false},

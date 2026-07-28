@@ -29,11 +29,11 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	sqltb "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/core/ai/tools"
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/memory"
@@ -752,7 +752,7 @@ func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID
 // zero value translates bare, exactly as before.
 type editorBrandContext struct {
 	// Brand reads brand voice profiles. Nil translates without brand voice.
-	Brand corebrand.BrandStore
+	Brand coreprofile.BrandStore
 	// WorkspaceDefault resolves the workspace-level default brand-voice
 	// profile — the base rung of the brandscope resolution ladder. Nil skips
 	// the workspace rung.
@@ -812,7 +812,7 @@ func editorBrandProfile(
 	brandCtx editorBrandContext,
 	workspaceID, projectID, stream string,
 	targetLocale model.LocaleID,
-) *corebrand.VoiceProfile {
+) *coreprofile.VoiceProfile {
 	if brandCtx.Brand == nil {
 		return nil
 	}

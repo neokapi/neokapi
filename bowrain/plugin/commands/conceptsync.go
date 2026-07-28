@@ -720,7 +720,7 @@ func conceptPush(ctx context.Context, proj *bproject.Project, dryRun bool) (*Pus
 // projectTermsPath returns the SQLite terms file a concept pull/push uses.
 // It mirrors the CLI's project-bound resolution: defaults.termbase from the
 // recipe (relative to the project root), else the conventional
-// <root>/.kapi/termbase.db.
+// <root>/.kapi/terms.db.
 func projectTermsPath(proj *bproject.Project) (string, error) {
 	if bound := proj.Recipe.Defaults.Terms; bound != "" {
 		if filepath.IsAbs(bound) {
@@ -728,7 +728,7 @@ func projectTermsPath(proj *bproject.Project) (string, error) {
 		}
 		return filepath.Join(proj.Root, bound), nil
 	}
-	return filepath.Join(proj.StateDir(), "termbase.db"), nil
+	return filepath.Join(proj.StateDir(), "terms.db"), nil
 }
 
 // changesetURL builds a best-effort link to review a change-set in the web hub

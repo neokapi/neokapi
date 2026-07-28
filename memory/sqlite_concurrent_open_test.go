@@ -15,7 +15,7 @@ import (
 // appliers double-recording the same migration version.
 func TestNewSQLiteMemory_ConcurrentFirstOpen(t *testing.T) {
 	for round := range 5 {
-		path := filepath.Join(t.TempDir(), "tm.db")
+		path := filepath.Join(t.TempDir(), "memory.db")
 		var wg sync.WaitGroup
 		errs := make(chan error, 4)
 		for range 4 {

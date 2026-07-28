@@ -68,11 +68,11 @@ All `kapi memory` commands (except `list`) accept these mutually exclusive flags
 | Flag            | Resolves to                   | Example                    |
 | --------------- | ----------------------------- | -------------------------- |
 | `--name <n>`    | `~/.config/kapi/tm/<n>.db`    | `--name project-memory`    |
-| `--local`       | `./tm.db` (current directory) | `--local`                  |
+| `--local`       | `./memory.db` (current directory) | `--local`                  |
 | `--file <path>` | Explicit file path            | `--file /shared/memory.db` |
 | _(no flag)_     | Same as `--local`             |                            |
 
-Databases are created on demand if they don't exist. `tm/` and `tm.db` are the
+Databases are created on demand if they don't exist. `tm/` and `memory.db` are the
 on-disk names for content memory. `~/.config/kapi` is the user config directory
 on Linux, and resolves to `~/Library/Application Support/kapi` on macOS.
 `kapi config path` prints the resolved location.
@@ -119,7 +119,7 @@ The result is recorded so it is **auditable, not blind**:
 Run [segmentation](/framework/segmentation) before `recycle` to enable this.
 
 ```bash
-kapi exec recycle input.html -o output.html --source-lang en --target-lang fr --tm project-memory
+kapi exec recycle input.html -o output.html --source-lang en --target-lang fr --memory project-memory
 ```
 
 ```yaml

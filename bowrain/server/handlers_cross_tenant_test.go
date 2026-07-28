@@ -10,8 +10,8 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -109,7 +109,7 @@ func TestCrossTenantBrandProfileIDOR(t *testing.T) {
 	s.BrandStore = bs
 
 	ctx := t.Context()
-	victim := &corebrand.VoiceProfile{ID: "victim-bp", WorkspaceID: "test-ws", Name: "Victim"}
+	victim := &coreprofile.VoiceProfile{ID: "victim-bp", WorkspaceID: "test-ws", Name: "Victim"}
 	require.NoError(t, bs.CreateProfile(ctx, victim))
 
 	t.Run("read via foreign workspace slug is 404", func(t *testing.T) {
@@ -211,7 +211,7 @@ func TestWorkspaceSiblingIDRoutesNotGuarded(t *testing.T) {
 		require.NoError(t, err)
 		s.BrandStore = bs
 
-		profile := &corebrand.VoiceProfile{ID: "bp-sibling-1", WorkspaceID: "test-ws", Name: "Sib"}
+		profile := &coreprofile.VoiceProfile{ID: "bp-sibling-1", WorkspaceID: "test-ws", Name: "Sib"}
 		require.NoError(t, bs.CreateProfile(ctx, profile))
 
 		code := do(t, s, http.MethodGet, "/api/v1/test/brand-profiles/"+profile.ID, ownerToken, "")

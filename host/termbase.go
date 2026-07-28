@@ -30,21 +30,21 @@ func (a *App) OpenTermsSQLite(cmd Command) (terms.Terminology, string, error) {
 // ResolveTermsCmdPath picks the SQLite terms file a `kapi terms`
 // subcommand operates on. An explicit --name/--file/--local flag always wins.
 // Otherwise, when run inside a .kapi project, it defaults to the project's bound
-// terms (defaults.termbase, else <root>/.kapi/termbase.db) so that
+// terms (defaults.termbase, else <root>/.kapi/terms.db) so that
 // `kapi terms lookup`/`import` see the same glossary that `kapi check --ship` and
 // `kapi term-check` enforce — without it, a lookup inside a project silently
-// hit an empty ./termbase.db. Falls back to ./termbase.db outside a project.
+// hit an empty ./terms.db. Falls back to ./terms.db outside a project.
 func (a *App) ResolveTermsCmdPath(cmd Command) (string, error) {
 	name, _ := cmd.Flags().GetString("name")
 	local, _ := cmd.Flags().GetBool("local")
 	file, _ := cmd.Flags().GetString("file")
 	if name != "" || file != "" || local {
-		return resolveResourcePath(cmd, "termbases", "termbase.db")
+		return resolveResourcePath(cmd, "termbases", "terms.db")
 	}
 	if p, err := a.resolveProjectTermsPath(cmd); err == nil && p != "" {
 		return p, nil
 	}
-	return resolveResourcePath(cmd, "termbases", "termbase.db")
+	return resolveResourcePath(cmd, "termbases", "terms.db")
 }
 
 // TermsFileFormats names the terms file formats, in the order they are offered

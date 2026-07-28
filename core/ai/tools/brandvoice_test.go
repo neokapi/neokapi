@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/ai/tools"
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	brand "github.com/neokapi/neokapi/core/profile"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -4,47 +4,47 @@ import (
 	"strings"
 	"testing"
 
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPostgresBrandStore_ImplementsInterface(t *testing.T) {
 	// Compile-time check that PostgresBrandStore satisfies BrandStore.
-	var _ corebrand.BrandStore = (*PostgresBrandStore)(nil)
+	var _ coreprofile.BrandStore = (*PostgresBrandStore)(nil)
 }
 
 func TestScanProfile_Roundtrip(t *testing.T) {
 	// Verify JSON marshaling of profile fields produces valid output.
-	profile := &corebrand.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		ID:          "test-id",
 		Name:        "Test Brand",
 		WorkspaceID: "ws-1",
-		Tone: corebrand.ToneProfile{
+		Tone: coreprofile.ToneProfile{
 			Personality: []string{"friendly", "professional"},
 			Formality:   "neutral",
 			Emotion:     "warm",
 			Humor:       "light",
 		},
-		Style: corebrand.StyleRules{
+		Style: coreprofile.StyleRules{
 			ActiveVoice:    true,
 			SentenceLength: "medium",
 			PersonPOV:      "second",
 			Contractions:   "sometimes",
 		},
-		Vocabulary: corebrand.VocabularyRules{
-			PreferredTerms: []corebrand.TermRule{
+		Vocabulary: coreprofile.VocabularyRules{
+			PreferredTerms: []coreprofile.TermRule{
 				{Term: "use", Replacement: "utilize", Note: "prefer simpler word"},
 			},
 		},
-		Examples: []corebrand.VoiceExample{
+		Examples: []coreprofile.VoiceExample{
 			{Before: "We utilize this.", After: "We use this.", Explanation: "simpler"},
 		},
-		Locales:  map[model.LocaleID]corebrand.LocaleOverride{"de": {Formality: "formal"}},
-		Channels: map[string]corebrand.ChannelOverride{},
-		Personas: map[string]corebrand.PersonaOverride{
-			"jordan": {Avoided: []corebrand.TermRule{{Term: "synergy"}}},
+		Locales:  map[model.LocaleID]coreprofile.LocaleOverride{"de": {Formality: "formal"}},
+		Channels: map[string]coreprofile.ChannelOverride{},
+		Personas: map[string]coreprofile.PersonaOverride{
+			"jordan": {Avoided: []coreprofile.TermRule{{Term: "synergy"}}},
 		},
 		Version: 1,
 	}

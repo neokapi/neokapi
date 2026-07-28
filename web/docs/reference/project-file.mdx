@@ -61,11 +61,11 @@ defaults:
     - "**/*.generated.json"
   merge:
     conflict_policy: translator-wins
-  tm:
+  memory:
     fuzzy_threshold: 75
   segmentation:
     source: true
-  termbase: terms/product.db
+  terms: terms/product.db
 ```
 
 ## Fields
@@ -177,7 +177,7 @@ content:
 | `segmentation`     | SegmentationDefaults | Opt-in sentence-level segmentation overlay applied on extract (see [segmentation](#segmentation))                       |
 | `redaction`        | RedactionSpec       | Replace sensitive content with protected placeholders before processing and restore it afterwards (see [redaction](#redaction)) |
 | `brand_voice`      | BrandVoiceBinding   | Bind a brand voice profile as standing project context (see [brand_voice](#brand_voice))                                |
-| `termbase`         | string              | Path to a terms store, resolved relative to the project root; used for project-scoped term enforcement with no `--termbase` flag |
+| `termbase`         | string              | Path to a terms store, resolved relative to the project root; used for project-scoped term enforcement with no `--terms` flag |
 | `termbase_source`  | string              | Committed, git-tracked native source bundle (a `.terms.json`) the project terms store is compiled from; `kapi apply` edits it and re-imports into the gitignored terms cache, so `git diff` is the review surface. Unset, kapi falls back to `<root>/terms.json`, then `<root>/.kapi/terms.json` |
 | `tm_source`        | string              | Committed, git-tracked native source bundle (a `.memory.json`) the project content memory is compiled from — the content-memory analogue of `termbase_source`. It has no conventional-location fallback: a project has one glossary but many memory bundles (one per content surface), so a seed is always named |
 | `state`            | string              | Committed, git-tracked [project state store](/kapi/project-store) (a kapi-project-state JSON document) — the authoritative carrier of per-unit workflow decisions (review ladder, approvals, parking) a plain target file can't hold. Empty defaults to `.kapi-state.json`; a server-backed project pushes state to a remote instead |

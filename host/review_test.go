@@ -22,7 +22,7 @@ name: rev
 defaults:
   source_language: en
   target_languages: [nb]
-  tm_source: memory.json
+  memory_source: memory.json
 content:
   - path: en.json
     target: "{lang}.json"

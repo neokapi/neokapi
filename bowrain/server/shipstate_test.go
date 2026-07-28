@@ -11,8 +11,8 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -195,7 +195,7 @@ func TestApplyShipStates_OnBrandVoiceScores(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := t.Context()
-	profile := &corebrand.VoiceProfile{ID: "p-ship", WorkspaceID: "ws-1", Name: "Ship Voice", MinScore: 80}
+	profile := &coreprofile.VoiceProfile{ID: "p-ship", WorkspaceID: "ws-1", Name: "Ship Voice", MinScore: 80}
 	require.NoError(t, bs.CreateProfile(ctx, profile))
 
 	// The content store assigns block IDs on store; scores must reference the
@@ -212,7 +212,7 @@ func TestApplyShipStates_OnBrandVoiceScores(t *testing.T) {
 
 	now := time.Now().UTC()
 	score := func(block, loc string, val int, at time.Time) {
-		require.NoError(t, bs.StoreScore(ctx, &corebrand.StoredScore{
+		require.NoError(t, bs.StoreScore(ctx, &coreprofile.StoredScore{
 			ProjectID: pid, Stream: "main", BlockID: block, ProfileID: profile.ID,
 			Locale: model.LocaleID(loc), Score: val, CheckedAt: at,
 		}))

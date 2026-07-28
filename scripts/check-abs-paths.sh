@@ -116,7 +116,7 @@ EOF
 # Project root: /Users/me/my-project
 projectPath: "/Users/dev/projects/acme/kapi.yaml"
 browsePath: "/Users/demo/exports/output.tmx"
-resolvedPath="/home/user/project/resources/my-tm.db"
+resolvedPath="/home/user/project/resources/my-memory.db"
 {"/home/linuxbrew/.linuxbrew/bin/kapi", SourceHomebrew},
 i18nextKey := "/home/title"
 seeAlso: http://uli.unicode.org/home/uli-documents

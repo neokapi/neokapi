@@ -166,7 +166,7 @@ type Defaults struct {
 	Merge MergeDefaults `yaml:"merge,omitempty" json:"merge,omitzero"`
 
 	// content memory governs content memory pre-fill on kapi extract and content memory write-back on kapi merge (AD-017).
-	Memory MemoryDefaults `yaml:"tm,omitempty" json:"tm,omitzero"`
+	Memory MemoryDefaults `yaml:"memory,omitempty" json:"memory,omitzero"`
 
 	// Segmentation governs the opt-in sentence-level segmentation overlay
 	// applied on extract (AD-017).
@@ -191,7 +191,7 @@ type Defaults struct {
 	// set, project-scoped term enforcement uses it with no --terms flag.
 	// The path resolves relative to the project root (the recipe's
 	// directory). Empty means no bound terms.
-	Terms string `yaml:"termbase,omitempty" json:"termbase,omitempty"`
+	Terms string `yaml:"terms,omitempty" json:"terms,omitempty"`
 
 	// TermsSource binds the committed, git-tracked native source artifact
 	// (a .terms.json document) the project terms store is compiled from. This is the
@@ -200,14 +200,14 @@ type Defaults struct {
 	// store is written by exactly one path and `git diff` is the review
 	// surface. The path resolves relative to the project root. Empty means no
 	// bound source (the .db cache, if any, is the only artifact).
-	TermsSource string `yaml:"termbase_source,omitempty" json:"termbase_source,omitempty"`
+	TermsSource string `yaml:"terms_source,omitempty" json:"terms_source,omitempty"`
 
 	// MemorySource binds the committed, git-tracked native source artifact (a
 	// .memory.json document) the project content memory is compiled from, the content memory
 	// analogue of TermsSource. `kapi apply` edits the .memory.json here and
-	// re-imports it into the gitignored .kapi/tm.db cache. The path resolves
+	// re-imports it into the gitignored .kapi/memory.db cache. The path resolves
 	// relative to the project root. Empty means no bound content memory source.
-	MemorySource string `yaml:"tm_source,omitempty" json:"tm_source,omitempty"`
+	MemorySource string `yaml:"memory_source,omitempty" json:"memory_source,omitempty"`
 
 	// State binds the committed, git-tracked project state artifact (a
 	// kapi-project-state JSON document, core/state) — the authoritative carrier of

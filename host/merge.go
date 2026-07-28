@@ -113,7 +113,7 @@ func (a *App) RunMerge(cmd Command) error {
 	// rather than surfacing a driver error. The native CLI (MemoryBackend == nil)
 	// opens the project's SQLite content memory as before.
 	if !noMemoryUpdate && a.MemoryBackend == nil {
-		memoryPath := filepath.Join(layout.StateDir, "tm.db")
+		memoryPath := filepath.Join(layout.StateDir, "memory.db")
 		loaded, err := memory.NewSQLiteStore(memoryPath)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: merge: open project content memory at %s: %v (continuing with --no-tm-update semantics)\n", memoryPath, err)
@@ -280,7 +280,7 @@ func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, pr
 	// memory — skip write-back silently. The native CLI opens the project's SQLite
 	// content memory as before.
 	if !noMemoryUpdate && a.MemoryBackend == nil {
-		tmPath := filepath.Join(layout.StateDir, "tm.db")
+		tmPath := filepath.Join(layout.StateDir, "memory.db")
 		if loaded, lerr := memory.NewSQLiteStore(tmPath); lerr != nil {
 			fmt.Fprintf(os.Stderr, "Warning: merge: open project TM at %s: %v (continuing without TM write-back)\n", tmPath, lerr)
 		} else {
@@ -474,7 +474,7 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 		// failed to open reported `tm_new=0 tm_updated=0`, which reads as
 		// "nothing new to learn" rather than "it was never opened" — so the
 		// leverage is lost for this bundle with no way to tell.
-		tmPath := filepath.Join(layout.StateDir, "tm.db")
+		tmPath := filepath.Join(layout.StateDir, "memory.db")
 		if loaded, lerr := memory.NewSQLiteStore(tmPath); lerr != nil {
 			fmt.Fprintf(os.Stderr, "Warning: merge: open project content memory at %s: %v (continuing without write-back)\n", tmPath, lerr)
 		} else {

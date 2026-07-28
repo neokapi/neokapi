@@ -92,7 +92,7 @@ kapi apply changeset.jsonl
 - The **content** entry rewrites the block through the faithful round-trip.
 - The **term** entry upserts the term itself: it is written into the project's
   committed terms source (`.terms.json`) and the existing import compiles it into
-  the terms store (`.kapi/termbase.db`). `git diff` shows the one new term; the next
+  the terms store (`.kapi/terms.db`). `git diff` shows the one new term; the next
   `kapi check --ship` enforces it.
 
 The asset kinds `kapi apply` accepts — `term`, `tm`, `brand`, `recipe` — and

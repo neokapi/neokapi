@@ -16,7 +16,7 @@ import (
 
 func TestMemoryAudit_FiltersByBatchID(t *testing.T) {
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "tm.db")
+	dbPath := filepath.Join(dir, "memory.db")
 	tm, err := memory.NewSQLiteStore(dbPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = tm.Close() })
@@ -71,7 +71,7 @@ func TestMemoryAudit_FiltersByBatchID(t *testing.T) {
 
 func TestMemoryAudit_RequiresBatchFlag(t *testing.T) {
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "tm.db")
+	dbPath := filepath.Join(dir, "memory.db")
 	tm, err := memory.NewSQLiteStore(dbPath)
 	require.NoError(t, err)
 	require.NoError(t, tm.Close())
@@ -92,7 +92,7 @@ func TestMemoryAudit_EmptyResultIsClearMessage(t *testing.T) {
 	dir := t.TempDir()
 	real, err := filepath.EvalSymlinks(dir)
 	require.NoError(t, err)
-	dbPath := filepath.Join(real, "tm.db")
+	dbPath := filepath.Join(real, "memory.db")
 	tm, err := memory.NewSQLiteStore(dbPath)
 	require.NoError(t, err)
 	require.NoError(t, tm.Close())

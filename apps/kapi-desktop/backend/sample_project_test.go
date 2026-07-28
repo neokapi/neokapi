@@ -19,7 +19,7 @@ func TestOpenProjectAutoOpensMemory(t *testing.T) {
 	// Scaffold a sample project into a temp directory.
 	require.NoError(t, sample.Scaffold("kapimart", dir))
 
-	// Open the project — should auto-detect .kapi/tm.db and .kapi/termbase.db.
+	// Open the project — should auto-detect .kapi/memory.db and .kapi/terms.db.
 	tab, err := app.OpenProject(filepath.Join(dir, "kapi.yaml"))
 	require.NoError(t, err)
 	t.Cleanup(func() { app.CloseProject(tab.ID) })
@@ -105,8 +105,8 @@ func TestOpenProjectNoAutoOpenWithoutDotKapi(t *testing.T) {
 	op := app.projects[tab.ID]
 	app.mu.RUnlock()
 
-	assert.Empty(t, op.memoryHandle, "no content-memory handle when .kapi/tm.db doesn't exist")
-	assert.Empty(t, op.tbHandle, "no terms handle when .kapi/termbase.db doesn't exist")
+	assert.Empty(t, op.memoryHandle, "no content-memory handle when .kapi/memory.db doesn't exist")
+	assert.Empty(t, op.tbHandle, "no terms handle when .kapi/terms.db doesn't exist")
 }
 
 func TestCloseProjectClosesHandles(t *testing.T) {
@@ -169,12 +169,12 @@ func TestCreateSampleProjectRecoversStaleRecipe(t *testing.T) {
 	kapiPath := filepath.Join(targetDir, "kapi.yaml")
 	require.NoError(t, os.WriteFile(kapiPath, []byte(stale), 0o644))
 
-	// Plant a stale/corrupt state dir: a tm.db with an incompatible schema would
+	// Plant a stale/corrupt state dir: a memory.db with an incompatible schema would
 	// break re-seeding ("apply migration N: no such table ..."). Recovery must
 	// wipe .kapi so Scaffold reseeds cleanly. A non-DB file reproduces the class.
 	staleKapi := filepath.Join(targetDir, ".kapi")
 	require.NoError(t, os.MkdirAll(staleKapi, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(staleKapi, "tm.db"), []byte("not a database"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(staleKapi, "memory.db"), []byte("not a database"), 0o644))
 
 	// The stale recipe must not parse...
 	_, err := project.Load(kapiPath)
@@ -199,8 +199,8 @@ func TestSampleProjectFilesExist(t *testing.T) {
 		"kapi.yaml",
 		"src/en/store-ui.json",
 		"web/en/getting-started.md",
-		".kapi/tm.db",
-		".kapi/termbase.db",
+		".kapi/memory.db",
+		".kapi/terms.db",
 	} {
 		_, err := os.Stat(filepath.Join(dir, path))
 		assert.NoError(t, err, "missing: %s", path)

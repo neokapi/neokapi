@@ -475,7 +475,7 @@ export class Defaults {
              * MemorySource binds the committed, git-tracked native source artifact (a
              * .memory.json document) the project content memory is compiled from, the content memory
              * analogue of TermsSource. `kapi apply` edits the .memory.json here and
-             * re-imports it into the gitignored .kapi/tm.db cache. The path resolves
+             * re-imports it into the gitignored .kapi/memory.db cache. The path resolves
              * relative to the project root. Empty means no bound content memory source.
              * @member
              * @type {string | undefined}

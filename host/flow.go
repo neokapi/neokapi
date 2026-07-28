@@ -19,11 +19,11 @@ import (
 
 	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/core/blockstore"
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/preset"
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/safeio"
@@ -137,7 +137,7 @@ func (a *App) addFlowRunFlags(cmd Command) {
 	cmd.Flags().String("trace", "", "write flow trace JSON to file (for flow visualization)")
 	cmd.Flags().Bool("pack", false, "when transforming a .kpz, also eject the result to the .kpz (auto-pack)")
 	cmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
-	cmd.Flags().String("tm", "", "named Memory for recycle flow (resolves from KAPI_HOME)")
+	cmd.Flags().String("memory", "", "named Memory for recycle flow (resolves from KAPI_HOME)")
 	cmd.Flags().String("termstore", "", "named terms store for term-lookup/enforce (resolves from KAPI_HOME)")
 	cmd.Flags().Bool("stats", false, "include part/block counts in output")
 	cmd.Flags().Bool("explain", false, "print the resolved source → sink bindings and exit without running")
@@ -1221,7 +1221,7 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Com
 
 			case "tm":
 				// Tools requiring a content memory get a real SQLite provider injected from
-				// the --tm flag or, with no flag, the project's .kapi/tm.db.
+				// the --memory flag or, with no flag, the project's .kapi/memory.db.
 				memoryConfig := map[string]any{
 					"source_locale":   a.SourceLang,
 					"target_locale":   a.TargetLang,
@@ -1375,7 +1375,7 @@ func (p *cliMemoryProvider) LookupFuzzy(source string, sourceLocale, targetLocal
 // The flag value can be a named resource (no path separators) which resolves
 // via KAPI_HOME, or an explicit file path. When no flag is given but a .kapi
 // project is in scope with a bound terms (defaults.termbase) or a
-// <root>/.kapi/termbase.db convention file, that project terms store is opened
+// <root>/.kapi/terms.db convention file, that project terms store is opened
 // instead, so term tools in built-in flows are project-aware flag-free.
 // Returns (nil, noop, nil) when neither a flag nor a project terms store exists.
 func (a *App) openTerms(cmd ...Command) (*sqltb.SQLiteStore, func(), error) {
@@ -1420,15 +1420,15 @@ func (a *App) openTerms(cmd ...Command) (*sqltb.SQLiteStore, func(), error) {
 }
 
 // OpenToolMemory resolves the content memory a `tm`-requiring tool (e.g. recycle) should
-// leverage and opens it as a MemoryProvider. The --tm flag wins: a named resource
+// leverage and opens it as a MemoryProvider. The --memory flag wins: a named resource
 // (no path separators) resolves via KAPI_HOME, an explicit file path is opened
 // directly. When no flag is given but a .kapi project is in scope, the project's
-// authoritative content memory (<root>/.kapi/tm.db) is opened, so `kapi recycle fr.json`
+// authoritative content memory (<root>/.kapi/memory.db) is opened, so `kapi recycle fr.json`
 // leverages the same content memory that `kapi extract`/`kapi merge` use — with no flag.
 //
 // Returns (nil, noop, nil) when no content memory is in scope, or when the resolved DB does
 // not exist outside a project, preserving today's no-match behavior rather than
-// erroring. Inside a project the .kapi/tm.db file is opened (and created on
+// erroring. Inside a project the .kapi/memory.db file is opened (and created on
 // demand by SQLite) so the tool leverages it. This mirrors openTerms and
 // reuses the same resolution as the `kapi tm` subcommands (resolveProjectMemoryPath).
 func (a *App) OpenToolMemory(cmd Command) (coretools.MemoryProvider, func(), error) {
@@ -1436,14 +1436,14 @@ func (a *App) OpenToolMemory(cmd Command) (coretools.MemoryProvider, func(), err
 	if cmd == nil {
 		return nil, noop, nil
 	}
-	memoryValue, _ := cmd.Flags().GetString("tm")
+	memoryValue, _ := cmd.Flags().GetString("memory")
 
 	// A pre-seeded in-memory backend (the wasm build, or any host that sets
 	// a.MemoryBackend) is the authoritative content memory and the only one that works without
 	// the SQLite driver — prefer it over any on-disk project path. The native
 	// CLI never sets a.MemoryBackend, so this only takes effect in the browser/seed
 	// case; the on-disk resolution below is unchanged for the native binary.
-	// An explicit --tm path still wins (handled in the switch).
+	// An explicit --memory path still wins (handled in the switch).
 	if memoryValue == "" && a.MemoryBackend != nil {
 		return &cliMemoryProvider{tm: a.MemoryBackend}, noop, nil
 	}
@@ -1484,7 +1484,7 @@ func (a *App) OpenToolMemory(cmd Command) (coretools.MemoryProvider, func(), err
 type ProjectBindings struct {
 	// profile is the resolved brand voice profile (defaults.brand_voice),
 	// injected into translate steps as config["profile"]. nil when unbound.
-	profile *brand.VoiceProfile
+	profile *profile.VoiceProfile
 	// glossary is the source→target glossary built from the project terms store
 	// (defaults.termbase), injected into term-check steps. nil when unbound.
 	glossary []coretools.GlossaryEntry
@@ -1503,7 +1503,7 @@ type ProjectBindings struct {
 // resolveProjectBindings resolves the standing brand-voice + glossary context
 // for a project flow run. The brand voice comes from defaults.brand_voice (or
 // a convention brand.yaml); the glossary comes from the project terms store
-// (defaults.termbase or <root>/.kapi/termbase.db). Returns nil when the
+// (defaults.termbase or <root>/.kapi/terms.db). Returns nil when the
 // project carries neither, so ad-hoc behavior is unchanged.
 func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, projectPath string) (*ProjectBindings, error) {
 	root := filepath.Dir(projectPath)
@@ -1546,7 +1546,7 @@ func ToolRequires(s *schema.ComponentSchema, req string) bool {
 //
 //  1. An explicit --termstore flag (named resource or path).
 //  2. defaults.termbase in the .kapi recipe (relative to the project root).
-//  3. <projectRoot>/.kapi/termbase.db when it exists.
+//  3. <projectRoot>/.kapi/terms.db when it exists.
 //
 // Returns "" (with nil error) when nothing resolves, so callers fall through
 // to the tool's default (no glossary).
@@ -1585,7 +1585,7 @@ func (a *App) resolveProjectTermsPath(cmd Command) (string, error) {
 	}
 
 	// Convention: the project's authoritative terms under .kapi/.
-	conv := filepath.Join(root, project.StateDirName, "termbase.db")
+	conv := filepath.Join(root, project.StateDirName, "terms.db")
 	if _, statErr := os.Stat(conv); statErr == nil {
 		return conv, nil
 	}
@@ -1661,7 +1661,7 @@ func (a *App) projectConcepts(cmd Command) ([]sqltb.Concept, error) {
 	}
 
 	// Working index: an explicit --termstore, a defaults.termbase binding, or the
-	// .kapi/termbase.db convention. Read directly only when no serialization is
+	// .kapi/terms.db convention. Read directly only when no serialization is
 	// bound (or the user explicitly selected a store).
 	tbPath, err := a.resolveProjectTermsPath(cmd)
 	if err != nil {
@@ -1724,7 +1724,7 @@ func (a *App) resolveProjectTermsSourcePath(cmd Command) (string, error) {
 	}
 	// Only the canonical terms bundle is resolved live at check time. Lossy
 	// interchange sources (CSV, TBX) are import formats: they're compiled into
-	// .kapi/termbase.db by up/apply and read from there, so we don't try to
+	// .kapi/terms.db by up/apply and read from there, so we don't try to
 	// decode them here.
 	if !ktb.IsBundlePath(src) {
 		return "", nil

@@ -61,8 +61,8 @@ my-app/
 ├── terms.json              ← TERMS SOURCE (committed; conventional location, AD-010)
 ├── .kapi/                  ← WORKING STATE (kapi maintains)
 │   ├── manifest.yaml       ← bookkeeping: block counts, fingerprints, timestamps
-│   ├── tm.db               ← project content memory (AD-009) — authoritative
-│   ├── termbase.db         ← project terms store — authoritative
+│   ├── memory.db               ← project content memory (AD-009) — authoritative
+│   ├── terms.db         ← project terms store — authoritative
 │   ├── flows/              ← optional file-per-flow definitions (authored)
 │   │   └── <flow>.yaml
 │   └── cache/              ← all regenerable caches under one roof
@@ -116,11 +116,11 @@ Ownership:
   project has one glossary but *many* content-memory bundles, one per content
   surface ([AD-009](009-content-memory.md)), so a seed is always named rather
   than guessed.
-- **`.kapi/`** — kapi's. Authoritative state — the content memory (`tm.db`), the
-  terms store (`termbase.db`), and `manifest.yaml` — sits at the top level; all
+- **`.kapi/`** — kapi's. Authoritative state — the content memory (`memory.db`), the
+  terms store (`terms.db`), and `manifest.yaml` — sits at the top level; all
   regenerable caches live under `.kapi/cache/` so users can blow them away
   without losing translation work. Gitignored by default; opt in to commit
-  `.kapi/tm.db` / `.kapi/termbase.db` when cross-clone reproducibility matters.
+  `.kapi/memory.db` / `.kapi/terms.db` when cross-clone reproducibility matters.
 - **`src/**`** — user-authored content. Referenced by the recipe; never moved
 into `.kapi/`.
 - **Writer outputs** (e.g. `i18n/{locale}.json`) — produced by format writers

@@ -604,6 +604,38 @@
     }
   },
   {
+    "name": "context_search",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "description": "max results per group (default 10)",
+          "type": "integer"
+        },
+        "locale": {
+          "description": "narrow results to one language (e.g. en, fr)",
+          "type": "string"
+        },
+        "memory": {
+          "description": "path to the content memory (default .kapi/memory.db)",
+          "type": "string"
+        },
+        "query": {
+          "description": "the word or phrase to ask about",
+          "type": "string"
+        },
+        "terms": {
+          "description": "path to the terms store (default .kapi/terms.db)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "type": "object"
+    }
+  },
+  {
     "name": "create-target",
     "input_schema": {
       "$id": "create-target",
@@ -3044,7 +3076,7 @@
           "type": "string"
         },
         "termbase": {
-          "description": "path to the terms store db (default: termbase.db)",
+          "description": "path to the terms store db (default: terms.db)",
           "type": "string"
         }
       },
@@ -3059,6 +3091,10 @@
     "input_schema": {
       "additionalProperties": false,
       "properties": {
+        "memory": {
+          "description": "path to the content memory db (default: memory.db)",
+          "type": "string"
+        },
         "min_score": {
           "description": "minimum match score 0-1 (default 0.7)",
           "type": "number"
@@ -3073,10 +3109,6 @@
         },
         "text": {
           "description": "source text to search for",
-          "type": "string"
-        },
-        "tm": {
-          "description": "path to the content memory db (default: tm.db)",
           "type": "string"
         }
       },

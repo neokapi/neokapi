@@ -21,8 +21,8 @@ func TestExtPrefersCompoundSuffix(t *testing.T) {
 		{"i18n/en-US.KBF.JSON", ".kbf.json"},
 		{"app.overlays.json", ".overlays.json"},
 		{"app.overlays.jsonl", ".overlays.jsonl"},
-		{"l10n/tm/cli-nb.memory.json", ".memory.json"},
-		{"l10n/terms.json", ".json"},
+		{"context/memory/cli-nb.memory.json", ".memory.json"},
+		{"context/terms.json", ".json"},
 		{"seeds/glossary.terms.json", ".terms.json"},
 
 		// Bare suffixes keep resolving to themselves — the compound rule must
@@ -86,7 +86,7 @@ func TestTrimExtAndStem(t *testing.T) {
 		wantStem string
 	}{
 		{"i18n/en-US.kbf.json", "i18n/en-US", "en-US"},
-		{"l10n/tm/cli-nb.memory.json", "l10n/tm/cli-nb", "cli-nb"},
+		{"context/memory/cli-nb.memory.json", "context/memory/cli-nb", "cli-nb"},
 		{"docs/page.md", "docs/page", "page"},
 		{"noext", "noext", "noext"},
 	}

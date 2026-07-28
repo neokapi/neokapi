@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	corebrand "github.com/neokapi/neokapi/core/brand"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -23,10 +23,10 @@ type StreamBindingStore interface {
 
 // PilotProfileStore is the slice of the brand store the pilot lifecycle needs to
 // materialize and retire a stream-scoped candidate profile: the read+update
-// ProfileStore plus create and delete. corebrand.BrandStore satisfies it.
+// ProfileStore plus create and delete. coreprofile.BrandStore satisfies it.
 type PilotProfileStore interface {
 	ProfileStore
-	CreateProfile(ctx context.Context, profile *corebrand.VoiceProfile) error
+	CreateProfile(ctx context.Context, profile *coreprofile.VoiceProfile) error
 	DeleteProfile(ctx context.Context, id string) error
 }
 
@@ -36,7 +36,7 @@ type PilotProfileStore interface {
 // store is a PilotProfileStore.
 var (
 	_ StreamBindingStore = (store.ContentStore)(nil)
-	_ PilotProfileStore  = (corebrand.BrandStore)(nil)
+	_ PilotProfileStore  = (coreprofile.BrandStore)(nil)
 )
 
 // pilotShadowPrefix namespaces every row the pilot lifecycle writes to the
@@ -318,7 +318,7 @@ func (e *Engine) bindPilotVoice(ctx context.Context, cs ChangeSet, ops []ChangeS
 	if s.Properties == nil {
 		s.Properties = map[string]string{}
 	}
-	s.Properties[corebrand.PropertyProfileID] = bound
+	s.Properties[coreprofile.PropertyProfileID] = bound
 	if err := streams.UpdateStream(ctx, s); err != nil {
 		return fmt.Errorf("bind candidate voice profile to stream %s/%s: %w", projectID, stream, err)
 	}
@@ -340,10 +340,10 @@ func (e *Engine) unbindPilotVoice(ctx context.Context, cs ChangeSet, ops []Chang
 			return fmt.Errorf("load stream %s/%s: %w", projectID, stream, err)
 		}
 		if s != nil && s.Properties != nil {
-			current := s.Properties[corebrand.PropertyProfileID]
+			current := s.Properties[coreprofile.PropertyProfileID]
 			for _, id := range ids {
 				if current == pilotProfileID(cs.ID, stream, id) {
-					delete(s.Properties, corebrand.PropertyProfileID)
+					delete(s.Properties, coreprofile.PropertyProfileID)
 					if err := streams.UpdateStream(ctx, s); err != nil {
 						return fmt.Errorf("clear candidate voice binding on stream %s/%s: %w", projectID, stream, err)
 					}

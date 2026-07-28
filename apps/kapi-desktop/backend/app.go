@@ -210,7 +210,7 @@ type openProject struct {
 	Project *project.KapiProject
 	watcher *fileWatcher
 
-	// Project-scoped content memory and terms (auto-opened from .kapi/tm.db and .kapi/termbase.db).
+	// Project-scoped content memory and terms (auto-opened from .kapi/memory.db and .kapi/terms.db).
 	memoryHandle string // handle ID in App.memoryHandles, empty if none
 	tbHandle     string // handle ID in App.tbHandles, empty if none
 
@@ -229,7 +229,7 @@ type openProject struct {
 }
 
 // GetProjectMemoryHandle returns the auto-opened content-memory handle for a project tab,
-// or empty string if the project has no .kapi/tm.db.
+// or empty string if the project has no .kapi/memory.db.
 func (a *App) GetProjectMemoryHandle(tabID string) string {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -240,7 +240,7 @@ func (a *App) GetProjectMemoryHandle(tabID string) string {
 }
 
 // GetProjectTermsHandle returns the auto-opened terms handle for a project tab,
-// or empty string if the project has no .kapi/termbase.db.
+// or empty string if the project has no .kapi/terms.db.
 func (a *App) GetProjectTermsHandle(tabID string) string {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -539,8 +539,8 @@ func (a *App) releaseProjectResources(op *openProject) {
 	op.blockStoreMu.Unlock()
 }
 
-// autoOpenProjectResources checks for convention-based .kapi/tm.db and
-// .kapi/termbase.db files relative to the project root and opens them as
+// autoOpenProjectResources checks for convention-based .kapi/memory.db and
+// .kapi/terms.db files relative to the project root and opens them as
 // project-scoped content memory/terms handles.
 func (a *App) autoOpenProjectResources(op *openProject) {
 	if op.Path == "" {
@@ -548,14 +548,14 @@ func (a *App) autoOpenProjectResources(op *openProject) {
 	}
 	basePath := filepath.Dir(op.Path)
 
-	memoryPath := filepath.Join(basePath, ".kapi", "tm.db")
+	memoryPath := filepath.Join(basePath, ".kapi", "memory.db")
 	if _, err := os.Stat(memoryPath); err == nil {
 		if tm, err := memory.NewSQLiteStore(memoryPath); err == nil {
 			op.memoryHandle = a.memoryHandles.Open(tm)
 		}
 	}
 
-	tbPath := filepath.Join(basePath, ".kapi", "termbase.db")
+	tbPath := filepath.Join(basePath, ".kapi", "terms.db")
 	if _, err := os.Stat(tbPath); err == nil {
 		if tb, err := terms.NewSQLiteStore(tbPath); err == nil {
 			op.tbHandle = a.tbHandles.Open(tb)

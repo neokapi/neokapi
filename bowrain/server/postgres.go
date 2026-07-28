@@ -17,8 +17,8 @@ import (
 	"github.com/neokapi/neokapi/bowrain/platformconfig"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	coreg "github.com/neokapi/neokapi/core/graph"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 // pgStores holds all PostgreSQL-backed stores opened from a shared connection pool.
@@ -30,7 +30,7 @@ type pgStores struct {
 	BrandScan      jobs.BrandScanJobStore
 	Quota          jobs.QuotaStore
 	Sweep          jobs.ModelSweepStore
-	Brand          corebrand.BrandStore
+	Brand          coreprofile.BrandStore
 	Knowledge      knowledge.Store
 	GraphStore     coreg.GraphStore
 	Agent          platagent.AgentStore

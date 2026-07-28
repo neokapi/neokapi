@@ -39,13 +39,13 @@ defaults:
   source_language: en
   target_languages: [nb]
   brand_voice:
-    profile_file: l10n/brand-voice.yaml
+    profile_file: context/brand-voice.yaml
   # termbase_source is the committed, git-tracked glossary (the review surface
   # `kapi apply` term-edits write to); terms is the gitignored cache the
   # source compiles into. Source of truth lives in git, never in the cache.
-  termbase_source: l10n/terms.json
-  terms: .kapi/termbase.db
-  tm:
+  terms_source: context/terms.json
+  terms: .kapi/terms.db
+  memory:
     fuzzy_threshold: 75
   # YAML surface = the harness demo scripts (the only yaml content items).
   # Only the spoken/displayed keys are translatable — never ids, beats,
@@ -162,7 +162,7 @@ content:
       # localized narration is GENERATED into committed demo.<lang>.yaml
       # sidecars (make l10n-demos, content memory-driven) that the harness overlays at
       # load time. Never hand-edit a sidecar — fix the content memory seed instead
-      # (l10n/tm/demo-narration-<lang>.memory.json). Translatable keys are
+      # (context/memory/demo-narration-<lang>.memory.json). Translatable keys are
       # selected by defaults.formats.yaml.config.keyPathPatterns above.
       - path: harness/demos/*/demo.yaml
         format:
@@ -179,7 +179,7 @@ flows:
           fillTarget: true
           fillTargetThreshold: 100
   # content memory-driven translation: reviewed translations live in the project content memory
-  # (seeded from l10n/tm/*.tmx); exact matches fill the target, terminology
+  # (seeded from context/memory/*.tmx); exact matches fill the target, terminology
   # compliance is checked against the project terms.
   translate:
     steps:
@@ -211,7 +211,7 @@ flows:
 #
 # neokapi is the first real workspace on Bowrain. `kapi push` sends every surface
 # above to the project below; nb drafts land in the governed review queue and
-# approved segments round-trip back into l10n/tm/*.memory.json.
+# approved segments round-trip back into context/memory/*.memory.json.
 #
 # converge: manual — a push moves content but does NOT auto-start a server AI
 # convergence run. The first on-push run (2026-07-17) tried to AI-draft the whole

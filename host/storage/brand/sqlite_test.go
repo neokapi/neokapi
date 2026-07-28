@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,33 +22,33 @@ func newTestStore(t *testing.T) *SQLiteBrandStore {
 	return store
 }
 
-func testProfile() *corebrand.VoiceProfile {
-	return &corebrand.VoiceProfile{
+func testProfile() *coreprofile.VoiceProfile {
+	return &coreprofile.VoiceProfile{
 		ID:          "p1",
 		WorkspaceID: "ws1",
 		Name:        "Friendly Tech",
 		Description: "A friendly tech brand voice",
-		Tone: corebrand.ToneProfile{
+		Tone: coreprofile.ToneProfile{
 			Personality: []string{"friendly", "knowledgeable"},
 			Formality:   "neutral",
 			Emotion:     "warm",
 			Humor:       "light",
 		},
-		Style: corebrand.StyleRules{
+		Style: coreprofile.StyleRules{
 			ActiveVoice:    true,
 			SentenceLength: "medium",
 			PersonPOV:      "second",
 			Contractions:   "sometimes",
 		},
-		Vocabulary: corebrand.VocabularyRules{
-			PreferredTerms: []corebrand.TermRule{
+		Vocabulary: coreprofile.VocabularyRules{
+			PreferredTerms: []coreprofile.TermRule{
 				{Term: "use", Replacement: "", Note: "prefer over utilize"},
 			},
-			ForbiddenTerms: []corebrand.TermRule{
+			ForbiddenTerms: []coreprofile.TermRule{
 				{Term: "utilize", Replacement: "use", Severity: "major"},
 			},
 		},
-		Examples: []corebrand.VoiceExample{
+		Examples: []coreprofile.VoiceExample{
 			{Before: "Utilize the feature", After: "Use the feature", Explanation: "simpler"},
 		},
 		CreatedBy: "test-user",
@@ -108,13 +108,13 @@ func TestListProfiles(t *testing.T) {
 	store := newTestStore(t)
 
 	p1 := testProfile()
-	p2 := &corebrand.VoiceProfile{
+	p2 := &coreprofile.VoiceProfile{
 		ID: "p2", WorkspaceID: "ws1", Name: "Casual",
-		Tone: corebrand.ToneProfile{Formality: "casual"},
+		Tone: coreprofile.ToneProfile{Formality: "casual"},
 	}
-	p3 := &corebrand.VoiceProfile{
+	p3 := &coreprofile.VoiceProfile{
 		ID: "p3", WorkspaceID: "ws2", Name: "Other",
-		Tone: corebrand.ToneProfile{Formality: "formal"},
+		Tone: coreprofile.ToneProfile{Formality: "formal"},
 	}
 
 	require.NoError(t, store.CreateProfile(ctx, p1))
@@ -134,7 +134,7 @@ func TestScoreStorage(t *testing.T) {
 	ctx := t.Context()
 	store := newTestStore(t)
 
-	score := &corebrand.StoredScore{
+	score := &coreprofile.StoredScore{
 		ID:        "s1",
 		ProjectID: "proj1",
 		Stream:    "main",
@@ -142,12 +142,12 @@ func TestScoreStorage(t *testing.T) {
 		ProfileID: "p1",
 		Locale:    "en-US",
 		Score:     85,
-		Dimensions: []corebrand.DimensionScore{
-			{Dimension: corebrand.DimensionTone, Score: 90, Penalty: 1, Issues: 1},
-			{Dimension: corebrand.DimensionStyle, Score: 80, Penalty: 5, Issues: 1},
+		Dimensions: []coreprofile.DimensionScore{
+			{Dimension: coreprofile.DimensionTone, Score: 90, Penalty: 1, Issues: 1},
+			{Dimension: coreprofile.DimensionStyle, Score: 80, Penalty: 5, Issues: 1},
 		},
-		Findings: []corebrand.BrandVoiceFinding{
-			{Category: string(corebrand.DimensionTone), Severity: corebrand.SeverityMinor, Message: "too informal"},
+		Findings: []coreprofile.BrandVoiceFinding{
+			{Category: string(coreprofile.DimensionTone), Severity: coreprofile.SeverityMinor, Message: "too informal"},
 		},
 		CheckedAt: time.Now(),
 	}
@@ -180,7 +180,7 @@ func TestScoreLocaleNormalization(t *testing.T) {
 	ctx := t.Context()
 	store := newTestStore(t)
 
-	require.NoError(t, store.StoreScore(ctx, &corebrand.StoredScore{
+	require.NoError(t, store.StoreScore(ctx, &coreprofile.StoredScore{
 		ID: "s1", ProjectID: "proj1", Stream: "main", BlockID: "b1",
 		ProfileID: "p1", Locale: "pt-br", Score: 70, CheckedAt: time.Now(),
 	}))
@@ -203,7 +203,7 @@ func TestScoreTrends(t *testing.T) {
 
 	now := time.Now()
 	for i := range 3 {
-		require.NoError(t, store.StoreScore(ctx, &corebrand.StoredScore{
+		require.NoError(t, store.StoreScore(ctx, &coreprofile.StoredScore{
 			ID:        fmt.Sprintf("s%d", i),
 			ProjectID: "proj1",
 			BlockID:   fmt.Sprintf("b%d", i),
@@ -274,7 +274,7 @@ func TestProfileTags(t *testing.T) {
 	require.NoError(t, store.UpdateProfile(ctx, profile))
 
 	// Tag version 1.
-	tag := &corebrand.ProfileTag{
+	tag := &coreprofile.ProfileTag{
 		ProfileID: "p1",
 		Name:      "v1-release",
 		Version:   1,
@@ -315,7 +315,7 @@ func TestGetScoresByStream(t *testing.T) {
 
 	now := time.Now()
 	for i := range 3 {
-		require.NoError(t, store.StoreScore(ctx, &corebrand.StoredScore{
+		require.NoError(t, store.StoreScore(ctx, &coreprofile.StoredScore{
 			ID:             fmt.Sprintf("s%d", i),
 			ProjectID:      "proj1",
 			Stream:         "main",
@@ -329,7 +329,7 @@ func TestGetScoresByStream(t *testing.T) {
 	}
 
 	// Add a score on a different stream.
-	require.NoError(t, store.StoreScore(ctx, &corebrand.StoredScore{
+	require.NoError(t, store.StoreScore(ctx, &coreprofile.StoredScore{
 		ID:             "s-exp",
 		ProjectID:      "proj1",
 		Stream:         "experiment",
@@ -359,7 +359,7 @@ func TestScoreProfileVersion(t *testing.T) {
 	ctx := t.Context()
 	store := newTestStore(t)
 
-	require.NoError(t, store.StoreScore(ctx, &corebrand.StoredScore{
+	require.NoError(t, store.StoreScore(ctx, &coreprofile.StoredScore{
 		ID:             "s1",
 		ProjectID:      "proj1",
 		Stream:         "main",
@@ -382,18 +382,18 @@ func TestCorrectionStorage(t *testing.T) {
 	store := newTestStore(t)
 
 	// Need a profile for the workspace join
-	require.NoError(t, store.CreateProfile(ctx, &corebrand.VoiceProfile{
+	require.NoError(t, store.CreateProfile(ctx, &coreprofile.VoiceProfile{
 		ID: "p1", WorkspaceID: "ws1", Name: "Test",
-		Tone: corebrand.ToneProfile{Formality: "neutral"},
+		Tone: coreprofile.ToneProfile{Formality: "neutral"},
 	}))
 
 	// Store multiple corrections with same original/corrected text
 	for i := range 3 {
-		require.NoError(t, store.StoreCorrection(ctx, &corebrand.Correction{
+		require.NoError(t, store.StoreCorrection(ctx, &coreprofile.Correction{
 			ID:            fmt.Sprintf("c%d", i),
 			ProfileID:     "p1",
 			BlockID:       fmt.Sprintf("b%d", i),
-			Dimension:     corebrand.DimensionVocabulary,
+			Dimension:     coreprofile.DimensionVocabulary,
 			OriginalText:  "utilize",
 			CorrectedText: "use",
 			CorrectedBy:   "editor",
@@ -407,7 +407,7 @@ func TestCorrectionStorage(t *testing.T) {
 	assert.Equal(t, "utilize", rules[0].Term)
 	assert.Equal(t, "use", rules[0].Replacement)
 	assert.Equal(t, 3, rules[0].CorrectionCount)
-	assert.Equal(t, corebrand.DimensionVocabulary, rules[0].Dimension)
+	assert.Equal(t, coreprofile.DimensionVocabulary, rules[0].Dimension)
 
 	// With higher threshold: no results
 	rules, err = store.GetSuggestedRules(ctx, "ws1", 5)
@@ -427,36 +427,36 @@ func TestRuleDecisions(t *testing.T) {
 
 	// Record a rejection.
 	now := time.Now().UTC().Truncate(time.Second)
-	require.NoError(t, store.RecordRuleDecision(ctx, &corebrand.RuleDecision{
-		ProfileID: "p1", Term: "leverage", Dimension: corebrand.DimensionVocabulary,
-		Status: corebrand.RuleDecisionRejected, CorrectionCount: 3, DecidedBy: "u1", DecidedAt: now,
+	require.NoError(t, store.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
+		ProfileID: "p1", Term: "leverage", Dimension: coreprofile.DimensionVocabulary,
+		Status: coreprofile.RuleDecisionRejected, CorrectionCount: 3, DecidedBy: "u1", DecidedAt: now,
 	}))
 
 	// Read back, case-insensitively.
 	d, err = store.GetRuleDecision(ctx, "p1", "LEVERAGE")
 	require.NoError(t, err)
 	require.NotNil(t, d)
-	assert.Equal(t, corebrand.RuleDecisionRejected, d.Status)
+	assert.Equal(t, coreprofile.RuleDecisionRejected, d.Status)
 	assert.Equal(t, 3, d.CorrectionCount)
 	assert.Equal(t, "u1", d.DecidedBy)
 	assert.False(t, d.Auto)
 
 	// Upsert: the same term promoted (auto) overwrites the rejection.
-	require.NoError(t, store.RecordRuleDecision(ctx, &corebrand.RuleDecision{
-		ProfileID: "p1", Term: "leverage", Dimension: corebrand.DimensionVocabulary,
-		Status: corebrand.RuleDecisionPromoted, CorrectionCount: 5, PromotedVersion: 2,
+	require.NoError(t, store.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
+		ProfileID: "p1", Term: "leverage", Dimension: coreprofile.DimensionVocabulary,
+		Status: coreprofile.RuleDecisionPromoted, CorrectionCount: 5, PromotedVersion: 2,
 		Auto: true, DecidedBy: "system", DecidedAt: now,
 	}))
 	d, err = store.GetRuleDecision(ctx, "p1", "leverage")
 	require.NoError(t, err)
 	require.NotNil(t, d)
-	assert.Equal(t, corebrand.RuleDecisionPromoted, d.Status)
+	assert.Equal(t, coreprofile.RuleDecisionPromoted, d.Status)
 	assert.Equal(t, 2, d.PromotedVersion)
 	assert.True(t, d.Auto)
 
 	// A second decision for another term, then list (one row per term).
-	require.NoError(t, store.RecordRuleDecision(ctx, &corebrand.RuleDecision{
-		ProfileID: "p1", Term: "synergy", Status: corebrand.RuleDecisionApproved, DecidedAt: now,
+	require.NoError(t, store.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
+		ProfileID: "p1", Term: "synergy", Status: coreprofile.RuleDecisionApproved, DecidedAt: now,
 	}))
 	all, err := store.ListRuleDecisions(ctx, "p1")
 	require.NoError(t, err)
@@ -486,7 +486,7 @@ func TestProfileAutonomyRoundTrip(t *testing.T) {
 	ctx := t.Context()
 	store := newTestStore(t)
 	p := testProfile()
-	p.Autonomy = corebrand.AutonomyConfig{AutoPromoteAtCount: 5}
+	p.Autonomy = coreprofile.AutonomyConfig{AutoPromoteAtCount: 5}
 	require.NoError(t, store.CreateProfile(ctx, p))
 
 	got, err := store.GetProfile(ctx, "p1")
@@ -498,11 +498,11 @@ func TestProfilePersonasRoundTrip(t *testing.T) {
 	ctx := t.Context()
 	store := newTestStore(t)
 	p := testProfile()
-	p.Personas = map[string]corebrand.PersonaOverride{
+	p.Personas = map[string]coreprofile.PersonaOverride{
 		"jordan": {
-			Tone:      &corebrand.ToneProfile{Formality: "casual", Humor: "frequent"},
-			Preferred: []corebrand.TermRule{{Term: "let's"}},
-			Avoided:   []corebrand.TermRule{{Term: "synergy"}},
+			Tone:      &coreprofile.ToneProfile{Formality: "casual", Humor: "frequent"},
+			Preferred: []coreprofile.TermRule{{Term: "let's"}},
+			Avoided:   []coreprofile.TermRule{{Term: "synergy"}},
 		},
 	}
 	require.NoError(t, store.CreateProfile(ctx, p))
@@ -519,8 +519,8 @@ func TestProfilePersonasRoundTrip(t *testing.T) {
 	assert.Equal(t, "synergy", persona.Avoided[0].Term)
 
 	// An update preserves personas through the version/round-trip path.
-	got.Personas["jordan"] = corebrand.PersonaOverride{
-		Avoided: []corebrand.TermRule{{Term: "leverage"}},
+	got.Personas["jordan"] = coreprofile.PersonaOverride{
+		Avoided: []coreprofile.TermRule{{Term: "leverage"}},
 	}
 	require.NoError(t, store.UpdateProfile(ctx, got))
 	updated, err := store.GetProfile(ctx, "p1")

@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -52,7 +52,7 @@ func (c *pilotContentStore) UpdateStream(_ context.Context, s *store.Stream) err
 
 // CreateProfile and DeleteProfile extend fakeProfileStore into a
 // PilotProfileStore so pilots can materialize and retire candidate profiles.
-func (f *fakeProfileStore) CreateProfile(_ context.Context, p *corebrand.VoiceProfile) error {
+func (f *fakeProfileStore) CreateProfile(_ context.Context, p *coreprofile.VoiceProfile) error {
 	f.profiles[p.ID] = p
 	return nil
 }
@@ -147,7 +147,7 @@ func TestStartStopPilot_VoiceBinding(t *testing.T) {
 	ws := "ws"
 	pilotStream := "pilot/voice"
 
-	profile := &corebrand.VoiceProfile{ID: "p1", Name: "Acme", WorkspaceID: ws, Version: 2}
+	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", WorkspaceID: ws, Version: 2}
 	profiles := newFakeProfileStore(profile)
 
 	content := newPilotContentStore()
@@ -158,7 +158,7 @@ func TestStartStopPilot_VoiceBinding(t *testing.T) {
 	require.NoError(t, store.CreateChangeSet(ctx, cs))
 	appendOp(t, store, ws, cs.ID, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{
 		ProfileID: "p1", List: VoiceListForbidden,
-		Rule: corebrand.TermRule{Term: "synergy", Replacement: "teamwork"},
+		Rule: coreprofile.TermRule{Term: "synergy", Replacement: "teamwork"},
 	})
 
 	loaded, err := store.GetChangeSet(ctx, ws, cs.ID)
@@ -180,7 +180,7 @@ func TestStartStopPilot_VoiceBinding(t *testing.T) {
 	s, err := content.GetStream(ctx, "proj1", pilotStream)
 	require.NoError(t, err)
 	require.NotNil(t, s)
-	assert.Equal(t, candID, s.Properties[corebrand.PropertyProfileID])
+	assert.Equal(t, candID, s.Properties[coreprofile.PropertyProfileID])
 
 	// The baseline profile is untouched.
 	base, err := profiles.GetProfile(ctx, "p1")
@@ -196,7 +196,7 @@ func TestStartStopPilot_VoiceBinding(t *testing.T) {
 	require.NoError(t, e.StopPilot(ctx, ws, store, *loaded, "proj1", pilotStream))
 	s, err = content.GetStream(ctx, "proj1", pilotStream)
 	require.NoError(t, err)
-	_, bound := s.Properties[corebrand.PropertyProfileID]
+	_, bound := s.Properties[coreprofile.PropertyProfileID]
 	assert.False(t, bound, "the candidate voice binding is cleared")
 	gone, err := profiles.GetProfile(ctx, candID)
 	require.NoError(t, err)

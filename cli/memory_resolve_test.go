@@ -21,16 +21,16 @@ func newMemoryTestCmd() *EnvCommand {
 	return cmd
 }
 
-// newMemoryLeverageTestCmd returns a bare command carrying the --tm flag that the
+// newMemoryLeverageTestCmd returns a bare command carrying the --memory flag that the
 // recycle tool command registers, for exercising OpenToolMemory resolution.
 func newMemoryLeverageTestCmd() *EnvCommand {
 	cmd := NewEnvCommand(context.Background(), "recycle")
-	cmd.Flags().String("tm", "", "named Memory or path")
+	cmd.Flags().String("memory", "", "named Memory or path")
 	return cmd
 }
 
 // writeMemoryProject creates a .kapi project with a .kapi/ state dir and returns the
-// project root plus the conventional authoritative content memory path (.kapi/tm.db).
+// project root plus the conventional authoritative content memory path (.kapi/memory.db).
 func writeMemoryProject(t *testing.T) (root, memoryPath string) {
 	t.Helper()
 	root = t.TempDir()
@@ -45,11 +45,11 @@ content:
     target: "locales/{lang}/*.json"
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
-	return root, filepath.Join(root, ".kapi", "tm.db")
+	return root, filepath.Join(root, ".kapi", "memory.db")
 }
 
 // TestResolveMemoryCmdPath_ProjectAware asserts that with no flag inside a project,
-// the tm commands resolve the project's authoritative content memory (.kapi/tm.db) — the
+// the tm commands resolve the project's authoritative content memory (.kapi/memory.db) — the
 // same file kapi extract pre-fills from and kapi merge writes back to.
 func TestResolveMemoryCmdPath_ProjectAware(t *testing.T) {
 	root, memoryPath := writeMemoryProject(t)
@@ -58,7 +58,7 @@ func TestResolveMemoryCmdPath_ProjectAware(t *testing.T) {
 	a := &App{}
 	got, err := a.ResolveMemoryCmdPath(newMemoryTestCmd())
 	require.NoError(t, err)
-	assert.Equal(t, memoryPath, got, "no flag inside a project must resolve .kapi/tm.db, not ./tm.db")
+	assert.Equal(t, memoryPath, got, "no flag inside a project must resolve .kapi/memory.db, not ./memory.db")
 }
 
 // TestResolveMemoryCmdPath_ExplicitFlagWins asserts that --local and --file override
@@ -72,7 +72,7 @@ func TestResolveMemoryCmdPath_ExplicitFlagWins(t *testing.T) {
 	require.NoError(t, localCmd.Flags().Set("local", "true"))
 	got, err := a.ResolveMemoryCmdPath(localCmd)
 	require.NoError(t, err)
-	assert.Equal(t, "tm.db", got, "--local must mean ./tm.db, not the project content memory")
+	assert.Equal(t, "memory.db", got, "--local must mean ./memory.db, not the project content memory")
 
 	fileCmd := newMemoryTestCmd()
 	explicit := filepath.Join(root, "custom.db")
@@ -82,18 +82,18 @@ func TestResolveMemoryCmdPath_ExplicitFlagWins(t *testing.T) {
 	assert.Equal(t, explicit, got, "--file must win over the project content memory")
 }
 
-// TestResolveMemoryCmdPath_NoProject asserts the fallback to ./tm.db when there is
+// TestResolveMemoryCmdPath_NoProject asserts the fallback to ./memory.db when there is
 // no project to bind.
 func TestResolveMemoryCmdPath_NoProject(t *testing.T) {
 	t.Chdir(t.TempDir())
 	a := &App{}
 	got, err := a.ResolveMemoryCmdPath(newMemoryTestCmd())
 	require.NoError(t, err)
-	assert.Equal(t, "tm.db", got, "outside a project, default to ./tm.db")
+	assert.Equal(t, "memory.db", got, "outside a project, default to ./memory.db")
 }
 
 // TestOpenToolMemory_LeveragesProjectMemory asserts that inside a project the recycle
-// tool command opens .kapi/tm.db and the resolved provider returns the exact
+// tool command opens .kapi/memory.db and the resolved provider returns the exact
 // match stored there — proving the leverage path is wired (not NullMemoryProvider).
 func TestOpenToolMemory_LeveragesProjectMemory(t *testing.T) {
 	root, memoryPath := writeMemoryProject(t)
@@ -122,7 +122,7 @@ func TestOpenToolMemory_LeveragesProjectMemory(t *testing.T) {
 	assert.Equal(t, "Bon retour", got)
 }
 
-// TestOpenToolMemory_NoProjectNoFlag asserts that outside a project with no --tm
+// TestOpenToolMemory_NoProjectNoFlag asserts that outside a project with no --memory
 // flag, OpenToolMemory returns no provider (a noop cleanup) so the tool falls back
 // to today's no-match behavior rather than erroring.
 func TestOpenToolMemory_NoProjectNoFlag(t *testing.T) {
@@ -130,12 +130,12 @@ func TestOpenToolMemory_NoProjectNoFlag(t *testing.T) {
 	a := &App{}
 	provider, cleanup, err := a.OpenToolMemory(newMemoryLeverageTestCmd())
 	require.NoError(t, err)
-	assert.Nil(t, provider, "no project + no --tm flag means no provider")
+	assert.Nil(t, provider, "no project + no --memory flag means no provider")
 	require.NotNil(t, cleanup)
 	cleanup() // must be safe to call
 }
 
-// TestOpenToolMemory_ExplicitFileFlag asserts that --tm <path> wins over project
+// TestOpenToolMemory_ExplicitFileFlag asserts that --memory <path> wins over project
 // resolution and opens the named file.
 func TestOpenToolMemory_ExplicitFileFlag(t *testing.T) {
 	dir := t.TempDir()

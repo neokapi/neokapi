@@ -3,8 +3,8 @@ package mcp
 import (
 	"strings"
 
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 // extractParam extracts the value after a prefix from a URI.
@@ -31,9 +31,9 @@ func extractParamBefore(uri, prefix, suffix string) string {
 	return uri[len(prefix) : len(uri)-len(suffix)]
 }
 
-// resolveProfile is a convenience wrapper around corebrand.ResolveProfile
+// resolveProfile is a convenience wrapper around coreprofile.ResolveProfile
 // that handles empty locale/channel gracefully. Prompt generators do not carry
 // an author persona, so none is applied here.
-func resolveProfile(profile *corebrand.VoiceProfile, locale, channel string) *corebrand.VoiceProfile {
-	return corebrand.ResolveProfile(profile, model.LocaleID(locale), channel, "")
+func resolveProfile(profile *coreprofile.VoiceProfile, locale, channel string) *coreprofile.VoiceProfile {
+	return coreprofile.ResolveProfile(profile, model.LocaleID(locale), channel, "")
 }

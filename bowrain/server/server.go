@@ -23,9 +23,9 @@ import (
 	slogecho "github.com/samber/slog-echo"
 	"google.golang.org/grpc"
 
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/formats"
 	coreg "github.com/neokapi/neokapi/core/graph"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/registry"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	libtools "github.com/neokapi/neokapi/core/tools"
@@ -172,7 +172,7 @@ type Server struct {
 	SessionStore SessionStateStore
 
 	// BrandStore manages brand voice profiles. Nil when not configured.
-	BrandStore corebrand.BrandStore
+	BrandStore coreprofile.BrandStore
 
 	// KnowledgeStore persists the governance and collaboration layer of the
 	// brand knowledge graph (AD-021): markets, observations, comments, concept

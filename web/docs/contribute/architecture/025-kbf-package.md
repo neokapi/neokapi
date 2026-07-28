@@ -107,7 +107,7 @@ has exactly one glossary, so it gets a conventional location
 ([AD-010](010-terminology.md)) — `<root>/terms.json`, then
 `<root>/.kapi/terms.json`. Content memory gets none, because a project
 accumulates a bundle per content surface (this repository's own dogfood commits
-one per surface under `l10n/tm/`) and a fallback would have nothing single to
+one per surface under `context/memory/`) and a fallback would have nothing single to
 name.
 
 ### 2. The `.kpz` package container
@@ -251,7 +251,7 @@ path would escape the project root is refused rather than written.
 | plugins (declaration) + `requires` | recipe | recipe | travels (binaries re-resolved via registry) |
 | defaults, content, preset | recipe | recipe | travels |
 | `server:` / `hooks:` / `automations:` (Extras) | recipe Extras | recipe Extras | travels **inert** |
-| content memory / terms | `tm.db` / `termbase.db` (authoritative) | `memory.json` / `terms.json` | travels (lossless) |
+| content memory / terms | `memory.db` / `terms.db` (authoritative) | `memory.json` / `terms.json` | travels (lossless) |
 | blocks + targets, annotations, in-progress overlays | `cache/blocks.db` (regenerable) | `blocks/*.kbf.json`, `annotations/*.overlays.jsonl`, `overlays.json` (authoritative) | travels |
 | source identity (path, format, hash) | working tree | `manifest.json` | travels |
 | source skeleton (round-trip template) | `cache/extractions/.../skel-*.bin` | `skeletons/<id>` | travels |

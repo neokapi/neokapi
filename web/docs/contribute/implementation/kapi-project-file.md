@@ -102,7 +102,7 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
   `brand_voice` extension.
 - `termbase` (string) — path to the project's terms store, under its retained
   key. Resolved relative to the project root, and used for project-scoped term
-  enforcement with no `--termbase` flag.
+  enforcement with no `--terms` flag.
 - `termbase_source` / `tm_source` (string) — committed, git-tracked native source
   bundles (`.terms.json` / `.memory.json`) the project's terms store and content
   memory are
@@ -271,11 +271,11 @@ defaults:
     - "**/*.generated.json"
   merge:
     conflict_policy: translator-wins
-  tm:
+  memory:
     fuzzy_threshold: 75
   segmentation:
     source: true
-  termbase: terms/termbase.db
+  terms: terms/terms.db
 
 content:
   # Bare entry — single glob, languages inherited from defaults.

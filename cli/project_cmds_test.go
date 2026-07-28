@@ -62,7 +62,7 @@ func TestInitCmd_scaffoldsProject(t *testing.T) {
 
 	require.NotNil(t, p.Defaults.BrandVoice)
 	assert.Equal(t, "professional-b2b", p.Defaults.BrandVoice.Pack)
-	assert.Equal(t, ".kapi/termbase.db", p.Defaults.Terms)
+	assert.Equal(t, ".kapi/terms.db", p.Defaults.Terms)
 
 	require.Contains(t, p.Flows, "check")
 	require.NotNil(t, p.Flows["check"])

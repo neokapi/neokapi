@@ -12,9 +12,9 @@ import (
 	"strings"
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
-	"github.com/neokapi/neokapi/core/brand"
-	"github.com/neokapi/neokapi/core/brand/packs"
 	"github.com/neokapi/neokapi/core/model"
+	brand "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/profile/packs"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/tool"

@@ -145,10 +145,10 @@ defaults:
 	assert.Equal(t, "Explicit", profile.Name, "explicit flag must override the project binding")
 }
 
-// seedProjectTerms creates <root>/.kapi/termbase.db with one en→fr concept.
+// seedProjectTerms creates <root>/.kapi/terms.db with one en→fr concept.
 func seedProjectTerms(t *testing.T, root string) {
 	t.Helper()
-	dbPath := filepath.Join(root, ".kapi", "termbase.db")
+	dbPath := filepath.Join(root, ".kapi", "terms.db")
 	tb, err := terms.NewSQLiteStore(dbPath)
 	require.NoError(t, err)
 	defer tb.Close()
@@ -163,7 +163,7 @@ func seedProjectTerms(t *testing.T, root string) {
 
 // TestResolveProjectGlossary_FromConventionTerms asserts that with no
 // --termstore flag and no defaults.termbase, the convention
-// <root>/.kapi/termbase.db is used to build the project glossary.
+// <root>/.kapi/terms.db is used to build the project glossary.
 func TestResolveProjectGlossary_FromConventionTerms(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
 name: proj
@@ -193,7 +193,7 @@ name: proj
 defaults:
   source_language: en
   target_languages: [fr]
-  termbase: glossary.db
+  terms: glossary.db
 `)
 	// Bound terms at the project root (not the .kapi convention path).
 	dbPath := filepath.Join(root, "glossary.db")

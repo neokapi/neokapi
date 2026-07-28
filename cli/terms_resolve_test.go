@@ -30,13 +30,13 @@ name: tb
 defaults:
   source_language: en
   target_languages: [fr]
-  termbase: .kapi/termbase.db
+  terms: .kapi/terms.db
 content:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
-	return root, filepath.Join(root, ".kapi", "termbase.db")
+	return root, filepath.Join(root, ".kapi", "terms.db")
 }
 
 // TestResolveTermsCmdPath_ProjectAware asserts that with no flag inside a
@@ -49,7 +49,7 @@ func TestResolveTermsCmdPath_ProjectAware(t *testing.T) {
 	a := &App{}
 	got, err := a.ResolveTermsCmdPath(newTermsTestCmd())
 	require.NoError(t, err)
-	assert.Equal(t, bound, got, "no flag inside a project must resolve the bound terms, not ./termbase.db")
+	assert.Equal(t, bound, got, "no flag inside a project must resolve the bound terms, not ./terms.db")
 }
 
 // TestResolveTermsCmdPath_ExplicitFlagWins asserts that --local and --file
@@ -63,7 +63,7 @@ func TestResolveTermsCmdPath_ExplicitFlagWins(t *testing.T) {
 	require.NoError(t, localCmd.Flags().Set("local", "true"))
 	got, err := a.ResolveTermsCmdPath(localCmd)
 	require.NoError(t, err)
-	assert.Equal(t, "termbase.db", got, "--local must mean ./termbase.db, not the project terms store")
+	assert.Equal(t, "terms.db", got, "--local must mean ./terms.db, not the project terms store")
 
 	fileCmd := newTermsTestCmd()
 	explicit := filepath.Join(root, "custom.db")
@@ -73,12 +73,12 @@ func TestResolveTermsCmdPath_ExplicitFlagWins(t *testing.T) {
 	assert.Equal(t, explicit, got, "--file must win over the project terms store")
 }
 
-// TestResolveTermsCmdPath_NoProject asserts the fallback to ./termbase.db
+// TestResolveTermsCmdPath_NoProject asserts the fallback to ./terms.db
 // when there is no project to bind.
 func TestResolveTermsCmdPath_NoProject(t *testing.T) {
 	t.Chdir(t.TempDir())
 	a := &App{}
 	got, err := a.ResolveTermsCmdPath(newTermsTestCmd())
 	require.NoError(t, err)
-	assert.Equal(t, "termbase.db", got, "outside a project, default to ./termbase.db")
+	assert.Equal(t, "terms.db", got, "outside a project, default to ./terms.db")
 }

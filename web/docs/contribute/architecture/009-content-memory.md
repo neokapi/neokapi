@@ -242,7 +242,7 @@ remains for explicit human snapshot / seed / transfer (deterministic, lossless),
 not as an auto-grown git artifact.
 
 A project accumulates **many** memory bundles, not one — this repository's own
-dogfood commits a bundle per content surface under `l10n/tm/*.memory.json` — so
+dogfood commits a bundle per content surface under `context/memory/*.memory.json` — so
 the suffix, not the location, is what identifies a seed. This is why content
 memory has no conventional-location fallback where the terms store does
 ([AD-010](010-terminology.md)): a project has exactly one glossary, so

@@ -30,7 +30,7 @@ Only changed blocks are transferred. Runs post-pull hooks if configured.
 
 When the project is claimed into a workspace, pull also snapshots the
 workspace's governed concepts and their relations into the project's bound
-terms (.kapi/termbase.db) and records a baseline, so a later 'kapi push'
+terms (.kapi/terms.db) and records a baseline, so a later 'kapi push'
 can diff local terminology edits against it and 'kapi check --ship' gates its
 terminology offline against the same governed vocabulary.`,
 	RunE: runPull,

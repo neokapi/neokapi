@@ -53,7 +53,7 @@ export const TermsCard: Story = {
 export const LargeFile: Story = {
   args: {
     name: "enterprise-tm",
-    path: "/shared/localization/enterprise-tm.db",
+    path: "/shared/localization/enterprise-memory.db",
     entryCount: 284619,
     size: 157286400,
     modified: new Date(Date.now() - 86400000).toISOString(),

@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
 	coretools "github.com/neokapi/neokapi/core/tools"
 )
 
@@ -206,7 +206,7 @@ func runVocabCheck(ctx context.Context, corpus TestCorpus, f Fixture, got string
 	if _, err := t.ApplyContext(ctx, &model.Part{Type: model.PartBlock, Resource: scratch}); err != nil {
 		return false, "", err
 	}
-	ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](scratch, "brand-voice")
+	ann, ok := model.AnnoAs[*profile.BrandVoiceAnnotation](scratch, "brand-voice")
 	if !ok {
 		return true, "", nil
 	}

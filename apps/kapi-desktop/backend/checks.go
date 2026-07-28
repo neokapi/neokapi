@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	coretools "github.com/neokapi/neokapi/core/tools"
@@ -104,7 +104,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 	// do-not-translate terms (from the bound terms). Both are optional —
 	// when absent the corresponding check is simply skipped, matching the
 	// CLI's flag-free behavior.
-	var profile *brand.VoiceProfile
+	var profile *profile.VoiceProfile
 	if op.Project != nil && root != "" {
 		if p, _, ok, perr := capp.ResolveBrandProfile(ctx, op.Project, root, host.BrandResolveOptions{}); perr == nil && ok {
 			profile = p
@@ -153,7 +153,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 						checkErr = fmt.Errorf("brand vocabulary: %w", cerr)
 						break
 					}
-					if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
+					if ann, ok := model.AnnoAs[*profile.BrandVoiceAnnotation](b, "brand-voice"); ok {
 						for _, f := range ann.Findings {
 							fileFindings = append(fileFindings, toDesktopFinding(f, b, "source"))
 							allFindings = append(allFindings, f)
@@ -280,7 +280,7 @@ func (a *App) readBlocksForChecks(ctx context.Context, path, fmtName, sourceLang
 // root. Best-effort: nil when nothing is bound or resolution fails — the
 // brand vocabulary check is then skipped, matching the CLI's flag-free
 // behavior.
-func (a *App) resolveProjectBrandProfile(op *openProject) *brand.VoiceProfile {
+func (a *App) resolveProjectBrandProfile(op *openProject) *profile.VoiceProfile {
 	if op == nil || op.Project == nil || op.Path == "" {
 		return nil
 	}

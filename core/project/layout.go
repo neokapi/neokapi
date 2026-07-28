@@ -30,16 +30,18 @@ const StateDirName = ".kapi"
 // MemoryFileName and TermsFileName are the content-memory and terms stores
 // inside StateDir.
 //
-// The spellings are deliberately the old ones. These are **on-disk state**, not
-// prose: every existing project has these exact files, and renaming them would
-// mean kapi stops finding its own stores. R12 retires the *vocabulary* — a
-// reader is told "content memory" and "terms" — while the identifiers keep
-// their spelling and get quoted verbatim when prose has to name one
-// ("the project's content memory (`.kapi/tm.db`)"). See CLAUDE.md's retained
-// identifiers, and 01-positioning: a prose sweep, not a refactor.
+// The spellings match the concepts: content memory is `memory.db`, the terms
+// store is `terms.db`. The old `tm.db` / `termbase.db` were the last of the
+// retired vocabulary left in the tree after #1462 (Go identifiers) and #1504
+// (source filenames and the sync protobuf); this finishes that programme.
+//
+// Both files are **regenerable state**, which is why renaming them was cheap:
+// the terms store compiles from committed sources and the content memory
+// rebuilds from the loop. Neither is a source of truth, so there is nothing to
+// migrate — a stale file is simply rebuilt under the new name.
 const (
-	MemoryFileName = "tm.db"
-	TermsFileName  = "termbase.db"
+	MemoryFileName = "memory.db"
+	TermsFileName  = "terms.db"
 )
 
 // RecipeFileName is the fixed filename of a kapi project recipe. A plain

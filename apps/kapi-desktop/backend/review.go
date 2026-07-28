@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
 	coretools "github.com/neokapi/neokapi/core/tools"
@@ -145,7 +145,7 @@ func (a *App) reviewUnitBlocks(ctx context.Context, op *openProject, rf project.
 // integrity was never verified. A synthetic blocking finding is honest at the
 // panel and fail-safe at the gate, and keeps the signature usable from the paths
 // that legitimately continue past one bad unit.
-func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale model.LocaleID, profile *brand.VoiceProfile, dntTerms []string) []DesktopFinding {
+func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale model.LocaleID, profile *profile.VoiceProfile, dntTerms []string) []DesktopFinding {
 	findings := []DesktopFinding{}
 	fail := func(what string, err error) []DesktopFinding {
 		return append(findings, DesktopFinding{
@@ -161,7 +161,7 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale mod
 		if err := host.RunCheckTool(ctx, vocab, b); err != nil {
 			return fail("brand vocabulary", err)
 		}
-		if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
+		if ann, ok := model.AnnoAs[*profile.BrandVoiceAnnotation](b, "brand-voice"); ok {
 			for _, f := range ann.Findings {
 				findings = append(findings, toDesktopFinding(f, b, "source"))
 			}

@@ -75,8 +75,8 @@ func TestApplyTermEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	assert.Equal(t, "sign in", file.Concepts[0].Terms[0].Text)
 	assert.Equal(t, model.TermPreferred, file.Concepts[0].Terms[0].Status)
 
-	// 2. The cache (.kapi/termbase.db) was compiled from the source.
-	dbPath := filepath.Join(root, project.StateDirName, "termbase.db")
+	// 2. The cache (.kapi/terms.db) was compiled from the source.
+	dbPath := filepath.Join(root, project.StateDirName, "terms.db")
 	require.FileExists(t, dbPath)
 	tb, err := terms.NewSQLiteStore(dbPath)
 	require.NoError(t, err)
@@ -130,7 +130,7 @@ func TestApplyMemoryEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	require.Equal(t, filepath.Join("l10n", "memory.json"), proj.Defaults.MemorySource)
 
 	// Cache compiled, contains the pair.
-	dbPath := filepath.Join(root, project.StateDirName, "tm.db")
+	dbPath := filepath.Join(root, project.StateDirName, "memory.db")
 	require.FileExists(t, dbPath)
 	tm, err := memory.NewSQLiteStore(dbPath)
 	require.NoError(t, err)

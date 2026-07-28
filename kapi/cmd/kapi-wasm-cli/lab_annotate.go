@@ -13,10 +13,10 @@ import (
 	"strings"
 	"syscall/js"
 
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -30,7 +30,7 @@ import (
 //
 // The annotators are deterministic and offline: term overlays come from the
 // seeded in-memory terms (LookupAll over the source text), brand overlays
-// from brand.MatchVocabulary against the seeded brand profile (wasm_backends.go),
+// from profile.MatchVocabulary against the seeded brand profile (wasm_backends.go),
 // and QA overlays from the shared source-only shape rules (double spaces, doubled
 // words — check.HygieneOverlay).
 // Each is a source-anchored overlay (Variant nil) carrying its matched span text
@@ -247,12 +247,12 @@ func termOverlay(ctx context.Context, runs []model.Run, source string) *model.Ov
 }
 
 // brandOverlay builds an OverlayQA over the source runs from the seeded brand
-// profile (brand.MatchVocabulary). Brand findings ride on the QA overlay type
+// profile (profile.MatchVocabulary). Brand findings ride on the QA overlay type
 // (the model's fixed overlay enum has no dedicated brand type) and are tagged
 // with category="brand-vocabulary" plus the matched term, severity and any
 // preferred replacement. Returns nil when nothing matches.
 func brandOverlay(runs []model.Run, source string) *model.Overlay {
-	hits := brand.MatchVocabulary(brandProfile, source)
+	hits := profile.MatchVocabulary(brandProfile, source)
 	if len(hits) == 0 {
 		return nil
 	}
@@ -264,7 +264,7 @@ func brandOverlay(runs []model.Run, source string) *model.Overlay {
 			"term":     h.Term,
 		}
 		switch h.Kind {
-		case brand.VocabCompetitor:
+		case profile.VocabCompetitor:
 			props["kind"] = "competitor"
 			props["message"] = fmt.Sprintf("Competitor term %q found", h.Term)
 		default:

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-26T01:59:51Z",
+  "generatedAt": "2026-07-28T16:34:50Z",
   "commands": [
     {
       "id": "add",
@@ -1146,6 +1146,67 @@
           "default": "false",
           "type": "bool"
         }
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context",
+      "path": [
+        "context"
+      ],
+      "use": "context",
+      "short": "Ask what this project's content context says",
+      "long": "Retrieve the content context this project goes by — the terms, the\nvoice and the rules that hold — without needing to know which store holds the\nanswer.\n\nCommunication is contextual: a legal notice is not a help article. Ask what the\nproject says about a word or a phrase before you write, rather than learning it\nfrom a failing check afterwards.",
+      "groupID": "work",
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context.search",
+      "path": [
+        "context",
+        "search"
+      ],
+      "use": "search \u003cquery\u003e",
+      "short": "Ask what the project's context says about a word or phrase",
+      "long": "Ask one question and get the answer from every store the project\nbinds: what this is called and whether it is discouraged, and wording the\nproject has already approved.\n\nResults are grouped by kind rather than merged into one ranked list, because a\nterminology match and a wording match are not scored on comparable things.",
+      "flags": [
+        {
+          "name": "file",
+          "usage": "explicit path to resource file",
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "usage": "max results per group",
+          "default": "10",
+          "type": "int"
+        },
+        {
+          "name": "local",
+          "usage": "use resource in current directory",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "locale",
+          "shorthand": "l",
+          "usage": "narrow results to one language",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context search widget",
+        "kapi context search \"sign in\" --locale en",
+        "kapi context search widget --json"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -3385,6 +3446,11 @@
           "type": "stringArray"
         },
         {
+          "name": "memory",
+          "usage": "named Memory or path to a .db (defaults to the project content memory at .kapi/memory.db)",
+          "type": "string"
+        },
+        {
           "name": "no-query-threshold",
           "usage": "Skip content-memory query if existing candidate scores at or above this value (101 = always query)",
           "default": "101",
@@ -3441,11 +3507,6 @@
         {
           "name": "target-lang",
           "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
-          "name": "tm",
-          "usage": "named Memory or path to a .db (defaults to the project content memory at .kapi/tm.db)",
           "type": "string"
         },
         {
@@ -5735,7 +5796,7 @@
       ],
       "use": "memory",
       "short": "Manage content memory",
-      "long": "Manage content memory.\n\nA content memory stores previously produced content — source segments with the\ntargets settled for them — as a SQLite database. Use these commands to\nimport/export TMX, look up matches, and manage entries.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named content memory in KAPI_HOME (~/.config/kapi/tm/\u003cn\u003e.db)\n  --local         Content memory in current directory (./tm.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./tm.db).",
+      "long": "Manage content memory.\n\nA content memory stores previously produced content — source segments with the\ntargets settled for them — as a SQLite database. Use these commands to\nimport/export TMX, look up matches, and manage entries.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named content memory in KAPI_HOME (~/.config/kapi/tm/\u003cn\u003e.db)\n  --local         Content memory in current directory (./memory.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./memory.db).",
       "groupID": "assets",
       "examples": [
         "kapi memory stats",
@@ -6913,6 +6974,11 @@
           "type": "string"
         },
         {
+          "name": "memory",
+          "usage": "named Memory for recycle flow (resolves from KAPI_HOME)",
+          "type": "string"
+        },
+        {
           "name": "model",
           "usage": "AI model name",
           "type": "string"
@@ -6972,11 +7038,6 @@
         {
           "name": "termstore",
           "usage": "named terms store for term-lookup/enforce (resolves from KAPI_HOME)",
-          "type": "string"
-        },
-        {
-          "name": "tm",
-          "usage": "named Memory for recycle flow (resolves from KAPI_HOME)",
           "type": "string"
         },
         {
@@ -7111,6 +7172,11 @@
           "type": "string"
         },
         {
+          "name": "memory",
+          "usage": "named Memory for recycle flow (resolves from KAPI_HOME)",
+          "type": "string"
+        },
+        {
           "name": "model",
           "usage": "AI model name",
           "type": "string"
@@ -7170,11 +7236,6 @@
         {
           "name": "termstore",
           "usage": "named terms store for term-lookup/enforce (resolves from KAPI_HOME)",
-          "type": "string"
-        },
-        {
-          "name": "tm",
-          "usage": "named Memory for recycle flow (resolves from KAPI_HOME)",
           "type": "string"
         },
         {
@@ -7345,7 +7406,7 @@
       ],
       "use": "terms",
       "short": "Manage terminology",
-      "long": "Manage project terminology.\n\nA terms store holds approved terminology — concepts and their renderings per\nlocale — as a SQLite database. Use these commands to import, export, look up,\nand manage terms.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named terms store in KAPI_HOME (~/.config/kapi/termbases/\u003cn\u003e.db)\n  --local         Terms store in current directory (./termbase.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./termbase.db).",
+      "long": "Manage project terminology.\n\nA terms store holds approved terminology — concepts and their renderings per\nlocale — as a SQLite database. Use these commands to import, export, look up,\nand manage terms.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named terms store in KAPI_HOME (~/.config/kapi/termbases/\u003cn\u003e.db)\n  --local         Terms store in current directory (./terms.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./terms.db).",
       "groupID": "assets",
       "examples": [
         "kapi terms stats",
@@ -7765,6 +7826,11 @@
           "type": "string"
         },
         {
+          "name": "memory",
+          "usage": "named Memory for recycle flow (resolves from KAPI_HOME)",
+          "type": "string"
+        },
+        {
           "name": "model",
           "usage": "AI model name",
           "type": "string"
@@ -7824,11 +7890,6 @@
         {
           "name": "termstore",
           "usage": "named terms store for term-lookup/enforce (resolves from KAPI_HOME)",
-          "type": "string"
-        },
-        {
-          "name": "tm",
-          "usage": "named Memory for recycle flow (resolves from KAPI_HOME)",
           "type": "string"
         },
         {
@@ -7990,6 +8051,11 @@
           "type": "bool"
         },
         {
+          "name": "memory",
+          "usage": "named Memory for recycle flow (resolves from KAPI_HOME)",
+          "type": "string"
+        },
+        {
           "name": "model",
           "usage": "AI model name",
           "type": "string"
@@ -8081,11 +8147,6 @@
           "usage": "server venue: maximum time to wait for the server run to finish before pulling available results",
           "default": "15m0s",
           "type": "duration"
-        },
-        {
-          "name": "tm",
-          "usage": "named Memory for recycle flow (resolves from KAPI_HOME)",
-          "type": "string"
         },
         {
           "name": "trace",

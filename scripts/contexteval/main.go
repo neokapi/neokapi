@@ -8,7 +8,7 @@
 //
 //   - bare: no glossary, no voice profile, no instruction;
 //   - steered: the full context, injected exactly as production injects it
-//     (glossary map → prompt glossary section, brand.VoiceProfile →
+//     (glossary map → prompt glossary section, profile.VoiceProfile →
 //     RenderVoiceGuideCompact → voice section, instruction → instruction
 //     section).
 //

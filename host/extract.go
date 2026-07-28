@@ -181,7 +181,7 @@ func (a *App) RunExtract(cmd Command) error {
 		if a.MemoryBackend != nil {
 			tm = a.MemoryBackend
 		} else {
-			memoryPath := filepath.Join(layout.StateDir, "tm.db")
+			memoryPath := filepath.Join(layout.StateDir, "memory.db")
 			loaded, err := memory.NewSQLiteStore(memoryPath)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: extract: open project content memory at %s: %v (continuing with no content memory)\n", memoryPath, err)
@@ -1008,7 +1008,7 @@ func (a *App) RunExtractKpz(cmd Command) error {
 		if a.MemoryBackend != nil {
 			mem = a.MemoryBackend
 		} else {
-			memoryPath := filepath.Join(layout.StateDir, "tm.db")
+			memoryPath := filepath.Join(layout.StateDir, "memory.db")
 			loaded, lerr := memory.NewSQLiteStore(memoryPath)
 			if lerr != nil {
 				fmt.Fprintf(cmd.ErrOrStderr(), "Warning: extract: open project content memory at %s: %v "+
@@ -1022,7 +1022,7 @@ func (a *App) RunExtractKpz(cmd Command) error {
 
 	// Terms context (optional): bound terms or the project terms store.
 	var tb terms.Terminology
-	termsPath := filepath.Join(layout.StateDir, "termbase.db")
+	termsPath := filepath.Join(layout.StateDir, "terms.db")
 	tbLoaded, terr := terms.NewSQLiteStore(termsPath)
 	if terr != nil {
 		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: extract: open project terms at %s: %v "+

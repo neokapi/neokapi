@@ -293,7 +293,7 @@
           "list": {
             "short": "List named Memories in KAPI_HOME"
           },
-          "long": "Manage content memory.\n\nA content memory stores previously produced content — source segments with the\ntargets settled for them — as a SQLite database. Use these commands to\nimport/export TMX, look up matches, and manage entries.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named content memory in KAPI_HOME (~/.config/kapi/tm/\u003cn\u003e.db)\n  --local         Content memory in current directory (./tm.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./tm.db).",
+          "long": "Manage content memory.\n\nA content memory stores previously produced content — source segments with the\ntargets settled for them — as a SQLite database. Use these commands to\nimport/export TMX, look up matches, and manage entries.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named content memory in KAPI_HOME (~/.config/kapi/tm/\u003cn\u003e.db)\n  --local         Content memory in current directory (./memory.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./memory.db).",
           "lookup": {
             "example": "  kapi memory lookup \"welcome back\" -s en -t fr\n  kapi memory lookup \"save\" -s en -t de --min-score 0.8",
             "short": "Look up text in content memory"
@@ -476,7 +476,7 @@
           "list": {
             "short": "List named terms stores in KAPI_HOME"
           },
-          "long": "Manage project terminology.\n\nA terms store holds approved terminology — concepts and their renderings per\nlocale — as a SQLite database. Use these commands to import, export, look up,\nand manage terms.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named terms store in KAPI_HOME (~/.config/kapi/termbases/\u003cn\u003e.db)\n  --local         Terms store in current directory (./termbase.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./termbase.db).",
+          "long": "Manage project terminology.\n\nA terms store holds approved terminology — concepts and their renderings per\nlocale — as a SQLite database. Use these commands to import, export, look up,\nand manage terms.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named terms store in KAPI_HOME (~/.config/kapi/termbases/\u003cn\u003e.db)\n  --local         Terms store in current directory (./terms.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./terms.db).",
           "lookup": {
             "example": "  kapi terms lookup \"dashboard\" -s en -t fr\n  kapi terms lookup \"settings\" -s en -t de --fuzzy",
             "short": "Look up a term in the terms store"

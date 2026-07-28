@@ -154,7 +154,7 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 		if lerr != nil {
 			return UpPlanOutput{}, fmt.Errorf("resolve project layout for %s: %w", projectPath, lerr)
 		}
-		memoryPath := filepath.Join(layout.StateDir, "tm.db")
+		memoryPath := filepath.Join(layout.StateDir, "memory.db")
 		if _, statErr := os.Stat(memoryPath); statErr == nil {
 			loaded, terr := memory.NewSQLiteStore(memoryPath)
 			if terr != nil {

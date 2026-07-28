@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	brand "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/kmb"
@@ -72,11 +72,11 @@ func (a *App) resolveProjectRoot(cmd Command) (recipePath, root string, err erro
 }
 
 // ---------------------------------------------------------------------------
-// term → committed .terms.json source → terms import compile into .kapi/termbase.db
+// term → committed .terms.json source → terms import compile into .kapi/terms.db
 // ---------------------------------------------------------------------------
 
 // applyTermEntry upserts a glossary term. It edits the committed .terms.json source
-// the recipe binds (creating l10n/terms.json and binding it when none
+// the recipe binds (creating context/terms.json and binding it when none
 // exists), then re-imports the whole .terms.json into the project terms store (.db)
 // cache so the SQLite store reflects the committed source — one write path.
 func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
@@ -134,7 +134,7 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 
 // ensureTermsSourceBinding returns the committed .terms.json source path the
 // recipe binds via defaults.termbase_source, creating a default
-// (l10n/terms.json) and writing the binding into the recipe when none is
+// (context/terms.json) and writing the binding into the recipe when none is
 // bound — so future runs are consistent.
 func (a *App) ensureTermsSourceBinding(recipePath, root string) (string, error) {
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
@@ -149,7 +149,7 @@ func (a *App) ensureTermsSourceBinding(recipePath, root string) (string, error) 
 	// Bind the compiled cache too, so term enforcement (resolveProjectTermsPath)
 	// reads the .db this source compiles into rather than an unrelated default.
 	if proj.Defaults.Terms == "" {
-		proj.Defaults.Terms = filepath.Join(project.StateDirName, "termbase.db")
+		proj.Defaults.Terms = filepath.Join(project.StateDirName, "terms.db")
 	}
 	if err := project.Save(recipePath, proj); err != nil {
 		return "", fmt.Errorf("bind terms source: %w", err)
@@ -159,9 +159,9 @@ func (a *App) ensureTermsSourceBinding(recipePath, root string) (string, error) 
 
 // compileTermsSource re-imports the committed .terms.json into the project
 // terms (.db) cache — the single store-write path. The cache is the recipe's
-// bound terms, else the .kapi/termbase.db convention.
+// bound terms, else the .kapi/terms.db convention.
 func (a *App) compileTermsSource(ctx context.Context, root, srcPath string) error {
-	dbPath := filepath.Join(root, project.StateDirName, "termbase.db")
+	dbPath := filepath.Join(root, project.StateDirName, "terms.db")
 	if proj, err := a.loadRecipeForRoot(root); err == nil && proj.Defaults.Terms != "" {
 		dbPath = resolveUnder(root, proj.Defaults.Terms)
 	}
@@ -280,7 +280,7 @@ func conceptID(text string, locale model.LocaleID) string {
 }
 
 // ---------------------------------------------------------------------------
-// tm → committed .memory.json source → tm import compile into .kapi/tm.db
+// tm → committed .memory.json source → tm import compile into .kapi/memory.db
 // ---------------------------------------------------------------------------
 
 // applyReviewEntry records a review decision in the project STATE store via the
@@ -321,7 +321,7 @@ func (a *App) applyReviewEntry(ctx context.Context, cmd Command, e changeEntry) 
 
 // applyMemoryEntry adds a source→target content memory pair. It edits the committed .memory.json
 // source the recipe binds (creating l10n/memory.json and binding it when none
-// exists), then re-imports the .memory.json into the project content memory (.kapi/tm.db) cache.
+// exists), then re-imports the .memory.json into the project content memory (.kapi/memory.db) cache.
 func (a *App) applyMemoryEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.Source}
 
@@ -448,9 +448,9 @@ func pluralBundles(n int) string {
 }
 
 // compileMemorySource re-imports the committed .memory.json into the project content memory cache
-// (the conventional .kapi/tm.db, the same file kapi extract/merge use).
+// (the conventional .kapi/memory.db, the same file kapi extract/merge use).
 func (a *App) compileMemorySource(ctx context.Context, root, srcPath string) error {
-	dbPath := filepath.Join(root, project.StateDirName, "tm.db")
+	dbPath := filepath.Join(root, project.StateDirName, "memory.db")
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
 		return fmt.Errorf("create tm dir: %w", err)
 	}
@@ -587,7 +587,7 @@ func memoryEntryID(source string, srcLocale, tgtLocale model.LocaleID) string {
 // ---------------------------------------------------------------------------
 
 // applyBrandEntry adds a vocabulary rule to the committed brand voice profile
-// YAML the recipe binds (creating l10n/brand-voice.yaml and binding it under
+// YAML the recipe binds (creating context/brand-voice.yaml and binding it under
 // defaults.brand_voice.profile_file when none exists), then re-imports the
 // profile into the local brand store so the store reflects the committed source.
 func (a *App) applyBrandEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
@@ -638,7 +638,7 @@ func (a *App) applyBrandEntry(ctx context.Context, cmd Command, e changeEntry) a
 }
 
 // ensureBrandProfileBinding returns the committed profile YAML path bound via
-// defaults.brand_voice.profile_file, creating l10n/brand-voice.yaml and binding
+// defaults.brand_voice.profile_file, creating context/brand-voice.yaml and binding
 // it when no profile_file is bound. A non-file binding (pack/store profile) is
 // an error: apply edits a committed file, not a starter pack or a store row.
 func (a *App) ensureBrandProfileBinding(recipePath, root string) (string, error) {

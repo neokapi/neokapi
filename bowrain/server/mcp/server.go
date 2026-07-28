@@ -16,7 +16,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/brandscope"
 	"github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	corebrand "github.com/neokapi/neokapi/core/brand"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
@@ -69,7 +69,7 @@ type SandboxResult struct {
 
 // MCPServer wraps the MCP protocol server with brand voice resources and tools.
 type MCPServer struct {
-	brandStore     corebrand.BrandStore
+	brandStore     coreprofile.BrandStore
 	contentStore   store.ContentStore
 	wsDefault      brandscope.WorkspaceDefault
 	memoryResolver MemoryResolver
@@ -160,13 +160,13 @@ func WithToolRegistry(r *registry.ToolRegistry) Option {
 }
 
 // NewMCPServer creates a new MCP server with brand voice capabilities.
-func NewMCPServer(brandStore corebrand.BrandStore, cfg Config) (*MCPServer, error) {
+func NewMCPServer(brandStore coreprofile.BrandStore, cfg Config) (*MCPServer, error) {
 	return NewMCPServerWithStore(brandStore, nil, cfg)
 }
 
 // NewMCPServerWithStore creates a new MCP server with brand voice and
 // content/flow/content memory/terms/connector tools for @bravo agent access.
-func NewMCPServerWithStore(brandStore corebrand.BrandStore, contentStore store.ContentStore, cfg Config, opts ...Option) (*MCPServer, error) {
+func NewMCPServerWithStore(brandStore coreprofile.BrandStore, contentStore store.ContentStore, cfg Config, opts ...Option) (*MCPServer, error) {
 	s := mcp.NewServer(
 		&mcp.Implementation{
 			Name:    "bowrain",

@@ -119,7 +119,7 @@ func childTableCount(t *testing.T, db interface {
 // tm_variants / tm_entry_entities / tm_entry_origins, leaving orphan rows.
 func TestSQLiteMemory_DeleteRemovesAllChildRows(t *testing.T) {
 	dir := t.TempDir()
-	tm, err := memory.NewSQLiteStore(dir + "/tm.db")
+	tm, err := memory.NewSQLiteStore(dir + "/memory.db")
 	require.NoError(t, err)
 	defer tm.Close()
 

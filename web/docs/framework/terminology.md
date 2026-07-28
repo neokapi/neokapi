@@ -121,12 +121,12 @@ All `kapi terms` commands (except `list`) accept these mutually exclusive flags:
 | Flag            | Resolves to                         | Example                      |
 | --------------- | ----------------------------------- | ---------------------------- |
 | `--name <n>`    | `~/.config/kapi/termbases/<n>.db`   | `--name project-terms`       |
-| `--local`       | `./termbase.db` (current directory) | `--local`                    |
+| `--local`       | `./terms.db` (current directory) | `--local`                    |
 | `--file <path>` | Explicit file path                  | `--file /shared/terms.db`    |
 | _(no flag)_     | Same as `--local`                   |                              |
 
 Databases are created on demand if they don't exist. `termbases/` and
-`termbase.db` are the on-disk names for the terms store. `~/.config/kapi` is the
+`terms.db` are the on-disk names for the terms store. `~/.config/kapi` is the
 user config directory on Linux, and resolves to
 `~/Library/Application Support/kapi` on macOS. `kapi config path` prints the
 resolved location.

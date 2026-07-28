@@ -135,7 +135,7 @@ cache, not a two-way sync:
   reviewed in a PR, and versioned with the code. It is plain JSON under a
   compound suffix, so a reviewer reads it in a browser diff and `jq` reads it on
   the command line.
-- the **terms store (`.kapi/termbase.db`) is a rebuildable read-cache** over it,
+- the **terms store (`.kapi/terms.db`) is a rebuildable read-cache** over it,
   under the gitignored cache, rebuilt when the committed bundle changes
   (content-hash guarded). Discard it, rebuild from the bundle, lose nothing —
   **nothing authoritative ever lives only in the db**. Committing the binary

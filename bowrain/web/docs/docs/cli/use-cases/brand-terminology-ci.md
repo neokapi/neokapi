@@ -15,7 +15,7 @@ The loop is two commands:
 
 1. [`kapi pull`](/cli/commands/pull) fetches translations and, when the project
    is claimed into a workspace, also snapshots the workspace's governed concepts
-   and their relations into the project's local terms store (`.kapi/termbase.db`).
+   and their relations into the project's local terms store (`.kapi/terms.db`).
 2. `kapi check --ship` runs the project's bound gates — the terminology gate
    checks the project's target files against that terms store and exits non-zero
    when a file violates it.
@@ -28,7 +28,7 @@ the gate enforces exactly what the hub shows.
 - The project is claimed into a workspace (its `kapi.yaml` recipe carries a
   [`server:` block](/cli/project-model)).
 - The project binds a terms store — `defaults.termbase` in the recipe, or the
-  conventional `.kapi/termbase.db`, which is where `kapi pull` writes the
+  conventional `.kapi/terms.db`, which is where `kapi pull` writes the
   governed concepts.
 - The runner is authenticated. In CI, set `BOWRAIN_AUTH_TOKEN`; locally, run
   [`kapi auth login`](/cli/commands/auth).
@@ -45,12 +45,12 @@ kapi check --ship
 
 `kapi check --ship` runs every gate the project binds — brand, terminology,
 QA — plus its ship/source coverage gates. The terminology gate runs because
-the project binds a terms store (the conventional `.kapi/termbase.db`, which is
+the project binds a terms store (the conventional `.kapi/terms.db`, which is
 exactly where `kapi pull` snapshots the governed concepts), so the gate
 enforces what the hub shows with no extra configuration.
 
 Scope the check to one locale with `--locale`, or point the terminology gate
-at a specific terms store with `--termbase`:
+at a specific terms store with `--terms`:
 
 ```bash
 kapi check --ship --locale fr

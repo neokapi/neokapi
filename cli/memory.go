@@ -25,10 +25,10 @@ import/export TMX, look up matches, and manage entries.
 
 Resource location (mutually exclusive):
   --name <n>      Named content memory in KAPI_HOME (~/.config/kapi/tm/<n>.db)
-  --local         Content memory in current directory (./tm.db)
+  --local         Content memory in current directory (./memory.db)
   --file <path>   Explicit file path
 
-Default (no flag): same as --local (uses ./tm.db).`,
+Default (no flag): same as --local (uses ./memory.db).`,
 		Example: `  kapi memory stats
   kapi memory lookup "welcome back" -s en -t fr
   kapi memory import corpus.tmx -s en -t fr`,

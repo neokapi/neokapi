@@ -32,8 +32,8 @@ The most useful distinction in this family is not between one format and
 another. It is between three roles a file can play.
 
 **A store is working state.** SQLite databases under the project's `.kapi/`
-directory — the content-memory store (`tm.db`), the terms store
-(`termbase.db`), block and skeleton caches. They are fast, indexed, mutable,
+directory — the content-memory store (`memory.db`), the terms store
+(`terms.db`), block and skeleton caches. They are fast, indexed, mutable,
 and **rebuildable**. `.kapi/` is gitignored, so nothing in it is a source of
 truth.
 

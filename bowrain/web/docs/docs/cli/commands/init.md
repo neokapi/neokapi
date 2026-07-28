@@ -172,7 +172,7 @@ kapi status  # finds kapi.yaml up the tree
 
 - `.kapi/cache/` — block store, sync cache, extraction intermediates (auto-gitignored)
 - `.kapi/manifest.yaml` — regenerable bookkeeping
-- `.kapi/tm.db`, `.kapi/termbase.db` — the content memory and terms store: local-only by default; opt in to commit when cross-clone reproducibility matters
+- `.kapi/memory.db`, `.kapi/terms.db` — the content memory and terms store: local-only by default; opt in to commit when cross-clone reproducibility matters
 
 Auth tokens are never written to the project. They live in the OS keychain (keys `bowrain-auth:<server-url>` and `bowrain-refresh:<server-url>`); non-secret metadata sits in `auth.json` in the bowrain config directory (`~/.config/bowrain` on Linux, `~/Library/Application Support/bowrain` on macOS).
 

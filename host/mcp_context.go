@@ -42,8 +42,8 @@ type contextSearchInput struct {
 	Query  string `json:"query" jsonschema:"the word or phrase to ask about"`
 	Locale string `json:"locale,omitempty" jsonschema:"narrow results to one language (e.g. en, fr)"`
 	Limit  int    `json:"limit,omitempty" jsonschema:"max results per group (default 10)"`
-	Terms  string `json:"terms,omitempty" jsonschema:"path to the terms store (default .kapi/termbase.db)"`
-	Memory string `json:"memory,omitempty" jsonschema:"path to the content memory (default .kapi/tm.db)"`
+	Terms  string `json:"terms,omitempty" jsonschema:"path to the terms store (default .kapi/terms.db)"`
+	Memory string `json:"memory,omitempty" jsonschema:"path to the content memory (default .kapi/memory.db)"`
 	// The default paths spell the retained identifiers, because they name files
 	// that exist on disk today. The vocabulary in the descriptions is the
 	// settled one — "terms store", "content memory" — and the filenames are

@@ -67,7 +67,7 @@ Run kapi's checks against the same `i18n/` directory and their findings appear o
 
 ```bash
 kapi exec qa i18n/ --target-lang de
-kapi exec term-check i18n/ --target-lang de --termbase terms/de.db
+kapi exec term-check i18n/ --target-lang de --terms terms/de.db
 ```
 
 An approved term that wasn't used, a placeholder that went missing in translation, a string that runs 60% longer than its source and is about to break the button it lives in — each is marked on the words it's about, in the place it happens. Re-run a check while the app is open and the marks update; you don't need to restart anything.

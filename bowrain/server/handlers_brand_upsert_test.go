@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
-	corebrand "github.com/neokapi/neokapi/core/brand"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -95,13 +95,13 @@ func TestBrandUpsert_NewVersionPreservesServerEdits(t *testing.T) {
 
 	// Server-side edit 2: the correction loop promotes "synergy" → v3, with a
 	// recorded promoted decision (mirroring HandlePromoteSuggestedRule).
-	promotedProfile, changed, err := corebrand.PromoteAndSave(ctx, srv.BrandStore, profileID,
-		corebrand.SuggestedRule{Term: "synergy", Replacement: "teamwork", CorrectionCount: 3})
+	promotedProfile, changed, err := coreprofile.PromoteAndSave(ctx, srv.BrandStore, profileID,
+		coreprofile.SuggestedRule{Term: "synergy", Replacement: "teamwork", CorrectionCount: 3})
 	require.NoError(t, err)
 	require.True(t, changed)
-	require.NoError(t, srv.BrandStore.RecordRuleDecision(ctx, &corebrand.RuleDecision{
+	require.NoError(t, srv.BrandStore.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
 		ProfileID: profileID, Term: "synergy", Replacement: "teamwork",
-		Status: corebrand.RuleDecisionPromoted, PromotedVersion: promotedProfile.Version,
+		Status: coreprofile.RuleDecisionPromoted, PromotedVersion: promotedProfile.Version,
 	}))
 
 	// The push carries a local change (new tone guideline) from a brand.yaml
@@ -157,15 +157,15 @@ func TestBrandUpsert_DemotedRuleStaysGone(t *testing.T) {
 
 	// Promote then demote "synergy" server-side; the decision row stays
 	// promoted (it durably records the promotion) but the live rule is gone.
-	promotedProfile, changed, err := corebrand.PromoteAndSave(ctx, srv.BrandStore, profileID,
-		corebrand.SuggestedRule{Term: "synergy", Replacement: "teamwork", CorrectionCount: 3})
+	promotedProfile, changed, err := coreprofile.PromoteAndSave(ctx, srv.BrandStore, profileID,
+		coreprofile.SuggestedRule{Term: "synergy", Replacement: "teamwork", CorrectionCount: 3})
 	require.NoError(t, err)
 	require.True(t, changed)
-	require.NoError(t, srv.BrandStore.RecordRuleDecision(ctx, &corebrand.RuleDecision{
+	require.NoError(t, srv.BrandStore.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
 		ProfileID: profileID, Term: "synergy", Replacement: "teamwork",
-		Status: corebrand.RuleDecisionPromoted, PromotedVersion: promotedProfile.Version,
+		Status: coreprofile.RuleDecisionPromoted, PromotedVersion: promotedProfile.Version,
 	}))
-	_, demoted, err := corebrand.DemoteAndSave(ctx, srv.BrandStore, profileID, "synergy")
+	_, demoted, err := coreprofile.DemoteAndSave(ctx, srv.BrandStore, profileID, "synergy")
 	require.NoError(t, err)
 	require.True(t, demoted)
 

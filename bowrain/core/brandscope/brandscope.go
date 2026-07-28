@@ -17,8 +17,8 @@ import (
 	"context"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	brand "github.com/neokapi/neokapi/core/profile"
 )
 
 // Scope identifies the organizational-hierarchy positions a brand check runs

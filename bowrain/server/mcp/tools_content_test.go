@@ -7,8 +7,8 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -109,7 +109,7 @@ func TestHandleUpdateBlock(t *testing.T) {
 
 func TestHandleSandboxExecuteScript(t *testing.T) {
 	bs := &memBrandStore{}
-	_ = bs.CreateProfile(t.Context(), &corebrand.VoiceProfile{ID: "p1"})
+	_ = bs.CreateProfile(t.Context(), &coreprofile.VoiceProfile{ID: "p1"})
 
 	sandbox := &mockSandbox{}
 	ms, err := NewMCPServerWithStore(bs, nil, Config{}, WithSandbox(sandbox))

@@ -56,7 +56,7 @@ func TestScaffoldKapiMart(t *testing.T) {
 	// content memory should have 200+ entries. Under the multilingual model each TU
 	// becomes a single entry with N variants instead of N entries per TU,
 	// so the total is roughly ~1/5 of the old count.
-	tm, err := memory.NewSQLiteStore(filepath.Join(dir, ".kapi", "tm.db"))
+	tm, err := memory.NewSQLiteStore(filepath.Join(dir, ".kapi", "memory.db"))
 	require.NoError(t, err)
 	defer tm.Close()
 	memoryCount, err := tm.Count(t.Context())
@@ -64,7 +64,7 @@ func TestScaffoldKapiMart(t *testing.T) {
 	assert.GreaterOrEqual(t, memoryCount, 200, "content memory should have at least 200 multilingual entries")
 
 	// Terms should have 100+ concepts.
-	tb, err := terms.NewSQLiteStore(filepath.Join(dir, ".kapi", "termbase.db"))
+	tb, err := terms.NewSQLiteStore(filepath.Join(dir, ".kapi", "terms.db"))
 	require.NoError(t, err)
 	defer tb.Close()
 	tbCount, err := tb.Count(t.Context())

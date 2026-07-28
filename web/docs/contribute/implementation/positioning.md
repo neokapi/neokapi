@@ -152,10 +152,10 @@ leads with translation.
 **Naming:** all prose — framework docs included — says **content memory** (with
 *recycling* as the verb), never "translation memory". The identifiers keep their own
 spelling in code and on the wire: the recipe keys `tm:` / `tm_source:` / `termbase:`,
-the `--tm` and `--termbase` flags, and the on-disk `tm.db` / `termbase.db`. Prose that
+the `--memory` and `--terms` flags, and the on-disk `memory.db` / `terms.db`. Prose that
 has to name one describes the concept in the settled vocabulary and quotes the
-identifier in backticks — "the project's content memory (`.kapi/tm.db`)", "the terms
-store (`termbase.db`)".
+identifier in backticks — "the project's content memory (`.kapi/memory.db`)", "the terms
+store (`terms.db`)".
 
 **Headline register:** brand, voice, on-brand, agents, governed review, delivery, the kapi
 loop. Search-keyword vocabulary — "Lokalise alternative", "localization platform",
