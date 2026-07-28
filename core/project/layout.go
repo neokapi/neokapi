@@ -27,6 +27,21 @@ type Layout struct {
 // state (manifest bookkeeping, content memory, terms, and the cache subdir).
 const StateDirName = ".kapi"
 
+// MemoryFileName and TermsFileName are the content-memory and terms stores
+// inside StateDir.
+//
+// The spellings are deliberately the old ones. These are **on-disk state**, not
+// prose: every existing project has these exact files, and renaming them would
+// mean kapi stops finding its own stores. R12 retires the *vocabulary* — a
+// reader is told "content memory" and "terms" — while the identifiers keep
+// their spelling and get quoted verbatim when prose has to name one
+// ("the project's content memory (`.kapi/tm.db`)"). See CLAUDE.md's retained
+// identifiers, and 01-positioning: a prose sweep, not a refactor.
+const (
+	MemoryFileName = "tm.db"
+	TermsFileName  = "termbase.db"
+)
+
 // RecipeFileName is the fixed filename of a kapi project recipe. A plain
 // YAML file, so every editor and code host (GitHub/GitLab previews and
 // diffs) highlights it with zero configuration. Discovery matches this

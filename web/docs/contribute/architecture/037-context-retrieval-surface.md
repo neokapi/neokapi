@@ -1,0 +1,185 @@
+---
+id: 037-context-retrieval-surface
+sidebar_position: 37
+title: "AD-037: The context retrieval surface"
+---
+
+# AD-037: The context retrieval surface
+
+## Summary
+
+A project's content context is retrieved through **two primitives, offered
+identically on the CLI and over MCP**:
+
+| Shape | Question | CLI | MCP |
+| --- | --- | --- | --- |
+| **By location** | *what applies here?* | `kapi context <path>` | `context://<path>` resource |
+| **By content** | *what do we know about this?* | `kapi context search <query>` | `context_search` tool |
+
+Every asset-shaped lookup folds into one of the two. There is no separate
+retrieval command per store — not for voice, not for terms, not for content
+memory — because "which store holds the answer" is an implementation detail the
+caller should never have to know.
+
+The two surfaces are held in parity by construction: the MCP tools are thin
+wrappers over the same host functions the CLI verbs call, and a conformance test
+asserts the retrieval surfaces agree.
+
+## Context
+
+### The surface was generated, not designed
+
+`host/mcp_tools.go` exposed **every CLI-visible framework tool** over MCP. In
+ad-hoc mode that produced 51 tools, of which roughly 12 were deliberately
+authored. Adding a pipeline step silently added an agent-facing tool, so the
+surface accumulated `whitespace-correct`, `encoding-detect`, `inline-codes-remove`
+and `xml-validation` — flow steps no agent should call — alongside
+`external-command` ("Executes an external command on block text") and `script`
+("Run a JavaScript processing script"), which were exposed to any MCP client by
+inheritance rather than by decision.
+
+### Retrieval was asset-shaped on both surfaces, and the two disagreed
+
+Before this AD, retrieval was a command per store, and MCP exposed an arbitrary
+subset of what the CLI offered:
+
+| CLI | MCP | |
+| --- | --- | --- |
+| `kapi brand guide` | `brand_guide` | both |
+| `kapi brand show` | — | CLI only (and a duplicate of `brand guide`) |
+| `kapi brand profiles` | — | CLI only |
+| `kapi terms lookup` | `term_lookup` | both |
+| `kapi terms search` | — | CLI only |
+| `kapi memory lookup` | — | CLI only |
+| `kapi memory search` | `tm_search` | both |
+
+Six CLI retrieval verbs, three MCP tools, no stated rule for which got exposed.
+The **agent skill drives the CLI**, so an assistant following the skill and an
+assistant calling MCP tools learned two different models of what kapi holds.
+
+### Why asset-shaped retrieval is the wrong shape
+
+A caller does not have a store in mind. It has a question:
+
+> Communication is contextual — the assistant asking *what applies here*, the
+> check asking *does this rule fire*, and the engine asking *may this approved
+> wording be reused* are one question asked by three callers.
+
+Asset-shaped retrieval forces the caller to already know the answer's location
+before asking, which inverts that. Worse, it returns **partial answers that read
+as whole ones**: `brand_guide` renders a profile's own `PreferredTerms` /
+`ForbiddenTerms`, so its output visibly contains terminology — while the
+project's **terms store**, a separate source reaching the engine by a separate
+path, went unread. A caller that writes against that output has terminology it
+did not get. Silence would have been safer.
+
+## Decision
+
+### One question, two shapes
+
+Retrieval is addressed **by location** or **by content**, never by store.
+
+**By location** answers *what applies here*: the profile in force, its rendered
+guidance, the terms that apply, and any scoped rules. It resolves through
+`core/brand.ResolveContext` (workspace → project → stream → collection) and, as
+the coordinate work lands, file and passage overrides beneath it.
+
+**By content** answers *what do we know about this*: one query, every store the
+scope holds — terms and concepts, content memory, profile examples.
+
+### Two address forms, one thing
+
+The by-location primitive is addressable two ways, because an ad-hoc run has no
+path to resolve:
+
+```
+context://<path>            what applies at this location
+context://profile/<name>    what a named profile holds (packs, ad-hoc, "as if")
+```
+
+CLI mirrors this as `kapi context <path>` and `kapi context --profile <name>`.
+
+### Rendering is a property, not a command
+
+The by-location primitive renders as **prose for a model** (`text/markdown`) or
+**structured for a program** (`application/json`). MCP resources carry a mime
+type, so this is a property of the resource rather than a second entry point;
+the CLI expresses it as `--json`.
+
+This is what dissolves `brand_guide`. It conflated three concerns — voice only,
+by name only, markdown only — into one narrow point. Once content is the whole
+context, addressing covers by-name, and rendering is a property, nothing is left
+over.
+
+### What folds in
+
+| Retired from the retrieval surface | Folds into |
+| --- | --- |
+| `brand_guide`, `brand show` | `kapi context` / `context://` |
+| `term_lookup`, `terms lookup`, `terms search` | `kapi context search` / `context_search` |
+| `tm_search`, `memory lookup`, `memory search` | `kapi context search` / `context_search` |
+
+**Management verbs are not retrieval and do not fold.** `terms import/export/
+stats`, `memory import/export/audit/sessions`, `brand new/validate/import/pack`
+stay exactly as they are — they operate on a store deliberately, which is a
+different act from asking a question.
+
+### Content memory is recycled, not searched
+
+Recycling is the loop's job and is invisible by design: `up` pre-fills from
+content memory as the structural cost control. So the retrieval surface does not
+offer "search memory for prior translations" — that duplicates work already
+done, and inviting a caller to do it by hand is inviting it to hand-crank the
+loop. `recycle` and `diff-leverage` leave the agent surface for the same reason.
+
+What *is* served is **precedent**: *how has this project said this before*, when
+authoring source content. That is a different question from recycling, it is not
+answered anywhere else, and it is what makes a caller's own writing sound like
+the project. It reaches callers through `context search`, not a memory-specific
+verb.
+
+### Reach, not capability
+
+The same call returns less locally, and says so. kapi resolves a terms store, a
+content memory and a profile; bowrain resolves the full concept graph with
+relations, revisions and market scoping. A local result set is **explicitly
+scoped in its response** rather than silently thinner — a caller must be able to
+tell "this project holds no answer" from "this scope cannot hold one".
+
+### Results are grouped, never merged into one ranking
+
+A term match and a memory match are not comparable scores. Results are grouped
+by kind, each group ranked within itself. A single blended list would impose an
+order that means nothing.
+
+### The generated surface becomes opt-in
+
+MCP exposes a **curated** set by default. `KAPI_MCP_ALL_TOOLS=1` restores the
+full generated surface for debugging and power use.
+
+**`external-command` and `script` are not part of that flag.** "Show me every
+tool" and "let a caller execute arbitrary commands and JavaScript" are different
+classes of decision, and bundling them means enabling the first silently grants
+the second. They are not exposed over MCP; `kapi exec` still runs them.
+
+Cutting MCP exposure removes nothing from the CLI. `kapi exec <tool>` runs every
+registry tool regardless.
+
+## Consequences
+
+- **The skill and the MCP client learn the same model.** The agent skill drives
+  the CLI, so parity is what stops the highest-leverage prose in the repo from
+  teaching a surface that MCP does not have.
+- **Callers stop needing a map of the stores.** The question is the interface;
+  where the answer lives is ours to change.
+- **Partial answers stop reading as whole ones** — the failure that made
+  `brand_guide` actively misleading rather than merely narrow.
+- **A new registry tool no longer becomes an agent tool by accident.** Exposure
+  is a decision with a name attached.
+- **The by-location primitive ships shallower than it will end.** Until file and
+  passage overrides land, it resolves to collection level; the migration-guide
+  case — *the old name is permitted in these two paragraphs* — needs the
+  coordinate work. The by-content primitive has no such dependency.
+- **Parity is a test, not a convention.** MCP tools wrap the same host functions
+  the CLI verbs call, and a conformance test asserts the surfaces agree — the
+  drift that produced the table above cannot recur silently.
