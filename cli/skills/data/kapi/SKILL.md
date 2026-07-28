@@ -1,6 +1,6 @@
 ---
 name: kapi
-description: Read, edit, check, and translate the content inside any file format with the kapi CLI. kapi parses formats an editor can't open directly — Word, PowerPoint, JSON, XLIFF, Markdown, HTML, YAML — into one content model; reads, searches, and compares the text (kcat/kgrep/ksed/kdiff); edits it in place through a faithful round-trip you drive with `kapi inspect` + `kapi apply` (structure and inline codes preserved, no second model); authors new content and checks it against a brand voice profile and terminology, looping until it passes; and translates into other languages with terminology enforcement and multi-format publishing. Use when the task involves reading or editing the content of a document the editor can't open (.docx/.pptx/.json/.xliff), authoring or rewriting on-brand copy, brand voice/tone, forbidden/competitor terms, consistent terminology or a glossary, checking content, setting up or onboarding a brand ("set up my brand", "create a starter pack", "refresh our brand context"), connecting or onboarding a project to Bowrain, translating or localizing (to fr/de/ja…), making a project multilingual, adding or setting up i18n, internationalizing an existing app, choosing an i18n library or framework (React, Next.js, Vue, Angular, Svelte, Flutter, iOS, Android, Rails, Django, Go…), or finding hardcoded strings that should be translatable.
+description: Hold and apply a project's content context — the terms, voice and rules it goes by — and read, edit, check and translate the content inside any file format with the kapi CLI. kapi parses formats an editor can't open directly — Word, PowerPoint, JSON, XLIFF, Markdown, HTML, YAML — into one content model; reads, searches, and compares the text (kcat/kgrep/ksed/kdiff); edits it in place through a faithful round-trip you drive with `kapi inspect` + `kapi apply` (structure and inline codes preserved, no second model); answers what applies to a given piece of content and checks against it, looping until it passes; and translates into other languages with terminology enforcement and multi-format publishing. Use when the task involves reading or editing the content of a document the editor can't open (.docx/.pptx/.json/.xliff), authoring or rewriting on-brand copy, brand voice/tone, forbidden/competitor terms, consistent terminology or a glossary, checking content, asking what voice or terminology applies to a file or surface, discovering or setting up a project's context ("set up my brand", "create a starter pack", "discover our context", "refresh our brand context"), connecting or onboarding a project to Bowrain, translating or localizing (to fr/de/ja…), making a project multilingual, adding or setting up i18n, internationalizing an existing app, choosing an i18n library or framework (React, Next.js, Vue, Angular, Svelte, Flutter, iOS, Android, Rails, Django, Go…), or finding hardcoded strings that should be translatable.
 ---
 
 # kapi
@@ -8,11 +8,40 @@ description: Read, edit, check, and translate the content inside any file format
 kapi is an open, format-aware content engine you drive from the command line. It
 parses any format it understands — Word, PowerPoint, JSON, XLIFF, Markdown, HTML,
 YAML, config — into one content model, then reads, searches, edits, and checks
-the text inside it and writes it back byte-for-byte. On top of that engine it
-keeps AI-generated content on-brand and consistent, and ships it in other
-languages and formats — offline, through the local `kapi` CLI. You do the
-writing, editing, and translating; kapi handles the formats and the guardrails
-(brand voice, terminology) and round-trips the result.
+the text inside it and writes it back byte-for-byte. You do the writing, editing,
+and translating; kapi handles the formats and the guardrails and round-trips the
+result.
+
+## What kapi holds for you
+
+**kapi holds this project's content context** — the terms, the voice and the
+rules it actually goes by — in a form you can read. Communication is contextual:
+a legal notice is not a help article, and the same fact is written differently in
+a changelog, a migration guide and a support reply. Without that context you are
+guessing at house style; with it you can ask rather than guess.
+
+Two jobs follow from that, and they are the ones to reach for first:
+
+- **Context discovery** — when the project has no context yet, or its context has
+  drifted from what the material actually says. Point kapi at what already
+  exists — the repo, the published site, whatever style guide there is — and
+  propose the profile, the terminology and the checks for the user to correct.
+  They review a draft instead of authoring one. See
+  [references/context-discovery.md](references/context-discovery.md).
+- **Context retrieval** — before you write or rewrite anything, ask what applies
+  *here*. `brand_guide` renders the voice guidance to put in context,
+  `term_lookup` answers what a term should be, and `tm_search` finds wording
+  already approved for this project. Retrieve first, then write; a check that
+  fails afterwards is the expensive way to learn the same fact.
+
+  These are three separate asks, one asset each — there is no single "what
+  applies to this file" call yet. Until there is, make the calls that matter for
+  the content in front of you rather than assuming one of them covers the rest.
+
+A rule can be scoped, so *what applies here* has a real answer that differs by
+file and by surface — the old name may be permitted in the migration guide and
+nowhere else. When a check flags something that looks correct in context, that is
+worth surfacing to the user rather than silently rewriting.
 
 ## Decide the scope first
 
@@ -64,17 +93,17 @@ kapi check --ship --json        # whole project; or: kapi check --ship <files> [
   fixed source: author in a generative format, let kapi parse it as the first
   check, then gate on brand + terminology and revise. See
   [references/create.md](references/create.md).
-- **Keep content on-brand** — create a brand voice profile, load its guide before
-  writing, score a draft (0–100), and fix off-voice text yourself — routed
-  through `kapi apply`. (`kapi brand rewrite` swaps forbidden/competitor terms
-  offline; for tone and phrasing, rewrite the text yourself against the guide.)
-  See [references/brand.md](references/brand.md).
-- **Onboard a brand / starter pack** — assemble a brand starter pack from the
-  user's site, repo, and materials (voice profile + terminology seed + the
-  checks that enforce both), review it with the user, bind it in a project, and
-  push it to a Bowrain project; also the refresh flow that diffs new material
-  against the bound pack as an approve-then-apply change-set. See
-  [references/starter-pack.md](references/starter-pack.md).
+- **Keep content on-brand** — retrieve the voice guidance before writing, score a
+  draft (0–100), and fix off-voice text yourself — routed through `kapi apply`.
+  (`kapi brand rewrite` swaps forbidden/competitor terms offline; for tone and
+  phrasing, rewrite the text yourself against the guide.) See
+  [references/brand.md](references/brand.md).
+- **Discover a project's context** — assemble it from the user's site, repo, and
+  materials (voice profile + terminology seed + the checks that enforce both),
+  review it with the user, bind it in a project, and push it to a Bowrain
+  project; also the refresh flow that diffs new material against the bound
+  context as an approve-then-apply change-set. See
+  [references/context-discovery.md](references/context-discovery.md).
 - **Translate, enforce terminology, publish** — translate content into other
   languages and round-trip it back into its original format, with a terms store
   for consistency. Translate it yourself, but route it **through kapi** (extract →

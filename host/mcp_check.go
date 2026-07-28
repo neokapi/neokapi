@@ -49,7 +49,7 @@ type checkTextInput struct {
 	MaxWords    int      `json:"max_words,omitempty" jsonschema:"flag content with more than this many words (0 = off)"`
 	Forbid      []string `json:"forbid,omitempty" jsonschema:"regex that must NOT appear in the content"`
 	Require     []string `json:"require,omitempty" jsonschema:"regex that MUST appear in the content"`
-	ProfilePack string   `json:"profile_pack,omitempty" jsonschema:"brand starter pack to check vocabulary against (e.g. marketing-blog)"`
+	ProfilePack string   `json:"profile_pack,omitempty" jsonschema:"built-in profile pack to check vocabulary against (e.g. marketing-blog)"`
 	ProfileFile string   `json:"profile_file,omitempty" jsonschema:"path to a brand voice profile YAML"`
 }
 
@@ -60,7 +60,7 @@ type checkFileInput struct {
 	MaxWords    int      `json:"max_words,omitempty" jsonschema:"flag content with more than this many words (0 = off)"`
 	Forbid      []string `json:"forbid,omitempty" jsonschema:"regex that must NOT appear in the content"`
 	Require     []string `json:"require,omitempty" jsonschema:"regex that MUST appear in the content"`
-	ProfilePack string   `json:"profile_pack,omitempty" jsonschema:"brand starter pack to check vocabulary against"`
+	ProfilePack string   `json:"profile_pack,omitempty" jsonschema:"built-in profile pack to check vocabulary against"`
 	ProfileFile string   `json:"profile_file,omitempty" jsonschema:"path to a brand voice profile YAML"`
 	Target      string   `json:"target,omitempty" jsonschema:"translated target file to check against the source (enables bilingual l10n checks)"`
 	TargetLang  string   `json:"target_lang,omitempty" jsonschema:"locale of the target file (e.g. de)"`

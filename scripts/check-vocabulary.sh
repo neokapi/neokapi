@@ -54,6 +54,9 @@ readonly SWEPT_SURFACES=(
   web/src
   bowrain/web/docs/docs
   bowrain/web/docs/src
+  # The agent skill is read by an assistant on every run, which makes it the
+  # highest-leverage prose in the repo and the easiest to forget (P-4).
+  cli/skills
 )
 
 # Surfaces deliberately NOT scanned yet, each with the worklist item that will
@@ -63,7 +66,6 @@ readonly SWEPT_SURFACES=(
 readonly PENDING_SURFACES=(
   "bowrain/web/landing/src   P-1  landing rebuild (founder-gated: section order + whether 'coordinates' survives a buyer)"
   "bowrain/packages/app      P-3  nav re-root, Brand hub → Context hub (founder-gated: UX + string-orphaning hazard)"
-  "cli/skills/data/kapi      P-4  agent skill + MCP tool descriptions → discovery and retrieval"
   "bowrain/emails            P-7  onboarding and email copy → context discovery"
   "bowrain/mailer/subjects   P-7  as above"
 )
