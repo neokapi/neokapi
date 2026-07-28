@@ -49,10 +49,10 @@ func (f fakeWorkspaceDefault) WorkspaceBrandProfileID(_ context.Context, _ strin
 // fakeBrandStore resolves profiles by ID from a fixed set.
 type fakeBrandStore struct {
 	profile.BrandStore // embed so we only implement GetProfile
-	profiles           map[string]*brand.VoiceProfile
+	profiles           map[string]*profile.VoiceProfile
 }
 
-func (f *fakeBrandStore) GetProfile(_ context.Context, id string) (*brand.VoiceProfile, error) {
+func (f *fakeBrandStore) GetProfile(_ context.Context, id string) (*profile.VoiceProfile, error) {
 	p, ok := f.profiles[id]
 	if !ok {
 		return nil, errors.New("profile not found: " + id)
@@ -61,7 +61,7 @@ func (f *fakeBrandStore) GetProfile(_ context.Context, id string) (*brand.VoiceP
 }
 
 func newBrandStore() *fakeBrandStore {
-	return &fakeBrandStore{profiles: map[string]*brand.VoiceProfile{
+	return &fakeBrandStore{profiles: map[string]*profile.VoiceProfile{
 		"explicit":  {ID: "explicit", Name: "Explicit"},
 		"project":   {ID: "project", Name: "Project"},
 		"stream":    {ID: "stream", Name: "Stream"},
