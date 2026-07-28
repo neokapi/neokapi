@@ -145,6 +145,7 @@ storybook-static/
 
 # Playwright
 test-results/
+test-results-*.json
 playwright-report/
 # kapi docs scene fixtures stay tracked; any transient recordings or
 # screenshots under web/scenes/ are build artifacts, not source.
