@@ -197,10 +197,9 @@ func TestOriginFixtureIsComplete(t *testing.T) {
 // the completeness guard picks the fixture's fully-populated target rather than
 // the deliberately sparse one.
 func countSetFields(o model.Origin) int {
-	v := reflect.ValueOf(o)
 	n := 0
-	for i := range v.NumField() {
-		if !v.Field(i).IsZero() {
+	for _, fv := range reflect.ValueOf(o).Fields() {
+		if !fv.IsZero() {
 			n++
 		}
 	}

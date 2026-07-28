@@ -25,14 +25,14 @@ var _ tool.SessionTool = (*AITranslateTool)(nil)
 type AITranslateTool struct {
 	tool.BaseTool
 	usageAccumulator
-	provider      aiprovider.LLMProvider
-	streaming     aiprovider.StreamingLLMProvider // nil when provider doesn't support streaming
-	sourceLocale  model.LocaleID
-	targetLocale  model.LocaleID
-	glossary      map[string]string
-	dnt           []string // do-not-translate terms; masked before the model, restored after
-	voiceGuide    string   // compact brand voice guidance injected into every prompt
-	instruction   string   // caller-supplied directive injected into every prompt
+	provider     aiprovider.LLMProvider
+	streaming    aiprovider.StreamingLLMProvider // nil when provider doesn't support streaming
+	sourceLocale model.LocaleID
+	targetLocale model.LocaleID
+	glossary     map[string]string
+	dnt          []string // do-not-translate terms; masked before the model, restored after
+	voiceGuide   string   // compact brand voice guidance injected into every prompt
+	instruction  string   // caller-supplied directive injected into every prompt
 	// profileID and profileVersion identify the context profile whose guidance
 	// went into voiceGuide, stamped onto every target this tool produces. The
 	// guidance itself is rendered once and the profile discarded, so these are
@@ -40,10 +40,10 @@ type AITranslateTool struct {
 	// after the profile is next edited.
 	profileID      string
 	profileVersion string
-	skipMatched   bool
-	batchSize     int
-	contextPolicy string
-	contextWindow int
+	skipMatched    bool
+	batchSize      int
+	contextPolicy  string
+	contextWindow  int
 	// docEntries is the document in order, when the tool has it. The batched
 	// path buffers the stream, so it can offer a block its neighbours; the
 	// streaming path cannot, and there a block gets only its key.
