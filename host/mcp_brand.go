@@ -29,7 +29,7 @@ func init() {
 func registerBrandMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "brand_guide",
-		Description: "Render a brand voice guide (markdown) from a starter pack or a profile YAML, to inject into context before generating content",
+		Description: "Context retrieval: render the voice guidance (markdown) that applies here, from a built-in pack or a profile YAML, to put in context BEFORE generating content. Retrieve first, then write — a check that fails afterwards is the expensive way to learn the same fact",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in brandGuideInput) (*mcp.CallToolResult, brandGuideMCPOutput, error) {
 		p, err := loadProfileForMCP(in.ProfilePack, in.ProfileFile)
 		if err != nil {
@@ -78,7 +78,7 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "term_lookup",
-		Description: "Look up a term in a local terms to enforce consistent terminology",
+		Description: "Context retrieval: look up what a term should be in this project, so terminology is consistent by construction rather than corrected afterwards",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in termLookupInput) (*mcp.CallToolResult, termLookupMCPOutput, error) {
 		path := in.Terms
 		if path == "" {
@@ -113,7 +113,7 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "tm_search",
-		Description: "Search a local content memory for prior translations of source text",
+		Description: "Context retrieval: search this project's content memory for wording already approved for the same source text, so approved phrasing is reused rather than re-invented",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in tMSearchInput) (*mcp.CallToolResult, tMSearchMCPOutput, error) {
 		path := in.Memory
 		if path == "" {
@@ -148,7 +148,7 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 	})
 }
 
-// loadProfileForMCP resolves a profile from a starter pack name or a profile YAML path.
+// loadProfileForMCP resolves a profile from a built-in pack name or a profile YAML path.
 func loadProfileForMCP(pack, file string) (*brand.VoiceProfile, error) {
 	if file != "" {
 		f, err := os.Open(file)
@@ -167,7 +167,7 @@ func loadProfileForMCP(pack, file string) (*brand.VoiceProfile, error) {
 // --- MCP input/output types ---
 
 type brandGuideInput struct {
-	ProfilePack string `json:"profile_pack,omitempty" jsonschema:"starter pack name (e.g. marketing-blog, technical-docs)"`
+	ProfilePack string `json:"profile_pack,omitempty" jsonschema:"built-in profile pack name (e.g. marketing-blog, technical-docs)"`
 	ProfileFile string `json:"profile_file,omitempty" jsonschema:"path to a profile YAML"`
 }
 
@@ -178,7 +178,7 @@ type brandGuideMCPOutput struct {
 
 type brandCheckInput struct {
 	Text        string `json:"text" jsonschema:"the text to check or rewrite"`
-	ProfilePack string `json:"profile_pack,omitempty" jsonschema:"starter pack name"`
+	ProfilePack string `json:"profile_pack,omitempty" jsonschema:"built-in profile pack name"`
 	ProfileFile string `json:"profile_file,omitempty" jsonschema:"path to a profile YAML"`
 }
 

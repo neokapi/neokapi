@@ -1,11 +1,16 @@
-# Onboard a brand: starter pack → Bowrain
+# Context discovery: from existing material → Bowrain
 
-Turn the user's site, repo, and materials into a working **brand starter
-pack** — a voice profile, a terminology seed, and the checks that enforce
-both — then connect the project to a Bowrain server. **You** do the reading and
-the drafting; kapi is the schema, the validator, and the transport. The second
-half of this file is the **refresh** flow: diffing new material against a pack
-that already exists.
+An empty context is worth nothing, and nobody will write one from a blank page.
+So the first act is **discovery**: turn the user's site, repo, and materials into
+a working content context — a voice profile, a terminology seed, and the checks
+that enforce both — then connect the project to a Bowrain server.
+
+The user corrects a first draft instead of authoring one. **You** do the reading
+and the drafting; kapi is the schema, the validator, and the transport.
+
+This is the same correction loop that keeps the context current afterwards, not a
+separate onboarding mode — so the second half of this file is the **refresh**
+flow: diffing new material against a context that already exists.
 
 ## 1. Gather
 
@@ -30,7 +35,7 @@ When the signal is thin, ask — don't pad the profile with generic filler:
   `examples` entry.)
 - Which target languages, if any?
 
-## 2. Draft the pack
+## 2. Draft the context
 
 Three artifacts, all plain files the user can review before anything binds:
 
@@ -38,7 +43,7 @@ Three artifacts, all plain files the user can review before anything binds:
 
   ```bash
   kapi brand new -o brand.yaml                       # commented template
-  kapi brand new --pack friendly-dtc -o brand.yaml   # or seed from the closest pack
+  kapi brand new --pack friendly-dtc -o brand.yaml   # or seed from the closest built-in pack
   kapi brand validate brand.yaml                     # exit 0 = schema-valid
   ```
 
@@ -81,7 +86,7 @@ kapi init --name my-app                                        # content project
 kapi init --name my-app --target-locale fr --target-locale de  # translation project
 ```
 
-Bind the pack in the recipe:
+Bind the context in the recipe:
 
 ```yaml
 defaults:
@@ -111,7 +116,7 @@ kapi terms import vocab.csv -s en --monolingual --header
 
 The `apply` route keeps a committed source of truth; a bulk `terms import`
 writes only the compiled store, so commit the imported term list itself. Then
-verify the whole pack locally before pushing:
+verify the whole context locally before pushing:
 
 ```bash
 kapi check --ship --json     # brand + terminology (+ QA) gates — all green
@@ -120,7 +125,7 @@ kapi check --ship --json     # brand + terminology (+ QA) gates — all green
 The recipe carries the bindings; the thresholds ride on the check itself: the
 brand gate's score bar is `--min-score` (default 80), not a recipe field, and a
 translation-coverage bar is an optional top-level `ship_gate:` (see
-[translate.md](translate.md)). Commit the pack: the recipe, `brand.yaml`, the
+[translate.md](translate.md)). Commit the context: the recipe, `brand.yaml`, the
 `l10n/` sources, any imported term list. `.kapi/` state stays gitignored.
 
 ## 5. Push to Bowrain
@@ -195,15 +200,15 @@ End by telling the user, concretely:
 
 ---
 
-# Refresh an existing pack
+# Refresh an existing context
 
 When new material lands — a site relaunch, product renames, a batch of new
-pages — refresh the pack against it. Never silently overwrite: every change is
+pages — refresh the context against it. Never silently overwrite: every change is
 a proposal the user approves.
 
 ## 1. Re-gather, read the baseline
 
-Fetch the new material as in step 1 above, then read what the pack currently
+Fetch the new material as in step 1 above, then read what the context currently
 says:
 
 ```bash

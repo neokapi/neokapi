@@ -359,7 +359,7 @@
           "type": "string"
         },
         "profile_pack": {
-          "description": "starter pack name",
+          "description": "built-in profile pack name",
           "type": "string"
         },
         "text": {
@@ -383,7 +383,7 @@
           "type": "string"
         },
         "profile_pack": {
-          "description": "starter pack name (e.g. marketing-blog, technical-docs)",
+          "description": "built-in profile pack name (e.g. marketing-blog, technical-docs)",
           "type": "string"
         }
       },
@@ -400,7 +400,7 @@
           "type": "string"
         },
         "profile_pack": {
-          "description": "starter pack name",
+          "description": "built-in profile pack name",
           "type": "string"
         },
         "text": {
@@ -519,7 +519,7 @@
           "type": "string"
         },
         "profile_pack": {
-          "description": "brand starter pack to check vocabulary against",
+          "description": "built-in profile pack to check vocabulary against",
           "type": "string"
         },
         "require": {
@@ -579,7 +579,7 @@
           "type": "string"
         },
         "profile_pack": {
-          "description": "brand starter pack to check vocabulary against (e.g. marketing-blog)",
+          "description": "built-in profile pack to check vocabulary against (e.g. marketing-blog)",
           "type": "string"
         },
         "require": {
