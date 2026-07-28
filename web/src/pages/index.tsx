@@ -18,14 +18,13 @@ function HomepageHeader() {
         <div className={styles.heroIntro}>
           <img src={useBaseUrl("/img/hero-logo.png")} alt="neokapi" className={styles.heroLogo} />
           <Heading as="h1" className={clsx("hero__title", styles.heroTitle)}>
-            Consistent, on-brand content &mdash; in one language or twenty &mdash; with the AI you
-            already have.
+            Say the same thing the same way &mdash; in every file, and every language.
           </Heading>
           <p className={styles.heroSubtitle}>
-            kapi parses any format into one content model, lets you &mdash; or your AI agent &mdash;
-            edit the text inside it, and{" "}
+            Your project&rsquo;s context, where your tools and your AI can read it. kapi parses any
+            format into one content model, resolves what applies to each piece of content, and{" "}
             <strong>
-              writes it back byte&#8209;for&#8209;byte: every tag, placeholder, and structure
+              writes the file back byte&#8209;for&#8209;byte: every tag, placeholder, and structure
               preserved
             </strong>
             .
@@ -80,9 +79,9 @@ const Tiers: Tier[] = [
   },
   {
     eyebrow: "Built on it",
-    title: "kapi — CLI & desktop",
+    title: "kapi — binary, agent skill, MCP server",
     description:
-      "Drive the engine from the command line or a visual desktop app: extract, translate, run checks, and manage .kapi projects — no code required.",
+      "One binary plus the two surfaces your assistant reaches it through. kapi holds your project's context and answers what applies here — to your checks, to you, and to whichever AI you already use. Free forever.",
     link: "/kapi/overview",
     linkText: "Use kapi",
   },
@@ -117,9 +116,16 @@ const NeokapiFeatures: ProductItem[] = [
     linkText: "Formats",
   },
   {
+    title: "Your project's context",
+    description:
+      "A legal notice is not a help article. kapi holds the terms, the voice and the rules your project actually goes by, resolves what applies to a given piece of content, and serves that answer to your checks, to you, and to your AI assistant.",
+    link: "/kapi/overview",
+    linkText: "How it works",
+  },
+  {
     title: "Edit it — you or your AI",
     description:
-      "Rewrite the text in place with every tag and placeholder intact, and check it — brand, terminology, placeholders — like tests for AI output, with a pass/fail gate. Loop with your assistant until it passes, then ship.",
+      "Rewrite the text in place with every tag and placeholder intact, and check it against the context that holds there — like tests for AI output, with a pass/fail gate. Loop with your assistant until it passes, then ship.",
     link: "/framework/checks",
     linkText: "Checks",
   },
@@ -163,9 +169,10 @@ function HomepageFeatures() {
     <section className={styles.features}>
       <div className="container">
         <div className="text--center margin-bottom--lg">
-          <Heading as="h2">From one file to every language</Heading>
+          <Heading as="h2">One context, every file</Heading>
           <p className={styles.sectionSubtitle}>
-            Parse it, get it right, then make it work everywhere — the same engine, end to end.
+            Parse it, resolve what applies to it, check it, write it back — the same engine, end to
+            end, in one language or twenty.
           </p>
         </div>
         <div className="row margin-bottom--xl">
@@ -226,7 +233,7 @@ export default function Home() {
   return (
     <Layout
       title={siteConfig.title}
-      description="An open-source, format-aware content engine in Go. Parse any format, edit and check the content inside it — you or your AI agent — and write it back byte-for-byte. The same engine makes that content work in every language."
+      description="An open-source, format-aware content engine in Go. Parse any format, resolve the context that applies to the content inside it, edit and check it — you or your AI agent — and write it back byte-for-byte. The same engine makes that content work in every language."
     >
       <StructuredData />
       <HomepageHeader />

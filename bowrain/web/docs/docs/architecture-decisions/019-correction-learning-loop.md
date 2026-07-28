@@ -6,15 +6,22 @@ title: "AD-019: The correction-learning loop"
 
 # AD-019: The correction-learning loop
 
+> **What this subsystem is for.** This is **how the context learns**. The
+> [context graph](/architecture-decisions/021-brand-knowledge-graph) is worth
+> nothing empty and nobody authors one from a blank page, so its rules are drawn
+> from the corrections people actually make rather than written in a workshop.
+> That is the only way a context stays current — it improves as a by-product of
+> people doing their jobs.
+
 ## Summary
 
 Bowrain turns a team's corrections into versioned, enforced checks. When a
-person or an AI assistant corrects content that a brand profile should have
-caught, that correction is captured with provenance. Repeated corrections
+person or an AI assistant corrects content that the governing profile should
+have caught, that correction is captured with provenance. Repeated corrections
 aggregate into **candidate rules**; a reviewer (or, above a configured
-threshold, the platform itself) **promotes** a candidate into the brand
-profile, where it becomes a deterministic forbidden-term check enforced on
-every future generation. Before a candidate lands, its **blast radius** over
+threshold, the platform itself) **promotes** a candidate into the profile, where
+it becomes a deterministic forbidden-term check enforced on every future
+generation. Before a candidate lands, its **blast radius** over
 existing content is computed and shown. After it lands, aggregate compliance is
 monitored and a **drift** alert fires when it falls. This is the closed loop:
 correct once, and the rule that prevents the mistake from recurring is authored,

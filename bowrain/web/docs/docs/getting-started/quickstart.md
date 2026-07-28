@@ -1,5 +1,5 @@
 ---
-sidebar_position: 3
+sidebar_position: 4
 title: Quick start
 slug: /quickstart
 description: Get content into a Bowrain workspace — from the systems it already lives in, from a repository with no pipeline, or from a developer's checkout.
