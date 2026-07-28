@@ -142,8 +142,8 @@ func TestVerify_FailingProject(t *testing.T) {
 
 	brand, ok := gateByName(out, gateBrand)
 	require.True(t, ok, "brand gate must be present")
-	assert.False(t, profile.Pass, "brand gate must fail (competitor term Globex)")
-	require.NotEmpty(t, profile.Findings, "brand gate must produce findings")
+	assert.False(t, brand.Pass, "brand gate must fail (competitor term Globex)")
+	require.NotEmpty(t, brand.Findings, "brand gate must produce findings")
 
 	terms, ok := gateByName(out, gateTerms)
 	require.True(t, ok, "terminology gate must be present")

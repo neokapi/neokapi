@@ -2,6 +2,7 @@ package host
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -188,7 +189,7 @@ type ContextSearchSources struct {
 // surface this replaces.
 func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSearchRequest) (*ContextSearchResult, error) {
 	if req.Query == "" {
-		return nil, fmt.Errorf("context search: empty query")
+		return nil, errors.New("context search: empty query")
 	}
 	limit := req.Limit
 	if limit <= 0 {

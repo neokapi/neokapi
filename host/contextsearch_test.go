@@ -2,6 +2,7 @@ package host_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -132,10 +133,7 @@ func TestSearchContextSaysWhatItCouldNotReach(t *testing.T) {
 	assert.Empty(t, res.Precedent)
 	require.NotEmpty(t, res.Notes, "an empty answer must say why it is empty")
 
-	joined := ""
-	for _, n := range res.Notes {
-		joined += n + "\n"
-	}
+	joined := notesText(res)
 	assert.Contains(t, joined, "no terms store is bound")
 	assert.Contains(t, joined, "no content memory is bound")
 }
@@ -159,10 +157,7 @@ func TestSearchContextDegradesOnStoreError(t *testing.T) {
 	require.NoError(t, err, "one broken store must not fail the whole call")
 	assert.NotEmpty(t, res.Precedent, "the store that worked still answers")
 
-	joined := ""
-	for _, n := range res.Notes {
-		joined += n + "\n"
-	}
+	joined := notesText(res)
 	assert.Contains(t, joined, "terms store could not be searched")
 }
 
@@ -176,10 +171,7 @@ func TestSearchContextReportsScope(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, host.ScopeProject, res.Scope)
 
-	joined := ""
-	for _, n := range res.Notes {
-		joined += n + "\n"
-	}
+	joined := notesText(res)
 	assert.Contains(t, joined, "project scope")
 }
 
@@ -211,4 +203,11 @@ func TestSearchContextRejectsEmptyQuery(t *testing.T) {
 		host.ContextSearchSources{Scope: host.ScopeProject},
 		host.ContextSearchRequest{})
 	require.Error(t, err)
+}
+
+// notesText joins a result's notes for substring assertions. A helper rather
+// than a loop per test: the linter is right that repeated string concatenation
+// in a loop is wasteful, and three copies of it was three chances to diverge.
+func notesText(res *host.ContextSearchResult) string {
+	return strings.Join(res.Notes, "\n")
 }
