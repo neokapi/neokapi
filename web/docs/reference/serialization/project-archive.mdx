@@ -56,7 +56,7 @@ Each store has exactly one native spelling — the bundle — and a project comm
 it:
 
 ```bash
-kapi memory export -o context/memory/cli-nb.memory.json
+kapi memory export -o l10n/tm/cli-nb.memory.json
 kapi terms import seeds/terms.json    # format detected from the extension
 kapi terms export --format bundle -o brand.terms.json   # or name it explicitly
 ```
@@ -74,7 +74,7 @@ travel small is what `zip` and `gzip` are for.
 The suffix, not the location, is what identifies a bundle — a project puts one
 wherever it likes and may keep several. Which bundle a given project uses is set
 by the recipe
-([`defaults.terms_source` / `defaults.memory_source`](/reference/project-file)) or
+([`defaults.termbase_source` / `defaults.tm_source`](/reference/project-file)) or
 by an explicit `-o` path.
 
 ### Where terms live when nothing is bound
@@ -82,15 +82,15 @@ by an explicit `-o` path.
 Your terms bundle belongs at the **repository root**, as `terms.json`. `.kapi/`
 is gitignored, so a terms bundle kept there would never be committed, never show
 up in a diff, and never get reviewed, which defeats the point of keeping
-terminology as source. The bundle is the committed source; `.kapi/terms.db`
+terminology as source. The bundle is the committed source; `.kapi/termbase.db`
 is the throwaway cache it compiles into. The
 [terms page](/reference/serialization/terms#the-lookup-ladder) specifies the
 ladder.
 
 Content memory has no matching convention: **a project has one terms bundle but
 many content-memory bundles**, typically one per content surface. This
-repository's own dogfood commits a bundle per surface under `context/memory/` against a
-single `context/terms.json`, so a memory seed is always named rather than guessed.
+repository's own dogfood commits a bundle per surface under `l10n/tm/` against a
+single `l10n/terms.json`, so a memory seed is always named rather than guessed.
 
 ## The `.kpz` package
 

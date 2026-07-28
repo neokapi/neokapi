@@ -23,7 +23,7 @@ the relations between them.
 
 Unlike content memory, a terms bundle is normally a **committed, git-tracked
 file**. It is the review surface — the artifact a person reads in a pull
-request when a term changes. The SQLite store (`.kapi/terms.db`) is the
+request when a term changes. The SQLite store (`.kapi/termbase.db`) is the
 gitignored cache the bundle compiles into, not the other way round.
 
 Implemented in Go at
@@ -123,7 +123,7 @@ Reach for `bundle` whenever the file is staying inside kapi.
 
 ## What is deliberately not in it
 
-- **The compiled SQLite store.** `.kapi/terms.db` is derived from the bundle
+- **The compiled SQLite store.** `.kapi/termbase.db` is derived from the bundle
   and rebuilt on import.
 - **Match state.** Which blocks a term was found in is a check result, not a
   property of the terminology.

@@ -21,7 +21,7 @@ A content-memory bundle is the portable, lossless serialization of a project's
 content memory: the multilingual entries kapi reuses to avoid re-translating
 text it has already seen, together with where each entry came from.
 
-It is a **bundle**, not a store. The working store is SQLite — `memory.db`, under
+It is a **bundle**, not a store. The working store is SQLite — `tm.db`, under
 the gitignored `.kapi/` state directory — and a bundle is what you get when you
 export that store into a single reviewable, hashable file. See the
 [overview](/reference/serialization/overview) for why kapi keeps that
