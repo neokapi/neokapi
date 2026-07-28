@@ -117,7 +117,7 @@ On the neokapi project site it appears only as **neutral, admonition-style
    `kapi-bowrain` plugin is documented like any other plugin.
 2. **Review** — the review & approve recipe (`kapi/recipes/review-and-approve.mdx`), where
    local review's single-reviewer limits are described.
-3. **Memory** — the content-memory and terms storage recipe
+3. **Cross-project context** — the content-memory and terms storage recipe
    (`kapi/recipes/memory-and-terms-storage.mdx`), where the storage models are enumerated.
 4. **CI / the loop** — the kapi-loop-in-CI page (`kapi/convergence-in-ci.mdx`).
 
@@ -128,19 +128,26 @@ Bowrain-free** — homepage, README, CLI help, every other docs page. (The kapi/
 architectural boundary still holds in the code; these four seams are the only messaging
 exceptions.)
 
-## The decided venue lines (R10 — canon, verbatim)
+## The decided venue lines (R12 — canon, verbatim)
 
 Where a headline or pitch is needed on a Bowrain-facing surface, use these verbatim:
 
-> **Kapi converges your content on your machine. Bowrain keeps every project converging —
-> the shared brand memory for your team and your agents.**
+> **kapi holds the context graph for one project. Bowrain holds the same graph across
+> projects.**
 
-The frame behind it: kapi does the heavy lifting (parsing, drafting, checking, converging);
-Bowrain is the **brand memory** — cross-project, org-level (voice, terminology, approved
-translations, corrections) that every project, person, and agent draws from and improves.
+The frame behind it: communication is contextual — a legal notice is not a help article —
+so every project carries a **content context**, the coordinates that fix voice and tone for
+a specific time, place and audience. kapi resolves those coordinates locally and serves the
+context that holds there; Bowrain holds the same graph at organization scope. The
+difference is **reach, not capability**: one project's context, or every project's.
 
-**Never use:** "Kapi drafts, Bowrain governs"; "converges it for your whole team,
-all the time" and any "whole team" venue phrasing.
+Brand is **one coordinate** beside audience, surface, register, market and validity — not
+the frame. Content memory keeps its name and meaning: it is the store of approved wording,
+a different object from the graph.
+
+**Never use:** "brand memory" (retired by R12); "Kapi drafts, Bowrain governs"; "converges
+it for your whole team, all the time" and any "whole team" venue phrasing; any hero that
+leads with translation.
 
 **Naming:** all prose — framework docs included — says **content memory** (with
 *recycling* as the verb), never "translation memory". The identifiers keep their own

@@ -1,0 +1,146 @@
+---
+sidebar_position: 2
+title: The context graph
+description: Every project carries a content context — the coordinates that fix voice and tone for a specific time, place and audience. Profiles bundle those coordinates, collections declare them, files and passages override them, and rules scoped by them inherit down a path and expire on a date.
+keywords: [context graph, profile, coordinates, collections, overrides, context discovery, governance, validity, bowrain]
+---
+
+import { AxisLadderDiagram } from "@neokapi/docs-shared";
+
+# The context graph
+
+Communication is contextual. You do not write a legal notice the way you write a
+help article, or a release note the way you write a landing page. Same company,
+same product, often the same fact — but the register, the vocabulary, the length
+and how much is assumed of the reader all move with the audience, the surface and
+the moment.
+
+So every project carries a **content context**: the parameters that fix the voice
+and tone of a message for a specific time, place and audience. Most organizations
+hold that informally — a style guide nobody opens, the judgement of two or three
+experienced people, a tacit sense of *that is not how we say it here*. It is
+almost never written down in a form a machine can read. That was tolerable while
+only people wrote. It is not tolerable now that agents write a growing share of
+the output and have no way of knowing where they are.
+
+## One decision, five rules
+
+Take a rename, which every organization has done at least once. The feature gets
+a new name:
+
+| Where the words sit | What the rule is |
+|---|---|
+| Help articles | Use the new name |
+| The API parameter | Must not change |
+| The changelog | Keeps the old name — that is what shipped |
+| The migration guide | Needs both, side by side |
+| Support replies | Recognise the old name for a year, never use it |
+
+That is **one decision and five different rules**, and which one applies depends
+entirely on where the words sit. Written down as a list of banned and preferred
+terms, it is wrong nearly everywhere it lands.
+
+The graph exists so that decision can be recorded once and resolve correctly in
+all five places.
+
+## Profiles and coordinates
+
+A context is a set of **coordinates**:
+
+| Coordinate | The question it answers |
+|---|---|
+| Audience | **Who** is it for |
+| Surface | **Where** does it appear |
+| Register | In **what register** |
+| Market | For **which market** |
+| Validity | **From when until when** |
+
+A **profile** is a named bundle of them: *developer reference*, *end-user help*,
+*regulated disclosure*, *launch campaign*. Profiles are what people work with and
+argue about; coordinates are what profiles are made of, and what rules are scoped
+by.
+
+Coordinates are what make a rule scopable, an exemption computable, and a refusal
+explainable. They are also the join: the assistant asking *what applies here*, the
+check asking *does this rule fire*, and the engine asking *may this approved
+wording be reused* are one question asked by three callers.
+
+## Declared where cheapest, inherited from there
+
+Nobody tags a paragraph unless a paragraph is genuinely the exception. Coordinates
+are declared at the broadest scope that is true, and everything beneath inherits
+them until something overrides.
+
+<AxisLadderDiagram
+  rungs={[
+    { grade: "WS", name: "workspace", gloss: "the organization's defaults" },
+    { grade: "PR", name: "project", gloss: "one product or property" },
+    { grade: "CO", name: "collection", gloss: "this folder is the help centre" },
+    { grade: "FI", name: "file", gloss: "this page is a regulated disclosure" },
+    { grade: "PA", name: "passage", gloss: "these two paragraphs, and nowhere else" },
+  ]}
+  caption="Coordinates are declared at the broadest true scope and inherited down; each level may override the one above it."
+/>
+
+A collection — this folder is the help centre, that one is the marketing site —
+carries a profile for everything inside it. A file can override its collection. A
+passage can override its file, which is exactly what the migration guide needs:
+the old name is permitted *here*, in these two paragraphs, and nowhere else.
+
+## Rules inherit and expire
+
+A rule set high up applies everywhere beneath it until something overrides it, and
+it can start and stop on a date. Lists of preferred and banned terms are
+everywhere; rules that **inherit down a path** and **carry validity in time** are
+not, and they are what let a context survive a rename, a campaign or a change of
+policy without being rewritten.
+
+Validity is why a rename does not need a cleanup project. *Recognise the old name
+but never use it* is a rule with an end date, recorded once, enforced consistently,
+and gone when it expires.
+
+## Starting from nothing
+
+An empty context is worth nothing, and nobody will write one from a blank page. So
+the first act is **context discovery**: point it at what already exists — the
+repository, the published site, whatever style guide there is — and let it propose
+the profiles, the coordinates and the starting vocabulary for review.
+
+You correct a first draft instead of authoring one. That is the same correction
+loop that keeps the context current afterwards, so there is no separate onboarding
+mode to maintain. See [Brand voice & corrections](/server/brand-voice) for how the
+loop keeps running.
+
+## Agreed rather than assumed
+
+Context changes are proposed, not applied. A change travels through a
+**change-set**: a named, reviewable draft whose **reach over existing content is
+computed before anyone approves it**. A change-set can be **piloted** on selected
+content streams before it merges, so a what-if becomes a measured experiment
+rather than a leap.
+
+The rules are drawn from the corrections people actually make, not written in a
+workshop — which is the only way a context stays current. See
+[AD-021](/architecture-decisions/021-brand-knowledge-graph) for the model and
+[AD-019](/architecture-decisions/019-correction-learning-loop) for how the context
+learns.
+
+## One graph, two scopes
+
+**kapi holds the context graph for one project**, plugged into your local AI and
+tools. **Bowrain holds the same graph across projects**, from a small team to a
+large organization, and adds cross-project consistency, intelligence and
+governance.
+
+Nothing is withheld from the local half to make the shared one attractive. The
+difference is **reach, not capability**: one project's context, or every
+project's. See [kapi vs Bowrain](/getting-started/kapi-vs-bowrain).
+
+## Where a language fits
+
+A language is one more axis. Shipping across languages extends the same
+coordinates rather than introducing a second product: staying on-profile in
+Norwegian is the same question as staying on-profile in a help article.
+
+*Legal notice versus help article* is a one-language problem, and nothing above
+needs a second language to be worth having.

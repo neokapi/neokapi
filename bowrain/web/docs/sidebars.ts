@@ -23,6 +23,7 @@ const sidebars: SidebarsConfig = {
       className: "sidebar-section-heading",
       items: [
         "getting-started/introduction",
+        "getting-started/the-context-graph",
         "getting-started/the-loop",
         "getting-started/quickstart",
         "getting-started/installation",

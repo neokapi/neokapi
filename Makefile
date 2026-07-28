@@ -230,12 +230,15 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-package-licenses check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-vocabulary check-package-licenses check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) -C bowrain lint
 
 check-abs-paths: ## Guard: no absolute home path (/Users/…, /home/…, C:\Users\…) in tracked files
 	@./scripts/check-abs-paths.sh
+
+check-vocabulary: ## Guard: no retired framing (brand memory, brand-first, …) in user-facing prose
+	@./scripts/check-vocabulary.sh
 
 check-lockfile-idempotent: ## Guard: re-resolving pnpm-lock.yaml with the pinned pnpm is a no-op
 	@./scripts/check-lockfile-idempotent.sh

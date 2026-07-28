@@ -595,7 +595,7 @@ const config: Config = {
       {
         name: "description",
         content:
-          "neokapi is an open-source, format-aware content engine in Go. It parses any format into one unified content model, lets you or your AI agent edit and check the content inside it, and writes it back byte-for-byte. The same engine makes that content work in every language.",
+          "neokapi is an open-source, format-aware content engine in Go. It parses any format into one unified content model, resolves the context that applies to the content inside it, lets you or your AI agent edit and check it, and writes it back byte-for-byte. The same engine makes that content work in every language.",
       },
     ],
     navbar: {

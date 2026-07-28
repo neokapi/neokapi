@@ -1,5 +1,5 @@
 ---
-sidebar_position: 5
+sidebar_position: 6
 title: How Bowrain and kapi fit together
 sidebar_label: Bowrain and kapi
 description: Bowrain is the governed platform; kapi is the open toolchain it is built on and one of the connectors into it. Where the boundary runs, and which surface owns what.

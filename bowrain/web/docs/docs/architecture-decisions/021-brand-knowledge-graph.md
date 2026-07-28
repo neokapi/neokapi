@@ -1,22 +1,37 @@
 ---
 id: 021-brand-knowledge-graph
 sidebar_position: 21
-title: "AD-021: The brand knowledge graph"
+title: "AD-021: The context graph"
 ---
 
-# AD-021: The brand knowledge graph
+# AD-021: The context graph
+
+> **Vocabulary.** This subsystem is the **context graph**. Brand is one
+> **coordinate** on it — beside audience, surface, register, market and validity
+> — not the frame. The identifiers below (`brand_voice_*` recipe keys, the
+> `core/brand` package, the `kg_*` tables, this document's own slug) keep their
+> spellings; the concepts they name are described in the settled vocabulary.
 
 ## Summary
 
-Bowrain models a workspace's brand language as a knowledge graph whose nodes
-are **concepts** — the language-neutral units already used by the terms store —
-and whose edges are typed, time- and market-scoped **relations** between them.
-Brand vocabulary rules, terminology, observations about how others use a term,
+Bowrain models a workspace's content context as a graph whose nodes are
+**concepts** — the language-neutral units already used by the terms store — and
+whose edges are typed, time- and market-scoped **relations** between them.
+Vocabulary rules, terminology, observations about how others use a term,
 discussion threads, and revision history all attach to the same concept, so a
 single page can tell the whole story of a term: where it came from, what it
 replaced, where it is banned, how it is said in every market, and what it would
 cost to change. (Compliance scores are reported per project and locale on the
 dashboard, not folded into an individual concept.)
+
+A **profile** is the named bundle of coordinates a piece of content is written
+under — *developer reference*, *end-user help*, *regulated disclosure* — and it
+is what scopes a rule. The voice profile is the same shape one axis narrower.
+Coordinates are declared at the broadest scope that is true and inherited from
+there, so a rule set high up applies everywhere beneath it until something
+overrides it, and can start and stop on a date. See
+[The context graph](/getting-started/the-context-graph) for the reader-facing
+account.
 
 Changes to the graph follow a tiered governance model. Ordinary curation is
 direct and audited. Governed transitions — banning a term, changing a preferred
@@ -37,17 +52,24 @@ truth the hub shows.
 
 ## Context
 
-Brand language decays through drift, not decisions: a competitor name slips
-into a tagline, a renamed product survives in old docs, a market keeps a term
-the company retired.
+A context decays through drift, not decisions: a competitor name slips into a
+tagline, a renamed product survives in old docs, a market keeps a term the
+company retired.
 
-The questions a brand steward actually asks need a home: *what replaced this
-term, and when?* *Is this banned everywhere or only in Germany?* *Who decided
-that, and what did they discuss?* *If we rename this concept, how much
-published content moves?* Each question touches identity (concepts), history
-(versions and audit), scope (markets and time), and consequence (content
+The questions a steward actually asks need a home: *what replaced this term, and
+when?* *Is this banned everywhere or only in Germany?* *Who decided that, and
+what did they discuss?* *If we rename this concept, how much published content
+moves?* Each question touches identity (concepts), history (versions and audit),
+scope (coordinates — market, surface, validity), and consequence (content
 impact) at once — which is the shape of a governed graph, not of flat tables
 holding terms, voice rules, and relations apart from one another.
+
+This is also why a flat list of preferred and banned terms is the wrong shape. A
+rename is one decision and five different rules — the help article changes, the
+API parameter must not, the changelog keeps the old name, the migration guide
+needs both, support recognises the old name without using it. Which rule applies
+depends entirely on where the words sit, so rules are scoped by coordinates and
+resolved per location, never applied globally.
 
 ## Decision
 

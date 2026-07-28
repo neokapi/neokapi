@@ -877,6 +877,8 @@ jobs:
         run: ./scripts/check-docs-bowrain-clean.sh
       - name: Guard — no absolute home paths in tracked files
         run: ./scripts/check-abs-paths.sh
+      - name: Guard — no retired framing in user-facing prose
+        run: ./scripts/check-vocabulary.sh
       - name: Guard — publishable packages declare a license and ship its text
         run: ./scripts/check-package-licenses.sh
 
