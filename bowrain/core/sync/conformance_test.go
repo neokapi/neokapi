@@ -159,3 +159,50 @@ func TestBlockFixtureIsComplete(t *testing.T) {
 			field.Name)
 	}
 }
+
+// TestOriginFixtureIsComplete is the same drift guard one level down, on
+// model.Origin. TestBlockFixtureIsComplete only walks Block's own fields, so a
+// new Origin field would be zero inside a non-zero Targets map and slip past it
+// — and the round-trip above would then "pass" while silently dropping it.
+// Provenance is the one record that cannot be reconstructed after the fact, so
+// a field added to it must be populated in the fixture (and therefore carried by
+// both converters) rather than quietly not carried.
+func TestOriginFixtureIsComplete(t *testing.T) {
+	b := synctest.KitchenSinkBlock()
+
+	var populated *model.Origin
+	for _, tgt := range b.Targets {
+		o := tgt.Origin
+		if populated == nil || countSetFields(o) > countSetFields(*populated) {
+			cp := o
+			populated = &cp
+		}
+	}
+	require.NotNil(t, populated, "kitchen-sink fixture must carry at least one target with an Origin")
+
+	v := reflect.ValueOf(*populated)
+	typ := v.Type()
+	for i := range typ.NumField() {
+		field := typ.Field(i)
+		if !field.IsExported() {
+			continue
+		}
+		assert.Falsef(t, v.Field(i).IsZero(),
+			"model.Origin.%s is zero on every kitchen-sink target — a new Origin field must be populated in synctest.KitchenSinkBlock() AND carried by both sync converters (bowrain/core/sync and bowrain/core/client). See content-parity.md.",
+			field.Name)
+	}
+}
+
+// countSetFields reports how many exported fields of an Origin are non-zero, so
+// the completeness guard picks the fixture's fully-populated target rather than
+// the deliberately sparse one.
+func countSetFields(o model.Origin) int {
+	v := reflect.ValueOf(o)
+	n := 0
+	for i := range v.NumField() {
+		if !v.Field(i).IsZero() {
+			n++
+		}
+	}
+	return n
+}

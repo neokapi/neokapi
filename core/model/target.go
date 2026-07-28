@@ -92,10 +92,18 @@ func (s TargetStatus) Rank() int {
 	return -1
 }
 
-// Origin records how content was produced. On a Target it records how the
-// committed translation was made; on a Block's source it records how a
-// *recognized* source was extracted (ocr, asr) — source and target provenance
-// are the same record on two sides of the Block.
+// Origin records how content was produced, and under what context. On a Target
+// it records how the committed translation was made; on a Block's source it
+// records how a *recognized* source was extracted (ocr, asr) — source and target
+// provenance are the same record on two sides of the Block.
+//
+// The Kind/Engine/Tool/Reference/Timestamp/Confidence group answers *how* it was
+// made. The Profile group answers *what governed it*: which named context was in
+// force at the moment of production. That second half cannot be reconstructed
+// after the fact — a profile is edited in place and a timestamp is only a proxy
+// for it, one that breaks for imported content and for anything produced while a
+// pilot shadowed a stream. So it is recorded at production time or approximated
+// forever.
 type Origin struct {
 	Kind      string `json:"kind,omitempty"`      // human | tm | mt | ai | ocr | asr
 	Engine    string `json:"engine,omitempty"`    // MT/AI/OCR/ASR engine name
@@ -106,6 +114,13 @@ type Origin struct {
 	// extraction (ocr, asr); 0 = unset/not applicable. A confidence-gated
 	// refinement step reads this to decide which units to re-examine.
 	Confidence float64 `json:"confidence,omitempty"`
+	// Profile identifies the context profile that governed production, and
+	// ProfileVersion pins the revision of it that was in force. Both are opaque
+	// to the model: the producer stamps whatever its resolver handed it, and
+	// nothing here parses them. Empty when the producer resolved no profile —
+	// an ad-hoc run, or a tool that takes no context (pseudo-translation).
+	Profile        string `json:"profile,omitempty"`
+	ProfileVersion string `json:"profile_version,omitempty"`
 }
 
 // Origin Kind values. The translation kinds (human, tm, mt, ai) describe how a
