@@ -73,6 +73,15 @@
             "short": "Remove a config value, restoring the built-in default"
           }
         },
+        "context": {
+          "long": "Retrieve the content context this project goes by — the terms, the\nvoice and the rules that hold — without needing to know which store holds the\nanswer.\n\nCommunication is contextual: a legal notice is not a help article. Ask what the\nproject says about a word or a phrase before you write, rather than learning it\nfrom a failing check afterwards.",
+          "search": {
+            "example": "  kapi context search widget\n  kapi context search \"sign in\" --locale en\n  kapi context search widget --json",
+            "long": "Ask one question and get the answer from every store the project\nbinds: what this is called and whether it is discouraged, and wording the\nproject has already approved.\n\nResults are grouped by kind rather than merged into one ranked list, because a\nterminology match and a wording match are not scored on comparable things.",
+            "short": "Ask what the project's context says about a word or phrase"
+          },
+          "short": "Ask what this project's content context says"
+        },
         "credentials": {
           "add": {
             "long": "Save an AI provider credential to the OS keychain.\n\nThe credential name is used to reference it in flows and tool commands:\n  kapi translate --credential my-openai -i file.json --target-lang fr\n\nIf only one credential is saved, tools will auto-detect it without --credential.",
