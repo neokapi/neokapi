@@ -30,9 +30,13 @@ Two jobs follow from that, and they are the ones to reach for first:
   [references/context-discovery.md](references/context-discovery.md).
 - **Context retrieval** — before you write or rewrite anything, ask what applies
   *here*. `brand_guide` renders the voice guidance to put in context,
-  `term_lookup` answers what a term should be, and `memory_search` finds wording
+  `term_lookup` answers what a term should be, and `tm_search` finds wording
   already approved for this project. Retrieve first, then write; a check that
   fails afterwards is the expensive way to learn the same fact.
+
+  These are three separate asks, one asset each — there is no single "what
+  applies to this file" call yet. Until there is, make the calls that matter for
+  the content in front of you rather than assuming one of them covers the rest.
 
 A rule can be scoped, so *what applies here* has a real answer that differs by
 file and by surface — the old name may be permitted in the migration guide and
