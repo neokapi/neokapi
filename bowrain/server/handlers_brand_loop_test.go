@@ -15,8 +15,8 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -45,7 +45,7 @@ func TestBrandLoop_EndToEnd(t *testing.T) {
 
 	const wsID = "ws-loop-e2e"
 	const userID = "u-loop-e2e"
-	profile := &corebrand.VoiceProfile{ID: "p-loop-e2e", WorkspaceID: wsID, Name: "Loop E2E"}
+	profile := &coreprofile.VoiceProfile{ID: "p-loop-e2e", WorkspaceID: wsID, Name: "Loop E2E"}
 	require.NoError(t, srv.BrandStore.CreateProfile(ctx, profile))
 
 	// correct posts a correction through the handler and returns the decoded body.
@@ -66,7 +66,7 @@ func TestBrandLoop_EndToEnd(t *testing.T) {
 		return out
 	}
 
-	candidates := func(all bool) []corebrand.CandidateRule {
+	candidates := func(all bool) []coreprofile.CandidateRule {
 		url := "/?min_count=3"
 		if all {
 			url += "&all=true"
@@ -80,7 +80,7 @@ func TestBrandLoop_EndToEnd(t *testing.T) {
 		c.Set("workspace_id", wsID)
 		require.NoError(t, srv.HandleListCandidates(c))
 		require.Equal(t, http.StatusOK, rec.Code)
-		var out []corebrand.CandidateRule
+		var out []coreprofile.CandidateRule
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &out))
 		return out
 	}
@@ -100,7 +100,7 @@ func TestBrandLoop_EndToEnd(t *testing.T) {
 		return rec
 	}
 
-	find := func(cs []corebrand.CandidateRule, term string) *corebrand.CandidateRule {
+	find := func(cs []coreprofile.CandidateRule, term string) *coreprofile.CandidateRule {
 		for i := range cs {
 			if strings.EqualFold(cs[i].Term, term) {
 				return &cs[i]
@@ -115,7 +115,7 @@ func TestBrandLoop_EndToEnd(t *testing.T) {
 	}
 	c := find(candidates(false), "utilize")
 	require.NotNil(t, c, "utilize should be a candidate")
-	assert.Equal(t, corebrand.RuleDecisionPending, c.Status)
+	assert.Equal(t, coreprofile.RuleDecisionPending, c.Status)
 	assert.Equal(t, 3, c.CorrectionCount)
 
 	// ── promote → leaves the list, recorded + enforced + versioned ─────
@@ -129,7 +129,7 @@ func TestBrandLoop_EndToEnd(t *testing.T) {
 	d, err := srv.BrandStore.GetRuleDecision(ctx, profile.ID, "utilize")
 	require.NoError(t, err)
 	require.NotNil(t, d)
-	assert.Equal(t, corebrand.RuleDecisionPromoted, d.Status)
+	assert.Equal(t, coreprofile.RuleDecisionPromoted, d.Status)
 	assert.Equal(t, got.Version, d.PromotedVersion)
 
 	// ── reject → suppressed from the list, visible in history ──────────
@@ -142,10 +142,10 @@ func TestBrandLoop_EndToEnd(t *testing.T) {
 	assert.Nil(t, find(candidates(false), "leverage"), "rejected candidate should be suppressed")
 	hist := find(candidates(true), "leverage")
 	require.NotNil(t, hist, "rejected candidate should remain in history")
-	assert.Equal(t, corebrand.RuleDecisionRejected, hist.Status)
+	assert.Equal(t, coreprofile.RuleDecisionRejected, hist.Status)
 
 	// ── progressive autonomy → auto-promote at threshold ───────────────
-	got.Autonomy = corebrand.AutonomyConfig{AutoPromoteAtCount: 2}
+	got.Autonomy = coreprofile.AutonomyConfig{AutoPromoteAtCount: 2}
 	require.NoError(t, srv.BrandStore.UpdateProfile(ctx, got))
 	first := correct("synergy", "teamwork")
 	assert.Nil(t, first["auto_promoted"], "one correction is below the threshold")
@@ -154,7 +154,7 @@ func TestBrandLoop_EndToEnd(t *testing.T) {
 	d, err = srv.BrandStore.GetRuleDecision(ctx, profile.ID, "synergy")
 	require.NoError(t, err)
 	require.NotNil(t, d)
-	assert.Equal(t, corebrand.RuleDecisionPromoted, d.Status)
+	assert.Equal(t, coreprofile.RuleDecisionPromoted, d.Status)
 	assert.True(t, d.Auto, "autonomy-promoted decision should be marked auto")
 }
 
@@ -164,11 +164,11 @@ func TestPhase4_BrandRuleDemote(t *testing.T) {
 	srv := setupBrandLoopServer(t)
 	e := srv.GetEcho()
 	ctx := context.Background()
-	profile := &corebrand.VoiceProfile{ID: "p-demote", WorkspaceID: "ws-d", Name: "D"}
+	profile := &coreprofile.VoiceProfile{ID: "p-demote", WorkspaceID: "ws-d", Name: "D"}
 	require.NoError(t, srv.BrandStore.CreateProfile(ctx, profile))
 
-	_, changed, err := corebrand.PromoteAndSave(ctx, srv.BrandStore, profile.ID,
-		corebrand.SuggestedRule{Term: "utilize", Replacement: "use", CorrectionCount: 3})
+	_, changed, err := coreprofile.PromoteAndSave(ctx, srv.BrandStore, profile.ID,
+		coreprofile.SuggestedRule{Term: "utilize", Replacement: "use", CorrectionCount: 3})
 	require.NoError(t, err)
 	require.True(t, changed)
 	got, _ := srv.BrandStore.GetProfile(ctx, profile.ID)
@@ -197,7 +197,7 @@ func TestBrandLoop_EvaluateBlastRadius(t *testing.T) {
 	ctx := context.Background()
 
 	const wsID = "ws-blast"
-	profile := &corebrand.VoiceProfile{ID: "p-blast", WorkspaceID: wsID, Name: "Blast"}
+	profile := &coreprofile.VoiceProfile{ID: "p-blast", WorkspaceID: wsID, Name: "Blast"}
 	require.NoError(t, srv.BrandStore.CreateProfile(ctx, profile))
 
 	const projectID = "proj-blast"
@@ -225,7 +225,7 @@ func TestBrandLoop_EvaluateBlastRadius(t *testing.T) {
 	require.NoError(t, srv.HandleEvaluateRulePromotion(c))
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var radius corebrand.BlastRadius
+	var radius coreprofile.BlastRadius
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &radius))
 	assert.Equal(t, 3, radius.TotalBlocks)
 	assert.Equal(t, 2, radius.NewViolations, "two blocks contain 'utilize'")
@@ -243,7 +243,7 @@ func TestBrandLoop_Drift(t *testing.T) {
 	const projectID = "proj-drift"
 	now := time.Now().UTC()
 	store := func(seq, day, score int) {
-		require.NoError(t, srv.BrandStore.StoreScore(ctx, &corebrand.StoredScore{
+		require.NoError(t, srv.BrandStore.StoreScore(ctx, &coreprofile.StoredScore{
 			ID:        fmt.Sprintf("s-%d", seq),
 			ProjectID: projectID,
 			Stream:    "main",
@@ -270,7 +270,7 @@ func TestBrandLoop_Drift(t *testing.T) {
 	require.NoError(t, srv.HandleGetBrandVoiceDrift(c))
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var result corebrand.DriftResult
+	var result coreprofile.DriftResult
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &result))
 	assert.True(t, result.Drifted, "a ~24-point decline should register as drift: %+v", result)
 	assert.Greater(t, result.BaselineAvg, result.RecentAvg)

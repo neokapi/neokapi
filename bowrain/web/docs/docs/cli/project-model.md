@@ -14,8 +14,8 @@ my-app/
 ├── kapi.yaml               # the recipe (committed) — fixed, conventional filename
 ├── .kapi/                  # state (gitignored)
 │   ├── manifest.yaml       # bookkeeping: block counts, fingerprints
-│   ├── tm.db               # authoritative project content memory
-│   ├── termbase.db         # authoritative project terms store
+│   ├── memory.db               # authoritative project content memory
+│   ├── terms.db         # authoritative project terms store
 │   ├── flows/              # optional file-per-flow definitions (committed)
 │   │   └── pseudo.yaml
 │   └── cache/              # all regenerable caches under one roof
@@ -35,7 +35,7 @@ Three ownership zones at the project root:
 
 - **`kapi.yaml`** — hand-edited, committed to git. The recipe is the single source of truth for project configuration. Its fixed, conventional filename means every editor and code host (GitHub, GitLab) applies YAML syntax highlighting to diffs and previews with no configuration.
 - **`.kapi/cache/`** — CLI-owned, gitignored. Contains everything that's cheaply regenerable: the block store, the kapi sync cache, extraction intermediates, overlay layers. Safe to delete at any time.
-- **`.kapi/tm.db`, `.kapi/termbase.db`, `.kapi/manifest.yaml`** — kapi-owned, authoritative. The first two are the project's content memory and terms store. Gitignored by default; opt in to commit them when cross-clone reproducibility matters.
+- **`.kapi/memory.db`, `.kapi/terms.db`, `.kapi/manifest.yaml`** — kapi-owned, authoritative. The first two are the project's content memory and terms store. Gitignored by default; opt in to commit them when cross-clone reproducibility matters.
 - **`.kapi/flows/*.yaml`** — optional file-per-flow definitions, hand-edited, committed. Bowrain reads these in addition to inline `flows:` declared on the recipe.
 
 The pairing keeps the git-like shape of a committed config file beside a tool-managed state directory: `kapi.yaml` alongside `.kapi/` at the same root.
@@ -283,7 +283,7 @@ The whole `.kapi/` directory is gitignored by default by `kapi init`:
 
 - `.kapi/cache/` — block store, sync cache, extraction intermediates
 - `.kapi/manifest.yaml` — regenerable bookkeeping
-- `.kapi/tm.db`, `.kapi/termbase.db` — the content memory and terms store: authoritative but local-only by default; opt in to commit when cross-clone reproducibility matters
+- `.kapi/memory.db`, `.kapi/terms.db` — the content memory and terms store: authoritative but local-only by default; opt in to commit when cross-clone reproducibility matters
 
 ## Initialization
 

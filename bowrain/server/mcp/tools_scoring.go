@@ -9,8 +9,8 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/neokapi/neokapi/bowrain/core/brandscope"
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 // brandScopeInput carries the optional organizational scope a scoring tool
@@ -34,7 +34,7 @@ type brandScopeInput struct {
 // an unknown persona simply leaves the base profile unchanged. Returns an error
 // when no profile is bound at any level, matching the prior behavior of an
 // empty/unknown profile ID.
-func (s *MCPServer) resolveProfile(ctx context.Context, profileID string, scope brandScopeInput, locale, channel string) (*corebrand.VoiceProfile, error) {
+func (s *MCPServer) resolveProfile(ctx context.Context, profileID string, scope brandScopeInput, locale, channel string) (*coreprofile.VoiceProfile, error) {
 	projectID := scope.ProjectID
 	if s.contentStore != nil {
 		projectID = s.resolveProjectID(ctx, scope.ProjectID)
@@ -90,7 +90,7 @@ type scoreBrandComplianceInput struct {
 
 // scoreBrandComplianceOutput is the output for the score_brand_compliance tool.
 type scoreBrandComplianceOutput struct {
-	Score corebrand.BrandComplianceScore `json:"score"`
+	Score coreprofile.BrandComplianceScore `json:"score"`
 }
 
 func (s *MCPServer) handleScoreBrandCompliance(ctx context.Context, req *mcp.CallToolRequest, input scoreBrandComplianceInput) (*mcp.CallToolResult, scoreBrandComplianceOutput, error) {
@@ -100,8 +100,8 @@ func (s *MCPServer) handleScoreBrandCompliance(ctx context.Context, req *mcp.Cal
 	}
 
 	runs := []model.Run{{Text: &model.TextRun{Text: input.Text}}}
-	findings := corebrand.HitsToFindings(corebrand.MatchVocabulary(profile, input.Text), input.Text, runs)
-	score := corebrand.CalculateScore(findings)
+	findings := coreprofile.HitsToFindings(coreprofile.MatchVocabulary(profile, input.Text), input.Text, runs)
+	score := coreprofile.CalculateScore(findings)
 	score.ProfileID = profile.ID
 	score.WordCount = countWords(input.Text)
 
@@ -134,7 +134,7 @@ func (s *MCPServer) handleSuggestCorrections(ctx context.Context, req *mcp.CallT
 		return nil, suggestCorrectionsOutput{}, err
 	}
 
-	findings := corebrand.HitsToFindings(corebrand.MatchVocabulary(profile, input.Text), input.Text, nil)
+	findings := coreprofile.HitsToFindings(coreprofile.MatchVocabulary(profile, input.Text), input.Text, nil)
 	var corrections []correction
 	corrected := input.Text
 

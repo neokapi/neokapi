@@ -89,7 +89,7 @@ Only the blocks added since the last pass are sent to the LLM; everything alread
 
 ```bash
 kapi exec qa i18n/ --target-lang fr                              # placeholder, code, length, consistency
-kapi exec term-check i18n/ --target-lang fr --termbase terms/fr.db   # terminology
+kapi exec term-check i18n/ --target-lang fr --terms terms/fr.db   # terminology
 ```
 
 `qa` covers:
@@ -117,7 +117,7 @@ kapi exec recycle i18n/ --target-lang fr   # fill targets from the project conte
 kapi exec translate i18n/ --target-lang fr --skip-matched
 ```
 
-Pass `--tm <name-or-path>` to `kapi exec recycle` to draw on a specific content memory. See [Content memory](/framework/content-memory) for the match and fill thresholds.
+Pass `--memory <name-or-path>` to `kapi exec recycle` to draw on a specific content memory. See [Content memory](/framework/content-memory) for the match and fill thresholds.
 
 ## Terminology consistency
 
@@ -125,7 +125,7 @@ For apps with a large product vocabulary, keep terms rendered consistently with 
 
 ```bash
 kapi terms import product-terms.csv -s en -t fr --name product-terms
-kapi exec term-check i18n/ --target-lang fr --termbase product-terms
+kapi exec term-check i18n/ --target-lang fr --terms product-terms
 ```
 
 To feed terminology into the translation step itself rather than only checking it afterward, compose a [flow](/framework/flows) that runs term lookup before `translate` — the matched terms become the prompt's `glossary` section.
@@ -171,7 +171,7 @@ defaults:
   # Brand vocabulary and voice are git-tracked sources under i18n/.
   brand_voice:
     profile_file: i18n/brand-voice.yaml
-  termbase_source: i18n/terms.json
+  terms_source: i18n/terms.json
 content:
   - path: "i18n/src/**/*.kbf.json"
     format: kbf

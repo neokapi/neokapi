@@ -192,7 +192,7 @@ deployments can add a workspace-scoped PostgreSQL backend.
 ### Scoring and resolution
 
 ```go
-import "github.com/neokapi/neokapi/core/brand"
+import "github.com/neokapi/neokapi/core/profile"
 
 findings := []brand.BrandVoiceFinding{
     {Dimension: brand.DimensionVocabulary, Severity: brand.SeverityMajor,
@@ -211,7 +211,7 @@ resolved := brand.ResolveProfile(base, "ja", "")
 ```go
 import (
     aitool "github.com/neokapi/neokapi/core/ai/tools"
-    "github.com/neokapi/neokapi/core/brand"
+    "github.com/neokapi/neokapi/core/profile"
     "github.com/neokapi/neokapi/core/tools"
 )
 
@@ -226,7 +226,7 @@ vocabTool := tools.NewBrandVocabCheckTool(profile, terminology)
 ### Starter packs
 
 ```go
-import "github.com/neokapi/neokapi/core/brand/packs"
+import "github.com/neokapi/neokapi/core/profile/packs"
 
 names, _ := packs.List()          // the five built-in pack names
 profile, _ := packs.Load("professional-b2b")

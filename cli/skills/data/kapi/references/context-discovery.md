@@ -92,7 +92,7 @@ Bind the context in the recipe:
 defaults:
   brand_voice:
     profile_file: brand.yaml   # file binding, so `kapi apply` brand rules land in it
-  termbase: .kapi/termbase.db   # the bound terms store
+  terms: .kapi/terms.db   # the bound terms store
 content:
   - path: "docs/**/*.md"
     format: markdown
@@ -101,8 +101,8 @@ content:
 Materialize the terminology seed, now that the project exists:
 
 ```bash
-# preferred: term entries — maintains the committed l10n/terms.json source
-# and compiles the .kapi/termbase.db cache in one verb
+# preferred: term entries — maintains the committed context/terms.json source
+# and compiles the .kapi/terms.db cache in one verb
 kapi apply terms.jsonl
 # bulk path for a handed-over term list (csv, tsv, json, tbx, bundle):
 kapi terms import terms.csv -s en -t fr --header

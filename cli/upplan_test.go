@@ -19,7 +19,7 @@ import (
 // "Hello, world." source (a.json), leaving b.json's "Goodbye." uncovered.
 func seedPlanMemory(t *testing.T, root string) {
 	t.Helper()
-	memoryPath := filepath.Join(root, ".kapi", "tm.db")
+	memoryPath := filepath.Join(root, ".kapi", "memory.db")
 	tm, err := memory.NewSQLiteStore(memoryPath)
 	require.NoError(t, err)
 	defer tm.Close()

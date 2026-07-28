@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -27,19 +27,19 @@ func concept(id string, ts ...terms.Term) terms.Concept {
 // ---------------------------------------------------------------------------
 
 func TestApplyVoiceOpsToProfile(t *testing.T) {
-	baseline := &corebrand.VoiceProfile{
+	baseline := &coreprofile.VoiceProfile{
 		ID:   "p1",
 		Name: "Acme",
-		Vocabulary: corebrand.VocabularyRules{
-			ForbiddenTerms: []corebrand.TermRule{{Term: "synergy"}},
+		Vocabulary: coreprofile.VocabularyRules{
+			ForbiddenTerms: []coreprofile.TermRule{{Term: "synergy"}},
 		},
 	}
 
 	t.Run("add to each list", func(t *testing.T) {
 		ops := []ChangeSetOp{
-			mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: corebrand.TermRule{Term: "leverage", Replacement: "use"}}),
-			mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListPreferred, Rule: corebrand.TermRule{Term: "sign in"}}),
-			mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListCompetitor, Rule: corebrand.TermRule{Term: "Globex"}}),
+			mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "leverage", Replacement: "use"}}),
+			mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListPreferred, Rule: coreprofile.TermRule{Term: "sign in"}}),
+			mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListCompetitor, Rule: coreprofile.TermRule{Term: "Globex"}}),
 		}
 		cand := ApplyVoiceOpsToProfile(baseline, ops)
 		require.NotNil(t, cand)
@@ -70,7 +70,7 @@ func TestApplyVoiceOpsToProfile(t *testing.T) {
 
 	t.Run("add is idempotent by term", func(t *testing.T) {
 		ops := []ChangeSetOp{
-			mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: corebrand.TermRule{Term: "synergy", Replacement: "teamwork"}}),
+			mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "synergy", Replacement: "teamwork"}}),
 		}
 		cand := ApplyVoiceOpsToProfile(baseline, ops)
 		require.Len(t, cand.Vocabulary.ForbiddenTerms, 1)
@@ -79,7 +79,7 @@ func TestApplyVoiceOpsToProfile(t *testing.T) {
 
 	t.Run("ops for other profiles are ignored", func(t *testing.T) {
 		ops := []ChangeSetOp{
-			mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "other", List: VoiceListForbidden, Rule: corebrand.TermRule{Term: "leverage"}}),
+			mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "other", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "leverage"}}),
 		}
 		cand := ApplyVoiceOpsToProfile(baseline, ops)
 		assert.Len(t, cand.Vocabulary.ForbiddenTerms, 1)
@@ -177,7 +177,7 @@ func TestApplyOpsToTerms(t *testing.T) {
 	t.Run("voice ops are ignored by the terms store builder", func(t *testing.T) {
 		base := newBase(t)
 		after, err := ApplyOpsToTerms(ctx, base, []ChangeSetOp{
-			mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: corebrand.TermRule{Term: "x"}}),
+			mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "x"}}),
 		})
 		require.NoError(t, err)
 		n, _ := after.Count(ctx)

@@ -36,27 +36,27 @@ func (a *App) OpenMemorySQLite(cmd Command) (memory.Store, string, error) {
 // ResolveMemoryCmdPath picks the SQLite content-memory file a `kapi tm` subcommand operates on.
 // An explicit --name/--file/--local flag always wins. Otherwise, when run inside
 // a .kapi project, it defaults to the project's authoritative content memory
-// (<projectRoot>/.kapi/tm.db) so that `kapi memory lookup`/`import`/`stats` see the
+// (<projectRoot>/.kapi/memory.db) so that `kapi memory lookup`/`import`/`stats` see the
 // same content memory that `kapi extract` pre-fills from and `kapi merge` writes back to —
-// without it, those commands silently hit an empty ./tm.db. Falls back to
-// ./tm.db outside a project. This mirrors ResolveTermsCmdPath.
+// without it, those commands silently hit an empty ./memory.db. Falls back to
+// ./memory.db outside a project. This mirrors ResolveTermsCmdPath.
 func (a *App) ResolveMemoryCmdPath(cmd Command) (string, error) {
 	name, _ := cmd.Flags().GetString("name")
 	local, _ := cmd.Flags().GetBool("local")
 	file, _ := cmd.Flags().GetString("file")
 	if name != "" || file != "" || local {
-		return resolveResourcePath(cmd, "tm", "tm.db")
+		return resolveResourcePath(cmd, "tm", "memory.db")
 	}
 	if p, err := a.resolveProjectMemoryPath(cmd); err == nil && p != "" {
 		return p, nil
 	}
-	return resolveResourcePath(cmd, "tm", "tm.db")
+	return resolveResourcePath(cmd, "tm", "memory.db")
 }
 
 // resolveProjectMemoryPath returns the authoritative content memory path for the .kapi project
 // in scope, or "" (with nil error) when no project can be located. Unlike the
-// terms (which can be re-bound via defaults.termbase), the project content memory is
-// always the conventional <projectRoot>/.kapi/tm.db — the same file
+// terms (which can be re-bound via defaults.terms), the project content memory is
+// always the conventional <projectRoot>/.kapi/memory.db — the same file
 // kapi extract and kapi merge use (see cli/extract.go and cli/merge.go).
 func (a *App) resolveProjectMemoryPath(cmd Command) (string, error) {
 	projectPath, err := ResolveProjectPath(cmd)
@@ -67,7 +67,7 @@ func (a *App) resolveProjectMemoryPath(cmd Command) (string, error) {
 		return "", nil
 	}
 	root := filepath.Dir(projectPath)
-	return filepath.Join(root, project.StateDirName, "tm.db"), nil
+	return filepath.Join(root, project.StateDirName, "memory.db"), nil
 }
 
 // MemoryFileFormats names the content-memory file formats, in the order they

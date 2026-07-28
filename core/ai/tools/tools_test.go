@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/ai/tools"
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
 	coretool "github.com/neokapi/neokapi/core/tool"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
@@ -154,11 +154,11 @@ func TestAITranslateToolInjectsBrandVoice(t *testing.T) {
 		return &aiprovider.TranslateResponse{Translation: "Bonjour", Confidence: 0.9, Model: "test"}, nil
 	}
 
-	profile := &brand.VoiceProfile{
+	profile := &profile.VoiceProfile{
 		Name: "Friendly",
-		Tone: brand.ToneProfile{Personality: []string{"warm"}, Formality: "casual"},
-		Vocabulary: brand.VocabularyRules{
-			ForbiddenTerms: []brand.TermRule{{Term: "utilize", Replacement: "use"}},
+		Tone: profile.ToneProfile{Personality: []string{"warm"}, Formality: "casual"},
+		Vocabulary: profile.VocabularyRules{
+			ForbiddenTerms: []profile.TermRule{{Term: "utilize", Replacement: "use"}},
 		},
 	}
 	tool := tools.NewAITranslateTool(mock, tools.AITranslateConfig{

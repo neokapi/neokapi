@@ -8,7 +8,7 @@ import (
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
 	bconn "github.com/neokapi/neokapi/bowrain/plugin/connector"
-	corebrand "github.com/neokapi/neokapi/core/brand"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/host"
 )
 
@@ -34,7 +34,7 @@ type PushBrandResult struct {
 // hub through the idempotent upsert endpoint. A 403 (the caller lacks the
 // manage-brand permission) degrades to a "skipped" result rather than failing
 // the push — the content transport already succeeded.
-func PushBrandProfile(ctx context.Context, client *apiclient.BowrainClient, profile *corebrand.VoiceProfile) (*PushBrandResult, error) {
+func PushBrandProfile(ctx context.Context, client *apiclient.BowrainClient, profile *coreprofile.VoiceProfile) (*PushBrandResult, error) {
 	res, err := client.UpsertBrandProfile(ctx, apiclient.BrandProfileUpsertFromProfile(profile))
 	if err != nil {
 		if errors.Is(err, apiclient.ErrForbidden) {

@@ -16,9 +16,9 @@ import (
 	"github.com/neokapi/neokapi/bowrain/service"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
@@ -291,12 +291,12 @@ func TestReviewRecheck_RulePromotionScopedToPromotedTerm(t *testing.T) {
 
 	// A profile with two forbidden terms: "ancien" (old) and "utiliser" (just
 	// promoted). Both are enforced rules, but only "utiliser" is being promoted now.
-	profile := &corebrand.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		ID:          "p-rc",
 		Name:        "RC Voice",
 		WorkspaceID: wsID,
-		Vocabulary: corebrand.VocabularyRules{
-			ForbiddenTerms: []corebrand.TermRule{
+		Vocabulary: coreprofile.VocabularyRules{
+			ForbiddenTerms: []coreprofile.TermRule{
 				{Term: "ancien"},
 				{Term: "utiliser"},
 			},

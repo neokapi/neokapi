@@ -6,9 +6,9 @@ import (
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -56,7 +56,7 @@ func TestLinkRuleToConcept_CreatesForbiddenReplacementAndRelation(t *testing.T) 
 	ctx := context.Background()
 	const wsSlug, wsID = "acme", "ws-acme"
 
-	rule := corebrand.SuggestedRule{Term: "utilize", Replacement: "use"}
+	rule := coreprofile.SuggestedRule{Term: "utilize", Replacement: "use"}
 	forbiddenID, events, err := srv.linkRuleToConcept(ctx, wsSlug, wsID, rule)
 	require.NoError(t, err)
 	require.NotEmpty(t, forbiddenID)
@@ -104,7 +104,7 @@ func TestLinkRuleToConcept_Idempotent(t *testing.T) {
 	srv := linkTestServer(t)
 	ctx := context.Background()
 	const wsSlug, wsID = "acme", "ws-acme"
-	rule := corebrand.SuggestedRule{Term: "utilize", Replacement: "use"}
+	rule := coreprofile.SuggestedRule{Term: "utilize", Replacement: "use"}
 
 	firstID, _, err := srv.linkRuleToConcept(ctx, wsSlug, wsID, rule)
 	require.NoError(t, err)
@@ -129,7 +129,7 @@ func TestLinkRuleToConcept_NoReplacement(t *testing.T) {
 	ctx := context.Background()
 	const wsSlug, wsID = "acme", "ws-acme"
 
-	rule := corebrand.SuggestedRule{Term: "synergy"}
+	rule := coreprofile.SuggestedRule{Term: "synergy"}
 	forbiddenID, events, err := srv.linkRuleToConcept(ctx, wsSlug, wsID, rule)
 	require.NoError(t, err)
 	require.NotEmpty(t, forbiddenID)
@@ -160,7 +160,7 @@ func TestLinkRuleToConcept_ReusesExistingBrandConceptCaseInsensitive(t *testing.
 	}
 	require.NoError(t, tb.AddConcept(ctx, seeded))
 
-	rule := corebrand.SuggestedRule{Term: "utilize", Replacement: "use"}
+	rule := coreprofile.SuggestedRule{Term: "utilize", Replacement: "use"}
 	forbiddenID, events, err := srv.linkRuleToConcept(ctx, wsSlug, wsID, rule)
 	require.NoError(t, err)
 	assert.Equal(t, "seed-forbidden", forbiddenID, "case-insensitive reuse of the seeded concept")
@@ -177,7 +177,7 @@ func TestLinkRuleToConcept_ReusesExistingBrandConceptCaseInsensitive(t *testing.
 func TestLinkRuleToConcept_EmptyTermIsNoop(t *testing.T) {
 	srv := linkTestServer(t)
 	id, events, err := srv.linkRuleToConcept(context.Background(), "acme", "ws-acme",
-		corebrand.SuggestedRule{Term: "   "})
+		coreprofile.SuggestedRule{Term: "   "})
 	require.NoError(t, err)
 	assert.Empty(t, id)
 	assert.Empty(t, events)
@@ -190,7 +190,7 @@ func TestLinkRuleToConcept_UsesProjectSourceLocale(t *testing.T) {
 	}}
 	ctx := context.Background()
 
-	forbiddenID, _, err := srv.linkRuleToConcept(ctx, "acme", "ws-acme", corebrand.SuggestedRule{Term: "nutzen"})
+	forbiddenID, _, err := srv.linkRuleToConcept(ctx, "acme", "ws-acme", coreprofile.SuggestedRule{Term: "nutzen"})
 	require.NoError(t, err)
 
 	tb, err := srv.wsStores.getTB("acme")

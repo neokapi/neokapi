@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/brand"
-	"github.com/neokapi/neokapi/core/brand/packs"
+	"github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/profile/packs"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -92,7 +92,7 @@ func TestBrandValidate_StarterPacksAreValid(t *testing.T) {
 	for _, n := range names {
 		p, err := packs.Load(n)
 		require.NoError(t, err)
-		assert.Empty(t, brand.ValidateProfile(p), "starter pack %q must validate", n)
+		assert.Empty(t, profile.ValidateProfile(p), "starter pack %q must validate", n)
 	}
 }
 

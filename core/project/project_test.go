@@ -653,7 +653,7 @@ defaults:
   target_languages: [fr, de]
   merge:
     conflict_policy: newest-wins
-  tm:
+  memory:
     fuzzy_threshold: 70
     read:
       - /shared/corp.tmx
@@ -680,7 +680,7 @@ defaults:
   target_languages: [fr]
   brand_voice:
     profile_file: brand.yaml
-  termbase: glossary.db
+  terms: glossary.db
 `
 	dir := t.TempDir()
 	path := filepath.Join(dir, "brandy.kapi")
@@ -703,7 +703,7 @@ func TestDefaults_BrandVoiceTerms_RoundTrip(t *testing.T) {
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"fr"},
 			BrandVoice:      &BrandVoiceBinding{Profile: "house-style"},
-			Terms:           ".kapi/termbase.db",
+			Terms:           ".kapi/terms.db",
 		},
 	}
 
@@ -715,7 +715,7 @@ func TestDefaults_BrandVoiceTerms_RoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, loaded.Defaults.BrandVoice)
 	assert.Equal(t, "house-style", loaded.Defaults.BrandVoice.Profile)
-	assert.Equal(t, ".kapi/termbase.db", loaded.Defaults.Terms)
+	assert.Equal(t, ".kapi/terms.db", loaded.Defaults.Terms)
 }
 
 func TestBrandVoiceBinding_Validate(t *testing.T) {

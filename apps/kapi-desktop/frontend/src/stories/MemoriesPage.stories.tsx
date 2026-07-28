@@ -186,7 +186,7 @@ function SimulatedMemoriesPage() {
     },
     {
       name: "global-tm",
-      path: "~/.config/kapi/tm/global-tm.db",
+      path: "~/.config/kapi/tm/global-memory.db",
       size: 1048576,
       modified: new Date(Date.now() - 86400000).toISOString(),
     },
@@ -283,7 +283,7 @@ export const WithResources: StoryObj<typeof MemoriesPage> = {
         },
         {
           name: "global-tm",
-          path: "~/.config/kapi/tm/global-tm.db",
+          path: "~/.config/kapi/tm/global-memory.db",
           size: 1048576,
           modified: new Date(Date.now() - 86400000).toISOString(),
         },

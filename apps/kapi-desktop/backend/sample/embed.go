@@ -68,10 +68,10 @@ func Scaffold(name, targetDir string) error {
 	}
 
 	// Seed content memory and terms.
-	if err := seedTMv2(filepath.Join(kapiDir, "tm.db")); err != nil {
+	if err := seedTMv2(filepath.Join(kapiDir, "memory.db")); err != nil {
 		return fmt.Errorf("seed content memory: %w", err)
 	}
-	if err := seedTermsv2(filepath.Join(kapiDir, "termbase.db")); err != nil {
+	if err := seedTermsv2(filepath.Join(kapiDir, "terms.db")); err != nil {
 		return fmt.Errorf("seed terms: %w", err)
 	}
 

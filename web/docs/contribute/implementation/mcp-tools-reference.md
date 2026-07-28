@@ -295,7 +295,7 @@ Look up a term in a local terms store to enforce consistent terminology.
 | `term` | string | yes | The term to look up |
 | `source_lang` | string | no | Source locale (e.g. `en`) |
 | `target_lang` | string | no | Target locale (e.g. `fr`) |
-| `termbase` | string | no | Path to the terms store db (default: `termbase.db`) |
+| `termbase` | string | no | Path to the terms store db (default: `terms.db`) |
 
 **Output:**
 | Field | Type | Description |
@@ -314,7 +314,7 @@ Search a local content memory for prior translations of source text.
 | `source_lang` | string | yes | Source locale (e.g. `en`) |
 | `target_lang` | string | yes | Target locale (e.g. `fr`) |
 | `min_score` | number | no | Minimum match score 0–1 (default: `0.7`) |
-| `tm` | string | no | Path to the content memory db (default: `tm.db`) |
+| `tm` | string | no | Path to the content memory db (default: `memory.db`) |
 
 **Output:**
 | Field | Type | Description |

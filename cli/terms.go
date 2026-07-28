@@ -26,10 +26,10 @@ and manage terms.
 
 Resource location (mutually exclusive):
   --name <n>      Named terms store in KAPI_HOME (~/.config/kapi/termbases/<n>.db)
-  --local         Terms store in current directory (./termbase.db)
+  --local         Terms store in current directory (./terms.db)
   --file <path>   Explicit file path
 
-Default (no flag): same as --local (uses ./termbase.db).`,
+Default (no flag): same as --local (uses ./terms.db).`,
 		Example: `  kapi terms stats
   kapi terms lookup "dashboard" -s en -t fr
   kapi terms import glossary.csv -s en -t fr`,

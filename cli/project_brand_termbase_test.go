@@ -145,10 +145,10 @@ defaults:
 	assert.Equal(t, "Explicit", profile.Name, "explicit flag must override the project binding")
 }
 
-// seedProjectTerms creates <root>/.kapi/termbase.db with one en→fr concept.
+// seedProjectTerms creates <root>/.kapi/terms.db with one en→fr concept.
 func seedProjectTerms(t *testing.T, root string) {
 	t.Helper()
-	dbPath := filepath.Join(root, ".kapi", "termbase.db")
+	dbPath := filepath.Join(root, ".kapi", "terms.db")
 	tb, err := terms.NewSQLiteStore(dbPath)
 	require.NoError(t, err)
 	defer tb.Close()
@@ -162,8 +162,8 @@ func seedProjectTerms(t *testing.T, root string) {
 }
 
 // TestResolveProjectGlossary_FromConventionTerms asserts that with no
-// --termstore flag and no defaults.termbase, the convention
-// <root>/.kapi/termbase.db is used to build the project glossary.
+// --termstore flag and no defaults.terms, the convention
+// <root>/.kapi/terms.db is used to build the project glossary.
 func TestResolveProjectGlossary_FromConventionTerms(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
 name: proj
@@ -185,7 +185,7 @@ defaults:
 	assert.Equal(t, "Enregistrer", glossary[0].Target)
 }
 
-// TestResolveProjectGlossary_FromBoundTerms asserts that defaults.termbase
+// TestResolveProjectGlossary_FromBoundTerms asserts that defaults.terms
 // (relative to the project root) is honored when set.
 func TestResolveProjectGlossary_FromBoundTerms(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
@@ -193,7 +193,7 @@ name: proj
 defaults:
   source_language: en
   target_languages: [fr]
-  termbase: glossary.db
+  terms: glossary.db
 `)
 	// Bound terms at the project root (not the .kapi convention path).
 	dbPath := filepath.Join(root, "glossary.db")
@@ -256,7 +256,7 @@ defaults:
 	require.NotNil(t, termCheck, "expected `exec term-check`")
 	require.NotNil(t, termCheck.Flags().Lookup("termstore"),
 		"`exec term-check` selects a terms store, so --termstore must be registered")
-	require.Nil(t, termCheck.Flags().Lookup("termbase"),
+	require.Nil(t, termCheck.Flags().Lookup("terms"),
 		"the flag is --termstore; the old spelling must not linger")
 	require.NoError(t, termCheck.Flags().Set("termstore", named))
 

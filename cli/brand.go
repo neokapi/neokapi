@@ -8,8 +8,8 @@ import (
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	coretools "github.com/neokapi/neokapi/core/tools"
 
-	"github.com/neokapi/neokapi/core/brand"
-	"github.com/neokapi/neokapi/core/brand/packs"
+	brand "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/profile/packs"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"

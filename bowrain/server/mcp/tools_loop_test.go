@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	corebrand "github.com/neokapi/neokapi/core/brand"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -12,12 +12,12 @@ import (
 func TestLoopTools_SuggestedRulesAndPromote(t *testing.T) {
 	ctx := context.Background()
 	store := &memBrandStore{
-		profiles: []*corebrand.VoiceProfile{
+		profiles: []*coreprofile.VoiceProfile{
 			{ID: "p1", WorkspaceID: "ws1", Name: "Voice"},
 		},
-		suggested: []*corebrand.SuggestedRule{
-			{Term: "utilize", Replacement: "use", CorrectionCount: 4, Dimension: corebrand.DimensionVocabulary},
-			{Term: "leverage", Replacement: "use", CorrectionCount: 3, Dimension: corebrand.DimensionVocabulary},
+		suggested: []*coreprofile.SuggestedRule{
+			{Term: "utilize", Replacement: "use", CorrectionCount: 4, Dimension: coreprofile.DimensionVocabulary},
+			{Term: "leverage", Replacement: "use", CorrectionCount: 3, Dimension: coreprofile.DimensionVocabulary},
 		},
 	}
 	ms, err := NewMCPServer(store, Config{})
@@ -28,7 +28,7 @@ func TestLoopTools_SuggestedRulesAndPromote(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, out.Candidates, 2)
 	for _, c := range out.Candidates {
-		assert.Equal(t, corebrand.RuleDecisionPending, c.Status)
+		assert.Equal(t, coreprofile.RuleDecisionPending, c.Status)
 	}
 
 	// promote_rule → utilize becomes an enforced forbidden term.

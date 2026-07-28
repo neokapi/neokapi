@@ -69,7 +69,7 @@ content:
 	require.NoError(t, os.WriteFile(targetFile, []byte(bad), 0o644))
 
 	// Seed the project terms store: Save -> Enregistrer (approved).
-	tbPath := filepath.Join(root, ".kapi", "termbase.db")
+	tbPath := filepath.Join(root, ".kapi", "terms.db")
 	tb, err := terms.NewSQLiteStore(tbPath)
 	require.NoError(t, err)
 	require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{
@@ -148,7 +148,7 @@ name: rev
 defaults:
   source_language: en
   target_languages: [nb]
-  tm_source: memory.json
+  memory_source: memory.json
 content:
   - path: en.json
     target: "{lang}.json"

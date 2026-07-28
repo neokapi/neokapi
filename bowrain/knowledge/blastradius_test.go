@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -89,23 +89,23 @@ func (f *fakeBlockSource) GetCollection(_ context.Context, projectID, collection
 
 // fakeProfileStore is an in-memory ProfileStore.
 type fakeProfileStore struct {
-	profiles map[string]*corebrand.VoiceProfile
+	profiles map[string]*coreprofile.VoiceProfile
 }
 
-func newFakeProfileStore(ps ...*corebrand.VoiceProfile) *fakeProfileStore {
-	m := map[string]*corebrand.VoiceProfile{}
+func newFakeProfileStore(ps ...*coreprofile.VoiceProfile) *fakeProfileStore {
+	m := map[string]*coreprofile.VoiceProfile{}
 	for _, p := range ps {
 		m[p.ID] = p
 	}
 	return &fakeProfileStore{profiles: m}
 }
 
-func (f *fakeProfileStore) GetProfile(_ context.Context, id string) (*corebrand.VoiceProfile, error) {
+func (f *fakeProfileStore) GetProfile(_ context.Context, id string) (*coreprofile.VoiceProfile, error) {
 	return f.profiles[id], nil
 }
 
-func (f *fakeProfileStore) ListProfiles(_ context.Context, workspaceID string) ([]*corebrand.VoiceProfile, error) {
-	var out []*corebrand.VoiceProfile
+func (f *fakeProfileStore) ListProfiles(_ context.Context, workspaceID string) ([]*coreprofile.VoiceProfile, error) {
+	var out []*coreprofile.VoiceProfile
 	for _, p := range f.profiles {
 		if workspaceID == "" || p.WorkspaceID == workspaceID {
 			out = append(out, p)
@@ -114,7 +114,7 @@ func (f *fakeProfileStore) ListProfiles(_ context.Context, workspaceID string) (
 	return out, nil
 }
 
-func (f *fakeProfileStore) UpdateProfile(_ context.Context, p *corebrand.VoiceProfile) error {
+func (f *fakeProfileStore) UpdateProfile(_ context.Context, p *coreprofile.VoiceProfile) error {
 	f.profiles[p.ID] = p
 	return nil
 }
@@ -140,12 +140,12 @@ func TestEvaluateChangeSet_VoiceRuleAddFlagsMatchingBlocks(t *testing.T) {
 		srcBlock("b2", "home.json", "en-US", "Welcome to our site"),          // clean
 	)
 
-	profile := &corebrand.VoiceProfile{ID: "p1", Name: "Acme", WorkspaceID: "ws"}
+	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", WorkspaceID: "ws"}
 	ps := newFakeProfileStore(profile)
 	e := NewEngine(bs, terms.NewInMemoryStore(), ps, nil)
 
 	ops := []ChangeSetOp{
-		mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: corebrand.TermRule{Term: "synergy", Replacement: "teamwork"}}),
+		mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "synergy", Replacement: "teamwork"}}),
 	}
 
 	imp, err := e.EvaluateChangeSet(ctx, "ws", ChangeSet{}, ops, EvalOptions{})
@@ -179,9 +179,9 @@ func TestEvaluateChangeSet_VoiceRuleRemoveResolves(t *testing.T) {
 		srcBlock("b1", "home.json", "en-US", "Embrace synergy across teams"),
 	)
 
-	profile := &corebrand.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		ID: "p1", Name: "Acme", WorkspaceID: "ws",
-		Vocabulary: corebrand.VocabularyRules{ForbiddenTerms: []corebrand.TermRule{{Term: "synergy"}}},
+		Vocabulary: coreprofile.VocabularyRules{ForbiddenTerms: []coreprofile.TermRule{{Term: "synergy"}}},
 	}
 	e := NewEngine(bs, terms.NewInMemoryStore(), newFakeProfileStore(profile), nil)
 
@@ -277,10 +277,10 @@ func TestEvaluateChangeSet_GroupingAndWordSums(t *testing.T) {
 	bs.addProject(&store.Project{ID: "other", Name: "Other", WorkspaceID: "ws2"})
 	bs.addBlocks("other", "main", srcBlock("o1", "o.json", "en-US", "synergy synergy"))
 
-	profile := &corebrand.VoiceProfile{ID: "p1prof", Name: "Acme", WorkspaceID: "ws"}
+	profile := &coreprofile.VoiceProfile{ID: "p1prof", Name: "Acme", WorkspaceID: "ws"}
 	e := NewEngine(bs, terms.NewInMemoryStore(), newFakeProfileStore(profile), nil)
 	ops := []ChangeSetOp{
-		mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1prof", List: VoiceListForbidden, Rule: corebrand.TermRule{Term: "synergy"}}),
+		mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1prof", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "synergy"}}),
 	}
 
 	imp, err := e.EvaluateChangeSet(ctx, "ws", ChangeSet{}, ops, EvalOptions{})
@@ -348,10 +348,10 @@ func TestEvaluateChangeSet_SampleCap(t *testing.T) {
 	}
 	bs.addBlocks("proj1", "main", blocks...)
 
-	profile := &corebrand.VoiceProfile{ID: "p1", Name: "Acme", WorkspaceID: "ws"}
+	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", WorkspaceID: "ws"}
 	e := NewEngine(bs, terms.NewInMemoryStore(), newFakeProfileStore(profile), nil)
 	ops := []ChangeSetOp{
-		mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: corebrand.TermRule{Term: "synergy"}}),
+		mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "synergy"}}),
 	}
 
 	imp, err := e.EvaluateChangeSet(ctx, "ws", ChangeSet{}, ops, EvalOptions{MaxSamples: 3})
@@ -370,10 +370,10 @@ func TestEvaluateChangeSet_PilotStream(t *testing.T) {
 	bs.addBlocks("proj1", "main", srcBlock("m1", "home.json", "en-US", "main synergy copy"))
 	bs.addBlocks("proj1", "pilot/rebrand", srcBlock("p1b", "home.json", "en-US", "pilot synergy copy"))
 
-	profile := &corebrand.VoiceProfile{ID: "p1", Name: "Acme", WorkspaceID: "ws"}
+	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", WorkspaceID: "ws"}
 	e := NewEngine(bs, terms.NewInMemoryStore(), newFakeProfileStore(profile), nil)
 	ops := []ChangeSetOp{
-		mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: corebrand.TermRule{Term: "synergy"}}),
+		mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "synergy"}}),
 	}
 
 	// Without pilot streams, only "main" is walked.

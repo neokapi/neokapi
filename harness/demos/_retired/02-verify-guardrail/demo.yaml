@@ -18,7 +18,7 @@ captureTimeoutSec: 360
 # {{name}} placeholder.
 setup:
   - git init -q && git add -A && git -c user.email=dev@example.com -c user.name=Dev commit -qm "initial project"
-  - kapi terms import glossary.csv --format csv -s en -t fr --file .kapi/termbase.db
+  - kapi terms import glossary.csv --format csv -s en -t fr --file .kapi/terms.db
 
 prompt: >
   Our English copy changed and the French has fallen behind. Can you bring the French

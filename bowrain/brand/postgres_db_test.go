@@ -15,8 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 // newBrandStore returns a PostgresBrandStore on a fresh, isolated schema with
@@ -31,15 +31,15 @@ func newBrandStore(t *testing.T) *PostgresBrandStore {
 
 // newTestProfile builds a minimal but valid VoiceProfile. CreateProfile fills
 // ID, Version, and timestamps.
-func newTestProfile(ws, name string) *corebrand.VoiceProfile {
-	return &corebrand.VoiceProfile{
+func newTestProfile(ws, name string) *coreprofile.VoiceProfile {
+	return &coreprofile.VoiceProfile{
 		WorkspaceID: ws,
 		Name:        name,
 		Description: "desc",
-		Tone:        corebrand.ToneProfile{Personality: []string{"friendly"}, Formality: "neutral"},
-		Style:       corebrand.StyleRules{ActiveVoice: true, SentenceLength: "medium"},
-		Vocabulary:  corebrand.VocabularyRules{},
-		Examples:    []corebrand.VoiceExample{},
+		Tone:        coreprofile.ToneProfile{Personality: []string{"friendly"}, Formality: "neutral"},
+		Style:       coreprofile.StyleRules{ActiveVoice: true, SentenceLength: "medium"},
+		Vocabulary:  coreprofile.VocabularyRules{},
+		Examples:    []coreprofile.VoiceExample{},
 		CreatedBy:   "tester",
 	}
 }
@@ -133,12 +133,12 @@ func TestPostgresBrandStore_RuleDecisions(t *testing.T) {
 	t0 := time.Now().UTC().Truncate(time.Second)
 
 	// Record an approved-but-not-yet-promoted decision.
-	require.NoError(t, store.RecordRuleDecision(ctx, &corebrand.RuleDecision{
+	require.NoError(t, store.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
 		ProfileID:       p.ID,
 		Term:            "Utilize",
 		Replacement:     "use",
-		Dimension:       corebrand.DimensionVocabulary,
-		Status:          corebrand.RuleDecisionApproved,
+		Dimension:       coreprofile.DimensionVocabulary,
+		Status:          coreprofile.RuleDecisionApproved,
 		CorrectionCount: 3,
 		DecidedBy:       "reviewer",
 		DecidedAt:       t0.Add(-time.Minute),
@@ -148,18 +148,18 @@ func TestPostgresBrandStore_RuleDecisions(t *testing.T) {
 	got, err := store.GetRuleDecision(ctx, p.ID, "utilize")
 	require.NoError(t, err)
 	require.NotNil(t, got)
-	assert.Equal(t, corebrand.RuleDecisionApproved, got.Status)
-	assert.Equal(t, corebrand.DimensionVocabulary, got.Dimension)
+	assert.Equal(t, coreprofile.RuleDecisionApproved, got.Status)
+	assert.Equal(t, coreprofile.DimensionVocabulary, got.Dimension)
 	assert.Equal(t, 3, got.CorrectionCount)
 
 	// Promote the same term: the upsert on (profile_id, term) overwrites in place
 	// rather than inserting a second row.
-	require.NoError(t, store.RecordRuleDecision(ctx, &corebrand.RuleDecision{
+	require.NoError(t, store.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
 		ProfileID:       p.ID,
 		Term:            "Utilize",
 		Replacement:     "use",
-		Dimension:       corebrand.DimensionVocabulary,
-		Status:          corebrand.RuleDecisionPromoted,
+		Dimension:       coreprofile.DimensionVocabulary,
+		Status:          coreprofile.RuleDecisionPromoted,
 		CorrectionCount: 5,
 		PromotedVersion: 2,
 		ConceptID:       "concept-1",
@@ -170,16 +170,16 @@ func TestPostgresBrandStore_RuleDecisions(t *testing.T) {
 	got, err = store.GetRuleDecision(ctx, p.ID, "Utilize")
 	require.NoError(t, err)
 	require.NotNil(t, got)
-	assert.Equal(t, corebrand.RuleDecisionPromoted, got.Status, "upsert overwrote the earlier decision")
+	assert.Equal(t, coreprofile.RuleDecisionPromoted, got.Status, "upsert overwrote the earlier decision")
 	assert.Equal(t, 2, got.PromotedVersion)
 	assert.Equal(t, 5, got.CorrectionCount)
 	assert.Equal(t, "concept-1", got.ConceptID)
 
 	// A second, distinct term coexists; unknown term returns (nil, nil).
-	require.NoError(t, store.RecordRuleDecision(ctx, &corebrand.RuleDecision{
+	require.NoError(t, store.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
 		ProfileID: p.ID,
 		Term:      "leverage",
-		Status:    corebrand.RuleDecisionRejected,
+		Status:    coreprofile.RuleDecisionRejected,
 		DecidedBy: "reviewer",
 		DecidedAt: t0.Add(time.Minute),
 	}))
@@ -210,10 +210,10 @@ func TestPostgresBrandStore_PromotionClosedLoop(t *testing.T) {
 
 	// Three corrections of the same utilize→use edit.
 	for range 3 {
-		require.NoError(t, store.StoreCorrection(ctx, &corebrand.Correction{
+		require.NoError(t, store.StoreCorrection(ctx, &coreprofile.Correction{
 			ProfileID:     p.ID,
 			BlockID:       "block-1",
-			Dimension:     corebrand.DimensionVocabulary,
+			Dimension:     coreprofile.DimensionVocabulary,
 			OriginalText:  "utilize",
 			CorrectedText: "use",
 			CorrectedBy:   "editor",
@@ -229,11 +229,11 @@ func TestPostgresBrandStore_PromotionClosedLoop(t *testing.T) {
 
 	// Promote the reviewed suggestion (concept-backed). PromoteAndSave adds the
 	// forbidden term and bumps + archives the profile via the store.
-	rule := corebrand.SuggestedRule{
+	rule := coreprofile.SuggestedRule{
 		Term: "utilize", Replacement: "use", CorrectionCount: 3,
-		Dimension: corebrand.DimensionVocabulary, ConceptID: "concept-42",
+		Dimension: coreprofile.DimensionVocabulary, ConceptID: "concept-42",
 	}
-	updated, changed, err := corebrand.PromoteAndSave(ctx, store, p.ID, rule)
+	updated, changed, err := coreprofile.PromoteAndSave(ctx, store, p.ID, rule)
 	require.NoError(t, err)
 	require.True(t, changed)
 	assert.Equal(t, 2, updated.Version, "promotion bumps the live profile to version 2")
@@ -246,12 +246,12 @@ func TestPostgresBrandStore_PromotionClosedLoop(t *testing.T) {
 	assert.Equal(t, "concept-42", reloaded.Vocabulary.ForbiddenTerms[0].ConceptID)
 
 	// Record the governance decision at the version it landed in.
-	require.NoError(t, store.RecordRuleDecision(ctx, &corebrand.RuleDecision{
+	require.NoError(t, store.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
 		ProfileID:       p.ID,
 		Term:            "utilize",
 		Replacement:     "use",
-		Dimension:       corebrand.DimensionVocabulary,
-		Status:          corebrand.RuleDecisionPromoted,
+		Dimension:       coreprofile.DimensionVocabulary,
+		Status:          coreprofile.RuleDecisionPromoted,
 		CorrectionCount: 3,
 		PromotedVersion: updated.Version,
 		ConceptID:       "concept-42",
@@ -260,7 +260,7 @@ func TestPostgresBrandStore_PromotionClosedLoop(t *testing.T) {
 	decision, err := store.GetRuleDecision(ctx, p.ID, "utilize")
 	require.NoError(t, err)
 	require.NotNil(t, decision)
-	assert.Equal(t, corebrand.RuleDecisionPromoted, decision.Status)
+	assert.Equal(t, coreprofile.RuleDecisionPromoted, decision.Status)
 	assert.Equal(t, updated.Version, decision.PromotedVersion)
 
 	// The candidate still surfaces (corrections remain), now with its concept
@@ -287,7 +287,7 @@ func TestPostgresBrandStore_Tags(t *testing.T) {
 	p.VersionNote = "edit"
 	require.NoError(t, store.UpdateProfile(ctx, p)) // live is now version 2, version 1 archived
 
-	require.NoError(t, store.CreateProfileTag(ctx, &corebrand.ProfileTag{
+	require.NoError(t, store.CreateProfileTag(ctx, &coreprofile.ProfileTag{
 		ProfileID: p.ID, Name: "launch", Version: 1, CreatedBy: "tester",
 	}))
 
@@ -303,14 +303,14 @@ func TestPostgresBrandStore_Tags(t *testing.T) {
 	assert.Equal(t, "Acme", atTag.Name, "tag resolves to the archived snapshot, not the live profile")
 
 	// Duplicate tag name is rejected (composite PK on profile_id, name).
-	err = store.CreateProfileTag(ctx, &corebrand.ProfileTag{ProfileID: p.ID, Name: "launch", Version: 1})
+	err = store.CreateProfileTag(ctx, &coreprofile.ProfileTag{ProfileID: p.ID, Name: "launch", Version: 1})
 	require.Error(t, err)
 
 	// Unknown tag and a tag pointing at a never-archived version both error.
 	_, err = store.GetProfileAtTag(ctx, p.ID, "missing")
 	require.Error(t, err)
 
-	require.NoError(t, store.CreateProfileTag(ctx, &corebrand.ProfileTag{
+	require.NoError(t, store.CreateProfileTag(ctx, &coreprofile.ProfileTag{
 		ProfileID: p.ID, Name: "tip", Version: 2, CreatedBy: "tester",
 	}))
 	_, err = store.GetProfileAtTag(ctx, p.ID, "tip")
@@ -331,17 +331,17 @@ func TestPostgresBrandStore_Tags(t *testing.T) {
 // locale, and checked_at so ordering and locale filtering are deterministic.
 func storeScore(t *testing.T, store *PostgresBrandStore, project, id, locale string, checkedAt time.Time) {
 	t.Helper()
-	require.NoError(t, store.StoreScore(t.Context(), &corebrand.StoredScore{
+	require.NoError(t, store.StoreScore(t.Context(), &coreprofile.StoredScore{
 		ID:        id,
 		ProjectID: project,
 		BlockID:   "block-" + id,
 		ProfileID: "profile-1",
 		Locale:    model.LocaleID(locale),
 		Score:     90,
-		Dimensions: []corebrand.DimensionScore{
-			{Dimension: corebrand.DimensionVocabulary, Score: 90},
+		Dimensions: []coreprofile.DimensionScore{
+			{Dimension: coreprofile.DimensionVocabulary, Score: 90},
 		},
-		Findings:  []corebrand.BrandVoiceFinding{},
+		Findings:  []coreprofile.BrandVoiceFinding{},
 		CheckedAt: checkedAt,
 	}))
 }
@@ -417,10 +417,10 @@ func TestPostgresBrandStore_ScoresByStreamAndTrends(t *testing.T) {
 	// Two "main" scores (empty stream defaults to "main") and one "draft" score.
 	storeScore(t, store, proj, "m1", "fr-FR", now.Add(-2*time.Minute))
 	storeScore(t, store, proj, "m2", "fr-FR", now.Add(-time.Minute))
-	require.NoError(t, store.StoreScore(ctx, &corebrand.StoredScore{
+	require.NoError(t, store.StoreScore(ctx, &coreprofile.StoredScore{
 		ID: "d1", ProjectID: proj, Stream: "draft", BlockID: "b", ProfileID: "profile-1",
 		Locale: "fr-FR", Score: 70,
-		Dimensions: []corebrand.DimensionScore{}, Findings: []corebrand.BrandVoiceFinding{},
+		Dimensions: []coreprofile.DimensionScore{}, Findings: []coreprofile.BrandVoiceFinding{},
 		CheckedAt: now,
 	}))
 

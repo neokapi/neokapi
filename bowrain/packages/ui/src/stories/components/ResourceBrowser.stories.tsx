@@ -29,7 +29,7 @@ const sampleMemories: ResourceInfo[] = [
   {
     name: "legacy-tm",
     kind: "tm",
-    path: "~/.config/kapi/tm/legacy-tm.db",
+    path: "~/.config/kapi/tm/legacy-memory.db",
     entryCount: 85000,
     sourceLocale: "en",
     targetLocales: ["fr"],

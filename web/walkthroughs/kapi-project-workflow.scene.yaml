@@ -126,7 +126,7 @@ steps:
     smoke: true
   - comment: Seed the project content memory so the flow has matches to reuse.
   - command: kapi memory import project.memory.json
-    narration: memory import loads the committed content-memory bundle into the project content memory (.kapi/tm.db). The flow leverages it before any AI is asked.
+    narration: memory import loads the committed content-memory bundle into the project content memory (.kapi/memory.db). The flow leverages it before any AI is asked.
     smoke: true
   - command: kapi status
     narration: status derives each locale's standing from the working tree. fr is at zero — pending work, never a build failure.

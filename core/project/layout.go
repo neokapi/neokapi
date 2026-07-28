@@ -27,6 +27,23 @@ type Layout struct {
 // state (manifest bookkeeping, content memory, terms, and the cache subdir).
 const StateDirName = ".kapi"
 
+// MemoryFileName and TermsFileName are the content-memory and terms stores
+// inside StateDir.
+//
+// The spellings match the concepts: content memory is `memory.db`, the terms
+// store is `terms.db`. The old `tm.db` / `termbase.db` were the last of the
+// retired vocabulary left in the tree after #1462 (Go identifiers) and #1504
+// (source filenames and the sync protobuf); this finishes that programme.
+//
+// Both files are **regenerable state**, which is why renaming them was cheap:
+// the terms store compiles from committed sources and the content memory
+// rebuilds from the loop. Neither is a source of truth, so there is nothing to
+// migrate — a stale file is simply rebuilt under the new name.
+const (
+	MemoryFileName = "memory.db"
+	TermsFileName  = "terms.db"
+)
+
 // RecipeFileName is the fixed filename of a kapi project recipe. A plain
 // YAML file, so every editor and code host (GitHub/GitLab previews and
 // diffs) highlights it with zero configuration. Discovery matches this

@@ -168,7 +168,7 @@ func decodeBody(r *http.Request) map[string]any {
 func pullInto(t *testing.T, srv *httptest.Server) (string, *bproject.ConceptBaseline) {
 	t.Helper()
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	tbPath := filepath.Join(t.TempDir(), "termbase.db")
+	tbPath := filepath.Join(t.TempDir(), "terms.db")
 	res, baseline, err := PullConcepts(context.Background(), client, tbPath, false)
 	require.NoError(t, err)
 	require.NotNil(t, res)
@@ -193,7 +193,7 @@ func editConcept(t *testing.T, tbPath, conceptID string, mutate func(*terms.Conc
 func TestPullConceptsWritesTermsAndBaseline(t *testing.T) {
 	srv, _ := conceptSyncServer(t)
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	tbPath := filepath.Join(t.TempDir(), "termbase.db")
+	tbPath := filepath.Join(t.TempDir(), "terms.db")
 
 	res, baseline, err := PullConcepts(context.Background(), client, tbPath, false)
 	require.NoError(t, err)
@@ -223,7 +223,7 @@ func TestPullConceptsWritesTermsAndBaseline(t *testing.T) {
 func TestPullConceptsDryRunWritesNothing(t *testing.T) {
 	srv, _ := conceptSyncServer(t)
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	tbPath := filepath.Join(t.TempDir(), "termbase.db")
+	tbPath := filepath.Join(t.TempDir(), "terms.db")
 
 	res, baseline, err := PullConcepts(context.Background(), client, tbPath, true)
 	require.NoError(t, err)
@@ -460,7 +460,7 @@ func TestConceptPull_BaselineSurvivesConnectorCloseThenPushReadsIt(t *testing.T)
 func TestPushConceptsNoBaselineSkips(t *testing.T) {
 	srv, _ := conceptSyncServer(t)
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	tbPath := filepath.Join(t.TempDir(), "termbase.db")
+	tbPath := filepath.Join(t.TempDir(), "terms.db")
 
 	res, err := PushConcepts(context.Background(), client, tbPath, nil, false)
 	require.NoError(t, err)

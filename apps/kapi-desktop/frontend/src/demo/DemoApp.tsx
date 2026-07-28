@@ -443,7 +443,7 @@ const MEMORY_RESOURCES = [
   },
   {
     name: "global-tm",
-    path: "~/.config/kapi/tm/global-tm.db",
+    path: "~/.config/kapi/tm/global-memory.db",
     size: 1572864,
     modified: hoursAgo(72),
   },

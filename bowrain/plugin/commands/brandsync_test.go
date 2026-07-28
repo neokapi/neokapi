@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
-	corebrand "github.com/neokapi/neokapi/core/brand"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -41,13 +41,13 @@ func brandUpsertServer(t *testing.T, status int, response any) (*httptest.Server
 	return srv, rec
 }
 
-func testVoiceProfile() *corebrand.VoiceProfile {
-	return &corebrand.VoiceProfile{
+func testVoiceProfile() *coreprofile.VoiceProfile {
+	return &coreprofile.VoiceProfile{
 		Name:        "Acme Voice",
 		Description: "How Acme sounds.",
-		Tone:        corebrand.ToneProfile{Formality: "neutral", Personality: []string{"clear", "direct"}},
-		Vocabulary: corebrand.VocabularyRules{
-			ForbiddenTerms: []corebrand.TermRule{{Term: "utilize", Replacement: "use"}},
+		Tone:        coreprofile.ToneProfile{Formality: "neutral", Personality: []string{"clear", "direct"}},
+		Vocabulary: coreprofile.VocabularyRules{
+			ForbiddenTerms: []coreprofile.TermRule{{Term: "utilize", Replacement: "use"}},
 		},
 	}
 }
@@ -55,7 +55,7 @@ func testVoiceProfile() *corebrand.VoiceProfile {
 func TestPushBrandProfileCreates(t *testing.T) {
 	srv, rec := brandUpsertServer(t, http.StatusCreated, apiclient.BrandProfileUpsertResult{
 		Action:  "created",
-		Profile: &corebrand.VoiceProfile{ID: "bp-1", Name: "Acme Voice", Version: 1},
+		Profile: &coreprofile.VoiceProfile{ID: "bp-1", Name: "Acme Voice", Version: 1},
 	})
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
 
@@ -87,7 +87,7 @@ func TestPushBrandProfileCreates(t *testing.T) {
 func TestPushBrandProfileUpdatedReportsNewVersion(t *testing.T) {
 	srv, _ := brandUpsertServer(t, http.StatusOK, apiclient.BrandProfileUpsertResult{
 		Action:  "updated",
-		Profile: &corebrand.VoiceProfile{ID: "bp-1", Name: "Acme Voice", Version: 4},
+		Profile: &coreprofile.VoiceProfile{ID: "bp-1", Name: "Acme Voice", Version: 4},
 	})
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
 
@@ -100,7 +100,7 @@ func TestPushBrandProfileUpdatedReportsNewVersion(t *testing.T) {
 func TestPushBrandProfileUnchangedNoOps(t *testing.T) {
 	srv, rec := brandUpsertServer(t, http.StatusOK, apiclient.BrandProfileUpsertResult{
 		Action:  "unchanged",
-		Profile: &corebrand.VoiceProfile{ID: "bp-1", Name: "Acme Voice", Version: 2},
+		Profile: &coreprofile.VoiceProfile{ID: "bp-1", Name: "Acme Voice", Version: 2},
 	})
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
 

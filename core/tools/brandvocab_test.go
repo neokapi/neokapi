@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
+	brand "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"

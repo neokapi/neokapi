@@ -95,7 +95,7 @@ export interface DemoManifest {
    * dogfood l10n pipeline (`make l10n-demos`, content memory-driven; see the
    * demo-narration entry in the root kapi.yaml). Never hand-edit a
    * sidecar: fix the content memory seed
-   * (l10n/tm/demo-narration-<lang>.memory.json) and regenerate.
+   * (context/memory/demo-narration-<lang>.memory.json) and regenerate.
    *
    * The `narration` array in demo.yaml is the English (en) master and stays
    * the single source of scene structure: ids, kinds, beats, artifacts,

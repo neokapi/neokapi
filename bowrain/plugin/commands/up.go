@@ -372,7 +372,7 @@ func init() {
 	upCmd.Flags().DurationVar(&upTimeout, "timeout", 15*time.Minute, "maximum time to wait for a server run to finish before pulling available results")
 	cli.RegisterCommandFactory(func(parent *cobra.Command, a *cli.App) {
 		// Match the built-in `kapi up` flag surface exactly (NewUpCmd adds the
-		// flow-run flags): without --provider/--model/--tm/--target-lang/… a
+		// flow-run flags): without --provider/--model/--memory/--target-lang/… a
 		// documented invocation would break the moment the plugin is installed,
 		// since kapi dispatches raw argv to this cobra tree.
 		if a != nil {

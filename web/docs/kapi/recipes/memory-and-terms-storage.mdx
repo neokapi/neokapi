@@ -3,8 +3,8 @@ id: memory-and-terms-storage
 title: "Where translations & terms live"
 sidebar_label: "Memory & terms storage"
 sidebar_position: 4
-description: "The three places a kapi content memory or terms store can live — a loose file in the current directory, a named store under your config home, or a project's .kapi/tm.db — and the flags that select each."
-keywords: [kapi, content memory, terms store, terminology, storage, named resource, project, tm.db, termbase.db]
+description: "The three places a kapi content memory or terms store can live — a loose file in the current directory, a named store under your config home, or a project's .kapi/memory.db — and the flags that select each."
+keywords: [kapi, content memory, terms store, terminology, storage, named resource, project, memory.db, terms.db]
 hide_table_of_contents: true
 ---
 
@@ -12,7 +12,7 @@ hide_table_of_contents: true
 
 :::note Better in a project
 `kapi memory` and `kapi terms` run ad-hoc against a loose or named store, but a
-`.kapi` project gives them an authoritative content memory (`.kapi/tm.db`) and
+`.kapi` project gives them an authoritative content memory (`.kapi/memory.db`) and
 terms store that the extract/merge round-trip and term-check already share.
 :::
 
@@ -20,7 +20,7 @@ The translations kapi reuses and the terms it keeps consistent are kept in a
 small database on disk. That database can live in one of three places, and which
 one a command uses is decided by a flag — or, with no flag, by whether a `.kapi`
 project is in scope. The same three models apply to both stores; only the default
-filename differs (`tm.db` vs `termbase.db`) and the named-store subdirectory
+filename differs (`memory.db` vs `terms.db`) and the named-store subdirectory
 (`tm/` vs `termbases/`).
 
 For the stores themselves — matching, leverage, and the concept model — see
@@ -33,20 +33,20 @@ and the flags that select each.
 ### 1. A loose file in the current directory
 
 The default with no flag and no project. A `kapi memory` command reads and writes
-`./tm.db`; a `kapi terms` command reads and writes `./termbase.db`. This is
+`./memory.db`; a `kapi terms` command reads and writes `./terms.db`. This is
 the ad-hoc model — useful for a quick, throwaway store you don't intend to
 reuse.
 
 ```bash
-kapi memory import corpus.memory.json    # → ./tm.db
-kapi terms import terms.json             # → ./termbase.db
+kapi memory import corpus.memory.json    # → ./memory.db
+kapi terms import terms.json             # → ./terms.db
 ```
 
 Point at an explicit path with `--file`, or write `--local` to be explicit about
 the current-directory default:
 
 ```bash
-kapi memory stats --file ./build/scratch-tm.db
+kapi memory stats --file ./build/scratch-memory.db
 kapi terms stats --local
 ```
 
@@ -83,12 +83,12 @@ kapi terms list
 
 When a command runs inside a [`.kapi` project](/reference/project-file) — and no
 `--name`, `--local`, or `--file` flag is given — `kapi memory` resolves the
-project's authoritative content memory at `<project-root>/.kapi/tm.db`, and
-`kapi terms` resolves the project terms store (the recipe's `defaults.termbase`
-key, else `<project-root>/.kapi/termbase.db`). The project is found by walking up
+project's authoritative content memory at `<project-root>/.kapi/memory.db`, and
+`kapi terms` resolves the project terms store (the recipe's `defaults.terms`
+key, else `<project-root>/.kapi/terms.db`). The project is found by walking up
 the directory tree from the current directory, git-style.
 
-This is the same `tm.db` that [`kapi extract`](/reference/commands/extract)
+This is the same `memory.db` that [`kapi extract`](/reference/commands/extract)
 pre-fills from and [`kapi merge`](/reference/commands/merge) writes back to, and
 the same terms store that [`kapi exec term-check`](/reference/commands/exec-term-check)
 enforces — so a project-mode `kapi memory lookup` or `kapi terms lookup` sees
@@ -97,7 +97,7 @@ exactly the store the round-trip uses, with no flag needed. See
 
 ```bash
 # Inside a project directory:
-kapi memory import ./corporate-en-fr.memory.json  # → <project-root>/.kapi/tm.db
+kapi memory import ./corporate-en-fr.memory.json  # → <project-root>/.kapi/memory.db
 kapi memory stats                            # reads the project content memory
 kapi terms lookup "dashboard" -s en -t fr    # reads the project terms store
 ```
@@ -110,26 +110,26 @@ different store even from inside a project.
 The tool commands that consume a store —
 [`kapi exec recycle`](/reference/commands/exec-recycle) and
 [`kapi exec term-check`](/reference/commands/exec-term-check) — follow the same precedence
-through their own `--tm` and `--termbase` flags:
+through their own `--memory` and `--terms` flags:
 
-- `--tm <name|path>` / `--termbase <name|path>` — a bare name (no separators)
+- `--memory <name|path>` / `--terms <name|path>` — a bare name (no separators)
   resolves under the config home; a value with a path separator is read as a
   file path.
-- no flag, inside a project — the project's `.kapi/tm.db` / project terms store.
+- no flag, inside a project — the project's `.kapi/memory.db` / project terms store.
 
 ```bash
-kapi exec recycle messages.json --target-lang fr --tm corporate-en-fr
+kapi exec recycle messages.json --target-lang fr --memory corporate-en-fr
 kapi exec term-check messages_fr.json --source-lang en --target-lang fr \
-  --termbase product-terms
+  --terms product-terms
 ```
 
 ## Choosing a model
 
 | Model | Selected by | Lives at | Use when |
 | --- | --- | --- | --- |
-| Loose file | default, `--local`, `--file <path>` | `./tm.db` / `./termbase.db`, or the path you give | a one-off or throwaway store |
+| Loose file | default, `--local`, `--file <path>` | `./memory.db` / `./terms.db`, or the path you give | a one-off or throwaway store |
 | Named store | `--name <n>` | `~/.config/kapi/tm/<n>.db` / `~/.config/kapi/termbases/<n>.db` | a set of terms or a memory reused across directories |
-| Project store | no flag, inside a `.kapi` project | `<root>/.kapi/tm.db` / project terms store | a repository you translate repeatedly |
+| Project store | no flag, inside a `.kapi` project | `<root>/.kapi/memory.db` / project terms store | a repository you translate repeatedly |
 
 :::note[Works with Bowrain]
 All three models are local to a machine or a repository. A fourth arrangement is hosted: a Bowrain server holds one workspace-level content memory and terms store shared across projects, people, and agents, and `kapi push` / `kapi pull` connect a `.kapi` project to it. See the [Bowrain documentation](https://bowrain.cloud/docs/).

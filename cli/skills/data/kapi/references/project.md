@@ -20,7 +20,7 @@ kapi init --name my-app --source-locale en --target-locale fr --target-locale de
 ```
 
 This writes `kapi.yaml` (the recipe, committed) and a `.kapi/` state directory
-(gitignored: the content memory `tm.db`, the terms store `termbase.db`, caches).
+(gitignored: the content memory `memory.db`, the terms store `terms.db`, caches).
 
 ## What the recipe binds
 
@@ -36,7 +36,7 @@ content:
 defaults:
   brand_voice:
     profile_file: brand.yaml   # or: profile: <store name> | pack: marketing-blog
-  termbase: .kapi/termbase.db  # the bound terms store (also the default location)
+  terms: .kapi/terms.db  # the bound terms store (also the default location)
 ```
 
 - **Brand voice** — bind it under `defaults.brand_voice`, or just keep a

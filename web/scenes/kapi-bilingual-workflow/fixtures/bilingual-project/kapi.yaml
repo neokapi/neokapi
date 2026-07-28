@@ -5,7 +5,7 @@ defaults:
   target_languages: [fr-FR, de-DE]
   merge:
     conflict_policy: translator-wins
-  tm:
+  memory:
     fuzzy_threshold: 75
 content:
   - path: src/locales/en/*.json

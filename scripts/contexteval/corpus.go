@@ -8,8 +8,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	brand "github.com/neokapi/neokapi/core/profile"
 )
 
 // The corpus is engineered so that a *naive* translation violates the injected
@@ -46,7 +46,7 @@ const (
 	// pins that keep do-not-translate names verbatim).
 	DimTerminology = "terminology"
 	// DimVoice is carried by the brand voice profile, injected in production
-	// via brand.RenderVoiceGuideCompact: tone (personality, formality, humor,
+	// via profile.RenderVoiceGuideCompact: tone (personality, formality, humor,
 	// guidelines), style (contractions, sentence length, prohibited patterns),
 	// and forbidden-term rules.
 	DimVoice = "voice"
@@ -100,7 +100,7 @@ type Fixture struct {
 
 // Context is the payload under test for one target locale — injected into the
 // translate prompt exactly the way production injects it (glossary map,
-// brand.VoiceProfile rendered compact, instruction section) and withheld
+// profile.VoiceProfile rendered compact, instruction section) and withheld
 // entirely on the bare pass.
 type Context struct {
 	// Glossary is the term → mandated-rendering map the prompt's glossary
@@ -111,7 +111,7 @@ type Context struct {
 	// DNT lists the names that must survive verbatim — what dnt-check enforces.
 	DNT []string
 	// Profile is the synthetic brand voice. What
-	// brand.RenderVoiceGuideCompact renders reaches the model — every populated
+	// profile.RenderVoiceGuideCompact renders reaches the model — every populated
 	// tone/style constraint plus forbidden-term rules — so every voice fixture
 	// tests exactly that surface.
 	Profile *brand.VoiceProfile

@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -203,8 +203,8 @@ func TestSourceReadiness_CleanSourceIsChecked(t *testing.T) {
 func TestSourceReadiness_BrandFindingStaysAuthored(t *testing.T) {
 	t.Parallel()
 	got := runReadiness(t, "", func(b *model.Block) {
-		b.SetAnno("brand-voice", &brand.BrandVoiceAnnotation{
-			Findings: []brand.BrandVoiceFinding{{
+		b.SetAnno("brand-voice", &profile.BrandVoiceAnnotation{
+			Findings: []profile.BrandVoiceFinding{{
 				Category: "vocabulary",
 				Severity: check.SeverityCritical,
 				Message:  "competitor term",
@@ -231,8 +231,8 @@ func TestSourceReadiness_UnifiedFindingStaysAuthored(t *testing.T) {
 func TestSourceReadiness_MinorFindingToleratedByDefault(t *testing.T) {
 	t.Parallel()
 	got := runReadiness(t, "", func(b *model.Block) {
-		b.SetAnno("brand-voice", &brand.BrandVoiceAnnotation{
-			Findings: []brand.BrandVoiceFinding{{
+		b.SetAnno("brand-voice", &profile.BrandVoiceAnnotation{
+			Findings: []profile.BrandVoiceFinding{{
 				Category: "style",
 				Severity: check.SeverityMinor,
 				Message:  "soft preference",
@@ -245,8 +245,8 @@ func TestSourceReadiness_MinorFindingToleratedByDefault(t *testing.T) {
 func TestSourceReadiness_MinorFindingBlocksWhenStrict(t *testing.T) {
 	t.Parallel()
 	got := runReadiness(t, "minor", func(b *model.Block) {
-		b.SetAnno("brand-voice", &brand.BrandVoiceAnnotation{
-			Findings: []brand.BrandVoiceFinding{{
+		b.SetAnno("brand-voice", &profile.BrandVoiceAnnotation{
+			Findings: []profile.BrandVoiceFinding{{
 				Category: "style",
 				Severity: check.SeverityMinor,
 				Message:  "soft preference",
@@ -268,8 +268,8 @@ func TestSourceReadiness_BlockingFindingRegressesApproval(t *testing.T) {
 	t.Parallel()
 	got := runReadiness(t, "", func(b *model.Block) {
 		b.SourceStatus = model.SourceStatusApproved
-		b.SetAnno("brand-voice", &brand.BrandVoiceAnnotation{
-			Findings: []brand.BrandVoiceFinding{{
+		b.SetAnno("brand-voice", &profile.BrandVoiceAnnotation{
+			Findings: []profile.BrandVoiceFinding{{
 				Severity: check.SeverityCritical,
 				Message:  "forbidden term",
 			}},

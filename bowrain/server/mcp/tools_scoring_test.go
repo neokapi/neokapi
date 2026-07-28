@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	corebrand "github.com/neokapi/neokapi/core/brand"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -43,7 +43,7 @@ func (f wsDefaultFunc) WorkspaceBrandProfileID(ctx context.Context, workspaceID 
 
 func scoringTestServer(cs store.ContentStore, wsDefaultID string) *MCPServer {
 	return &MCPServer{
-		brandStore: &memBrandStore{profiles: []*corebrand.VoiceProfile{
+		brandStore: &memBrandStore{profiles: []*coreprofile.VoiceProfile{
 			{ID: "hex1", Name: "Explicit", WorkspaceID: "ws1"},
 			{ID: "hex2", Name: "ProjectBound", WorkspaceID: "ws1"},
 			{ID: "hex3", Name: "WorkspaceDefault", WorkspaceID: "ws1"},
@@ -58,7 +58,7 @@ func scoringTestServer(cs store.ContentStore, wsDefaultID string) *MCPServer {
 func TestScoreBrandCompliance_ExplicitProfileWins(t *testing.T) {
 	cs := &scopeContentStore{project: &store.Project{
 		WorkspaceID: "ws1",
-		Properties:  map[string]string{corebrand.PropertyProfileID: "hex2"},
+		Properties:  map[string]string{coreprofile.PropertyProfileID: "hex2"},
 	}}
 	ms := scoringTestServer(cs, "hex3")
 
@@ -74,7 +74,7 @@ func TestScoreBrandCompliance_ExplicitProfileWins(t *testing.T) {
 func TestScoreBrandCompliance_ProjectBindingBeatsWorkspaceDefault(t *testing.T) {
 	cs := &scopeContentStore{project: &store.Project{
 		WorkspaceID: "ws1",
-		Properties:  map[string]string{corebrand.PropertyProfileID: "hex2"},
+		Properties:  map[string]string{coreprofile.PropertyProfileID: "hex2"},
 	}}
 	ms := scoringTestServer(cs, "hex3")
 
@@ -111,7 +111,7 @@ func TestScoreBrandCompliance_NoProfileAnywhere(t *testing.T) {
 }
 
 // findingForTerm reports whether any finding was raised for the given term.
-func findingForTerm(findings []corebrand.BrandVoiceFinding, term string) bool {
+func findingForTerm(findings []coreprofile.BrandVoiceFinding, term string) bool {
 	for _, f := range findings {
 		if f.OriginalText == term {
 			return true
@@ -126,15 +126,15 @@ func findingForTerm(findings []corebrand.BrandVoiceFinding, term string) bool {
 // scope resolution.
 func personaScoringServer() *MCPServer {
 	return &MCPServer{
-		brandStore: &memBrandStore{profiles: []*corebrand.VoiceProfile{{
+		brandStore: &memBrandStore{profiles: []*coreprofile.VoiceProfile{{
 			ID:          "hexP",
 			Name:        "WithPersona",
 			WorkspaceID: "ws1",
-			Vocabulary: corebrand.VocabularyRules{
-				ForbiddenTerms: []corebrand.TermRule{{Term: "utilize", Replacement: "use"}},
+			Vocabulary: coreprofile.VocabularyRules{
+				ForbiddenTerms: []coreprofile.TermRule{{Term: "utilize", Replacement: "use"}},
 			},
-			Personas: map[string]corebrand.PersonaOverride{
-				"jordan": {Avoided: []corebrand.TermRule{{Term: "synergy"}}},
+			Personas: map[string]coreprofile.PersonaOverride{
+				"jordan": {Avoided: []coreprofile.TermRule{{Term: "synergy"}}},
 			},
 		}}},
 	}
@@ -184,9 +184,9 @@ func TestScoreBrandCompliance_StreamBindingBeatsProject(t *testing.T) {
 	cs := &scopeContentStore{
 		project: &store.Project{
 			WorkspaceID: "ws1",
-			Properties:  map[string]string{corebrand.PropertyProfileID: "hex2"},
+			Properties:  map[string]string{coreprofile.PropertyProfileID: "hex2"},
 		},
-		stream: &store.Stream{Properties: map[string]string{corebrand.PropertyProfileID: "hex3"}},
+		stream: &store.Stream{Properties: map[string]string{coreprofile.PropertyProfileID: "hex3"}},
 	}
 	ms := scoringTestServer(cs, "")
 

@@ -13,8 +13,8 @@ import (
 
 	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/blockstore"
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	brand "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"

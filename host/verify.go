@@ -12,12 +12,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/encoding"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+	brand "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
@@ -276,7 +276,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 		case bound:
 			runTerms = true
 		case sel.explicit:
-			gates = append(gates, unboundGate(gateTerms, "defaults.termbase", "--terms"))
+			gates = append(gates, unboundGate(gateTerms, "defaults.terms", "--terms"))
 		}
 	}
 
@@ -439,8 +439,8 @@ func unboundGate(gate, binding, flag string) verifyGateResult {
 }
 
 // projectTermsBound reports whether the terminology gate has a terms store to
-// enforce against: a --termstore flag, a defaults.termbase binding, the
-// convention .kapi/termbase.db, or a committed defaults.termbase_source
+// enforce against: a --termstore flag, a defaults.terms binding, the
+// convention .kapi/terms.db, or a committed defaults.terms_source
 // (.terms.json) resolved directly at check time. It mirrors the resolution the gate
 // itself uses (resolveProjectTermsPath / resolveProjectTermsSourcePath),
 // so "bound" means the same thing here and there.

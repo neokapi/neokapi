@@ -7,9 +7,9 @@ import (
 	"os"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/neokapi/neokapi/core/brand"
-	"github.com/neokapi/neokapi/core/brand/packs"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/profile/packs"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
@@ -35,7 +35,7 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 		if err != nil {
 			return nil, brandGuideMCPOutput{}, err
 		}
-		return nil, brandGuideMCPOutput{Profile: p.Name, Guide: brand.RenderVoiceGuide(p)}, nil
+		return nil, brandGuideMCPOutput{Profile: p.Name, Guide: profile.RenderVoiceGuide(p)}, nil
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -50,7 +50,7 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 		if err != nil {
 			return nil, brandCheckMCPOutput{}, err
 		}
-		score := brand.CalculateScore(findings)
+		score := profile.CalculateScore(findings)
 		score.ProfileID = p.ID
 		return nil, brandCheckMCPOutput{
 			Profile:    p.Name,
@@ -82,7 +82,7 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in termLookupInput) (*mcp.CallToolResult, termLookupMCPOutput, error) {
 		path := in.Terms
 		if path == "" {
-			path = "termbase.db"
+			path = "terms.db"
 		}
 		tb, err := terms.NewSQLiteStore(path)
 		if err != nil {
@@ -117,7 +117,7 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 	}, func(ctx context.Context, req *mcp.CallToolRequest, in tMSearchInput) (*mcp.CallToolResult, tMSearchMCPOutput, error) {
 		path := in.Memory
 		if path == "" {
-			path = "tm.db"
+			path = "memory.db"
 		}
 		tm, err := memory.NewSQLiteStore(path)
 		if err != nil {
@@ -149,14 +149,14 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 }
 
 // loadProfileForMCP resolves a profile from a built-in pack name or a profile YAML path.
-func loadProfileForMCP(pack, file string) (*brand.VoiceProfile, error) {
+func loadProfileForMCP(pack, file string) (*profile.VoiceProfile, error) {
 	if file != "" {
 		f, err := os.Open(file)
 		if err != nil {
 			return nil, fmt.Errorf("open profile: %w", err)
 		}
 		defer f.Close()
-		return brand.LoadProfileYAML(f)
+		return profile.LoadProfileYAML(f)
 	}
 	if pack != "" {
 		return packs.Load(pack)
@@ -183,10 +183,10 @@ type brandCheckInput struct {
 }
 
 type brandCheckMCPOutput struct {
-	Profile    string                    `json:"profile"`
-	Score      int                       `json:"score"`
-	Dimensions []brand.DimensionScore    `json:"dimensions"`
-	Findings   []brand.BrandVoiceFinding `json:"findings"`
+	Profile    string                      `json:"profile"`
+	Score      int                         `json:"score"`
+	Dimensions []profile.DimensionScore    `json:"dimensions"`
+	Findings   []profile.BrandVoiceFinding `json:"findings"`
 }
 
 type brandChangeMCP struct {
@@ -206,7 +206,7 @@ type termLookupInput struct {
 	Term       string `json:"term" jsonschema:"the term to look up"`
 	SourceLang string `json:"source_lang,omitempty" jsonschema:"source locale (e.g. en)"`
 	TargetLang string `json:"target_lang,omitempty" jsonschema:"target locale (e.g. fr)"`
-	Terms      string `json:"termbase,omitempty" jsonschema:"path to the terms store db (default: termbase.db)"`
+	Terms      string `json:"termbase,omitempty" jsonschema:"path to the terms store db (default: terms.db)"`
 }
 
 type termMatchMCP struct {
@@ -226,7 +226,7 @@ type tMSearchInput struct {
 	SourceLang string  `json:"source_lang" jsonschema:"source locale (e.g. en)"`
 	TargetLang string  `json:"target_lang" jsonschema:"target locale (e.g. fr)"`
 	MinScore   float64 `json:"min_score,omitempty" jsonschema:"minimum match score 0-1 (default 0.7)"`
-	Memory     string  `json:"tm,omitempty" jsonschema:"path to the content memory db (default: tm.db)"`
+	Memory     string  `json:"memory,omitempty" jsonschema:"path to the content memory db (default: memory.db)"`
 }
 
 type tMMatchMCP struct {

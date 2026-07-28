@@ -11,22 +11,22 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 // memBrandStore is a minimal in-memory BrandStore for testing.
 type memBrandStore struct {
-	profiles  []*corebrand.VoiceProfile
-	decisions map[string]*corebrand.RuleDecision
-	suggested []*corebrand.SuggestedRule
+	profiles  []*coreprofile.VoiceProfile
+	decisions map[string]*coreprofile.RuleDecision
+	suggested []*coreprofile.SuggestedRule
 }
 
-func (m *memBrandStore) CreateProfile(_ context.Context, p *corebrand.VoiceProfile) error {
+func (m *memBrandStore) CreateProfile(_ context.Context, p *coreprofile.VoiceProfile) error {
 	m.profiles = append(m.profiles, p)
 	return nil
 }
-func (m *memBrandStore) GetProfile(_ context.Context, id string) (*corebrand.VoiceProfile, error) {
+func (m *memBrandStore) GetProfile(_ context.Context, id string) (*coreprofile.VoiceProfile, error) {
 	for _, p := range m.profiles {
 		if p.ID == id {
 			return p, nil
@@ -34,12 +34,12 @@ func (m *memBrandStore) GetProfile(_ context.Context, id string) (*corebrand.Voi
 	}
 	return nil, assert.AnError
 }
-func (m *memBrandStore) UpdateProfile(_ context.Context, p *corebrand.VoiceProfile) error {
+func (m *memBrandStore) UpdateProfile(_ context.Context, p *coreprofile.VoiceProfile) error {
 	return nil
 }
 func (m *memBrandStore) DeleteProfile(_ context.Context, id string) error { return nil }
-func (m *memBrandStore) ListProfiles(_ context.Context, wsID string) ([]*corebrand.VoiceProfile, error) {
-	var result []*corebrand.VoiceProfile
+func (m *memBrandStore) ListProfiles(_ context.Context, wsID string) ([]*coreprofile.VoiceProfile, error) {
+	var result []*coreprofile.VoiceProfile
 	for _, p := range m.profiles {
 		if p.WorkspaceID == wsID {
 			result = append(result, p)
@@ -47,31 +47,31 @@ func (m *memBrandStore) ListProfiles(_ context.Context, wsID string) ([]*corebra
 	}
 	return result, nil
 }
-func (m *memBrandStore) StoreScore(_ context.Context, _ *corebrand.StoredScore) error { return nil }
-func (m *memBrandStore) GetScores(_ context.Context, _ string, _ model.LocaleID) ([]*corebrand.StoredScore, error) {
+func (m *memBrandStore) StoreScore(_ context.Context, _ *coreprofile.StoredScore) error { return nil }
+func (m *memBrandStore) GetScores(_ context.Context, _ string, _ model.LocaleID) ([]*coreprofile.StoredScore, error) {
 	return nil, nil
 }
-func (m *memBrandStore) GetScoreTrends(_ context.Context, _ string, _ int) ([]*corebrand.ScoreTrend, error) {
+func (m *memBrandStore) GetScoreTrends(_ context.Context, _ string, _ int) ([]*coreprofile.ScoreTrend, error) {
 	return nil, nil
 }
-func (m *memBrandStore) StoreCorrection(_ context.Context, _ *corebrand.Correction) error {
+func (m *memBrandStore) StoreCorrection(_ context.Context, _ *coreprofile.Correction) error {
 	return nil
 }
-func (m *memBrandStore) GetSuggestedRules(_ context.Context, _ string, _ int) ([]*corebrand.SuggestedRule, error) {
+func (m *memBrandStore) GetSuggestedRules(_ context.Context, _ string, _ int) ([]*coreprofile.SuggestedRule, error) {
 	return m.suggested, nil
 }
-func (m *memBrandStore) RecordRuleDecision(_ context.Context, d *corebrand.RuleDecision) error {
+func (m *memBrandStore) RecordRuleDecision(_ context.Context, d *coreprofile.RuleDecision) error {
 	if m.decisions == nil {
-		m.decisions = map[string]*corebrand.RuleDecision{}
+		m.decisions = map[string]*coreprofile.RuleDecision{}
 	}
 	m.decisions[d.ProfileID+"|"+strings.ToLower(d.Term)] = d
 	return nil
 }
-func (m *memBrandStore) GetRuleDecision(_ context.Context, profileID, term string) (*corebrand.RuleDecision, error) {
+func (m *memBrandStore) GetRuleDecision(_ context.Context, profileID, term string) (*coreprofile.RuleDecision, error) {
 	return m.decisions[profileID+"|"+strings.ToLower(term)], nil
 }
-func (m *memBrandStore) ListRuleDecisions(_ context.Context, profileID string) ([]*corebrand.RuleDecision, error) {
-	var out []*corebrand.RuleDecision
+func (m *memBrandStore) ListRuleDecisions(_ context.Context, profileID string) ([]*coreprofile.RuleDecision, error) {
+	var out []*coreprofile.RuleDecision
 	for _, d := range m.decisions {
 		if d.ProfileID == profileID {
 			out = append(out, d)
@@ -79,58 +79,58 @@ func (m *memBrandStore) ListRuleDecisions(_ context.Context, profileID string) (
 	}
 	return out, nil
 }
-func (m *memBrandStore) ListProfileVersions(_ context.Context, _ string) ([]*corebrand.ProfileVersion, error) {
+func (m *memBrandStore) ListProfileVersions(_ context.Context, _ string) ([]*coreprofile.ProfileVersion, error) {
 	return nil, nil
 }
-func (m *memBrandStore) GetProfileVersion(_ context.Context, _ string, _ int) (*corebrand.ProfileVersion, error) {
+func (m *memBrandStore) GetProfileVersion(_ context.Context, _ string, _ int) (*coreprofile.ProfileVersion, error) {
 	return nil, nil
 }
-func (m *memBrandStore) GetProfileAtTag(_ context.Context, _, _ string) (*corebrand.VoiceProfile, error) {
+func (m *memBrandStore) GetProfileAtTag(_ context.Context, _, _ string) (*coreprofile.VoiceProfile, error) {
 	return nil, nil
 }
-func (m *memBrandStore) CreateProfileTag(_ context.Context, _ *corebrand.ProfileTag) error {
+func (m *memBrandStore) CreateProfileTag(_ context.Context, _ *coreprofile.ProfileTag) error {
 	return nil
 }
-func (m *memBrandStore) ListProfileTags(_ context.Context, _ string) ([]*corebrand.ProfileTag, error) {
+func (m *memBrandStore) ListProfileTags(_ context.Context, _ string) ([]*coreprofile.ProfileTag, error) {
 	return nil, nil
 }
 func (m *memBrandStore) DeleteProfileTag(_ context.Context, _, _ string) error { return nil }
-func (m *memBrandStore) GetScoresByStream(_ context.Context, _, _ string) ([]*corebrand.StoredScore, error) {
+func (m *memBrandStore) GetScoresByStream(_ context.Context, _, _ string) ([]*coreprofile.StoredScore, error) {
 	return nil, nil
 }
 func (m *memBrandStore) Close() error { return nil }
 
-func testProfile() *corebrand.VoiceProfile {
-	return &corebrand.VoiceProfile{
+func testProfile() *coreprofile.VoiceProfile {
+	return &coreprofile.VoiceProfile{
 		ID:          "test-profile-1",
 		Name:        "Test Brand",
 		Description: "A test brand voice profile",
 		WorkspaceID: "ws-1",
-		Tone: corebrand.ToneProfile{
+		Tone: coreprofile.ToneProfile{
 			Personality: []string{"friendly", "professional"},
 			Formality:   "neutral",
 			Emotion:     "warm",
 			Humor:       "light",
 		},
-		Style: corebrand.StyleRules{
+		Style: coreprofile.StyleRules{
 			ActiveVoice:    true,
 			SentenceLength: "medium",
 			PersonPOV:      "second",
 			Contractions:   "sometimes",
 		},
-		Vocabulary: corebrand.VocabularyRules{
-			ForbiddenTerms: []corebrand.TermRule{
+		Vocabulary: coreprofile.VocabularyRules{
+			ForbiddenTerms: []coreprofile.TermRule{
 				{Term: "synergy", Replacement: "collaboration", Severity: "minor"},
 				{Term: "leverage", Replacement: "use", Severity: "minor"},
 			},
-			CompetitorTerms: []corebrand.TermRule{
+			CompetitorTerms: []coreprofile.TermRule{
 				{Term: "Acrolinx", Severity: "critical"},
 			},
-			PreferredTerms: []corebrand.TermRule{
+			PreferredTerms: []coreprofile.TermRule{
 				{Term: "platform", Note: "Use instead of 'tool'"},
 			},
 		},
-		Examples: []corebrand.VoiceExample{
+		Examples: []coreprofile.VoiceExample{
 			{
 				Before:      "We leverage synergies to drive outcomes.",
 				After:       "We use collaboration to achieve results.",

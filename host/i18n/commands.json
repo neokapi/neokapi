@@ -73,6 +73,15 @@
             "short": "Remove a config value, restoring the built-in default"
           }
         },
+        "context": {
+          "long": "Retrieve the content context this project goes by — the terms, the\nvoice and the rules that hold — without needing to know which store holds the\nanswer.\n\nCommunication is contextual: a legal notice is not a help article. Ask what the\nproject says about a word or a phrase before you write, rather than learning it\nfrom a failing check afterwards.",
+          "search": {
+            "example": "  kapi context search widget\n  kapi context search \"sign in\" --locale en\n  kapi context search widget --json",
+            "long": "Ask one question and get the answer from every store the project\nbinds: what this is called and whether it is discouraged, and wording the\nproject has already approved.\n\nResults are grouped by kind rather than merged into one ranked list, because a\nterminology match and a wording match are not scored on comparable things.",
+            "short": "Ask what the project's context says about a word or phrase"
+          },
+          "short": "Ask what this project's content context says"
+        },
         "credentials": {
           "add": {
             "long": "Save an AI provider credential to the OS keychain.\n\nThe credential name is used to reference it in flows and tool commands:\n  kapi translate --credential my-openai -i file.json --target-lang fr\n\nIf only one credential is saved, tools will auto-detect it without --credential.",
@@ -293,7 +302,7 @@
           "list": {
             "short": "List named Memories in KAPI_HOME"
           },
-          "long": "Manage content memory.\n\nA content memory stores previously produced content — source segments with the\ntargets settled for them — as a SQLite database. Use these commands to\nimport/export TMX, look up matches, and manage entries.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named content memory in KAPI_HOME (~/.config/kapi/tm/\u003cn\u003e.db)\n  --local         Content memory in current directory (./tm.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./tm.db).",
+          "long": "Manage content memory.\n\nA content memory stores previously produced content — source segments with the\ntargets settled for them — as a SQLite database. Use these commands to\nimport/export TMX, look up matches, and manage entries.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named content memory in KAPI_HOME (~/.config/kapi/tm/\u003cn\u003e.db)\n  --local         Content memory in current directory (./memory.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./memory.db).",
           "lookup": {
             "example": "  kapi memory lookup \"welcome back\" -s en -t fr\n  kapi memory lookup \"save\" -s en -t de --min-score 0.8",
             "short": "Look up text in content memory"
@@ -476,7 +485,7 @@
           "list": {
             "short": "List named terms stores in KAPI_HOME"
           },
-          "long": "Manage project terminology.\n\nA terms store holds approved terminology — concepts and their renderings per\nlocale — as a SQLite database. Use these commands to import, export, look up,\nand manage terms.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named terms store in KAPI_HOME (~/.config/kapi/termbases/\u003cn\u003e.db)\n  --local         Terms store in current directory (./termbase.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./termbase.db).",
+          "long": "Manage project terminology.\n\nA terms store holds approved terminology — concepts and their renderings per\nlocale — as a SQLite database. Use these commands to import, export, look up,\nand manage terms.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named terms store in KAPI_HOME (~/.config/kapi/termbases/\u003cn\u003e.db)\n  --local         Terms store in current directory (./terms.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./terms.db).",
           "lookup": {
             "example": "  kapi terms lookup \"dashboard\" -s en -t fr\n  kapi terms lookup \"settings\" -s en -t de --fuzzy",
             "short": "Look up a term in the terms store"

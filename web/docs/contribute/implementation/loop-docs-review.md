@@ -38,8 +38,8 @@ The claims below were checked against source. Confirmed unless noted.
 - **Ladders:** source `authored → checked → approved`
   (`core/model/sourcestatus.go`); target `draft → translated → reviewed →
   signed-off` (`core/model/target.go`).
-- **Recipe keys** `defaults.flow`, `defaults.jobs`, `defaults.tm_source`,
-  `defaults.termbase_source`, `defaults.state` (default `.kapi-state.json`),
+- **Recipe keys** `defaults.flow`, `defaults.jobs`, `defaults.memory_source`,
+  `defaults.terms_source`, `defaults.state` (default `.kapi-state.json`),
   `defaults.locales.<lang>.tools`, `ship_gate`/`ship_gates`/`gates`,
   `source_gate`, `server:` — all present (`core/project/project.go`).
 
@@ -123,7 +123,7 @@ Bowrain funnel.
 | `kapi/recipes/review-and-approve.mdx` (Review & approve) | Correct | Target-language review only (`kapi status --review`, `kapi apply kind:review`). | **Done (neokapi#1325):** CLI source-gate parity landed; the page documents the local source-settle loop (hold on `source_not_ready` → settle → re-run). |
 | `kapi/recipes/pre-translate-from-memory.mdx` (Reuse what you've translated) | Correct | Content-memory recycle = phase-2 engine. Accurate. | No change. Optionally note recycle only ever runs on approved source. |
 | `kapi/recipes/machine-ship-strategy.mdx` (Tier gates per market) | Correct | Per-market target tiers, approver classes. Verified against `gates:` registry. | No change. |
-| `kapi/recipes/memory-and-terms-storage.mdx` (Where translations & terms live) | Correct | `kind:tm` vs `kind:review`, `defaults.tm_source`/`state`. Accurate. | No change. |
+| `kapi/recipes/memory-and-terms-storage.mdx` (Where translations & terms live) | Correct | `kind:tm` vs `kind:review`, `defaults.memory_source`/`state`. Accurate. | No change. |
 | `kapi/project-store.mdx` (The project store) | Correct | `.kapi-state.json`, derived state vs decisions. Accurate. | No change. |
 | `kapi/projects.mdx` (Projects) | Correct | Uses `PipelineDiagram`; loop mechanics accurate. | No change. |
 | `kapi/direct-execution-layer.mdx` (CLI layers) | Correct | Direct / flow / convergence layers; `kapi up` vs `kapi run` vs `kapi exec`. Accurate. | No change. |

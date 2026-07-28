@@ -57,11 +57,11 @@ export const WithNamedResource: Story = {
 export const WithFilePath: Story = {
   render: () => (
     <StatefulPicker
-      value="./resources/my-tm.db"
+      value="./resources/my-memory.db"
       label="Content memory"
       resourceKind="tm"
       resources={sampleMemories}
-      resolvedPath="/home/user/project/resources/my-tm.db"
+      resolvedPath="/home/user/project/resources/my-memory.db"
     />
   ),
 };

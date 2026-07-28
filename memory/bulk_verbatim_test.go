@@ -18,7 +18,7 @@ import (
 // verbatim, exactly like the non-bulk AddWithStream path.
 func TestBulkAdd_PreservesVariantTextVerbatim(t *testing.T) {
 	ctx := context.Background()
-	tm, err := NewSQLiteStore(filepath.Join(t.TempDir(), "tm.db"))
+	tm, err := NewSQLiteStore(filepath.Join(t.TempDir(), "memory.db"))
 	require.NoError(t, err)
 	defer tm.Close()
 

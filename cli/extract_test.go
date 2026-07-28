@@ -250,7 +250,7 @@ func TestExtract_MemoryExactPrefillFillsTarget(t *testing.T) {
 	writeJSONSource(t, real, "src/locales/en/app.json", `{"k":"Hello"}`)
 
 	// Seed the project content memory with an exact match.
-	memoryPath := filepath.Join(real, project.StateDirName, "tm.db")
+	memoryPath := filepath.Join(real, project.StateDirName, "memory.db")
 	tm, err := memory.NewSQLiteStore(memoryPath)
 	require.NoError(t, err)
 	require.NoError(t, tm.Add(t.Context(), memory.Entry{
@@ -282,7 +282,7 @@ func TestExtract_NoMemorySkipsPrefill(t *testing.T) {
 	writeJSONSource(t, real, "src/locales/en/app.json", `{"k":"Hello"}`)
 
 	// Seed content memory with a would-be match.
-	memoryPath := filepath.Join(real, project.StateDirName, "tm.db")
+	memoryPath := filepath.Join(real, project.StateDirName, "memory.db")
 	tm, err := memory.NewSQLiteStore(memoryPath)
 	require.NoError(t, err)
 	require.NoError(t, tm.Add(t.Context(), memory.Entry{

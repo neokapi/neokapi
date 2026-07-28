@@ -50,7 +50,7 @@ func main() {
 	seedTerms(filepath.Join(tbDir, "product-glossary.db"))
 	seedSecondaryTerms(filepath.Join(tbDir, "brand-terms.db"))
 	seedMemory(filepath.Join(memoryDir, "acme-app.db"))
-	seedSecondaryMemory(filepath.Join(memoryDir, "global-tm.db"))
+	seedSecondaryMemory(filepath.Join(memoryDir, "global-memory.db"))
 	seedProviders(filepath.Join(root, "providers.json"))
 
 	fmt.Println("seeded:", tbDir, memoryDir)

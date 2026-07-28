@@ -79,7 +79,7 @@ func (a *App) RunPack(cmd Command) error {
 	}
 
 	// Authoritative content memory.
-	if memoryPath := filepath.Join(layout.StateDir, "tm.db"); fileExists(memoryPath) {
+	if memoryPath := filepath.Join(layout.StateDir, "memory.db"); fileExists(memoryPath) {
 		tm, err := memory.NewSQLiteStore(memoryPath)
 		if err != nil {
 			return fmt.Errorf("open project content memory: %w", err)
@@ -95,7 +95,7 @@ func (a *App) RunPack(cmd Command) error {
 	}
 
 	// Terms.
-	if tbPath := filepath.Join(layout.StateDir, "termbase.db"); fileExists(tbPath) {
+	if tbPath := filepath.Join(layout.StateDir, "terms.db"); fileExists(tbPath) {
 		tb, err := terms.NewSQLiteStore(tbPath)
 		if err != nil {
 			return fmt.Errorf("open project terms store: %w", err)
@@ -257,7 +257,7 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 
 	// content memory.
 	if pkg.Memory != nil {
-		tm, err := memory.NewSQLiteStore(filepath.Join(layout.StateDir, "tm.db"))
+		tm, err := memory.NewSQLiteStore(filepath.Join(layout.StateDir, "memory.db"))
 		if err != nil {
 			return fmt.Errorf("open project content memory: %w", err)
 		}
@@ -272,7 +272,7 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 
 	// Terms.
 	if pkg.Terms != nil {
-		tb, err := terms.NewSQLiteStore(filepath.Join(layout.StateDir, "termbase.db"))
+		tb, err := terms.NewSQLiteStore(filepath.Join(layout.StateDir, "terms.db"))
 		if err != nil {
 			return fmt.Errorf("open project terms store: %w", err)
 		}

@@ -17,7 +17,7 @@ import (
 
 // setupInspectProject writes a project with one JSON source file (and optionally
 // a translated target file), a convention brand.yaml (forbidden term "utilize"),
-// and a seeded .kapi/termbase.db (term "dashboard" → "tableau de bord"). It
+// and a seeded .kapi/terms.db (term "dashboard" → "tableau de bord"). It
 // opens the project and returns the tab id and the source file path.
 func setupInspectProject(t *testing.T, app *App, sourceJSON, targetJSON string) (tabID, srcPath string) {
 	t.Helper()
@@ -45,7 +45,7 @@ vocabulary:
 	// Seed a project terms store so the term annotator has data to match.
 	stateDir := filepath.Join(dir, ".kapi")
 	require.NoError(t, os.MkdirAll(stateDir, 0o755))
-	tb, err := terms.NewSQLiteStore(filepath.Join(stateDir, "termbase.db"))
+	tb, err := terms.NewSQLiteStore(filepath.Join(stateDir, "terms.db"))
 	require.NoError(t, err)
 	require.NoError(t, tb.AddConcept(context.Background(), terms.Concept{
 		ID:     "c1",
