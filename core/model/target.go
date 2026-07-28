@@ -121,6 +121,22 @@ type Origin struct {
 	// an ad-hoc run, or a tool that takes no context (pseudo-translation).
 	Profile        string `json:"profile,omitempty"`
 	ProfileVersion string `json:"profile_version,omitempty"`
+	// ContextFingerprint is a content hash of the governing context as it
+	// actually reached the producer — the rendered voice guidance and the
+	// terminology it was given. It exists because Profile/ProfileVersion pin
+	// only half of that: terminology reaches a producer separately from the
+	// profile and carries no version of its own, so a profile stamp alone
+	// cannot tell whether the terms have moved since.
+	//
+	// It answers "have the governing inputs changed since this was produced?"
+	// — a change detector, not a snapshot: it cannot reconstruct what the
+	// context was, only tell you this target no longer matches it.
+	//
+	// Deliberately NOT the engine's config fingerprint. That one also covers
+	// provider, model and prompt wording, so swapping models would move it and
+	// destroy its meaning as a statement about governance. Empty when no
+	// context governed production at all.
+	ContextFingerprint string `json:"context_fingerprint,omitempty"`
 }
 
 // Origin Kind values. The translation kinds (human, tm, mt, ai) describe how a

@@ -62,8 +62,9 @@ Populate every one of these in the kitchen-sink fixture
 - **Targets**: multiple `VariantKey`s (locale-only and locale+tone), each with
   `Status`, `Score`, and a full `Origin` — both halves of it: how the target was
   made (kind, engine, tool, reference, timestamp, **confidence**) and what
-  governed it (**profile**, **profile version**). Tone/channel ride the target
-  map key's text form; status/origin/score ride the wire segment's properties.
+  governed it (**profile**, **profile version**, **context fingerprint**).
+  Tone/channel ride the target map key's text form; status/origin/score ride the
+  wire segment's properties.
 - **Overlays**: **every OverlayType** — segmentation (incl. an ignorable span),
   term, entity, qa, alignment (variant-scoped), term-candidate — with anchors,
   props, variant, and typed span `Value`. Typed values (`*EntityAnnotation`,

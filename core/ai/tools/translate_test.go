@@ -438,3 +438,73 @@ func TestAITranslate_UnversionedProfileStampsIDOnly(t *testing.T) {
 	assert.Equal(t, "draft-profile", tgt.Origin.Profile)
 	assert.Empty(t, tgt.Origin.ProfileVersion)
 }
+
+// stampedFingerprint runs one block through the tool and returns the context
+// fingerprint stamped on the produced target.
+func stampedFingerprint(t *testing.T, cfg tools.AITranslateConfig) string {
+	t.Helper()
+	store, err := sqlitestore.New(filepath.Join(t.TempDir(), "blocks.db"))
+	require.NoError(t, err)
+	defer store.Close()
+
+	ctx := context.Background()
+	mock, _ := newTranslateMock(t)
+	tl := tools.NewAITranslateTool(mock, cfg)
+
+	sess, err := store.Begin(ctx)
+	require.NoError(t, err)
+	block := runSession(t, ctx, tl, sess, model.NewBlock("tu1", "Hello"))
+	require.NoError(t, sess.Commit())
+
+	tgt := block.Target(model.LocaleFrench)
+	require.NotNil(t, tgt)
+	return tgt.Origin.ContextFingerprint
+}
+
+// TestContextFingerprintTracksTheContextNotTheEngine is the property that makes
+// the stamp mean something. Profile/ProfileVersion pin the profile, but
+// terminology reaches the tool separately and carries no version — so the
+// fingerprint is what notices the terms moving. It must move when the governing
+// context moves, and must NOT move when only the engine does: a stamp that
+// changed on a model swap would be useless as a statement about governance.
+func TestContextFingerprintTracksTheContextNotTheEngine(t *testing.T) {
+	profile := &brand.VoiceProfile{ID: "help", Name: "Help", Version: 3}
+
+	base := singleBlockConfig()
+	base.Profile = profile
+	base.Glossary = map[string]string{"widget": "gadget", "login": "connexion"}
+	baseFP := stampedFingerprint(t, base)
+	require.NotEmpty(t, baseFP)
+
+	// Same context, different order in the map literal → same fingerprint. Map
+	// iteration is randomised, so an unsorted walk would report drift that never
+	// happened; this is the regression test for that.
+	reordered := singleBlockConfig()
+	reordered.Profile = profile
+	reordered.Glossary = map[string]string{"login": "connexion", "widget": "gadget"}
+	assert.Equal(t, baseFP, stampedFingerprint(t, reordered),
+		"identical terminology must hash identically regardless of map order")
+
+	// A changed term → different fingerprint.
+	changedTerms := singleBlockConfig()
+	changedTerms.Profile = profile
+	changedTerms.Glossary = map[string]string{"widget": "doohickey", "login": "connexion"}
+	assert.NotEqual(t, baseFP, stampedFingerprint(t, changedTerms),
+		"changed terminology must move the fingerprint")
+
+	// A changed model → SAME fingerprint. This is what separates it from the
+	// engine's config fingerprint, which must move here so the cache invalidates.
+	changedModel := singleBlockConfig()
+	changedModel.Profile = profile
+	changedModel.Glossary = map[string]string{"widget": "gadget", "login": "connexion"}
+	changedModel.Model = "claude-y"
+	assert.Equal(t, baseFP, stampedFingerprint(t, changedModel),
+		"swapping the model is not a governance change and must not move the fingerprint")
+}
+
+// TestContextFingerprintEmptyWhenUngoverned: no profile and no terminology means
+// no context governed the run, which must read as ungoverned rather than as the
+// hash of two empty strings — a constant that would look like a real value.
+func TestContextFingerprintEmptyWhenUngoverned(t *testing.T) {
+	assert.Empty(t, stampedFingerprint(t, singleBlockConfig()))
+}
