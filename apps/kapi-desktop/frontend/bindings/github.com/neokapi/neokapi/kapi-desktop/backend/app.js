@@ -1267,7 +1267,7 @@ export function InspectFile(tabID, filePath) {
  *     form, its preferred target translation and domain;
  *   - brand-vocabulary overlays (type "qa", props.category="brand-vocabulary")
  *     from the project's resolved brand profile (resolveProjectBrandProfile via
- *     profile.MatchVocabulary);
+ *     brand.MatchVocabulary);
  *   - rule-based QA overlays (type "qa") from the shared source-only shape rules
  *     (double spaces, doubled words — check.HygieneOverlay).
  * 

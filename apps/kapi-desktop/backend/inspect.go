@@ -14,7 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/profile"
+	brand "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/host"
@@ -45,7 +45,7 @@ func (a *App) InspectFile(tabID, filePath string) (string, error) {
 //     form, its preferred target translation and domain;
 //   - brand-vocabulary overlays (type "qa", props.category="brand-vocabulary")
 //     from the project's resolved brand profile (resolveProjectBrandProfile via
-//     profile.MatchVocabulary);
+//     brand.MatchVocabulary);
 //   - rule-based QA overlays (type "qa") from the shared source-only shape rules
 //     (double spaces, doubled words — check.HygieneOverlay).
 //
@@ -314,12 +314,12 @@ func termOverlay(ctx context.Context, tb terms.Terminology, runs []model.Run, so
 }
 
 // brandOverlay builds an OverlayQA over the source runs from the project's brand
-// profile (profile.MatchVocabulary). Brand findings ride on the QA overlay type
+// profile (brand.MatchVocabulary). Brand findings ride on the QA overlay type
 // (the model's overlay enum has no dedicated brand type) tagged with
 // category="brand-vocabulary" plus the matched term, severity, kind and any
 // preferred replacement. Returns nil when nothing matches.
-func brandOverlay(profile *profile.VoiceProfile, runs []model.Run, source string) *model.Overlay {
-	hits := profile.MatchVocabulary(profile, source)
+func brandOverlay(profile *brand.VoiceProfile, runs []model.Run, source string) *model.Overlay {
+	hits := brand.MatchVocabulary(profile, source)
 	if len(hits) == 0 {
 		return nil
 	}
@@ -331,7 +331,7 @@ func brandOverlay(profile *profile.VoiceProfile, runs []model.Run, source string
 			"term":     h.Term,
 		}
 		switch h.Kind {
-		case profile.VocabCompetitor:
+		case brand.VocabCompetitor:
 			props["kind"] = "competitor"
 			props["message"] = fmt.Sprintf("Competitor term %q found", h.Term)
 		default:
