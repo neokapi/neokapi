@@ -226,7 +226,7 @@ terms store ([AD-010](010-terminology.md)), which is *source*, the memory is
   reconstructs from the committed translations (the per-locale `i18n/{lang}/`
   target catalogs) plus an optional human-curated, **read-only** committed
   `.memory.json` *seed*
-  bound by `defaults.tm_source`. A cold or clobbered cache is a performance hit,
+  bound by `defaults.memory_source`. A cold or clobbered cache is a performance hit,
   not data loss.
 - because it is additive and rebuildable it needs **no locking**: it tolerates
   last-write-wins or per-branch cache keys, unlike Terraform state, which must be
@@ -248,7 +248,7 @@ memory has no conventional-location fallback where the terms store does
 ([AD-010](010-terminology.md)): a project has exactly one glossary, so
 `<root>/terms.json` has a single obvious answer, while a conventional
 `memory.json` would force a project with a bundle per surface to nominate one of
-them arbitrarily. A seed is named by `defaults.tm_source` or by an explicit
+them arbitrarily. A seed is named by `defaults.memory_source` or by an explicit
 path; there is nothing sensible to guess.
 
 > **State, not source.** Contrast the terms store

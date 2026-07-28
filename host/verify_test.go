@@ -274,7 +274,7 @@ func writeTermsSourceProject(t *testing.T) string {
 	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
-	require.NoError(t, os.MkdirAll(filepath.Join(root, "l10n"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "context"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "en"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "fr"), 0o755))
 
@@ -322,7 +322,7 @@ content:
 	})
 	data, err := ktb.Marshal(file)
 	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(filepath.Join(root, "l10n", "terms.json"), data, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "context", "terms.json"), data, 0o644))
 
 	// Assert the fallback path is the one under test: no compiled db exists.
 	_, statErr := os.Stat(filepath.Join(root, ".kapi", "terms.db"))
@@ -369,7 +369,7 @@ func TestVerify_DoNotTranslateNotFlagged(t *testing.T) {
 }
 
 // writeTermsProjectUnbound builds the same project as writeTermsSourceProject
-// but with NO defaults.termbase_source binding, committing the glossary at the
+// but with NO defaults.terms_source binding, committing the glossary at the
 // conventional location rel instead.
 func writeTermsProjectUnbound(t *testing.T, rel string) string {
 	t.Helper()
@@ -413,7 +413,7 @@ content:
 }
 
 // TestVerify_GlossaryFromConventionalLocation covers the well-known-location
-// ladder for terms: with no defaults.termbase_source binding, a glossary
+// ladder for terms: with no defaults.terms_source binding, a glossary
 // committed at the conventional path is still found and still gates.
 //
 // The repository root is searched before .kapi/ deliberately. The bundle is

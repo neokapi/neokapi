@@ -64,8 +64,8 @@ Three things are **not** ours to rename, and must stay factual:
 - **The Okapi Framework** is a localization framework, and the Java bridge wraps
   it. Say so; accurate provenance is not something to sanitize. The Okapi
   terminology mapping (Filter → DataFormat, Step → Tool, …) stays as recorded.
-- **Retained identifiers.** Recipe keys (`tm:`, `tm_source:`, `termbase:`,
-  `termbase_source:`, `noTM`), on-disk paths (`memory.db`,
+- **Retained identifiers.** Recipe keys (`tm:`, `memory_source:`, `termbase:`,
+  `terms_source:`, `noTM`), on-disk paths (`memory.db`,
   `terms.db`, `l10n/`, `~/.config/kapi/termbases/`), `l10n-*` make targets,
   HTTP routes (`/translation-memory`, `/tm-matches`), proto fields (`tm_hash`,
   `tm_entries`), migration tables (`sievepen_migrations`, `termbase_migrations`)

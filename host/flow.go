@@ -1374,7 +1374,7 @@ func (p *cliMemoryProvider) LookupFuzzy(source string, sourceLocale, targetLocal
 // openTerms resolves the --termstore flag and opens a SQLite terms.
 // The flag value can be a named resource (no path separators) which resolves
 // via KAPI_HOME, or an explicit file path. When no flag is given but a .kapi
-// project is in scope with a bound terms (defaults.termbase) or a
+// project is in scope with a bound terms (defaults.terms) or a
 // <root>/.kapi/terms.db convention file, that project terms store is opened
 // instead, so term tools in built-in flows are project-aware flag-free.
 // Returns (nil, noop, nil) when neither a flag nor a project terms store exists.
@@ -1486,7 +1486,7 @@ type ProjectBindings struct {
 	// injected into translate steps as config["profile"]. nil when unbound.
 	profile *profile.VoiceProfile
 	// glossary is the source→target glossary built from the project terms store
-	// (defaults.termbase), injected into term-check steps. nil when unbound.
+	// (defaults.terms), injected into term-check steps. nil when unbound.
 	glossary []coretools.GlossaryEntry
 	// ToolPresets holds the project-level tool presets (defaults.tools):
 	// per-tool config defaults merged under each step's own config wherever
@@ -1503,7 +1503,7 @@ type ProjectBindings struct {
 // resolveProjectBindings resolves the standing brand-voice + glossary context
 // for a project flow run. The brand voice comes from defaults.brand_voice (or
 // a convention brand.yaml); the glossary comes from the project terms store
-// (defaults.termbase or <root>/.kapi/terms.db). Returns nil when the
+// (defaults.terms or <root>/.kapi/terms.db). Returns nil when the
 // project carries neither, so ad-hoc behavior is unchanged.
 func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, projectPath string) (*ProjectBindings, error) {
 	root := filepath.Dir(projectPath)
@@ -1545,7 +1545,7 @@ func ToolRequires(s *schema.ComponentSchema, req string) bool {
 // command should use, with no flag. Resolution order:
 //
 //  1. An explicit --termstore flag (named resource or path).
-//  2. defaults.termbase in the .kapi recipe (relative to the project root).
+//  2. defaults.terms in the .kapi recipe (relative to the project root).
 //  3. <projectRoot>/.kapi/terms.db when it exists.
 //
 // Returns "" (with nil error) when nothing resolves, so callers fall through
@@ -1640,7 +1640,7 @@ func (a *App) ResolveProjectGlossary(cmd Command, targetLang string) ([]coretool
 //
 // Precedence: an explicit --termstore selects a specific store (honour it); else
 // the committed serialization wins; else the working index the recipe binds
-// directly (the legacy defaults.termbase-only case, with no serialization).
+// directly (the legacy defaults.terms-only case, with no serialization).
 func (a *App) projectConcepts(cmd Command) ([]sqltb.Concept, error) {
 	explicitStore := false
 	if cmd != nil {
@@ -1660,7 +1660,7 @@ func (a *App) projectConcepts(cmd Command) ([]sqltb.Concept, error) {
 		}
 	}
 
-	// Working index: an explicit --termstore, a defaults.termbase binding, or the
+	// Working index: an explicit --termstore, a defaults.terms binding, or the
 	// .kapi/terms.db convention. Read directly only when no serialization is
 	// bound (or the user explicitly selected a store).
 	tbPath, err := a.resolveProjectTermsPath(cmd)
@@ -1703,7 +1703,7 @@ func conceptsFromKTB(path string) ([]sqltb.Concept, error) {
 // resolveProjectTermsSourcePath returns the absolute path of the project's
 // committed terms bundle, or "" when there is none.
 //
-// An explicit defaults.termbase_source binding wins. With none, the well-known
+// An explicit defaults.terms_source binding wins. With none, the well-known
 // locations are searched, mirroring the ladder the brand voice profile already
 // uses (<root>/brand.yaml, then <root>/.kapi/brand.yaml): a project that keeps
 // its glossary at the conventional path needs no recipe entry at all.

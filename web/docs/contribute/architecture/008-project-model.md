@@ -110,7 +110,7 @@ Ownership:
   memory (AD-009), which is recycle leverage, not a decision carrier. See
   [the project store](/kapi/project-store).
 - **`terms.json`** — the committed terms source ([AD-010](010-terminology.md)),
-  found here when the recipe binds no `defaults.termbase_source`, falling back to
+  found here when the recipe binds no `defaults.terms_source`, falling back to
   `<root>/.kapi/terms.json` the way the brand voice profile does
   ([AD-022](022-brand-voice.md)). There is no `memory.json` counterpart: a
   project has one glossary but *many* content-memory bundles, one per content

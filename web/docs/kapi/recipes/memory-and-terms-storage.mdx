@@ -84,7 +84,7 @@ kapi terms list
 When a command runs inside a [`.kapi` project](/reference/project-file) — and no
 `--name`, `--local`, or `--file` flag is given — `kapi memory` resolves the
 project's authoritative content memory at `<project-root>/.kapi/memory.db`, and
-`kapi terms` resolves the project terms store (the recipe's `defaults.termbase`
+`kapi terms` resolves the project terms store (the recipe's `defaults.terms`
 key, else `<project-root>/.kapi/terms.db`). The project is found by walking up
 the directory tree from the current directory, git-style.
 

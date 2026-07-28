@@ -92,7 +92,7 @@ func TestVerify_ExplicitTermsUnboundFails(t *testing.T) {
 	require.True(t, ok, "the terminology gate must appear as a misconfig failure")
 	assert.False(t, g.Pass)
 	require.NotEmpty(t, g.Findings)
-	assert.Contains(t, g.Findings[0].Message, "defaults.termbase")
+	assert.Contains(t, g.Findings[0].Message, "defaults.terms")
 	require.Len(t, out.Gates, 1)
 }
 

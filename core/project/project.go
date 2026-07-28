@@ -426,7 +426,7 @@ func (m MergeDefaults) validate() error {
 
 func (t MemoryDefaults) validate() error {
 	if t.FuzzyThreshold < 0 || t.FuzzyThreshold > 100 {
-		return fmt.Errorf("defaults.tm.fuzzy_threshold: %d out of range (0..100)", t.FuzzyThreshold)
+		return fmt.Errorf("defaults.memory.fuzzy_threshold: %d out of range (0..100)", t.FuzzyThreshold)
 	}
 	return nil
 }

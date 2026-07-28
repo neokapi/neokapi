@@ -27,7 +27,7 @@ the gate enforces exactly what the hub shows.
 
 - The project is claimed into a workspace (its `kapi.yaml` recipe carries a
   [`server:` block](/cli/project-model)).
-- The project binds a terms store — `defaults.termbase` in the recipe, or the
+- The project binds a terms store — `defaults.terms` in the recipe, or the
   conventional `.kapi/terms.db`, which is where `kapi pull` writes the
   governed concepts.
 - The runner is authenticated. In CI, set `BOWRAIN_AUTH_TOKEN`; locally, run

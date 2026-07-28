@@ -144,7 +144,7 @@ model and `server:` schema.
   - Bare entry — `path` is required and `items` must be empty.
   - Named collection — `path` must be empty (use `items`) and `items` must be
     non-empty; each item requires a non-empty `path`.
-- `defaults.merge.conflict_policy`, `defaults.tm.fuzzy_threshold` (0..100),
+- `defaults.merge.conflict_policy`, `defaults.memory.fuzzy_threshold` (0..100),
   `defaults.redaction.detectors`, and `defaults.brand_voice` are each
   shape-checked.
 - Each flow must have at least one step

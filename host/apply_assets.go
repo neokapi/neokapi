@@ -133,7 +133,7 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 }
 
 // ensureTermsSourceBinding returns the committed .terms.json source path the
-// recipe binds via defaults.termbase_source, creating a default
+// recipe binds via defaults.terms_source, creating a default
 // (context/terms.json) and writing the binding into the recipe when none is
 // bound — so future runs are consistent.
 func (a *App) ensureTermsSourceBinding(recipePath, root string) (string, error) {
@@ -144,7 +144,7 @@ func (a *App) ensureTermsSourceBinding(recipePath, root string) (string, error) 
 	if bound := proj.Defaults.TermsSource; bound != "" {
 		return resolveUnder(root, bound), nil
 	}
-	rel := filepath.Join("l10n", ktb.ConventionalName)
+	rel := filepath.Join("context", ktb.ConventionalName)
 	proj.Defaults.TermsSource = rel
 	// Bind the compiled cache too, so term enforcement (resolveProjectTermsPath)
 	// reads the .db this source compiles into rather than an unrelated default.
@@ -385,7 +385,7 @@ func (a *App) applyMemoryEntry(ctx context.Context, cmd Command, e changeEntry) 
 }
 
 // ensureMemorySourceBinding returns the committed bundle path bound via
-// defaults.tm_source, scaffolding and binding l10n/memory.json when none is
+// defaults.memory_source, scaffolding and binding l10n/memory.json when none is
 // bound and the project holds no bundles yet.
 //
 // A project may keep many content-memory bundles — this repository commits one
@@ -403,11 +403,11 @@ func (a *App) ensureMemorySourceBinding(recipePath, root string) (string, error)
 	}
 	if existing := findMemoryBundles(root); len(existing) > 0 {
 		return "", fmt.Errorf(
-			"no defaults.tm_source is bound and this project already has %d content-memory %s (%s); "+
+			"no defaults.memory_source is bound and this project already has %d content-memory %s (%s); "+
 				"bind the one that reviewed edits belong in",
 			len(existing), pluralBundles(len(existing)), strings.Join(existing, ", "))
 	}
-	rel := filepath.Join("l10n", kmb.ConventionalName)
+	rel := filepath.Join("context", kmb.ConventionalName)
 	proj.Defaults.MemorySource = rel
 	if err := project.Save(recipePath, proj); err != nil {
 		return "", fmt.Errorf("bind tm source: %w", err)
@@ -654,7 +654,7 @@ func (a *App) ensureBrandProfileBinding(recipePath, root string) (string, error)
 			return "", errors.New("brand: defaults.brand_voice binds a pack/store profile, not a committed profile_file — bind a profile_file to apply rules")
 		}
 	}
-	rel := filepath.Join("l10n", "brand-voice.yaml")
+	rel := filepath.Join("context", "brand-voice.yaml")
 	proj.Defaults.BrandVoice = &project.BrandVoiceBinding{ProfileFile: rel}
 	if err := project.Save(recipePath, proj); err != nil {
 		return "", fmt.Errorf("bind brand voice profile: %w", err)
@@ -868,7 +868,7 @@ func setRecipeField(proj *project.KapiProject, path string, raw json.RawMessage)
 		proj.Defaults.Encoding = v
 		return true, nil
 
-	case "defaults.termbase":
+	case "defaults.terms":
 		var v string
 		if err := decodeRecipeValue(path, raw, &v); err != nil {
 			return false, err
@@ -879,7 +879,7 @@ func setRecipeField(proj *project.KapiProject, path string, raw json.RawMessage)
 		proj.Defaults.Terms = v
 		return true, nil
 
-	case "defaults.termbase_source":
+	case "defaults.terms_source":
 		var v string
 		if err := decodeRecipeValue(path, raw, &v); err != nil {
 			return false, err
@@ -890,7 +890,7 @@ func setRecipeField(proj *project.KapiProject, path string, raw json.RawMessage)
 		proj.Defaults.TermsSource = v
 		return true, nil
 
-	case "defaults.tm_source":
+	case "defaults.memory_source":
 		var v string
 		if err := decodeRecipeValue(path, raw, &v); err != nil {
 			return false, err

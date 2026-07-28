@@ -58,12 +58,12 @@ func TestApplyTermEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
 
 	// 1. The committed .terms.json source was written and bound in the recipe.
-	srcPath := filepath.Join(root, "l10n", "terms.json")
+	srcPath := filepath.Join(root, "context", "terms.json")
 	require.FileExists(t, srcPath)
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	require.Equal(t, filepath.Join("l10n", "terms.json"), proj.Defaults.TermsSource)
+	require.Equal(t, filepath.Join("context", "terms.json"), proj.Defaults.TermsSource)
 	require.NotEmpty(t, proj.Defaults.Terms, "the compiled cache should be bound too")
 
 	data, err := os.ReadFile(srcPath)
@@ -122,12 +122,12 @@ func TestApplyMemoryEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	res := a.applyAssetEntry(ctx, cmd, e)
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
 
-	srcPath := filepath.Join(root, "l10n", "memory.json")
+	srcPath := filepath.Join(root, "context", "memory.json")
 	require.FileExists(t, srcPath)
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	require.Equal(t, filepath.Join("l10n", "memory.json"), proj.Defaults.MemorySource)
+	require.Equal(t, filepath.Join("context", "memory.json"), proj.Defaults.MemorySource)
 
 	// Cache compiled, contains the pair.
 	dbPath := filepath.Join(root, project.StateDirName, "memory.db")
@@ -178,13 +178,13 @@ func TestApplyBrandEntry_writesProfileCompilesStore(t *testing.T) {
 	res := a.applyAssetEntry(ctx, cmd, e)
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
 
-	profilePath := filepath.Join(root, "l10n", "brand-voice.yaml")
+	profilePath := filepath.Join(root, "context", "brand-voice.yaml")
 	require.FileExists(t, profilePath)
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
 	require.NotNil(t, proj.Defaults.BrandVoice)
-	assert.Equal(t, filepath.Join("l10n", "brand-voice.yaml"), proj.Defaults.BrandVoice.ProfileFile)
+	assert.Equal(t, filepath.Join("context", "brand-voice.yaml"), proj.Defaults.BrandVoice.ProfileFile)
 
 	// Idempotent re-run.
 	res2 := a.applyAssetEntry(ctx, cmd, e)

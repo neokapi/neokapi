@@ -19,7 +19,7 @@ func newTermsTestCmd() *EnvCommand {
 	return cmd
 }
 
-// writeTermsProject creates a .kapi project binding defaults.termbase and
+// writeTermsProject creates a .kapi project binding defaults.terms and
 // returns the project root plus the absolute bound path.
 func writeTermsProject(t *testing.T) (root, boundPath string) {
 	t.Helper()

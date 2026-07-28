@@ -200,6 +200,7 @@ func BrowserCommandSet(a *App) []*cobra.Command {
 		NewFormatsCmd(a),
 		newBrowserGapCmd("plugin"),
 		newBrowserGapCmd("models"),
+		NewContextCmd(a),
 		NewTermsCmd(a),
 		NewMemoryCmd(a),
 		NewBrandCmd(a),

@@ -161,7 +161,7 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	defer func() { a.ProjectContext = nil }()
 
 	// Resolve standing brand-voice + glossary bindings so project-flow steps
-	// honor them with no flags (defaults.brand_voice / defaults.termbase).
+	// honor them with no flags (defaults.brand_voice / defaults.terms).
 	bindings, err := a.resolveProjectBindings(cmd, proj, projectPath)
 	if err != nil {
 		return err

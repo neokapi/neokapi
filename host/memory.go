@@ -55,7 +55,7 @@ func (a *App) ResolveMemoryCmdPath(cmd Command) (string, error) {
 
 // resolveProjectMemoryPath returns the authoritative content memory path for the .kapi project
 // in scope, or "" (with nil error) when no project can be located. Unlike the
-// terms (which can be re-bound via defaults.termbase), the project content memory is
+// terms (which can be re-bound via defaults.terms), the project content memory is
 // always the conventional <projectRoot>/.kapi/memory.db — the same file
 // kapi extract and kapi merge use (see cli/extract.go and cli/merge.go).
 func (a *App) resolveProjectMemoryPath(cmd Command) (string, error) {

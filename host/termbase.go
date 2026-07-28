@@ -30,7 +30,7 @@ func (a *App) OpenTermsSQLite(cmd Command) (terms.Terminology, string, error) {
 // ResolveTermsCmdPath picks the SQLite terms file a `kapi terms`
 // subcommand operates on. An explicit --name/--file/--local flag always wins.
 // Otherwise, when run inside a .kapi project, it defaults to the project's bound
-// terms (defaults.termbase, else <root>/.kapi/terms.db) so that
+// terms (defaults.terms, else <root>/.kapi/terms.db) so that
 // `kapi terms lookup`/`import` see the same glossary that `kapi check --ship` and
 // `kapi term-check` enforce — without it, a lookup inside a project silently
 // hit an empty ./terms.db. Falls back to ./terms.db outside a project.

@@ -162,7 +162,7 @@ func seedProjectTerms(t *testing.T, root string) {
 }
 
 // TestResolveProjectGlossary_FromConventionTerms asserts that with no
-// --termstore flag and no defaults.termbase, the convention
+// --termstore flag and no defaults.terms, the convention
 // <root>/.kapi/terms.db is used to build the project glossary.
 func TestResolveProjectGlossary_FromConventionTerms(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
@@ -185,7 +185,7 @@ defaults:
 	assert.Equal(t, "Enregistrer", glossary[0].Target)
 }
 
-// TestResolveProjectGlossary_FromBoundTerms asserts that defaults.termbase
+// TestResolveProjectGlossary_FromBoundTerms asserts that defaults.terms
 // (relative to the project root) is honored when set.
 func TestResolveProjectGlossary_FromBoundTerms(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
@@ -256,7 +256,7 @@ defaults:
 	require.NotNil(t, termCheck, "expected `exec term-check`")
 	require.NotNil(t, termCheck.Flags().Lookup("termstore"),
 		"`exec term-check` selects a terms store, so --termstore must be registered")
-	require.Nil(t, termCheck.Flags().Lookup("termbase"),
+	require.Nil(t, termCheck.Flags().Lookup("terms"),
 		"the flag is --termstore; the old spelling must not linger")
 	require.NoError(t, termCheck.Flags().Set("termstore", named))
 

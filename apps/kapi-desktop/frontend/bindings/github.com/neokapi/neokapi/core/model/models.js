@@ -31,10 +31,18 @@ export const LocaleID = {
 };
 
 /**
- * Origin records how content was produced. On a Target it records how the
- * committed translation was made; on a Block's source it records how a
- * *recognized* source was extracted (ocr, asr) — source and target provenance
- * are the same record on two sides of the Block.
+ * Origin records how content was produced, and under what context. On a Target
+ * it records how the committed translation was made; on a Block's source it
+ * records how a *recognized* source was extracted (ocr, asr) — source and target
+ * provenance are the same record on two sides of the Block.
+ * 
+ * The Kind/Engine/Tool/Reference/Timestamp/Confidence group answers *how* it was
+ * made. The Profile group answers *what governed it*: which named context was in
+ * force at the moment of production. That second half cannot be reconstructed
+ * after the fact — a profile is edited in place and a timestamp is only a proxy
+ * for it, one that breaks for imported content and for anything produced while a
+ * pilot shadowed a stream. So it is recorded at production time or approximated
+ * forever.
  */
 export class Origin {
     /**
@@ -91,6 +99,47 @@ export class Origin {
              * @type {number | undefined}
              */
             this["confidence"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Profile identifies the context profile that governed production, and
+             * ProfileVersion pins the revision of it that was in force. Both are opaque
+             * to the model: the producer stamps whatever its resolver handed it, and
+             * nothing here parses them. Empty when the producer resolved no profile —
+             * an ad-hoc run, or a tool that takes no context (pseudo-translation).
+             * @member
+             * @type {string | undefined}
+             */
+            this["profile"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["profile_version"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * ContextFingerprint is a content hash of the governing context as it
+             * actually reached the producer — the rendered voice guidance and the
+             * terminology it was given. It exists because Profile/ProfileVersion pin
+             * only half of that: terminology reaches a producer separately from the
+             * profile and carries no version of its own, so a profile stamp alone
+             * cannot tell whether the terms have moved since.
+             * 
+             * It answers "have the governing inputs changed since this was produced?"
+             * — a change detector, not a snapshot: it cannot reconstruct what the
+             * context was, only tell you this target no longer matches it.
+             * 
+             * Deliberately NOT the engine's config fingerprint. That one also covers
+             * provider, model and prompt wording, so swapping models would move it and
+             * destroy its meaning as a statement about governance. Empty when no
+             * context governed production at all.
+             * @member
+             * @type {string | undefined}
+             */
+            this["context_fingerprint"] = undefined;
         }
 
         Object.assign(this, $$source);

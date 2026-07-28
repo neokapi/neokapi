@@ -40,7 +40,7 @@ defaults:
   target_languages: [nb]
   brand_voice:
     profile_file: context/brand-voice.yaml
-  # termbase_source is the committed, git-tracked glossary (the review surface
+  # terms_source is the committed, git-tracked glossary (the review surface
   # `kapi apply` term-edits write to); terms is the gitignored cache the
   # source compiles into. Source of truth lives in git, never in the cache.
   terms_source: context/terms.json

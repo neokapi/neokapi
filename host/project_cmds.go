@@ -135,7 +135,7 @@ func ScaffoldRecipe(name, sourceLocale string, targetLocales []string, content [
 		fmt.Fprintf(&b, "    profile_file: %s\n", brandVoiceProfile)
 	}
 	if termsSource != "" {
-		fmt.Fprintf(&b, "  termbase_source: %s\n", termsSource)
+		fmt.Fprintf(&b, "  terms_source: %s\n", termsSource)
 	}
 
 	if len(content) > 0 {
@@ -203,7 +203,7 @@ func ScaffoldContentRecipe(name, sourceLocale string) []byte {
 	// project governs its source content, it does not translate it.
 	b.WriteString("  brand_voice:\n")
 	b.WriteString("    pack: professional-b2b\n")
-	b.WriteString("  termbase: .kapi/terms.db\n")
+	b.WriteString("  terms: .kapi/terms.db\n")
 	b.WriteString(`
 # Content project: no target_languages. Point content at the source files to
 # keep on brand, then run 'kapi run check' to score them. Block state lives in

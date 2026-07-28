@@ -718,7 +718,7 @@ func conceptPush(ctx context.Context, proj *bproject.Project, dryRun bool) (*Pus
 // ---------------------------------------------------------------------------
 
 // projectTermsPath returns the SQLite terms file a concept pull/push uses.
-// It mirrors the CLI's project-bound resolution: defaults.termbase from the
+// It mirrors the CLI's project-bound resolution: defaults.terms from the
 // recipe (relative to the project root), else the conventional
 // <root>/.kapi/terms.db.
 func projectTermsPath(proj *bproject.Project) (string, error) {

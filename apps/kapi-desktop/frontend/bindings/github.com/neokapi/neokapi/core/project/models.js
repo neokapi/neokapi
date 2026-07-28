@@ -409,7 +409,7 @@ export class Defaults {
              * @member
              * @type {MemoryDefaults | undefined}
              */
-            this["tm"] = undefined;
+            this["memory"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -454,7 +454,7 @@ export class Defaults {
              * @member
              * @type {string | undefined}
              */
-            this["termbase"] = undefined;
+            this["terms"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -468,7 +468,7 @@ export class Defaults {
              * @member
              * @type {string | undefined}
              */
-            this["termbase_source"] = undefined;
+            this["terms_source"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -480,7 +480,7 @@ export class Defaults {
              * @member
              * @type {string | undefined}
              */
-            this["tm_source"] = undefined;
+            this["memory_source"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -556,8 +556,8 @@ export class Defaults {
         if ("merge" in $$parsedSource) {
             $$parsedSource["merge"] = $$createField12_0($$parsedSource["merge"]);
         }
-        if ("tm" in $$parsedSource) {
-            $$parsedSource["tm"] = $$createField13_0($$parsedSource["tm"]);
+        if ("memory" in $$parsedSource) {
+            $$parsedSource["memory"] = $$createField13_0($$parsedSource["memory"]);
         }
         if ("segmentation" in $$parsedSource) {
             $$parsedSource["segmentation"] = $$createField14_0($$parsedSource["segmentation"]);

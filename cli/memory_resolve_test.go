@@ -152,7 +152,7 @@ func TestOpenToolMemory_ExplicitFileFlag(t *testing.T) {
 	require.NoError(t, tm.Close())
 
 	cmd := newMemoryLeverageTestCmd()
-	require.NoError(t, cmd.Flags().Set("tm", explicit))
+	require.NoError(t, cmd.Flags().Set("memory", explicit))
 	a := &App{}
 	provider, cleanup, err := a.OpenToolMemory(cmd)
 	require.NoError(t, err)

@@ -151,7 +151,7 @@ leads with translation.
 
 **Naming:** all prose — framework docs included — says **content memory** (with
 *recycling* as the verb), never "translation memory". The identifiers keep their own
-spelling in code and on the wire: the recipe keys `tm:` / `tm_source:` / `termbase:`,
+spelling in code and on the wire: the recipe keys `tm:` / `memory_source:` / `termbase:`,
 the `--memory` and `--terms` flags, and the on-disk `memory.db` / `terms.db`. Prose that
 has to name one describes the concept in the settled vocabulary and quotes the
 identifier in backticks — "the project's content memory (`.kapi/memory.db`)", "the terms
