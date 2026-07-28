@@ -111,14 +111,15 @@ func KitchenSinkBlock() *model.Block {
 		Status: model.TargetStatusReviewed,
 		Score:  0.97,
 		Origin: model.Origin{
-			Kind:           model.OriginAI,
-			Engine:         "sonnet",
-			Tool:           "translate",
-			Reference:      "batch-3",
-			Timestamp:      "2026-07-19T10:00:00Z",
-			Confidence:     0.5,
-			Profile:        "end-user-help",
-			ProfileVersion: "7",
+			Kind:               model.OriginAI,
+			Engine:             "sonnet",
+			Tool:               "translate",
+			Reference:          "batch-3",
+			Timestamp:          "2026-07-19T10:00:00Z",
+			Confidence:         0.5,
+			Profile:            "end-user-help",
+			ProfileVersion:     "7",
+			ContextFingerprint: "9f2b7c1d4e6a8035",
 		},
 	})
 	b.SetTargetVariant(deFormal, &model.Target{

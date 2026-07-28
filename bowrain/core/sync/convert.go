@@ -259,6 +259,7 @@ const (
 	propOriginConf   = "__origin_confidence"
 	propOriginProf   = "__origin_profile"
 	propOriginProfV  = "__origin_profile_version"
+	propOriginCtxFP  = "__origin_context_fingerprint"
 )
 
 // targetToSegment encodes a committed Target as a single wire segment,
@@ -296,6 +297,9 @@ func targetToSegment(t *model.Target) *contentv1.SegmentMessage {
 	if t.Origin.ProfileVersion != "" {
 		props[propOriginProfV] = t.Origin.ProfileVersion
 	}
+	if t.Origin.ContextFingerprint != "" {
+		props[propOriginCtxFP] = t.Origin.ContextFingerprint
+	}
 	if len(props) == 0 {
 		props = nil
 	}
@@ -323,13 +327,14 @@ func segmentToTarget(runs []model.Run, first *contentv1.SegmentMessage) *model.T
 		}
 	}
 	t.Origin = model.Origin{
-		Kind:           props[propOriginKind],
-		Engine:         props[propOriginEngine],
-		Tool:           props[propOriginTool],
-		Reference:      props[propOriginRef],
-		Timestamp:      props[propOriginTime],
-		Profile:        props[propOriginProf],
-		ProfileVersion: props[propOriginProfV],
+		Kind:               props[propOriginKind],
+		Engine:             props[propOriginEngine],
+		Tool:               props[propOriginTool],
+		Reference:          props[propOriginRef],
+		Timestamp:          props[propOriginTime],
+		Profile:            props[propOriginProf],
+		ProfileVersion:     props[propOriginProfV],
+		ContextFingerprint: props[propOriginCtxFP],
 	}
 	if s := props[propOriginConf]; s != "" {
 		if v, err := strconv.ParseFloat(s, 64); err == nil {

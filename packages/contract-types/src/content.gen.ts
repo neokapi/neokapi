@@ -517,6 +517,7 @@ export interface OriginView {
   timestamp?: string;
   profile?: string;
   profile_version?: string;
+  context_fingerprint?: string;
 }
 
 /**

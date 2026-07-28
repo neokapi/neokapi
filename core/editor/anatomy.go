@@ -142,6 +142,9 @@ type OriginView struct {
 	// rather than inferring it from the timestamp.
 	Profile        string `json:"profile,omitempty"`
 	ProfileVersion string `json:"profile_version,omitempty"`
+	// ContextFingerprint lets a surface mark a target stale against a context
+	// that has moved since it was produced.
+	ContextFingerprint string `json:"context_fingerprint,omitempty"`
 }
 
 // OverlaySpanView is one run-anchored span of an overlay with its extracted text.
@@ -447,13 +450,14 @@ func targetMeta(key model.VariantKey, t *model.Target) *TargetMeta {
 	m := &TargetMeta{Status: string(t.Status), Score: t.Score, Tone: key.Tone, Channel: key.Channel}
 	if o := t.Origin; o != (model.Origin{}) {
 		m.Origin = &OriginView{
-			Kind:           o.Kind,
-			Engine:         o.Engine,
-			Tool:           o.Tool,
-			Reference:      o.Reference,
-			Timestamp:      o.Timestamp,
-			Profile:        o.Profile,
-			ProfileVersion: o.ProfileVersion,
+			Kind:               o.Kind,
+			Engine:             o.Engine,
+			Tool:               o.Tool,
+			Reference:          o.Reference,
+			Timestamp:          o.Timestamp,
+			Profile:            o.Profile,
+			ProfileVersion:     o.ProfileVersion,
+			ContextFingerprint: o.ContextFingerprint,
 		}
 	}
 	return m

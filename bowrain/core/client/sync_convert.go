@@ -22,6 +22,7 @@ const (
 	propOriginConf   = "__origin_confidence"
 	propOriginProf   = "__origin_profile"
 	propOriginProfV  = "__origin_profile_version"
+	propOriginCtxFP  = "__origin_context_fingerprint"
 )
 
 // StoredBlockToSyncBlock converts a StoredBlock to the JSON wire type.
@@ -168,6 +169,9 @@ func targetToWireSegment(t *model.Target) SyncSegment {
 	if t.Origin.ProfileVersion != "" {
 		props[propOriginProfV] = t.Origin.ProfileVersion
 	}
+	if t.Origin.ContextFingerprint != "" {
+		props[propOriginCtxFP] = t.Origin.ContextFingerprint
+	}
 	if len(props) == 0 {
 		props = nil
 	}
@@ -284,13 +288,14 @@ func wireSegmentToTarget(runs []model.Run, first *SyncSegment) *model.Target {
 		}
 	}
 	t.Origin = model.Origin{
-		Kind:           props[propOriginKind],
-		Engine:         props[propOriginEngine],
-		Tool:           props[propOriginTool],
-		Reference:      props[propOriginRef],
-		Timestamp:      props[propOriginTime],
-		Profile:        props[propOriginProf],
-		ProfileVersion: props[propOriginProfV],
+		Kind:               props[propOriginKind],
+		Engine:             props[propOriginEngine],
+		Tool:               props[propOriginTool],
+		Reference:          props[propOriginRef],
+		Timestamp:          props[propOriginTime],
+		Profile:            props[propOriginProf],
+		ProfileVersion:     props[propOriginProfV],
+		ContextFingerprint: props[propOriginCtxFP],
 	}
 	if s := props[propOriginConf]; s != "" {
 		if v, err := strconv.ParseFloat(s, 64); err == nil {
