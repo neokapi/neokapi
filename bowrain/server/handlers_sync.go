@@ -178,18 +178,9 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		}
 	}
 
-	// Validate chunks exist. For ChunkedBlobStore (proxy uploads), chunks are
-	// in the upload session, not content-addressed storage.
-	if _, isChunked := s.BlobStore.(storage.ChunkedBlobStore); !isChunked {
-		for _, chunk := range manifest.Chunks {
-			exists, err := s.BlobStore.Exists(c.Request().Context(), chunk.Hash)
-			if err != nil || !exists {
-				return apiErr(c, http.StatusBadRequest, fmt.Sprintf("chunk %d (hash %s) not found in storage", chunk.Index, chunk.Hash))
-			}
-		}
-	}
-
-	// Enforce upload budget.
+	// Enforce upload budget. Cheap and manifest-local, so it runs before the
+	// per-chunk storage probes below — an oversized manifest is rejected without
+	// paying for a stat per chunk.
 	maxPushBytes := s.Config.MaxPushBytes
 	if maxPushBytes <= 0 {
 		maxPushBytes = 256 * 1024 * 1024 // default 256MB
@@ -200,6 +191,24 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 	}
 	if totalBytes > maxPushBytes {
 		return apiErr(c, http.StatusRequestEntityTooLarge, fmt.Sprintf("upload budget exceeded: %d bytes > %d bytes max", totalBytes, maxPushBytes))
+	}
+
+	// Every chunk the manifest names must already be a blob this server stored.
+	//
+	// This check used to be skipped whenever the blob store implemented
+	// ChunkedBlobStore, on the theory that such a store keeps chunks in an
+	// upload session rather than in content-addressed storage. That is not how
+	// either backend behaves: HandleSyncProxyChunkUpload stores every proxied
+	// chunk through BlobStore.Upload, which is content-addressed by
+	// construction, and the ChunkedBlobStore staging methods have no caller.
+	// The exemption therefore only ever applied to the self-hosted local store
+	// — the one deployment where it removed the sole check standing between a
+	// client-supplied hash and the worker that resolves it.
+	for _, chunk := range manifest.Chunks {
+		exists, err := s.BlobStore.Exists(c.Request().Context(), chunk.Hash)
+		if err != nil || !exists {
+			return apiErr(c, http.StatusBadRequest, fmt.Sprintf("chunk %d (hash %s) not found in storage", chunk.Index, chunk.Hash))
+		}
 	}
 
 	pushID := id.New()
