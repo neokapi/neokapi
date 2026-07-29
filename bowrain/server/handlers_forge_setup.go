@@ -16,6 +16,23 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
+// forgeUnreachable answers a failed call to the forge with the part the setup
+// wizard can act on — that GitHub, not this server, is what did not answer —
+// and keeps GitHub's own reply out of the response.
+//
+// That reply is worth keeping out. RepoTreePaths returns up to four kilobytes
+// of whatever GitHub sent, and the installation-token exchange that precedes it
+// fails with its own text; neither was written for the person filling in the
+// wizard, and neither is something they can do anything about. What they can
+// act on is that the App cannot read that repository, which is what this says.
+// The cause stays in the log, against the request's reference.
+func (s *Server) forgeUnreachable(c echo.Context, op string, err error) error {
+	slog.ErrorContext(c.Request().Context(), "forge call failed",
+		"op", op, "reference", requestID(c), "error", err)
+	return apiErr(c, http.StatusBadGateway,
+		"the forge did not answer; check the App installation still has access to that repository")
+}
+
 // The GitHub App post-install setup surface: after someone installs the app,
 // GitHub redirects them to the web app's setup page with the installation id;
 // these endpoints let that page list the repositories the installation covers
@@ -182,7 +199,7 @@ func (s *Server) HandleClaimInstallation(c echo.Context) error {
 		return apiErr(c, http.StatusNotFound, "installation not found")
 	}
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]any{
 		"installation_id": inst.InstallationID,
@@ -206,7 +223,7 @@ func (s *Server) HandleListInstallationRepos(c echo.Context) error {
 
 	repos, err := s.GitHubApp.ListInstallationRepos(c.Request().Context(), instID)
 	if err != nil {
-		return apiErr(c, http.StatusBadGateway, err.Error())
+		return s.forgeUnreachable(c, "list installation repos", err)
 	}
 
 	// Annotate with existing bindings so the setup page shows what is already
@@ -270,7 +287,7 @@ func (s *Server) HandleDetectInstallationRepo(c echo.Context) error {
 	paths, truncated, err := s.GitHubApp.RepoTreePaths(
 		c.Request().Context(), instID, repoPath, c.QueryParam("branch"), forge.MaxDetectTreeEntries)
 	if err != nil {
-		return apiErr(c, http.StatusBadGateway, err.Error())
+		return s.forgeUnreachable(c, "read repository tree", err)
 	}
 
 	det := forge.DetectRepoContent(paths, forge.DetectOptions{
@@ -331,7 +348,7 @@ func (s *Server) HandleBindInstallationRepo(c echo.Context) error {
 	// never taken from the request.
 	repos, err := s.GitHubApp.ListInstallationRepos(c.Request().Context(), instID)
 	if err != nil {
-		return apiErr(c, http.StatusBadGateway, err.Error())
+		return s.forgeUnreachable(c, "list installation repos", err)
 	}
 	var match *forge.InstallationRepo
 	for i := range repos {
@@ -376,7 +393,7 @@ func (s *Server) HandleBindInstallationRepo(c echo.Context) error {
 			Config:      config,
 		}); err != nil {
 			_ = s.Services.Connector.RemoveConnector(wsID, conn.ID())
-			return apiErr(c, http.StatusInternalServerError, err.Error())
+			return serverErr(c, err)
 		}
 	}
 

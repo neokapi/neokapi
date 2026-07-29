@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -105,13 +106,13 @@ func (s *Server) HandleCreateTranslationJob(c echo.Context) error {
 	}
 
 	if err := s.JobStore.CreateJob(ctx, job); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	if err := s.JobQueue.Enqueue(ctx, job.ID); err != nil {
 		// Roll back the job record.
 		_ = s.JobStore.DeleteJob(ctx, job.ID)
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "enqueue failed: " + err.Error()})
+		return serverErr(c, fmt.Errorf("enqueue failed: %w", err))
 	}
 
 	return c.JSON(http.StatusAccepted, map[string]any{
@@ -162,12 +163,12 @@ func (s *Server) HandleCreateProjectTranslationJob(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	if err := s.JobStore.CreateJob(ctx, job); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	if err := s.JobQueue.Enqueue(ctx, job.ID); err != nil {
 		_ = s.JobStore.DeleteJob(ctx, job.ID)
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "enqueue failed: " + err.Error()})
+		return serverErr(c, fmt.Errorf("enqueue failed: %w", err))
 	}
 
 	return c.JSON(http.StatusAccepted, map[string]any{
@@ -218,7 +219,7 @@ func (s *Server) HandleListJobs(c echo.Context) error {
 	ws := c.Param("ws")
 	jobList, err := s.JobStore.ListJobs(c.Request().Context(), ws, 50)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, jobList)
@@ -234,7 +235,7 @@ func (s *Server) HandleGetAIUsage(c echo.Context) error {
 	ws := c.Param("ws")
 	summary, err := s.QuotaStore.GetUsageSummary(c.Request().Context(), ws)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, summary)
@@ -264,7 +265,7 @@ func (s *Server) HandleDeleteJob(c echo.Context) error {
 	// Atomically cancel only if still cancellable.
 	// UpdateJobStatus is a no-op if the job already completed.
 	if err := s.JobStore.UpdateJobStatus(ctx, id, jobs.StatusFailed, "cancelled by user"); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.NoContent(http.StatusNoContent)

@@ -88,7 +88,7 @@ func (s *Server) HandleUpdateExtractionSettings(c echo.Context) error {
 	}
 
 	if err := s.ContentStore.UpdateProject(ctx, proj); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, req)

@@ -20,7 +20,7 @@ func (s *Server) HandleListAutomationRules(c echo.Context) error {
 
 	rules, err := s.AutomationRuleStore.ListRules(c.Request().Context(), projectID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return serverErr(c, err)
 	}
 	if rules == nil {
 		rules = []event.StoredRule{}
@@ -61,7 +61,7 @@ func (s *Server) HandleCreateAutomationRule(c echo.Context) error {
 	}
 
 	if err := s.AutomationRuleStore.CreateRule(c.Request().Context(), rule); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusCreated, rule)
@@ -99,7 +99,7 @@ func (s *Server) HandleUpdateAutomationRule(c echo.Context) error {
 	}
 
 	if err := s.AutomationRuleStore.UpdateRule(c.Request().Context(), rule); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, rule)
@@ -117,7 +117,7 @@ func (s *Server) HandleDeleteAutomationRule(c echo.Context) error {
 	}
 
 	if err := s.AutomationRuleStore.DeleteRule(c.Request().Context(), ruleID); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.NoContent(http.StatusNoContent)
@@ -142,7 +142,7 @@ func (s *Server) HandleToggleAutomationRule(c echo.Context) error {
 	}
 
 	if err := s.AutomationRuleStore.ToggleRule(c.Request().Context(), ruleID, req.Enabled); err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.NoContent(http.StatusOK)
@@ -185,7 +185,7 @@ func (s *Server) HandleListAutomationHistory(c echo.Context) error {
 
 	entries, err := s.AutomationRuleStore.ListHistory(c.Request().Context(), projectID, limit)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return serverErr(c, err)
 	}
 	if entries == nil {
 		entries = []event.HistoryEntry{}

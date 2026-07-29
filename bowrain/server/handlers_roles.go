@@ -24,7 +24,7 @@ func (s *Server) HandleListRoleTemplates(c echo.Context) error {
 
 	templates, err := s.AuthStore.ListRoleTemplates(ctx, workspaceID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Convert to response with permission names instead of bitmask.
@@ -80,7 +80,7 @@ func (s *Server) HandleCreateRoleTemplate(c echo.Context) error {
 	}
 
 	if err := s.AuthStore.CreateRoleTemplate(c.Request().Context(), rt); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	s.emitAudit(c, auditEvent{
 		Type:         platev.EventRoleTemplateCreated,
@@ -128,7 +128,7 @@ func (s *Server) HandleUpdateRoleTemplate(c echo.Context) error {
 	rt.Position = req.Position
 
 	if err := s.AuthStore.UpdateRoleTemplate(ctx, rt); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	s.emitAudit(c, auditEvent{
 		Type:         platev.EventRoleTemplateUpdated,

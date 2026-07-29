@@ -21,7 +21,7 @@ func (s *Server) HandleListStreams(c echo.Context) error {
 
 	streams, err := s.ContentStore.ListStreams(c.Request().Context(), projectID, includeArchived)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, streams)
@@ -86,7 +86,7 @@ func (s *Server) HandleCreateStream(c echo.Context) error {
 	}
 
 	if err := s.ContentStore.CreateStream(c.Request().Context(), st); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusCreated, st)
@@ -156,7 +156,7 @@ func (s *Server) HandleUpdateStream(c echo.Context) error {
 	}
 
 	if err := s.ContentStore.UpdateStream(ctx, st); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, st)
@@ -188,7 +188,7 @@ func (s *Server) HandleArchiveStream(c echo.Context) error {
 
 	stream.Archived = true
 	if err := s.ContentStore.UpdateStream(ctx, stream); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.NoContent(http.StatusNoContent)
@@ -217,7 +217,7 @@ func (s *Server) HandleMergeStream(c echo.Context) error {
 		DryRun: req.DryRun,
 	})
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, result)
@@ -235,7 +235,7 @@ func (s *Server) HandleDiffStream(c echo.Context) error {
 
 	diff, err := s.ContentStore.DiffStream(c.Request().Context(), projectID, streamName)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, diff)
@@ -268,7 +268,7 @@ func (s *Server) HandleLockStream(c echo.Context) error {
 
 	st, err := s.ContentStore.GetStream(c.Request().Context(), projectID, streamName)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, st)
 }
@@ -293,7 +293,7 @@ func (s *Server) HandleUnlockStream(c echo.Context) error {
 
 	st, err := s.ContentStore.GetStream(c.Request().Context(), projectID, streamName)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, st)
 }
@@ -310,7 +310,7 @@ func (s *Server) HandleListStreamTags(c echo.Context) error {
 
 	tags, err := s.ContentStore.ListStreamTags(c.Request().Context(), projectID, streamName)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if tags == nil {
 		tags = []*store.StreamTag{}
@@ -438,7 +438,7 @@ func (s *Server) HandleListProjectTags(c echo.Context) error {
 
 	tags, err := s.ContentStore.ListProjectTags(c.Request().Context(), projectID, kind)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if tags == nil {
 		tags = []*store.StreamTag{}

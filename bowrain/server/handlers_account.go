@@ -10,6 +10,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -47,7 +48,7 @@ func (s *Server) HandleGetOnboarding(c echo.Context) error {
 	}
 	needs, err := s.Services.Auth.NeedsOnboarding(ctx, userID)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	resp := onboardingResponse{
 		NeedsOnboarding: needs,
@@ -134,7 +135,7 @@ func (s *Server) HandleCheckSlug(c echo.Context) error {
 	}
 	avail, reason, err := s.Services.Auth.IsSlugAvailable(c.Request().Context(), slug)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, slugCheckResponse{Available: avail, Reason: reason})
 }
@@ -192,7 +193,7 @@ func (s *Server) HandleRequestEmailChange(c echo.Context) error {
 	// Generate token and persist hash.
 	tokenBytes := make([]byte, 32)
 	if _, err := rand.Read(tokenBytes); err != nil {
-		return apiErr(c, http.StatusInternalServerError, "generate token: "+err.Error())
+		return serverErr(c, fmt.Errorf("generate token: %w", err))
 	}
 	plaintext := "ec_" + hex.EncodeToString(tokenBytes)
 	hash := sha256.Sum256([]byte(plaintext))
@@ -200,7 +201,7 @@ func (s *Server) HandleRequestEmailChange(c echo.Context) error {
 
 	chReq := &platauth.EmailChangeRequest{UserID: userID, NewEmail: newEmail}
 	if err := s.AuthStore.CreateEmailChangeRequest(ctx, chReq, tokenHash); err != nil {
-		return apiErr(c, http.StatusInternalServerError, "persist request: "+err.Error())
+		return serverErr(c, fmt.Errorf("persist request: %w", err))
 	}
 
 	confirmURL := s.confirmEmailURL(c, plaintext)
@@ -219,7 +220,7 @@ func (s *Server) HandleRequestEmailChange(c echo.Context) error {
 	}); err != nil {
 		// Roll back persisted request so the user can retry without colliding.
 		_ = s.AuthStore.DeleteEmailChangeRequestsForUser(ctx, userID)
-		return apiErr(c, http.StatusInternalServerError, "send verification email: "+err.Error())
+		return serverErr(c, fmt.Errorf("send verification email: %w", err))
 	}
 
 	return c.JSON(http.StatusAccepted, map[string]any{
@@ -290,7 +291,7 @@ func (s *Server) HandleConfirmEmailChange(c echo.Context) error {
 	}
 	if err := s.IdentityAdmin.UpdateUserEmail(ctx, user.OIDCSub, pending.NewEmail); err != nil {
 		slog.ErrorContext(ctx, "upstream identity email update failed", "user_id", user.ID, "error", err)
-		return apiErr(c, http.StatusBadGateway, "update upstream identity: "+err.Error())
+		return serverErrStatus(c, http.StatusBadGateway, fmt.Errorf("update upstream identity: %w", err))
 	}
 
 	user.Email = pending.NewEmail
@@ -298,7 +299,7 @@ func (s *Server) HandleConfirmEmailChange(c echo.Context) error {
 		// The IdP already changed; surface this as a server error so the
 		// operator can reconcile. The next OIDC login will re-sync.
 		slog.ErrorContext(ctx, "local email update failed after upstream identity update", "user_id", user.ID, "error", err)
-		return apiErr(c, http.StatusInternalServerError, "local update failed; sign in again to refresh: "+err.Error())
+		return serverErr(c, fmt.Errorf("local update failed; sign in again to refresh: %w", err))
 	}
 
 	_ = s.AuthStore.DeleteEmailChangeRequestsForUser(ctx, user.ID)

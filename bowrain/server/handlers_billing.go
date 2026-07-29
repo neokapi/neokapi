@@ -102,7 +102,7 @@ func (s *Server) HandleGetBillingUsage(c echo.Context) error {
 
 	entries, err := s.BillingStore.GetLedger(c.Request().Context(), wsID, from, to)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Aggregate by operation type.
@@ -152,7 +152,7 @@ func (s *Server) HandleGetBillingModelUsage(c echo.Context) error {
 	ctx := c.Request().Context()
 	usage, err := pgStore.GetUsageByModel(ctx, ws, from, to)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Also fetch runner/container time usage.
@@ -291,7 +291,7 @@ func (s *Server) HandleCreateCheckout(c echo.Context) error {
 		var err error
 		customerID, err = s.StripeClient.CreateCustomer(ctx, wsID, email, wsSlug)
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to create stripe customer: " + err.Error()})
+			return serverErr(c, fmt.Errorf("failed to create stripe customer: %w", err))
 		}
 	}
 
@@ -308,7 +308,7 @@ func (s *Server) HandleCreateCheckout(c echo.Context) error {
 		},
 	})
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Track checkout started event.
@@ -381,7 +381,7 @@ func (s *Server) HandleCreatePortal(c echo.Context) error {
 
 	url, err := s.StripeClient.CreatePortalSession(ctx, sub.StripeCustomerID, req.ReturnURL)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{
@@ -406,7 +406,7 @@ func (s *Server) HandleGetInvoices(c echo.Context) error {
 
 	invoices, err := s.StripeClient.GetInvoices(ctx, sub.StripeCustomerID, 25)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{
@@ -454,7 +454,7 @@ func (s *Server) HandleBuyCredits(c echo.Context) error {
 		var err error
 		customerID, err = s.StripeClient.CreateCustomer(ctx, wsID, email, wsSlug)
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to create stripe customer: " + err.Error()})
+			return serverErr(c, fmt.Errorf("failed to create stripe customer: %w", err))
 		}
 	}
 
@@ -463,7 +463,7 @@ func (s *Server) HandleBuyCredits(c echo.Context) error {
 		"type":         "credit_pack",
 	})
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{

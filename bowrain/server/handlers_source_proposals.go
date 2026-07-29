@@ -62,7 +62,7 @@ func (s *Server) HandleListSourceProposals(c echo.Context) error {
 	pid := projectParam(c)
 	proposals, err := s.SourceProposalStore.ListOpen(c.Request().Context(), pid)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if proposals == nil {
 		proposals = []bstore.ProposedSourceChange{}
@@ -134,7 +134,7 @@ func (s *Server) HandleCreateSourceProposal(c echo.Context) error {
 		FinderUser:     finder,
 	}
 	if err := s.SourceProposalStore.Create(ctx, proposal); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Surface to source owners: a source-review task in their queue. Best-effort —
@@ -186,7 +186,7 @@ func (s *Server) HandleDecideSourceProposal(c echo.Context) error {
 
 	if req.Decision == "reject" {
 		if err := s.SourceProposalStore.Resolve(ctx, proposalID, bstore.SourceProposalRejected, decider, req.Reason); err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+			return serverErr(c, err)
 		}
 		s.completeSourceProposalTasks(context.WithoutCancel(ctx), proposal, decider)
 		return c.JSON(http.StatusOK, map[string]any{"ok": true, "status": "rejected"})
@@ -199,7 +199,7 @@ func (s *Server) HandleDecideSourceProposal(c echo.Context) error {
 		return c.JSON(http.StatusUnprocessableEntity, ErrorResponse{Error: "apply source change: " + err.Error()})
 	}
 	if err := s.SourceProposalStore.Resolve(ctx, proposalID, bstore.SourceProposalApproved, decider, req.Reason); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	s.completeSourceProposalTasks(context.WithoutCancel(ctx), proposal, decider)
 

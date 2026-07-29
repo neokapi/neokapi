@@ -35,7 +35,7 @@ func (s *Server) HandleListActivities(c echo.Context) error {
 
 	result, err := s.ActivityStore.List(ctx, q)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if result.Activities == nil {
 		result.Activities = []bstore.Activity{}

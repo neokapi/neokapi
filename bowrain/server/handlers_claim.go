@@ -48,7 +48,7 @@ func (s *Server) HandleCreateAnonymousProject(c echo.Context) error {
 	ctx := c.Request().Context()
 	projectID, claimToken, err := s.Services.Auth.CreateAnonymousProject(ctx, req.Name, req.DefaultSourceLanguage, req.TargetLanguages)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 
 	// Also create the project in the content store so blocks can reference it.
@@ -64,7 +64,7 @@ func (s *Server) HandleCreateAnonymousProject(c echo.Context) error {
 			TargetLanguages:       targetLocales,
 		}
 		if err := s.Services.Project.CreateProject(ctx, p); err != nil {
-			return apiErr(c, http.StatusInternalServerError, "create content project: "+err.Error())
+			return serverErr(c, fmt.Errorf("create content project: %w", err))
 		}
 	}
 

@@ -75,7 +75,7 @@ func (s *Server) HandleCreateEntity(c echo.Context) error {
 	})
 
 	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, "main", itemName, []*model.Block{block}); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusCreated, EntityInfoResponse{
@@ -135,7 +135,7 @@ func (s *Server) HandleUpdateEntity(c echo.Context) error {
 	}
 
 	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, "main", itemName, []*model.Block{block}); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.NoContent(http.StatusNoContent)
@@ -166,7 +166,7 @@ func (s *Server) HandleDeleteEntity(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "entity not found"})
 	}
 	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, "main", itemName, []*model.Block{block}); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.NoContent(http.StatusNoContent)
@@ -227,7 +227,7 @@ func (s *Server) HandlePromoteEntity(c echo.Context) error {
 	})
 
 	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, "main", itemName, []*model.Block{block}); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"ok": true, "term_candidate_key": tcKey})
@@ -274,7 +274,7 @@ func (s *Server) HandlePromoteEntityToConcept(c echo.Context) error {
 
 	concept, err := s.promoteEntityToConcept(ctx, ws, wsID, actor, projectID, streamParam(c), entity)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusCreated, map[string]any{"ok": true, "concept": editorConceptToInfo(concept)})
 }

@@ -189,7 +189,7 @@ func (s *Server) HandleConvergenceEstimate(c echo.Context) error {
 	}
 	view, err := s.convergence.buildConvergenceEstimate(c.Request().Context(), proj)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	s.trackEstimateComputed(c.Request().Context(), proj, view)
 	return c.JSON(http.StatusOK, view)

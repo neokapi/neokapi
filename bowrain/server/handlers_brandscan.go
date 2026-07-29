@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -199,12 +200,12 @@ func (s *Server) HandleCreateBrandScan(c echo.Context) error {
 		Request:       requestJSON,
 	}
 	if err := s.BrandScanStore.CreateBrandScanJob(ctx, job); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if err := s.BrandScanQueue.Enqueue(ctx, job.ID); err != nil {
 		// Roll back the job record so no orphaned queued row lingers.
 		_ = s.BrandScanStore.DeleteBrandScanJob(ctx, job.ID)
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "enqueue failed: " + err.Error()})
+		return serverErr(c, fmt.Errorf("enqueue failed: %w", err))
 	}
 
 	return c.JSON(http.StatusAccepted, map[string]any{

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -41,7 +42,7 @@ func (s *Server) HandleTokenExchange(c echo.Context) error {
 
 	token, err := s.Services.Auth.GenerateToken(user, tokenExchangeExpiry)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "generate token: " + err.Error()})
+		return serverErr(c, fmt.Errorf("generate token: %w", err))
 	}
 
 	return c.JSON(http.StatusOK, TokenExchangeResponse{

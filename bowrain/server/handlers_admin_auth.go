@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -68,7 +69,7 @@ func (s *Server) HandleAdminAuthExchange(c echo.Context) error {
 		PreferredUsername string `json:"preferred_username"`
 	}
 	if err := idToken.Claims(&claims); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "extract admin claims: " + err.Error()})
+		return serverErr(c, fmt.Errorf("extract admin claims: %w", err))
 	}
 	email := claims.Email
 	if email == "" {
@@ -77,7 +78,7 @@ func (s *Server) HandleAdminAuthExchange(c echo.Context) error {
 
 	adminJWT, err := platauth.GenerateAdminToken(idToken.Subject, email, claims.Name, s.Config.JWTSecret, adminSessionTTL)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "mint admin session: " + err.Error()})
+		return serverErr(c, fmt.Errorf("mint admin session: %w", err))
 	}
 
 	s.setAdminSessionCookie(c, adminJWT)

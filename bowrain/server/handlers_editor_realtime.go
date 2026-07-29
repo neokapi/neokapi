@@ -152,7 +152,7 @@ func (s *Server) HandleReviewBlock(c echo.Context) error {
 			if _, ok := sb.Block.Properties[legacyTranslationStatusProperty]; ok {
 				delete(sb.Block.Properties, legacyTranslationStatusProperty)
 				if err := s.ContentStore.StoreBlocks(ctx, pid, stream, []*model.Block{sb.Block}); err != nil {
-					return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "store block: " + err.Error()})
+					return serverErr(c, fmt.Errorf("store block: %w", err))
 				}
 				s.emitEditorBlockChange(c, pid, bid, req.ItemName, stream, "updated")
 				wsID, _ := c.Get("workspace_id").(string)
@@ -179,7 +179,7 @@ func (s *Server) HandleReviewBlock(c echo.Context) error {
 	target.Status = status
 
 	if err := s.ContentStore.StoreBlocks(ctx, pid, stream, []*model.Block{sb.Block}); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "store block: " + err.Error()})
+		return serverErr(c, fmt.Errorf("store block: %w", err))
 	}
 
 	s.emitEditorBlockChange(c, pid, bid, req.ItemName, stream, "updated")

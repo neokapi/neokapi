@@ -452,8 +452,10 @@ func TestDetectInstallationRepo_DocsAndQueries(t *testing.T) {
 }
 
 // An empty repository yields no signals and zero matches — what the wizard
-// turns into its zero-match warning. Unknown repositories surface GitHub's
-// answer through the error envelope, not a fabricated detection.
+// turns into its zero-match warning. An unknown repository is answered with a
+// 502 naming the forge as the thing that did not answer, rather than a
+// fabricated detection — and without GitHub's own reply, which can run to four
+// kilobytes and says nothing the wizard's user can act on.
 func TestDetectInstallationRepo_EmptyAndUnknown(t *testing.T) {
 	s := setupServerWithAppTrees(t, map[string][]string{
 		"acme/empty": {"main.go", "go.sum"},
@@ -474,7 +476,10 @@ func TestDetectInstallationRepo_EmptyAndUnknown(t *testing.T) {
 		Error string `json:"error"`
 	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &envelope))
-	assert.Contains(t, envelope.Error, "404")
+	assert.Contains(t, envelope.Error, "the forge did not answer",
+		"the wizard is told which side failed")
+	assert.NotContains(t, rec.Body.String(), "404",
+		"GitHub's own reply stays in the log, not the response")
 }
 
 func TestListInstallationRepos_AnnotatesBindings(t *testing.T) {

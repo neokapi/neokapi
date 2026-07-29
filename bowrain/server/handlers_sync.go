@@ -68,7 +68,7 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 	// Full diff: compare item hashes.
 	itemDiff, err := diffEngine.CompareItems(c.Request().Context(), req.ProjectID, req.Stream, req.ItemHashes)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 
 	uploadID := id.New()
@@ -109,7 +109,7 @@ func (s *Server) HandleSyncPushDiff(c echo.Context) error {
 
 	blockDiff, err := diffEngine.CompareBlocks(c.Request().Context(), projectID, stream, req.ItemName, req.BlockHashes)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 
 	// Generate chunk upload URLs if blob store supports it.
@@ -277,7 +277,7 @@ func (s *Server) HandleSyncProxyChunkUpload(c echo.Context) error {
 		ContentType: "application/octet-stream",
 		Filename:    fmt.Sprintf("chunks/%s/%04d", uploadID, chunkIndex),
 	}); err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})
@@ -333,7 +333,7 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 	// Get change log entries to determine what changed.
 	cs, err := s.Services.Project.GetChanges(ctx, projectID, cursor, locales, limit)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 
 	resp := apiclient.RichPullResponse{
@@ -366,7 +366,7 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 			}
 			stored, err := s.Services.Project.GetBlocks(ctx, query)
 			if err != nil {
-				return apiErr(c, http.StatusInternalServerError, err.Error())
+				return serverErr(c, err)
 			}
 
 			resp.Blocks = make([]apiclient.SyncBlock, 0, len(stored))
@@ -475,7 +475,7 @@ func (s *Server) HandleSyncGetBlocks(c echo.Context) error {
 
 	blocks, err := s.Services.Project.GetBlocks(c.Request().Context(), query)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 
 	result := make([]apiclient.SyncBlock, len(blocks))
@@ -503,7 +503,7 @@ func (s *Server) HandleSyncPushStatus(c echo.Context) error {
 
 	jobList, err := s.JobStore.ListJobsByPushID(c.Request().Context(), pushID)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 
 	total := len(jobList)

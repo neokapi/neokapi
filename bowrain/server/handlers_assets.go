@@ -160,7 +160,7 @@ func (s *Server) HandleAssetUploadURL(c echo.Context) error {
 	// Check if blob already exists (dedup).
 	exists, err := s.BlobStore.Exists(c.Request().Context(), req.BlobKey)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if exists {
 		return c.JSON(http.StatusOK, UploadURLResponse{Exists: true})
@@ -173,7 +173,7 @@ func (s *Server) HandleAssetUploadURL(c echo.Context) error {
 			// Local backend: client should use direct upload through server proxy.
 			return c.JSON(http.StatusOK, UploadURLResponse{Exists: false})
 		}
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, UploadURLResponse{UploadURL: url, Exists: false})
@@ -215,7 +215,7 @@ func (s *Server) HandleCreateAsset(c echo.Context) error {
 	}
 
 	if err := s.ContentStore.StoreAsset(c.Request().Context(), pid, stream, asset); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	resp := assetToResponse(asset)
@@ -235,7 +235,7 @@ func (s *Server) HandleListAssets(c echo.Context) error {
 
 	assets, err := s.ContentStore.ListAssets(c.Request().Context(), pid, stream, itemName)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	result := make([]AssetResponse, len(assets))
@@ -315,7 +315,7 @@ func (s *Server) HandleVariantUploadURL(c echo.Context) error {
 		if errors.Is(err, corestorage.ErrNotSupported) {
 			return c.JSON(http.StatusOK, UploadURLResponse{Exists: false})
 		}
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, UploadURLResponse{UploadURL: url})
@@ -355,7 +355,7 @@ func (s *Server) HandleCreateVariant(c echo.Context) error {
 	}
 
 	if err := s.ContentStore.StoreAssetVariant(c.Request().Context(), pid, variant); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	resp := variantToResponse(variant)
@@ -374,7 +374,7 @@ func (s *Server) HandleListVariants(c echo.Context) error {
 
 	variants, err := s.ContentStore.ListAssetVariants(c.Request().Context(), pid, aid)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	result := make([]AssetVariantResponse, len(variants))

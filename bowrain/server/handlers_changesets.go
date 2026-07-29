@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -124,7 +125,7 @@ func (s *Server) HandleListChangeSets(c echo.Context) error {
 	}
 	sets, err := s.KnowledgeStore.ListChangeSets(c.Request().Context(), wsID, status)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if sets == nil {
 		sets = []*knowledge.ChangeSet{}
@@ -159,7 +160,7 @@ func (s *Server) HandleCreateChangeSet(c echo.Context) error {
 		CreatedBy:   actor,
 	}
 	if err := s.KnowledgeStore.CreateChangeSet(c.Request().Context(), cs); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
@@ -185,15 +186,15 @@ func (s *Server) HandleGetChangeSet(c echo.Context) error {
 	}
 	opPtrs, err := s.KnowledgeStore.ListOps(ctx, wsID, cs.ID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	reviews, err := s.KnowledgeStore.ListReviews(ctx, wsID, cs.ID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	pilots, err := s.KnowledgeStore.ListPilots(ctx, wsID, cs.ID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	governed, _ := knowledge.ChangeSetIsGoverned(changeSetOpValues(opPtrs))
 
@@ -247,7 +248,7 @@ func (s *Server) HandleUpdateChangeSet(c echo.Context) error {
 		cs.Description = *req.Description
 	}
 	if err := s.KnowledgeStore.UpdateChangeSet(c.Request().Context(), cs); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, cs)
 }
@@ -299,7 +300,7 @@ func (s *Server) HandleAddChangeSetOp(c echo.Context) error {
 		}
 	}
 	if err := s.KnowledgeStore.AppendOp(c.Request().Context(), &op); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusCreated, &op)
 }
@@ -357,7 +358,7 @@ func (s *Server) HandleSubmitChangeSet(c echo.Context) error {
 	}
 	ops, err := s.KnowledgeStore.ListOps(ctx, wsID, cs.ID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if len(ops) == 0 {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "cannot submit an empty change-set"})
@@ -407,7 +408,7 @@ func (s *Server) HandleApproveChangeSet(c echo.Context) error {
 		Comment:     req.Comment,
 	}
 	if err := s.KnowledgeStore.AddReview(ctx, review); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if err := s.KnowledgeStore.SetChangeSetStatus(ctx, wsID, cs.ID, knowledge.ChangeSetApproved); err != nil {
 		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
@@ -453,7 +454,7 @@ func (s *Server) HandleRejectChangeSet(c echo.Context) error {
 		Comment:     req.Comment,
 	}
 	if err := s.KnowledgeStore.AddReview(ctx, review); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if err := s.KnowledgeStore.SetChangeSetStatus(ctx, wsID, cs.ID, knowledge.ChangeSetDraft); err != nil {
 		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
@@ -488,7 +489,7 @@ func (s *Server) HandleMergeChangeSet(c echo.Context) error {
 	}
 	opPtrs, err := s.KnowledgeStore.ListOps(ctx, wsID, cs.ID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	governed, err := knowledge.ChangeSetIsGoverned(changeSetOpValues(opPtrs))
 	if err != nil {
@@ -503,7 +504,7 @@ func (s *Server) HandleMergeChangeSet(c echo.Context) error {
 
 	engine, err := s.knowledgeEngineFor(c.Param("ws"))
 	if err != nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
 
 	cs.MergedBy = actor
@@ -516,10 +517,20 @@ func (s *Server) HandleMergeChangeSet(c echo.Context) error {
 				"conflicts": res.Conflicts,
 			})
 		case res != nil && len(res.AppliedOps) > 0:
-			// A mid-apply failure: report which ops already landed so the partial
-			// state is visible and the merge can be re-driven once fixed.
+			// A mid-apply failure. The ops that already landed are the caller's
+			// own, and naming them is the whole value of this branch: it is how
+			// the partial state becomes visible and the merge re-drivable. So
+			// this one writes its own 5xx rather than returning — the detail is
+			// the caller's, not ours.
+			//
+			// The cause is ours, and stays here: logged against the request's
+			// reference, never in the body.
+			slog.ErrorContext(ctx, "change-set merge failed mid-apply",
+				"workspace_id", wsID, "change_set_id", cs.ID,
+				"applied_ops", len(res.AppliedOps),
+				"reference", requestID(c), "error", mergeErr)
 			return c.JSON(http.StatusInternalServerError, map[string]any{
-				"error":   mergeErr.Error(),
+				"error":   "change-set was partially applied; re-base the remaining ops and resubmit",
 				"applied": res.AppliedOps,
 			})
 		default:
@@ -557,11 +568,11 @@ func (s *Server) HandleAbandonChangeSet(c echo.Context) error {
 
 	engine, err := s.knowledgeEngineFor(c.Param("ws"))
 	if err != nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
 	_, pilotEvents, err := engine.StopAllPilots(ctx, wsID, s.KnowledgeStore, *cs)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if err := s.KnowledgeStore.SetChangeSetStatus(ctx, wsID, cs.ID, knowledge.ChangeSetAbandoned); err != nil {
 		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
@@ -586,7 +597,7 @@ func (s *Server) HandleChangeSetBlastRadius(c echo.Context) error {
 	}
 	engine, err := s.knowledgeEngineFor(c.Param("ws"))
 	if err != nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
 	wsID, _ := c.Get("workspace_id").(string)
 	ctx := c.Request().Context()
@@ -597,18 +608,18 @@ func (s *Server) HandleChangeSetBlastRadius(c echo.Context) error {
 	}
 	opPtrs, err := s.KnowledgeStore.ListOps(ctx, wsID, cs.ID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	pilots, err := s.KnowledgeStore.ListPilots(ctx, wsID, cs.ID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	impact, err := engine.EvaluateChangeSet(ctx, wsID, *cs, changeSetOpValues(opPtrs), knowledge.EvalOptions{
 		PilotStreams: pilotStreams(pilots),
 	})
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, impact)
 }
@@ -621,7 +632,7 @@ func (s *Server) HandleStartPilot(c echo.Context) error {
 	}
 	engine, err := s.knowledgeEngineFor(c.Param("ws"))
 	if err != nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
 	wsID, _ := c.Get("workspace_id").(string)
 	actor, _ := c.Get("user_id").(string)
@@ -643,7 +654,7 @@ func (s *Server) HandleStartPilot(c echo.Context) error {
 	}
 	pilot, err := engine.StartPilot(ctx, wsID, s.KnowledgeStore, *cs, req.ProjectID, req.Stream)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
@@ -660,7 +671,7 @@ func (s *Server) HandleStopPilot(c echo.Context) error {
 	}
 	engine, err := s.knowledgeEngineFor(c.Param("ws"))
 	if err != nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
 	wsID, _ := c.Get("workspace_id").(string)
 	actor, _ := c.Get("user_id").(string)
@@ -673,7 +684,7 @@ func (s *Server) HandleStopPilot(c echo.Context) error {
 	project := c.Param("project")
 	stream := c.Param("stream")
 	if err := engine.StopPilot(ctx, wsID, s.KnowledgeStore, *cs, project, stream); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{

@@ -76,7 +76,7 @@ func (s *Server) HandleListProjectMembers(c echo.Context) error {
 
 	members, err := s.AuthStore.ListProjectMembers(ctx, projectID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, members)
 }
@@ -112,7 +112,7 @@ func (s *Server) HandleAddProjectMember(c echo.Context) error {
 	}
 
 	if err := s.AuthStore.AddProjectMember(c.Request().Context(), pm); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	s.emitAudit(c, auditEvent{
 		Type:         platev.EventMemberAdded,

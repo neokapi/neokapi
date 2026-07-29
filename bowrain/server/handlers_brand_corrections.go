@@ -62,7 +62,7 @@ func (s *Server) HandleCreateBrandVoiceCorrection(c echo.Context) error {
 	}
 
 	if err := s.BrandStore.StoreCorrection(c.Request().Context(), correction); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Progressive autonomy: if this correction pushes its term over the profile's
@@ -94,7 +94,7 @@ func (s *Server) HandleGetSuggestedRules(c echo.Context) error {
 
 	rules, err := s.BrandStore.GetSuggestedRules(c.Request().Context(), wsID, minCount)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, rules)
 }
