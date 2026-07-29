@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-29T11:31:20Z",
+  "generatedAt": "2026-07-29T13:02:37Z",
   "commands": [
     {
       "id": "add",
@@ -6934,7 +6934,7 @@
       "use": "pseudo-translate [files...]",
       "short": "Pseudo-translate files to test locale readiness — no AI keys needed",
       "long": "Run the built-in pseudo-translate flow: expand every string with\nlocale-shaped accents and length padding so truncation, concatenation, and\nhardcoded-string bugs surface before any real translation is bought. Runs\nentirely offline — no AI provider or keys required.\n\nUse it as the pre-flight check; when the UI holds up, 'kapi translate' (ad\nhoc) or 'kapi up' (project) produce the real translations.",
-      "groupID": "localization",
+      "groupID": "translate",
       "flags": [
         {
           "name": "api-key",
@@ -7786,7 +7786,7 @@
       "use": "translate [files...]",
       "short": "Translate files with guardrails — content memory reuse, AI translate, then checks",
       "long": "Translate files through the built-in translate flow: leverage a bound\ncontent memory first (a no-op without one), translate the rest with the\nconfigured AI provider, then run the deterministic checks (placeholders,\ninline tags, untranslated text) over what was produced.\n\nThis is the guardrailed spelling — the same three-step flow 'kapi up' loops\nover a project, applied to ad-hoc files. The raw translate tool (no Memory pass,\nno checks) stays available as 'kapi exec translate'. To bring a whole project\nup to date, use 'kapi up'.",
-      "groupID": "localization",
+      "groupID": "translate",
       "flags": [
         {
           "name": "api-key",
