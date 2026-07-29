@@ -222,6 +222,12 @@ func TestConvention_HelpTextUsesCurrentVocabulary(t *testing.T) {
 		check("Short", cmd.Short)
 		check("Long", cmd.Long)
 		check("Example", cmd.Example)
+		// Group titles are section headings in `kapi --help` — as visible as any
+		// Short line, and registered far from the commands they gather, which is
+		// how "Localization:" outlived the sweep that renamed everything under it.
+		for _, g := range cmd.Groups() {
+			check("group "+g.ID, g.Title)
+		}
 		// Flag usage is help text too, and it is the easiest place to forget:
 		// it is written inline at the registration call, far from the Long
 		// paragraph a reviewer reads.

@@ -19,7 +19,7 @@ func NewTranslateCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "translate [files...]",
 		Short:   "Translate files with guardrails — content memory reuse, AI translate, then checks",
-		GroupID: "localization",
+		GroupID: "translate",
 		Long: `Translate files through the built-in translate flow: leverage a bound
 content memory first (a no-op without one), translate the rest with the
 configured AI provider, then run the deterministic checks (placeholders,
@@ -49,7 +49,7 @@ func NewPseudoTranslateCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "pseudo-translate [files...]",
 		Short:   "Pseudo-translate files to test locale readiness — no AI keys needed",
-		GroupID: "localization",
+		GroupID: "translate",
 		Long: `Run the built-in pseudo-translate flow: expand every string with
 locale-shaped accents and length padding so truncation, concatenation, and
 hardcoded-string bugs surface before any real translation is bought. Runs
