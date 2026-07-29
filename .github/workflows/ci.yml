@@ -13,8 +13,17 @@ on:
 
 # Cancel superseded runs on the same PR; never cancel a push to main (each
 # main commit's run is the canonical record and must complete).
+#
+# Pushes group by commit, not by ref. Grouping every main push under
+# refs/heads/main did not achieve the second half of that sentence:
+# cancel-in-progress protects the run that is *executing*, but GitHub keeps only
+# one *pending* run per group, so a third commit evicts the second while it is
+# still queued. Under merge pressure four consecutive main runs ended
+# `cancelled`, and push-only lanes — the integration suite, coverage, and the
+# race/shuffle profile the PR gate deliberately skips — were skipped with them.
+# One group per SHA means a busy day costs runner minutes instead of coverage.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
