@@ -20,7 +20,7 @@ import (
 //
 //   - extractor-*.kbf.json   written by @neokapi/i18n-react `extract`
 //     (`apps/kapi-desktop/frontend/i18n/**/*.kbf.json`), the source side of the
-//     dogfood recipe's kapi-desktop-ui collection.
+//     dogfood recipe's kapi-desktop collection.
 //   - kapi-*.kbf.json        written by kapi itself (`i18n-nb/**/*.kbf.json`), the
 //     target side the recipe recycles into and `neokapi-i18n compile` reads.
 //

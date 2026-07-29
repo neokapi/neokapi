@@ -96,7 +96,7 @@ bowrain/web/landing/i18n-nb/
 # nb build — see CLAUDE.md "Target-language drift must never block the build".
 # Regenerate with kapi; the nb locale falls back to English until then.
 web/i18n/nb/
-# Same policy for the bowrain docs site: the docs-bowrain surface of the root
+# Same policy for the bowrain docs site: the bowrain-docs surface of the root
 # recipe generates bowrain/web/docs/i18n/<locale>/ from bowrain/web/docs/docs/**
 # (make l10n-bowrain-docs). Build artefact, never committed; the nb locale
 # falls back to English until regenerated.

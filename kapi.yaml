@@ -5,31 +5,39 @@
 # isolate itself per the contract in CLAUDE.md ("Dogfooding kapi") —
 # KAPI_NO_PROJECT=1 et al. — so only the dogfood workflow binds here.
 #
-# Surfaces:
-#   framework-data   — generated tool/format metadata → gettext MO catalogs
-#                      embedded in the kapi binary (core/i18n)
-#   kapi-desktop-ui  — KBF catalogs extracted from the React frontend by
-#                      @neokapi/i18n-react → public/translations/<locale>.json
-#   bowrain-app-ui   — the shared bowrain SPA (bowrain/packages/{app,ui} + the
-#                      web and desktop shells), same neokapi-i18n pipeline →
-#                      each shell's public/translations/<locale>.json
-#   bowrain-ctrl-ui  — the ctrl admin app (bowrain/apps/ctrl)
-#   bowrain-pulse-ui — the pulse dashboard (bowrain/apps/pulse)
-#   docs             — the kapi Docusaurus site → web/i18n/<locale>/ tree
-#   docs-bowrain     — the bowrain Docusaurus site (bowrain/web/docs) →
-#                      bowrain/web/docs/i18n/<locale>/ tree
-#   demo-narration   — harness demo scripts → generated demo.<lang>.yaml
-#                      sidecars (harness/demos/<id>/, overlaid at load time)
-#   emails           — KBF catalogs extracted from the React Email templates
-#                      (bowrain/emails/src) by @neokapi/i18n-react → per-locale
-#                      template renders under bowrain/mailer/templates/<lang>/
-#                      (make l10n-emails)
-#   email-subjects   — transactional-email subject lines
-#                      (bowrain/mailer/subjects/en.json) → subjects/<lang>.json
-#   landing          — KBF catalogs extracted from the bowrain landing SPA
-#                      (bowrain/web/landing/src) → committed runtime catalogs
-#                      bowrain/web/landing/translations/<lang>.json
-#                      (make l10n-landing)
+# Surfaces. Collection names are <product>-<channel>: the product the content
+# belongs to, then the surface it ships on.
+#
+#   kapi-engine            — generated tool/format metadata → gettext MO
+#                            catalogs embedded in the kapi binary (core/i18n)
+#   kapi-desktop           — KBF catalogs extracted from the React frontend by
+#                            @neokapi/i18n-react →
+#                            public/translations/<locale>.json
+#   bowrain-app            — the shared bowrain SPA (bowrain/packages/{app,ui}
+#                            + the web and desktop shells), same neokapi-i18n
+#                            pipeline → each shell's
+#                            public/translations/<locale>.json
+#   bowrain-ctrl           — the ctrl admin app (bowrain/apps/ctrl)
+#   bowrain-pulse          — the pulse dashboard (bowrain/apps/pulse)
+#   kapi-docs              — the kapi Docusaurus site → web/i18n/<locale>/ tree
+#   bowrain-docs           — the bowrain Docusaurus site (bowrain/web/docs) →
+#                            bowrain/web/docs/i18n/<locale>/ tree
+#   kapi-demos             — harness demo scripts → generated demo.<lang>.yaml
+#                            sidecars (harness/demos/<id>/, overlaid at load
+#                            time)
+#   bowrain-email          — KBF catalogs extracted from the React Email
+#                            templates (bowrain/emails/src) by
+#                            @neokapi/i18n-react → per-locale template renders
+#                            under bowrain/mailer/templates/<lang>/
+#                            (make l10n-emails)
+#   bowrain-email-subjects — transactional-email subject lines
+#                            (bowrain/mailer/subjects/en.json) →
+#                            subjects/<lang>.json
+#   bowrain-landing        — KBF catalogs extracted from the bowrain landing
+#                            SPA (bowrain/web/landing/src) → committed runtime
+#                            catalogs
+#                            bowrain/web/landing/translations/<lang>.json
+#                            (make l10n-landing)
 #
 # Drive it with the l10n-* Makefile targets. Seeds (brand voice, terms,
 # reviewed content memory) live under l10n/.
@@ -82,7 +90,7 @@ defaults:
     - "harness/public/**"
     - "**/testdata/**"
 content:
-  - name: framework-data
+  - name: kapi-engine
     items:
       - path: core/i18n/builtins/metadata.json
         format:
@@ -94,23 +102,23 @@ content:
             useLeadingSlashOnKeyPath: true
             extractionRules: "(display_name|description|title|label)$"
         target: core/i18n/catalogs/{lang}.mo
-  - name: kapi-desktop-ui
+  - name: kapi-desktop
     items:
       - path: apps/kapi-desktop/frontend/i18n/**/*.kbf.json
         target: apps/kapi-desktop/frontend/i18n-{lang}/{filename}
-  - name: bowrain-app-ui
+  - name: bowrain-app
     items:
       - path: bowrain/packages/app/i18n/**/*.kbf.json
         target: bowrain/packages/app/i18n-{lang}/{filename}
-  - name: bowrain-ctrl-ui
+  - name: bowrain-ctrl
     items:
       - path: bowrain/apps/ctrl/i18n/**/*.kbf.json
         target: bowrain/apps/ctrl/i18n-{lang}/{filename}
-  - name: bowrain-pulse-ui
+  - name: bowrain-pulse
     items:
       - path: bowrain/apps/pulse/i18n/**/*.kbf.json
         target: bowrain/apps/pulse/i18n-{lang}/{filename}
-  - name: docs
+  - name: kapi-docs
     items:
       - path: web/docs/**/*.md
         format:
@@ -126,7 +134,7 @@ content:
             translateFrontMatter: true
             frontMatterKeys: [title, description, sidebar_label]
         target: web/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
-  - name: docs-bowrain
+  - name: bowrain-docs
     items:
       - path: bowrain/web/docs/docs/**/*.md
         format:
@@ -142,21 +150,21 @@ content:
             translateFrontMatter: true
             frontMatterKeys: [title, description, sidebar_label]
         target: bowrain/web/docs/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
-  - name: emails
+  - name: bowrain-email
     items:
       - path: bowrain/emails/i18n/**/*.kbf.json
         target: bowrain/emails/i18n-{lang}/{filename}
-  - name: email-subjects
+  - name: bowrain-email-subjects
     items:
       - path: bowrain/mailer/subjects/en.json
         format:
           name: json
         target: bowrain/mailer/subjects/{lang}.json
-  - name: landing
+  - name: bowrain-landing
     items:
       - path: bowrain/web/landing/i18n/**/*.kbf.json
         target: bowrain/web/landing/i18n-{lang}/{filename}
-  - name: demo-narration
+  - name: kapi-demos
     items:
       # Narrated demo-video scripts. The English demo.yaml is the master;
       # localized narration is GENERATED into committed demo.<lang>.yaml
