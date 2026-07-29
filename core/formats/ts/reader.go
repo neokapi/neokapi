@@ -1336,7 +1336,7 @@ func extractTSPrologue(raw string) (string, string) {
 // Scanning for the first '>' byte truncated such a tag mid-attribute (#1606).
 func indexTagEnd(tag string) int {
 	var quote byte // 0 outside a quoted value, else the opening quote byte
-	for i := 0; i < len(tag); i++ {
+	for i := range len(tag) {
 		switch c := tag[i]; {
 		case quote != 0:
 			if c == quote {
