@@ -87,25 +87,18 @@ func seedDamagedYAML(f *testing.F) {
 	}
 }
 
-// seedDuplicateKeyYAML holds the duplicate-key documents. They are seeded into
-// the read target, where the reader handles them correctly, but NOT into the
-// round-trip target: they currently fail it, and the failure is a real defect
-// filed as #1597 rather than something to assert around.
-//
-// The reader extracts a block per key occurrence and the skeleton write path
-// reproduces the document byte-for-byte, both correct. The rebuild path (no
-// skeleton store) keys its block map by block.Name — the YAML key path — so a
-// repeated key collapses and one translatable string is silently dropped. Which
-// side should give is a design call about what kapi should do with content that
-// YAML semantics render unreachable, which is why it is an issue and not a
-// drive-by fix in a test PR.
-//
-// Running `go test -fuzz=FuzzRoundTripYaml` rediscovers this within seconds by
-// mutating an ordinary seed into a repeated key. That is the target working.
+// seedDuplicateKeyYAML holds the duplicate-key documents. The reader extracts a
+// block per key occurrence and the skeleton write path reproduces the document
+// byte-for-byte, both always correct. The rebuild path (no skeleton store) used
+// to key its block map by block.Name — the YAML key path — so a repeated key
+// collapsed and one already-translated string was silently dropped (#1597). It
+// now keeps one entry per block, so these belong in the round-trip target too.
 func seedDuplicateKeyYAML(f *testing.F) {
 	f.Helper()
 	f.Add([]byte("title: First\ntitle: Second\n"))
 	f.Add([]byte("a:\n  k: one\n  k: two\n"))
+	f.Add([]byte("k: a\nk: b\nk: c\n"))
+	f.Add([]byte("k: one\nother: x\nk: two\n"))
 }
 
 // FuzzReadYaml asserts the YAML reader never panics and always terminates on
@@ -133,6 +126,7 @@ func FuzzRoundTripYaml(f *testing.F) {
 	f.Add([]byte("title: Hello\ndesc: World\n"))
 	f.Add([]byte("nested:\n  key: Nested value\n"))
 	seedDamagedYAML(f)
+	seedDuplicateKeyYAML(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		ctx := t.Context()
