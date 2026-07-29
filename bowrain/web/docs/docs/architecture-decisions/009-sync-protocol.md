@@ -8,527 +8,436 @@ title: "AD-009: Sync Protocol"
 
 ## Summary
 
-The sync protocol is Bowrain's single, extensible transport for project
-data — blocks, terms, content memory entries, media, QA results, and automation
-outputs. It uses a two-level Merkle tree for minimal-transfer diff
-negotiation, a typed `SyncChunk` envelope for extensibility, zstd
-compression (with an optional, not-yet-shipped dictionary hook),
-byte-size chunking, and direct-to-storage uploads via pre-signed SAS
-URLs. Push is asynchronous:
-the client uploads chunks to object storage, the server enqueues a
-background worker, the worker ingests with bulk INSERT under a single
-transaction per item.
+The sync protocol is Bowrain's single transport for everything a project
+holds — content blocks, terms, content memory entries, media, and **context**:
+the collections a project declares, the coordinates that place them, and the
+governance bound to them. It has three layers: a diff layer that negotiates
+what must move by comparing hashes, a typed `SyncChunk` content layer that
+carries the payload, and a chunked, compressed transport layer that moves bytes
+to object storage without passing them through the API process.
+
+Two properties define it. **Push describes a desired state, not a delta** — the
+client sends what it holds and the server replies with what must change,
+including what it holds that the client no longer does. And **ownership travels
+in the payload**: every context entity says whether the recipe or the workspace
+owns it, so the question "may this be edited here?" is answered from data rather
+than from a rule bolted on at each surface.
 
 ## Context
 
-The sync protocol is the primary data exchange path between bowrain CLI,
-bowrain-server, and any other client that speaks to the platform. It
-carries the full Block model (not just text), terminology, content memory, binary
-assets, and automation results. It must scale to 100K+ blocks per
-project, survive unreliable networks, detect concurrent writes, and stay
-extensible as new content types arrive.
+The sync protocol is the data-exchange path between the kapi CLI, Kapi Desktop,
+bowrain-server, and any other client of the platform. It carries the full Block
+model, not just text, and must scale to 100K+ blocks per project, survive
+unreliable networks, detect concurrent writes, and stay extensible as new kinds
+of project state arrive.
 
 Several constraints shape the design:
 
-- **API server responsiveness.** The API process is the control plane;
-  it validates, negotiates, and returns quickly. Heavy DB work happens
-  in the worker, not in the request lifecycle.
-- **Bandwidth efficiency.** 100K-block projects can't afford to transfer
-  the full dataset on every sync. Merkle trees identify changed subtrees
-  minimally.
-- **Concurrent writes.** Multiple clients may edit the same project
-  simultaneously. Silent last-write-wins is unacceptable for
-  translations.
-- **Async ingestion.** Bulk INSERT with COPY-style batching outperforms
-  per-row INSERT by 10-100x. The worker controls its own batching and
-  retry cadence.
-- **Extensibility.** New content types (automation results, review
-  threads, audit events) must ship without breaking the transport.
+- **API server responsiveness.** The API process is a control plane: it
+  authorizes, negotiates, and returns. Heavy database work happens in the
+  worker, outside the request lifecycle.
+- **Bandwidth.** A 100K-block project cannot transfer its full dataset on every
+  sync. Hash comparison identifies the changed subtrees.
+- **Concurrent writes.** Several clients may edit one project at once. Silent
+  last-write-wins is not acceptable for translations.
+- **Async ingestion.** Bulk insert outperforms per-row insert by one to two
+  orders of magnitude. The worker controls its own batching and retry cadence.
+- **Extensibility.** New kinds of project state must ship without breaking the
+  transport.
+
+The last constraint is the one that has been learned the hard way. A kind of
+state that has no place in the content model does not simply wait — it arrives
+by another route. Terminology grew a REST path of its own, media grew an asset
+upload path, and brand voice grew a profile upsert. Each of those sits outside
+the push transaction, outside the hash comparison, and outside reconciliation,
+so a push carrying them can half-succeed: the content lands and the governance
+does not, or the reverse, with nothing recording that the two disagree.
+
+Hence the governing rule of this AD: **a kind of project state is a content
+type of this protocol, or it is not synced.** A side call is not a smaller
+version of syncing something. It is the absence of syncing it.
 
 ## Decision
 
-### Three Layers
+### Three layers
 
-```
-1. Diff layer:      what needs to transfer (Merkle tree hash comparison)
-2. Content layer:   typed, versioned payloads that evolve independently
-3. Transport layer: chunked, compressed, resumable, direct-to-storage
-```
+| Layer | Answers | Mechanism |
+| --- | --- | --- |
+| Diff | What must move? | Hash comparison at project, item, and content-type level |
+| Content | What is it? | Typed `SyncChunk` envelope, one content type per chunk |
+| Transport | How does it move? | zstd-compressed chunks, content-addressed, direct to object storage |
 
-### Diff Layer: Two-Level Merkle Tree
+The layers are independent. Adding a content type changes the content layer
+only: the diff layer gains a hash, and the transport layer is untouched.
 
-```
-Project root hash
-  ├── Item "en.json"         hash: abc123  (hash of sorted block hashes)
-  │     ├── Block b1          hash: def456
-  │     ├── Block b2          hash: ghi789
-  │     └── ...
-  ├── Item "messages.json"    hash: jkl012
-  │     └── ...
-  └── Terms collection        hash: mno345
-```
+### Diff layer: reconciliation, not delta
 
-Push negotiation:
+Push negotiation runs in three round-trips before any payload moves.
 
-1. **Init.** The client computes item-level hashes (sorted block hashes
-   per item) and a project root hash. It sends
-   `POST /sync/push/init` with these hashes.
-2. **Fast path.** If the root hash matches, the server replies
-   `{ status: "unchanged" }` — zero further work.
-3. **Item diff.** The server compares item hashes:
-   - Matching item hash → skip entirely (all blocks unchanged).
-   - Mismatched hash → "need block-level diff for this item".
-   - New item on the client → "upload all blocks".
-   - Missing item (present on server, absent from client) → "deleted".
-4. **Block diff.** For mismatched items, the client sends block hashes
-   via `POST /sync/push/diff`. The server returns which block IDs are
-   needed, which are deleted, which have conflicts, and the SAS URLs
-   for uploading needed chunks.
+1. **Init.** The client sends the state it holds: an item hash per item (the
+   hash of that item's block hashes), a project root hash over those, and a
+   collection hash per non-block content type — `terms_hash`, `memory_hash`,
+   `context_hash`. All hashes use one construction: SHA-256 over the entries
+   sorted by key, writing each key followed by its hash.
+2. **Reply.** The server compares and answers `unchanged` when the root hash
+   matches and no collection hash moved, `full_upload` when it holds nothing
+   for this stream, and `diff_required` otherwise. A `diff_required` reply
+   names the items that changed, the items the client has that the server does
+   not, the items **the server holds that the client did not send**, and which
+   collection hashes moved.
+3. **Item diff.** For each changed item the client sends its block hashes and
+   receives back which blocks are needed, which the server holds that the
+   client no longer does, and which have been changed by another client since
+   this one last synced.
 
-Scaling:
+The third category in each reply — `deleted_items`, and `deleted` within an
+item — is what makes this reconciliation rather than a delta. The client does
+not send "delete this"; it sends what it has, and absence is the signal.
 
-| Project size | Items     | Init request       | Diff requests   |
-| ------------ | --------- | ------------------ | --------------- |
-| 1K blocks    | 5 items   | 5 hashes (~500B)   | 0-2 item diffs  |
-| 10K blocks   | 20 items  | 20 hashes (~2KB)   | 0-5 item diffs  |
-| 100K blocks  | 100 items | 100 hashes (~10KB) | 0-10 item diffs |
+#### Authoritative hashes are the precondition
 
-The init request is always small (item count, not block count).
-Block-level comparison only happens for items that actually changed.
+A hash map is a statement about a desired state only if it is complete. A
+client that hashes just the subset it intends to upload has not described a
+state: the server cannot tell "absent because unchanged" from "absent because
+removed", and every reported removal is a false positive. Such a client must be
+treated as **additive** — the server upserts what arrives and infers no
+deletions, and the client ignores the removals reported back to it.
+Non-destructiveness is then a property of the client's incompleteness, not a
+guarantee the protocol offers.
 
-### Conflict Detection
+This is why the two halves of the protocol are calibrated differently, and
+deliberately so:
 
-Every hash comparison includes an `expected_hash` for records being
-updated. If the server's current hash doesn't match the client's
-expectation, the server flags a conflict instead of silently
-overwriting. The client sees conflicts and chooses to resolve them or
-force-push with `--force`.
+- **Blocks** are the large set. Sending a complete hash map for a 100K-block
+  project on every push is affordable at item granularity (one hash per item)
+  but the client's own change detection works at block granularity, so a client
+  that has scanned only the changed files holds a partial picture. A block push
+  that has not established a complete map is additive; establishing one is what
+  destructive block sync requires, and is the single precondition for it.
+- **Context** is the small set — a project's axes, collections, profile
+  bindings, and the voice they bind. Its complete key-to-hash map is a few
+  kilobytes at any project size, so the client sends it in full on every push
+  regardless of what changed. Context is therefore authoritative from the first
+  push: a collection the recipe no longer declares is a removal, not an
+  omission.
 
-```protobuf
-message SyncPushInit {
-  string project_id = 1;
-  string stream = 2;
-  repeated string content_types = 3;
+The manifest carries that complete map (`context_hashes`) alongside the chunks
+that carry the changed entities, so the reconciliation input and the payload
+commit together.
 
-  // Merkle tree: item-level hashes
-  map<string, string> item_hashes = 4;
+### Conflict detection
 
-  // Fast path: root hash of all item hashes
-  string root_hash = 5;
+Every block being updated carries `expected_hash` — the hash the client last
+saw. If the server's current hash differs, another client changed the block
+since, and the server reports a conflict rather than overwriting. The client
+resolves the conflicts or re-pushes with `--force`.
 
-  // Terms and content memory have their own collection hashes
-  string terms_hash = 6;
-  string tm_hash = 7;
-}
+Context entities carry the same guard through their per-entity `content_hash`,
+with one addition described below: a conflict on a context entity may also be
+an **ownership** conflict, where the change is refused not because the content
+moved but because it is not this side's to change.
 
-message SyncPushInitResponse {
-  string upload_id = 1;
-  string status = 2;  // "unchanged", "diff_required", "full_upload"
-  repeated string changed_items = 3;
-  repeated string deleted_items = 4;
-  repeated string new_items = 5;
-  int32 unchanged_item_count = 6;
-  string transport = 7;  // "direct" or "proxy"
-}
+### Content layer: the `SyncChunk` envelope
 
-message SyncItemDiff {
-  string upload_id = 1;
-  string item_name = 2;
-  map<string, string> block_hashes = 3;  // block_id → content_hash
-}
-
-message SyncItemDiffResponse {
-  repeated string needed = 1;     // blocks to upload
-  repeated string deleted = 2;    // blocks server has that client doesn't
-  repeated string conflicts = 3;  // blocks changed by another client
-  repeated string chunk_urls = 4; // SAS URLs for uploading needed blocks
-}
-```
-
-### Content Layer: SyncChunk Envelope
-
-Each chunk is a typed envelope that can carry any content type.
-Protobuf provides forward/backward compatibility — new fields are
-additive, old clients ignore unknown fields:
+Each chunk is a typed envelope carrying a batch of one content type. Protobuf
+gives forward and backward compatibility: fields are additive and an older peer
+ignores what it does not know.
 
 ```protobuf
 message SyncChunk {
-  string content_type = 1;    // "blocks", "terms", "tm", "media", "qa", "activity"
+  string content_type = 1;  // "blocks", "terms", "memory", "media", "context"
   int32 record_count = 2;
 
-  // Exactly one populated (determined by content_type):
+  // Exactly one of these is populated (determined by content_type).
   repeated SyncBlock blocks = 10;
   repeated SyncTerm terms = 11;
-  repeated SyncTMEntry tm_entries = 12;
-  repeated SyncQAResult qa_results = 13;
-  repeated SyncActivity activities = 14;
-  repeated SyncMedia media = 15;
+  repeated SyncMemoryEntry memory_entries = 12;
+  repeated SyncMedia media = 13;
+  // 14, 15 reserved: qa_results, activities.
+  repeated SyncContextEntry context = 16;
 }
 ```
 
-Adding a new content type requires adding a field to `SyncChunk` and a
-handler in the worker — zero transport or diff changes. Changing a
-content type (e.g. adding a field to `SyncBlock`) is a protobuf-
-compatible evolution.
+Adding a content type means adding a field here, a collection hash in the init
+request, a symmetric field on the pull response, and a handler in the worker.
+The diff and transport layers do not change.
 
-#### SyncBlock — Full Block Model
+`SyncBlock` carries the full Block model across the boundary — structured
+source and target segments, properties, annotations, skeleton, display hints,
+connector data, run-anchored overlays, source locale, and referent flag — so a
+round-trip through Bowrain loses nothing. Its run and segment content embeds
+the canonical content-model schema rather than redefining it; see
+[AD-framework-034: Content-Model Wire Schema](https://neokapi.github.io/contribute/architecture/034-content-model-wire-schema).
+
+### Context is a content type
+
+A project declares where its content sits and what governs it. Under
+`coordinates:` a recipe names its own axes — product, channel, market, tenant,
+whatever the taxonomy is. Each named content collection names the point its
+content sits at, and `profiles:` binds governance to a region of that space,
+the most specific match winning. This is the framework's model; see
+[the kapi project file](https://neokapi.github.io/contribute/implementation/kapi-project-file).
+
+All of it is project state, so all of it travels the protocol as the `context`
+content type:
+
+- **Axes** — the declared dimensions and the values each may take.
+- **Collections** — each with its name, its item patterns, and its coordinates.
+- **Profile bindings** — a coordinate match plus the voice, the terms, or both
+  that govern content matching it.
+- **Voice profiles** — the profile content itself, so the governance a binding
+  names is present rather than dangling.
+
+One envelope carries all four, which is what lets a single collection hash
+cover the whole of a project's context and a single reconciliation pass settle
+it:
 
 ```protobuf
-message SyncBlock {
-  string id = 1;
-  string item_name = 2;
-  string name = 3;
-  string type = 4;
-  string mime_type = 5;
-  bool translatable = 6;
+message SyncContextEntry {
+  // Stable identity within the project's context. Collections and axes are
+  // keyed by declared name, profile bindings by their rendered coordinate
+  // match, voice profiles by profile name.
+  string key = 1;
+  string kind = 2;   // "axis", "collection", "profile", "voice"
+  Owner owner = 3;
+  string content_hash = 4;
 
-  repeated Segment source = 7;
-  string source_text = 8;
-
-  map<string, SegmentList> targets = 9;
-
-  map<string, string> properties = 10;
-  bytes annotations_json = 11;
-
-  bytes skeleton_json = 12;
-  bool preserve_whitespace = 13;
-  bytes display_hint_json = 14;
-  bytes content_ref_json = 15;
-
-  map<string, string> connector_data = 16;
-
-  // Conflict detection: the hash the client last saw for this block
-  string expected_hash = 17;
+  // Exactly one of these is populated (determined by kind).
+  SyncAxis axis = 10;
+  SyncCollection collection = 11;
+  SyncProfileBinding profile = 12;
+  SyncVoiceProfile voice = 13;
 }
 ```
 
-The full Block model — including structured source and target
-segments, annotations, skeleton, display hints, and connector data —
-survives the sync boundary. No data loss.
+The consequences follow from being a content type rather than being special:
 
-#### SyncTerm, SyncTMEntry, SyncMedia
+- **One hash.** `context_hash` sits beside `terms_hash` and `memory_hash` in
+  the init request, so an unchanged context costs one comparison.
+- **One transaction.** Context entities ride the same `upload_id`, the same
+  commit manifest, and the same worker job as the blocks pushed with them. One
+  push is one consistent state, or it is a failed push.
+- **Removal is an outcome, not a case.** A collection the recipe renamed
+  appears as one key absent and another present. The server reports the absent
+  one exactly the way it reports `deleted_items` for content, and applies it
+  under the ownership rules below. Nothing in the client or the server needs to
+  recognize a rename as a rename.
+- **Pull is symmetric.** `SyncPullResponse` carries context in a typed field
+  beside blocks, terms, memory entries, and media, filtered by content type and
+  advanced by the same cursor.
 
-`SyncTMEntry` and the `tm_entries` / `tm_hash` / `tm_changed` fields spell the
-content memory `TM` on the wire. Message and field names are wire schema —
-serialized into the descriptor and into every protojson type URL — and a kapi
-client syncs against an independently deployed server, so the two sides are
-never upgraded in lockstep. Renaming them would be a breaking protocol change.
-Prose says "content memory"; the wire keeps `TM`.
+Coordinate values are slugs, never concept references. A concept is designed to
+be renamed and deprecated as vocabulary is revised, and governance that moved
+when someone edited a term would be governance nobody could rely on. A value
+may carry a concept for display; matching never reads it. That property has to
+survive the wire, which is why `SyncAxis` carries the slug and the concept
+reference as separate fields rather than resolving one into the other.
+
+### Ownership travels in the payload
+
+Every context entity carries its owner:
 
 ```protobuf
-message SyncTerm {
-  string concept_id = 1;
-  string source_term = 2;
-  string source_locale = 3;
-  repeated TermTranslation translations = 4;
-  string definition = 5;
-  string domain = 6;
-  map<string, string> properties = 7;
-  string status = 8;  // "approved", "pending", "deprecated"
-}
-
-message SyncTMEntry {
-  string id = 1;
-  string source_locale = 2;
-  string target_locale = 3;
-  string source_text = 4;
-  string target_text = 5;
-  string origin = 6;       // "human", "mt", "ai"
-  double score = 7;
-  map<string, string> properties = 8;
-}
-
-message SyncMedia {
-  string id = 1;
-  string item_name = 2;
-  string mime_type = 3;
-  string filename = 4;
-  string alt_text = 5;
-  int64 size = 6;
-
-  // Exactly one:
-  bytes inline_data = 10;      // small assets inlined in chunk
-  string blob_key = 11;        // large assets: separately uploaded blob
-
-  string locale = 12;
-  string source_media_id = 13;
-  map<string, string> properties = 14;
+enum Owner {
+  OWNER_UNSPECIFIED = 0;
+  OWNER_RECIPE = 1;     // declared in kapi.yaml; git is the source
+  OWNER_WORKSPACE = 2;  // created in the workspace; the server is the source
 }
 ```
 
-See [AD-007: Media and Blob Storage](007-media-and-blob-storage.md)
-for the blob upload coordination.
+`kapi.yaml` is a file in a repository. What it declares is authored, reviewed,
+and versioned there, and a workspace that edits it is editing a copy that the
+next push overwrites. What the workspace itself creates has no counterpart in
+any repository, and a push that deleted it because no recipe mentions it would
+be destroying state its owner never handed over.
 
-#### SyncItemMeta and SyncManifest
+Ownership is a fact about an entity, so it lives on the entity. One field
+settles three questions that would otherwise each grow their own rule:
 
-Item metadata declares format, encoding, collection, source language,
-and connector context — no heuristic detection:
+1. **Pull does not overwrite what the recipe owns.** A recipe-owned entity
+   arriving on a pull updates the local view of what the server believes;
+   it never rewrites the recipe. The file on disk stays the source.
+2. **The workspace API refuses to mutate what the recipe owns.** The refusal is
+   a property of the row, not a check written into each handler, so a route
+   added later inherits it.
+3. **The web surfaces render read-only from data.** A recipe-owned collection
+   shows its provenance and its edit affordances are absent because the entity
+   says so — not because a component hardcoded a list of what is editable.
 
-```protobuf
-message SyncItemMeta {
-  string name = 1;
-  string format = 2;           // declared, not guessed
-  string encoding = 3;
-  string collection = 4;
-  string block_index_json = 5;
-  string preview_html = 6;
-  string source_language = 7;
-  map<string, string> connector_data = 8;
-}
+Provenance also has a default. An entity that arrives through a push and does
+not name an owner is recipe-owned; one created through the workspace API is
+workspace-owned. `OWNER_UNSPECIFIED` therefore resolves by the channel the
+entity arrived on, and an older client that omits the field still produces
+correct ownership rather than a workspace-editable copy of a governed entity.
 
-message SyncManifest {
-  string upload_id = 1;
-  string project_id = 2;
-  string stream = 3;
+### Brand voice is context, not a side call
 
-  repeated ChunkRef chunks = 4;
-  repeated SyncItemMeta items = 5;
+A brand voice profile bound by a recipe is governance attached to a region of
+the project's context space. It travels as a `voice` entry in the `context`
+content type, in the same push as the collections and profile bindings that
+name it, under the same hash and the same ownership rule.
 
-  string actor_id = 6;
-  string workspace_slug = 7;
-  string connector_id = 8;
-  map<string, string> context = 9;
-}
+That places it under this protocol's guarantees rather than beside them. The
+profile cannot land while the content that it governs fails, or the reverse.
+The workspace cannot silently edit a profile the recipe owns, and the version
+history the brand hub keeps records which side authored each version instead of
+inferring it. Rules the server promoted from corrections belong to the
+workspace and are preserved across a push for exactly the reason the ownership
+field exists: they were never the recipe's.
 
-message ChunkRef {
-  int32 index = 1;
-  string content_type = 2;
-  string hash = 3;          // SHA-256 of compressed bytes
-  int32 record_count = 4;
-  int64 byte_size = 5;
-}
-```
+See [AD-framework-022: Brand Voice](https://neokapi.github.io/contribute/architecture/022-brand-voice)
+for the profile model, and [AD-021: The context graph](021-brand-knowledge-graph.md)
+for the graph the workspace's own context lives in.
 
-### Transport Layer: Direct-to-Storage
+### Streams are one concept
 
-The API server is a control plane only. All data flows directly between
-client and blob storage.
+A git branch, a release, and a governance experiment are all **streams**. They
+differ in intent and metadata, never in kind: each is a named branch of content
+with its own change log, branched copy-on-write from a parent at a cursor, as
+described in [AD-005: Streams](005-streams.md). There is no separate experiment
+object, no separate release object, and no third thing a client has to learn to
+address.
 
-```
-Push:
-  1. Client → API: POST /sync/push/init (Merkle tree hashes)
-     ← { upload_id, changed_items, new_items, deleted_items }
-     Fast path: root_hash match → { status: "unchanged" }
+Two things follow.
 
-  2. For each changed item:
-     Client → API: POST /sync/push/diff (block hashes for that item)
-     ← { needed, deleted, conflicts, chunk_urls }
+**Change-sets are proposals applied to a stream.** A change-set is an ordered
+set of operations with a review status — the reviewed path that governed edits
+travel instead of applying directly. Applying one is applying its operations to
+a stream. That makes "propose a governance change", "propose a terminology
+change", and "propose a release" the same shape of object at the same target,
+and it means the review, audit, and rollback machinery in
+[AD-020](020-governance-audit-rollback.md) covers all of them.
 
-  3. Client → Blob Storage (parallel, direct, only needed records):
-     PUT chunk_urls[0] ← zstd-compressed SyncChunk
-     PUT chunk_urls[1] ← zstd-compressed SyncChunk
-     ...
+**Context may differ per stream.** An experiment that tries a different voice
+for one market is a stream whose context entries differ from its parent's, and
+nothing else about it is unusual. This needs no new resolution machinery: the
+framework's profile resolution chain already ranks an explicit selection over a
+collection binding, over a **stream** binding, over a project binding, over a
+workspace default. The stream tier sits between collection and project and has
+from the start. A stream-scoped context entry populates that tier; comparing
+two streams' governance is comparing two sets of context entries.
 
-  4. Client → API: POST /sync/push/commit
-     ← 202 { push_id }
+Every sync operation is already stream-addressed — `SyncPushInit.stream`,
+`SyncPullRequest.stream`, `SyncManifest.stream`, and the stream segment of each
+route — so carrying context per stream adds a scope to the entities, not a
+dimension to the protocol.
 
-  5. Worker reads chunks, decompresses, routes by content type, stores.
+### Transport layer
 
-Pull:
-  1. Client → API: GET /sync/pull?cursor=X&limit=1000
-     ← zstd-compressed SyncPullResponse (changes since cursor)
-```
+The API server never handles content bytes. Chunks move between the client and
+object storage, and the API process authorizes, negotiates, and records.
 
-The `init` response includes a `transport` field:
+A push is: init, then a block diff per changed item, then chunk uploads, then a
+commit that returns `202 Accepted` with a push identifier. A pull is a single
+cursor-paginated request returning changed records since the cursor. The client
+polls the push status endpoint for ingestion progress.
 
-- `"direct"` — SAS URLs for Azure Blob (production).
-- `"proxy"` — upload through the API server (local dev, self-hosted
-  without Azure).
+The init exchange settles a transport mode. In `direct` mode the server issues
+pre-signed URLs and the client uploads straight to object storage. In `proxy`
+mode — local development, or a self-hosted deployment without pre-signed URL
+support — the client uploads through the API, which stores each chunk
+content-addressed so the worker resolves it identically either way. The client
+library handles both behind one call.
 
-The client library handles both transparently.
+Chunks are content-addressed by the SHA-256 of the exact bytes uploaded, after
+compression. The commit manifest names those hashes, and the server verifies
+each named chunk exists before enqueuing the job. The worker re-derives the
+hash of what it downloaded and refuses bytes that do not match: the manifest's
+hash is a promise about content, not merely the name of a place to find it.
 
-### Compression
+### Compression and chunking
 
-zstd, applied per chunk:
+zstd, applied per chunk, from a pooled encoder and decoder
+(`core/storage/compression`) so no allocation is paid per request. Repetitive
+translation payloads compress well. Dictionary support is an optional hook: the
+pool accepts a trained dictionary, but none is shipped, so the default path is
+standard zstd. A dictionary would most help small payloads, which lack the
+context to build shared state on the fly; training and embedding one is future
+work.
 
-- Standard zstd at the default speed level. Repetitive translation data
-  (the common case) compresses well — large repetitive payloads reach
-  better than 10x in the package's own tests.
-- Streaming — no full-payload buffering on client or worker.
-- Library: `github.com/klauspost/compress/zstd`, wrapped by an
-  encoder/decoder pool (`core/storage/compression`) for zero-allocation
-  reuse across requests.
-- **Dictionary support is an optional hook, not yet wired.** The pool
-  accepts a trained dictionary (`zstd.WithEncoderDict` /
-  `WithDecoderDicts`), and the client's `EnableCompression(dict)` takes
-  one, but no dictionary is embedded in or shipped with the CLI — the
-  default path passes `nil`, so production uses standard zstd without a
-  shipped dictionary. A trained dictionary would most help small payloads,
-  which lack enough data to build shared context on the fly; training and
-  embedding one remains future work.
+Chunks are sealed by serialized byte size rather than record count, sized from
+each record's full marshaled size so that records with rich annotations cannot
+produce an oversized chunk. A record larger than the threshold rides in a chunk
+of its own. A secondary record-count cap keeps chunks bounded when records are
+tiny. Each chunk carries one content type, which keeps worker routing a switch,
+and each is independently retryable.
 
-### Chunking
+### Budget and rate limits
 
-Chunks are sealed by byte size, not record count:
+The commit manifest declares each chunk's byte size, and the server rejects a
+manifest whose total exceeds the project's upload budget before it pays for a
+storage probe per chunk. Per-project rate limits bound push frequency and block
+count. Pull is cursor-paginated with a default and a maximum page size.
 
-- Target: ~1MB uncompressed per chunk.
-- Accumulate records until the chunk reaches the target, then seal.
-- Prevents oversized chunks from records with rich annotations.
-- Each chunk carries one content type (simpler routing in the worker).
-- Each chunk independently retryable.
+### Hash cache
 
-### Upload Budget Enforcement
+Item and block hashes are cached so diff negotiation does not read the full
+hash set from the database on every push init: block hashes keyed by project
+and item, item hashes keyed by project, invalidated on write and falling back
+to a database query on a miss. Without it the server would load 100K hashes per
+init on a large project.
 
-SAS URLs are generated with constraints:
+### Async ingestion
 
-- `Content-Length` limit per chunk (2x target size as headroom).
-- Total upload budget per push (project storage quota).
-- Server validates total bytes on commit against the budget.
-- Prevents malicious clients from uploading unlimited data.
+The API process validates, negotiates, receives the manifest, enqueues a job,
+and returns. The worker reads chunks from storage, verifies each against its
+declared hash, decompresses, routes by content type, and stores — grouping
+records by item and writing in batches under one transaction per item, with
+multi-row upsert rather than per-row insert. It publishes a push-completed
+event, invalidates the hash cache, and deletes the manifest blob.
 
-### Hash Cache
-
-Project content hashes are cached in Redis for fast diff computation:
-
-- `sync:hashes:{project_id}:{item_name}` → map of block_id → content_hash.
-- `sync:item_hashes:{project_id}` → map of item_name → item_hash.
-- Invalidated on block write (event-driven).
-- Falls back to PostgreSQL query on cache miss.
-
-Without the cache, the server would load 100K hashes from PostgreSQL on
-every push init. With it, diff negotiation is sub-100ms for
-100K-block projects.
-
-### Async Ingestion
-
-Push is asynchronous. The API server's responsibility shrinks to:
-validate auth, negotiate the diff, receive the manifest, enqueue a
-worker job, return 202 immediately. The heavy DB work moves to the
-worker.
-
-```
-Client → API → Blob Storage (chunks via SAS URLs) → 202 Accepted (push_id)
-Worker → Read blob chunks → Decompress → Validate → Bulk INSERT → DB
-Client → Poll /sync/status?push_id=X
-```
-
-The worker:
-
-1. Reads chunks from storage (streaming, not all-in-memory).
-2. Validates schema for each chunk.
-3. Groups records by item and processes in batches.
-4. Bulk INSERT using PostgreSQL multi-row INSERT with ON CONFLICT
-   (10-100x faster than per-row).
-5. Single transaction per item with proper error handling.
-6. Publishes `EventPushCompleted` when all items are stored.
-7. Invalidates the Redis hash cache.
-8. Deletes the blob after successful processing.
-
-Bulk INSERT example:
-
-```sql
-INSERT INTO blocks (...) VALUES
-  ($1,...), ($2,...), ($3,...), ... ($50,...)
-ON CONFLICT (project_id, id) DO UPDATE SET ...
-```
-
-For PostgreSQL, `COPY` is even faster but doesn't support upsert.
-Multi-row INSERT with ON CONFLICT is the pragmatic choice.
-
-### Rate Limiting
-
-Per-project limits on the push endpoint:
-
-- Max 10 pushes per minute per project (configurable).
-- Max 50MB per push.
-- Max 10,000 blocks per push.
-- Returns 429 Too Many Requests when exceeded.
-
-### Pull Pagination
-
-`GET /sync/pull` is cursor-paginated to bound response size:
-
-- Default limit: 1,000 blocks per response.
-- Max limit: 10,000 blocks.
-- Cursor-based pagination via `offset` parameter.
-- Response includes `next_offset` when more blocks exist.
-
-The pull response carries multiple content types in one stream:
-
-```protobuf
-message SyncPullResponse {
-  int64 cursor = 1;
-  bool has_more = 2;
-
-  repeated SyncBlock blocks = 10;
-  repeated SyncTerm terms = 11;
-  repeated SyncTMEntry tm_entries = 12;
-  repeated SyncQAResult qa_results = 13;
-  repeated SyncActivity activities = 14;
-  repeated SyncMedia media = 15;   // metadata only; binary via blob URLs
-}
-```
-
-### Worker Processing
-
-```go
-for _, chunk := range manifest.Chunks {
-    data := downloadAndDecompress(chunk)
-    switch chunk.ContentType {
-    case "blocks":
-        storeBlocks(data.Blocks, manifest)
-    case "terms":
-        storeTerms(data.Terms, manifest)
-    case "tm":
-        storeMemoryEntries(data.MemoryEntries, manifest)
-    case "media":
-        storeMedia(data.Media, manifest)
-    }
-}
-invalidateHashCache(manifest.ProjectID)
-publishEventPushCompleted(manifest)
-```
+A content type the worker does not implement fails the job explicitly rather
+than being dropped: a push that reports success while discarding a payload is
+worse than one that fails, because only the second is recoverable.
 
 ### Endpoints
 
 ```
 POST /api/v1/workspaces/:ws/projects/:id/sync/push/init
 POST /api/v1/workspaces/:ws/projects/:id/sync/push/diff
+PUT  /api/v1/workspaces/:ws/projects/:id/sync/push/chunks/:uploadId/:index
 POST /api/v1/workspaces/:ws/projects/:id/sync/push/commit
 GET  /api/v1/workspaces/:ws/projects/:id/sync/pull
 GET  /api/v1/workspaces/:ws/projects/:id/sync/status?push_id=X
-GET  /api/v1/workspaces/:ws/projects/:id/changes
 ```
 
-Workspace-scoped routes enforce tenancy at the transport layer.
+Stream-scoped variants carry the stream in the path. Workspace-scoped routes
+enforce tenancy at the transport layer; the server authorizes against the
+path-scoped project and ignores any project, actor, or workspace the client
+supplies in a body, so a request cannot address a tenant it was not routed to.
 
-### Operational Alignment
+### Operational alignment
 
-The API server and worker must use the **same blob store**. In
-production, both use Azure Blob Storage via Managed Identity. In local
-dev, both must point to the same filesystem directory
-(`BLOB_STORAGE_LOCAL_DIR` / `LOCAL_BLOB_DIR` set to the same path).
-Misaligned stores cause push jobs to fail silently with "chunk download
-failed". The dev Makefile pins both to `/tmp/bowrain-blobs`; Azure
-deployments pass `AZURE_STORAGE_ACCOUNT_URL` and
-`AZURE_STORAGE_CONTAINER` to the worker's container app.
+The API process and the worker must use the same blob store. Misaligned stores
+produce push jobs that fail with a chunk download error and no other symptom,
+because every earlier step succeeds. Local development pins both to the same
+directory; deployed environments pass both the same bucket configuration.
 
 ## Consequences
 
-- The init request is always small (item-level hashes), regardless of
-  project size. Block-level diff runs only for items that actually
-  changed. Root hash fast path catches unchanged projects in a single
-  round-trip.
-- Conflict detection via `expected_hash` prevents silent overwrites;
-  clients see conflicts and choose to resolve or force.
-- Redis hash cache keeps diff computation sub-100ms for large
-  projects.
-- Byte-size chunking keeps chunks ~1MB regardless of record size —
-  no oversized chunks from rich annotations.
-- Transport modes: direct-to-storage (Azure) or proxy (local /
-  self-hosted) behind the same client API.
-- The API server never touches content bytes — it's a thin control
-  plane. All data flows through blob storage.
-- The typed content layer is extensible: new content types add a field
-  to `SyncChunk` and a worker handler, with no transport changes.
-- The full Block model survives the sync boundary — annotations,
-  properties, skeleton, display hints, and connector data all round-trip.
-- Terminology, content memory, and binary assets sync through the same protocol.
-- Per-chunk zstd reduces transfer and storage costs; an optional trained
-  dictionary is supported by the compression pool but not yet shipped.
-- Async ingestion keeps the API responsive under any push load; the
-  worker batches with bulk INSERT for 10-100x faster DB writes.
-- Rate limiting and pagination bound resource usage per tenant.
+- One transport carries every kind of project state. A new kind is a content
+  type, and a content type is inside the transaction, the hash comparison, and
+  the reconciliation by construction.
+- Push describes a desired state. Removals are reported by the side that
+  notices them, and a rename needs no special handling on either side.
+- The completeness of a client's hash map determines whether its push can be
+  destructive. Context is complete on every push and reconciles from the first
+  one; blocks are additive until a client establishes a complete map.
+- Ownership is data. Whether an entity may be edited is answered the same way
+  in the pull path, the API, and the UI, and a new surface inherits the answer
+  instead of reimplementing it.
+- Brand voice, terminology, and content memory land or fail with the content
+  they govern. A push cannot half-succeed across the boundary between content
+  and the governance over it.
+- A stream is the only branching concept. Experiments, releases, and branches
+  reuse the machinery streams already have, and per-stream governance falls out
+  of a resolution tier that exists.
+- The init request stays small at any project size: item-level hashes, not
+  block-level. Block comparison runs only for items that actually changed.
+- The API process never touches content bytes, so push load is bounded by
+  negotiation cost rather than by payload size.
+- Conflict detection prevents silent overwrites for content and for governance,
+  and distinguishes "changed underneath you" from "not yours to change".
 
 ## Related
 
@@ -536,4 +445,11 @@ deployments pass `AZURE_STORAGE_ACCOUNT_URL` and
 - [AD-005: Streams](005-streams.md)
 - [AD-007: Media and Blob Storage](007-media-and-blob-storage.md)
 - [AD-008: Connector System](008-connector-system.md)
+- [AD-020: Governance, audit, and rollback](020-governance-audit-rollback.md)
+- [AD-021: The context graph](021-brand-knowledge-graph.md)
+- [AD-022: Convergence as a service](022-convergence-as-a-service.md)
+- [Note: Bowrain Sync Protocol](/notes/sync-protocol) — message shapes, hash
+  construction, and the reconciliation table
 - [AD-framework-002: Content Model](https://neokapi.github.io/contribute/architecture/002-content-model)
+- [AD-framework-022: Brand Voice](https://neokapi.github.io/contribute/architecture/022-brand-voice)
+- [AD-framework-034: Content-Model Wire Schema](https://neokapi.github.io/contribute/architecture/034-content-model-wire-schema)
