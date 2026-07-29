@@ -124,6 +124,14 @@ func (r *ContextSearchResult) FormatText(w io.Writer) error {
 			if t.ValidTo != "" {
 				fmt.Fprintf(w, " until %s", t.ValidTo)
 			}
+			// The domain is the axis that segments the graph — which part of the
+			// subject this concept belongs to. It was carried in the struct and
+			// the JSON but never rendered, so the one field that distinguishes
+			// one body of context from another was invisible at the surface
+			// people actually read.
+			if t.Domain != "" {
+				fmt.Fprintf(w, "  [%s]", t.Domain)
+			}
 			fmt.Fprintln(w)
 			if t.Definition != "" {
 				fmt.Fprintf(w, "  %-24s %s\n", "", t.Definition)
