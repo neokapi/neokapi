@@ -22,6 +22,14 @@
 #                         the "Kapi drafts" half is matched: "Bowrain governs
 #                         and stewards …" is ordinary, correct prose.
 #   "for your whole team" R10. Team is one angle, not the venue.
+#   "localization platform"
+#                         R2/R12. The product describing ITSELF as one. Every
+#                         transactional email carried this as its tagline
+#                         through four sweeps. Note the deliberate narrowness:
+#                         R2's vocabulary policy keeps l10n as SEO vocabulary on
+#                         bowrain.cloud, so "localization" is NOT banned — only
+#                         the product calling itself a localization platform,
+#                         which R2 retires as a headline and R12 as a frame.
 #
 # What this guard CANNOT catch: a hero that leads with translation. That is a
 # judgement about emphasis, not a phrase, and it stays a review question.
@@ -42,7 +50,7 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 # prose actually contains: "brand **memory**" and a "brand\nmemory" split across
 # two lines both count. Matching is per-line, so the wrap case is handled by
 # normalising whitespace before the scan rather than by the pattern.
-readonly RETIRED_RE='brand[[:space:]*_]+memor(y|ies)|brand-first|Kapi[[:space:]*_]+drafts|for your whole team'
+readonly RETIRED_RE='brand[[:space:]*_]+memor(y|ies)|brand-first|Kapi[[:space:]*_]+drafts|for your whole team|locali[sz]ation[[:space:]*_]+platform'
 
 # ── scope ────────────────────────────────────────────────────────────────────
 #
@@ -57,6 +65,12 @@ readonly SWEPT_SURFACES=(
   # The agent skill is read by an assistant on every run, which makes it the
   # highest-leverage prose in the repo and the easiest to forget (P-4).
   cli/skills
+  # Transactional email is the highest-REACH prose in the product: its header
+  # goes out with every message the platform sends. It carried "Localization
+  # platform" through four sweeps because the emails are a separate build with
+  # their own catalogs, so nothing else looked here (P-7).
+  bowrain/emails/src
+  bowrain/mailer/subjects
 )
 
 # Surfaces deliberately NOT scanned yet, each with the worklist item that will
@@ -66,8 +80,6 @@ readonly SWEPT_SURFACES=(
 readonly PENDING_SURFACES=(
   "bowrain/web/landing/src   P-1  landing rebuild (founder-gated: section order + whether 'coordinates' survives a buyer)"
   "bowrain/packages/app      P-3  nav re-root, Brand hub → Context hub (founder-gated: UX + string-orphaning hazard)"
-  "bowrain/emails            P-7  onboarding and email copy → context discovery"
-  "bowrain/mailer/subjects   P-7  as above"
 )
 
 # Files inside a swept surface that legitimately spell a retired phrase.
@@ -126,6 +138,7 @@ self_test() {
   cat >"$tmp/surface/retired.md" <<'EOF'
 Bowrain is the shared brand memory for your team and your agents.
 The brand-first story led with voice.
+Bowrain — Localization platform
 Kapi drafts, Bowrain governs.
 It converges it for your whole team, all the time.
 EOF
@@ -141,6 +154,7 @@ EOF
 Bowrain is the context graph your people and agents plug into.
 Content memory keeps its name: the store of approved wording.
 Bowrain governs and stewards multilingual content.
+An SEO page may say localization; the product may not call itself one.
 Brand is one coordinate beside audience, surface, register and market.
 The brand voice profile is one axis of a profile.
 EOF
@@ -151,12 +165,12 @@ EOF
     status=1
   else
     n=$(printf '%s\n' "$out" | grep -c . || true)
-    if [ "$n" -ne 4 ]; then
-      echo "✖ self-test: expected 4 hits in the planted file, got ${n}:"
+    if [ "$n" -ne 5 ]; then
+      echo "✖ self-test: expected 5 hits in the planted file, got ${n}:"
       printf '%s\n' "$out"
       status=1
     else
-      echo "✓ self-test: flags all four retired phrases (4 hits)"
+      echo "✓ self-test: flags all five retired phrases (5 hits)"
     fi
   fi
 
@@ -217,6 +231,9 @@ echo "  Kapi drafts, …        → kapi holds the context graph for one project
 echo "                          Bowrain holds the same graph across projects."
 echo "                          Reach, not capability."
 echo "  for your whole team   → team is one angle, not the venue."
+  echo "  localization platform → the context graph. (l10n stays as SEO"
+  echo "                          vocabulary; the product does not call"
+  echo "                          itself a localization platform.)"
 echo ""
 echo "See web/docs/contribute/implementation/positioning.md for the canon."
 exit 1
