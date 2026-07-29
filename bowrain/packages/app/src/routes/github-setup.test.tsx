@@ -81,6 +81,8 @@ function setup({
   const api = {
     listWorkspaces: vi.fn().mockImplementation(() => Promise.resolve([...workspaceList])),
     listProjects: vi.fn().mockImplementation(() => Promise.resolve(projects)),
+    githubSetupState: vi.fn().mockResolvedValue({ state: "signed-state", expires_in: 1800 }),
+    claimInstallation: vi.fn().mockResolvedValue({ installation_id: 147350515, account: "ada" }),
     listInstallationRepos: vi.fn().mockResolvedValue([repo]),
     detectInstallationRepo: vi.fn().mockResolvedValue(detection),
     createWorkspace: vi.fn().mockImplementation((name: string, slug: string) => {
@@ -132,9 +134,13 @@ describe("GithubSetupRoute missing installation id", () => {
 
     await screen.findByTestId("installation-id-recovery");
     expect(screen.getByText(/This page is where GitHub sends you/)).toBeVisible();
-    expect(screen.getByRole("link", { name: "the Bowrain app" })).toHaveAttribute(
-      "href",
-      "https://github.com/apps/bowrain-cloud/installations/new",
+    // The install link carries the signed state naming this workspace, so the
+    // installation comes back attributable rather than anonymous.
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "the Bowrain app" })).toHaveAttribute(
+        "href",
+        "https://github.com/apps/bowrain-cloud/installations/new?state=signed-state",
+      ),
     );
   });
 
@@ -183,6 +189,51 @@ describe("GithubSetupRoute setup_action=update", () => {
           repository: "acme/website",
           project_id: "p-1",
         }),
+      ),
+    );
+  });
+});
+
+describe("GithubSetupRoute installation ownership", () => {
+  it("redeems the signed state before reading the installation", async () => {
+    search.value = { installation_id: 147350515, setup_action: "install", state: "echoed-state" };
+    const { api } = setup();
+
+    await waitFor(() =>
+      expect(api.claimInstallation).toHaveBeenCalledWith("ada", "147350515", "echoed-state"),
+    );
+    // Only once the installation belongs to the workspace is it read.
+    await waitFor(() => expect(api.listInstallationRepos).toHaveBeenCalledWith("ada", "147350515"));
+  });
+
+  it("does not claim when GitHub sent no state", async () => {
+    search.value = { installation_id: 147350515, setup_action: "install" };
+    const { api } = setup();
+
+    await waitFor(() => expect(api.listInstallationRepos).toHaveBeenCalled());
+    expect(api.claimInstallation).not.toHaveBeenCalled();
+  });
+
+  it("offers a reconnect path when the installation is not this workspace's", async () => {
+    search.value = { installation_id: 147350515 };
+    setup({
+      overrides: {
+        listInstallationRepos: vi
+          .fn()
+          .mockRejectedValue(
+            apiErrorFromResponse(404, JSON.stringify({ error: "installation not found" }), null),
+          ),
+      },
+    });
+
+    const notice = await screen.findByTestId("installation-not-connected");
+    expect(notice).toHaveTextContent("not connected to");
+    // Reconnecting carries the signed state, which is what attributes the
+    // installation to this workspace on the way back.
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "Connect this installation" })).toHaveAttribute(
+        "href",
+        "https://github.com/apps/bowrain-cloud/installations/new?state=signed-state",
       ),
     );
   });

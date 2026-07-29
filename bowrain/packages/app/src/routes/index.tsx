@@ -27,7 +27,7 @@ import {
   ActivityFeedSkeleton,
   TaskBoardSkeleton,
 } from "@neokapi/ui";
-import { searchInstallationId, searchSetupAction } from "./installation-id";
+import { searchInstallationId, searchSetupAction, searchSetupState } from "./installation-id";
 import {
   searchPlan,
   searchSeats,
@@ -219,6 +219,11 @@ const githubSetupRoute = createRoute({
     // same, keeping it only to tell "arrived from GitHub" apart from a
     // hand-typed URL when the installation id is missing.
     setup_action: searchSetupAction(search.setup_action),
+    // The signed state Bowrain sent to GitHub and GitHub echoed back. It names
+    // the workspace that started the install, which is what lets the returning
+    // request claim the installation; undeclared search params are stripped by
+    // the router, so it has to be validated here to reach the page at all.
+    state: searchSetupState(search.state),
   }),
   component: lazyRouteComponent(() => import("./github-setup"), "GithubSetupRoute"),
 });

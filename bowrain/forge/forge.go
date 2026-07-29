@@ -372,3 +372,40 @@ func ParsePushEvent(kind Kind, body []byte) (PushEvent, bool) {
 		return PushEvent{Branch: strings.TrimPrefix(p.Ref, branchRefPrefix), RepoPath: p.Project.PathWithNamespace}, true
 	}
 }
+
+// InstallationEvent is the slice of a GitHub App installation-lifecycle webhook
+// the ownership record acts on.
+type InstallationEvent struct {
+	Action         string // "created", "deleted", "suspend", "added", "removed", …
+	InstallationID int64  // the installation the delivery is about
+	Account        string // the organization or user the app is installed on
+}
+
+// ParseInstallationEvent decodes the app-level installation-lifecycle payloads
+// ("installation" and "installation_repositories"), which both nest the same
+// installation object. Payloads carrying no installation id return ok=false —
+// callers ignore them rather than erroring, since one app hook receives every
+// event type GitHub sends.
+//
+// The account is read for display and operator diagnosis only. Nothing here
+// names a workspace, and nothing here can: the delivery is authentic but
+// anonymous, so it establishes that an installation EXISTS, never whose it is.
+func ParseInstallationEvent(body []byte) (InstallationEvent, bool) {
+	var p struct {
+		Action       string `json:"action"`
+		Installation struct {
+			ID      int64 `json:"id"`
+			Account struct {
+				Login string `json:"login"`
+			} `json:"account"`
+		} `json:"installation"`
+	}
+	if err := json.Unmarshal(body, &p); err != nil || p.Installation.ID == 0 {
+		return InstallationEvent{}, false
+	}
+	return InstallationEvent{
+		Action:         p.Action,
+		InstallationID: p.Installation.ID,
+		Account:        p.Installation.Account.Login,
+	}, true
+}

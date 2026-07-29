@@ -43,6 +43,9 @@ func initTestStores(t *testing.T, srv *Server) {
 	srv.Services = service.NewServices(cs, srv.ConnectorReg, srv.FormatRegistry, srv.ToolRegistry)
 	// Convergence runs live on the same shared DB, as in production wiring.
 	srv.ConvergenceRunStore = bstore.NewConvergenceRunStore(db.DB)
+	// GitHub App installation ownership, as in production wiring — the record
+	// the post-install setup endpoints gate on.
+	srv.ForgeInstallationStore = bstore.NewForgeInstallationStore(db.DB)
 
 	if srv.Config.JWTSecret != "" {
 		as, err := auth.NewAuthStoreFromDB(db)

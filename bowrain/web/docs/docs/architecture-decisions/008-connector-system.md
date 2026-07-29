@@ -168,6 +168,23 @@ repository, routed to the tracked connector by repository path.
 Installing the app on a repository is the only per-repo step. GitLab has
 no app equivalent; its connectors use project access tokens.
 
+Because one app serves every workspace, and its JWT can mint a token for
+any installation of that app, an installation id carries no tenancy of
+its own. `forge_installations` supplies it: the row binding an
+installation to the single workspace that owns it, and the first thing
+the post-install setup endpoints consult — an installation a workspace
+has not claimed reads as not found, indistinguishable from one that has
+never existed. Ownership is written from the two ends of an install,
+which arrive independently and in either order. The app-level
+`installation` and `installation_repositories` deliveries are authentic
+but anonymous, so they only ever record an installation, and drop it on
+uninstall so a claim cannot outlive the access it was granted. The
+signed state minted when a workspace starts an install, and returned by
+GitHub on the setup redirect, is what attributes it; first claim wins.
+The state is a short-lived JWT under its own audience
+(`bowrain-setup-state`), keeping it and session tokens mutually
+unusable.
+
 ### Options and Status
 
 ```go

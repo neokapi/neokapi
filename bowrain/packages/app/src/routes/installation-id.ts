@@ -35,3 +35,15 @@ export function searchInstallationId(value: unknown): string | number | undefine
 export function searchSetupAction(value: unknown): "install" | "update" | undefined {
   return value === "install" || value === "update" ? value : undefined;
 }
+
+/**
+ * Search-param validator for the signed setup state. Bowrain mints it before
+ * sending the user to GitHub and GitHub echoes it back on the setup redirect;
+ * it names the workspace that started the install, which the installation id
+ * alone never does. Kept as the raw string so the router re-serializes it
+ * unchanged — a coerced value would round-trip as a JSON-quoted `?state="..."`
+ * and no longer verify.
+ */
+export function searchSetupState(value: unknown): string | undefined {
+  return typeof value === "string" && value !== "" ? value : undefined;
+}

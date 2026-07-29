@@ -558,6 +558,12 @@ export class WailsApiAdapter implements ApiAdapter {
     return { id: c.id, name: c.name, category: c.category };
   }
 
+  async githubSetupState(): Promise<never> {
+    throw new Error("GitHub App setup is not available in the desktop app");
+  }
+  async claimInstallation(): Promise<never> {
+    throw new Error("GitHub App setup is not available in the desktop app");
+  }
   async listInstallationRepos(): Promise<never> {
     throw new Error("GitHub App setup is not available in the desktop app");
   }

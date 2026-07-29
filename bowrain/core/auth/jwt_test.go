@@ -128,6 +128,62 @@ func TestValidateTokenExpired(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// Setup state travels through another party's URL, so the audience split is
+// what keeps it from being useful anywhere else: it can never be presented as
+// a session, and no session can be spent as state.
+func TestSetupState(t *testing.T) {
+	t.Parallel()
+
+	const secret = "test-secret-key-32-bytes-long!!!"
+
+	state, err := GenerateSetupState("ws-1", secret, time.Hour)
+	require.NoError(t, err)
+
+	wsID, err := ValidateSetupState(state, secret)
+	require.NoError(t, err)
+	assert.Equal(t, "ws-1", wsID)
+
+	t.Run("a session token is not setup state", func(t *testing.T) {
+		t.Parallel()
+		session, err := GenerateToken(&User{ID: "u1", Email: "u@example.com"}, secret, time.Hour)
+		require.NoError(t, err)
+		_, err = ValidateSetupState(session, secret)
+		require.Error(t, err)
+	})
+
+	t.Run("setup state is not a session token", func(t *testing.T) {
+		t.Parallel()
+		_, err := ValidateToken(state, secret)
+		require.Error(t, err)
+		_, err = ValidateAdminToken(state, secret)
+		require.Error(t, err)
+	})
+
+	t.Run("expired state is refused", func(t *testing.T) {
+		t.Parallel()
+		expired, err := GenerateSetupState("ws-1", secret, -time.Minute)
+		require.NoError(t, err)
+		_, err = ValidateSetupState(expired, secret)
+		require.Error(t, err)
+	})
+
+	t.Run("another key does not verify", func(t *testing.T) {
+		t.Parallel()
+		_, err := ValidateSetupState(state, "a-different-secret-key-32-bytes!")
+		require.Error(t, err)
+	})
+
+	t.Run("fails closed without a workspace or a secret", func(t *testing.T) {
+		t.Parallel()
+		_, err := GenerateSetupState("", secret, time.Hour)
+		require.Error(t, err, "state that names no workspace grants nothing and must not be minted")
+		_, err = GenerateSetupState("ws-1", "", time.Hour)
+		require.ErrorIs(t, err, ErrEmptySecret)
+		_, err = ValidateSetupState(state, "")
+		require.ErrorIs(t, err, ErrEmptySecret)
+	})
+}
+
 func TestGenerateRefreshToken(t *testing.T) {
 	t.Parallel()
 

@@ -90,6 +90,15 @@ type Server struct {
 	// initialized (the in-memory/desktop path runs connectors live-only).
 	ConnectorConfigStore *bstore.ConnectorConfigStore
 
+	// ForgeInstallationStore records which workspace each GitHub App
+	// installation belongs to. One registered app serves every workspace on a
+	// shared instance and its JWT can mint a token for any installation, so this
+	// store is what makes the post-install setup endpoints answerable: an
+	// installation a workspace has not claimed is invisible to it. Nil until
+	// PostgreSQL stores are initialized (the in-memory/desktop path is
+	// single-tenant and binds repositories directly).
+	ForgeInstallationStore *bstore.ForgeInstallationStore
+
 	// GitHubApp authenticates forge delivery as an installed GitHub App
 	// (nil unless the GITHUB_APP_* config is complete).
 	GitHubApp *forge.GitHubApp
@@ -542,6 +551,9 @@ func NewServer(cfg Config) *Server {
 			// Workspace-scoped connector configs, sealed at rest with the same
 			// cipher. Backs the /:ws/connectors handlers and boot rehydration.
 			s.ConnectorConfigStore = bstore.NewConnectorConfigStore(pgSQL, secretsCipher)
+			// GitHub App installation ownership — the tenancy record the
+			// post-install setup endpoints gate on.
+			s.ForgeInstallationStore = bstore.NewForgeInstallationStore(pgSQL)
 			s.AuditLogger = event.NewAuditLogger(pgSQL, s.EventBus)
 			if cfg.AuditRetentionDays > 0 {
 				s.AuditRetention = event.NewAuditRetentionCleaner(
@@ -1530,8 +1542,13 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 
 	// Connectors — Bowrain AD-011: /:ws/connectors (moved from public)
 	g.GET("/connectors", s.HandleListActiveConnectors)
-	// GitHub App post-install setup: list an installation's repositories and
-	// bind one to a project (creates an auth:app forge connector).
+	// GitHub App post-install setup: mint the state that ties an installation
+	// to this workspace, redeem it on the way back, then list the
+	// installation's repositories and bind one to a project (creating an
+	// auth:app forge connector). Everything below the claim requires the
+	// workspace to already own the installation.
+	g.GET("/github/setup-state", s.HandleGitHubSetupState)
+	g.POST("/github/installations/:installationID/claim", s.HandleClaimInstallation)
 	g.GET("/github/installations/:installationID/repositories", s.HandleListInstallationRepos)
 	g.POST("/github/installations/:installationID/repositories", s.HandleBindInstallationRepo)
 	g.GET("/github/installations/:installationID/repositories/:owner/:name/detect", s.HandleDetectInstallationRepo)
