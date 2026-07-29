@@ -28,6 +28,21 @@ async function injectAuthCookie(page: Page, authToken: string) {
   ]);
 }
 
+/**
+ * Open a Context surface through the sidebar.
+ *
+ * Concepts, Voice, Content memory and Activity moved under the Context section
+ * when the context hub landed, so none of them has a top-level `nav-*` entry
+ * any more: the icon rail selects the section and the secondary panel selects
+ * the surface within it.
+ */
+async function openContextSurface(page: Page, surface: string) {
+  await page.getByTestId("nav-context").click();
+  const item = page.getByTestId(`subnav-${surface}`);
+  await expect(item).toBeVisible({ timeout: 10000 });
+  await item.click();
+}
+
 let token: string;
 let wsSlug: string;
 let projectId: string;
@@ -132,11 +147,11 @@ test.describe("Routing", () => {
     await page.goto(`/${wsSlug}`);
     await expect(page.getByTestId("nav-translate")).toBeVisible({ timeout: 10000 });
 
-    // Navigate to memory via sidebar (Terms has no sidebar entry anymore —
-    // it is reached from the Memory surface / direct URL, covered above).
-    await page.getByTestId("nav-memory").click();
+    // Content memory is a Context surface, so reaching it is two clicks: the
+    // icon rail selects the section, the secondary panel selects the surface.
+    await openContextSurface(page, "memory");
     await expect(page.getByTestId("tm-browser")).toBeVisible({ timeout: 10000 });
-    expect(page.url()).toContain("/memory");
+    expect(page.url()).toContain("/context/memory");
 
     // Navigate to settings via sidebar
     await page.getByTestId("nav-settings").click();
@@ -155,50 +170,48 @@ test.describe("Routing", () => {
     await page.goto(`/${wsSlug}`);
     await expect(page.getByTestId("nav-translate")).toBeVisible({ timeout: 10000 });
 
-    // Navigate to memory
-    await page.getByTestId("nav-memory").click();
+    // Navigate to content memory
+    await openContextSurface(page, "memory");
     await expect(page.getByTestId("tm-browser")).toBeVisible({ timeout: 10000 });
 
     // Navigate to settings
     await page.getByTestId("nav-settings").click();
     await expect(page.getByTestId(TEST_IDS.settings.heading)).toBeVisible({ timeout: 10000 });
 
-    // Go back — should be on memory
+    // Go back — should be on content memory
     await page.goBack();
     await expect(page.getByTestId("tm-browser")).toBeVisible({ timeout: 10000 });
-    expect(page.url()).toContain("/memory");
+    expect(page.url()).toContain("/context/memory");
 
-    // Go back again — should be on dashboard
+    // Go back again — should be on the Context section landing, then the
+    // dashboard: the icon rail and the secondary panel are two history entries.
+    await page.goBack();
     await page.goBack();
     await expect(page.getByText("Routing Test Project").first()).toBeVisible({ timeout: 10000 });
 
-    // Go forward — should be on memory
+    // Go forward — should be on the Context section again
     await page.goForward();
-    await expect(page.getByTestId("tm-browser")).toBeVisible({ timeout: 10000 });
-    expect(page.url()).toContain("/memory");
+    await expect(page).toHaveURL(new RegExp(`/${wsSlug}/context`), { timeout: 10000 });
   });
 
-  test("sidebar collapsed state persists across navigation", async ({ page }) => {
+  test("the secondary panel lists the Context surfaces", async ({ page }) => {
     await injectAuthCookie(page, token);
     await page.goto(`/${wsSlug}`);
     await expect(page.getByTestId("nav-translate")).toBeVisible({ timeout: 10000 });
 
-    // Collapse sidebar (click the collapse toggle)
-    const collapseBtn = page.getByTestId("sidebar-collapse-btn");
-    if (await collapseBtn.isVisible()) {
-      await collapseBtn.click();
-      await page.waitForTimeout(300);
-
-      // Navigate away and back
-      await page.getByTestId("nav-memory").click();
-      await expect(page.getByTestId("tm-explorer")).toBeVisible({ timeout: 10000 });
-
-      // Sidebar should still be collapsed (check localStorage)
-      const stored = await page.evaluate(() => localStorage.getItem("bowrain-ui"));
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        expect(parsed.state.sidebarCollapsed).toBe(true);
-      }
+    // The desktop sidebar is a fixed icon rail — the collapse affordance it
+    // used to carry is gone, and so is the assertion that used to hide behind
+    // `if (await collapseBtn.isVisible())` and therefore never ran. What is
+    // worth pinning is that selecting a section reveals its surfaces, since
+    // that two-step is now the only route to most of them.
+    await page.getByTestId("nav-context").click();
+    for (const id of ["concepts", "voice", "memory", "activity"]) {
+      await expect(page.getByTestId(`subnav-${id}`)).toBeVisible({ timeout: 10000 });
     }
+
+    // The rail survives the navigation into a surface.
+    await page.getByTestId("subnav-concepts").click();
+    await expect(page).toHaveURL(new RegExp(`/${wsSlug}/context/concepts`), { timeout: 10000 });
+    await expect(page.getByTestId("nav-context")).toBeVisible();
   });
 });
