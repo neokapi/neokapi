@@ -44,12 +44,15 @@ export function Loop() {
             THE LEARNING LOOP
           </div>
           <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
-            Every correction makes the next draft better.
+            You correct a first draft. <span className="prism-text">You never write one.</span>
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Bowrain closes the loop between generating content and trusting it. Corrections don't
-            evaporate in a review thread — they become versioned rules, enforced on every future
-            generation.
+            An empty context is worth nothing, and nobody fills one in from a blank page. So the
+            first act is discovery: point Bowrain at the repository, the published site, whatever
+            style guide exists, and it proposes the profiles, the coordinates and the starting
+            vocabulary for review. After that the same loop keeps it current — corrections do not
+            evaporate in a review thread, they become versioned rules enforced on every future
+            generation. There is no separate onboarding mode to maintain.
           </p>
         </div>
 

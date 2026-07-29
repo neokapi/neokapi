@@ -65,11 +65,14 @@ export function Product() {
       <div ref={ref} className="reveal">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
-            The work of staying on-brand, made visible.
+            See what a change costs <span className="prism-text">before you make it.</span>
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Everything you need to run the loop — editing, review, voice, memory, automation, and
-            the systems your content already lives in.
+            Context becomes agreed rather than assumed. A change is proposed, its reach over
+            existing content is computed before anyone approves it, and it can be trialled on one
+            stream of real content before it merges — so a rule change is a measured experiment
+            rather than a leap. Around that: editing, review, memory, automation, and the systems
+            your content already lives in.
           </p>
         </div>
 
