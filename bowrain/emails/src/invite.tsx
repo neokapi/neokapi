@@ -52,13 +52,13 @@ export const InviteEmail = ({ workspaceName, role, joinURL }: InviteEmailProps) 
         {/* ── Header ─────────────────────────────────── */}
         <Section style={header}>
           <Text style={logoText}>Bowrain</Text>
-          <Text style={tagline}>Localization platform</Text>
+          <Text style={tagline}>The context graph for your content</Text>
         </Section>
 
         {/* ── Body ───────────────────────────────────── */}
         <Section style={card}>
           <Heading as="h1" style={h1}>
-            You&apos;re Invited 🎉
+            You&apos;re invited
           </Heading>
 
           <Text style={paragraph}>
@@ -67,7 +67,8 @@ export const InviteEmail = ({ workspaceName, role, joinURL }: InviteEmailProps) 
           </Text>
 
           <Text style={paragraph}>
-            Click the button below to accept the invitation and get started.
+            Accept the invitation to work with the workspace's shared context — its terms, its
+            voice, and the rules your content goes by.
           </Text>
 
           <Section style={btnWrapper}>

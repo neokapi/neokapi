@@ -78,7 +78,7 @@ export const DigestEmail = ({
           {/* ── Header ─────────────────────────────────── */}
           <Section style={header}>
             <Text style={logoText}>Bowrain</Text>
-            <Text style={tagline}>Localization platform</Text>
+            <Text style={tagline}>The context graph for your content</Text>
           </Section>
 
           {/* ── Title bar ──────────────────────────────── */}
