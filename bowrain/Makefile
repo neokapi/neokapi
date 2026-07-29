@@ -159,9 +159,15 @@ build-kapi-bowrain-plugin: ## Build the kapi-bowrain plugin binary (manifest-dri
 build-bowrain: frontend-build ## Build the Bowrain desktop app
 	cd apps/bowrain && wails3 build -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
 
+# One -tags flag, both tags. `go build -tags fts5 -tags server` does not union
+# them — the second occurrence replaces the first, so $(GOBUILD)'s fts5 was
+# silently dropped and the binary shipped without SQLite FTS5. Content memory
+# and terms then fail at runtime with "no such function: fts5", which is the
+# exact trap CONTRIBUTING.md warns about, and it would have met the first
+# person to run the e2e suite against this binary (#1579).
 build-headless: frontend-build ## Build headless desktop binary (server mode, no GUI deps)
 	@mkdir -p $(BIN_DIR)
-	cd apps/bowrain && $(GOBUILD) -tags server $(LDFLAGS) -o $(BIN_DIR)/bowrain-headless .
+	cd apps/bowrain && $(GO) build -tags fts5,server $(LDFLAGS) -o $(BIN_DIR)/bowrain-headless .
 
 install-kapi-bowrain-plugin: ## Install kapi-bowrain plugin binary to GOPATH/bin
 	cd plugin && $(GO) install $(LDFLAGS) ./cmd/kapi-bowrain
