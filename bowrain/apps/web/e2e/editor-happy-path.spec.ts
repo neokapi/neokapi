@@ -176,6 +176,11 @@ test.describe("Editor happy path", () => {
     const edited = blocks.find((b) => b.targets?.fr?.text === FRENCH_TEXT);
     expect(edited, "the edited block must be in the merged payload").toBeTruthy();
     expect(edited?.targets?.fr?.status).toBe("reviewed");
-    expect(edited?.targets?.de?.status ?? "").toBe("");
+    // Task 3 is that review status is per locale: approving fr must not carry
+    // over to de. Asserting de's status is empty says more than that, and it
+    // raced — the worker's platform provider drafts every target locale in the
+    // background, so de legitimately becomes "draft" once that lands, and the
+    // test passed or failed on whether it had. Assert the invariant instead.
+    expect(edited?.targets?.de?.status ?? "").not.toBe("reviewed");
   });
 });
