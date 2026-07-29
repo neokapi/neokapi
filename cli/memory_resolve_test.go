@@ -117,7 +117,7 @@ func TestOpenToolMemory_LeveragesProjectMemory(t *testing.T) {
 	require.NotNil(t, provider, "inside a project the provider must be the project content memory, not nil/Null")
 	defer cleanup()
 
-	got, found := provider.LookupExact("Welcome back", "en", "fr")
+	got, found := provider.LookupExact(t.Context(), "Welcome back", "en", "fr")
 	assert.True(t, found, "exact match must be found in the project content memory")
 	assert.Equal(t, "Bon retour", got)
 }
@@ -159,7 +159,7 @@ func TestOpenToolMemory_ExplicitFileFlag(t *testing.T) {
 	require.NotNil(t, provider)
 	defer cleanup()
 
-	got, found := provider.LookupExact("Save", "en", "de")
+	got, found := provider.LookupExact(t.Context(), "Save", "en", "de")
 	assert.True(t, found)
 	assert.Equal(t, "Speichern", got)
 }

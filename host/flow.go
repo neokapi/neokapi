@@ -1318,14 +1318,13 @@ type cliMemoryProvider struct {
 	tm sqltm.ContentMemory
 }
 
-func (p *cliMemoryProvider) LookupExact(source string, sourceLocale, targetLocale model.LocaleID) (string, bool) {
+func (p *cliMemoryProvider) LookupExact(ctx context.Context, source string, sourceLocale, targetLocale model.LocaleID) (string, bool) {
 	opts := sqltm.LookupOptions{
 		MinScore:   1.0,
 		MaxResults: 1,
 		MatchModes: []sqltm.MatchMode{sqltm.MatchModePlain},
 	}
-	// TODO: thread a real context once tools.MemoryProvider carries one.
-	matches, err := p.tm.LookupText(context.Background(), source, sourceLocale, targetLocale, opts)
+	matches, err := p.tm.LookupText(ctx, source, sourceLocale, targetLocale, opts)
 	if err != nil || len(matches) == 0 {
 		return "", false
 	}
@@ -1339,13 +1338,12 @@ func (p *cliMemoryProvider) LookupExact(source string, sourceLocale, targetLocal
 // codes is capped below 100 by the content memory; ambiguous exacts (several
 // full-score entries with differing targets) carry the Ambiguous flag so
 // the tool records them without filling.
-func (p *cliMemoryProvider) LookupBlock(block *model.Block, sourceLocale, targetLocale model.LocaleID, threshold int) (coretools.MemoryBlockMatch, bool) {
+func (p *cliMemoryProvider) LookupBlock(ctx context.Context, block *model.Block, sourceLocale, targetLocale model.LocaleID, threshold int) (coretools.MemoryBlockMatch, bool) {
 	opts := sqltm.LookupOptions{
 		MinScore:   float64(threshold) / 100.0,
 		MaxResults: 1,
 	}
-	// TODO: thread a real context once tools.MemoryProvider carries one.
-	matches, err := p.tm.Lookup(context.Background(), block, sourceLocale, targetLocale, opts)
+	matches, err := p.tm.Lookup(ctx, block, sourceLocale, targetLocale, opts)
 	if err != nil || len(matches) == 0 {
 		return coretools.MemoryBlockMatch{}, false
 	}
@@ -1362,14 +1360,13 @@ func (p *cliMemoryProvider) LookupBlock(block *model.Block, sourceLocale, target
 	}, true
 }
 
-func (p *cliMemoryProvider) LookupFuzzy(source string, sourceLocale, targetLocale model.LocaleID, threshold int) (string, int, bool) {
+func (p *cliMemoryProvider) LookupFuzzy(ctx context.Context, source string, sourceLocale, targetLocale model.LocaleID, threshold int) (string, int, bool) {
 	minScore := float64(threshold) / 100.0
 	opts := sqltm.LookupOptions{
 		MinScore:   minScore,
 		MaxResults: 1,
 	}
-	// TODO: thread a real context once tools.MemoryProvider carries one.
-	matches, err := p.tm.LookupText(context.Background(), source, sourceLocale, targetLocale, opts)
+	matches, err := p.tm.LookupText(ctx, source, sourceLocale, targetLocale, opts)
 	if err != nil || len(matches) == 0 {
 		return "", 0, false
 	}
