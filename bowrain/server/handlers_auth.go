@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"log/slog"
 	"net"
 	"net/http"
@@ -453,8 +454,13 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 		if errMsg == "" {
 			errMsg = "missing code or state"
 		}
+		// The identity provider's message is shown to the user, but it arrives
+		// in the query string of an unauthenticated GET, so whoever sends the
+		// link chooses it. Escaped on the way into the document — the sibling
+		// device-flow callback already routes the same two parameters through
+		// url.QueryEscape, and this page was the one that did not.
 		return c.HTML(http.StatusBadRequest, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
-<h1>Authentication Failed</h1><p>`+errMsg+`</p></body></html>`)
+<h1>Authentication Failed</h1><p>`+html.EscapeString(errMsg)+`</p></body></html>`)
 	}
 
 	// Look up and consume the pending state.

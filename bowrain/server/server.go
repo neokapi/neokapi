@@ -1061,6 +1061,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	// 2. Structured request logging (slog-echo, includes request_id)
 	// 3. Prometheus metrics
 	// 4. Recovery, body limit, CORS
+	// 5. Security response headers
 	e.Use(observe.RequestIDMiddleware())
 	e.Use(slogecho.NewWithConfig(slog.Default(), slogecho.Config{
 		DefaultLevel:     slog.LevelInfo,
@@ -1081,6 +1082,12 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	e.Use(middleware.Recover())
 	e.Use(middleware.BodyLimit("50M"))
 	e.Use(middleware.CORSWithConfig(s.corsConfig()))
+	// Baseline response headers (nosniff, frame policy, referrer policy, HSTS
+	// over TLS, and a content policy for this server's own responses). Runs
+	// after CORS so a preflight carries them too, and before every handler, so a
+	// handler that needs a different policy — the document previews, the SPA in
+	// development — overrides it rather than adding it.
+	e.Use(securityHeaders())
 
 	// Per-IP throttle knobs (env-overridable) used across the abuse-prone
 	// public and pre-auth routes below.
@@ -1469,7 +1476,14 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 
 // serveSPAFile serves a static file from the given directory, falling back to index.html
 // for SPA client-side routing.
+//
+// This path exists only in development and E2E; production builds the SPAs in
+// CI and serves them from the CDN, which owns their content policy. The
+// server's own policy is cleared here so the document behaves the same in both
+// places — see clearCSPForSPA.
 func serveSPAFile(c echo.Context, dir string) error {
+	clearCSPForSPA(c)
+
 	reqPath := c.Param("*")
 	if reqPath == "" {
 		reqPath = "index.html"
