@@ -104,6 +104,10 @@ type App struct {
 	// methods (reader creation, writer setup) can apply project format defaults.
 	ProjectContext *project.ProjectContext
 
+	// MCPSurface widens the MCP tool surface beyond the curated default. Set
+	// from `kapi mcp` flags; the zero value is the curated set.
+	MCPSurface MCPSurface
+
 	// convergeWriteFiles forces the file-writing path even for a single input in
 	// a project, overriding the process-only default (AD-026). Convergence
 	// (`kapi run` with no flow) sets it so it materializes the localized target

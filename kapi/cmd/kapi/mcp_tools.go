@@ -28,12 +28,14 @@ func init() {
 
 // registerKapiTools registers all kapi MCP tools on the given server.
 func registerKapiTools(server *mcp.Server, a *cli.App) {
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "list_formats",
-		Description: "List all supported file formats with their extensions, MIME types, and read/write capabilities",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input struct{}) (*mcp.CallToolResult, ListFormatsOutput, error) {
-		return handleListFormats(a)
-	})
+	if a.MCPSurface.AllTools {
+		mcp.AddTool(server, &mcp.Tool{
+			Name:        "list_formats",
+			Description: "List all supported file formats with their extensions, MIME types, and read/write capabilities",
+		}, func(ctx context.Context, req *mcp.CallToolRequest, input struct{}) (*mcp.CallToolResult, ListFormatsOutput, error) {
+			return handleListFormats(a)
+		})
+	}
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "detect_format",
@@ -49,33 +51,41 @@ func registerKapiTools(server *mcp.Server, a *cli.App) {
 		return handleExtractContent(ctx, a, input)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "run_flow",
-		Description: "Execute a processing flow (e.g. pseudo-translate, qa) on a file",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input RunFlowInput) (*mcp.CallToolResult, RunFlowOutput, error) {
-		return handleRunFlow(ctx, a, input)
-	})
+	if a.MCPSurface.AllFlows {
+		mcp.AddTool(server, &mcp.Tool{
+			Name:        "run_flow",
+			Description: "Execute a processing flow (e.g. pseudo-translate, qa) on a file",
+		}, func(ctx context.Context, req *mcp.CallToolRequest, input RunFlowInput) (*mcp.CallToolResult, RunFlowOutput, error) {
+			return handleRunFlow(ctx, a, input)
+		})
+	}
 
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "list_flows",
-		Description: "List all available processing flows",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input struct{}) (*mcp.CallToolResult, ListFlowsOutput, error) {
-		return handleListFlows()
-	})
+	if a.MCPSurface.AllFlows {
+		mcp.AddTool(server, &mcp.Tool{
+			Name:        "list_flows",
+			Description: "List all available processing flows",
+		}, func(ctx context.Context, req *mcp.CallToolRequest, input struct{}) (*mcp.CallToolResult, ListFlowsOutput, error) {
+			return handleListFlows()
+		})
+	}
 
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "list_tools",
-		Description: "List all available processing tools",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input struct{}) (*mcp.CallToolResult, ListToolsOutput, error) {
-		return handleListTools(a)
-	})
+	if a.MCPSurface.AllTools {
+		mcp.AddTool(server, &mcp.Tool{
+			Name:        "list_tools",
+			Description: "List all available processing tools",
+		}, func(ctx context.Context, req *mcp.CallToolRequest, input struct{}) (*mcp.CallToolResult, ListToolsOutput, error) {
+			return handleListTools(a)
+		})
+	}
 
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "pseudo_translate",
-		Description: "Pseudo-translate a file for localization QA testing",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input PseudoTranslateInput) (*mcp.CallToolResult, RunFlowOutput, error) {
-		return handlePseudoTranslate(ctx, a, input)
-	})
+	if a.MCPSurface.AllTools {
+		mcp.AddTool(server, &mcp.Tool{
+			Name:        "pseudo_translate",
+			Description: "Pseudo-translate a file for localization QA testing",
+		}, func(ctx context.Context, req *mcp.CallToolRequest, input PseudoTranslateInput) (*mcp.CallToolResult, RunFlowOutput, error) {
+			return handlePseudoTranslate(ctx, a, input)
+		})
+	}
 }
 
 // --- Input/Output types ---

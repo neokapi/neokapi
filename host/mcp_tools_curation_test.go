@@ -18,8 +18,8 @@ import (
 func TestExecutionToolsAreNeverAgentFacing(t *testing.T) {
 	for _, name := range []string{"external-command", "script"} {
 		assert.Truef(t, neverAgentFacing[name],
-			"%q executes caller-supplied code and must never be exposed over MCP, not even under %s — `kapi exec` still runs it",
-			name, ExposeAllMCPToolsEnv)
+			"%q executes caller-supplied code and must never be exposed over MCP, not even under --all-tools — `kapi exec` still runs it",
+			name)
 		assert.Falsef(t, agentFacingTools[name],
 			"%q must not also appear in the curated set", name)
 	}

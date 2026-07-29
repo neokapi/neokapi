@@ -61,6 +61,7 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		ExtraFlows:       a.ExtraFlows,
 
 		ProjectContext:      a.ProjectContext,
+		MCPSurface:          a.MCPSurface,
 		ProjectBindings:     a.ProjectBindings,
 		convergeWriteFiles:  a.convergeWriteFiles,
 		docCache:            a.docCache,
@@ -95,31 +96,36 @@ const (
 // absent once a run fans out. TestConvergeWorker_CoversEveryAppField reconciles
 // this map against App's actual fields and against what the clone produces.
 var convergeWorkerFields = map[string]workerFieldPolicy{
-	"FormatReg":           fieldShared,
-	"ToolReg":             fieldShared,
-	"SchemaReg":           fieldShared,
-	"PluginHost":          fieldShared,
-	"Config":              fieldShared,
-	"Verbose":             fieldShared,
-	"Quiet":               fieldOwned, // workers are silent; the parent owns the terminal
-	"AssumeYes":           fieldShared,
-	"CfgFile":             fieldShared,
-	"PluginDir":           fieldShared,
-	"Lang":                fieldShared,
-	"Explain":             fieldShared,
-	"FormatFlag":          fieldShared,
-	"Encoding":            fieldShared,
-	"SourceLang":          fieldShared,
-	"TargetLang":          fieldOwned, // the whole point: one worker, one locale
-	"MemoryBackend":       fieldShared,
-	"TermsBackend":        fieldShared,
-	"Credentials":         fieldShared,
-	"AISetupIOOverride":   fieldShared,
-	"AISetupPrompter":     fieldShared, // presentation, and a worker never prompts
-	"RegistryResolver":    fieldShared,
-	"FallbackRunE":        fieldShared,
-	"ExtraFlows":          fieldShared,
-	"ProjectContext":      fieldShared,
+	"FormatReg":         fieldShared,
+	"ToolReg":           fieldShared,
+	"SchemaReg":         fieldShared,
+	"PluginHost":        fieldShared,
+	"Config":            fieldShared,
+	"Verbose":           fieldShared,
+	"Quiet":             fieldOwned, // workers are silent; the parent owns the terminal
+	"AssumeYes":         fieldShared,
+	"CfgFile":           fieldShared,
+	"PluginDir":         fieldShared,
+	"Lang":              fieldShared,
+	"Explain":           fieldShared,
+	"FormatFlag":        fieldShared,
+	"Encoding":          fieldShared,
+	"SourceLang":        fieldShared,
+	"TargetLang":        fieldOwned, // the whole point: one worker, one locale
+	"MemoryBackend":     fieldShared,
+	"TermsBackend":      fieldShared,
+	"Credentials":       fieldShared,
+	"AISetupIOOverride": fieldShared,
+	"AISetupPrompter":   fieldShared, // presentation, and a worker never prompts
+	"RegistryResolver":  fieldShared,
+	"FallbackRunE":      fieldShared,
+	"ExtraFlows":        fieldShared,
+	"ProjectContext":    fieldShared,
+	// The MCP tool surface is set from `kapi mcp` flags and read only while that
+	// server is running. A converge worker never serves MCP, so sharing the
+	// parent's value is correct and inert — it is carried rather than reset so
+	// the clone stays a faithful copy.
+	"MCPSurface":          fieldShared,
 	"ProjectBindings":     fieldShared,
 	"convergeWriteFiles":  fieldShared,
 	"docCache":            fieldShared,

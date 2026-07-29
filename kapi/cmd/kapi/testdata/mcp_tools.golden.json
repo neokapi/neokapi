@@ -377,51 +377,6 @@
     }
   },
   {
-    "name": "list_flows",
-    "input_schema": {
-      "additionalProperties": false,
-      "type": "object"
-    }
-  },
-  {
-    "name": "list_formats",
-    "input_schema": {
-      "additionalProperties": false,
-      "type": "object"
-    }
-  },
-  {
-    "name": "list_tools",
-    "input_schema": {
-      "additionalProperties": false,
-      "type": "object"
-    }
-  },
-  {
-    "name": "pseudo_translate",
-    "input_schema": {
-      "additionalProperties": false,
-      "properties": {
-        "output_path": {
-          "description": "Output file path (default: auto-generated)",
-          "type": "string"
-        },
-        "path": {
-          "description": "File path to pseudo-translate",
-          "type": "string"
-        },
-        "target_lang": {
-          "description": "Target language (default: qps)",
-          "type": "string"
-        }
-      },
-      "required": [
-        "path"
-      ],
-      "type": "object"
-    }
-  },
-  {
     "name": "redact",
     "input_schema": {
       "$id": "redact",
@@ -577,42 +532,6 @@
         "locale",
         "file",
         "key"
-      ],
-      "type": "object"
-    }
-  },
-  {
-    "name": "run_flow",
-    "input_schema": {
-      "additionalProperties": false,
-      "properties": {
-        "flow_name": {
-          "description": "Name of the flow to run (e.g. pseudo-translate or qa)",
-          "type": "string"
-        },
-        "output_path": {
-          "description": "Output file path (default: auto-generated)",
-          "type": "string"
-        },
-        "path": {
-          "description": "Input file path (optional when project has content patterns)",
-          "type": "string"
-        },
-        "project": {
-          "description": "Path to a .kapi project file for project-scoped execution",
-          "type": "string"
-        },
-        "source_lang": {
-          "description": "Source language (default: en)",
-          "type": "string"
-        },
-        "target_lang": {
-          "description": "Target language",
-          "type": "string"
-        }
-      },
-      "required": [
-        "flow_name"
       ],
       "type": "object"
     }

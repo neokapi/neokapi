@@ -278,7 +278,8 @@
           "short": "List the files the project's content tracks"
         },
         "mcp": {
-          "short": "Start MCP server (stdio) exposing kapi's content tools (read, edit, check, brand, localize)"
+          "long": "Start an MCP server over stdio.\n\nThe default surface is deliberately small: retrieving the project's context,\nchecking content against it, writing edits back, and running the loop. That is\nwhat an assistant needs to work inside this project's context.\n\nEverything else the tool registry can do is still reachable — pipeline steps,\nformat internals, one-off transforms — but as an explicit opt-in, because a\nsurface nobody chose is how it grew to fifty-one tools.\n\n  --all-tools   every CLI-visible registry tool\n  --all-flows   the flow-running verbs\n  --all         both",
+          "short": "Start MCP server (stdio) exposing the project's context and the loop around it"
         },
         "memory": {
           "audit": {
