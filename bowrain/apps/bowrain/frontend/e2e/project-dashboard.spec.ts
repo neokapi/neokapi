@@ -9,21 +9,26 @@ test.beforeEach(async ({ page }) => {
 test("should display empty state on first load", async ({ page }) => {
   const empty = page.getByTestId("empty-projects");
   await expect(empty).toBeVisible();
-  await expect(empty).toContainText("Get started with your first project");
+  await expect(empty).toContainText("Set up your workspace");
 });
 
-test("should show pathway cards in empty state", async ({ page }) => {
+// #1363 replaced the three pathway cards ("From your repo" / "Upload files" /
+// "Connect a CMS") with the starter-pack hero plus a project card and a team
+// card. The onboarding surface is asserted through its testids so a further
+// rewording cannot silently take the suite down again.
+test("should show the onboarding routes in empty state", async ({ page }) => {
   const empty = page.getByTestId("empty-projects");
   await expect(empty).toBeVisible();
-  // Pathway cards should be visible with "Create project" action text
-  await expect(page.getByText("From your repo")).toBeVisible();
-  await expect(page.getByText("Upload files")).toBeVisible();
-  await expect(page.getByText("Connect a CMS")).toBeVisible();
+  // The assistant-driven starter pack, with its copyable prompt.
+  await expect(page.getByTestId("starter-prompt")).toBeVisible();
+  await expect(page.getByTestId("copy-starter-prompt")).toBeVisible();
+  // The project route: a drop zone and an explicit create button.
+  await expect(page.getByTestId("onboarding-dropzone")).toBeVisible();
+  await expect(page.getByTestId("onboarding-create-btn")).toBeVisible();
 });
 
-test("should open create project dialog from pathway card", async ({ page }) => {
-  // Click one of the pathway cards to open the create dialog
-  await page.getByText("Upload files").click();
+test("should open create project dialog from the onboarding card", async ({ page }) => {
+  await page.getByTestId("onboarding-create-btn").click();
   const dialog = page.getByTestId("create-project-dialog");
   await expect(dialog).toBeVisible();
   await expect(page.getByTestId("project-name-input")).toBeVisible();
@@ -34,8 +39,8 @@ test("should open create project dialog from pathway card", async ({ page }) => 
 });
 
 test("should create a new project", async ({ page }) => {
-  // Click a pathway card to open the create dialog from the empty state
-  await page.getByText("Upload files").click();
+  // Open the create dialog from the empty state
+  await page.getByTestId("onboarding-create-btn").click();
   await page.getByTestId("project-name-input").fill("My Test Project");
   await selectLocale(page, "source-lang-input", "en");
   await setMultiLocales(page, "target-langs-input", ["fr", "de"]);
@@ -49,7 +54,7 @@ test("should create a new project", async ({ page }) => {
 
 test("should navigate back from project view to dashboard", async ({ page }) => {
   // Create a project from the empty state (default "fr" chip is already present)
-  await page.getByText("Upload files").click();
+  await page.getByTestId("onboarding-create-btn").click();
   await page.getByTestId("project-name-input").fill("Test");
   await expectLocaleChips(page, "target-langs-input", ["fr"]);
   await page.getByTestId("create-project-submit").click();

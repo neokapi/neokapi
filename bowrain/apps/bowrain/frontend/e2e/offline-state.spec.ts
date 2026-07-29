@@ -20,7 +20,7 @@ async function setupConnected(page: any) {
   });
   await page.goto("/");
   await page
-    .getByText("Get started with your first project")
+    .getByTestId("empty-projects")
     .or(page.getByTestId("nav-translate"))
     .first()
     .waitFor({ state: "visible", timeout: 10000 });

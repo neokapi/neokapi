@@ -13,7 +13,7 @@ async function createProject(page: Page) {
   await setupLocalApp(page);
 
   // Create project
-  await page.getByText("Upload files").click();
+  await page.getByTestId("onboarding-create-btn").click();
   await page.getByTestId("project-name-input").fill("content memory Test");
   await selectMultiLocales(page, "target-langs-input", ["fr", "de"]);
   await page.getByTestId("create-project-submit").click();

@@ -28,9 +28,10 @@ export async function setupServerModeApp(page: Page): Promise<void> {
 
   await page.goto("/");
 
-  // Wait for the app to reach ready mode (dashboard or nav visible).
+  // Wait for the app to reach ready mode (dashboard or nav visible). Testids
+  // only — a readiness gate must not key on dashboard copy.
   await page
-    .getByText("Get started with your first project")
+    .getByTestId("empty-projects")
     .or(page.getByTestId("nav-translate"))
     .first()
     .waitFor({ state: "visible", timeout: 30000 });

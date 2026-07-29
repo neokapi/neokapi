@@ -40,7 +40,7 @@ async function openEditorWithMemory(page: any) {
   await setupLocalApp(page);
 
   // Create project
-  await page.getByText("Upload files").click();
+  await page.getByTestId("onboarding-create-btn").click();
   await page.getByTestId("project-name-input").fill("content memory Leverage Test");
   await selectMultiLocales(page, "target-langs-input", ["fr"]);
   await page.getByTestId("create-project-submit").click();
