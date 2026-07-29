@@ -200,6 +200,86 @@ func TestConfirmAdoptRecipeNeedsConsent(t *testing.T) {
 	}
 }
 
+// TestUnpackReconstitutesAProjectWhenNoneIsInScope: AD-025 §6 calls a .kpz a
+// project in a file, and says `unpack` reconstitutes a complete kapi.yaml. That
+// is the case the adoption prompt exists to guard, so it has to actually
+// happen: unpacking a project snapshot in a directory with no project must
+// produce a runnable one beside the snapshot, carrying its state.
+func TestUnpackReconstitutesAProjectWhenNoneIsInScope(t *testing.T) {
+	src := writeArchiveProject(t)
+	seedExtraction(t, src)
+	t.Chdir(src)
+
+	// The snapshot lands where a recipient would have put it: in the directory
+	// they are unpacking from, which holds no project of its own.
+	dst := t.TempDir()
+	snapshot := filepath.Join(dst, "handoff.kpz")
+
+	packCmd := NewEnvCommand(context.Background(), "pack")
+	AddProjectFlag(packCmd)
+	packCmd.Flags().String("output", snapshot, "")
+	packCmd.Flags().Bool("log", false, "")
+	packCmd.Flags().Bool("with-source", true, "")
+	addOutputFlags(packCmd)
+	_, err := captureStdout(t, func() error { return (&App{SourceLang: "en"}).RunPack(packCmd) })
+	require.NoError(t, err)
+
+	t.Chdir(dst)
+	t.Setenv("KAPI_NO_PROJECT", "1") // no ambient project, and none discovered
+
+	unpackCmd := NewEnvCommand(context.Background(), "unpack")
+	AddProjectFlag(unpackCmd)
+	addOutputFlags(unpackCmd)
+	_, err = captureStdout(t, func() error {
+		return (&App{SourceLang: "en", AssumeYes: true}).RunUnpack(unpackCmd, snapshot)
+	})
+	require.NoError(t, err, "a project snapshot must be unpackable without a project already in scope")
+
+	root := filepath.Join(dst, "archive-demo")
+	assert.FileExists(t, filepath.Join(root, project.RecipeFileName),
+		"the packaged recipe becomes the reconstituted project's own")
+	assert.Equal(t, tmEntries(t, src), tmEntries(t, root),
+		"the state the package exists to carry lands in the project it reconstituted")
+}
+
+// TestUnpackWithoutAProjectDeclinedLeavesNothingBehind: the adoption prompt is
+// the only thing standing between a package and a project that runs its recipe.
+// Declining it when there is no project to fall back on must stop the unpack
+// rather than scatter state into a directory nobody agreed to create.
+func TestUnpackWithoutAProjectDeclinedLeavesNothingBehind(t *testing.T) {
+	src := writeArchiveProject(t)
+	seedExtraction(t, src)
+	t.Chdir(src)
+
+	dst := t.TempDir()
+	snapshot := filepath.Join(dst, "handoff.kpz")
+
+	packCmd := NewEnvCommand(context.Background(), "pack")
+	AddProjectFlag(packCmd)
+	packCmd.Flags().String("output", snapshot, "")
+	packCmd.Flags().Bool("log", false, "")
+	packCmd.Flags().Bool("with-source", false, "")
+	addOutputFlags(packCmd)
+	_, err := captureStdout(t, func() error { return (&App{SourceLang: "en"}).RunPack(packCmd) })
+	require.NoError(t, err)
+
+	t.Chdir(dst)
+	t.Setenv("KAPI_NO_PROJECT", "1")
+
+	unpackCmd := NewEnvCommand(context.Background(), "unpack")
+	AddProjectFlag(unpackCmd)
+	addOutputFlags(unpackCmd)
+	unpackCmd.SetIn(strings.NewReader("n\n"))
+
+	app := &App{SourceLang: "en", isTTY: func() bool { return true }}
+	_, err = captureStdout(t, func() error { return app.RunUnpack(unpackCmd, snapshot) })
+	require.Error(t, err, "declining leaves nowhere to unpack into, and that has to be said")
+	assert.Contains(t, err.Error(), "was not adopted",
+		"the refusal must name the decision that caused it, not a missing file")
+	assert.NoDirExists(t, filepath.Join(dst, "archive-demo"),
+		"a declined adoption creates no project directory")
+}
+
 // TestReconstitutedProjectPathRefusesAHostileName: the recipe's name becomes a
 // directory beside the snapshot, and everything that follows — the block store,
 // the content memory, the terms — lands inside it. A name spelled as a path

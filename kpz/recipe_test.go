@@ -213,6 +213,185 @@ func TestSanitizeRecipeClearsNonLocalOut(t *testing.T) {
 	}
 }
 
+// TestSanitizeRecipeKeepsRequires pins a decision rather than a mechanism.
+// `requires:` is the one package-carried field that can still lead somewhere —
+// it is what makes LoadProjectInteractive offer an install — and it is kept on
+// purpose: it declares a fact, installs nothing by itself, and what it can ask
+// for is bounded by the signed plugin registry. Stripping it would cost the
+// declaration and buy no capability back, so if this test ever fails, the
+// question to answer is whether that reasoning changed, not whether the sweep
+// missed a field.
+func TestSanitizeRecipeKeepsRequires(t *testing.T) {
+	r := &project.KapiProject{
+		Version:  project.CurrentVersion,
+		Requires: project.RequiresMap{"bowrain": "^1.0"},
+	}
+
+	got, removed := SanitizeRecipe(r)
+	assert.Empty(t, removed)
+	assert.Equal(t, r.Requires, got.Requires,
+		"a package declares the plugins its flows need; the install is gated separately")
+}
+
+// TestSanitizeRecipeClearsNonLocalPaths: every path-valued recipe field names a
+// file kapi reads or writes once the recipe is adopted, and all of them travel
+// inside the package. A local recipe may legitimately point outside its own tree
+// — that is the owner's call — but a packaged one is answering for a machine it
+// has never seen, so a field that climbs out or starts at the root is cleared.
+func TestSanitizeRecipeClearsNonLocalPaths(t *testing.T) {
+	// One hostile value, applied to one field at a time, so a field that is
+	// simply not swept fails on its own rather than hiding behind a sibling.
+	const escape = "../../../../etc/kapi-escape"
+
+	for _, tc := range []struct {
+		name string
+		set  func(*project.KapiProject)
+		got  func(*project.KapiProject) string
+	}{
+		{"defaults.terms",
+			func(p *project.KapiProject) { p.Defaults.Terms = escape },
+			func(p *project.KapiProject) string { return p.Defaults.Terms }},
+		{"defaults.terms_source",
+			func(p *project.KapiProject) { p.Defaults.TermsSource = escape },
+			func(p *project.KapiProject) string { return p.Defaults.TermsSource }},
+		{"defaults.memory_source",
+			func(p *project.KapiProject) { p.Defaults.MemorySource = escape },
+			func(p *project.KapiProject) string { return p.Defaults.MemorySource }},
+		{"defaults.state",
+			func(p *project.KapiProject) { p.Defaults.State = "/etc/kapi-state.json" },
+			func(p *project.KapiProject) string { return p.Defaults.State }},
+		{"defaults.redaction.rules",
+			func(p *project.KapiProject) {
+				p.Defaults.Redaction = &project.RedactionSpec{Enabled: true, Rules: escape}
+			},
+			func(p *project.KapiProject) string { return p.Defaults.Redaction.Rules }},
+		{"defaults.brand_voice.profile_file",
+			func(p *project.KapiProject) {
+				p.Defaults.BrandVoice = &project.BrandVoiceBinding{ProfileFile: escape}
+			},
+			func(p *project.KapiProject) string { return p.Defaults.BrandVoice.ProfileFile }},
+		{"content base",
+			func(p *project.KapiProject) {
+				p.Content = []project.ContentCollection{{Path: "src/**", Base: escape}}
+			},
+			func(p *project.KapiProject) string { return p.Content[0].Base }},
+		{"content target",
+			func(p *project.KapiProject) {
+				p.Content = []project.ContentCollection{{Path: "src/**", Target: "/etc/cron.d/{lang}"}}
+			},
+			func(p *project.KapiProject) string { return p.Content[0].Target }},
+		{"content item base",
+			func(p *project.KapiProject) {
+				p.Content = []project.ContentCollection{{Items: []project.ContentItem{{Path: "a", Base: escape}}}}
+			},
+			func(p *project.KapiProject) string { return p.Content[0].Items[0].Base }},
+		{"content item target",
+			func(p *project.KapiProject) {
+				p.Content = []project.ContentCollection{{Items: []project.ContentItem{
+					{Path: "a", Target: "../../{lang}/{name}.{ext}"},
+				}}}
+			},
+			func(p *project.KapiProject) string { return p.Content[0].Items[0].Target }},
+		{"content item redaction rules",
+			func(p *project.KapiProject) {
+				p.Content = []project.ContentCollection{{Items: []project.ContentItem{
+					{Path: "a", Redaction: &project.RedactionSpec{Enabled: true, Rules: escape}},
+				}}}
+			},
+			func(p *project.KapiProject) string { return p.Content[0].Items[0].Redaction.Rules }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := &project.KapiProject{Version: project.CurrentVersion}
+			tc.set(r)
+
+			got, removed := SanitizeRecipe(r)
+			assert.Empty(t, tc.got(got), "a path naming somewhere outside the project must not survive ingest")
+			assert.Len(t, removed, 1, "clearing a field the author wrote is reported, never silent")
+		})
+	}
+}
+
+// TestSanitizeRecipeKeepsOrdinaryPaths: the sweep exists to catch the paths that
+// leave the project, so the ordinary ones — including every template
+// placeholder a target may be written with — have to come through untouched.
+func TestSanitizeRecipeKeepsOrdinaryPaths(t *testing.T) {
+	r := &project.KapiProject{
+		Version: project.CurrentVersion,
+		Defaults: project.Defaults{
+			Terms:        ".kapi/terms.db",
+			TermsSource:  "context/terms.terms.json",
+			MemorySource: "context/memory.memory.json",
+			State:        ".kapi-state.json",
+			Redaction:    &project.RedactionSpec{Enabled: true, Rules: "context/redaction.yaml"},
+			BrandVoice:   &project.BrandVoiceBinding{ProfileFile: "context/kapi-voice.yaml"},
+		},
+		Content: []project.ContentCollection{{
+			Path:   "docs/**/*.md",
+			Base:   "docs",
+			Target: "l10n/{lang}/{dir}/{name}.{ext}",
+			Items: []project.ContentItem{
+				{Path: "src/en.json", Target: "src/{lang}.json"},
+				{Path: "web/**/*.mdx", Base: "web", Target: "i18n/{lang}/{relpath}"},
+				{Path: "legacy/*.po", Target: "legacy/{lang}/*.po"},
+			},
+		}},
+	}
+
+	got, removed := SanitizeRecipe(r)
+	assert.Empty(t, removed, "an ordinary recipe loses nothing")
+	assert.Equal(t, r.Defaults, got.Defaults)
+	assert.Equal(t, r.Content, got.Content)
+}
+
+// TestSanitizeRecipeSweepsEveryExtrasScope: a recipe has four Extras maps —
+// top-level, defaults, per-collection and per-item — and an extension may be
+// registered at any of them. Sweeping only the top one means the denylist holds
+// by accident of where today's extensions happen to be registered.
+func TestSanitizeRecipeSweepsEveryExtrasScope(t *testing.T) {
+	sideEffecting := func(t *testing.T) map[string]yaml.Node {
+		t.Helper()
+		m := map[string]yaml.Node{}
+		for _, k := range []string{"server", "hooks", "automations"} {
+			var n yaml.Node
+			require.NoError(t, n.Encode(map[string]any{"url": "https://example.test"}))
+			m[k] = n
+		}
+		var keep yaml.Node
+		require.NoError(t, keep.Encode("marketing"))
+		m["collection"] = keep
+		return m
+	}
+
+	r := &project.KapiProject{
+		Version:  project.CurrentVersion,
+		Extras:   sideEffecting(t),
+		Defaults: project.Defaults{Extras: sideEffecting(t)},
+		Content: []project.ContentCollection{{
+			Path:   "src/**",
+			Extras: sideEffecting(t),
+			Items:  []project.ContentItem{{Path: "a", Extras: sideEffecting(t)}},
+		}},
+	}
+
+	got, removed := SanitizeRecipe(r)
+	assert.Len(t, removed, 12, "three keys at each of the four scopes are reported")
+
+	for _, scope := range []map[string]yaml.Node{
+		got.Extras,
+		got.Defaults.Extras,
+		got.Content[0].Extras,
+		got.Content[0].Items[0].Extras,
+	} {
+		assert.NotContains(t, scope, "server")
+		assert.NotContains(t, scope, "hooks")
+		assert.NotContains(t, scope, "automations")
+		assert.Contains(t, scope, "collection", "an inert extra travels at every scope")
+	}
+
+	assert.Contains(t, r.Defaults.Extras, "server", "the caller's recipe is untouched")
+	assert.Contains(t, r.Content[0].Items[0].Extras, "hooks")
+}
+
 // TestWorkspaceMetaRoundTrip verifies the kpz workspace Extras (output layout +
 // workspace marker) round-trip through the recipe.
 func TestWorkspaceMetaRoundTrip(t *testing.T) {
