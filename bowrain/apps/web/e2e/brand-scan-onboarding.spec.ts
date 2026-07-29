@@ -116,7 +116,7 @@ test.describe("Brand scan onboarding", () => {
 
   test("scan intake requires at least one source", async ({ page }) => {
     await injectAuthCookie(page, token);
-    await page.goto(`/${wsSlug}/brand/scan`);
+    await page.goto(`/${wsSlug}/context/scan`);
     await expect(page.getByTestId(TEST_IDS.brandScan.input)).toBeVisible({ timeout: 15000 });
     await expect(page.getByTestId(TEST_IDS.brandScan.start)).toBeDisabled();
   });
@@ -133,7 +133,7 @@ test.describe("Brand scan onboarding", () => {
     await injectAuthCookie(page, token);
 
     // ── 1. Intake: paste text, drop a markdown file, point at a repository ──
-    await page.goto(`/${wsSlug}/brand/scan`);
+    await page.goto(`/${wsSlug}/context/scan`);
     await expect(page.getByTestId(TEST_IDS.brandScan.input)).toBeVisible({ timeout: 15000 });
 
     await page.getByTestId(TEST_IDS.brandScan.input).fill(PASTE_TEXT);
@@ -154,7 +154,7 @@ test.describe("Brand scan onboarding", () => {
     );
     await page.getByTestId(TEST_IDS.brandScan.start).click();
     await started;
-    await expect(page).toHaveURL(/\/brand\/scan\/[^/]+$/, { timeout: 15000 });
+    await expect(page).toHaveURL(/\/context\/scan\/[^/]+$/, { timeout: 15000 });
 
     // ── 3. The job page polls: progress card first, review when completed ──
     // The demo provider is fast, so the progress card can flip to the review
@@ -203,7 +203,7 @@ test.describe("Brand scan onboarding", () => {
     );
     await page.getByTestId(TEST_IDS.brandScan.approve).click();
     await created;
-    await expect(page).toHaveURL(/\/brand\/voice\/[^/]+$/, { timeout: 30000 });
+    await expect(page).toHaveURL(/\/context\/voice\/[^/]+$/, { timeout: 30000 });
     // The profile editor loads the created profile (name renders in its form).
     await expect(page.locator("#profile-name")).toHaveValue(profileName, { timeout: 15000 });
 
@@ -225,7 +225,7 @@ test.describe("Brand scan onboarding", () => {
 
   test("scan whose sources are all unreadable fails with a retry affordance", async ({ page }) => {
     await injectAuthCookie(page, token);
-    await page.goto(`/${wsSlug}/brand/scan`);
+    await page.goto(`/${wsSlug}/context/scan`);
     await expect(page.getByTestId(TEST_IDS.brandScan.urlInput)).toBeVisible({ timeout: 15000 });
 
     // The loopback address passes the client-side https check but is refused
@@ -236,7 +236,7 @@ test.describe("Brand scan onboarding", () => {
     await expect(page.getByText("https://127.0.0.1/")).toBeVisible();
 
     await page.getByTestId(TEST_IDS.brandScan.start).click();
-    await expect(page).toHaveURL(/\/brand\/scan\/[^/]+$/, { timeout: 15000 });
+    await expect(page).toHaveURL(/\/context\/scan\/[^/]+$/, { timeout: 15000 });
 
     const progress = page.getByTestId(TEST_IDS.brandScan.progress);
     await expect(progress).toBeVisible({ timeout: 20000 });

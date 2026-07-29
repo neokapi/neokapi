@@ -205,8 +205,8 @@ test.describe("Layout: no route clips content the user cannot reach", () => {
     { name: "settings-members", path: `/${wsSlug}/settings/members`, ready: "nav-settings" },
     { name: "settings-system", path: `/${wsSlug}/settings/system`, ready: "nav-settings" },
     { name: "settings-billing", path: `/${wsSlug}/settings/billing`, ready: "nav-settings" },
-    { name: "brand-concepts", path: `/${wsSlug}/brand/concepts`, ready: "nav-brand" },
-    { name: "brand-voice", path: `/${wsSlug}/brand/voice`, ready: "nav-brand" },
+    { name: "context-concepts", path: `/${wsSlug}/context/concepts`, ready: "nav-context" },
+    { name: "context-voice", path: `/${wsSlug}/context/voice`, ready: "nav-context" },
     { name: "memory", path: `/${wsSlug}/memory`, ready: "nav-memory" },
     { name: "project-detail", path: `/${wsSlug}/p/${projectId}/s/main`, ready: "nav-translate" },
     // The editor replaces the shell's scroll container with overflow-hidden and

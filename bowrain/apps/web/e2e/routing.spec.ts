@@ -102,7 +102,7 @@ test.describe("Routing", () => {
 
     // Terminology lives inside the brand graph now: /terms is a legacy
     // redirect to the Concepts section of the Brand hub.
-    await expect(page).toHaveURL(new RegExp(`/${wsSlug}/brand/concepts`), { timeout: 10000 });
+    await expect(page).toHaveURL(new RegExp(`/${wsSlug}/context/concepts`), { timeout: 10000 });
     await expect(page.getByRole("heading", { name: "Concepts" })).toBeVisible({ timeout: 10000 });
   });
 

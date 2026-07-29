@@ -54,7 +54,7 @@ const ITEM = env.BOWRAIN_ITEM_ID ?? "4neqRudD";
 const ROUTES = [
   { id: "dashboard", path: `/${WS}` },
   { id: "editor", path: `/${WS}/p/${PID}/s/main/${ITEM}/translate` },
-  { id: "voice", path: `/${WS}/brand/voice` },
+  { id: "voice", path: `/${WS}/context/voice` },
 ];
 
 const css = {};
