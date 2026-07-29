@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -115,6 +116,44 @@ func TestHistoryHashChain(t *testing.T) {
 	require.Error(t, VerifyHistory([]byte(dropped)), "a removed line must break the chain")
 
 	require.NoError(t, VerifyHistory(nil))
+}
+
+// TestHistoryChainSurvivesInvalidUTF8 pins #1608: a log AppendHistory wrote must
+// verify, whatever bytes the event fields carried.
+//
+// It did not. The digest was computed over the in-memory Go string while
+// encoding/json wrote U+FFFD in place of every invalid byte, so VerifyHistory
+// recomputed the hash over different bytes and reported a log we had just
+// written as TAMPERED. A tamper-evidence signal that fires on benign input is
+// worse than no signal, and the reachable path is mundane: Step and Note carry
+// filenames, and a filename on Linux is an arbitrary byte string.
+func TestHistoryChainSurvivesInvalidUTF8(t *testing.T) {
+	for name, bad := range map[string]string{
+		"lone continuation byte": "\xb1",
+		"truncated 2-byte rune":  "a\xc3",
+		"truncated 3-byte rune":  "a\xe2\x82b",
+		"bare 0xff":              "\xff\xfe",
+		"valid text unaffected":  "ordinary note",
+	} {
+		t.Run(name, func(t *testing.T) {
+			log := AppendHistory(nil, HistoryEvent{Timestamp: "t1", Event: "pack", Step: bad, Note: bad})
+			log = AppendHistory(log, HistoryEvent{Timestamp: "t2", Event: "pack", Step: bad, Note: bad})
+			require.NoError(t, VerifyHistory(log), "a chain AppendHistory built must pass its own verifier")
+
+			// The chain must still be tamper-EVIDENT after the coercion — the
+			// fix must not have flattened the fields into something a forger
+			// can edit freely.
+			lines := strings.Split(strings.TrimSpace(string(log)), "\n")
+			require.Len(t, lines, 2)
+			var ev HistoryEvent
+			require.NoError(t, json.Unmarshal([]byte(lines[0]), &ev))
+			assert.True(t, utf8.ValidString(ev.Step), "the written field is valid UTF-8")
+			assert.True(t, utf8.ValidString(ev.Note), "the written field is valid UTF-8")
+
+			edited := strings.Replace(string(log), `"event":"pack"`, `"event":"HACKED"`, 1)
+			require.Error(t, VerifyHistory([]byte(edited)), "an edited line must still fail verification")
+		})
+	}
 }
 
 func TestOverlaySetRejectsBadEnvelope(t *testing.T) {
