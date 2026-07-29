@@ -44,12 +44,26 @@ GO := go
 #
 # ICU requirement: The FTS5 ICU tokenizer requires ICU development libraries.
 #   Linux:  sudo apt-get install libicu-dev pkg-config
-#   macOS:  brew install icu4c && export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c@78/lib/pkgconfig"
+#   macOS:  brew bundle   (see Brewfile; this Makefile finds the keg itself)
+# `make doctor` reports what is missing.
 GOTAGS  := -tags "fts5"
 
-# macOS Homebrew ICU: expose to pkg-config if not already on the path.
+# macOS Homebrew ICU: expose the keg to pkg-config if it is not already there.
+#
+# Resolved, never hardcoded. icu4c is keg-only and version-pinned (icu4c@76,
+# @78, …), so its path moves on every ICU major bump — a pinned icu4c@NN keeps
+# working on the machine that wrote it and breaks every cgo build on the next
+# one, with a bare "[build failed]" and no mention of ICU. Prefer Homebrew's
+# unversioned alias, which tracks the current keg; fall back to the newest
+# versioned keg installed. Both Apple Silicon and Intel prefixes are searched.
 ifeq ($(shell uname -s),Darwin)
-export PKG_CONFIG_PATH := /opt/homebrew/opt/icu4c@78/lib/pkgconfig:$(PKG_CONFIG_PATH)
+ICU_PKGCONFIG := $(firstword $(wildcard /opt/homebrew/opt/icu4c/lib/pkgconfig /usr/local/opt/icu4c/lib/pkgconfig))
+ifeq ($(ICU_PKGCONFIG),)
+ICU_PKGCONFIG := $(shell ls -d /opt/homebrew/opt/icu4c@*/lib/pkgconfig /usr/local/opt/icu4c@*/lib/pkgconfig 2>/dev/null | sort -V | tail -1)
+endif
+ifneq ($(ICU_PKGCONFIG),)
+export PKG_CONFIG_PATH := $(ICU_PKGCONFIG):$(PKG_CONFIG_PATH)
+endif
 endif
 GOTEST  := $(GO) test $(GOTAGS)
 GOBUILD := $(GO) build $(GOTAGS)
@@ -2118,6 +2132,9 @@ tools: ## Install development tools
 setup-remote: ## Install dependencies for cloud environments
 	CLAUDE_CODE_REMOTE=true bash scripts/setup-remote.sh
 
+doctor: ## Check this machine can build and test neokapi; report what is missing
+	@bash scripts/doctor.sh
+
 pre-push: ## Run checks relevant to your changes (mirrors CI)
 	@./scripts/pre-push-check.sh
 
@@ -2292,6 +2309,6 @@ help: ## Show this help
         landing-build landing-build-nb docs-build-prod bowrain-docs-build-prod publish-landing publish-website \
         emails-frontend-deps emails-extract emails-pseudo-translate l10n-emails emails-l10n-verify \
         landing-frontend-deps landing-extract landing-pseudo-translate l10n-landing landing-l10n-verify \
-        tools setup-remote gha-lint clean \
+        tools setup-remote doctor gha-lint clean \
         _fw-fmt _fw-test _fw-test-fast _fw-test-unit _fw-test-race _fw-test-verbose _fw-test-integration \
         _fw-vet _fw-lint _fw-proto _fw-deps _fw-deps-update

@@ -26,8 +26,16 @@ LDFLAGS     ?= -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).
 
 GO          := go
 GOTAGS      := -tags fts5
+# macOS Homebrew ICU, resolved rather than pinned — see the root Makefile for
+# why a hardcoded icu4c@NN breaks silently on the next ICU major bump.
 ifeq ($(shell uname -s),Darwin)
-export PKG_CONFIG_PATH := /opt/homebrew/opt/icu4c@78/lib/pkgconfig:$(PKG_CONFIG_PATH)
+ICU_PKGCONFIG := $(firstword $(wildcard /opt/homebrew/opt/icu4c/lib/pkgconfig /usr/local/opt/icu4c/lib/pkgconfig))
+ifeq ($(ICU_PKGCONFIG),)
+ICU_PKGCONFIG := $(shell ls -d /opt/homebrew/opt/icu4c@*/lib/pkgconfig /usr/local/opt/icu4c@*/lib/pkgconfig 2>/dev/null | sort -V | tail -1)
+endif
+ifneq ($(ICU_PKGCONFIG),)
+export PKG_CONFIG_PATH := $(ICU_PKGCONFIG):$(PKG_CONFIG_PATH)
+endif
 endif
 GOTEST      := $(GO) test $(GOTAGS)
 GOBUILD     := $(GO) build $(GOTAGS)
