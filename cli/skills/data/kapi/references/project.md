@@ -42,6 +42,41 @@ defaults:
 - **Brand voice** — bind it under `defaults.brand_voice`, or just keep a
   `brand.yaml` (or `.kapi/brand.yaml`) in the project; `kapi brand check <file>`,
   `brand rewrite`, and `brand guide` then resolve it with no flag.
+- **More than one voice in one repo** — declare the axes your content varies
+  along under `coordinates:`, bind a voice (and optionally terms) to a region of
+  that space under `profiles:`, then place each *named* collection at its point.
+  Runs split per distinct resolution, so each region's content is translated and
+  checked under its own voice and vocabulary:
+
+  ```yaml
+  coordinates:                       # your taxonomy: product, client, market, …
+    product: [framework, platform]
+    channel: [docs, landing]
+
+  profiles:
+    - when: {}                       # the base voice
+      voice: context/base-voice.yaml
+    - when: { product: platform }
+      voice: context/platform-voice.yaml
+      terms: context/platform-terms.json   # optional; falls back to defaults.terms
+
+  content:
+    - name: platform-docs
+      context: { product: platform, channel: docs }
+      items:
+        - path: platform/docs/**/*.md
+    - name: platform-landing
+      context: { product: platform, channel: landing }
+      items:
+        - path: platform/web/pages/*.tsx
+  ```
+
+  Axis names and values are slugs. Of the profiles matching a point, the one
+  matching on the most coordinates wins; `channel` additionally picks the
+  override inside the selected profile's voice, so a landing register lives
+  beside the voice it varies rather than in a second file. An undeclared axis or
+  value, and two profiles matching one collection equally well, both fail the
+  load — kapi will not quietly translate that content in the wrong voice.
 - **Terms** — import terms into the project terms store
   (`kapi terms import terms.csv -s en -t fr`); `kapi exec term-check <file>` and
   the translation flow then enforce it with no `--termstore` flag.

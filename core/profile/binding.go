@@ -38,8 +38,25 @@ type ResolveContext struct {
 	// CollectionConfig is the Collection.ConnectorConfig map.
 	CollectionConfig map[string]string
 
+	// CollectionProfile is a profile already loaded for the collection in
+	// scope, bound at the same tier as CollectionConfig[PropertyProfileID] and
+	// consulted before it. It exists because a binding is not always a store
+	// row: a kapi recipe binds the voice governing a collection as a profile
+	// file or a starter pack (core/project, `profiles:`), and the caller has
+	// therefore already resolved it. Supplying it here rather than resolving
+	// beside this chain is what keeps one precedence model — an explicit
+	// profile still wins over it, and stream, project and workspace bindings
+	// still sit under it.
+	CollectionProfile *VoiceProfile
+
 	// Locale is the target locale for locale-specific override resolution.
 	Locale model.LocaleID
+
+	// Channel, when set, selects a channel override and takes priority over any
+	// channel bound via the scope maps — the `--channel` flag's tier, mirroring
+	// Persona. A channel bound to a scope describes where that content is
+	// published; this one is the caller overriding it for a single call.
+	Channel string
 
 	// Persona, when set, selects an author persona override and takes priority
 	// over any persona bound via the scope maps. A persona is normally supplied

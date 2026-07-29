@@ -236,12 +236,24 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 	if source != "" {
 		a.SourceLang = source
 	}
-	if opts.ProjectPath != "" {
-		bindings, err := a.resolveProjectBindings(cmd, proj, opts.ProjectPath) //nolint:contextcheck // ctx flows via the Command (CmdContext), not a detached context
-		if err != nil {
+
+	// Governance is per collection: the input set splits into one group per
+	// distinct (brand voice, terms) binding, and each group runs the flow with
+	// its own bindings and its own tool chain. A recipe where no collection
+	// overrides anything yields exactly one group holding every input, so the
+	// pass structure, the event stream and the tool assembly are unchanged.
+	groups, err := groupInputsByBinding(proj, pctx.ProjectDir, opts.InputPaths)
+	if err != nil {
+		return nil, err
+	}
+	// Without a recipe path there is nothing to resolve bindings from, and an
+	// embedder's own standing context on the App is left alone.
+	bound := opts.ProjectPath != ""
+	if bound {
+		//nolint:contextcheck // ctx flows via the Command (CmdContext), not a detached context
+		if err := a.resolveGroupBindings(cmd, proj, opts.ProjectPath, groups); err != nil {
 			return nil, err
 		}
-		a.ProjectBindings = bindings
 	}
 
 	emit := func(ev FlowRunEvent) {
@@ -315,7 +327,7 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 		}
 	}
 
-	runPass := func(pass []string) error {
+	runPass := func(pass []string, group bindingGroup) error {
 		// Target locale is the second element of the pass (if present).
 		lang := ""
 		if len(pass) > 1 {
@@ -323,12 +335,17 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 		}
 		emit(FlowRunEvent{
 			Type: FlowEventState, Locale: lang,
-			Message: fmt.Sprintf("Running for %s (%d files)...", lang, len(opts.InputPaths)),
+			Message: fmt.Sprintf("Running for %s (%d files)...", lang, len(group.Inputs)),
 		})
 
 		// Tools are rebuilt per pass: the target locale is baked into tool
 		// config, and each pass's cleanup releases what its assembly opened.
+		// The group's bindings are on the App before assembly, because that is
+		// where they reach the steps (buildProjectFlowTools → applyBindings).
 		a.TargetLang = lang
+		if bound {
+			a.ProjectBindings = group.bindings
+		}
 		rCtx := flow.ResourceContext{ProjectDir: pctx.ProjectDir, SourceLocale: source, TargetLocale: lang}
 		tools, cleanup, err := a.buildProjectFlowTools(cmd, opts.FlowName, spec, &rCtx, onProgress)
 		if err != nil {
@@ -337,7 +354,7 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 		defer cleanup()
 		tools = flow.WrapWithMetrics(tools, metrics)
 
-		for _, inputPath := range opts.InputPaths {
+		for _, inputPath := range group.Inputs {
 			if ctx.Err() != nil {
 				return nil
 			}
@@ -379,18 +396,21 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 		return nil
 	}
 
+passLoop:
 	for _, pass := range passes {
 		if ctx.Err() != nil {
 			break
 		}
-		if err := runPass(pass); err != nil {
-			// Cancellation mid-file surfaces as a wrapped context error from
-			// the runner; per the documented contract it is not a run error —
-			// stop the loop so the complete event and totals still emit.
-			if ctx.Err() != nil && errors.Is(err, ctx.Err()) {
-				break
+		for _, group := range groups {
+			if err := runPass(pass, group); err != nil {
+				// Cancellation mid-file surfaces as a wrapped context error from
+				// the runner; per the documented contract it is not a run error —
+				// stop the loop so the complete event and totals still emit.
+				if ctx.Err() != nil && errors.Is(err, ctx.Err()) {
+					break passLoop
+				}
+				return nil, err
 			}
-			return nil, err
 		}
 	}
 
