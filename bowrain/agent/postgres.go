@@ -223,6 +223,17 @@ func (s *Store) UpdateToolCall(ctx context.Context, tc *platagent.ToolCall) erro
 // Config
 // ---------------------------------------------------------------------------
 
+// unmarshalPolicy decodes one tool-policy column. The columns are NOT NULL
+// DEFAULT '[]', so an empty value is a row written before the column existed
+// rather than corruption, and decodes to the same empty list json.Unmarshal
+// would have produced.
+func unmarshalPolicy(raw []byte, dst *[]string) error {
+	if len(raw) == 0 {
+		return nil
+	}
+	return json.Unmarshal(raw, dst)
+}
+
 func (s *Store) GetAgentConfig(ctx context.Context, workspaceID string) (*platagent.AgentConfig, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT workspace_id, enabled, allowed_tools, denied_tools, require_approval, code_exec_enabled, max_concurrent
@@ -237,9 +248,22 @@ func (s *Store) GetAgentConfig(ctx context.Context, workspaceID string) (*platag
 	if err != nil {
 		return nil, err
 	}
-	_ = json.Unmarshal(allowedJSON, &cfg.AllowedTools)
-	_ = json.Unmarshal(deniedJSON, &cfg.DeniedTools)
-	_ = json.Unmarshal(approvalJSON, &cfg.RequireApproval)
+	// These three are the agent's tool policy, and every one of them fails
+	// open when empty: an empty deny-list denies nothing, an empty approval
+	// list asks for nothing, and an empty allow-list means "all available"
+	// (see server/mcp/tool_policy.go). Discarding a parse error therefore did
+	// not degrade the policy, it removed it — and returned an unrestricted
+	// agent that looked exactly like a deliberately unrestricted one. Refuse
+	// to answer instead.
+	if err := unmarshalPolicy(allowedJSON, &cfg.AllowedTools); err != nil {
+		return nil, fmt.Errorf("workspace %s: allowed_tools: %w", workspaceID, err)
+	}
+	if err := unmarshalPolicy(deniedJSON, &cfg.DeniedTools); err != nil {
+		return nil, fmt.Errorf("workspace %s: denied_tools: %w", workspaceID, err)
+	}
+	if err := unmarshalPolicy(approvalJSON, &cfg.RequireApproval); err != nil {
+		return nil, fmt.Errorf("workspace %s: require_approval: %w", workspaceID, err)
+	}
 	return &cfg, nil
 }
 

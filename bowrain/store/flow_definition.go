@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/neokapi/neokapi/core/flow"
@@ -105,8 +106,14 @@ func scanFlowDef(row scanner) (*flow.FlowDefinition, error) {
 		return nil, err
 	}
 	var def flow.FlowDefinition
+	// The graph column is the flow definition, not metadata about it. Unlike
+	// the format probes elsewhere in the tree there is no strict parse behind
+	// this one to surface the failure, so a discarded error yielded a flow with
+	// no nodes and no edges that read as an empty flow.
 	if graph != "" && graph != "{}" {
-		_ = json.Unmarshal([]byte(graph), &def)
+		if err := json.Unmarshal([]byte(graph), &def); err != nil {
+			return nil, fmt.Errorf("unmarshal flow definition graph: %w", err)
+		}
 	}
 	// Authoritative columns win over whatever was embedded in graph JSON.
 	def.ID = id

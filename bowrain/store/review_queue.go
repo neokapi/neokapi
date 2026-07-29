@@ -476,7 +476,13 @@ func (s *ReviewQueueStore) scanReviewItem(row scanner) (*ReviewItem, error) {
 		item.Edits = json.RawMessage(editsStr)
 	}
 
-	_ = json.Unmarshal([]byte(occJSON), &item.Occurrences)
+	// occurrences is NOT NULL DEFAULT '[]', but the column permits an empty
+	// string, so a row written before the default arrived is not corruption.
+	if occJSON != "" {
+		if err := json.Unmarshal([]byte(occJSON), &item.Occurrences); err != nil {
+			return nil, fmt.Errorf("review item %s: unmarshal occurrences: %w", item.ID, err)
+		}
+	}
 
 	return &item, nil
 }
