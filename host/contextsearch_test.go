@@ -206,7 +206,7 @@ func TestSearchContextPrecedentSkipsOtherLanguages(t *testing.T) {
 func TestFormatTextNamesTheLocaleBehindEachVerdict(t *testing.T) {
 	res := &host.ContextSearchResult{
 		Terms: []host.ContextTermHit{
-			{Term: "termbase", Locale: "en", Status: "deprecated", Discouraged: true, Replacement: "terms store"},
+			{Term: "termbase", Locale: "en", Status: "deprecated", Domain: "terms", Discouraged: true, Replacement: "terms store"},
 			{Term: "termbase", Locale: "nb", Status: "admitted"},
 		},
 	}
@@ -216,6 +216,9 @@ func TestFormatTextNamesTheLocaleBehindEachVerdict(t *testing.T) {
 
 	assert.Contains(t, buf.String(), `discouraged — say "terms store" (en, deprecated)`)
 	assert.Contains(t, buf.String(), "ok (nb, admitted)")
+	// The domain segments the graph; a verdict without it does not say which
+	// body of context the concept belongs to.
+	assert.Contains(t, buf.String(), "[terms]")
 }
 
 // Precedent carrying a term the same search called retired must say so. The

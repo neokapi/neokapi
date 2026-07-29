@@ -29,7 +29,7 @@
     },
     {
       "id": "term:0e33869f74",
-      "domain": "ui",
+      "domain": "formats",
       "definition": "Microsoft terminology.",
       "source": "terminology",
       "terms": [
@@ -49,7 +49,7 @@
     },
     {
       "id": "term:12768d0065",
-      "domain": "ui",
+      "domain": "formats",
       "definition": "Microsoft terminology.",
       "source": "terminology",
       "terms": [
@@ -69,7 +69,7 @@
     },
     {
       "id": "term:16eea39cda",
-      "domain": "localization",
+      "domain": "language",
       "source": "terminology",
       "terms": [
         {
@@ -88,7 +88,7 @@
     },
     {
       "id": "term:176ca52906",
-      "domain": "ui",
+      "domain": "formats",
       "source": "terminology",
       "terms": [
         {
@@ -127,7 +127,7 @@
     },
     {
       "id": "term:18f1255e3f",
-      "domain": "localization",
+      "domain": "redaction",
       "definition": "Verb; the tools are Sladding (redact) and Avsladding (unredact).",
       "source": "terminology",
       "terms": [
@@ -147,7 +147,7 @@
     },
     {
       "id": "term:2023cc4c69",
-      "domain": "localization",
+      "domain": "content-model",
       "definition": "Inline markup runs within a block.",
       "source": "terminology",
       "terms": [
@@ -167,7 +167,7 @@
     },
     {
       "id": "term:20f65c2867",
-      "domain": "localization",
+      "domain": "quality",
       "definition": "Noun; verb: kontrollere. A content check run over a file.",
       "source": "terminology",
       "terms": [
@@ -187,7 +187,7 @@
     },
     {
       "id": "term:2334b8e625",
-      "domain": "localization",
+      "domain": "content-model",
       "source": "terminology",
       "terms": [
         {
@@ -206,7 +206,7 @@
     },
     {
       "id": "term:23bf0d244a",
-      "domain": "localization",
+      "domain": "workflow",
       "definition": "The streaming channel-based execution model. Keep the English term in nb.",
       "source": "terminology",
       "terms": [
@@ -226,7 +226,7 @@
     },
     {
       "id": "term:244210e484",
-      "domain": "localization",
+      "domain": "workflow",
       "definition": "A kapi project rooted at a .kapi recipe.",
       "source": "terminology",
       "terms": [
@@ -246,7 +246,7 @@
     },
     {
       "id": "term:26f1de3397",
-      "domain": "ui",
+      "domain": "workflow",
       "definition": "The recipe schema extension mechanism.",
       "source": "terminology",
       "terms": [
@@ -266,7 +266,7 @@
     },
     {
       "id": "term:283128acef",
-      "domain": "localization",
+      "domain": "formats",
       "definition": "Verb: write translated blocks back into the original format. Noun: fletting.",
       "source": "terminology",
       "terms": [
@@ -286,7 +286,7 @@
     },
     {
       "id": "term:2d7abd023a",
-      "domain": "localization",
+      "domain": "quality",
       "definition": "QA tools run over translated content.",
       "source": "terminology",
       "terms": [
@@ -306,7 +306,7 @@
     },
     {
       "id": "term:2d82451b16",
-      "domain": "localization",
+      "domain": "formats",
       "definition": "Reading a file extracts its text into blocks. Noun form.",
       "source": "terminology",
       "terms": [
@@ -326,7 +326,7 @@
     },
     {
       "id": "term:3934758c7e",
-      "domain": "localization",
+      "domain": "language",
       "source": "terminology",
       "terms": [
         {
@@ -345,7 +345,7 @@
     },
     {
       "id": "term:3b21278178",
-      "domain": "localization",
+      "domain": "workflow",
       "definition": "A composed chain of tools (Okapi: pipeline). UI and docs noun.",
       "source": "terminology",
       "terms": [
@@ -365,7 +365,7 @@
     },
     {
       "id": "term:3d192e1294",
-      "domain": "localization",
+      "domain": "memory",
       "definition": "Reusing TM matches; TM Leverage → TM-gjenbruk.",
       "source": "terminology",
       "terms": [
@@ -385,7 +385,7 @@
     },
     {
       "id": "term:3f5dcb46d4",
-      "domain": "localization",
+      "domain": "terms",
       "definition": "Simple source-to-target term mapping fed to the translate prompt. The prompt section keeps its wire name `glossary`.",
       "source": "terminology",
       "terms": [
@@ -410,7 +410,7 @@
     },
     {
       "id": "term:4097889236",
-      "domain": "localization",
+      "domain": "content-model",
       "source": "terminology",
       "terms": [
         {
@@ -429,7 +429,7 @@
     },
     {
       "id": "term:496aca80e4",
-      "domain": "localization",
+      "domain": "content-model",
       "definition": "The translatable content unit in the content model (Okapi: text unit).",
       "source": "terminology",
       "terms": [
@@ -449,7 +449,7 @@
     },
     {
       "id": "term:497e22fe85",
-      "domain": "localization",
+      "domain": "memory",
       "source": "terminology",
       "terms": [
         {
@@ -468,7 +468,7 @@
     },
     {
       "id": "term:5145f4d8e1",
-      "domain": "localization",
+      "domain": "terms",
       "definition": "The store of approved terminology. Retired spelling: termbase.",
       "source": "terminology",
       "terms": [
@@ -518,7 +518,7 @@
     },
     {
       "id": "term:599f770354",
-      "domain": "localization",
+      "domain": "terms",
       "definition": "A terms-store entry for a concept in one locale.",
       "source": "terminology",
       "terms": [
@@ -538,7 +538,7 @@
     },
     {
       "id": "term:5c4c196434",
-      "domain": "localization",
+      "domain": "workflow",
       "definition": "AI/MT backend (Anthropic, DeepL, ...).",
       "source": "terminology",
       "terms": [
@@ -558,7 +558,7 @@
     },
     {
       "id": "term:5e689e2b01",
-      "domain": "ui",
+      "domain": "workflow",
       "definition": "Subprocess-dispatched vendor plugin (kapi-bowrain, okapi-bridge).",
       "source": "terminology",
       "terms": [
@@ -578,7 +578,7 @@
     },
     {
       "id": "term:631aada47d",
-      "domain": "ui",
+      "domain": "workflow",
       "definition": "API keys and tokens in the OS keychain.",
       "source": "terminology",
       "terms": [
@@ -598,7 +598,7 @@
     },
     {
       "id": "term:6b621a0a78",
-      "domain": "localization",
+      "domain": "memory",
       "definition": "Filling targets from TM before human or AI translation.",
       "source": "terminology",
       "terms": [
@@ -618,7 +618,7 @@
     },
     {
       "id": "term:6db1c4fb63",
-      "domain": "localization",
+      "domain": "content-model",
       "source": "terminology",
       "terms": [
         {
@@ -637,7 +637,7 @@
     },
     {
       "id": "term:7156bf958d",
-      "domain": "localization",
+      "domain": "language",
       "source": "terminology",
       "terms": [
         {
@@ -656,7 +656,7 @@
     },
     {
       "id": "term:77d9bce4a1",
-      "domain": "localization",
+      "domain": "language",
       "definition": "BCP-47 identifier such as nb or pt-BR.",
       "source": "terminology",
       "terms": [
@@ -676,7 +676,7 @@
     },
     {
       "id": "term:7c9bbe5ec9",
-      "domain": "localization",
+      "domain": "workflow",
       "definition": "A processing step in a flow (Okapi: step).",
       "source": "terminology",
       "terms": [
@@ -716,7 +716,7 @@
     },
     {
       "id": "term:7fd690e20d",
-      "domain": "localization",
+      "domain": "language",
       "source": "terminology",
       "terms": [
         {
@@ -755,7 +755,7 @@
     },
     {
       "id": "term:8cf3cf906c",
-      "domain": "localization",
+      "domain": "voice",
       "definition": "The VoiceProfile bound to a project.",
       "source": "terminology",
       "terms": [
@@ -775,7 +775,7 @@
     },
     {
       "id": "term:9cf8295e97",
-      "domain": "localization",
+      "domain": "language",
       "definition": "Deterministic test localization with accents and expansion padding.",
       "source": "terminology",
       "terms": [
@@ -795,7 +795,7 @@
     },
     {
       "id": "term:a28130a037",
-      "domain": "localization",
+      "domain": "content-model",
       "source": "terminology",
       "terms": [
         {
@@ -814,7 +814,7 @@
     },
     {
       "id": "term:aa91dbf394",
-      "domain": "localization",
+      "domain": "memory",
       "source": "terminology",
       "terms": [
         {
@@ -833,7 +833,7 @@
     },
     {
       "id": "term:af398dceca",
-      "domain": "localization",
+      "domain": "quality",
       "definition": "Read → write → compare validation.",
       "source": "terminology",
       "terms": [
@@ -853,7 +853,7 @@
     },
     {
       "id": "term:b27500b873",
-      "domain": "localization",
+      "domain": "language",
       "source": "terminology",
       "terms": [
         {
@@ -872,7 +872,7 @@
     },
     {
       "id": "term:b4b33d2441",
-      "domain": "localization",
+      "domain": "content-model",
       "definition": "Stand-off annotation layer on a block (segmentation, terms, QA).",
       "source": "terminology",
       "terms": [
@@ -892,7 +892,7 @@
     },
     {
       "id": "term:c3def4a472",
-      "domain": "localization",
+      "domain": "memory",
       "definition": "The store of source/target pairs kapi reuses; backed by the memory/ package.",
       "source": "terminology",
       "terms": [
@@ -917,7 +917,7 @@
     },
     {
       "id": "term:cd71fe3074",
-      "domain": "localization",
+      "domain": "memory",
       "source": "terminology",
       "terms": [
         {
@@ -936,7 +936,7 @@
     },
     {
       "id": "term:cde0fb0dec",
-      "domain": "ui",
+      "domain": "workflow",
       "source": "terminology",
       "terms": [
         {
@@ -955,7 +955,7 @@
     },
     {
       "id": "term:d410850fd5",
-      "domain": "ui",
+      "domain": "workflow",
       "definition": "Saved per-framework or per-format configuration.",
       "source": "terminology",
       "terms": [
@@ -975,7 +975,7 @@
     },
     {
       "id": "term:d5665a94cd",
-      "domain": "ui",
+      "domain": "formats",
       "definition": "Microsoft terminology.",
       "source": "terminology",
       "terms": [
@@ -1015,7 +1015,7 @@
     },
     {
       "id": "term:ddc8d86be8",
-      "domain": "localization",
+      "domain": "formats",
       "source": "terminology",
       "terms": [
         {
@@ -1034,7 +1034,7 @@
     },
     {
       "id": "term:e1d8e55233",
-      "domain": "localization",
+      "domain": "workflow",
       "definition": "The .kapi project file.",
       "source": "terminology",
       "terms": [
@@ -1054,7 +1054,7 @@
     },
     {
       "id": "term:e904c9ccfa",
-      "domain": "localization",
+      "domain": "formats",
       "definition": "A data format with reader/writer support (Okapi: filter).",
       "source": "terminology",
       "terms": [
@@ -1093,7 +1093,7 @@
     },
     {
       "id": "term:f1cf2fd5c8",
-      "domain": "localization",
+      "domain": "formats",
       "definition": "Verb: extract the text. Not 'ekstraher'.",
       "source": "terminology",
       "terms": [
@@ -1113,7 +1113,7 @@
     },
     {
       "id": "term:fba586be3b",
-      "domain": "localization",
+      "domain": "content-model",
       "definition": "Opt-in sentence-level overlay within a block — not what produces blocks.",
       "source": "terminology",
       "terms": [
@@ -1133,7 +1133,7 @@
     },
     {
       "id": "term:fd89a2f18b",
-      "domain": "localization",
+      "domain": "redaction",
       "source": "terminology",
       "terms": [
         {
