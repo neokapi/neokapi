@@ -55,7 +55,7 @@ func newBrandGuideCmd(a *App) *cobra.Command {
 		Use:   "guide",
 		Short: "Print the brand voice guide (inject into your assistant's context)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			profile, _, err := a.ResolveBrandProfileCmd(cmd)
+			profile, _, err := a.ResolveBrandProfileCmd(cmd, args...)
 			if err != nil {
 				return err
 			}
@@ -75,7 +75,7 @@ func newBrandCheckCmd(a *App) *cobra.Command {
 		Use:   "check",
 		Short: "Score text against a brand voice profile",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			profile, _, err := a.ResolveBrandProfileCmd(cmd)
+			profile, _, err := a.ResolveBrandProfileCmd(cmd, args...)
 			if err != nil {
 				return err
 			}
@@ -161,7 +161,7 @@ style, or phrasing on-brand, rewrite the text yourself with the voice guide as
 context ('kapi brand guide') and apply the edit through 'kapi apply' — kapi does
 not send content to a model to rewrite it.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			profile, _, err := a.ResolveBrandProfileCmd(cmd)
+			profile, _, err := a.ResolveBrandProfileCmd(cmd, args...)
 			if err != nil {
 				return err
 			}
@@ -324,7 +324,7 @@ func newBrandShowCmd(a *App) *cobra.Command {
 		Use:   "show",
 		Short: "Show a brand voice profile as a guide",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			profile, _, err := a.ResolveBrandProfileCmd(cmd)
+			profile, _, err := a.ResolveBrandProfileCmd(cmd, args...)
 			if err != nil {
 				return err
 			}

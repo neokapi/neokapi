@@ -251,7 +251,12 @@ func (a *App) SaveProfileToStore(cmd Command, profile *brand.VoiceProfile, srcPa
 
 // ResolveBrandProfileCmd resolves the effective profile from --profile-file,
 // --pack, or --profile (local store), then applies locale/channel overrides.
-func (a *App) ResolveBrandProfileCmd(cmd Command) (*brand.VoiceProfile, string, error) {
+// paths, when given, are the files the caller is about to act on. The first
+// one decides which content collection's context governs the answer: a repo
+// holding two products binds a different voice per collection, so resolving
+// `kapi brand guide` against the project default would hand back the wrong
+// register for half the tree.
+func (a *App) ResolveBrandProfileCmd(cmd Command, paths ...string) (*brand.VoiceProfile, string, error) {
 	file, _ := cmd.Flags().GetString("profile-file")
 	pack, _ := cmd.Flags().GetString("pack")
 	name, _ := cmd.Flags().GetString("profile")
@@ -273,7 +278,7 @@ func (a *App) ResolveBrandProfileCmd(cmd Command) (*brand.VoiceProfile, string, 
 		// (defaults.brand_voice) or a convention file at the project root.
 		// This makes `kapi brand check DRAFT.md` work flag-free inside a
 		// project directory.
-		profile, src, ok, perr := a.resolveProjectBrandProfile(cmd, locale, channel, persona)
+		profile, src, ok, perr := a.resolveProjectBrandProfile(cmd, locale, channel, persona, paths...)
 		if perr != nil {
 			return nil, "", perr
 		}
@@ -326,7 +331,7 @@ func (a *App) ResolveBrandProfileCmd(cmd Command) (*brand.VoiceProfile, string, 
 // Returns (profile, source, found, error). found is false (with nil error)
 // when no project is in scope or the project carries no brand binding and no
 // convention file — letting the caller surface the "specify a profile" error.
-func (a *App) resolveProjectBrandProfile(cmd Command, locale, channel, persona string) (*brand.VoiceProfile, string, bool, error) {
+func (a *App) resolveProjectBrandProfile(cmd Command, locale, channel, persona string, paths ...string) (*brand.VoiceProfile, string, bool, error) {
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil {
 		return nil, "", false, err
@@ -353,8 +358,29 @@ func (a *App) resolveProjectBrandProfile(cmd Command, locale, channel, persona s
 		return nil, "", false, err
 	}
 
+	// Which collection owns the first named file, if any. A path outside every
+	// declared glob yields "", which resolves the project defaults — the same
+	// answer as before this lookup existed.
+	collection := ""
+	for _, path := range paths {
+		if path == "" {
+			continue
+		}
+		abs := path
+		if !filepath.IsAbs(abs) {
+			if cwd, cerr := os.Getwd(); cerr == nil {
+				abs = filepath.Join(cwd, path)
+			}
+		}
+		if rel, rerr := filepath.Rel(root, abs); rerr == nil && !strings.HasPrefix(rel, "..") {
+			collection = proj.CollectionForPath(filepath.ToSlash(rel))
+		}
+		break
+	}
+
 	return a.ResolveBrandProfile(CmdContext(cmd), proj, root, BrandResolveOptions{
 		Locale: locale, Channel: channel, Persona: persona, StorePath: storePath,
+		Collection: collection,
 	})
 }
 

@@ -89,8 +89,25 @@ defaults:
     - "bowrain/web/docs/i18n/**"
     - "harness/public/**"
     - "**/testdata/**"
+# The coordinate space this project's content sits in. Two products share one
+# repository and one kapi project, so `product` is what tells their content
+# apart; `channel` is the surface it appears on. Values are slugs — stable
+# identifiers that cross the sync wire, not vocabulary.
+coordinates:
+  product: [kapi, bowrain]
+  channel: [engine, desktop, docs, demos, app, ctrl, pulse, landing, email]
+
+# Governance bound to a point in that space. A collection matching no profile
+# falls back to defaults.brand_voice below.
+profiles:
+  - when: { product: kapi }
+    voice: context/brand-voice.yaml
+  - when: { product: bowrain }
+    voice: context/bowrain-voice.yaml
+
 content:
   - name: kapi-engine
+    context: { product: kapi, channel: engine }
     items:
       - path: core/i18n/builtins/metadata.json
         format:
@@ -103,22 +120,27 @@ content:
             extractionRules: "(display_name|description|title|label)$"
         target: core/i18n/catalogs/{lang}.mo
   - name: kapi-desktop
+    context: { product: kapi, channel: desktop }
     items:
       - path: apps/kapi-desktop/frontend/i18n/**/*.kbf.json
         target: apps/kapi-desktop/frontend/i18n-{lang}/{filename}
   - name: bowrain-app
+    context: { product: bowrain, channel: app }
     items:
       - path: bowrain/packages/app/i18n/**/*.kbf.json
         target: bowrain/packages/app/i18n-{lang}/{filename}
   - name: bowrain-ctrl
+    context: { product: bowrain, channel: ctrl }
     items:
       - path: bowrain/apps/ctrl/i18n/**/*.kbf.json
         target: bowrain/apps/ctrl/i18n-{lang}/{filename}
   - name: bowrain-pulse
+    context: { product: bowrain, channel: pulse }
     items:
       - path: bowrain/apps/pulse/i18n/**/*.kbf.json
         target: bowrain/apps/pulse/i18n-{lang}/{filename}
   - name: kapi-docs
+    context: { product: kapi, channel: docs }
     items:
       - path: web/docs/**/*.md
         format:
@@ -135,6 +157,7 @@ content:
             frontMatterKeys: [title, description, sidebar_label]
         target: web/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
   - name: bowrain-docs
+    context: { product: bowrain, channel: docs }
     items:
       - path: bowrain/web/docs/docs/**/*.md
         format:
@@ -151,20 +174,24 @@ content:
             frontMatterKeys: [title, description, sidebar_label]
         target: bowrain/web/docs/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
   - name: bowrain-email
+    context: { product: bowrain, channel: email }
     items:
       - path: bowrain/emails/i18n/**/*.kbf.json
         target: bowrain/emails/i18n-{lang}/{filename}
   - name: bowrain-email-subjects
+    context: { product: bowrain, channel: email }
     items:
       - path: bowrain/mailer/subjects/en.json
         format:
           name: json
         target: bowrain/mailer/subjects/{lang}.json
   - name: bowrain-landing
+    context: { product: bowrain, channel: landing }
     items:
       - path: bowrain/web/landing/i18n/**/*.kbf.json
         target: bowrain/web/landing/i18n-{lang}/{filename}
   - name: kapi-demos
+    context: { product: kapi, channel: demos }
     items:
       # Narrated demo-video scripts. The English demo.yaml is the master;
       # localized narration is GENERATED into committed demo.<lang>.yaml
