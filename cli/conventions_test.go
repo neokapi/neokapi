@@ -2,8 +2,8 @@ package cli
 
 import (
 	"os"
-	"regexp"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
