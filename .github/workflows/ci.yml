@@ -85,7 +85,16 @@ jobs:
             echo "${label}=false" >> "$GITHUB_OUTPUT"
           }
 
-          check_paths framework '^core/' '^go\.(mod|sum)$' '^go\.work' '^\.github/workflows/ci\.yml$'
+          # The framework is the ROOT module, and the root module is more than
+          # core/: kpz/, memory/, terms/ and providers/ are all part of it, and
+          # `make test-framework` runs `go test ./...` from the root, so the job
+          # already covers them. Only this filter did not — a PR touching just
+          # kpz/ reported framework=false, which skipped Test (framework) AND,
+          # through any_go, Build, Race and Tidy Check. #1612 (a kpz fix) landed
+          # with five checks and no Go test run at all, which is how this was
+          # found. cmd/ and examples/ are in the module too but hold only
+          # binaries and samples; they are covered by the post-merge full run.
+          check_paths framework '^(core|kpz|memory|terms|providers)/' '^go\.(mod|sum)$' '^go\.work' '^\.github/workflows/ci\.yml$'
           check_paths cli       '^(cli|host)/'
           check_paths platform  '^bowrain/core/'
           # kapi: anything under kapi/
