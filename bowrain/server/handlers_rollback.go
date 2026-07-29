@@ -99,7 +99,7 @@ func (s *Server) HandleRollbackBlock(c echo.Context) error {
 	ctx := c.Request().Context()
 	history, err := s.ContentStore.GetBlockHistory(ctx, pid, stream, bid, req.Locale, 200)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	var entry *struct {
@@ -141,7 +141,7 @@ func (s *Server) HandleRollbackBlock(c echo.Context) error {
 	// Label the restoring write so its history entry reads as a rollback.
 	ctx = bstore.WithChangeContext(ctx, bstore.ChangeContext{Reason: "rollback:" + strconv.FormatInt(req.ToSeq, 10)})
 	if err := s.ContentStore.StoreBlocks(ctx, pid, stream, []*model.Block{sb.Block}); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	s.emitAudit(c, auditEvent{
@@ -203,7 +203,7 @@ func (s *Server) HandleRevertBatch(c echo.Context) error {
 	ctx := c.Request().Context()
 	reverts, err := pg.ComputeBatchReverts(ctx, pid, stream, req.CorrelationID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if len(reverts) == 0 {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "no changes found for this correlation id"})
@@ -211,7 +211,7 @@ func (s *Server) HandleRevertBatch(c echo.Context) error {
 
 	n, err := s.applyReverts(ctx, pid, stream, "revert_batch:"+req.CorrelationID, reverts)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	s.emitAudit(c, auditEvent{
@@ -295,12 +295,12 @@ func (s *Server) HandleRestoreToPoint(c echo.Context) error {
 
 	reverts, err := pg.ComputePointInTimeReverts(ctx, pid, stream, cutoff)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	n, err := s.applyReverts(ctx, pid, stream, "restore:"+label, reverts)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	s.emitAudit(c, auditEvent{

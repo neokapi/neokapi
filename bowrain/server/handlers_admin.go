@@ -37,7 +37,7 @@ func (s *Server) HandleAdminListWorkspaces(c echo.Context) error {
 	ctx := c.Request().Context()
 	subs, err := s.BillingStore.ListSubscriptions(ctx, limit, offset)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Filter by plan/status if requested.
@@ -246,7 +246,7 @@ func (s *Server) HandleAdminGetLedger(c echo.Context) error {
 
 	entries, err := s.BillingStore.GetLedger(ctx, wsID, from, to)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if entries == nil {
 		entries = []billing.LedgerEntry{}
@@ -287,7 +287,7 @@ func (s *Server) HandleAdminGetModelUsage(c echo.Context) error {
 
 	usage, err := pgStore.GetUsageByModel(ctx, wsID, from, to)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	runnerUsage, _ := pgStore.GetRunnerUsage(ctx, wsID, from, to)
@@ -337,7 +337,7 @@ func (s *Server) HandleAdminUpdatePlan(c echo.Context) error {
 	}
 
 	if err := s.BillingStore.UpsertSubscription(ctx, sub); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Sync the plan to the workspace record.
@@ -386,7 +386,7 @@ func (s *Server) HandleAdminGrantCredits(c echo.Context) error {
 	// cascade never draws from. The ledger operation is still "grant" and the
 	// billing event below records who granted them and why.
 	if err := s.BillingStore.GrantCredits(ctx, wsID, req.Amount, billing.SourcePurchased); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Record event with reason.
@@ -423,7 +423,7 @@ func (s *Server) HandleAdminGetFeatureOverrides(c echo.Context) error {
 	wsID := c.Param("id")
 	overrides, err := s.BillingStore.GetFeatureOverrides(c.Request().Context(), wsID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{
@@ -450,7 +450,7 @@ func (s *Server) HandleAdminSetFeatureOverrides(c echo.Context) error {
 	req.CreatedBy = adminEmail
 
 	if err := s.BillingStore.SetFeatureOverride(c.Request().Context(), &req); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Record billing event.
@@ -481,7 +481,7 @@ func (s *Server) HandleAdminGetNotes(c echo.Context) error {
 	wsID := c.Param("id")
 	notes, err := s.BillingStore.ListNotes(c.Request().Context(), wsID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{
@@ -516,7 +516,7 @@ func (s *Server) HandleAdminAddNote(c echo.Context) error {
 	}
 
 	if err := s.BillingStore.AddNote(c.Request().Context(), note); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusCreated, note)
@@ -559,7 +559,7 @@ func (s *Server) HandleAdminListUsers(c echo.Context) error {
 
 	users, err := s.AuthStore.ListUsers(ctx, limit, offset)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if users == nil {
 		users = []*platauth.User{}
@@ -610,7 +610,7 @@ func (s *Server) HandleAdminGetMetrics(c echo.Context) error {
 
 	metrics, err := s.BillingStore.GetPlatformMetrics(c.Request().Context())
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, metrics)
@@ -632,7 +632,7 @@ func (s *Server) HandleAdminListEvents(c echo.Context) error {
 
 	events, err := s.BillingStore.ListBillingEvents(c.Request().Context(), limit, offset, eventType)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{
@@ -649,7 +649,7 @@ func (s *Server) HandleAdminGetUpsells(c echo.Context) error {
 
 	opportunities, err := s.BillingStore.GetUpsellOpportunities(c.Request().Context())
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{
@@ -666,7 +666,7 @@ func (s *Server) HandleAdminListOverrides(c echo.Context) error {
 
 	overrides, err := s.BillingStore.ListAllFeatureOverrides(c.Request().Context())
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{
@@ -801,11 +801,11 @@ func (s *Server) HandleAdminAddMember(c echo.Context) error {
 			return c.JSON(http.StatusConflict, ErrorResponse{Error: "user is already a member with this role"})
 		}
 		if err := s.AuthStore.UpdateRole(ctx, wsID, req.UserID, role); err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+			return serverErr(c, err)
 		}
 	} else {
 		if err := s.AuthStore.AddMember(ctx, wsID, req.UserID, role); err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+			return serverErr(c, err)
 		}
 	}
 

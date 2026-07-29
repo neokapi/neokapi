@@ -21,7 +21,7 @@ func (s *Server) HandleGetNotificationPreferences(c echo.Context) error {
 
 	prefs, err := s.PreferenceStore.List(c.Request().Context(), userID, ws)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"preferences": prefs})
@@ -68,7 +68,7 @@ func (s *Server) HandleUpdateNotificationPreferences(c echo.Context) error {
 	}
 
 	if err := s.PreferenceStore.BulkUpsert(c.Request().Context(), prefs); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})

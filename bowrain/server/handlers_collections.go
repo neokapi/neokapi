@@ -141,7 +141,7 @@ func (s *Server) HandleListCollections(c echo.Context) error {
 
 	colls, err := s.ContentStore.ListCollections(ctx, pid, stream)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Count items per collection.
@@ -206,7 +206,7 @@ func (s *Server) HandleCreateCollection(c echo.Context) error {
 	}
 
 	if err := s.ContentStore.CreateCollection(c.Request().Context(), coll); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusCreated, collectionToResponse(coll))
@@ -268,7 +268,7 @@ func (s *Server) HandleUpdateCollection(c echo.Context) error {
 	// Stream is intentionally not updatable after creation.
 
 	if err := s.ContentStore.UpdateCollection(ctx, coll); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, collectionToResponse(coll))
@@ -345,7 +345,7 @@ func (s *Server) HandleUploadToCollection(c echo.Context) error {
 
 	info, err := editorAddFilesToCollection(ctx, s.ContentStore, s.FormatRegistry, pid, streamParam(c), cid, files)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)

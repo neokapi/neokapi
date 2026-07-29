@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -58,7 +59,7 @@ func (s *Server) HandleCreateProject(c echo.Context) error {
 		// Default to the user's personal workspace.
 		workspaces, err := s.AuthStore.ListWorkspaces(ctx, userID)
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "list workspaces: " + err.Error()})
+			return serverErr(c, fmt.Errorf("list workspaces: %w", err))
 		}
 		for _, ws := range workspaces {
 			if ws.Type == platauth.WorkspaceTypePersonal {
@@ -83,7 +84,7 @@ func (s *Server) HandleCreateProject(c echo.Context) error {
 		WorkspaceID:           targetWS.ID,
 	}
 	if err := s.Services.Project.CreateProject(ctx, p); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// The creator becomes a review-capable project member so governed review has
@@ -127,7 +128,7 @@ func (s *Server) HandleListProjects(c echo.Context) error {
 	}
 	projects, err := s.Services.Project.ListProjects(c.Request().Context())
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, projects)
 }
@@ -183,7 +184,7 @@ func (s *Server) HandleUpdateProject(c echo.Context) error {
 		}
 	}
 	if err := s.Services.Project.UpdateProject(ctx, p); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Detect new locales and publish event.

@@ -45,7 +45,7 @@ func (s *Server) HandleListReviewQueue(c echo.Context) error {
 
 	result, err := s.ReviewQueueStore.ListItems(c.Request().Context(), q)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if result.Items == nil {
 		result.Items = []bstore.ReviewItem{}
@@ -242,7 +242,7 @@ func (s *Server) HandleBatchDecideReviewItems(c echo.Context) error {
 		UserID:   userID,
 	})
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Process side effects for each decided item.

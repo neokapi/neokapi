@@ -70,7 +70,7 @@ func (s *Server) HandleListBrandProfiles(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	profiles, err := s.BrandStore.ListProfiles(c.Request().Context(), wsID)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, profiles)
 }
@@ -115,7 +115,7 @@ func (s *Server) HandleCreateBrandProfile(c echo.Context) error {
 	}
 
 	if err := s.BrandStore.CreateProfile(c.Request().Context(), profile); err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusCreated, profile)
 }
@@ -159,7 +159,7 @@ func (s *Server) HandleUpsertBrandProfile(c echo.Context) error {
 
 	profiles, err := s.BrandStore.ListProfiles(ctx, wsID)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	var existing *coreprofile.VoiceProfile
 	for _, p := range profiles {
@@ -189,7 +189,7 @@ func (s *Server) HandleUpsertBrandProfile(c echo.Context) error {
 			CreatedBy:   userID,
 		}
 		if err := s.BrandStore.CreateProfile(ctx, profile); err != nil {
-			return apiErr(c, http.StatusInternalServerError, err.Error())
+			return serverErr(c, err)
 		}
 		return c.JSON(http.StatusCreated, BrandProfileUpsertResponse{Action: "created", Profile: profile})
 	}
@@ -222,7 +222,7 @@ func (s *Server) HandleUpsertBrandProfile(c echo.Context) error {
 	// UpdateProfile archives the current state as an immutable ProfileVersion
 	// and bumps existing.Version — the pushed change lands as a new version.
 	if err := s.BrandStore.UpdateProfile(ctx, existing); err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	s.emitAudit(c, auditEvent{
 		Type:         platev.EventBrandProfileUpdated,
@@ -402,7 +402,7 @@ func (s *Server) HandleUpdateBrandProfile(c echo.Context) error {
 	profile.UpdatedAt = time.Now().UTC()
 
 	if err := s.BrandStore.UpdateProfile(ctx, profile); err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	s.emitAudit(c, auditEvent{
 		Type:         platev.EventBrandProfileUpdated,
@@ -483,7 +483,7 @@ func (s *Server) HandleCheckBrandVoice(c echo.Context) error {
 func (s *Server) HandleListStarterPacks(c echo.Context) error {
 	names, err := packs.List()
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 
 	result := make([]StarterPackResponse, 0, len(names))
@@ -538,7 +538,7 @@ func (s *Server) HandleCreateFromStarter(c echo.Context) error {
 	}
 
 	if err := s.BrandStore.CreateProfile(c.Request().Context(), profile); err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusCreated, profile)
 }
@@ -552,7 +552,7 @@ func (s *Server) HandleGetBrandVoiceScores(c echo.Context) error {
 	projectID := c.Param("id")
 	scores, err := s.BrandStore.GetScores(c.Request().Context(), projectID, "")
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, scores)
 }
@@ -567,7 +567,7 @@ func (s *Server) HandleGetBrandVoiceScoresByLocale(c echo.Context) error {
 	locale := model.LocaleID(c.Param("locale"))
 	scores, err := s.BrandStore.GetScores(c.Request().Context(), projectID, locale)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, scores)
 }
@@ -588,7 +588,7 @@ func (s *Server) HandleGetBrandVoiceTrends(c echo.Context) error {
 
 	trends, err := s.BrandStore.GetScoreTrends(c.Request().Context(), projectID, days)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, trends)
 }

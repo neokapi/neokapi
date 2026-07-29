@@ -136,7 +136,7 @@ func (s *Server) HandleStartConvergenceRun(c echo.Context) error {
 	}
 	run, created, err := s.convergence.StartRun(c.Request().Context(), c.Param("id"), trigger, req.Locales)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	status := http.StatusOK // an already-running run is returned, not re-created
 	if created {
@@ -162,7 +162,7 @@ func (s *Server) HandleListConvergenceRuns(c echo.Context) error {
 	}
 	runs, err := s.ConvergenceRunStore.ListRuns(c.Request().Context(), c.Param("id"), limit)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	views := make([]convergenceRunView, 0, len(runs))
 	for _, r := range runs {
@@ -218,7 +218,7 @@ func (s *Server) HandleCancelConvergenceRun(c echo.Context) error {
 	// loop was signaled.
 	signaled, err := s.convergence.Cancel(c.Request().Context(), run)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]any{"canceled": true, "signaled": signaled})
 }
@@ -381,7 +381,7 @@ func (s *Server) HandleUpdateProjectSettings(c echo.Context) error {
 		proj.ConvergePolicy = store.NormalizeConvergePolicy(req.ConvergePolicy)
 	}
 	if err := s.Services.Project.UpdateProject(ctx, proj); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.NoContent(http.StatusOK)
 }

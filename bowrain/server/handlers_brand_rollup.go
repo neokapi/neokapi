@@ -75,7 +75,7 @@ func (s *Server) HandleGetBrandVoiceRollup(c echo.Context) error {
 
 	allProjects, err := s.Services.Project.ListProjects(ctx)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Keep only the workspace's own live projects, ordered by name so the page is

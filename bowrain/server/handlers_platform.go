@@ -150,7 +150,7 @@ func (s *Server) HandleAdminUpdatePlatformConfig(c echo.Context) error {
 			}
 			effProvider = *req.AI.Provider
 			if err := set(platformconfig.KeyAIProvider, *req.AI.Provider); err != nil {
-				return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+				return serverErr(c, err)
 			}
 		}
 		if req.AI.DefaultModel != nil {
@@ -159,12 +159,12 @@ func (s *Server) HandleAdminUpdatePlatformConfig(c echo.Context) error {
 			}
 			effDefaultModel = *req.AI.DefaultModel
 			if err := set(platformconfig.KeyAIDefaultModel, *req.AI.DefaultModel); err != nil {
-				return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+				return serverErr(c, err)
 			}
 		}
 		if req.AI.BaseURL != nil {
 			if err := set(platformconfig.KeyAIBaseURL, *req.AI.BaseURL); err != nil {
-				return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+				return serverErr(c, err)
 			}
 		}
 		if req.AI.EnabledModels != nil {
@@ -173,12 +173,12 @@ func (s *Server) HandleAdminUpdatePlatformConfig(c echo.Context) error {
 			}
 			effEnabled = *req.AI.EnabledModels
 			if err := set(platformconfig.KeyAIEnabledModels, *req.AI.EnabledModels); err != nil {
-				return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+				return serverErr(c, err)
 			}
 		}
 		if req.AI.CustomerChoice != nil {
 			if err := set(platformconfig.KeyAICustomerChoice, *req.AI.CustomerChoice); err != nil {
-				return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+				return serverErr(c, err)
 			}
 		}
 	}
@@ -193,19 +193,19 @@ func (s *Server) HandleAdminUpdatePlatformConfig(c echo.Context) error {
 
 	if req.Signups != nil && req.Signups.Open != nil {
 		if err := set(platformconfig.KeySignupsOpen, *req.Signups.Open); err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+			return serverErr(c, err)
 		}
 	}
 
 	if req.Maintenance != nil {
 		if req.Maintenance.Enabled != nil {
 			if err := set(platformconfig.KeyMaintenanceOn, *req.Maintenance.Enabled); err != nil {
-				return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+				return serverErr(c, err)
 			}
 		}
 		if req.Maintenance.Message != nil {
 			if err := set(platformconfig.KeyMaintenanceMsg, *req.Maintenance.Message); err != nil {
-				return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+				return serverErr(c, err)
 			}
 		}
 	}
@@ -216,7 +216,7 @@ func (s *Server) HandleAdminUpdatePlatformConfig(c echo.Context) error {
 				return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid workspace_defaults.plan: " + *req.WorkspaceDefaults.Plan})
 			}
 			if err := set(platformconfig.KeyDefaultPlan, *req.WorkspaceDefaults.Plan); err != nil {
-				return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+				return serverErr(c, err)
 			}
 		}
 		if req.WorkspaceDefaults.TrialDays != nil {
@@ -224,20 +224,20 @@ func (s *Server) HandleAdminUpdatePlatformConfig(c echo.Context) error {
 				return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "workspace_defaults.trial_days must be between 1 and 365"})
 			}
 			if err := set(platformconfig.KeyTrialDays, *req.WorkspaceDefaults.TrialDays); err != nil {
-				return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+				return serverErr(c, err)
 			}
 		}
 	}
 
 	if req.Features != nil {
 		if err := set(platformconfig.KeyFeatures, *req.Features); err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+			return serverErr(c, err)
 		}
 	}
 
 	if req.ModelSweeps != nil && req.ModelSweeps.Enabled != nil {
 		if err := set(platformconfig.KeyModelSweeps, *req.ModelSweeps.Enabled); err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+			return serverErr(c, err)
 		}
 	}
 
@@ -270,7 +270,7 @@ func (s *Server) HandleAdminUpdatePlatformConfig(c echo.Context) error {
 			platformconfig.KeyResilienceHalfOpenProbes:  r.HalfOpenProbes,
 		} {
 			if err := setIfPresent(set, key, v); err != nil {
-				return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+				return serverErr(c, err)
 			}
 		}
 	}
@@ -286,7 +286,7 @@ func (s *Server) HandleAdminUpdatePlatformConfig(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	if err := s.PlatformConfig.Set(ctx, updates, adminEmail); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Fan-out: tell every server and worker to reload its cached settings.

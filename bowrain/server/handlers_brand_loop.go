@@ -47,11 +47,11 @@ func (s *Server) HandleListCandidates(c echo.Context) error {
 	ctx := c.Request().Context()
 	suggestions, err := s.BrandStore.GetSuggestedRules(ctx, wsID, minCount)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	decisions, err := s.BrandStore.ListRuleDecisions(ctx, profileID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	candidates := coreprofile.MergeCandidates(suggestions, decisions, includeResolved)
 	return c.JSON(http.StatusOK, candidates)
@@ -89,7 +89,7 @@ func (s *Server) HandleRejectSuggestedRule(c echo.Context) error {
 		DecidedAt:       time.Now().UTC(),
 	}
 	if err := s.BrandStore.RecordRuleDecision(c.Request().Context(), decision); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	s.publishBrandRuleEvent(EventBrandVoiceRuleRejected, wsID, userID, profileID, req.Term, req.Replacement, 0)
 	return c.JSON(http.StatusOK, decision)
@@ -133,7 +133,7 @@ func (s *Server) HandleEvaluateRulePromotion(c echo.Context) error {
 
 	stored, err := s.ContentStore.GetBlocks(ctx, store.BlockQuery{ProjectID: req.ProjectID, Stream: req.Stream})
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	blocks := make([]coreprofile.EvalBlock, 0, len(stored))
 	for _, sb := range stored {
@@ -215,7 +215,7 @@ func (s *Server) HandleGetBrandVoiceDrift(c echo.Context) error {
 	cfg, days := driftConfigFromQuery(c)
 	trends, err := s.BrandStore.GetScoreTrends(c.Request().Context(), projectID, days)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, coreprofile.AnalyzeDrift(trends, cfg))
 }
@@ -235,7 +235,7 @@ func (s *Server) HandleRunBrandVoiceDriftCheck(c echo.Context) error {
 	cfg, days := driftConfigFromQuery(c)
 	trends, err := s.BrandStore.GetScoreTrends(c.Request().Context(), projectID, days)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	result := coreprofile.AnalyzeDrift(trends, cfg)
 	if result.Drifted && s.EventBus != nil {

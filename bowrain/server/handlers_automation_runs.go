@@ -31,7 +31,7 @@ func (s *Server) HandleListAutomationRuns(c echo.Context) error {
 
 	runs, err := s.AutomationRunStore.ListRuns(c.Request().Context(), projectID, status, limit, offset)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if runs == nil {
 		runs = []*bstore.AutomationRun{}
@@ -54,7 +54,7 @@ func (s *Server) HandleGetAutomationRun(c echo.Context) error {
 
 	steps, err := s.AutomationRunStore.ListSteps(c.Request().Context(), runID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if steps == nil {
 		steps = []*bstore.AutomationStep{}
@@ -75,7 +75,7 @@ func (s *Server) HandleListAutomationRunSteps(c echo.Context) error {
 	runID := c.Param("runId")
 	steps, err := s.AutomationRunStore.ListSteps(c.Request().Context(), runID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if steps == nil {
 		steps = []*bstore.AutomationStep{}
@@ -99,7 +99,7 @@ func (s *Server) HandleListStepLogs(c echo.Context) error {
 
 	logs, err := s.AutomationRunStore.ListLogs(c.Request().Context(), stepID, limit)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if logs == nil {
 		logs = []bstore.AutomationLog{}
@@ -115,7 +115,7 @@ func (s *Server) HandleCancelAutomationRun(c echo.Context) error {
 
 	runID := c.Param("runId")
 	if err := s.AutomationRunStore.UpdateRunStatus(c.Request().Context(), runID, bstore.RunStatusFailed, "cancelled by user"); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})
 }

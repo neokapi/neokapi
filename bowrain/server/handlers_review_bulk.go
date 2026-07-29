@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -91,7 +92,7 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 
 	blocks, err := s.ContentStore.GetBlocks(ctx, platstore.BlockQuery{ProjectID: pid, Stream: stream})
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "load blocks: " + err.Error()})
+		return serverErr(c, fmt.Errorf("load blocks: %w", err))
 	}
 	scores := latestVoiceScores(ctx, s.BrandStore, pid, stream)
 	// The same terminology gate the dashboard ship/on-brand pass uses, resolved
@@ -130,7 +131,7 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 
 	if len(toStore) > 0 {
 		if err := s.ContentStore.StoreBlocks(ctx, pid, stream, toStore); err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "store blocks: " + err.Error()})
+			return serverErr(c, fmt.Errorf("store blocks: %w", err))
 		}
 	}
 

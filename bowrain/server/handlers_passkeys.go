@@ -26,6 +26,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -167,7 +168,7 @@ func (s *Server) passkeyOpError(c echo.Context, userID, prefix string, err error
 		s.clearElevatedToken(c.Request().Context(), userID)
 		return elevationRequiredJSON(c)
 	}
-	return apiErr(c, http.StatusBadGateway, prefix+": "+err.Error())
+	return serverErrStatus(c, http.StatusBadGateway, fmt.Errorf("%s: %w", prefix, err))
 }
 
 // passkeyJSON is the wire shape for a listed credential.
@@ -246,7 +247,7 @@ func (s *Server) HandleSecurityElevate(c echo.Context) error {
 	oidcCtx := s.oidcContext(c.Request().Context())
 	provider, err := oidc.NewProvider(oidcCtx, s.Config.OIDCIssuerURL)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, "OIDC discovery failed: "+err.Error())
+		return serverErr(c, fmt.Errorf("OIDC discovery failed: %w", err))
 	}
 	authURL := provider.Endpoint().AuthURL
 	if s.Config.OIDCPublicURL != "" && s.Config.OIDCPublicURL != s.Config.OIDCIssuerURL {
@@ -255,7 +256,7 @@ func (s *Server) HandleSecurityElevate(c echo.Context) error {
 
 	ap, err := newOIDCAuthParams()
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 
 	ctx := c.Request().Context()
@@ -266,7 +267,7 @@ func (s *Server) HandleSecurityElevate(c echo.Context) error {
 		Return:       sanitizeReturnPath(c.QueryParam("return")),
 	}
 	if err := sessionSet(ctx, s.SessionStore, prefixElevateState, ap.State, entry, authStateTTL); err != nil {
-		return apiErr(c, http.StatusInternalServerError, "store elevate state: "+err.Error())
+		return serverErr(c, fmt.Errorf("store elevate state: %w", err))
 	}
 
 	redirectURI := requestBaseURL(c) + "/api/v1/account/security/elevate/callback"
@@ -395,10 +396,10 @@ func (s *Server) HandleRegisterStart(c echo.Context) error {
 	}
 	nonce, err := newPasskeyNonce()
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, "generate nonce: "+err.Error())
+		return serverErr(c, fmt.Errorf("generate nonce: %w", err))
 	}
 	if err := s.SessionStore.Set(ctx, prefixPasskeyNonce+userID, []byte(nonce), passkeyNonceTTL); err != nil {
-		return apiErr(c, http.StatusInternalServerError, "persist nonce: "+err.Error())
+		return serverErr(c, fmt.Errorf("persist nonce: %w", err))
 	}
 	return c.JSON(http.StatusOK, map[string]any{
 		"options": options,

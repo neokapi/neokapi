@@ -51,7 +51,7 @@ func (s *Server) HandleAddBlockNote(c echo.Context) error {
 	}
 
 	if err := s.ContentStore.AddBlockNote(c.Request().Context(), pid, "main", bid, note); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Dispatch mention notifications.
@@ -89,7 +89,7 @@ func (s *Server) HandleListBlockNotes(c echo.Context) error {
 
 	notes, err := s.ContentStore.ListBlockNotes(c.Request().Context(), pid, "main", bid)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	result := make([]BlockNoteResponse, len(notes))

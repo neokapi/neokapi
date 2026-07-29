@@ -43,12 +43,12 @@ func (s *Server) HandleListProjectRefs(c echo.Context) error {
 
 	streams, err := s.ContentStore.ListStreams(ctx, projectID, includeArchived)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	tags, err := s.ContentStore.ListProjectTags(ctx, projectID, kind)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	refs := make([]ProjectRef, 0, len(streams)+len(tags))

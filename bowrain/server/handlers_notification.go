@@ -32,7 +32,7 @@ func (s *Server) HandleListNotifications(c echo.Context) error {
 
 	notifications, err := s.NotificationStore.List(ctx, userID, limit, unreadOnly)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if notifications == nil {
 		notifications = []bstore.Notification{}
@@ -56,7 +56,7 @@ func (s *Server) HandleMarkNotificationRead(c echo.Context) error {
 	notificationID := c.Param("nid")
 
 	if err := s.NotificationStore.MarkRead(c.Request().Context(), notificationID, userID); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})
@@ -71,7 +71,7 @@ func (s *Server) HandleMarkAllNotificationsRead(c echo.Context) error {
 	userID, _ := c.Get("user_id").(string)
 
 	if err := s.NotificationStore.MarkAllRead(c.Request().Context(), userID); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})
@@ -87,7 +87,7 @@ func (s *Server) HandleDeleteNotification(c echo.Context) error {
 	notificationID := c.Param("nid")
 
 	if err := s.NotificationStore.Delete(c.Request().Context(), notificationID, userID); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.NoContent(http.StatusNoContent)

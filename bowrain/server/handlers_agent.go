@@ -38,7 +38,7 @@ func (s *Server) HandleCreateBravoConversation(c echo.Context) error {
 
 	conv, err := s.AgentService.CreateConversation(c.Request().Context(), wsID, userID, req.ProjectID, req.Title)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusCreated, conv)
@@ -58,7 +58,7 @@ func (s *Server) HandleListBravoConversations(c echo.Context) error {
 
 	convs, total, err := s.AgentService.ListConversations(c.Request().Context(), wsID, userID, limit, offset)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Force empty array instead of null in JSON.
@@ -107,7 +107,7 @@ func (s *Server) HandleDeleteBravoConversation(c echo.Context) error {
 
 	convID := c.Param("id")
 	if err := s.AgentService.DeleteConversation(c.Request().Context(), convID); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.NoContent(http.StatusNoContent)
 }
@@ -206,7 +206,7 @@ func (s *Server) HandleSendBravoMessage(c echo.Context) error {
 	// JSON mode (backward-compatible with Phase 1 clients).
 	userMsg, assistantMsg, err := s.AgentService.SendMessage(c.Request().Context(), convID, userID, req.Content)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{
@@ -227,7 +227,7 @@ func (s *Server) HandleListBravoMessages(c echo.Context) error {
 
 	msgs, err := s.AgentService.ListMessages(c.Request().Context(), convID, limit, offset)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"messages": msgs})
@@ -248,7 +248,7 @@ func (s *Server) HandleApproveBravoToolCall(c echo.Context) error {
 	userID := c.Get("user_id").(string)
 
 	if err := s.AgentService.ApproveToolCall(c.Request().Context(), convID, tcID, userID); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]string{"status": "approved"})
 }
@@ -264,7 +264,7 @@ func (s *Server) HandleDenyBravoToolCall(c echo.Context) error {
 	userID := c.Get("user_id").(string)
 
 	if err := s.AgentService.DenyToolCall(c.Request().Context(), convID, tcID, userID); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]string{"status": "denied"})
 }
@@ -281,7 +281,7 @@ func (s *Server) HandleCancelBravoConversation(c echo.Context) error {
 
 	convID := c.Param("id")
 	if err := s.AgentService.CancelConversation(c.Request().Context(), convID); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]string{"status": "cancelled"})
 }
@@ -354,7 +354,7 @@ func (s *Server) HandleGetBravoConfig(c echo.Context) error {
 	wsID := c.Get("workspace_id").(string)
 	cfg, err := s.AgentService.GetConfig(c.Request().Context(), wsID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, cfg)
 }
@@ -386,7 +386,7 @@ func (s *Server) HandleUpdateBravoConfig(c echo.Context) error {
 	ctx := c.Request().Context()
 	existing, err := s.AgentService.GetConfig(ctx, wsID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	if cfg.Enabled != nil {
@@ -409,7 +409,7 @@ func (s *Server) HandleUpdateBravoConfig(c echo.Context) error {
 	}
 
 	if err := s.AgentService.SaveConfig(ctx, existing); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, existing)
 }
@@ -427,7 +427,7 @@ func (s *Server) HandleListBravoTools(c echo.Context) error {
 	wsID := c.Get("workspace_id").(string)
 	tools, err := s.AgentService.ListAvailableTools(c.Request().Context(), wsID, agentToolNames())
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]any{"tools": tools})
 }
@@ -477,7 +477,7 @@ func (s *Server) HandleGetBravoUsage(c echo.Context) error {
 
 	summary, err := s.AgentService.GetUsageSummary(c.Request().Context(), wsID, from, to)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, summary)
