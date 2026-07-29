@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -450,9 +451,20 @@ func (s *AuthService) ValidateAPIToken(ctx context.Context, plaintext string) (*
 	// Fire-and-forget last-used update: detached from the request's
 	// cancellation (the write should complete even if the caller disconnects)
 	// but keeps the request's trace/values.
+	//
+	// Nothing above this goroutine can recover for it, so it recovers for
+	// itself: a panicking store would otherwise take the process down over a
+	// bookkeeping write whose failure does not affect the validated token.
 	lastUsedCtx := context.WithoutCancel(ctx)
 	go func() {
-		_ = s.store.UpdateAPITokenLastUsed(lastUsedCtx, token.ID)
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered panic in API token last-used update", "panic", r)
+			}
+		}()
+		if err := s.store.UpdateAPITokenLastUsed(lastUsedCtx, token.ID); err != nil {
+			slog.Debug("update API token last-used", "token_id", token.ID, "error", err)
+		}
 	}()
 
 	return token, nil

@@ -3,6 +3,7 @@ package jobs
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -80,9 +81,14 @@ func (q *ChannelQueue) Enqueue(_ context.Context, jobID string) error {
 }
 
 // EnqueueAfter makes ChannelQueue a [DelayedQueue] by parking the re-enqueue on
-// a timer. The timer goroutine is deliberately fire-and-forget: it is bounded by
-// the delay, and a queue closed underneath it simply drops the send. The delay
-// is honored against ctx so a shutting-down worker does not leave timers behind.
+// a timer. The timer goroutine is fire-and-forget by necessity — the caller was
+// told the deferral was accepted and has already moved on — but a deferred job
+// is one the system promised to run again, so the send waits for room rather
+// than abandoning the job on a full buffer. That distinction matters: a full
+// buffer is precisely the load that produces retries, so dropping there loses
+// the jobs most in need of running. The delay is honored against ctx so a
+// shutting-down worker does not leave timers behind, and the two remaining ways
+// the send can fail — a closed queue, a cancelled context — are logged.
 func (q *ChannelQueue) EnqueueAfter(ctx context.Context, jobID string, delay time.Duration) error {
 	if delay <= 0 {
 		return q.Enqueue(ctx, jobID)
@@ -102,17 +108,48 @@ func (q *ChannelQueue) EnqueueAfter(ctx context.Context, jobID string, delay tim
 			return
 		case <-t.C:
 		}
-		q.mu.Lock()
-		defer q.mu.Unlock()
-		if q.closed {
-			return
-		}
-		select {
-		case q.ch <- jobID:
-		default:
+		if err := q.enqueueWaiting(ctx, jobID); err != nil {
+			slog.Error("deferred job was not re-queued", "job_id", jobID, "error", err)
 		}
 	}()
 	return nil
+}
+
+// enqueueWaiting sends jobID once the buffer has room, giving up only when ctx
+// ends or the queue closes.
+//
+// It polls instead of parking on the send because Close closes the channel: a
+// send parked while holding q.mu would deadlock Close, and one parked without it
+// would panic if Close won the race. Keeping every send attempt non-blocking
+// under the lock avoids both. The cost is up to one poll interval of latency on
+// a full buffer — an already-degraded state, in the queue that exists for
+// single-process deployments.
+func (q *ChannelQueue) enqueueWaiting(ctx context.Context, jobID string) error {
+	const pollInterval = 25 * time.Millisecond
+
+	tick := time.NewTicker(pollInterval)
+	defer tick.Stop()
+
+	for {
+		q.mu.Lock()
+		if q.closed {
+			q.mu.Unlock()
+			return errors.New("queue is closed")
+		}
+		select {
+		case q.ch <- jobID:
+			q.mu.Unlock()
+			return nil
+		default:
+		}
+		q.mu.Unlock()
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-tick.C:
+		}
+	}
 }
 
 func (q *ChannelQueue) Dequeue(ctx context.Context) (string, func(), func(), error) {
@@ -125,10 +162,12 @@ func (q *ChannelQueue) Dequeue(ctx context.Context) (string, func(), func(), err
 		}
 		ack := func() {} // channel dequeue is already consuming
 		nack := func() {
-			// Re-enqueue for retry (best-effort; may block if full).
-			select {
-			case q.ch <- jobID:
-			default:
+			// Returning the job to the queue is the whole point of a nack, so
+			// wait for room rather than dropping it. enqueueWaiting also takes
+			// q.mu, which a bare send did not: sending on the channel after
+			// Close had closed it would panic the worker.
+			if err := q.enqueueWaiting(ctx, jobID); err != nil {
+				slog.Error("nacked job was not re-queued", "job_id", jobID, "error", err)
 			}
 		}
 		return jobID, ack, nack, nil

@@ -45,6 +45,68 @@ func TestChannelQueue_Nack(t *testing.T) {
 	ack()
 }
 
+// Returning the job is the whole purpose of a nack, so a full buffer must not
+// be where it quietly stops being a retry.
+func TestChannelQueue_NackWaitsForRoom(t *testing.T) {
+	q := NewChannelQueue(1)
+	defer q.Close()
+	ctx := t.Context()
+
+	require.NoError(t, q.Enqueue(ctx, "job-retry"))
+
+	id, _, nack, err := q.Dequeue(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "job-retry", id)
+
+	// Refill the single slot before nacking, so the nack finds no room.
+	require.NoError(t, q.Enqueue(ctx, "job-occupant"))
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		nack()
+	}()
+
+	// Let the nack reach the full buffer before anything drains it — otherwise
+	// it may win the race, find room, and never exercise the full-buffer path.
+	time.Sleep(150 * time.Millisecond)
+
+	// Drain the occupant, making room for the nacked job.
+	select {
+	case got := <-q.ch:
+		require.Equal(t, "job-occupant", got)
+	case <-time.After(time.Second):
+		t.Fatal("occupant was never delivered")
+	}
+
+	select {
+	case got := <-q.ch:
+		assert.Equal(t, "job-retry", got)
+	case <-time.After(2 * time.Second):
+		t.Fatal("nacked job was dropped when the buffer was full")
+	}
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("nack never returned")
+	}
+}
+
+// Close closes the channel, so a nack that sent on it directly would panic the
+// worker rather than report that the queue had gone away.
+func TestChannelQueue_NackAfterCloseDoesNotPanic(t *testing.T) {
+	q := NewChannelQueue(1)
+	ctx := t.Context()
+
+	require.NoError(t, q.Enqueue(ctx, "job-retry"))
+	_, _, nack, err := q.Dequeue(ctx)
+	require.NoError(t, err)
+
+	require.NoError(t, q.Close())
+	assert.NotPanics(t, nack)
+}
+
 func TestChannelQueue_DequeueContextCancelled(t *testing.T) {
 	q := NewChannelQueue(10)
 	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)

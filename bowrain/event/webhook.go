@@ -38,7 +38,12 @@ func NewWebhookDelivery(config WebhookConfig) *WebhookDelivery {
 }
 
 // Deliver sends an event to the webhook endpoint.
-func (w *WebhookDelivery) Deliver(event platev.Event) error {
+//
+// ctx bounds the whole delivery, backoff included. Three attempts spend around
+// seven seconds waiting between them, so a delivery that ignored cancellation
+// would hold a shutting-down process open sleeping against an endpoint nobody
+// is waiting for any more.
+func (w *WebhookDelivery) Deliver(ctx context.Context, event platev.Event) error {
 	payload, err := json.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("marshal event: %w", err)
@@ -50,10 +55,19 @@ func (w *WebhookDelivery) Deliver(event platev.Event) error {
 	for attempt := range w.retries {
 		if attempt > 0 {
 			// Exponential backoff: 1s, 2s, 4s...
-			time.Sleep(time.Duration(1<<uint(attempt-1)) * time.Second)
+			backoff := time.NewTimer(time.Duration(1<<uint(attempt-1)) * time.Second)
+			select {
+			case <-ctx.Done():
+				backoff.Stop()
+				if lastErr != nil {
+					return fmt.Errorf("webhook delivery abandoned after %d attempts: %w (last error: %w)", attempt, ctx.Err(), lastErr)
+				}
+				return fmt.Errorf("webhook delivery abandoned after %d attempts: %w", attempt, ctx.Err())
+			case <-backoff.C:
+			}
 		}
 
-		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, w.config.URL, bytes.NewReader(payload))
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, w.config.URL, bytes.NewReader(payload))
 		if err != nil {
 			return fmt.Errorf("create request: %w", err)
 		}

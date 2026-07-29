@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -155,4 +156,48 @@ func TestAcceptInviteRejectsUnknownUser(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Error(t, svc.AcceptInvite(ctx, inv.Code, "no-such-user"))
+}
+
+// panickingTokenStore validates a token fine and then panics on the
+// fire-and-forget bookkeeping write that follows it. Only the two methods
+// ValidateAPIToken reaches are implemented; the embedded nil interface turns
+// any other call into a visible failure rather than a silent one.
+type panickingTokenStore struct {
+	auth.AuthStore
+	token  *platauth.APIToken
+	called chan struct{}
+}
+
+func (s *panickingTokenStore) GetAPITokenByHash(context.Context, string) (*platauth.APIToken, error) {
+	return s.token, nil
+}
+
+func (s *panickingTokenStore) UpdateAPITokenLastUsed(context.Context, string) error {
+	close(s.called)
+	panic("api token store is unreachable")
+}
+
+// The last-used write runs on a goroutine nothing above it can recover for, so
+// a panicking store would take the whole server down over bookkeeping that has
+// no bearing on the token it just validated.
+func TestValidateAPITokenSurvivesPanickingLastUsedWrite(t *testing.T) {
+	called := make(chan struct{})
+	svc := &AuthService{store: &panickingTokenStore{
+		token:  &platauth.APIToken{ID: "tok-1"},
+		called: called,
+	}}
+
+	got, err := svc.ValidateAPIToken(t.Context(), "some-plaintext-token")
+	require.NoError(t, err)
+	assert.Equal(t, "tok-1", got.ID)
+
+	select {
+	case <-called:
+	case <-time.After(2 * time.Second):
+		t.Fatal("last-used update never ran")
+	}
+
+	// Let the deferred recover run. Without it the process is already gone and
+	// this test never reports a result at all.
+	time.Sleep(100 * time.Millisecond)
 }
