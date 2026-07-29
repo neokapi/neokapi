@@ -110,9 +110,13 @@ type ForgeIngestParams struct {
 // retry/failure bookkeeping. The connector stays bound either way.
 //
 // Idempotency: re-running the same ingest is naturally idempotent — the fetch
-// re-reads the same source tree and StoreBlocks upserts blocks by their
-// content-derived ids (AD-036), so a duplicate delivery converges to the same
-// stored state. A duplicate EventPushCompleted at worst starts an extra
+// re-reads the same source tree and StoreBlocks resolves each block to an
+// existing row by the caller's id scoped to the item (source_id + item_name),
+// so a duplicate delivery converges to the same stored state. Stored ids are
+// minted by the store and are NOT content-derived: AD-036's content key is a
+// separate concept, and reading this comment as "ids are the content hash"
+// sent a debugging pass down the wrong path once (#1527). A duplicate
+// EventPushCompleted at worst starts an extra
 // convergence pass over already-converged state, the same outcome as a forge
 // redelivering a webhook. This is what makes at-least-once delivery (broker
 // redelivery, the stale-job sweeper) safe for ingest jobs.
