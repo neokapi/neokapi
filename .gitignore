@@ -113,6 +113,13 @@ bowrain/web/docs/i18n/nb/
 # Disposable TMX/CSV review views of the native l10n seeds (l10n-review-export).
 /l10n/review/
 
+# Strategy and audit notes live in the private strategy repo under
+# $NEOKAPI_WORKSPACE_DIR, never here: this repo is public, and a security audit
+# carries reproductions for vulnerabilities that may still be unfixed. One was
+# swept in at the repo root once (#1520); anchored so a working copy at the root
+# cannot be staged again.
+/kimi-evaluation.md
+
 # Wails
 **/build/bin/
 **/build/darwin/
