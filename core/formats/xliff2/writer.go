@@ -14,6 +14,7 @@ import (
 	"github.com/beevik/etree"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -237,7 +238,7 @@ func (w *Writer) writeFromSkeleton() error {
 					text = block.SourceText()
 				}
 			}
-			if _, err := io.WriteString(w.Output, xmlEscapeText(text)); err != nil {
+			if _, err := io.WriteString(w.Output, xmlesc.Text(text)); err != nil {
 				return err
 			}
 		}

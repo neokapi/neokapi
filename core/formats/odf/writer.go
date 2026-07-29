@@ -551,6 +551,9 @@ func (w *Writer) getBlockText(block *model.Block) string {
 // between tags. We can't use encoding/xml's EscapeText directly inside
 // the inline-code renderer below because Data fields hold already-
 // escaped literal markup that must stay verbatim.
+//
+// DELIBERATELY not core/internal/xmlesc.Text, which the odf READER now uses:
+// this one escapes all five predefined entities, `"` and `'` included.
 func odfEscapeText(s string) string {
 	if !strings.ContainsAny(s, "<>&\"'") {
 		return s

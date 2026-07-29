@@ -13,6 +13,7 @@ import (
 	"github.com/beevik/etree"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/safeio"
 )
@@ -713,23 +714,6 @@ func coerceXMLDeclTo10(in []byte) []byte {
 	return out
 }
 
-// xmlEscapeText escapes XML special characters in text content.
-func xmlEscapeText(s string) string {
-	s = strings.ReplaceAll(s, "&", "&amp;")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	return s
-}
-
-// xmlEscapeAttr escapes XML special characters in attribute values.
-func xmlEscapeAttr(s string) string {
-	s = strings.ReplaceAll(s, "&", "&amp;")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	s = strings.ReplaceAll(s, `"`, "&quot;")
-	return s
-}
-
 // emit sends a Part downstream, returning false if the context is
 // canceled.
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {
@@ -992,7 +976,7 @@ func (s *xliff2StreamState) writeNestedStartTag(t xml.StartElement) {
 			}
 			s.sourceInnerXML.WriteString(a.Name.Local)
 			s.sourceInnerXML.WriteString(`="`)
-			s.sourceInnerXML.WriteString(xmlEscapeAttr(a.Value))
+			s.sourceInnerXML.WriteString(xmlesc.Attr(a.Value))
 			s.sourceInnerXML.WriteString(`"`)
 		}
 		s.sourceInnerXML.WriteString(">")
@@ -1008,7 +992,7 @@ func (s *xliff2StreamState) writeNestedStartTag(t xml.StartElement) {
 			}
 			s.targetInnerXML.WriteString(a.Name.Local)
 			s.targetInnerXML.WriteString(`="`)
-			s.targetInnerXML.WriteString(xmlEscapeAttr(a.Value))
+			s.targetInnerXML.WriteString(xmlesc.Attr(a.Value))
 			s.targetInnerXML.WriteString(`"`)
 		}
 		s.targetInnerXML.WriteString(">")

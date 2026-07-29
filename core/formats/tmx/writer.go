@@ -451,12 +451,18 @@ func writeTMXInline(b *strings.Builder, defaultElem, subType, id, spanType, defa
 
 // xmlEscapeAttr escapes for attribute-value context (adds quote
 // escaping on top of xmlEscapeString).
+//
+// DELIBERATELY not core/internal/xmlesc.Attr. It escapes the same characters,
+// but this pair walks runes, so invalid UTF-8 in the input becomes U+FFFD
+// rather than passing through byte-for-byte. Swapping in the shared helper
+// would change what a TMX carrying undecodable bytes writes out.
 func xmlEscapeAttr(s string) string {
 	s = xmlEscapeString(s)
 	return strings.ReplaceAll(s, `"`, "&quot;")
 }
 
-// xmlEscapeString escapes special XML characters in text content.
+// xmlEscapeString escapes special XML characters in text content. Rune-walking,
+// so U+FFFD-substituting on invalid UTF-8 — see xmlEscapeAttr above.
 func xmlEscapeString(s string) string {
 	var buf strings.Builder
 	for _, r := range s {
