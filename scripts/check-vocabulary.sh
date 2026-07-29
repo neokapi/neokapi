@@ -224,7 +224,10 @@ if hits=$(scan_paths "${SWEPT_SURFACES[@]}"); then
     echo "Not yet scanned — each is swept by the worklist item named:"
     printf '  %s\n' "${PENDING_SURFACES[@]}"
   else
-    echo "  every user-facing surface is in scope — the sweep is complete."
+    echo "  every file-backed surface is in scope — the sweep is complete."
+    echo "  CLI help text is not file-backed: it is assembled from Go string"
+    echo "  literals, and is held to the same vocabulary by"
+    echo "  TestConvention_HelpTextUsesCurrentVocabulary in cli/."
   fi
   exit 0
 fi

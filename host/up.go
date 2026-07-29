@@ -50,7 +50,7 @@ func AddUpFlags(cmd Command) {
 	cmd.Flags().Int("jobs", 0, "how many languages to catch up concurrently per pass (0 = the recipe's defaults.jobs, else 4)")
 	cmd.Flags().Bool("no-extract", false, "skip the pre-pass source-drift check and block-store re-extraction")
 	cmd.Flags().Bool("no-checks", false, "skip the bound checks in the loop (produced units count as translated even when failing guardrails)")
-	cmd.Flags().Bool("materialize", false, "after the loop, write localized files from the project store for every shippable locale (forces defaults.materialize: on-converge)")
+	cmd.Flags().Bool("materialize", false, "after the loop, write target-language files from the project store for every shippable locale (forces defaults.materialize: on-converge)")
 	cmd.Flags().Bool("plan", false, "dry run: report pending work, content-memory leverage, and a token estimate per (collection, locale) — no provider calls, no writes")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
 }

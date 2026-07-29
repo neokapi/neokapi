@@ -120,7 +120,7 @@ All `kapi terms` commands (except `list`) accept these mutually exclusive flags:
 
 | Flag            | Resolves to                         | Example                      |
 | --------------- | ----------------------------------- | ---------------------------- |
-| `--name <n>`    | `~/.config/kapi/termbases/<n>.db`   | `--name project-terms`       |
+| `--name <n>`    | `~/.config/kapi/terms/<n>.db`   | `--name project-terms`       |
 | `--local`       | `./terms.db` (current directory) | `--local`                    |
 | `--file <path>` | Explicit file path                  | `--file /shared/terms.db`    |
 | _(no flag)_     | Same as `--local`                   |                              |
