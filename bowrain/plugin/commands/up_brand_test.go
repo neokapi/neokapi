@@ -26,7 +26,11 @@ func brandReportCmd() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
 }
 
 // TestReportBrandPush_TextMatchesPushFooter asserts up's push phase renders the
-// exact footer wording `kapi push` uses for the brand-profile upsert.
+// exact footer wording `kapi push` uses for the voice it carried.
+//
+// The created/updated/unchanged wording this used to assert is gone with the
+// separate REST upsert: the voice now travels inside the push, so the client
+// reports that it carried it and the worker decides which of those it was.
 func TestReportBrandPush_TextMatchesPushFooter(t *testing.T) {
 	tests := []struct {
 		name string
@@ -34,24 +38,19 @@ func TestReportBrandPush_TextMatchesPushFooter(t *testing.T) {
 		want string
 	}{
 		{
-			name: "created",
-			res:  &PushBrandResult{Name: "Acme Voice", Action: "created", Version: 1},
-			want: "Brand profile: \"Acme Voice\" created in the workspace brand hub (v1)\n",
+			name: "carried with the push",
+			res:  &PushBrandResult{Name: "Acme Voice", Action: "carried"},
+			want: "Brand profile: \"Acme Voice\" carried to the workspace brand hub\n",
 		},
 		{
-			name: "updated reports the new version",
-			res:  &PushBrandResult{Name: "Acme Voice", Action: "updated", Version: 4},
-			want: "Brand profile: \"Acme Voice\" updated → v4 (previous version kept in history)\n",
+			name: "a dry run says what it would carry",
+			res:  &PushBrandResult{Name: "Acme Voice", Action: "would-push"},
+			want: "Would push brand profile \"Acme Voice\" to the workspace brand hub\n",
 		},
 		{
-			name: "unchanged",
-			res:  &PushBrandResult{Name: "Acme Voice", Action: "unchanged", Version: 2},
-			want: "Brand profile: \"Acme Voice\" unchanged\n",
-		},
-		{
-			name: "403 degrades to a skipped note",
-			res:  &PushBrandResult{Name: "Acme Voice", Action: "skipped", Reason: "requires the manage-brand permission"},
-			want: "Brand profile: \"Acme Voice\" not pushed (requires the manage-brand permission)\n",
+			name: "--no-brand degrades to a skipped note",
+			res:  &PushBrandResult{Name: "Acme Voice", Action: "skipped", Reason: "--no-brand"},
+			want: "Brand profile: \"Acme Voice\" not pushed (--no-brand)\n",
 		},
 	}
 	for _, tc := range tests {
@@ -68,34 +67,34 @@ func TestReportBrandPush_TextMatchesPushFooter(t *testing.T) {
 // NDJSON line with the same field names `kapi push --json` uses.
 func TestReportBrandPush_JSONLine(t *testing.T) {
 	cmd, stdout, stderr := brandReportCmd()
-	require.NoError(t, reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "updated", Version: 4}, true))
+	require.NoError(t, reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "carried"}, true))
 
 	assert.Empty(t, stderr.String(), "JSON mode writes nothing to stderr")
 	var line map[string]any
 	require.NoError(t, json.Unmarshal(stdout.Bytes(), &line))
 	assert.Equal(t, "brand_profile", line["type"])
 	assert.Equal(t, "Acme Voice", line["brand_profile"])
-	assert.Equal(t, "updated", line["brand_profile_action"])
-	assert.Equal(t, float64(4), line["brand_profile_version"])
+	assert.Equal(t, "carried", line["brand_profile_action"])
 	assert.NotContains(t, line, "brand_profile_reason", "empty reason is omitted")
+	assert.NotContains(t, line, "brand_profile_version", "the version is the worker's to decide")
 }
 
-// TestReportBrandPush_JSONSkippedCarriesReason asserts a degraded 403 skip
-// still surfaces its reason on the NDJSON line.
+// TestReportBrandPush_JSONSkippedCarriesReason asserts a skipped governance
+// push still surfaces its reason on the NDJSON line.
 func TestReportBrandPush_JSONSkippedCarriesReason(t *testing.T) {
 	cmd, stdout, _ := brandReportCmd()
-	require.NoError(t, reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "skipped", Reason: "requires the manage-brand permission"}, true))
+	require.NoError(t, reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "skipped", Reason: "--no-brand"}, true))
 
 	var line map[string]any
 	require.NoError(t, json.Unmarshal(stdout.Bytes(), &line))
 	assert.Equal(t, "skipped", line["brand_profile_action"])
-	assert.Equal(t, "requires the manage-brand permission", line["brand_profile_reason"])
+	assert.Equal(t, "--no-brand", line["brand_profile_reason"])
 	assert.NotContains(t, line, "brand_profile_version", "a skip has no stored version")
 }
 
-// TestReportBrandPush_NilResultIsSilent covers the silent skips (unauthenticated,
-// unclaimed project, no bound profile, --no-brand): brandPush returns nil and
-// nothing renders in either venue.
+// TestReportBrandPush_NilResultIsSilent covers the silent skips (unconnected
+// project, no bound profile): the push carries no governance result and nothing
+// renders in either venue.
 func TestReportBrandPush_NilResultIsSilent(t *testing.T) {
 	for _, jsonOut := range []bool{false, true} {
 		cmd, stdout, stderr := brandReportCmd()
@@ -114,12 +113,12 @@ func TestReportBrandPush_QuietSuppressesTextNotJSON(t *testing.T) {
 	t.Cleanup(func() { app = prev })
 
 	cmd, stdout, stderr := brandReportCmd()
-	require.NoError(t, reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "created", Version: 1}, false))
+	require.NoError(t, reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "carried"}, false))
 	assert.Empty(t, stderr.String(), "quiet suppresses the text footer")
 	assert.Empty(t, stdout.String())
 
 	cmd, stdout, _ = brandReportCmd()
-	require.NoError(t, reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "created", Version: 1}, true))
+	require.NoError(t, reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "carried"}, true))
 	assert.NotEmpty(t, stdout.String(), "the NDJSON line is structured output, not chatter")
 }
 
@@ -150,7 +149,7 @@ func TestReportBrandPush_ReportsTruncation(t *testing.T) {
 	w := &nthWriteFailer{n: 1, err: &os.PathError{Op: "write", Path: "/out.ndjson", Err: syscall.ENOSPC}}
 	cmd.SetOut(w)
 
-	err := reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "created", Version: 1}, true)
+	err := reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "carried"}, true)
 	require.Error(t, err, "a record the consumer never received must not be reported as sent")
 	assert.ErrorIs(t, err, syscall.ENOSPC)
 }
@@ -162,7 +161,7 @@ func TestReportBrandPush_ClosedConsumerIsQuiet(t *testing.T) {
 	w := &nthWriteFailer{n: 1, err: &os.PathError{Op: "write", Path: "/dev/stdout", Err: syscall.EPIPE}}
 	cmd.SetOut(w)
 
-	assert.NoError(t, reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "created", Version: 1}, true),
+	assert.NoError(t, reportBrandPush(cmd, nil, &PushBrandResult{Name: "Acme Voice", Action: "carried"}, true),
 		"`kapi up --json | head` must not fail the push")
 }
 
@@ -176,7 +175,7 @@ func TestReportBrandPush_SharesTheRunStream(t *testing.T) {
 	cmd.SetOut(w)
 	stream := output.NewNDJSONStream(cmd.OutOrStdout())
 
-	require.Error(t, reportBrandPush(cmd, stream, &PushBrandResult{Name: "Acme Voice", Action: "created"}, true))
+	require.Error(t, reportBrandPush(cmd, stream, &PushBrandResult{Name: "Acme Voice", Action: "carried"}, true))
 	require.Error(t, stream.Report("kapi up --json"),
 		"the shared stream remembers the loss, so the run's own check reports it too")
 }

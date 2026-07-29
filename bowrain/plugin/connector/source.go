@@ -22,6 +22,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/config"
 	bowrainconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
+	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/bowrain/plugin/schema"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/format"
@@ -81,6 +82,12 @@ type BowrainSourceConnector struct {
 	cache     *SyncCache
 	stream    string // resolved stream name
 	maxBatch  int    // Max blocks per push request
+
+	// pushContext is the context content type this push carries: the
+	// collections the recipe declares, with their coordinates and resolved
+	// governance. Set by SetPushContext before Push; nil means the caller is
+	// pushing content without making any claim about the declared context.
+	pushContext *apiclient.PushContext
 }
 
 // itemBlock associates a block with its source item name.
@@ -484,6 +491,31 @@ func (c *BowrainSourceConnector) SetConceptBaseline(b *bproject.ConceptBaseline)
 	c.cache.ConceptBaseline = b
 }
 
+// SetPushContext records the context content type the next Push carries: the
+// recipe's declared collections, their coordinates, and the governance resolved
+// for each. It is set from the command layer rather than built here because
+// resolving a collection's voice means loading a profile file or a starter
+// pack, which is the host's resolution ladder, not the connector's.
+//
+// Leaving it unset pushes content only. That is not the same as pushing an
+// empty context: a push that declares nothing would read as a recipe whose
+// collections were all removed.
+func (c *BowrainSourceConnector) SetPushContext(p *apiclient.PushContext) {
+	c.pushContext = p
+}
+
+// PushContextChanged reports whether the declared context differs from the one
+// the last push carried, as recorded in the sync cache. It is the local half of
+// the context fast path: an unedited recipe is not worth a round trip, but a
+// recipe that gained a collection or changed a voice must reach the server even
+// when not one block of content moved.
+func (c *BowrainSourceConnector) PushContextChanged() bool {
+	if c.pushContext == nil {
+		return false
+	}
+	return c.cache.ContextHash != c.pushContext.Hash
+}
+
 // Push sends source content from local files to Bowrain.
 func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.PushOptions) (*bowrainconn.PushResult, error) {
 	// Scan local files and extract blocks and media grouped by item.
@@ -538,7 +570,11 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 			}
 		}
 
-		if len(changed) == 0 {
+		// A recipe change moves no content and still has to reach the server:
+		// a collection added, a coordinate moved, a voice rebound. Falling out
+		// here on "no blocks changed" is what used to leave the declared
+		// structure stranded on the developer's machine.
+		if len(changed) == 0 && !c.PushContextChanged() {
 			return &bowrainconn.PushResult{FilesScanned: len(hashMap)}, nil
 		}
 	}
@@ -552,17 +588,20 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		blocksByItem[ib.itemName] = append(blocksByItem[ib.itemName], ib.block)
 	}
 
-	// Push via init → diff → chunk → commit flow.
-	resp, err := c.client.Push(ctx, blocksByItem, itemMeta)
+	// Push via init → diff → chunk → commit flow, carrying the declared
+	// context so the collections land in the same transaction as the items.
+	resp, err := c.client.Push(ctx, blocksByItem, itemMeta, c.pushContext)
 	if err != nil {
 		return nil, fmt.Errorf("push: %w", err)
 	}
 	totalStored := len(changed)
 	var lastCursor int64
 	pushID := ""
+	var undeclared []string
 	if resp != nil {
 		lastCursor = resp.NewCursor
 		pushID = resp.PushID
+		undeclared = resp.UndeclaredCollections
 	}
 
 	// Fetch and cache server metadata (best-effort).
@@ -599,17 +638,23 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	c.cache.LastSync = time.Now().UTC()
 	c.cache.ServerURL = c.project.Recipe.Server.ServerURL()
 	c.cache.ProjectID = c.project.Recipe.Server.ProjectID()
+	// Record the context this push carried, so the next one can skip the round
+	// trip when the recipe has not moved.
+	if c.pushContext != nil {
+		c.cache.ContextHash = c.pushContext.Hash
+	}
 
 	if err := c.cache.Save(c.project.Layout); err != nil {
 		return nil, fmt.Errorf("save sync cache: %w", err)
 	}
 
 	return &bowrainconn.PushResult{
-		BlocksPushed: totalStored,
-		AssetsPushed: assetsPushed,
-		FilesScanned: len(hashMap),
-		WordCount:    pushWords,
-		PushID:       pushID,
+		BlocksPushed:          totalStored,
+		AssetsPushed:          assetsPushed,
+		FilesScanned:          len(hashMap),
+		WordCount:             pushWords,
+		PushID:                pushID,
+		UndeclaredCollections: undeclared,
 	}, nil
 }
 
@@ -722,6 +767,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 
 	// Collect all blocks across paginated responses.
 	var allBlocks []apiclient.SyncBlock
+	var contexts []*pb.SyncContextEntry
 
 	for {
 		resp, err := c.client.Pull(ctx, cursor, locales, 1000)
@@ -731,6 +777,11 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 
 		totalPulled += len(resp.Blocks)
 		allBlocks = append(allBlocks, resp.Blocks...)
+		// The declared context is not cursor-driven — every page carries the
+		// current one — so the last page's is the one to keep.
+		if len(resp.Contexts) > 0 {
+			contexts = resp.Contexts
+		}
 		cursor = resp.Cursor
 
 		if !resp.HasMore {
@@ -744,6 +795,10 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 			LocalesCount: len(locales),
 		}, nil
 	}
+
+	// Record what the server holds and report what diverges. Nothing here
+	// changes the governance a local run resolves — see connector/context.go.
+	contextResult := c.applyPulledContext(contexts)
 
 	// Group pulled blocks by item name.
 	filesWritten := 0
@@ -852,9 +907,11 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 	}
 
 	return &bowrainconn.PullResult{
-		BlocksPulled: totalPulled,
-		LocalesCount: len(locales),
-		FilesWritten: filesWritten,
+		BlocksPulled:        totalPulled,
+		LocalesCount:        len(locales),
+		FilesWritten:        filesWritten,
+		CollectionsObserved: contextResult.Observed,
+		GovernanceDiverged:  contextResult.Diverged,
 	}, nil
 }
 
@@ -993,6 +1050,13 @@ func (c *BowrainSourceConnector) detectFormat(absPath string) string {
 // buildItemMeta generates editor metadata (BlockIndex + PreviewHTML) for each
 // unique item that has changed blocks. It re-parses the source files using
 // editor.ParseItem to build the full Part stream needed for metadata generation.
+//
+// It also names each item's collection — the recipe collection whose glob
+// claims the item's path — which is what links a stored item to the context
+// content type's collection row. The matcher is the recipe's own
+// (core/project.CollectionForPath): the same globs, in the same first-match
+// order, that target resolution uses, so an item cannot land in one collection
+// for governance and another for output.
 func (c *BowrainSourceConnector) buildItemMeta(ctx context.Context, changed []itemBlock) []apiclient.ItemMeta {
 	// Collect unique item names that have changes.
 	seen := map[string]bool{}
@@ -1040,6 +1104,7 @@ func (c *BowrainSourceConnector) buildItemMeta(ctx context.Context, changed []it
 			Format:      formatName,
 			BlockIndex:  result.BlockIndexJSON,
 			PreviewHTML: result.PreviewHTML,
+			Collection:  c.project.Recipe.CollectionForPath(filepath.ToSlash(itemName)),
 		})
 	}
 

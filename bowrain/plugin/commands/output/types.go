@@ -160,6 +160,14 @@ type PullOutput struct {
 	// Concept sync (governed terminology pulled into the local terms).
 	ConceptsPulled         int `json:"concepts_pulled,omitempty"`
 	ConceptRelationsPulled int `json:"concept_relations_pulled,omitempty"`
+
+	// Context sync. CollectionsObserved is how many collections the server
+	// reported; GovernanceDiverged names the recipe-owned ones the server holds
+	// at a different point than the recipe declares. A pull records both and
+	// applies neither: kapi.yaml is the authority for recipe-owned governance,
+	// so a divergence is something to report and resolve in git.
+	CollectionsObserved int      `json:"collections_observed,omitempty"`
+	GovernanceDiverged  []string `json:"governance_diverged,omitempty"`
 }
 
 func (o PullOutput) FormatText(w io.Writer) error {
@@ -185,6 +193,11 @@ func (o PullOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "%s %d governed concept(s), %d relation(s) into the local terms\n",
 			verb, o.ConceptsPulled, o.ConceptRelationsPulled)
 	}
+	if len(o.GovernanceDiverged) > 0 {
+		fmt.Fprintf(w, "The server governs these collections differently from this recipe: %s\n",
+			strings.Join(o.GovernanceDiverged, ", "))
+		fmt.Fprintln(w, "The recipe still decides locally — reconcile them in kapi.yaml, not by pulling.")
+	}
 	return nil
 }
 
@@ -204,13 +217,21 @@ type PushOutput struct {
 	ChangesetID      string `json:"changeset_id,omitempty"`
 	ChangesetURL     string `json:"changeset_url,omitempty"`
 
-	// Brand voice (the recipe-bound profile upserted into the workspace brand
-	// hub by name). BrandAction is created | updated | unchanged | skipped |
-	// would-push (dry run); BrandVersion is the stored version after the action.
+	// Brand voice (the recipe-bound profile carried in the push's context
+	// content type and upserted by name on the server). BrandAction is
+	// carried | skipped | would-push (dry run); BrandVersion is the stored
+	// version when a synchronous upsert reported one, and 0 when the version
+	// is the worker's to decide.
 	BrandProfile string `json:"brand_profile,omitempty"`
 	BrandAction  string `json:"brand_profile_action,omitempty"`
 	BrandVersion int    `json:"brand_profile_version,omitempty"`
 	BrandReason  string `json:"brand_profile_reason,omitempty"`
+
+	// UndeclaredCollections names recipe-owned collections the server holds
+	// that this push no longer declares. Reported so a recipe edit that drops
+	// a collection is visible; the server keeps both the collection and the
+	// content grouped under it.
+	UndeclaredCollections []string `json:"undeclared_collections,omitempty"`
 
 	// Loop status (the recipe's server policy + web destinations): whether the
 	// server converges on push, and where the pushed content lands.
@@ -233,6 +254,7 @@ func (o PushOutput) FormatText(w io.Writer) error {
 	}
 	o.formatConcepts(w)
 	o.FormatBrand(w)
+	o.formatUndeclared(w)
 	o.formatLoopStatus(w)
 	return nil
 }
@@ -240,7 +262,11 @@ func (o PushOutput) FormatText(w io.Writer) error {
 // FormatBrand appends the brand-profile line: what the push did with the
 // recipe-bound voice profile in the workspace brand hub. Silent when no
 // profile travelled. Exported so `kapi up`'s push phase renders the exact
-// same footer line for the brand upsert it performs.
+// same footer line.
+//
+// The created/updated/unchanged wording the pre-context push used is gone
+// because the distinction is: the voice now travels inside the push and the
+// worker decides which of those it was, after the client has reported.
 func (o PushOutput) FormatBrand(w io.Writer) {
 	if o.BrandProfile == "" {
 		return
@@ -248,15 +274,23 @@ func (o PushOutput) FormatBrand(w io.Writer) {
 	switch o.BrandAction {
 	case "would-push":
 		fmt.Fprintf(w, "Would push brand profile %q to the workspace brand hub\n", o.BrandProfile)
-	case "created":
-		fmt.Fprintf(w, "Brand profile: %q created in the workspace brand hub (v%d)\n", o.BrandProfile, o.BrandVersion)
-	case "updated":
-		fmt.Fprintf(w, "Brand profile: %q updated → v%d (previous version kept in history)\n", o.BrandProfile, o.BrandVersion)
-	case "unchanged":
-		fmt.Fprintf(w, "Brand profile: %q unchanged\n", o.BrandProfile)
+	case "carried":
+		fmt.Fprintf(w, "Brand profile: %q carried to the workspace brand hub\n", o.BrandProfile)
 	case "skipped":
 		fmt.Fprintf(w, "Brand profile: %q not pushed (%s)\n", o.BrandProfile, o.BrandReason)
 	}
+}
+
+// formatUndeclared names the collections the server still holds under recipe
+// ownership that this push stopped declaring. It says what happened to them —
+// nothing — because the alternative reading of a silent line here is that they
+// were removed.
+func (o PushOutput) formatUndeclared(w io.Writer) {
+	if len(o.UndeclaredCollections) == 0 {
+		return
+	}
+	fmt.Fprintf(w, "Collections on the server this recipe no longer declares (kept, with their content): %s\n",
+		strings.Join(o.UndeclaredCollections, ", "))
 }
 
 // formatLoopStatus closes a real push with the loop hand-off: what the server

@@ -720,4 +720,20 @@ var storeMigrations = []storage.Migration{
 				ON forge_installations(workspace_id);
 		`,
 	},
+	{
+		Version:     13,
+		Description: "collection context: coordinates, ownership, and the entry hash the context content type reconciles on",
+		SQL: `
+			-- Mirrors the collections columns in bowrain/store/migrations.go
+			-- (Version 14): the point the collection sits at in the project's
+			-- context space, which side owns the row ('recipe' or 'workspace',
+			-- backfilled to 'workspace' for everything created before the context
+			-- content type existed), and the hash of the context entry it was
+			-- reconciled from — the value that makes a re-push idempotent.
+			-- SQLite ALTER TABLE ADD COLUMN adds one column per statement.
+			ALTER TABLE collections ADD COLUMN context      TEXT NOT NULL DEFAULT '{}';
+			ALTER TABLE collections ADD COLUMN owner        TEXT NOT NULL DEFAULT 'workspace';
+			ALTER TABLE collections ADD COLUMN context_hash TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }

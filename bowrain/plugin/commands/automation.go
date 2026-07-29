@@ -102,7 +102,7 @@ func executeLocalAction(cmd *cobra.Command, action project.ActionConfig, proj *p
 
 	case "push":
 		fmt.Fprintln(cmd.OutOrStdout(), "  Pushing content...")
-		_, conn, err := doPush(cmd.Context(), connector.PushOptions{}, nil)
+		_, conn, err := doPush(cmd.Context(), connector.PushOptions{}, nil, false)
 		if conn != nil {
 			conn.Close()
 		}

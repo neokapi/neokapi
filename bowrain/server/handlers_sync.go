@@ -1,10 +1,12 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -12,10 +14,13 @@ import (
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
+	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	bowsynccore "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/id"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/storage/compression"
 )
@@ -33,6 +38,8 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 		ContentTypes []string          `json:"content_types"`
 		ItemHashes   map[string]string `json:"item_hashes"`
 		RootHash     string            `json:"root_hash"`
+		ContextHash  string            `json:"context_hash"`
+		Collections  []string          `json:"collections"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return apiErr(c, http.StatusBadRequest, err.Error())
@@ -54,13 +61,25 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 
 	diffEngine := bowsync.NewDiffEngine(s.ContentStore, s.SyncCache)
 
-	// Fast path: root hash comparison.
-	if req.RootHash != "" {
+	// The context content type negotiates first, because its answer qualifies
+	// the content fast path below: a push whose blocks are all unchanged but
+	// whose recipe declares a new collection still has work to do.
+	ctxDiff, err := diffEngine.CompareContext(c.Request().Context(), req.ProjectID, req.Stream, req.ContextHash, req.Collections)
+	if err != nil {
+		return serverErr(c, err)
+	}
+
+	// Fast path: root hash comparison. Only "unchanged" when the declared
+	// context matches too — otherwise the push proceeds carrying no chunks and
+	// a manifest that is nothing but the context.
+	if req.RootHash != "" && !ctxDiff.Changed {
 		unchanged, err := diffEngine.CheckRootHash(c.Request().Context(), req.ProjectID, req.Stream, req.RootHash)
 		if err == nil && unchanged {
 			return c.JSON(http.StatusOK, map[string]any{
-				"upload_id": "",
-				"status":    "unchanged",
+				"upload_id":              "",
+				"status":                 "unchanged",
+				"context_changed":        false,
+				"undeclared_collections": ctxDiff.Undeclared,
 			})
 		}
 	}
@@ -74,12 +93,14 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 	uploadID := id.New()
 
 	return c.JSON(http.StatusOK, map[string]any{
-		"upload_id":            uploadID,
-		"status":               "diff_computed",
-		"changed_items":        itemDiff.ChangedItems,
-		"new_items":            itemDiff.NewItems,
-		"deleted_items":        itemDiff.DeletedItems,
-		"unchanged_item_count": itemDiff.UnchangedCount,
+		"upload_id":              uploadID,
+		"status":                 "diff_computed",
+		"changed_items":          itemDiff.ChangedItems,
+		"new_items":              itemDiff.NewItems,
+		"deleted_items":          itemDiff.DeletedItems,
+		"unchanged_item_count":   itemDiff.UnchangedCount,
+		"context_changed":        ctxDiff.Changed,
+		"undeclared_collections": ctxDiff.Undeclared,
 	})
 }
 
@@ -149,6 +170,10 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		ActorID       string          `json:"actor_id"`
 		WorkspaceSlug string          `json:"workspace_slug"`
 		ConnectorID   string          `json:"connector_id"`
+		// Contexts is the context content type, passed through to the worker
+		// verbatim like Items: this handler validates the transport, the worker
+		// reconciles the content.
+		Contexts json.RawMessage `json:"contexts"`
 	}
 	if err := c.Bind(&manifest); err != nil {
 		return apiErr(c, http.StatusBadRequest, err.Error())
@@ -339,8 +364,9 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 	}
 
 	resp := apiclient.RichPullResponse{
-		Cursor:  cs.NewCursor,
-		HasMore: cs.HasMore,
+		Cursor:   cs.NewCursor,
+		HasMore:  cs.HasMore,
+		Contexts: s.pullContextEntries(ctx, projectID, stream),
 	}
 
 	if len(cs.Changes) > 0 {
@@ -407,6 +433,62 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 	}
 
 	return writePullResponse(c, resp)
+}
+
+// pullContextEntries renders the project's collections as the pull's context
+// content type: which collections exist, the point each occupies, who governs
+// it, and — decisively — which side owns it.
+//
+// Every collection is carried, workspace-owned and recipe-owned alike.
+// Ownership is what the client keys its own decisions on, so withholding the
+// rows it may not act on would leave it unable to tell "not mine to touch" from
+// "not there at all".
+//
+// The voice profile travels as its NAME, resolved from the bound id: a name is
+// what a recipe and a brand hub agree on, while an id is one instance's
+// bookkeeping. Best-effort throughout — a collection listing that fails, or a
+// profile id that no longer resolves, costs the pull its context rather than
+// its content.
+func (s *Server) pullContextEntries(ctx context.Context, projectID, stream string) []*pb.SyncContextEntry {
+	if s.ContentStore == nil {
+		return nil
+	}
+	collections, err := s.ContentStore.ListCollections(ctx, projectID, stream)
+	if err != nil || len(collections) == 0 {
+		return nil
+	}
+
+	profileNames := map[string]string{}
+	entries := make([]*pb.SyncContextEntry, 0, len(collections))
+	for _, col := range collections {
+		if col == nil {
+			continue
+		}
+		e := &pb.SyncContextEntry{
+			Name:        col.Name,
+			Coordinates: col.Context,
+			Channel:     col.ConnectorConfig[coreprofile.PropertyChannel],
+			Owner:       bowsynccore.NormalizeContextOwner(col.Owner),
+			ContentHash: col.ContextHash,
+		}
+		if pid := col.ConnectorConfig[coreprofile.PropertyProfileID]; pid != "" {
+			name, cached := profileNames[pid]
+			if !cached {
+				if s.BrandStore != nil {
+					if p, perr := s.BrandStore.GetProfile(ctx, pid); perr == nil && p != nil {
+						name = p.Name
+					}
+				}
+				profileNames[pid] = name
+			}
+			e.VoiceProfile = name
+		}
+		entries = append(entries, e)
+	}
+	slices.SortFunc(entries, func(a, b *pb.SyncContextEntry) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	return entries
 }
 
 // syncCompressorPool is a lazily-initialized zstd compression pool for pull responses.

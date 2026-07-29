@@ -101,34 +101,22 @@ func TestPushOutput_FormatText_BrandLine(t *testing.T) {
 		absent   []string
 	}{
 		{
-			name: "created",
+			name: "carried with the push",
 			out: PushOutput{
 				BlocksPushed: 3,
 				BrandProfile: "Acme Voice",
-				BrandAction:  "created",
-				BrandVersion: 1,
+				BrandAction:  "carried",
 			},
-			contains: []string{`Brand profile: "Acme Voice" created in the workspace brand hub (v1)`},
+			contains: []string{`Brand profile: "Acme Voice" carried to the workspace brand hub`},
 		},
 		{
-			name: "updated keeps history",
-			out: PushOutput{
-				BlocksPushed: 3,
-				BrandProfile: "Acme Voice",
-				BrandAction:  "updated",
-				BrandVersion: 4,
-			},
-			contains: []string{`Brand profile: "Acme Voice" updated → v4 (previous version kept in history)`},
-		},
-		{
-			name: "unchanged",
+			name: "carried on a push that moved no content",
 			out: PushOutput{
 				UpToDate:     true,
 				BrandProfile: "Acme Voice",
-				BrandAction:  "unchanged",
-				BrandVersion: 2,
+				BrandAction:  "carried",
 			},
-			contains: []string{`Brand profile: "Acme Voice" unchanged`},
+			contains: []string{`Brand profile: "Acme Voice" carried to the workspace brand hub`},
 		},
 		{
 			name: "skipped carries the reason",
@@ -136,9 +124,9 @@ func TestPushOutput_FormatText_BrandLine(t *testing.T) {
 				BlocksPushed: 1,
 				BrandProfile: "Acme Voice",
 				BrandAction:  "skipped",
-				BrandReason:  "requires the manage-brand permission",
+				BrandReason:  "--no-brand",
 			},
-			contains: []string{`Brand profile: "Acme Voice" not pushed (requires the manage-brand permission)`},
+			contains: []string{`Brand profile: "Acme Voice" not pushed (--no-brand)`},
 		},
 		{
 			name: "dry run announces the would-push",
@@ -156,6 +144,24 @@ func TestPushOutput_FormatText_BrandLine(t *testing.T) {
 			out:      PushOutput{BlocksPushed: 2},
 			absent:   []string{"Brand profile", "brand hub"},
 			contains: []string{"Pushed 2 blocks"},
+		},
+		{
+			// A recipe edit that stops declaring a collection must say what
+			// became of it. Silence here reads as "removed", which is the one
+			// thing that did not happen.
+			name: "an undeclared collection is reported as kept",
+			out: PushOutput{
+				BlocksPushed:          1,
+				UndeclaredCollections: []string{"marketing", "legacy"},
+			},
+			contains: []string{
+				"no longer declares (kept, with their content): marketing, legacy",
+			},
+		},
+		{
+			name:   "nothing undeclared, no line",
+			out:    PushOutput{BlocksPushed: 1},
+			absent: []string{"no longer declares"},
 		},
 	}
 

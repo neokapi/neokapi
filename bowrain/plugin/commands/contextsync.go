@@ -1,0 +1,141 @@
+package commands
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"path/filepath"
+
+	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
+	bproject "github.com/neokapi/neokapi/bowrain/core/project"
+	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
+	"github.com/neokapi/neokapi/host"
+
+	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
+)
+
+// contextsync.go builds the context content type a push carries: the
+// collections the recipe declares, the point each occupies in the project's
+// context space, and the governance resolved for that point.
+//
+// It replaces the separate brand-profile upload this file's predecessor
+// performed. That upload was a REST call made after the content transport had
+// already finished, which meant a push could — and on a 403 routinely did —
+// leave content stored against governance that never landed. Carrying the
+// voice inside the push makes one push one consistent state: the worker
+// reconciles the collections and upserts their voices in the same job that
+// stores the blocks.
+//
+// The upsert semantics are unchanged, because the worker applies them: matched
+// by name within the workspace, a no-op when the content is identical, and
+// otherwise a new version through the store's profile versioning, so a
+// server-side edit is superseded by something revertible rather than clobbered.
+
+// PushBrandResult holds what the governance half of a push amounted to.
+type PushBrandResult struct {
+	Name    string // profile name
+	Action  string // carried | skipped | would-push (dry run)
+	Version int    // stored profile version after the action (0 when unknown)
+	Reason  string // set when Action == "skipped"
+}
+
+// buildPushContext resolves the recipe's declared context into the entries a
+// push carries, and reports what happened to the governance.
+//
+// noBrand drops the authored voice from every entry and leaves the profile
+// unnamed: the collections and their coordinates still travel — a project's
+// structure is not a brand decision — but nothing binds a voice. That is what
+// `--no-brand` has always meant, stated in one place instead of by skipping a
+// call.
+//
+// A dry run resolves everything and returns the entries without a caller ever
+// sending them, so `--dry-run` reports the governance it would carry.
+//
+// Returns (nil, nil, nil) when the project is not connected to a server: there
+// is no context to reconcile against, and this is not an error — the same
+// silent skip the terminology push makes.
+func buildPushContext(ctx context.Context, proj *bproject.Project, noBrand, dryRun bool) (*apiclient.PushContext, *PushBrandResult, error) {
+	if app == nil || proj == nil || proj.Recipe == nil {
+		return nil, nil, nil
+	}
+
+	kapiProject := &proj.Recipe.KapiProject
+	storePath := filepath.Join(proj.Root, "brand.db")
+
+	// Profiles are carried once per distinct name: several collections
+	// governed by one voice cost one copy of it on the wire, and the entries
+	// after the first identify it by name alone.
+	carried := map[string]bool{}
+	var entries []*pb.SyncContextEntry
+	var brandResult *PushBrandResult
+
+	for i := range kapiProject.Content {
+		coll := &kapiProject.Content[i]
+		if coll.Name == "" {
+			// A bare entry declares no collection, so there is nothing to
+			// reconcile: its files sync ungrouped, governed by the project's
+			// default point.
+			continue
+		}
+
+		profile, governance, _, found, err := app.LoadCollectionVoice(ctx, kapiProject, proj.Root, host.BrandResolveOptions{
+			Collection: coll.Name,
+			StorePath:  storePath,
+		})
+		if err != nil {
+			return nil, nil, fmt.Errorf("resolve governance for collection %q: %w", coll.Name, err)
+		}
+
+		entry := &pb.SyncContextEntry{
+			Name:        coll.Name,
+			Coordinates: coll.Context,
+			Owner:       bowsync.ContextOwnerRecipe,
+		}
+		if governance != nil {
+			entry.Channel = governance.Channel
+		}
+
+		// The name is resolved either way, so --no-brand can report which voice
+		// it declined to carry rather than saying nothing at all. Only the
+		// authored content is withheld.
+		if found && brandResult == nil {
+			brandResult = &PushBrandResult{Name: profile.Name, Action: brandAction(noBrand, dryRun)}
+			if noBrand {
+				brandResult.Reason = "--no-brand"
+			}
+		}
+		if found && !noBrand {
+			entry.VoiceProfile = profile.Name
+			if !carried[profile.Name] {
+				authored, merr := json.Marshal(profile)
+				if merr != nil {
+					return nil, nil, fmt.Errorf("encode voice profile %q: %w", profile.Name, merr)
+				}
+				entry.VoiceProfileJson = authored
+				carried[profile.Name] = true
+			}
+		}
+		entries = append(entries, entry)
+	}
+
+	// A recipe that declares no collections still makes a claim — the empty one
+	// — which is what lets a recipe that just dropped its last collection be
+	// told the server still holds it. Only a caller with no recipe at all
+	// (a nil PushContext) says nothing.
+	return apiclient.NewPushContext(entries), brandResult, nil
+}
+
+// brandAction names what a push does to the governance it carries. There is no
+// created/updated/unchanged distinction to report here, and that is the honest
+// consequence of folding the upsert into the push: the worker decides which of
+// those it was, after the client has gone.
+func brandAction(noBrand, dryRun bool) string {
+	switch {
+	case noBrand:
+		return "skipped"
+	case dryRun:
+		return "would-push"
+	default:
+		return "carried"
+	}
+}
