@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-29T02:30:35Z",
+  "generatedAt": "2026-07-29T07:11:54Z",
   "commands": [
     {
       "id": "add",
@@ -5783,8 +5783,29 @@
         "mcp"
       ],
       "use": "mcp",
-      "short": "Start MCP server (stdio) exposing kapi's content tools (read, edit, check, brand, localize)",
+      "short": "Start MCP server (stdio) exposing the project's context and the loop around it",
+      "long": "Start an MCP server over stdio.\n\nThe default surface is deliberately small: retrieving the project's context,\nchecking content against it, writing edits back, and running the loop. That is\nwhat an assistant needs to work inside this project's context.\n\nEverything else the tool registry can do is still reachable — pipeline steps,\nformat internals, one-off transforms — but as an explicit opt-in, because a\nsurface nobody chose is how it grew to fifty-one tools.\n\n  --all-tools   every CLI-visible registry tool\n  --all-flows   the flow-running verbs\n  --all         both",
       "groupID": "advanced",
+      "flags": [
+        {
+          "name": "all",
+          "usage": "shorthand for --all-tools --all-flows",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "all-flows",
+          "usage": "expose the flow-running verbs",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "all-tools",
+          "usage": "expose every CLI-visible registry tool, not the curated set",
+          "default": "false",
+          "type": "bool"
+        }
+      ],
       "offlineCapable": false,
       "runnableInBrowser": false,
       "demoMode": false

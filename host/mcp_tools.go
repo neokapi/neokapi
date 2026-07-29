@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/core/i18n"
@@ -59,7 +58,7 @@ func (a *App) ResolveMCPProject(cmd Command) {
 // `diff-leverage` are what `up` does automatically, and content-memory
 // recycling is invisible by design.
 //
-// KAPI_MCP_ALL_TOOLS=1 restores the full generated surface for debugging.
+// `kapi mcp --all-tools` restores the full generated surface for debugging.
 // Only registry tools are listed here — the hand-authored porcelain
 // (check_file, apply_edits, up, context_search, …) registers itself elsewhere
 // and is unaffected. Anything with a porcelain equivalent is deliberately
@@ -85,15 +84,24 @@ var neverAgentFacing = map[string]bool{
 	"script":           true, // "Run a JavaScript processing script on each part"
 }
 
-// ExposeAllMCPToolsEnv opts into the full generated tool surface.
-const ExposeAllMCPToolsEnv = "KAPI_MCP_ALL_TOOLS"
+// MCPSurface widens the exposed tool set. It is set from flags on `kapi mcp`
+// (--all-tools / --all-flows / --all) rather than an environment variable: the
+// surface an assistant sees is a property of how the server was started, so it
+// belongs on the command that starts it, where `--help` lists it.
+type MCPSurface struct {
+	// AllTools exposes every CLI-visible registry tool instead of the curated
+	// set — pipeline steps, format internals, one-off transforms.
+	AllTools bool
+	// AllFlows exposes the flow-running verbs.
+	AllFlows bool
+}
 
 func registerFrameworkMCPTools(server *mcp.Server, a *App) {
 	if a.ToolReg == nil {
 		return
 	}
 	entries, defaultTargetLang := scopeFrameworkTools(a.ToolReg.CLITools(), a.ProjectContext)
-	exposeAll := os.Getenv(ExposeAllMCPToolsEnv) != ""
+	exposeAll := a.MCPSurface.AllTools
 
 	t := a.T()
 	for _, entry := range entries {

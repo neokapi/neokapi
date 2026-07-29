@@ -18,16 +18,13 @@ function HomepageHeader() {
         <div className={styles.heroIntro}>
           <img src={useBaseUrl("/img/hero-logo.png")} alt="neokapi" className={styles.heroLogo} />
           <Heading as="h1" className={clsx("hero__title", styles.heroTitle)}>
-            Say the same thing the same way &mdash; in every file, and every language.
+            Contextually consistent content, in every language.
           </Heading>
           <p className={styles.heroSubtitle}>
-            Your project&rsquo;s context, where your tools and your AI can read it. kapi parses any
-            format into one content model, resolves what applies to each piece of content, and{" "}
-            <strong>
-              writes the file back byte&#8209;for&#8209;byte: every tag, placeholder, and structure
-              preserved
-            </strong>
-            .
+            kapi holds your project&rsquo;s context &mdash; its terms, its voice, the rules it goes
+            by &mdash; and applies it inside your real files. Any format in,{" "}
+            <strong>the original back byte&#8209;for&#8209;byte</strong>, every tag and placeholder
+            intact.
           </p>
           <div className={styles.buttons}>
             <Link
@@ -81,7 +78,7 @@ const Tiers: Tier[] = [
     eyebrow: "Built on it",
     title: "kapi — binary, agent skill, MCP server",
     description:
-      "One binary plus the two surfaces your assistant reaches it through. kapi holds your project's context and answers what applies here — to your checks, to you, and to whichever AI you already use. Free forever.",
+      "One binary plus the two surfaces your AI agent reaches it through. kapi holds your project's context and answers what applies here — to your checks, to you, and to whichever AI you already use. Free forever.",
     link: "/kapi/overview",
     linkText: "Use kapi",
   },
@@ -118,19 +115,19 @@ const NeokapiFeatures: ProductItem[] = [
   {
     title: "Your project's context",
     description:
-      "A legal notice is not a help article. kapi holds the terms, the voice and the rules your project actually goes by, resolves what applies to a given piece of content, and serves that answer to your checks, to you, and to your AI assistant.",
+      "A legal notice is not a help article. kapi holds the terms, the voice and the rules your project goes by, and answers what applies to a given piece of content — the same answer for your checks, your AI agent, and you.",
     link: "/kapi/overview",
     linkText: "How it works",
   },
   {
-    title: "Edit it — you or your AI",
+    title: "Edit it in place",
     description:
-      "Rewrite the text in place with every tag and placeholder intact, and check it against the context that holds there — like tests for AI output, with a pass/fail gate. Loop with your assistant until it passes, then ship.",
+      "Rewrite the text with every tag and placeholder intact, then check it against the context that holds there — tests for AI output, with a pass/fail gate. Iterate until it passes, then ship.",
     link: "/framework/checks",
     linkText: "Checks",
   },
   {
-    title: "Every language — and you can trust it",
+    title: "Every language, gated",
     description:
       "One command — kapi up — catches every language up to its ship gates and parks what needs a person. You review, edit, and approve in the desktop Review surface; approvals stick, and only what changed is re-done. The gate check runs in CI.",
     link: "/kapi/get-started/add-languages",
@@ -146,7 +143,7 @@ const NeokapiFeatures: ProductItem[] = [
   {
     title: "Open source, headless",
     description:
-      "Open source, Apache-2.0, written in Go. Format-agnostic, agent-drivable, headless: a content layer you or your AI can drive.",
+      "Open source, Apache-2.0, written in Go. Format-agnostic and headless — a content layer a person or an agent can drive.",
     link: "/framework/architecture",
     linkText: "Architecture",
   },
@@ -169,10 +166,9 @@ function HomepageFeatures() {
     <section className={styles.features}>
       <div className="container">
         <div className="text--center margin-bottom--lg">
-          <Heading as="h2">One context, every file</Heading>
+          <Heading as="h2">Parse it, check it, write it back</Heading>
           <p className={styles.sectionSubtitle}>
-            Parse it, resolve what applies to it, check it, write it back — the same engine, end to
-            end, in one language or twenty.
+            One engine, end to end — in one language or twenty.
           </p>
         </div>
         <div className="row margin-bottom--xl">
@@ -181,7 +177,7 @@ function HomepageFeatures() {
           ))}
         </div>
         <div className="text--center margin-bottom--lg">
-          <Heading as="h2">Use it your way</Heading>
+          <Heading as="h2">Two ways in</Heading>
           <p className={styles.sectionSubtitle}>
             neokapi is a Go framework. Use it directly as a library, or through{" "}
             <strong>kapi</strong> — the CLI and desktop app built on it.
@@ -233,7 +229,7 @@ export default function Home() {
   return (
     <Layout
       title={siteConfig.title}
-      description="An open-source, format-aware content engine in Go. Parse any format, resolve the context that applies to the content inside it, edit and check it — you or your AI agent — and write it back byte-for-byte. The same engine makes that content work in every language."
+      description="An open-source, format-aware content engine in Go. It holds a project's content context — its terms, voice and rules — and applies it inside real files: any format in, the original back byte-for-byte, in one language or twenty."
     >
       <StructuredData />
       <HomepageHeader />
