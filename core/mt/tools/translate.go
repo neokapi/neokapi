@@ -43,7 +43,20 @@ type MTTranslateConfig struct {
 	// APIKey is the primary credential for keyed MT providers. Resolved from
 	// the keychain by the CLI credential preprocessor, or set inline.
 	APIKey string `json:"apiKey,omitempty"          schema:"title=API Key,description=API key for the MT provider,group=provider,widget=password"`
-	// BaseURL overrides the provider API endpoint (primarily for tests).
+	// BaseURL is the endpoint the provider is called at, for a self-hosted or
+	// private-cloud deployment.
+	//
+	// It is HOST-OWNED, not recipe-settable. `schema:"-"` keeps it off the CLI
+	// and the form, but `schema` tags have no bearing on what a step's config:
+	// map can reach — core/schema.ApplyConfig is a json round-trip, so the json
+	// tag alone decides. What actually keeps a recipe out of it is
+	// host/credentials.ResolveCredentials, which clears this key on the way in
+	// and re-sets it only from a resolved credential's own base_url. The json
+	// tag stays so that host-resolved value can bind.
+	//
+	// The endpoint and the key sent to it are one decision: they are configured
+	// together with `kapi credentials add --base-url`, and neither is read from
+	// a committable recipe.
 	BaseURL string `json:"baseURL,omitempty"         schema:"-"`
 
 	// ToolName, when set, fixes the reported tool name
