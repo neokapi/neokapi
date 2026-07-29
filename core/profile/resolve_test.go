@@ -349,6 +349,17 @@ func TestResolveProfileFromContext(t *testing.T) {
 		},
 	}
 
+	// A profile the caller loaded itself — what a kapi recipe binds, since its
+	// `profiles:` may name a profile file or a starter pack rather than a store
+	// row. It enters at the collection tier.
+	loaded := &VoiceProfile{
+		ID: "recipe-voice", Name: "Recipe Voice", Tone: ToneProfile{Formality: "formal"},
+		Channels: map[string]ChannelOverride{
+			"docs":  {Tone: &ToneProfile{Formality: "technical"}},
+			"email": {Tone: &ToneProfile{Formality: "casual"}},
+		},
+	}
+
 	tests := []struct {
 		name          string
 		rc            ResolveContext
@@ -360,6 +371,51 @@ func TestResolveProfileFromContext(t *testing.T) {
 			name:    "no bindings returns nil",
 			rc:      ResolveContext{},
 			wantNil: true,
+		},
+		{
+			name:          "a loaded collection profile is the collection tier",
+			rc:            ResolveContext{CollectionProfile: loaded},
+			wantName:      "Recipe Voice",
+			wantFormality: "formal",
+		},
+		{
+			name: "a loaded collection profile overrides stream, project and workspace",
+			rc: ResolveContext{
+				CollectionProfile:  loaded,
+				StreamProperties:   map[string]string{PropertyProfileID: "stream-exp"},
+				ProjectProperties:  map[string]string{PropertyProfileID: "proj-voice"},
+				WorkspaceProfileID: "ws-default",
+			},
+			wantName:      "Recipe Voice",
+			wantFormality: "formal",
+		},
+		{
+			name: "explicit overrides a loaded collection profile",
+			rc: ResolveContext{
+				ExplicitProfileID: "explicit",
+				CollectionProfile: loaded,
+			},
+			wantName:      "Explicit",
+			wantFormality: "formal",
+		},
+		{
+			name: "a channel bound at the collection tier applies to a loaded profile",
+			rc: ResolveContext{
+				CollectionProfile: loaded,
+				CollectionConfig:  map[string]string{PropertyChannel: "docs"},
+			},
+			wantName:      "Recipe Voice",
+			wantFormality: "technical",
+		},
+		{
+			name: "an explicit channel overrides the bound one",
+			rc: ResolveContext{
+				CollectionProfile: loaded,
+				CollectionConfig:  map[string]string{PropertyChannel: "docs"},
+				Channel:           "email",
+			},
+			wantName:      "Recipe Voice",
+			wantFormality: "casual",
 		},
 		{
 			name:          "workspace default",
@@ -444,6 +500,27 @@ func TestResolveProfileFromContext(t *testing.T) {
 			assert.Equal(t, tt.wantFormality, profile.Tone.Formality)
 		})
 	}
+}
+
+// TestResolveProfileFromContext_NoStore covers the caller whose tiers are all
+// already-loaded profiles: it passes no store, which resolves fine — until a
+// tier binds an id, which then has nowhere to come from. Reporting that beats
+// returning nil, which would read as "nothing is bound" and leave the content
+// silently ungoverned.
+func TestResolveProfileFromContext_NoStore(t *testing.T) {
+	loaded := &VoiceProfile{ID: "recipe-voice", Name: "Recipe Voice"}
+
+	profile, err := ResolveProfileFromContext(t.Context(),
+		ResolveContext{CollectionProfile: loaded}, nil)
+	require.NoError(t, err)
+	require.NotNil(t, profile)
+	assert.Equal(t, "Recipe Voice", profile.Name)
+
+	_, err = ResolveProfileFromContext(t.Context(),
+		ResolveContext{WorkspaceProfileID: "ws-default"}, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"ws-default"`)
+	assert.Contains(t, err.Error(), "no brand store")
 }
 
 func TestStoreProfileResolver(t *testing.T) {

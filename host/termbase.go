@@ -41,7 +41,7 @@ func (a *App) ResolveTermsCmdPath(cmd Command) (string, error) {
 	if name != "" || file != "" || local {
 		return resolveResourcePath(cmd, "terms", "terms.db")
 	}
-	if p, err := a.resolveProjectTermsPath(cmd); err == nil && p != "" {
+	if p, err := a.resolveProjectTermsPath(cmd, ""); err == nil && p != "" {
 		return p, nil
 	}
 	return resolveResourcePath(cmd, "terms", "terms.db")

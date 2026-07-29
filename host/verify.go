@@ -445,14 +445,14 @@ func unboundGate(gate, binding, flag string) verifyGateResult {
 // itself uses (resolveProjectTermsPath / resolveProjectTermsSourcePath),
 // so "bound" means the same thing here and there.
 func (a *App) projectTermsBound(cmd Command) (bool, error) {
-	tbPath, err := a.resolveProjectTermsPath(cmd)
+	tbPath, err := a.resolveProjectTermsPath(cmd, "")
 	if err != nil {
 		return false, err
 	}
 	if tbPath != "" {
 		return true, nil
 	}
-	srcPath, err := a.resolveProjectTermsSourcePath(cmd)
+	srcPath, err := a.resolveProjectTermsSourcePath(cmd, "")
 	if err != nil {
 		return false, err
 	}
