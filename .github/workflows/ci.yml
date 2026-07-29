@@ -976,6 +976,8 @@ jobs:
         run: ./scripts/check-reference-provenance.sh
       - name: Guard — publishable packages declare a license and ship its text
         run: ./scripts/check-package-licenses.sh
+      - name: Guard — no compiled executable is tracked in git
+        run: ./scripts/check-tracked-binaries.sh
 
       # gofmt needs a toolchain, but no modules — gofmt is purely syntactic, so
       # this is a bare setup-go with the cache off and adds ~10s.

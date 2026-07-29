@@ -67,7 +67,8 @@ checked with `GOWORK=off` builds per module plus `make audit-modules`.
 This repo dogfoods kapi. A `kapi.yaml` recipe at the repo root is driven by the
 **system-installed** kapi + plugins (real `kapi-bowrain`, real keychain auth,
 real server), and it is auto-discovered by a git-style **upward walk** from any
-cwd inside the tree (`core/project.ResolveLayout` → `cli.ResolveProjectPath`).
+cwd inside the tree (`core/project.ResolveLayout` → `host.ResolveProjectPath`,
+re-exported as `cli.ResolveProjectPath`).
 
 **Every in-repo kapi invocation that is not the dogfood workflow must isolate
 itself**, or it will silently bind to — and act on — the dogfood project. Set on
