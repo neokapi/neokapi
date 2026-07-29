@@ -271,10 +271,14 @@ func TestDockerSandboxContainerIsConfined(t *testing.T) {
 	for _, language := range []string{"python", "node", "bash"} {
 		t.Run(language, func(t *testing.T) {
 			var got containerCreateRequest
+			var decodeErr error
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("/v1.43/containers/create", func(w http.ResponseWriter, r *http.Request) {
-				require.NoError(t, json.NewDecoder(r.Body).Decode(&got))
+				// Recorded rather than asserted here: a failed assertion inside
+				// a handler runs on the server's goroutine, where FailNow does
+				// not stop the test. Checked once Execute has returned.
+				decodeErr = json.NewDecoder(r.Body).Decode(&got)
 				w.WriteHeader(http.StatusCreated)
 				_ = json.NewEncoder(w).Encode(map[string]string{"Id": "confined"})
 			})
@@ -301,6 +305,7 @@ func TestDockerSandboxContainerIsConfined(t *testing.T) {
 			sb := newTestSandbox(srv)
 			_, err := sb.Execute(t.Context(), mcpserver.SandboxRequest{Language: language, Code: "x"})
 			require.NoError(t, err)
+			require.NoError(t, decodeErr, "could not read the create request the sandbox sent")
 
 			assert.Equal(t, "65534:65534", got.User, "sandboxed code must not run as the image's default user")
 			assert.Equal(t, []string{"ALL"}, got.HostConfig.CapDrop, "every capability must be dropped")
@@ -322,10 +327,13 @@ func TestDockerSandboxContainerIsConfined(t *testing.T) {
 // unprivileged user that cannot write to it has nowhere to work at all.
 func TestDockerSandboxWorkspaceIsWritableByTheSandboxUser(t *testing.T) {
 	var got containerCreateRequest
+	var decodeErr error
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1.43/containers/create", func(w http.ResponseWriter, r *http.Request) {
-		require.NoError(t, json.NewDecoder(r.Body).Decode(&got))
+		// See the note in TestDockerSandboxContainerIsConfined: asserted after
+		// Execute returns, not on the server's goroutine.
+		decodeErr = json.NewDecoder(r.Body).Decode(&got)
 		w.WriteHeader(http.StatusCreated)
 		_ = json.NewEncoder(w).Encode(map[string]string{"Id": "writable"})
 	})
@@ -352,6 +360,7 @@ func TestDockerSandboxWorkspaceIsWritableByTheSandboxUser(t *testing.T) {
 	sb := newTestSandbox(srv)
 	_, err := sb.Execute(t.Context(), mcpserver.SandboxRequest{Language: "python", Code: "x"})
 	require.NoError(t, err)
+	require.NoError(t, decodeErr, "could not read the create request the sandbox sent")
 
 	assert.Contains(t, got.HostConfig.Tmpfs["/workspace"], "mode=1777")
 }
