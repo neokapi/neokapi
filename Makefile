@@ -544,8 +544,15 @@ ci-build: ## Mirror the CI `build` job: build all three binaries (no fts5) + ass
 	@if cd bowrain && GOWORK=off go list -m all | grep -q 'neokapi/cli'; then echo "bowrain should not depend on cli"; exit 1; fi
 	@if cd kapi && GOWORK=off go list -m all | grep -iE 'wails|labstack/echo|keycloak'; then exit 1; fi
 
+# The plugins/* modules are outside go.work, so nothing in the workspace build
+# would ever notice them drifting. They did: plugins/sat carried a stale
+# golang.org/x/text, which made `GOWORK=off go test ./...` — i.e. the whole of
+# `make test-sat-plugin` — refuse to run with "updates to go.mod needed", and
+# plugins/vision and plugins/pdfium had incomplete go.sum/go.mod. Tidy them here
+# so the module that no job builds still cannot rot.
 ci-tidy: ## Mirror the CI `tidy-check` job: go mod tidy across all modules + fail on drift
-	@for dir in . host cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain/plugin/schema bowrain; do \
+	@for dir in . host cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain/plugin/schema bowrain \
+	            plugins/sat plugins/check plugins/vision plugins/asr plugins/av plugins/pdfium; do \
 	  echo "Checking $$dir..."; \
 	  (cd "$$dir" && go mod tidy); \
 	done
@@ -999,6 +1006,23 @@ test-vision-plugin: ## Run kapi-vision pure-Go tests (protocol + algorithms + mo
 
 test-sat-plugin: ## Run kapi-sat pure-Go tests (protocol + algorithm + cache)
 	cd plugins/sat && GOWORK=off $(GO) test ./...
+
+test-asr-plugin: ## Run kapi-asr pure-Go tests (protocol + whisper model plumbing)
+	cd plugins/asr && GOWORK=off $(GO) test ./...
+
+# The plugin modules that need nothing but a Go toolchain, aggregated so CI has
+# one target to call. Deliberately NOT here:
+#   • pdfium — links libpdfium; see test-pdfium-plugin, which needs the library
+#     on PKG_CONFIG_PATH and the loader path.
+#   • av — ships no test files (only cmd/kapi-av).
+# The -tags onnx suites for vision and sat need a real onnxruntime and stay in
+# the nightly vision-onnx job. Each module is its own go.mod outside go.work,
+# hence GOWORK=off in each recipe.
+test-plugins: ## Run every pure-Go plugin module's tests (sat, check, vision, asr)
+	@$(MAKE) --no-print-directory test-sat-plugin
+	@$(MAKE) --no-print-directory test-check-plugin
+	@$(MAKE) --no-print-directory test-vision-plugin
+	@$(MAKE) --no-print-directory test-asr-plugin
 
 # Package a signed-ready distribution tarball for the HOST platform: builds
 # kapi-sat -tags onnx, bundles the onnxruntime shared lib at lib/<name> beside
@@ -2253,6 +2277,7 @@ help: ## Show this help
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
         fmt vet lint check check-framework check-bowrain check-abs-paths check-lockfile-idempotent check-package-licenses check-gofmt workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
+        test-plugins test-sat-plugin test-check-plugin test-vision-plugin test-asr-plugin test-pdfium-plugin \
         bowrain-desktop-test \
         ci-test-framework ci-test-cli ci-test-kapi ci-test-platform \
         ci-test-bowrain ci-test-kapi-desktop ci-test-bowrain-desktop ci-test-all \

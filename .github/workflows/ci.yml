@@ -35,6 +35,7 @@ jobs:
       i18n_react: ${{ github.event_name == 'push' || steps.filter.outputs.i18n_react }}
       l10n_surfaces: ${{ github.event_name == 'push' || steps.filter.outputs.l10n_surfaces }}
       workflows: ${{ github.event_name == 'push' || steps.filter.outputs.workflows }}
+      plugins: ${{ github.event_name == 'push' || steps.filter.outputs.plugins }}
       # Every operand is compared to 'true' on purpose. GitHub's `||` returns
       # the first TRUTHY operand rather than a boolean, and a non-empty string
       # is truthy — so a bare `steps.filter.outputs.cli` yields the *string*
@@ -92,6 +93,7 @@ jobs:
           check_paths i18n_react '^packages/(kapi-format|i18n-react)/'
           check_paths l10n_surfaces '^bowrain/emails/' '^bowrain/web/landing/' '^bowrain/mailer/' '^l10n/' '^packages/(kapi-format|i18n-react)/' '^kapi\.yaml$'
           check_paths workflows '^\.github/workflows/'
+          check_paths plugins  '^plugins/'
 
   # ── Frontend checks & builds ─────────────────────────────────────────────
   frontend:
@@ -708,6 +710,32 @@ jobs:
           name: coverage-bowrain
           path: coverage/bowrain.out
           retention-days: 1
+
+  # ── Plugin modules ────────────────────────────────────────────────────────
+  # plugins/{sat,check,vision,asr} are separate go.mod modules outside go.work,
+  # so no other job here compiles them, let alone tests them: 15 test files
+  # across four modules ran in no workflow at all. `make test-plugins` needs
+  # nothing but a Go toolchain, so unlike the Postgres-backed lanes this one
+  # belongs on the PR gate, where a break is cheapest to fix.
+  #
+  # Not covered here on purpose: plugins/pdfium links libpdfium, and the
+  # `-tags onnx` suites for vision and sat need a real onnxruntime — those stay
+  # in the nightly vision-onnx / vision-pdf-e2e jobs. plugins/av ships no tests.
+  test-plugins:
+    name: Test (plugins)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.plugins == 'true'
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.0"
+      # No setup-go-modules: that action primes the go.work modules, and these
+      # four are outside it. Each recipe runs GOWORK=off in its own module.
+      - name: Test the pure-Go plugin modules
+        run: make test-plugins
 
   # ── Race pass over changed packages (PR only) ─────────────────────────────
   # The PR test wall deliberately drops -race (Makefile fast profile) and main
