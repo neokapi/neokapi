@@ -94,7 +94,7 @@ func (s *Server) HandleNotificationWebSocket(c echo.Context) error {
 	}
 
 	conn, err := websocket.Accept(c.Response().Writer, c.Request(), &websocket.AcceptOptions{
-		OriginPatterns: []string{"*"},
+		OriginPatterns: s.wsOriginPatterns(c),
 	})
 	if err != nil {
 		return fmt.Errorf("notification-ws: websocket accept: %w", err)

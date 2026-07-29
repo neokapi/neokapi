@@ -124,7 +124,7 @@ func (s *Server) HandleCollabWebSocket(c echo.Context) error {
 	// Upgrade to WebSocket.
 	conn, err := websocket.Accept(c.Response().Writer, c.Request(), &websocket.AcceptOptions{
 		Subprotocols:   []string{"yjs"},
-		OriginPatterns: []string{"*"},
+		OriginPatterns: s.wsOriginPatterns(c),
 	})
 	if err != nil {
 		return fmt.Errorf("collab: websocket accept: %w", err)
