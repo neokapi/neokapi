@@ -877,12 +877,7 @@ func (tb *PostgresStore) queryFuzzyTrigramCandidates(ctx context.Context, normal
 }
 
 func (tb *PostgresStore) queryFuzzyFullScan(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermCandidate, error) {
-	keyLen := len([]rune(normalizedSource))
-	minLen := int(float64(keyLen) * 0.7)
-	maxLen := int(float64(keyLen) * 1.3)
-	if minLen < 0 {
-		minLen = 0
-	}
+	minLen, maxLen := fw.FuzzyLengthWindow(len([]rune(normalizedSource)), opts.MinScore)
 
 	rows, err := tb.db.QueryContext(ctx, `
 		SELECT `+pgTermSelectCols+`

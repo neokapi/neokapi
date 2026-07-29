@@ -17,7 +17,11 @@ package terms_test
 // The fuzzy validity fixtures use identical term TEXT differing only in
 // validity, so the two backends' distinct fuzzy retrieval engines (SQLite FTS5
 // trigram vs Postgres pg_trgm) retrieve the same rows — isolating the shared
-// validity/scoring/dedup fix from cross-engine retrieval nuances. Fixtures set
+// validity/scoring/dedup fix from cross-engine retrieval nuances. The corpus's
+// "Install" terms also clear the fuzzy tier's MinScore against "installations"
+// (a 0.5385 Levenshtein ratio), so the fuzzy cases below expect them: the
+// candidate pool is bounded by terms.FuzzyLengthWindow, which admits exactly
+// what the score gate can keep, on both backends. Fixtures set
 // no ProjectID: the Postgres terms is workspace-scoped and has no project_id
 // column, so project scoping is a SQLite/local concern and is not exercised
 // here.
@@ -297,15 +301,19 @@ func TestTermsParity_ExpectedSets(t *testing.T) {
 			},
 		},
 		{
+			// MinScore 0.5 is low enough to admit the "Install" fixtures too
+			// (LevenshteinRatio("installations", "install") = 0.5385), so this
+			// case pins validity filtering across BOTH texts: the expired and
+			// not-yet copies drop, the always-valid ones stay.
 			name: "fuzzy-validity-now excludes expired and not-yet",
-			want: []string{"c-installation-valid"},
+			want: []string{"c-install-valid", "c-installation-valid"},
 			lookup: func(tb terms.Terminology) ([]terms.TermMatch, error) {
 				return tb.Lookup(ctx, "installations", terms.LookupOptions{SourceLocale: "en", MinScore: 0.5, MatchModes: fuzzy, Scope: &now})
 			},
 		},
 		{
-			name: "fuzzy-no-scope keeps all three",
-			want: []string{"c-installation-expired", "c-installation-future", "c-installation-valid"},
+			name: "fuzzy-no-scope keeps every scoring copy",
+			want: []string{"c-install-expired", "c-install-valid", "c-installation-expired", "c-installation-future", "c-installation-valid"},
 			lookup: func(tb terms.Terminology) ([]terms.TermMatch, error) {
 				return tb.Lookup(ctx, "installations", terms.LookupOptions{SourceLocale: "en", MinScore: 0.5, MatchModes: fuzzy})
 			},
