@@ -58,13 +58,26 @@ The Go side is a multi-module workspace coordinated by `go.work`:
 
 ## Quick start
 
+The build needs ICU development libraries — the SQLite FTS5 ICU tokenizer is
+compiled through cgo:
+
+```bash
+brew bundle                                    # macOS — see Brewfile
+sudo apt-get install libicu-dev pkg-config     # Debian / Ubuntu
+make doctor                                    # report what is still missing
+```
+
 ```bash
 make build              # Build kapi CLI → bin/kapi
 make test               # Run all tests
 make check              # fmt + vet + lint
 
-go test ./core/flow/ -run TestExecutorCancellation -v   # Single test
+go test -tags fts5 ./core/flow/ -run TestExecutorCancellation -v   # Single test
 ```
+
+Prefer `make` over a bare `go build` / `go test`: it passes `-tags fts5` and
+locates Homebrew's ICU, without which `go` reports `no such function: fts5` or
+a bare `[build failed]` that never mentions ICU.
 
 For the bowrain platform (server, desktop app, web app), see [`bowrain/README.md`](bowrain/README.md).
 

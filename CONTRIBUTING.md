@@ -14,6 +14,23 @@ root, plus a pnpm workspace for the frontend packages. The framework
 mechanisms rather than direct imports. See [`CLAUDE.md`](CLAUDE.md) for the
 module map.
 
+## Prerequisites
+
+Beyond a Go toolchain and Node, the build needs **ICU development libraries**:
+the SQLite FTS5 ICU tokenizer is compiled through cgo, so content memory and
+terms do not build without them.
+
+```bash
+brew bundle                                    # macOS — see Brewfile
+sudo apt-get install libicu-dev pkg-config     # Debian / Ubuntu
+make doctor                                    # report what is still missing
+```
+
+`make doctor` is read-only: it checks Go, pkg-config, ICU (through pkg-config,
+the same way the cgo build looks for it), Node and `vp`, and reports the install
+command for anything absent. Run it first if a build fails in a way that does
+not name a cause.
+
 ## Building and testing
 
 ```bash
@@ -24,9 +41,19 @@ make check-gofmt # Guard: every tracked .go file is gofmt-clean (CI gates on thi
 make pre-push    # Run the checks relevant to your changes (mirrors CI)
 ```
 
-Run a single test with `go test ./core/flow/ -run TestName -v`. For the
-frontend packages, use `vp` (viteplus) rather than `npx` — e.g.
+**Use `make`, not a bare `go test ./...`.** The Makefile passes `-tags fts5`
+and puts Homebrew's ICU on `PKG_CONFIG_PATH`; without those, `go` fails with
+`no such function: fts5` at runtime, or a bare `[build failed]` that never
+mentions ICU. `make help` is the catalog of targets.
+
+Run a single test with `go test -tags fts5 ./core/flow/ -run TestName -v`. For
+the frontend packages, use `vp` (viteplus) rather than `npx` — e.g.
 `vp check --fix` before committing.
+
+Some suites need a PostgreSQL. They skip themselves when neither Docker nor
+`BOWRAIN_TEST_POSTGRES_URL` is available, so they are never a blocker locally;
+with Docker running, `make test-integration` exercises the cross-store
+(SQLite/Postgres) parity lane.
 
 A fresh clone in the conventional layout needs no environment at all. A few
 build and audit targets do reach outside this repository — sibling repos and
