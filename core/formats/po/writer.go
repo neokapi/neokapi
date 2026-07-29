@@ -218,7 +218,7 @@ func (w *Writer) writeBlockAsMsgstr(blocks map[string]*model.Block, refID string
 	// statement of it and stands unconditionally: blanking a translation the file
 	// arrived with is the worst of the available answers.
 	if raw, ok := block.Properties[propRawMsgstr]; ok && raw != "" {
-		if !known || w.parseRawMsgstrValue(raw) == text {
+		if !known || w.parseRawMsgstrValue(raw) == text.text {
 			_, err := io.WriteString(w.Output, raw)
 			return err
 		}
@@ -246,14 +246,14 @@ func (w *Writer) writeBlockAsMsgstr(blocks map[string]*model.Block, refID string
 // When no locale was recorded either — a monolingual catalog, where the msgstr
 // carries the source and no target is ever attached — the writer knows nothing
 // about the slot and says so, and its caller keeps the captured bytes.
-func (w *Writer) msgstrText(block *model.Block) (text string, known bool) {
+func (w *Writer) msgstrText(block *model.Block) (text poValue, known bool) {
 	if !w.Locale.IsEmpty() {
 		return renderTarget(block, w.Locale), true
 	}
 	if loc, ok := format.VerbatimSlotLocale(block, propRawMsgstr); ok {
 		return renderTarget(block, loc), true
 	}
-	return "", false
+	return poValue{}, false
 }
 
 // parseRawMsgstrValue extracts the decoded string value from raw msgstr field text.
@@ -465,29 +465,34 @@ func (w *Writer) writePluralGroup() error {
 // multi-line via writeMultilineFieldForced. A single embedded newline
 // in an otherwise short value (e.g. `Cannot find file '%s'\n.`) stays
 // on one line as the `\n` escape.
-func (w *Writer) writeMultilineField(field, value string) error {
-	if value == "" || !strings.Contains(value, "\n") {
+func (w *Writer) writeMultilineField(field string, v poValue) error {
+	if v.text == "" || !strings.Contains(v.text, "\n") {
 		nl := w.nl()
-		_, err := fmt.Fprintf(w.Output, "%s %s%s", field, quotePO(value), nl)
+		_, err := fmt.Fprintf(w.Output, "%s %s%s", field, v.quoted(), nl)
 		return err
 	}
 	// Heuristic: only emit multi-line when the value ends with `\n`
 	// (the canonical "this is a multi-line value" marker okapi uses).
-	if !strings.HasSuffix(value, "\n") {
+	if !strings.HasSuffix(v.text, "\n") {
 		nl := w.nl()
-		_, err := fmt.Fprintf(w.Output, "%s %s%s", field, quotePO(value), nl)
+		_, err := fmt.Fprintf(w.Output, "%s %s%s", field, v.quoted(), nl)
 		return err
 	}
-	return w.writeMultilineFieldForced(field, value)
+	return w.writeMultilineFieldForced(field, v)
 }
 
-func (w *Writer) writeMultilineFieldForced(field, value string) error {
+func (w *Writer) writeMultilineFieldForced(field string, v poValue) error {
 	nl := w.nl()
 	if _, err := fmt.Fprintf(w.Output, "%s \"\"%s", field, nl); err != nil {
 		return err
 	}
-	lines := strings.Split(value, "\n")
+	lines := strings.Split(v.text, "\n")
+	// Track each line's offset in v.text so the verbatim ranges follow the
+	// split rather than being lost at it.
+	offset := 0
 	for i, line := range lines {
+		lineValue := v.slice(offset, offset+len(line))
+		offset += len(line) + len("\n")
 		if i == len(lines)-1 && line == "" {
 			continue
 		}
@@ -495,7 +500,7 @@ func (w *Writer) writeMultilineFieldForced(field, value string) error {
 		if i < len(lines)-1 {
 			suffix = "\\n"
 		}
-		if _, err := fmt.Fprintf(w.Output, "\"%s%s\"%s", escapePO(line), suffix, nl); err != nil {
+		if _, err := fmt.Fprintf(w.Output, "\"%s%s\"%s", lineValue.escaped(), suffix, nl); err != nil {
 			return err
 		}
 	}
@@ -509,45 +514,11 @@ func (w *Writer) writeEntryGap() {
 	w.firstEntry = false
 }
 
-// quotePO wraps a string in double quotes with proper escaping.
+// quotePO wraps a plain string in double quotes with proper escaping.
+// Callers holding a rendered field value use poValue.quoted instead, which
+// honours the value's verbatim regions.
 func quotePO(s string) string {
-	return "\"" + escapePO(s) + "\""
-}
-
-// escapePO escapes special characters for PO format. Regions wrapped
-// in escapeSkipStart/escapeSkipEnd sentinels are emitted verbatim — the
-// caller has already prepared them in PO escape form (Ph run Data such
-// as printf specifiers and `\r` / `\t` escape sequences).
-func escapePO(s string) string {
-	if !strings.ContainsRune(s, escapeSkipStart) {
-		return escapePOPlain(s)
-	}
-	var b strings.Builder
-	b.Grow(len(s))
-	for i := 0; i < len(s); {
-		if s[i] == escapeSkipStart {
-			end := strings.IndexByte(s[i+1:], escapeSkipEnd)
-			if end < 0 {
-				// Malformed sentinel pair — fall back to escaping the
-				// remainder so we never emit a literal control byte.
-				b.WriteString(escapePOPlain(s[i+1:]))
-				return b.String()
-			}
-			b.WriteString(s[i+1 : i+1+end])
-			i = i + 1 + end + 1
-			continue
-		}
-		// Escape the next contiguous non-sentinel run in one batch so
-		// ReplaceAll's bulk performance is preserved on long strings.
-		next := strings.IndexByte(s[i:], escapeSkipStart)
-		if next < 0 {
-			b.WriteString(escapePOPlain(s[i:]))
-			return b.String()
-		}
-		b.WriteString(escapePOPlain(s[i : i+next]))
-		i += next
-	}
-	return b.String()
+	return "\"" + escapePOPlain(s) + "\""
 }
 
 func escapePOPlain(s string) string {
@@ -563,54 +534,100 @@ func escapePOPlain(s string) string {
 	return s
 }
 
-// renderSource returns the source text with inline-code Data preserved
-// verbatim (e.g. printf specifiers `%s` extracted by the codeFinder
-// come back out as `%s`, not as their `{equiv}` placeholder form). Ph
-// data is wrapped in escapeSkipStart/escapeSkipEnd sentinels so
-// escapePO emits it untouched — without sentinels, escape sequences
-// like `\r` (a literal backslash + r carried by the Ph data) would
-// have their backslash double-escaped to `\\r` along with TextRun
-// backslashes.
-func renderSource(block *model.Block) string {
-	return renderRunsWithSentinels(block.Source)
+// poValue is a rendered PO field value: the text exactly as it belongs in the
+// document, plus the byte ranges within that text which are already in PO
+// escape form and must reach the output untouched (Ph run Data such as printf
+// specifiers, or a `\r` carried as a literal backslash + r whose backslash
+// must not be doubled along with the surrounding TextRun backslashes).
+//
+// The verbatim ranges are carried BESIDE the text rather than marked inside
+// it. An earlier design bracketed them with '\x01' / '\x02' on the stated
+// assumption that those are "control bytes that never appear in PO source
+// text" — but the reader accepts any byte inside a quoted msgid, so a literal
+// U+0001 in the content was indistinguishable from a marker and was silently
+// deleted on write (#1600). PO reserves no byte value, so neither may the
+// writer: in-band signalling has no safe alphabet here.
+type poValue struct {
+	text string
+	// verbatim holds sorted, non-overlapping, half-open [start, end) ranges
+	// into text.
+	verbatim []poSpan
 }
 
-// renderTarget mirrors renderSource for a target locale. Returns the
-// empty string if the block has no target for the given locale (PO is
-// bilingual — untranslated entries keep an empty msgstr rather than
-// falling back to source text).
-func renderTarget(block *model.Block, locale model.LocaleID) string {
+// poSpan is a half-open [start, end) byte range of a poValue's text.
+type poSpan struct{ start, end int }
+
+// quoted renders the value as a quoted PO string literal.
+func (v poValue) quoted() string { return "\"" + v.escaped() + "\"" }
+
+// escaped applies PO escaping to everything outside the verbatim ranges.
+func (v poValue) escaped() string {
+	if len(v.verbatim) == 0 {
+		return escapePOPlain(v.text)
+	}
+	var b strings.Builder
+	b.Grow(len(v.text))
+	pos := 0
+	for _, sp := range v.verbatim {
+		b.WriteString(escapePOPlain(v.text[pos:sp.start]))
+		b.WriteString(v.text[sp.start:sp.end])
+		pos = sp.end
+	}
+	b.WriteString(escapePOPlain(v.text[pos:]))
+	return b.String()
+}
+
+// slice returns the sub-value covering text[from:to], with the verbatim ranges
+// clipped to that window and rebased onto it. A verbatim range that straddles
+// the boundary stays verbatim on both sides.
+func (v poValue) slice(from, to int) poValue {
+	out := poValue{text: v.text[from:to]}
+	for _, sp := range v.verbatim {
+		start, end := max(sp.start, from), min(sp.end, to)
+		if start < end {
+			out.verbatim = append(out.verbatim, poSpan{start - from, end - from})
+		}
+	}
+	return out
+}
+
+// renderSource returns the source text with inline-code Data preserved
+// verbatim (e.g. printf specifiers `%s` extracted by the codeFinder come back
+// out as `%s`, not as their `{equiv}` placeholder form).
+func renderSource(block *model.Block) poValue {
+	return renderRuns(block.Source)
+}
+
+// renderTarget mirrors renderSource for a target locale. Returns the zero
+// value if the block has no target for the given locale (PO is bilingual —
+// untranslated entries keep an empty msgstr rather than falling back to source
+// text).
+func renderTarget(block *model.Block, locale model.LocaleID) poValue {
 	if locale == "" {
-		return ""
+		return poValue{}
 	}
 	t := block.Target(locale)
 	if t == nil {
-		return ""
+		return poValue{}
 	}
-	return renderRunsWithSentinels(t.Runs)
+	return renderRuns(t.Runs)
 }
 
-// escapeSkipStart and escapeSkipEnd bracket regions of text that
-// escapePO must emit verbatim (Ph run Data is already in PO escape
-// form). Use ASCII control bytes that never appear in PO source text.
-const (
-	escapeSkipStart = '\x01'
-	escapeSkipEnd   = '\x02'
-)
-
-// renderSegmentsWithSentinels walks a segment slice, emitting TextRun
-// content verbatim (newlines preserved so writeMultilineField can split
-// on them) and Ph Data wrapped in escape-skip sentinels. Other run
-// shapes fall back to RenderRunsWithData semantics on a single-run
-// slice so any future run types stay handled.
-func renderRunsWithSentinels(runs []model.Run) string {
+// renderRuns walks a run slice, emitting TextRun content verbatim (newlines
+// preserved so writeMultilineField can split on them) and recording each Ph
+// Data range as verbatim. Other run shapes fall back to RenderRunsWithData
+// semantics on a single-run slice so any future run types stay handled.
+func renderRuns(runs []model.Run) poValue {
+	var v poValue
 	var buf strings.Builder
 	for _, run := range runs {
 		switch {
 		case run.Ph != nil:
-			buf.WriteByte(escapeSkipStart)
+			start := buf.Len()
 			buf.WriteString(run.Ph.Data)
-			buf.WriteByte(escapeSkipEnd)
+			if buf.Len() > start {
+				v.verbatim = append(v.verbatim, poSpan{start, buf.Len()})
+			}
 		case run.Text != nil:
 			buf.WriteString(run.Text.Text)
 		case run.PcOpen != nil || run.PcClose != nil:
@@ -624,5 +641,6 @@ func renderRunsWithSentinels(runs []model.Run) string {
 			buf.WriteString(model.RenderRunsWithData([]model.Run{run}))
 		}
 	}
-	return buf.String()
+	v.text = buf.String()
+	return v
 }
