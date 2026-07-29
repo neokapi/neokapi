@@ -230,7 +230,7 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-vocabulary check-package-licenses check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-vocabulary check-reference-provenance check-package-licenses check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) -C bowrain lint
 
@@ -239,6 +239,9 @@ check-abs-paths: ## Guard: no absolute home path (/Users/…, /home/…, C:\User
 
 check-vocabulary: ## Guard: no retired framing (brand memory, brand-first, …) in user-facing prose
 	@./scripts/check-vocabulary.sh
+
+check-reference-provenance: ## Guard: the committed reference dataset comes only from this repo (no okapi-bridge)
+	@./scripts/check-reference-provenance.sh
 
 check-lockfile-idempotent: ## Guard: re-resolving pnpm-lock.yaml with the pinned pnpm is a no-op
 	@./scripts/check-lockfile-idempotent.sh
@@ -1932,16 +1935,28 @@ harness-videos-staged: ## Full fresh pass: stack up → seed → record, then na
 
 # ── Generate (scripts at root) ──────────────────────────────────────────────
 
-# okapi-bridge plugin dir feeding the reference dataset. Override with
-# BRIDGE_PLUGIN=/path. Falls back to built-in-only when the dir is absent
-# (the generator warns rather than fails).
+# okapi-bridge plugin dir feeding the reference dataset.
+#
+# Bridge inclusion is OPT-IN (WITH_BRIDGE=1), not auto-detected, because the
+# generated dataset is COMMITTED. Auto-detection meant the output depended on
+# whether the developer happened to have a sibling okapi-bridge checkout built:
+# with one, `make generate-reference-docs` wrote ~93 formats and ~156 tools
+# instead of the built-in ~38/34, and `make generate-reference-pages` turned
+# that into ~180 extra committed MDX pages — enough to run the docs site's
+# Docusaurus build out of heap on CI, which is exactly how this was found.
+#
+# The committed dataset must be reproducible from this repo alone. That is the
+# same principle as the kapi dogfood isolation contract above: in-repo tooling
+# does not silently consume whatever the developer has installed or checked out
+# next door.
 BRIDGE_PLUGIN ?= $(NEOKAPI_WORKSPACE_DIR)/okapi-bridge/dist/plugin
+BRIDGE_ARG     = $(if $(WITH_BRIDGE),$(if $(wildcard $(BRIDGE_PLUGIN)),-bridge $(BRIDGE_PLUGIN),$(error WITH_BRIDGE=1 but no bridge plugin at $(BRIDGE_PLUGIN))),)
 
-generate-reference-docs: ## Generate the unified format + tool reference dataset (built-in + okapi-bridge) → packages/reference-data/data
-	$(GO) run ./scripts/gen-refs $(if $(wildcard $(BRIDGE_PLUGIN)),-bridge $(BRIDGE_PLUGIN),)
+generate-reference-docs: ## Generate the reference dataset from THIS repo (built-in + in-repo plugins) → packages/reference-data/data. WITH_BRIDGE=1 adds okapi-bridge (not committed).
+	$(GO) run ./scripts/gen-refs $(BRIDGE_ARG)
 
-check-reference-docs: ## Drift gate: fail if the committed reference dataset is stale vs. source (gates the built-in subset; absent okapi-bridge is fine)
-	$(GO) run ./scripts/gen-refs -check $(if $(wildcard $(BRIDGE_PLUGIN)),-bridge $(BRIDGE_PLUGIN),)
+check-reference-docs: ## Drift gate: fail if the committed reference dataset is stale vs. source (gates the built-in subset)
+	$(GO) run ./scripts/gen-refs -check $(BRIDGE_ARG)
 
 # Superseded by generate-reference-docs; kept as an alias for existing callers.
 generate-format-docs: generate-reference-docs

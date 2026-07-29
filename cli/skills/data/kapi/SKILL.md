@@ -29,14 +29,20 @@ Two jobs follow from that, and they are the ones to reach for first:
   They review a draft instead of authoring one. See
   [references/context-discovery.md](references/context-discovery.md).
 - **Context retrieval** — before you write or rewrite anything, ask what applies
-  *here*. `brand_guide` renders the voice guidance to put in context,
-  `term_lookup` answers what a term should be, and `tm_search` finds wording
-  already approved for this project. Retrieve first, then write; a check that
-  fails afterwards is the expensive way to learn the same fact.
+  *here*. One question, one call:
 
-  These are three separate asks, one asset each — there is no single "what
-  applies to this file" call yet. Until there is, make the calls that matter for
-  the content in front of you rather than assuming one of them covers the rest.
+  ```bash
+  kapi context search widget          # what do we call this, is it discouraged
+  kapi context search "sign in" --json
+  ```
+
+  Over MCP the same question is `context_search`. It answers from every store
+  the project binds — terminology and previously-approved wording — so you do
+  not need to know which one holds the answer, and it says plainly when a store
+  was unreachable rather than returning a confident empty result.
+
+  Retrieve first, then write; a check that fails afterwards is the expensive way
+  to learn the same fact.
 
 A rule can be scoped, so *what applies here* has a real answer that differs by
 file and by surface — the old name may be permitted in the migration guide and
