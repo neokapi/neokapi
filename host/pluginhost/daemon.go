@@ -557,7 +557,7 @@ func (p *DaemonPool) spawn(ctx context.Context, plugin *Plugin) (*DaemonClient, 
 	// exit), and we need the daemon to keep running until the pool's
 	// own Shutdown path tears it down.
 	cmd := exec.Command(plugin.BinaryPath, "daemon") //nolint:noctx // long-lived daemon subprocess
-	cmd.Env = append(os.Environ(),
+	cmd.Env = append(pluginEnviron(),
 		"KAPI_PLUGIN_DIR="+plugin.Dir,
 		"KAPI_PLUGIN_NAME="+plugin.Name(),
 		"KAPI_PLUGIN_VERSION="+plugin.Version(),

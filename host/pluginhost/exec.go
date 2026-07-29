@@ -89,8 +89,9 @@ func execPlugin(ctx context.Context, p *Plugin, args []string, capture bool) ([]
 	}
 
 	// Pass useful context to the plugin via env. The plugin's argv already
-	// carries the user's intent; env carries kapi-side state.
-	env := os.Environ()
+	// carries the user's intent; env carries kapi-side state — minus the
+	// provider API keys, which are the host's to spend (see env.go).
+	env := pluginEnviron()
 	env = append(env, "KAPI_PLUGIN_DIR="+p.Dir)
 	env = append(env, "KAPI_PLUGIN_NAME="+p.Name())
 	env = append(env, "KAPI_PLUGIN_VERSION="+p.Version())
