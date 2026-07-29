@@ -1,5 +1,5 @@
 id: kapi-desktop-projects
-title: Opprett og håndter et prosjekt
+title: Create and manage a project
 subtitle: Set up a multilingual content project in Kapi Desktop.
 tagline: the visual companion to the kapi command line
 kind: use-case
@@ -25,17 +25,20 @@ narration:
     kind: desktop
     beat: intro
     text: >-
-      Den åpner til en startskjerm. Et nytt prosjekt starter rett her.
+      It opens to a home screen. A new project starts right here.
+
   - id: new-project
     kind: desktop
     beat: new-project
-    caption: Nytt prosjekt spør bare om et navn.
+    caption: New Project asks only for a name.
     text: >-
-      Nytt prosjekt spør bare om et navn — her: Acme Help Center. Kapi utleder mappen og resten fra det.
+      New Project asks only for a name — here, the Acme Help Center. Kapi
+      derives the folder and the rest from it.
+
   - id: templates
     kind: desktop
     beat: templates
-    caption: Eller start fra KapiMart-eksemplet.
+    caption: Or start from the KapiMart sample.
     text: >-
       Or start from KapiMart — a ready-made sample project with content
       collections, target languages, and a stocked content memory.
@@ -52,9 +55,11 @@ narration:
   - id: project-settings
     kind: desktop
     beat: project-settings
-    caption: "Prosjektinnstillinger: språk, tillegg, prosessering."
+    caption: "Project Settings: languages, plugins, processing."
     text: >-
-      Prosjektinnstillinger er der du velger kildespråket og språkene du oversetter til, ved siden av tillegg og prosesseringsvalg.
+      Project Settings is where you choose the source language and the locales
+      you're translating into, alongside plugins and processing options.
+
   - id: content
     kind: desktop
     beat: content

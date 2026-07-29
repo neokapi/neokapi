@@ -19,22 +19,26 @@ narration:
   - id: title
     kind: title
     text: >-
-      Kapi Desktop samler all konfigurasjon på ett sted.
+      Kapi Desktop keeps all its configuration in one place.
+
   - id: intro
     kind: desktop
     beat: intro
     text: >-
-      Fra startskjermen åpner tannhjulet nederst Innstillinger.
+      From the home screen, the gear at the bottom opens Settings.
+
   - id: open-settings
     kind: desktop
     beat: open-settings
-    caption: Innstillinger — utseende, legitimasjon, tillegg, språk.
+    caption: Settings — appearance, credentials, plugins, locales.
     text: >-
-      Innstillinger samler utseende, KI-legitimasjon, tillegg og språk under ett tak.
+      Settings gathers appearance, AI credentials, plugins and locales under one
+      roof.
+
   - id: general
     kind: desktop
     beat: general
-    caption: Utseendet følger systemet, eller låses til lyst eller mørkt.
+    caption: Appearance follows the system, or pin light or dark.
     text: >-
       Appearance follows your system, or you can pin light or dark. The
       interface itself can even run in pseudo-English for language testing.
@@ -42,16 +46,21 @@ narration:
   - id: credentials
     kind: desktop
     beat: credentials
-    caption: KI-legitimasjon — nøklene ligger i nøkkelringen til operativsystemet.
+    caption: AI Credentials — keys live in the OS keychain.
     text: >-
-      KI-legitimasjon holder leverandørene Kapi oversetter med — Anthropic, OpenAI, Gemini. Nøklene ligger i operativsystemets nøkkelring, aldri på disk.
+      AI Credentials hold the providers Kapi translates with — Anthropic,
+      OpenAI, Gemini. The keys live in your operating system's keychain, never
+      on disk.
+
   - id: plugins
     kind: desktop
     beat: plugins
-    caption: Tillegg utvider formatene og verktøyene som er tilgjengelige.
+    caption: Plugins extend the formats and tools available.
     text: >-
-      Og tillegg utvider Kapi — med formater, koblinger og verktøy utover det innebygde.
+      And plugins extend Kapi — adding formats, connectors and tools beyond the
+      built-in set.
+
   - id: outro
     kind: outro
     text: >-
-      Utseende, leverandører, tillegg — konfigurert én gang, brukt overalt.
+      Appearance, providers, plugins — configured once, used everywhere.
