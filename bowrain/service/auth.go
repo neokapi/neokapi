@@ -459,6 +459,22 @@ func (s *AuthService) ValidateAPIToken(ctx context.Context, plaintext string) (*
 }
 
 // AcceptInvite adds a user to the workspace if the invite is valid.
+//
+// An invite carries a role, so possession of the code decides what the accepting
+// user becomes — up to owner. Two invite shapes are supported, and the
+// difference is exactly whether Email is set:
+//
+//   - An address-bound invite (Email set) is an invitation to one person. The
+//     accepting user's account email must match it; the code alone is not
+//     sufficient, so a link that leaks — forwarded, in a mailbox someone else
+//     reads, in a link preview — cannot be redeemed by whoever holds it.
+//   - A link invite (Email empty) is deliberately bearer-style: it is how a
+//     workspace shares one join URL with several people, which is why MaxUses
+//     is a first-class field. Its only gates are expiry and the use count.
+//
+// Creating either is already restricted to admins and owners
+// (HandleCreateInvite), so the bearer shape stays an explicit choice by someone
+// who could have added the member directly.
 func (s *AuthService) AcceptInvite(ctx context.Context, code, userID string) error {
 	inv, err := s.store.GetInviteByCode(ctx, code)
 	if err != nil {
@@ -471,6 +487,20 @@ func (s *AuthService) AcceptInvite(ctx context.Context, code, userID string) err
 
 	if inv.MaxUses > 0 && inv.UseCount >= inv.MaxUses {
 		return errors.New("invite has been fully used")
+	}
+
+	// Address-bound invite: the redeeming identity must be the invited one.
+	if invEmail := strings.TrimSpace(inv.Email); invEmail != "" {
+		u, err := s.store.GetUser(ctx, userID)
+		if err != nil {
+			return errors.New("invite is for a different account")
+		}
+		if !strings.EqualFold(strings.TrimSpace(u.Email), invEmail) {
+			// Deliberately does not echo the invited address: the caller has
+			// only proved they hold the code, which is not grounds to learn who
+			// it was sent to.
+			return errors.New("invite is for a different account")
+		}
 	}
 
 	// If the user is already a member, treat as success (idempotent).
